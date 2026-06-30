@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "google/protobuf/struct.proto";
+
+// ProviderKind distinguishes a source from a sink in the catalog.
+enum ProviderKind {
+  PROVIDER_KIND_UNSPECIFIED = 0;
+  PROVIDER_KIND_SOURCE = 1;
+  PROVIDER_KIND_SINK = 2;
+}
+
+// FieldType mirrors pkg.FieldType; drives UI form controls for config fields.
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  FIELD_TYPE_STRING = 1;
+  FIELD_TYPE_INT = 2;
+  FIELD_TYPE_BOOL = 3;
+  FIELD_TYPE_SECRET = 4;
+  FIELD_TYPE_DURATION = 5;
+  FIELD_TYPE_ENUM = 6;
+  FIELD_TYPE_OBJECT = 7;
+}
+
+// ReplicationMode mirrors pkg.ReplicationMode.
+enum ReplicationMode {
+  REPLICATION_MODE_UNSPECIFIED = 0;
+  REPLICATION_MODE_FULL = 1;
+  REPLICATION_MODE_INCREMENTAL = 2;
+  REPLICATION_MODE_CDC = 3;
+}
+
+enum Operation {
+  OPERATION_UNSPECIFIED = 0;
+  OPERATION_INSERT = 1;
+  OPERATION_UPDATE = 2;
+  OPERATION_DELETE = 3;
+}
+
+enum IngestionType {
+  INGESTION_TYPE_UNSPECIFIED = 0;
+  INGESTION_TYPE_SNAPSHOT_REPLACE = 1;
+  INGESTION_TYPE_SNAPSHOT_UPSERT = 2;
+  INGESTION_TYPE_APPEND = 3;
+  INGESTION_TYPE_UPSERT = 4;
+  INGESTION_TYPE_DELETE = 5;
+  INGESTION_TYPE_CDC = 6;
+}
+
+enum WriteMode {
+  WRITE_MODE_UNSPECIFIED = 0;
+  WRITE_MODE_APPEND = 1;
+  WRITE_MODE_REPLACE = 2;
+  WRITE_MODE_UPSERT = 3;
+  WRITE_MODE_DELETE = 4;
+  WRITE_MODE_MERGE = 5;
+}
+
+enum WriteAtomicity {
+  WRITE_ATOMICITY_UNSPECIFIED = 0;
+  WRITE_ATOMICITY_BATCH = 1;
+  WRITE_ATOMICITY_RESOURCE = 2;
+  WRITE_ATOMICITY_RUN = 3;
+}
+
+enum CheckpointPolicy {
+  CHECKPOINT_POLICY_UNSPECIFIED = 0;
+  CHECKPOINT_POLICY_NONE = 1;
+  CHECKPOINT_POLICY_AFTER_BATCH = 2;
+  CHECKPOINT_POLICY_AFTER_COMMIT = 3;
+}
+
+// ConfigField mirrors pkg.ConfigField.
+message ConfigField {
+  string name = 1;
+  FieldType type = 2;
+  bool required = 3;
+  google.protobuf.Value default = 4;
+  repeated string enum = 5;
+  string help = 6;
+}
+
+// ConfigSchema mirrors pkg.ConfigSchema.
+message ConfigSchema {
+  repeated ConfigField fields = 1;
+}
+
+message WritePolicyCapability {
+  WriteMode mode = 1;
+  bool requires_pk = 2;
+  bool requires_order = 3;
+  repeated Operation accepts_ops = 4;
+  WriteAtomicity atomicity = 5;
+}
+
+message SourcePolicy {
+  ReplicationMode mode = 1;
+  repeated Operation emits_ops = 2;
+  bool ordered = 3;
+  CheckpointPolicy checkpointing = 4;
+}

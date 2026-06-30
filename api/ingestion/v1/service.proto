@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "ingestion/v1/pipelines.proto";
+import "ingestion/v1/providers.proto";
+import "ingestion/v1/runs.proto";
+import "ingestion/v1/secrets.proto";
+
+// IngestionService is the engine-as-a-service surface the pipeline UI drives.
+service IngestionService {
+  // Catalog of registered source/sink providers and their config schemas.
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+
+  // Ephemeral source/sink operations; no persisted state.
+  rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);
+  rpc DiscoverResources(DiscoverResourcesRequest) returns (DiscoverResourcesResponse);
+
+  // Secrets; write-only values referenced by name from configs.
+  rpc PutSecret(PutSecretRequest) returns (PutSecretResponse);
+  rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse);
+
+  // Pipelines; the persisted node graph.
+  rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);
+  rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
+  rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
+  rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
+  rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
+
+  // Runs; compile + submit a pipeline, then list / snapshot / signal.
+  rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc SignalRun(SignalRunRequest) returns (SignalRunResponse);
+
+  // Live progress; server-streams a run's facts with optional snapshot replay.
+  rpc TailRun(TailRunRequest) returns (stream TailRunResponse);
+}

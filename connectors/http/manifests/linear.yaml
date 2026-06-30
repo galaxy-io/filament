@@ -1,0 +1,204 @@
+version: 2
+name: linear
+connection:
+  base_url: https://api.linear.app
+  auth:
+    type: header
+    name: Authorization
+    value: "{{ config.api_key }}"
+resources:
+  - name: teams
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      - { name: id, path: id, type: string }
+      - { name: key, path: key, type: string, nullable: true }
+      - { name: name, path: name, type: string }
+      - { name: created_at, path: createdAt, type: timestamptz, nullable: true }
+      - { name: updated_at, path: updatedAt, type: timestamptz, nullable: true }
+      - { name: raw, path: "$", type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Teams($first: Int!, $after: String) {
+            teams(first: $first, after: $after) {
+              nodes { id key name createdAt updatedAt }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        variables:
+          first: 100
+    response:
+      root: object
+      records_path: data.teams.nodes
+    pagination:
+      type: cursor
+      cursor_path: data.teams.pageInfo.endCursor
+      cursor_param: variables.after
+      inject_into: body
+      has_more_path: data.teams.pageInfo.hasNextPage
+      allow_null_terminates: true
+  - name: users
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      - { name: id, path: id, type: string }
+      - { name: name, path: name, type: string, nullable: true }
+      - { name: display_name, path: displayName, type: string, nullable: true }
+      - { name: email, path: email, type: string, nullable: true }
+      - { name: created_at, path: createdAt, type: timestamptz, nullable: true }
+      - { name: updated_at, path: updatedAt, type: timestamptz, nullable: true }
+      - { name: raw, path: "$", type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Users($first: Int!, $after: String) {
+            users(first: $first, after: $after) {
+              nodes { id name displayName email createdAt updatedAt }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        variables:
+          first: 100
+    response:
+      root: object
+      records_path: data.users.nodes
+    pagination:
+      type: cursor
+      cursor_path: data.users.pageInfo.endCursor
+      cursor_param: variables.after
+      inject_into: body
+      has_more_path: data.users.pageInfo.hasNextPage
+      allow_null_terminates: true
+  - name: projects
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      - { name: id, path: id, type: string }
+      - { name: name, path: name, type: string }
+      - { name: description, path: description, type: string, nullable: true }
+      - { name: url, path: url, type: string, nullable: true }
+      - { name: created_at, path: createdAt, type: timestamptz, nullable: true }
+      - { name: updated_at, path: updatedAt, type: timestamptz, nullable: true }
+      - { name: raw, path: "$", type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Projects($first: Int!, $after: String) {
+            projects(first: $first, after: $after) {
+              nodes { id name description url createdAt updatedAt }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        variables:
+          first: 100
+    response:
+      root: object
+      records_path: data.projects.nodes
+    pagination:
+      type: cursor
+      cursor_path: data.projects.pageInfo.endCursor
+      cursor_param: variables.after
+      inject_into: body
+      has_more_path: data.projects.pageInfo.hasNextPage
+      allow_null_terminates: true
+  - name: issues
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      - { name: id, path: id, type: string }
+      - { name: identifier, path: identifier, type: string, nullable: true }
+      - { name: number, path: number, type: int64, nullable: true }
+      - { name: title, path: title, type: string }
+      - { name: description, path: description, type: string, nullable: true }
+      - { name: priority, path: priority, type: int64, nullable: true }
+      - { name: estimate, path: estimate, type: float64, nullable: true }
+      - { name: url, path: url, type: string, nullable: true }
+      - { name: branch_name, path: branchName, type: string, nullable: true }
+      - { name: created_at, path: createdAt, type: timestamptz, nullable: true }
+      - { name: updated_at, path: updatedAt, type: timestamptz, nullable: true }
+      - { name: completed_at, path: completedAt, type: timestamptz, nullable: true }
+      - { name: archived_at, path: archivedAt, type: timestamptz, nullable: true }
+      - { name: canceled_at, path: canceledAt, type: timestamptz, nullable: true }
+      - { name: team_id, path: team.id, type: string, nullable: true }
+      - { name: team_key, path: team.key, type: string, nullable: true }
+      - name: team
+        type: json
+        nullable: true
+        shape:
+          id: team.id
+          key: team.key
+          name: team.name
+      - { name: state_id, path: state.id, type: string, nullable: true }
+      - name: state
+        type: json
+        nullable: true
+        shape:
+          id: state.id
+          name: state.name
+          type: state.type
+      - { name: assignee_id, path: assignee.id, type: string, nullable: true }
+      - name: assignee
+        type: json
+        nullable: true
+        shape:
+          id: assignee.id
+          name: assignee.name
+          display_name: assignee.displayName
+          email: assignee.email
+      - { name: creator_id, path: creator.id, type: string, nullable: true }
+      - name: creator
+        type: json
+        nullable: true
+        shape:
+          id: creator.id
+          name: creator.name
+          display_name: creator.displayName
+          email: creator.email
+      - { name: project_id, path: project.id, type: string, nullable: true }
+      - name: project
+        type: json
+        nullable: true
+        shape:
+          id: project.id
+          name: project.name
+      - { name: labels, path: labels.nodes, type: json, nullable: true }
+      - { name: raw, path: "$", type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Issues($first: Int!, $after: String) {
+            issues(first: $first, after: $after) {
+              nodes {
+                id identifier number title description priority estimate url branchName
+                createdAt updatedAt completedAt archivedAt canceledAt
+                team { id key name }
+                state { id name type }
+                assignee { id name displayName email }
+                creator { id name displayName email }
+                project { id name }
+                labels(first: 50) { nodes { id name color } }
+              }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        variables:
+          first: 100
+    response:
+      root: object
+      records_path: data.issues.nodes
+    pagination:
+      type: cursor
+      cursor_path: data.issues.pageInfo.endCursor
+      cursor_param: variables.after
+      inject_into: body
+      has_more_path: data.issues.pageInfo.hasNextPage
+      allow_null_terminates: true

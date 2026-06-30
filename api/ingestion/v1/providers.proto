@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "google/protobuf/struct.proto";
+import "ingestion/v1/common.proto";
+
+// Capabilities flattens source and sink capabilities; fields not relevant to a
+// given kind stay false.
+message Capabilities {
+  bool discoverable = 1;
+  bool per_resource_cursor = 2;
+  bool transactional = 3;
+  bool upsertable = 4;
+  bool schematized = 5;
+  repeated WritePolicyCapability write_policies = 6;
+  repeated SourcePolicy source_policies = 7;
+}
+
+// ProviderSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
+message ProviderSpec {
+  string name = 1;
+  string display_name = 2;
+  ProviderKind kind = 3;
+  string version = 4;
+  repeated ReplicationMode modes = 5;
+  ConfigSchema config_schema = 6;
+  Capabilities capabilities = 7;
+}
+
+message ListProvidersRequest {
+  // Filter to one kind; UNSPECIFIED returns both sources and sinks.
+  ProviderKind kind = 1;
+}
+
+message ListProvidersResponse {
+  repeated ProviderSpec providers = 1;
+}
+
+message ValidateConfigRequest {
+  ProviderKind kind = 1;
+  string provider = 2;
+  google.protobuf.Struct config = 3;
+  // live attempts a TestConnection probe if the provider supports it.
+  bool live = 4;
+}
+
+// ValidationError carries a field-keyed validation failure. An empty field means
+// the error applies to the whole config.
+message ValidationError {
+  string field = 1;
+  string message = 2;
+}
+
+message ValidateConfigResponse {
+  bool valid = 1;
+  repeated ValidationError errors = 2;
+}
+
+message DiscoverResourcesRequest {
+  // Source provider only; discovering a sink is not meaningful.
+  string provider = 1;
+  google.protobuf.Struct config = 2;
+  bool refresh = 3;
+}
+
+// Resource mirrors pkg.Resource.
+message Resource {
+  string name = 1;
+  bool selectable = 2;
+  repeated string primary_key = 3;
+  int64 estimated_rows = 4;
+  string selector = 5;
+  string display_name = 7;
+  map<string, string> metadata = 11;
+}
+
+message DiscoverResourcesResponse {
+  repeated Resource resources = 1;
+}

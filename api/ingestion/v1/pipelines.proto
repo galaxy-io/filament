@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "google/protobuf/struct.proto";
+import "ingestion/v1/common.proto";
+
+// PipelineNode is one source or sink on the canvas. secret_refs maps a config
+// field name to the secret ref resolved at run time, keeping secret values out
+// of the stored config.
+message PipelineNode {
+  string id = 1;
+  ProviderKind kind = 2;
+  string provider = 3;
+  google.protobuf.Struct config = 4;
+  map<string, string> secret_refs = 5;
+}
+
+// PipelineEdge routes from a source node to a sink node. An empty resource routes
+// all enabled resources; a named resource is an additive per-resource route.
+message PipelineEdge {
+  string from_node = 1;
+  string resource = 2;
+  string to_node = 3;
+  IngestionType ingestion_type = 4;
+  string selector = 5;
+}
+
+// Pipeline is the persisted node graph. version is an optimistic lock: an update
+// must carry the version it last read.
+message Pipeline {
+  string id = 1;
+  string tenant = 2;
+  string name = 3;
+  repeated PipelineNode nodes = 4;
+  repeated PipelineEdge edges = 5;
+  int64 version = 6;
+}
+
+message CreatePipelineRequest {
+  string tenant = 1;
+  string name = 2;
+  repeated PipelineNode nodes = 3;
+  repeated PipelineEdge edges = 4;
+}
+
+message CreatePipelineResponse {
+  Pipeline pipeline = 1;
+}
+
+message UpdatePipelineRequest {
+  Pipeline pipeline = 1;
+}
+
+message UpdatePipelineResponse {
+  Pipeline pipeline = 1;
+}
+
+message GetPipelineRequest {
+  string id = 1;
+}
+
+message GetPipelineResponse {
+  Pipeline pipeline = 1;
+}
+
+message ListPipelinesRequest {
+  string tenant = 1;
+}
+
+message ListPipelinesResponse {
+  repeated Pipeline pipelines = 1;
+}
+
+message DeletePipelineRequest {
+  string id = 1;
+}
+
+message DeletePipelineResponse {}

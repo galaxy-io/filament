@@ -1,0 +1,16 @@
+.cache/
+
+# Build outputs
+/cmd/ingestiond/ingestiond
+/examples/my-pipeline/my-pipeline
+
+# Local/editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Test and coverage output
+*.test
+coverage.out
+*.prof

@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+// RunStatus mirrors pkg.RunStatus.
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_REQUESTED = 1;
+  RUN_STATUS_RUNNING = 2;
+  RUN_STATUS_COMPLETED = 3;
+  RUN_STATUS_FAILED = 4;
+  RUN_STATUS_CANCELED = 5;
+  RUN_STATUS_PAUSED = 6;
+  RUN_STATUS_PARTIAL = 7;
+}
+
+// Signal mirrors pkg.Signal.
+enum Signal {
+  SIGNAL_UNSPECIFIED = 0;
+  SIGNAL_PAUSE = 1;
+  SIGNAL_RESUME = 2;
+  SIGNAL_CANCEL = 3;
+}
+
+message RunPipelineRequest {
+  string pipeline_id = 1;
+  // client_token salts the idempotency key so a deliberate re-run differs from a
+  // double-click; reusing a token dedupes to the same runs.
+  string client_token = 2;
+}
+
+// RunBinding ties one compiled edge to the run it produced, so the UI can bind a
+// canvas edge to live run progress. edge is a stable key: "from|resource|to".
+message RunBinding {
+  string edge = 1;
+  string run_id = 2;
+}
+
+message RunPipelineResponse {
+  repeated RunBinding runs = 1;
+}
+
+// RunResourceState mirrors pkg.ResourceState (progress per resource).
+message RunResourceState {
+  string resource = 1;
+  bool enabled = 2;
+  RunStatus status = 3;
+  int64 records = 4;
+  int64 bytes = 5;
+  string error = 6;
+}
+
+// RunInfo mirrors pkg.RunState (run-level rollup).
+message RunInfo {
+  string run = 1;
+  string tenant = 2;
+  RunStatus status = 3;
+  int64 records = 4;
+  int64 bytes = 5;
+  string error = 6;
+}
+
+message RunSnapshot {
+  RunInfo run = 1;
+  repeated RunResourceState resources = 2;
+  uint64 at_seq = 3;
+}
+
+message GetRunResponse {
+  RunSnapshot snapshot = 1;
+}
+
+message ListRunsRequest {
+  string tenant = 1;
+  repeated RunStatus status = 2;
+  string source = 3;
+  int32 limit = 4;
+}
+
+message ListRunsResponse {
+  repeated RunInfo runs = 1;
+}
+
+message GetRunRequest {
+  string run_id = 1;
+}
+
+message SignalRunRequest {
+  string run_id = 1;
+  Signal signal = 2;
+}
+
+message SignalRunResponse {}
+
+message TailRunRequest {
+  string tenant = 1;
+  string run_id = 2;
+  // replay first emits events synthesized from the current snapshot (each marked
+  // replay=true) so progress is correct on reconnect, before live facts stream.
+  bool replay = 3;
+}
+
+// RunEventFields mirrors the set fields of pkg.EventFields.
+message RunEventFields {
+  int64 records = 1;
+  int64 bytes = 2;
+  string uri = 3;
+  uint32 crc = 4;
+  string error = 5;
+}
+
+// RunEvent is the pkg.Event envelope forwarded verbatim. type is the event's
+// wire token (e.g. "written", "completed"). replay marks a snapshot-synthesized
+// event rather than a live fact.
+message RunEvent {
+  string type = 1;
+  string tenant = 2;
+  string run = 3;
+  string resource = 4;
+  uint64 seq = 5;
+  int64 at_unix_ms = 6;
+  RunEventFields fields = 7;
+  bool replay = 8;
+}
+
+message TailRunResponse {
+  RunEvent event = 1;
+}

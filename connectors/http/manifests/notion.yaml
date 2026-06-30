@@ -1,0 +1,72 @@
+version: 2
+name: notion
+connection:
+  base_url: https://api.notion.com
+  auth:
+    type: bearer
+    token: "{{ config.api_key }}"
+  headers:
+    Notion-Version: "2022-06-28"
+resources:
+  - name: databases
+    path: /v1/search
+    method: POST
+    primary_key: [id]
+    fields:
+      - { name: id, path: id, type: string }
+      - { name: object, path: object, type: string }
+      - { name: created_time, path: created_time, type: timestamptz, nullable: true }
+      - { name: last_edited_time, path: last_edited_time, type: timestamptz, nullable: true }
+      - { name: title, path: title.0.plain_text, type: string, nullable: true }
+      - { name: raw, path: "$", type: json }
+    capture:
+      database_id: id
+    body:
+      encoding: json
+      template:
+        filter:
+          property: object
+          value: database
+    response:
+      root: object
+      records_path: results
+    pagination:
+      type: cursor
+      cursor_path: next_cursor
+      cursor_param: start_cursor
+      inject_into: body
+      has_more_path: has_more
+  - name: pages
+    emit_as: "pages_{{ parent.database_id }}"
+    path: /v1/databases/{{ parent.database_id }}/query
+    method: POST
+    primary_key: [id]
+    fields:
+      - { name: id, path: id, type: string }
+      - { name: database_id, path: parent.database_id, type: string }
+      - { name: object, path: object, type: string }
+      - { name: created_time, path: created_time, type: timestamptz, nullable: true }
+      - { name: last_edited_time, path: last_edited_time, type: timestamptz, nullable: true }
+      - { name: archived, path: archived, type: bool, nullable: true }
+      - { name: url, path: url, type: string, nullable: true }
+      - { name: properties, path: properties, type: json, nullable: true }
+      - { name: raw, path: "$", type: json }
+    parent:
+      resource: databases
+    response:
+      root: object
+      records_path: results
+    pagination:
+      type: cursor
+      cursor_path: next_cursor
+      cursor_param: start_cursor
+      inject_into: body
+      has_more_path: has_more
+discovery:
+  - from: databases
+    map:
+      kind: database
+      id: id
+      name: title.0.plain_text
+      metadata:
+        object: object
