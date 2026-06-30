@@ -1,6 +1,6 @@
 package postgres
 
-// ctid + xmin physical read mode (docs/resume-read-modes-plan.md, "ctid + xmin repair").
+// ctid + xmin physical read mode.
 // The general low-correlation tier: read physical heap block ranges (fast sequential I/O)
 // and resume per block-range shard via Done, exactly like bitmap — but with three read-only
 // guards that make the physical cursor catch arbitrary churn, including PK moves, across a

@@ -1,6 +1,6 @@
 package postgres
 
-// Read-mode router (docs/resume-read-modes-plan.md, "Read-mode router"). A resumable run
+// Read-mode router. A resumable run
 // picks how to read a table from one cheap plan-time probe — pg_stats.correlation for the
 // leading key column, the statistical correlation between physical row order and the key's
 // order — combined with signals the probe cannot derive (PK mutability, an append-only

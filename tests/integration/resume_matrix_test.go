@@ -2,7 +2,7 @@
 
 package integration
 
-// Phase-0 failure-injection matrix (docs/resume-read-modes-plan.md). For each resumable
+// Phase-0 failure-injection matrix. For each resumable
 // read mode, kill a run mid-extract, run one concurrent write op in the fail→resume
 // window, then assert coverage of the rows present at run start.
 //

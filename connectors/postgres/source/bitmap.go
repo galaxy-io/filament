@@ -1,6 +1,6 @@
 package postgres
 
-// Bitmap sub-range read mode (docs/resume-read-modes-plan.md). The key space is split into
+// Bitmap sub-range read mode. The key space is split into
 // sub-ranges (the same sampled boundaries the keyset split uses); each is read with a plain
 // range predicate and NO ORDER BY / LIMIT, so the planner is free to pick a bitmap heap
 // scan — index TIDs collected, sorted, heap visited in ascending block order with prefetch.
