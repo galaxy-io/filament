@@ -6,11 +6,7 @@ import (
 	"os"
 )
 
-const (
-	defaultNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-	defaultTokenFile     = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	defaultCAFile        = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-)
+const defaultNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
 // Config controls the worker Job created for each run.
 type Config struct {
@@ -26,11 +22,7 @@ type Config struct {
 	BackoffLimit                int32
 	TTLSecondsAfterFinished     *int32
 	PassthroughEnv              []string
-	APIServer                   string
-	BearerToken                 string
-	BearerTokenFile             string
-	CAFile                      string
-	InsecureSkipTLSVerify       bool
+	Kubeconfig                  string
 	WorkerRestartPolicy         string
 	WorkerTerminationGraceSecs  *int64
 	WorkerActiveDeadlineSeconds *int64
@@ -49,20 +41,9 @@ func ConfigFromEnv() Config {
 		NATSSubjects:          os.Getenv("NATS_SUBJECTS"),
 		JobNamePrefix:         getenv("K8S_JOB_NAME_PREFIX", "filament"),
 		BackoffLimit:          int32Env("K8S_JOB_BACKOFF_LIMIT", 1),
-		APIServer:             os.Getenv("K8S_API_SERVER"),
-		BearerToken:           os.Getenv("K8S_BEARER_TOKEN"),
-		BearerTokenFile:       getenv("K8S_BEARER_TOKEN_FILE", defaultTokenFile),
-		CAFile:                getenv("K8S_CA_CERT", defaultCAFile),
-		InsecureSkipTLSVerify: boolEnv("K8S_INSECURE_SKIP_TLS_VERIFY"),
+		Kubeconfig:            getenv("K8S_KUBECONFIG", os.Getenv("KUBECONFIG")),
 		WorkerRestartPolicy:   getenv("K8S_WORKER_RESTART_POLICY", "Never"),
 		PassthroughEnv:        splitCSV(os.Getenv("K8S_WORKER_PASSTHROUGH_ENV")),
-	}
-	if cfg.APIServer == "" {
-		host := os.Getenv("KUBERNETES_SERVICE_HOST")
-		port := getenv("KUBERNETES_SERVICE_PORT", "443")
-		if host != "" {
-			cfg.APIServer = "https://" + host + ":" + port
-		}
 	}
 	if v := os.Getenv("K8S_JOB_TTL_SECONDS_AFTER_FINISHED"); v != "" {
 		n := int32Env("K8S_JOB_TTL_SECONDS_AFTER_FINISHED", 0)
@@ -91,12 +72,6 @@ func (c Config) validate() error {
 	}
 	if c.NATSURL == "" {
 		return errors.New("k8sdispatch: nats url is required")
-	}
-	if c.APIServer == "" {
-		return errors.New("k8sdispatch: kubernetes api server is required")
-	}
-	if c.BearerToken == "" && c.BearerTokenFile == "" {
-		return errors.New("k8sdispatch: bearer token or token file is required")
 	}
 	if c.JobNamePrefix != "" && !isDNS1123Label(cleanDNS1123(c.JobNamePrefix)) {
 		return fmt.Errorf("k8sdispatch: invalid job name prefix %q", c.JobNamePrefix)
