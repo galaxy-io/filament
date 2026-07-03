@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/eventbus"
 )
 
 // emitter is the per-run fact publisher. It owns the run's monotonic sequence

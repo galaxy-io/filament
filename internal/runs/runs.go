@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/eventbus"
 )
 
 // Submit registers a run and dispatches its run.requested trigger, returning the

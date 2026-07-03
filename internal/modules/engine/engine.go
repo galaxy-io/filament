@@ -10,11 +10,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/pipeline"
-	"github.com/galaxy-io/filament"
 )
 
 // Module is the extraction engine. One run.requested fact drives one extraction.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 )
 
 // batcher accumulates records per resource and flushes a Batch

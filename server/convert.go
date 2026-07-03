@@ -226,13 +226,13 @@ func resourcesToProto(resources []ingestion.Resource) *ingestionv1.DiscoverResou
 	out := make([]*ingestionv1.Resource, 0, len(resources))
 	for _, resource := range resources {
 		out = append(out, &ingestionv1.Resource{
-			Name:           resource.Name,
-			Selectable:     resource.Selectable,
-			PrimaryKey:     resource.PrimaryKey,
-			EstimatedRows:  resource.Estimated,
-			Selector:       resource.Selector,
-			DisplayName:    resource.DisplayName,
-			Metadata:       resource.Metadata,
+			Name:          resource.Name,
+			Selectable:    resource.Selectable,
+			PrimaryKey:    resource.PrimaryKey,
+			EstimatedRows: resource.Estimated,
+			Selector:      resource.Selector,
+			DisplayName:   resource.DisplayName,
+			Metadata:      resource.Metadata,
 		})
 	}
 	return &ingestionv1.DiscoverResourcesResponse{Resources: out}

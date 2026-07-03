@@ -38,8 +38,8 @@ type Config struct {
 	Emit          func(ingestion.Event) // nil → facts discarded
 	WritePolicies map[string]ingestion.WritePolicy
 	Options       ingestion.RunOptions
-	FlushInterval time.Duration // default 1s
-	Log           ingestion.Logger    // optional
+	FlushInterval time.Duration    // default 1s
+	Log           ingestion.Logger // optional
 	NextSeq       func() uint64
 }
 

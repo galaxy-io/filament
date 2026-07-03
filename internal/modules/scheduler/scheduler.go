@@ -14,12 +14,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
-	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/internal/cron"
 	"github.com/galaxy-io/filament/internal/runs"
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/module"
 )
 
 // defaultInterval is how often the timer claims due schedules.
