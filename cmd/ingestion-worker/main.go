@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/sample"
 	"github.com/galaxy-io/filament/connectors/stdout"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
@@ -41,16 +41,16 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("RUN_ID: %w", err)
 	}
 
-	controlPlaneDSN := os.Getenv("CONTROL_PLANE_DSN")
-	if controlPlaneDSN == "" {
-		return errors.New("CONTROL_PLANE_DSN is required")
+	PersistenceDSN := os.Getenv("PERSISTENCE_DSN")
+	if PersistenceDSN == "" {
+		return errors.New("PERSISTENCE_DSN is required")
 	}
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
 		return errors.New("NATS_URL is required")
 	}
 
-	pool, err := ctlpg.NewPool(ctx, controlPlaneDSN)
+	pool, err := ctlpg.NewPool(ctx, PersistenceDSN)
 	if err != nil {
 		return err
 	}

@@ -14,7 +14,7 @@ type Config struct {
 	WorkerImage                 string
 	WorkerServiceAccount        string
 	WorkerImagePullPolicy       string
-	ControlPlaneDSN             string
+	PersistenceDSN              string
 	NATSURL                     string
 	NATSStream                  string
 	NATSSubjects                string
@@ -35,7 +35,7 @@ func ConfigFromEnv() Config {
 		WorkerImage:           os.Getenv("K8S_WORKER_IMAGE"),
 		WorkerServiceAccount:  os.Getenv("K8S_WORKER_SERVICE_ACCOUNT"),
 		WorkerImagePullPolicy: getenv("K8S_WORKER_IMAGE_PULL_POLICY", "IfNotPresent"),
-		ControlPlaneDSN:       os.Getenv("CONTROL_PLANE_DSN"),
+		PersistenceDSN:        os.Getenv("PERSISTENCE_DSN"),
 		NATSURL:               os.Getenv("NATS_URL"),
 		NATSStream:            os.Getenv("NATS_STREAM"),
 		NATSSubjects:          os.Getenv("NATS_SUBJECTS"),
@@ -67,7 +67,7 @@ func (c Config) validate() error {
 	if c.WorkerImage == "" {
 		return errors.New("k8sdispatch: worker image is required")
 	}
-	if c.ControlPlaneDSN == "" {
+	if c.PersistenceDSN == "" {
 		return errors.New("k8sdispatch: control-plane dsn is required")
 	}
 	if c.NATSURL == "" {
