@@ -18,6 +18,11 @@ import (
 )
 
 // SecretsStore is a Postgres-backed ingestion.Secrets implementation.
+// Values are encrypted at rest with AES-256-GCM; the key never leaves the
+// process (it comes from KMS/env at construction, not from the database).
+// ref is the sole key — Secrets.Read/Write/Delete take no tenant, so callers
+// must namespace their own ref strings (e.g. "t1/postgres-dsn") if they need
+// tenant isolation; this store cannot enforce it.
 type SecretsStore struct {
 	q     *sqlcgen.Queries
 	keyID string

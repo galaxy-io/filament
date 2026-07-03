@@ -84,7 +84,7 @@ func run(ctx context.Context) error {
 		// Temporary bootstrap path: ConfigRef values are resolved from process
 		// env vars as JSON connector configs. Replace this with the fetched
 		// control-plane secret/config store before production k8s dispatch.
-		Secrets: secretenv.New(),
+		Secrets: secretenv.NewIngestionSecrets(),
 		Sources: registry.DefaultSources,
 		Sinks:   registry.DefaultSinks,
 	}, runner.SpecFromState(state))

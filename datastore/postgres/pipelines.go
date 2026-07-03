@@ -43,11 +43,6 @@ func (s *PipelineStore) Create(ctx context.Context, id, tenant, name string, nod
 	if err != nil {
 		return nil, err
 	}
-	if tenant != "" {
-		if err := s.q.EnsureTenant(ctx, sqlcgen.EnsureTenantParams{TenantID: tenant}); err != nil {
-			return nil, fmt.Errorf("datastore/postgres: ensure pipeline tenant: %w", err)
-		}
-	}
 	err = s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
 		PipelineID: id,
 		TenantID:   tenant,

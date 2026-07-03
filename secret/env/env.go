@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/secret"
 )
 
@@ -42,6 +43,26 @@ func (p *Provider) Delete(ctx context.Context, ref string) error {
 
 // Name identifies the provider.
 func (p *Provider) Name() string { return "env" }
+
+var _ ingestion.Secrets = (*IngestionAdapter)(nil)
+
+// IngestionAdapter wraps a Provider to satisfy ingestion.Secrets.
+type IngestionAdapter struct{ *Provider }
+
+// NewIngestionSecrets returns an env-backed ingestion.Secrets implementation.
+func NewIngestionSecrets() *IngestionAdapter { return &IngestionAdapter{Provider: New()} }
+
+func (a *IngestionAdapter) Read(ctx context.Context, ref string) (ingestion.Secret, error) {
+	v, err := a.Provider.Read(ctx, ref)
+	if err != nil {
+		return ingestion.Secret{}, err
+	}
+	return ingestion.Secret{Value: v.Bytes, Meta: v.Meta}, nil
+}
+
+func (a *IngestionAdapter) Write(ctx context.Context, ref string, s ingestion.Secret) error {
+	return a.Provider.Write(ctx, ref, secret.Value{Bytes: s.Value, Meta: s.Meta})
+}
 
 // envKey converts a secret reference to an environment variable name:
 // upper-cased, with '-', '/', and '.' replaced by '_'.
