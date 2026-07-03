@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "filament.control.fullname" . }}
+  labels:
+    {{- include "filament.control.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.control.replicas }}
+  selector:
+    matchLabels:
+      {{- include "filament.control.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/control-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "filament.control.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "filament.control.serviceAccountName" . }}
+      containers:
+        - name: control
+          image: {{ .Values.control.image.repository }}:{{ .Values.control.image.tag }}
+          imagePullPolicy: {{ .Values.control.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.control.service.port }}
+              protocol: TCP
+          env:
+            - name: PERSISTENCE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "filament.pg.secretName" . }}
+                  key: {{ include "filament.pg.secretKey" . }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "filament.control.fullname" . }}
+          resources:
+            {{- toYaml .Values.control.resources | nindent 12 }}

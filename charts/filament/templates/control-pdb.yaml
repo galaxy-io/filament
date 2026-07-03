@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "filament.control.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "filament.control.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "filament.control.selectorLabels" . | nindent 6 }}

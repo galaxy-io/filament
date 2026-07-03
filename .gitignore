@@ -14,3 +14,7 @@
 *.test
 coverage.out
 *.prof
+
+# Helm
+# Vendored charts
+charts/filament/charts/*
