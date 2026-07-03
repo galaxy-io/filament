@@ -13,7 +13,7 @@ func (m *Module) jobForSpec(spec ingestion.RunSpec) *batchv1.Job {
 	name := jobName(m.cfg.JobNamePrefix, spec.Run)
 	env := []corev1.EnvVar{
 		{Name: "RUN_ID", Value: string(spec.Run)},
-		{Name: "CONTROL_PLANE_DSN", Value: m.cfg.ControlPlaneDSN},
+		{Name: "PERSISTENCE_DSN", Value: m.cfg.PersistenceDSN},
 		{Name: "NATS_URL", Value: m.cfg.NATSURL},
 	}
 	if m.cfg.NATSStream != "" {

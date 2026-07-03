@@ -25,9 +25,9 @@ type fakeSink struct {
 
 func (f *fakeSink) Spec() ingestion.SinkSpec                      { return ingestion.SinkSpec{Name: "fake"} }
 func (f *fakeSink) Open(context.Context, ingestion.RunSpec) error { return nil }
-func (f *fakeSink) Commit(context.Context) error            { return nil }
-func (f *fakeSink) Abort(context.Context) error             { return nil }
-func (f *fakeSink) Name() string                            { return "fake" }
+func (f *fakeSink) Commit(context.Context) error                  { return nil }
+func (f *fakeSink) Abort(context.Context) error                   { return nil }
+func (f *fakeSink) Name() string                                  { return "fake" }
 
 func (f *fakeSink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
 	f.mu.Lock()

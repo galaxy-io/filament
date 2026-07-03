@@ -8,11 +8,11 @@ package orchestrator
 import (
 	"context"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
-	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/internal/runs"
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/module"
 )
 
 // Module is the run intake. It issues commands (Submit) rather than reacting to

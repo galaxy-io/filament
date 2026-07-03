@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/module"
-	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
 )
 
 // Module consumes every ingestion fact and persists the derived run state.
@@ -27,7 +27,7 @@ type Module struct {
 	cp    map[ckKey]ingestion.Checkpoint
 	since map[ckKey]int
 	every map[ingestion.RunID]int // cached per-run CheckpointEvery cadence
-	bm    map[ckKey]*bmAccount // bitmap per-shard ack/want counters
+	bm    map[ckKey]*bmAccount    // bitmap per-shard ack/want counters
 }
 
 // bmAccount counts written rows per bitmap shard against the shard's expected total. A

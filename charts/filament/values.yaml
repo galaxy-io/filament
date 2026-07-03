@@ -1,0 +1,110 @@
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: ""
+commonLabels: {}
+commonAnnotations: {}
+
+control:
+  enabled: true
+
+  image:
+    repository: galaxy-io/filament
+    tag: "latest"
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+
+  replicas: 1
+
+  # Autoscaling takes precedence over replicas
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCpu: 80
+
+  service:
+    port: 8080
+  
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # Dispatch
+  dispatch:
+    worker:
+      image:
+        repository: galaxy-io/filament-worker
+        tag: "latest"
+        pullPolicy: IfNotPresent
+      serviceAccount: ""
+      restartPolicy: Never
+      terminationGraceSeconds: 30
+      activeDeadlineSeconds: ""
+      passthroughEnv: []
+    job:
+      namePrefix: filament
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 3600
+
+persistence:
+  migrate: true
+
+  postgresql:
+    enabled: true
+    dsn: 
+      value: "postgresql://filament:super-secret-key@filament-postgresql:5432/filament?sslmode=disable"
+      # Existing Secret for credentials
+      existingSecret:
+        name: ""
+        key: ""
+
+    host: filament-postgresql
+    port: 5432
+    database: filament
+    username: filament
+    password:
+      value: super-secret-key
+      # Existing Secret for credentials
+      existingSecret:
+        name: ""
+        key: ""
+
+    sslMode: disable
+
+  # NOTE: MySQL is not currently supported
+  mysql: {}
+
+eventBus:
+  nats:
+    enabled: true
+    url: nats://filament-nats:4222
+    stream: EVENTBUS
+    subjects: "ingestion.v1.>"
+
+  # NOTE: Kafka is not currently supported
+  kafka: {}
+
+# NOTE: It is strongly recommended to use an external PostgreSQL instance in production
+# Minimal vendored PostgreSQL configuration
+# More configuration can be found in the Bitnami PostgreSQL chart: https://artifacthub.io/packages/helm/bitnami/postgresql
+postgresql:
+  enabled: true
+  fullnameOverride: filament-postgresql
+  auth:
+    enablePostgresUser: false
+    database: filament
+    username: filament
+    password: super-secret-key
+
+# Minimal vendored NATS configuration
+# More configuration can be found in the NATS chart: https://artifacthub.io/packages/helm/nats/nats
+nats:
+  enabled: true
+  fullnameOverride: filament-nats
+  config:
+    jetstream:
+      enabled: true

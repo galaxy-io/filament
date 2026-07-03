@@ -14,11 +14,11 @@ var ErrPipelineClosed = errors.New("pipeline: closed")
 // per-shard ingest channels. Push routes a record to its resource's shard and
 // blocks while the pipeline applies backpressure (channel full); it returns the
 // pipeline's fatal error once the writer has given up. Push is safe to call from
-// multiple goroutines channel sends are concurrency-safe 
+// multiple goroutines channel sends are concurrency-safe
 type inlet struct {
-	chs  []chan ingestion.Record 
-	done <-chan struct{}   // closed when the pipeline hits a fatal error
-	err  func() error      
+	chs  []chan ingestion.Record
+	done <-chan struct{} // closed when the pipeline hits a fatal error
+	err  func() error
 }
 
 var _ ingestion.RecordSink = (*inlet)(nil)

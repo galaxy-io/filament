@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
+	"github.com/galaxy-io/filament/eventbus"
 )
 
 type runSubmitter interface {

@@ -1,0 +1,16 @@
+apiVersion: v2
+name: filament
+description: A Helm chart for Filament
+
+version: 0.1.0
+appVersion: 0.1.0
+
+dependencies:
+  - name: postgresql
+    repository: https://charts.bitnami.com/bitnami
+    version: 18.7.11
+    condition: postgresql.enabled
+  - name: nats
+    version: 2.14.2
+    repository: https://nats-io.github.io/k8s/helm/charts
+    condition: nats.enabled
