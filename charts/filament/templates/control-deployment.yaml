@@ -5,7 +5,9 @@ metadata:
   labels:
     {{- include "filament.control.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.control.autoscaling.enabled }}
   replicas: {{ .Values.control.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "filament.control.selectorLabels" . | nindent 6 }}

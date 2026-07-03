@@ -1,3 +1,4 @@
+{{- if or .Values.control.autoscaling.enabled (gt (int .Values.control.replicas) 1) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -6,7 +7,8 @@ metadata:
   labels:
     {{- include "filament.control.labels" . | nindent 4 }}
 spec:
-  minAvailable: 1
+  maxUnavailable: 1
   selector:
     matchLabels:
       {{- include "filament.control.selectorLabels" . | nindent 6 }}
+{{- end }}
