@@ -88,7 +88,7 @@ func (m *Module) Dispatch(ctx context.Context, spec ingestion.RunSpec) (ingestio
 	if m.log != nil {
 		m.log.Info("k8sdispatch: dispatched run",
 			ingestion.Field{Key: "run", Value: string(spec.Run)},
-			ingestion.Field{Key: "job", Value: job.Metadata.Name},
+			ingestion.Field{Key: "job", Value: job.Name},
 			ingestion.Field{Key: "namespace", Value: m.cfg.Namespace},
 		)
 	}

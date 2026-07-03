@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE pipelines (
   pipeline_id TEXT   PRIMARY KEY,
-  tenant_id   TEXT   NOT NULL,
+  tenant_id   TEXT   NOT NULL REFERENCES tenants (tenant_id),
   name        TEXT   NOT NULL,
   nodes       JSONB  NOT NULL,
   edges       JSONB  NOT NULL,
