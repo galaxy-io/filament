@@ -17,10 +17,10 @@ import (
 type nullSink struct{}
 
 func (nullSink) Spec() ingestion.SinkSpec                      { return ingestion.SinkSpec{Name: "null"} }
-func (nullSink) Name() string                            { return "null" }
+func (nullSink) Name() string                                  { return "null" }
 func (nullSink) Open(context.Context, ingestion.RunSpec) error { return nil }
-func (nullSink) Commit(context.Context) error            { return nil }
-func (nullSink) Abort(context.Context) error             { return nil }
+func (nullSink) Commit(context.Context) error                  { return nil }
+func (nullSink) Abort(context.Context) error                   { return nil }
 
 func (nullSink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
 	crc, nbytes := ingestion.CRC32C(b.Records)

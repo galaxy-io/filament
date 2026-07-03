@@ -7,10 +7,10 @@ package stream
 import (
 	"context"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/module"
-	"github.com/galaxy-io/filament"
 )
 
 // Module is the client-facing read side.

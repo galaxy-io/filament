@@ -11,21 +11,21 @@ import (
 	"io"
 	"time"
 
-	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/eventbus"
 )
 
 // line is the flat, jq-friendly shape of one recorded event. Payload fields are
 // omitempty so each line carries only what its event type set.
 type line struct {
-	TS       string `json:"ts"`
-	Seq      uint64 `json:"seq"`
-	Type     string `json:"type"`
-	Tenant   string `json:"tenant,omitempty"`
-	Run      string `json:"run,omitempty"`
-	Resource string `json:"resource,omitempty"`
-	Records  int64  `json:"records,omitempty"`
-	Bytes    int64  `json:"bytes,omitempty"`
+	TS       string         `json:"ts"`
+	Seq      uint64         `json:"seq"`
+	Type     string         `json:"type"`
+	Tenant   string         `json:"tenant,omitempty"`
+	Run      string         `json:"run,omitempty"`
+	Resource string         `json:"resource,omitempty"`
+	Records  int64          `json:"records,omitempty"`
+	Bytes    int64          `json:"bytes,omitempty"`
 	CRC      uint32         `json:"crc,omitempty"`
 	URI      string         `json:"uri,omitempty"`
 	Error    string         `json:"error,omitempty"`

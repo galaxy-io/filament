@@ -7,9 +7,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
-	"github.com/galaxy-io/filament"
 )
 
 // Module is an ingestion behavior — scheduler, orchestrator, engine, tracker,
