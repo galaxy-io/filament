@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/sample"
 	"github.com/galaxy-io/filament/connectors/stdout"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
@@ -41,9 +41,9 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	controlPlaneDSN := os.Getenv("CONTROL_PLANE_DSN")
-	if controlPlaneDSN == "" {
-		return errors.New("CONTROL_PLANE_DSN is required")
+	PersistenceDSN := os.Getenv("PERSISTENCE_DSN")
+	if PersistenceDSN == "" {
+		return errors.New("PERSISTENCE_DSN is required")
 	}
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
@@ -51,7 +51,7 @@ func run(ctx context.Context) error {
 	}
 
 	if migrateEnabled() {
-		db, err := ctlpg.NewSQLDB(controlPlaneDSN)
+		db, err := ctlpg.NewSQLDB(PersistenceDSN)
 		if err != nil {
 			return err
 		}
@@ -64,7 +64,7 @@ func run(ctx context.Context) error {
 		}
 	}
 
-	pool, err := ctlpg.NewPool(ctx, controlPlaneDSN)
+	pool, err := ctlpg.NewPool(ctx, PersistenceDSN)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func run(ctx context.Context) error {
 }
 
 func migrateEnabled() bool {
-	switch os.Getenv("CONTROL_PLANE_MIGRATE") {
+	switch os.Getenv("PERSISTENCE_MIGRATE") {
 	case "", "1", "true", "TRUE", "yes", "YES":
 		return true
 	default:
