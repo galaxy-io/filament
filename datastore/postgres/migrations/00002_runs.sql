@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE runs (
   run_id          TEXT        PRIMARY KEY,
-  tenant_id       TEXT        NOT NULL,
+  tenant_id       TEXT        NOT NULL REFERENCES tenants (tenant_id),
   schedule_id     TEXT,
   status          SMALLINT    NOT NULL,
   request         JSONB       NOT NULL,

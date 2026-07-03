@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE schedules (
   schedule_id     TEXT     PRIMARY KEY,
-  tenant_id       TEXT     NOT NULL,
+  tenant_id       TEXT     NOT NULL REFERENCES tenants (tenant_id),
   name            TEXT,
   cron_expr       TEXT     NOT NULL,
   timezone        TEXT     NOT NULL DEFAULT 'UTC',
@@ -13,7 +13,7 @@ CREATE TABLE schedules (
   last_fired_at   TIMESTAMPTZ,
   next_fire_at    TIMESTAMPTZ,
   claimed_at      TIMESTAMPTZ,
-  last_run_id     TEXT,
+  last_run_id     TEXT     REFERENCES runs (run_id) ON DELETE SET NULL,
   last_run_status SMALLINT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
