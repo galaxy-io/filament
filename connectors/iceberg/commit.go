@@ -34,7 +34,7 @@ func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mod
 
 	// Collect chunk payloads lazily via the buffer's streamer, converting each to
 	// an Arrow record batch only as the reader pulls it.
-	batches, errPtr := chunkBatches(arrowSchema, mem, rb)
+	batches, errPtr := chunkBatches(arrowSchema, mem, rb, jsonColumns(it.record))
 	rdr := array.ReaderFromIter(arrowSchema, batches)
 	defer rdr.Release()
 
@@ -89,7 +89,7 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 		}
 		mem := memory.NewGoAllocator()
 		rb := recordsFromRaw(changes.live)
-		batches, errPtr := chunkBatches(arrowSchema, mem, rb)
+		batches, errPtr := chunkBatches(arrowSchema, mem, rb, jsonColumns(it.record))
 		rdr := array.ReaderFromIter(arrowSchema, batches)
 		defer rdr.Release()
 		if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(filter)); err != nil {
@@ -112,10 +112,14 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 // chunk. Any streaming/parse error is surfaced through the returned pointer
 // (the iter.Seq2 stops on the first error). Caller checks *err after the reader
 // drains.
-func chunkBatches(schema *arrow.Schema, mem memory.Allocator, rb *recordBuf) (iter.Seq2[arrow.RecordBatch, error], *error) {
+func chunkBatches(schema *arrow.Schema, mem memory.Allocator, rb *recordBuf, jsonCols map[string]bool) (iter.Seq2[arrow.RecordBatch, error], *error) {
 	var streamErr error
 	seq := func(yield func(arrow.RecordBatch, error) bool) {
 		streamErr = rb.stream(commitRowsPerChunk, func(recs []json.RawMessage) error {
+			recs, err := encodeJSONColumns(recs, jsonCols)
+			if err != nil {
+				return fmt.Errorf("parse chunk: %w", err)
+			}
 			rec, _, err := array.RecordFromJSON(mem, schema, strings.NewReader(jsonArray(recs)))
 			if err != nil {
 				return fmt.Errorf("parse chunk: %w", err)

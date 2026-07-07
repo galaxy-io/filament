@@ -189,6 +189,34 @@ func resolveConfigRefs(ctx context.Context, secrets ingestion.Secrets, spec *ing
 	if err := resolveRefConfig(ctx, secrets, &spec.Sink, "sink"); err != nil {
 		return err
 	}
+	if err := resolveSecretRefs(ctx, secrets, &spec.Source, "source"); err != nil {
+		return err
+	}
+	if err := resolveSecretRefs(ctx, secrets, &spec.Sink, "sink"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// resolveSecretRefs reads each of the ref's declared secrets and injects the
+// plaintext value into the provider config under the mapped field.
+func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *ingestion.Ref, role string) error {
+	if len(ref.SecretRefs) == 0 {
+		return nil
+	}
+	if secrets == nil {
+		return fmt.Errorf("%s %q has secret refs but no secrets store is configured", role, ref.Provider)
+	}
+	if ref.Config == nil {
+		ref.Config = make(map[string]any, len(ref.SecretRefs))
+	}
+	for field, name := range ref.SecretRefs {
+		secret, err := secrets.Read(ctx, name)
+		if err != nil {
+			return fmt.Errorf("resolve %s secret %q for field %q: %w", role, name, field, err)
+		}
+		ref.Config[field] = string(secret.Value)
+	}
 	return nil
 }
 
@@ -477,6 +505,18 @@ func (e *emitter) publish(ev ingestion.Event) {
 		t.records += ev.Fields.Records
 		t.bytes += ev.Fields.Bytes
 		e.mu.Unlock()
+	}
+	if e.log != nil {
+		fields := []ingestion.Field{
+			{Key: "run", Value: string(ev.Run)},
+			{Key: "resource", Value: ev.Resource},
+			{Key: "records", Value: ev.Fields.Records},
+			{Key: "bytes", Value: ev.Fields.Bytes},
+		}
+		if ev.Fields.Error != "" {
+			fields = append(fields, ingestion.Field{Key: "error", Value: ev.Fields.Error})
+		}
+		e.log.Info(ev.Type.String(), fields...)
 	}
 	if err := ingestion.PublishEvent(e.ctx, e.bus, ev); err != nil && e.log != nil {
 		e.log.Error("runner: publish fact", err, ingestion.Field{Key: "type", Value: ev.Type.String()})

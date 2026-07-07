@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	ingestion "github.com/galaxy-io/filament"
@@ -81,6 +82,7 @@ func run(ctx context.Context) error {
 	runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
 		DataStore: store,
+		Log:       slogLogger{l: slog.New(slog.NewJSONHandler(os.Stdout, nil))},
 		// Temporary bootstrap path: ConfigRef values are resolved from process
 		// env vars as JSON connector configs. Replace this with the fetched
 		// control-plane secret/config store before production k8s dispatch.
