@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -168,8 +168,8 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 		run, err := a.orch.Submit(ctx, ingestion.RunRequest{
 			Tenant:         ingestion.TenantID(defaultTenant(pipeline.GetTenant())),
 			IdempotencyKey: fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:         ingestion.Ref{Provider: group.source.GetProvider(), Config: structMap(group.source.GetConfig())},
-			Sink:           ingestion.Ref{Provider: group.sink.GetProvider(), Config: structMap(group.sink.GetConfig())},
+			Source:         ingestion.Ref{Provider: group.source.GetProvider(), Config: structMap(group.source.GetConfig()), SecretRefs: group.source.GetSecretRefs()},
+			Sink:           ingestion.Ref{Provider: group.sink.GetProvider(), Config: structMap(group.sink.GetConfig()), SecretRefs: group.sink.GetSecretRefs()},
 			DataStore:      ingestion.Ref{Provider: "default"},
 			Resources:      resources,
 			Selectors:      selectors,

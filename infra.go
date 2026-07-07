@@ -318,4 +318,7 @@ type Ref struct {
 	Provider  string
 	ConfigRef string
 	Config    map[string]any
+
+	// SecretRefs maps a provider config field to a Secrets reference
+	SecretRefs map[string]string
 }
