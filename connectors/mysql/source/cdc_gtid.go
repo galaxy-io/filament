@@ -115,12 +115,16 @@ func (s *Source) extractChangesGTID(ctx context.Context, sink ingestion.RecordSi
 				return err
 			}
 		case *replication.QueryEvent:
-			// A statement event is its own transaction (DDL, or COMMIT of a
-			// non-transactional change): fold and drop the schema cache.
-			if err := fold(); err != nil {
-				return err
+		    // reject events for transactions 
+			switch q := strings.ToUpper(strings.TrimSpace(string(e.Query))); {
+			case q == "BEGIN", q == "COMMIT", q == "ROLLBACK", strings.HasPrefix(q, "SAVEPOINT "), strings.HasPrefix(q, "ROLLBACK TO "):
+				// not a commit boundary
+			default:
+				if err := fold(); err != nil {
+					return err
+				}
+				run.clearSchema()
 			}
-			run.clearSchema()
 		case *replication.RowsEvent:
 			// Records carry the committed-set cursor: resuming from it replays the
 			// current (uncommitted-at-cursor-time) transaction in full.
