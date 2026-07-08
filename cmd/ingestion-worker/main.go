@@ -34,6 +34,10 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	// Default logger too, so library logs (e.g. iceberg-go) come out as JSON.
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	runID := ingestion.RunID(os.Getenv("RUN_ID"))
 	if runID == "" {
 		return errors.New("RUN_ID is required")
@@ -82,7 +86,7 @@ func run(ctx context.Context) error {
 	runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
 		DataStore: store,
-		Log:       slogLogger{l: slog.New(slog.NewJSONHandler(os.Stdout, nil))},
+		Log:       slogLogger{l: logger},
 		// Temporary bootstrap path: ConfigRef values are resolved from process
 		// env vars as JSON connector configs. Replace this with the fetched
 		// control-plane secret/config store before production k8s dispatch.
