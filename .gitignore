@@ -1,6 +1,9 @@
 .cache/
 
 # Build outputs
+/bin/
+/cmd/ingestion-control/ingestion-control
+/cmd/ingestion-worker/ingestion-worker
 /cmd/ingestiond/ingestiond
 /examples/my-pipeline/my-pipeline
 
