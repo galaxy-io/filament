@@ -41,4 +41,8 @@ type SinkCapabilities struct {
 	Upsertable    bool
 	Schematized   bool
 	WritePolicies []WritePolicyCapability
+	// PreferredBatchRows is the sink's preferred rows per Apply, used when the
+	// run does not set Options.BatchMaxRows.
+	// 0 defers to the engine default.
+	PreferredBatchRows int
 }
