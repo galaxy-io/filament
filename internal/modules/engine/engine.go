@@ -65,8 +65,13 @@ func (m *Module) onRunRequested(ctx context.Context, msg eventbus.Message) error
 		return fmt.Errorf("engine: load run %q: %w", ev.Run, err)
 	}
 	// Idempotency: only a freshly-requested run is ours to start. A redelivered
-	// trigger for a run already running or finished is acked and ignored.
-	if state.Status != ingestion.RunRequested && state.Status != ingestion.RunPartial {
+	// trigger for a run already running or finished is acked and ignored — except
+	// a completed CDC run, which is a catch-up cycle by construction: re-requesting
+	// it continues the change stream from its persisted cursor, so each request
+	// drains the source up to a fresh watermark and completes again.
+	cdcCycle := state.Request.IngestionType.OrDefault() == ingestion.IngestionCDC &&
+		state.Status == ingestion.RunCompleted
+	if state.Status != ingestion.RunRequested && state.Status != ingestion.RunPartial && !cdcCycle {
 		return nil
 	}
 	m.runOne(ctx, specFromState(state))

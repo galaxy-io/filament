@@ -222,6 +222,9 @@ func (m *Module) foldCursor(ctx context.Context, ev ingestion.Event) (ingestion.
 	if part, ack, want, hasWant, ok := checkpoint.CoarseDelta(ev.Fields.Checkpoint); ok {
 		return m.foldBitmap(ctx, ev, part, ack, want, hasWant)
 	}
+	if _, _, ok := checkpoint.ParseStream(ev.Fields.Checkpoint); ok {
+		return m.foldStream(ctx, ev)
+	}
 	key := ckKey{ev.Run, ev.Resource}
 
 	m.mu.Lock()
@@ -231,6 +234,33 @@ func (m *Module) foldCursor(ctx context.Context, ev ingestion.Event) (ingestion.
 		m.cp[key] = base
 	}
 	merged := checkpoint.MergeShardDelta(base, ev.Fields.Checkpoint)
+	if merged == nil {
+		m.mu.Unlock()
+		return nil, false
+	}
+	m.cp[key] = merged
+	m.since[key]++
+	persist := m.since[key] >= m.cadence(ctx, ev.Run)
+	if persist {
+		m.since[key] = 0
+	}
+	m.mu.Unlock()
+	return merged, persist
+}
+
+// foldStream folds a change-stream position delta: the newer position (guarded by the
+// per-run seq, since concurrent writers can publish batch facts out of order) replaces
+// the resource's cursor wholesale — a stream cursor has no shard layout to merge into.
+func (m *Module) foldStream(ctx context.Context, ev ingestion.Event) (ingestion.Checkpoint, bool) {
+	key := ckKey{ev.Run, ev.Resource}
+
+	m.mu.Lock()
+	base, ok := m.cp[key]
+	if !ok {
+		base = m.loadCheckpoint(ctx, ev.Run, ev.Resource) // recover position after a restart
+		m.cp[key] = base
+	}
+	merged := checkpoint.MergeStream(base, ev.Fields.Checkpoint)
 	if merged == nil {
 		m.mu.Unlock()
 		return nil, false
