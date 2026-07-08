@@ -1,0 +1,17 @@
+connectors:
+  - changed-files:
+      - any-glob-to-any-file: "connectors/**"
+
+worker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "cmd/ingestion-worker/**"
+          - "runner/**"
+          - "pipeline/**"
+
+control-plane:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "cmd/ingestion-control/**"
+          - "server/**"
+          - "internal/modules/**"
