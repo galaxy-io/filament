@@ -74,6 +74,9 @@ type Pipeline struct {
 // New builds a Pipeline from cfg, applying defaults. It does not start goroutines.
 func New(cfg Config) *Pipeline {
 	rows := cfg.Options.BatchMaxRows
+	if rows <= 0 && cfg.Sink != nil {
+		rows = cfg.Sink.Spec().Capabilities.PreferredBatchRows
+	}
 	if rows <= 0 {
 		rows = defaultBatchRows
 	}
