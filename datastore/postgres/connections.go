@@ -18,10 +18,7 @@ import (
 )
 
 // ConnectionStore is a Postgres-backed store for reusable, tenant-scoped
-// Connections (api/ingestion/v1 Connection) — the sources and sinks a pipeline
-// node references by id. It mirrors PipelineStore: it does not implement the
-// connect-go Server interface directly, and returns ErrVersionConflict on an
-// optimistic-lock mismatch so the caller can surface a real conflict.
+// Connections the sources and sinks a pipeline node references by id. 
 type ConnectionStore struct {
 	q *sqlcgen.Queries
 }
@@ -31,7 +28,7 @@ func NewConnectionStore(pool *pgxpool.Pool) *ConnectionStore {
 }
 
 // Create inserts a new connection at version 1, using the id supplied by the
-// caller (assigned server-side, mirroring CreatePipeline).
+// caller
 func (s *ConnectionStore) Create(ctx context.Context, c *ingestionv1.Connection) (*ingestionv1.Connection, error) {
 	if c.GetId() == "" {
 		return nil, fmt.Errorf("datastore/postgres: connection id is required")
