@@ -48,6 +48,7 @@ type Config struct {
 	Store   ingestion.DataStore
 	Sources ingestion.SourceRegistry
 	Sinks   ingestion.SinkRegistry
+	UI      http.Handler
 }
 
 // Option mutates a Config. Options passed to Run override the defaults.
@@ -64,6 +65,11 @@ func WithSources(s ingestion.SourceRegistry) Option { return func(c *Config) { c
 
 // WithSinks overrides the sink registry (default: registry.DefaultSinks).
 func WithSinks(s ingestion.SinkRegistry) Option { return func(c *Config) { c.Sinks = s } }
+
+// WithUI mounts a handler for the web UI at "/" (default: none). The ui
+// package provides one: app.WithUI(ui.Handler()). ConnectRPC routes take
+// precedence; everything else falls through to the UI handler.
+func WithUI(h http.Handler) Option { return func(c *Config) { c.UI = h } }
 
 func newConfig(opts ...Option) Config {
 	c := Config{
@@ -114,6 +120,10 @@ func Run(ctx context.Context, opts ...Option) error {
 	}
 	mux := http.NewServeMux()
 	server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus).Mount(mux)
+	if cfg.UI != nil {
+		mux.Handle("/", cfg.UI)
+		fmt.Println("ui:", "http://localhost"+addr)
+	}
 	fmt.Println("connectrpc:", "http://localhost"+addr)
 	return http.ListenAndServe(addr, mux)
 }

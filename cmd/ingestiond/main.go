@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/stdout"
 	"github.com/galaxy-io/filament/connectors/sample"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/ui"
 
 	// Curated connector set — self-register via init():
 	_ "github.com/galaxy-io/filament/connectors/http"
@@ -28,7 +29,10 @@ func main() {
 	// Defaults to the in-process bus and in-memory store. Swap either without
 	// touching the wiring, e.g.:
 	//	app.Run(ctx, app.WithBus(natsBus), app.WithDataStore(pgStore))
-	if err := app.Run(context.Background()); err != nil {
+	//
+	// The web UI is a placeholder page unless the binary is built with
+	// -tags embedui after building ui/dist (see ui/README.md).
+	if err := app.Run(context.Background(), app.WithUI(ui.Handler())); err != nil {
 		log.Fatal(err)
 	}
 }

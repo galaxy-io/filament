@@ -1,0 +1,58 @@
+import { Interceptor, Transport } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+
+import { API_BASE_URL, IS_DEBUG, IS_PRODUCTION } from "@/constants";
+
+/**
+ * Create an interceptor for request/response logging in development
+ */
+export function createLoggingInterceptor(): Interceptor {
+  return (next) => async (req) => {
+    if (IS_DEBUG) {
+      console.debug("[Connect-RPC] Request:", {
+        service: req.service.typeName,
+        method: req.method.name,
+        url: req.url,
+      });
+    }
+
+    try {
+      const res = await next(req);
+
+      if (IS_DEBUG) {
+        console.debug("[Connect-RPC] Response:", {
+          service: req.service.typeName,
+          method: req.method.name,
+          status: "success",
+        });
+      }
+
+      return res;
+    } catch (error) {
+      if (IS_DEBUG) {
+        console.debug("[Connect-RPC] Error:", {
+          service: req.service.typeName,
+          method: req.method.name,
+          error,
+        });
+      }
+      throw error;
+    }
+  };
+}
+
+export const createApiTransport = ({
+  baseUrl = API_BASE_URL,
+  interceptors = [createLoggingInterceptor()],
+  useBinaryFormat = IS_PRODUCTION,
+}: {
+  baseUrl?: string;
+  interceptors?: Interceptor[];
+  useBinaryFormat?: boolean;
+} = {}): Transport => {
+  return createConnectTransport({
+    baseUrl,
+    useBinaryFormat,
+    interceptors,
+  });
+};

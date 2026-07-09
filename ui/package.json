@@ -1,0 +1,52 @@
+{
+  "name": "@galaxy-io/filament-ui",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "codegen": "buf generate",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.9.0",
+    "@connectrpc/connect": "^2.1.0",
+    "@connectrpc/connect-query": "^2.1.1",
+    "@connectrpc/connect-web": "^2.1.0",
+    "@galaxy-io/dls": "^1.0.3",
+    "@linaria/core": "^7.0.0",
+    "@linaria/react": "^7.0.1",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tanstack/react-query": "^5.90.12",
+    "@tanstack/react-router": "^1.141.2",
+    "@tanstack/zod-adapter": "^1.141.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ts-pattern": "^5.9.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@babel/preset-react": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@bufbuild/buf": "^1.57.2",
+    "@bufbuild/protoc-gen-es": "^2.9.0",
+    "@tanstack/router-plugin": "^1.141.2",
+    "@types/react": "^18.3.27",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@wyw-in-js/vite": "^1.1.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.16"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@bufbuild/buf"
+    ]
+  }
+}
