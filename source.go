@@ -71,6 +71,7 @@ type ConfigField struct {
 	Default  any
 	Enum     []string
 	Help     string
+	Scope FieldScope
 }
 
 type FieldType int
@@ -84,6 +85,18 @@ const (
 	FieldEnum
 	FieldObject
 )
+
+type FieldScope int
+
+const (
+	ScopeUnspecified FieldScope = iota 
+	ScopeConnection
+	ScopePipeline
+)
+
+// IsPipeline reports whether the field is set per pipeline node
+// rather than on the reusable connection.
+func (s FieldScope) IsPipeline() bool { return s == ScopePipeline }
 
 type ReplicationMode int
 
