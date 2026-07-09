@@ -80,6 +80,16 @@ func (p *Pipeline) batcher(ctx context.Context, shard int) {
 				if !flush(key) {
 					return
 				}
+				// A stream (CDC) drain carries the final position instead of a row
+				// count: persist it even when the run wrote nothing, so the next run
+				// resumes from here rather than re-capturing a later position and
+				// skipping the gap.
+				if rec.Meta.LSN != "" {
+					if !sendStreamMark(ctx, p, key, rec.Meta) {
+						return
+					}
+					continue
+				}
 				if !sendDrained(ctx, p, key, seen[key]) {
 					return
 				}
@@ -129,19 +139,35 @@ type partKey struct {
 	part     int
 }
 
-// shardCursor builds the per-shard checkpoint delta from a flushed batch. A bitmap
-// (Coarse) read has no key cursor, so the delta is an ack of this batch's row count, which
-// the tracker sums toward the shard's expected total. A keyset read carries the last
+// sendStreamMark queues a stream-position marker (no records) so the writer publishes
+// the final CDC position without a sink write. Returns false if the pipeline is
+// shutting down.
+func sendStreamMark(ctx context.Context, p *Pipeline, key partKey, meta ingestion.RecordMeta) bool {
+	b := ingestion.Batch{
+		Tenant:   p.tenant,
+		Run:      p.run,
+		Resource: key.resource,
+		Part:     key.part,
+		Drained:  true,
+		Cursor:   checkpoint.NewStreamDelta(key.resource, meta.LSN, meta.Seq),
+	}
+	select {
+	case p.batchCh <- b:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+// shardCursor builds the per-shard checkpoint delta from a flushed batch. A change
+// stream (Meta.LSN) carries the last record's stream position. A bitmap (Coarse) read
+// has no key cursor, so the delta is an ack of this batch's row count, which the
+// tracker sums toward the shard's expected total. A keyset read carries the last
 // record's key. A plain ctid read carries neither → nil.
 func shardCursor(resource string, part int, recs []ingestion.Record) *ingestion.CheckpointData {
 	last := recs[len(recs)-1]
 	if last.Meta.LSN != "" {
-		cp := ingestion.NewCheckpoint(resource)
-		cp.Cursor["lsn"] = last.Meta.LSN
-		if last.Meta.Seq > 0 {
-			cp.Cursor["seq"] = int64(last.Meta.Seq)
-		}
-		return cp
+		return checkpoint.NewStreamDelta(resource, last.Meta.LSN, last.Meta.Seq)
 	}
 	if last.Coarse {
 		return checkpoint.NewCoarseAck(resource, part, len(recs))

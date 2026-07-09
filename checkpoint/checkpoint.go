@@ -21,6 +21,11 @@ const (
 	ModeKeyset = "keyset"
 	ModeBitmap = "bitmap"
 	ModeCtid   = "ctid"
+	// ModeStream is a change-stream position cursor: a single monotonic location in
+	// the source's replication log (Postgres WAL LSN, MySQL binlog file:pos) plus a
+	// per-run sequence guard. Unlike the shard-based cursors above it has no layout;
+	// resume simply restarts the stream at the recorded position.
+	ModeStream = "stream"
 )
 
 // KeysetShard is one independently-resumable slice of a resource's primary-key space.
@@ -131,6 +136,47 @@ func MergeShardDelta(base ingestion.Checkpoint, delta ingestion.Checkpoint) inge
 	}
 	ks.Shards[part].Key = key
 	return ks.ToCheckpoint(base.Resource())
+}
+
+// NewStreamDelta is the per-batch checkpoint of a change-stream read: the stream
+// position (lsn) of the batch's last record and its per-run sequence. It is both
+// the delta and the full checkpoint — a stream cursor has no layout to merge into.
+func NewStreamDelta(resource, lsn string, seq uint64) *ingestion.CheckpointData {
+	return &ingestion.CheckpointData{ResourceName: resource, Cursor: map[string]any{
+		"mode": ModeStream,
+		"lsn":  lsn,
+		"seq":  int64(seq),
+	}}
+}
+
+// ParseStream decodes a stream cursor. Reports false when cp is nil or a different
+// cursor shape. Tolerates a missing mode when an lsn is present (the batcher's
+// legacy shape carried lsn/seq only).
+func ParseStream(cp ingestion.Checkpoint) (lsn string, seq uint64, ok bool) {
+	if cp == nil {
+		return "", 0, false
+	}
+	raw := cp.Raw()
+	mode, hasMode := raw["mode"].(string)
+	lsn, _ = raw["lsn"].(string)
+	if lsn == "" || (hasMode && mode != ModeStream) {
+		return "", 0, false
+	}
+	return lsn, uint64(anyToInt(raw["seq"])), true
+}
+
+// MergeStream applies a stream delta onto base, keeping the newer position. The
+// per-run seq guards against an out-of-order fold (concurrent writers can publish
+// batch facts out of order); the higher seq wins, a tie keeps the delta.
+func MergeStream(base ingestion.Checkpoint, delta ingestion.Checkpoint) ingestion.Checkpoint {
+	dLSN, dSeq, ok := ParseStream(delta)
+	if !ok {
+		return base
+	}
+	if _, bSeq, ok := ParseStream(base); ok && bSeq > dSeq {
+		return base
+	}
+	return NewStreamDelta(delta.Resource(), dLSN, dSeq)
 }
 
 // coarseDeltaTag marks an ack/want completion delta — shared by bitmap and ctid, which
