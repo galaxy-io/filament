@@ -53,9 +53,9 @@ func (t *Sink) Spec() ingestion.SinkSpec {
 		DisplayName: "PostgreSQL",
 		Version:     "1",
 		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Help: "PostgreSQL connection string"},
-			{Name: "schema", Type: ingestion.FieldString, Default: defaultSchema, Help: "Destination schema"},
-			{Name: "mode", Type: ingestion.FieldEnum, Default: "typed", Enum: []string{"typed"}, Help: "Destination table mode"},
+			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "PostgreSQL connection string"},
+			{Name: "schema", Type: ingestion.FieldString, Default: defaultSchema, Scope: ingestion.ScopePipeline, Help: "Destination schema"},
+			{Name: "mode", Type: ingestion.FieldEnum, Default: "typed", Enum: []string{"typed"}, Scope: ingestion.ScopePipeline, Help: "Destination table mode"},
 		}},
 		Capabilities: ingestion.SinkCapabilities{
 			Schematized: true,

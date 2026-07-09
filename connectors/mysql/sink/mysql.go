@@ -53,9 +53,9 @@ func (t *Sink) Spec() ingestion.SinkSpec {
 		DisplayName: "MySQL",
 		Version:     "1",
 		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
-			{Name: "database", Type: ingestion.FieldString, Help: "Destination database (defaults to the DSN's database)"},
-			{Name: "mode", Type: ingestion.FieldEnum, Default: "typed", Enum: []string{"typed"}, Help: "Destination table mode"},
+			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+			{Name: "database", Type: ingestion.FieldString, Scope: ingestion.ScopePipeline, Help: "Destination database (defaults to the DSN's database)"},
+			{Name: "mode", Type: ingestion.FieldEnum, Default: "typed", Enum: []string{"typed"}, Scope: ingestion.ScopePipeline, Help: "Destination table mode"},
 		}},
 		Capabilities: ingestion.SinkCapabilities{
 			Schematized:        true,

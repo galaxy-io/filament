@@ -93,6 +93,13 @@ func (s *Sink) Spec() ingestion.SinkSpec {
 		Name:        "iceberg",
 		DisplayName: "Apache Iceberg",
 		Version:     "1",
+		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
+			{Name: "warehouse", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopeConnection, Help: "Warehouse root location (shared catalog storage)."},
+			{Name: "catalog", Type: ingestion.FieldObject, Required: true, Scope: ingestion.ScopeConnection, Help: "Catalog connection props; requires type or uri (plus backend credentials)."},
+			{Name: "namespace", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables."},
+			{Name: "write_mode", Type: ingestion.FieldEnum, Enum: []string{"auto", "append", "replace", "upsert", "delete", "merge"}, Default: "auto", Scope: ingestion.ScopePipeline, Help: "Write behavior; auto picks replace for full loads, append otherwise."},
+			{Name: "stage_buffer_limit_mb", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
+		}},
 		Capabilities: ingestion.SinkCapabilities{
 			Transactional: true,
 			Schematized:   true,

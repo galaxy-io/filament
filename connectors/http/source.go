@@ -10,17 +10,17 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
-	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
 )
 
 const providerName = "httpapi"
 
 var genericConfig = ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-	{Name: "manifest_path", Type: ingestion.FieldString, Required: true, Help: "Path to a v2 HTTP API connector manifest"},
+	{Name: "manifest_path", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopeConnection, Help: "Path to a v2 HTTP API connector manifest"},
 }}
 
 type selectorToken struct {

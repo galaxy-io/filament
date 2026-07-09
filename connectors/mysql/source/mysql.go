@@ -97,12 +97,12 @@ func (s *Source) Spec() ingestion.ConnectorSpec {
 			ingestion.IngestionCDC,
 		),
 		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
-			{Name: "database", Type: ingestion.FieldString, Help: "Database to read tables from (defaults to the DSN's database)"},
-			{Name: "page_size", Type: ingestion.FieldInt, Default: defaultPageSize, Help: "Rows to target per read page"},
-			{Name: "shard_pages", Type: ingestion.FieldInt, Default: defaultShardPages, Help: "InnoDB pages per shard; 0 disables sharding"},
-			{Name: "max_conns", Type: ingestion.FieldInt, Help: "Maximum source database connections"},
-			{Name: "server_id", Type: ingestion.FieldInt, Default: defaultServerID, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
+			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+			{Name: "database", Type: ingestion.FieldString, Scope: ingestion.ScopePipeline, Help: "Database to read tables from (defaults to the DSN's database)"},
+			{Name: "page_size", Type: ingestion.FieldInt, Default: defaultPageSize, Scope: ingestion.ScopePipeline, Help: "Rows to target per read page"},
+			{Name: "shard_pages", Type: ingestion.FieldInt, Default: defaultShardPages, Scope: ingestion.ScopePipeline, Help: "InnoDB pages per shard; 0 disables sharding"},
+			{Name: "max_conns", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Maximum source database connections"},
+			{Name: "server_id", Type: ingestion.FieldInt, Default: defaultServerID, Scope: ingestion.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
 		}},
 		Resources: ingestion.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}

@@ -33,8 +33,8 @@ func newRecordBuf(limitBytes int64) *recordBuf {
 }
 
 type recordEntry struct {
-	Op   ingestion.Operation   `json:"op"`
-	Data json.RawMessage `json:"data"`
+	Op   ingestion.Operation `json:"op"`
+	Data json.RawMessage     `json:"data"`
 }
 
 // append adds one JSON payload to the buffer, spilling to disk if needed.
