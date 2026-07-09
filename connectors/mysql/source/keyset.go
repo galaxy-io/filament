@@ -417,7 +417,7 @@ func keysetOrder(pks []pkColumn) string {
 }
 
 // runConcurrent runs jobs over the pool based on the parallelism config, if 0 it runs sequentially
-// each inside its own REPEATABLE READ transaction opened with START TRANSACTION WITH CONSISTENT SNAPSHOT. 
+// each inside its own REPEATABLE READ transaction opened with START TRANSACTION WITH CONSISTENT SNAPSHOT.
 func (s *Source) runConcurrent(ctx context.Context, parallelism int, jobs []func(context.Context, querier) error) error {
 	if parallelism <= 1 || len(jobs) <= 1 {
 		for _, job := range jobs {
