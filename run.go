@@ -296,6 +296,12 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			Ordered:       true,
 			Checkpointing: CheckpointAfterCommit,
 		}
+	case IngestionSnapshotUpsert:
+		return SourcePolicy{
+			Mode:          ModeFull,
+			EmitsOps:      []Operation{OpInsert},
+			Checkpointing: CheckpointAfterBatch,
+		}
 	case IngestionUpsert, IngestionDelete:
 		return SourcePolicy{
 			Mode:          ModeIncremental,
