@@ -1,6 +1,6 @@
 import type { Icon } from "@phosphor-icons/react";
 import {
-  ClipboardTextIcon,
+  ClockCounterClockwiseIcon,
   GearIcon,
   TreeStructureIcon,
 } from "@phosphor-icons/react";
@@ -32,7 +32,7 @@ export const PIPELINE_STATUS_TO_CHIP_VARIANT_MAP: Record<PipelineStatus, ChipVar
 
 export const PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP: Record<PipelineSidebarItem, Icon> = {
   [PipelineSidebarItem.CANVAS]: TreeStructureIcon,
-  [PipelineSidebarItem.HISTORY]: ClipboardTextIcon,
+  [PipelineSidebarItem.HISTORY]: ClockCounterClockwiseIcon,
   [PipelineSidebarItem.SETTINGS]: GearIcon,
 };
 
