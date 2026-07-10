@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { TrashIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -7,7 +8,6 @@ import FlexWrapper, {
   FlexDirection,
   FlexGap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
@@ -18,6 +18,7 @@ import Text, {
 } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -31,15 +32,17 @@ const PageWrapper = withTheme(styled.div<PropsWithTheme>`
 `);
 
 const ContentWrapper = styled.div`
-  max-width: 600px;
-`;
-
-const Section = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
 
-  padding: 20px 0;
+  max-width: 600px;
+`;
+
+const WidgetContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 `;
 
 const FieldWrapper = styled.div`
@@ -54,17 +57,6 @@ const FieldRow = styled.div`
   justify-content: space-between;
   gap: 12px;
 `;
-
-const DangerSection = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  padding: 16px;
-
-  border: 1px solid ${({ theme }) => theme.color.border.error};
-  border-radius: 8px;
-`);
 
 const PipelineSettingsPage = () => {
   const [name, setName] = useState("My Pipeline");
@@ -85,43 +77,35 @@ const PipelineSettingsPage = () => {
           </Text>
         </FlexWrapper>
 
-        <Section>
-          <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
-            General
-          </Text>
+        <Widget header="General" noHover>
+          <WidgetContent>
+            <FieldWrapper>
+              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                Name
+              </Text>
+              <TextInput
+                value={name}
+                onChange={setName}
+                placeholder="Pipeline name"
+                fillWidth
+              />
+            </FieldWrapper>
 
-          <FieldWrapper>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              Name
-            </Text>
-            <TextInput
-              value={name}
-              onChange={setName}
-              placeholder="Pipeline name"
-              fillWidth
-            />
-          </FieldWrapper>
+            <FieldWrapper>
+              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                Description
+              </Text>
+              <TextAreaInput
+                value={description}
+                onChange={setDescription}
+                placeholder="Optional description"
+                fillWidth
+              />
+            </FieldWrapper>
+          </WidgetContent>
+        </Widget>
 
-          <FieldWrapper>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              Description
-            </Text>
-            <TextAreaInput
-              value={description}
-              onChange={setDescription}
-              placeholder="Optional description"
-              fillWidth
-            />
-          </FieldWrapper>
-        </Section>
-
-        <HorizontalDivider />
-
-        <Section>
-          <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
-            Schedule
-          </Text>
-
+        <Widget header="Schedule" noHover>
           <FieldRow>
             <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
               <Text>Enable scheduling</Text>
@@ -134,68 +118,56 @@ const PipelineSettingsPage = () => {
               onChange={setScheduleEnabled}
             />
           </FieldRow>
-        </Section>
+        </Widget>
 
-        <HorizontalDivider />
+        <Widget header="Notifications" noHover>
+          <WidgetContent>
+            <FieldRow>
+              <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
+                <Text>Pipeline notifications</Text>
+                <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                  Receive notifications when runs complete.
+                </Text>
+              </FlexWrapper>
+              <ToggleInput
+                value={notificationsEnabled}
+                onChange={setNotificationsEnabled}
+              />
+            </FieldRow>
 
-        <Section>
-          <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
-            Notifications
-          </Text>
+            <FieldRow>
+              <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
+                <Text>Error alerts</Text>
+                <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                  Get notified immediately when errors occur.
+                </Text>
+              </FlexWrapper>
+              <ToggleInput
+                value={errorAlertsEnabled}
+                onChange={setErrorAlertsEnabled}
+              />
+            </FieldRow>
+          </WidgetContent>
+        </Widget>
 
+        <Widget header="Danger zone" variant={WidgetVariant.ERROR} noHover>
           <FieldRow>
-            <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
-              <Text>Pipeline notifications</Text>
-              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-                Receive notifications when runs complete.
-              </Text>
-            </FlexWrapper>
-            <ToggleInput
-              value={notificationsEnabled}
-              onChange={setNotificationsEnabled}
-            />
-          </FieldRow>
-
-          <FieldRow>
-            <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
-              <Text>Error alerts</Text>
-              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-                Get notified immediately when errors occur.
-              </Text>
-            </FlexWrapper>
-            <ToggleInput
-              value={errorAlertsEnabled}
-              onChange={setErrorAlertsEnabled}
-            />
-          </FieldRow>
-        </Section>
-
-        <HorizontalDivider />
-
-        <Section>
-          <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
-            Danger zone
-          </Text>
-
-          <DangerSection>
             <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
               <Text weight={TextWeight.MEDIUM}>Delete pipeline</Text>
               <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-                Permanently delete this pipeline and all associated data. This
-                action cannot be undone.
+                This will permanently delete this pipeline and all of its data.
               </Text>
             </FlexWrapper>
-            <div>
-              <Button
-                label="Delete pipeline"
-                variant={ButtonVariant.ERROR}
-                onClick={() => {
-                  // TODO: Implement delete confirmation
-                }}
-              />
-            </div>
-          </DangerSection>
-        </Section>
+            <Button
+              label="Delete pipeline"
+              icon={TrashIcon}
+              variant={ButtonVariant.ERROR}
+              onClick={() => {
+                // TODO: Implement delete confirmation
+              }}
+            />
+          </FieldRow>
+        </Widget>
       </ContentWrapper>
     </PageWrapper>
   );
