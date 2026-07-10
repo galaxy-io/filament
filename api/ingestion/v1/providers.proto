@@ -17,11 +17,11 @@ message Capabilities {
   repeated SourcePolicy source_policies = 7;
 }
 
-// ProviderSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
-message ProviderSpec {
+// ConnectorSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
+message ConnectorSpec {
   string name = 1;
   string display_name = 2;
-  ProviderKind kind = 3;
+  ConnectorKind kind = 3;
   string version = 4;
   repeated ReplicationMode modes = 5;
   ConfigSchema config_schema = 6;
@@ -30,18 +30,18 @@ message ProviderSpec {
 
 message ListConnectorsRequest {
   // Filter to one kind; UNSPECIFIED returns both sources and sinks.
-  ProviderKind kind = 1;
+  ConnectorKind kind = 1;
 }
 
 message ListConnectorsResponse {
-  repeated ProviderSpec connectors = 1;
+  repeated ConnectorSpec connectors = 1;
 }
 
 message ValidateConfigRequest {
-  ProviderKind kind = 1;
-  string provider = 2;
+  ConnectorKind kind = 1;
+  string connector = 2;
   google.protobuf.Struct config = 3;
-  // live attempts a TestConnection probe if the provider supports it.
+  // live attempts a TestConnection probe if the connector supports it.
   bool live = 4;
 }
 
@@ -58,8 +58,8 @@ message ValidateConfigResponse {
 }
 
 message DiscoverResourcesRequest {
-  // Source provider only; discovering a sink is not meaningful.
-  string provider = 1;
+  // Source connector only; discovering a sink is not meaningful.
+  string connector = 1;
   google.protobuf.Struct config = 2;
   bool refresh = 3;
 }

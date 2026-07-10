@@ -6,13 +6,13 @@ import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
 
 // PipelineNode is one source or sink on the canvas. connection_id references the
-// reusable Connection that supplies the provider and connection-scoped config
+// reusable Connection that supplies the connector and connection-scoped config
 // (host/bucket/credentials). config/secret_refs are the per-node PIPELINE-scoped
 // overlay (prefix, path, target table, write mode) shallow-merged over the
 // connection config at run time, with the node overlay winning on key conflicts.
 message PipelineNode {
   string id = 1;
-  ProviderKind kind = 2;
+  ConnectorKind kind = 2;
   string connection_id = 3;
   google.protobuf.Struct config = 4;   // PIPELINE overlay only
   map<string, string> secret_refs = 5; // PIPELINE overlay only

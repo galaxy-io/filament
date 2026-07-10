@@ -10,7 +10,7 @@ import "ingestion/v1/secrets.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
 service IngestionService {
-  // Catalog of registered source/sink providers and their config schemas.
+  // Catalog of registered source/sink connectors and their config schemas.
   rpc ListConnectors(ListConnectorsRequest) returns (ListConnectorsResponse);
 
   // Ephemeral source/sink operations; no persisted state.

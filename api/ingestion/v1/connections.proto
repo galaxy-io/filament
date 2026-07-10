@@ -13,9 +13,9 @@ import "ingestion/v1/common.proto";
 message Connection {
   string id = 1;
   string tenant = 2;
-  ProviderKind kind = 3;
+  ConnectorKind kind = 3;
   string name = 4;
-  string provider = 5;
+  string connector = 5;
   google.protobuf.Struct config = 6;       // CONNECTION-scoped fields only
   map<string, string> secret_refs = 7;
   int64 version = 8;
@@ -23,9 +23,9 @@ message Connection {
 
 message CreateConnectionRequest {
   string tenant = 1;
-  ProviderKind kind = 2;
+  ConnectorKind kind = 2;
   string name = 3;
-  string provider = 4;
+  string connector = 4;
   google.protobuf.Struct config = 5;
   map<string, string> secret_refs = 6;
 }
@@ -54,7 +54,7 @@ message GetConnectionResponse {
 // sinks.
 message ListConnectionsRequest {
   string tenant = 1;
-  ProviderKind kind = 2;
+  ConnectorKind kind = 2;
 }
 
 message ListConnectionsResponse {

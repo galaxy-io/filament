@@ -4,11 +4,11 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 
-// ProviderKind distinguishes a source from a sink in the catalog.
-enum ProviderKind {
-  PROVIDER_KIND_UNSPECIFIED = 0;
-  PROVIDER_KIND_SOURCE = 1;
-  PROVIDER_KIND_SINK = 2;
+// ConnectorKind distinguishes a source from a sink in the catalog.
+enum ConnectorKind {
+  CONNECTOR_KIND_UNSPECIFIED = 0;
+  CONNECTOR_KIND_SOURCE = 1;
+  CONNECTOR_KIND_SINK = 2;
 }
 
 // FieldType mirrors pkg.FieldType; drives UI form controls for config fields.
