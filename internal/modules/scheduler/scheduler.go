@@ -17,6 +17,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/internal/cron"
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/module"
@@ -207,8 +208,8 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 			return fired, err
 		}
 
-		ev := ingestion.Event{Type: ingestion.EvScheduleFired, Tenant: st.Spec.Tenant, Run: runID, At: now}
-		_ = ingestion.PublishEvent(ctx, m.bus, ev)
+		_ = events.Emit(ctx, m.bus, events.ScheduleFired,
+			events.Envelope{Tenant: st.Spec.Tenant, Run: runID, At: now}, events.ScheduleFiredEvent{})
 		fired++
 	}
 	return fired, nil

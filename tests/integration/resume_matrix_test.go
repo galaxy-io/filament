@@ -36,6 +36,7 @@ import (
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
@@ -223,7 +224,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	effect := op.run(t, ctx, pg.Pool(), qualified)
 
 	// Re-request the same run id — the resume trigger.
-	if err := ingestion.PublishEvent(ctx, bus, ingestion.Event{Type: ingestion.EvRunRequested, Tenant: "t1", Run: id}); err != nil {
+	if err := events.Emit(ctx, bus, events.RunRequested, events.Envelope{Tenant: "t1", Run: id}, events.RunRequestedEvent{}); err != nil {
 		t.Fatalf("re-request run: %v", err)
 	}
 	final := waitStatus(t, ctx, store, id, ingestion.RunCompleted)

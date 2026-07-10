@@ -14,6 +14,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/stdout"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 	secretenv "github.com/galaxy-io/filament/secret/env"
@@ -69,7 +70,7 @@ func run(ctx context.Context) error {
 	if subjects := os.Getenv("NATS_SUBJECTS"); subjects != "" {
 		busOpts = append(busOpts, natsbus.WithSubjects(subjects))
 	}
-	bus, err := natsbus.New(natsURL, ingestion.JSONCodec, busOpts...)
+	bus, err := natsbus.New(natsURL, events.Codec, busOpts...)
 	if err != nil {
 		return err
 	}
