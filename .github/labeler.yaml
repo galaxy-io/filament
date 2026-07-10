@@ -15,3 +15,8 @@ control-plane:
           - "cmd/ingestion-control/**"
           - "server/**"
           - "internal/modules/**"
+
+migrations:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "datastore/postgres/migrations/**"
