@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +28,7 @@ type Event[T any] struct {
 }
 
 // Fact is the untyped form of one fact — what actually travels the bus. Data
-// holds the payload type Defined under Name. Consumers narrow it back through
+// holds the payload type defined under Name. Consumers narrow it back through
 // Mux or On; Event[T] is its typed view.
 type Fact struct {
 	Envelope
@@ -35,7 +36,7 @@ type Fact struct {
 	Data any
 }
 
-// EventType identifies one Defined event kind. The value is the capability to
+// EventType identifies one defined event kind. The value is the capability to
 // emit or subscribe to that kind; construct it only through Define.
 type EventType[T any] struct {
 	entity string
@@ -45,8 +46,17 @@ type EventType[T any] struct {
 // Name returns the wire spelling "<entity>.<event>" (e.g. "batch.written").
 func (t EventType[T]) Name() string { return t.entity + eventbus.Separator + t.name }
 
+// IsValid returns boolean if event to be emitted is not empty or malformed
+func (t EventType[T]) IsValid() bool {
+	if t.entity == "" || t.name == "" {
+		return false
+	}
+
+	return true
+}
+
 // Definition is one registry entry: the subject coordinates and payload
-// decoder of a Defined event kind.
+// decoder of a defined event kind.
 type Definition struct {
 	Entity string
 	Event  string
@@ -61,10 +71,10 @@ var (
 	registry = map[string]Definition{}
 )
 
-// Define registers an event kind under its wire spelling "<entity>.<event>"
+// define registers an event kind under its wire spelling "<entity>.<event>"
 // (e.g. "batch.written") and returns its EventType. A malformed or duplicate
 // name panics: the catalog is a compile-time artifact and collisions are bugs.
-func Define[T any](name string) EventType[T] {
+func define[T any](name string) EventType[T] {
 	entity, event, ok := strings.Cut(name, eventbus.Separator)
 	if !ok || entity == "" || event == "" || strings.Contains(event, eventbus.Separator) {
 		panic(fmt.Sprintf("events: %q is not <entity>.<event>", name))
@@ -98,7 +108,7 @@ func Lookup(name string) (Definition, bool) {
 	return d, ok
 }
 
-// Names returns every registered wire spelling (unordered).
+// Names returns every registered wire spelling, sorted.
 func Names() []string {
 	regMu.RLock()
 	defer regMu.RUnlock()
@@ -106,6 +116,7 @@ func Names() []string {
 	for name := range registry {
 		out = append(out, name)
 	}
+	slices.Sort(out)
 	return out
 }
 
@@ -219,6 +230,9 @@ func SubjectPattern[T any](t EventType[T]) string {
 // Emit validates the envelope and publishes the fact under its subject. The
 // payload travels as a Fact value; framing happens only at a transport edge.
 func Emit[T any](ctx context.Context, bus eventbus.Bus, t EventType[T], env Envelope, data T) error {
+	if !t.IsValid() {
+		return errors.New("events: emit: invalid EventType")
+	}
 	if err := env.Tenant.Valid(); err != nil {
 		return fmt.Errorf("events: emit %s: tenant: %w", t.Name(), err)
 	}
@@ -230,16 +244,36 @@ func Emit[T any](ctx context.Context, bus eventbus.Bus, t EventType[T], env Enve
 }
 
 // On subscribes to one event kind on its own subscription and pumps typed
-// deliveries to fn. nil ⇒ ack; non-nil ⇒ nak (redeliver). The returned func
-// closes the subscription. Modules consuming many kinds through one durable
-// consumer use Mux instead.
-func On[T any](bus eventbus.Bus, t EventType[T], opts eventbus.SubOpts, fn func(context.Context, Event[T]) error) (func(), error) {
+// deliveries to fn. nil ⇒ ack; non-nil ⇒ nak (redeliver). Canceling ctx closes
+// the subscription, as does the returned func. Modules consuming many kinds
+// through one durable consumer use Mux instead.
+func On[T any](ctx context.Context, bus eventbus.Bus, t EventType[T], opts eventbus.SubOpts, fn func(context.Context, Event[T]) error) (func(), error) {
+	if !t.IsValid() {
+		return nil, errors.New("events: on: invalid EventType")
+	}
 	sub, err := bus.Subscribe(SubjectPattern(t), opts)
 	if err != nil {
 		return nil, err
 	}
+
+	// Ends the subscription at the bus level on ctx cancel; done releases the
+	// watcher when the pump exits first.
+	done := make(chan struct{})
 	go func() {
+		select {
+		case <-ctx.Done():
+			_ = sub.Close()
+		case <-done:
+		}
+	}()
+
+	go func() {
+		defer close(done)
 		for msg := range sub.C() {
+			if ctx.Err() != nil {
+				_ = msg.Nak() // canceled mid-flight: redeliver, don't execute
+				continue
+			}
 			f, err := Decode(msg)
 			if err != nil {
 				_ = msg.Ack() // not a Fact: a foreign publisher on our pattern — skip
@@ -250,7 +284,7 @@ func On[T any](bus eventbus.Bus, t EventType[T], opts eventbus.SubOpts, fn func(
 				_ = msg.Ack()
 				continue
 			}
-			if err := fn(context.Background(), Event[T]{Envelope: f.Envelope, Data: payload}); err != nil {
+			if err := fn(ctx, Event[T]{Envelope: f.Envelope, Data: payload}); err != nil {
 				_ = msg.Nak()
 				continue
 			}

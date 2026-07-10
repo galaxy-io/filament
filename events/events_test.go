@@ -74,20 +74,20 @@ func TestDefineValidatesName(t *testing.T) {
 		func() {
 			defer func() {
 				if recover() == nil {
-					t.Fatalf("Define(%q): want panic", bad)
+					t.Fatalf("define(%q): want panic", bad)
 				}
 			}()
-			Define[struct{}](bad)
+			define[struct{}](bad)
 		}()
 	}
 
 	defer func() {
 		if recover() == nil {
-			t.Fatal("want panic on duplicate Define")
+			t.Fatal("want panic on duplicate define")
 		}
 	}()
-	Define[struct{}]("test.dup")
-	Define[struct{}]("test.dup")
+	define[struct{}]("test.dup")
+	define[struct{}]("test.dup")
 }
 
 func TestEmitValidatesEnvelope(t *testing.T) {
@@ -96,17 +96,25 @@ func TestEmitValidatesEnvelope(t *testing.T) {
 	if err := Emit(context.Background(), bus, RunStarted, bad, RunStartedEvent{}); err == nil {
 		t.Fatal("want error for invalid tenant token")
 	}
+	if err := Emit(context.Background(), bus, EventType[RunStartedEvent]{}, env(), RunStartedEvent{}); err == nil {
+		t.Fatal("want error for zero EventType")
+	}
+	if _, err := On(context.Background(), bus, EventType[RunStartedEvent]{}, eventbus.SubOpts{}, nil); err == nil {
+		t.Fatal("want error for zero EventType in On")
+	}
 }
 
 func TestEmitOnRoundTrip(t *testing.T) {
 	bus := inproc.New()
+
+	ctx := context.Background()
 
 	raw, err := bus.Subscribe("ingestion.v1.>", eventbus.SubOpts{})
 	if err != nil {
 		t.Fatalf("subscribe raw: %v", err)
 	}
 	seen := make(chan Event[RunCompletedEvent], 1)
-	cancel, err := On(bus, RunCompleted, eventbus.SubOpts{}, func(_ context.Context, e Event[RunCompletedEvent]) error {
+	cancel, err := On(ctx, bus, RunCompleted, eventbus.SubOpts{}, func(_ context.Context, e Event[RunCompletedEvent]) error {
 		seen <- e
 		return nil
 	})
@@ -137,6 +145,32 @@ func TestEmitOnRoundTrip(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("no raw delivery")
+	}
+}
+
+func TestOnCtxCancelClosesSubscription(t *testing.T) {
+	bus := inproc.New()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	fired := make(chan struct{}, 1)
+	_, err := On(ctx, bus, RunCompleted, eventbus.SubOpts{}, func(context.Context, Event[RunCompletedEvent]) error {
+		fired <- struct{}{}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("on: %v", err)
+	}
+
+	cancel()
+	time.Sleep(50 * time.Millisecond) // let the watcher close the sub
+
+	if err := Emit(context.Background(), bus, RunCompleted, env(), RunCompletedEvent{}); err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+	select {
+	case <-fired:
+		t.Fatal("handler fired after ctx cancel")
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 
