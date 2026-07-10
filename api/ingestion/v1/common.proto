@@ -71,6 +71,12 @@ enum CheckpointPolicy {
   CHECKPOINT_POLICY_AFTER_COMMIT = 3;
 }
 
+enum FieldScope {
+  FIELD_SCOPE_UNSPECIFIED = 0;
+  FIELD_SCOPE_CONNECTION = 1;
+  FIELD_SCOPE_PIPELINE = 2;
+}
+
 // ConfigField mirrors pkg.ConfigField.
 message ConfigField {
   string name = 1;
@@ -79,6 +85,7 @@ message ConfigField {
   google.protobuf.Value default = 4;
   repeated string enum = 5;
   string help = 6;
+  FieldScope scope = 7;
 }
 
 // ConfigSchema mirrors pkg.ConfigSchema.

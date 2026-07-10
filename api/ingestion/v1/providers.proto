@@ -28,13 +28,13 @@ message ProviderSpec {
   Capabilities capabilities = 7;
 }
 
-message ListProvidersRequest {
+message ListConnectorsRequest {
   // Filter to one kind; UNSPECIFIED returns both sources and sinks.
   ProviderKind kind = 1;
 }
 
-message ListProvidersResponse {
-  repeated ProviderSpec providers = 1;
+message ListConnectorsResponse {
+  repeated ProviderSpec connectors = 1;
 }
 
 message ValidateConfigRequest {
