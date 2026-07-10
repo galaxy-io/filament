@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import { styled } from "@linaria/react";
+import { match } from "ts-pattern";
 
 import GithubLogomark from "@galaxy-io/dls/icons/sources/GithubLogomark";
 import GoogleBigqueryLogomark from "@galaxy-io/dls/icons/sources/GoogleBigqueryLogomark";
@@ -15,14 +16,16 @@ import SalesforceLogomark from "@galaxy-io/dls/icons/sources/SalesforceLogomark"
 import SlackLogoIconmark from "@galaxy-io/dls/icons/sources/SlackLogoIconmark";
 import SnowflakeLogomark from "@galaxy-io/dls/icons/sources/SnowflakeLogomark";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-const TILE_SIZE = 20;
-const LOGO_HEIGHT = 12;
+export enum ProviderTileSize {
+  SMALL = "SMALL",
+  MEDIUM = "MEDIUM",
+  LARGE = "LARGE",
+}
 
-const PROVIDER_LOGOMARKS: Record<string, ComponentType<{ height: number }>> = {
+const PROVIDER_TO_LOGOMARK_MAP: Record<string, ComponentType<{ height: number }>> = {
   bigquery: GoogleBigqueryLogomark,
   github: GithubLogomark,
   hubspot: HubspotLogomark,
@@ -38,9 +41,39 @@ const PROVIDER_LOGOMARKS: Record<string, ComponentType<{ height: number }>> = {
   snowflake: SnowflakeLogomark,
 };
 
-const TileWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: ${TILE_SIZE}px;
-  height: ${TILE_SIZE}px;
+const getTileSize = (size: ProviderTileSize): number =>
+  match(size)
+    .with(ProviderTileSize.SMALL, () => 24)
+    .with(ProviderTileSize.MEDIUM, () => 32)
+    .with(ProviderTileSize.LARGE, () => 48)
+    .exhaustive();
+
+const getTileRadius = (size: ProviderTileSize): number =>
+  match(size)
+    .with(ProviderTileSize.SMALL, () => 4)
+    .with(ProviderTileSize.MEDIUM, () => 5)
+    .with(ProviderTileSize.LARGE, () => 8)
+    .exhaustive();
+
+const getLogoHeight = (size: ProviderTileSize): number =>
+  match(size)
+    .with(ProviderTileSize.SMALL, () => 16)
+    .with(ProviderTileSize.MEDIUM, () => 20)
+    .with(ProviderTileSize.LARGE, () => 32)
+    .exhaustive();
+
+const getTextSize = (size: ProviderTileSize): TextSize =>
+  match(size)
+    .with(ProviderTileSize.SMALL, () => TextSize.CAPTION)
+    .with(ProviderTileSize.MEDIUM, () => TextSize.BODY_MD)
+    .with(ProviderTileSize.LARGE, () => TextSize.BODY_LG)
+    .exhaustive();
+
+const TileWrapper = withTheme(styled.div<
+  PropsWithTheme<{ $size: ProviderTileSize }>
+>`
+  width: ${({ $size }) => getTileSize($size)}px;
+  height: ${({ $size }) => getTileSize($size)}px;
 
   display: flex;
   align-items: center;
@@ -48,41 +81,46 @@ const TileWrapper = withTheme(styled.div<PropsWithTheme>`
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-radius: 3.5px;
+  border-radius: ${({ $size }) => getTileRadius($size)}px;
 
   overflow: hidden;
 `);
 
 interface ProviderTileProps {
   provider: string;
+  size?: ProviderTileSize;
 }
 
 /**
- * A 20px tile showing a provider's logomark, falling back to the provider's
+ * A tile showing a provider's logomark, falling back to the provider's
  * first letter when no logomark exists in the DLS.
  */
-const ProviderTile = ({ provider }: ProviderTileProps) => {
-  const Logomark = PROVIDER_LOGOMARKS[provider.toLowerCase()];
+const ProviderTile = ({
+  provider,
+  size = ProviderTileSize.MEDIUM,
+}: ProviderTileProps) => {
+  const Logomark = PROVIDER_TO_LOGOMARK_MAP[provider.toLowerCase()];
 
   return (
-    <Tooltip body={provider}>
-      <TileWrapper>
-        {Logomark ? (
-          <Logomark height={LOGO_HEIGHT} />
-        ) : (
-          <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isMonospace>
-            {provider.charAt(0).toUpperCase()}
-          </Text>
-        )}
-      </TileWrapper>
-    </Tooltip>
+    <TileWrapper $size={size}>
+      {Logomark ? (
+        <Logomark height={getLogoHeight(size)} />
+      ) : (
+        <Text
+          size={getTextSize(size)}
+          variant={TextVariant.SECONDARY}
+          isMonospace
+        >
+          {provider.charAt(0).toUpperCase()}
+        </Text>
+      )}
+    </TileWrapper>
   );
 };
 
 export const ProviderOverflowTile = ({ count }: { count: number }) => {
   return (
-    <TileWrapper>
+    <TileWrapper $size={ProviderTileSize.SMALL}>
       <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isMonospace>
         +{count}
       </Text>

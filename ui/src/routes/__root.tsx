@@ -5,8 +5,6 @@ import { OverlayProvider } from "@galaxy-io/dls/overlay/OverlayProvider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import MainLayout from "@/layouts/main/MainLayout";
-
 export const Route = createRootRoute({
   component: RootComponent,
 });
@@ -28,9 +26,7 @@ function RootComponent() {
   return (
     <OverlayProvider>
       <RootComponentWrapper>
-        <MainLayout>
-          <Outlet />
-        </MainLayout>
+        <Outlet />
       </RootComponentWrapper>
     </OverlayProvider>
   );

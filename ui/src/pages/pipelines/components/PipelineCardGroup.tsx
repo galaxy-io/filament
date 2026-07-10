@@ -1,37 +1,45 @@
 import { useState } from "react";
 
-import { CaretDownIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
+import RotateWithTransition from "@galaxy-io/dls/animations/RotateWithTransition";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import FlexWrapper, { AlignItems, FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import PipelineCard from "@/pages/pipelines/components/PipelineCard";
+import {
+  PIPELINE_GROUP_BAND_HEIGHT,
+  PIPELINE_GROUP_TO_LABEL_MAP,
+  PIPELINE_INDICATOR_WIDTH,
+} from "@/pages/pipelines/constants";
 import { PipelineGroup, PipelineListItem } from "@/pages/pipelines/types";
 
-const GROUP_BAND_HEIGHT = 40;
+const IndicatorWrapper = styled.div`
+  width: ${PIPELINE_INDICATOR_WIDTH}px;
 
-const GROUP_LABELS: Record<PipelineGroup, string> = {
-  [PipelineGroup.ACTIVE]: "Active",
-  [PipelineGroup.NEEDS_ATTENTION]: "Needs attention",
-  [PipelineGroup.PAUSED]: "Paused",
-};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
 
 const GroupBandWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
-  height: ${GROUP_BAND_HEIGHT}px;
+  height: ${PIPELINE_GROUP_BAND_HEIGHT}px;
 
-  padding: 0 16px 0 13px;
+  padding: 0 16px;
 
   display: flex;
   align-items: center;
 
   background-color: ${({ theme }) => theme.color.background.tertiary};
+
+  border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
 
   cursor: pointer;
   user-select: none;
@@ -45,17 +53,17 @@ const getGroupBadgeVariant = (group: PipelineGroup): BadgeVariant => {
     .exhaustive();
 };
 
-interface PipelineGroupSectionProps {
+interface PipelineCardGroupProps {
   group: PipelineGroup;
   pipelines: PipelineListItem[];
   defaultExpanded?: boolean;
 }
 
-const PipelineGroupSection = ({
+const PipelineCardGroup = ({
   group,
   pipelines,
   defaultExpanded = true,
-}: PipelineGroupSectionProps) => {
+}: PipelineCardGroupProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   if (!pipelines.length) {
@@ -66,12 +74,16 @@ const PipelineGroupSection = ({
     <FlexWrapper fillWidth direction={FlexDirection.COLUMN}>
       <GroupBandWrapper onClick={() => setIsExpanded((prev) => !prev)}>
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-          <Icon
-            component={isExpanded ? CaretDownIcon : CaretRightIcon}
-            size={12}
-            variant={IconVariant.SECONDARY}
-          />
-          <Text size={TextSize.BODY_MD}>{GROUP_LABELS[group]}</Text>
+          <IndicatorWrapper>
+            <RotateWithTransition isRotated={isExpanded} deg={90}>
+              <Icon
+                component={CaretRightIcon}
+                size={12}
+                variant={IconVariant.SECONDARY}
+              />
+            </RotateWithTransition>
+          </IndicatorWrapper>
+          <Text>{PIPELINE_GROUP_TO_LABEL_MAP[group]}</Text>
           <Badge
             count={pipelines.length}
             size={BadgeSize.SMALL}
@@ -90,4 +102,4 @@ const PipelineGroupSection = ({
   );
 };
 
-export default PipelineGroupSection;
+export default PipelineCardGroup;

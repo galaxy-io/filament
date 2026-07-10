@@ -41,12 +41,18 @@ importers:
       '@tanstack/zod-adapter':
         specifier: ^1.141.2
         version: 1.167.0(@tanstack/react-router@1.170.17(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(zod@4.4.3)
+      pluralize:
+        specifier: ^8.0.0
+        version: 8.0.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      react-github-btn:
+        specifier: ^1.4.0
+        version: 1.4.0(react@18.3.1)
       ts-pattern:
         specifier: ^5.9.0
         version: 5.9.0
@@ -69,6 +75,9 @@ importers:
       '@tanstack/router-plugin':
         specifier: ^1.141.2
         version: 1.168.19(@tanstack/react-router@1.170.17(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(rolldown@1.1.5)(vite@8.1.4(@types/node@26.1.1)(jiti@2.7.0))
+      '@types/pluralize':
+        specifier: ^0.0.33
+        version: 0.0.33
       '@types/react':
         specifier: ^18.3.27
         version: 18.3.31
@@ -463,6 +472,13 @@ packages:
       react: ^18.3.1 || ^19.0.0
       react-dom: ^18.3.1 || ^19.0.0
       three: ^0.183.1 || ^0.184.0
+    peerDependenciesMeta:
+      '@react-three/drei':
+        optional: true
+      '@react-three/fiber':
+        optional: true
+      three:
+        optional: true
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -891,6 +907,9 @@ packages:
 
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
+
+  '@types/pluralize@0.0.33':
+    resolution: {integrity: sha512-JOqsl+ZoCpP4e8TDke9W79FDcSgPAR0l6pixx2JHkhnRjvShyYiAYw2LVsnA7K08Y6DeOnaU6ujmENO4os/cYg==}
 
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
@@ -1480,6 +1499,9 @@ packages:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
 
+  github-buttons@2.32.0:
+    resolution: {integrity: sha512-DbKam2n7JGbccpbAoQ7UHhxH2XYlumCakTM4Ln7v8A9TzMaaEgKV6S7A+Suyx3EVBE1DPEqA6QSgyCoGJamymg==}
+
   glsl-noise@0.0.0:
     resolution: {integrity: sha512-b/ZCF6amfAUb7dJM/MxRs7AetQEahYzJ8PtgfrmEdtw6uyGOr+ZSGtgjFm6mfsBkxJ4d2W7kg+Nlqzqvn3Bc0w==}
 
@@ -1945,6 +1967,10 @@ packages:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
     engines: {node: '>=12'}
 
+  pluralize@8.0.0:
+    resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
+    engines: {node: '>=4'}
+
   postcss@8.5.16:
     resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
     engines: {node: ^10 || ^12 || >=14}
@@ -1985,6 +2011,11 @@ packages:
     resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
     peerDependencies:
       react: ^18.3.1
+
+  react-github-btn@1.4.0:
+    resolution: {integrity: sha512-lV4FYClAfjWnBfv0iNlJUGhamDgIq6TayD0kPZED6VzHWdpcHmPfsYOZ/CFwLfPv4Zp+F4m8QKTj0oy2HjiGXg==}
+    peerDependencies:
+      react: '>=16.3.0'
 
   react-hotkeys-hook@5.3.3:
     resolution: {integrity: sha512-aswgyWUnE25hmhzHTfKDmKzsaSE5DJ4LKaU/o6rQSXkDd/1Bh9TfAFQbHkf6fLy11HvlYkp+cDDarGdhmCDhoQ==}
@@ -3016,7 +3047,8 @@ snapshots:
     dependencies:
       '@bufbuild/protobuf': 2.12.1
 
-  '@dimforge/rapier3d-compat@0.12.0': {}
+  '@dimforge/rapier3d-compat@0.12.0':
+    optional: true
 
   '@emnapi/core@1.11.1':
     dependencies:
@@ -3051,8 +3083,6 @@ snapshots:
       '@linaria/react': 7.0.1(react@18.3.1)
       '@phosphor-icons/react': 2.1.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@popperjs/core': 2.11.8
-      '@react-three/drei': 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0))(@types/react@18.3.31)(@types/three@0.185.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0)(use-sync-external-store@1.6.0(react@18.3.1))
-      '@react-three/fiber': 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0)
       '@tanstack/react-query': 5.101.2(react@18.3.1)
       '@tanstack/react-table': 8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tanstack/react-virtual': 3.14.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3075,9 +3105,12 @@ snapshots:
       react-use: 17.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       rehype-raw: 7.0.0
       remark-gfm: 4.0.1
-      three: 0.184.0
       tippy.js: 6.3.7
       ts-pattern: 5.9.0
+    optionalDependencies:
+      '@react-three/drei': 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0))(@types/react@18.3.31)(@types/three@0.185.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0)(use-sync-external-store@1.6.0(react@18.3.1))
+      '@react-three/fiber': 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0)
+      three: 0.184.0
     transitivePeerDependencies:
       - '@babel/runtime'
       - '@codemirror/language'
@@ -3227,12 +3260,14 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.3': {}
 
-  '@mediapipe/tasks-vision@0.10.17': {}
+  '@mediapipe/tasks-vision@0.10.17':
+    optional: true
 
   '@monogrid/gainmap-js@3.4.0(three@0.184.0)':
     dependencies:
       promise-worker-transferable: 1.0.4
       three: 0.184.0
+    optional: true
 
   '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)':
     dependencies:
@@ -3255,6 +3290,7 @@ snapshots:
       '@react-spring/shared': 9.7.5(react@18.3.1)
       '@react-spring/types': 9.7.5
       react: 18.3.1
+    optional: true
 
   '@react-spring/core@9.7.5(react@18.3.1)':
     dependencies:
@@ -3262,14 +3298,17 @@ snapshots:
       '@react-spring/shared': 9.7.5(react@18.3.1)
       '@react-spring/types': 9.7.5
       react: 18.3.1
+    optional: true
 
-  '@react-spring/rafz@9.7.5': {}
+  '@react-spring/rafz@9.7.5':
+    optional: true
 
   '@react-spring/shared@9.7.5(react@18.3.1)':
     dependencies:
       '@react-spring/rafz': 9.7.5
       '@react-spring/types': 9.7.5
       react: 18.3.1
+    optional: true
 
   '@react-spring/three@9.7.5(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0))(react@18.3.1)(three@0.184.0)':
     dependencies:
@@ -3280,8 +3319,10 @@ snapshots:
       '@react-three/fiber': 8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0)
       react: 18.3.1
       three: 0.184.0
+    optional: true
 
-  '@react-spring/types@9.7.5': {}
+  '@react-spring/types@9.7.5':
+    optional: true
 
   '@react-three/drei@9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0))(@types/react@18.3.31)(@types/three@0.185.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0)(use-sync-external-store@1.6.0(react@18.3.1))':
     dependencies:
@@ -3317,6 +3358,7 @@ snapshots:
       - '@types/three'
       - immer
       - use-sync-external-store
+    optional: true
 
   '@react-three/fiber@8.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.184.0)':
     dependencies:
@@ -3337,6 +3379,7 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
     transitivePeerDependencies:
       - '@types/react'
+    optional: true
 
   '@replit/codemirror-lang-nix@6.0.1(@codemirror/autocomplete@6.20.3)(@codemirror/language@6.12.4)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)(@lezer/common@1.5.2)(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)':
     dependencies:
@@ -3531,7 +3574,8 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       tippy.js: 6.3.7
 
-  '@tweenjs/tween.js@23.1.3': {}
+  '@tweenjs/tween.js@23.1.3':
+    optional: true
 
   '@tybys/wasm-util@0.10.3':
     dependencies:
@@ -3542,7 +3586,8 @@ snapshots:
     dependencies:
       '@types/ms': 2.1.0
 
-  '@types/draco3d@1.4.10': {}
+  '@types/draco3d@1.4.10':
+    optional: true
 
   '@types/estree-jsx@1.0.5':
     dependencies:
@@ -3566,7 +3611,10 @@ snapshots:
     dependencies:
       undici-types: 8.3.0
 
-  '@types/offscreencanvas@2019.7.3': {}
+  '@types/offscreencanvas@2019.7.3':
+    optional: true
+
+  '@types/pluralize@0.0.33': {}
 
   '@types/prismjs@1.26.6': {}
 
@@ -3579,17 +3627,20 @@ snapshots:
   '@types/react-reconciler@0.26.7':
     dependencies:
       '@types/react': 18.3.31
+    optional: true
 
   '@types/react-reconciler@0.28.9(@types/react@18.3.31)':
     dependencies:
       '@types/react': 18.3.31
+    optional: true
 
   '@types/react@18.3.31':
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
 
-  '@types/stats.js@0.17.4': {}
+  '@types/stats.js@0.17.4':
+    optional: true
 
   '@types/three@0.185.1':
     dependencies:
@@ -3599,12 +3650,14 @@ snapshots:
       '@types/webxr': 0.5.24
       fflate: 0.8.3
       meshoptimizer: 1.1.1
+    optional: true
 
   '@types/unist@2.0.11': {}
 
   '@types/unist@3.0.3': {}
 
-  '@types/webxr@0.5.24': {}
+  '@types/webxr@0.5.24':
+    optional: true
 
   '@types/whatwg-mimetype@3.0.2': {}
 
@@ -3891,12 +3944,14 @@ snapshots:
 
   '@ungap/structured-clone@1.3.2': {}
 
-  '@use-gesture/core@10.3.1': {}
+  '@use-gesture/core@10.3.1':
+    optional: true
 
   '@use-gesture/react@10.3.1(react@18.3.1)':
     dependencies:
       '@use-gesture/core': 10.3.1
       react: 18.3.1
+    optional: true
 
   '@vitejs/plugin-react@6.0.3(vite@8.1.4(@types/node@26.1.1)(jiti@2.7.0))':
     dependencies:
@@ -3971,13 +4026,15 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  base64-js@1.5.1: {}
+  base64-js@1.5.1:
+    optional: true
 
   baseline-browser-mapping@2.10.42: {}
 
   bidi-js@1.0.3:
     dependencies:
       require-from-string: 2.0.2
+    optional: true
 
   brace-expansion@2.1.2:
     dependencies:
@@ -3999,12 +4056,14 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
+    optional: true
 
   callsites@3.1.0: {}
 
   camera-controls@2.10.1(three@0.184.0):
     dependencies:
       three: 0.184.0
+    optional: true
 
   caniuse-lite@1.0.30001803: {}
 
@@ -4068,12 +4127,14 @@ snapshots:
   cross-env@7.0.3:
     dependencies:
       cross-spawn: 7.0.6
+    optional: true
 
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+    optional: true
 
   css-in-js-utils@3.1.0:
     dependencies:
@@ -4141,6 +4202,7 @@ snapshots:
   detect-gpu@5.0.70:
     dependencies:
       webgl-constants: 1.1.1
+    optional: true
 
   detect-libc@2.1.2: {}
 
@@ -4150,7 +4212,8 @@ snapshots:
 
   diff@8.0.4: {}
 
-  draco3d@1.5.7: {}
+  draco3d@1.5.7:
+    optional: true
 
   electron-to-chromium@1.5.389: {}
 
@@ -4190,9 +4253,11 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
-  fflate@0.6.10: {}
+  fflate@0.6.10:
+    optional: true
 
-  fflate@0.8.3: {}
+  fflate@0.8.3:
+    optional: true
 
   find-up@5.0.0:
     dependencies:
@@ -4218,7 +4283,10 @@ snapshots:
 
   gensync@1.0.0-beta.2: {}
 
-  glsl-noise@0.0.0: {}
+  github-buttons@2.32.0: {}
+
+  glsl-noise@0.0.0:
+    optional: true
 
   happy-dom@20.10.6:
     dependencies:
@@ -4314,7 +4382,8 @@ snapshots:
 
   highlightjs-vue@1.0.0: {}
 
-  hls.js@1.6.16: {}
+  hls.js@1.6.16:
+    optional: true
 
   hoist-non-react-statics@3.3.2:
     dependencies:
@@ -4328,9 +4397,11 @@ snapshots:
 
   hyphenate-style-name@1.1.0: {}
 
-  ieee754@1.2.1: {}
+  ieee754@1.2.1:
+    optional: true
 
-  immediate@3.0.6: {}
+  immediate@3.0.6:
+    optional: true
 
   import-fresh@3.3.1:
     dependencies:
@@ -4364,11 +4435,13 @@ snapshots:
 
   is-plain-obj@4.1.0: {}
 
-  is-promise@2.2.2: {}
+  is-promise@2.2.2:
+    optional: true
 
   isbot@5.2.0: {}
 
-  isexe@2.0.0: {}
+  isexe@2.0.0:
+    optional: true
 
   its-fine@1.2.5(@types/react@18.3.31)(react@18.3.1):
     dependencies:
@@ -4376,6 +4449,7 @@ snapshots:
       react: 18.3.1
     transitivePeerDependencies:
       - '@types/react'
+    optional: true
 
   jiti@2.7.0: {}
 
@@ -4396,6 +4470,7 @@ snapshots:
   lie@3.3.0:
     dependencies:
       immediate: 3.0.6
+    optional: true
 
   lightningcss-android-arm64@1.32.0:
     optional: true
@@ -4471,6 +4546,7 @@ snapshots:
     dependencies:
       '@types/three': 0.185.1
       three: 0.184.0
+    optional: true
 
   magic-string@0.30.21:
     dependencies:
@@ -4636,8 +4712,10 @@ snapshots:
   meshline@3.3.1(three@0.184.0):
     dependencies:
       three: 0.184.0
+    optional: true
 
-  meshoptimizer@1.1.1: {}
+  meshoptimizer@1.1.1:
+    optional: true
 
   micromark-core-commonmark@2.0.3:
     dependencies:
@@ -4859,7 +4937,8 @@ snapshots:
 
   node-releases@2.0.51: {}
 
-  object-assign@4.1.1: {}
+  object-assign@4.1.1:
+    optional: true
 
   p-limit@3.1.0:
     dependencies:
@@ -4896,7 +4975,8 @@ snapshots:
 
   path-exists@4.0.0: {}
 
-  path-key@3.1.1: {}
+  path-key@3.1.1:
+    optional: true
 
   path-parse@1.0.7: {}
 
@@ -4908,13 +4988,16 @@ snapshots:
 
   picomatch@4.0.5: {}
 
+  pluralize@8.0.0: {}
+
   postcss@8.5.16:
     dependencies:
       nanoid: 3.3.15
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  potpack@1.0.2: {}
+  potpack@1.0.2:
+    optional: true
 
   prettier@3.9.4: {}
 
@@ -4924,12 +5007,14 @@ snapshots:
     dependencies:
       is-promise: 2.2.2
       lie: 3.3.0
+    optional: true
 
   prop-types@15.8.1:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       react-is: 16.13.1
+    optional: true
 
   property-information@7.2.0: {}
 
@@ -4942,12 +5027,18 @@ snapshots:
     dependencies:
       prop-types: 15.8.1
       react: 18.3.1
+    optional: true
 
   react-dom@18.3.1(react@18.3.1):
     dependencies:
       loose-envify: 1.4.0
       react: 18.3.1
       scheduler: 0.23.2
+
+  react-github-btn@1.4.0(react@18.3.1):
+    dependencies:
+      github-buttons: 2.32.0
+      react: 18.3.1
 
   react-hotkeys-hook@5.3.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
@@ -4989,6 +5080,7 @@ snapshots:
       loose-envify: 1.4.0
       react: 18.3.1
       scheduler: 0.21.0
+    optional: true
 
   react-syntax-highlighter@16.1.1(react@18.3.1):
     dependencies:
@@ -5010,6 +5102,7 @@ snapshots:
       react: 18.3.1
     optionalDependencies:
       react-dom: 18.3.1(react@18.3.1)
+    optional: true
 
   react-use@17.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
@@ -5083,7 +5176,8 @@ snapshots:
       mdast-util-to-markdown: 2.1.2
       unified: 11.0.5
 
-  require-from-string@2.0.2: {}
+  require-from-string@2.0.2:
+    optional: true
 
   resize-observer-polyfill@1.5.1: {}
 
@@ -5124,6 +5218,7 @@ snapshots:
   scheduler@0.21.0:
     dependencies:
       loose-envify: 1.4.0
+    optional: true
 
   scheduler@0.23.2:
     dependencies:
@@ -5144,8 +5239,10 @@ snapshots:
   shebang-command@2.0.0:
     dependencies:
       shebang-regex: 3.0.0
+    optional: true
 
-  shebang-regex@3.0.0: {}
+  shebang-regex@3.0.0:
+    optional: true
 
   source-map-js@1.2.1: {}
 
@@ -5178,8 +5275,10 @@ snapshots:
     dependencies:
       '@types/three': 0.185.1
       three: 0.184.0
+    optional: true
 
-  stats.js@0.17.0: {}
+  stats.js@0.17.0:
+    optional: true
 
   stringify-entities@4.0.4:
     dependencies:
@@ -5203,10 +5302,12 @@ snapshots:
   suspend-react@0.1.3(react@18.3.1):
     dependencies:
       react: 18.3.1
+    optional: true
 
   three-mesh-bvh@0.7.8(three@0.184.0):
     dependencies:
       three: 0.184.0
+    optional: true
 
   three-stdlib@2.36.1(three@0.184.0):
     dependencies:
@@ -5217,8 +5318,10 @@ snapshots:
       fflate: 0.6.10
       potpack: 1.0.2
       three: 0.184.0
+    optional: true
 
-  three@0.184.0: {}
+  three@0.184.0:
+    optional: true
 
   throttle-debounce@3.0.1: {}
 
@@ -5242,12 +5345,15 @@ snapshots:
       troika-three-utils: 0.52.4(three@0.184.0)
       troika-worker-utils: 0.52.0
       webgl-sdf-generator: 1.1.1
+    optional: true
 
   troika-three-utils@0.52.4(three@0.184.0):
     dependencies:
       three: 0.184.0
+    optional: true
 
-  troika-worker-utils@0.52.0: {}
+  troika-worker-utils@0.52.0:
+    optional: true
 
   trough@2.2.0: {}
 
@@ -5268,6 +5374,7 @@ snapshots:
       - '@types/react'
       - immer
       - react
+    optional: true
 
   typescript@5.4.5: {}
 
@@ -5327,7 +5434,8 @@ snapshots:
     dependencies:
       react: 18.3.1
 
-  utility-types@3.11.0: {}
+  utility-types@3.11.0:
+    optional: true
 
   vfile-location@5.0.3:
     dependencies:
@@ -5360,9 +5468,11 @@ snapshots:
 
   web-namespaces@2.0.1: {}
 
-  webgl-constants@1.1.1: {}
+  webgl-constants@1.1.1:
+    optional: true
 
-  webgl-sdf-generator@1.1.1: {}
+  webgl-sdf-generator@1.1.1:
+    optional: true
 
   webpack-virtual-modules@0.6.2: {}
 
@@ -5371,6 +5481,7 @@ snapshots:
   which@2.0.2:
     dependencies:
       isexe: 2.0.0
+    optional: true
 
   ws@8.21.0: {}
 
@@ -5383,6 +5494,7 @@ snapshots:
   zustand@3.7.2(react@18.3.1):
     optionalDependencies:
       react: 18.3.1
+    optional: true
 
   zustand@4.5.7(@types/react@18.3.31)(react@18.3.1):
     dependencies:
@@ -5390,11 +5502,13 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.31
       react: 18.3.1
+    optional: true
 
   zustand@5.0.14(@types/react@18.3.31)(react@18.3.1)(use-sync-external-store@1.6.0(react@18.3.1)):
     optionalDependencies:
       '@types/react': 18.3.31
       react: 18.3.1
       use-sync-external-store: 1.6.0(react@18.3.1)
+    optional: true
 
   zwitch@2.0.4: {}

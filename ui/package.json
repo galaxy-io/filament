@@ -26,8 +26,10 @@
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.141.2",
     "@tanstack/zod-adapter": "^1.141.2",
+    "pluralize": "^8.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-github-btn": "^1.4.0",
     "ts-pattern": "^5.9.0",
     "zod": "^4.3.6"
   },
@@ -37,6 +39,7 @@
     "@bufbuild/buf": "^1.57.2",
     "@bufbuild/protoc-gen-es": "^2.9.0",
     "@tanstack/router-plugin": "^1.141.2",
+    "@types/pluralize": "^0.0.33",
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.0.2",

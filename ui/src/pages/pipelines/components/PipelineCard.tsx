@@ -2,31 +2,52 @@ import { useState } from "react";
 
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { Link } from "@tanstack/react-router";
 
-import Beacon, { BeaconSize } from "@galaxy-io/dls/beacons/Beacon";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Beacon from "@galaxy-io/dls/beacons/Beacon";
+import FlexWrapper, {
+  AlignItems,
+  FlexGap,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, {
+  TextSize,
+  TextVariant,
+  TextWeight,
+} from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import ProviderFlow from "@/pages/pipelines/components/ProviderFlow";
+import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
+import {
+  PIPELINE_CARD_HEIGHT,
+  PIPELINE_INDICATOR_WIDTH,
+  PIPELINE_METRIC_COLUMN_WIDTH_MAP,
+} from "@/pages/pipelines/constants";
 import { PipelineListItem } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
+import Button, {
+  ButtonSize,
+  ButtonVariant,
+} from "@galaxy-io/dls/buttons/Button";
 
-const CARD_HEIGHT = 48;
+const IndicatorWrapper = styled.div`
+  width: ${PIPELINE_INDICATOR_WIDTH}px;
 
-const METRIC_COLUMN_WIDTHS = {
-  providers: 140,
-  lastRun: 110,
-  volume: 120,
-  schedule: 60,
-} as const;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const CardLink = styled(Link)`
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+`;
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
-  height: ${CARD_HEIGHT}px;
+  height: ${PIPELINE_CARD_HEIGHT}px;
 
   padding: 0 16px;
 
@@ -37,14 +58,12 @@ const CardWrapper = withTheme(styled.div<PropsWithTheme>`
 
   border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
 
+  cursor: pointer;
+
   transition: background-color 100ms ease;
 
-  &:last-of-type {
-    border-bottom: 0;
-  }
-
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.primaryAlt};
+    background-color: ${({ theme }) => theme.color.background.tertiary};
   }
 `);
 
@@ -60,15 +79,9 @@ interface MetricColumnProps {
   width: number;
   label?: string;
   value: string;
-  valueVariant?: TextVariant;
 }
 
-const MetricColumn = ({
-  width,
-  label,
-  value,
-  valueVariant = TextVariant.PRIMARY,
-}: MetricColumnProps) => {
+const MetricColumn = ({ width, label, value }: MetricColumnProps) => {
   return (
     <MetricColumnWrapper $width={width}>
       {label && (
@@ -76,7 +89,7 @@ const MetricColumn = ({
           {label}
         </Text>
       )}
-      <Text size={TextSize.BODY_SM} variant={valueVariant} isMonospace>
+      <Text size={TextSize.BODY_SM} isMonospace>
         {value}
       </Text>
     </MetricColumnWrapper>
@@ -91,39 +104,50 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
   // Local-only until SignalRun (pause/resume) is wired to the toggle.
   const [isEnabled, setIsEnabled] = useState(pipeline.isEnabled);
 
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
-    <CardWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.LARGE}>
-        <Beacon size={BeaconSize.SMALL} variant={getHealthBeaconVariant(pipeline.health)} />
-        <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
-          {pipeline.name}
-        </Text>
-      </FlexWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-        <MetricColumnWrapper $width={METRIC_COLUMN_WIDTHS.providers}>
-          <ProviderFlow source={pipeline.source} sinks={pipeline.sinks} />
-        </MetricColumnWrapper>
-        <MetricColumn
-          width={METRIC_COLUMN_WIDTHS.lastRun}
-          label="Last run"
-          value={pipeline.lastRunLabel}
-        />
-        <MetricColumn
-          width={METRIC_COLUMN_WIDTHS.volume}
-          label="Volume"
-          value={pipeline.volumeLabel}
-        />
-        <MetricColumn
-          width={METRIC_COLUMN_WIDTHS.schedule}
-          value={pipeline.scheduleLabel}
-          valueVariant={TextVariant.SECONDARY}
-        />
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-          <ToggleInput value={isEnabled} onChange={setIsEnabled} />
-          <Icon component={ArrowUpRightIcon} size={12} variant={IconVariant.SECONDARY} />
+    <CardLink to="/pipelines/$id" params={{ id: pipeline.id }}>
+      <CardWrapper>
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+          <IndicatorWrapper>
+            <Beacon variant={getHealthBeaconVariant(pipeline.health)} />
+          </IndicatorWrapper>
+          <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
         </FlexWrapper>
-      </FlexWrapper>
-    </CardWrapper>
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
+          <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.providers}>
+            <PipelineFlow source={pipeline.source} sinks={pipeline.sinks} />
+          </MetricColumnWrapper>
+          <MetricColumn
+            width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}
+            label="Last run"
+            value={pipeline.lastRunLabel}
+          />
+          <MetricColumn
+            width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.volume}
+            label="Volume"
+            value={pipeline.volumeLabel}
+          />
+          <MetricColumn
+            width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.schedule}
+            value={pipeline.scheduleLabel}
+          />
+          <div onClick={handleToggleClick}>
+            <ToggleInput value={isEnabled} onChange={setIsEnabled} />
+          </div>
+          <Button
+            variant={ButtonVariant.TERTIARY}
+            size={ButtonSize.SMALL}
+            icon={ArrowUpRightIcon}
+            onClick={handleToggleClick}
+          />
+        </FlexWrapper>
+      </CardWrapper>
+    </CardLink>
   );
 };
 

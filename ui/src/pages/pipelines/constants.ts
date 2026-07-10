@@ -1,4 +1,25 @@
-import { PipelineHealth, PipelineListItem } from "@/pages/pipelines/types";
+import { PipelineGroup, PipelineHealth, PipelineListItem } from "@/pages/pipelines/types";
+
+// Layout constants
+export const PIPELINE_CARD_HEIGHT = 48;
+export const PIPELINE_GROUP_BAND_HEIGHT = 40;
+export const PIPELINE_INDICATOR_WIDTH = 16;
+export const PIPELINE_SEARCH_WIDTH = 280;
+export const PIPELINE_MAX_VISIBLE_SINKS = 2;
+
+// Maps
+export const PIPELINE_GROUP_TO_LABEL_MAP: Record<PipelineGroup, string> = {
+  [PipelineGroup.ACTIVE]: "Active",
+  [PipelineGroup.NEEDS_ATTENTION]: "Needs attention",
+  [PipelineGroup.PAUSED]: "Paused",
+};
+
+export const PIPELINE_METRIC_COLUMN_WIDTH_MAP = {
+  providers: 160,
+  lastRun: 120,
+  volume: 120,
+  schedule: 120,
+} as const;
 
 /**
  * Placeholder data shown until the backend exposes run metadata for the list
@@ -13,7 +34,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["bigquery", "redshift"],
     lastRunLabel: "14:29:44",
     volumeLabel: "1.2M rows",
-    scheduleLabel: "HOURLY",
+    scheduleLabel: "0 * * * *",
     isEnabled: true,
   },
   {
@@ -24,7 +45,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["snowflake", "s3", "redshift"],
     lastRunLabel: "14:32:07",
     volumeLabel: "1.2M rows",
-    scheduleLabel: "15M",
+    scheduleLabel: "*/15 * * * *",
     isEnabled: true,
   },
   {
@@ -35,7 +56,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["s3", "iceberg", "bigquery", "snowflake"],
     lastRunLabel: "14:08:19",
     volumeLabel: "402k rows",
-    scheduleLabel: "HOURLY",
+    scheduleLabel: "0 * * * *",
     isEnabled: true,
   },
   {
@@ -46,7 +67,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["snowflake", "iceberg", "s3"],
     lastRunLabel: "now",
     volumeLabel: "512k rows",
-    scheduleLabel: "5M",
+    scheduleLabel: "*/5 * * * *",
     isEnabled: true,
   },
   {
@@ -57,7 +78,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["bigquery", "s3"],
     lastRunLabel: "13:58:11",
     volumeLabel: "220k rows",
-    scheduleLabel: "30M",
+    scheduleLabel: "*/30 * * * *",
     isEnabled: true,
   },
   {
@@ -68,7 +89,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["bigquery"],
     lastRunLabel: "06:00:02",
     volumeLabel: "8.4k rows",
-    scheduleLabel: "DAILY",
+    scheduleLabel: "0 6 * * *",
     isEnabled: true,
   },
   {
@@ -79,7 +100,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["redshift", "s3", "snowflake"],
     lastRunLabel: "14:30:12",
     volumeLabel: "2.4M rows",
-    scheduleLabel: "10M",
+    scheduleLabel: "*/10 * * * *",
     isEnabled: true,
   },
   {
@@ -90,7 +111,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["redshift", "s3"],
     lastRunLabel: "14:21:58",
     volumeLabel: "89k rows",
-    scheduleLabel: "15M",
+    scheduleLabel: "*/15 * * * *",
     isEnabled: true,
   },
   {
@@ -101,7 +122,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["snowflake"],
     lastRunLabel: "14:15:02",
     volumeLabel: "—",
-    scheduleLabel: "DAILY",
+    scheduleLabel: "0 6 * * *",
     isEnabled: true,
   },
   {
@@ -112,7 +133,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["snowflake"],
     lastRunLabel: "—",
     volumeLabel: "—",
-    scheduleLabel: "DAILY",
+    scheduleLabel: "0 6 * * *",
     isEnabled: false,
   },
   {
@@ -123,7 +144,7 @@ export const MOCK_PIPELINE_ITEMS: PipelineListItem[] = [
     sinks: ["bigquery"],
     lastRunLabel: "—",
     volumeLabel: "—",
-    scheduleLabel: "HOURLY",
+    scheduleLabel: "0 * * * *",
     isEnabled: false,
   },
 ];
