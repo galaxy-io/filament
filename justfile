@@ -1,6 +1,13 @@
+# generate all checked-in generated code
+gen: proto sqlc
+
 # generate protobuf and ConnectRPC Go stubs
 proto:
     buf generate
+
+# generate sqlc Go code
+sqlc:
+    sqlc generate -f datastore/postgres/sqlc.yaml
 
 # lint protobuf definitions
 proto-lint:
