@@ -30,6 +30,7 @@ interface PipelineFlowProps {
   sinks: string[];
   size?: PipelineFlowSize;
   maxSinks?: number;
+  onProviderClick?: (provider: string, e: React.MouseEvent) => void;
 }
 
 /**
@@ -40,6 +41,7 @@ const PipelineFlow = ({
   sinks,
   size = PipelineFlowSize.SMALL,
   maxSinks,
+  onProviderClick,
 }: PipelineFlowProps) => {
   const limit = maxSinks ?? PIPELINE_MAX_VISIBLE_SINKS;
   const visibleSinks = maxSinks === undefined ? sinks : sinks.slice(0, limit);
@@ -50,7 +52,11 @@ const PipelineFlow = ({
 
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-      <ProviderTile provider={source} size={tileSize} />
+      <ProviderTile
+        provider={source}
+        size={tileSize}
+        onClick={onProviderClick ? (e) => onProviderClick(source, e) : undefined}
+      />
       <Icon
         component={FlowArrowIcon}
         size={iconSize}
@@ -62,6 +68,7 @@ const PipelineFlow = ({
             key={`${sink}-${index}`}
             provider={sink}
             size={tileSize}
+            onClick={onProviderClick ? (e) => onProviderClick(sink, e) : undefined}
           />
         ))}
         {overflowCount > 0 && <ProviderOverflowTile count={overflowCount} />}

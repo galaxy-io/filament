@@ -70,7 +70,7 @@ const getTextSize = (size: ProviderTileSize): TextSize =>
     .exhaustive();
 
 const TileWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $size: ProviderTileSize }>
+  PropsWithTheme<{ $size: ProviderTileSize; $isClickable: boolean }>
 >`
   width: ${({ $size }) => getTileSize($size)}px;
   height: ${({ $size }) => getTileSize($size)}px;
@@ -84,11 +84,20 @@ const TileWrapper = withTheme(styled.div<
   border-radius: ${({ $size }) => getTileRadius($size)}px;
 
   overflow: hidden;
+
+  cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
+
+  transition: opacity 100ms ease;
+
+  &:hover {
+    opacity: ${({ $isClickable }) => ($isClickable ? 0.8 : 1)};
+  }
 `);
 
 interface ProviderTileProps {
   provider: string;
   size?: ProviderTileSize;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 /**
@@ -98,11 +107,12 @@ interface ProviderTileProps {
 const ProviderTile = ({
   provider,
   size = ProviderTileSize.MEDIUM,
+  onClick,
 }: ProviderTileProps) => {
   const Logomark = PROVIDER_TO_LOGOMARK_MAP[provider.toLowerCase()];
 
   return (
-    <TileWrapper $size={size}>
+    <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick}>
       {Logomark ? (
         <Logomark height={getLogoHeight(size)} />
       ) : (

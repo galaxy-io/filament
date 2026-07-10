@@ -27,6 +27,7 @@ import {
 } from "@/layouts/pipeline/constants";
 import { PipelineStatus } from "@/layouts/pipeline/types";
 import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
+import { useOpenProviderDrawer } from "@/pages/providers/hooks";
 
 const BackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -94,6 +95,8 @@ const Content = ({
   onToggleEnabled,
   onRun,
 }: NavbarContentProps) => {
+  const openProviderDrawer = useOpenProviderDrawer();
+
   return (
     <NavbarContentWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
@@ -102,7 +105,11 @@ const Content = ({
           variant={PIPELINE_STATUS_TO_CHIP_VARIANT_MAP[status]}
         />
         <Text weight={TextWeight.MEDIUM}>{name}</Text>
-        <PipelineFlow source={source} sinks={sinks} />
+        <PipelineFlow
+          source={source}
+          sinks={sinks}
+          onProviderClick={openProviderDrawer}
+        />
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>

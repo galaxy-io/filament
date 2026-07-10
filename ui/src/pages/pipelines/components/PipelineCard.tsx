@@ -26,6 +26,7 @@ import {
 } from "@/pages/pipelines/constants";
 import { PipelineListItem } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
+import { useOpenProviderDrawer } from "@/pages/providers/hooks";
 import Button, {
   ButtonSize,
   ButtonVariant,
@@ -103,10 +104,17 @@ interface PipelineCardProps {
 const PipelineCard = ({ pipeline }: PipelineCardProps) => {
   // Local-only until SignalRun (pause/resume) is wired to the toggle.
   const [isEnabled, setIsEnabled] = useState(pipeline.isEnabled);
+  const openProviderDrawer = useOpenProviderDrawer();
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleProviderClick = (provider: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openProviderDrawer(provider);
   };
 
   return (
@@ -120,7 +128,11 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
         </FlexWrapper>
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
           <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.providers}>
-            <PipelineFlow source={pipeline.source} sinks={pipeline.sinks} maxSinks={2} />
+            <PipelineFlow
+              source={pipeline.source}
+              sinks={pipeline.sinks}
+              onProviderClick={handleProviderClick}
+            />
           </MetricColumnWrapper>
           <MetricColumn
             width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}

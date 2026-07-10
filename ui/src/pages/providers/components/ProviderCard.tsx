@@ -76,7 +76,9 @@ const ProviderCard = ({
           justifyContent={JustifyContent.SPACE_BETWEEN}
         >
           <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-            <ProviderTile provider={provider.name} />
+            <FlexItem shrink={0}>
+              <ProviderTile provider={provider.name} />
+            </FlexItem>
             <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
               {provider.displayName || provider.name}
             </Text>
