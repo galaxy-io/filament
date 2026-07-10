@@ -115,7 +115,7 @@ func (s *Source) extractChangesGTID(ctx context.Context, sink ingestion.RecordSi
 				return err
 			}
 		case *replication.QueryEvent:
-		    // reject events for transactions 
+			// reject events for transactions
 			switch q := strings.ToUpper(strings.TrimSpace(string(e.Query))); {
 			case q == "BEGIN", q == "COMMIT", q == "ROLLBACK", strings.HasPrefix(q, "SAVEPOINT "), strings.HasPrefix(q, "ROLLBACK TO "):
 				// not a commit boundary
