@@ -46,6 +46,7 @@ type (
 	BatchWrittenEvent struct {
 		Records    int64                     `json:"records"`
 		Bytes      int64                     `json:"bytes"`
+		URI        string                    `json:"uri,omitempty"`
 		CRC        uint32                    `json:"crc,omitempty"`
 		Checkpoint *ingestion.CheckpointData `json:"checkpoint,omitempty"`
 	}
@@ -53,6 +54,7 @@ type (
 		CRC uint32 `json:"crc,omitempty"`
 	}
 	ChunkDivergenceEvent struct {
+		CRC   uint32 `json:"crc,omitempty"`
 		Error string `json:"error,omitempty"`
 	}
 
