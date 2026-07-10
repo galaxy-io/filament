@@ -14,6 +14,10 @@ import { Route as MainIndexRouteImport } from './routes/_main/index'
 import { Route as PipelinesIdRouteImport } from './routes/pipelines/$id'
 import { Route as MainProvidersRouteImport } from './routes/_main/providers'
 import { Route as MainPipelinesRouteImport } from './routes/_main/pipelines'
+import { Route as PipelinesIdIndexRouteImport } from './routes/pipelines/$id/index'
+import { Route as PipelinesIdSettingsRouteImport } from './routes/pipelines/$id/settings'
+import { Route as PipelinesIdHistoryRouteImport } from './routes/pipelines/$id/history'
+import { Route as PipelinesIdCanvasRouteImport } from './routes/pipelines/$id/canvas'
 
 const MainRouteRoute = MainRouteRouteImport.update({
   id: '/_main',
@@ -39,32 +43,78 @@ const MainPipelinesRoute = MainPipelinesRouteImport.update({
   path: '/pipelines',
   getParentRoute: () => MainRouteRoute,
 } as any)
+const PipelinesIdIndexRoute = PipelinesIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PipelinesIdRoute,
+} as any)
+const PipelinesIdSettingsRoute = PipelinesIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => PipelinesIdRoute,
+} as any)
+const PipelinesIdHistoryRoute = PipelinesIdHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => PipelinesIdRoute,
+} as any)
+const PipelinesIdCanvasRoute = PipelinesIdCanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
+  getParentRoute: () => PipelinesIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof MainIndexRoute
   '/pipelines': typeof MainPipelinesRoute
   '/providers': typeof MainProvidersRoute
-  '/pipelines/$id': typeof PipelinesIdRoute
+  '/pipelines/$id': typeof PipelinesIdRouteWithChildren
+  '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
+  '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
+  '/pipelines/$id/settings': typeof PipelinesIdSettingsRoute
+  '/pipelines/$id/': typeof PipelinesIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/pipelines': typeof MainPipelinesRoute
   '/providers': typeof MainProvidersRoute
-  '/pipelines/$id': typeof PipelinesIdRoute
   '/': typeof MainIndexRoute
+  '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
+  '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
+  '/pipelines/$id/settings': typeof PipelinesIdSettingsRoute
+  '/pipelines/$id': typeof PipelinesIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_main': typeof MainRouteRouteWithChildren
   '/_main/pipelines': typeof MainPipelinesRoute
   '/_main/providers': typeof MainProvidersRoute
-  '/pipelines/$id': typeof PipelinesIdRoute
+  '/pipelines/$id': typeof PipelinesIdRouteWithChildren
   '/_main/': typeof MainIndexRoute
+  '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
+  '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
+  '/pipelines/$id/settings': typeof PipelinesIdSettingsRoute
+  '/pipelines/$id/': typeof PipelinesIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pipelines' | '/providers' | '/pipelines/$id'
+  fullPaths:
+    | '/'
+    | '/pipelines'
+    | '/providers'
+    | '/pipelines/$id'
+    | '/pipelines/$id/canvas'
+    | '/pipelines/$id/history'
+    | '/pipelines/$id/settings'
+    | '/pipelines/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/pipelines' | '/providers' | '/pipelines/$id' | '/'
+  to:
+    | '/pipelines'
+    | '/providers'
+    | '/'
+    | '/pipelines/$id/canvas'
+    | '/pipelines/$id/history'
+    | '/pipelines/$id/settings'
+    | '/pipelines/$id'
   id:
     | '__root__'
     | '/_main'
@@ -72,11 +122,15 @@ export interface FileRouteTypes {
     | '/_main/providers'
     | '/pipelines/$id'
     | '/_main/'
+    | '/pipelines/$id/canvas'
+    | '/pipelines/$id/history'
+    | '/pipelines/$id/settings'
+    | '/pipelines/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   MainRouteRoute: typeof MainRouteRouteWithChildren
-  PipelinesIdRoute: typeof PipelinesIdRoute
+  PipelinesIdRoute: typeof PipelinesIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +170,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainPipelinesRouteImport
       parentRoute: typeof MainRouteRoute
     }
+    '/pipelines/$id/': {
+      id: '/pipelines/$id/'
+      path: '/'
+      fullPath: '/pipelines/$id/'
+      preLoaderRoute: typeof PipelinesIdIndexRouteImport
+      parentRoute: typeof PipelinesIdRoute
+    }
+    '/pipelines/$id/settings': {
+      id: '/pipelines/$id/settings'
+      path: '/settings'
+      fullPath: '/pipelines/$id/settings'
+      preLoaderRoute: typeof PipelinesIdSettingsRouteImport
+      parentRoute: typeof PipelinesIdRoute
+    }
+    '/pipelines/$id/history': {
+      id: '/pipelines/$id/history'
+      path: '/history'
+      fullPath: '/pipelines/$id/history'
+      preLoaderRoute: typeof PipelinesIdHistoryRouteImport
+      parentRoute: typeof PipelinesIdRoute
+    }
+    '/pipelines/$id/canvas': {
+      id: '/pipelines/$id/canvas'
+      path: '/canvas'
+      fullPath: '/pipelines/$id/canvas'
+      preLoaderRoute: typeof PipelinesIdCanvasRouteImport
+      parentRoute: typeof PipelinesIdRoute
+    }
   }
 }
 
@@ -135,9 +217,27 @@ const MainRouteRouteWithChildren = MainRouteRoute._addFileChildren(
   MainRouteRouteChildren,
 )
 
+interface PipelinesIdRouteChildren {
+  PipelinesIdCanvasRoute: typeof PipelinesIdCanvasRoute
+  PipelinesIdHistoryRoute: typeof PipelinesIdHistoryRoute
+  PipelinesIdSettingsRoute: typeof PipelinesIdSettingsRoute
+  PipelinesIdIndexRoute: typeof PipelinesIdIndexRoute
+}
+
+const PipelinesIdRouteChildren: PipelinesIdRouteChildren = {
+  PipelinesIdCanvasRoute: PipelinesIdCanvasRoute,
+  PipelinesIdHistoryRoute: PipelinesIdHistoryRoute,
+  PipelinesIdSettingsRoute: PipelinesIdSettingsRoute,
+  PipelinesIdIndexRoute: PipelinesIdIndexRoute,
+}
+
+const PipelinesIdRouteWithChildren = PipelinesIdRoute._addFileChildren(
+  PipelinesIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   MainRouteRoute: MainRouteRouteWithChildren,
-  PipelinesIdRoute: PipelinesIdRoute,
+  PipelinesIdRoute: PipelinesIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

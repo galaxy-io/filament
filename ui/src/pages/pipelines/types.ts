@@ -11,6 +11,11 @@ export enum PipelineHealth {
   PAUSED = "PAUSED",
 }
 
+export enum PipelineFlowSize {
+  SMALL = "small",
+  MEDIUM = "medium",
+}
+
 export interface PipelineListItem {
   id: string;
   name: string;

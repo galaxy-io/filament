@@ -120,7 +120,7 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
         </FlexWrapper>
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
           <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.providers}>
-            <PipelineFlow source={pipeline.source} sinks={pipeline.sinks} />
+            <PipelineFlow source={pipeline.source} sinks={pipeline.sinks} maxSinks={2} />
           </MetricColumnWrapper>
           <MetricColumn
             width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}
