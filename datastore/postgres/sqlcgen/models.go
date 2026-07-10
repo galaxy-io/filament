@@ -5,13 +5,71 @@
 package sqlcgen
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type ConnectionKind string
+
+const (
+	ConnectionKindSource ConnectionKind = "source"
+	ConnectionKindSink   ConnectionKind = "sink"
+)
+
+func (e *ConnectionKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ConnectionKind(s)
+	case string:
+		*e = ConnectionKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ConnectionKind: %T", src)
+	}
+	return nil
+}
+
+type NullConnectionKind struct {
+	ConnectionKind ConnectionKind
+	Valid          bool // Valid is true if ConnectionKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullConnectionKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.ConnectionKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ConnectionKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullConnectionKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ConnectionKind), nil
+}
 
 type Checkpoint struct {
 	RunID        string
 	ResourceName string
 	Cursor       []byte
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type Connection struct {
+	ConnectionID string
+	TenantID     string
+	Kind         ConnectionKind
+	Name         string
+	Provider     string
+	Config       []byte
+	SecretRefs   []byte
+	Version      int64
+	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 }
 

@@ -17,7 +17,7 @@ FROM connections WHERE connection_id = @connection_id;
 SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
 FROM connections
 WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
-  AND (@kind::smallint = 0 OR kind = @kind)
+  AND (sqlc.narg('kind')::connection_kind IS NULL OR kind = sqlc.narg('kind'))
 ORDER BY connection_id;
 
 -- name: DeleteConnection :exec

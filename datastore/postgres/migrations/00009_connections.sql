@@ -1,8 +1,10 @@
 -- +goose Up
+CREATE TYPE connection_kind AS ENUM ('source', 'sink');
+
 CREATE TABLE connections (
   connection_id TEXT     PRIMARY KEY,
   tenant_id     TEXT     NOT NULL REFERENCES tenants (tenant_id),
-  kind          SMALLINT NOT NULL,            -- 1=source, 2=sink (ProviderKind)
+  kind          connection_kind NOT NULL,     -- source | sink (ProviderKind)
   name          TEXT     NOT NULL,
   provider      TEXT     NOT NULL,            -- e.g. "mysql", "postgres", "object"
   config        JSONB    NOT NULL DEFAULT '{}',  -- connection-scoped fields only
@@ -17,3 +19,4 @@ CREATE UNIQUE INDEX connections_tenant_name_kind_idx ON connections (tenant_id, 
 
 -- +goose Down
 DROP TABLE connections;
+DROP TYPE connection_kind;

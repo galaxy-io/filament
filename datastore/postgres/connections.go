@@ -40,7 +40,7 @@ func (s *ConnectionStore) Create(ctx context.Context, c *ingestionv1.Connection)
 	err = s.q.CreateConnection(ctx, sqlcgen.CreateConnectionParams{
 		ConnectionID: c.GetId(),
 		TenantID:     c.GetTenant(),
-		Kind:         int16(c.GetKind()),
+		Kind:         providerKindToDB(c.GetKind()),
 		Name:         c.GetName(),
 		Provider:     c.GetProvider(),
 		Config:       configJSON,
@@ -95,7 +95,11 @@ func (s *ConnectionStore) Get(ctx context.Context, id string) (*ingestionv1.Conn
 }
 
 func (s *ConnectionStore) List(ctx context.Context, tenant string, kind ingestionv1.ProviderKind) ([]*ingestionv1.Connection, error) {
-	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{TenantID: tenant, Kind: int16(kind)})
+	kindFilter := sqlcgen.NullConnectionKind{}
+	if kind != ingestionv1.ProviderKind_PROVIDER_KIND_UNSPECIFIED {
+		kindFilter = sqlcgen.NullConnectionKind{ConnectionKind: providerKindToDB(kind), Valid: true}
+	}
+	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{TenantID: tenant, Kind: kindFilter})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list connections: %w", err)
 	}
@@ -137,7 +141,27 @@ func marshalConnectionConfig(c *ingestionv1.Connection) (configJSON, refsJSON []
 	return configJSON, refsJSON, nil
 }
 
-func connectionFromRow(id, tenant string, kind int16, name, provider string, configJSON, refsJSON []byte, version int64) (*ingestionv1.Connection, error) {
+func providerKindToDB(kind ingestionv1.ProviderKind) sqlcgen.ConnectionKind {
+	switch kind {
+	case ingestionv1.ProviderKind_PROVIDER_KIND_SINK:
+		return sqlcgen.ConnectionKindSink
+	default:
+		return sqlcgen.ConnectionKindSource
+	}
+}
+
+func providerKindFromDB(kind sqlcgen.ConnectionKind) ingestionv1.ProviderKind {
+	switch kind {
+	case sqlcgen.ConnectionKindSink:
+		return ingestionv1.ProviderKind_PROVIDER_KIND_SINK
+	case sqlcgen.ConnectionKindSource:
+		return ingestionv1.ProviderKind_PROVIDER_KIND_SOURCE
+	default:
+		return ingestionv1.ProviderKind_PROVIDER_KIND_UNSPECIFIED
+	}
+}
+
+func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64) (*ingestionv1.Connection, error) {
 	cfg := &structpb.Struct{}
 	if len(configJSON) > 0 {
 		if err := protojson.Unmarshal(configJSON, cfg); err != nil {
@@ -153,7 +177,7 @@ func connectionFromRow(id, tenant string, kind int16, name, provider string, con
 	return &ingestionv1.Connection{
 		Id:         id,
 		Tenant:     tenant,
-		Kind:       ingestionv1.ProviderKind(kind),
+		Kind:       providerKindFromDB(kind),
 		Name:       name,
 		Provider:   provider,
 		Config:     cfg,
