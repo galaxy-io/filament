@@ -45,21 +45,21 @@ const getTileSize = (size: ProviderTileSize): number =>
   match(size)
     .with(ProviderTileSize.SMALL, () => 24)
     .with(ProviderTileSize.MEDIUM, () => 32)
-    .with(ProviderTileSize.LARGE, () => 48)
+    .with(ProviderTileSize.LARGE, () => 40)
     .exhaustive();
 
 const getTileRadius = (size: ProviderTileSize): number =>
   match(size)
     .with(ProviderTileSize.SMALL, () => 4)
     .with(ProviderTileSize.MEDIUM, () => 5)
-    .with(ProviderTileSize.LARGE, () => 8)
+    .with(ProviderTileSize.LARGE, () => 6)
     .exhaustive();
 
 const getLogoHeight = (size: ProviderTileSize): number =>
   match(size)
     .with(ProviderTileSize.SMALL, () => 16)
     .with(ProviderTileSize.MEDIUM, () => 20)
-    .with(ProviderTileSize.LARGE, () => 32)
+    .with(ProviderTileSize.LARGE, () => 24)
     .exhaustive();
 
 const getTextSize = (size: ProviderTileSize): TextSize =>
