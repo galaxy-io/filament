@@ -1,3 +1,16 @@
+# generate protobuf and ConnectRPC Go stubs
+proto:
+    buf generate
+
+# lint protobuf definitions
+proto-lint:
+    buf lint
+
+# verify generated protobuf files are up to date
+proto-check:
+    buf generate
+    git diff --exit-code -- api
+
 # build both linux binaries into bin/
 binaries:
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/ingestion-control -trimpath -ldflags="-s -w" -o ../../bin/filament-control .
