@@ -15,6 +15,7 @@ import Text, {
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { useRouteMatch } from "@/hooks/useRouteMatch";
 import { NAV_ITEMS, NAVBAR_HEIGHT } from "@/layouts/main/constants";
 
 import { GITHUB_REPO_URL } from "@/constants";
@@ -55,6 +56,20 @@ const NavTabsWrapper = styled.div`
 `;
 
 const MainLayoutNavbar = () => {
+  const { isRouteMatch: isPipelinesActive } = useRouteMatch({
+    route: "/pipelines",
+    fuzzy: true,
+  });
+  const { isRouteMatch: isProvidersActive } = useRouteMatch({
+    route: "/providers",
+    fuzzy: true,
+  });
+
+  const isActiveByRoute: Record<string, boolean> = {
+    "/pipelines": isPipelinesActive,
+    "/providers": isProvidersActive,
+  };
+
   return (
     <NavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
@@ -62,9 +77,10 @@ const MainLayoutNavbar = () => {
         <Text isMonospace>FILAMENT</Text>
       </FlexWrapper>
       <NavTabsWrapper>
-        {NAV_ITEMS.map((item) => (
-          <Link key={item.to} to={item.to}>
-            {({ isActive }: { isActive: boolean }) => (
+        {NAV_ITEMS.map((item) => {
+          const isActive = isActiveByRoute[item.to] ?? false;
+          return (
+            <Link key={item.to} to={item.to}>
               <NavTabWrapper $isActive={isActive}>
                 <Text
                   size={TextSize.BODY_MD}
@@ -77,9 +93,9 @@ const MainLayoutNavbar = () => {
                   {item.label}
                 </Text>
               </NavTabWrapper>
-            )}
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </NavTabsWrapper>
       <GitHubButton
         href={GITHUB_REPO_URL}

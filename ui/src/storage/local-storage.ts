@@ -4,7 +4,7 @@ export enum LocalStorageKey {
 
 const LOCAL_STORAGE_KEYS: Record<LocalStorageKey, string> = {
   // Keep in sync with the theme flash-prevention script in index.html.
-  [LocalStorageKey.THEME]: "filament:theme",
+  [LocalStorageKey.THEME]: "gx:filament:theme",
 };
 
 export const getLocalStorageKey = (key: LocalStorageKey): string => {

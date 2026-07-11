@@ -2,11 +2,12 @@ import type { PropsWithChildren } from "react";
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { useRouteMatch } from "@/hooks/useRouteMatch";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
 import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
@@ -83,15 +84,21 @@ const PipelineLayout = ({
   sinks,
   children,
 }: PipelineLayoutProps) => {
-  const location = useLocation();
   const navigate = useNavigate();
   const [isEnabled, setIsEnabled] = useState(status === PipelineStatus.ACTIVE);
 
-  // Determine active item from current route
+  const { isRouteMatch: isHistoryActive } = useRouteMatch({
+    route: "/pipelines/$id/history",
+    fuzzy: false,
+  });
+  const { isRouteMatch: isSettingsActive } = useRouteMatch({
+    route: "/pipelines/$id/settings",
+    fuzzy: false,
+  });
+
   const getActiveItem = (): PipelineSidebarItem => {
-    const path = location.pathname;
-    if (path.endsWith("/history")) return PipelineSidebarItem.HISTORY;
-    if (path.endsWith("/settings")) return PipelineSidebarItem.SETTINGS;
+    if (isHistoryActive) return PipelineSidebarItem.HISTORY;
+    if (isSettingsActive) return PipelineSidebarItem.SETTINGS;
     return PipelineSidebarItem.CANVAS;
   };
 

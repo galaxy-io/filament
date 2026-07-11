@@ -2,7 +2,12 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { createRootRoute, Outlet, useNavigate, useSearch } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  Outlet,
+  useNavigate,
+  useSearch,
+} from "@tanstack/react-router";
 import { z } from "zod";
 
 import Drawer from "@galaxy-io/dls/drawer/Drawer";
@@ -45,7 +50,9 @@ function RootComponent() {
   const { providerId } = useSearch({ from: "__root__" });
 
   const { data } = useListProvidersQuery({
-    input: create(ListProvidersRequestSchema, { kind: ProviderKind.UNSPECIFIED }),
+    input: create(ListProvidersRequestSchema, {
+      kind: ProviderKind.UNSPECIFIED,
+    }),
     options: {
       enabled: !!providerId,
     },

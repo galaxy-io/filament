@@ -72,7 +72,6 @@ const PipelineLayoutSidebar = ({
     <SidebarWrapper>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM}>
         {PIPELINE_SIDEBAR_ITEMS.map((item) => {
-          const IconComponent = PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP[item];
           const isActive = activeItem === item;
           return (
             <SidebarButton
@@ -81,7 +80,7 @@ const PipelineLayoutSidebar = ({
               onClick={() => onItemClick(item)}
             >
               <Icon
-                component={IconComponent}
+                component={PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP[item]}
                 size={18}
                 weight={isActive ? IconWeight.FILL : IconWeight.REGULAR}
                 variant={isActive ? undefined : IconVariant.TERTIARY}

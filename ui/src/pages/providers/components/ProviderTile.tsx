@@ -85,7 +85,7 @@ const TileWrapper = withTheme(styled.div<
 
   overflow: hidden;
 
-  cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
+  cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "inherit")};
 
   transition: opacity 100ms ease;
 
