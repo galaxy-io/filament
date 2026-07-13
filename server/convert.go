@@ -8,11 +8,11 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func sourceSpecToProto(spec ingestion.ConnectorSpec) *ingestionv1.ProviderSpec {
-	return &ingestionv1.ProviderSpec{
+func sourceSpecToProto(spec ingestion.ConnectorSpec) *ingestionv1.ConnectorSpec {
+	return &ingestionv1.ConnectorSpec{
 		Name:         spec.Name,
 		DisplayName:  spec.DisplayName,
-		Kind:         ingestionv1.ProviderKind_PROVIDER_KIND_SOURCE,
+		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Version:      spec.Version,
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
@@ -24,11 +24,11 @@ func sourceSpecToProto(spec ingestion.ConnectorSpec) *ingestionv1.ProviderSpec {
 	}
 }
 
-func sinkSpecToProto(spec ingestion.SinkSpec) *ingestionv1.ProviderSpec {
-	return &ingestionv1.ProviderSpec{
+func sinkSpecToProto(spec ingestion.SinkSpec) *ingestionv1.ConnectorSpec {
+	return &ingestionv1.ConnectorSpec{
 		Name:         spec.Name,
 		DisplayName:  spec.DisplayName,
-		Kind:         ingestionv1.ProviderKind_PROVIDER_KIND_SINK,
+		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Version:      spec.Version,
 		ConfigSchema: configSchemaToProto(spec.Config),
 		Capabilities: &ingestionv1.Capabilities{
@@ -50,6 +50,7 @@ func configSchemaToProto(schema ingestion.ConfigSchema) *ingestionv1.ConfigSchem
 			Default:  valueToProto(field.Default),
 			Enum:     field.Enum,
 			Help:     field.Help,
+			Scope:    fieldScopeToProto(field.Scope),
 		})
 	}
 	return &ingestionv1.ConfigSchema{Fields: fields}
@@ -198,6 +199,17 @@ func fieldTypeToProto(t ingestion.FieldType) ingestionv1.FieldType {
 		return ingestionv1.FieldType_FIELD_TYPE_OBJECT
 	default:
 		return ingestionv1.FieldType_FIELD_TYPE_UNSPECIFIED
+	}
+}
+
+func fieldScopeToProto(s ingestion.FieldScope) ingestionv1.FieldScope {
+	switch s {
+	case ingestion.ScopeConnection:
+		return ingestionv1.FieldScope_FIELD_SCOPE_CONNECTION
+	case ingestion.ScopePipeline:
+		return ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE
+	default:
+		return ingestionv1.FieldScope_FIELD_SCOPE_UNSPECIFIED
 	}
 }
 

@@ -1,6 +1,15 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+)
+
+func H2CHandler(next http.Handler) http.Handler {
+	return h2c.NewHandler(next, &http2.Server{})
+}
 
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
