@@ -2,7 +2,10 @@ package ingestion
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"github.com/galaxy-io/filament/eventbus"
 )
 
 type DataStore interface {
@@ -313,6 +316,25 @@ func (t TenantID) Valid() error { return ValidToken(string(t)) }
 
 // Valid reports whether the run ID is usable as a subject token (see ValidToken).
 func (r RunID) Valid() error { return ValidToken(string(r)) }
+
+// ValidToken reports whether s is usable as a single subject token, wrapping
+// [ErrInvalidToken] on the first problem. See [eventbus.ValidToken].
+func ValidToken(s string) error { return eventbus.ValidToken(s) }
+
+// IsValidToken is the boolean form of ValidToken.
+func IsValidToken(s string) bool { return eventbus.IsValidToken(s) }
+
+var (
+	// ErrInvalidToken is returned when an ID (tenant/run/…) can't be used as a
+	// subject token. Aliased to the shared sentinel so errors.Is matches across
+	// the eventbus boundary.
+	ErrInvalidToken = eventbus.ErrInvalidToken
+
+	// ErrNotFound is the sentinel a DataStore returns (wrapped) when a run,
+	// resource, or checkpoint does not exist, so callers can branch with
+	// errors.Is — e.g. the tracker creating run state on first sight of a fact.
+	ErrNotFound = errors.New("not found")
+)
 
 type Ref struct {
 	Provider  string

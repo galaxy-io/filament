@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/pipeline"
 )
@@ -37,7 +38,7 @@ func (m *Module) Name() string { return "engine" }
 // The fact is only a trigger; the request payload is loaded from the DataStore.
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
-		{Pattern: ingestion.EventPattern(ingestion.EvRunRequested), Durable: "engine", Handler: m.onRunRequested},
+		{Pattern: events.SubjectPattern(events.RunRequested), Durable: "engine", Handler: events.Handler(events.RunRequested, m.onRunRequested)},
 	}
 }
 
@@ -55,11 +56,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 // transient (the request state may not be persisted yet) and is naked for
 // redelivery; a run that fails for any other reason is reported as a fact and
 // acked — blindly re-running a whole extraction would duplicate work.
-func (m *Module) onRunRequested(ctx context.Context, msg eventbus.Message) error {
-	ev, err := ingestion.EventOf(msg)
-	if err != nil {
-		return err
-	}
+func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunRequestedEvent]) error {
 	state, err := m.ds.LoadRun(ctx, ev.Run)
 	if err != nil {
 		return fmt.Errorf("engine: load run %q: %w", ev.Run, err)
@@ -102,7 +99,7 @@ func specFromState(s ingestion.RunState) ingestion.RunSpec {
 // run.started first and exactly one terminal fact (run.completed | run.failed).
 func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	em := newEmitter(ctx, m.bus, m.log, spec.Tenant, spec.Run)
-	em.fact(ingestion.EvRunStarted, ingestion.EventFields{})
+	emit(em, events.RunStarted, "", events.RunStartedEvent{})
 
 	src, err := m.sources.Resolve(spec.Source.Provider)
 	if err != nil {
@@ -156,7 +153,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 
 	// Announce the resources this run will touch (when known up front).
 	for _, res := range spec.Resources {
-		em.emitFact(ingestion.EvResourceStarted, res, ingestion.EventFields{})
+		emit(em, events.ResourceStarted, res, events.ResourceStartedEvent{})
 	}
 
 	extractor, err := m.resolveExtractor(ctx, src, spec, plan)
@@ -212,7 +209,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	if runErr != nil {
 		if isResumableRun(spec, plan) {
 			for _, res := range resources {
-				em.emitFact(ingestion.EvResourceFailed, res, ingestion.EventFields{Error: runErr.Error()})
+				emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 			}
 			em.partial(runErr)
 			return
@@ -221,7 +218,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 			m.log.Error("engine: sink abort", err, ingestion.Field{Key: "run", Value: string(spec.Run)})
 		}
 		for _, res := range resources {
-			em.emitFact(ingestion.EvResourceFailed, res, ingestion.EventFields{Error: runErr.Error()})
+			emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 		}
 		em.fail(runErr)
 		return
@@ -233,8 +230,8 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	}
 	for _, res := range resources {
 		records, bytes := em.resourceTally(res)
-		em.emitFact(ingestion.EvResourceCompleted, res, ingestion.EventFields{Records: records, Bytes: bytes})
+		emit(em, events.ResourceCompleted, res, events.ResourceCompletedEvent{Records: records, Bytes: bytes})
 	}
 	records, bytes := em.runTotals()
-	em.fact(ingestion.EvRunCompleted, ingestion.EventFields{Records: records, Bytes: bytes})
+	emit(em, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes})
 }

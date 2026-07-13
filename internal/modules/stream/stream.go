@@ -10,6 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 )
 
@@ -47,12 +48,12 @@ func (m *Module) Snapshot(ctx context.Context, run ingestion.RunID) (ingestion.S
 // Tail streams a run's facts live, returning a channel that closes when ctx is
 // cancelled or the subscription drops. Each fact is acked on read, so a slow
 // reader only backpressures the tail, never producers.
-func (m *Module) Tail(ctx context.Context, tenant ingestion.TenantID, run ingestion.RunID) (<-chan ingestion.Event, error) {
-	sub, err := m.bus.Subscribe(ingestion.RunPattern(tenant, run), eventbus.SubOpts{})
+func (m *Module) Tail(ctx context.Context, tenant ingestion.TenantID, run ingestion.RunID) (<-chan events.Fact, error) {
+	sub, err := m.bus.Subscribe(events.RunPattern(tenant, run), eventbus.SubOpts{})
 	if err != nil {
 		return nil, err
 	}
-	out := make(chan ingestion.Event)
+	out := make(chan events.Fact)
 	go func() {
 		defer close(out)
 		defer func() { _ = sub.Close() }()
@@ -64,13 +65,13 @@ func (m *Module) Tail(ctx context.Context, tenant ingestion.TenantID, run ingest
 				if !ok {
 					return
 				}
-				ev, err := ingestion.EventOf(msg)
+				f, err := events.Decode(msg)
 				_ = msg.Ack()
 				if err != nil {
 					continue
 				}
 				select {
-				case out <- ev:
+				case out <- f:
 				case <-ctx.Done():
 					return
 				}

@@ -9,6 +9,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/events"
 )
 
 func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.ListRunsRequest]) (*connect.Response[ingestionv1.ListRunsResponse], error) {
@@ -74,7 +75,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 		}
 	}
 
-	sub, err := a.bus.Subscribe(ingestion.RunPattern(tenant, run), eventbus.SubOpts{})
+	sub, err := a.bus.Subscribe(events.RunPattern(tenant, run), eventbus.SubOpts{})
 	if err != nil {
 		return err
 	}
@@ -99,16 +100,16 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 			if !ok {
 				return nil
 			}
-			ev, err := ingestion.EventOf(msg)
+			f, err := events.Decode(msg)
 			_ = msg.Ack()
 			if err != nil {
 				continue
 			}
-			if err := send(tailResponse(eventToProto(ev, false))); err != nil {
+			if err := send(tailResponse(eventToProto(f, false))); err != nil {
 				return err
 			}
-			switch ev.Type {
-			case ingestion.EvRunCompleted, ingestion.EvRunFailed:
+			switch f.Data.(type) {
+			case events.RunCompletedEvent, events.RunFailedEvent:
 				return nil
 			}
 		}

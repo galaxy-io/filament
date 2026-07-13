@@ -11,8 +11,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/events"
 )
 
 // line is the flat, jq-friendly shape of one recorded event. Payload fields are
@@ -32,22 +32,49 @@ type line struct {
 	Cursor   map[string]any `json:"cursor,omitempty"` // checkpoint delta on checkpoint/batch facts
 }
 
-func toLine(ev ingestion.Event) line {
+func toLine(f events.Fact) line {
 	l := line{
-		TS:       ev.At.UTC().Format(time.RFC3339Nano),
-		Seq:      ev.Seq,
-		Type:     ev.Type.String(),
-		Tenant:   string(ev.Tenant),
-		Run:      string(ev.Run),
-		Resource: ev.Resource,
-		Records:  ev.Fields.Records,
-		Bytes:    ev.Fields.Bytes,
-		CRC:      ev.Fields.CRC,
-		URI:      ev.Fields.URI,
-		Error:    ev.Fields.Error,
+		TS:       f.At.UTC().Format(time.RFC3339Nano),
+		Seq:      f.Seq,
+		Type:     f.Name,
+		Tenant:   string(f.Tenant),
+		Run:      string(f.Run),
+		Resource: f.Resource,
 	}
-	if cp := ev.Fields.Checkpoint; cp != nil {
-		l.Cursor = cp.Cursor
+	switch d := f.Data.(type) {
+	case events.RunCompletedEvent:
+		l.Records, l.Bytes = d.Records, d.Bytes
+	case events.RunFailedEvent:
+		l.Error = d.Error
+	case events.RunPartialEvent:
+		l.Error = d.Error
+	case events.PageFetchedEvent:
+		l.Records, l.Bytes, l.URI = d.Records, d.Bytes, d.URI
+	case events.ResourceCompletedEvent:
+		l.Records, l.Bytes = d.Records, d.Bytes
+	case events.ResourceFailedEvent:
+		l.Error = d.Error
+	case events.BatchBufferedEvent:
+		l.Records, l.Bytes = d.Records, d.Bytes
+	case events.BatchWrittenEvent:
+		l.Records, l.Bytes, l.URI, l.CRC = d.Records, d.Bytes, d.URI, d.CRC
+		if d.Checkpoint != nil {
+			l.Cursor = d.Checkpoint.Cursor
+		}
+	case events.IntegrityVerifiedEvent:
+		l.CRC = d.CRC
+	case events.ChunkDivergenceEvent:
+		l.CRC, l.Error = d.CRC, d.Error
+	case events.WatermarkAdvancedEvent:
+		if d.Checkpoint != nil {
+			l.Cursor = d.Checkpoint.Cursor
+		}
+	case events.CheckpointSavedEvent:
+		if d.Checkpoint != nil {
+			l.Cursor = d.Checkpoint.Cursor
+		}
+	case events.RetryExhaustedEvent:
+		l.Error = d.Error
 	}
 	return l
 }
@@ -60,7 +87,7 @@ type Recorder struct {
 	n    int
 }
 
-// Start subscribes to pattern (e.g. ingestion.TenantPattern / ingestion.RunPattern) and streams
+// Start subscribes to pattern (e.g. events.RunPattern / events.AllPattern) and streams
 // every matching event to w as NDJSON until Stop. A drain goroutine owns w.
 func Start(bus eventbus.Bus, pattern string, w io.Writer) (*Recorder, error) {
 	sub, err := bus.Subscribe(pattern, eventbus.SubOpts{})
@@ -74,11 +101,11 @@ func Start(bus eventbus.Bus, pattern string, w io.Writer) (*Recorder, error) {
 		defer func() { _ = bw.Flush() }()
 		enc := json.NewEncoder(bw)
 		for msg := range sub.C() {
-			ev, err := ingestion.EventOf(msg)
+			f, err := events.Decode(msg)
 			if err != nil {
 				continue
 			}
-			_ = enc.Encode(toLine(ev))
+			_ = enc.Encode(toLine(f))
 			r.n++
 		}
 	}()

@@ -13,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/internal/modules/engine"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
@@ -56,7 +57,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	t.Setenv("AWS_REGION", "us-east-1")
 	t.Setenv("AWS_S3_ENDPOINT", "http://"+minioEndpoint)
 
-	bus, err := natsbus.New(nats.URL, ingestion.JSONCodec,
+	bus, err := natsbus.New(nats.URL, events.Codec,
 		natsbus.WithStream("INGESTION_E2E"),
 		natsbus.WithSubjects("ingestion.v1.>"),
 	)

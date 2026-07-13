@@ -14,6 +14,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/pipeline"
 )
 
@@ -50,7 +51,7 @@ func SpecFromState(s ingestion.RunState) ingestion.RunSpec {
 // run.partial).
 func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
-	em.fact(ingestion.EvRunStarted, ingestion.EventFields{})
+	emit(em, events.RunStarted, "", events.RunStartedEvent{})
 
 	if err := resolveConfigRefs(ctx, deps.Secrets, &spec); err != nil {
 		em.fail(err)
@@ -105,7 +106,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	}
 
 	for _, res := range spec.Resources {
-		em.emitFact(ingestion.EvResourceStarted, res, ingestion.EventFields{})
+		emit(em, events.ResourceStarted, res, events.ResourceStartedEvent{})
 	}
 
 	extractor, err := resolveExtractor(ctx, deps.DataStore, src, spec, plan)
@@ -155,7 +156,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	if runErr != nil {
 		if isResumableRun(spec, plan) {
 			for _, res := range resources {
-				em.emitFact(ingestion.EvResourceFailed, res, ingestion.EventFields{Error: runErr.Error()})
+				emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 			}
 			em.partial(runErr)
 			return
@@ -164,7 +165,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 			deps.Log.Error("runner: sink abort", err, ingestion.Field{Key: "run", Value: string(spec.Run)})
 		}
 		for _, res := range resources {
-			em.emitFact(ingestion.EvResourceFailed, res, ingestion.EventFields{Error: runErr.Error()})
+			emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 		}
 		em.fail(runErr)
 		return
@@ -176,10 +177,10 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	}
 	for _, res := range resources {
 		records, bytes := em.resourceTally(res)
-		em.emitFact(ingestion.EvResourceCompleted, res, ingestion.EventFields{Records: records, Bytes: bytes})
+		emit(em, events.ResourceCompleted, res, events.ResourceCompletedEvent{Records: records, Bytes: bytes})
 	}
 	records, bytes := em.runTotals()
-	em.fact(ingestion.EvRunCompleted, ingestion.EventFields{Records: records, Bytes: bytes})
+	emit(em, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes})
 }
 
 func resolveConfigRefs(ctx context.Context, secrets ingestion.Secrets, spec *ingestion.RunSpec) error {
@@ -492,63 +493,84 @@ func newEmitter(ctx context.Context, bus eventbus.Bus, log ingestion.Logger, ten
 
 func (e *emitter) next() uint64 { return e.seq.Add(1) }
 
-func (e *emitter) publish(ev ingestion.Event) {
-	if ev.Type == ingestion.EvBatchWritten {
+func (e *emitter) publish(f events.Fact) {
+	if d, ok := f.Data.(events.BatchWrittenEvent); ok {
 		e.mu.Lock()
-		e.runRecords += ev.Fields.Records
-		e.runBytes += ev.Fields.Bytes
-		t := e.res[ev.Resource]
+		e.runRecords += d.Records
+		e.runBytes += d.Bytes
+		t := e.res[f.Resource]
 		if t == nil {
 			t = &tally{}
-			e.res[ev.Resource] = t
+			e.res[f.Resource] = t
 		}
-		t.records += ev.Fields.Records
-		t.bytes += ev.Fields.Bytes
+		t.records += d.Records
+		t.bytes += d.Bytes
 		e.mu.Unlock()
 	}
 	if e.log != nil {
+		records, bytes, errMsg := factProgress(f)
 		fields := []ingestion.Field{
-			{Key: "run", Value: string(ev.Run)},
-			{Key: "resource", Value: ev.Resource},
-			{Key: "records", Value: ev.Fields.Records},
-			{Key: "bytes", Value: ev.Fields.Bytes},
+			{Key: "run", Value: string(f.Run)},
+			{Key: "resource", Value: f.Resource},
+			{Key: "records", Value: records},
+			{Key: "bytes", Value: bytes},
 		}
-		if ev.Fields.Error != "" {
-			fields = append(fields, ingestion.Field{Key: "error", Value: ev.Fields.Error})
+		if errMsg != "" {
+			fields = append(fields, ingestion.Field{Key: "error", Value: errMsg})
 		}
-		e.log.Info(ev.Type.String(), fields...)
+		e.log.Info(f.Name, fields...)
 	}
-	if err := ingestion.PublishEvent(e.ctx, e.bus, ev); err != nil && e.log != nil {
-		e.log.Error("runner: publish fact", err, ingestion.Field{Key: "type", Value: ev.Type.String()})
+	if err := events.Publish(e.ctx, e.bus, f); err != nil && e.log != nil {
+		e.log.Error("runner: publish fact", err, ingestion.Field{Key: "type", Value: f.Name})
 	}
 }
 
-func (e *emitter) emitFact(t ingestion.EventType, resource string, f ingestion.EventFields) {
-	e.publish(ingestion.Event{
-		Type:     t,
+// factProgress flattens a typed payload's progress counters and error for logging.
+func factProgress(f events.Fact) (records, bytes int64, errMsg string) {
+	switch d := f.Data.(type) {
+	case events.BatchBufferedEvent:
+		return d.Records, d.Bytes, ""
+	case events.BatchWrittenEvent:
+		return d.Records, d.Bytes, ""
+	case events.ResourceCompletedEvent:
+		return d.Records, d.Bytes, ""
+	case events.RunCompletedEvent:
+		return d.Records, d.Bytes, ""
+	case events.ResourceFailedEvent:
+		return 0, 0, d.Error
+	case events.RunFailedEvent:
+		return 0, 0, d.Error
+	case events.RunPartialEvent:
+		return 0, 0, d.Error
+	default:
+		return 0, 0, ""
+	}
+}
+
+// emit stamps and publishes a runner-originated fact for a run or resource.
+// (A free function: Go methods cannot take type parameters.)
+func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
+	e.publish(events.NewFact(t, events.Envelope{
 		Tenant:   e.tenant,
 		Run:      e.run,
 		Resource: resource,
 		Seq:      e.next(),
 		At:       time.Now(),
-		Fields:   f,
-	})
+	}, data))
 }
-
-func (e *emitter) fact(t ingestion.EventType, f ingestion.EventFields) { e.emitFact(t, "", f) }
 
 func (e *emitter) fail(err error) {
 	if e.log != nil {
 		e.log.Error("runner: run failed", err, ingestion.Field{Key: "run", Value: string(e.run)})
 	}
-	e.fact(ingestion.EvRunFailed, ingestion.EventFields{Error: err.Error()})
+	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error()})
 }
 
 func (e *emitter) partial(err error) {
 	if e.log != nil {
 		e.log.Error("runner: run partial", err, ingestion.Field{Key: "run", Value: string(e.run)})
 	}
-	e.fact(ingestion.EvRunPartial, ingestion.EventFields{Error: err.Error()})
+	emit(e, events.RunPartial, "", events.RunPartialEvent{Error: err.Error()})
 }
 
 func (e *emitter) resourceTally(name string) (records, bytes int64) {

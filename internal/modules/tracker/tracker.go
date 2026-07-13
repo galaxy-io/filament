@@ -11,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 )
 
@@ -62,7 +63,7 @@ func (m *Module) Name() string { return "tracker" }
 // tracker sees every fact and survives restarts (resuming where it left off).
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
-		{Pattern: "ingestion.v1.>", Durable: "tracker", Handler: m.onFact},
+		{Pattern: events.AllPattern(), Durable: "tracker", Handler: m.onFact},
 	}
 }
 
@@ -82,12 +83,12 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 // the engine's run.started) never collide, and a redelivered message keeps its
 // sequence so the fold stays idempotent.
 func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
-	ev, err := ingestion.EventOf(msg)
+	f, err := events.Decode(msg)
 	if err != nil {
-		return err
+		return nil // not a Fact: a foreign publisher on our pattern — skip
 	}
 
-	seen, err := m.ds.DedupSeen(ctx, string(ev.Tenant), ev.Run, msg.Seq())
+	seen, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
 	if err != nil {
 		return err
 	}
@@ -95,152 +96,161 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		return nil // already applied — idempotent no-op
 	}
 
-	return m.apply(ctx, ev)
+	return m.apply(ctx, f)
 }
 
 // apply folds one fact into persisted run/resource/checkpoint state. Facts not
 // listed here (heartbeats, page-fetched, batch-buffered, integrity-verified,
 // rate-limited, schedule-fired) carry no durable state change and are ignored.
-func (m *Module) apply(ctx context.Context, ev ingestion.Event) error {
-	switch ev.Type {
-	case ingestion.EvRunStarted:
-		return m.mutate(ctx, ev, func(r *ingestion.RunState) {
+func (m *Module) apply(ctx context.Context, f events.Fact) error {
+	env := f.Envelope
+	switch d := f.Data.(type) {
+	case events.RunStartedEvent:
+		return m.mutate(ctx, env, func(r *ingestion.RunState) {
 			r.Status = ingestion.RunRunning
 			if r.StartedAt.IsZero() {
-				r.StartedAt = ev.At
+				r.StartedAt = env.At
 			}
 		})
 
-	case ingestion.EvRunCompleted:
-		if err := m.mutate(ctx, ev, func(r *ingestion.RunState) {
+	case events.RunCompletedEvent:
+		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
 			r.Status = ingestion.RunCompleted
-			finishedAt(r, ev.At)
+			finishedAt(r, env.At)
 			// The terminal fact carries the engine's authoritative totals.
-			r.Records = ev.Fields.Records
-			r.Bytes = ev.Fields.Bytes
+			r.Records = d.Records
+			r.Bytes = d.Bytes
 		}); err != nil {
 			return err
 		}
-		m.flushRun(ctx, ev.Run)
+		m.flushRun(ctx, env.Run)
 		return nil
 
-	case ingestion.EvRunFailed:
-		if err := m.mutate(ctx, ev, func(r *ingestion.RunState) {
+	case events.RunFailedEvent:
+		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
 			r.Status = ingestion.RunFailed
-			finishedAt(r, ev.At)
-			r.Error = ev.Fields.Error
+			finishedAt(r, env.At)
+			r.Error = d.Error
 		}); err != nil {
 			return err
 		}
-		m.flushRun(ctx, ev.Run)
+		m.flushRun(ctx, env.Run)
 		return nil
 
-	case ingestion.EvRunPartial:
-		if err := m.mutate(ctx, ev, func(r *ingestion.RunState) {
+	case events.RunPartialEvent:
+		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
 			r.Status = ingestion.RunPartial
-			finishedAt(r, ev.At)
-			r.Error = ev.Fields.Error
+			finishedAt(r, env.At)
+			r.Error = d.Error
 		}); err != nil {
 			return err
 		}
-		m.flushRun(ctx, ev.Run)
+		m.flushRun(ctx, env.Run)
 		return nil
 
-	case ingestion.EvResourceStarted:
-		return m.mutate(ctx, ev, func(r *ingestion.RunState) {
-			rs := resourceRef(r, ev.Resource)
+	case events.ResourceStartedEvent:
+		return m.mutate(ctx, env, func(r *ingestion.RunState) {
+			rs := resourceRef(r, env.Resource)
 			rs.Enabled = true
 			if rs.Status == ingestion.RunRequested {
 				rs.Status = ingestion.RunRunning
 			}
 		})
 
-	case ingestion.EvResourceCompleted:
-		if err := m.mutate(ctx, ev, func(r *ingestion.RunState) {
-			rs := resourceRef(r, ev.Resource)
+	case events.ResourceCompletedEvent:
+		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
+			rs := resourceRef(r, env.Resource)
 			rs.Status = ingestion.RunCompleted
-			rs.Records = ev.Fields.Records
-			rs.Bytes = ev.Fields.Bytes
+			rs.Records = d.Records
+			rs.Bytes = d.Bytes
 		}); err != nil {
 			return err
 		}
-		m.flushResource(ctx, ev.Run, ev.Resource)
+		m.flushResource(ctx, env.Run, env.Resource)
 		return nil
 
-	case ingestion.EvResourceFailed:
-		return m.mutate(ctx, ev, func(r *ingestion.RunState) {
-			rs := resourceRef(r, ev.Resource)
+	case events.ResourceFailedEvent:
+		return m.mutate(ctx, env, func(r *ingestion.RunState) {
+			rs := resourceRef(r, env.Resource)
 			rs.Status = ingestion.RunFailed
-			rs.Error = ev.Fields.Error
+			rs.Error = d.Error
 		})
 
-	case ingestion.EvBatchWritten:
+	case events.BatchWrittenEvent:
 		// Incremental progress: accumulate per-resource and run totals as chunks
 		// land, so observers see counts climb before the run finishes.
-		if err := m.mutate(ctx, ev, func(r *ingestion.RunState) {
-			r.Records += ev.Fields.Records
-			r.Bytes += ev.Fields.Bytes
-			rs := resourceRef(r, ev.Resource)
-			rs.Records += ev.Fields.Records
-			rs.Bytes += ev.Fields.Bytes
+		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
+			r.Records += d.Records
+			r.Bytes += d.Bytes
+			rs := resourceRef(r, env.Resource)
+			rs.Records += d.Records
+			rs.Bytes += d.Bytes
 			if rs.Status == ingestion.RunRequested {
 				rs.Status = ingestion.RunRunning
 			}
 		}); err != nil {
 			return err
 		}
-		if cp, persist := m.foldCursor(ctx, ev); cp != nil && persist {
-			if err := m.ds.SaveCheckpoint(ctx, ev.Run, cp); err != nil && m.log != nil {
-				m.log.Error("tracker: save checkpoint", err, ingestion.Field{Key: "run", Value: string(ev.Run)})
+		if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
+			if err := m.ds.SaveCheckpoint(ctx, env.Run, cp); err != nil && m.log != nil {
+				m.log.Error("tracker: save checkpoint", err, ingestion.Field{Key: "run", Value: string(env.Run)})
 			}
 		}
 		return nil
 
-	case ingestion.EvCheckpointSaved, ingestion.EvWatermarkAdvanced:
-		if ev.Fields.Checkpoint == nil {
-			return nil
-		}
-		if err := m.ds.SaveCheckpoint(ctx, ev.Run, ev.Fields.Checkpoint); err != nil {
-			return err
-		}
-		return m.mutate(ctx, ev, func(r *ingestion.RunState) {
-			resourceRef(r, ev.Resource).Checkpoint = ev.Fields.Checkpoint
-		})
+	case events.CheckpointSavedEvent:
+		return m.applyCheckpoint(ctx, env, d.Checkpoint)
+
+	case events.WatermarkAdvancedEvent:
+		return m.applyCheckpoint(ctx, env, d.Checkpoint)
 
 	default:
 		return nil // facts this module doesn't fold are acked and ignored
 	}
 }
 
+// applyCheckpoint persists a cursor fact's checkpoint and pins it on the resource.
+func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *ingestion.CheckpointData) error {
+	if cp == nil {
+		return nil
+	}
+	if err := m.ds.SaveCheckpoint(ctx, env.Run, cp); err != nil {
+		return err
+	}
+	return m.mutate(ctx, env, func(r *ingestion.RunState) {
+		resourceRef(r, env.Resource).Checkpoint = cp
+	})
+}
+
 // foldCursor merges a batch.written keyset delta into the resource's accumulated
 // checkpoint and reports whether the run's persist cadence is due. Returns (nil,false)
 // for a non-keyset batch or before the shard layout (the plan) has been seeded.
-func (m *Module) foldCursor(ctx context.Context, ev ingestion.Event) (ingestion.Checkpoint, bool) {
-	if ev.Fields.Checkpoint == nil {
+func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *ingestion.CheckpointData) (ingestion.Checkpoint, bool) {
+	if cp == nil {
 		return nil, false
 	}
-	if part, ack, want, hasWant, ok := checkpoint.CoarseDelta(ev.Fields.Checkpoint); ok {
-		return m.foldBitmap(ctx, ev, part, ack, want, hasWant)
+	if part, ack, want, hasWant, ok := checkpoint.CoarseDelta(cp); ok {
+		return m.foldBitmap(ctx, env, part, ack, want, hasWant)
 	}
-	if _, _, ok := checkpoint.ParseStream(ev.Fields.Checkpoint); ok {
-		return m.foldStream(ctx, ev)
+	if _, _, ok := checkpoint.ParseStream(cp); ok {
+		return m.foldStream(ctx, env, cp)
 	}
-	key := ckKey{ev.Run, ev.Resource}
+	key := ckKey{env.Run, env.Resource}
 
 	m.mu.Lock()
 	base, ok := m.cp[key]
 	if !ok {
-		base = m.loadCheckpoint(ctx, ev.Run, ev.Resource) // recover layout after a restart
+		base = m.loadCheckpoint(ctx, env.Run, env.Resource) // recover layout after a restart
 		m.cp[key] = base
 	}
-	merged := checkpoint.MergeShardDelta(base, ev.Fields.Checkpoint)
+	merged := checkpoint.MergeShardDelta(base, cp)
 	if merged == nil {
 		m.mu.Unlock()
 		return nil, false
 	}
 	m.cp[key] = merged
 	m.since[key]++
-	persist := m.since[key] >= m.cadence(ctx, ev.Run)
+	persist := m.since[key] >= m.cadence(ctx, env.Run)
 	if persist {
 		m.since[key] = 0
 	}
@@ -251,23 +261,23 @@ func (m *Module) foldCursor(ctx context.Context, ev ingestion.Event) (ingestion.
 // foldStream folds a change-stream position delta: the newer position (guarded by the
 // per-run seq, since concurrent writers can publish batch facts out of order) replaces
 // the resource's cursor wholesale — a stream cursor has no shard layout to merge into.
-func (m *Module) foldStream(ctx context.Context, ev ingestion.Event) (ingestion.Checkpoint, bool) {
-	key := ckKey{ev.Run, ev.Resource}
+func (m *Module) foldStream(ctx context.Context, env events.Envelope, cp *ingestion.CheckpointData) (ingestion.Checkpoint, bool) {
+	key := ckKey{env.Run, env.Resource}
 
 	m.mu.Lock()
 	base, ok := m.cp[key]
 	if !ok {
-		base = m.loadCheckpoint(ctx, ev.Run, ev.Resource) // recover position after a restart
+		base = m.loadCheckpoint(ctx, env.Run, env.Resource) // recover position after a restart
 		m.cp[key] = base
 	}
-	merged := checkpoint.MergeStream(base, ev.Fields.Checkpoint)
+	merged := checkpoint.MergeStream(base, cp)
 	if merged == nil {
 		m.mu.Unlock()
 		return nil, false
 	}
 	m.cp[key] = merged
 	m.since[key]++
-	persist := m.since[key] >= m.cadence(ctx, ev.Run)
+	persist := m.since[key] >= m.cadence(ctx, env.Run)
 	if persist {
 		m.since[key] = 0
 	}
@@ -279,15 +289,15 @@ func (m *Module) foldStream(ctx context.Context, ev ingestion.Event) (ingestion.
 // the part is fully written, flips its Done flag in the resource checkpoint and persists.
 // Returns (nil, false) for a plain ack or before completion. Order-independent of whether
 // the want marker or the acks land first, so it is correct under parallel writers.
-func (m *Module) foldBitmap(ctx context.Context, ev ingestion.Event, part, ack, want int, hasWant bool) (ingestion.Checkpoint, bool) {
-	key := ckKey{ev.Run, ev.Resource}
+func (m *Module) foldBitmap(ctx context.Context, env events.Envelope, part, ack, want int, hasWant bool) (ingestion.Checkpoint, bool) {
+	key := ckKey{env.Run, env.Resource}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	base, ok := m.cp[key]
 	if !ok {
-		base = m.loadCheckpoint(ctx, ev.Run, ev.Resource) // recover layout after a restart
+		base = m.loadCheckpoint(ctx, env.Run, env.Resource) // recover layout after a restart
 		m.cp[key] = base
 	}
 	acct, ok := m.bm[key]
@@ -377,10 +387,10 @@ func (m *Module) loadCheckpoint(ctx context.Context, run ingestion.RunID, resour
 // any prior state exists). Loading the full state first preserves fields this
 // fact doesn't touch (notably the original Request). The tracker's single pump
 // goroutine serializes these, so no row is lost to a concurrent fold.
-func (m *Module) mutate(ctx context.Context, ev ingestion.Event, fn func(*ingestion.RunState)) error {
-	r, err := m.ds.LoadRun(ctx, ev.Run)
+func (m *Module) mutate(ctx context.Context, env events.Envelope, fn func(*ingestion.RunState)) error {
+	r, err := m.ds.LoadRun(ctx, env.Run)
 	if errors.Is(err, ingestion.ErrNotFound) {
-		r = ingestion.RunState{Run: ev.Run, Tenant: ev.Tenant}
+		r = ingestion.RunState{Run: env.Run, Tenant: env.Tenant}
 	} else if err != nil {
 		return err
 	}
