@@ -54,3 +54,17 @@ go test ./...
 ```
 
 Some integration tests require Docker through `testcontainers-go`.
+
+Common tasks are driven by [`just`](https://github.com/casey/just); CI runs the
+same recipes, so a green run locally is a green run in CI:
+
+```sh
+just binaries         # build linux binaries into bin/
+just images           # build docker images
+just format           # apply gofumpt + goimports to every module (settings in .golangci.yaml)
+just format-check     # check formatting without writing
+just lint             # run golangci-lint with auto-fixes across every module
+just lint-check       # run golangci-lint without fixing (what CI runs)
+just test             # run unit tests in every module except tests/
+just test-integration # run the integration/e2e suite (requires Docker)
+```
