@@ -4,9 +4,11 @@
 
 import type { GenFile, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { CreateConnectionRequestSchema, CreateConnectionResponseSchema, DeleteConnectionRequestSchema, DeleteConnectionResponseSchema, GetConnectionRequestSchema, GetConnectionResponseSchema, ListConnectionsRequestSchema, ListConnectionsResponseSchema, UpdateConnectionRequestSchema, UpdateConnectionResponseSchema } from "./connections_pb";
+import { file_ingestion_v1_connections } from "./connections_pb";
 import type { CreatePipelineRequestSchema, CreatePipelineResponseSchema, DeletePipelineRequestSchema, DeletePipelineResponseSchema, GetPipelineRequestSchema, GetPipelineResponseSchema, ListPipelinesRequestSchema, ListPipelinesResponseSchema, UpdatePipelineRequestSchema, UpdatePipelineResponseSchema } from "./pipelines_pb";
 import { file_ingestion_v1_pipelines } from "./pipelines_pb";
-import type { DiscoverResourcesRequestSchema, DiscoverResourcesResponseSchema, ListProvidersRequestSchema, ListProvidersResponseSchema, ValidateConfigRequestSchema, ValidateConfigResponseSchema } from "./providers_pb";
+import type { DiscoverResourcesRequestSchema, DiscoverResourcesResponseSchema, ListConnectorsRequestSchema, ListConnectorsResponseSchema, ValidateConfigRequestSchema, ValidateConfigResponseSchema } from "./providers_pb";
 import { file_ingestion_v1_providers } from "./providers_pb";
 import type { GetRunRequestSchema, GetRunResponseSchema, ListRunsRequestSchema, ListRunsResponseSchema, RunPipelineRequestSchema, RunPipelineResponseSchema, SignalRunRequestSchema, SignalRunResponseSchema, TailRunRequestSchema, TailRunResponseSchema } from "./runs_pb";
 import { file_ingestion_v1_runs } from "./runs_pb";
@@ -17,7 +19,7 @@ import { file_ingestion_v1_secrets } from "./secrets_pb";
  * Describes the file ingestion/v1/service.proto.
  */
 export const file_ingestion_v1_service: GenFile = /*@__PURE__*/
-  fileDesc("Chppbmdlc3Rpb24vdjEvc2VydmljZS5wcm90bxIMaW5nZXN0aW9uLnYxMpUKChBJbmdlc3Rpb25TZXJ2aWNlElgKDUxpc3RQcm92aWRlcnMSIi5pbmdlc3Rpb24udjEuTGlzdFByb3ZpZGVyc1JlcXVlc3QaIy5pbmdlc3Rpb24udjEuTGlzdFByb3ZpZGVyc1Jlc3BvbnNlElsKDlZhbGlkYXRlQ29uZmlnEiMuaW5nZXN0aW9uLnYxLlZhbGlkYXRlQ29uZmlnUmVxdWVzdBokLmluZ2VzdGlvbi52MS5WYWxpZGF0ZUNvbmZpZ1Jlc3BvbnNlEmQKEURpc2NvdmVyUmVzb3VyY2VzEiYuaW5nZXN0aW9uLnYxLkRpc2NvdmVyUmVzb3VyY2VzUmVxdWVzdBonLmluZ2VzdGlvbi52MS5EaXNjb3ZlclJlc291cmNlc1Jlc3BvbnNlEkwKCVB1dFNlY3JldBIeLmluZ2VzdGlvbi52MS5QdXRTZWNyZXRSZXF1ZXN0Gh8uaW5nZXN0aW9uLnYxLlB1dFNlY3JldFJlc3BvbnNlElUKDERlbGV0ZVNlY3JldBIhLmluZ2VzdGlvbi52MS5EZWxldGVTZWNyZXRSZXF1ZXN0GiIuaW5nZXN0aW9uLnYxLkRlbGV0ZVNlY3JldFJlc3BvbnNlElsKDkNyZWF0ZVBpcGVsaW5lEiMuaW5nZXN0aW9uLnYxLkNyZWF0ZVBpcGVsaW5lUmVxdWVzdBokLmluZ2VzdGlvbi52MS5DcmVhdGVQaXBlbGluZVJlc3BvbnNlElsKDlVwZGF0ZVBpcGVsaW5lEiMuaW5nZXN0aW9uLnYxLlVwZGF0ZVBpcGVsaW5lUmVxdWVzdBokLmluZ2VzdGlvbi52MS5VcGRhdGVQaXBlbGluZVJlc3BvbnNlElIKC0dldFBpcGVsaW5lEiAuaW5nZXN0aW9uLnYxLkdldFBpcGVsaW5lUmVxdWVzdBohLmluZ2VzdGlvbi52MS5HZXRQaXBlbGluZVJlc3BvbnNlElgKDUxpc3RQaXBlbGluZXMSIi5pbmdlc3Rpb24udjEuTGlzdFBpcGVsaW5lc1JlcXVlc3QaIy5pbmdlc3Rpb24udjEuTGlzdFBpcGVsaW5lc1Jlc3BvbnNlElsKDkRlbGV0ZVBpcGVsaW5lEiMuaW5nZXN0aW9uLnYxLkRlbGV0ZVBpcGVsaW5lUmVxdWVzdBokLmluZ2VzdGlvbi52MS5EZWxldGVQaXBlbGluZVJlc3BvbnNlElIKC1J1blBpcGVsaW5lEiAuaW5nZXN0aW9uLnYxLlJ1blBpcGVsaW5lUmVxdWVzdBohLmluZ2VzdGlvbi52MS5SdW5QaXBlbGluZVJlc3BvbnNlEkkKCExpc3RSdW5zEh0uaW5nZXN0aW9uLnYxLkxpc3RSdW5zUmVxdWVzdBoeLmluZ2VzdGlvbi52MS5MaXN0UnVuc1Jlc3BvbnNlEkMKBkdldFJ1bhIbLmluZ2VzdGlvbi52MS5HZXRSdW5SZXF1ZXN0GhwuaW5nZXN0aW9uLnYxLkdldFJ1blJlc3BvbnNlEkwKCVNpZ25hbFJ1bhIeLmluZ2VzdGlvbi52MS5TaWduYWxSdW5SZXF1ZXN0Gh8uaW5nZXN0aW9uLnYxLlNpZ25hbFJ1blJlc3BvbnNlEkgKB1RhaWxSdW4SHC5pbmdlc3Rpb24udjEuVGFpbFJ1blJlcXVlc3QaHS5pbmdlc3Rpb24udjEuVGFpbFJ1blJlc3BvbnNlMAFiBnByb3RvMw", [file_ingestion_v1_pipelines, file_ingestion_v1_providers, file_ingestion_v1_runs, file_ingestion_v1_secrets]);
+  fileDesc("Chppbmdlc3Rpb24vdjEvc2VydmljZS5wcm90bxIMaW5nZXN0aW9uLnYxMvsNChBJbmdlc3Rpb25TZXJ2aWNlElsKDkxpc3RDb25uZWN0b3JzEiMuaW5nZXN0aW9uLnYxLkxpc3RDb25uZWN0b3JzUmVxdWVzdBokLmluZ2VzdGlvbi52MS5MaXN0Q29ubmVjdG9yc1Jlc3BvbnNlElsKDlZhbGlkYXRlQ29uZmlnEiMuaW5nZXN0aW9uLnYxLlZhbGlkYXRlQ29uZmlnUmVxdWVzdBokLmluZ2VzdGlvbi52MS5WYWxpZGF0ZUNvbmZpZ1Jlc3BvbnNlEmQKEURpc2NvdmVyUmVzb3VyY2VzEiYuaW5nZXN0aW9uLnYxLkRpc2NvdmVyUmVzb3VyY2VzUmVxdWVzdBonLmluZ2VzdGlvbi52MS5EaXNjb3ZlclJlc291cmNlc1Jlc3BvbnNlEkwKCVB1dFNlY3JldBIeLmluZ2VzdGlvbi52MS5QdXRTZWNyZXRSZXF1ZXN0Gh8uaW5nZXN0aW9uLnYxLlB1dFNlY3JldFJlc3BvbnNlElUKDERlbGV0ZVNlY3JldBIhLmluZ2VzdGlvbi52MS5EZWxldGVTZWNyZXRSZXF1ZXN0GiIuaW5nZXN0aW9uLnYxLkRlbGV0ZVNlY3JldFJlc3BvbnNlEmEKEENyZWF0ZUNvbm5lY3Rpb24SJS5pbmdlc3Rpb24udjEuQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QaJi5pbmdlc3Rpb24udjEuQ3JlYXRlQ29ubmVjdGlvblJlc3BvbnNlEmEKEFVwZGF0ZUNvbm5lY3Rpb24SJS5pbmdlc3Rpb24udjEuVXBkYXRlQ29ubmVjdGlvblJlcXVlc3QaJi5pbmdlc3Rpb24udjEuVXBkYXRlQ29ubmVjdGlvblJlc3BvbnNlElgKDUdldENvbm5lY3Rpb24SIi5pbmdlc3Rpb24udjEuR2V0Q29ubmVjdGlvblJlcXVlc3QaIy5pbmdlc3Rpb24udjEuR2V0Q29ubmVjdGlvblJlc3BvbnNlEl4KD0xpc3RDb25uZWN0aW9ucxIkLmluZ2VzdGlvbi52MS5MaXN0Q29ubmVjdGlvbnNSZXF1ZXN0GiUuaW5nZXN0aW9uLnYxLkxpc3RDb25uZWN0aW9uc1Jlc3BvbnNlEmEKEERlbGV0ZUNvbm5lY3Rpb24SJS5pbmdlc3Rpb24udjEuRGVsZXRlQ29ubmVjdGlvblJlcXVlc3QaJi5pbmdlc3Rpb24udjEuRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlElsKDkNyZWF0ZVBpcGVsaW5lEiMuaW5nZXN0aW9uLnYxLkNyZWF0ZVBpcGVsaW5lUmVxdWVzdBokLmluZ2VzdGlvbi52MS5DcmVhdGVQaXBlbGluZVJlc3BvbnNlElsKDlVwZGF0ZVBpcGVsaW5lEiMuaW5nZXN0aW9uLnYxLlVwZGF0ZVBpcGVsaW5lUmVxdWVzdBokLmluZ2VzdGlvbi52MS5VcGRhdGVQaXBlbGluZVJlc3BvbnNlElIKC0dldFBpcGVsaW5lEiAuaW5nZXN0aW9uLnYxLkdldFBpcGVsaW5lUmVxdWVzdBohLmluZ2VzdGlvbi52MS5HZXRQaXBlbGluZVJlc3BvbnNlElgKDUxpc3RQaXBlbGluZXMSIi5pbmdlc3Rpb24udjEuTGlzdFBpcGVsaW5lc1JlcXVlc3QaIy5pbmdlc3Rpb24udjEuTGlzdFBpcGVsaW5lc1Jlc3BvbnNlElsKDkRlbGV0ZVBpcGVsaW5lEiMuaW5nZXN0aW9uLnYxLkRlbGV0ZVBpcGVsaW5lUmVxdWVzdBokLmluZ2VzdGlvbi52MS5EZWxldGVQaXBlbGluZVJlc3BvbnNlElIKC1J1blBpcGVsaW5lEiAuaW5nZXN0aW9uLnYxLlJ1blBpcGVsaW5lUmVxdWVzdBohLmluZ2VzdGlvbi52MS5SdW5QaXBlbGluZVJlc3BvbnNlEkkKCExpc3RSdW5zEh0uaW5nZXN0aW9uLnYxLkxpc3RSdW5zUmVxdWVzdBoeLmluZ2VzdGlvbi52MS5MaXN0UnVuc1Jlc3BvbnNlEkMKBkdldFJ1bhIbLmluZ2VzdGlvbi52MS5HZXRSdW5SZXF1ZXN0GhwuaW5nZXN0aW9uLnYxLkdldFJ1blJlc3BvbnNlEkwKCVNpZ25hbFJ1bhIeLmluZ2VzdGlvbi52MS5TaWduYWxSdW5SZXF1ZXN0Gh8uaW5nZXN0aW9uLnYxLlNpZ25hbFJ1blJlc3BvbnNlEkgKB1RhaWxSdW4SHC5pbmdlc3Rpb24udjEuVGFpbFJ1blJlcXVlc3QaHS5pbmdlc3Rpb24udjEuVGFpbFJ1blJlc3BvbnNlMAFiBnByb3RvMw", [file_ingestion_v1_connections, file_ingestion_v1_pipelines, file_ingestion_v1_providers, file_ingestion_v1_runs, file_ingestion_v1_secrets]);
 
 /**
  * IngestionService is the engine-as-a-service surface the pipeline UI drives.
@@ -26,14 +28,14 @@ export const file_ingestion_v1_service: GenFile = /*@__PURE__*/
  */
 export const IngestionService: GenService<{
   /**
-   * Catalog of registered source/sink providers and their config schemas.
+   * Catalog of registered source/sink connectors and their config schemas.
    *
-   * @generated from rpc ingestion.v1.IngestionService.ListProviders
+   * @generated from rpc ingestion.v1.IngestionService.ListConnectors
    */
-  listProviders: {
+  listConnectors: {
     methodKind: "unary";
-    input: typeof ListProvidersRequestSchema;
-    output: typeof ListProvidersResponseSchema;
+    input: typeof ListConnectorsRequestSchema;
+    output: typeof ListConnectorsResponseSchema;
   },
   /**
    * Ephemeral source/sink operations; no persisted state.
@@ -70,6 +72,48 @@ export const IngestionService: GenService<{
     methodKind: "unary";
     input: typeof DeleteSecretRequestSchema;
     output: typeof DeleteSecretResponseSchema;
+  },
+  /**
+   * Connections; reusable, tenant-scoped sources and sinks.
+   *
+   * @generated from rpc ingestion.v1.IngestionService.CreateConnection
+   */
+  createConnection: {
+    methodKind: "unary";
+    input: typeof CreateConnectionRequestSchema;
+    output: typeof CreateConnectionResponseSchema;
+  },
+  /**
+   * @generated from rpc ingestion.v1.IngestionService.UpdateConnection
+   */
+  updateConnection: {
+    methodKind: "unary";
+    input: typeof UpdateConnectionRequestSchema;
+    output: typeof UpdateConnectionResponseSchema;
+  },
+  /**
+   * @generated from rpc ingestion.v1.IngestionService.GetConnection
+   */
+  getConnection: {
+    methodKind: "unary";
+    input: typeof GetConnectionRequestSchema;
+    output: typeof GetConnectionResponseSchema;
+  },
+  /**
+   * @generated from rpc ingestion.v1.IngestionService.ListConnections
+   */
+  listConnections: {
+    methodKind: "unary";
+    input: typeof ListConnectionsRequestSchema;
+    output: typeof ListConnectionsResponseSchema;
+  },
+  /**
+   * @generated from rpc ingestion.v1.IngestionService.DeleteConnection
+   */
+  deleteConnection: {
+    methodKind: "unary";
+    input: typeof DeleteConnectionRequestSchema;
+    output: typeof DeleteConnectionResponseSchema;
   },
   /**
    * Pipelines; the persisted node graph.

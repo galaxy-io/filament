@@ -5,7 +5,7 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { ConfigSchema, ProviderKind, ReplicationMode, SourcePolicy, WritePolicyCapability } from "./common_pb";
+import type { ConfigSchema, ConnectorKind, ReplicationMode, SourcePolicy, WritePolicyCapability } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/providers.proto.
  */
 export const file_ingestion_v1_providers: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3kigAIKDFByb3ZpZGVyU3BlYxIMCgRuYW1lGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIoCgRraW5kGAMgASgOMhouaW5nZXN0aW9uLnYxLlByb3ZpZGVyS2luZBIPCgd2ZXJzaW9uGAQgASgJEiwKBW1vZGVzGAUgAygOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIxCg1jb25maWdfc2NoZW1hGAYgASgLMhouaW5nZXN0aW9uLnYxLkNvbmZpZ1NjaGVtYRIwCgxjYXBhYmlsaXRpZXMYByABKAsyGi5pbmdlc3Rpb24udjEuQ2FwYWJpbGl0aWVzIkAKFExpc3RQcm92aWRlcnNSZXF1ZXN0EigKBGtpbmQYASABKA4yGi5pbmdlc3Rpb24udjEuUHJvdmlkZXJLaW5kIkYKFUxpc3RQcm92aWRlcnNSZXNwb25zZRItCglwcm92aWRlcnMYASADKAsyGi5pbmdlc3Rpb24udjEuUHJvdmlkZXJTcGVjIooBChVWYWxpZGF0ZUNvbmZpZ1JlcXVlc3QSKAoEa2luZBgBIAEoDjIaLmluZ2VzdGlvbi52MS5Qcm92aWRlcktpbmQSEAoIcHJvdmlkZXIYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIMCgRsaXZlGAQgASgIIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJmChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkSJwoGY29uZmlnGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIPCgdyZWZyZXNoGAMgASgIIuoBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhIKCnNlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSFgoOZXN0aW1hdGVkX3Jvd3MYBCABKAMSEAoIc2VsZWN0b3IYBSABKAkSFAoMZGlzcGxheV9uYW1lGAcgASgJEjYKCG1ldGFkYXRhGAsgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3kiggIKDUNvbm5lY3RvclNwZWMSDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEg8KB3ZlcnNpb24YBCABKAkSLAoFbW9kZXMYBSADKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjEKDWNvbmZpZ19zY2hlbWEYBiABKAsyGi5pbmdlc3Rpb24udjEuQ29uZmlnU2NoZW1hEjAKDGNhcGFiaWxpdGllcxgHIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMiQgoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJJChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKMAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIMCgRsaXZlGAQgASgIIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJnChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCCLqAQoIUmVzb3VyY2USDAoEbmFtZRgBIAEoCRISCgpzZWxlY3RhYmxlGAIgASgIEhMKC3ByaW1hcnlfa2V5GAMgAygJEhYKDmVzdGltYXRlZF9yb3dzGAQgASgDEhAKCHNlbGVjdG9yGAUgASgJEhQKDGRpc3BsYXlfbmFtZRgHIAEoCRI2CghtZXRhZGF0YRgLIAMoCzIkLmluZ2VzdGlvbi52MS5SZXNvdXJjZS5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJGChlEaXNjb3ZlclJlc291cmNlc1Jlc3BvbnNlEikKCXJlc291cmNlcxgBIAMoCzIWLmluZ2VzdGlvbi52MS5SZXNvdXJjZWIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_common]);
 
 /**
  * Capabilities flattens source and sink capabilities; fields not relevant to a
@@ -66,11 +66,11 @@ export const CapabilitiesSchema: GenMessage<Capabilities> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 0);
 
 /**
- * ProviderSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
+ * ConnectorSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
  *
- * @generated from message ingestion.v1.ProviderSpec
+ * @generated from message ingestion.v1.ConnectorSpec
  */
-export type ProviderSpec = Message<"ingestion.v1.ProviderSpec"> & {
+export type ConnectorSpec = Message<"ingestion.v1.ConnectorSpec"> & {
   /**
    * @generated from field: string name = 1;
    */
@@ -82,9 +82,9 @@ export type ProviderSpec = Message<"ingestion.v1.ProviderSpec"> & {
   displayName: string;
 
   /**
-   * @generated from field: ingestion.v1.ProviderKind kind = 3;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 3;
    */
-  kind: ProviderKind;
+  kind: ConnectorKind;
 
   /**
    * @generated from field: string version = 4;
@@ -108,46 +108,46 @@ export type ProviderSpec = Message<"ingestion.v1.ProviderSpec"> & {
 };
 
 /**
- * Describes the message ingestion.v1.ProviderSpec.
- * Use `create(ProviderSpecSchema)` to create a new message.
+ * Describes the message ingestion.v1.ConnectorSpec.
+ * Use `create(ConnectorSpecSchema)` to create a new message.
  */
-export const ProviderSpecSchema: GenMessage<ProviderSpec> = /*@__PURE__*/
+export const ConnectorSpecSchema: GenMessage<ConnectorSpec> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 1);
 
 /**
- * @generated from message ingestion.v1.ListProvidersRequest
+ * @generated from message ingestion.v1.ListConnectorsRequest
  */
-export type ListProvidersRequest = Message<"ingestion.v1.ListProvidersRequest"> & {
+export type ListConnectorsRequest = Message<"ingestion.v1.ListConnectorsRequest"> & {
   /**
    * Filter to one kind; UNSPECIFIED returns both sources and sinks.
    *
-   * @generated from field: ingestion.v1.ProviderKind kind = 1;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
    */
-  kind: ProviderKind;
+  kind: ConnectorKind;
 };
 
 /**
- * Describes the message ingestion.v1.ListProvidersRequest.
- * Use `create(ListProvidersRequestSchema)` to create a new message.
+ * Describes the message ingestion.v1.ListConnectorsRequest.
+ * Use `create(ListConnectorsRequestSchema)` to create a new message.
  */
-export const ListProvidersRequestSchema: GenMessage<ListProvidersRequest> = /*@__PURE__*/
+export const ListConnectorsRequestSchema: GenMessage<ListConnectorsRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 2);
 
 /**
- * @generated from message ingestion.v1.ListProvidersResponse
+ * @generated from message ingestion.v1.ListConnectorsResponse
  */
-export type ListProvidersResponse = Message<"ingestion.v1.ListProvidersResponse"> & {
+export type ListConnectorsResponse = Message<"ingestion.v1.ListConnectorsResponse"> & {
   /**
-   * @generated from field: repeated ingestion.v1.ProviderSpec providers = 1;
+   * @generated from field: repeated ingestion.v1.ConnectorSpec connectors = 1;
    */
-  providers: ProviderSpec[];
+  connectors: ConnectorSpec[];
 };
 
 /**
- * Describes the message ingestion.v1.ListProvidersResponse.
- * Use `create(ListProvidersResponseSchema)` to create a new message.
+ * Describes the message ingestion.v1.ListConnectorsResponse.
+ * Use `create(ListConnectorsResponseSchema)` to create a new message.
  */
-export const ListProvidersResponseSchema: GenMessage<ListProvidersResponse> = /*@__PURE__*/
+export const ListConnectorsResponseSchema: GenMessage<ListConnectorsResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 3);
 
 /**
@@ -155,14 +155,14 @@ export const ListProvidersResponseSchema: GenMessage<ListProvidersResponse> = /*
  */
 export type ValidateConfigRequest = Message<"ingestion.v1.ValidateConfigRequest"> & {
   /**
-   * @generated from field: ingestion.v1.ProviderKind kind = 1;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
    */
-  kind: ProviderKind;
+  kind: ConnectorKind;
 
   /**
-   * @generated from field: string provider = 2;
+   * @generated from field: string connector = 2;
    */
-  provider: string;
+  connector: string;
 
   /**
    * @generated from field: google.protobuf.Struct config = 3;
@@ -170,7 +170,7 @@ export type ValidateConfigRequest = Message<"ingestion.v1.ValidateConfigRequest"
   config?: JsonObject | undefined;
 
   /**
-   * live attempts a TestConnection probe if the provider supports it.
+   * live attempts a TestConnection probe if the connector supports it.
    *
    * @generated from field: bool live = 4;
    */
@@ -236,11 +236,11 @@ export const ValidateConfigResponseSchema: GenMessage<ValidateConfigResponse> = 
  */
 export type DiscoverResourcesRequest = Message<"ingestion.v1.DiscoverResourcesRequest"> & {
   /**
-   * Source provider only; discovering a sink is not meaningful.
+   * Source connector only; discovering a sink is not meaningful.
    *
-   * @generated from field: string provider = 1;
+   * @generated from field: string connector = 1;
    */
-  provider: string;
+  connector: string;
 
   /**
    * @generated from field: google.protobuf.Struct config = 2;

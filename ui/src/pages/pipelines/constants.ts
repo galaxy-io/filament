@@ -15,7 +15,7 @@ export const PIPELINE_GROUP_TO_LABEL_MAP: Record<PipelineGroup, string> = {
 };
 
 export const PIPELINE_METRIC_COLUMN_WIDTH_MAP = {
-  providers: 160,
+  connectors: 160,
   lastRun: 120,
   volume: 120,
   schedule: 120,

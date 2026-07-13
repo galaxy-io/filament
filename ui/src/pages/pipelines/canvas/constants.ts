@@ -1,6 +1,6 @@
 import type { FitViewOptions, HandleType } from "@xyflow/react";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import {
   ConnectorType,
@@ -18,14 +18,14 @@ export const CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
 // Snap to grid configuration
 export const CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
-// Maps ProviderKind to React Flow handle type
-export const PROVIDER_KIND_TO_HANDLE_TYPE_MAP: Record<
-  ProviderKind,
+// Maps ConnectorKind to React Flow handle type
+export const CONNECTOR_KIND_TO_HANDLE_TYPE_MAP: Record<
+  ConnectorKind,
   HandleType
 > = {
-  [ProviderKind.UNSPECIFIED]: "source",
-  [ProviderKind.SOURCE]: "source",
-  [ProviderKind.SINK]: "target",
+  [ConnectorKind.UNSPECIFIED]: "source",
+  [ConnectorKind.SOURCE]: "source",
+  [ConnectorKind.SINK]: "target",
 };
 
 // Shared node dimensions

@@ -2,7 +2,7 @@ import { match } from "ts-pattern";
 
 import { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { PipelineGroup, PipelineHealth, PipelineListItem } from "@/pages/pipelines/types";
@@ -30,15 +30,15 @@ export const getHealthBeaconVariant = (health: PipelineHealth): BeaconVariant =>
  * "—" until the list view joins run state.
  */
 export const toPipelineListItem = (pipeline: Pipeline): PipelineListItem => {
-  const sources = pipeline.nodes.filter((node) => node.kind === ProviderKind.SOURCE);
-  const sinks = pipeline.nodes.filter((node) => node.kind === ProviderKind.SINK);
+  const sources = pipeline.nodes.filter((node) => node.kind === ConnectorKind.SOURCE);
+  const sinks = pipeline.nodes.filter((node) => node.kind === ConnectorKind.SINK);
 
   return {
     id: pipeline.id,
     name: pipeline.name || pipeline.id,
     health: PipelineHealth.HEALTHY,
-    source: sources[0]?.provider ?? "unknown",
-    sinks: sinks.map((node) => node.provider),
+    source: sources[0]?.connectionId ?? "unknown",
+    sinks: sinks.map((node) => node.connectionId),
     lastRunLabel: "—",
     volumeLabel: "—",
     scheduleLabel: "—",

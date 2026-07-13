@@ -8,7 +8,7 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import {
   PIPELINE_NODE_PADDING,
@@ -104,7 +104,7 @@ const PipelineNodeSourceIsland = ({
             <HandleSlot>
               <PipelineNodeHandle
                 id={table.name}
-                kind={ProviderKind.SOURCE}
+                kind={ConnectorKind.SOURCE}
                 position={Position.Right}
                 isConnected={table.isConnected}
               />

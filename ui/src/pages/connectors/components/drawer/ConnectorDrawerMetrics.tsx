@@ -10,8 +10,8 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
-import type { ProviderSpec } from "@/gen/ingestion/v1/providers_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 const MetricItem = styled.div`
   display: flex;
@@ -19,16 +19,16 @@ const MetricItem = styled.div`
   gap: 6px;
 `;
 
-interface ProviderDrawerMetricsProps {
-  provider: ProviderSpec;
+interface ConnectorDrawerMetricsProps {
+  connector: ConnectorSpec;
   pipelineCount?: number;
 }
 
-const ProviderDrawerMetrics = ({
-  provider,
+const ConnectorDrawerMetrics = ({
+  connector,
   pipelineCount = 0,
-}: ProviderDrawerMetricsProps) => {
-  const isSource = provider.kind === ProviderKind.SOURCE;
+}: ConnectorDrawerMetricsProps) => {
+  const isSource = connector.kind === ConnectorKind.SOURCE;
   const kindLabel = isSource ? "Source" : "Sink";
 
   return (
@@ -57,4 +57,4 @@ const ProviderDrawerMetrics = ({
   );
 };
 
-export default ProviderDrawerMetrics;
+export default ConnectorDrawerMetrics;

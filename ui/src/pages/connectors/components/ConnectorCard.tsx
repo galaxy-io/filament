@@ -18,10 +18,10 @@ import Text, {
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
-import type { ProviderSpec } from "@/gen/ingestion/v1/providers_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
-import ProviderTile from "@/pages/providers/components/ProviderTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -52,18 +52,18 @@ const CardSection = styled.div`
   padding: 16px;
 `;
 
-interface ProviderCardProps {
-  provider: ProviderSpec;
+interface ConnectorCardProps {
+  connector: ConnectorSpec;
   pipelineCount?: number;
   onClick?: () => void;
 }
 
-const ProviderCard = ({
-  provider,
+const ConnectorCard = ({
+  connector,
   pipelineCount = 0,
   onClick,
-}: ProviderCardProps) => {
-  const isSource = provider.kind === ProviderKind.SOURCE;
+}: ConnectorCardProps) => {
+  const isSource = connector.kind === ConnectorKind.SOURCE;
   const kindLabel = isSource ? "Source" : "Sink";
   const pipelineLabel = pluralize("pipeline", pipelineCount, true);
 
@@ -77,10 +77,10 @@ const ProviderCard = ({
         >
           <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
             <FlexItem shrink={0}>
-              <ProviderTile provider={provider.name} />
+              <ConnectorTile connector={connector.name} />
             </FlexItem>
             <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-              {provider.displayName || provider.name}
+              {connector.displayName || connector.name}
             </Text>
           </FlexWrapper>
           <Chip
@@ -110,4 +110,4 @@ const ProviderCard = ({
   );
 };
 
-export default ProviderCard;
+export default ConnectorCard;

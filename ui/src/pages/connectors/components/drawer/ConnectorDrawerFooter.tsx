@@ -13,22 +13,22 @@ const FieldRow = styled.div`
   gap: 12px;
 `;
 
-interface ProviderDrawerFooterProps {
+interface ConnectorDrawerFooterProps {
   onDelete: () => void;
 }
 
-const ProviderDrawerFooter = ({ onDelete }: ProviderDrawerFooterProps) => {
+const ConnectorDrawerFooter = ({ onDelete }: ConnectorDrawerFooterProps) => {
   return (
     <Widget header="Danger zone" variant={WidgetVariant.ERROR} fillWidth noHover>
       <FieldRow>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
-          <Text weight={TextWeight.MEDIUM}>Delete provider</Text>
+          <Text weight={TextWeight.MEDIUM}>Delete connector</Text>
           <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-            This will permanently delete this provider and all of its data.
+            This will permanently delete this connector and all of its data.
           </Text>
         </FlexWrapper>
         <Button
-          label="Delete provider"
+          label="Delete connector"
           icon={TrashIcon}
           variant={ButtonVariant.ERROR}
           onClick={onDelete}
@@ -38,4 +38,4 @@ const ProviderDrawerFooter = ({ onDelete }: ProviderDrawerFooterProps) => {
   );
 };
 
-export default ProviderDrawerFooter;
+export default ConnectorDrawerFooter;

@@ -27,7 +27,7 @@ import {
 } from "@/layouts/pipeline/constants";
 import { PipelineStatus } from "@/layouts/pipeline/types";
 import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
-import { useOpenProviderDrawer } from "@/pages/providers/hooks";
+import { useOpenConnectorDrawer } from "@/pages/connectors/hooks";
 
 const BackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -95,7 +95,7 @@ const Content = ({
   onToggleEnabled,
   onRun,
 }: NavbarContentProps) => {
-  const openProviderDrawer = useOpenProviderDrawer();
+  const openConnectorDrawer = useOpenConnectorDrawer();
 
   return (
     <NavbarContentWrapper>
@@ -108,7 +108,7 @@ const Content = ({
         <PipelineFlow
           source={source}
           sinks={sinks}
-          onProviderClick={openProviderDrawer}
+          onConnectorClick={openConnectorDrawer}
         />
       </FlexWrapper>
 

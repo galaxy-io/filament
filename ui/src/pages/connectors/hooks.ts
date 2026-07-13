@@ -2,31 +2,31 @@ import { useState } from "react";
 
 import { useNavigate } from "@tanstack/react-router";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 /**
- * Hook to open the provider drawer from anywhere in the app.
+ * Hook to open the connector drawer from anywhere in the app.
  * Updates the URL search params which triggers the drawer at the root level.
  */
-export const useOpenProviderDrawer = () => {
+export const useOpenConnectorDrawer = () => {
   const navigate = useNavigate();
 
-  const openProviderDrawer = (providerId: string) => {
+  const openConnectorDrawer = (connectorId: string) => {
     void navigate({
       to: ".",
-      search: (prev) => ({ ...prev, providerId }),
+      search: (prev) => ({ ...prev, connectorId }),
     });
   };
 
-  return openProviderDrawer;
+  return openConnectorDrawer;
 };
 
-export const useProvidersPageState = () => {
+export const useConnectorsPageState = () => {
   const [search, setSearch] = useState("");
-  const [kindFilter, setKindFilter] = useState<ProviderKind>(ProviderKind.UNSPECIFIED);
+  const [kindFilter, setKindFilter] = useState<ConnectorKind>(ConnectorKind.UNSPECIFIED);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  const handleSelectKindFilter = (kind: ProviderKind) => {
+  const handleSelectKindFilter = (kind: ConnectorKind) => {
     setKindFilter(kind);
     setIsFiltersOpen(false);
   };

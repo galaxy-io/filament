@@ -10,7 +10,7 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import {
   PIPELINE_NODE_WIDTH,
@@ -20,7 +20,7 @@ import {
   PIPELINE_NODE_HANDLE_SLOT_SIZE,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
-import ProviderTile, { ProviderTileSize } from "@/pages/providers/components/ProviderTile";
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
 // Island base styles - used by header and child islands
 export const Island = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolean }>>`
@@ -102,8 +102,8 @@ const HandleSlot = styled.div`
 `;
 
 interface PipelineNodeProps extends PropsWithChildren {
-  provider: string;
-  kind: ProviderKind;
+  connector: string;
+  kind: ConnectorKind;
   handleId: string;
   isConnected?: boolean;
   isSelected?: boolean;
@@ -112,7 +112,7 @@ interface PipelineNodeProps extends PropsWithChildren {
 }
 
 const PipelineNode = ({
-  provider,
+  connector,
   kind,
   handleId,
   isConnected = false,
@@ -121,8 +121,8 @@ const PipelineNode = ({
   onDelete,
   children,
 }: PipelineNodeProps) => {
-  const handlePosition = kind === ProviderKind.SINK ? Position.Left : Position.Right;
-  const nodeWidth = kind === ProviderKind.SINK ? PIPELINE_NODE_SINK_WIDTH : PIPELINE_NODE_WIDTH;
+  const handlePosition = kind === ConnectorKind.SINK ? Position.Left : Position.Right;
+  const nodeWidth = kind === ConnectorKind.SINK ? PIPELINE_NODE_SINK_WIDTH : PIPELINE_NODE_WIDTH;
 
   const handleSlot = (
     <HandleSlot>
@@ -139,8 +139,8 @@ const PipelineNode = ({
     <NodeContainer $isSelected={isSelected} $width={nodeWidth}>
       <ActionBar>
         <Chip
-          label={kind === ProviderKind.SOURCE ? "Source" : "Sink"}
-          variant={kind === ProviderKind.SOURCE ? ChipVariant.LIME : ChipVariant.PINK}
+          label={kind === ConnectorKind.SOURCE ? "Source" : "Sink"}
+          variant={kind === ConnectorKind.SOURCE ? ChipVariant.LIME : ChipVariant.PINK}
         />
         <ActionButtons>
           <ActionButton onClick={onRefresh}>
@@ -152,12 +152,12 @@ const PipelineNode = ({
         </ActionButtons>
       </ActionBar>
       <HeaderIsland $isSelected={isSelected}>
-        {kind === ProviderKind.SINK && handleSlot}
+        {kind === ConnectorKind.SINK && handleSlot}
         <HeaderContent>
-          <ProviderTile provider={provider} size={ProviderTileSize.SMALL} />
-          <Text size={TextSize.BODY_SM}>{provider}</Text>
+          <ConnectorTile connector={connector} size={ConnectorTileSize.SMALL} />
+          <Text size={TextSize.BODY_SM}>{connector}</Text>
         </HeaderContent>
-        {kind === ProviderKind.SOURCE && handleSlot}
+        {kind === ConnectorKind.SOURCE && handleSlot}
       </HeaderIsland>
       {children}
     </NodeContainer>

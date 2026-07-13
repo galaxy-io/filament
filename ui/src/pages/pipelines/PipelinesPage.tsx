@@ -6,21 +6,19 @@ import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
 import DropdownButton from "@galaxy-io/dls/dropdown/DropdownButton";
 import DropdownItem from "@galaxy-io/dls/dropdown/DropdownItem";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
 import PipelineCardGroup from "@/pages/pipelines/components/PipelineCardGroup";
+import PipelinesPageEmpty from "@/pages/pipelines/PipelinesPageEmpty";
+import PipelinesPageError from "@/pages/pipelines/PipelinesPageError";
+import PipelinesPageLoading from "@/pages/pipelines/PipelinesPageLoading";
 import {
   PIPELINE_GROUP_TO_LABEL_MAP,
   PIPELINE_SEARCH_WIDTH,
@@ -52,7 +50,9 @@ const PipelinesPage = () => {
   const [groupFilter, setGroupFilter] = useState<PipelineGroup | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  const { items, isLoading } = usePipelineListItems();
+  const { items, isLoading, isError } = usePipelineListItems();
+
+  const isToolbarDisabled = isLoading || isError;
 
   const handleNewPipeline = () => {
     const id = crypto.randomUUID();
@@ -69,9 +69,37 @@ const PipelinesPage = () => {
 
   const visibleGroups = groupFilter ? [groupFilter] : Object.values(PipelineGroup);
 
+  const totalVisiblePipelines = visibleGroups.reduce(
+    (sum, group) => sum + groups[group].length,
+    0,
+  );
+
   const handleSelectGroupFilter = (group: PipelineGroup | null) => {
     setGroupFilter(group);
     setIsFiltersOpen(false);
+  };
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <PipelinesPageLoading />;
+    }
+
+    if (isError) {
+      return <PipelinesPageError />;
+    }
+
+    if (totalVisiblePipelines === 0) {
+      return <PipelinesPageEmpty hasSearchQuery={!!search} />;
+    }
+
+    return visibleGroups.map((group) => (
+      <PipelineCardGroup
+        key={group}
+        group={group}
+        pipelines={groups[group]}
+        defaultExpanded={group !== PipelineGroup.PAUSED}
+      />
+    ));
   };
 
   return (
@@ -86,6 +114,7 @@ const PipelinesPage = () => {
               placeholder="Search"
               width={PIPELINE_SEARCH_WIDTH}
               leading={{ icon: MagnifyingGlassIcon }}
+              isDisabled={isToolbarDisabled}
             />,
             <Dropdown
               key="filters"
@@ -113,6 +142,7 @@ const PipelinesPage = () => {
                 isOpen={isFiltersOpen}
                 onClick={() => setIsFiltersOpen((prev) => !prev)}
                 variant={ButtonVariant.SECONDARY}
+                isDisabled={isToolbarDisabled}
               />
             </Dropdown>,
           ]}
@@ -122,6 +152,7 @@ const PipelinesPage = () => {
               label="New pipeline"
               icon={PlusIcon}
               variant={ButtonVariant.PRIMARY}
+              isDisabled={isToolbarDisabled}
               onClick={handleNewPipeline}
             />,
           ]}
@@ -130,29 +161,7 @@ const PipelinesPage = () => {
       <FlexItem grow={0} shrink={0} fillWidth>
         <HorizontalDivider />
       </FlexItem>
-      <PipelineListWrapper>
-        {isLoading ? (
-          <FlexWrapper
-            fillWidth
-            fillHeight
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.CENTER}
-          >
-            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-              Loading...
-            </Text>
-          </FlexWrapper>
-        ) : (
-          visibleGroups.map((group) => (
-            <PipelineCardGroup
-              key={group}
-              group={group}
-              pipelines={groups[group]}
-              defaultExpanded={group !== PipelineGroup.PAUSED}
-            />
-          ))
-        )}
-      </PipelineListWrapper>
+      <PipelineListWrapper>{renderContent()}</PipelineListWrapper>
     </FlexWrapper>
   );
 };

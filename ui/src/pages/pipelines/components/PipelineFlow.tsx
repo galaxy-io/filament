@@ -7,17 +7,17 @@ import { FlowArrowIcon } from "@phosphor-icons/react";
 
 import { PIPELINE_MAX_VISIBLE_SINKS } from "@/pages/pipelines/constants";
 import { PipelineFlowSize } from "@/pages/pipelines/types";
-import ProviderTile, {
-  ProviderOverflowTile,
-  ProviderTileSize,
-} from "@/pages/providers/components/ProviderTile";
+import ConnectorTile, {
+  ConnectorOverflowTile,
+  ConnectorTileSize,
+} from "@/pages/connectors/components/ConnectorTile";
 
-const PIPELINE_FLOW_SIZE_TO_PROVIDER_TILE_SIZE_MAP: Record<
+const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<
   PipelineFlowSize,
-  ProviderTileSize
+  ConnectorTileSize
 > = {
-  [PipelineFlowSize.SMALL]: ProviderTileSize.SMALL,
-  [PipelineFlowSize.MEDIUM]: ProviderTileSize.MEDIUM,
+  [PipelineFlowSize.SMALL]: ConnectorTileSize.SMALL,
+  [PipelineFlowSize.MEDIUM]: ConnectorTileSize.MEDIUM,
 };
 
 const PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP: Record<PipelineFlowSize, number> = {
@@ -30,7 +30,7 @@ interface PipelineFlowProps {
   sinks: string[];
   size?: PipelineFlowSize;
   maxSinks?: number;
-  onProviderClick?: (provider: string, e: React.MouseEvent) => void;
+  onConnectorClick?: (connector: string, e: React.MouseEvent) => void;
 }
 
 /**
@@ -41,21 +41,21 @@ const PipelineFlow = ({
   sinks,
   size = PipelineFlowSize.SMALL,
   maxSinks,
-  onProviderClick,
+  onConnectorClick,
 }: PipelineFlowProps) => {
   const limit = maxSinks ?? PIPELINE_MAX_VISIBLE_SINKS;
   const visibleSinks = maxSinks === undefined ? sinks : sinks.slice(0, limit);
   const overflowCount = sinks.length - visibleSinks.length;
 
-  const tileSize = PIPELINE_FLOW_SIZE_TO_PROVIDER_TILE_SIZE_MAP[size];
+  const tileSize = PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size];
   const iconSize = PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size];
 
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-      <ProviderTile
-        provider={source}
+      <ConnectorTile
+        connector={source}
         size={tileSize}
-        onClick={onProviderClick ? (e) => onProviderClick(source, e) : undefined}
+        onClick={onConnectorClick ? (e) => onConnectorClick(source, e) : undefined}
       />
       <Icon
         component={FlowArrowIcon}
@@ -64,14 +64,14 @@ const PipelineFlow = ({
       />
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
         {visibleSinks.map((sink, index) => (
-          <ProviderTile
+          <ConnectorTile
             key={`${sink}-${index}`}
-            provider={sink}
+            connector={sink}
             size={tileSize}
-            onClick={onProviderClick ? (e) => onProviderClick(sink, e) : undefined}
+            onClick={onConnectorClick ? (e) => onConnectorClick(sink, e) : undefined}
           />
         ))}
-        {overflowCount > 0 && <ProviderOverflowTile count={overflowCount} />}
+        {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
       </FlexWrapper>
     </FlexWrapper>
   );

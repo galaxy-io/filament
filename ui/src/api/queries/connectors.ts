@@ -7,36 +7,36 @@ import {
 import {
   DiscoverResourcesRequest,
   DiscoverResourcesResponse,
-  ListProvidersRequest,
-  ListProvidersResponse,
+  ListConnectorsRequest,
+  ListConnectorsResponse,
   ValidateConfigRequest,
   ValidateConfigResponse,
 } from "@/gen/ingestion/v1/providers_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-const listProviders = IngestionService.method.listProviders;
+const listConnectors = IngestionService.method.listConnectors;
 const validateConfig = IngestionService.method.validateConfig;
 const discoverResources = IngestionService.method.discoverResources;
 
-// ========== LIST PROVIDERS ==========
+// ========== LIST CONNECTORS ==========
 
-export const createListProvidersQueryKey = (input?: ListProvidersRequest) => {
+export const createListConnectorsQueryKey = (input?: ListConnectorsRequest) => {
   return createConnectQueryKey({
-    schema: listProviders,
+    schema: listConnectors,
     input,
     cardinality: "finite",
   });
 };
 
-export const useListProvidersQuery = ({
+export const useListConnectorsQuery = ({
   input,
   options = {},
 }: {
-  input?: ListProvidersRequest;
-  options?: UseQueryOptions<typeof listProviders.output, ListProvidersResponse>;
+  input?: ListConnectorsRequest;
+  options?: UseQueryOptions<typeof listConnectors.output, ListConnectorsResponse>;
 } = {}) => {
-  return useQuery<typeof listProviders.input, typeof listProviders.output>(
-    listProviders,
+  return useQuery<typeof listConnectors.input, typeof listConnectors.output>(
+    listConnectors,
     input,
     options,
   );

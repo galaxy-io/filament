@@ -4,9 +4,9 @@ import { styled } from "@linaria/react";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { PROVIDER_KIND_TO_HANDLE_TYPE_MAP } from "@/pages/pipelines/canvas/constants";
+import { CONNECTOR_KIND_TO_HANDLE_TYPE_MAP } from "@/pages/pipelines/canvas/constants";
 
 // Port sizes from Figma
 const PORT_SIZE_ACTIVE = 12;
@@ -46,13 +46,13 @@ const StyledHandle = withTheme(styled(Handle)<PropsWithTheme<{ $isConnected?: bo
 
 interface PipelineNodeHandleProps {
   id: string;
-  kind: ProviderKind;
+  kind: ConnectorKind;
   position: Position;
   isConnected?: boolean;
 }
 
 const PipelineNodeHandle = ({ id, kind, position, isConnected }: PipelineNodeHandleProps) => {
-  const handleType = PROVIDER_KIND_TO_HANDLE_TYPE_MAP[kind];
+  const handleType = CONNECTOR_KIND_TO_HANDLE_TYPE_MAP[kind];
 
   return (
     <StyledHandle

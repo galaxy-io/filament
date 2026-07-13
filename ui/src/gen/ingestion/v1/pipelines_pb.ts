@@ -5,7 +5,7 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { IngestionType, ProviderKind } from "./common_pb";
+import type { ConnectorKind, IngestionType } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
@@ -13,12 +13,14 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/pipelines.proto.
  */
 export const file_ingestion_v1_pipelines: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIoCgRraW5kGAIgASgOMhouaW5nZXN0aW9uLnYxLlByb3ZpZGVyS2luZBIQCghwcm92aWRlchgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiwEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIzCg5pbmdlc3Rpb25fdHlwZRgEIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhAKCHNlbGVjdG9yGAUgASgJIpsBCghQaXBlbGluZRIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSDAoEbmFtZRgDIAEoCRIpCgVub2RlcxgEIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBSADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlEg8KB3ZlcnNpb24YBiABKAMiiwEKFUNyZWF0ZVBpcGVsaW5lUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIpCgVub2RlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBCADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIkIKFkNyZWF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiQQoVVXBkYXRlUGlwZWxpbmVSZXF1ZXN0EigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIkIKFlVwZGF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIAoSR2V0UGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIj8KE0dldFBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiJgoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSDgoGdGVuYW50GAEgASgJIkIKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIwoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIhgKFkRlbGV0ZVBpcGVsaW5lUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiwEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIzCg5pbmdlc3Rpb25fdHlwZRgEIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhAKCHNlbGVjdG9yGAUgASgJIpsBCghQaXBlbGluZRIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSDAoEbmFtZRgDIAEoCRIpCgVub2RlcxgEIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBSADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlEg8KB3ZlcnNpb24YBiABKAMiiwEKFUNyZWF0ZVBpcGVsaW5lUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIpCgVub2RlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBCADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIkIKFkNyZWF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiQQoVVXBkYXRlUGlwZWxpbmVSZXF1ZXN0EigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIkIKFlVwZGF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIAoSR2V0UGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIj8KE0dldFBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiJgoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSDgoGdGVuYW50GAEgASgJIkIKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIwoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIhgKFkRlbGV0ZVBpcGVsaW5lUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common]);
 
 /**
- * PipelineNode is one source or sink on the canvas. secret_refs maps a config
- * field name to the secret ref resolved at run time, keeping secret values out
- * of the stored config.
+ * PipelineNode is one source or sink on the canvas. connection_id references the
+ * reusable Connection that supplies the connector and connection-scoped config
+ * (host/bucket/credentials). config/secret_refs are the per-node PIPELINE-scoped
+ * overlay (prefix, path, target table, write mode) shallow-merged over the
+ * connection config at run time, with the node overlay winning on key conflicts.
  *
  * @generated from message ingestion.v1.PipelineNode
  */
@@ -29,21 +31,25 @@ export type PipelineNode = Message<"ingestion.v1.PipelineNode"> & {
   id: string;
 
   /**
-   * @generated from field: ingestion.v1.ProviderKind kind = 2;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
    */
-  kind: ProviderKind;
+  kind: ConnectorKind;
 
   /**
-   * @generated from field: string provider = 3;
+   * @generated from field: string connection_id = 3;
    */
-  provider: string;
+  connectionId: string;
 
   /**
+   * PIPELINE overlay only
+   *
    * @generated from field: google.protobuf.Struct config = 4;
    */
   config?: JsonObject | undefined;
 
   /**
+   * PIPELINE overlay only
+   *
    * @generated from field: map<string, string> secret_refs = 5;
    */
   secretRefs: { [key: string]: string };

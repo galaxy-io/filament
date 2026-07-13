@@ -16,9 +16,10 @@ import { useListPipelinesQuery } from "@/api/queries/pipelines";
 export const usePipelineListItems = (): {
   items: PipelineListItem[];
   isLoading: boolean;
+  isError: boolean;
   isMockData: boolean;
 } => {
-  const { data, isLoading } = useListPipelinesQuery();
+  const { data, isLoading, isError } = useListPipelinesQuery();
 
   const hasServerPipelines = !!data?.pipelines.length;
 
@@ -29,7 +30,12 @@ export const usePipelineListItems = (): {
     return MOCK_PIPELINE_ITEMS;
   }, [hasServerPipelines, data]);
 
-  return { items, isLoading: isLoading && !hasServerPipelines, isMockData: !hasServerPipelines };
+  return {
+    items,
+    isLoading: isLoading && !hasServerPipelines,
+    isError,
+    isMockData: !hasServerPipelines,
+  };
 };
 
 export const groupPipelineItems = (

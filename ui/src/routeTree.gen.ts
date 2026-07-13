@@ -12,8 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as MainRouteRouteImport } from './routes/_main/route'
 import { Route as MainIndexRouteImport } from './routes/_main/index'
 import { Route as PipelinesIdRouteImport } from './routes/pipelines/$id'
-import { Route as MainProvidersRouteImport } from './routes/_main/providers'
 import { Route as MainPipelinesRouteImport } from './routes/_main/pipelines'
+import { Route as MainConnectorsRouteImport } from './routes/_main/connectors'
 import { Route as PipelinesIdIndexRouteImport } from './routes/pipelines/$id/index'
 import { Route as PipelinesIdSettingsRouteImport } from './routes/pipelines/$id/settings'
 import { Route as PipelinesIdHistoryRouteImport } from './routes/pipelines/$id/history'
@@ -33,14 +33,14 @@ const PipelinesIdRoute = PipelinesIdRouteImport.update({
   path: '/pipelines/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MainProvidersRoute = MainProvidersRouteImport.update({
-  id: '/providers',
-  path: '/providers',
-  getParentRoute: () => MainRouteRoute,
-} as any)
 const MainPipelinesRoute = MainPipelinesRouteImport.update({
   id: '/pipelines',
   path: '/pipelines',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainConnectorsRoute = MainConnectorsRouteImport.update({
+  id: '/connectors',
+  path: '/connectors',
   getParentRoute: () => MainRouteRoute,
 } as any)
 const PipelinesIdIndexRoute = PipelinesIdIndexRouteImport.update({
@@ -66,8 +66,8 @@ const PipelinesIdCanvasRoute = PipelinesIdCanvasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MainIndexRoute
+  '/connectors': typeof MainConnectorsRoute
   '/pipelines': typeof MainPipelinesRoute
-  '/providers': typeof MainProvidersRoute
   '/pipelines/$id': typeof PipelinesIdRouteWithChildren
   '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
   '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
@@ -75,8 +75,8 @@ export interface FileRoutesByFullPath {
   '/pipelines/$id/': typeof PipelinesIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/connectors': typeof MainConnectorsRoute
   '/pipelines': typeof MainPipelinesRoute
-  '/providers': typeof MainProvidersRoute
   '/': typeof MainIndexRoute
   '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
   '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
@@ -86,8 +86,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_main': typeof MainRouteRouteWithChildren
+  '/_main/connectors': typeof MainConnectorsRoute
   '/_main/pipelines': typeof MainPipelinesRoute
-  '/_main/providers': typeof MainProvidersRoute
   '/pipelines/$id': typeof PipelinesIdRouteWithChildren
   '/_main/': typeof MainIndexRoute
   '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
@@ -99,8 +99,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/connectors'
     | '/pipelines'
-    | '/providers'
     | '/pipelines/$id'
     | '/pipelines/$id/canvas'
     | '/pipelines/$id/history'
@@ -108,8 +108,8 @@ export interface FileRouteTypes {
     | '/pipelines/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/connectors'
     | '/pipelines'
-    | '/providers'
     | '/'
     | '/pipelines/$id/canvas'
     | '/pipelines/$id/history'
@@ -118,8 +118,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_main'
+    | '/_main/connectors'
     | '/_main/pipelines'
-    | '/_main/providers'
     | '/pipelines/$id'
     | '/_main/'
     | '/pipelines/$id/canvas'
@@ -156,18 +156,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PipelinesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_main/providers': {
-      id: '/_main/providers'
-      path: '/providers'
-      fullPath: '/providers'
-      preLoaderRoute: typeof MainProvidersRouteImport
-      parentRoute: typeof MainRouteRoute
-    }
     '/_main/pipelines': {
       id: '/_main/pipelines'
       path: '/pipelines'
       fullPath: '/pipelines'
       preLoaderRoute: typeof MainPipelinesRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/connectors': {
+      id: '/_main/connectors'
+      path: '/connectors'
+      fullPath: '/connectors'
+      preLoaderRoute: typeof MainConnectorsRouteImport
       parentRoute: typeof MainRouteRoute
     }
     '/pipelines/$id/': {
@@ -202,14 +202,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface MainRouteRouteChildren {
+  MainConnectorsRoute: typeof MainConnectorsRoute
   MainPipelinesRoute: typeof MainPipelinesRoute
-  MainProvidersRoute: typeof MainProvidersRoute
   MainIndexRoute: typeof MainIndexRoute
 }
 
 const MainRouteRouteChildren: MainRouteRouteChildren = {
+  MainConnectorsRoute: MainConnectorsRoute,
   MainPipelinesRoute: MainPipelinesRoute,
-  MainProvidersRoute: MainProvidersRoute,
   MainIndexRoute: MainIndexRoute,
 }
 

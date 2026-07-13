@@ -19,13 +19,13 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-export enum ProviderTileSize {
+export enum ConnectorTileSize {
   SMALL = "SMALL",
   MEDIUM = "MEDIUM",
   LARGE = "LARGE",
 }
 
-const PROVIDER_TO_LOGOMARK_MAP: Record<string, ComponentType<{ height: number }>> = {
+const CONNECTOR_TO_LOGOMARK_MAP: Record<string, ComponentType<{ height: number }>> = {
   bigquery: GoogleBigqueryLogomark,
   github: GithubLogomark,
   hubspot: HubspotLogomark,
@@ -41,36 +41,36 @@ const PROVIDER_TO_LOGOMARK_MAP: Record<string, ComponentType<{ height: number }>
   snowflake: SnowflakeLogomark,
 };
 
-const getTileSize = (size: ProviderTileSize): number =>
+const getTileSize = (size: ConnectorTileSize): number =>
   match(size)
-    .with(ProviderTileSize.SMALL, () => 24)
-    .with(ProviderTileSize.MEDIUM, () => 32)
-    .with(ProviderTileSize.LARGE, () => 40)
+    .with(ConnectorTileSize.SMALL, () => 24)
+    .with(ConnectorTileSize.MEDIUM, () => 32)
+    .with(ConnectorTileSize.LARGE, () => 40)
     .exhaustive();
 
-const getTileRadius = (size: ProviderTileSize): number =>
+const getTileRadius = (size: ConnectorTileSize): number =>
   match(size)
-    .with(ProviderTileSize.SMALL, () => 4)
-    .with(ProviderTileSize.MEDIUM, () => 5)
-    .with(ProviderTileSize.LARGE, () => 6)
+    .with(ConnectorTileSize.SMALL, () => 4)
+    .with(ConnectorTileSize.MEDIUM, () => 5)
+    .with(ConnectorTileSize.LARGE, () => 6)
     .exhaustive();
 
-const getLogoHeight = (size: ProviderTileSize): number =>
+const getLogoHeight = (size: ConnectorTileSize): number =>
   match(size)
-    .with(ProviderTileSize.SMALL, () => 16)
-    .with(ProviderTileSize.MEDIUM, () => 20)
-    .with(ProviderTileSize.LARGE, () => 24)
+    .with(ConnectorTileSize.SMALL, () => 16)
+    .with(ConnectorTileSize.MEDIUM, () => 20)
+    .with(ConnectorTileSize.LARGE, () => 24)
     .exhaustive();
 
-const getTextSize = (size: ProviderTileSize): TextSize =>
+const getTextSize = (size: ConnectorTileSize): TextSize =>
   match(size)
-    .with(ProviderTileSize.SMALL, () => TextSize.CAPTION)
-    .with(ProviderTileSize.MEDIUM, () => TextSize.BODY_MD)
-    .with(ProviderTileSize.LARGE, () => TextSize.BODY_LG)
+    .with(ConnectorTileSize.SMALL, () => TextSize.CAPTION)
+    .with(ConnectorTileSize.MEDIUM, () => TextSize.BODY_MD)
+    .with(ConnectorTileSize.LARGE, () => TextSize.BODY_LG)
     .exhaustive();
 
 const TileWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $size: ProviderTileSize; $isClickable: boolean }>
+  PropsWithTheme<{ $size: ConnectorTileSize; $isClickable: boolean }>
 >`
   width: ${({ $size }) => getTileSize($size)}px;
   height: ${({ $size }) => getTileSize($size)}px;
@@ -94,22 +94,22 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-interface ProviderTileProps {
-  provider: string;
-  size?: ProviderTileSize;
+interface ConnectorTileProps {
+  connector: string;
+  size?: ConnectorTileSize;
   onClick?: (e: React.MouseEvent) => void;
 }
 
 /**
- * A tile showing a provider's logomark, falling back to the provider's
+ * A tile showing a connector's logomark, falling back to the connector's
  * first letter when no logomark exists in the DLS.
  */
-const ProviderTile = ({
-  provider,
-  size = ProviderTileSize.MEDIUM,
+const ConnectorTile = ({
+  connector,
+  size = ConnectorTileSize.MEDIUM,
   onClick,
-}: ProviderTileProps) => {
-  const Logomark = PROVIDER_TO_LOGOMARK_MAP[provider.toLowerCase()];
+}: ConnectorTileProps) => {
+  const Logomark = CONNECTOR_TO_LOGOMARK_MAP[connector.toLowerCase()];
 
   return (
     <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick}>
@@ -121,16 +121,16 @@ const ProviderTile = ({
           variant={TextVariant.SECONDARY}
           isMonospace
         >
-          {provider.charAt(0).toUpperCase()}
+          {connector.charAt(0).toUpperCase()}
         </Text>
       )}
     </TileWrapper>
   );
 };
 
-export const ProviderOverflowTile = ({ count }: { count: number }) => {
+export const ConnectorOverflowTile = ({ count }: { count: number }) => {
   return (
-    <TileWrapper $size={ProviderTileSize.SMALL}>
+    <TileWrapper $size={ConnectorTileSize.SMALL} $isClickable={false}>
       <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isMonospace>
         +{count}
       </Text>
@@ -138,4 +138,4 @@ export const ProviderOverflowTile = ({ count }: { count: number }) => {
   );
 };
 
-export default ProviderTile;
+export default ConnectorTile;

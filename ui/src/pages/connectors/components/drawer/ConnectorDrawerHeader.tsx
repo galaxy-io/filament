@@ -6,28 +6,28 @@ import FlexWrapper, {
   FlexGap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 
-import type { ProviderSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
-import ProviderTile, {
-  ProviderTileSize,
-} from "@/pages/providers/components/ProviderTile";
+import ConnectorTile, {
+  ConnectorTileSize,
+} from "@/pages/connectors/components/ConnectorTile";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
 const HeaderWrapper = styled.div`
   padding: 12px 16px;
 `;
 
-interface ProviderDrawerHeaderProps {
-  provider: ProviderSpec;
+interface ConnectorDrawerHeaderProps {
+  connector: ConnectorSpec;
   onClose: () => void;
 }
 
-const ProviderDrawerHeader = ({
-  provider,
+const ConnectorDrawerHeader = ({
+  connector,
   onClose,
-}: ProviderDrawerHeaderProps) => {
+}: ConnectorDrawerHeaderProps) => {
   return (
     <HeaderWrapper>
       <FlexWrapper
@@ -36,9 +36,9 @@ const ProviderDrawerHeader = ({
         gap={FlexGap.MEDIUM}
       >
         <FlexItem shrink={0}>
-          <ProviderTile
-            provider={provider.name}
-            size={ProviderTileSize.LARGE}
+          <ConnectorTile
+            connector={connector.name}
+            size={ConnectorTileSize.LARGE}
           />
         </FlexItem>
         <FlexWrapper
@@ -47,8 +47,8 @@ const ProviderDrawerHeader = ({
           gap={FlexGap.XSMALL}
         >
           <BaseHeader
-            title={provider.displayName}
-            description={provider.name}
+            title={connector.displayName}
+            description={connector.name}
             onClose={onClose}
           />
         </FlexWrapper>
@@ -57,4 +57,4 @@ const ProviderDrawerHeader = ({
   );
 };
 
-export default ProviderDrawerHeader;
+export default ConnectorDrawerHeader;

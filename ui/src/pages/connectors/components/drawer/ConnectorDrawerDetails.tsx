@@ -9,13 +9,13 @@ import Bold from "@galaxy-io/dls/text/Bold";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import type { ProviderSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
-interface ProviderDrawerDetailsProps {
-  provider: ProviderSpec;
+interface ConnectorDrawerDetailsProps {
+  connector: ConnectorSpec;
 }
 
-const ProviderDrawerDetails = ({ provider }: ProviderDrawerDetailsProps) => {
+const ConnectorDrawerDetails = ({ connector }: ConnectorDrawerDetailsProps) => {
   return (
     <Widget variant={WidgetVariant.BASE} fillWidth noHover padding="12px">
       <FlexWrapper fillWidth direction={FlexDirection.COLUMN} gap={FlexGap.SMALL}>
@@ -29,9 +29,9 @@ const ProviderDrawerDetails = ({ provider }: ProviderDrawerDetailsProps) => {
           justifyContent={JustifyContent.SPACE_BETWEEN}
         >
           <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-            Provider ID
+            Connector ID
           </Text>
-          <Text size={TextSize.BODY_SM}>{provider.name}</Text>
+          <Text size={TextSize.BODY_SM}>{connector.name}</Text>
         </FlexWrapper>
         <FlexWrapper
           fillWidth
@@ -41,7 +41,7 @@ const ProviderDrawerDetails = ({ provider }: ProviderDrawerDetailsProps) => {
           <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
             Display Name
           </Text>
-          <Text size={TextSize.BODY_SM}>{provider.displayName || "-"}</Text>
+          <Text size={TextSize.BODY_SM}>{connector.displayName || "-"}</Text>
         </FlexWrapper>
         <HorizontalDivider />
         <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
@@ -54,4 +54,4 @@ const ProviderDrawerDetails = ({ provider }: ProviderDrawerDetailsProps) => {
   );
 };
 
-export default ProviderDrawerDetails;
+export default ConnectorDrawerDetails;

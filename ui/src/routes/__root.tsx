@@ -15,16 +15,16 @@ import { OverlayProvider } from "@galaxy-io/dls/overlay/OverlayProvider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ProviderKind } from "@/gen/ingestion/v1/common_pb";
-import { ListProvidersRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ListConnectorsRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
-import { useListProvidersQuery } from "@/api/queries/providers";
+import { useListConnectorsQuery } from "@/api/queries/connectors";
 
-import { ProviderDrawer } from "@/pages/providers/components/drawer";
-import { PROVIDER_DRAWER_WIDTH } from "@/pages/providers/constants";
+import { ConnectorDrawer } from "@/pages/connectors/components/drawer";
+import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
 
 const rootSearchSchema = z.object({
-  providerId: z.string().optional(),
+  connectorId: z.string().optional(),
 });
 
 export const Route = createRootRoute({
@@ -47,27 +47,27 @@ const RootComponentWrapper = withTheme(styled.div<PropsWithTheme>`
 
 function RootComponent() {
   const navigate = useNavigate();
-  const { providerId } = useSearch({ from: "__root__" });
+  const { connectorId } = useSearch({ from: "__root__" });
 
-  const { data } = useListProvidersQuery({
-    input: create(ListProvidersRequestSchema, {
-      kind: ProviderKind.UNSPECIFIED,
+  const { data } = useListConnectorsQuery({
+    input: create(ListConnectorsRequestSchema, {
+      kind: ConnectorKind.UNSPECIFIED,
     }),
     options: {
-      enabled: !!providerId,
+      enabled: !!connectorId,
     },
   });
 
-  const selectedProvider = useMemo(() => {
-    if (!providerId || !data?.providers) return null;
-    return data.providers.find((p) => p.name === providerId) ?? null;
-  }, [providerId, data?.providers]);
+  const selectedConnector = useMemo(() => {
+    if (!connectorId || !data?.connectors) return null;
+    return data.connectors.find((c) => c.name === connectorId) ?? null;
+  }, [connectorId, data?.connectors]);
 
   const handleCloseDrawer = () => {
     void navigate({
       to: ".",
       search: (prev) => {
-        const { providerId: _, ...rest } = prev;
+        const { connectorId: _, ...rest } = prev;
         return rest;
       },
     });
@@ -80,13 +80,13 @@ function RootComponent() {
       </RootComponentWrapper>
 
       <Drawer
-        open={!!selectedProvider}
+        open={!!selectedConnector}
         onClose={handleCloseDrawer}
-        width={PROVIDER_DRAWER_WIDTH}
+        width={CONNECTOR_DRAWER_WIDTH}
       >
-        {selectedProvider && (
-          <ProviderDrawer
-            provider={selectedProvider}
+        {selectedConnector && (
+          <ConnectorDrawer
+            connector={selectedConnector}
             onClose={handleCloseDrawer}
           />
         )}

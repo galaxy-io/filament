@@ -26,7 +26,7 @@ import {
 } from "@/pages/pipelines/constants";
 import { PipelineListItem } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
-import { useOpenProviderDrawer } from "@/pages/providers/hooks";
+import { useOpenConnectorDrawer } from "@/pages/connectors/hooks";
 import Button, {
   ButtonSize,
   ButtonVariant,
@@ -104,17 +104,17 @@ interface PipelineCardProps {
 const PipelineCard = ({ pipeline }: PipelineCardProps) => {
   // Local-only until SignalRun (pause/resume) is wired to the toggle.
   const [isEnabled, setIsEnabled] = useState(pipeline.isEnabled);
-  const openProviderDrawer = useOpenProviderDrawer();
+  const openConnectorDrawer = useOpenConnectorDrawer();
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const handleProviderClick = (provider: string, e: React.MouseEvent) => {
+  const handleConnectorClick = (connector: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    openProviderDrawer(provider);
+    openConnectorDrawer(connector);
   };
 
   return (
@@ -127,11 +127,11 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
         </FlexWrapper>
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-          <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.providers}>
+          <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}>
             <PipelineFlow
               source={pipeline.source}
               sinks={pipeline.sinks}
-              onProviderClick={handleProviderClick}
+              onConnectorClick={handleConnectorClick}
             />
           </MetricColumnWrapper>
           <MetricColumn
