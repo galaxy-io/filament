@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
-	"github.com/galaxy-io/filament"
 )
 
 func schemaFields(res manifest.Resource) []ingestion.SchemaField {

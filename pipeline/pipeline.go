@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -138,7 +138,7 @@ func shardFor(resource string, n int) int {
 		h ^= uint32(resource[i])
 		h *= prime
 	}
-	return int(h % uint32(n))
+	return int(h % uint32(n)) //nolint:gosec // n is a small positive shard count
 }
 
 // Start launches the batcher shards and a pool of writer goroutines. The ctx

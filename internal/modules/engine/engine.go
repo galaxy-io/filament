@@ -10,7 +10,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
@@ -32,9 +32,10 @@ func New() *Module { return &Module{} }
 
 var _ module.Module = (*Module)(nil)
 
+// Name identifies this module.
 func (m *Module) Name() string { return "engine" }
 
-// Subscriptions: a durable consumer over run.requested across every tenant/run.
+// Subscriptions declares a durable consumer over run.requested across every tenant/run.
 // The fact is only a trigger; the request payload is loaded from the DataStore.
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
@@ -97,6 +98,8 @@ func specFromState(s ingestion.RunState) ingestion.RunSpec {
 // runOne executes a single extraction end-to-end: resolve providers, open the
 // sink, drive the pipeline with the source, then commit or abort. It publishes
 // run.started first and exactly one terminal fact (run.completed | run.failed).
+//
+//nolint:funlen // the run lifecycle reads best as one sequence
 func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	em := newEmitter(ctx, m.bus, m.log, spec.Tenant, spec.Run)
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
@@ -207,7 +210,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	resources := resolveResources(spec.Resources, em.seenResources())
 
 	if runErr != nil {
-		if isResumableRun(spec, plan) {
+		if isResumableRun(plan) {
 			for _, res := range resources {
 				emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 			}

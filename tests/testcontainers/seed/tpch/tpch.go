@@ -107,7 +107,7 @@ func seeder(sf float64) seed.SeederFunc {
 		if err != nil {
 			return seed.Manifest{}, fmt.Errorf("mktemp: %w", err)
 		}
-		defer os.RemoveAll(tmpDir)
+		defer func() { _ = os.RemoveAll(tmpDir) }()
 
 		seed.Progressf(ctx, "  generating TPC-H SF=%.4g via DuckDB…\n", sf)
 		if err := generateCSVs(ctx, sf, tmpDir); err != nil {
@@ -218,7 +218,7 @@ func loadCSV(ctx context.Context, pool *pgxpool.Pool, tbl, dir string) (int64, e
 	if err != nil {
 		return 0, fmt.Errorf("open csv %s: %w", tbl, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	conn, err := pool.Acquire(ctx)
 	if err != nil {

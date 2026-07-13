@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
+	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 

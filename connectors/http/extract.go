@@ -18,10 +18,13 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/template"
 )
 
+// Extract runs a full extraction across all enabled resources.
 func (c *Connector) Extract(ctx context.Context, opts pipeline.ExtractOptions) error {
 	return c.extract(ctx, opts, nil)
 }
 
+// ExtractFrom resumes an extraction from a previous checkpoint, skipping
+// resources it records as complete.
 func (c *Connector) ExtractFrom(ctx context.Context, opts pipeline.ExtractOptions, prev *integrity.PipelineCheckpoint) error {
 	return c.extract(ctx, opts, prev)
 }

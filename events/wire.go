@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 )
 

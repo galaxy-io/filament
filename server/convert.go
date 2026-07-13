@@ -3,10 +3,11 @@ package server
 import (
 	"fmt"
 
-	"github.com/galaxy-io/filament"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/events"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func sourceSpecToProto(spec ingestion.ConnectorSpec) *ingestionv1.ProviderSpec {

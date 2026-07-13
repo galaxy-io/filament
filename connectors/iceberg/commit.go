@@ -112,6 +112,8 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 // chunk. Any streaming/parse error is surfaced through the returned pointer
 // (the iter.Seq2 stops on the first error). Caller checks *err after the reader
 // drains.
+//
+//nolint:gocritic // *error is the iterator out-param, read after the seq drains
 func chunkBatches(schema *arrow.Schema, mem memory.Allocator, rb *recordBuf, jsonCols map[string]bool) (iter.Seq2[arrow.RecordBatch, error], *error) {
 	var streamErr error
 	seq := func(yield func(arrow.RecordBatch, error) bool) {

@@ -110,12 +110,12 @@ func (p Parsed) Validate(allowedScopes []string) error {
 			continue
 		}
 		if _, ok := allowed[ref.scope]; !ok {
-			agg.Addf(ref.raw,
+			_ = agg.Addf(ref.raw,
 				"unknown scope %q (allowed: %v)", ref.scope, allowedScopes)
 			continue
 		}
 		if ref.scope == "cursor" && ref.key != "" {
-			agg.Addf(ref.raw,
+			_ = agg.Addf(ref.raw,
 				"cursor scope takes no sub-key (got %q)", ref.key)
 		}
 	}

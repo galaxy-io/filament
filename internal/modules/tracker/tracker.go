@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -57,9 +57,10 @@ func New() *Module {
 // compile-time check that we satisfy the Module contract.
 var _ module.Module = (*Module)(nil)
 
+// Name identifies this module.
 func (m *Module) Name() string { return "tracker" }
 
-// Subscriptions: one durable consumer over the whole versioned namespace, so the
+// Subscriptions declares one durable consumer over the whole versioned namespace, so the
 // tracker sees every fact and survives restarts (resuming where it left off).
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{

@@ -10,8 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/galaxy-io/filament/eventbus"
 	natsgo "github.com/nats-io/nats.go"
+
+	"github.com/galaxy-io/filament/eventbus"
 )
 
 const (
@@ -167,6 +168,7 @@ var (
 	_ eventbus.Replayable = (*Bus)(nil)
 )
 
+// Name identifies this bus implementation.
 func (b *Bus) Name() string { return "nats" }
 
 // Resolve maps eventbus patterns directly to NATS subjects.

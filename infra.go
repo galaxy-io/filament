@@ -8,6 +8,8 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 )
 
+// DataStore persists run, resource, checkpoint, and dedup state — the
+// control plane's system of record.
 type DataStore interface {
 	SaveRun(ctx context.Context, s RunState) error
 	LoadRun(ctx context.Context, id RunID) (RunState, error)
@@ -23,6 +25,8 @@ type DataStore interface {
 	Name() string
 }
 
+// ScheduleStore persists schedules and hands out due ones under a claim, so
+// concurrent schedulers never double-fire.
 type ScheduleStore interface {
 	SaveSchedule(ctx context.Context, s ScheduleState) error
 	LoadSchedule(ctx context.Context, id ScheduleID) (ScheduleState, error)
@@ -32,6 +36,8 @@ type ScheduleStore interface {
 	MarkFired(ctx context.Context, id ScheduleID, at time.Time) error
 }
 
+// Scheduler triggers one-off runs and manages the lifecycle of recurring
+// schedules.
 type Scheduler interface {
 	Trigger(ctx context.Context, req RunRequest) (RunHandle, error) // one-off, immediate
 	Register(ctx context.Context, spec ScheduleSpec) (ScheduleID, error)
@@ -44,6 +50,8 @@ type Scheduler interface {
 	Name() string
 }
 
+// ScheduleSpec defines a recurring run: the cron timing plus the request to
+// fire and the overlap/catchup behavior when ticks collide or are missed.
 type ScheduleSpec struct {
 	Tenant   TenantID
 	Name     string
@@ -56,8 +64,11 @@ type ScheduleSpec struct {
 	Enabled  bool
 }
 
+// OverlapPolicy decides what a tick does when the previous run is still
+// in flight.
 type OverlapPolicy int
 
+// The overlap policies; OverlapSkip drops the tick.
 const (
 	OverlapSkip           OverlapPolicy = iota
 	OverlapAllow                        // run concurrently
@@ -65,8 +76,11 @@ const (
 	OverlapCancelPrevious               // cancel the in-flight run, start fresh
 )
 
+// CatchupPolicy decides what happens to ticks missed while the scheduler was
+// down.
 type CatchupPolicy int
 
+// The catchup policies.
 const (
 	CatchupSkip    CatchupPolicy = iota // ignore missed ticks
 	CatchupRunOnce                      // one make-up run after downtime
@@ -85,6 +99,7 @@ type ScheduleState struct {
 	CreatedAt  time.Time
 }
 
+// ScheduleFilter narrows a schedule listing; zero fields match everything.
 type ScheduleFilter struct {
 	Tenant  TenantID
 	Enabled *bool
@@ -92,6 +107,8 @@ type ScheduleFilter struct {
 	Cursor  string
 }
 
+// Secrets resolves opaque references to secret material, keeping plaintext
+// out of configs and stores.
 type Secrets interface {
 	Read(ctx context.Context, ref string) (Secret, error)
 	Write(ctx context.Context, ref string, s Secret) error
@@ -105,40 +122,54 @@ type Secret struct {
 	Meta  map[string]string
 }
 
+// Dispatcher routes a resolved RunSpec to whatever executes it.
 type Dispatcher interface {
 	Dispatch(ctx context.Context, spec RunSpec) (RunHandle, error) // bus | inline | binary | k8s
 	Name() string
 }
 
+// Runtime executes runs and delivers lifecycle signals to them.
 type Runtime interface {
 	Run(ctx context.Context, spec RunSpec) (RunHandle, error)
 	Signal(ctx context.Context, h RunHandle, sig Signal) error
 	Name() string
 }
 
+// RunHandle is a caller's grip on a dispatched run: poll its status or block
+// for the result.
 type RunHandle interface {
 	ID() RunID
 	Status(ctx context.Context) (RunStatus, error)
 	Wait(ctx context.Context) (RunResult, error)
 }
 
+// Signal is a lifecycle command sent to a running run.
 type Signal int
 
+// The run signals.
 const (
 	SignalPause Signal = iota
 	SignalResume
 	SignalCancel
 )
 
-type SourceFactory func() Source
-type SinkFactory func() Sink
+type (
+	// SourceFactory constructs a fresh Source instance per resolve.
+	SourceFactory func() Source
+	// SinkFactory constructs a fresh Sink instance per resolve.
+	SinkFactory func() Sink
+)
 
+// SourceRegistry maps source names to factories and exposes their specs for
+// the catalog.
 type SourceRegistry interface {
 	Register(name string, f SourceFactory)
 	Resolve(name string) (Source, error)
 	Specs() []ConnectorSpec
 }
 
+// SinkRegistry maps sink names to factories and exposes their specs for the
+// catalog.
 type SinkRegistry interface {
 	Register(name string, f SinkFactory)
 	Resolve(name string) (Sink, error)
@@ -229,11 +260,15 @@ func (c mapConfig) Sub(key string) Config {
 	return mapConfig(nil)
 }
 
+// RecordSink is where a Source pushes extracted records — the engine's inlet,
+// not a data Sink.
 type RecordSink interface {
 	Push(r Record) error
 	PushBatch(rs []Record) error
 }
 
+// Config is typed, tolerant read access to a connector's configuration; every
+// accessor misses to a zero value.
 type Config interface {
 	String(key string) string
 	Int(key string) int
@@ -246,6 +281,8 @@ type Config interface {
 	Raw() map[string]any
 }
 
+// Checkpoint is a resource's resumable cursor: keyed reads plus an immutable
+// Set that returns an updated copy. CheckpointData is the concrete form.
 type Checkpoint interface {
 	Resource() string
 	Int(key string) int
@@ -254,6 +291,7 @@ type Checkpoint interface {
 	Raw() map[string]any
 }
 
+// Logger is structured leveled logging with field accumulation via With.
 type Logger interface {
 	Debug(msg string, kv ...Field)
 	Info(msg string, kv ...Field)
@@ -262,12 +300,14 @@ type Logger interface {
 	With(kv ...Field) Logger
 }
 
+// Metrics vends the three instrument kinds by name and labels.
 type Metrics interface {
 	Counter(name string, labels ...Label) Counter
 	Gauge(name string, labels ...Label) Gauge
 	Histogram(name string, labels ...Label) Histogram
 }
 
+// Tracer starts spans; the returned context carries the span for nesting.
 type Tracer interface {
 	Start(ctx context.Context, name string) (context.Context, Span)
 }
@@ -283,30 +323,40 @@ type Field struct {
 // Label is a metric label.
 type Label struct{ Key, Value string }
 
+// Counter is a monotonically increasing metric.
 type Counter interface {
 	Inc()
 	Add(float64)
 }
 
+// Gauge is a metric that can move in both directions.
 type Gauge interface {
 	Set(float64)
 	Inc()
 	Dec()
 }
 
+// Histogram records a distribution of observed values.
 type Histogram interface{ Observe(float64) }
 
+// Span is one traced operation; End it exactly once.
 type Span interface {
 	End()
 	SetError(err error)
 	SetAttr(key string, v any)
 }
 
+// Domain identifiers. TenantID and RunID double as subject tokens, so they
+// carry Valid methods.
 type (
-	TenantID   string
-	RunID      string
+	// TenantID identifies a tenant.
+	TenantID string
+	// RunID identifies a run.
+	RunID string
+	// ScheduleID identifies a schedule.
 	ScheduleID string
-	StageID    string
+	// StageID identifies a Transactional sink's staging area.
+	StageID string
 )
 
 // Valid reports whether the ID is usable as a subject token (see ValidToken).
@@ -336,6 +386,8 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
+// Ref names a provider (source, sink, datastore, …) together with its config
+// — the indirection a RunRequest carries instead of live instances.
 type Ref struct {
 	Provider  string
 	ConfigRef string

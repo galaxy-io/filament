@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 )
 
 func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {

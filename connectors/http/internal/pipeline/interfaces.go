@@ -32,6 +32,7 @@ func (t ConnectorTier) String() string {
 // ConnectorMode describes an extraction paradigm a connector supports.
 type ConnectorMode int
 
+// Extraction paradigms.
 const (
 	ModeBatch  ConnectorMode = iota + 1 // full snapshot / paginated extraction
 	ModeStream                          // long-lived NDJSON stream
@@ -171,4 +172,5 @@ type Reporter interface {
 // NoopReporter discards all events.
 type NoopReporter struct{}
 
+// Report discards the event.
 func (NoopReporter) Report(Event) {}

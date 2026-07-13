@@ -19,7 +19,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // Sink writes batches as NDJSON to an io.Writer (os.Stdout by default).
@@ -55,6 +55,7 @@ func New(opts ...Option) *Sink {
 
 var _ ingestion.Sink = (*Sink)(nil)
 
+// Spec describes the sink's write capabilities.
 func (s *Sink) Spec() ingestion.SinkSpec {
 	return ingestion.SinkSpec{
 		Name:        "stdout",
@@ -67,6 +68,7 @@ func (s *Sink) Spec() ingestion.SinkSpec {
 	}
 }
 
+// Name identifies this sink implementation.
 func (s *Sink) Name() string { return "stdout" }
 
 // Open begins a run, resetting per-run accounting.
@@ -119,6 +121,7 @@ func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteRecei
 	}, nil
 }
 
+// Apply validates the batch against the run's write policy, then delegates to Write.
 func (s *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
 	case ingestion.WriteAppend, ingestion.WriteReplace:

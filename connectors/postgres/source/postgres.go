@@ -25,13 +25,14 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 const (
@@ -86,6 +87,7 @@ var (
 	_ ingestion.ResumePlanner   = (*Source)(nil)
 )
 
+// Spec describes the source's config fields, modes, and write policies.
 func (s *Source) Spec() ingestion.ConnectorSpec {
 	return ingestion.ConnectorSpec{
 		Name:        "postgres",
@@ -117,6 +119,7 @@ func (s *Source) Validate(cfg ingestion.Config) error {
 	return nil
 }
 
+// TestConnection opens a short-lived pool and pings the database.
 func (s *Source) TestConnection(ctx context.Context, cfg ingestion.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
@@ -164,7 +167,7 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 		return fmt.Errorf("postgres source: parse dsn: %w", err)
 	}
 	if cfg.Has("max_conns") {
-		if n := cfg.Int("max_conns"); n > 0 {
+		if n := cfg.Int("max_conns"); n > 0 && n <= math.MaxInt32 {
 			poolCfg.MaxConns = int32(n)
 		}
 	}
@@ -176,6 +179,7 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 	return nil
 }
 
+// Discover lists tables in the configured schema with their primary keys and row estimates.
 func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
 	if s.pool == nil {
 		return ingestion.DiscoverResult{}, fmt.Errorf("postgres source: discover before configure")

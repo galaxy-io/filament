@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
@@ -30,6 +30,7 @@ type PipelineStore struct {
 	q *sqlcgen.Queries
 }
 
+// NewPipelineStore wraps an already-connected pool.
 func NewPipelineStore(pool *pgxpool.Pool) *PipelineStore {
 	return &PipelineStore{q: sqlcgen.New(pool)}
 }
@@ -86,6 +87,7 @@ func (s *PipelineStore) Update(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return next, nil
 }
 
+// Get loads one pipeline by id.
 func (s *PipelineStore) Get(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	row, err := s.q.GetPipeline(ctx, id)
 	if err != nil {
@@ -101,6 +103,7 @@ func (s *PipelineStore) Get(ctx context.Context, id string) (*ingestionv1.Pipeli
 	return &ingestionv1.Pipeline{Id: row.PipelineID, Tenant: row.TenantID, Name: row.Name, Nodes: nodes, Edges: edges, Version: row.Version}, nil
 }
 
+// List returns a tenant's pipelines.
 func (s *PipelineStore) List(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	rows, err := s.q.ListPipelines(ctx, tenant)
 	if err != nil {
@@ -117,6 +120,7 @@ func (s *PipelineStore) List(ctx context.Context, tenant string) ([]*ingestionv1
 	return out, nil
 }
 
+// Delete removes a pipeline by id.
 func (s *PipelineStore) Delete(ctx context.Context, id string) error {
 	if err := s.q.DeletePipeline(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline: %w", err)

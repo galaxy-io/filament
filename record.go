@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// Record is one row (or change) moving through the pipeline: an opaque Data
+// payload plus the identity and resume metadata the engine routes on.
 type Record struct {
 	Resource string
 	ID       string
@@ -34,30 +36,39 @@ type Record struct {
 	Drained bool
 }
 
+// NewRecord builds an insert record — the common case for snapshot sources.
 func NewRecord(resource, id string, data []byte) Record {
 	return Record{Resource: resource, ID: id, Op: OpInsert, Data: data}
 }
 
+// Operation is the change kind a record carries.
 type Operation int
 
+// The record operations.
 const (
 	OpInsert Operation = iota
 	OpUpdate
 	OpDelete
 )
 
+// RecordMeta carries source-assigned provenance: CDC position, sequence, and
+// emit time.
 type RecordMeta struct {
 	LSN       string
 	Seq       uint64
 	EmittedAt time.Time
 }
 
+// RecordSchema is one resource's column layout, as a source reports it and a
+// Schematized sink consumes it.
 type RecordSchema struct {
 	Resource   string
 	Fields     []SchemaField
 	PrimaryKey []string // column names in key order; empty when the resource has none
 }
 
+// SchemaField describes one column: name, nullability, and its portable plus
+// native types.
 type SchemaField struct {
 	Name     string
 	Nullable bool
@@ -69,6 +80,8 @@ type SchemaField struct {
 	Native  string
 }
 
+// Batch is the unit of writing: a sequenced group of one resource's records
+// with the read-side CRC the writer verifies against.
 type Batch struct {
 	Tenant   TenantID
 	Run      RunID
@@ -90,8 +103,11 @@ type Batch struct {
 	Drained bool
 }
 
+// SeqString renders Seq as the decimal token used in subjects and dedup keys.
 func (b Batch) SeqString() string { return strconv.FormatUint(b.Seq, 10) }
 
+// WriteReceipt is what a sink returns per Apply: where the data landed, how
+// much, and the write-side CRC for integrity comparison.
 type WriteReceipt struct {
 	URI        string
 	Bytes      int64
@@ -100,6 +116,7 @@ type WriteReceipt struct {
 	Checkpoint *CheckpointData
 }
 
+// IntegrityResult is the outcome of comparing a batch's read and write CRCs.
 type IntegrityResult struct {
 	OK       bool
 	Resource string
@@ -122,6 +139,7 @@ func NewCheckpoint(resource string) *CheckpointData {
 	return &CheckpointData{ResourceName: resource, Cursor: map[string]any{}}
 }
 
+// Resource returns the resource this cursor belongs to.
 func (c *CheckpointData) Resource() string { return c.ResourceName }
 
 // Int reads key as an int, tolerating the float64/int64 forms JSON round-trips produce.
@@ -153,6 +171,7 @@ func (c *CheckpointData) Set(key string, v any) Checkpoint {
 	return &CheckpointData{ResourceName: c.ResourceName, Cursor: next}
 }
 
+// Raw exposes the underlying cursor map for persistence.
 func (c *CheckpointData) Raw() map[string]any { return c.Cursor }
 
 // crcTable uses the Castagnoli polynomial, which has hardware acceleration on
@@ -201,7 +220,7 @@ func CRC32C(records []Record) (crc uint32, bytes int64) {
 	var scratch []byte
 	for i := range records {
 		scratch = records[i].AppendCanonical(scratch[:0])
-		binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(scratch)))
+		binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(scratch))) //nolint:gosec // one record's encoding, never near 4GiB
 		crc = crc32.Update(crc, crcTable, lenBuf[:])
 		crc = crc32.Update(crc, crcTable, scratch)
 		bytes += int64(len(scratch))

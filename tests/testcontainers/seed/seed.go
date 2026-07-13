@@ -100,6 +100,6 @@ func WithProgress(ctx context.Context, w io.Writer) context.Context {
 // WithProgress. If no writer is attached it is a no-op.
 func Progressf(ctx context.Context, format string, args ...any) {
 	if w, ok := ctx.Value(ctxProgressKey{}).(io.Writer); ok && w != nil {
-		fmt.Fprintf(w, format, args...)
+		_, _ = fmt.Fprintf(w, format, args...)
 	}
 }

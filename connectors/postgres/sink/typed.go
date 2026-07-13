@@ -3,13 +3,14 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"sync/atomic"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -47,6 +48,7 @@ var (
 	_ ingestion.Schematized = (*Sink)(nil)
 )
 
+// Spec describes the sink's config fields and write capabilities.
 func (t *Sink) Spec() ingestion.SinkSpec {
 	return ingestion.SinkSpec{
 		Name:        "postgres",
@@ -70,6 +72,7 @@ func (t *Sink) Spec() ingestion.SinkSpec {
 	}
 }
 
+// Name identifies this sink implementation.
 func (t *Sink) Name() string { return "postgres" }
 
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
@@ -92,8 +95,8 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 	if err != nil {
 		return fmt.Errorf("postgres sink: parse dsn: %w", err)
 	}
-	if n := int32(run.Options.SnapshotParallelism); n > poolCfg.MaxConns {
-		poolCfg.MaxConns = n
+	if n := run.Options.SnapshotParallelism; n > 0 && n <= math.MaxInt32 {
+		poolCfg.MaxConns = max(poolCfg.MaxConns, int32(n))
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -107,6 +110,7 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 	return nil
 }
 
+// Apply validates the batch against the run's write policy, then delegates to Write.
 func (t *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
 	case ingestion.WriteReplace, ingestion.WriteAppend:
