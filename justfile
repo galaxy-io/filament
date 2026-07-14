@@ -30,7 +30,7 @@ images: binaries
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)
 _each cmd:
-    for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{cmd}}); done
+    for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{cmd}}) || exit 1; done
 
 # apply gofumpt + goimports to every Go module (settings in .golangci.yaml)
 format: (_each "GOWORK=off golangci-lint fmt ./...")
@@ -46,7 +46,7 @@ lint-check: (_each "GOWORK=off golangci-lint run ./...")
 
 # run unit tests in every Go module except tests/ (integration; needs docker)
 test:
-    for dir in $(find . -name go.mod -not -path "./tests/*" -exec dirname {} \;); do (cd "$dir" && GOWORK=off go test ./...); done
+    for dir in $(find . -name go.mod -not -path "./tests/*" -exec dirname {} \;); do (cd "$dir" && GOWORK=off go test ./...) || exit 1; done
 
 # run the integration/e2e suite (requires docker)
 test-integration:
