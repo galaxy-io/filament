@@ -101,8 +101,10 @@ const (
 	FieldObject
 )
 
-// FieldScope is where a config field is set: on the reusable connection or per
-// pipeline node.
+// Scope for a config field, this aligns with either a connection config or a pipeline config
+// Connection == Only used to establish a connection to connector, reusable for all runs
+// Pipeline == Varies based on pipeline
+// For example: postgres has a dsn to connect (connection scope) and a table the data should land in (pipeline scope) 
 type FieldScope int
 
 // The field scopes.
