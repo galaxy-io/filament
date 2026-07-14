@@ -111,7 +111,7 @@ func validateChainCollisions(steps []Authenticator) error {
 // DeclaredWrites flattens declarations from every step so nested chains
 // participate in collision detection at the outer Build.
 func (a *chainAuth) DeclaredWrites() []Write {
-	var out []Write
+	out := make([]Write, 0, len(a.steps))
 	for _, s := range a.steps {
 		out = append(out, declaredWrites(s)...)
 	}

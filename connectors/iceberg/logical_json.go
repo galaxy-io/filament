@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // jsonColumns returns the names of schema fields typed LogicalJSON, or nil when

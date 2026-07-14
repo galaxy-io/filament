@@ -42,6 +42,7 @@ func LiteralPrefix(pattern string) (prefix string, exact bool) {
 // grammar matches eventbus's '*'/'>' (NATS). The broker does all matching.
 type PassthroughResolver struct{}
 
+// Resolve returns the pattern itself as an exact Target.
 func (PassthroughResolver) Resolve(pattern string) (Route, error) {
 	f, err := Compile(pattern)
 	if err != nil {
@@ -56,6 +57,7 @@ func (PassthroughResolver) Resolve(pattern string) (Route, error) {
 // applies ClientFilter.
 type PrefixTopicResolver struct{}
 
+// Resolve targets the pattern's literal prefix and filters the rest client-side.
 func (PrefixTopicResolver) Resolve(pattern string) (Route, error) {
 	f, err := Compile(pattern)
 	if err != nil {

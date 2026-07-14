@@ -3,7 +3,7 @@ package mysql
 import (
 	"testing"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 func TestMysqlColumnTypeMapsPortableLogicalTypes(t *testing.T) {

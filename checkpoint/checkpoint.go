@@ -15,8 +15,9 @@
 // for an open bound / un-started shard. A null hi marks the open-ended top shard.
 package checkpoint
 
-import "github.com/galaxy-io/filament"
+import ingestion "github.com/galaxy-io/filament"
 
+// The checkpoint cursor modes a source can persist.
 const (
 	ModeKeyset = "keyset"
 	ModeBitmap = "bitmap"
@@ -116,7 +117,7 @@ func NewShardDelta(resource string, part int, key []string) *ingestion.Checkpoin
 
 // MergeShardDelta applies a NewShardDelta onto base, advancing one shard's key.
 // base must carry the shard layout from the plan; a delta for an out-of-range part is ignored.
-func MergeShardDelta(base ingestion.Checkpoint, delta ingestion.Checkpoint) ingestion.Checkpoint {
+func MergeShardDelta(base, delta ingestion.Checkpoint) ingestion.Checkpoint {
 	if delta == nil {
 		return base
 	}
@@ -145,7 +146,7 @@ func NewStreamDelta(resource, lsn string, seq uint64) *ingestion.CheckpointData 
 	return &ingestion.CheckpointData{ResourceName: resource, Cursor: map[string]any{
 		"mode": ModeStream,
 		"lsn":  lsn,
-		"seq":  int64(seq),
+		"seq":  int64(seq), //nolint:gosec // per-run batch counter, never near int64 max
 	}}
 }
 
@@ -162,13 +163,13 @@ func ParseStream(cp ingestion.Checkpoint) (lsn string, seq uint64, ok bool) {
 	if lsn == "" || (hasMode && mode != ModeStream) {
 		return "", 0, false
 	}
-	return lsn, uint64(anyToInt(raw["seq"])), true
+	return lsn, uint64(anyToInt(raw["seq"])), true //nolint:gosec // seq written as a non-negative int64 in NewStreamDelta
 }
 
 // MergeStream applies a stream delta onto base, keeping the newer position. The
 // per-run seq guards against an out-of-order fold (concurrent writers can publish
 // batch facts out of order); the higher seq wins, a tie keeps the delta.
-func MergeStream(base ingestion.Checkpoint, delta ingestion.Checkpoint) ingestion.Checkpoint {
+func MergeStream(base, delta ingestion.Checkpoint) ingestion.Checkpoint {
 	dLSN, dSeq, ok := ParseStream(delta)
 	if !ok {
 		return base
@@ -185,7 +186,7 @@ const coarseDeltaTag = "coarse"
 
 // NewCoarseAck is the per-batch completion delta for a coarse (bitmap/ctid) read: n rows of
 // shard part were written. The tracker sums acks per part toward the part's expected total.
-func NewCoarseAck(resource string, part int, n int) *ingestion.CheckpointData {
+func NewCoarseAck(resource string, part, n int) *ingestion.CheckpointData {
 	return &ingestion.CheckpointData{ResourceName: resource, Cursor: map[string]any{
 		"mode": coarseDeltaTag, "part": part, "ack": n,
 	}}
@@ -201,7 +202,7 @@ func NewCoarseDone(resource string, part, n int) *ingestion.CheckpointData {
 
 // CoarseDelta decodes a coarse ack/want delta. ok is false for any other cursor. hasWant
 // distinguishes a completion marker (want set) from a plain ack.
-func CoarseDelta(cp ingestion.Checkpoint) (part int, ack int, want int, hasWant bool, ok bool) {
+func CoarseDelta(cp ingestion.Checkpoint) (part, ack, want int, hasWant, ok bool) {
 	if cp == nil {
 		return 0, 0, 0, false, false
 	}

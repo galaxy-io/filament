@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/events"
 )
 
 // batcher accumulates records per resource and flushes a Batch
@@ -54,11 +55,8 @@ func (p *Pipeline) batcher(ctx context.Context, shard int) {
 		case <-ctx.Done():
 			return false
 		}
-		p.publish(ingestion.Event{
-			Type:     ingestion.EvBatchBuffered,
-			Resource: key.resource,
-			Fields:   ingestion.EventFields{Records: int64(len(recs)), Bytes: nbytes},
-		})
+		p.publish(events.NewFact(events.BatchBuffered, events.Envelope{Resource: key.resource},
+			events.BatchBufferedEvent{Records: int64(len(recs)), Bytes: nbytes}))
 		// New backing array — the flushed slice now belongs to the batch.
 		buffers[key] = nil
 		return true

@@ -5,7 +5,7 @@
 package mysql
 
 import (
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/registry"
 
 	sink "github.com/galaxy-io/filament/connectors/mysql/sink"

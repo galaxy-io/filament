@@ -3,7 +3,7 @@ package iceberg
 import (
 	"encoding/json"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 type mutationState struct {

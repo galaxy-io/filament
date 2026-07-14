@@ -86,15 +86,6 @@ func splitCSV(s string) []string {
 	return out
 }
 
-func boolEnv(key string) bool {
-	switch strings.ToLower(os.Getenv(key)) {
-	case "1", "true", "yes", "y":
-		return true
-	default:
-		return false
-	}
-}
-
 func int32Env(key string, fallback int32) int32 {
 	v := os.Getenv(key)
 	if v == "" {

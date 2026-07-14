@@ -29,7 +29,7 @@ jobs:
             cmd/ingestion-control/go.sum
             cmd/ingestion-worker/go.sum
 
-      - name: Build binary
+      - name: Build
         env:
           GOWORK: off
           CGO_ENABLED: "0"

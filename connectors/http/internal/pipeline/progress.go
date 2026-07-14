@@ -3,6 +3,7 @@ package pipeline
 // EventType classifies extraction progress events.
 type EventType int
 
+// Extraction progress event types.
 const (
 	EventResourceStart EventType = iota
 	EventPageFetched

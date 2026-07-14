@@ -3,9 +3,11 @@ package server
 import (
 	"fmt"
 
-	"github.com/galaxy-io/filament"
-	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	ingestion "github.com/galaxy-io/filament"
+	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/events"
 )
 
 func sourceSpecToProto(spec ingestion.ConnectorSpec) *ingestionv1.ProviderSpec {
@@ -249,23 +251,47 @@ func runInfoToProto(state ingestion.RunState) *ingestionv1.RunInfo {
 	}
 }
 
-func eventToProto(ev ingestion.Event, replay bool) *ingestionv1.RunEvent {
+func eventToProto(f events.Fact, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
-		Type:     ev.Type.String(),
-		Tenant:   string(ev.Tenant),
-		Run:      string(ev.Run),
-		Resource: ev.Resource,
-		Seq:      ev.Seq,
-		AtUnixMs: ev.At.UnixMilli(),
-		Fields: &ingestionv1.RunEventFields{
-			Records: ev.Fields.Records,
-			Bytes:   ev.Fields.Bytes,
-			Uri:     ev.Fields.URI,
-			Crc:     ev.Fields.CRC,
-			Error:   ev.Fields.Error,
-		},
-		Replay: replay,
+		Type:     f.Name,
+		Tenant:   string(f.Tenant),
+		Run:      string(f.Run),
+		Resource: f.Resource,
+		Seq:      f.Seq,
+		AtUnixMs: f.At.UnixMilli(),
+		Fields:   eventFieldsToProto(f.Data),
+		Replay:   replay,
 	}
+}
+
+// eventFieldsToProto flattens a typed payload into the proto field union.
+func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
+	fields := &ingestionv1.RunEventFields{}
+	switch d := data.(type) {
+	case events.RunCompletedEvent:
+		fields.Records, fields.Bytes = d.Records, d.Bytes
+	case events.RunFailedEvent:
+		fields.Error = d.Error
+	case events.RunPartialEvent:
+		fields.Error = d.Error
+	case events.PageFetchedEvent:
+		fields.Records, fields.Bytes, fields.Uri = d.Records, d.Bytes, d.URI
+	case events.ResourceCompletedEvent:
+		fields.Records, fields.Bytes = d.Records, d.Bytes
+	case events.ResourceFailedEvent:
+		fields.Error = d.Error
+	case events.BatchBufferedEvent:
+		fields.Records, fields.Bytes = d.Records, d.Bytes
+	case events.BatchWrittenEvent:
+		fields.Records, fields.Bytes, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
+	case events.IntegrityVerifiedEvent:
+		fields.Crc = d.CRC
+	case events.ChunkDivergenceEvent:
+		fields.Crc, fields.Error = d.CRC, d.Error
+	case events.RetryExhaustedEvent:
+		fields.Error = d.Error
+	}
+	return fields
 }
 
 func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
@@ -298,42 +324,42 @@ func runStatusTerminal(status ingestion.RunStatus) bool {
 func runEventType(status ingestion.RunStatus) string {
 	switch status {
 	case ingestion.RunRequested:
-		return ingestion.EvRunRequested.String()
+		return events.RunRequested.Name()
 	case ingestion.RunRunning:
-		return ingestion.EvRunStarted.String()
+		return events.RunStarted.Name()
 	case ingestion.RunCompleted:
-		return ingestion.EvRunCompleted.String()
+		return events.RunCompleted.Name()
 	case ingestion.RunFailed:
-		return ingestion.EvRunFailed.String()
+		return events.RunFailed.Name()
 	case ingestion.RunCanceled:
 		return "run.canceled"
 	case ingestion.RunPaused:
 		return "run.paused"
 	case ingestion.RunPartial:
-		return ingestion.EvRunPartial.String()
+		return events.RunPartial.Name()
 	default:
-		return ingestion.EvUnspecified.String()
+		return "unspecified"
 	}
 }
 
 func runStatusEventType(status ingestion.RunStatus) string {
 	switch status {
 	case ingestion.RunRequested:
-		return ingestion.EvRunRequested.String()
+		return events.RunRequested.Name()
 	case ingestion.RunRunning:
-		return ingestion.EvResourceStarted.String()
+		return events.ResourceStarted.Name()
 	case ingestion.RunCompleted:
-		return ingestion.EvResourceCompleted.String()
+		return events.ResourceCompleted.Name()
 	case ingestion.RunFailed:
-		return ingestion.EvResourceFailed.String()
+		return events.ResourceFailed.Name()
 	case ingestion.RunCanceled:
 		return "run.canceled"
 	case ingestion.RunPaused:
 		return "run.paused"
 	case ingestion.RunPartial:
-		return ingestion.EvRunPartial.String()
+		return events.RunPartial.Name()
 	default:
-		return ingestion.EvUnspecified.String()
+		return "unspecified"
 	}
 }
 

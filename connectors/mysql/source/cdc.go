@@ -32,7 +32,7 @@ import (
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -93,7 +93,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink ingestion.RecordSink, 
 			return fmt.Errorf("mysql cdc: read event at %s: %w", posString(pos), err)
 		}
 		if rot, ok := ev.Event.(*replication.RotateEvent); ok {
-			pos = gomysql.Position{Name: string(rot.NextLogName), Pos: uint32(rot.Position)}
+			pos = gomysql.Position{Name: string(rot.NextLogName), Pos: uint32(rot.Position)} //nolint:gosec // binlog positions fit uint32 by protocol
 			continue
 		}
 		if ev.Header.LogPos > 0 {
@@ -411,7 +411,7 @@ func (s *Source) masterPosition(ctx context.Context) (gomysql.Position, error) {
 			continue
 		}
 		pos, err := scanPosition(rows)
-		rows.Close()
+		_ = rows.Close()
 		if err != nil {
 			return gomysql.Position{}, err
 		}
@@ -427,7 +427,8 @@ func scanPosition(rows interface {
 	Next() bool
 	Scan(...any) error
 	Err() error
-}) (gomysql.Position, error) {
+},
+) (gomysql.Position, error) {
 	colNames, err := rows.Columns()
 	if err != nil {
 		return gomysql.Position{}, err

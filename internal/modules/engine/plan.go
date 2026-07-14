@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 func resolveIngestionPlan(ctx context.Context, src ingestion.Source, snk ingestion.Sink, spec ingestion.RunSpec) (ingestion.IngestionPlan, error) {

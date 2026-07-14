@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 type extractorFunc func(context.Context, ingestion.RecordSink, ingestion.ExtractOpts) error
@@ -29,7 +29,7 @@ func (m *Module) resolveExtractor(ctx context.Context, src ingestion.Source, spe
 			})
 		}, nil
 	}
-	if isResumableRun(spec, plan) {
+	if isResumableRun(plan) {
 		planner, ok := src.(ingestion.ResumePlanner)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
@@ -86,7 +86,7 @@ func (m *Module) loadChangeCheckpoints(ctx context.Context, spec ingestion.RunSp
 	return out, nil
 }
 
-func isResumableRun(spec ingestion.RunSpec, plan ingestion.IngestionPlan) bool {
+func isResumableRun(plan ingestion.IngestionPlan) bool {
 	return plan.Type == ingestion.IngestionSnapshotUpsert
 }
 

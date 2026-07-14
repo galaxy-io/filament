@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/sample"
@@ -18,6 +19,7 @@ import (
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/internal/modules/k8sdispatch"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
@@ -81,7 +83,7 @@ func run(ctx context.Context) error {
 	if subjects := os.Getenv("NATS_SUBJECTS"); subjects != "" {
 		busOpts = append(busOpts, natsbus.WithSubjects(subjects))
 	}
-	bus, err := natsbus.New(natsURL, ingestion.JSONCodec, busOpts...)
+	bus, err := natsbus.New(natsURL, events.Codec, busOpts...)
 	if err != nil {
 		return err
 	}
@@ -118,7 +120,8 @@ func run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus).Mount(mux)
 	fmt.Println("connectrpc:", "http://localhost"+addr)
-	return http.ListenAndServe(addr, mux)
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	return srv.ListenAndServe()
 }
 
 func migrateEnabled() bool {

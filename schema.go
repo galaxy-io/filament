@@ -8,6 +8,7 @@ import "context"
 // round-trip. Decimal precision/scale and array element types live in Native, not here.
 type LogicalType string
 
+// The portable column types.
 const (
 	LogicalUnknown     LogicalType = ""
 	LogicalBool        LogicalType = "bool"

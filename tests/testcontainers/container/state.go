@@ -46,11 +46,11 @@ func withLock(fn func() error) error {
 	if err != nil {
 		return fmt.Errorf("open lock file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
 		return fmt.Errorf("acquire lock: %w", err)
 	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
+	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck // unlock on close is best-effort
 	return fn()
 }
 
@@ -96,12 +96,12 @@ func saveState(s state) error {
 	}
 	tmpPath := tmp.Name()
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpPath)
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
 		return err
 	}
 	if err := tmp.Close(); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return err
 	}
 	return os.Rename(tmpPath, path)

@@ -20,8 +20,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
 )
 
 // resolveMode picks the read mode for a table at plan time from the source's read_mode
@@ -50,7 +50,7 @@ func (s *Source) resolveMode(ctx context.Context, table string) ReadMode {
 // leading key) sub-range boundaries, same shape as the keyset split but Mode=bitmap and
 // resumed via per-shard Done. A table too small to split, or a sampler failure, becomes a
 // single open shard (one full bitmap/seq scan — still correct, coarser resume).
-func (s *Source) planBitmap(ctx context.Context, table string, pks []pkColumn) (checkpoint.KeysetCheckpoint, error) {
+func (s *Source) planBitmap(ctx context.Context, table string, pks []pkColumn) checkpoint.KeysetCheckpoint {
 	qualified := pgx.Identifier{s.schema, table}.Sanitize()
 	ks := checkpoint.KeysetCheckpoint{Mode: checkpoint.ModeBitmap, Cols: pkNames(pks), Types: pkTypes(pks)}
 	k := s.keyShardCount(ctx, qualified)
@@ -66,7 +66,7 @@ func (s *Source) planBitmap(ctx context.Context, table string, pks []pkColumn) (
 		}
 	}
 	ks.Shards = splitFromBoundaries(bounds)
-	return ks, nil
+	return ks
 }
 
 // extractBitmapShard reads one sub-range with a bound-only predicate and no ORDER BY/LIMIT,
