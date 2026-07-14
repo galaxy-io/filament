@@ -15,10 +15,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: filament-control
-            dockerfile: cmd/ingestion-control/Dockerfile
+          - image: filament-server
+            dockerfile: cmd/server/Dockerfile
+          - image: filament-control-plane
+            dockerfile: cmd/control-plane/Dockerfile
           - image: filament-worker
-            dockerfile: cmd/ingestion-worker/Dockerfile
+            dockerfile: cmd/worker/Dockerfile
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -26,8 +28,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: |
-            cmd/ingestion-control/go.sum
-            cmd/ingestion-worker/go.sum
+            cmd/server/go.sum
+            cmd/control-plane/go.sum
+            cmd/worker/go.sum
 
       - name: Build
         env:

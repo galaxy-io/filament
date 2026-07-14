@@ -1,6 +1,6 @@
-// Command control-plane runs Filament's orchestration loop: it migrates the
-// datastore, executes or dispatches requested runs per DISPATCH_MODE, and
-// folds worker-emitted facts back into Postgres through tracker.
+// Command server runs the Filament API: it serves the ConnectRPC surface and
+// the embedded web UI, persists pipeline and run submissions, and publishes
+// run.requested facts for the control plane to dispatch.
 package main
 
 import (
@@ -9,18 +9,19 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
-	ingestion "github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
-	"github.com/galaxy-io/filament/internal/modules/engine"
-	"github.com/galaxy-io/filament/internal/modules/k8sdispatch"
-	"github.com/galaxy-io/filament/internal/modules/tracker"
+	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/ui"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
@@ -36,20 +37,6 @@ func main() {
 	}
 }
 
-// dispatchModule selects the execution environment for requested runs:
-// kubernetes launches one worker Job per run; inproc executes runs inside
-// this process through the engine module.
-func dispatchModule() (module.Module, error) {
-	switch mode := os.Getenv("DISPATCH_MODE"); mode {
-	case "", "kubernetes":
-		return k8sdispatch.NewFromEnv(), nil
-	case "inproc":
-		return engine.New(), nil
-	default:
-		return nil, fmt.Errorf("unknown DISPATCH_MODE %q (kubernetes|inproc)", mode)
-	}
-}
-
 func run(ctx context.Context) error {
 	persistenceDSN := os.Getenv("PERSISTENCE_DSN")
 	if persistenceDSN == "" {
@@ -60,29 +47,12 @@ func run(ctx context.Context) error {
 		return errors.New("NATS_URL is required")
 	}
 
-	if migrateEnabled() {
-		db, err := ctlpg.NewSQLDB(persistenceDSN)
-		if err != nil {
-			return err
-		}
-		if err := ctlpg.Migrate(db); err != nil {
-			_ = db.Close()
-			return err
-		}
-		if err := db.Close(); err != nil {
-			return fmt.Errorf("close migration db: %w", err)
-		}
-	}
-
 	pool, err := ctlpg.NewPool(ctx, persistenceDSN)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	if err := store.EnsureTenant(ctx, ingestion.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-		return err
-	}
 
 	busOpts := []natsbus.Option{}
 	if stream := os.Getenv("NATS_STREAM"); stream != "" {
@@ -97,14 +67,10 @@ func run(ctx context.Context) error {
 	}
 	defer func() { _ = bus.Close() }()
 
-	dispatch, err := dispatchModule()
-	if err != nil {
-		return err
-	}
+	orch := orchestrator.New()
 	mods, err := module.MountAll(ctx,
 		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
-		tracker.New(),
-		dispatch,
+		orch,
 	)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
@@ -119,26 +85,15 @@ func run(ctx context.Context) error {
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run host: %w", err)
 	}
-	for _, name := range h.Mounted() {
-		fmt.Println("mounted:", name)
-	}
 
-	<-ctx.Done()
-	return nil
-}
-
-func migrateEnabled() bool {
-	switch os.Getenv("PERSISTENCE_MIGRATE") {
-	case "", "1", "true", "TRUE", "yes", "YES":
-		return true
-	default:
-		return false
+	addr := os.Getenv("SERVER_ADDR")
+	if addr == "" {
+		addr = ":8080"
 	}
-}
-
-func defaultTenantID() string {
-	if id := os.Getenv("DEFAULT_TENANT_ID"); id != "" {
-		return id
-	}
-	return ctlpg.DefaultTenantID
+	mux := http.NewServeMux()
+	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus).Mount(mux)
+	mux.Handle("/", ui.Handler())
+	fmt.Println("server:", "http://localhost"+addr)
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	return srv.ListenAndServe()
 }

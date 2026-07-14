@@ -1,13 +1,13 @@
-module github.com/galaxy-io/filament/cmd/ingestion-control
+module github.com/galaxy-io/filament/cmd/control-plane
 
 go 1.26.4
 
 require (
 	github.com/galaxy-io/filament v0.0.0
-	github.com/galaxy-io/filament/connectors/http v0.0.0
-	github.com/galaxy-io/filament/connectors/iceberg v0.0.0
-	github.com/galaxy-io/filament/connectors/object v0.0.0
-	github.com/galaxy-io/filament/connectors/postgres v0.0.0
+	github.com/galaxy-io/filament/connectors/http v0.0.0-00010101000000-000000000000
+	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
+	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
+	github.com/galaxy-io/filament/connectors/postgres v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/datastore/postgres v0.0.0
 )
 
@@ -23,7 +23,6 @@ require (
 	cloud.google.com/go/iam v1.7.0 // indirect
 	cloud.google.com/go/monitoring v1.24.3 // indirect
 	cloud.google.com/go/storage v1.62.1 // indirect
-	connectrpc.com/connect v1.20.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.20.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect

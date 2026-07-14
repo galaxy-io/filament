@@ -1,3 +1,5 @@
+set dotenv-load
+
 # generate all checked-in generated code
 gen: proto sqlc
 
@@ -18,15 +20,21 @@ proto-check:
     buf generate
     git diff --exit-code -- api
 
-# build both linux binaries into bin/
-binaries:
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/ingestion-control -trimpath -ldflags="-s -w" -o ../../bin/filament-control .
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/ingestion-worker -trimpath -ldflags="-s -w" -o ../../bin/filament-worker .
+# build the UI bundle the server embeds
+ui-dist:
+    cd ui && pnpm install && pnpm build
+
+# build linux binaries into bin/ (server embeds ui/dist)
+binaries: ui-dist
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament-server .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament-control-plane .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament-worker .
 
 # build docker images
 images: binaries
-    docker build -f cmd/ingestion-control/Dockerfile -t galaxy-io/filament:latest .
-    docker build -f cmd/ingestion-worker/Dockerfile -t galaxy-io/filament-worker:latest .
+    docker build -f cmd/server/Dockerfile -t galaxy-io/filament-server:latest .
+    docker build -f cmd/control-plane/Dockerfile -t galaxy-io/filament-control-plane:latest .
+    docker build -f cmd/worker/Dockerfile -t galaxy-io/filament-worker:latest .
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)
 _each cmd:
@@ -54,3 +62,40 @@ test:
 # run the integration/e2e suite (requires docker)
 test-integration:
     cd tests && GOWORK=off go test ./...
+
+# start local infra (postgres + nats), gated on health
+infra:
+    docker compose up -d --wait
+
+# run the API server locally (defaults match docker-compose.yaml; env overrides)
+server:
+    cd cmd/server && \
+      PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
+      NATS_URL="${NATS_URL:-nats://localhost:4222}" \
+      NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
+      NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
+      GOWORK=off go run .
+
+# run the control plane locally (defaults match docker-compose.yaml; env overrides)
+control-plane:
+    cd cmd/control-plane && \
+      PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
+      NATS_URL="${NATS_URL:-nats://localhost:4222}" \
+      NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
+      NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
+      DISPATCH_MODE="${DISPATCH_MODE:-inproc}" \
+      GOWORK=off go run .
+
+# run the web UI dev server (vite, proxies API to :8080)
+ui:
+    cd ui && pnpm install && pnpm dev
+
+# run the full app: control plane, API server, UI
+dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'kill $(jobs -p) 2>/dev/null' EXIT
+    just control-plane &
+    just server &
+    just ui &
+    wait

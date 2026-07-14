@@ -15,8 +15,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: |
-            cmd/ingestion-control/go.sum
-            cmd/ingestion-worker/go.sum
+            cmd/server/go.sum
+            cmd/control-plane/go.sum
+            cmd/worker/go.sum
 
       - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3.0.0
 

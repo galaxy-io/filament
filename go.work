@@ -2,7 +2,7 @@ go 1.26.4
 
 use (
 	.
-	./cmd/ingestiond
+	./examples/ingestiond
 	./connectors/http
 	./connectors/iceberg
 	./connectors/object

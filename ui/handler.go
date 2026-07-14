@@ -5,7 +5,7 @@
 // works without Node or a UI build. To embed the real UI into a binary:
 //
 //	cd ui && pnpm install && pnpm build   # produces ui/dist
-//	go build -tags embedui ./cmd/ingestiond
+//	go build -tags embedui ./examples/ingestiond
 //
 // Deployable binaries opt in by mounting the handler, e.g.:
 //

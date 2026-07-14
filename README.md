@@ -7,7 +7,7 @@ checkpointing, batching, integrity events, and pluggable connectors.
 
 - `app/`: public composition root for running the service.
 - `api/`: ConnectRPC protobuf API and generated Go bindings.
-- `cmd/ingestiond/`: example service binary.
+- `examples/ingestiond/`: example service binary.
 - `connectors/`: optional source and sink implementations.
 - `eventbus/`: event transport interfaces and local implementations.
 - `pipeline/`: batching, writing, and integrity verification loop.

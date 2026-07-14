@@ -1,35 +1,26 @@
 # Filament UI
 
-Web UI for Filament, built with Vite + React + [@galaxy-io/dls](https://github.com/galaxy-io/dls) (the Galaxy Design Language System), talking to the ConnectRPC `IngestionService`.
-
-## Setup
-
-`@galaxy-io/dls` is a private package on GitHub Packages. Export a token with `read:packages` before installing:
-
-```bash
-export GITHUB_TOKEN=ghp_...   # PAT with read:packages
-pnpm install
-```
-
-(`.npmrc` maps the `@galaxy-io` scope to `npm.pkg.github.com` and reads the token from `$GITHUB_TOKEN`. In GitHub Actions the built-in `GITHUB_TOKEN` works once this repo is granted access on the dls package.)
+Web UI for Filament, built with Vite + React + [@galaxy-io/dls](https://www.npmjs.com/package/@galaxy-io/dls) (the Galaxy Design Language System), talking to the ConnectRPC `IngestionService`.
 
 ## Develop
 
 ```bash
-# Terminal 1: the Go server (API on :8080)
-go run ./cmd/ingestiond
-
-# Terminal 2: the UI dev server (:5173, proxies ConnectRPC to :8080)
-pnpm dev
+just infra   # postgres + nats (docker compose)
+just dev     # control-plane + server (:8080) + this UI (:5173)
 ```
+
+Or run the pieces individually: `just server`, `just control-plane`, `just ui`.
 
 The dev server proxies `/ingestion.v1.IngestionService` to `http://localhost:8080` (override with `VITE_API_PROXY_TARGET`), so the app is same-origin in dev and prod alike. Set `VITE_API_URL` to point the app at a remote Filament instance instead.
 
 ## Build & embed
 
+The server binary embeds this app. `just binaries` builds `dist/` and compiles
+`cmd/server` with `-tags embedui`; by hand:
+
 ```bash
-pnpm build                                # tsc + vite build → dist/
-go build -tags embedui ./cmd/ingestiond   # single binary serving API + UI
+pnpm build                                  # tsc + vite build → dist/
+go build -C cmd/server -tags embedui .      # single binary serving API + UI
 ```
 
 Without `-tags embedui`, `ui.Handler()` serves a placeholder page and `go build ./...` needs no Node toolchain.

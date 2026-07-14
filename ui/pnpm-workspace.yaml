@@ -1,0 +1,7 @@
+# Our own packages ship fresh by design; exempt them from the release-age
+# supply-chain quarantine.
+minimumReleaseAgeExclude:
+  - "@galaxy-io/*"
+
+allowBuilds:
+  "@bufbuild/buf": true

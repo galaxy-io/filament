@@ -53,7 +53,7 @@ func (m *Module) jobForSpec(spec ingestion.RunSpec) *batchv1.Job {
 			Name: name,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":      "filament",
-				"app.kubernetes.io/component": "ingestion-worker",
+				"app.kubernetes.io/component": "worker",
 				"filament.galaxy.io/run-id":   string(spec.Run),
 				"filament.galaxy.io/tenant":   string(spec.Tenant),
 			},
@@ -65,7 +65,7 @@ func (m *Module) jobForSpec(spec ingestion.RunSpec) *batchv1.Job {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app.kubernetes.io/name":      "filament",
-						"app.kubernetes.io/component": "ingestion-worker",
+						"app.kubernetes.io/component": "worker",
 						"filament.galaxy.io/run-id":   string(spec.Run),
 					},
 				},

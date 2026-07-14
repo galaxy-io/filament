@@ -1,4 +1,4 @@
-module github.com/galaxy-io/filament/cmd/ingestion-worker
+module github.com/galaxy-io/filament/cmd/worker
 
 go 1.26.4
 

@@ -1,4 +1,4 @@
-// Command ingestion-worker executes one already-persisted Filament run.
+// Command worker executes one already-persisted Filament run.
 package main
 
 import (
@@ -10,8 +10,6 @@ import (
 	"os"
 
 	ingestion "github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/connectors/sample"
-	"github.com/galaxy-io/filament/connectors/stdout"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
@@ -23,12 +21,11 @@ import (
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
 	_ "github.com/galaxy-io/filament/connectors/object"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/sample"
+	_ "github.com/galaxy-io/filament/connectors/stdout"
 )
 
 func main() {
-	registry.RegisterSource("sample", func() ingestion.Source { return sample.New() })
-	registry.RegisterSink("stdout", func() ingestion.Sink { return stdout.New() })
-
 	if err := run(context.Background()); err != nil {
 		log.Fatal(err)
 	}
