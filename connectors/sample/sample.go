@@ -38,7 +38,7 @@ func (s *Source) Spec() ingestion.ConnectorSpec {
 		Modes:          []ingestion.ReplicationMode{ingestion.ModeFull},
 		SourcePolicies: ingestion.SourcePolicies(ingestion.IngestionSnapshotReplace),
 		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "rows", Type: ingestion.FieldInt, Help: "Rows to generate per resource"},
+			{Name: "rows", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Rows to generate per resource"},
 		}},
 		Resources: ingestion.ResourceCapabilities{Discoverable: true},
 	}

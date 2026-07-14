@@ -1,4 +1,24 @@
-# build linux binaries into bin/
+# generate all checked-in generated code
+gen: proto sqlc
+
+# generate protobuf and ConnectRPC Go stubs
+proto:
+    buf generate
+
+# generate sqlc Go code
+sqlc:
+    sqlc generate -f datastore/postgres/sqlc.yaml
+
+# lint protobuf definitions
+proto-lint:
+    buf lint
+
+# verify generated protobuf files are up to date
+proto-check:
+    buf generate
+    git diff --exit-code -- api
+
+# build both linux binaries into bin/
 binaries:
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/ingestion-control -trimpath -ldflags="-s -w" -o ../../bin/filament-control .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/ingestion-worker -trimpath -ldflags="-s -w" -o ../../bin/filament-worker .

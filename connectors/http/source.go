@@ -20,7 +20,7 @@ import (
 const providerName = "httpapi"
 
 var genericConfig = ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-	{Name: "manifest_path", Type: ingestion.FieldString, Required: true, Help: "Path to a v2 HTTP API connector manifest"},
+	{Name: "manifest_path", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopeConnection, Help: "Path to a v2 HTTP API connector manifest"},
 }}
 
 type selectorToken struct {

@@ -100,12 +100,12 @@ func (s *Source) Spec() ingestion.ConnectorSpec {
 			ingestion.IngestionAppend,
 		),
 		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Help: "PostgreSQL connection string"},
-			{Name: "schema", Type: ingestion.FieldString, Default: defaultSchema, Help: "Schema to read tables from"},
-			{Name: "page_size", Type: ingestion.FieldInt, Default: defaultPageSize, Help: "Rows to target per read page"},
-			{Name: "shard_pages", Type: ingestion.FieldInt, Default: defaultShardPages, Help: "Heap blocks per shard; 0 disables sharding"},
-			{Name: "max_conns", Type: ingestion.FieldInt, Help: "Maximum source database connections"},
-			{Name: "read_mode", Type: ingestion.FieldEnum, Enum: []string{"auto", "keyset", "bitmap"}, Help: "Read strategy"},
+			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "PostgreSQL connection string"},
+			{Name: "schema", Type: ingestion.FieldString, Default: defaultSchema, Scope: ingestion.ScopePipeline, Help: "Schema to read tables from"},
+			{Name: "page_size", Type: ingestion.FieldInt, Default: defaultPageSize, Scope: ingestion.ScopePipeline, Help: "Rows to target per read page"},
+			{Name: "shard_pages", Type: ingestion.FieldInt, Default: defaultShardPages, Scope: ingestion.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
+			{Name: "max_conns", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Maximum source database connections"},
+			{Name: "read_mode", Type: ingestion.FieldEnum, Enum: []string{"auto", "keyset", "bitmap"}, Scope: ingestion.ScopePipeline, Help: "Read strategy"},
 		}},
 		Resources: ingestion.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}

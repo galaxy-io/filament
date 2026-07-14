@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "google/protobuf/struct.proto";
+import "ingestion/v1/common.proto";
+
+// Connection is a reusable, tenant-scoped source or sink. It holds the
+// connection-scoped config (host/bucket/credentials) shared by every pipeline
+// node that references it, keeping connection details in one place instead of
+// duplicated inline on each pipeline. version is an optimistic lock, mirroring
+// Pipeline: an update must carry the version it last read.
+message Connection {
+  string id = 1;
+  string tenant = 2;
+  ConnectorKind kind = 3;
+  string name = 4;
+  string connector = 5;
+  google.protobuf.Struct config = 6;       // CONNECTION-scoped fields only
+  map<string, string> secret_refs = 7;
+  int64 version = 8;
+}
+
+message CreateConnectionRequest {
+  string tenant = 1;
+  ConnectorKind kind = 2;
+  string name = 3;
+  string connector = 4;
+  google.protobuf.Struct config = 5;
+  map<string, string> secret_refs = 6;
+}
+
+message CreateConnectionResponse {
+  Connection connection = 1;
+}
+
+message UpdateConnectionRequest {
+  Connection connection = 1;
+}
+
+message UpdateConnectionResponse {
+  Connection connection = 1;
+}
+
+message GetConnectionRequest {
+  string id = 1;
+}
+
+message GetConnectionResponse {
+  Connection connection = 1;
+}
+
+// ListConnections filters by tenant; kind UNSPECIFIED returns both sources and
+// sinks.
+message ListConnectionsRequest {
+  string tenant = 1;
+  ConnectorKind kind = 2;
+}
+
+message ListConnectionsResponse {
+  repeated Connection connections = 1;
+}
+
+message DeleteConnectionRequest {
+  string id = 1;
+}
+
+message DeleteConnectionResponse {}

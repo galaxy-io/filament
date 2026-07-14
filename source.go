@@ -84,6 +84,7 @@ type ConfigField struct {
 	Default  any
 	Enum     []string
 	Help     string
+	Scope FieldScope
 }
 
 // FieldType is a ConfigField's value kind.
@@ -99,6 +100,18 @@ const (
 	FieldEnum
 	FieldObject
 )
+
+type FieldScope int
+
+const (
+	ScopeUnspecified FieldScope = iota 
+	ScopeConnection
+	ScopePipeline
+)
+
+// IsPipeline reports whether the field is set per pipeline node
+// rather than on the reusable connection.
+func (s FieldScope) IsPipeline() bool { return s == ScopePipeline }
 
 // ReplicationMode is how a source reads: full scan, incremental from a
 // cursor, or CDC.
