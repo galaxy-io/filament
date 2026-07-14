@@ -32,6 +32,9 @@ images: binaries
 _each cmd:
     for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{cmd}}) || exit 1; done
 
+# tidy go.mod/go.sum in every Go module
+tidy: (_each "GOWORK=off go mod tidy")
+
 # apply gofumpt + goimports to every Go module (settings in .golangci.yaml)
 format: (_each "GOWORK=off golangci-lint fmt ./...")
 
