@@ -21,6 +21,8 @@ import (
 
 // spaHandler serves static files from dist, falling back to index.html for
 // any path that doesn't match a file, so client-side routes deep-link cleanly.
+//
+//nolint:unused // only referenced under the embedui build tag
 func spaHandler(dist fs.FS) http.Handler {
 	fileServer := http.FileServer(http.FS(dist))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
