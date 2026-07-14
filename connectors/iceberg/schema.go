@@ -8,7 +8,7 @@ import (
 	iceberg "github.com/apache/iceberg-go"
 	icetable "github.com/apache/iceberg-go/table"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // buildIcebergSchema maps a RecordSchema to an Iceberg schema. Field IDs are

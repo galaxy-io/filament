@@ -26,7 +26,7 @@ import (
 	// the actual data and metadata files.
 	_ "github.com/apache/iceberg-go/io/gocloud"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 const defaultStageBufLimitBytes = 256 << 20 // 256 MiB
@@ -75,6 +75,7 @@ type stage struct {
 	includeAllResources bool
 }
 
+// New returns an unconfigured iceberg sink.
 func New() *Sink {
 	return &Sink{
 		tables: map[string]*iceTable{},
@@ -88,6 +89,7 @@ var (
 	_ ingestion.Schematized   = (*Sink)(nil)
 )
 
+// Spec reports the sink's capabilities and configuration surface.
 func (s *Sink) Spec() ingestion.SinkSpec {
 	return ingestion.SinkSpec{
 		Name:        "iceberg",
@@ -115,8 +117,10 @@ func (s *Sink) Spec() ingestion.SinkSpec {
 	}
 }
 
+// Name identifies this sink implementation.
 func (s *Sink) Name() string { return "iceberg" }
 
+// Open connects to the catalog and prepares per-resource tables for the run.
 func (s *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 	cfg := ingestion.NewConfig(run.Sink.Config)
 	s.warehouse = cfg.String("warehouse")
@@ -216,6 +220,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema ingesti
 	return nil
 }
 
+// Stage opens a new staging scope; batches applied under it commit atomically.
 func (s *Sink) Stage(_ context.Context) (ingestion.StageID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -266,6 +271,8 @@ func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteRecei
 	}, nil
 }
 
+// Apply validates the batch against the run's write policy and buffers it
+// for the resource's table.
 func (s *Sink) Apply(_ context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]

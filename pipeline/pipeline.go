@@ -18,7 +18,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/events"
 )
 
 // defaultBatchRows is used when Config.Options.BatchMaxRows is unset.
@@ -35,7 +36,7 @@ type Config struct {
 	Tenant        ingestion.TenantID
 	Run           ingestion.RunID
 	Sink          ingestion.Sink
-	Emit          func(ingestion.Event) // nil → facts discarded
+	Emit          func(events.Fact) // nil → facts discarded
 	WritePolicies map[string]ingestion.WritePolicy
 	Options       ingestion.RunOptions
 	FlushInterval time.Duration    // default 1s
@@ -50,7 +51,7 @@ type Pipeline struct {
 	tenant        ingestion.TenantID
 	run           ingestion.RunID
 	sink          ingestion.Sink
-	emit          func(ingestion.Event)
+	emit          func(events.Fact)
 	writePolicies map[string]ingestion.WritePolicy
 	batchRows     int
 	flushIvl      time.Duration
@@ -90,7 +91,7 @@ func New(cfg Config) *Pipeline {
 	}
 	emit := cfg.Emit
 	if emit == nil {
-		emit = func(ingestion.Event) {}
+		emit = func(events.Fact) {}
 	}
 	nextSeq := cfg.NextSeq
 	if nextSeq == nil {
@@ -137,7 +138,7 @@ func shardFor(resource string, n int) int {
 		h ^= uint32(resource[i])
 		h *= prime
 	}
-	return int(h % uint32(n))
+	return int(h % uint32(n)) //nolint:gosec // n is a small positive shard count
 }
 
 // Start launches the batcher shards and a pool of writer goroutines. The ctx
@@ -190,12 +191,12 @@ func (p *Pipeline) setErr(err error) {
 // publish stamps a fact with the run identity and a monotonic sequence, then
 // hands it to the emit callback. It holds pubMu so concurrent writers (and the
 // batcher) sequence and emit facts without racing the emit callback or the seq.
-func (p *Pipeline) publish(ev ingestion.Event) {
+func (p *Pipeline) publish(f events.Fact) {
 	p.pubMu.Lock()
 	defer p.pubMu.Unlock()
-	ev.Tenant = p.tenant
-	ev.Run = p.run
-	ev.Seq = p.nextSeq()
-	ev.At = time.Now()
-	p.emit(ev)
+	f.Tenant = p.tenant
+	f.Run = p.run
+	f.Seq = p.nextSeq()
+	f.At = time.Now()
+	p.emit(f)
 }

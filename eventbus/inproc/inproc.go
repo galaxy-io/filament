@@ -82,6 +82,7 @@ var (
 	_ eventbus.Replayable = (*Bus)(nil)
 )
 
+// Name identifies this bus implementation.
 func (b *Bus) Name() string { return "inproc" }
 
 // Publish assigns a monotonic sequence, logs the payload for replay, and fans
@@ -302,8 +303,8 @@ func (m *message) Ack() error { return nil }
 // the bus's max-deliveries cap (after which it is dropped — this dev bus has no
 // dead-letter queue).
 func (m *message) Nak() error {
-	max := m.sub.bus.maxDeliveries
-	if max > 0 && m.tries >= max {
+	maxDel := m.sub.bus.maxDeliveries
+	if maxDel > 0 && m.tries >= maxDel {
 		return nil
 	}
 	m.tries++

@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/events"
 )
 
 // writer drains batches, computes the read-side CRC over the batch, writes it to
@@ -18,11 +19,8 @@ func (p *Pipeline) writer(ctx context.Context) {
 		// A bitmap completion marker carries no rows: publish its want delta (the part's
 		// expected ack total) and skip the sink write entirely.
 		if b.Drained {
-			p.publish(ingestion.Event{
-				Type:     ingestion.EvBatchWritten,
-				Resource: b.Resource,
-				Fields:   ingestion.EventFields{Checkpoint: b.Cursor},
-			})
+			p.publish(events.NewFact(events.BatchWritten, events.Envelope{Resource: b.Resource},
+				events.BatchWrittenEvent{Checkpoint: b.Cursor}))
 			continue
 		}
 
@@ -34,20 +32,14 @@ func (p *Pipeline) writer(ctx context.Context) {
 		}
 
 		if receipt.WriteCRC == readCRC {
-			p.publish(ingestion.Event{
-				Type:     ingestion.EvBatchWritten,
-				Resource: b.Resource,
-				Fields: ingestion.EventFields{
+			p.publish(events.NewFact(events.BatchWritten, events.Envelope{Resource: b.Resource},
+				events.BatchWrittenEvent{
 					Records: int64(len(b.Records)), Bytes: receipt.Bytes,
 					URI: receipt.URI, CRC: receipt.WriteCRC,
 					Checkpoint: receiptCheckpoint(receipt, b),
-				},
-			})
-			p.publish(ingestion.Event{
-				Type:     ingestion.EvIntegrityVerified,
-				Resource: b.Resource,
-				Fields:   ingestion.EventFields{CRC: readCRC},
-			})
+				}))
+			p.publish(events.NewFact(events.IntegrityVerified, events.Envelope{Resource: b.Resource},
+				events.IntegrityVerifiedEvent{CRC: readCRC}))
 			continue
 		}
 
@@ -59,11 +51,8 @@ func (p *Pipeline) writer(ctx context.Context) {
 				ingestion.Field{Key: "write_crc", Value: receipt.WriteCRC},
 			)
 		}
-		p.publish(ingestion.Event{
-			Type:     ingestion.EvChunkDivergence,
-			Resource: b.Resource,
-			Fields:   ingestion.EventFields{CRC: readCRC},
-		})
+		p.publish(events.NewFact(events.ChunkDivergence, events.Envelope{Resource: b.Resource},
+			events.ChunkDivergenceEvent{CRC: readCRC}))
 	}
 }
 

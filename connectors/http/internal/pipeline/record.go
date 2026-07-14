@@ -8,6 +8,7 @@ import (
 // Operation represents the type of change a record represents.
 type Operation int
 
+// Change kinds a record can carry.
 const (
 	OperationSnapshot Operation = iota
 	OperationCreate

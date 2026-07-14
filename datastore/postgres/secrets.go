@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
@@ -46,6 +46,7 @@ func NewSecretsStore(pool *pgxpool.Pool, keyID string, key []byte) (*SecretsStor
 	return &SecretsStore{q: sqlcgen.New(pool), keyID: keyID, gcm: gcm}, nil
 }
 
+// Name identifies this store implementation.
 func (s *SecretsStore) Name() string { return "postgres" }
 
 func (s *SecretsStore) Write(ctx context.Context, ref string, secret ingestion.Secret) error {
@@ -95,6 +96,7 @@ func (s *SecretsStore) Read(ctx context.Context, ref string) (ingestion.Secret, 
 	return ingestion.Secret{Value: value, Meta: metaMap}, nil
 }
 
+// Delete removes the secret at ref.
 func (s *SecretsStore) Delete(ctx context.Context, ref string) error {
 	if err := s.q.DeleteSecret(ctx, ref); err != nil {
 		return fmt.Errorf("datastore/postgres: delete secret: %w", err)

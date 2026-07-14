@@ -34,14 +34,16 @@ func (m *Manifest) Normalize() {
 // runs after decode, against the typed Manifest, and enforces rules the
 // grammar can't express (parent cycles, key collisions, scope-restricted
 // templates).
+//
+//nolint:gocyclo,funlen // linear sequence of independent field validations
 func (m *Manifest) validateSemantics() error {
 	var agg errs.ManifestErrors
 
 	if m.Name == "" {
-		agg.Addf("name", "is required")
+		_ = agg.Addf("name", "is required")
 	}
 	if m.Connection.BaseURL == "" {
-		agg.Addf("connection.base_url", "is required")
+		_ = agg.Addf("connection.base_url", "is required")
 	}
 
 	// Connection-level templated fields. Headers run per-request (full scope
@@ -58,20 +60,20 @@ func (m *Manifest) validateSemantics() error {
 		r := &m.Resources[i]
 		path := fmt.Sprintf("resources[%d]", i)
 		if r.Name == "" {
-			agg.Addf(path+".name", "is required")
+			_ = agg.Addf(path+".name", "is required")
 			continue
 		}
 		path = fmt.Sprintf("resources[%q]", r.Name)
 		if _, dup := names[r.Name]; dup {
-			agg.Addf(path, "duplicate resource name")
+			_ = agg.Addf(path, "duplicate resource name")
 		}
 		names[r.Name] = struct{}{}
 
 		if r.Path == "" {
-			agg.Addf(path+".path", "is required")
+			_ = agg.Addf(path+".path", "is required")
 		}
 		if r.Parent != nil && r.Parent.Resource == "" {
-			agg.Addf(path+".parent.resource", "is required")
+			_ = agg.Addf(path+".parent.resource", "is required")
 		}
 
 		validateTemplate(&agg, path+".emit_as", r.EmitAs)
@@ -80,35 +82,35 @@ func (m *Manifest) validateSemantics() error {
 		for j, f := range r.Fields {
 			fieldPath := fmt.Sprintf("%s.fields[%d]", path, j)
 			if f.Name == "" {
-				agg.Addf(fieldPath+".name", "is required")
+				_ = agg.Addf(fieldPath+".name", "is required")
 			}
 			if _, dup := fieldNames[f.Name]; f.Name != "" && dup {
-				agg.Addf(fieldPath+".name", "duplicate field name %q", f.Name)
+				_ = agg.Addf(fieldPath+".name", "duplicate field name %q", f.Name)
 			}
 			fieldNames[f.Name] = struct{}{}
 			if f.Type == "" {
-				agg.Addf(fieldPath+".type", "is required")
+				_ = agg.Addf(fieldPath+".type", "is required")
 			}
 			if f.Path == "" && len(f.Shape) == 0 {
-				agg.Addf(fieldPath+".path", "either path or shape is required")
+				_ = agg.Addf(fieldPath+".path", "either path or shape is required")
 			}
 			if f.Mode != "" && f.Mode != "raw" && f.Mode != "remainder" {
-				agg.Addf(fieldPath+".mode", "must be raw or remainder")
+				_ = agg.Addf(fieldPath+".mode", "must be raw or remainder")
 			}
 			if f.Mode == "remainder" && f.Type != "json" {
-				agg.Addf(fieldPath+".mode", "remainder is only supported for json fields")
+				_ = agg.Addf(fieldPath+".mode", "remainder is only supported for json fields")
 			}
 			if len(f.Shape) > 0 && f.Type != "json" {
-				agg.Addf(fieldPath+".shape", "shape is only supported for json fields")
+				_ = agg.Addf(fieldPath+".shape", "shape is only supported for json fields")
 			}
 			if len(f.Shape) > 0 && f.Mode == "remainder" {
-				agg.Addf(fieldPath+".shape", "shape cannot be combined with remainder mode")
+				_ = agg.Addf(fieldPath+".shape", "shape cannot be combined with remainder mode")
 			}
 		}
 		for _, pk := range r.PrimaryKey {
 			if len(r.Fields) > 0 {
 				if _, ok := fieldNames[pk]; !ok {
-					agg.Addf(path+".primary_key", "field %q must be declared in fields", pk)
+					_ = agg.Addf(path+".primary_key", "field %q must be declared in fields", pk)
 				}
 			}
 		}
@@ -126,34 +128,34 @@ func (m *Manifest) validateSemantics() error {
 		// before validateSemantics so any "" still here means the manifest
 		// authors intentionally cleared it.
 		if err := checkEnum(r.Method, ValidHTTPMethods); err != nil {
-			agg.Addf(path+".method", "%v", err)
+			_ = agg.Addf(path+".method", "%v", err)
 		}
 		if err := checkEnum(r.Mode, ValidModes); err != nil {
-			agg.Addf(path+".mode", "%v", err)
+			_ = agg.Addf(path+".mode", "%v", err)
 		}
 		if err := checkEnum(r.Body.Encoding, ValidBodyEncodings); err != nil {
-			agg.Addf(path+".body.encoding", "%v", err)
+			_ = agg.Addf(path+".body.encoding", "%v", err)
 		}
 		if err := checkEnum(r.Response.Root, ValidResponseRoots); err != nil {
-			agg.Addf(path+".response.root", "%v", err)
+			_ = agg.Addf(path+".response.root", "%v", err)
 		}
 		if err := checkEnum(r.Pagination.Type, ValidPaginationTypes); err != nil {
-			agg.Addf(path+".pagination.type", "%v", err)
+			_ = agg.Addf(path+".pagination.type", "%v", err)
 		}
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
-			agg.Addf(path+".pagination.inject_into", "%v", err)
+			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
 		if r.Incremental != nil {
 			if err := checkEnum(r.Incremental.InjectInto, ValidIncrementalInject); err != nil {
-				agg.Addf(path+".incremental.inject_into", "%v", err)
+				_ = agg.Addf(path+".incremental.inject_into", "%v", err)
 			}
 			if err := checkEnum(r.Incremental.Comparator, ValidComparators); err != nil {
-				agg.Addf(path+".incremental.comparator", "%v", err)
+				_ = agg.Addf(path+".incremental.comparator", "%v", err)
 			}
 		}
 		if r.Stream != nil {
 			if err := checkEnum(r.Stream.Type, ValidStreamTypes); err != nil {
-				agg.Addf(path+".stream.type", "%v", err)
+				_ = agg.Addf(path+".stream.type", "%v", err)
 			}
 		}
 	}
@@ -167,14 +169,14 @@ func (m *Manifest) validateSemantics() error {
 			continue
 		}
 		if _, dup := seenKinds[kind]; dup {
-			agg.Addf(path+".map.kind", "duplicate kind %q across discovery entries", kind)
+			_ = agg.Addf(path+".map.kind", "duplicate kind %q across discovery entries", kind)
 		}
 		seenKinds[kind] = struct{}{}
 	}
 
 	if m.Connection.RateLimit.Dynamic != nil {
 		if err := checkEnum(m.Connection.RateLimit.Dynamic.ResetFormat, ValidRateLimitResetFormats); err != nil {
-			agg.Addf("connection.rate_limit.dynamic.reset_format", "%v", err)
+			_ = agg.Addf("connection.rate_limit.dynamic.reset_format", "%v", err)
 		}
 	}
 
@@ -184,7 +186,7 @@ func (m *Manifest) validateSemantics() error {
 			continue
 		}
 		if _, ok := names[r.Parent.Resource]; !ok {
-			agg.Addf(fmt.Sprintf("resources[%q].parent.resource", r.Name),
+			_ = agg.Addf(fmt.Sprintf("resources[%q].parent.resource", r.Name),
 				"unknown parent %q", r.Parent.Resource)
 		}
 	}
@@ -193,7 +195,7 @@ func (m *Manifest) validateSemantics() error {
 	// SortResources with a stack overflow; a longer cycle would loop
 	// forever in extract. Catch at load.
 	if cycle := detectParentCycle(m.Resources); cycle != nil {
-		agg.Addf("resources",
+		_ = agg.Addf("resources",
 			"parent reference cycle: %s", formatCycle(cycle))
 	}
 
@@ -209,7 +211,7 @@ func (m *Manifest) validateSemantics() error {
 			key = r.Incremental.CursorField
 		}
 		if owner, dup := seen[key]; dup {
-			agg.Addf(fmt.Sprintf("resources[%q].incremental.checkpoint_key", r.Name),
+			_ = agg.Addf(fmt.Sprintf("resources[%q].incremental.checkpoint_key", r.Name),
 				"key %q collides with resources[%q]", key, owner)
 		}
 		seen[key] = r.Name
@@ -233,7 +235,7 @@ func validateTemplateScopes(agg *errs.ManifestErrors, path, s string, allowed []
 		return
 	}
 	if err := template.Validate(s, allowed); err != nil {
-		agg.Addf(path, "%v", err)
+		_ = agg.Addf(path, "%v", err)
 	}
 }
 
@@ -339,18 +341,18 @@ func detectParentCycle(resources []Resource) []string {
 // and at least one applies_to resource (otherwise the scope is dead code).
 func validateDiscovery(agg *errs.ManifestErrors, path string, d *Discovery, names map[string]struct{}) {
 	if d.From == "" {
-		agg.Addf(path+".from", "is required")
+		_ = agg.Addf(path+".from", "is required")
 	} else if _, ok := names[d.From]; !ok {
-		agg.Addf(path+".from", "unknown resource %q", d.From)
+		_ = agg.Addf(path+".from", "unknown resource %q", d.From)
 	}
 	if d.Map.Kind == "" {
-		agg.Addf(path+".map.kind", "is required")
+		_ = agg.Addf(path+".map.kind", "is required")
 	}
 	if d.Map.IDPath == "" {
-		agg.Addf(path+".map.id", "is required")
+		_ = agg.Addf(path+".map.id", "is required")
 	}
 	if d.Map.NamePath == "" && len(d.Map.NamePaths) == 0 {
-		agg.Addf(path+".map.name", "either map.name or map.name_paths is required")
+		_ = agg.Addf(path+".map.name", "either map.name or map.name_paths is required")
 	}
 	if d.Map.DefaultEnabled != "" {
 		validateTemplate(agg, path+".map.default_enabled", d.Map.DefaultEnabled)
@@ -364,19 +366,19 @@ func validateDiscovery(agg *errs.ManifestErrors, path string, d *Discovery, name
 		return
 	}
 	if d.Scope.Field == "" {
-		agg.Addf(path+".scope.field", "is required when scope is set")
+		_ = agg.Addf(path+".scope.field", "is required when scope is set")
 	}
 	if d.Scope.InjectInto == "" {
-		agg.Addf(path+".scope.inject_into", "is required when scope is set")
+		_ = agg.Addf(path+".scope.inject_into", "is required when scope is set")
 	} else if err := checkEnum(d.Scope.InjectInto, ValidPaginationInject); err != nil {
-		agg.Addf(path+".scope.inject_into", "%v", err)
+		_ = agg.Addf(path+".scope.inject_into", "%v", err)
 	}
 	if len(d.Scope.AppliesTo) == 0 {
-		agg.Addf(path+".scope.applies_to", "must list at least one resource when scope is set")
+		_ = agg.Addf(path+".scope.applies_to", "must list at least one resource when scope is set")
 	}
 	for i, target := range d.Scope.AppliesTo {
 		if _, ok := names[target]; !ok {
-			agg.Addf(fmt.Sprintf("%s.scope.applies_to[%d]", path, i),
+			_ = agg.Addf(fmt.Sprintf("%s.scope.applies_to[%d]", path, i),
 				"unknown resource %q", target)
 		}
 	}

@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // defaultRows is emitted per resource when "rows" is not configured.
@@ -29,6 +29,7 @@ var (
 	_ ingestion.Discoverable = (*Source)(nil)
 )
 
+// Spec describes the generator's config fields, modes, and write policies.
 func (s *Source) Spec() ingestion.ConnectorSpec {
 	return ingestion.ConnectorSpec{
 		Name:           "sample",
@@ -43,6 +44,7 @@ func (s *Source) Spec() ingestion.ConnectorSpec {
 	}
 }
 
+// Validate accepts any config; every field is optional.
 func (s *Source) Validate(ingestion.Config) error { return nil }
 
 // Configure reads the optional "rows" count from the source config.
@@ -53,6 +55,7 @@ func (s *Source) Configure(_ context.Context, cfg ingestion.Config) error {
 	return nil
 }
 
+// Discover lists the synthetic users and orders resources with row estimates.
 func (s *Source) Discover(context.Context, ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
 	rows := int64(s.rows)
 	if rows <= 0 {
@@ -90,4 +93,5 @@ func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts in
 	return nil
 }
 
+// Teardown is a no-op; the generator holds no resources.
 func (s *Source) Teardown(context.Context) error { return nil }

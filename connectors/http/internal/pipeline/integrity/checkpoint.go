@@ -242,16 +242,16 @@ func (pc *PipelineCheckpoint) LastVerifiedCursor(resource string) string {
 // MergeInto copies complete resources from this (previous) checkpoint into
 // the current checkpoint, preserving the current checkpoint's data for
 // any resource that was re-extracted.
-func (prev *PipelineCheckpoint) MergeInto(current *PipelineCheckpoint) {
-	prev.mu.Lock()
-	defer prev.mu.Unlock()
+func (pc *PipelineCheckpoint) MergeInto(current *PipelineCheckpoint) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
 	current.mu.Lock()
 	defer current.mu.Unlock()
-	for resource, rc := range prev.Resources {
+	for resource, rc := range pc.Resources {
 		if _, reExtracted := current.Resources[resource]; reExtracted {
 			continue
 		}
-		// inline IsResourceComplete check (we already hold prev's lock)
+		// inline IsResourceComplete check (we already hold pc's lock)
 		complete := len(rc.Chunks) > 0
 		for _, cc := range rc.Chunks {
 			if !cc.Verified {
@@ -259,7 +259,7 @@ func (prev *PipelineCheckpoint) MergeInto(current *PipelineCheckpoint) {
 				break
 			}
 		}
-		for _, fid := range prev.FailedChunks {
+		for _, fid := range pc.FailedChunks {
 			if fid.Resource == resource {
 				complete = false
 				break

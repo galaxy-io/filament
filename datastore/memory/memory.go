@@ -8,7 +8,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // ErrNotFound is returned (wrapped) when a requested run or checkpoint does not
@@ -48,6 +48,7 @@ func New() *Store {
 
 var _ ingestion.DataStore = (*Store)(nil)
 
+// Name identifies this store implementation.
 func (s *Store) Name() string { return "memory" }
 
 // SaveRun stores the run record. Any Resources carried on it are seeded into the

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
 	"github.com/galaxy-io/filament/connectors/http/manifest"

@@ -1,0 +1,90 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+
+  settings:
+    gofumpt:
+      extra-rules: true
+
+    goimports:
+      local-prefixes:
+        - github.com/galaxy-io/filament
+
+linters:
+  enable:
+    # Bugs
+    - staticcheck
+    - gosec
+    - errcheck
+    - govet
+
+    # Performance
+    - prealloc
+    - ineffassign
+
+    # Style
+    - gocritic
+    - revive
+    - misspell
+
+    # Complexity
+    - gocyclo
+    - funlen
+
+    # Unused code
+    - unused
+    - unparam
+
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+        - unnamedResult
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: increment-decrement
+        - name: var-naming
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+
+    gocyclo:
+      min-complexity: 30
+
+    funlen:
+      lines: 100
+      statements: 60
+
+    gosec:
+      excludes:
+        - G104
+        - G304
+
+  exclusions:
+    paths:
+      - ".*_test\\.go"
+      - ".*\\.pb\\.go"
+      - "testcontainers/"

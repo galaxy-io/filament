@@ -3,7 +3,7 @@ package pipeline
 import (
 	"errors"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // ErrPipelineClosed is returned by the inlet when a push is attempted after the

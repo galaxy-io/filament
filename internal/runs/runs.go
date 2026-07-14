@@ -13,8 +13,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/events"
 )
 
 // Submit registers a run and dispatches its run.requested trigger, returning the
@@ -45,8 +46,8 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds ingestion.DataStore, req i
 		return "", fmt.Errorf("runs: save run %q: %w", id, err)
 	}
 
-	ev := ingestion.Event{Type: ingestion.EvRunRequested, Tenant: req.Tenant, Run: id, At: time.Now()}
-	if err := ingestion.PublishEvent(ctx, bus, ev); err != nil {
+	env := events.Envelope{Tenant: req.Tenant, Run: id, At: time.Now()}
+	if err := events.Emit(ctx, bus, events.RunRequested, env, events.RunRequestedEvent{}); err != nil {
 		return "", fmt.Errorf("runs: dispatch run %q: %w", id, err)
 	}
 	return id, nil

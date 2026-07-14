@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"google.golang.org/protobuf/proto"
 )
 
+// CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -30,6 +32,7 @@ func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: pipeline}), nil
 }
 
+// UpdatePipeline replaces the stored pipeline, bumping its version.
 func (a *Server) UpdatePipeline(_ context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
 	pipeline := req.Msg.GetPipeline()
 	if pipeline == nil || pipeline.GetId() == "" {
@@ -47,6 +50,7 @@ func (a *Server) UpdatePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.UpdatePipelineResponse{Pipeline: proto.Clone(next).(*ingestionv1.Pipeline)}), nil
 }
 
+// GetPipeline returns the pipeline by id.
 func (a *Server) GetPipeline(_ context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -57,6 +61,7 @@ func (a *Server) GetPipeline(_ context.Context, req *connect.Request[ingestionv1
 	return connect.NewResponse(&ingestionv1.GetPipelineResponse{Pipeline: proto.Clone(pipeline).(*ingestionv1.Pipeline)}), nil
 }
 
+// ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(_ context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -80,6 +85,7 @@ func (a *Server) ListPipelines(_ context.Context, req *connect.Request[ingestion
 	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines}), nil
 }
 
+// DeletePipeline removes the pipeline by id.
 func (a *Server) DeletePipeline(_ context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -87,6 +93,8 @@ func (a *Server) DeletePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }
 
+// RunPipeline groups the pipeline's edges into per-route runs and submits each
+// to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
 	a.mu.RLock()
 	stored := a.pipelines[req.Msg.GetPipelineId()]
@@ -109,54 +117,12 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	if token == "" {
 		token = fmt.Sprint(time.Now().UnixNano())
 	}
-	type routeGroup struct {
-		source        *ingestionv1.PipelineNode
-		sink          *ingestionv1.PipelineNode
-		from          string
-		to            string
-		ingestionType ingestion.IngestionType
-		all           bool
-		resources     map[string]bool
-		selectors     map[string]bool
+	groups, err := groupEdges(pipeline.GetEdges(), nodes)
+	if err != nil {
+		return nil, err
 	}
-	groups := map[string]*routeGroup{}
-	var groupOrder []string
-	for _, edge := range pipeline.GetEdges() {
-		source := nodes[edge.GetFromNode()]
-		sink := nodes[edge.GetToNode()]
-		if source == nil || sink == nil {
-			return nil, fmt.Errorf("edge references missing node")
-		}
-		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-		key := fmt.Sprintf("%s||%s||%s", edge.GetFromNode(), edge.GetToNode(), ingestionType)
-		group := groups[key]
-		if group == nil {
-			group = &routeGroup{
-				source:        source,
-				sink:          sink,
-				from:          edge.GetFromNode(),
-				to:            edge.GetToNode(),
-				ingestionType: ingestionType,
-				resources:     map[string]bool{},
-				selectors:     map[string]bool{},
-			}
-			groups[key] = group
-			groupOrder = append(groupOrder, key)
-		}
-		if edge.GetResource() == "" {
-			group.all = true
-			continue
-		}
-		resource := edge.GetResource()
-		group.resources[resource] = true
-		if selector := edge.GetSelector(); selector != "" {
-			group.selectors[selector] = true
-		} else {
-			group.selectors[resource] = true
-		}
-	}
-	for _, key := range groupOrder {
-		group := groups[key]
+	for _, group := range groups {
+		key := group.key
 		var resources []string
 		var selectors []string
 		if !group.all {
@@ -195,6 +161,63 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	}
 	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", pipeline.GetId(), len(bindings))
 	return connect.NewResponse(&ingestionv1.RunPipelineResponse{Runs: bindings}), nil
+}
+
+// routeGroup is the set of edges that share a source node, sink node, and
+// ingestion type, and so collapse into a single run.
+type routeGroup struct {
+	key           string
+	source        *ingestionv1.PipelineNode
+	sink          *ingestionv1.PipelineNode
+	from          string
+	to            string
+	ingestionType ingestion.IngestionType
+	all           bool
+	resources     map[string]bool
+	selectors     map[string]bool
+}
+
+// groupEdges collapses edges into per-route groups, preserving first-seen order.
+// An edge with no resource marks its group as "all resources".
+func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
+	byKey := map[string]*routeGroup{}
+	var ordered []*routeGroup
+	for _, edge := range edges {
+		source := nodes[edge.GetFromNode()]
+		sink := nodes[edge.GetToNode()]
+		if source == nil || sink == nil {
+			return nil, fmt.Errorf("edge references missing node")
+		}
+		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
+		key := fmt.Sprintf("%s||%s||%s", edge.GetFromNode(), edge.GetToNode(), ingestionType)
+		group := byKey[key]
+		if group == nil {
+			group = &routeGroup{
+				key:           key,
+				source:        source,
+				sink:          sink,
+				from:          edge.GetFromNode(),
+				to:            edge.GetToNode(),
+				ingestionType: ingestionType,
+				resources:     map[string]bool{},
+				selectors:     map[string]bool{},
+			}
+			byKey[key] = group
+			ordered = append(ordered, group)
+		}
+		if edge.GetResource() == "" {
+			group.all = true
+			continue
+		}
+		resource := edge.GetResource()
+		group.resources[resource] = true
+		if selector := edge.GetSelector(); selector != "" {
+			group.selectors[selector] = true
+		} else {
+			group.selectors[resource] = true
+		}
+	}
+	return ordered, nil
 }
 
 // resolveNodeRef builds the run-time Ref for a pipeline node from the reusable

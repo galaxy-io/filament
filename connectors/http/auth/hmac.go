@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // HMAC-SHA1 required for provider API compatibility
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"

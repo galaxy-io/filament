@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	ingestion "github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 )
 
@@ -32,17 +32,22 @@ func NewFromEnv() *Module {
 	return New(ConfigFromEnv())
 }
 
-var _ module.Module = (*Module)(nil)
-var _ ingestion.Dispatcher = (*Module)(nil)
+var (
+	_ module.Module        = (*Module)(nil)
+	_ ingestion.Dispatcher = (*Module)(nil)
+)
 
+// Name identifies this module.
 func (m *Module) Name() string { return "k8sdispatch" }
 
+// Subscriptions declares a durable consumer over run.requested across every tenant/run.
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
-		{Pattern: ingestion.EventPattern(ingestion.EvRunRequested), Durable: defaultDurable, Handler: m.onRunRequested},
+		{Pattern: events.SubjectPattern(events.RunRequested), Durable: defaultDurable, Handler: events.Handler(events.RunRequested, m.onRunRequested)},
 	}
 }
 
+// Mount validates the config and builds the Kubernetes client.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	if d.DataStore == nil {
 		return errors.New("k8sdispatch: datastore is required")
@@ -60,11 +65,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	return nil
 }
 
-func (m *Module) onRunRequested(ctx context.Context, msg eventbus.Message) error {
-	ev, err := ingestion.EventOf(msg)
-	if err != nil {
-		return err
-	}
+func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunRequestedEvent]) error {
 	state, err := m.ds.LoadRun(ctx, ev.Run)
 	if err != nil {
 		return fmt.Errorf("k8sdispatch: load run %q: %w", ev.Run, err)

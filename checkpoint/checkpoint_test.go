@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // TestKeysetCheckpointRoundTrip checks the keyset cursor survives both an in-process

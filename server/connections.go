@@ -7,10 +7,13 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"google.golang.org/protobuf/proto"
+
+	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
+// CreateConnection validates the config against the connector's schema and
+// stores a new connection at version 1.
 func (a *Server) CreateConnection(_ context.Context, req *connect.Request[ingestionv1.CreateConnectionRequest]) (*connect.Response[ingestionv1.CreateConnectionResponse], error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -39,6 +42,8 @@ func (a *Server) CreateConnection(_ context.Context, req *connect.Request[ingest
 	return connect.NewResponse(&ingestionv1.CreateConnectionResponse{Connection: conn}), nil
 }
 
+// UpdateConnection replaces a stored connection if the request's version matches
+// the stored one, returning CodeAborted on a version conflict.
 func (a *Server) UpdateConnection(_ context.Context, req *connect.Request[ingestionv1.UpdateConnectionRequest]) (*connect.Response[ingestionv1.UpdateConnectionResponse], error) {
 	conn := req.Msg.GetConnection()
 	if conn == nil || conn.GetId() == "" {
@@ -70,6 +75,7 @@ func (a *Server) UpdateConnection(_ context.Context, req *connect.Request[ingest
 	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: proto.Clone(next).(*ingestionv1.Connection)}), nil
 }
 
+// GetConnection returns the connection with the given id.
 func (a *Server) GetConnection(_ context.Context, req *connect.Request[ingestionv1.GetConnectionRequest]) (*connect.Response[ingestionv1.GetConnectionResponse], error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -80,6 +86,8 @@ func (a *Server) GetConnection(_ context.Context, req *connect.Request[ingestion
 	return connect.NewResponse(&ingestionv1.GetConnectionResponse{Connection: proto.Clone(conn).(*ingestionv1.Connection)}), nil
 }
 
+// ListConnections returns the stored connections sorted by id, optionally
+// filtered by tenant and kind.
 func (a *Server) ListConnections(_ context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
 	tenant := req.Msg.GetTenant()
 	kind := req.Msg.GetKind()
@@ -102,6 +110,8 @@ func (a *Server) ListConnections(_ context.Context, req *connect.Request[ingesti
 	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out}), nil
 }
 
+// DeleteConnection removes a connection, refusing while any pipeline node still
+// references it.
 func (a *Server) DeleteConnection(_ context.Context, req *connect.Request[ingestionv1.DeleteConnectionRequest]) (*connect.Response[ingestionv1.DeleteConnectionResponse], error) {
 	id := req.Msg.GetId()
 	a.mu.Lock()

@@ -11,7 +11,7 @@ import (
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/google/uuid"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 type keyTuple struct {
@@ -205,7 +205,7 @@ func jsonNumber(value any) (int64, error) {
 		}
 		return int64(v), nil
 	case string:
-		var n json.Number = json.Number(v)
+		n := json.Number(v)
 		return n.Int64()
 	default:
 		return 0, fmt.Errorf("expected integer-compatible value, got %T", value)
@@ -225,7 +225,7 @@ func jsonFloat(value any) (float64, error) {
 	case json.Number:
 		return v.Float64()
 	case string:
-		var n json.Number = json.Number(v)
+		n := json.Number(v)
 		return n.Float64()
 	default:
 		return 0, fmt.Errorf("expected numeric value, got %T", value)

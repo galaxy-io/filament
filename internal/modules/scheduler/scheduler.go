@@ -14,9 +14,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/internal/cron"
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/module"
@@ -52,11 +53,13 @@ func New(store ingestion.ScheduleStore, opts ...Option) *Module {
 
 var _ module.Module = (*Module)(nil)
 
+// Name identifies this module.
 func (m *Module) Name() string { return "scheduler" }
 
-// Subscriptions: none. The scheduler is timer-driven, not fact-driven.
+// Subscriptions returns none; the scheduler is timer-driven, not fact-driven.
 func (m *Module) Subscriptions() []host.Subscription { return nil }
 
+// Mount captures the providers this module uses. Cheap, no I/O.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore
@@ -207,8 +210,8 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 			return fired, err
 		}
 
-		ev := ingestion.Event{Type: ingestion.EvScheduleFired, Tenant: st.Spec.Tenant, Run: runID, At: now}
-		_ = ingestion.PublishEvent(ctx, m.bus, ev)
+		_ = events.Emit(ctx, m.bus, events.ScheduleFired,
+			events.Envelope{Tenant: st.Spec.Tenant, Run: runID, At: now}, events.ScheduleFiredEvent{})
 		fired++
 	}
 	return fired, nil

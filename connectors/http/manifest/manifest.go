@@ -53,8 +53,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// SupportedVersion is the manifest schema version this package accepts.
 const SupportedVersion = 2
 
+// Manifest is the root document describing one HTTP API connector.
 type Manifest struct {
 	Version    int        `yaml:"version"`
 	Name       string     `yaml:"name"`
@@ -107,6 +109,7 @@ type ScopeSpec struct {
 	FanOut     bool     `yaml:"fan_out"`     // true = one request per enabled id
 }
 
+// Connection configures the base URL, auth, rate limit, and shared headers.
 type Connection struct {
 	BaseURL        string            `yaml:"base_url"`
 	Auth           AuthSpec          `yaml:"auth"`
@@ -123,11 +126,13 @@ type AuthSpec struct {
 	Params map[string]any `yaml:",inline"`
 }
 
+// RateLimit configures the request rate ceiling, optionally header-driven.
 type RateLimit struct {
 	RequestsPerSecond float64       `yaml:"requests_per_second"`
 	Dynamic           *DynamicLimit `yaml:"dynamic,omitempty"`
 }
 
+// DynamicLimit configures rate adjustment from response rate-limit headers.
 type DynamicLimit struct {
 	RemainingHeader string  `yaml:"remaining_header"`
 	ResetHeader     string  `yaml:"reset_header"`
@@ -135,6 +140,8 @@ type DynamicLimit struct {
 	MinFloorRPS     float64 `yaml:"min_floor_rps"`
 }
 
+// Resource declares one extractable endpoint and how to page, decode, and
+// incrementally track it.
 type Resource struct {
 	Name        string            `yaml:"name"`
 	EmitAs      string            `yaml:"emit_as,omitempty"`
@@ -154,6 +161,7 @@ type Resource struct {
 	Stream      *StreamSpec       `yaml:"stream,omitempty"`
 }
 
+// FieldSpec maps a response path to a typed output field.
 type FieldSpec struct {
 	Name     string            `yaml:"name"`
 	Path     string            `yaml:"path"`
@@ -163,17 +171,20 @@ type FieldSpec struct {
 	Nullable bool              `yaml:"nullable,omitempty"`
 }
 
+// BodySpec configures the request body encoding and template.
 type BodySpec struct {
 	Encoding string `yaml:"encoding"` // json | form | multipart | raw | none
 	Template any    `yaml:"template,omitempty"`
 }
 
+// ResponseSpec configures where records live in the response body.
 type ResponseSpec struct {
 	Root        string     `yaml:"root"` // array | object (default object)
 	RecordsPath string     `yaml:"records_path"`
 	Error       *ErrorSpec `yaml:"error,omitempty"`
 }
 
+// ErrorSpec configures detection of errors wrapped in 200 responses.
 type ErrorSpec struct {
 	Path        string `yaml:"path"`
 	WhenPresent bool   `yaml:"when_present"`
@@ -181,6 +192,7 @@ type ErrorSpec struct {
 	CodePath    string `yaml:"code_path,omitempty"`
 }
 
+// PaginationSpec configures how list endpoints are paged.
 type PaginationSpec struct {
 	Type string `yaml:"type"` // cursor | offset | page | link_header | next_url | none
 
@@ -213,6 +225,7 @@ type PaginationSpec struct {
 	NextURLPath string `yaml:"next_url_path,omitempty"`
 }
 
+// IncrementalSpec configures watermark-based incremental extraction.
 type IncrementalSpec struct {
 	CursorField   string `yaml:"cursor_field"`
 	StartParam    string `yaml:"start_param"`
@@ -235,6 +248,7 @@ type ParentRef struct {
 	Concurrency int    `yaml:"concurrency,omitempty"`
 }
 
+// StreamSpec configures streaming-mode decoding of a resource's response.
 type StreamSpec struct {
 	Type        string `yaml:"type"` // ndjson | sse | chunked_array
 	EventFilter string `yaml:"event_filter,omitempty"`

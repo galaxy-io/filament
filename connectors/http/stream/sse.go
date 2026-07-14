@@ -121,12 +121,7 @@ func (r *sseReader) Read(ctx context.Context, body io.Reader, emit EmitFunc) err
 
 // splitSSEField parses `field: value` (with optional space after colon).
 func splitSSEField(line string) (field, value string, ok bool) {
-	i := strings.Index(line, ":")
-	if i < 0 {
-		return "", "", false
-	}
-	field = line[:i]
-	value = line[i+1:]
+	field, value, _ = strings.Cut(line, ":")
 	value = strings.TrimPrefix(value, " ")
 	return field, value, true
 }
