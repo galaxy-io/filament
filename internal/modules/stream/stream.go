@@ -7,7 +7,7 @@ package stream
 import (
 	"context"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
@@ -25,11 +25,13 @@ func New() *Module { return &Module{} }
 
 var _ module.Module = (*Module)(nil)
 
+// Name identifies this module.
 func (m *Module) Name() string { return "stream" }
 
 // Subscriptions returns none; tails are opened per request, not at mount.
 func (m *Module) Subscriptions() []host.Subscription { return nil }
 
+// Mount captures the providers this module uses. Cheap, no I/O.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore

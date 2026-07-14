@@ -6,12 +6,15 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/galaxy-io/filament"
+
+	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
 const providerRPCTimeout = 5 * time.Second
 
+// ListProviders returns the registered source and sink specs, optionally
+// filtered by kind.
 func (a *Server) ListProviders(_ context.Context, req *connect.Request[ingestionv1.ListProvidersRequest]) (*connect.Response[ingestionv1.ListProvidersResponse], error) {
 	var providers []*ingestionv1.ProviderSpec
 	if req.Msg.GetKind() == ingestionv1.ProviderKind_PROVIDER_KIND_UNSPECIFIED || req.Msg.GetKind() == ingestionv1.ProviderKind_PROVIDER_KIND_SOURCE {
@@ -27,6 +30,8 @@ func (a *Server) ListProviders(_ context.Context, req *connect.Request[ingestion
 	return connect.NewResponse(&ingestionv1.ListProvidersResponse{Providers: providers}), nil
 }
 
+// ValidateConfig checks a provider config against its schema, optionally
+// testing the live connection.
 func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingestionv1.ValidateConfigRequest]) (*connect.Response[ingestionv1.ValidateConfigResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, providerRPCTimeout)
 	defer cancel()
@@ -62,6 +67,7 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 	return connect.NewResponse(&ingestionv1.ValidateConfigResponse{Valid: true}), nil
 }
 
+// DiscoverResources configures the source and lists its selectable resources.
 func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ingestionv1.DiscoverResourcesRequest]) (*connect.Response[ingestionv1.DiscoverResourcesResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, providerRPCTimeout)
 	defer cancel()
@@ -74,7 +80,7 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 	if err := source.Configure(ctx, cfg); err != nil {
 		return nil, err
 	}
-	defer source.Teardown(ctx)
+	defer func() { _ = source.Teardown(ctx) }()
 
 	discoverable, ok := source.(ingestion.Discoverable)
 	if !ok {

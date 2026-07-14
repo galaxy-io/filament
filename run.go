@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+// RunSpec is the fully resolved execution plan for one run — what a Runtime
+// receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
 	Tenant        TenantID
 	Run           RunID
@@ -19,6 +21,8 @@ type RunSpec struct {
 	Options       RunOptions
 }
 
+// RunRequest is the caller-facing ask for a run, deduplicated by
+// IdempotencyKey; the engine resolves it into a RunSpec.
 type RunRequest struct {
 	Tenant         TenantID
 	IdempotencyKey string
@@ -31,6 +35,8 @@ type RunRequest struct {
 	Options        RunOptions
 }
 
+// RunOptions tunes throughput knobs for a run; zero values defer to engine
+// defaults.
 type RunOptions struct {
 	FetchSize           int
 	BatchMaxRows        int
@@ -48,6 +54,8 @@ type RunOptions struct {
 // RunOptions.CheckpointEvery is unset.
 const DefaultCheckpointEvery = 25
 
+// RunState is the persisted record of a run: its request, per-resource
+// progress, and terminal outcome.
 type RunState struct {
 	Run        RunID
 	Tenant     TenantID
@@ -62,8 +70,10 @@ type RunState struct {
 	ScheduleID ScheduleID
 }
 
+// RunStatus is the lifecycle state of a run or resource.
 type RunStatus int
 
+// Run lifecycle states, in rough order of progression.
 const (
 	RunRequested RunStatus = iota
 	RunRunning
@@ -77,6 +87,7 @@ const (
 	RunPartial
 )
 
+// RunResult is the terminal outcome of a run as reported by a RunHandle.
 type RunResult struct {
 	Status  RunStatus
 	Records int64
@@ -85,6 +96,7 @@ type RunResult struct {
 	Error   string
 }
 
+// ResourceState is one resource's persisted progress within a run.
 type ResourceState struct {
 	Run        RunID // owning run — the key a DataStore files this under
 	Tenant     TenantID
@@ -97,6 +109,7 @@ type ResourceState struct {
 	Error      string
 }
 
+// RunFilter narrows a DataStore run listing; zero fields match everything.
 type RunFilter struct {
 	Tenant   TenantID
 	Source   string
@@ -107,14 +120,19 @@ type RunFilter struct {
 	Cursor   string
 }
 
+// SyncSnapshot is a consistent read of a run and its resources at bus
+// sequence AtSeq, the anchor a live tail resumes from.
 type SyncSnapshot struct {
 	Run       RunState
 	Resources []ResourceState
 	AtSeq     uint64
 }
 
-type IngestionType string
+// IngestionType names how a run moves data end to end; it determines both the
+// source's read policy and the sink's write policy.
+type IngestionType string //nolint:revive // stutters as ingestion.IngestionType, but it is the established API name
 
+// The defined ingestion types.
 const (
 	IngestionSnapshotReplace IngestionType = "snapshot_replace"
 	IngestionSnapshotUpsert  IngestionType = "snapshot_upsert"
@@ -124,6 +142,7 @@ const (
 	IngestionCDC             IngestionType = "cdc"
 )
 
+// OrDefault substitutes IngestionSnapshotReplace for the empty type.
 func (t IngestionType) OrDefault() IngestionType {
 	if t == "" {
 		return IngestionSnapshotReplace
@@ -131,18 +150,23 @@ func (t IngestionType) OrDefault() IngestionType {
 	return t
 }
 
+// WritePolicy returns the sink-side policy this ingestion type implies.
 func (t IngestionType) WritePolicy() WritePolicy {
 	return WritePolicyForIngestion(t)
 }
 
+// WriteCapability returns the capability a sink must offer to serve this type.
 func (t IngestionType) WriteCapability() WritePolicyCapability {
 	return t.WritePolicy().Capability
 }
 
+// SourcePolicy returns the source-side policy this ingestion type implies.
 func (t IngestionType) SourcePolicy() SourcePolicy {
 	return SourcePolicyForIngestion(t)
 }
 
+// WriteCapabilities maps each ingestion type to its required sink capability,
+// preserving order — the shape connector Specs advertise.
 func WriteCapabilities(types ...IngestionType) []WritePolicyCapability {
 	out := make([]WritePolicyCapability, 0, len(types))
 	for _, t := range types {
@@ -151,6 +175,8 @@ func WriteCapabilities(types ...IngestionType) []WritePolicyCapability {
 	return out
 }
 
+// SourcePolicies maps each ingestion type to its source policy, preserving
+// order — the shape connector Specs advertise.
 func SourcePolicies(types ...IngestionType) []SourcePolicy {
 	out := make([]SourcePolicy, 0, len(types))
 	for _, t := range types {
@@ -159,8 +185,11 @@ func SourcePolicies(types ...IngestionType) []SourcePolicy {
 	return out
 }
 
+// WriteMode is how a sink lands records: append, replace, upsert, delete, or
+// CDC merge.
 type WriteMode string
 
+// The defined write modes.
 const (
 	WriteAppend  WriteMode = "append"
 	WriteReplace WriteMode = "replace"
@@ -169,22 +198,28 @@ const (
 	WriteMerge   WriteMode = "merge"
 )
 
+// WriteAtomicity is the unit at which a sink's writes become visible.
 type WriteAtomicity string
 
+// Atomicity units, smallest to largest.
 const (
 	AtomicityBatch    WriteAtomicity = "batch"
 	AtomicityResource WriteAtomicity = "resource"
 	AtomicityRun      WriteAtomicity = "run"
 )
 
+// CheckpointPolicy is when a cursor may be persisted relative to writes.
 type CheckpointPolicy string
 
+// Checkpoint timings, weakest to strongest.
 const (
 	CheckpointNone        CheckpointPolicy = "none"
 	CheckpointAfterBatch  CheckpointPolicy = "after_batch"
 	CheckpointAfterCommit CheckpointPolicy = "after_commit"
 )
 
+// WritePolicyCapability is what a sink must support to serve a write mode:
+// key/order requirements, accepted operations, and atomicity.
 type WritePolicyCapability struct {
 	Mode          WriteMode
 	RequiresPK    bool
@@ -193,6 +228,8 @@ type WritePolicyCapability struct {
 	Atomicity     WriteAtomicity
 }
 
+// WritePolicy binds a capability to one resource's keys and checkpoint timing
+// — the per-resource contract handed to a sink via ApplyOptions.
 type WritePolicy struct {
 	Capability WritePolicyCapability
 	Resource   string
@@ -200,6 +237,8 @@ type WritePolicy struct {
 	Checkpoint CheckpointPolicy
 }
 
+// Accepts reports whether the capability admits op; an empty AcceptsOps
+// admits everything.
 func (c WritePolicyCapability) Accepts(op Operation) bool {
 	if len(c.AcceptsOps) == 0 {
 		return true
@@ -212,6 +251,8 @@ func (c WritePolicyCapability) Accepts(op Operation) bool {
 	return false
 }
 
+// ValidateRecords rejects the first record whose operation the policy does
+// not accept.
 func (p WritePolicy) ValidateRecords(resource string, records []Record) error {
 	for _, rec := range records {
 		if !p.Capability.Accepts(rec.Op) {
@@ -221,6 +262,7 @@ func (p WritePolicy) ValidateRecords(resource string, records []Record) error {
 	return nil
 }
 
+// OperationName renders an Operation for error messages and logs.
 func OperationName(op Operation) string {
 	switch op {
 	case OpInsert:
@@ -234,6 +276,8 @@ func OperationName(op Operation) string {
 	}
 }
 
+// SourcePolicy is the read-side contract an ingestion type implies: mode,
+// emitted operations, ordering, and checkpoint timing.
 type SourcePolicy struct {
 	Mode          ReplicationMode
 	EmitsOps      []Operation
@@ -241,7 +285,9 @@ type SourcePolicy struct {
 	Checkpointing CheckpointPolicy
 }
 
-type IngestionPlan struct {
+// IngestionPlan is the resolved policy set for a run: one source policy plus
+// per-resource write policies.
+type IngestionPlan struct { //nolint:revive // stutters as ingestion.IngestionPlan, but it is the established API name
 	Type          IngestionType
 	SourcePolicy  SourcePolicy
 	WritePolicies map[string]WritePolicy
@@ -249,6 +295,8 @@ type IngestionPlan struct {
 	RequiresPK    bool
 }
 
+// WritePolicyForIngestion derives the canonical sink-side policy for an
+// ingestion type; keys and resource are bound later, per resource.
 func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	capability := WritePolicyCapability{
 		AcceptsOps: []Operation{OpInsert},
@@ -287,6 +335,8 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	return WritePolicy{Capability: capability, Checkpoint: checkpoint}
 }
 
+// SourcePolicyForIngestion derives the canonical read-side policy for an
+// ingestion type.
 func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 	switch t.OrDefault() {
 	case IngestionCDC:

@@ -35,7 +35,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // s3debug enables per-call S3 API timing to stderr; set S3_SINK_DEBUG=1 to turn on.
@@ -92,6 +92,7 @@ func New() *Sink { return &Sink{uploads: map[string]*upload{}} }
 
 var _ ingestion.Sink = (*Sink)(nil)
 
+// Spec describes the sink's config fields and write capabilities.
 func (s *Sink) Spec() ingestion.SinkSpec {
 	return ingestion.SinkSpec{
 		Name:        "s3",
@@ -114,6 +115,7 @@ func (s *Sink) Spec() ingestion.SinkSpec {
 	}
 }
 
+// Name identifies this sink implementation.
 func (s *Sink) Name() string { return "s3" }
 
 // Open reads the sink config, builds an S3 client, and resets per-run state.
@@ -232,6 +234,7 @@ func (s *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteRec
 	}, nil
 }
 
+// Apply validates the batch against the run's write policy, then delegates to Write.
 func (s *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
 	case ingestion.WriteAppend, ingestion.WriteReplace:

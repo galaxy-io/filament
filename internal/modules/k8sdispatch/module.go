@@ -32,17 +32,22 @@ func NewFromEnv() *Module {
 	return New(ConfigFromEnv())
 }
 
-var _ module.Module = (*Module)(nil)
-var _ ingestion.Dispatcher = (*Module)(nil)
+var (
+	_ module.Module        = (*Module)(nil)
+	_ ingestion.Dispatcher = (*Module)(nil)
+)
 
+// Name identifies this module.
 func (m *Module) Name() string { return "k8sdispatch" }
 
+// Subscriptions declares a durable consumer over run.requested across every tenant/run.
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
 		{Pattern: events.SubjectPattern(events.RunRequested), Durable: defaultDurable, Handler: events.Handler(events.RunRequested, m.onRunRequested)},
 	}
 }
 
+// Mount validates the config and builds the Kubernetes client.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	if d.DataStore == nil {
 		return errors.New("k8sdispatch: datastore is required")

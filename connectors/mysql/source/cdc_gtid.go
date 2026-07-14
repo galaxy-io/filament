@@ -24,7 +24,7 @@ import (
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -151,7 +151,7 @@ func gtidCursor(set gomysql.GTIDSet) string { return gtidCursorPrefix + set.Stri
 // exists; re-delivering from an older set is safe, skipping is not). Incomparable
 // sets mean the checkpoints came from different streams — fail rather than guess.
 func startGTID(cps map[string]ingestion.Checkpoint) (gomysql.GTIDSet, bool, error) {
-	var min gomysql.GTIDSet
+	var minSet gomysql.GTIDSet
 	for _, cp := range cps {
 		lsn, _, ok := checkpoint.ParseStream(cp)
 		if !ok || !strings.HasPrefix(lsn, gtidCursorPrefix) {
@@ -162,15 +162,15 @@ func startGTID(cps map[string]ingestion.Checkpoint) (gomysql.GTIDSet, bool, erro
 			return nil, false, fmt.Errorf("mysql cdc: parse gtid cursor %q: %w", lsn, err)
 		}
 		switch {
-		case min == nil:
-			min = set
-		case min.Contain(set):
-			min = set
-		case set.Contain(min):
-			// keep min
+		case minSet == nil:
+			minSet = set
+		case minSet.Contain(set):
+			minSet = set
+		case set.Contain(minSet):
+			// keep minSet
 		default:
-			return nil, false, fmt.Errorf("mysql cdc: incomparable gtid cursors %q and %q (mixed streams?)", min.String(), set.String())
+			return nil, false, fmt.Errorf("mysql cdc: incomparable gtid cursors %q and %q (mixed streams?)", minSet.String(), set.String())
 		}
 	}
-	return min, min != nil, nil
+	return minSet, minSet != nil, nil
 }

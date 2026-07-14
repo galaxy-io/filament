@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // recordBuf is a per-resource accumulator that starts in memory and spills to a
@@ -33,11 +33,13 @@ func newRecordBuf(limitBytes int64) *recordBuf {
 }
 
 type recordEntry struct {
-	Op   ingestion.Operation   `json:"op"`
-	Data json.RawMessage `json:"data"`
+	Op   ingestion.Operation `json:"op"`
+	Data json.RawMessage     `json:"data"`
 }
 
 // append adds one JSON payload to the buffer, spilling to disk if needed.
+//
+//nolint:unused // kept as the insert-only entry point
 func (rb *recordBuf) append(data json.RawMessage) error {
 	return rb.appendRecord(data, ingestion.OpInsert)
 }

@@ -44,5 +44,5 @@ func Split(resources []Resource) (topLevel, children []Resource) {
 			topLevel = append(topLevel, r)
 		}
 	}
-	return
+	return topLevel, children
 }

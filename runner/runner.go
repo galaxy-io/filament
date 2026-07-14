@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/pipeline"
@@ -49,6 +49,8 @@ func SpecFromState(s ingestion.RunState) ingestion.RunSpec {
 // sink, drive the pipeline with the source, then commit or abort. It publishes
 // run.started first and exactly one terminal fact (run.completed | run.failed |
 // run.partial).
+//
+//nolint:funlen // the run lifecycle reads best as one sequence
 func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
@@ -154,7 +156,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	resources := resolveResources(spec.Resources, em.seenResources())
 
 	if runErr != nil {
-		if isResumableRun(spec, plan) {
+		if isResumableRun(plan) {
 			for _, res := range resources {
 				emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 			}
@@ -260,7 +262,7 @@ func resolveExtractor(ctx context.Context, ds ingestion.DataStore, src ingestion
 			})
 		}, nil
 	}
-	if isResumableRun(spec, plan) {
+	if isResumableRun(plan) {
 		planner, ok := src.(ingestion.ResumePlanner)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
@@ -317,7 +319,7 @@ func loadChangeCheckpoints(ctx context.Context, ds ingestion.DataStore, spec ing
 	return out, nil
 }
 
-func isResumableRun(spec ingestion.RunSpec, plan ingestion.IngestionPlan) bool {
+func isResumableRun(plan ingestion.IngestionPlan) bool {
 	return plan.Type == ingestion.IngestionSnapshotUpsert
 }
 

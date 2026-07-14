@@ -9,7 +9,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // ErrUnknownProvider is returned by Resolve when no factory is registered.

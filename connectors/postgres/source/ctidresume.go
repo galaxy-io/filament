@@ -25,8 +25,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
 )
 
 // ctid checkpoint Meta keys (run-start stamps).

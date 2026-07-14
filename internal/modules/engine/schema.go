@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // ensureSchemas drives a Schematized sink's DDL from a SchemaProvider source for

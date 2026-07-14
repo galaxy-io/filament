@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -132,14 +132,14 @@ func (s *Source) sampleBoundaries(ctx context.Context, qualified, col string, k 
 		positions = append(positions, strconv.FormatInt(n*int64(i)/int64(k), 10))
 	}
 	c := quoteIdent(col)
-	q := fmt.Sprintf(
+	q := fmt.Sprintf( //nolint:gosec // identifiers backtick-quoted via quoteIdent; positions are formatted int64s
 		"SELECT CAST(v AS CHAR) FROM (SELECT %s AS v, ROW_NUMBER() OVER (ORDER BY %s) AS rn FROM %s) d WHERE d.rn IN (%s) ORDER BY d.rn",
 		c, c, qualified, strings.Join(positions, ","))
 	rows, err := s.db.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var bounds []string
 	for rows.Next() {
 		var v sql.NullString
@@ -278,7 +278,7 @@ func (s *Source) extractKeysetShard(ctx context.Context, sink ingestion.RecordSi
 // and key tuple. The result set is closed before returning so the connection
 // is free before records are pushed.
 func (s *Source) readKeysetPage(rows *sql.Rows, sh keyShard, keyCols int) ([]ingestion.Record, error) {
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	out := make([]ingestion.Record, 0, s.pageSize)
 	// Scan destinations are hoisted and reused: database/sql clones the driver's
@@ -465,7 +465,7 @@ func (s *Source) withSnapshotTx(ctx context.Context, job func(context.Context, q
 	if err != nil {
 		return fmt.Errorf("acquire shard conn: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if _, err := conn.ExecContext(ctx, "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"); err != nil {
 		return fmt.Errorf("set isolation: %w", err)
 	}
@@ -480,7 +480,7 @@ func (s *Source) withSnapshotTx(ctx context.Context, job func(context.Context, q
 // the table is empty.
 func (s *Source) intMinMax(ctx context.Context, qualified, col string) (int64, int64, bool, error) {
 	c := quoteIdent(col)
-	q := fmt.Sprintf("SELECT MIN(%s), MAX(%s) FROM %s", c, c, qualified)
+	q := fmt.Sprintf("SELECT MIN(%s), MAX(%s) FROM %s", c, c, qualified) //nolint:gosec // identifiers backtick-quoted via quoteIdent
 	var lo, hi sql.NullInt64
 	if err := s.db.QueryRowContext(ctx, q).Scan(&lo, &hi); err != nil {
 		return 0, 0, false, err

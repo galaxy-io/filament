@@ -22,8 +22,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
 )
 
 // maxKeysetShards caps PK-range fan-out per table, mirroring the ctid reader's cap.
@@ -72,7 +72,7 @@ func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[st
 		var err2 error
 		switch s.resolveMode(ctx, table) {
 		case ModeBitmap:
-			ks, err2 = s.planBitmap(ctx, table, pks)
+			ks = s.planBitmap(ctx, table, pks)
 		case ModeCtidXmin:
 			ks, err2 = s.planCtid(ctx, table, pks)
 		default:

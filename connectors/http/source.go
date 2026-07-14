@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 
+	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
-	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament"
 )
 
 const providerName = "httpapi"
@@ -30,7 +30,7 @@ type selectorToken struct {
 
 // Source adapts the manifest-driven HTTP connector to ingestion's source API.
 type Source struct {
-	connector        Connector
+	connector        *Connector
 	name             string
 	displayName      string
 	config           ingestion.ConfigSchema
@@ -47,14 +47,17 @@ var (
 	_ ingestion.SchemaProvider  = (*Source)(nil)
 )
 
+// New returns the generic manifest-path-configured HTTP source.
 func New() *Source {
 	return &Source{name: providerName, displayName: "HTTP API", config: genericConfig}
 }
 
+// NewManifest returns a Source bound to embedded manifest bytes and a config schema.
 func NewManifest(name, displayName string, manifestData []byte, config ingestion.ConfigSchema) *Source {
 	return &Source{name: name, displayName: displayName, manifestData: manifestData, config: config}
 }
 
+// Spec reports the source's capabilities and configuration surface.
 func (s *Source) Spec() ingestion.ConnectorSpec {
 	return ingestion.ConnectorSpec{
 		Name:        s.name,
@@ -71,6 +74,7 @@ func (s *Source) Spec() ingestion.ConnectorSpec {
 	}
 }
 
+// Validate checks that all required config fields are present and non-empty.
 func (s *Source) Validate(cfg ingestion.Config) error {
 	for _, field := range s.config.Fields {
 		if field.Required && !cfg.Has(field.Name) {
@@ -86,11 +90,12 @@ func (s *Source) Validate(cfg ingestion.Config) error {
 	return nil
 }
 
+// Configure validates cfg and builds the underlying connector.
 func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	c := Connector{}
+	c := &Connector{}
 	if len(s.manifestData) > 0 {
 		c.SetManifestData(s.manifestData)
 	} else {
@@ -107,8 +112,10 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 	return nil
 }
 
+// Discover enumerates selectable resources, falling back to the manifest's
+// static resource list when the manifest declares no discovery spec.
 func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
-	if s.connector.manifest == nil {
+	if s.connector == nil || s.connector.manifest == nil {
 		return ingestion.DiscoverResult{}, fmt.Errorf("httpapi source: discover before configure")
 	}
 	res, err := s.connector.Discover(ctx, pipeline.DiscoverOptions{Logger: slog.Default()})
@@ -146,10 +153,13 @@ func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingest
 	return ingestion.DiscoverResult{Resources: out}, nil
 }
 
+// Extract runs a full extraction into sink.
 func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
 	return s.extract(ctx, sink, opts, nil, nil)
 }
 
+// ExtractFrom resumes extraction from per-resource keyset checkpoints,
+// decoding them into resume cursors and watermarks.
 func (s *Source) ExtractFrom(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts, prev map[string]ingestion.Checkpoint) error {
 	resumeCursors := make(map[string]string, len(prev))
 	resumeWatermarks := make(map[string]map[string]string, len(prev))
@@ -173,15 +183,18 @@ func (s *Source) ExtractFrom(ctx context.Context, sink ingestion.RecordSink, opt
 	return s.extract(ctx, sink, opts, resumeCursors, resumeWatermarks)
 }
 
+// PlanResources resolves requested resources and selectors to manifest resource names.
 func (s *Source) PlanResources(_ context.Context, resources, selectors []string) ([]string, error) {
-	if s.connector.manifest == nil {
+	if s.connector == nil || s.connector.manifest == nil {
 		return nil, fmt.Errorf("httpapi source: plan resources before configure")
 	}
 	return s.planResources(resources, selectors)
 }
 
+// PlanResume builds per-resource keyset checkpoints seeded from prev,
+// reshaping columns to the current cursor + watermark layout.
 func (s *Source) PlanResume(_ context.Context, resources []string, prev map[string]ingestion.Checkpoint) (map[string]ingestion.Checkpoint, error) {
-	if s.connector.manifest == nil {
+	if s.connector == nil || s.connector.manifest == nil {
 		return nil, fmt.Errorf("httpapi source: plan resume before configure")
 	}
 	resources, err := s.planResources(resources, nil)
@@ -213,8 +226,9 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 	return plan, nil
 }
 
+// Schema returns the declared record schema for a resource.
 func (s *Source) Schema(_ context.Context, resource string) (ingestion.RecordSchema, error) {
-	if s.connector.manifest == nil {
+	if s.connector == nil || s.connector.manifest == nil {
 		return ingestion.RecordSchema{}, fmt.Errorf("httpapi source: schema before configure")
 	}
 	base := s.baseResourceName(resource)
@@ -228,7 +242,7 @@ func (s *Source) Schema(_ context.Context, resource string) (ingestion.RecordSch
 }
 
 func (s *Source) extract(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts, resumeCursors map[string]string, resumeWatermarks map[string]map[string]string) error {
-	if s.connector.manifest == nil {
+	if s.connector == nil || s.connector.manifest == nil {
 		return fmt.Errorf("httpapi source: extract before configure")
 	}
 
@@ -416,7 +430,11 @@ func (s *Source) watermarkKeys(resource string) []string {
 	return nil
 }
 
+// Teardown releases the underlying connector's resources.
 func (s *Source) Teardown(ctx context.Context) error {
+	if s.connector == nil {
+		return nil
+	}
 	return s.connector.Teardown(ctx)
 }
 

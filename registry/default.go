@@ -1,6 +1,6 @@
 package registry
 
-import "github.com/galaxy-io/filament"
+import ingestion "github.com/galaxy-io/filament"
 
 // DefaultSources and DefaultSinks are the process-wide registries that
 // connectors populate from init(). A connector module does:

@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"google.golang.org/protobuf/proto"
 )
 
+// CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -30,6 +32,7 @@ func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: pipeline}), nil
 }
 
+// UpdatePipeline replaces the stored pipeline, bumping its version.
 func (a *Server) UpdatePipeline(_ context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
 	pipeline := req.Msg.GetPipeline()
 	if pipeline == nil || pipeline.GetId() == "" {
@@ -47,6 +50,7 @@ func (a *Server) UpdatePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.UpdatePipelineResponse{Pipeline: proto.Clone(next).(*ingestionv1.Pipeline)}), nil
 }
 
+// GetPipeline returns the pipeline by id.
 func (a *Server) GetPipeline(_ context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -57,6 +61,7 @@ func (a *Server) GetPipeline(_ context.Context, req *connect.Request[ingestionv1
 	return connect.NewResponse(&ingestionv1.GetPipelineResponse{Pipeline: proto.Clone(pipeline).(*ingestionv1.Pipeline)}), nil
 }
 
+// ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(_ context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -80,6 +85,7 @@ func (a *Server) ListPipelines(_ context.Context, req *connect.Request[ingestion
 	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines}), nil
 }
 
+// DeletePipeline removes the pipeline by id.
 func (a *Server) DeletePipeline(_ context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -87,6 +93,8 @@ func (a *Server) DeletePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }
 
+// RunPipeline groups the pipeline's edges into per-route runs and submits each
+// to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
 	a.mu.RLock()
 	stored := a.pipelines[req.Msg.GetPipelineId()]

@@ -5,10 +5,10 @@
 package postgres
 
 import (
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/registry"
-	source "github.com/galaxy-io/filament/connectors/postgres/source"
+	ingestion "github.com/galaxy-io/filament"
 	sink "github.com/galaxy-io/filament/connectors/postgres/sink"
+	source "github.com/galaxy-io/filament/connectors/postgres/source"
+	"github.com/galaxy-io/filament/registry"
 )
 
 func init() {

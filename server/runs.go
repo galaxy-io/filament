@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/galaxy-io/filament"
+
+	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 )
 
+// ListRuns returns runs matching the request's tenant, source, and limit.
 func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.ListRunsRequest]) (*connect.Response[ingestionv1.ListRunsResponse], error) {
 	states, err := a.store.ListRuns(ctx, ingestion.RunFilter{
 		Tenant: ingestion.TenantID(req.Msg.GetTenant()),
@@ -28,6 +30,7 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 	return connect.NewResponse(&ingestionv1.ListRunsResponse{Runs: runs}), nil
 }
 
+// GetRun returns the run's state and per-resource progress.
 func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.GetRunRequest]) (*connect.Response[ingestionv1.GetRunResponse], error) {
 	state, err := a.store.LoadRun(ctx, ingestion.RunID(req.Msg.GetRunId()))
 	if err != nil {
@@ -47,6 +50,7 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: runInfoToProto(state), Resources: resources}}), nil
 }
 
+// SignalRun rejects the request; run signals are not configured in this binary.
 func (a *Server) SignalRun(_ context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
 	if req.Msg.GetRunId() == "" {
 		return nil, fmt.Errorf("run_id is required")
@@ -54,6 +58,8 @@ func (a *Server) SignalRun(_ context.Context, req *connect.Request[ingestionv1.S
 	return nil, fmt.Errorf("run signals are not configured in this ingestion binary")
 }
 
+// TailRun streams run progress facts to the client, optionally replaying
+// events synthesized from the current snapshot before live facts.
 func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.TailRunRequest], stream *connect.ServerStream[ingestionv1.TailRunResponse]) error {
 	if a.bus == nil {
 		return fmt.Errorf("event bus is not configured")

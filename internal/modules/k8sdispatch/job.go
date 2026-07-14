@@ -3,10 +3,11 @@ package k8sdispatch
 import (
 	"os"
 
-	ingestion "github.com/galaxy-io/filament"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	ingestion "github.com/galaxy-io/filament"
 )
 
 func (m *Module) jobForSpec(spec ingestion.RunSpec) *batchv1.Job {

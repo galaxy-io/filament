@@ -37,13 +37,13 @@
 //     in order — fast sequential I/O, no index needed. The hard part is safety across a resume
 //     boundary, handled by three guards:
 //     (1) Rewrite guard: the filenode at run-start is stamped; if VACUUM FULL / CLUSTER /
-//         TRUNCATE rewrites the heap between runs, the cursor is stale → re-read from scratch.
+//     TRUNCATE rewrites the heap between runs, the cursor is stale → re-read from scratch.
 //     (2) Horizon-compare reconciliation: the run-start xmin horizon H1 is stamped; before
-//         the run closes, completed block ranges are re-scanned for rows with age(xmin) <= age(H1)
-//         (i.e. rows that were written or moved after run-start). The idempotent sink absorbs
-//         any over-delivery.
+//     the run closes, completed block ranges are re-scanned for rows with age(xmin) <= age(H1)
+//     (i.e. rows that were written or moved after run-start). The idempotent sink absorbs
+//     any over-delivery.
 //     (3) Freeze guard: if relfrozenxid advanced past H1 (vacuum froze xids), the age()
-//         comparison is unreliable → unfiltered rescan of completed ranges.
+//     comparison is unreliable → unfiltered rescan of completed ranges.
 //
 //   - ModeCtidAppendOnly — like ModeCtidXmin but without the xmin apparatus; rows never
 //     move or update, so the horizon-compare pass is skipped and resume just continues

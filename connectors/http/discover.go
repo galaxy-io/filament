@@ -85,10 +85,7 @@ func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) (
 			return nil, fmt.Errorf("discovery decode %s: %w", disc.From, err)
 		}
 		for _, rec := range records {
-			r, ok, err := projectResource(rec, disc.Map)
-			if err != nil {
-				return nil, fmt.Errorf("discovery project %s: %w", disc.From, err)
-			}
+			r, ok := projectResource(rec, disc.Map)
 			if !ok {
 				continue
 			}
@@ -115,10 +112,10 @@ func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) (
 // pipeline.Resource via the manifest's ResourceMap. Records missing the id
 // path are skipped (returned ok=false) rather than failing the whole pass —
 // an upstream API quirk should not abort discovery.
-func projectResource(rec map[string]any, m manifest.ResourceMap) (pipeline.Resource, bool, error) {
+func projectResource(rec map[string]any, m manifest.ResourceMap) (pipeline.Resource, bool) {
 	id, _, err := paths.AsString(rec, m.IDPath)
 	if err != nil || id == "" {
-		return pipeline.Resource{}, false, nil
+		return pipeline.Resource{}, false
 	}
 	name := resolveName(rec, m)
 
@@ -157,7 +154,7 @@ func projectResource(rec map[string]any, m manifest.ResourceMap) (pipeline.Resou
 		Group:          group,
 		DefaultEnabled: defaultEnabled,
 		Metadata:       meta,
-	}, true, nil
+	}, true
 }
 
 // resolveName walks NamePaths in order, then NamePath, returning the first

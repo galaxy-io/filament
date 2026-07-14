@@ -175,7 +175,7 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 	if err != nil {
 		return "", fmt.Errorf("%w: token request: %v", errs.ErrAuthRefresh, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode >= 400 {

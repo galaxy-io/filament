@@ -20,12 +20,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/go-sql-driver/mysql"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 const (
@@ -84,6 +85,7 @@ var (
 	_ ingestion.ResumePlanner   = (*Source)(nil)
 )
 
+// Spec describes the source's config fields, modes, and write policies.
 func (s *Source) Spec() ingestion.ConnectorSpec {
 	return ingestion.ConnectorSpec{
 		Name:        "mysql",
@@ -126,6 +128,7 @@ func (s *Source) Validate(cfg ingestion.Config) error {
 	return nil
 }
 
+// TestConnection opens a short-lived pool and pings the database.
 func (s *Source) TestConnection(ctx context.Context, cfg ingestion.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
@@ -134,7 +137,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg ingestion.Config) error
 	if err != nil {
 		return fmt.Errorf("mysql source: open: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if err := db.PingContext(ctx); err != nil {
 		return fmt.Errorf("mysql source: ping: %w", err)
 	}
@@ -168,7 +171,7 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 	}
 	s.serverID = defaultServerID
 	if cfg.Has("server_id") {
-		if n := cfg.Int("server_id"); n > 0 {
+		if n := cfg.Int("server_id"); n > 0 && n <= math.MaxUint32 {
 			s.serverID = uint32(n)
 		}
 	}
@@ -186,13 +189,14 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 		}
 	}
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return fmt.Errorf("mysql source: ping: %w", err)
 	}
 	s.db = db
 	return nil
 }
 
+// Discover lists tables in the configured database with their primary keys and row estimates.
 func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
 	if s.db == nil {
 		return ingestion.DiscoverResult{}, fmt.Errorf("mysql source: discover before configure")
@@ -214,7 +218,7 @@ ORDER BY t.TABLE_NAME`
 	if err != nil {
 		return ingestion.DiscoverResult{}, fmt.Errorf("mysql source: discover tables: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var resources []ingestion.Resource
 	for rows.Next() {
@@ -299,7 +303,7 @@ func (s *Source) extractKeyless(ctx context.Context, sink ingestion.RecordSink, 
 	if err != nil {
 		return fmt.Errorf("scan %q: %w", table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	emitted := 0
 	var (
 		id   string
@@ -350,7 +354,7 @@ ORDER BY c.ORDINAL_POSITION`
 	if err != nil {
 		return nil, nil, fmt.Errorf("columns %q: %w", table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var cols []column
 	for rows.Next() {
 		var c column
@@ -521,7 +525,7 @@ func mysqlTypeToLogical(dataType, fullType string) ingestion.LogicalType {
 // Teardown closes the pool.
 func (s *Source) Teardown(context.Context) error {
 	if s.db != nil {
-		s.db.Close()
+		_ = s.db.Close()
 		s.db = nil
 	}
 	return nil

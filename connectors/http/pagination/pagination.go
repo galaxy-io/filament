@@ -70,7 +70,7 @@ var (
 		"cursor":      func(s manifest.PaginationSpec) (Paginator, error) { return newCursor(s) },
 		"offset":      func(s manifest.PaginationSpec) (Paginator, error) { return newOffset(s) },
 		"page":        func(s manifest.PaginationSpec) (Paginator, error) { return newPage(s) },
-		"link_header": func(s manifest.PaginationSpec) (Paginator, error) { return newLinkHeader(s) },
+		"link_header": func(s manifest.PaginationSpec) (Paginator, error) { return newLinkHeader(s), nil },
 		"next_url":    func(s manifest.PaginationSpec) (Paginator, error) { return newNextURL(s) },
 	}
 )

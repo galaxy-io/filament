@@ -26,6 +26,7 @@ type Extractor struct {
 	spec manifest.ResponseSpec
 }
 
+// New returns an Extractor for the given response spec.
 func New(spec manifest.ResponseSpec) *Extractor {
 	return &Extractor{spec: spec}
 }
