@@ -24,20 +24,23 @@ type Server struct {
 	orch    runSubmitter
 	bus     eventbus.Bus
 
-	mu        sync.RWMutex
-	pipelines map[string]*ingestionv1.Pipeline
-	nextID    int64
+	mu          sync.RWMutex
+	pipelines   map[string]*ingestionv1.Pipeline
+	connections map[string]*ingestionv1.Connection
+	nextID      int64
+	nextConnID  int64
 }
 
 // New returns a Server wired to the given providers.
 func New(sources ingestion.SourceRegistry, sinks ingestion.SinkRegistry, store ingestion.DataStore, orch runSubmitter, bus eventbus.Bus) *Server {
 	return &Server{
-		sources:   sources,
-		sinks:     sinks,
-		store:     store,
-		orch:      orch,
-		bus:       bus,
-		pipelines: map[string]*ingestionv1.Pipeline{},
+		sources:     sources,
+		sinks:       sinks,
+		store:       store,
+		orch:        orch,
+		bus:         bus,
+		pipelines:   map[string]*ingestionv1.Pipeline{},
+		connections: map[string]*ingestionv1.Connection{},
 	}
 }
 

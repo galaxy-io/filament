@@ -84,7 +84,7 @@ type ConfigField struct {
 	Default  any
 	Enum     []string
 	Help     string
-	Scope FieldScope
+	Scope    FieldScope
 }
 
 // FieldType is a ConfigField's value kind.
@@ -101,10 +101,15 @@ const (
 	FieldObject
 )
 
+// FieldScope is the scope for a config field, aligning with either a connection config or a pipeline config.
+// Connection == Only used to establish a connection to connector, reusable for all runs
+// Pipeline == Varies based on pipeline
+// For example: postgres has a dsn to connect (connection scope) and a table the data should land in (pipeline scope)
 type FieldScope int
 
+// The field scopes.
 const (
-	ScopeUnspecified FieldScope = iota 
+	ScopeUnspecified FieldScope = iota
 	ScopeConnection
 	ScopePipeline
 )
