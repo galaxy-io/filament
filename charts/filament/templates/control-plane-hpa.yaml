@@ -1,23 +1,23 @@
-{{- if .Values.control.autoscaling.enabled }}
+{{- if .Values.controlPlane.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "filament.control.fullname" . }}
+  name: {{ include "filament.controlPlane.fullname" . }}
   namespace: {{ .Release.Namespace | quote }}
 spec:
-  minReplicas: {{ .Values.control.autoscaling.minReplicas }}
-  maxReplicas: {{ .Values.control.autoscaling.maxReplicas }}
+  minReplicas: {{ .Values.controlPlane.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.controlPlane.autoscaling.maxReplicas }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "filament.control.fullname" . }}
+    name: {{ include "filament.controlPlane.fullname" . }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.control.autoscaling.targetCpu }}
+          averageUtilization: {{ .Values.controlPlane.autoscaling.targetCpu }}
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 300
