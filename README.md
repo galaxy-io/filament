@@ -61,6 +61,7 @@ same recipes, so a green run locally is a green run in CI:
 ```sh
 just binaries         # build linux binaries into bin/
 just images           # build docker images
+just tidy             # tidy go.mod/go.sum in every module
 just format           # apply gofumpt + goimports to every module (settings in .golangci.yaml)
 just format-check     # check formatting without writing
 just lint             # run golangci-lint with auto-fixes across every module
