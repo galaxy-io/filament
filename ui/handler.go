@@ -5,11 +5,12 @@
 // works without Node or a UI build. To embed the real UI into a binary:
 //
 //	cd ui && pnpm install && pnpm build   # produces ui/dist
-//	go build -tags embedui ./examples/ingestiond
+//	go build -C cmd/server -tags embedui .
 //
-// Deployable binaries opt in by mounting the handler, e.g.:
+// `just binaries` does both. Deployable binaries opt in by mounting the
+// handler, e.g.:
 //
-//	app.Run(ctx, app.WithUI(ui.Handler()))
+//	mux.Handle("/", ui.Handler())
 package ui
 
 import (
