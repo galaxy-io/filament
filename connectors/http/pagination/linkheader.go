@@ -16,12 +16,12 @@ type linkHeaderPaginator struct {
 	rel string
 }
 
-func newLinkHeader(spec manifest.PaginationSpec) (*linkHeaderPaginator, error) {
+func newLinkHeader(spec manifest.PaginationSpec) *linkHeaderPaginator {
 	rel := spec.Rel
 	if rel == "" {
 		rel = "next"
 	}
-	return &linkHeaderPaginator{rel: rel}, nil
+	return &linkHeaderPaginator{rel: rel}
 }
 
 func (p *linkHeaderPaginator) Initial() State { return State{} }

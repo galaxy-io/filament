@@ -23,6 +23,7 @@ type ConnectionStore struct {
 	q *sqlcgen.Queries
 }
 
+// NewConnectionStore returns a ConnectionStore backed by the given pool.
 func NewConnectionStore(pool *pgxpool.Pool) *ConnectionStore {
 	return &ConnectionStore{q: sqlcgen.New(pool)}
 }
@@ -83,6 +84,8 @@ func (s *ConnectionStore) Update(ctx context.Context, c *ingestionv1.Connection)
 	return out, nil
 }
 
+// Get returns the connection with the given id, wrapping ingestion.ErrNotFound
+// when no row exists.
 func (s *ConnectionStore) Get(ctx context.Context, id string) (*ingestionv1.Connection, error) {
 	row, err := s.q.GetConnection(ctx, id)
 	if err != nil {
@@ -94,6 +97,8 @@ func (s *ConnectionStore) Get(ctx context.Context, id string) (*ingestionv1.Conn
 	return connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version)
 }
 
+// List returns a tenant's connections, filtered by kind unless kind is
+// CONNECTOR_KIND_UNSPECIFIED.
 func (s *ConnectionStore) List(ctx context.Context, tenant string, kind ingestionv1.ConnectorKind) ([]*ingestionv1.Connection, error) {
 	kindFilter := sqlcgen.NullConnectionKind{}
 	if kind != ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED {
@@ -114,6 +119,7 @@ func (s *ConnectionStore) List(ctx context.Context, tenant string, kind ingestio
 	return out, nil
 }
 
+// Delete removes the connection with the given id.
 func (s *ConnectionStore) Delete(ctx context.Context, id string) error {
 	if err := s.q.DeleteConnection(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete connection: %w", err)

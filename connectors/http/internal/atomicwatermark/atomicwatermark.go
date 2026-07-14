@@ -101,13 +101,17 @@ func (w *Watermark) ComparatorName() string { return w.cmp.Name() }
 // zero-padded ids; incorrect for raw integer strings ("9" > "100" lex).
 type Lex struct{}
 
+// Less reports whether a orders before b bytewise.
 func (Lex) Less(a, b string) (bool, error) { return a < b, nil }
-func (Lex) Name() string                   { return "lex" }
+
+// Name returns "lex".
+func (Lex) Name() string { return "lex" }
 
 // Numeric parses both sides as float64 and compares numerically. Returns
 // ErrPathType-wrapped errors on parse failure (no silent lex fallback).
 type Numeric struct{}
 
+// Less reports whether a is numerically less than b.
 func (Numeric) Less(a, b string) (bool, error) {
 	af, err := strconv.ParseFloat(a, 64)
 	if err != nil {
@@ -120,12 +124,14 @@ func (Numeric) Less(a, b string) (bool, error) {
 	return af < bf, nil
 }
 
+// Name returns "numeric".
 func (Numeric) Name() string { return "numeric" }
 
 // Time parses both sides as RFC3339 and compares chronologically. Errors on
 // parse failure (no silent lex fallback).
 type Time struct{}
 
+// Less reports whether a is chronologically before b.
 func (Time) Less(a, b string) (bool, error) {
 	at, err := time.Parse(time.RFC3339, a)
 	if err != nil {
@@ -138,6 +144,7 @@ func (Time) Less(a, b string) (bool, error) {
 	return at.Before(bt), nil
 }
 
+// Name returns "time".
 func (Time) Name() string { return "time" }
 
 // ForName returns the named comparator. Returns an error for unknown names so

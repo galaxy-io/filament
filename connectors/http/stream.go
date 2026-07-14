@@ -18,6 +18,8 @@ import (
 // streamResource opens a single long-lived HTTP connection and emits records
 // as they arrive. Format is selected via res.Stream (defaults to NDJSON for
 // back-compat with mode: stream resources that omit a format).
+//
+//nolint:funlen // connection lifecycle and read loop belong together
 func (c *Connector) streamResource(
 	ctx context.Context,
 	res manifest.Resource,
@@ -44,7 +46,7 @@ func (c *Connector) streamResource(
 	if err != nil {
 		return 0, fmt.Errorf("stream request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))

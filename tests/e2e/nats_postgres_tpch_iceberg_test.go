@@ -11,17 +11,18 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	ingestion "github.com/galaxy-io/filament"
+	icebergsink "github.com/galaxy-io/filament/connectors/iceberg"
+	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	"github.com/galaxy-io/filament/datastore/memory"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
-	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/internal/modules/engine"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
-	"github.com/galaxy-io/filament/datastore/memory"
-	icebergsink "github.com/galaxy-io/filament/connectors/iceberg"
-	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
-	"github.com/galaxy-io/filament"
 	gxtc "github.com/galaxy-io/filament/tests/testcontainers"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed/tpch"
@@ -56,7 +57,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	t.Setenv("AWS_REGION", "us-east-1")
 	t.Setenv("AWS_S3_ENDPOINT", "http://"+minioEndpoint)
 
-	bus, err := natsbus.New(nats.URL, ingestion.JSONCodec,
+	bus, err := natsbus.New(nats.URL, events.Codec,
 		natsbus.WithStream("INGESTION_E2E"),
 		natsbus.WithSubjects("ingestion.v1.>"),
 	)

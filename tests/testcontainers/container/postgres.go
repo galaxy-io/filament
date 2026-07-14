@@ -29,7 +29,7 @@ var ryukOnce sync.Once
 // Ryuk reaper, which would terminate them when the CLI process exits. CLI
 // containers are long-lived — only gx container rm should stop them.
 func disableRyuk() {
-	ryukOnce.Do(func() { os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true") })
+	ryukOnce.Do(func() { _ = os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true") })
 }
 
 // ensureNetwork creates the named Docker network if it does not already exist.

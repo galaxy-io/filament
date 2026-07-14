@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -47,6 +47,7 @@ var (
 	_ ingestion.Schematized = (*Sink)(nil)
 )
 
+// Spec describes the sink's config fields and write capabilities.
 func (t *Sink) Spec() ingestion.SinkSpec {
 	return ingestion.SinkSpec{
 		Name:        "mysql",
@@ -72,6 +73,7 @@ func (t *Sink) Spec() ingestion.SinkSpec {
 	}
 }
 
+// Name identifies this sink implementation.
 func (t *Sink) Name() string { return "mysql" }
 
 // Open reads dsn/database and opens a pool sized for the run's write parallelism. It
@@ -108,7 +110,7 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 		return fmt.Errorf("mysql sink: open: %w", err)
 	}
 	_, err = bdb.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS "+quoteIdent(t.database))
-	bdb.Close()
+	_ = bdb.Close()
 	if err != nil {
 		return fmt.Errorf("mysql sink: create database %q: %w", t.database, err)
 	}
@@ -125,6 +127,8 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 	return nil
 }
 
+// Apply validates the batch against the run's write policy, then delegates to
+// Write (or writeMerge for CDC).
 func (t *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
 	case ingestion.WriteReplace, ingestion.WriteAppend:
@@ -176,7 +180,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema ingesti
 		jtCols[i], selects[i] = jsonTableColumn(f, id)
 	}
 
-	ddl := "CREATE TABLE IF NOT EXISTS " + qualified + " (\n\t" + strings.Join(cols, ",\n\t")
+	ddl := "CREATE TABLE IF NOT EXISTS " + qualified + " (\n\t" + strings.Join(cols, ",\n\t") //nolint:gosec // identifiers backtick-quoted via quoteIdent; no user values
 	if len(schema.PrimaryKey) > 0 {
 		pk := make([]string, len(schema.PrimaryKey))
 		for i, c := range schema.PrimaryKey {
@@ -266,7 +270,7 @@ func (t *Sink) columnSet(ctx context.Context, resource string) (map[string]bool,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := map[string]bool{}
 	for rows.Next() {
 		var name string
@@ -282,7 +286,7 @@ func (t *Sink) columnSet(ctx context.Context, resource string) (map[string]bool,
 // projection. Most types extract directly at their column type; JSON stays JSON (so
 // nested structure survives), and bytes come back through FROM_BASE64 (the source
 // encodes binary columns with TO_BASE64 — MySQL JSON has no binary representation).
-func jsonTableColumn(f ingestion.SchemaField, id string) (jt string, sel string) {
+func jsonTableColumn(f ingestion.SchemaField, id string) (jt, sel string) {
 	path := "PATH " + quotePathLiteral(f.Name)
 	switch f.Logical {
 	case ingestion.LogicalJSON:
@@ -561,7 +565,7 @@ func (t *Sink) Abort(ctx context.Context) error {
 
 func (t *Sink) release() {
 	if t.db != nil {
-		t.db.Close()
+		_ = t.db.Close()
 		t.db = nil
 	}
 }

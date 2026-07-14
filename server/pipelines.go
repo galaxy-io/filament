@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
 	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"google.golang.org/protobuf/proto"
 )
 
+// CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -30,6 +32,7 @@ func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: pipeline}), nil
 }
 
+// UpdatePipeline replaces the stored pipeline, bumping its version.
 func (a *Server) UpdatePipeline(_ context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
 	pipeline := req.Msg.GetPipeline()
 	if pipeline == nil || pipeline.GetId() == "" {
@@ -47,6 +50,7 @@ func (a *Server) UpdatePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.UpdatePipelineResponse{Pipeline: proto.Clone(next).(*ingestionv1.Pipeline)}), nil
 }
 
+// GetPipeline returns the pipeline by id.
 func (a *Server) GetPipeline(_ context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -57,6 +61,7 @@ func (a *Server) GetPipeline(_ context.Context, req *connect.Request[ingestionv1
 	return connect.NewResponse(&ingestionv1.GetPipelineResponse{Pipeline: proto.Clone(pipeline).(*ingestionv1.Pipeline)}), nil
 }
 
+// ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(_ context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -80,6 +85,7 @@ func (a *Server) ListPipelines(_ context.Context, req *connect.Request[ingestion
 	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines}), nil
 }
 
+// DeletePipeline removes the pipeline by id.
 func (a *Server) DeletePipeline(_ context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -87,9 +93,15 @@ func (a *Server) DeletePipeline(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }
 
+// RunPipeline groups the pipeline's edges into per-route runs and submits each
+// to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
 	a.mu.RLock()
 	stored := a.pipelines[req.Msg.GetPipelineId()]
+	connections := make(map[string]*ingestionv1.Connection, len(a.connections))
+	for id, conn := range a.connections {
+		connections[id] = proto.Clone(conn).(*ingestionv1.Connection)
+	}
 	a.mu.RUnlock()
 	if stored == nil {
 		return nil, fmt.Errorf("pipeline %q not found", req.Msg.GetPipelineId())
@@ -105,19 +117,72 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	if token == "" {
 		token = fmt.Sprint(time.Now().UnixNano())
 	}
-	type routeGroup struct {
-		source        *ingestionv1.PipelineNode
-		sink          *ingestionv1.PipelineNode
-		from          string
-		to            string
-		ingestionType ingestion.IngestionType
-		all           bool
-		resources     map[string]bool
-		selectors     map[string]bool
+	groups, err := groupEdges(pipeline.GetEdges(), nodes)
+	if err != nil {
+		return nil, err
 	}
-	groups := map[string]*routeGroup{}
-	var groupOrder []string
-	for _, edge := range pipeline.GetEdges() {
+	for _, group := range groups {
+		key := group.key
+		var resources []string
+		var selectors []string
+		if !group.all {
+			for resource := range group.resources {
+				resources = append(resources, resource)
+			}
+			slices.Sort(resources)
+			for selector := range group.selectors {
+				selectors = append(selectors, selector)
+			}
+			slices.Sort(selectors)
+		}
+		sourceRef, err := a.resolveNodeRef(group.source, connections)
+		if err != nil {
+			return nil, err
+		}
+		sinkRef, err := a.resolveNodeRef(group.sink, connections)
+		if err != nil {
+			return nil, err
+		}
+		run, err := a.orch.Submit(ctx, ingestion.RunRequest{
+			Tenant:         ingestion.TenantID(defaultTenant(pipeline.GetTenant())),
+			IdempotencyKey: fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+			Source:         sourceRef,
+			Sink:           sinkRef,
+			DataStore:      ingestion.Ref{Provider: "default"},
+			Resources:      resources,
+			Selectors:      selectors,
+			IngestionType:  group.ingestionType,
+		})
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", key, sourceRef.Provider, sinkRef.Provider, resources, run)
+		bindings = append(bindings, &ingestionv1.RunBinding{Edge: key, RunId: string(run)})
+	}
+	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", pipeline.GetId(), len(bindings))
+	return connect.NewResponse(&ingestionv1.RunPipelineResponse{Runs: bindings}), nil
+}
+
+// routeGroup is the set of edges that share a source node, sink node, and
+// ingestion type, and so collapse into a single run.
+type routeGroup struct {
+	key           string
+	source        *ingestionv1.PipelineNode
+	sink          *ingestionv1.PipelineNode
+	from          string
+	to            string
+	ingestionType ingestion.IngestionType
+	all           bool
+	resources     map[string]bool
+	selectors     map[string]bool
+}
+
+// groupEdges collapses edges into per-route groups, preserving first-seen order.
+// An edge with no resource marks its group as "all resources".
+func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
+	byKey := map[string]*routeGroup{}
+	var ordered []*routeGroup
+	for _, edge := range edges {
 		source := nodes[edge.GetFromNode()]
 		sink := nodes[edge.GetToNode()]
 		if source == nil || sink == nil {
@@ -125,9 +190,10 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 		}
 		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
 		key := fmt.Sprintf("%s||%s||%s", edge.GetFromNode(), edge.GetToNode(), ingestionType)
-		group := groups[key]
+		group := byKey[key]
 		if group == nil {
 			group = &routeGroup{
+				key:           key,
 				source:        source,
 				sink:          sink,
 				from:          edge.GetFromNode(),
@@ -136,8 +202,8 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 			}
-			groups[key] = group
-			groupOrder = append(groupOrder, key)
+			byKey[key] = group
+			ordered = append(ordered, group)
 		}
 		if edge.GetResource() == "" {
 			group.all = true
@@ -151,36 +217,51 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 			group.selectors[resource] = true
 		}
 	}
-	for _, key := range groupOrder {
-		group := groups[key]
-		var resources []string
-		var selectors []string
-		if !group.all {
-			for resource := range group.resources {
-				resources = append(resources, resource)
-			}
-			slices.Sort(resources)
-			for selector := range group.selectors {
-				selectors = append(selectors, selector)
-			}
-			slices.Sort(selectors)
-		}
-		run, err := a.orch.Submit(ctx, ingestion.RunRequest{
-			Tenant:         ingestion.TenantID(defaultTenant(pipeline.GetTenant())),
-			IdempotencyKey: fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:         ingestion.Ref{Provider: group.source.GetProvider(), Config: structMap(group.source.GetConfig()), SecretRefs: group.source.GetSecretRefs()},
-			Sink:           ingestion.Ref{Provider: group.sink.GetProvider(), Config: structMap(group.sink.GetConfig()), SecretRefs: group.sink.GetSecretRefs()},
-			DataStore:      ingestion.Ref{Provider: "default"},
-			Resources:      resources,
-			Selectors:      selectors,
-			IngestionType:  group.ingestionType,
-		})
-		if err != nil {
-			return nil, err
-		}
-		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", key, group.source.GetProvider(), group.sink.GetProvider(), resources, run)
-		bindings = append(bindings, &ingestionv1.RunBinding{Edge: key, RunId: string(run)})
+	return ordered, nil
+}
+
+// resolveNodeRef builds the run-time Ref for a pipeline node from the reusable
+// Connection it references, with the node's config/secret_refs shallow-merged
+// on top as the PIPELINE overlay (node keys win). connection_id is required.
+// It rejects an overlay that tries to set a CONNECTION-scoped field.
+func (a *Server) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]*ingestionv1.Connection) (ingestion.Ref, error) {
+	conn := connections[node.GetConnectionId()]
+	if conn == nil {
+		return ingestion.Ref{}, fmt.Errorf("node %q references missing connection %q", node.GetId(), node.GetConnectionId())
 	}
-	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", pipeline.GetId(), len(bindings))
-	return connect.NewResponse(&ingestionv1.RunPipelineResponse{Runs: bindings}), nil
+	overlay := structMap(node.GetConfig())
+	if schema, err := a.schemaFor(conn.GetKind(), conn.GetConnector()); err == nil {
+		if err := validateOverlayConfig(schema, overlay); err != nil {
+			return ingestion.Ref{}, fmt.Errorf("node %q: %w", node.GetId(), err)
+		}
+	}
+	return ingestion.Ref{
+		Provider:   conn.GetConnector(),
+		Config:     mergeConfig(structMap(conn.GetConfig()), overlay),
+		SecretRefs: mergeStrings(conn.GetSecretRefs(), node.GetSecretRefs()),
+	}, nil
+}
+
+// mergeConfig shallow-merges overlay over base; overlay keys win. base is not
+// mutated.
+func mergeConfig(base, overlay map[string]any) map[string]any {
+	out := make(map[string]any, len(base)+len(overlay))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range overlay {
+		out[k] = v
+	}
+	return out
+}
+
+func mergeStrings(base, overlay map[string]string) map[string]string {
+	out := make(map[string]string, len(base)+len(overlay))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range overlay {
+		out[k] = v
+	}
+	return out
 }

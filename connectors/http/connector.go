@@ -101,6 +101,7 @@ func (c *Connector) SetManifestData(data []byte) { c.manifestData = data }
 // the registry's CredentialExtractor; the httpapi package stays proto-agnostic.
 func (c *Connector) SetCredentials(m map[string]string) { c.creds = m }
 
+// Spec reports the connector's name, tier, and supported modes.
 func (c *Connector) Spec() pipeline.ConnectorSpec {
 	name := "http"
 	if c.manifest != nil {
@@ -113,6 +114,7 @@ func (c *Connector) Spec() pipeline.ConnectorSpec {
 	}
 }
 
+// Validate checks that a manifest path or embedded manifest data is set.
 func (c *Connector) Validate() error {
 	if c.manifestPath == "" && len(c.manifestData) == 0 {
 		return fmt.Errorf("manifest_path is required")
@@ -120,6 +122,7 @@ func (c *Connector) Validate() error {
 	return nil
 }
 
+// Configure loads the manifest and builds the auth, rate limiter, and HTTP clients.
 func (c *Connector) Configure(ctx context.Context) error {
 	if c.manifestPath == "" && len(c.manifestData) == 0 {
 		return fmt.Errorf("manifest_path not set — call SetManifestPath before Configure")
@@ -176,6 +179,7 @@ func (c *Connector) Configure(ctx context.Context) error {
 	return nil
 }
 
+// Teardown closes idle connections on the connector's HTTP clients.
 func (c *Connector) Teardown(_ context.Context) error {
 	if c.client != nil {
 		c.client.CloseIdleConnections()

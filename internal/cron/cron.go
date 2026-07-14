@@ -99,10 +99,10 @@ func (s Schedule) matches(t time.Time) bool {
 }
 
 // parseField compiles one comma-separated field into a bit set.
-func parseField(spec string, min, max int) (uint64, error) {
+func parseField(spec string, minVal, maxVal int) (uint64, error) {
 	var bits uint64
 	for part := range strings.SplitSeq(spec, ",") {
-		b, err := parsePart(part, min, max)
+		b, err := parsePart(part, minVal, maxVal)
 		if err != nil {
 			return 0, err
 		}
@@ -112,7 +112,7 @@ func parseField(spec string, min, max int) (uint64, error) {
 }
 
 // parsePart compiles one term: '*', 'n', 'a-b', or any of those with a '/step'.
-func parsePart(part string, min, max int) (uint64, error) {
+func parsePart(part string, minVal, maxVal int) (uint64, error) {
 	step := 1
 	rng := part
 	if i := strings.Index(part, "/"); i >= 0 {
@@ -127,7 +127,7 @@ func parsePart(part string, min, max int) (uint64, error) {
 	var lo, hi int
 	switch {
 	case rng == "*":
-		lo, hi = min, max
+		lo, hi = minVal, maxVal
 	case strings.ContainsRune(rng, '-'):
 		ab := strings.SplitN(rng, "-", 2)
 		a, err1 := strconv.Atoi(ab[0])
@@ -144,8 +144,8 @@ func parsePart(part string, min, max int) (uint64, error) {
 		lo, hi = n, n
 	}
 
-	if lo < min || hi > max || lo > hi {
-		return 0, fmt.Errorf("value out of range [%d,%d] in %q", min, max, part)
+	if lo < minVal || hi > maxVal || lo > hi {
+		return 0, fmt.Errorf("value out of range [%d,%d] in %q", minVal, maxVal, part)
 	}
 
 	var bits uint64

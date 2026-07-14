@@ -20,10 +20,10 @@ import (
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed/tpch"
 
-	"github.com/galaxy-io/filament/pipeline"
+	ingestion "github.com/galaxy-io/filament"
 	icesink "github.com/galaxy-io/filament/connectors/iceberg"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/pipeline"
 )
 
 // resources is the subset of TPC-H tables this test moves end-to-end. It mixes

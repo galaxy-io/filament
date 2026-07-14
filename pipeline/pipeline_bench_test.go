@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 )
 
 // nullSink is a zero-I/O ingestion.Sink. It recomputes the write-side CRC exactly as a

@@ -26,6 +26,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/memory"
@@ -125,5 +126,6 @@ func Run(ctx context.Context, opts ...Option) error {
 		fmt.Println("ui:", "http://localhost"+addr)
 	}
 	fmt.Println("connectrpc:", "http://localhost"+addr)
-	return http.ListenAndServe(addr, mux)
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	return srv.ListenAndServe()
 }

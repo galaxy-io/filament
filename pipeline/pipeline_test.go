@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/events"
 )
 
 // fakeSink is an in-memory ingestion.Sink. By default it echoes a correct write-side
@@ -64,25 +65,25 @@ func (f *fakeSink) batches() []ingestion.Batch {
 // collector accumulates emitted facts for assertions.
 type collector struct {
 	mu  sync.Mutex
-	evs []ingestion.Event
+	evs []events.Fact
 }
 
-func (c *collector) emit(e ingestion.Event) {
+func (c *collector) emit(f events.Fact) {
 	c.mu.Lock()
-	c.evs = append(c.evs, e)
+	c.evs = append(c.evs, f)
 	c.mu.Unlock()
 }
 
-func (c *collector) events() []ingestion.Event {
+func (c *collector) events() []events.Fact {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return append([]ingestion.Event(nil), c.evs...)
+	return append([]events.Fact(nil), c.evs...)
 }
 
-func (c *collector) count(t ingestion.EventType) int {
+func (c *collector) count(name string) int {
 	n := 0
-	for _, e := range c.events() {
-		if e.Type == t {
+	for _, f := range c.events() {
+		if f.Name == name {
 			n++
 		}
 	}
@@ -152,16 +153,16 @@ func TestPipelineHappyPath(t *testing.T) {
 	if got := len(sink.batches()); got != 2 {
 		t.Fatalf("batches written = %d, want 2", got)
 	}
-	if got := c.count(ingestion.EvBatchBuffered); got != 2 {
+	if got := c.count(events.BatchBuffered.Name()); got != 2 {
 		t.Errorf("buffered facts = %d, want 2", got)
 	}
-	if got := c.count(ingestion.EvBatchWritten); got != 2 {
+	if got := c.count(events.BatchWritten.Name()); got != 2 {
 		t.Errorf("written facts = %d, want 2", got)
 	}
-	if got := c.count(ingestion.EvIntegrityVerified); got != 2 {
+	if got := c.count(events.IntegrityVerified.Name()); got != 2 {
 		t.Errorf("verified facts = %d, want 2", got)
 	}
-	if got := c.count(ingestion.EvChunkDivergence); got != 0 {
+	if got := c.count(events.ChunkDivergence.Name()); got != 0 {
 		t.Errorf("divergence facts = %d, want 0", got)
 	}
 
@@ -219,13 +220,13 @@ func TestPipelineDivergenceIsNonFatal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Wait: divergence should not fail the run, got %v", err)
 	}
-	if got := c.count(ingestion.EvChunkDivergence); got != 1 {
+	if got := c.count(events.ChunkDivergence.Name()); got != 1 {
 		t.Errorf("divergence facts = %d, want 1", got)
 	}
-	if got := c.count(ingestion.EvIntegrityVerified); got != 0 {
+	if got := c.count(events.IntegrityVerified.Name()); got != 0 {
 		t.Errorf("verified facts = %d, want 0 on divergence", got)
 	}
-	if got := c.count(ingestion.EvBatchWritten); got != 0 {
+	if got := c.count(events.BatchWritten.Name()); got != 0 {
 		t.Errorf("written facts = %d, want 0 on divergence", got)
 	}
 }
@@ -281,9 +282,9 @@ func TestPipelinePublishesLSNCheckpointFromRecordMeta(t *testing.T) {
 		t.Fatalf("Wait: %v", err)
 	}
 	var checkpoint *ingestion.CheckpointData
-	for _, ev := range c.events() {
-		if ev.Type == ingestion.EvBatchWritten {
-			checkpoint = ev.Fields.Checkpoint
+	for _, f := range c.events() {
+		if d, ok := f.Data.(events.BatchWrittenEvent); ok {
+			checkpoint = d.Checkpoint
 			break
 		}
 	}
@@ -315,7 +316,7 @@ func TestCRC32CDetectsRegrouping(t *testing.T) {
 	}
 }
 
-func assertMonotonicSeq(t *testing.T, evs []ingestion.Event) {
+func assertMonotonicSeq(t *testing.T, evs []events.Fact) {
 	t.Helper()
 	var last uint64
 	for i, e := range evs {

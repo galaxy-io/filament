@@ -7,10 +7,10 @@ import (
 	"context"
 	"log"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/app"
-	"github.com/galaxy-io/filament/connectors/stdout"
 	"github.com/galaxy-io/filament/connectors/sample"
+	"github.com/galaxy-io/filament/connectors/stdout"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/ui"
 

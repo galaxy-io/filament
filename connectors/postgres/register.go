@@ -5,7 +5,7 @@
 package postgres
 
 import (
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	sink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	source "github.com/galaxy-io/filament/connectors/postgres/source"
 	"github.com/galaxy-io/filament/registry"

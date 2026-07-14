@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/galaxy-io/filament"
+	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres"
 )
 

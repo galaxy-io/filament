@@ -31,7 +31,7 @@ func NewAccumulator() *Accumulator {
 // that two records ["ab","c"] and ["a","bc"] produce different CRCs.
 func (a *Accumulator) Ingest(data []byte) {
 	var lenBuf [4]byte
-	binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(data)))
+	binary.LittleEndian.PutUint32(lenBuf[:], uint32(len(data))) //nolint:gosec // one record's bytes, never near 4GiB
 	a.CRC = crc32.Update(a.CRC, castagnoliTable, lenBuf[:])
 	a.CRC = crc32.Update(a.CRC, castagnoliTable, data)
 	a.RecordCount++
@@ -45,6 +45,7 @@ type Commitment struct {
 	CRC         uint32 `json:"crc"`
 }
 
+// Commitment snapshots the accumulator's current state.
 func (a *Accumulator) Commitment() Commitment {
 	return Commitment{
 		RecordCount: a.RecordCount,
@@ -64,8 +65,8 @@ func (c Commitment) Equal(other Commitment) bool {
 // Layout: RecordCount(8) | ByteCount(8) | CRC(4), all little-endian.
 func (c Commitment) CanonicalBytes() [20]byte {
 	var buf [20]byte
-	binary.LittleEndian.PutUint64(buf[0:8], uint64(c.RecordCount))
-	binary.LittleEndian.PutUint64(buf[8:16], uint64(c.ByteCount))
+	binary.LittleEndian.PutUint64(buf[0:8], uint64(c.RecordCount)) //nolint:gosec // non-negative counter
+	binary.LittleEndian.PutUint64(buf[8:16], uint64(c.ByteCount))  //nolint:gosec // non-negative counter
 	binary.LittleEndian.PutUint32(buf[16:20], c.CRC)
 	return buf
 }
