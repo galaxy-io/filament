@@ -81,18 +81,18 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	// 1. Create the source and sink Connections through the API. dsn is
 	//    CONNECTION-scoped, so it belongs in the connection config.
 	srcConn := mustCreateConnection(t, ctx, api, &ingestionv1.CreateConnectionRequest{
-		Tenant:   "t1",
-		Kind:     ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
-		Name:     "tpch-source",
+		Tenant:    "t1",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+		Name:      "tpch-source",
 		Connector: "postgres",
-		Config:   mustStruct(t, map[string]any{"dsn": src.DSN()}),
+		Config:    mustStruct(t, map[string]any{"dsn": src.DSN()}),
 	})
 	sinkConn := mustCreateConnection(t, ctx, api, &ingestionv1.CreateConnectionRequest{
-		Tenant:   "t1",
-		Kind:     ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
-		Name:     "warehouse",
+		Tenant:    "t1",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
+		Name:      "warehouse",
 		Connector: "postgres",
-		Config:   mustStruct(t, map[string]any{"dsn": dst.DSN()}),
+		Config:    mustStruct(t, map[string]any{"dsn": dst.DSN()}),
 	})
 
 	// 2. Create a Pipeline referencing the connections. The sink node carries a
@@ -101,8 +101,10 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	resources := []string{"region", "nation", "supplier"}
 	nodes := []*ingestionv1.PipelineNode{
 		{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: srcConn.GetId()},
-		{Id: "dst", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: sinkConn.GetId(),
-			Config: mustStruct(t, map[string]any{"schema": "public", "mode": "typed"})},
+		{
+			Id: "dst", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: sinkConn.GetId(),
+			Config: mustStruct(t, map[string]any{"schema": "public", "mode": "typed"}),
+		},
 	}
 	var edges []*ingestionv1.PipelineEdge
 	for _, r := range resources {
