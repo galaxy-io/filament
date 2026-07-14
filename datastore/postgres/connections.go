@@ -18,7 +18,7 @@ import (
 )
 
 // ConnectionStore is a Postgres-backed store for reusable, tenant-scoped
-// Connections the sources and sinks a pipeline node references by id. 
+// Connections the sources and sinks a pipeline node references by id.
 type ConnectionStore struct {
 	q *sqlcgen.Queries
 }
@@ -42,7 +42,7 @@ func (s *ConnectionStore) Create(ctx context.Context, c *ingestionv1.Connection)
 		TenantID:     c.GetTenant(),
 		Kind:         providerKindToDB(c.GetKind()),
 		Name:         c.GetName(),
-		Provider:     c.GetProvider(),
+		Provider:     c.GetConnector(),
 		Config:       configJSON,
 		SecretRefs:   refsJSON,
 	})
@@ -66,7 +66,7 @@ func (s *ConnectionStore) Update(ctx context.Context, c *ingestionv1.Connection)
 	}
 	newVersion, err := s.q.UpdateConnection(ctx, sqlcgen.UpdateConnectionParams{
 		Name:            c.GetName(),
-		Provider:        c.GetProvider(),
+		Provider:        c.GetConnector(),
 		Config:          configJSON,
 		SecretRefs:      refsJSON,
 		ConnectionID:    c.GetId(),
@@ -94,9 +94,9 @@ func (s *ConnectionStore) Get(ctx context.Context, id string) (*ingestionv1.Conn
 	return connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version)
 }
 
-func (s *ConnectionStore) List(ctx context.Context, tenant string, kind ingestionv1.ProviderKind) ([]*ingestionv1.Connection, error) {
+func (s *ConnectionStore) List(ctx context.Context, tenant string, kind ingestionv1.ConnectorKind) ([]*ingestionv1.Connection, error) {
 	kindFilter := sqlcgen.NullConnectionKind{}
-	if kind != ingestionv1.ProviderKind_PROVIDER_KIND_UNSPECIFIED {
+	if kind != ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED {
 		kindFilter = sqlcgen.NullConnectionKind{ConnectionKind: providerKindToDB(kind), Valid: true}
 	}
 	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{TenantID: tenant, Kind: kindFilter})
@@ -141,23 +141,23 @@ func marshalConnectionConfig(c *ingestionv1.Connection) (configJSON, refsJSON []
 	return configJSON, refsJSON, nil
 }
 
-func providerKindToDB(kind ingestionv1.ProviderKind) sqlcgen.ConnectionKind {
+func providerKindToDB(kind ingestionv1.ConnectorKind) sqlcgen.ConnectionKind {
 	switch kind {
-	case ingestionv1.ProviderKind_PROVIDER_KIND_SINK:
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
 		return sqlcgen.ConnectionKindSink
 	default:
 		return sqlcgen.ConnectionKindSource
 	}
 }
 
-func providerKindFromDB(kind sqlcgen.ConnectionKind) ingestionv1.ProviderKind {
+func providerKindFromDB(kind sqlcgen.ConnectionKind) ingestionv1.ConnectorKind {
 	switch kind {
 	case sqlcgen.ConnectionKindSink:
-		return ingestionv1.ProviderKind_PROVIDER_KIND_SINK
+		return ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK
 	case sqlcgen.ConnectionKindSource:
-		return ingestionv1.ProviderKind_PROVIDER_KIND_SOURCE
+		return ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE
 	default:
-		return ingestionv1.ProviderKind_PROVIDER_KIND_UNSPECIFIED
+		return ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED
 	}
 }
 
@@ -179,7 +179,7 @@ func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, pro
 		Tenant:     tenant,
 		Kind:       providerKindFromDB(kind),
 		Name:       name,
-		Provider:   provider,
+		Connector:  provider,
 		Config:     cfg,
 		SecretRefs: refs,
 		Version:    version,

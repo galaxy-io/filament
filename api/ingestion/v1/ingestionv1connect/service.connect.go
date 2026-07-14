@@ -33,9 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// IngestionServiceListProvidersProcedure is the fully-qualified name of the IngestionService's
-	// ListProviders RPC.
-	IngestionServiceListProvidersProcedure = "/ingestion.v1.IngestionService/ListProviders"
+	// IngestionServiceListConnectorsProcedure is the fully-qualified name of the IngestionService's
+	// ListConnectors RPC.
+	IngestionServiceListConnectorsProcedure = "/ingestion.v1.IngestionService/ListConnectors"
 	// IngestionServiceValidateConfigProcedure is the fully-qualified name of the IngestionService's
 	// ValidateConfig RPC.
 	IngestionServiceValidateConfigProcedure = "/ingestion.v1.IngestionService/ValidateConfig"
@@ -48,6 +48,21 @@ const (
 	// IngestionServiceDeleteSecretProcedure is the fully-qualified name of the IngestionService's
 	// DeleteSecret RPC.
 	IngestionServiceDeleteSecretProcedure = "/ingestion.v1.IngestionService/DeleteSecret"
+	// IngestionServiceCreateConnectionProcedure is the fully-qualified name of the IngestionService's
+	// CreateConnection RPC.
+	IngestionServiceCreateConnectionProcedure = "/ingestion.v1.IngestionService/CreateConnection"
+	// IngestionServiceUpdateConnectionProcedure is the fully-qualified name of the IngestionService's
+	// UpdateConnection RPC.
+	IngestionServiceUpdateConnectionProcedure = "/ingestion.v1.IngestionService/UpdateConnection"
+	// IngestionServiceGetConnectionProcedure is the fully-qualified name of the IngestionService's
+	// GetConnection RPC.
+	IngestionServiceGetConnectionProcedure = "/ingestion.v1.IngestionService/GetConnection"
+	// IngestionServiceListConnectionsProcedure is the fully-qualified name of the IngestionService's
+	// ListConnections RPC.
+	IngestionServiceListConnectionsProcedure = "/ingestion.v1.IngestionService/ListConnections"
+	// IngestionServiceDeleteConnectionProcedure is the fully-qualified name of the IngestionService's
+	// DeleteConnection RPC.
+	IngestionServiceDeleteConnectionProcedure = "/ingestion.v1.IngestionService/DeleteConnection"
 	// IngestionServiceCreatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// CreatePipeline RPC.
 	IngestionServiceCreatePipelineProcedure = "/ingestion.v1.IngestionService/CreatePipeline"
@@ -81,14 +96,20 @@ const (
 
 // IngestionServiceClient is a client for the ingestion.v1.IngestionService service.
 type IngestionServiceClient interface {
-	// Catalog of registered source/sink providers and their config schemas.
-	ListProviders(context.Context, *connect.Request[v1.ListProvidersRequest]) (*connect.Response[v1.ListProvidersResponse], error)
+	// Catalog of registered source/sink connectors and their config schemas.
+	ListConnectors(context.Context, *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error)
 	// Ephemeral source/sink operations; no persisted state.
 	ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error)
 	DiscoverResources(context.Context, *connect.Request[v1.DiscoverResourcesRequest]) (*connect.Response[v1.DiscoverResourcesResponse], error)
 	// Secrets; write-only values referenced by name from configs.
 	PutSecret(context.Context, *connect.Request[v1.PutSecretRequest]) (*connect.Response[v1.PutSecretResponse], error)
 	DeleteSecret(context.Context, *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error)
+	// Connections; reusable, tenant-scoped sources and sinks.
+	CreateConnection(context.Context, *connect.Request[v1.CreateConnectionRequest]) (*connect.Response[v1.CreateConnectionResponse], error)
+	UpdateConnection(context.Context, *connect.Request[v1.UpdateConnectionRequest]) (*connect.Response[v1.UpdateConnectionResponse], error)
+	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
+	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
+	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	UpdatePipeline(context.Context, *connect.Request[v1.UpdatePipelineRequest]) (*connect.Response[v1.UpdatePipelineResponse], error)
@@ -115,10 +136,10 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	ingestionServiceMethods := v1.File_ingestion_v1_service_proto.Services().ByName("IngestionService").Methods()
 	return &ingestionServiceClient{
-		listProviders: connect.NewClient[v1.ListProvidersRequest, v1.ListProvidersResponse](
+		listConnectors: connect.NewClient[v1.ListConnectorsRequest, v1.ListConnectorsResponse](
 			httpClient,
-			baseURL+IngestionServiceListProvidersProcedure,
-			connect.WithSchema(ingestionServiceMethods.ByName("ListProviders")),
+			baseURL+IngestionServiceListConnectorsProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ListConnectors")),
 			connect.WithClientOptions(opts...),
 		),
 		validateConfig: connect.NewClient[v1.ValidateConfigRequest, v1.ValidateConfigResponse](
@@ -143,6 +164,36 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceDeleteSecretProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("DeleteSecret")),
+			connect.WithClientOptions(opts...),
+		),
+		createConnection: connect.NewClient[v1.CreateConnectionRequest, v1.CreateConnectionResponse](
+			httpClient,
+			baseURL+IngestionServiceCreateConnectionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("CreateConnection")),
+			connect.WithClientOptions(opts...),
+		),
+		updateConnection: connect.NewClient[v1.UpdateConnectionRequest, v1.UpdateConnectionResponse](
+			httpClient,
+			baseURL+IngestionServiceUpdateConnectionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("UpdateConnection")),
+			connect.WithClientOptions(opts...),
+		),
+		getConnection: connect.NewClient[v1.GetConnectionRequest, v1.GetConnectionResponse](
+			httpClient,
+			baseURL+IngestionServiceGetConnectionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetConnection")),
+			connect.WithClientOptions(opts...),
+		),
+		listConnections: connect.NewClient[v1.ListConnectionsRequest, v1.ListConnectionsResponse](
+			httpClient,
+			baseURL+IngestionServiceListConnectionsProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ListConnections")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteConnection: connect.NewClient[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse](
+			httpClient,
+			baseURL+IngestionServiceDeleteConnectionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
 			connect.WithClientOptions(opts...),
 		),
 		createPipeline: connect.NewClient[v1.CreatePipelineRequest, v1.CreatePipelineResponse](
@@ -210,11 +261,16 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // ingestionServiceClient implements IngestionServiceClient.
 type ingestionServiceClient struct {
-	listProviders     *connect.Client[v1.ListProvidersRequest, v1.ListProvidersResponse]
+	listConnectors    *connect.Client[v1.ListConnectorsRequest, v1.ListConnectorsResponse]
 	validateConfig    *connect.Client[v1.ValidateConfigRequest, v1.ValidateConfigResponse]
 	discoverResources *connect.Client[v1.DiscoverResourcesRequest, v1.DiscoverResourcesResponse]
 	putSecret         *connect.Client[v1.PutSecretRequest, v1.PutSecretResponse]
 	deleteSecret      *connect.Client[v1.DeleteSecretRequest, v1.DeleteSecretResponse]
+	createConnection  *connect.Client[v1.CreateConnectionRequest, v1.CreateConnectionResponse]
+	updateConnection  *connect.Client[v1.UpdateConnectionRequest, v1.UpdateConnectionResponse]
+	getConnection     *connect.Client[v1.GetConnectionRequest, v1.GetConnectionResponse]
+	listConnections   *connect.Client[v1.ListConnectionsRequest, v1.ListConnectionsResponse]
+	deleteConnection  *connect.Client[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse]
 	createPipeline    *connect.Client[v1.CreatePipelineRequest, v1.CreatePipelineResponse]
 	updatePipeline    *connect.Client[v1.UpdatePipelineRequest, v1.UpdatePipelineResponse]
 	getPipeline       *connect.Client[v1.GetPipelineRequest, v1.GetPipelineResponse]
@@ -227,9 +283,9 @@ type ingestionServiceClient struct {
 	tailRun           *connect.Client[v1.TailRunRequest, v1.TailRunResponse]
 }
 
-// ListProviders calls ingestion.v1.IngestionService.ListProviders.
-func (c *ingestionServiceClient) ListProviders(ctx context.Context, req *connect.Request[v1.ListProvidersRequest]) (*connect.Response[v1.ListProvidersResponse], error) {
-	return c.listProviders.CallUnary(ctx, req)
+// ListConnectors calls ingestion.v1.IngestionService.ListConnectors.
+func (c *ingestionServiceClient) ListConnectors(ctx context.Context, req *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error) {
+	return c.listConnectors.CallUnary(ctx, req)
 }
 
 // ValidateConfig calls ingestion.v1.IngestionService.ValidateConfig.
@@ -250,6 +306,31 @@ func (c *ingestionServiceClient) PutSecret(ctx context.Context, req *connect.Req
 // DeleteSecret calls ingestion.v1.IngestionService.DeleteSecret.
 func (c *ingestionServiceClient) DeleteSecret(ctx context.Context, req *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error) {
 	return c.deleteSecret.CallUnary(ctx, req)
+}
+
+// CreateConnection calls ingestion.v1.IngestionService.CreateConnection.
+func (c *ingestionServiceClient) CreateConnection(ctx context.Context, req *connect.Request[v1.CreateConnectionRequest]) (*connect.Response[v1.CreateConnectionResponse], error) {
+	return c.createConnection.CallUnary(ctx, req)
+}
+
+// UpdateConnection calls ingestion.v1.IngestionService.UpdateConnection.
+func (c *ingestionServiceClient) UpdateConnection(ctx context.Context, req *connect.Request[v1.UpdateConnectionRequest]) (*connect.Response[v1.UpdateConnectionResponse], error) {
+	return c.updateConnection.CallUnary(ctx, req)
+}
+
+// GetConnection calls ingestion.v1.IngestionService.GetConnection.
+func (c *ingestionServiceClient) GetConnection(ctx context.Context, req *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error) {
+	return c.getConnection.CallUnary(ctx, req)
+}
+
+// ListConnections calls ingestion.v1.IngestionService.ListConnections.
+func (c *ingestionServiceClient) ListConnections(ctx context.Context, req *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error) {
+	return c.listConnections.CallUnary(ctx, req)
+}
+
+// DeleteConnection calls ingestion.v1.IngestionService.DeleteConnection.
+func (c *ingestionServiceClient) DeleteConnection(ctx context.Context, req *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
+	return c.deleteConnection.CallUnary(ctx, req)
 }
 
 // CreatePipeline calls ingestion.v1.IngestionService.CreatePipeline.
@@ -304,14 +385,20 @@ func (c *ingestionServiceClient) TailRun(ctx context.Context, req *connect.Reque
 
 // IngestionServiceHandler is an implementation of the ingestion.v1.IngestionService service.
 type IngestionServiceHandler interface {
-	// Catalog of registered source/sink providers and their config schemas.
-	ListProviders(context.Context, *connect.Request[v1.ListProvidersRequest]) (*connect.Response[v1.ListProvidersResponse], error)
+	// Catalog of registered source/sink connectors and their config schemas.
+	ListConnectors(context.Context, *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error)
 	// Ephemeral source/sink operations; no persisted state.
 	ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error)
 	DiscoverResources(context.Context, *connect.Request[v1.DiscoverResourcesRequest]) (*connect.Response[v1.DiscoverResourcesResponse], error)
 	// Secrets; write-only values referenced by name from configs.
 	PutSecret(context.Context, *connect.Request[v1.PutSecretRequest]) (*connect.Response[v1.PutSecretResponse], error)
 	DeleteSecret(context.Context, *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error)
+	// Connections; reusable, tenant-scoped sources and sinks.
+	CreateConnection(context.Context, *connect.Request[v1.CreateConnectionRequest]) (*connect.Response[v1.CreateConnectionResponse], error)
+	UpdateConnection(context.Context, *connect.Request[v1.UpdateConnectionRequest]) (*connect.Response[v1.UpdateConnectionResponse], error)
+	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
+	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
+	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	UpdatePipeline(context.Context, *connect.Request[v1.UpdatePipelineRequest]) (*connect.Response[v1.UpdatePipelineResponse], error)
@@ -334,10 +421,10 @@ type IngestionServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	ingestionServiceMethods := v1.File_ingestion_v1_service_proto.Services().ByName("IngestionService").Methods()
-	ingestionServiceListProvidersHandler := connect.NewUnaryHandler(
-		IngestionServiceListProvidersProcedure,
-		svc.ListProviders,
-		connect.WithSchema(ingestionServiceMethods.ByName("ListProviders")),
+	ingestionServiceListConnectorsHandler := connect.NewUnaryHandler(
+		IngestionServiceListConnectorsProcedure,
+		svc.ListConnectors,
+		connect.WithSchema(ingestionServiceMethods.ByName("ListConnectors")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceValidateConfigHandler := connect.NewUnaryHandler(
@@ -362,6 +449,36 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceDeleteSecretProcedure,
 		svc.DeleteSecret,
 		connect.WithSchema(ingestionServiceMethods.ByName("DeleteSecret")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceCreateConnectionHandler := connect.NewUnaryHandler(
+		IngestionServiceCreateConnectionProcedure,
+		svc.CreateConnection,
+		connect.WithSchema(ingestionServiceMethods.ByName("CreateConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceUpdateConnectionHandler := connect.NewUnaryHandler(
+		IngestionServiceUpdateConnectionProcedure,
+		svc.UpdateConnection,
+		connect.WithSchema(ingestionServiceMethods.ByName("UpdateConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceGetConnectionHandler := connect.NewUnaryHandler(
+		IngestionServiceGetConnectionProcedure,
+		svc.GetConnection,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceListConnectionsHandler := connect.NewUnaryHandler(
+		IngestionServiceListConnectionsProcedure,
+		svc.ListConnections,
+		connect.WithSchema(ingestionServiceMethods.ByName("ListConnections")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceDeleteConnectionHandler := connect.NewUnaryHandler(
+		IngestionServiceDeleteConnectionProcedure,
+		svc.DeleteConnection,
+		connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceCreatePipelineHandler := connect.NewUnaryHandler(
@@ -426,8 +543,8 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 	)
 	return "/ingestion.v1.IngestionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case IngestionServiceListProvidersProcedure:
-			ingestionServiceListProvidersHandler.ServeHTTP(w, r)
+		case IngestionServiceListConnectorsProcedure:
+			ingestionServiceListConnectorsHandler.ServeHTTP(w, r)
 		case IngestionServiceValidateConfigProcedure:
 			ingestionServiceValidateConfigHandler.ServeHTTP(w, r)
 		case IngestionServiceDiscoverResourcesProcedure:
@@ -436,6 +553,16 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServicePutSecretHandler.ServeHTTP(w, r)
 		case IngestionServiceDeleteSecretProcedure:
 			ingestionServiceDeleteSecretHandler.ServeHTTP(w, r)
+		case IngestionServiceCreateConnectionProcedure:
+			ingestionServiceCreateConnectionHandler.ServeHTTP(w, r)
+		case IngestionServiceUpdateConnectionProcedure:
+			ingestionServiceUpdateConnectionHandler.ServeHTTP(w, r)
+		case IngestionServiceGetConnectionProcedure:
+			ingestionServiceGetConnectionHandler.ServeHTTP(w, r)
+		case IngestionServiceListConnectionsProcedure:
+			ingestionServiceListConnectionsHandler.ServeHTTP(w, r)
+		case IngestionServiceDeleteConnectionProcedure:
+			ingestionServiceDeleteConnectionHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineProcedure:
 			ingestionServiceCreatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceUpdatePipelineProcedure:
@@ -465,8 +592,8 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 // UnimplementedIngestionServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedIngestionServiceHandler struct{}
 
-func (UnimplementedIngestionServiceHandler) ListProviders(context.Context, *connect.Request[v1.ListProvidersRequest]) (*connect.Response[v1.ListProvidersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListProviders is not implemented"))
+func (UnimplementedIngestionServiceHandler) ListConnectors(context.Context, *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListConnectors is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error) {
@@ -483,6 +610,26 @@ func (UnimplementedIngestionServiceHandler) PutSecret(context.Context, *connect.
 
 func (UnimplementedIngestionServiceHandler) DeleteSecret(context.Context, *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.DeleteSecret is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) CreateConnection(context.Context, *connect.Request[v1.CreateConnectionRequest]) (*connect.Response[v1.CreateConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.CreateConnection is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) UpdateConnection(context.Context, *connect.Request[v1.UpdateConnectionRequest]) (*connect.Response[v1.UpdateConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.UpdateConnection is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetConnection is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListConnections is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.DeleteConnection is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error) {

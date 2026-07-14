@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "ingestion/v1/connections.proto";
 import "ingestion/v1/pipelines.proto";
 import "ingestion/v1/providers.proto";
 import "ingestion/v1/runs.proto";
@@ -9,8 +10,8 @@ import "ingestion/v1/secrets.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
 service IngestionService {
-  // Catalog of registered source/sink providers and their config schemas.
-  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  // Catalog of registered source/sink connectors and their config schemas.
+  rpc ListConnectors(ListConnectorsRequest) returns (ListConnectorsResponse);
 
   // Ephemeral source/sink operations; no persisted state.
   rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);
@@ -19,6 +20,13 @@ service IngestionService {
   // Secrets; write-only values referenced by name from configs.
   rpc PutSecret(PutSecretRequest) returns (PutSecretResponse);
   rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse);
+
+  // Connections; reusable, tenant-scoped sources and sinks.
+  rpc CreateConnection(CreateConnectionRequest) returns (CreateConnectionResponse);
+  rpc UpdateConnection(UpdateConnectionRequest) returns (UpdateConnectionResponse);
+  rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse);
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
+  rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse);
 
   // Pipelines; the persisted node graph.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);
