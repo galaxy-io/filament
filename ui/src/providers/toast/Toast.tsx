@@ -1,23 +1,11 @@
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import {
-  CheckCircleIcon,
-  SpinnerGapIcon,
-  WarningIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { CheckCircleIcon, SpinnerGapIcon, WarningIcon, XIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
-import Button, {
-  ButtonProps,
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { type ButtonProps, ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -134,9 +122,9 @@ const Toast = ({
       </FlexWrapper>
       {hasActions && (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
-          {actions?.map((action, index) => (
+          {actions?.map((action) => (
             <Button
-              key={index}
+              key={action.label}
               label={action.label}
               variant={action.variant ?? ButtonVariant.TERTIARY}
               size={ButtonSize.SMALL}

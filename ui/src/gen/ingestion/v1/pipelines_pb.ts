@@ -2,18 +2,23 @@
 // @generated from file ingestion/v1/pipelines.proto (package ingestion.v1, syntax proto3)
 /* eslint-disable */
 
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+
 import type { ConnectorKind, IngestionType } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ingestion/v1/pipelines.proto.
  */
-export const file_ingestion_v1_pipelines: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiwEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIzCg5pbmdlc3Rpb25fdHlwZRgEIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhAKCHNlbGVjdG9yGAUgASgJIpsBCghQaXBlbGluZRIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSDAoEbmFtZRgDIAEoCRIpCgVub2RlcxgEIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBSADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlEg8KB3ZlcnNpb24YBiABKAMiiwEKFUNyZWF0ZVBpcGVsaW5lUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIpCgVub2RlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBCADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIkIKFkNyZWF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiQQoVVXBkYXRlUGlwZWxpbmVSZXF1ZXN0EigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIkIKFlVwZGF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIAoSR2V0UGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIj8KE0dldFBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiJgoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSDgoGdGVuYW50GAEgASgJIkIKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIwoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIhgKFkRlbGV0ZVBpcGVsaW5lUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common]);
+export const file_ingestion_v1_pipelines: GenFile =
+  /*@__PURE__*/
+  fileDesc(
+    "Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiwEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIzCg5pbmdlc3Rpb25fdHlwZRgEIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhAKCHNlbGVjdG9yGAUgASgJIpsBCghQaXBlbGluZRIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSDAoEbmFtZRgDIAEoCRIpCgVub2RlcxgEIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBSADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlEg8KB3ZlcnNpb24YBiABKAMiiwEKFUNyZWF0ZVBpcGVsaW5lUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIpCgVub2RlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBCADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIkIKFkNyZWF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiQQoVVXBkYXRlUGlwZWxpbmVSZXF1ZXN0EigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIkIKFlVwZGF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIAoSR2V0UGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIj8KE0dldFBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiJgoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSDgoGdGVuYW50GAEgASgJIkIKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIwoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIhgKFkRlbGV0ZVBpcGVsaW5lUmVzcG9uc2ViBnByb3RvMw",
+    [file_google_protobuf_struct, file_ingestion_v1_common],
+  );
 
 /**
  * PipelineNode is one source or sink on the canvas. connection_id references the
@@ -59,7 +64,8 @@ export type PipelineNode = Message<"ingestion.v1.PipelineNode"> & {
  * Describes the message ingestion.v1.PipelineNode.
  * Use `create(PipelineNodeSchema)` to create a new message.
  */
-export const PipelineNodeSchema: GenMessage<PipelineNode> = /*@__PURE__*/
+export const PipelineNodeSchema: GenMessage<PipelineNode> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 0);
 
 /**
@@ -99,7 +105,8 @@ export type PipelineEdge = Message<"ingestion.v1.PipelineEdge"> & {
  * Describes the message ingestion.v1.PipelineEdge.
  * Use `create(PipelineEdgeSchema)` to create a new message.
  */
-export const PipelineEdgeSchema: GenMessage<PipelineEdge> = /*@__PURE__*/
+export const PipelineEdgeSchema: GenMessage<PipelineEdge> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 1);
 
 /**
@@ -144,7 +151,8 @@ export type Pipeline = Message<"ingestion.v1.Pipeline"> & {
  * Describes the message ingestion.v1.Pipeline.
  * Use `create(PipelineSchema)` to create a new message.
  */
-export const PipelineSchema: GenMessage<Pipeline> = /*@__PURE__*/
+export const PipelineSchema: GenMessage<Pipeline> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 2);
 
 /**
@@ -176,7 +184,8 @@ export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"
  * Describes the message ingestion.v1.CreatePipelineRequest.
  * Use `create(CreatePipelineRequestSchema)` to create a new message.
  */
-export const CreatePipelineRequestSchema: GenMessage<CreatePipelineRequest> = /*@__PURE__*/
+export const CreatePipelineRequestSchema: GenMessage<CreatePipelineRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 3);
 
 /**
@@ -193,7 +202,8 @@ export type CreatePipelineResponse = Message<"ingestion.v1.CreatePipelineRespons
  * Describes the message ingestion.v1.CreatePipelineResponse.
  * Use `create(CreatePipelineResponseSchema)` to create a new message.
  */
-export const CreatePipelineResponseSchema: GenMessage<CreatePipelineResponse> = /*@__PURE__*/
+export const CreatePipelineResponseSchema: GenMessage<CreatePipelineResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 4);
 
 /**
@@ -210,7 +220,8 @@ export type UpdatePipelineRequest = Message<"ingestion.v1.UpdatePipelineRequest"
  * Describes the message ingestion.v1.UpdatePipelineRequest.
  * Use `create(UpdatePipelineRequestSchema)` to create a new message.
  */
-export const UpdatePipelineRequestSchema: GenMessage<UpdatePipelineRequest> = /*@__PURE__*/
+export const UpdatePipelineRequestSchema: GenMessage<UpdatePipelineRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 5);
 
 /**
@@ -227,7 +238,8 @@ export type UpdatePipelineResponse = Message<"ingestion.v1.UpdatePipelineRespons
  * Describes the message ingestion.v1.UpdatePipelineResponse.
  * Use `create(UpdatePipelineResponseSchema)` to create a new message.
  */
-export const UpdatePipelineResponseSchema: GenMessage<UpdatePipelineResponse> = /*@__PURE__*/
+export const UpdatePipelineResponseSchema: GenMessage<UpdatePipelineResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 6);
 
 /**
@@ -244,7 +256,8 @@ export type GetPipelineRequest = Message<"ingestion.v1.GetPipelineRequest"> & {
  * Describes the message ingestion.v1.GetPipelineRequest.
  * Use `create(GetPipelineRequestSchema)` to create a new message.
  */
-export const GetPipelineRequestSchema: GenMessage<GetPipelineRequest> = /*@__PURE__*/
+export const GetPipelineRequestSchema: GenMessage<GetPipelineRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 7);
 
 /**
@@ -261,7 +274,8 @@ export type GetPipelineResponse = Message<"ingestion.v1.GetPipelineResponse"> & 
  * Describes the message ingestion.v1.GetPipelineResponse.
  * Use `create(GetPipelineResponseSchema)` to create a new message.
  */
-export const GetPipelineResponseSchema: GenMessage<GetPipelineResponse> = /*@__PURE__*/
+export const GetPipelineResponseSchema: GenMessage<GetPipelineResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 8);
 
 /**
@@ -278,7 +292,8 @@ export type ListPipelinesRequest = Message<"ingestion.v1.ListPipelinesRequest"> 
  * Describes the message ingestion.v1.ListPipelinesRequest.
  * Use `create(ListPipelinesRequestSchema)` to create a new message.
  */
-export const ListPipelinesRequestSchema: GenMessage<ListPipelinesRequest> = /*@__PURE__*/
+export const ListPipelinesRequestSchema: GenMessage<ListPipelinesRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 9);
 
 /**
@@ -295,7 +310,8 @@ export type ListPipelinesResponse = Message<"ingestion.v1.ListPipelinesResponse"
  * Describes the message ingestion.v1.ListPipelinesResponse.
  * Use `create(ListPipelinesResponseSchema)` to create a new message.
  */
-export const ListPipelinesResponseSchema: GenMessage<ListPipelinesResponse> = /*@__PURE__*/
+export const ListPipelinesResponseSchema: GenMessage<ListPipelinesResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 10);
 
 /**
@@ -312,19 +328,19 @@ export type DeletePipelineRequest = Message<"ingestion.v1.DeletePipelineRequest"
  * Describes the message ingestion.v1.DeletePipelineRequest.
  * Use `create(DeletePipelineRequestSchema)` to create a new message.
  */
-export const DeletePipelineRequestSchema: GenMessage<DeletePipelineRequest> = /*@__PURE__*/
+export const DeletePipelineRequestSchema: GenMessage<DeletePipelineRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 11);
 
 /**
  * @generated from message ingestion.v1.DeletePipelineResponse
  */
-export type DeletePipelineResponse = Message<"ingestion.v1.DeletePipelineResponse"> & {
-};
+export type DeletePipelineResponse = Message<"ingestion.v1.DeletePipelineResponse"> & {};
 
 /**
  * Describes the message ingestion.v1.DeletePipelineResponse.
  * Use `create(DeletePipelineResponseSchema)` to create a new message.
  */
-export const DeletePipelineResponseSchema: GenMessage<DeletePipelineResponse> = /*@__PURE__*/
+export const DeletePipelineResponseSchema: GenMessage<DeletePipelineResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 12);
-

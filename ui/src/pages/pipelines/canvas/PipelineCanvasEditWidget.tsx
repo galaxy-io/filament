@@ -1,7 +1,7 @@
 import { styled } from "@linaria/react";
-import { PlusIcon, PencilSimpleIcon, PulseIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, PlusIcon, PulseIcon } from "@phosphor-icons/react";
 
-import Icon, { IconWeight, IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -79,8 +79,14 @@ const PipelineCanvasEditWidget = ({
         >
           <Icon
             component={PlusIcon}
-            weight={activeMode === PipelineCanvasEditMode.ADD ? IconWeight.BOLD : IconWeight.REGULAR}
-            variant={activeMode === PipelineCanvasEditMode.ADD ? IconVariant.PRIMARY_ALT : IconVariant.TERTIARY}
+            weight={
+              activeMode === PipelineCanvasEditMode.ADD ? IconWeight.BOLD : IconWeight.REGULAR
+            }
+            variant={
+              activeMode === PipelineCanvasEditMode.ADD
+                ? IconVariant.PRIMARY_ALT
+                : IconVariant.TERTIARY
+            }
           />
         </IconButton>
         <IconButton
@@ -89,7 +95,9 @@ const PipelineCanvasEditWidget = ({
         >
           <Icon
             component={PencilSimpleIcon}
-            weight={activeMode === PipelineCanvasEditMode.EDIT ? IconWeight.BOLD : IconWeight.REGULAR}
+            weight={
+              activeMode === PipelineCanvasEditMode.EDIT ? IconWeight.BOLD : IconWeight.REGULAR
+            }
             variant={activeMode === PipelineCanvasEditMode.EDIT ? undefined : IconVariant.TERTIARY}
           />
         </IconButton>
@@ -102,8 +110,12 @@ const PipelineCanvasEditWidget = ({
         >
           <Icon
             component={PulseIcon}
-            weight={activeMode === PipelineCanvasEditMode.ACTIVITY ? IconWeight.BOLD : IconWeight.REGULAR}
-            variant={activeMode === PipelineCanvasEditMode.ACTIVITY ? undefined : IconVariant.TERTIARY}
+            weight={
+              activeMode === PipelineCanvasEditMode.ACTIVITY ? IconWeight.BOLD : IconWeight.REGULAR
+            }
+            variant={
+              activeMode === PipelineCanvasEditMode.ACTIVITY ? undefined : IconVariant.TERTIARY
+            }
           />
         </IconButton>
       </ButtonGroup>

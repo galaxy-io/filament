@@ -1,36 +1,26 @@
 import { useState } from "react";
 
-import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { useOpenConnectionDrawer } from "@/pages/connectors/hooks";
 import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
 import {
   PIPELINE_CARD_HEIGHT,
   PIPELINE_INDICATOR_WIDTH,
   PIPELINE_METRIC_COLUMN_WIDTH_MAP,
 } from "@/pages/pipelines/constants";
-import { PipelineResource } from "@/pages/pipelines/types";
+import type { PipelineResource } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
-import { useOpenConnectionDrawer } from "@/pages/connectors/hooks";
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
 
 const IndicatorWrapper = styled.div`
   width: ${PIPELINE_INDICATOR_WIDTH}px;
@@ -127,9 +117,7 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
         </FlexWrapper>
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-          <MetricColumnWrapper
-            $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}
-          >
+          <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}>
             <PipelineFlow
               source={pipeline.source}
               sinks={pipeline.sinks}
@@ -150,6 +138,8 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
             width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.schedule}
             value={pipeline.scheduleLabel}
           />
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: div only stops click bubbling to the parent Link, not an interactive control itself */}
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: div only stops click bubbling to the parent Link, not an interactive control itself */}
           <div onClick={handleToggleClick}>
             <ToggleInput value={isEnabled} onChange={setIsEnabled} />
           </div>

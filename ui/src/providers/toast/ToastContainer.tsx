@@ -52,13 +52,7 @@ const StyledToastContainer = styled.div<StyledToastContainerProps>`
   }
 `;
 
-const ToastContainer = ({
-  children,
-  top,
-  right,
-  bottom,
-  left,
-}: ToastContainerProps) => {
+const ToastContainer = ({ children, top, right, bottom, left }: ToastContainerProps) => {
   return (
     <StyledToastContainer $top={top} $right={right} $bottom={bottom} $left={left}>
       {children}

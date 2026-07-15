@@ -2,18 +2,29 @@
 // @generated from file ingestion/v1/providers.proto (package ingestion.v1, syntax proto3)
 /* eslint-disable */
 
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { ConfigSchema, ConnectorKind, ReplicationMode, SourcePolicy, WritePolicyCapability } from "./common_pb";
+
+import type {
+  ConfigSchema,
+  ConnectorKind,
+  ReplicationMode,
+  SourcePolicy,
+  WritePolicyCapability,
+} from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
-import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ingestion/v1/providers.proto.
  */
-export const file_ingestion_v1_providers: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3kiggIKDUNvbm5lY3RvclNwZWMSDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEg8KB3ZlcnNpb24YBCABKAkSLAoFbW9kZXMYBSADKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjEKDWNvbmZpZ19zY2hlbWEYBiABKAsyGi5pbmdlc3Rpb24udjEuQ29uZmlnU2NoZW1hEjAKDGNhcGFiaWxpdGllcxgHIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMiQgoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJJChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKMAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIMCgRsaXZlGAQgASgIIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJnChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCCLqAQoIUmVzb3VyY2USDAoEbmFtZRgBIAEoCRISCgpzZWxlY3RhYmxlGAIgASgIEhMKC3ByaW1hcnlfa2V5GAMgAygJEhYKDmVzdGltYXRlZF9yb3dzGAQgASgDEhAKCHNlbGVjdG9yGAUgASgJEhQKDGRpc3BsYXlfbmFtZRgHIAEoCRI2CghtZXRhZGF0YRgLIAMoCzIkLmluZ2VzdGlvbi52MS5SZXNvdXJjZS5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJGChlEaXNjb3ZlclJlc291cmNlc1Jlc3BvbnNlEikKCXJlc291cmNlcxgBIAMoCzIWLmluZ2VzdGlvbi52MS5SZXNvdXJjZWIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_common]);
+export const file_ingestion_v1_providers: GenFile =
+  /*@__PURE__*/
+  fileDesc(
+    "Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3kiggIKDUNvbm5lY3RvclNwZWMSDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEg8KB3ZlcnNpb24YBCABKAkSLAoFbW9kZXMYBSADKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjEKDWNvbmZpZ19zY2hlbWEYBiABKAsyGi5pbmdlc3Rpb24udjEuQ29uZmlnU2NoZW1hEjAKDGNhcGFiaWxpdGllcxgHIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMiQgoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJJChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKMAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIMCgRsaXZlGAQgASgIIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJnChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCCLqAQoIUmVzb3VyY2USDAoEbmFtZRgBIAEoCRISCgpzZWxlY3RhYmxlGAIgASgIEhMKC3ByaW1hcnlfa2V5GAMgAygJEhYKDmVzdGltYXRlZF9yb3dzGAQgASgDEhAKCHNlbGVjdG9yGAUgASgJEhQKDGRpc3BsYXlfbmFtZRgHIAEoCRI2CghtZXRhZGF0YRgLIAMoCzIkLmluZ2VzdGlvbi52MS5SZXNvdXJjZS5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJGChlEaXNjb3ZlclJlc291cmNlc1Jlc3BvbnNlEikKCXJlc291cmNlcxgBIAMoCzIWLmluZ2VzdGlvbi52MS5SZXNvdXJjZWIGcHJvdG8z",
+    [file_google_protobuf_struct, file_ingestion_v1_common],
+  );
 
 /**
  * Capabilities flattens source and sink capabilities; fields not relevant to a
@@ -62,7 +73,8 @@ export type Capabilities = Message<"ingestion.v1.Capabilities"> & {
  * Describes the message ingestion.v1.Capabilities.
  * Use `create(CapabilitiesSchema)` to create a new message.
  */
-export const CapabilitiesSchema: GenMessage<Capabilities> = /*@__PURE__*/
+export const CapabilitiesSchema: GenMessage<Capabilities> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 0);
 
 /**
@@ -111,7 +123,8 @@ export type ConnectorSpec = Message<"ingestion.v1.ConnectorSpec"> & {
  * Describes the message ingestion.v1.ConnectorSpec.
  * Use `create(ConnectorSpecSchema)` to create a new message.
  */
-export const ConnectorSpecSchema: GenMessage<ConnectorSpec> = /*@__PURE__*/
+export const ConnectorSpecSchema: GenMessage<ConnectorSpec> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 1);
 
 /**
@@ -130,7 +143,8 @@ export type ListConnectorsRequest = Message<"ingestion.v1.ListConnectorsRequest"
  * Describes the message ingestion.v1.ListConnectorsRequest.
  * Use `create(ListConnectorsRequestSchema)` to create a new message.
  */
-export const ListConnectorsRequestSchema: GenMessage<ListConnectorsRequest> = /*@__PURE__*/
+export const ListConnectorsRequestSchema: GenMessage<ListConnectorsRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 2);
 
 /**
@@ -147,7 +161,8 @@ export type ListConnectorsResponse = Message<"ingestion.v1.ListConnectorsRespons
  * Describes the message ingestion.v1.ListConnectorsResponse.
  * Use `create(ListConnectorsResponseSchema)` to create a new message.
  */
-export const ListConnectorsResponseSchema: GenMessage<ListConnectorsResponse> = /*@__PURE__*/
+export const ListConnectorsResponseSchema: GenMessage<ListConnectorsResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 3);
 
 /**
@@ -181,7 +196,8 @@ export type ValidateConfigRequest = Message<"ingestion.v1.ValidateConfigRequest"
  * Describes the message ingestion.v1.ValidateConfigRequest.
  * Use `create(ValidateConfigRequestSchema)` to create a new message.
  */
-export const ValidateConfigRequestSchema: GenMessage<ValidateConfigRequest> = /*@__PURE__*/
+export const ValidateConfigRequestSchema: GenMessage<ValidateConfigRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 4);
 
 /**
@@ -206,7 +222,8 @@ export type ValidationError = Message<"ingestion.v1.ValidationError"> & {
  * Describes the message ingestion.v1.ValidationError.
  * Use `create(ValidationErrorSchema)` to create a new message.
  */
-export const ValidationErrorSchema: GenMessage<ValidationError> = /*@__PURE__*/
+export const ValidationErrorSchema: GenMessage<ValidationError> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 5);
 
 /**
@@ -228,7 +245,8 @@ export type ValidateConfigResponse = Message<"ingestion.v1.ValidateConfigRespons
  * Describes the message ingestion.v1.ValidateConfigResponse.
  * Use `create(ValidateConfigResponseSchema)` to create a new message.
  */
-export const ValidateConfigResponseSchema: GenMessage<ValidateConfigResponse> = /*@__PURE__*/
+export const ValidateConfigResponseSchema: GenMessage<ValidateConfigResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 6);
 
 /**
@@ -257,7 +275,8 @@ export type DiscoverResourcesRequest = Message<"ingestion.v1.DiscoverResourcesRe
  * Describes the message ingestion.v1.DiscoverResourcesRequest.
  * Use `create(DiscoverResourcesRequestSchema)` to create a new message.
  */
-export const DiscoverResourcesRequestSchema: GenMessage<DiscoverResourcesRequest> = /*@__PURE__*/
+export const DiscoverResourcesRequestSchema: GenMessage<DiscoverResourcesRequest> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 7);
 
 /**
@@ -306,7 +325,8 @@ export type Resource = Message<"ingestion.v1.Resource"> & {
  * Describes the message ingestion.v1.Resource.
  * Use `create(ResourceSchema)` to create a new message.
  */
-export const ResourceSchema: GenMessage<Resource> = /*@__PURE__*/
+export const ResourceSchema: GenMessage<Resource> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 8);
 
 /**
@@ -323,6 +343,6 @@ export type DiscoverResourcesResponse = Message<"ingestion.v1.DiscoverResourcesR
  * Describes the message ingestion.v1.DiscoverResourcesResponse.
  * Use `create(DiscoverResourcesResponseSchema)` to create a new message.
  */
-export const DiscoverResourcesResponseSchema: GenMessage<DiscoverResourcesResponse> = /*@__PURE__*/
+export const DiscoverResourcesResponseSchema: GenMessage<DiscoverResourcesResponse> =
+  /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 9);
-

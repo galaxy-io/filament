@@ -12,7 +12,11 @@
     "codegen": "buf generate",
     "assets": "svgr --icon --typescript --no-prettier --no-index --no-dimensions --jsx-runtime automatic --out-dir src/assets/components src/assets/svgr",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "format": "biome format --write src",
+    "format:check": "biome format src",
+    "lint": "biome lint --write src",
+    "lint:check": "biome lint src"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.9.0",
@@ -38,6 +42,7 @@
   "devDependencies": {
     "@babel/preset-react": "^7.29.7",
     "@babel/preset-typescript": "^7.29.7",
+    "@biomejs/biome": "^2.5.4",
     "@bufbuild/buf": "^1.57.2",
     "@bufbuild/protoc-gen-es": "^2.9.0",
     "@svgr/cli": "^8.1.0",

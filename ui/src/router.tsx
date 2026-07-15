@@ -31,22 +31,10 @@ const DefaultNotFoundComponent = () => {
 
   return (
     <ErrorLayout
-      icon={
-        <Icon
-          component={ImageBrokenIcon}
-          size={24}
-          variant={IconVariant.SECONDARY}
-        />
-      }
+      icon={<Icon component={ImageBrokenIcon} size={24} variant={IconVariant.SECONDARY} />}
       header="Page not found"
       message="The page you are looking for does not exist"
-      actions={
-        <Button
-          label="Go back to app"
-          icon={ArrowLeftIcon}
-          onClick={handleGoToPipelines}
-        />
-      }
+      actions={<Button label="Go back to app" icon={ArrowLeftIcon} onClick={handleGoToPipelines} />}
     />
   );
 };

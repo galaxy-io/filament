@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
+import { styled } from "@linaria/react";
 import {
   BookOpenIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -22,7 +22,8 @@ import DropdownItem from "@galaxy-io/dls/dropdown/DropdownItem";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
-import PipelinesEmptyDark from "@/assets/components/PipelinesEmptyDark";
+import ConnectorEmptyDark from "@/assets/components/ConnectorsEmptyDark";
+
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
@@ -33,15 +34,20 @@ import {
   PIPELINE_GROUP_TO_LABEL_MAP,
   PIPELINE_SEARCH_WIDTH,
 } from "@/pages/pipelines/constants";
-import { toPipelineGroups, toPipelineResource } from "@/pages/pipelines/utils";
 import { PipelineGroup } from "@/pages/pipelines/types";
+import { toPipelineGroups, toPipelineResource } from "@/pages/pipelines/utils";
+
+import { ToastVariant } from "@/providers/toast/ToastProvider";
+import { useToast } from "@/providers/toast/useToast";
+
 import {
   useCreatePipelineMutation,
   useListPipelinesQuery,
 } from "@/api/queries/pipelines";
+
 import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
-import { useToast } from "@/providers/toast/useToast";
-import { ToastVariant } from "@/providers/toast/ToastProvider";
+
+import { CONNECTORS_DOCS_URL } from "@/constants";
 
 const LOADING_ROW_COUNT = 20;
 
@@ -123,10 +129,7 @@ const PipelinesPage = () => {
   const handleNewPipeline = () => {
     createPipeline(
       create(CreatePipelineRequestSchema, {
-        tenant: "", // TODO: Get from auth context
         name: "Untitled Pipeline",
-        nodes: [],
-        edges: [],
       }),
       {
         onSuccess: (response) => {
@@ -150,7 +153,7 @@ const PipelinesPage = () => {
   };
 
   const handleReadTheDocs = () => {
-    window.open("https://filament.getgalaxy.io/pipelines", "_blank");
+    window.open(CONNECTORS_DOCS_URL, "_blank");
   };
 
   const renderContent = () => {
@@ -158,6 +161,7 @@ const PipelinesPage = () => {
       return (
         <FlexWrapper fillWidth direction={FlexDirection.COLUMN}>
           {Array.from({ length: LOADING_ROW_COUNT }).map((_, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length loading skeleton, never reordered
             <PipelineCardLoading key={index} />
           ))}
         </FlexWrapper>
@@ -182,7 +186,7 @@ const PipelinesPage = () => {
     if (!data?.pipelines.length) {
       return (
         <EmptyLayout
-          icon={<PipelinesEmptyDark height={200} />}
+          icon={<ConnectorEmptyDark height={200} />}
           header="No pipelines found"
           message="Create pipelines to move data between your connectors."
           actions={

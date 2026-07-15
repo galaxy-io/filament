@@ -15,5 +15,4 @@ export const APP_VERSION = "v0.0.1-alpha";
 
 export const GITHUB_REPO_URL = "https://github.com/galaxy-io/filament";
 
-export const CONNECTORS_DOCS_URL =
-  "https://filament.getgalaxy.io/connectors";
+export const CONNECTORS_DOCS_URL = "https://filament.getgalaxy.io/connectors";

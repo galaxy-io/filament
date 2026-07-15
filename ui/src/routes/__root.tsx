@@ -2,34 +2,29 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import {
-  createRootRoute,
-  Outlet,
-  useNavigate,
-  useSearch,
-} from "@tanstack/react-router";
+import { createRootRoute, Outlet, useNavigate, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 
 import Drawer from "@galaxy-io/dls/drawer/Drawer";
-
-export enum Flow {
-  CREATE_CONNECTOR = "CREATE_CONNECTOR",
-}
 import Modal from "@galaxy-io/dls/modal/Modal";
 import { OverlayProvider } from "@galaxy-io/dls/overlay/OverlayProvider";
 import Text from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-
-import { useListConnectionsQuery } from "@/api/queries/connectors";
-
 import { ConnectionDrawer } from "@/pages/connectors/components/drawer";
 import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
 
 import { ToastProvider } from "@/providers/toast/ToastProvider";
+
+import { useListConnectionsQuery } from "@/api/queries/connectors";
+
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+
+export enum Flow {
+  CREATE_CONNECTOR = "CREATE_CONNECTOR",
+}
 
 const rootSearchSchema = z.object({
   connectionId: z.string().optional(),
@@ -113,20 +108,16 @@ function RootComponent() {
           width={CONNECTOR_DRAWER_WIDTH}
         >
           {selectedConnection && (
-            <ConnectionDrawer
-              connection={selectedConnection}
-              onClose={handleCloseDrawer}
-            />
+            <ConnectionDrawer connection={selectedConnection} onClose={handleCloseDrawer} />
           )}
         </Drawer>
 
         <Modal open={flow === Flow.CREATE_CONNECTOR} onClose={handleCloseFlow}>
           <ModalWrapper>
             <Text>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim
-              ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-              aliquip ex ea commodo consequat.
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
+              incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+              exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
             </Text>
           </ModalWrapper>
         </Modal>

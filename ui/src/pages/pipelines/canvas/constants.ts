@@ -12,10 +12,7 @@ export const CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
 export const CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
 // Maps ConnectorKind to React Flow handle type
-export const CONNECTOR_KIND_TO_HANDLE_TYPE_MAP: Record<
-  ConnectorKind,
-  HandleType
-> = {
+export const CONNECTOR_KIND_TO_HANDLE_TYPE_MAP: Record<ConnectorKind, HandleType> = {
   [ConnectorKind.UNSPECIFIED]: "source",
   [ConnectorKind.SOURCE]: "source",
   [ConnectorKind.SINK]: "target",

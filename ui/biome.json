@@ -1,0 +1,71 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
+  "files": {
+    "includes": [
+      "src/**",
+      "!src/routeTree.gen.ts",
+      "!src/gen/**",
+      "!src/assets/components/**",
+      "!src/assets/svgr/**"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              ["react", "react-dom", "react-dom/**"],
+              ":BLANK_LINE:",
+              [":PACKAGE:", "!@galaxy-io/**"],
+              ":BLANK_LINE:",
+              "@galaxy-io/**",
+              ":BLANK_LINE:",
+              "@/assets/**",
+              ":BLANK_LINE:",
+              "@/layouts/**",
+              ":BLANK_LINE:",
+              "@/pages/**",
+              ":BLANK_LINE:",
+              "@/routes/**",
+              ":BLANK_LINE:",
+              "@/providers/**",
+              ":BLANK_LINE:",
+              "@/api/**",
+              ":BLANK_LINE:",
+              "@/gen/**",
+              ":BLANK_LINE:",
+              "@/hooks/**",
+              ":BLANK_LINE:",
+              "@/storage/**",
+              ":BLANK_LINE:",
+              ["@/constants", "@/constants/**"],
+              ":BLANK_LINE:",
+              [":PATH:"]
+            ]
+          }
+        }
+      }
+    }
+  }
+}

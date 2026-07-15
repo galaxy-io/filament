@@ -16,13 +16,7 @@ interface ErrorLayoutProps {
   actions?: React.ReactNode;
 }
 
-const ErrorLayout = ({
-  icon,
-  header,
-  message,
-  error,
-  actions,
-}: ErrorLayoutProps) => {
+const ErrorLayout = ({ icon, header, message, error, actions }: ErrorLayoutProps) => {
   return (
     <FlexWrapper
       fillWidth
@@ -45,12 +39,7 @@ const ErrorLayout = ({
           </Text>
         )}
         {IS_DEBUG && error && (
-          <Text
-            size={TextSize.BODY_SM}
-            variant={TextVariant.ERROR}
-            isMonospace
-            isSelectable
-          >
+          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR} isMonospace isSelectable>
             {error.message}
           </Text>
         )}

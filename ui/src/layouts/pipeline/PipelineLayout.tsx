@@ -7,11 +7,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { useRouteMatch } from "@/hooks/useRouteMatch";
+import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
-import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import { PipelineSidebarItem, PipelineStatus } from "@/layouts/pipeline/types";
+
+import { useRouteMatch } from "@/hooks/useRouteMatch";
 
 const LayoutWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -117,10 +118,7 @@ const PipelineLayout = ({
     <LayoutWrapper>
       <LeftColumn>
         <PipelineLayoutNavbar.BackButton />
-        <PipelineLayoutSidebar
-          activeItem={getActiveItem()}
-          onItemClick={handleItemClick}
-        />
+        <PipelineLayoutSidebar activeItem={getActiveItem()} onItemClick={handleItemClick} />
       </LeftColumn>
       <RightColumn>
         <PipelineLayoutNavbar.Content

@@ -1,17 +1,17 @@
 import {
   createConnectQueryKey,
+  type UseMutationOptions,
+  type UseQueryOptions,
   useMutation,
   useQuery,
-  UseMutationOptions,
-  UseQueryOptions,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
-import {
+import type {
   ListConnectionsRequest,
   ListConnectionsResponse,
 } from "@/gen/ingestion/v1/connections_pb";
-import {
+import type {
   DiscoverResourcesRequest,
   DiscoverResourcesResponse,
   ListConnectorsRequest,

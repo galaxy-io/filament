@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
+import CellGridBackground from "@galaxy-io/dls/backgrounds/CellGridBackground";
 import GithubLogomark from "@galaxy-io/dls/icons/sources/GithubLogomark";
 import GoogleBigqueryLogomark from "@galaxy-io/dls/icons/sources/GoogleBigqueryLogomark";
 import HubspotLogomark from "@galaxy-io/dls/icons/sources/HubspotLogomark";
@@ -94,16 +95,42 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
+const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
+  width: ${({ $size }) => getTileSize($size)}px;
+  height: ${({ $size }) => getTileSize($size)}px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-color: transparent;
+
+  border: 1px dashed ${({ theme }) => theme.color.border.tertiary};
+  border-radius: ${({ $size }) => getTileRadius($size)}px;
+
+  overflow: hidden;
+`);
+
+interface EmptyConnectorTileProps {
+  size?: ConnectorTileSize;
+}
+
+export const ConnectorTileEmpty = ({
+  size = ConnectorTileSize.MEDIUM,
+}: EmptyConnectorTileProps) => {
+  return (
+    <EmptyTileWrapper $size={size}>
+      <CellGridBackground cellSize={3} strokeWidth={2} lineOpacity={0.5} fillContainer />
+    </EmptyTileWrapper>
+  );
+};
+
 interface ConnectorTileProps {
   connector: string;
   size?: ConnectorTileSize;
   onClick?: (e: React.MouseEvent) => void;
 }
 
-/**
- * A tile showing a connector's logomark, falling back to the connector's
- * first letter when no logomark exists in the DLS.
- */
 const ConnectorTile = ({
   connector,
   size = ConnectorTileSize.MEDIUM,
@@ -116,11 +143,7 @@ const ConnectorTile = ({
       {Logomark ? (
         <Logomark height={getLogoHeight(size)} />
       ) : (
-        <Text
-          size={getTextSize(size)}
-          variant={TextVariant.SECONDARY}
-          isMonospace
-        >
+        <Text size={getTextSize(size)} variant={TextVariant.SECONDARY} isMonospace>
           {connector.charAt(0).toUpperCase()}
         </Text>
       )}

@@ -1,4 +1,4 @@
-import { PropsWithChildren, useCallback, useState } from "react";
+import { type PropsWithChildren, useCallback, useState } from "react";
 
 import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
 import { GalaxyThemeProvider } from "@galaxy-io/dls/theme/GalaxyTheme";

@@ -1,15 +1,9 @@
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
-  FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 interface EmptyLayoutProps {
   icon?: React.ReactNode;
@@ -29,11 +23,7 @@ const EmptyLayout = ({ icon, header, message, actions }: EmptyLayoutProps) => {
       gap={24}
     >
       {icon && icon}
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.CENTER}
-        gap={8}
-      >
+      <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={8}>
         {header && (
           <Text size={TextSize.HEADING_SM} weight={TextWeight.MEDIUM}>
             {header}

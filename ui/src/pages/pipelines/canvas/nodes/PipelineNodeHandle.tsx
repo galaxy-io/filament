@@ -1,12 +1,12 @@
-import { Handle, Position } from "@xyflow/react";
 import { styled } from "@linaria/react";
+import { Handle, type Position } from "@xyflow/react";
 
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
 import { CONNECTOR_KIND_TO_HANDLE_TYPE_MAP } from "@/pages/pipelines/canvas/constants";
+
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 // Port sizes from Figma
 const PORT_SIZE_ACTIVE = 12;
@@ -21,10 +21,8 @@ const StyledHandle = withTheme(styled(Handle)<PropsWithTheme<{ $isConnected?: bo
   left: auto !important;
   transform: none !important;
 
-  width: ${({ $isConnected }) =>
-    $isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE}px !important;
-  height: ${({ $isConnected }) =>
-    $isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE}px !important;
+  width: ${({ $isConnected }) => ($isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE)}px !important;
+  height: ${({ $isConnected }) => ($isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE)}px !important;
 
   background-color: ${({ theme, $isConnected }) =>
     $isConnected ? "transparent" : theme.color.text.tertiary} !important;
@@ -54,14 +52,7 @@ interface PipelineNodeHandleProps {
 const PipelineNodeHandle = ({ id, kind, position, isConnected }: PipelineNodeHandleProps) => {
   const handleType = CONNECTOR_KIND_TO_HANDLE_TYPE_MAP[kind];
 
-  return (
-    <StyledHandle
-      id={id}
-      type={handleType}
-      position={position}
-      $isConnected={isConnected}
-    />
-  );
+  return <StyledHandle id={id} type={handleType} position={position} $isConnected={isConnected} />;
 };
 
 export default PipelineNodeHandle;

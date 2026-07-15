@@ -1,33 +1,29 @@
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { FlowArrowIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, LinkBreakIcon } from "@phosphor-icons/react";
 
-import { PIPELINE_MAX_VISIBLE_SINKS } from "@/pages/pipelines/constants";
-import { PipelineFlowSize } from "@/pages/pipelines/types";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+
 import ConnectorTile, {
   ConnectorOverflowTile,
+  ConnectorTileEmpty,
   ConnectorTileSize,
 } from "@/pages/connectors/components/ConnectorTile";
+import { PIPELINE_MAX_VISIBLE_SINKS } from "@/pages/pipelines/constants";
+import { PipelineFlowSize } from "@/pages/pipelines/types";
 
-const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<
-  PipelineFlowSize,
-  ConnectorTileSize
-> = {
+const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, ConnectorTileSize> = {
   [PipelineFlowSize.SMALL]: ConnectorTileSize.SMALL,
   [PipelineFlowSize.MEDIUM]: ConnectorTileSize.MEDIUM,
 };
 
 const PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP: Record<PipelineFlowSize, number> = {
-  [PipelineFlowSize.SMALL]: 12,
-  [PipelineFlowSize.MEDIUM]: 16,
+  [PipelineFlowSize.SMALL]: 16,
+  [PipelineFlowSize.MEDIUM]: 20,
 };
 
 interface PipelineFlowProps {
-  source: string;
-  sinks: string[];
+  source?: string;
+  sinks?: string[];
   size?: PipelineFlowSize;
   maxSinks?: number;
   onConnectionClick?: (connectionId: string, e: React.MouseEvent) => void;
@@ -38,7 +34,7 @@ interface PipelineFlowProps {
  */
 const PipelineFlow = ({
   source,
-  sinks,
+  sinks = [],
   size = PipelineFlowSize.SMALL,
   maxSinks,
   onConnectionClick,
@@ -50,29 +46,41 @@ const PipelineFlow = ({
   const tileSize = PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size];
   const iconSize = PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size];
 
+  const hasSource = !!source && source.length > 0;
+  const hasSinks = sinks.length > 0;
+
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-      <ConnectorTile
-        connector={source}
-        size={tileSize}
-        onClick={onConnectionClick ? (e) => onConnectionClick(source, e) : undefined}
-      />
+      {hasSource ? (
+        <ConnectorTile
+          connector={source}
+          size={tileSize}
+          onClick={onConnectionClick ? (e) => onConnectionClick(source, e) : undefined}
+        />
+      ) : (
+        <ConnectorTileEmpty size={tileSize} />
+      )}
       <Icon
-        component={FlowArrowIcon}
+        component={hasSource && hasSinks ? FlowArrowIcon : LinkBreakIcon}
         size={iconSize}
         variant={IconVariant.TERTIARY}
       />
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
-        {visibleSinks.map((sink, index) => (
-          <ConnectorTile
-            key={`${sink}-${index}`}
-            connector={sink}
-            size={tileSize}
-            onClick={onConnectionClick ? (e) => onConnectionClick(sink, e) : undefined}
-          />
-        ))}
-        {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
-      </FlexWrapper>
+      {hasSinks ? (
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
+          {visibleSinks.map((sink, index) => (
+            <ConnectorTile
+              // biome-ignore lint/suspicious/noArrayIndexKey: sinks are connector ids and a pipeline can have two sink nodes on the same connector, so id alone isn't guaranteed unique
+              key={`${sink}-${index}`}
+              connector={sink}
+              size={tileSize}
+              onClick={onConnectionClick ? (e) => onConnectionClick(sink, e) : undefined}
+            />
+          ))}
+          {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
+        </FlexWrapper>
+      ) : (
+        <ConnectorTileEmpty size={tileSize} />
+      )}
     </FlexWrapper>
   );
 };

@@ -1,20 +1,10 @@
-import {
-  ArrowLeftIcon,
-  ClockCounterClockwiseIcon,
-  PlayIcon,
-} from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { ArrowLeftIcon, PlayIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -25,9 +15,10 @@ import {
   PIPELINE_STATUS_TO_CHIP_VARIANT_MAP,
   PIPELINE_STATUS_TO_LABEL_MAP,
 } from "@/layouts/pipeline/constants";
-import { PipelineStatus } from "@/layouts/pipeline/types";
-import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
+import type { PipelineStatus } from "@/layouts/pipeline/types";
+
 import { useOpenConnectionDrawer } from "@/pages/connectors/hooks";
+import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
 
 const BackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -105,11 +96,7 @@ const Content = ({
           variant={PIPELINE_STATUS_TO_CHIP_VARIANT_MAP[status]}
         />
         <Text weight={TextWeight.MEDIUM}>{name}</Text>
-        <PipelineFlow
-          source={source}
-          sinks={sinks}
-          onConnectionClick={openConnectionDrawer}
-        />
+        <PipelineFlow source={source} sinks={sinks} onConnectionClick={openConnectionDrawer} />
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>

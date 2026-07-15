@@ -1,5 +1,5 @@
-import { TrashIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -27,12 +27,7 @@ const ConnectionDrawerFooter = ({ onDelete }: ConnectionDrawerFooterProps) => {
             This will permanently delete this connection.
           </Text>
         </FlexWrapper>
-        <Button
-          label="Delete"
-          icon={TrashIcon}
-          variant={ButtonVariant.ERROR}
-          onClick={onDelete}
-        />
+        <Button label="Delete" icon={TrashIcon} variant={ButtonVariant.ERROR} onClick={onDelete} />
       </FieldRow>
     </Widget>
   );

@@ -2,21 +2,15 @@ import { styled } from "@linaria/react";
 import { Link } from "@tanstack/react-router";
 import GitHubButton from "react-github-btn";
 
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { useRouteMatch } from "@/hooks/useRouteMatch";
 import { NAV_ITEMS, NAVBAR_HEIGHT } from "@/layouts/main/constants";
+
+import { useRouteMatch } from "@/hooks/useRouteMatch";
 
 import { GITHUB_REPO_URL } from "@/constants";
 
@@ -33,14 +27,11 @@ const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const NavTabWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $isActive?: boolean }>
->`
+const NavTabWrapper = withTheme(styled.div<PropsWithTheme<{ $isActive?: boolean }>>`
   padding-bottom: 8px;
 
   border-bottom: 2px solid
-    ${({ theme, $isActive }) =>
-      $isActive ? theme.color.text.primary : "transparent"};
+    ${({ theme, $isActive }) => ($isActive ? theme.color.text.primary : "transparent")};
 
   transition: border-color 100ms ease;
 `);
@@ -84,9 +75,7 @@ const MainLayoutNavbar = () => {
               <NavTabWrapper $isActive={isActive}>
                 <Text
                   size={TextSize.BODY_MD}
-                  variant={
-                    isActive ? TextVariant.PRIMARY : TextVariant.SECONDARY
-                  }
+                  variant={isActive ? TextVariant.PRIMARY : TextVariant.SECONDARY}
                   weight={isActive ? TextWeight.MEDIUM : TextWeight.REGULAR}
                   cursor="pointer"
                 >

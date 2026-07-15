@@ -1,9 +1,4 @@
-import { Fragment } from "react/jsx-runtime";
-
-import FlexWrapper, {
-  AlignItems,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 
 interface BaseToolbarProps {
   leadingActions: React.ReactNode[];
@@ -21,20 +16,12 @@ const BaseToolbar = ({ leadingActions, trailingActions }: BaseToolbarProps) => {
       gap={6}
       fillWidth
     >
-      <FlexWrapper
-        alignItems={AlignItems.CENTER}
-        gap={6}
-        fillWidth={!hasTrailingActions}
-      >
-        {leadingActions.map((action, index) => (
-          <Fragment key={index}>{action}</Fragment>
-        ))}
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={6} fillWidth={!hasTrailingActions}>
+        {leadingActions}
       </FlexWrapper>
       {hasTrailingActions && (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-          {trailingActions?.map((action, index) => (
-            <Fragment key={index}>{action}</Fragment>
-          ))}
+          {trailingActions}
         </FlexWrapper>
       )}
     </FlexWrapper>

@@ -1,6 +1,6 @@
 import {
   createContext,
-  PropsWithChildren,
+  type PropsWithChildren,
   useCallback,
   useEffect,
   useRef,
@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 
 import { AnimatePresence } from "framer-motion";
 
-import Toast, { ToastVariant, type ToastProps } from "@/providers/toast/Toast";
+import Toast, { type ToastProps, ToastVariant } from "@/providers/toast/Toast";
 import ToastContainer from "@/providers/toast/ToastContainer";
 import ToastWrapper from "@/providers/toast/ToastWrapper";
 
@@ -37,26 +37,19 @@ export interface ToastContextProps {
   hideToast: (id?: string) => void;
 }
 
-export const ToastContext = createContext<ToastContextProps | undefined>(
-  undefined,
-);
+export const ToastContext = createContext<ToastContextProps | undefined>(undefined);
 
 const DEFAULT_TIMEOUT = 3000;
 
 export const ToastProvider = ({ children }: PropsWithChildren) => {
   const [toasts, setToasts] = useState<ToastState[]>([]);
-  const timeoutRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map(),
-  );
+  const timeoutRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const showToast = useCallback((options: ShowToastProps) => {
     const id = crypto.randomUUID();
     const { timeout, top, right, bottom, left, ...props } = options;
     const finalTimeout = timeout === undefined ? DEFAULT_TIMEOUT : timeout;
-    setToasts((prev) => [
-      ...prev,
-      { id, props, timeout: finalTimeout, top, right, bottom, left },
-    ]);
+    setToasts((prev) => [...prev, { id, props, timeout: finalTimeout, top, right, bottom, left }]);
     return id;
   }, []);
 
@@ -137,8 +130,7 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>
       {children}
-      {typeof document !== "undefined" &&
-        createPortal(toastContent, document.body)}
+      {typeof document !== "undefined" && createPortal(toastContent, document.body)}
     </ToastContext.Provider>
   );
 };

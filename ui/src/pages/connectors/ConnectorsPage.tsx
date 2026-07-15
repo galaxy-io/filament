@@ -1,20 +1,18 @@
 import { useMemo, useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
+import { styled } from "@linaria/react";
 import {
   BookOpenIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
@@ -23,15 +21,10 @@ import DropdownItem from "@galaxy-io/dls/dropdown/DropdownItem";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
-import { Flow } from "@/routes/__root";
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-
-import { useListConnectionsQuery } from "@/api/queries/connectors";
-
-import { CONNECTORS_DOCS_URL } from "@/constants";
+import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
+import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
 import ConnectionCard from "@/pages/connectors/components/ConnectionCard";
@@ -41,9 +34,16 @@ import {
   CONNECTOR_KIND_TO_LABEL_MAP,
   CONNECTOR_SEARCH_WIDTH,
 } from "@/pages/connectors/constants";
-import { ConnectorsPageState } from "@/pages/connectors/types";
-import EmptyLayout from "@/layouts/EmptyLayout";
-import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
+import type { ConnectorsPageState } from "@/pages/connectors/types";
+
+import { Flow } from "@/routes/__root";
+
+import { useListConnectionsQuery } from "@/api/queries/connectors";
+
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+
+import { CONNECTORS_DOCS_URL } from "@/constants";
 
 const LOADING_CARD_COUNT = 20;
 
@@ -105,8 +105,7 @@ const ConnectorsPage = () => {
         ? connection.name.toLowerCase().includes(state.search.toLowerCase())
         : true;
       const matchesKind =
-        state.kindFilter === ConnectorKind.UNSPECIFIED ||
-        connection.kind === state.kindFilter;
+        state.kindFilter === ConnectorKind.UNSPECIFIED || connection.kind === state.kindFilter;
       return matchesSearch && matchesKind;
     });
   }, [data?.connections, state.search, state.kindFilter]);
@@ -130,6 +129,7 @@ const ConnectorsPage = () => {
           gap={12}
         >
           {Array.from({ length: LOADING_CARD_COUNT }).map((_, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length loading skeleton, never reordered
             <ConnectionCardLoading key={index} />
           ))}
         </GridWrapper>
@@ -139,13 +139,7 @@ const ConnectorsPage = () => {
     if (isError) {
       return (
         <ErrorLayout
-          icon={
-            <Icon
-              component={WarningCircleIcon}
-              size={20}
-              variant={IconVariant.ERROR}
-            />
-          }
+          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
           message="Failed to load connectors. Please try again."
         />
       );
@@ -183,9 +177,7 @@ const ConnectorsPage = () => {
       return (
         <EmptyLayout
           message={
-            state.search
-              ? "No connectors match your search"
-              : "No connectors match your filters"
+            state.search ? "No connectors match your search" : "No connectors match your filters"
           }
         />
       );
@@ -230,9 +222,7 @@ const ConnectorsPage = () => {
                 <>
                   <DropdownItem
                     label="All connectors"
-                    onClick={() =>
-                      handleSelectKindFilter(ConnectorKind.UNSPECIFIED)
-                    }
+                    onClick={() => handleSelectKindFilter(ConnectorKind.UNSPECIFIED)}
                   />
                   <DropdownItem
                     label="Sources"

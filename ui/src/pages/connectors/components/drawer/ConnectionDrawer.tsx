@@ -6,14 +6,14 @@ import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-
-import { useDeleteConnectionMutation } from "@/api/queries/connectors";
-
 import ConnectionDrawerDetails from "@/pages/connectors/components/drawer/ConnectionDrawerDetails";
 import ConnectionDrawerFooter from "@/pages/connectors/components/drawer/ConnectionDrawerFooter";
 import ConnectionDrawerHeader from "@/pages/connectors/components/drawer/ConnectionDrawerHeader";
 import ConnectionDrawerMetrics from "@/pages/connectors/components/drawer/ConnectionDrawerMetrics";
+
+import { useDeleteConnectionMutation } from "@/api/queries/connectors";
+
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 const DrawerWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -60,7 +60,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
           onClose();
           navigate({ to: "/connectors" });
         },
-      }
+      },
     );
   };
 

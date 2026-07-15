@@ -1,22 +1,22 @@
-import { FlowArrowIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { FlowArrowIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
+
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -52,11 +52,7 @@ interface ConnectionCardProps {
   onClick?: () => void;
 }
 
-const ConnectionCard = ({
-  connection,
-  pipelineCount = 0,
-  onClick,
-}: ConnectionCardProps) => {
+const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCardProps) => {
   const isSource = connection.kind === ConnectorKind.SOURCE;
   const kindLabel = isSource ? "Source" : "Sink";
   const pipelineLabel = pluralize("pipeline", pipelineCount, true);
@@ -77,17 +73,10 @@ const ConnectionCard = ({
               {connection.name}
             </Text>
           </FlexWrapper>
-          <Chip
-            label={kindLabel}
-            variant={isSource ? ChipVariant.LIME : ChipVariant.PINK}
-          />
+          <Chip label={kindLabel} variant={isSource ? ChipVariant.LIME : ChipVariant.PINK} />
         </FlexWrapper>
         <FlexItem shrink={0}>
-          <Chip
-            icon={FlowArrowIcon}
-            label={pipelineLabel}
-            variant={ChipVariant.TERTIARY}
-          />
+          <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.TERTIARY} />
         </FlexItem>
       </CardSection>
     </CardWrapper>

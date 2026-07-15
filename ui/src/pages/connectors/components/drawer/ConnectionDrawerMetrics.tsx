@@ -1,11 +1,8 @@
-import { FlowArrowIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { FlowArrowIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, {
-  AlignItems,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
@@ -39,19 +36,12 @@ const ConnectionDrawerMetrics = ({
         justifyContent={JustifyContent.SPACE_BETWEEN}
       >
         <MetricItem>
-          <Icon
-            component={FlowArrowIcon}
-            size={16}
-            variant={IconVariant.TERTIARY}
-          />
+          <Icon component={FlowArrowIcon} size={16} variant={IconVariant.TERTIARY} />
           <Text size={TextSize.BODY_SM}>
             {pipelineCount} {pipelineCount === 1 ? "pipeline" : "pipelines"}
           </Text>
         </MetricItem>
-        <Chip
-          label={kindLabel}
-          variant={isSource ? ChipVariant.LIME : ChipVariant.PINK}
-        />
+        <Chip label={kindLabel} variant={isSource ? ChipVariant.LIME : ChipVariant.PINK} />
       </FlexWrapper>
     </Widget>
   );

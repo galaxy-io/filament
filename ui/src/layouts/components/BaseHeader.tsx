@@ -1,15 +1,8 @@
 import { styled } from "@linaria/react";
 import { XIcon } from "@phosphor-icons/react";
-import { Fragment } from "react/jsx-runtime";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import { BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP } from "@/layouts/components/constants";
@@ -46,14 +39,9 @@ const BaseHeader = ({
   size = BaseHeaderSize.MEDIUM,
   onClose,
 }: BaseHeaderProps) => {
-  const alignItems =
-    onClose && !!description ? AlignItems.START : AlignItems.CENTER;
+  const alignItems = onClose && description ? AlignItems.START : AlignItems.CENTER;
   return (
-    <FlexWrapper
-      alignItems={alignItems}
-      justifyContent={JustifyContent.SPACE_BETWEEN}
-      fillWidth
-    >
+    <FlexWrapper alignItems={alignItems} justifyContent={JustifyContent.SPACE_BETWEEN} fillWidth>
       <TitleWrapper>
         {typeof title === "string" ? (
           <Text
@@ -74,9 +62,7 @@ const BaseHeader = ({
           ))}
       </TitleWrapper>
       <ActionsWrapper>
-        {actions?.map((action, index) => (
-          <Fragment key={index}>{action}</Fragment>
-        ))}
+        {actions}
         {onClose && (
           <Button
             icon={XIcon}
