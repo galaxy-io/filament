@@ -2,14 +2,19 @@ import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, BookOpenIcon, CheckIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, {
+  ButtonSize,
+  ButtonVariant,
+} from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  FlexDirection,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -44,7 +49,7 @@ import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import { ValidateConfigRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
-import { NOOP } from "@/constants";
+import { CONNECTORS_DOCS_URL, NOOP } from "@/constants";
 
 const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
   flex: 1;
@@ -57,6 +62,8 @@ const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
 
 const FooterWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 16px;
   background-color: ${({ theme }) => theme.color.background.primary};
 `);
@@ -80,7 +87,10 @@ const CreateConnectionConfigureContent = ({
   const { mutate: validateConfig } = useValidateConfigMutation();
   const { mutate: createConnection } = useCreateConnectionMutation();
 
-  const fields = useMemo(() => getConnectorConfigSchemaConnectionFields(connector), [connector]);
+  const fields = useMemo(
+    () => getConnectorConfigSchemaConnectionFields(connector),
+    [connector],
+  );
 
   const isDisabled =
     state.phase === CreateConnectionPhase.VALIDATING ||
@@ -169,7 +179,8 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message = error instanceof Error ? error.message : "Validation failed";
+          const message =
+            error instanceof Error ? error.message : "Validation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -182,7 +193,13 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [state.request, validateAndShowErrors, validateConfig, dispatch, showToast]);
+  }, [
+    state.request,
+    validateAndShowErrors,
+    validateConfig,
+    dispatch,
+    showToast,
+  ]);
 
   const handleCreateConnection = useCallback(() => {
     const name = state.request.name?.trim();
@@ -221,7 +238,8 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message = error instanceof Error ? error.message : "Creation failed";
+          const message =
+            error instanceof Error ? error.message : "Creation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -234,7 +252,14 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [state.request, createConnection, queryClient, showToast, navigate, dispatch]);
+  }, [
+    state.request,
+    createConnection,
+    queryClient,
+    showToast,
+    navigate,
+    dispatch,
+  ]);
 
   // Field handlers (dispatch directly - GX style)
   const handleNameChange = useCallback(
@@ -262,6 +287,10 @@ const CreateConnectionConfigureContent = ({
   const handleCreate = useCallback(() => {
     handleCreateConnection();
   }, [handleCreateConnection]);
+
+  const handleDocsClick = useCallback(() => {
+    window.open(CONNECTORS_DOCS_URL, "_blank");
+  }, []);
 
   const getFieldValue = (fieldName: string): JsonValue => {
     return state.request.config?.[fieldName] ?? null;
@@ -296,21 +325,17 @@ const CreateConnectionConfigureContent = ({
         <Button
           label="Test Connection"
           icon={ArrowRightIcon}
-          size={ButtonSize.LARGE}
           onClick={handleTest}
           isDisabled={isDisabled}
           isIconTrailing
-          fillWidth
         />
       ))
       .with(CreateConnectionPhase.VALIDATING, () => (
         <Button
           label="Testing..."
-          size={ButtonSize.LARGE}
           onClick={NOOP}
           isLoading={isValidating}
           isDisabled
-          fillWidth
         />
       ))
       .with(CreateConnectionPhase.VALIDATED, () => (
@@ -318,19 +343,15 @@ const CreateConnectionConfigureContent = ({
           label="Create Connection"
           icon={CheckIcon}
           variant={ButtonVariant.SUCCESS}
-          size={ButtonSize.LARGE}
           onClick={handleCreate}
-          fillWidth
         />
       ))
       .with(CreateConnectionPhase.CREATING, () => (
         <Button
           label="Creating..."
-          size={ButtonSize.LARGE}
           onClick={NOOP}
           isLoading={isCreating}
           isDisabled
-          fillWidth
         />
       ))
       .exhaustive();
@@ -339,7 +360,11 @@ const CreateConnectionConfigureContent = ({
   return (
     <CreateConnectionModalWrapper step={CreateConnectionModalStep.CONFIGURE}>
       <FlexItem grow={0} shrink={0}>
-        <CreateConnectionModalHeader connector={connector} onClose={onClose} onBack={onBack} />
+        <CreateConnectionModalHeader
+          connector={connector}
+          onClose={onClose}
+          onBack={onBack}
+        />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
@@ -354,9 +379,15 @@ const CreateConnectionConfigureContent = ({
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
       </FlexItem>
-      <FlexItem grow={0} shrink={0}>
-        <FooterWrapper>{renderFooter()}</FooterWrapper>
-      </FlexItem>
+      <FooterWrapper>
+        <Button
+          onClick={handleDocsClick}
+          label="View Docs"
+          icon={BookOpenIcon}
+          variant={ButtonVariant.TERTIARY}
+        />
+        {renderFooter()}
+      </FooterWrapper>
     </CreateConnectionModalWrapper>
   );
 };

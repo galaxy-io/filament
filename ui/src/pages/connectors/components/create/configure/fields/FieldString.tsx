@@ -1,6 +1,7 @@
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 
 const FieldString = ({
   field,

@@ -77,6 +77,7 @@ server:
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
+      ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       GOWORK=off go run .
 
 # run the control plane locally (defaults match docker-compose.yaml; env overrides)
@@ -87,6 +88,7 @@ control-plane:
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
       DISPATCH_MODE="${DISPATCH_MODE:-inproc}" \
+      ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       GOWORK=off go run .
 
 # run the web UI dev server (vite, proxies API to :8080)
