@@ -382,7 +382,7 @@ const CreateConnectionConfigureContent = ({
       <FooterWrapper>
         <Button
           onClick={handleDocsClick}
-          label="View Docs"
+          label="Documentation"
           icon={BookOpenIcon}
           variant={ButtonVariant.TERTIARY}
         />
