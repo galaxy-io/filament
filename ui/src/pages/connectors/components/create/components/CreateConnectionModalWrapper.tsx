@@ -10,6 +10,7 @@ import { CreateConnectionModalStep } from "@/pages/connectors/components/create/
 import {
   CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH,
   CREATE_CONNECTION_MODAL_MAX_HEIGHT,
+  CREATE_CONNECTION_MODAL_MIN_HEIGHT,
   CREATE_CONNECTION_MODAL_SELECTOR_WIDTH,
 } from "@/pages/connectors/constants";
 
@@ -21,6 +22,7 @@ const Wrapper = withTheme(styled.div<PropsWithTheme & { $step: CreateConnectionM
   display: flex;
   flex-direction: column;
 
+  min-height: ${CREATE_CONNECTION_MODAL_MIN_HEIGHT}px;
   max-height: ${CREATE_CONNECTION_MODAL_MAX_HEIGHT}px;
   width: ${({ $step }) => {
     return match($step)
