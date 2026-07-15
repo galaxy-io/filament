@@ -44,6 +44,9 @@ importers:
       '@xyflow/react':
         specifier: ^12.11.2
         version: 12.11.2(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      framer-motion:
+        specifier: ^12.42.2
+        version: 12.42.2(@emotion/is-prop-valid@1.4.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       pluralize:
         specifier: ^8.0.0
         version: 8.0.0

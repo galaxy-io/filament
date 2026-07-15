@@ -11,6 +11,20 @@ import {
   PipelineResource,
 } from "@/pages/pipelines/types";
 
+export const toPipelineGroups = (
+  items: PipelineResource[],
+): Record<PipelineGroup, PipelineResource[]> => {
+  const groups: Record<PipelineGroup, PipelineResource[]> = {
+    [PipelineGroup.ACTIVE]: [],
+    [PipelineGroup.NEEDS_ATTENTION]: [],
+    [PipelineGroup.PAUSED]: [],
+  };
+  for (const item of items) {
+    groups[getPipelineGroup(item)].push(item);
+  }
+  return groups;
+};
+
 export const getPipelineGroup = (pipeline: PipelineResource): PipelineGroup => {
   return match(pipeline.health)
     .with(PipelineHealth.HEALTHY, () => PipelineGroup.ACTIVE)

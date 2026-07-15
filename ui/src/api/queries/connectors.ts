@@ -8,6 +8,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  ListConnectionsRequest,
   ListConnectionsResponse,
 } from "@/gen/ingestion/v1/connections_pb";
 import {
@@ -27,7 +28,7 @@ const discoverResources = IngestionService.method.discoverResources;
 
 // ========== LIST CONNECTIONS ==========
 
-export const createListConnectionsQueryKey = (input?: { kind?: number }) => {
+export const createListConnectionsQueryKey = (input?: ListConnectionsRequest) => {
   return createConnectQueryKey({
     schema: listConnections,
     input,
@@ -39,7 +40,7 @@ export const useListConnectionsQuery = ({
   input,
   options = {},
 }: {
-  input?: { kind?: number };
+  input?: ListConnectionsRequest;
   options?: UseQueryOptions<typeof listConnections.output, ListConnectionsResponse>;
 } = {}) => {
   return useQuery<typeof listConnections.input, typeof listConnections.output>(

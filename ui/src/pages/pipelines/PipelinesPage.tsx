@@ -6,6 +6,7 @@ import {
   PlusIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -32,11 +33,15 @@ import {
   PIPELINE_GROUP_TO_LABEL_MAP,
   PIPELINE_SEARCH_WIDTH,
 } from "@/pages/pipelines/constants";
-import {
-  groupPipelineItems,
-  usePipelineListItems,
-} from "@/pages/pipelines/hooks";
+import { toPipelineGroups, toPipelineResource } from "@/pages/pipelines/utils";
 import { PipelineGroup } from "@/pages/pipelines/types";
+import {
+  useCreatePipelineMutation,
+  useListPipelinesQuery,
+} from "@/api/queries/pipelines";
+import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import { useToast } from "@/providers/toast/useToast";
+import { ToastVariant } from "@/providers/toast/ToastProvider";
 
 const LOADING_ROW_COUNT = 20;
 
@@ -51,27 +56,63 @@ const PipelineListWrapper = styled.div`
   overflow-y: auto;
 `;
 
+export interface PipelinesPageState {
+  search: string;
+  groupFilter: PipelineGroup | null;
+  isFiltersOpen: boolean;
+}
+
+const DEFAULT_STATE: PipelinesPageState = {
+  search: "",
+  groupFilter: null,
+  isFiltersOpen: false,
+};
+
 const PipelinesPage = () => {
   const navigate = useNavigate();
 
-  const [search, setSearch] = useState("");
-  const [groupFilter, setGroupFilter] = useState<PipelineGroup | null>(null);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [state, setState] = useState<PipelinesPageState>(DEFAULT_STATE);
+  const { showToast } = useToast();
 
-  const { items, isLoading, isError } = usePipelineListItems();
+  const handleSearchChange = (value: string) => {
+    setState((prev) => ({ ...prev, search: value }));
+  };
+
+  const handleSelectGroupFilter = (group: PipelineGroup | null) => {
+    setState((prev) => ({ ...prev, groupFilter: group, isFiltersOpen: false }));
+  };
+
+  const handleCloseFilters = () => {
+    setState((prev) => ({ ...prev, isFiltersOpen: false }));
+  };
+
+  const handleToggleFiltersOpen = () => {
+    setState((prev) => ({ ...prev, isFiltersOpen: !prev.isFiltersOpen }));
+  };
+
+  const { data, isLoading, isError } = useListPipelinesQuery();
+  const { mutate: createPipeline, isPending: isCreatingPipeline } =
+    useCreatePipelineMutation();
 
   const isToolbarDisabled = isLoading || isError;
 
-  const groups = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const filtered = query
-      ? items.filter((item) => item.name.toLowerCase().includes(query))
-      : items;
-    return groupPipelineItems(filtered);
-  }, [items, search]);
+  const pipelineResources = useMemo(
+    () => data?.pipelines.map(toPipelineResource) ?? [],
+    [data],
+  );
 
-  const visibleGroups = groupFilter
-    ? [groupFilter]
+  const groups = useMemo(() => {
+    const query = state.search.trim().toLowerCase();
+    const filtered = query
+      ? pipelineResources.filter((item) =>
+          item.name.toLowerCase().includes(query),
+        )
+      : pipelineResources;
+    return toPipelineGroups(filtered);
+  }, [pipelineResources, state.search]);
+
+  const visibleGroups = state.groupFilter
+    ? [state.groupFilter]
     : Object.values(PipelineGroup);
 
   const totalVisiblePipelines = visibleGroups.reduce(
@@ -80,13 +121,32 @@ const PipelinesPage = () => {
   );
 
   const handleNewPipeline = () => {
-    const id = crypto.randomUUID();
-    navigate({ to: "/pipelines/$id", params: { id } });
-  };
-
-  const handleSelectGroupFilter = (group: PipelineGroup | null) => {
-    setGroupFilter(group);
-    setIsFiltersOpen(false);
+    createPipeline(
+      create(CreatePipelineRequestSchema, {
+        tenant: "", // TODO: Get from auth context
+        name: "Untitled Pipeline",
+        nodes: [],
+        edges: [],
+      }),
+      {
+        onSuccess: (response) => {
+          if (response.pipeline?.id) {
+            navigate({
+              to: "/pipelines/$id",
+              params: { id: response.pipeline.id },
+            });
+          }
+        },
+        onError: (error) => {
+          console.error(error);
+          showToast({
+            variant: ToastVariant.ERROR,
+            header: "Failed to create pipeline",
+            subheader: error.message,
+          });
+        },
+      },
+    );
   };
 
   const handleReadTheDocs = () => {
@@ -119,9 +179,7 @@ const PipelinesPage = () => {
       );
     }
 
-    const hasPipelines = items.length > 0;
-
-    if (!hasPipelines) {
+    if (!data?.pipelines.length) {
       return (
         <EmptyLayout
           icon={<PipelinesEmptyDark height={200} />}
@@ -130,9 +188,10 @@ const PipelinesPage = () => {
           actions={
             <FlexWrapper gap={8}>
               <Button
-                label="New pipeline"
+                label={isCreatingPipeline ? "Creating..." : "New pipeline"}
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
+                isDisabled={isCreatingPipeline}
                 onClick={handleNewPipeline}
               />
               <Button
@@ -151,7 +210,7 @@ const PipelinesPage = () => {
       return (
         <EmptyLayout
           message={
-            search
+            state.search
               ? "No pipelines match your search"
               : "No pipelines match your filters"
           }
@@ -176,8 +235,8 @@ const PipelinesPage = () => {
           leadingActions={[
             <TextInput
               key="search"
-              value={search}
-              onChange={setSearch}
+              value={state.search}
+              onChange={handleSearchChange}
               placeholder="Search"
               width={PIPELINE_SEARCH_WIDTH}
               leading={{ icon: MagnifyingGlassIcon }}
@@ -185,8 +244,8 @@ const PipelinesPage = () => {
             />,
             <Dropdown
               key="filters"
-              isOpen={isFiltersOpen}
-              onClose={() => setIsFiltersOpen(false)}
+              isOpen={state.isFiltersOpen}
+              onClose={handleCloseFilters}
               position={DropdownPosition.BOTTOM_START}
               body={
                 <>
@@ -206,12 +265,12 @@ const PipelinesPage = () => {
             >
               <DropdownButton
                 label={
-                  groupFilter
-                    ? PIPELINE_GROUP_TO_LABEL_MAP[groupFilter]
+                  state.groupFilter
+                    ? PIPELINE_GROUP_TO_LABEL_MAP[state.groupFilter]
                     : "Filters"
                 }
-                isOpen={isFiltersOpen}
-                onClick={() => setIsFiltersOpen((prev) => !prev)}
+                isOpen={state.isFiltersOpen}
+                onClick={handleToggleFiltersOpen}
                 variant={ButtonVariant.SECONDARY}
                 isDisabled={isToolbarDisabled}
               />
@@ -220,10 +279,10 @@ const PipelinesPage = () => {
           trailingActions={[
             <Button
               key="new-pipeline"
-              label="New pipeline"
+              label={isCreatingPipeline ? "Creating..." : "New pipeline"}
               icon={PlusIcon}
               variant={ButtonVariant.PRIMARY}
-              isDisabled={isToolbarDisabled}
+              isDisabled={isToolbarDisabled || isCreatingPipeline}
               onClick={handleNewPipeline}
             />,
           ]}

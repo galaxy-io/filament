@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   BookOpenIcon,
@@ -6,6 +6,7 @@ import {
   PlusIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -22,7 +23,9 @@ import DropdownItem from "@galaxy-io/dls/dropdown/DropdownItem";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
+import { Flow } from "@/routes/__root";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import { useListConnectionsQuery } from "@/api/queries/connectors";
 
@@ -38,7 +41,7 @@ import {
   CONNECTOR_KIND_TO_LABEL_MAP,
   CONNECTOR_SEARCH_WIDTH,
 } from "@/pages/connectors/constants";
-import { useConnectorsPageState } from "@/pages/connectors/hooks";
+import { ConnectorsPageState } from "@/pages/connectors/types";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
@@ -54,20 +57,42 @@ const ConnectorListScrollArea = styled.div`
   overflow-y: auto;
 `;
 
+const DEFAULT_STATE: ConnectorsPageState = {
+  search: "",
+  kindFilter: ConnectorKind.UNSPECIFIED,
+  isFiltersOpen: false,
+};
+
 const ConnectorsPage = () => {
   const navigate = useNavigate();
 
-  const {
-    search,
-    setSearch,
-    kindFilter,
-    isFiltersOpen,
-    setIsFiltersOpen,
-    handleSelectKindFilter,
-  } = useConnectorsPageState();
+  const [state, setState] = useState<ConnectorsPageState>(DEFAULT_STATE);
+
+  const handleOpenCreateConnectorModal = () => {
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, flow: Flow.CREATE_CONNECTOR }),
+    });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setState((prev) => ({ ...prev, search: value }));
+  };
+
+  const handleSelectKindFilter = (kind: ConnectorKind) => {
+    setState((prev) => ({ ...prev, kindFilter: kind, isFiltersOpen: false }));
+  };
+
+  const handleCloseFilters = () => {
+    setState((prev) => ({ ...prev, isFiltersOpen: false }));
+  };
+
+  const handleToggleFiltersOpen = () => {
+    setState((prev) => ({ ...prev, isFiltersOpen: !prev.isFiltersOpen }));
+  };
 
   const { data, isLoading, isError } = useListConnectionsQuery({
-    input: { kind: ConnectorKind.UNSPECIFIED },
+    input: create(ListConnectionsRequestSchema, { kind: ConnectorKind.UNSPECIFIED }),
   });
 
   const isToolbarDisabled = isLoading || isError;
@@ -76,15 +101,15 @@ const ConnectorsPage = () => {
     if (!data?.connections) return [];
 
     return data.connections.filter((connection) => {
-      const matchesSearch = search
-        ? connection.name.toLowerCase().includes(search.toLowerCase())
+      const matchesSearch = state.search
+        ? connection.name.toLowerCase().includes(state.search.toLowerCase())
         : true;
       const matchesKind =
-        kindFilter === ConnectorKind.UNSPECIFIED ||
-        connection.kind === kindFilter;
+        state.kindFilter === ConnectorKind.UNSPECIFIED ||
+        connection.kind === state.kindFilter;
       return matchesSearch && matchesKind;
     });
-  }, [data?.connections, search, kindFilter]);
+  }, [data?.connections, state.search, state.kindFilter]);
 
   const handleConnectionClick = (connectionId: string) => {
     void navigate({
@@ -140,9 +165,7 @@ const ConnectorsPage = () => {
                 label="New connector"
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
-                onClick={() => {
-                  // TODO: open the connector creation flow once it exists.
-                }}
+                onClick={handleOpenCreateConnectorModal}
               />
               <Button
                 label="Read the docs"
@@ -160,7 +183,7 @@ const ConnectorsPage = () => {
       return (
         <EmptyLayout
           message={
-            search
+            state.search
               ? "No connectors match your search"
               : "No connectors match your filters"
           }
@@ -191,8 +214,8 @@ const ConnectorsPage = () => {
           leadingActions={[
             <TextInput
               key="search"
-              value={search}
-              onChange={setSearch}
+              value={state.search}
+              onChange={handleSearchChange}
               placeholder="Search"
               width={CONNECTOR_SEARCH_WIDTH}
               leading={{ icon: MagnifyingGlassIcon }}
@@ -200,8 +223,8 @@ const ConnectorsPage = () => {
             />,
             <Dropdown
               key="filters"
-              isOpen={isFiltersOpen}
-              onClose={() => setIsFiltersOpen(false)}
+              isOpen={state.isFiltersOpen}
+              onClose={handleCloseFilters}
               position={DropdownPosition.BOTTOM_START}
               body={
                 <>
@@ -223,9 +246,9 @@ const ConnectorsPage = () => {
               }
             >
               <DropdownButton
-                label={CONNECTOR_KIND_TO_LABEL_MAP[kindFilter]}
-                isOpen={isFiltersOpen}
-                onClick={() => setIsFiltersOpen((prev) => !prev)}
+                label={CONNECTOR_KIND_TO_LABEL_MAP[state.kindFilter]}
+                isOpen={state.isFiltersOpen}
+                onClick={handleToggleFiltersOpen}
                 variant={ButtonVariant.SECONDARY}
                 isDisabled={isToolbarDisabled}
               />
@@ -238,9 +261,7 @@ const ConnectorsPage = () => {
               icon={PlusIcon}
               variant={ButtonVariant.PRIMARY}
               isDisabled={isToolbarDisabled}
-              onClick={() => {
-                // TODO: open the connector creation flow once it exists.
-              }}
+              onClick={handleOpenCreateConnectorModal}
             />,
           ]}
         />

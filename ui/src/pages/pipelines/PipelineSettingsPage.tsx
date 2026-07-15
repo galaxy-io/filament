@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { TrashIcon } from "@phosphor-icons/react";
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 
@@ -20,6 +21,8 @@ import Text, {
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
+
+import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { useGetPipelineQuery, useDeletePipelineMutation } from "@/api/queries/pipelines";
 
@@ -64,7 +67,7 @@ const FieldRow = styled.div`
 const PipelineSettingsPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
   const navigate = useNavigate();
-  const { data } = useGetPipelineQuery({ input: { id } });
+  const { data } = useGetPipelineQuery({ input: create(GetPipelineRequestSchema, { id }) });
   const deletePipeline = useDeletePipelineMutation();
 
   const pipeline = data?.pipeline;

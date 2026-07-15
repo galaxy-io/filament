@@ -8,6 +8,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
+  GetPipelineRequest,
   GetPipelineResponse,
   ListPipelinesRequest,
   ListPipelinesResponse,
@@ -42,7 +43,7 @@ export const useListPipelinesQuery = ({
 
 // ========== GET PIPELINE ==========
 
-export const createGetPipelineQueryKey = (input: { id: string }) => {
+export const createGetPipelineQueryKey = (input: GetPipelineRequest) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getPipeline,
     input,
@@ -54,7 +55,7 @@ export const useGetPipelineQuery = ({
   input,
   options = {},
 }: {
-  input: { id: string };
+  input: GetPipelineRequest;
   options?: UseQueryOptions<
     typeof IngestionService.method.getPipeline.output,
     GetPipelineResponse
