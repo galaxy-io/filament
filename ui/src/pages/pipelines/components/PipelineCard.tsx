@@ -24,7 +24,7 @@ import {
   PIPELINE_INDICATOR_WIDTH,
   PIPELINE_METRIC_COLUMN_WIDTH_MAP,
 } from "@/pages/pipelines/constants";
-import { PipelineListItem } from "@/pages/pipelines/types";
+import { PipelineResource } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
 import { useOpenConnectionDrawer } from "@/pages/connectors/hooks";
 import Button, {
@@ -98,7 +98,7 @@ const MetricColumn = ({ width, label, value }: MetricColumnProps) => {
 };
 
 interface PipelineCardProps {
-  pipeline: PipelineListItem;
+  pipeline: PipelineResource;
 }
 
 const PipelineCard = ({ pipeline }: PipelineCardProps) => {
@@ -127,7 +127,9 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
         </FlexWrapper>
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-          <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}>
+          <MetricColumnWrapper
+            $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}
+          >
             <PipelineFlow
               source={pipeline.source}
               sinks={pipeline.sinks}

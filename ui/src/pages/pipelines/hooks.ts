@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
-import { PipelineGroup, PipelineListItem } from "@/pages/pipelines/types";
-import { getPipelineGroup, toPipelineListItem } from "@/pages/pipelines/utils";
+import { PipelineGroup, PipelineResource } from "@/pages/pipelines/types";
+import { getPipelineGroup, toPipelineResource } from "@/pages/pipelines/utils";
 
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
 
@@ -9,7 +9,7 @@ import { useListPipelinesQuery } from "@/api/queries/pipelines";
  * Pipeline list items for the /pipelines view.
  */
 export const usePipelineListItems = (): {
-  items: PipelineListItem[];
+  items: PipelineResource[];
   isLoading: boolean;
   isError: boolean;
 } => {
@@ -17,7 +17,7 @@ export const usePipelineListItems = (): {
 
   const items = useMemo(() => {
     if (data?.pipelines.length) {
-      return data.pipelines.map(toPipelineListItem);
+      return data.pipelines.map(toPipelineResource);
     }
     return [];
   }, [data]);
@@ -30,9 +30,9 @@ export const usePipelineListItems = (): {
 };
 
 export const groupPipelineItems = (
-  items: PipelineListItem[],
-): Record<PipelineGroup, PipelineListItem[]> => {
-  const groups: Record<PipelineGroup, PipelineListItem[]> = {
+  items: PipelineResource[],
+): Record<PipelineGroup, PipelineResource[]> => {
+  const groups: Record<PipelineGroup, PipelineResource[]> = {
     [PipelineGroup.ACTIVE]: [],
     [PipelineGroup.NEEDS_ATTENTION]: [],
     [PipelineGroup.PAUSED]: [],

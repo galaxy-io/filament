@@ -44,12 +44,6 @@ import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
 const LOADING_CARD_COUNT = 20;
 
-const ToolbarWrapper = styled.div`
-  width: 100%;
-
-  padding: 8px 12px;
-`;
-
 const ConnectorListScrollArea = styled.div`
   flex: 1;
   width: 100%;
@@ -192,7 +186,7 @@ const ConnectorsPage = () => {
 
   return (
     <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
-      <ToolbarWrapper>
+      <FlexWrapper padding={"8px 12px"} fillWidth>
         <BaseToolbar
           leadingActions={[
             <TextInput
@@ -250,7 +244,7 @@ const ConnectorsPage = () => {
             />,
           ]}
         />
-      </ToolbarWrapper>
+      </FlexWrapper>
       <FlexItem grow={0} shrink={0} fillWidth>
         <HorizontalDivider />
       </FlexItem>

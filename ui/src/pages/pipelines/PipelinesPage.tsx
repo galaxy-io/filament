@@ -40,12 +40,6 @@ import { PipelineGroup } from "@/pages/pipelines/types";
 
 const LOADING_ROW_COUNT = 20;
 
-const ToolbarWrapper = styled.div`
-  width: 100%;
-
-  padding: 8px 12px;
-`;
-
 const PipelineListWrapper = styled.div`
   flex: 1;
   width: 100%;
@@ -68,11 +62,6 @@ const PipelinesPage = () => {
 
   const isToolbarDisabled = isLoading || isError;
 
-  const handleNewPipeline = () => {
-    const id = crypto.randomUUID();
-    navigate({ to: "/pipelines/$id", params: { id } });
-  };
-
   const groups = useMemo(() => {
     const query = search.trim().toLowerCase();
     const filtered = query
@@ -89,6 +78,11 @@ const PipelinesPage = () => {
     (sum, group) => sum + groups[group].length,
     0,
   );
+
+  const handleNewPipeline = () => {
+    const id = crypto.randomUUID();
+    navigate({ to: "/pipelines/$id", params: { id } });
+  };
 
   const handleSelectGroupFilter = (group: PipelineGroup | null) => {
     setGroupFilter(group);
@@ -177,7 +171,7 @@ const PipelinesPage = () => {
 
   return (
     <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
-      <ToolbarWrapper>
+      <FlexWrapper padding={"8px 12px"} fillWidth>
         <BaseToolbar
           leadingActions={[
             <TextInput
@@ -234,7 +228,7 @@ const PipelinesPage = () => {
             />,
           ]}
         />
-      </ToolbarWrapper>
+      </FlexWrapper>
       <FlexItem grow={0} shrink={0} fillWidth>
         <HorizontalDivider />
       </FlexItem>
