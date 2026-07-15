@@ -7,5 +7,6 @@ use (
 	./connectors/iceberg
 	./connectors/object
 	./connectors/postgres
+	./secret/postgres
 	./tests
 )
