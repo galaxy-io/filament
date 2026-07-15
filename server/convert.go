@@ -53,6 +53,7 @@ func configSchemaToProto(schema ingestion.ConfigSchema) *ingestionv1.ConfigSchem
 			Enum:     field.Enum,
 			Help:     field.Help,
 			Scope:    fieldScopeToProto(field.Scope),
+			Secret:   field.Secret || field.Type == ingestion.FieldSecret,
 		})
 	}
 	return &ingestionv1.ConfigSchema{Fields: fields}

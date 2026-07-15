@@ -85,6 +85,7 @@ type ConfigField struct {
 	Enum     []string
 	Help     string
 	Scope    FieldScope
+	Secret   bool
 }
 
 // FieldType is a ConfigField's value kind.
