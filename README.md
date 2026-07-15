@@ -45,6 +45,15 @@ result, err := runner.Run(ctx, runner.Config{
 
 ## Development
 
+On macOS, install the toolchain (Go, just, golangci-lint, buf, sqlc, node, pnpm)
+from the checked-in [`Brewfile`](Brewfile):
+
+```sh
+brew bundle
+```
+
+Docker is also required for local infra and integration tests.
+
 The repo uses a Go workspace so optional connectors can carry their heavy
 dependencies independently:
 
