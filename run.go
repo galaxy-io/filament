@@ -12,7 +12,6 @@ type RunSpec struct {
 	Run           RunID
 	Source        Ref
 	Sink          Ref
-	DataStore     Ref
 	Resources     []string
 	Selectors     []string
 	IngestionType IngestionType
@@ -28,7 +27,6 @@ type RunRequest struct {
 	IdempotencyKey string
 	Source         Ref
 	Sink           Ref
-	DataStore      Ref
 	Resources      []string
 	Selectors      []string
 	IngestionType  IngestionType
