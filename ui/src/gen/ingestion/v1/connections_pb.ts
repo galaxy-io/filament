@@ -2,23 +2,18 @@
 // @generated from file ingestion/v1/connections.proto (package ingestion.v1, syntax proto3)
 /* eslint-disable */
 
-import type { JsonObject, Message } from "@bufbuild/protobuf";
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-
 import type { ConnectorKind } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ingestion/v1/connections.proto.
  */
-export const file_ingestion_v1_connections: GenFile =
-  /*@__PURE__*/
-  fileDesc(
-    "Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSKgAgoKQ29ubmVjdGlvbhIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKdAgoXQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QSDgoGdGVuYW50GAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIMCgRuYW1lGAMgASgJEhEKCWNvbm5lY3RvchgEIAEoCRInCgZjb25maWcYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EkoKC3NlY3JldF9yZWZzGAYgAygLMjUuaW5nZXN0aW9uLnYxLkNyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0LlNlY3JldFJlZnNFbnRyeRoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJIChhDcmVhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkcKF1VwZGF0ZUNvbm5lY3Rpb25SZXF1ZXN0EiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJIChhVcGRhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIiIKFEdldENvbm5lY3Rpb25SZXF1ZXN0EgoKAmlkGAEgASgJIkUKFUdldENvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iUwoWTGlzdENvbm5lY3Rpb25zUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kIkgKF0xpc3RDb25uZWN0aW9uc1Jlc3BvbnNlEi0KC2Nvbm5lY3Rpb25zGAEgAygLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iJQoXRGVsZXRlQ29ubmVjdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM",
-    [file_google_protobuf_struct, file_ingestion_v1_common],
-  );
+export const file_ingestion_v1_connections: GenFile = /*@__PURE__*/
+  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSKgAgoKQ29ubmVjdGlvbhIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKdAgoXQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QSDgoGdGVuYW50GAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIMCgRuYW1lGAMgASgJEhEKCWNvbm5lY3RvchgEIAEoCRInCgZjb25maWcYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EkoKC3NlY3JldF9yZWZzGAYgAygLMjUuaW5nZXN0aW9uLnYxLkNyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0LlNlY3JldFJlZnNFbnRyeRoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJIChhDcmVhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkcKF1VwZGF0ZUNvbm5lY3Rpb25SZXF1ZXN0EiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJIChhVcGRhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIiIKFEdldENvbm5lY3Rpb25SZXF1ZXN0EgoKAmlkGAEgASgJIkUKFUdldENvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iUwoWTGlzdENvbm5lY3Rpb25zUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kIkgKF0xpc3RDb25uZWN0aW9uc1Jlc3BvbnNlEi0KC2Nvbm5lY3Rpb25zGAEgAygLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iJQoXRGVsZXRlQ29ubmVjdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
 
 /**
  * Connection is a reusable, tenant-scoped source or sink. It holds the
@@ -77,8 +72,7 @@ export type Connection = Message<"ingestion.v1.Connection"> & {
  * Describes the message ingestion.v1.Connection.
  * Use `create(ConnectionSchema)` to create a new message.
  */
-export const ConnectionSchema: GenMessage<Connection> =
-  /*@__PURE__*/
+export const ConnectionSchema: GenMessage<Connection> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 0);
 
 /**
@@ -120,8 +114,7 @@ export type CreateConnectionRequest = Message<"ingestion.v1.CreateConnectionRequ
  * Describes the message ingestion.v1.CreateConnectionRequest.
  * Use `create(CreateConnectionRequestSchema)` to create a new message.
  */
-export const CreateConnectionRequestSchema: GenMessage<CreateConnectionRequest> =
-  /*@__PURE__*/
+export const CreateConnectionRequestSchema: GenMessage<CreateConnectionRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 1);
 
 /**
@@ -138,8 +131,7 @@ export type CreateConnectionResponse = Message<"ingestion.v1.CreateConnectionRes
  * Describes the message ingestion.v1.CreateConnectionResponse.
  * Use `create(CreateConnectionResponseSchema)` to create a new message.
  */
-export const CreateConnectionResponseSchema: GenMessage<CreateConnectionResponse> =
-  /*@__PURE__*/
+export const CreateConnectionResponseSchema: GenMessage<CreateConnectionResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 2);
 
 /**
@@ -156,8 +148,7 @@ export type UpdateConnectionRequest = Message<"ingestion.v1.UpdateConnectionRequ
  * Describes the message ingestion.v1.UpdateConnectionRequest.
  * Use `create(UpdateConnectionRequestSchema)` to create a new message.
  */
-export const UpdateConnectionRequestSchema: GenMessage<UpdateConnectionRequest> =
-  /*@__PURE__*/
+export const UpdateConnectionRequestSchema: GenMessage<UpdateConnectionRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 3);
 
 /**
@@ -174,8 +165,7 @@ export type UpdateConnectionResponse = Message<"ingestion.v1.UpdateConnectionRes
  * Describes the message ingestion.v1.UpdateConnectionResponse.
  * Use `create(UpdateConnectionResponseSchema)` to create a new message.
  */
-export const UpdateConnectionResponseSchema: GenMessage<UpdateConnectionResponse> =
-  /*@__PURE__*/
+export const UpdateConnectionResponseSchema: GenMessage<UpdateConnectionResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 4);
 
 /**
@@ -192,8 +182,7 @@ export type GetConnectionRequest = Message<"ingestion.v1.GetConnectionRequest"> 
  * Describes the message ingestion.v1.GetConnectionRequest.
  * Use `create(GetConnectionRequestSchema)` to create a new message.
  */
-export const GetConnectionRequestSchema: GenMessage<GetConnectionRequest> =
-  /*@__PURE__*/
+export const GetConnectionRequestSchema: GenMessage<GetConnectionRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 5);
 
 /**
@@ -210,8 +199,7 @@ export type GetConnectionResponse = Message<"ingestion.v1.GetConnectionResponse"
  * Describes the message ingestion.v1.GetConnectionResponse.
  * Use `create(GetConnectionResponseSchema)` to create a new message.
  */
-export const GetConnectionResponseSchema: GenMessage<GetConnectionResponse> =
-  /*@__PURE__*/
+export const GetConnectionResponseSchema: GenMessage<GetConnectionResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 6);
 
 /**
@@ -236,8 +224,7 @@ export type ListConnectionsRequest = Message<"ingestion.v1.ListConnectionsReques
  * Describes the message ingestion.v1.ListConnectionsRequest.
  * Use `create(ListConnectionsRequestSchema)` to create a new message.
  */
-export const ListConnectionsRequestSchema: GenMessage<ListConnectionsRequest> =
-  /*@__PURE__*/
+export const ListConnectionsRequestSchema: GenMessage<ListConnectionsRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 7);
 
 /**
@@ -254,8 +241,7 @@ export type ListConnectionsResponse = Message<"ingestion.v1.ListConnectionsRespo
  * Describes the message ingestion.v1.ListConnectionsResponse.
  * Use `create(ListConnectionsResponseSchema)` to create a new message.
  */
-export const ListConnectionsResponseSchema: GenMessage<ListConnectionsResponse> =
-  /*@__PURE__*/
+export const ListConnectionsResponseSchema: GenMessage<ListConnectionsResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 8);
 
 /**
@@ -272,19 +258,19 @@ export type DeleteConnectionRequest = Message<"ingestion.v1.DeleteConnectionRequ
  * Describes the message ingestion.v1.DeleteConnectionRequest.
  * Use `create(DeleteConnectionRequestSchema)` to create a new message.
  */
-export const DeleteConnectionRequestSchema: GenMessage<DeleteConnectionRequest> =
-  /*@__PURE__*/
+export const DeleteConnectionRequestSchema: GenMessage<DeleteConnectionRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 9);
 
 /**
  * @generated from message ingestion.v1.DeleteConnectionResponse
  */
-export type DeleteConnectionResponse = Message<"ingestion.v1.DeleteConnectionResponse"> & {};
+export type DeleteConnectionResponse = Message<"ingestion.v1.DeleteConnectionResponse"> & {
+};
 
 /**
  * Describes the message ingestion.v1.DeleteConnectionResponse.
  * Use `create(DeleteConnectionResponseSchema)` to create a new message.
  */
-export const DeleteConnectionResponseSchema: GenMessage<DeleteConnectionResponse> =
-  /*@__PURE__*/
+export const DeleteConnectionResponseSchema: GenMessage<DeleteConnectionResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connections, 10);
+

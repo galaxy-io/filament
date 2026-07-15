@@ -2,21 +2,17 @@
 // @generated from file ingestion/v1/common.proto (package ingestion.v1, syntax proto3)
 /* eslint-disable */
 
-import type { Message } from "@bufbuild/protobuf";
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ingestion/v1/common.proto.
  */
-export const file_ingestion_v1_common: GenFile =
-  /*@__PURE__*/
-  fileDesc(
-    "Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiwgEKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIMCgRlbnVtGAUgAygJEgwKBGhlbHAYBiABKAkSJwoFc2NvcGUYByABKA4yGC5pbmdlc3Rpb24udjEuRmllbGRTY29wZSI5CgxDb25maWdTY2hlbWESKQoGZmllbGRzGAEgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkIsoBChVXcml0ZVBvbGljeUNhcGFiaWxpdHkSJQoEbW9kZRgBIAEoDjIXLmluZ2VzdGlvbi52MS5Xcml0ZU1vZGUSEwoLcmVxdWlyZXNfcGsYAiABKAgSFgoOcmVxdWlyZXNfb3JkZXIYAyABKAgSLAoLYWNjZXB0c19vcHMYBCADKA4yFy5pbmdlc3Rpb24udjEuT3BlcmF0aW9uEi8KCWF0b21pY2l0eRgFIAEoDjIcLmluZ2VzdGlvbi52MS5Xcml0ZUF0b21pY2l0eSKvAQoMU291cmNlUG9saWN5EisKBG1vZGUYASABKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEioKCWVtaXRzX29wcxgCIAMoDjIXLmluZ2VzdGlvbi52MS5PcGVyYXRpb24SDwoHb3JkZXJlZBgDIAEoCBI1Cg1jaGVja3BvaW50aW5nGAQgASgOMh4uaW5nZXN0aW9uLnYxLkNoZWNrcG9pbnRQb2xpY3kqYwoNQ29ubmVjdG9yS2luZBIeChpDT05ORUNUT1JfS0lORF9VTlNQRUNJRklFRBAAEhkKFUNPTk5FQ1RPUl9LSU5EX1NPVVJDRRABEhcKE0NPTk5FQ1RPUl9LSU5EX1NJTksQAirDAQoJRmllbGRUeXBlEhoKFkZJRUxEX1RZUEVfVU5TUEVDSUZJRUQQABIVChFGSUVMRF9UWVBFX1NUUklORxABEhIKDkZJRUxEX1RZUEVfSU5UEAISEwoPRklFTERfVFlQRV9CT09MEAMSFQoRRklFTERfVFlQRV9TRUNSRVQQBBIXChNGSUVMRF9UWVBFX0RVUkFUSU9OEAUSEwoPRklFTERfVFlQRV9FTlVNEAYSFQoRRklFTERfVFlQRV9PQkpFQ1QQByqKAQoPUmVwbGljYXRpb25Nb2RlEiAKHFJFUExJQ0FUSU9OX01PREVfVU5TUEVDSUZJRUQQABIZChVSRVBMSUNBVElPTl9NT0RFX0ZVTEwQARIgChxSRVBMSUNBVElPTl9NT0RFX0lOQ1JFTUVOVEFMEAISGAoUUkVQTElDQVRJT05fTU9ERV9DREMQAypoCglPcGVyYXRpb24SGQoVT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASFAoQT1BFUkFUSU9OX0lOU0VSVBABEhQKEE9QRVJBVElPTl9VUERBVEUQAhIUChBPUEVSQVRJT05fREVMRVRFEAMq4QEKDUluZ2VzdGlvblR5cGUSHgoaSU5HRVNUSU9OX1RZUEVfVU5TUEVDSUZJRUQQABIjCh9JTkdFU1RJT05fVFlQRV9TTkFQU0hPVF9SRVBMQUNFEAESIgoeSU5HRVNUSU9OX1RZUEVfU05BUFNIT1RfVVBTRVJUEAISGQoVSU5HRVNUSU9OX1RZUEVfQVBQRU5EEAMSGQoVSU5HRVNUSU9OX1RZUEVfVVBTRVJUEAQSGQoVSU5HRVNUSU9OX1RZUEVfREVMRVRFEAUSFgoSSU5HRVNUSU9OX1RZUEVfQ0RDEAYqmgEKCVdyaXRlTW9kZRIaChZXUklURV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRV1JJVEVfTU9ERV9BUFBFTkQQARIWChJXUklURV9NT0RFX1JFUExBQ0UQAhIVChFXUklURV9NT0RFX1VQU0VSVBADEhUKEVdSSVRFX01PREVfREVMRVRFEAQSFAoQV1JJVEVfTU9ERV9NRVJHRRAFKoMBCg5Xcml0ZUF0b21pY2l0eRIfChtXUklURV9BVE9NSUNJVFlfVU5TUEVDSUZJRUQQABIZChVXUklURV9BVE9NSUNJVFlfQkFUQ0gQARIcChhXUklURV9BVE9NSUNJVFlfUkVTT1VSQ0UQAhIXChNXUklURV9BVE9NSUNJVFlfUlVOEAMqmAEKEENoZWNrcG9pbnRQb2xpY3kSIQodQ0hFQ0tQT0lOVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABIaChZDSEVDS1BPSU5UX1BPTElDWV9OT05FEAESIQodQ0hFQ0tQT0lOVF9QT0xJQ1lfQUZURVJfQkFUQ0gQAhIiCh5DSEVDS1BPSU5UX1BPTElDWV9BRlRFUl9DT01NSVQQAypfCgpGaWVsZFNjb3BlEhsKF0ZJRUxEX1NDT1BFX1VOU1BFQ0lGSUVEEAASGgoWRklFTERfU0NPUEVfQ09OTkVDVElPThABEhgKFEZJRUxEX1NDT1BFX1BJUEVMSU5FEAJiBnByb3RvMw",
-    [file_google_protobuf_struct],
-  );
+export const file_ingestion_v1_common: GenFile = /*@__PURE__*/
+  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiwgEKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIMCgRlbnVtGAUgAygJEgwKBGhlbHAYBiABKAkSJwoFc2NvcGUYByABKA4yGC5pbmdlc3Rpb24udjEuRmllbGRTY29wZSI5CgxDb25maWdTY2hlbWESKQoGZmllbGRzGAEgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkIsoBChVXcml0ZVBvbGljeUNhcGFiaWxpdHkSJQoEbW9kZRgBIAEoDjIXLmluZ2VzdGlvbi52MS5Xcml0ZU1vZGUSEwoLcmVxdWlyZXNfcGsYAiABKAgSFgoOcmVxdWlyZXNfb3JkZXIYAyABKAgSLAoLYWNjZXB0c19vcHMYBCADKA4yFy5pbmdlc3Rpb24udjEuT3BlcmF0aW9uEi8KCWF0b21pY2l0eRgFIAEoDjIcLmluZ2VzdGlvbi52MS5Xcml0ZUF0b21pY2l0eSKvAQoMU291cmNlUG9saWN5EisKBG1vZGUYASABKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEioKCWVtaXRzX29wcxgCIAMoDjIXLmluZ2VzdGlvbi52MS5PcGVyYXRpb24SDwoHb3JkZXJlZBgDIAEoCBI1Cg1jaGVja3BvaW50aW5nGAQgASgOMh4uaW5nZXN0aW9uLnYxLkNoZWNrcG9pbnRQb2xpY3kqYwoNQ29ubmVjdG9yS2luZBIeChpDT05ORUNUT1JfS0lORF9VTlNQRUNJRklFRBAAEhkKFUNPTk5FQ1RPUl9LSU5EX1NPVVJDRRABEhcKE0NPTk5FQ1RPUl9LSU5EX1NJTksQAirDAQoJRmllbGRUeXBlEhoKFkZJRUxEX1RZUEVfVU5TUEVDSUZJRUQQABIVChFGSUVMRF9UWVBFX1NUUklORxABEhIKDkZJRUxEX1RZUEVfSU5UEAISEwoPRklFTERfVFlQRV9CT09MEAMSFQoRRklFTERfVFlQRV9TRUNSRVQQBBIXChNGSUVMRF9UWVBFX0RVUkFUSU9OEAUSEwoPRklFTERfVFlQRV9FTlVNEAYSFQoRRklFTERfVFlQRV9PQkpFQ1QQByqKAQoPUmVwbGljYXRpb25Nb2RlEiAKHFJFUExJQ0FUSU9OX01PREVfVU5TUEVDSUZJRUQQABIZChVSRVBMSUNBVElPTl9NT0RFX0ZVTEwQARIgChxSRVBMSUNBVElPTl9NT0RFX0lOQ1JFTUVOVEFMEAISGAoUUkVQTElDQVRJT05fTU9ERV9DREMQAypoCglPcGVyYXRpb24SGQoVT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASFAoQT1BFUkFUSU9OX0lOU0VSVBABEhQKEE9QRVJBVElPTl9VUERBVEUQAhIUChBPUEVSQVRJT05fREVMRVRFEAMq4QEKDUluZ2VzdGlvblR5cGUSHgoaSU5HRVNUSU9OX1RZUEVfVU5TUEVDSUZJRUQQABIjCh9JTkdFU1RJT05fVFlQRV9TTkFQU0hPVF9SRVBMQUNFEAESIgoeSU5HRVNUSU9OX1RZUEVfU05BUFNIT1RfVVBTRVJUEAISGQoVSU5HRVNUSU9OX1RZUEVfQVBQRU5EEAMSGQoVSU5HRVNUSU9OX1RZUEVfVVBTRVJUEAQSGQoVSU5HRVNUSU9OX1RZUEVfREVMRVRFEAUSFgoSSU5HRVNUSU9OX1RZUEVfQ0RDEAYqmgEKCVdyaXRlTW9kZRIaChZXUklURV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRV1JJVEVfTU9ERV9BUFBFTkQQARIWChJXUklURV9NT0RFX1JFUExBQ0UQAhIVChFXUklURV9NT0RFX1VQU0VSVBADEhUKEVdSSVRFX01PREVfREVMRVRFEAQSFAoQV1JJVEVfTU9ERV9NRVJHRRAFKoMBCg5Xcml0ZUF0b21pY2l0eRIfChtXUklURV9BVE9NSUNJVFlfVU5TUEVDSUZJRUQQABIZChVXUklURV9BVE9NSUNJVFlfQkFUQ0gQARIcChhXUklURV9BVE9NSUNJVFlfUkVTT1VSQ0UQAhIXChNXUklURV9BVE9NSUNJVFlfUlVOEAMqmAEKEENoZWNrcG9pbnRQb2xpY3kSIQodQ0hFQ0tQT0lOVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABIaChZDSEVDS1BPSU5UX1BPTElDWV9OT05FEAESIQodQ0hFQ0tQT0lOVF9QT0xJQ1lfQUZURVJfQkFUQ0gQAhIiCh5DSEVDS1BPSU5UX1BPTElDWV9BRlRFUl9DT01NSVQQAypfCgpGaWVsZFNjb3BlEhsKF0ZJRUxEX1NDT1BFX1VOU1BFQ0lGSUVEEAASGgoWRklFTERfU0NPUEVfQ09OTkVDVElPThABEhgKFEZJRUxEX1NDT1BFX1BJUEVMSU5FEAJiBnByb3RvMw", [file_google_protobuf_struct]);
 
 /**
  * ConfigField mirrors pkg.ConfigField.
@@ -64,8 +60,7 @@ export type ConfigField = Message<"ingestion.v1.ConfigField"> & {
  * Describes the message ingestion.v1.ConfigField.
  * Use `create(ConfigFieldSchema)` to create a new message.
  */
-export const ConfigFieldSchema: GenMessage<ConfigField> =
-  /*@__PURE__*/
+export const ConfigFieldSchema: GenMessage<ConfigField> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_common, 0);
 
 /**
@@ -84,8 +79,7 @@ export type ConfigSchema = Message<"ingestion.v1.ConfigSchema"> & {
  * Describes the message ingestion.v1.ConfigSchema.
  * Use `create(ConfigSchemaSchema)` to create a new message.
  */
-export const ConfigSchemaSchema: GenMessage<ConfigSchema> =
-  /*@__PURE__*/
+export const ConfigSchemaSchema: GenMessage<ConfigSchema> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_common, 1);
 
 /**
@@ -122,8 +116,7 @@ export type WritePolicyCapability = Message<"ingestion.v1.WritePolicyCapability"
  * Describes the message ingestion.v1.WritePolicyCapability.
  * Use `create(WritePolicyCapabilitySchema)` to create a new message.
  */
-export const WritePolicyCapabilitySchema: GenMessage<WritePolicyCapability> =
-  /*@__PURE__*/
+export const WritePolicyCapabilitySchema: GenMessage<WritePolicyCapability> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_common, 2);
 
 /**
@@ -155,8 +148,7 @@ export type SourcePolicy = Message<"ingestion.v1.SourcePolicy"> & {
  * Describes the message ingestion.v1.SourcePolicy.
  * Use `create(SourcePolicySchema)` to create a new message.
  */
-export const SourcePolicySchema: GenMessage<SourcePolicy> =
-  /*@__PURE__*/
+export const SourcePolicySchema: GenMessage<SourcePolicy> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_common, 3);
 
 /**
@@ -184,8 +176,7 @@ export enum ConnectorKind {
 /**
  * Describes the enum ingestion.v1.ConnectorKind.
  */
-export const ConnectorKindSchema: GenEnum<ConnectorKind> =
-  /*@__PURE__*/
+export const ConnectorKindSchema: GenEnum<ConnectorKind> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 0);
 
 /**
@@ -238,8 +229,7 @@ export enum FieldType {
 /**
  * Describes the enum ingestion.v1.FieldType.
  */
-export const FieldTypeSchema: GenEnum<FieldType> =
-  /*@__PURE__*/
+export const FieldTypeSchema: GenEnum<FieldType> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 1);
 
 /**
@@ -272,8 +262,7 @@ export enum ReplicationMode {
 /**
  * Describes the enum ingestion.v1.ReplicationMode.
  */
-export const ReplicationModeSchema: GenEnum<ReplicationMode> =
-  /*@__PURE__*/
+export const ReplicationModeSchema: GenEnum<ReplicationMode> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 2);
 
 /**
@@ -304,8 +293,7 @@ export enum Operation {
 /**
  * Describes the enum ingestion.v1.Operation.
  */
-export const OperationSchema: GenEnum<Operation> =
-  /*@__PURE__*/
+export const OperationSchema: GenEnum<Operation> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 3);
 
 /**
@@ -351,8 +339,7 @@ export enum IngestionType {
 /**
  * Describes the enum ingestion.v1.IngestionType.
  */
-export const IngestionTypeSchema: GenEnum<IngestionType> =
-  /*@__PURE__*/
+export const IngestionTypeSchema: GenEnum<IngestionType> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 4);
 
 /**
@@ -393,8 +380,7 @@ export enum WriteMode {
 /**
  * Describes the enum ingestion.v1.WriteMode.
  */
-export const WriteModeSchema: GenEnum<WriteMode> =
-  /*@__PURE__*/
+export const WriteModeSchema: GenEnum<WriteMode> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 5);
 
 /**
@@ -425,8 +411,7 @@ export enum WriteAtomicity {
 /**
  * Describes the enum ingestion.v1.WriteAtomicity.
  */
-export const WriteAtomicitySchema: GenEnum<WriteAtomicity> =
-  /*@__PURE__*/
+export const WriteAtomicitySchema: GenEnum<WriteAtomicity> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 6);
 
 /**
@@ -457,8 +442,7 @@ export enum CheckpointPolicy {
 /**
  * Describes the enum ingestion.v1.CheckpointPolicy.
  */
-export const CheckpointPolicySchema: GenEnum<CheckpointPolicy> =
-  /*@__PURE__*/
+export const CheckpointPolicySchema: GenEnum<CheckpointPolicy> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 7);
 
 /**
@@ -484,6 +468,6 @@ export enum FieldScope {
 /**
  * Describes the enum ingestion.v1.FieldScope.
  */
-export const FieldScopeSchema: GenEnum<FieldScope> =
-  /*@__PURE__*/
+export const FieldScopeSchema: GenEnum<FieldScope> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 8);
+
