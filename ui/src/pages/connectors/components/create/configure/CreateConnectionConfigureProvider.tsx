@@ -1,9 +1,4 @@
-import {
-  createContext,
-  type PropsWithChildren,
-  useMemo,
-  useReducer,
-} from "react";
+import { createContext, type PropsWithChildren, useMemo, useReducer } from "react";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
@@ -22,8 +17,7 @@ export interface CreateConnectionConfigureContextShape {
 
 export const CreateConnectionConfigureContext =
   createContext<CreateConnectionConfigureContextShape | null>(null);
-CreateConnectionConfigureContext.displayName =
-  "CreateConnectionConfigureContext";
+CreateConnectionConfigureContext.displayName = "CreateConnectionConfigureContext";
 
 interface CreateConnectionConfigureProviderProps {
   connector: ConnectorSpec;

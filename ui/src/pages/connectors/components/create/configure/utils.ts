@@ -1,35 +1,20 @@
 import { create, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { ValueSchema, type Value } from "@bufbuild/protobuf/wkt";
 
-import {
-  FieldScope,
-  FieldType,
-  type ConfigField,
-} from "@/gen/ingestion/v1/common_pb";
+import { FieldScope, FieldType, type ConfigField } from "@/gen/ingestion/v1/common_pb";
 import {
   CreateConnectionRequestSchema,
   type CreateConnectionRequest,
 } from "@/gen/ingestion/v1/connections_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
-export function getConnectorConfigSchemaConnectionFields(
-  connector: ConnectorSpec,
-): ConfigField[] {
-  return (
-    connector.configSchema?.fields?.filter(
-      (f) => f.scope === FieldScope.CONNECTION,
-    ) ?? []
-  );
+export function getConnectorConfigSchemaConnectionFields(connector: ConnectorSpec): ConfigField[] {
+  return connector.configSchema?.fields?.filter((f) => f.scope === FieldScope.CONNECTION) ?? [];
 }
 
-export function generateSecretRef(
-  connectionName: string,
-  fieldName: string,
-): string {
+export function generateSecretRef(connectionName: string, fieldName: string): string {
   const timestamp = Date.now();
-  const sanitizedName = connectionName
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-");
+  const sanitizedName = connectionName.toLowerCase().replace(/[^a-z0-9-]/g, "-");
   return `${sanitizedName}-${fieldName}-${timestamp}`;
 }
 

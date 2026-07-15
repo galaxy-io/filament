@@ -69,8 +69,7 @@ export function useCreateConnection(options?: UseCreateConnectionOptions) {
   const isDisabled = isValidating || isCreating;
 
   const nameError = useMemo(
-    () =>
-      state.shouldShowErrors && !isNameProvided ? "Name is required" : null,
+    () => (state.shouldShowErrors && !isNameProvided ? "Name is required" : null),
     [state.shouldShowErrors, isNameProvided],
   );
 
@@ -153,8 +152,7 @@ export function useCreateConnection(options?: UseCreateConnectionOptions) {
           }
         },
         onError: (error) => {
-          const message =
-            error instanceof Error ? error.message : "Validation failed";
+          const message = error instanceof Error ? error.message : "Validation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -226,8 +224,7 @@ export function useCreateConnection(options?: UseCreateConnectionOptions) {
         options?.onSuccess?.(response.connection.id);
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Creation failed";
+      const message = error instanceof Error ? error.message : "Creation failed";
       dispatch({
         type: CreateConnectionActionType.SET_ERROR,
         payload: message,

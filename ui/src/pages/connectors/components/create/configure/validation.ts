@@ -1,10 +1,7 @@
 import { create, type JsonValue } from "@bufbuild/protobuf";
 
 import { FieldType, type ConfigField } from "@/gen/ingestion/v1/common_pb";
-import {
-  ValidationErrorSchema,
-  type ValidationError,
-} from "@/gen/ingestion/v1/providers_pb";
+import { ValidationErrorSchema, type ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
 export function validateRequiredFields(
   fields: ConfigField[],

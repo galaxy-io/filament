@@ -17,8 +17,7 @@ import {
 import { create } from "@bufbuild/protobuf";
 
 function resetStepIfNeeded(step: CreateConnectionPhase): CreateConnectionPhase {
-  return step === CreateConnectionPhase.VALIDATED ||
-    step === CreateConnectionPhase.ERROR
+  return step === CreateConnectionPhase.VALIDATED || step === CreateConnectionPhase.ERROR
     ? CreateConnectionPhase.IDLE
     : step;
 }

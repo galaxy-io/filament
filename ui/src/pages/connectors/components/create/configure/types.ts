@@ -1,8 +1,5 @@
 import type { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
-import type {
-  ConnectorSpec,
-  ValidationError,
-} from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorSpec, ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
 export enum CreateConnectionPhase {
   IDLE = "IDLE",
