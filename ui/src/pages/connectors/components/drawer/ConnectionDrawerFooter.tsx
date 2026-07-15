@@ -13,22 +13,22 @@ const FieldRow = styled.div`
   gap: 12px;
 `;
 
-interface ConnectorDrawerFooterProps {
+interface ConnectionDrawerFooterProps {
   onDelete: () => void;
 }
 
-const ConnectorDrawerFooter = ({ onDelete }: ConnectorDrawerFooterProps) => {
+const ConnectionDrawerFooter = ({ onDelete }: ConnectionDrawerFooterProps) => {
   return (
     <Widget header="Danger zone" variant={WidgetVariant.ERROR} fillWidth noHover>
       <FieldRow>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
-          <Text weight={TextWeight.MEDIUM}>Delete connector</Text>
+          <Text weight={TextWeight.MEDIUM}>Delete connection</Text>
           <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-            This will permanently delete this connector and all of its data.
+            This will permanently delete this connection.
           </Text>
         </FlexWrapper>
         <Button
-          label="Delete connector"
+          label="Delete"
           icon={TrashIcon}
           variant={ButtonVariant.ERROR}
           onClick={onDelete}
@@ -38,4 +38,4 @@ const ConnectorDrawerFooter = ({ onDelete }: ConnectorDrawerFooterProps) => {
   );
 };
 
-export default ConnectorDrawerFooter;
+export default ConnectionDrawerFooter;

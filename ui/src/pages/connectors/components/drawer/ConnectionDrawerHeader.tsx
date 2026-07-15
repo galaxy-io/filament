@@ -5,29 +5,29 @@ import FlexWrapper, {
   FlexDirection,
   FlexGap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
 import ConnectorTile, {
   ConnectorTileSize,
 } from "@/pages/connectors/components/ConnectorTile";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
 const HeaderWrapper = styled.div`
   padding: 12px 16px;
 `;
 
-interface ConnectorDrawerHeaderProps {
-  connector: ConnectorSpec;
+interface ConnectionDrawerHeaderProps {
+  connection: Connection;
   onClose: () => void;
 }
 
-const ConnectorDrawerHeader = ({
-  connector,
+const ConnectionDrawerHeader = ({
+  connection,
   onClose,
-}: ConnectorDrawerHeaderProps) => {
+}: ConnectionDrawerHeaderProps) => {
   return (
     <HeaderWrapper>
       <FlexWrapper
@@ -37,7 +37,7 @@ const ConnectorDrawerHeader = ({
       >
         <FlexItem shrink={0}>
           <ConnectorTile
-            connector={connector.name}
+            connector={connection.connector}
             size={ConnectorTileSize.LARGE}
           />
         </FlexItem>
@@ -47,8 +47,8 @@ const ConnectorDrawerHeader = ({
           gap={FlexGap.XSMALL}
         >
           <BaseHeader
-            title={connector.displayName}
-            description={connector.name}
+            title={connection.name}
+            description={connection.connector}
             onClose={onClose}
           />
         </FlexWrapper>
@@ -57,4 +57,4 @@ const ConnectorDrawerHeader = ({
   );
 };
 
-export default ConnectorDrawerHeader;
+export default ConnectionDrawerHeader;

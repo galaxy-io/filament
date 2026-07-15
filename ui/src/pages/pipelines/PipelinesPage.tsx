@@ -1,30 +1,44 @@
 import { useMemo, useState } from "react";
 
-import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+  BookOpenIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  FlexDirection,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
 import DropdownButton from "@galaxy-io/dls/dropdown/DropdownButton";
 import DropdownItem from "@galaxy-io/dls/dropdown/DropdownItem";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
+import PipelinesEmptyDark from "@/assets/components/PipelinesEmptyDark";
 import BaseToolbar from "@/layouts/components/BaseToolbar";
+import EmptyLayout from "@/layouts/EmptyLayout";
+import ErrorLayout from "@/layouts/ErrorLayout";
 
 import PipelineCardGroup from "@/pages/pipelines/components/PipelineCardGroup";
-import PipelinesPageEmpty from "@/pages/pipelines/PipelinesPageEmpty";
-import PipelinesPageError from "@/pages/pipelines/PipelinesPageError";
-import PipelinesPageLoading from "@/pages/pipelines/PipelinesPageLoading";
+import PipelineCardLoading from "@/pages/pipelines/components/PipelineCardLoading";
 import {
   PIPELINE_GROUP_TO_LABEL_MAP,
   PIPELINE_SEARCH_WIDTH,
 } from "@/pages/pipelines/constants";
-import { groupPipelineItems, usePipelineListItems } from "@/pages/pipelines/hooks";
+import {
+  groupPipelineItems,
+  usePipelineListItems,
+} from "@/pages/pipelines/hooks";
 import { PipelineGroup } from "@/pages/pipelines/types";
+
+const LOADING_ROW_COUNT = 20;
 
 const ToolbarWrapper = styled.div`
   width: 100%;
@@ -67,7 +81,9 @@ const PipelinesPage = () => {
     return groupPipelineItems(filtered);
   }, [items, search]);
 
-  const visibleGroups = groupFilter ? [groupFilter] : Object.values(PipelineGroup);
+  const visibleGroups = groupFilter
+    ? [groupFilter]
+    : Object.values(PipelineGroup);
 
   const totalVisiblePipelines = visibleGroups.reduce(
     (sum, group) => sum + groups[group].length,
@@ -79,17 +95,74 @@ const PipelinesPage = () => {
     setIsFiltersOpen(false);
   };
 
+  const handleReadTheDocs = () => {
+    window.open("https://filament.getgalaxy.io/pipelines", "_blank");
+  };
+
   const renderContent = () => {
     if (isLoading) {
-      return <PipelinesPageLoading />;
+      return (
+        <FlexWrapper fillWidth direction={FlexDirection.COLUMN}>
+          {Array.from({ length: LOADING_ROW_COUNT }).map((_, index) => (
+            <PipelineCardLoading key={index} />
+          ))}
+        </FlexWrapper>
+      );
     }
 
     if (isError) {
-      return <PipelinesPageError />;
+      return (
+        <ErrorLayout
+          icon={
+            <Icon
+              component={WarningCircleIcon}
+              size={20}
+              variant={IconVariant.ERROR}
+            />
+          }
+          message="Failed to load pipelines. Please try again."
+        />
+      );
+    }
+
+    const hasPipelines = items.length > 0;
+
+    if (!hasPipelines) {
+      return (
+        <EmptyLayout
+          icon={<PipelinesEmptyDark height={200} />}
+          header="No pipelines found"
+          message="Create pipelines to move data between your connectors."
+          actions={
+            <FlexWrapper gap={8}>
+              <Button
+                label="New pipeline"
+                icon={PlusIcon}
+                variant={ButtonVariant.PRIMARY}
+                onClick={handleNewPipeline}
+              />
+              <Button
+                label="Read the docs"
+                icon={BookOpenIcon}
+                variant={ButtonVariant.SECONDARY}
+                onClick={handleReadTheDocs}
+              />
+            </FlexWrapper>
+          }
+        />
+      );
     }
 
     if (totalVisiblePipelines === 0) {
-      return <PipelinesPageEmpty hasSearchQuery={!!search} />;
+      return (
+        <EmptyLayout
+          message={
+            search
+              ? "No pipelines match your search"
+              : "No pipelines match your filters"
+          }
+        />
+      );
     }
 
     return visibleGroups.map((group) => (
@@ -138,7 +211,11 @@ const PipelinesPage = () => {
               }
             >
               <DropdownButton
-                label={groupFilter ? PIPELINE_GROUP_TO_LABEL_MAP[groupFilter] : "Filters"}
+                label={
+                  groupFilter
+                    ? PIPELINE_GROUP_TO_LABEL_MAP[groupFilter]
+                    : "Filters"
+                }
                 isOpen={isFiltersOpen}
                 onClick={() => setIsFiltersOpen((prev) => !prev)}
                 variant={ButtonVariant.SECONDARY}

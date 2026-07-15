@@ -26,7 +26,7 @@ import {
 } from "@/pages/pipelines/constants";
 import { PipelineListItem } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
-import { useOpenConnectorDrawer } from "@/pages/connectors/hooks";
+import { useOpenConnectionDrawer } from "@/pages/connectors/hooks";
 import Button, {
   ButtonSize,
   ButtonVariant,
@@ -104,17 +104,17 @@ interface PipelineCardProps {
 const PipelineCard = ({ pipeline }: PipelineCardProps) => {
   // Local-only until SignalRun (pause/resume) is wired to the toggle.
   const [isEnabled, setIsEnabled] = useState(pipeline.isEnabled);
-  const openConnectorDrawer = useOpenConnectorDrawer();
+  const openConnectionDrawer = useOpenConnectionDrawer();
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const handleConnectorClick = (connector: string, e: React.MouseEvent) => {
+  const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    openConnectorDrawer(connector);
+    openConnectionDrawer(connectionId);
   };
 
   return (
@@ -131,7 +131,7 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
             <PipelineFlow
               source={pipeline.source}
               sinks={pipeline.sinks}
-              onConnectorClick={handleConnectorClick}
+              onConnectionClick={handleConnectionClick}
             />
           </MetricColumnWrapper>
           <MetricColumn

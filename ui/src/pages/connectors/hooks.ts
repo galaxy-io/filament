@@ -5,20 +5,20 @@ import { useNavigate } from "@tanstack/react-router";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 /**
- * Hook to open the connector drawer from anywhere in the app.
+ * Hook to open the connection drawer from anywhere in the app.
  * Updates the URL search params which triggers the drawer at the root level.
  */
-export const useOpenConnectorDrawer = () => {
+export const useOpenConnectionDrawer = () => {
   const navigate = useNavigate();
 
-  const openConnectorDrawer = (connectorId: string) => {
+  const openConnectionDrawer = (connectionId: string) => {
     void navigate({
       to: ".",
-      search: (prev) => ({ ...prev, connectorId }),
+      search: (prev) => ({ ...prev, connectionId }),
     });
   };
 
-  return openConnectorDrawer;
+  return openConnectionDrawer;
 };
 
 export const useConnectorsPageState = () => {

@@ -5,17 +5,16 @@ import FlexWrapper, {
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Bold from "@galaxy-io/dls/text/Bold";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-interface ConnectorDrawerDetailsProps {
-  connector: ConnectorSpec;
+interface ConnectionDrawerDetailsProps {
+  connection: Connection;
 }
 
-const ConnectorDrawerDetails = ({ connector }: ConnectorDrawerDetailsProps) => {
+const ConnectionDrawerDetails = ({ connection }: ConnectionDrawerDetailsProps) => {
   return (
     <Widget variant={WidgetVariant.BASE} fillWidth noHover padding="12px">
       <FlexWrapper fillWidth direction={FlexDirection.COLUMN} gap={FlexGap.SMALL}>
@@ -29,9 +28,9 @@ const ConnectorDrawerDetails = ({ connector }: ConnectorDrawerDetailsProps) => {
           justifyContent={JustifyContent.SPACE_BETWEEN}
         >
           <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-            Connector ID
+            Connection ID
           </Text>
-          <Text size={TextSize.BODY_SM}>{connector.name}</Text>
+          <Text size={TextSize.BODY_SM}>{connection.id}</Text>
         </FlexWrapper>
         <FlexWrapper
           fillWidth
@@ -39,19 +38,13 @@ const ConnectorDrawerDetails = ({ connector }: ConnectorDrawerDetailsProps) => {
           justifyContent={JustifyContent.SPACE_BETWEEN}
         >
           <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-            Display Name
+            Connector
           </Text>
-          <Text size={TextSize.BODY_SM}>{connector.displayName || "-"}</Text>
-        </FlexWrapper>
-        <HorizontalDivider />
-        <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-          <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-            Created on <Bold>Jan 1, 2025</Bold>
-          </Text>
+          <Text size={TextSize.BODY_SM}>{connection.connector}</Text>
         </FlexWrapper>
       </FlexWrapper>
     </Widget>
   );
 };
 
-export default ConnectorDrawerDetails;
+export default ConnectionDrawerDetails;

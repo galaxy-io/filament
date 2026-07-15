@@ -1,40 +1,31 @@
 import { useMemo } from "react";
 
 import { PipelineGroup, PipelineListItem } from "@/pages/pipelines/types";
-import { MOCK_PIPELINE_ITEMS } from "@/pages/pipelines/constants";
 import { getPipelineGroup, toPipelineListItem } from "@/pages/pipelines/utils";
 
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
 
 /**
  * Pipeline list items for the /pipelines view.
- *
- * Reads persisted pipelines from the API when the server is reachable and
- * falls back to design mocks while the backend list metadata (runs, volume,
- * schedules) is still being built out.
  */
 export const usePipelineListItems = (): {
   items: PipelineListItem[];
   isLoading: boolean;
   isError: boolean;
-  isMockData: boolean;
 } => {
   const { data, isLoading, isError } = useListPipelinesQuery();
 
-  const hasServerPipelines = !!data?.pipelines.length;
-
   const items = useMemo(() => {
-    if (hasServerPipelines) {
+    if (data?.pipelines.length) {
       return data.pipelines.map(toPipelineListItem);
     }
-    return MOCK_PIPELINE_ITEMS;
-  }, [hasServerPipelines, data]);
+    return [];
+  }, [data]);
 
   return {
     items,
-    isLoading: isLoading && !hasServerPipelines,
+    isLoading,
     isError,
-    isMockData: !hasServerPipelines,
   };
 };
 

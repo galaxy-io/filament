@@ -14,3 +14,6 @@ export const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? "";
 export const APP_VERSION = "v0.0.1-alpha";
 
 export const GITHUB_REPO_URL = "https://github.com/galaxy-io/filament";
+
+export const CONNECTORS_DOCS_URL =
+  "https://filament.getgalaxy.io/connectors";

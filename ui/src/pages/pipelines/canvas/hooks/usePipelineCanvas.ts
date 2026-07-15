@@ -8,10 +8,6 @@ import {
 } from "@xyflow/react";
 
 import type { PipelineNode, PipelineEdge } from "@/pages/pipelines/canvas/types";
-import {
-  DEMO_INITIAL_NODES,
-  DEMO_INITIAL_EDGES,
-} from "@/pages/pipelines/canvas/constants";
 
 interface UsePipelineCanvasOptions {
   initialNodes?: PipelineNode[];
@@ -20,11 +16,11 @@ interface UsePipelineCanvasOptions {
 
 const usePipelineCanvas = (options?: UsePipelineCanvasOptions) => {
   const [nodes, setNodes, onNodesChange] = useNodesState<PipelineNode>(
-    options?.initialNodes ?? DEMO_INITIAL_NODES
+    options?.initialNodes ?? []
   );
 
   const [edges, setEdges, onEdgesChange] = useEdgesState<PipelineEdge>(
-    options?.initialEdges ?? DEMO_INITIAL_EDGES
+    options?.initialEdges ?? []
   );
 
   const onConnect: OnConnect = useCallback(

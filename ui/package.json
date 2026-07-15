@@ -1,15 +1,16 @@
 {
-  "name": "@galaxy-io/filament-ui",
+  "name": "@galaxy-io/filament",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "pnpm assets && vite",
+    "build": "pnpm assets && tsc -b && vite build",
     "preview": "vite preview",
     "codegen": "buf generate",
+    "assets": "svgr --icon --typescript --no-prettier --no-index --no-dimensions --jsx-runtime automatic --out-dir src/assets/components src/assets/svgr",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
@@ -38,6 +39,7 @@
     "@babel/preset-typescript": "^7.29.7",
     "@bufbuild/buf": "^1.57.2",
     "@bufbuild/protoc-gen-es": "^2.9.0",
+    "@svgr/cli": "^8.1.0",
     "@tanstack/router-plugin": "^1.141.2",
     "@types/pluralize": "^0.0.33",
     "@types/react": "^18.3.27",

@@ -5,7 +5,6 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -30,7 +29,7 @@ const CardSection = styled.div`
   padding: 16px;
 `;
 
-const ConnectorCardLoading = () => {
+const ConnectionCardLoading = () => {
   return (
     <CardWrapper>
       <CardSection>
@@ -47,14 +46,8 @@ const ConnectorCardLoading = () => {
         </FlexWrapper>
         <TextShimmer width={90} height={24} />
       </CardSection>
-
-      <HorizontalDivider />
-
-      <CardSection>
-        <TextShimmer width={140} height={16} />
-      </CardSection>
     </CardWrapper>
   );
 };
 
-export default ConnectorCardLoading;
+export default ConnectionCardLoading;

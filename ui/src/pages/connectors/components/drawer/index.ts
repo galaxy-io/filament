@@ -1,5 +1,5 @@
-export { default as ConnectorDrawer } from "./ConnectorDrawer";
-export { default as ConnectorDrawerHeader } from "./ConnectorDrawerHeader";
-export { default as ConnectorDrawerMetrics } from "./ConnectorDrawerMetrics";
-export { default as ConnectorDrawerDetails } from "./ConnectorDrawerDetails";
-export { default as ConnectorDrawerFooter } from "./ConnectorDrawerFooter";
+export { default as ConnectionDrawer } from "./ConnectionDrawer";
+export { default as ConnectionDrawerHeader } from "./ConnectionDrawerHeader";
+export { default as ConnectionDrawerMetrics } from "./ConnectionDrawerMetrics";
+export { default as ConnectionDrawerDetails } from "./ConnectionDrawerDetails";
+export { default as ConnectionDrawerFooter } from "./ConnectionDrawerFooter";

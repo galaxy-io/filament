@@ -11,7 +11,7 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 const MetricItem = styled.div`
   display: flex;
@@ -19,16 +19,16 @@ const MetricItem = styled.div`
   gap: 6px;
 `;
 
-interface ConnectorDrawerMetricsProps {
-  connector: ConnectorSpec;
+interface ConnectionDrawerMetricsProps {
+  connection: Connection;
   pipelineCount?: number;
 }
 
-const ConnectorDrawerMetrics = ({
-  connector,
+const ConnectionDrawerMetrics = ({
+  connection,
   pipelineCount = 0,
-}: ConnectorDrawerMetricsProps) => {
-  const isSource = connector.kind === ConnectorKind.SOURCE;
+}: ConnectionDrawerMetricsProps) => {
+  const isSource = connection.kind === ConnectorKind.SOURCE;
   const kindLabel = isSource ? "Source" : "Sink";
 
   return (
@@ -57,4 +57,4 @@ const ConnectorDrawerMetrics = ({
   );
 };
 
-export default ConnectorDrawerMetrics;
+export default ConnectionDrawerMetrics;

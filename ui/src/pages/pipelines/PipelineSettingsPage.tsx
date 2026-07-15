@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { TrashIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { useParams, useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
@@ -19,6 +20,8 @@ import Text, {
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
+
+import { useGetPipelineQuery, useDeletePipelineMutation } from "@/api/queries/pipelines";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -59,7 +62,13 @@ const FieldRow = styled.div`
 `;
 
 const PipelineSettingsPage = () => {
-  const [name, setName] = useState("My Pipeline");
+  const { id } = useParams({ from: "/pipelines/$id" });
+  const navigate = useNavigate();
+  const { data } = useGetPipelineQuery({ input: { id } });
+  const deletePipeline = useDeletePipelineMutation();
+
+  const pipeline = data?.pipeline;
+
   const [description, setDescription] = useState("");
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -84,10 +93,11 @@ const PipelineSettingsPage = () => {
                 Name
               </Text>
               <TextInput
-                value={name}
-                onChange={setName}
+                value={pipeline?.name ?? ""}
+                onChange={() => {}}
                 placeholder="Pipeline name"
                 fillWidth
+                isDisabled
               />
             </FieldWrapper>
 
@@ -163,7 +173,14 @@ const PipelineSettingsPage = () => {
               icon={TrashIcon}
               variant={ButtonVariant.ERROR}
               onClick={() => {
-                // TODO: Implement delete confirmation
+                deletePipeline.mutate(
+                  { id },
+                  {
+                    onSuccess: () => {
+                      navigate({ to: "/pipelines" });
+                    },
+                  }
+                );
               }}
             />
           </FieldRow>

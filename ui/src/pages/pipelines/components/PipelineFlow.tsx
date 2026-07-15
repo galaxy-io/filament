@@ -30,7 +30,7 @@ interface PipelineFlowProps {
   sinks: string[];
   size?: PipelineFlowSize;
   maxSinks?: number;
-  onConnectorClick?: (connector: string, e: React.MouseEvent) => void;
+  onConnectionClick?: (connectionId: string, e: React.MouseEvent) => void;
 }
 
 /**
@@ -41,7 +41,7 @@ const PipelineFlow = ({
   sinks,
   size = PipelineFlowSize.SMALL,
   maxSinks,
-  onConnectorClick,
+  onConnectionClick,
 }: PipelineFlowProps) => {
   const limit = maxSinks ?? PIPELINE_MAX_VISIBLE_SINKS;
   const visibleSinks = maxSinks === undefined ? sinks : sinks.slice(0, limit);
@@ -55,7 +55,7 @@ const PipelineFlow = ({
       <ConnectorTile
         connector={source}
         size={tileSize}
-        onClick={onConnectorClick ? (e) => onConnectorClick(source, e) : undefined}
+        onClick={onConnectionClick ? (e) => onConnectionClick(source, e) : undefined}
       />
       <Icon
         component={FlowArrowIcon}
@@ -68,7 +68,7 @@ const PipelineFlow = ({
             key={`${sink}-${index}`}
             connector={sink}
             size={tileSize}
-            onClick={onConnectorClick ? (e) => onConnectorClick(sink, e) : undefined}
+            onClick={onConnectionClick ? (e) => onConnectionClick(sink, e) : undefined}
           />
         ))}
         {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
