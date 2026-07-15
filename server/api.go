@@ -3,10 +3,8 @@ package server
 import (
 	"context"
 	"net/http"
-	"sync"
 
 	ingestion "github.com/galaxy-io/filament"
-	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
 	"github.com/galaxy-io/filament/eventbus"
 )
@@ -23,25 +21,26 @@ type Server struct {
 	store   ingestion.DataStore
 	orch    runSubmitter
 	bus     eventbus.Bus
-
-	mu          sync.RWMutex
-	pipelines   map[string]*ingestionv1.Pipeline
-	connections map[string]*ingestionv1.Connection
-	nextID      int64
-	nextConnID  int64
+	secrets ingestion.Secrets
 }
 
+type Option func(*Server)
+
+func WithSecrets(secrets ingestion.Secrets) Option { return func(s *Server) { s.secrets = secrets } }
+
 // New returns a Server wired to the given providers.
-func New(sources ingestion.SourceRegistry, sinks ingestion.SinkRegistry, store ingestion.DataStore, orch runSubmitter, bus eventbus.Bus) *Server {
-	return &Server{
-		sources:     sources,
-		sinks:       sinks,
-		store:       store,
-		orch:        orch,
-		bus:         bus,
-		pipelines:   map[string]*ingestionv1.Pipeline{},
-		connections: map[string]*ingestionv1.Connection{},
+func New(sources ingestion.SourceRegistry, sinks ingestion.SinkRegistry, store ingestion.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
+	s := &Server{
+		sources: sources,
+		sinks:   sinks,
+		store:   store,
+		orch:    orch,
+		bus:     bus,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Mount registers the Connect handler on mux.
