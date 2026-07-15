@@ -58,7 +58,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
       {
         onSuccess: () => {
           onClose();
-          navigate({ to: "/connectors" });
+          navigate({ to: "/connections" });
         },
       },
     );

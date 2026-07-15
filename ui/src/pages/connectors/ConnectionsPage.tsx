@@ -33,7 +33,7 @@ import {
   CONNECTOR_SEARCH_WIDTH,
   SELECT_INPUT_OPTIONS_CONNECTOR_KIND,
 } from "@/pages/connectors/constants";
-import type { ConnectorsPageState } from "@/pages/connectors/types";
+import type { ConnectionsPageState } from "@/pages/connectors/types";
 
 import { Flow } from "@/routes/__root";
 
@@ -56,15 +56,15 @@ const ConnectorListScrollArea = styled.div`
   overflow-y: auto;
 `;
 
-const DEFAULT_STATE: ConnectorsPageState = {
+const DEFAULT_STATE: ConnectionsPageState = {
   search: "",
   kindFilter: ConnectorKind.UNSPECIFIED,
 };
 
-const ConnectorsPage = () => {
+const ConnectionsPage = () => {
   const navigate = useNavigate();
 
-  const [state, setState] = useState<ConnectorsPageState>(DEFAULT_STATE);
+  const [state, setState] = useState<ConnectionsPageState>(DEFAULT_STATE);
 
   const handleOpenCreateConnectorModal = () => {
     void navigate({
@@ -165,7 +165,7 @@ const ConnectorsPage = () => {
                 onClick={handleOpenCreateConnectorModal}
               />
               <Button
-                label="Read the docs"
+                label="Documentation"
                 icon={BookOpenIcon}
                 variant={ButtonVariant.SECONDARY}
                 onClick={handleReadTheDocs}
@@ -245,4 +245,4 @@ const ConnectorsPage = () => {
   );
 };
 
-export default ConnectorsPage;
+export default ConnectionsPage;

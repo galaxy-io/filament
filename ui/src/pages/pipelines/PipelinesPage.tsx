@@ -174,7 +174,7 @@ const PipelinesPage = () => {
                 onClick={handleNewPipeline}
               />
               <Button
-                label="Read the docs"
+                label="Documentation"
                 icon={BookOpenIcon}
                 variant={ButtonVariant.SECONDARY}
                 onClick={handleReadTheDocs}
