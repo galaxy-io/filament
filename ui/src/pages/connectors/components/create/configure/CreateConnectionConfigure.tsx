@@ -14,20 +14,22 @@ import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { FieldType } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import CreateConnectionModalHeader from "@/pages/connectors/components/create/components/CreateConnectionModalHeader";
 import CreateConnectionModalWrapper from "@/pages/connectors/components/create/components/CreateConnectionModalWrapper";
 import CreateConnectionNameInput from "@/pages/connectors/components/create/components/CreateConnectionNameInput";
-import { CreateConnectionStep } from "@/pages/connectors/components/create/types";
+import { CreateConnectionModalStep } from "@/pages/connectors/components/create/types";
 
-import { CreateConnectionConfigureActionType } from "./actions";
-import CreateConnectionConfigureProvider from "./CreateConnectionConfigureProvider";
-import DynamicField from "./DynamicField";
-import { useCreateConnectionConfigure } from "./hooks";
-import { CreateConnectionPhase } from "./types";
-import { getConnectionScopedFields, getFieldValue } from "./utils";
 import { NOOP } from "@/constants";
+
+import { CreateConnectionActionType } from "@/pages/connectors/components/create/configure/actions";
+import CreateConnectionConfigureProvider from "@/pages/connectors/components/create/configure/CreateConnectionConfigureProvider";
+import CreateConnectionField from "@/pages/connectors/components/create/configure/fields/CreateConnectionField";
+import { useCreateConnection } from "@/pages/connectors/components/create/configure/hooks";
+import { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
+import { getConnectorConfigSchemaConnectionFields } from "@/pages/connectors/components/create/configure/utils";
 
 const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
   flex: 1;
@@ -75,20 +77,21 @@ const CreateConnectionConfigureContent = ({
   const {
     state,
     dispatch,
-    testConnection,
-    createConnection,
     isDisabled,
-    nameError,
     isValidating,
     isCreating,
-  } = useCreateConnectionConfigure({ onSuccess: handleSuccess });
+    nameError,
+    getFieldError,
+    testConnection,
+    createConnection,
+  } = useCreateConnection({ onSuccess: handleSuccess });
 
-  const fields = getConnectionScopedFields(connector);
+  const fields = getConnectorConfigSchemaConnectionFields(connector);
 
-  const handleConnectionNameChange = useCallback(
+  const handleNameChange = useCallback(
     (name: string) => {
       dispatch({
-        type: CreateConnectionConfigureActionType.SET_CONNECTION_NAME,
+        type: CreateConnectionActionType.SET_REQUEST_NAME,
         payload: name,
       });
     },
@@ -96,11 +99,18 @@ const CreateConnectionConfigureContent = ({
   );
 
   const handleFieldChange = useCallback(
-    (fieldName: string, value: JsonValue, fieldType: number) => {
-      dispatch({
-        type: CreateConnectionConfigureActionType.SET_FIELD_VALUE,
-        payload: { field: fieldName, value, fieldType },
-      });
+    (fieldName: string, value: JsonValue, fieldType: FieldType) => {
+      if (fieldType === FieldType.SECRET) {
+        dispatch({
+          type: CreateConnectionActionType.SET_SECRET_VALUE,
+          payload: { field: fieldName, value: value as string },
+        });
+      } else {
+        dispatch({
+          type: CreateConnectionActionType.SET_REQUEST_CONFIG_FIELD,
+          payload: { field: fieldName, value },
+        });
+      }
     },
     [dispatch],
   );
@@ -113,27 +123,27 @@ const CreateConnectionConfigureContent = ({
     void createConnection();
   }, [createConnection]);
 
-  const getFieldError = (fieldName: string): string | undefined => {
-    if (!state.shouldShowErrors) return undefined;
-    const error = state.validationErrors.find((e) => e.field === fieldName);
-    return error?.message;
+  const getFieldValue = (fieldName: string, fieldType: FieldType): JsonValue => {
+    return fieldType === FieldType.SECRET
+      ? (state.request.secretRefs?.[fieldName] ?? null)
+      : (state.request.config?.[fieldName] ?? null);
   };
 
   const renderBody = () => {
     return (
       <>
         <CreateConnectionNameInput
-          value={state.connectionName}
-          onChange={handleConnectionNameChange}
+          value={state.request.name}
+          onChange={handleNameChange}
           error={nameError}
           isDisabled={isDisabled}
         />
 
         {fields.map((field) => (
-          <DynamicField
+          <CreateConnectionField
             key={field.name}
             field={field}
-            value={getFieldValue(field, state.formValues, state.secretValues)}
+            value={getFieldValue(field.name, field.type)}
             onChange={(value) => handleFieldChange(field.name, value, field.type)}
             error={getFieldError(field.name)}
             isDisabled={isDisabled}
@@ -145,7 +155,7 @@ const CreateConnectionConfigureContent = ({
 
   const renderFooter = () => {
     return match(state.phase)
-      .with(CreateConnectionPhase.CONFIGURE, CreateConnectionPhase.ERROR, () => (
+      .with(CreateConnectionPhase.IDLE, CreateConnectionPhase.ERROR, () => (
         <Button
           label="Test Connection"
           icon={ArrowRightIcon}
@@ -185,7 +195,7 @@ const CreateConnectionConfigureContent = ({
   };
 
   return (
-    <CreateConnectionModalWrapper step={CreateConnectionStep.CONFIGURE}>
+    <CreateConnectionModalWrapper step={CreateConnectionModalStep.CONFIGURE}>
       <FlexItem grow={0} shrink={0}>
         <CreateConnectionModalHeader connector={connector} onClose={onClose} onBack={onBack} />
       </FlexItem>

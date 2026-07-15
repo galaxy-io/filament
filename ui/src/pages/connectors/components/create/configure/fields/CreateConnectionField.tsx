@@ -5,9 +5,9 @@ import type { JsonValue } from "@bufbuild/protobuf";
 import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
 import { formatFieldName } from "@/pages/connectors/utils";
 
-import { FIELD_COMPONENTS } from "./fields/constants";
+import { FIELD_TYPE_TO_FIELD_COMPONENT_MAP } from "@/pages/connectors/components/create/configure/fields/constants";
 
-interface DynamicFieldProps {
+interface CreateConnectionFieldProps {
   field: ConfigField;
   value: JsonValue;
   onChange: (value: JsonValue) => void;
@@ -15,16 +15,16 @@ interface DynamicFieldProps {
   isDisabled?: boolean;
 }
 
-const DynamicField = ({
+const CreateConnectionField = ({
   field,
   value,
   onChange,
   error,
   isDisabled = false,
-}: DynamicFieldProps) => {
+}: CreateConnectionFieldProps) => {
   const label = useMemo(() => formatFieldName(field.name), [field.name]);
 
-  const Component = FIELD_COMPONENTS[field.type];
+  const Component = FIELD_TYPE_TO_FIELD_COMPONENT_MAP[field.type];
   if (!Component) return null;
 
   return (
@@ -39,4 +39,4 @@ const DynamicField = ({
   );
 };
 
-export default DynamicField;
+export default CreateConnectionField;

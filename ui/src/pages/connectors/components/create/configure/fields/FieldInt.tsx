@@ -1,8 +1,8 @@
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
-import type { FieldComponentProps } from "./types";
+import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
 
-const IntField = ({
+const FieldInt = ({
   field,
   value,
   onChange,
@@ -29,4 +29,4 @@ const IntField = ({
   );
 };
 
-export default IntField;
+export default FieldInt;

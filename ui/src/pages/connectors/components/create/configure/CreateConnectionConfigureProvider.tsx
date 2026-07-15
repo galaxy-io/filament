@@ -1,31 +1,29 @@
-import { createContext, type PropsWithChildren, useMemo, useReducer } from "react";
+import {
+  createContext,
+  type PropsWithChildren,
+  useMemo,
+  useReducer,
+} from "react";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
-import type { CreateConnectionConfigureAction } from "./actions";
-import createConnectionConfigureReducer from "./reducer";
-import { type CreateConnectionConfigureState, CreateConnectionPhase } from "./types";
-import { getConnectionScopedFields, getInitialFormValues } from "./utils";
+import type { CreateConnectionAction } from "@/pages/connectors/components/create/configure/actions";
+import createConnectionReducer from "@/pages/connectors/components/create/configure/reducer";
+import {
+  type CreateConnectionConfigureState,
+  CreateConnectionPhase,
+} from "@/pages/connectors/components/create/configure/types";
+import { createInitialCreateConnectionRequest } from "@/pages/connectors/components/create/configure/utils";
 
 export interface CreateConnectionConfigureContextShape {
   state: CreateConnectionConfigureState;
-  dispatch: React.Dispatch<CreateConnectionConfigureAction>;
+  dispatch: React.Dispatch<CreateConnectionAction>;
 }
-
-export const DEFAULT_STATE: CreateConnectionConfigureState = {
-  connector: null,
-  connectionName: "",
-  phase: CreateConnectionPhase.CONFIGURE,
-  formValues: {},
-  secretValues: {},
-  validationErrors: [],
-  error: null,
-  shouldShowErrors: false,
-};
 
 export const CreateConnectionConfigureContext =
   createContext<CreateConnectionConfigureContextShape | null>(null);
-CreateConnectionConfigureContext.displayName = "CreateConnectionConfigureContext";
+CreateConnectionConfigureContext.displayName =
+  "CreateConnectionConfigureContext";
 
 interface CreateConnectionConfigureProviderProps {
   connector: ConnectorSpec;
@@ -35,16 +33,19 @@ const CreateConnectionConfigureProvider = ({
   children,
   connector,
 }: PropsWithChildren<CreateConnectionConfigureProviderProps>) => {
-  const initialFormValues = useMemo(() => {
-    const fields = getConnectionScopedFields(connector);
-    return getInitialFormValues(fields);
-  }, [connector]);
+  const initialState: CreateConnectionConfigureState = useMemo(
+    () => ({
+      request: createInitialCreateConnectionRequest(connector),
+      connector,
+      phase: CreateConnectionPhase.IDLE,
+      validationErrors: [],
+      error: null,
+      shouldShowErrors: false,
+    }),
+    [connector],
+  );
 
-  const [state, dispatch] = useReducer(createConnectionConfigureReducer, {
-    ...DEFAULT_STATE,
-    connector,
-    formValues: initialFormValues,
-  });
+  const [state, dispatch] = useReducer(createConnectionReducer, initialState);
 
   return (
     <CreateConnectionConfigureContext.Provider value={{ state, dispatch }}>

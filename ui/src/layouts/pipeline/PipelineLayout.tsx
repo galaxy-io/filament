@@ -8,6 +8,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
+import PipelineLayoutBackButton from "@/layouts/pipeline/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
 import { PipelineSidebarItem, PipelineStatus } from "@/layouts/pipeline/types";
@@ -117,11 +118,11 @@ const PipelineLayout = ({
   return (
     <LayoutWrapper>
       <LeftColumn>
-        <PipelineLayoutNavbar.BackButton />
+        <PipelineLayoutBackButton />
         <PipelineLayoutSidebar activeItem={getActiveItem()} onItemClick={handleItemClick} />
       </LeftColumn>
       <RightColumn>
-        <PipelineLayoutNavbar.Content
+        <PipelineLayoutNavbar
           name={name}
           status={status}
           source={source}

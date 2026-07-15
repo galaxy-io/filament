@@ -5,21 +5,14 @@ import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
   AlignItems,
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -111,19 +104,6 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
     });
   };
 
-  const handleOpenConnectionDrawer = (connectionId: string) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, connectionId }),
-    });
-  };
-
-  const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleOpenConnectionDrawer(connectionId);
-  };
-
   return (
     <CardWrapper onClick={handlePipelineClick}>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
@@ -138,14 +118,8 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-        <MetricColumnWrapper
-          $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}
-        >
-          <PipelineFlow
-            source={pipeline.source}
-            sinks={pipeline.sinks}
-            onConnectionClick={handleConnectionClick}
-          />
+        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}>
+          <PipelineFlow source={pipeline.source} sinks={pipeline.sinks} />
         </MetricColumnWrapper>
         <MetricColumn
           width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}

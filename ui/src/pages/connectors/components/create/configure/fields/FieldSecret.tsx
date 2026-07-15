@@ -1,8 +1,8 @@
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
-import type { FieldComponentProps } from "./types";
+import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
 
-const StringField = ({
+const FieldSecret = ({
   field,
   value,
   onChange,
@@ -11,7 +11,7 @@ const StringField = ({
   label,
 }: FieldComponentProps) => {
   return (
-    <TextInput
+    <PasswordInput
       value={(value as string) ?? ""}
       onChange={(v) => onChange(v)}
       placeholder={`Enter ${label}...`}
@@ -25,4 +25,4 @@ const StringField = ({
   );
 };
 
-export default StringField;
+export default FieldSecret;

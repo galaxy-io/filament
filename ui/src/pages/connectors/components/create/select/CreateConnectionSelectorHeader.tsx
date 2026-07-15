@@ -2,13 +2,9 @@ import { useCallback } from "react";
 
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import SelectInput, {
-  type SelectInputOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
@@ -41,15 +37,12 @@ const CreateConnectionSelectorHeader = ({
   }, [onSearchChange]);
 
   const selectedKindOption =
-    SELECT_INPUT_OPTIONS_CONNECTOR_KIND.find(
-      (opt) => opt.value === connectorKindFilter,
-    ) ?? SELECT_INPUT_OPTIONS_CONNECTOR_KIND[0];
+    SELECT_INPUT_OPTIONS_CONNECTOR_KIND.find((opt) => opt.value === connectorKindFilter) ??
+    SELECT_INPUT_OPTIONS_CONNECTOR_KIND[0];
 
   const handleKindChange = useCallback(
     (selected: SelectInputOption | null) => {
-      onConnectorKindFilterChange(
-        (selected?.value as ConnectorKind) ?? ConnectorKind.UNSPECIFIED,
-      );
+      onConnectorKindFilterChange((selected?.value as ConnectorKind) ?? ConnectorKind.UNSPECIFIED);
     },
     [onConnectorKindFilterChange],
   );
@@ -71,9 +64,7 @@ const CreateConnectionSelectorHeader = ({
               key="search"
               placeholder="Search connectors..."
               leading={{ icon: MagnifyingGlassIcon }}
-              trailing={
-                search ? { icon: XIcon, onClick: handleSearchClear } : undefined
-              }
+              trailing={search ? { icon: XIcon, onClick: handleSearchClear } : undefined}
               onChange={onSearchChange}
               value={search}
               width={240}

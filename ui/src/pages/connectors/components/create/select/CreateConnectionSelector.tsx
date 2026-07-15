@@ -10,7 +10,7 @@ import CreateConnectionSelectorBody from "@/pages/connectors/components/create/s
 import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
 import {
   type CreateConnectionSelectorProps,
-  CreateConnectionStep,
+  CreateConnectionModalStep,
 } from "@/pages/connectors/components/create/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -47,7 +47,7 @@ const CreateConnectionSelector = ({
   );
 
   return (
-    <CreateConnectionModalWrapper step={CreateConnectionStep.SELECT}>
+    <CreateConnectionModalWrapper step={CreateConnectionModalStep.SELECT}>
       <FlexItem grow={0} shrink={0}>
         <CreateConnectionSelectorHeader
           search={search}

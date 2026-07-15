@@ -1,78 +1,86 @@
-import { FieldType } from "@/gen/ingestion/v1/common_pb";
-
+import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import {
-  type CreateConnectionConfigureAction,
-  CreateConnectionConfigureActionType,
-  type SetConnectionNameAction,
-  type SetConnectorAction,
+  type CreateConnectionAction,
+  CreateConnectionActionType,
   type SetErrorAction,
-  type SetFieldValueAction,
-  type SetPhaseAction,
+  type SetRequestConfigFieldAction,
+  type SetRequestNameAction,
+  type SetSecretValueAction,
   type SetShouldShowErrorsAction,
+  type SetStepAction,
   type SetValidationErrorsAction,
-} from "./actions";
-import { DEFAULT_STATE } from "./CreateConnectionConfigureProvider";
-import { type CreateConnectionConfigureState, CreateConnectionPhase } from "./types";
+} from "@/pages/connectors/components/create/configure/actions";
+import {
+  type CreateConnectionConfigureState,
+  CreateConnectionPhase,
+} from "@/pages/connectors/components/create/configure/types";
+import { create } from "@bufbuild/protobuf";
 
-function setConnector(
+function resetStepIfNeeded(step: CreateConnectionPhase): CreateConnectionPhase {
+  return step === CreateConnectionPhase.VALIDATED ||
+    step === CreateConnectionPhase.ERROR
+    ? CreateConnectionPhase.IDLE
+    : step;
+}
+
+function setRequestName(
   state: CreateConnectionConfigureState,
-  action: SetConnectorAction,
+  action: SetRequestNameAction,
 ): CreateConnectionConfigureState {
   return {
     ...state,
-    connector: action.payload,
+    request: create(CreateConnectionRequestSchema, {
+      ...state.request,
+      name: action.payload,
+    }),
+    phase: resetStepIfNeeded(state.phase),
   };
 }
 
-function setConnectionName(
+function setRequestConfigField(
   state: CreateConnectionConfigureState,
-  action: SetConnectionNameAction,
+  action: SetRequestConfigFieldAction,
 ): CreateConnectionConfigureState {
+  const { field, value } = action.payload;
   return {
     ...state,
-    connectionName: action.payload,
+    request: create(CreateConnectionRequestSchema, {
+      ...state.request,
+      config: {
+        ...(state.request.config ?? {}),
+        [field]: value,
+      },
+    }),
+    phase: resetStepIfNeeded(state.phase),
   };
 }
 
-function setPhase(
+function setSecretValue(
   state: CreateConnectionConfigureState,
-  action: SetPhaseAction,
+  action: SetSecretValueAction,
+): CreateConnectionConfigureState {
+  const { field, value } = action.payload;
+  return {
+    ...state,
+    request: create(CreateConnectionRequestSchema, {
+      ...state.request,
+      secretRefs: {
+        ...(state.request.secretRefs ?? {}),
+        [field]: value,
+      },
+    }),
+    phase: resetStepIfNeeded(state.phase),
+  };
+}
+
+function setStep(
+  state: CreateConnectionConfigureState,
+  action: SetStepAction,
 ): CreateConnectionConfigureState {
   return {
     ...state,
     phase: action.payload,
     error: action.payload === CreateConnectionPhase.ERROR ? state.error : null,
-  };
-}
-
-function setFieldValue(
-  state: CreateConnectionConfigureState,
-  action: SetFieldValueAction,
-): CreateConnectionConfigureState {
-  const { field, value, fieldType } = action.payload;
-  const resetPhase =
-    state.phase === CreateConnectionPhase.VALIDATED || state.phase === CreateConnectionPhase.ERROR
-      ? CreateConnectionPhase.CONFIGURE
-      : state.phase;
-
-  if (fieldType === FieldType.SECRET) {
-    return {
-      ...state,
-      secretValues: {
-        ...state.secretValues,
-        [field]: value as string,
-      },
-      phase: resetPhase,
-    };
-  }
-
-  return {
-    ...state,
-    formValues: {
-      ...state.formValues,
-      [field]: value,
-    },
-    phase: resetPhase,
   };
 }
 
@@ -107,28 +115,26 @@ function setShouldShowErrors(
   };
 }
 
-const createConnectionConfigureReducer = (
+const createConnectionReducer = (
   state: CreateConnectionConfigureState,
-  action: CreateConnectionConfigureAction,
+  action: CreateConnectionAction,
 ): CreateConnectionConfigureState => {
   switch (action.type) {
-    case CreateConnectionConfigureActionType.SET_CONNECTOR:
-      return setConnector(state, action);
-    case CreateConnectionConfigureActionType.SET_CONNECTION_NAME:
-      return setConnectionName(state, action);
-    case CreateConnectionConfigureActionType.SET_PHASE:
-      return setPhase(state, action);
-    case CreateConnectionConfigureActionType.SET_FIELD_VALUE:
-      return setFieldValue(state, action);
-    case CreateConnectionConfigureActionType.SET_VALIDATION_ERRORS:
+    case CreateConnectionActionType.SET_REQUEST_NAME:
+      return setRequestName(state, action);
+    case CreateConnectionActionType.SET_REQUEST_CONFIG_FIELD:
+      return setRequestConfigField(state, action);
+    case CreateConnectionActionType.SET_SECRET_VALUE:
+      return setSecretValue(state, action);
+    case CreateConnectionActionType.SET_STEP:
+      return setStep(state, action);
+    case CreateConnectionActionType.SET_VALIDATION_ERRORS:
       return setValidationErrors(state, action);
-    case CreateConnectionConfigureActionType.SET_ERROR:
+    case CreateConnectionActionType.SET_ERROR:
       return setError(state, action);
-    case CreateConnectionConfigureActionType.SET_SHOULD_SHOW_ERRORS:
+    case CreateConnectionActionType.SET_SHOULD_SHOW_ERRORS:
       return setShouldShowErrors(state, action);
-    case CreateConnectionConfigureActionType.RESET:
-      return DEFAULT_STATE;
   }
 };
 
-export default createConnectionConfigureReducer;
+export default createConnectionReducer;

@@ -11,23 +11,23 @@ import {
   CREATE_CONNECTION_MODAL_SELECTOR_MIN_HEIGHT,
   CREATE_CONNECTION_MODAL_WIDTH,
 } from "@/pages/connectors/constants";
-import { CreateConnectionStep } from "@/pages/connectors/components/create/types";
+import { CreateConnectionModalStep } from "@/pages/connectors/components/create/types";
 
 interface CreateConnectionModalWrapperProps {
-  step: CreateConnectionStep;
+  step: CreateConnectionModalStep;
 }
 
-const Wrapper = withTheme(styled.div<PropsWithTheme & { $step: CreateConnectionStep }>`
+const Wrapper = withTheme(styled.div<PropsWithTheme & { $step: CreateConnectionModalStep }>`
   display: flex;
   flex-direction: column;
 
   min-height: ${({ $step }) =>
-    $step === CreateConnectionStep.SELECT ? CREATE_CONNECTION_MODAL_SELECTOR_MIN_HEIGHT : 0}px;
+    $step === CreateConnectionModalStep.SELECT ? CREATE_CONNECTION_MODAL_SELECTOR_MIN_HEIGHT : 0}px;
   max-height: ${CREATE_CONNECTION_MODAL_MAX_HEIGHT}px;
   width: ${({ $step }) => {
     return match($step)
-      .with(CreateConnectionStep.SELECT, () => 900)
-      .with(CreateConnectionStep.CONFIGURE, () => CREATE_CONNECTION_MODAL_WIDTH)
+      .with(CreateConnectionModalStep.SELECT, () => 900)
+      .with(CreateConnectionModalStep.CONFIGURE, () => CREATE_CONNECTION_MODAL_WIDTH)
       .exhaustive();
   }}px;
 

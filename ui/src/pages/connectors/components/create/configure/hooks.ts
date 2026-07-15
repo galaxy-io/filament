@@ -18,228 +18,249 @@ import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb
 import { ValidateConfigRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 import { PutSecretRequestSchema } from "@/gen/ingestion/v1/secrets_pb";
 
-import { CreateConnectionConfigureActionType } from "./actions";
-import {
-  CREATE_CONNECTION_FAILED_TO_CREATE_ERROR_HEADER,
-  CREATE_CONNECTION_FAILED_TO_VALIDATE_ERROR_HEADER,
-  CREATE_CONNECTION_UNEXPECTED_ERROR,
-} from "./constants";
+import { CreateConnectionActionType } from "@/pages/connectors/components/create/configure/actions";
 import {
   CreateConnectionConfigureContext,
   type CreateConnectionConfigureContextShape,
-} from "./CreateConnectionConfigureProvider";
-import { CreateConnectionPhase } from "./types";
+} from "@/pages/connectors/components/create/configure/CreateConnectionConfigureProvider";
+import { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
 import {
-  buildConfigObject,
   generateSecretRef,
-  getConnectionNameError,
-  getConnectionScopedFields,
-  isConnectionNameProvided,
+  getConnectorConfigSchemaConnectionFields,
+} from "@/pages/connectors/components/create/configure/utils";
+import {
+  createRequiredFieldsValidationErrorMap,
   validateRequiredFields,
-} from "./utils";
+} from "@/pages/connectors/components/create/configure/validation";
 
-export function useCreateConnectionConfigureContext(): CreateConnectionConfigureContextShape {
+export function useCreateConnectionContext(): CreateConnectionConfigureContextShape {
   const context = useContext(CreateConnectionConfigureContext);
   if (!context) {
     throw new Error(
-      "useCreateConnectionConfigureContext must be used within a CreateConnectionConfigureProvider",
+      "useCreateConnectionContext must be used within CreateConnectionConfigureProvider",
     );
   }
   return context;
 }
 
-interface UseCreateConnectionConfigureOptions {
+interface UseCreateConnectionOptions {
   onSuccess?: (connectionId: string) => void;
 }
 
-export function useCreateConnectionConfigure({ onSuccess }: UseCreateConnectionConfigureOptions) {
-  const { state, dispatch } = useCreateConnectionConfigureContext();
-  const queryClient = useQueryClient();
+export function useCreateConnection(options?: UseCreateConnectionOptions) {
+  const { state, dispatch } = useCreateConnectionContext();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { mutateAsync: validateConfigMutation, isPending: isValidating } =
-    useValidateConfigMutation();
-  const { mutateAsync: putSecretMutation } = usePutSecretMutation();
-  const { mutateAsync: createConnectionMutation, isPending: isCreating } =
-    useCreateConnectionMutation();
+  const { mutateAsync: validateConfig } = useValidateConfigMutation();
+  const { mutateAsync: putSecret } = usePutSecretMutation();
+  const { mutateAsync: createConnection } = useCreateConnectionMutation();
 
-  const nameError = useMemo(() => getConnectionNameError(state), [state]);
+  // Computed
+  const isNameProvided = useMemo(
+    () => (state.request.name ?? "").trim().length > 0,
+    [state.request.name],
+  );
 
-  const isDisabled = useMemo(() => {
-    return (
-      state.phase === CreateConnectionPhase.VALIDATING ||
-      state.phase === CreateConnectionPhase.CREATING
-    );
-  }, [state.phase]);
+  const isValidating = state.phase === CreateConnectionPhase.VALIDATING;
+  const isCreating = state.phase === CreateConnectionPhase.CREATING;
+  const isValidated = state.phase === CreateConnectionPhase.VALIDATED;
+  const hasError = state.phase === CreateConnectionPhase.ERROR;
+  const isDisabled = isValidating || isCreating;
 
+  const nameError = useMemo(
+    () =>
+      state.shouldShowErrors && !isNameProvided ? "Name is required" : null,
+    [state.shouldShowErrors, isNameProvided],
+  );
+
+  const errorMap = useMemo(
+    () => createRequiredFieldsValidationErrorMap(state.validationErrors),
+    [state.validationErrors],
+  );
+
+  const getFieldError = useCallback(
+    (fieldName: string): string | undefined =>
+      state.shouldShowErrors ? errorMap.get(fieldName) : undefined,
+    [state.shouldShowErrors, errorMap],
+  );
+
+  // Test Connection
   const testConnection = useCallback(async () => {
-    if (!state.connector) return;
+    dispatch({
+      type: CreateConnectionActionType.SET_SHOULD_SHOW_ERRORS,
+      payload: true,
+    });
 
-    dispatch({ type: CreateConnectionConfigureActionType.SET_SHOULD_SHOW_ERRORS, payload: true });
+    if (!state.request.name?.trim()) return;
 
-    if (!isConnectionNameProvided(state)) {
-      return;
-    }
-
-    const fields = getConnectionScopedFields(state.connector);
-    const clientErrors = validateRequiredFields(fields, state.formValues, state.secretValues);
+    const fields = getConnectorConfigSchemaConnectionFields(state.connector);
+    const clientErrors = validateRequiredFields(
+      fields,
+      state.request.config ?? {},
+      state.request.secretRefs ?? {},
+    );
 
     if (clientErrors.length > 0) {
       dispatch({
-        type: CreateConnectionConfigureActionType.SET_VALIDATION_ERRORS,
-        payload: clientErrors.map((e) => ({
-          field: e.field,
-          message: e.message,
-          $typeName: "ingestion.v1.ValidationError" as const,
-        })),
+        type: CreateConnectionActionType.SET_VALIDATION_ERRORS,
+        payload: clientErrors,
       });
       dispatch({
-        type: CreateConnectionConfigureActionType.SET_PHASE,
+        type: CreateConnectionActionType.SET_STEP,
         payload: CreateConnectionPhase.ERROR,
       });
       return;
     }
 
+    dispatch({
+      type: CreateConnectionActionType.SET_STEP,
+      payload: CreateConnectionPhase.VALIDATING,
+    });
+    dispatch({
+      type: CreateConnectionActionType.SET_VALIDATION_ERRORS,
+      payload: [],
+    });
+
+    await validateConfig(
+      create(ValidateConfigRequestSchema, {
+        kind: state.request.kind,
+        connector: state.request.connector,
+        config: { ...state.request.config, ...state.request.secretRefs },
+        live: true,
+      }),
+      {
+        onSuccess: (response) => {
+          if (response.valid) {
+            dispatch({
+              type: CreateConnectionActionType.SET_STEP,
+              payload: CreateConnectionPhase.VALIDATED,
+            });
+            showToast({
+              variant: ToastVariant.SUCCESS,
+              header: "Connection validated",
+              subheader: "Your connection settings are valid.",
+            });
+          } else {
+            dispatch({
+              type: CreateConnectionActionType.SET_VALIDATION_ERRORS,
+              payload: response.errors,
+            });
+            dispatch({
+              type: CreateConnectionActionType.SET_STEP,
+              payload: CreateConnectionPhase.ERROR,
+            });
+          }
+        },
+        onError: (error) => {
+          const message =
+            error instanceof Error ? error.message : "Validation failed";
+          dispatch({
+            type: CreateConnectionActionType.SET_ERROR,
+            payload: message,
+          });
+          showToast({
+            variant: ToastVariant.ERROR,
+            header: "Failed to validate connection",
+            subheader: message,
+          });
+        },
+      },
+    );
+  }, [
+    state.request,
+    state.connector,
+    state.request.secretRefs,
+    dispatch,
+    validateConfig,
+    showToast,
+  ]);
+
+  // Create Connection
+  const handleCreateConnection = useCallback(async () => {
+    const connectionName = state.request.name?.trim();
+    if (!connectionName) return;
+
+    dispatch({
+      type: CreateConnectionActionType.SET_STEP,
+      payload: CreateConnectionPhase.CREATING,
+    });
+
     try {
-      dispatch({
-        type: CreateConnectionConfigureActionType.SET_PHASE,
-        payload: CreateConnectionPhase.VALIDATING,
-      });
-      dispatch({
-        type: CreateConnectionConfigureActionType.SET_VALIDATION_ERRORS,
-        payload: [],
-      });
-
-      const config = buildConfigObject(fields, state.formValues, state.secretValues);
-
-      const response = await validateConfigMutation(
-        create(ValidateConfigRequestSchema, {
-          kind: state.connector.kind,
-          connector: state.connector.name,
-          config,
-          live: true,
-        }),
-      );
-
-      if (response.valid) {
-        dispatch({
-          type: CreateConnectionConfigureActionType.SET_PHASE,
-          payload: CreateConnectionPhase.VALIDATED,
-        });
-        showToast({
-          variant: ToastVariant.SUCCESS,
-          header: "Connection validated",
-          subheader: "Your connection settings are valid.",
-        });
-      } else {
-        dispatch({
-          type: CreateConnectionConfigureActionType.SET_VALIDATION_ERRORS,
-          payload: response.errors,
-        });
-        dispatch({
-          type: CreateConnectionConfigureActionType.SET_PHASE,
-          payload: CreateConnectionPhase.ERROR,
-        });
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : CREATE_CONNECTION_UNEXPECTED_ERROR;
-      dispatch({ type: CreateConnectionConfigureActionType.SET_ERROR, payload: errorMessage });
-      showToast({
-        variant: ToastVariant.ERROR,
-        header: CREATE_CONNECTION_FAILED_TO_VALIDATE_ERROR_HEADER,
-        subheader: errorMessage,
-      });
-    }
-  }, [state, dispatch, validateConfigMutation, showToast]);
-
-  const createConnection = useCallback(async () => {
-    if (!state.connector || !state.connectionName.trim()) return;
-
-    try {
-      dispatch({
-        type: CreateConnectionConfigureActionType.SET_PHASE,
-        payload: CreateConnectionPhase.CREATING,
-      });
-
-      const fields = getConnectionScopedFields(state.connector);
+      const fields = getConnectorConfigSchemaConnectionFields(state.connector);
       const secretRefs: Record<string, string> = {};
 
-      // Store secrets and collect refs
       for (const field of fields) {
-        if (field.type === FieldType.SECRET) {
-          const secretValue = state.secretValues[field.name];
-          if (secretValue && secretValue.trim() !== "") {
-            const secretRef = generateSecretRef(state.connectionName, field.name);
-            await putSecretMutation(
-              create(PutSecretRequestSchema, {
-                ref: secretRef,
-                value: new TextEncoder().encode(secretValue),
-                meta: {},
-              }),
-            );
-            secretRefs[field.name] = secretRef;
-          }
-        }
+        if (field.type !== FieldType.SECRET) continue;
+
+        const value = state.request.secretRefs?.[field.name]?.trim();
+        if (!value) continue;
+
+        const ref = generateSecretRef(connectionName, field.name);
+        await putSecret(
+          create(PutSecretRequestSchema, {
+            ref,
+            value: new TextEncoder().encode(value),
+          }),
+        );
+        secretRefs[field.name] = ref;
       }
 
-      // Build config without secrets
-      const config = buildConfigObject(
-        fields.filter((f) => f.type !== FieldType.SECRET),
-        state.formValues,
-        {},
-      );
-
-      const response = await createConnectionMutation(
+      const response = await createConnection(
         create(CreateConnectionRequestSchema, {
-          kind: state.connector.kind,
-          name: state.connectionName.trim(),
-          connector: state.connector.name,
-          config,
+          ...state.request,
+          name: connectionName,
           secretRefs,
         }),
       );
 
-      void queryClient.invalidateQueries({ queryKey: createListConnectionsQueryKey() });
-
+      void queryClient.invalidateQueries({
+        queryKey: createListConnectionsQueryKey(),
+      });
       showToast({
         variant: ToastVariant.SUCCESS,
         header: "Connection created",
-        subheader: `${state.connectionName} has been created successfully.`,
+        subheader: `${connectionName} has been created successfully.`,
       });
-
-      const connectionId = response.connection?.id;
-      if (connectionId && onSuccess) {
-        onSuccess(connectionId);
+      if (response.connection?.id) {
+        options?.onSuccess?.(response.connection.id);
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : CREATE_CONNECTION_UNEXPECTED_ERROR;
-      dispatch({ type: CreateConnectionConfigureActionType.SET_ERROR, payload: errorMessage });
+      const message =
+        error instanceof Error ? error.message : "Creation failed";
+      dispatch({
+        type: CreateConnectionActionType.SET_ERROR,
+        payload: message,
+      });
       showToast({
         variant: ToastVariant.ERROR,
-        header: CREATE_CONNECTION_FAILED_TO_CREATE_ERROR_HEADER,
-        subheader: errorMessage,
+        header: "Failed to create connection",
+        subheader: message,
       });
     }
   }, [
-    state,
+    state.request,
+    state.connector,
     dispatch,
-    putSecretMutation,
-    createConnectionMutation,
+    putSecret,
+    createConnection,
     queryClient,
     showToast,
-    onSuccess,
+    options,
   ]);
 
   return {
     state,
     dispatch,
-    testConnection,
-    createConnection,
     isDisabled,
-    nameError,
     isValidating,
     isCreating,
+    isValidated,
+    hasError,
+    isNameProvided,
+    nameError,
+    getFieldError,
+    testConnection,
+    createConnection: handleCreateConnection,
   };
 }

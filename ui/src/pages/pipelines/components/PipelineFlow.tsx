@@ -1,4 +1,5 @@
 import { FlowArrowIcon, LinkBreakIcon } from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
 
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -26,7 +27,6 @@ interface PipelineFlowProps {
   sinks?: string[];
   size?: PipelineFlowSize;
   maxSinks?: number;
-  onConnectionClick?: (connectionId: string, e: React.MouseEvent) => void;
 }
 
 /**
@@ -37,8 +37,9 @@ const PipelineFlow = ({
   sinks = [],
   size = PipelineFlowSize.SMALL,
   maxSinks,
-  onConnectionClick,
 }: PipelineFlowProps) => {
+  const navigate = useNavigate();
+
   const limit = maxSinks ?? PIPELINE_MAX_VISIBLE_SINKS;
   const visibleSinks = maxSinks === undefined ? sinks : sinks.slice(0, limit);
   const overflowCount = sinks.length - visibleSinks.length;
@@ -49,13 +50,22 @@ const PipelineFlow = ({
   const hasSource = !!source && source.length > 0;
   const hasSinks = sinks.length > 0;
 
+  const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, connectionId }),
+    });
+  };
+
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
       {hasSource ? (
         <ConnectorTile
           connector={source}
           size={tileSize}
-          onClick={onConnectionClick ? (e) => onConnectionClick(source, e) : undefined}
+          onClick={(e) => handleConnectionClick(source, e)}
         />
       ) : (
         <ConnectorTileEmpty size={tileSize} />
@@ -73,7 +83,7 @@ const PipelineFlow = ({
               key={`${sink}-${index}`}
               connector={sink}
               size={tileSize}
-              onClick={onConnectionClick ? (e) => onConnectionClick(sink, e) : undefined}
+              onClick={(e) => handleConnectionClick(sink, e)}
             />
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}

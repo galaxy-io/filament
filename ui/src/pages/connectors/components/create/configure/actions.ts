@@ -1,66 +1,59 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 
-import type { FieldType } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec, ValidationError } from "@/gen/ingestion/v1/providers_pb";
+import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
-import type { CreateConnectionPhase } from "./types";
+import type { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
 
-export enum CreateConnectionConfigureActionType {
-  SET_CONNECTOR = "SET_CONNECTOR",
-  SET_CONNECTION_NAME = "SET_CONNECTION_NAME",
-  SET_PHASE = "SET_PHASE",
-  SET_FIELD_VALUE = "SET_FIELD_VALUE",
+export enum CreateConnectionActionType {
+  SET_REQUEST_NAME = "SET_REQUEST_NAME",
+  SET_REQUEST_CONFIG_FIELD = "SET_REQUEST_CONFIG_FIELD",
+  SET_SECRET_VALUE = "SET_SECRET_VALUE",
+  SET_STEP = "SET_STEP",
   SET_VALIDATION_ERRORS = "SET_VALIDATION_ERRORS",
   SET_ERROR = "SET_ERROR",
   SET_SHOULD_SHOW_ERRORS = "SET_SHOULD_SHOW_ERRORS",
-  RESET = "RESET",
 }
 
-export interface SetConnectorAction {
-  type: CreateConnectionConfigureActionType.SET_CONNECTOR;
-  payload: ConnectorSpec;
-}
-
-export interface SetConnectionNameAction {
-  type: CreateConnectionConfigureActionType.SET_CONNECTION_NAME;
+export interface SetRequestNameAction {
+  type: CreateConnectionActionType.SET_REQUEST_NAME;
   payload: string;
 }
 
-export interface SetPhaseAction {
-  type: CreateConnectionConfigureActionType.SET_PHASE;
+export interface SetRequestConfigFieldAction {
+  type: CreateConnectionActionType.SET_REQUEST_CONFIG_FIELD;
+  payload: { field: string; value: JsonValue };
+}
+
+export interface SetSecretValueAction {
+  type: CreateConnectionActionType.SET_SECRET_VALUE;
+  payload: { field: string; value: string };
+}
+
+export interface SetStepAction {
+  type: CreateConnectionActionType.SET_STEP;
   payload: CreateConnectionPhase;
 }
 
-export interface SetFieldValueAction {
-  type: CreateConnectionConfigureActionType.SET_FIELD_VALUE;
-  payload: { field: string; value: JsonValue; fieldType: FieldType };
-}
-
 export interface SetValidationErrorsAction {
-  type: CreateConnectionConfigureActionType.SET_VALIDATION_ERRORS;
+  type: CreateConnectionActionType.SET_VALIDATION_ERRORS;
   payload: ValidationError[];
 }
 
 export interface SetErrorAction {
-  type: CreateConnectionConfigureActionType.SET_ERROR;
+  type: CreateConnectionActionType.SET_ERROR;
   payload: string | null;
 }
 
 export interface SetShouldShowErrorsAction {
-  type: CreateConnectionConfigureActionType.SET_SHOULD_SHOW_ERRORS;
+  type: CreateConnectionActionType.SET_SHOULD_SHOW_ERRORS;
   payload: boolean;
 }
 
-export interface ResetAction {
-  type: CreateConnectionConfigureActionType.RESET;
-}
-
-export type CreateConnectionConfigureAction =
-  | SetConnectorAction
-  | SetConnectionNameAction
-  | SetPhaseAction
-  | SetFieldValueAction
+export type CreateConnectionAction =
+  | SetRequestNameAction
+  | SetRequestConfigFieldAction
+  | SetSecretValueAction
+  | SetStepAction
   | SetValidationErrorsAction
   | SetErrorAction
-  | SetShouldShowErrorsAction
-  | ResetAction;
+  | SetShouldShowErrorsAction;
