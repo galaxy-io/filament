@@ -169,7 +169,7 @@ type Secret struct {
 
 // ConnectionSecretPrefix namespaces the secret refs the connection API mints on
 // a tenant's behalf: connections/<tenant>/<connID>/<field>/v<version>.
-const ConnectionSecretPrefix = "connections/"
+const ConnectionSecretPrefix = "filament/"
 
 // ConnectionSecretRef builds the canonical ref for a connection-managed secret.
 func ConnectionSecretRef(tenant, connID, field string, version int64) string {
