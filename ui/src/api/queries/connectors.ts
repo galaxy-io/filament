@@ -132,3 +132,43 @@ export const useDiscoverResourcesQuery = ({
     options,
   );
 };
+
+// ========== CREATE CONNECTION ==========
+
+export const useCreateConnectionMutation = (
+  options: UseMutationOptions<
+    typeof IngestionService.method.createConnection.input,
+    typeof IngestionService.method.createConnection.output
+  > = {},
+) => {
+  const invalidate = useInvalidateConnections();
+  return useMutation(IngestionService.method.createConnection, {
+    ...options,
+    onSettled: (...args) => {
+      void invalidate();
+      return options.onSettled?.(...args);
+    },
+  });
+};
+
+// ========== SECRETS ==========
+
+export const usePutSecretMutation = (
+  options: UseMutationOptions<
+    typeof IngestionService.method.putSecret.input,
+    typeof IngestionService.method.putSecret.output
+  > = {},
+) => {
+  return useMutation(IngestionService.method.putSecret, options);
+};
+
+// ========== VALIDATE CONFIG (MUTATION) ==========
+
+export const useValidateConfigMutation = (
+  options: UseMutationOptions<
+    typeof IngestionService.method.validateConfig.input,
+    typeof IngestionService.method.validateConfig.output
+  > = {},
+) => {
+  return useMutation(IngestionService.method.validateConfig, options);
+};

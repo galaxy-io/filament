@@ -46,17 +46,17 @@ _each cmd:
 # tidy go.mod/go.sum in every Go module
 tidy: (_each "GOWORK=off go mod tidy")
 
-# apply gofumpt + goimports to every Go module (settings in .golangci.yaml)
-format: (_each "GOWORK=off golangci-lint fmt ./...")
+# apply gofumpt + goimports to every Go module (settings in .golangci.yaml), plus UI formatting
+format: (_each "GOWORK=off golangci-lint fmt ./...") ui-format
 
 # check formatting without writing
-format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...")
+format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...") ui-format-check
 
 # run linters and apply auto-fixes where possible
-lint: (_each "GOWORK=off golangci-lint run --fix ./...")
+lint: (_each "GOWORK=off golangci-lint run --fix ./...") ui-lint
 
 # run linters without fixing (what CI runs)
-lint-check: (_each "GOWORK=off golangci-lint run ./...")
+lint-check: (_each "GOWORK=off golangci-lint run ./...") ui-lint-check
 
 # run unit tests in every Go module except tests/ (integration; needs docker)
 test:
@@ -92,6 +92,22 @@ control-plane:
 # run the web UI dev server (vite, proxies API to :8080)
 ui:
     cd ui && pnpm install && pnpm dev
+
+# apply Biome formatting to the UI package
+ui-format:
+    cd ui && pnpm run format
+
+# check UI formatting without writing
+ui-format-check:
+    cd ui && pnpm run format:check
+
+# run Biome lint and apply auto-fixes where possible
+ui-lint:
+    cd ui && pnpm run lint
+
+# run Biome lint without fixing (what CI runs)
+ui-lint-check:
+    cd ui && pnpm run lint:check
 
 # run the full app: control plane, API server, UI
 dev:

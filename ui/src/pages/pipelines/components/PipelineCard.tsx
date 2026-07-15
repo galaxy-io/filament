@@ -2,17 +2,27 @@ import { useState } from "react";
 
 import { styled } from "@linaria/react";
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, {
+  ButtonSize,
+  ButtonVariant,
+} from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, {
+  AlignItems,
+  FlexGap,
+  JustifyContent,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, {
+  TextSize,
+  TextVariant,
+  TextWeight,
+} from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { useOpenConnectionDrawer } from "@/pages/connectors/hooks";
 import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
 import {
   PIPELINE_CARD_HEIGHT,
@@ -21,20 +31,6 @@ import {
 } from "@/pages/pipelines/constants";
 import type { PipelineResource } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
-
-const IndicatorWrapper = styled.div`
-  width: ${PIPELINE_INDICATOR_WIDTH}px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const CardLink = styled(Link)`
-  text-decoration: none;
-  color: inherit;
-  width: 100%;
-`;
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -91,67 +87,89 @@ interface PipelineCardProps {
   pipeline: PipelineResource;
 }
 
-const PipelineCard = ({ pipeline }: PipelineCardProps) => {
-  // Local-only until SignalRun (pause/resume) is wired to the toggle.
-  const [isEnabled, setIsEnabled] = useState(pipeline.isEnabled);
-  const openConnectionDrawer = useOpenConnectionDrawer();
+interface PipelineCardState {
+  isEnabled: boolean;
+}
 
-  const handleToggleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+const DEFAULT_STATE: PipelineCardState = {
+  isEnabled: false,
+};
+
+const PipelineCard = ({ pipeline }: PipelineCardProps) => {
+  const navigate = useNavigate();
+
+  const [state, setState] = useState<PipelineCardState>(DEFAULT_STATE);
+
+  const handleIsEnabledChange = (isEnabled: boolean) => {
+    setState((prev) => ({ ...prev, isEnabled }));
+  };
+
+  const handlePipelineClick = () => {
+    navigate({
+      to: "/pipelines/$id",
+      params: { id: pipeline.id },
+    });
+  };
+
+  const handleOpenConnectionDrawer = (connectionId: string) => {
+    navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, connectionId }),
+    });
   };
 
   const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    openConnectionDrawer(connectionId);
+    handleOpenConnectionDrawer(connectionId);
   };
 
   return (
-    <CardLink to="/pipelines/$id" params={{ id: pipeline.id }}>
-      <CardWrapper>
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-          <IndicatorWrapper>
-            <Beacon variant={getHealthBeaconVariant(pipeline.health)} />
-          </IndicatorWrapper>
-          <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
+    <CardWrapper onClick={handlePipelineClick}>
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+        <FlexWrapper
+          alignItems={AlignItems.CENTER}
+          justifyContent={JustifyContent.CENTER}
+          width={PIPELINE_INDICATOR_WIDTH}
+        >
+          <Beacon variant={getHealthBeaconVariant(pipeline.health)} />
         </FlexWrapper>
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-          <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}>
-            <PipelineFlow
-              source={pipeline.source}
-              sinks={pipeline.sinks}
-              onConnectionClick={handleConnectionClick}
-            />
-          </MetricColumnWrapper>
-          <MetricColumn
-            width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}
-            label="Last run"
-            value={pipeline.lastRunLabel}
+        <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
+      </FlexWrapper>
+
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
+        <MetricColumnWrapper
+          $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}
+        >
+          <PipelineFlow
+            source={pipeline.source}
+            sinks={pipeline.sinks}
+            onConnectionClick={handleConnectionClick}
           />
-          <MetricColumn
-            width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.volume}
-            label="Volume"
-            value={pipeline.volumeLabel}
-          />
-          <MetricColumn
-            width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.schedule}
-            value={pipeline.scheduleLabel}
-          />
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: div only stops click bubbling to the parent Link, not an interactive control itself */}
-          {/* biome-ignore lint/a11y/useKeyWithClickEvents: div only stops click bubbling to the parent Link, not an interactive control itself */}
-          <div onClick={handleToggleClick}>
-            <ToggleInput value={isEnabled} onChange={setIsEnabled} />
-          </div>
-          <Button
-            variant={ButtonVariant.TERTIARY}
-            size={ButtonSize.SMALL}
-            icon={ArrowUpRightIcon}
-            onClick={handleToggleClick}
-          />
-        </FlexWrapper>
-      </CardWrapper>
-    </CardLink>
+        </MetricColumnWrapper>
+        <MetricColumn
+          width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}
+          label="Last run"
+          value={pipeline.lastRunLabel}
+        />
+        <MetricColumn
+          width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.volume}
+          label="Volume"
+          value={pipeline.volumeLabel}
+        />
+        <MetricColumn
+          width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.schedule}
+          value={pipeline.scheduleLabel}
+        />
+        <ToggleInput value={state.isEnabled} onChange={handleIsEnabledChange} />
+        <Button
+          variant={ButtonVariant.TERTIARY}
+          size={ButtonSize.SMALL}
+          icon={ArrowUpRightIcon}
+          onClick={handlePipelineClick}
+        />
+      </FlexWrapper>
+    </CardWrapper>
   );
 };
 

@@ -105,7 +105,7 @@ const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorT
 
   background-color: transparent;
 
-  border: 1px dashed ${({ theme }) => theme.color.border.tertiary};
+  border: 0.5px dashed ${({ theme }) => theme.color.border.tertiary};
   border-radius: ${({ $size }) => getTileRadius($size)}px;
 
   overflow: hidden;
@@ -120,7 +120,7 @@ export const ConnectorTileEmpty = ({
 }: EmptyConnectorTileProps) => {
   return (
     <EmptyTileWrapper $size={size}>
-      <CellGridBackground cellSize={3} strokeWidth={2} lineOpacity={0.5} fillContainer />
+      <CellGridBackground cellSize={3} strokeWidth={1} lineOpacity={0.5} fillContainer />
     </EmptyTileWrapper>
   );
 };

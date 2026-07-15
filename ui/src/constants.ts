@@ -1,6 +1,8 @@
 export const IS_DEBUG = import.meta.env.DEV;
 export const IS_PRODUCTION = import.meta.env.PROD;
 
+export const NOOP = () => {};
+
 /**
  * Base URL for the ConnectRPC API.
  *

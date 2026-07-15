@@ -12,9 +12,7 @@ import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
 import DropdownButton from "@galaxy-io/dls/dropdown/DropdownButton";
@@ -30,20 +28,14 @@ import ErrorLayout from "@/layouts/ErrorLayout";
 
 import PipelineCardGroup from "@/pages/pipelines/components/PipelineCardGroup";
 import PipelineCardLoading from "@/pages/pipelines/components/PipelineCardLoading";
-import {
-  PIPELINE_GROUP_TO_LABEL_MAP,
-  PIPELINE_SEARCH_WIDTH,
-} from "@/pages/pipelines/constants";
+import { PIPELINE_GROUP_TO_LABEL_MAP, PIPELINE_SEARCH_WIDTH } from "@/pages/pipelines/constants";
 import { PipelineGroup } from "@/pages/pipelines/types";
 import { toPipelineGroups, toPipelineResource } from "@/pages/pipelines/utils";
 
 import { ToastVariant } from "@/providers/toast/ToastProvider";
 import { useToast } from "@/providers/toast/useToast";
 
-import {
-  useCreatePipelineMutation,
-  useListPipelinesQuery,
-} from "@/api/queries/pipelines";
+import { useCreatePipelineMutation, useListPipelinesQuery } from "@/api/queries/pipelines";
 
 import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -97,34 +89,23 @@ const PipelinesPage = () => {
   };
 
   const { data, isLoading, isError } = useListPipelinesQuery();
-  const { mutate: createPipeline, isPending: isCreatingPipeline } =
-    useCreatePipelineMutation();
+  const { mutate: createPipeline, isPending: isCreatingPipeline } = useCreatePipelineMutation();
 
   const isToolbarDisabled = isLoading || isError;
 
-  const pipelineResources = useMemo(
-    () => data?.pipelines.map(toPipelineResource) ?? [],
-    [data],
-  );
+  const pipelineResources = useMemo(() => data?.pipelines.map(toPipelineResource) ?? [], [data]);
 
   const groups = useMemo(() => {
     const query = state.search.trim().toLowerCase();
     const filtered = query
-      ? pipelineResources.filter((item) =>
-          item.name.toLowerCase().includes(query),
-        )
+      ? pipelineResources.filter((item) => item.name.toLowerCase().includes(query))
       : pipelineResources;
     return toPipelineGroups(filtered);
   }, [pipelineResources, state.search]);
 
-  const visibleGroups = state.groupFilter
-    ? [state.groupFilter]
-    : Object.values(PipelineGroup);
+  const visibleGroups = state.groupFilter ? [state.groupFilter] : Object.values(PipelineGroup);
 
-  const totalVisiblePipelines = visibleGroups.reduce(
-    (sum, group) => sum + groups[group].length,
-    0,
-  );
+  const totalVisiblePipelines = visibleGroups.reduce((sum, group) => sum + groups[group].length, 0);
 
   const handleNewPipeline = () => {
     createPipeline(
@@ -171,13 +152,7 @@ const PipelinesPage = () => {
     if (isError) {
       return (
         <ErrorLayout
-          icon={
-            <Icon
-              component={WarningCircleIcon}
-              size={20}
-              variant={IconVariant.ERROR}
-            />
-          }
+          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
           message="Failed to load pipelines. Please try again."
         />
       );
@@ -214,9 +189,7 @@ const PipelinesPage = () => {
       return (
         <EmptyLayout
           message={
-            state.search
-              ? "No pipelines match your search"
-              : "No pipelines match your filters"
+            state.search ? "No pipelines match your search" : "No pipelines match your filters"
           }
         />
       );
@@ -269,9 +242,7 @@ const PipelinesPage = () => {
             >
               <DropdownButton
                 label={
-                  state.groupFilter
-                    ? PIPELINE_GROUP_TO_LABEL_MAP[state.groupFilter]
-                    : "Filters"
+                  state.groupFilter ? PIPELINE_GROUP_TO_LABEL_MAP[state.groupFilter] : "Filters"
                 }
                 isOpen={state.isFiltersOpen}
                 onClick={handleToggleFiltersOpen}

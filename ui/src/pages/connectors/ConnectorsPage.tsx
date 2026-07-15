@@ -12,13 +12,15 @@ import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  FlexDirection,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
-import DropdownButton from "@galaxy-io/dls/dropdown/DropdownButton";
-import DropdownItem from "@galaxy-io/dls/dropdown/DropdownItem";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import SelectInput, {
+  type SelectInputOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
@@ -27,11 +29,11 @@ import BaseToolbar from "@/layouts/components/BaseToolbar";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
-import ConnectionCard from "@/pages/connectors/components/ConnectionCard";
-import ConnectionCardLoading from "@/pages/connectors/components/ConnectionCardLoading";
+import ConnectionCard from "@/pages/connectors/components/card/ConnectionCard";
+import ConnectionCardLoading from "@/pages/connectors/components/card/ConnectionCardLoading";
 import {
   CONNECTOR_GRID_MIN_COLUMN_WIDTH,
-  CONNECTOR_KIND_TO_LABEL_MAP,
+  CONNECTOR_KIND_FILTER_WIDTH,
   CONNECTOR_SEARCH_WIDTH,
 } from "@/pages/connectors/constants";
 import type { ConnectorsPageState } from "@/pages/connectors/types";
@@ -44,6 +46,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import { CONNECTORS_DOCS_URL } from "@/constants";
+import { SELECT_INPUT_OPTIONS_CONNECTOR_KIND } from "@/pages/connectors/constants";
 
 const LOADING_CARD_COUNT = 20;
 
@@ -60,7 +63,6 @@ const ConnectorListScrollArea = styled.div`
 const DEFAULT_STATE: ConnectorsPageState = {
   search: "",
   kindFilter: ConnectorKind.UNSPECIFIED,
-  isFiltersOpen: false,
 };
 
 const ConnectorsPage = () => {
@@ -71,7 +73,11 @@ const ConnectorsPage = () => {
   const handleOpenCreateConnectorModal = () => {
     void navigate({
       to: ".",
-      search: (prev) => ({ ...prev, flow: Flow.CREATE_CONNECTOR }),
+      search: (prev) => ({
+        ...prev,
+        flow: Flow.CREATE_CONNECTION,
+        connector: undefined,
+      }),
     });
   };
 
@@ -79,20 +85,23 @@ const ConnectorsPage = () => {
     setState((prev) => ({ ...prev, search: value }));
   };
 
-  const handleSelectKindFilter = (kind: ConnectorKind) => {
-    setState((prev) => ({ ...prev, kindFilter: kind, isFiltersOpen: false }));
-  };
+  const selectedKindOption =
+    SELECT_INPUT_OPTIONS_CONNECTOR_KIND.find(
+      (opt) => opt.value === state.kindFilter,
+    ) ?? SELECT_INPUT_OPTIONS_CONNECTOR_KIND[0];
 
-  const handleCloseFilters = () => {
-    setState((prev) => ({ ...prev, isFiltersOpen: false }));
-  };
-
-  const handleToggleFiltersOpen = () => {
-    setState((prev) => ({ ...prev, isFiltersOpen: !prev.isFiltersOpen }));
+  const handleKindChange = (selected: SelectInputOption | null) => {
+    setState((prev) => ({
+      ...prev,
+      kindFilter:
+        (selected?.value as ConnectorKind) ?? ConnectorKind.UNSPECIFIED,
+    }));
   };
 
   const { data, isLoading, isError } = useListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, { kind: ConnectorKind.UNSPECIFIED }),
+    input: create(ListConnectionsRequestSchema, {
+      kind: ConnectorKind.UNSPECIFIED,
+    }),
   });
 
   const isToolbarDisabled = isLoading || isError;
@@ -105,7 +114,8 @@ const ConnectorsPage = () => {
         ? connection.name.toLowerCase().includes(state.search.toLowerCase())
         : true;
       const matchesKind =
-        state.kindFilter === ConnectorKind.UNSPECIFIED || connection.kind === state.kindFilter;
+        state.kindFilter === ConnectorKind.UNSPECIFIED ||
+        connection.kind === state.kindFilter;
       return matchesSearch && matchesKind;
     });
   }, [data?.connections, state.search, state.kindFilter]);
@@ -139,8 +149,14 @@ const ConnectorsPage = () => {
     if (isError) {
       return (
         <ErrorLayout
-          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
-          message="Failed to load connectors. Please try again."
+          icon={
+            <Icon
+              component={WarningCircleIcon}
+              size={20}
+              variant={IconVariant.ERROR}
+            />
+          }
+          message="Failed to load connections. Please try again."
         />
       );
     }
@@ -151,12 +167,12 @@ const ConnectorsPage = () => {
       return (
         <EmptyLayout
           icon={<ConnectorsEmptyDark height={200} />}
-          header="No connectors found"
+          header="No connections found"
           message="Connect data sources and destinations to move data in and out."
           actions={
             <FlexWrapper gap={8}>
               <Button
-                label="New connector"
+                label="New connection"
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
                 onClick={handleOpenCreateConnectorModal}
@@ -177,7 +193,9 @@ const ConnectorsPage = () => {
       return (
         <EmptyLayout
           message={
-            state.search ? "No connectors match your search" : "No connectors match your filters"
+            state.search
+              ? "No connectors match your search"
+              : "No connectors match your filters"
           }
         />
       );
@@ -213,41 +231,19 @@ const ConnectorsPage = () => {
               leading={{ icon: MagnifyingGlassIcon }}
               isDisabled={isToolbarDisabled}
             />,
-            <Dropdown
-              key="filters"
-              isOpen={state.isFiltersOpen}
-              onClose={handleCloseFilters}
-              position={DropdownPosition.BOTTOM_START}
-              body={
-                <>
-                  <DropdownItem
-                    label="All connectors"
-                    onClick={() => handleSelectKindFilter(ConnectorKind.UNSPECIFIED)}
-                  />
-                  <DropdownItem
-                    label="Sources"
-                    onClick={() => handleSelectKindFilter(ConnectorKind.SOURCE)}
-                  />
-                  <DropdownItem
-                    label="Sinks"
-                    onClick={() => handleSelectKindFilter(ConnectorKind.SINK)}
-                  />
-                </>
-              }
-            >
-              <DropdownButton
-                label={CONNECTOR_KIND_TO_LABEL_MAP[state.kindFilter]}
-                isOpen={state.isFiltersOpen}
-                onClick={handleToggleFiltersOpen}
-                variant={ButtonVariant.SECONDARY}
-                isDisabled={isToolbarDisabled}
-              />
-            </Dropdown>,
+            <SelectInput
+              key="kind-filter"
+              options={SELECT_INPUT_OPTIONS_CONNECTOR_KIND}
+              value={selectedKindOption}
+              onChange={handleKindChange}
+              width={CONNECTOR_KIND_FILTER_WIDTH}
+              isDisabled={isToolbarDisabled}
+            />,
           ]}
           trailingActions={[
             <Button
               key="new-connector"
-              label="New connector"
+              label="New connection"
               icon={PlusIcon}
               variant={ButtonVariant.PRIMARY}
               isDisabled={isToolbarDisabled}
