@@ -384,7 +384,7 @@ const CreateConnectionConfigureContent = ({
           onClick={handleDocsClick}
           label="Documentation"
           icon={BookOpenIcon}
-          variant={ButtonVariant.TERTIARY}
+          variant={ButtonVariant.SECONDARY}
         />
         {renderFooter()}
       </FooterWrapper>
