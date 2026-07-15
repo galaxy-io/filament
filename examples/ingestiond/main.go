@@ -7,11 +7,7 @@ import (
 	"context"
 	"log"
 
-	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/app"
-	"github.com/galaxy-io/filament/connectors/sample"
-	"github.com/galaxy-io/filament/connectors/stdout"
-	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/ui"
 
 	// Curated connector set — self-register via init():
@@ -19,13 +15,11 @@ import (
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
 	_ "github.com/galaxy-io/filament/connectors/object"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/sample"
+	_ "github.com/galaxy-io/filament/connectors/stdout"
 )
 
 func main() {
-	// Dep-free built-ins ship with the reference binary; register explicitly.
-	registry.RegisterSource("sample", func() ingestion.Source { return sample.New() })
-	registry.RegisterSink("stdout", func() ingestion.Sink { return stdout.New() })
-
 	// Defaults to the in-process bus and in-memory store. Swap either without
 	// touching the wiring, e.g.:
 	//	app.Run(ctx, app.WithBus(natsBus), app.WithDataStore(pgStore))

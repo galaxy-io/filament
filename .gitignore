@@ -26,3 +26,6 @@ coverage.out
 # Helm
 # Vendored charts
 charts/filament/charts/*
+
+# Environment
+.env

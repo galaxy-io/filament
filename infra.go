@@ -3,8 +3,11 @@ package ingestion
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
+	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/eventbus"
 )
 
@@ -22,8 +25,52 @@ type DataStore interface {
 	LoadCheckpoint(ctx context.Context, id RunID, resource string) (Checkpoint, error)
 
 	DedupSeen(ctx context.Context, tenant string, run RunID, seq uint64) (bool, error)
+
+	CreateConnection(ctx context.Context, c Connection) (Connection, error)
+	UpdateConnection(ctx context.Context, c Connection) (Connection, error)
+	LoadConnection(ctx context.Context, id string) (Connection, error)
+	ListConnections(ctx context.Context, f ConnectionFilter) ([]Connection, error)
+	DeleteConnection(ctx context.Context, id string) error
+
+	CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
+	UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
+	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
+	ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error)
+	DeletePipeline(ctx context.Context, id string) error
 	Name() string
 }
+
+// ConnectorKind identifies which registry owns a reusable connection.
+type ConnectorKind int
+
+// Connector kinds identify which registry owns a reusable connection.
+const (
+	ConnectorKindUnspecified ConnectorKind = iota
+	ConnectorKindSource
+	ConnectorKindSink
+)
+
+// Connection is the persistence-domain representation of reusable connector config.
+// Config contains no plaintext fields declared as FieldSecret.
+type Connection struct {
+	ID         string
+	Tenant     string
+	Kind       ConnectorKind
+	Name       string
+	Connector  string
+	Config     map[string]any
+	SecretRefs map[string]string
+	Version    int64
+}
+
+// ConnectionFilter narrows a connection listing by tenant and/or kind.
+type ConnectionFilter struct {
+	Tenant string
+	Kind   ConnectorKind
+}
+
+// ErrVersionConflict indicates an optimistic-lock mismatch.
+var ErrVersionConflict = errors.New("version conflict")
 
 // ScheduleStore persists schedules and hands out due ones under a claim, so
 // concurrent schedulers never double-fire.
@@ -120,6 +167,33 @@ type Secrets interface {
 type Secret struct {
 	Value []byte
 	Meta  map[string]string
+}
+
+// ConnectionSecretPrefix namespaces the secret refs the connection API mints on
+// a tenant's behalf: connections/<tenant>/<connID>/<field>/v<version>.
+const ConnectionSecretPrefix = "filament/"
+
+// ConnectionSecretRef builds the canonical ref for a connection-managed secret.
+func ConnectionSecretRef(tenant, connID, field string, version int64) string {
+	return fmt.Sprintf("%s%s/%s/%s/v%d", ConnectionSecretPrefix, tenant, connID, field, version)
+}
+
+// ValidateConnectionSecretRef enforces the sole cross-tenant isolation rule for
+// the shared, ref-keyed secret store: a ref in the connection-managed namespace
+// (connections/<tenant>/...) may only be read or written by its owning tenant.
+// Refs outside that namespace (e.g. env-style) carry no tenant and pass through.
+func ValidateConnectionSecretRef(ref string, tenant TenantID) error {
+	if !strings.HasPrefix(ref, ConnectionSecretPrefix) {
+		return nil
+	}
+	owner, _, ok := strings.Cut(ref[len(ConnectionSecretPrefix):], "/")
+	if !ok || owner == "" {
+		return fmt.Errorf("malformed connection secret ref %q", ref)
+	}
+	if owner != string(tenant) {
+		return fmt.Errorf("secret ref %q is not owned by tenant %q", ref, tenant)
+	}
+	return nil
 }
 
 // Dispatcher routes a resolved RunSpec to whatever executes it.

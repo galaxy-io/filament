@@ -15,10 +15,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: filament-control
-            dockerfile: cmd/ingestion-control/Dockerfile
+          - image: filament-server
+            dockerfile: cmd/server/Dockerfile
+            buildtags: "-tags embedui"
+          - image: filament-control-plane
+            dockerfile: cmd/control-plane/Dockerfile
           - image: filament-worker
-            dockerfile: cmd/ingestion-worker/Dockerfile
+            dockerfile: cmd/worker/Dockerfile
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -26,15 +29,32 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: |
-            cmd/ingestion-control/go.sum
-            cmd/ingestion-worker/go.sum
+            cmd/server/go.sum
+            cmd/control-plane/go.sum
+            cmd/worker/go.sum
+
+      - if: matrix.image == 'filament-server'
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+
+      - if: matrix.image == 'filament-server'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - if: matrix.image == 'filament-server'
+        name: Build UI
+        run: cd ui && pnpm install && pnpm build
 
       - name: Build
         env:
           GOWORK: off
           CGO_ENABLED: "0"
           GOOS: linux
-        run: go build -C $(dirname ${{ matrix.dockerfile }}) -trimpath -ldflags="-s -w" -o "$GITHUB_WORKSPACE/bin/${{ matrix.image }}" .
+        run: go build -C $(dirname ${{ matrix.dockerfile }}) ${{ matrix.buildtags }} -trimpath -ldflags="-s -w" -o "$GITHUB_WORKSPACE/bin/${{ matrix.image }}" .
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 

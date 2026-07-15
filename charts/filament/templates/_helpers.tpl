@@ -32,22 +32,22 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 
-{{- define "filament.control.fullname" -}}
-{{- printf "%s-control" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- define "filament.controlPlane.fullname" -}}
+{{- printf "%s-control-plane" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "filament.control.labels" -}}
+{{- define "filament.controlPlane.labels" -}}
 {{ include "filament.labels" . }}
-app.kubernetes.io/component: control
+app.kubernetes.io/component: control-plane
 {{- end -}}
 
-{{- define "filament.control.selectorLabels" -}}
+{{- define "filament.controlPlane.selectorLabels" -}}
 {{ include "filament.selectorLabels" . }}
-app.kubernetes.io/component: control
+app.kubernetes.io/component: control-plane
 {{- end -}}
 
-{{- define "filament.control.serviceAccountName" -}}
-{{- include "filament.control.fullname" . -}}
+{{- define "filament.controlPlane.serviceAccountName" -}}
+{{- include "filament.controlPlane.fullname" . -}}
 {{- end -}}
 
 
@@ -61,25 +61,44 @@ app.kubernetes.io/component: worker
 {{- end -}}
 
 {{- define "filament.worker.serviceAccountName" -}}
-{{- .Values.control.dispatch.worker.serviceAccount | default (include "filament.worker.fullname" .) -}}
+{{- .Values.controlPlane.dispatch.worker.serviceAccount | default (include "filament.worker.fullname" .) -}}
 {{- end -}}
 
 
 {{/* Postgres DSN secret: user's existingSecret, else the chart-created one. */}}
-{{- define "filament.pg.secretName" -}}
+{{- define "filament.postgresql.secretName" -}}
 {{- $es := .Values.persistence.postgresql.dsn.existingSecret -}}
 {{- if $es.name -}}
 {{- $es.name -}}
 {{- else -}}
-{{- printf "%s-db" (include "filament.control.fullname" .) -}}
+{{- printf "%s-db" (include "filament.controlPlane.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "filament.pg.secretKey" -}}
+{{- define "filament.postgresql.secretKey" -}}
 {{- $es := .Values.persistence.postgresql.dsn.existingSecret -}}
 {{- if $es.name -}}
 {{- $es.key | default "dsn" -}}
 {{- else -}}
 dsn
 {{- end -}}
+{{- end -}}
+
+
+{{- define "filament.server.fullname" -}}
+{{- printf "%s-server" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "filament.server.labels" -}}
+{{ include "filament.labels" . }}
+app.kubernetes.io/component: server
+{{- end -}}
+
+{{- define "filament.server.selectorLabels" -}}
+{{ include "filament.selectorLabels" . }}
+app.kubernetes.io/component: server
+{{- end -}}
+
+{{- define "filament.server.serviceAccountName" -}}
+{{- include "filament.server.fullname" . -}}
 {{- end -}}

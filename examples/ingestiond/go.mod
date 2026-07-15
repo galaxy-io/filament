@@ -1,4 +1,4 @@
-module github.com/galaxy-io/filament/cmd/ingestiond
+module github.com/galaxy-io/filament/examples/ingestiond
 
 go 1.26.4
 

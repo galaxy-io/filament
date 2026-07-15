@@ -1,50 +1,67 @@
-// Command ingestion-control runs the POC control plane without an in-process
-// engine. It persists run submissions, publishes run.requested facts, and folds
-// worker-emitted facts back into Postgres through tracker.
+// Command control-plane runs Filament's orchestration loop: it migrates the
+// datastore, executes or dispatches requested runs per DISPATCH_MODE, and
+// folds worker-emitted facts back into Postgres through tracker.
 package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
-	"time"
+	"os/signal"
+	"syscall"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	ingestion "github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/connectors/sample"
-	"github.com/galaxy-io/filament/connectors/stdout"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/internal/modules/engine"
 	"github.com/galaxy-io/filament/internal/modules/k8sdispatch"
-	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
-	"github.com/galaxy-io/filament/server"
+	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
 	_ "github.com/galaxy-io/filament/connectors/object"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/sample"
+	_ "github.com/galaxy-io/filament/connectors/stdout"
 )
 
 func main() {
-	registry.RegisterSource("sample", func() ingestion.Source { return sample.New() })
-	registry.RegisterSink("stdout", func() ingestion.Sink { return stdout.New() })
-
-	if err := run(context.Background()); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := run(ctx)
+	stop()
+	if err != nil {
 		log.Fatal(err)
 	}
 }
 
+// dispatchModule selects the execution environment for requested runs:
+// kubernetes launches one worker Job per run; inproc executes runs inside
+// this process through the engine module.
+func dispatchModule() (module.Module, error) {
+	switch mode := os.Getenv("DISPATCH_MODE"); mode {
+	case "", "kubernetes":
+		return k8sdispatch.NewFromEnv(), nil
+	case "inproc":
+		return engine.New(), nil
+	default:
+		return nil, fmt.Errorf("unknown DISPATCH_MODE %q (kubernetes|inproc)", mode)
+	}
+}
+
 func run(ctx context.Context) error {
-	PersistenceDSN := os.Getenv("PERSISTENCE_DSN")
-	if PersistenceDSN == "" {
+	persistenceDSN := os.Getenv("PERSISTENCE_DSN")
+	if persistenceDSN == "" {
 		return errors.New("PERSISTENCE_DSN is required")
 	}
 	natsURL := os.Getenv("NATS_URL")
@@ -53,7 +70,7 @@ func run(ctx context.Context) error {
 	}
 
 	if migrateEnabled() {
-		db, err := ctlpg.NewSQLDB(PersistenceDSN)
+		db, err := ctlpg.NewSQLDB(persistenceDSN)
 		if err != nil {
 			return err
 		}
@@ -66,12 +83,16 @@ func run(ctx context.Context) error {
 		}
 	}
 
-	pool, err := ctlpg.NewPool(ctx, PersistenceDSN)
+	pool, err := ctlpg.NewPool(ctx, persistenceDSN)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
+	secrets, err := newSecrets(pool)
+	if err != nil {
+		return err
+	}
 	if err := store.EnsureTenant(ctx, ingestion.TenantID(defaultTenantID()), "Default tenant"); err != nil {
 		return err
 	}
@@ -89,12 +110,14 @@ func run(ctx context.Context) error {
 	}
 	defer func() { _ = bus.Close() }()
 
-	orch := orchestrator.New()
+	dispatch, err := dispatchModule()
+	if err != nil {
+		return err
+	}
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
+		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
 		tracker.New(),
-		k8sdispatch.NewFromEnv(),
-		orch,
+		dispatch,
 	)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
@@ -113,15 +136,24 @@ func run(ctx context.Context) error {
 		fmt.Println("mounted:", name)
 	}
 
-	addr := os.Getenv("INGESTION_ADDR")
-	if addr == "" {
-		addr = ":8080"
+	<-ctx.Done()
+	return nil
+}
+
+func newSecrets(pool *pgxpool.Pool) (*secretpostgres.Provider, error) {
+	encoded := os.Getenv("ENCRYPTION_KEY")
+	if encoded == "" {
+		return nil, errors.New("ENCRYPTION_KEY is required")
 	}
-	mux := http.NewServeMux()
-	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus).Mount(mux)
-	fmt.Println("connectrpc:", "http://localhost"+addr)
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	return srv.ListenAndServe()
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	return secretpostgres.New(pool, keyID, key)
 }
 
 func migrateEnabled() bool {

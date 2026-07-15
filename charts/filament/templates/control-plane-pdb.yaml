@@ -1,0 +1,14 @@
+{{- if or .Values.controlPlane.autoscaling.enabled (gt (int .Values.controlPlane.replicas) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "filament.controlPlane.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "filament.controlPlane.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "filament.controlPlane.selectorLabels" . | nindent 6 }}
+{{- end }}

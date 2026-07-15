@@ -1,8 +1,9 @@
-// Command ingestion-worker executes one already-persisted Filament run.
+// Command worker executes one already-persisted Filament run.
 package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -10,25 +11,22 @@ import (
 	"os"
 
 	ingestion "github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/connectors/sample"
-	"github.com/galaxy-io/filament/connectors/stdout"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
-	secretenv "github.com/galaxy-io/filament/secret/env"
+	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
 	_ "github.com/galaxy-io/filament/connectors/object"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/sample"
+	_ "github.com/galaxy-io/filament/connectors/stdout"
 )
 
 func main() {
-	registry.RegisterSource("sample", func() ingestion.Source { return sample.New() })
-	registry.RegisterSink("stdout", func() ingestion.Sink { return stdout.New() })
-
 	if err := run(context.Background()); err != nil {
 		log.Fatal(err)
 	}
@@ -62,6 +60,22 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
+	encoded := os.Getenv("ENCRYPTION_KEY")
+	if encoded == "" {
+		return errors.New("ENCRYPTION_KEY is required")
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	secrets, err := secretpostgres.New(pool, keyID, key)
+	if err != nil {
+		return err
+	}
 
 	busOpts := []natsbus.Option{}
 	if stream := os.Getenv("NATS_STREAM"); stream != "" {
@@ -88,12 +102,9 @@ func run(ctx context.Context) error {
 		Bus:       bus,
 		DataStore: store,
 		Log:       slogLogger{l: logger},
-		// Temporary bootstrap path: ConfigRef values are resolved from process
-		// env vars as JSON connector configs. Replace this with the fetched
-		// control-plane secret/config store before production k8s dispatch.
-		Secrets: secretenv.NewIngestionSecrets(),
-		Sources: registry.DefaultSources,
-		Sinks:   registry.DefaultSinks,
+		Secrets:   secrets,
+		Sources:   registry.DefaultSources,
+		Sinks:     registry.DefaultSinks,
 	}, runner.SpecFromState(state))
 	return nil
 }

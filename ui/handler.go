@@ -5,11 +5,12 @@
 // works without Node or a UI build. To embed the real UI into a binary:
 //
 //	cd ui && pnpm install && pnpm build   # produces ui/dist
-//	go build -tags embedui ./cmd/ingestiond
+//	go build -C cmd/server -tags embedui .
 //
-// Deployable binaries opt in by mounting the handler, e.g.:
+// `just binaries` does both. Deployable binaries opt in by mounting the
+// handler, e.g.:
 //
-//	app.Run(ctx, app.WithUI(ui.Handler()))
+//	mux.Handle("/", ui.Handler())
 package ui
 
 import (
@@ -20,6 +21,8 @@ import (
 
 // spaHandler serves static files from dist, falling back to index.html for
 // any path that doesn't match a file, so client-side routes deep-link cleanly.
+//
+//nolint:unused // only referenced under the embedui build tag
 func spaHandler(dist fs.FS) http.Handler {
 	fileServer := http.FileServer(http.FS(dist))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

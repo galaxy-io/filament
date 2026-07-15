@@ -9,10 +9,10 @@ package scheduler
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 
 	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
@@ -261,7 +261,5 @@ func nextFire(spec ingestion.ScheduleSpec, after time.Time) (*time.Time, error) 
 }
 
 func newScheduleID() ingestion.ScheduleID {
-	var b [8]byte
-	_, _ = rand.Read(b[:])
-	return ingestion.ScheduleID("sched_" + hex.EncodeToString(b[:]))
+	return ingestion.ScheduleID(uuid.NewString())
 }
