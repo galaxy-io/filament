@@ -3,6 +3,7 @@ import type { JsonValue } from "@bufbuild/protobuf";
 import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
 import type { CreateConnectionPhase } from "./types";
+import { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
 
 export enum CreateConnectionActionType {
   SET_REQUEST_NAME = "SET_REQUEST_NAME",
@@ -15,7 +16,7 @@ export enum CreateConnectionActionType {
 
 export interface SetRequestNameAction {
   type: CreateConnectionActionType.SET_REQUEST_NAME;
-  payload: string;
+  payload: CreateConnectionRequest["name"];
 }
 
 export interface SetRequestConfigFieldAction {

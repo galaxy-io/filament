@@ -7,9 +7,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, {
+  ButtonSize,
+  ButtonVariant,
+} from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  FlexDirection,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -80,7 +85,10 @@ const CreateConnectionConfigureContent = ({
   const { mutate: validateConfig } = useValidateConfigMutation();
   const { mutate: createConnection } = useCreateConnectionMutation();
 
-  const fields = useMemo(() => getConnectorConfigSchemaConnectionFields(connector), [connector]);
+  const fields = useMemo(
+    () => getConnectorConfigSchemaConnectionFields(connector),
+    [connector],
+  );
 
   const isDisabled =
     state.phase === CreateConnectionPhase.VALIDATING ||
@@ -169,7 +177,8 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message = error instanceof Error ? error.message : "Validation failed";
+          const message =
+            error instanceof Error ? error.message : "Validation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -182,7 +191,13 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [state.request, validateAndShowErrors, validateConfig, dispatch, showToast]);
+  }, [
+    state.request,
+    validateAndShowErrors,
+    validateConfig,
+    dispatch,
+    showToast,
+  ]);
 
   const handleCreateConnection = useCallback(() => {
     const name = state.request.name?.trim();
@@ -221,7 +236,8 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message = error instanceof Error ? error.message : "Creation failed";
+          const message =
+            error instanceof Error ? error.message : "Creation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -234,7 +250,14 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [state.request, createConnection, queryClient, showToast, navigate, dispatch]);
+  }, [
+    state.request,
+    createConnection,
+    queryClient,
+    showToast,
+    navigate,
+    dispatch,
+  ]);
 
   // Field handlers (dispatch directly - GX style)
   const handleNameChange = useCallback(
@@ -276,7 +299,6 @@ const CreateConnectionConfigureContent = ({
           error={nameError}
           isDisabled={isDisabled}
         />
-
         {fields.map((field) => (
           <CreateConnectionField
             key={field.name}
@@ -339,10 +361,14 @@ const CreateConnectionConfigureContent = ({
 
   return (
     <CreateConnectionModalWrapper step={CreateConnectionModalStep.CONFIGURE}>
-      <FlexItem shrink={0}>
-        <CreateConnectionModalHeader connector={connector} onClose={onClose} onBack={onBack} />
+      <FlexItem grow={0} shrink={0}>
+        <CreateConnectionModalHeader
+          connector={connector}
+          onClose={onClose}
+          onBack={onBack}
+        />
       </FlexItem>
-      <FlexItem shrink={0}>
+      <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
       </FlexItem>
 
@@ -352,10 +378,12 @@ const CreateConnectionConfigureContent = ({
         </FlexWrapper>
       </BodyWrapper>
 
-      <FlexItem shrink={0}>
+      <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
       </FlexItem>
-      <FooterWrapper>{renderFooter()}</FooterWrapper>
+      <FlexItem grow={0} shrink={0}>
+        <FooterWrapper>{renderFooter()}</FooterWrapper>
+      </FlexItem>
     </CreateConnectionModalWrapper>
   );
 };

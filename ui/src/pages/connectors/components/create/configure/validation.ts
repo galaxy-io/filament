@@ -1,11 +1,17 @@
 import { create, type JsonValue } from "@bufbuild/protobuf";
 
 import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
-import { type ValidationError, ValidationErrorSchema } from "@/gen/ingestion/v1/providers_pb";
+import {
+  type ValidationError,
+  ValidationErrorSchema,
+} from "@/gen/ingestion/v1/providers_pb";
+import { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
 
 export function isEmptyJsonValue(value: JsonValue): boolean {
   return (
-    value === undefined || value === null || (typeof value === "string" && value.trim() === "")
+    value === undefined ||
+    value === null ||
+    (typeof value === "string" && value.trim() === "")
   );
 }
 
@@ -39,10 +45,15 @@ export function createRequiredFieldsValidationErrorMap(
   return new Map(errors.map((e) => [e.field, e.message]));
 }
 
-export function isNameValid(name: string | undefined): boolean {
+export function isNameValid(
+  name: CreateConnectionRequest["name"] | undefined,
+): boolean {
   return (name ?? "").trim().length > 0;
 }
 
-export function getNameError(name: string | undefined, shouldShowErrors: boolean): string | null {
+export function getNameError(
+  name: CreateConnectionRequest["name"] | undefined,
+  shouldShowErrors: boolean,
+): string | null {
   return shouldShowErrors && !isNameValid(name) ? "Name is required" : null;
 }

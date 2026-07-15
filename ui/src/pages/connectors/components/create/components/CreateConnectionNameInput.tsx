@@ -1,8 +1,9 @@
+import { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 interface CreateConnectionNameInputProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: CreateConnectionRequest["name"];
+  onChange: (value: CreateConnectionRequest["name"]) => void;
   error?: string | null;
   isDisabled?: boolean;
 }
