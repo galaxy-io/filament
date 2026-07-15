@@ -49,7 +49,6 @@ type Config struct {
 	Store   ingestion.DataStore
 	Sources ingestion.SourceRegistry
 	Sinks   ingestion.SinkRegistry
-	UI      http.Handler
 }
 
 // Option mutates a Config. Options passed to Run override the defaults.
@@ -66,6 +65,7 @@ func WithSources(s ingestion.SourceRegistry) Option { return func(c *Config) { c
 
 // WithSinks overrides the sink registry (default: registry.DefaultSinks).
 func WithSinks(s ingestion.SinkRegistry) Option { return func(c *Config) { c.Sinks = s } }
+func WithSecrets(s ingestion.Secrets) Option    { return func(c *Config) { c.Secrets = s } }
 
 // WithUI mounts a handler for the web UI at "/" (default: none). The ui
 // package provides one: app.WithUI(ui.Handler()). ConnectRPC routes take
@@ -93,7 +93,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	cfg := newConfig(opts...)
 
 	orch := orchestrator.New()
-	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Sources: cfg.Sources, Sinks: cfg.Sinks}
+	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks}
 	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
@@ -120,7 +120,7 @@ func Run(ctx context.Context, opts ...Option) error {
 		addr = ":8080"
 	}
 	mux := http.NewServeMux()
-	server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus).Mount(mux)
+	server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus, server.WithSecrets(cfg.Secrets)).Mount(mux)
 	if cfg.UI != nil {
 		mux.Handle("/", cfg.UI)
 		fmt.Println("ui:", "http://localhost"+addr)
