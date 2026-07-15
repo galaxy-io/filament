@@ -9,8 +9,8 @@ import CreateConnectionModalWrapper from "@/pages/connectors/components/create/c
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
 import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
 import {
-  type CreateConnectionSelectorProps,
   CreateConnectionModalStep,
+  type CreateConnectionSelectorProps,
 } from "@/pages/connectors/components/create/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";

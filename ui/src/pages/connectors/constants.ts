@@ -1,7 +1,7 @@
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 // Layout constants
 export const CONNECTOR_SEARCH_WIDTH = 280;

@@ -31,6 +31,7 @@ import {
   CONNECTOR_GRID_MIN_COLUMN_WIDTH,
   CONNECTOR_KIND_FILTER_WIDTH,
   CONNECTOR_SEARCH_WIDTH,
+  SELECT_INPUT_OPTIONS_CONNECTOR_KIND,
 } from "@/pages/connectors/constants";
 import type { ConnectorsPageState } from "@/pages/connectors/types";
 
@@ -42,7 +43,6 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import { CONNECTORS_DOCS_URL } from "@/constants";
-import { SELECT_INPUT_OPTIONS_CONNECTOR_KIND } from "@/pages/connectors/constants";
 
 const LOADING_CARD_COUNT = 20;
 

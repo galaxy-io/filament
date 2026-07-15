@@ -6,12 +6,12 @@ import { match } from "ts-pattern";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { CreateConnectionModalStep } from "@/pages/connectors/components/create/types";
 import {
   CREATE_CONNECTION_MODAL_MAX_HEIGHT,
   CREATE_CONNECTION_MODAL_SELECTOR_MIN_HEIGHT,
   CREATE_CONNECTION_MODAL_WIDTH,
 } from "@/pages/connectors/constants";
-import { CreateConnectionModalStep } from "@/pages/connectors/components/create/types";
 
 interface CreateConnectionModalWrapperProps {
   step: CreateConnectionModalStep;

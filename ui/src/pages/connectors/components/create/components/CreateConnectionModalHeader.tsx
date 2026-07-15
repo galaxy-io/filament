@@ -1,6 +1,7 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
@@ -8,7 +9,6 @@ import BaseHeader from "@/layouts/components/BaseHeader";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
 interface CreateConnectionModalHeaderProps {
   connector: ConnectorSpec;

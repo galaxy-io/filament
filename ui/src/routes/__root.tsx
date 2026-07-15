@@ -11,9 +11,9 @@ import { OverlayProvider } from "@galaxy-io/dls/overlay/OverlayProvider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
 import { ConnectionDrawer } from "@/pages/connectors/components/drawer";
 import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
-import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
 
 import { ToastProvider } from "@/providers/toast/ToastProvider";
 

@@ -9,11 +9,37 @@ export enum CreateConnectionPhase {
   ERROR = "ERROR",
 }
 
-export type CreateConnectionConfigureState = {
+/**
+ * State for the create connection form.
+ */
+export interface CreateConnectionConfigureState {
+  /**
+   * The connection request being built.
+   */
   request: CreateConnectionRequest;
+
+  /**
+   * The selected connector spec.
+   */
   connector: ConnectorSpec;
+
+  /**
+   * Current phase of the creation flow.
+   */
   phase: CreateConnectionPhase;
+
+  /**
+   * Server-side validation errors.
+   */
   validationErrors: ValidationError[];
+
+  /**
+   * General error message.
+   */
   error: string | null;
+
+  /**
+   * Should validation errors be displayed?
+   */
   shouldShowErrors: boolean;
-};
+}

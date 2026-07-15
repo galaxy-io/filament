@@ -1,18 +1,18 @@
 import { useMemo } from "react";
 
-import { styled } from "@linaria/react";
 import { create } from "@bufbuild/protobuf";
+import { styled } from "@linaria/react";
 
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import CreateConnectionSelectorCard from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
+
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { ListConnectorsRequestSchema, type ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
-
-import CreateConnectionSelectorCard from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
+import { type ConnectorSpec, ListConnectorsRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 interface CreateConnectionSelectorBodyProps {
   search: string;

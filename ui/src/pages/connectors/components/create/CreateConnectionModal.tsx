@@ -2,13 +2,13 @@ import { useCallback, useMemo } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import { useListConnectorsQuery } from "@/api/queries/connectors";
-
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
-
 import CreateConnectionConfigure from "@/pages/connectors/components/create/configure/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
+
+import { useListConnectorsQuery } from "@/api/queries/connectors";
+
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();

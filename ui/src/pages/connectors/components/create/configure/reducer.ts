@@ -1,25 +1,26 @@
-import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { create } from "@bufbuild/protobuf";
+
 import {
   type CreateConnectionAction,
   CreateConnectionActionType,
   type SetErrorAction,
+  type SetPhaseAction,
   type SetRequestConfigFieldAction,
   type SetRequestNameAction,
-  type SetSecretValueAction,
   type SetShouldShowErrorsAction,
-  type SetStepAction,
   type SetValidationErrorsAction,
 } from "@/pages/connectors/components/create/configure/actions";
 import {
   type CreateConnectionConfigureState,
   CreateConnectionPhase,
 } from "@/pages/connectors/components/create/configure/types";
-import { create } from "@bufbuild/protobuf";
 
-function resetStepIfNeeded(step: CreateConnectionPhase): CreateConnectionPhase {
-  return step === CreateConnectionPhase.VALIDATED || step === CreateConnectionPhase.ERROR
+import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+
+function resetPhaseOnEdit(phase: CreateConnectionPhase): CreateConnectionPhase {
+  return phase === CreateConnectionPhase.VALIDATED || phase === CreateConnectionPhase.ERROR
     ? CreateConnectionPhase.IDLE
-    : step;
+    : phase;
 }
 
 function setRequestName(
@@ -32,7 +33,8 @@ function setRequestName(
       ...state.request,
       name: action.payload,
     }),
-    phase: resetStepIfNeeded(state.phase),
+    phase: resetPhaseOnEdit(state.phase),
+    shouldShowErrors: false,
   };
 }
 
@@ -40,41 +42,23 @@ function setRequestConfigField(
   state: CreateConnectionConfigureState,
   action: SetRequestConfigFieldAction,
 ): CreateConnectionConfigureState {
-  const { field, value } = action.payload;
   return {
     ...state,
     request: create(CreateConnectionRequestSchema, {
       ...state.request,
       config: {
         ...(state.request.config ?? {}),
-        [field]: value,
+        [action.payload.field]: action.payload.value,
       },
     }),
-    phase: resetStepIfNeeded(state.phase),
+    phase: resetPhaseOnEdit(state.phase),
+    shouldShowErrors: false,
   };
 }
 
-function setSecretValue(
+function setPhase(
   state: CreateConnectionConfigureState,
-  action: SetSecretValueAction,
-): CreateConnectionConfigureState {
-  const { field, value } = action.payload;
-  return {
-    ...state,
-    request: create(CreateConnectionRequestSchema, {
-      ...state.request,
-      secretRefs: {
-        ...(state.request.secretRefs ?? {}),
-        [field]: value,
-      },
-    }),
-    phase: resetStepIfNeeded(state.phase),
-  };
-}
-
-function setStep(
-  state: CreateConnectionConfigureState,
-  action: SetStepAction,
+  action: SetPhaseAction,
 ): CreateConnectionConfigureState {
   return {
     ...state,
@@ -123,10 +107,8 @@ const createConnectionReducer = (
       return setRequestName(state, action);
     case CreateConnectionActionType.SET_REQUEST_CONFIG_FIELD:
       return setRequestConfigField(state, action);
-    case CreateConnectionActionType.SET_SECRET_VALUE:
-      return setSecretValue(state, action);
-    case CreateConnectionActionType.SET_STEP:
-      return setStep(state, action);
+    case CreateConnectionActionType.SET_PHASE:
+      return setPhase(state, action);
     case CreateConnectionActionType.SET_VALIDATION_ERRORS:
       return setValidationErrors(state, action);
     case CreateConnectionActionType.SET_ERROR:

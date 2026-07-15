@@ -2,13 +2,12 @@ import type { JsonValue } from "@bufbuild/protobuf";
 
 import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
-import type { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
+import type { CreateConnectionPhase } from "./types";
 
 export enum CreateConnectionActionType {
   SET_REQUEST_NAME = "SET_REQUEST_NAME",
   SET_REQUEST_CONFIG_FIELD = "SET_REQUEST_CONFIG_FIELD",
-  SET_SECRET_VALUE = "SET_SECRET_VALUE",
-  SET_STEP = "SET_STEP",
+  SET_PHASE = "SET_PHASE",
   SET_VALIDATION_ERRORS = "SET_VALIDATION_ERRORS",
   SET_ERROR = "SET_ERROR",
   SET_SHOULD_SHOW_ERRORS = "SET_SHOULD_SHOW_ERRORS",
@@ -24,13 +23,8 @@ export interface SetRequestConfigFieldAction {
   payload: { field: string; value: JsonValue };
 }
 
-export interface SetSecretValueAction {
-  type: CreateConnectionActionType.SET_SECRET_VALUE;
-  payload: { field: string; value: string };
-}
-
-export interface SetStepAction {
-  type: CreateConnectionActionType.SET_STEP;
+export interface SetPhaseAction {
+  type: CreateConnectionActionType.SET_PHASE;
   payload: CreateConnectionPhase;
 }
 
@@ -52,8 +46,7 @@ export interface SetShouldShowErrorsAction {
 export type CreateConnectionAction =
   | SetRequestNameAction
   | SetRequestConfigFieldAction
-  | SetSecretValueAction
-  | SetStepAction
+  | SetPhaseAction
   | SetValidationErrorsAction
   | SetErrorAction
   | SetShouldShowErrorsAction;
