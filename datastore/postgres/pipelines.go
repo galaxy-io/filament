@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	ingestion "github.com/galaxy-io/filament"
@@ -15,53 +14,29 @@ import (
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
-// ErrVersionConflict is returned by PipelineStore.Update when the caller's
-// pipeline.Version does not match the currently stored version — the
-// optimistic-lock check server/pipelines.go's in-memory UpdatePipeline never
-// actually performed (it just incremented and overwrote unconditionally).
-var ErrVersionConflict = errors.New("pipeline version conflict")
-
-// PipelineStore is a Postgres-backed store for the pipeline node graph
-// (api/ingestion/v1 Pipeline). It intentionally does not implement the
-// connect-go Server interface directly — server/pipelines.go should call
-// through this store instead of its current in-memory map, translating
-// ErrVersionConflict to a connect.CodeFailedPrecondition/Aborted response.
-type PipelineStore struct {
-	q *sqlcgen.Queries
-}
-
-// NewPipelineStore wraps an already-connected pool.
-func NewPipelineStore(pool *pgxpool.Pool) *PipelineStore {
-	return &PipelineStore{q: sqlcgen.New(pool)}
-}
-
-// Create inserts a new pipeline at version 1, ignoring any version/id set on
-// the input (mirroring CreatePipeline's current semantics of assigning a
-// fresh id server-side).
-func (s *PipelineStore) Create(ctx context.Context, id, tenant, name string, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) (*ingestionv1.Pipeline, error) {
-	p := &ingestionv1.Pipeline{Id: id, Tenant: tenant, Name: name, Nodes: nodes, Edges: edges, Version: 1}
+// CreatePipeline inserts a pipeline at version 1.
+func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	nodesJSON, edgesJSON, err := marshalGraph(p)
 	if err != nil {
 		return nil, err
 	}
 	err = s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
-		PipelineID: id,
-		TenantID:   tenant,
-		Name:       name,
+		PipelineID: p.GetId(),
+		TenantID:   p.GetTenant(),
+		Name:       p.GetName(),
 		Nodes:      nodesJSON,
 		Edges:      edgesJSON,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
 	}
-	return p, nil
+	created := cloneProto(p)
+	created.Version = 1
+	return created, nil
 }
 
-// Update applies p if p.Version matches the stored version, then returns the
-// new row (version+1). Returns ErrVersionConflict on mismatch (or on a
-// not-yet-existing pipeline_id) so the caller can return a real conflict
-// instead of silently overwriting a concurrent edit.
-func (s *PipelineStore) Update(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
+// UpdatePipeline applies p when its version matches and returns version+1.
+func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if p.GetId() == "" {
 		return nil, fmt.Errorf("datastore/postgres: pipeline id is required")
 	}
@@ -78,7 +53,7 @@ func (s *PipelineStore) Update(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("update pipeline %q at version %d: %w", p.GetId(), p.GetVersion(), ErrVersionConflict)
+			return nil, fmt.Errorf("update pipeline %q at version %d: %w", p.GetId(), p.GetVersion(), ingestion.ErrVersionConflict)
 		}
 		return nil, fmt.Errorf("datastore/postgres: update pipeline: %w", err)
 	}
@@ -87,8 +62,8 @@ func (s *PipelineStore) Update(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return next, nil
 }
 
-// Get loads one pipeline by id.
-func (s *PipelineStore) Get(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
+// LoadPipeline loads one pipeline by id.
+func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	row, err := s.q.GetPipeline(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -103,8 +78,8 @@ func (s *PipelineStore) Get(ctx context.Context, id string) (*ingestionv1.Pipeli
 	return &ingestionv1.Pipeline{Id: row.PipelineID, Tenant: row.TenantID, Name: row.Name, Nodes: nodes, Edges: edges, Version: row.Version}, nil
 }
 
-// List returns a tenant's pipelines.
-func (s *PipelineStore) List(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
+// ListPipelines returns pipelines, optionally filtered by tenant.
+func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	rows, err := s.q.ListPipelines(ctx, tenant)
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list pipelines: %w", err)
@@ -120,8 +95,8 @@ func (s *PipelineStore) List(ctx context.Context, tenant string) ([]*ingestionv1
 	return out, nil
 }
 
-// Delete removes a pipeline by id.
-func (s *PipelineStore) Delete(ctx context.Context, id string) error {
+// DeletePipeline removes a pipeline by id.
+func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := s.q.DeletePipeline(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline: %w", err)
 	}

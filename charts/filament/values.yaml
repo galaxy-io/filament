@@ -4,11 +4,31 @@ namespaceOverride: ""
 commonLabels: {}
 commonAnnotations: {}
 
-control:
+server:
+  image:
+    repository: galaxy-io/filament-server
+    tag: "latest"
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+
+  replicas: 1
+
+  service:
+    port: 8080
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+controlPlane:
   enabled: true
 
   image:
-    repository: galaxy-io/filament
+    repository: galaxy-io/filament-control-plane
     tag: "latest"
     pullPolicy: IfNotPresent
     pullSecrets: []
@@ -22,9 +42,9 @@ control:
     maxReplicas: 10
     targetCpu: 80
 
-  service:
-    port: 8080
-  
+  # Execution environment for requested runs: kubernetes | inproc
+  dispatchMode: kubernetes
+
   resources:
     limits:
       cpu: 100m

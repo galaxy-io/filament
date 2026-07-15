@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "filament.server.fullname" . }}
+  labels:
+    {{- include "filament.server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.server.replicas }}
+  selector:
+    matchLabels:
+      {{- include "filament.server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/server-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "filament.server.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "filament.server.serviceAccountName" . }}
+      containers:
+        - name: server
+          image: {{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.service.port }}
+              protocol: TCP
+          env:
+            - name: PERSISTENCE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "filament.postgresql.secretName" . }}
+                  key: {{ include "filament.postgresql.secretKey" . }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "filament.server.fullname" . }}
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}

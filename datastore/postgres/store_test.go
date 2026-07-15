@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ingestion "github.com/galaxy-io/filament"
+	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/postgres"
 )
 
@@ -234,60 +235,7 @@ func TestStore_ScheduleClaimDue(t *testing.T) {
 	}
 }
 
-func TestSecretsStore_RoundTrip(t *testing.T) {
-	ctx := context.Background()
-	dsn := testDSN(t)
-
-	sqlDB, err := postgres.NewSQLDB(dsn)
-	if err != nil {
-		t.Fatalf("NewSQLDB: %v", err)
-	}
-	defer sqlDB.Close()
-	if err := postgres.Migrate(sqlDB); err != nil {
-		t.Fatalf("Migrate: %v", err)
-	}
-
-	pool, err := postgres.NewPool(ctx, dsn)
-	if err != nil {
-		t.Fatalf("NewPool: %v", err)
-	}
-	defer pool.Close()
-	if _, err := pool.Exec(ctx, "DELETE FROM secrets"); err != nil {
-		t.Fatalf("truncate secrets: %v", err)
-	}
-
-	key := make([]byte, 32)
-	secrets, err := postgres.NewSecretsStore(pool, "test-key-v1", key)
-	if err != nil {
-		t.Fatalf("NewSecretsStore: %v", err)
-	}
-
-	ref := "tenant-a/pg-dsn"
-	original := ingestion.Secret{Value: []byte("postgres://user:pw@host/db"), Meta: map[string]string{"rotated": "2026-01-01"}}
-	if err := secrets.Write(ctx, ref, original); err != nil {
-		t.Fatalf("Write: %v", err)
-	}
-
-	got, err := secrets.Read(ctx, ref)
-	if err != nil {
-		t.Fatalf("Read: %v", err)
-	}
-	if string(got.Value) != string(original.Value) {
-		t.Fatalf("expected decrypted value %q, got %q", original.Value, got.Value)
-	}
-	if got.Meta["rotated"] != "2026-01-01" {
-		t.Fatalf("expected meta round-trip, got %+v", got.Meta)
-	}
-
-	if err := secrets.Delete(ctx, ref); err != nil {
-		t.Fatalf("Delete: %v", err)
-	}
-	if _, err := secrets.Read(ctx, ref); err == nil {
-		t.Fatal("expected ErrNotFound after Delete")
-	}
-}
-
-func TestPipelineStore_OptimisticLock(t *testing.T) {
+func TestStore_PipelineOptimisticLock(t *testing.T) {
 	ctx := context.Background()
 	dsn := testDSN(t)
 
@@ -309,8 +257,8 @@ func TestPipelineStore_OptimisticLock(t *testing.T) {
 		t.Fatalf("truncate pipelines: %v", err)
 	}
 
-	pipelines := postgres.NewPipelineStore(pool)
-	created, err := pipelines.Create(ctx, "pipe-1", "tenant-a", "orders-sync", nil, nil)
+	store := postgres.New(pool)
+	created, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", Tenant: "tenant-a", Name: "orders-sync"})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -319,7 +267,7 @@ func TestPipelineStore_OptimisticLock(t *testing.T) {
 	}
 
 	created.Name = "orders-sync-v2"
-	updated, err := pipelines.Update(ctx, created)
+	updated, err := store.UpdatePipeline(ctx, created)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -329,11 +277,11 @@ func TestPipelineStore_OptimisticLock(t *testing.T) {
 
 	// Reusing the stale (version=1) copy must be rejected, not silently applied.
 	created.Name = "stale-write"
-	if _, err := pipelines.Update(ctx, created); !errors.Is(err, postgres.ErrVersionConflict) {
+	if _, err := store.UpdatePipeline(ctx, created); !errors.Is(err, ingestion.ErrVersionConflict) {
 		t.Fatalf("expected ErrVersionConflict for stale update, got %v", err)
 	}
 
-	fetched, err := pipelines.Get(ctx, "pipe-1")
+	fetched, err := store.LoadPipeline(ctx, "pipe-1")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}

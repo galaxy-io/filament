@@ -7,7 +7,7 @@ checkpointing, batching, integrity events, and pluggable connectors.
 
 - `app/`: public composition root for running the service.
 - `api/`: ConnectRPC protobuf API and generated Go bindings.
-- `cmd/ingestiond/`: example service binary.
+- `examples/ingestiond/`: example service binary.
 - `connectors/`: optional source and sink implementations.
 - `eventbus/`: event transport interfaces and local implementations.
 - `pipeline/`: batching, writing, and integrity verification loop.
@@ -44,6 +44,15 @@ result, err := runner.Run(ctx, runner.Config{
 ```
 
 ## Development
+
+On macOS, install the toolchain (Go, just, golangci-lint, buf, sqlc, node, pnpm)
+from the checked-in [`Brewfile`](Brewfile):
+
+```sh
+brew bundle
+```
+
+Docker is also required for local infra and integration tests.
 
 The repo uses a Go workspace so optional connectors can carry their heavy
 dependencies independently:

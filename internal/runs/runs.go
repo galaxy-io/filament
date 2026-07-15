@@ -6,12 +6,13 @@ package runs
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 
 	ingestion "github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
@@ -60,7 +61,5 @@ func IDFor(req ingestion.RunRequest) ingestion.RunID {
 		sum := sha256.Sum256([]byte(string(req.Tenant) + "|" + req.IdempotencyKey))
 		return ingestion.RunID("run_" + hex.EncodeToString(sum[:8]))
 	}
-	var b [8]byte
-	_, _ = rand.Read(b[:])
-	return ingestion.RunID("run_" + hex.EncodeToString(b[:]))
+	return ingestion.RunID(uuid.NewString())
 }

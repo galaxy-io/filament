@@ -2,130 +2,242 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 
+	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-// CreateConnection validates the config against the connector's schema and
-// stores a new connection at version 1.
-func (a *Server) CreateConnection(_ context.Context, req *connect.Request[ingestionv1.CreateConnectionRequest]) (*connect.Response[ingestionv1.CreateConnectionResponse], error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
+// CreateConnection separates schema-declared secret fields from ordinary
+// config, writes their values to the configured secret provider, and persists
+// only opaque references alongside the non-secret config.
+func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[ingestionv1.CreateConnectionRequest]) (*connect.Response[ingestionv1.CreateConnectionResponse], error) {
 	schema, err := a.schemaFor(req.Msg.GetKind(), req.Msg.GetConnector())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if err := validateConnectionConfig(schema, structMap(req.Msg.GetConfig())); err != nil {
+	cfg := structMap(req.Msg.GetConfig())
+	if err := validateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	a.nextConnID++
-	id := fmt.Sprintf("conn-%d", a.nextConnID)
-	conn := &ingestionv1.Connection{
-		Id:         id,
-		Tenant:     defaultTenant(req.Msg.GetTenant()),
-		Kind:       req.Msg.GetKind(),
-		Name:       req.Msg.GetName(),
-		Connector:  req.Msg.GetConnector(),
-		Config:     req.Msg.GetConfig(),
-		SecretRefs: req.Msg.GetSecretRefs(),
-		Version:    1,
+	id := uuid.NewString()
+	tenant := defaultTenant(req.Msg.GetTenant())
+	refs := cloneStrings(req.Msg.GetSecretRefs())
+	if err := validateSecretRefTenant(refs, tenant); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	a.connections[id] = proto.Clone(conn).(*ingestionv1.Connection)
-	return connect.NewResponse(&ingestionv1.CreateConnectionResponse{Connection: conn}), nil
+	written, err := a.storeSecretFields(ctx, schema, tenant, id, 1, cfg, refs)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	config, err := structpb.NewStruct(cfg)
+	if err != nil {
+		a.deleteSecretRefs(ctx, written)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	conn, err := a.store.CreateConnection(ctx, ingestion.Connection{
+		ID: id, Tenant: tenant, Kind: connectionKindFromProto(req.Msg.GetKind()), Name: req.Msg.GetName(),
+		Connector: req.Msg.GetConnector(), Config: config.AsMap(), SecretRefs: refs,
+	})
+	if err != nil {
+		a.deleteSecretRefs(ctx, written)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.CreateConnectionResponse{Connection: connectionToProto(conn)}), nil
 }
 
-// UpdateConnection replaces a stored connection if the request's version matches
-// the stored one, returning CodeAborted on a version conflict.
-func (a *Server) UpdateConnection(_ context.Context, req *connect.Request[ingestionv1.UpdateConnectionRequest]) (*connect.Response[ingestionv1.UpdateConnectionResponse], error) {
-	conn := req.Msg.GetConnection()
-	if conn == nil || conn.GetId() == "" {
+// UpdateConnection applies changes to an existing connection, enforcing optimistic versioning.
+func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[ingestionv1.UpdateConnectionRequest]) (*connect.Response[ingestionv1.UpdateConnectionResponse], error) {
+	in := req.Msg.GetConnection()
+	if in == nil || in.GetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection.id is required"))
 	}
-	schema, err := a.schemaFor(conn.GetKind(), conn.GetConnector())
+	stored, err := a.store.LoadConnection(ctx, in.GetId())
+	if err != nil {
+		if errors.Is(err, ingestion.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if stored.Version != in.GetVersion() {
+		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", in.GetId(), stored.Version, in.GetVersion()))
+	}
+	schema, err := a.schemaFor(in.GetKind(), in.GetConnector())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if err := validateConnectionConfig(schema, structMap(conn.GetConfig())); err != nil {
+	cfg := structMap(in.GetConfig())
+	if err := validateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	stored := a.connections[conn.GetId()]
-	if stored == nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("connection %q not found", conn.GetId()))
+	refs := cloneStrings(in.GetSecretRefs())
+	if err := validateSecretRefTenant(refs, stored.Tenant); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if stored.GetVersion() != conn.GetVersion() {
-		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", conn.GetId(), stored.GetVersion(), conn.GetVersion()))
+	// A newly submitted value gets a versioned ref. The old value remains active
+	// until the optimistic connection update succeeds.
+	written, err := a.storeSecretFields(ctx, schema, stored.Tenant, in.GetId(), in.GetVersion()+1, cfg, refs)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	next := proto.Clone(conn).(*ingestionv1.Connection)
-	next.Version++
+	config, err := structpb.NewStruct(cfg)
+	if err != nil {
+		a.deleteSecretRefs(ctx, written)
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	next := connectionFromProto(proto.Clone(in).(*ingestionv1.Connection))
+	next.Config, next.SecretRefs = config.AsMap(), refs
 	if next.Tenant == "" {
-		next.Tenant = stored.GetTenant()
+		next.Tenant = stored.Tenant
 	}
-	a.connections[next.GetId()] = next
-	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: proto.Clone(next).(*ingestionv1.Connection)}), nil
+	next, err = a.store.UpdateConnection(ctx, next)
+	if err != nil {
+		a.deleteSecretRefs(ctx, written)
+		return nil, connect.NewError(connect.CodeAborted, err)
+	}
+	a.deleteReplacedSecretRefs(ctx, stored.SecretRefs, next.SecretRefs)
+	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: connectionToProto(next)}), nil
 }
 
-// GetConnection returns the connection with the given id.
-func (a *Server) GetConnection(_ context.Context, req *connect.Request[ingestionv1.GetConnectionRequest]) (*connect.Response[ingestionv1.GetConnectionResponse], error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	conn := a.connections[req.Msg.GetId()]
-	if conn == nil {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("connection %q not found", req.Msg.GetId()))
+// GetConnection returns the connection with the requested ID.
+func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingestionv1.GetConnectionRequest]) (*connect.Response[ingestionv1.GetConnectionResponse], error) {
+	conn, err := a.store.LoadConnection(ctx, req.Msg.GetId())
+	if err != nil {
+		if errors.Is(err, ingestion.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.GetConnectionResponse{Connection: proto.Clone(conn).(*ingestionv1.Connection)}), nil
+	return connect.NewResponse(&ingestionv1.GetConnectionResponse{Connection: connectionToProto(conn)}), nil
 }
 
-// ListConnections returns the stored connections sorted by id, optionally
-// filtered by tenant and kind.
-func (a *Server) ListConnections(_ context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
-	tenant := req.Msg.GetTenant()
-	kind := req.Msg.GetKind()
-
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	var out []*ingestionv1.Connection
-	for _, conn := range a.connections {
-		if tenant != "" && conn.GetTenant() != tenant {
-			continue
-		}
-		if kind != ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED && conn.GetKind() != kind {
-			continue
-		}
-		out = append(out, proto.Clone(conn).(*ingestionv1.Connection))
+// ListConnections returns connections matching the request's tenant and kind filter.
+func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
+	connections, err := a.store.ListConnections(ctx, ingestion.ConnectionFilter{Tenant: req.Msg.GetTenant(), Kind: connectionKindFromProto(req.Msg.GetKind())})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	slices.SortFunc(out, func(x, y *ingestionv1.Connection) int {
-		return strings.Compare(x.GetId(), y.GetId())
-	})
+	out := make([]*ingestionv1.Connection, len(connections))
+	for i, c := range connections {
+		out[i] = connectionToProto(c)
+	}
 	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out}), nil
 }
 
-// DeleteConnection removes a connection, refusing while any pipeline node still
-// references it.
-func (a *Server) DeleteConnection(_ context.Context, req *connect.Request[ingestionv1.DeleteConnectionRequest]) (*connect.Response[ingestionv1.DeleteConnectionResponse], error) {
+// DeleteConnection removes the connection with the requested ID.
+func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[ingestionv1.DeleteConnectionRequest]) (*connect.Response[ingestionv1.DeleteConnectionResponse], error) {
 	id := req.Msg.GetId()
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	conn, loadErr := a.store.LoadConnection(ctx, id)
+	if loadErr != nil && !errors.Is(loadErr, ingestion.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeInternal, loadErr)
+	}
 
-	// Block delete while any pipeline node still references this connection.
-	for _, pipeline := range a.pipelines {
+	pipelines, err := a.store.ListPipelines(ctx, "")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	for _, pipeline := range pipelines {
 		for _, node := range pipeline.GetNodes() {
 			if node.GetConnectionId() == id {
-				return nil, connect.NewError(connect.CodeFailedPrecondition,
-					fmt.Errorf("connection %q is in use by pipeline %q", id, pipeline.GetId()))
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is in use by pipeline %q", id, pipeline.GetId()))
 			}
 		}
 	}
-	delete(a.connections, id)
+	if err := a.store.DeleteConnection(ctx, id); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	if loadErr == nil {
+		a.deleteSecretRefs(ctx, mapValues(conn.SecretRefs))
+	}
 	return connect.NewResponse(&ingestionv1.DeleteConnectionResponse{}), nil
+}
+
+func (a *Server) storeSecretFields(ctx context.Context, schema ingestion.ConfigSchema, tenant, id string, version int64, cfg map[string]any, refs map[string]string) ([]string, error) {
+	var written []string
+	for _, field := range schema.Fields {
+		if field.Type != ingestion.FieldSecret {
+			continue
+		}
+		value, present := cfg[field.Name]
+		delete(cfg, field.Name) // plaintext must never reach the connection store
+		if !present {
+			continue
+		}
+		s, ok := value.(string)
+		if !ok {
+			a.deleteSecretRefs(ctx, written)
+			return nil, fmt.Errorf("secret field %q must be a string", field.Name)
+		}
+		if a.secrets == nil {
+			a.deleteSecretRefs(ctx, written)
+			return nil, fmt.Errorf("secret field %q supplied but no secret provider is configured", field.Name)
+		}
+		ref := ingestion.ConnectionSecretRef(tenant, id, field.Name, version)
+		if err := a.secrets.Write(ctx, ref, ingestion.Secret{Value: []byte(s), Meta: map[string]string{"tenant": tenant, "connection": id, "field": field.Name}}); err != nil {
+			a.deleteSecretRefs(ctx, written)
+			return nil, fmt.Errorf("store secret field %q: %w", field.Name, err)
+		}
+		refs[field.Name] = ref
+		written = append(written, ref)
+	}
+	return written, nil
+}
+
+func (a *Server) deleteReplacedSecretRefs(ctx context.Context, old, next map[string]string) {
+	for field, ref := range old {
+		if next[field] != ref {
+			a.deleteSecretRefs(ctx, []string{ref})
+		}
+	}
+}
+
+func (a *Server) deleteSecretRefs(ctx context.Context, refs []string) {
+	if a.secrets == nil {
+		return
+	}
+	for _, ref := range refs {
+		// Only ever delete refs this server minted; never a caller-supplied ref
+		// that might point at an env var or another store's key.
+		if strings.HasPrefix(ref, ingestion.ConnectionSecretPrefix) {
+			_ = a.secrets.Delete(ctx, ref)
+		}
+	}
+}
+
+// validateSecretRefTenant rejects any caller-supplied ref in the
+// connection-managed namespace that names a different tenant, so a connection
+// can never reference another tenant's secrets.
+func validateSecretRefTenant(refs map[string]string, tenant string) error {
+	for field, ref := range refs {
+		if err := ingestion.ValidateConnectionSecretRef(ref, ingestion.TenantID(tenant)); err != nil {
+			return fmt.Errorf("secret ref for field %q: %w", field, err)
+		}
+	}
+	return nil
+}
+
+func cloneStrings(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func mapValues(in map[string]string) []string {
+	out := make([]string, 0, len(in))
+	for _, v := range in {
+		out = append(out, v)
+	}
+	return out
 }

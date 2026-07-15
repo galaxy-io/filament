@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	ingestion "github.com/galaxy-io/filament"
+	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
 // ErrNotFound is returned (wrapped) when a requested run or checkpoint does not
@@ -23,6 +24,8 @@ type Store struct {
 	resources   map[ingestion.RunID]map[string]ingestion.ResourceState // run → resource → state
 	checkpoints map[ckey]ingestion.Checkpoint
 	seen        map[dkey]struct{} // dedup keys already applied
+	connections map[string]ingestion.Connection
+	pipelines   map[string]*ingestionv1.Pipeline
 }
 
 type ckey struct {
@@ -43,6 +46,8 @@ func New() *Store {
 		resources:   map[ingestion.RunID]map[string]ingestion.ResourceState{},
 		checkpoints: map[ckey]ingestion.Checkpoint{},
 		seen:        map[dkey]struct{}{},
+		connections: map[string]ingestion.Connection{},
+		pipelines:   map[string]*ingestionv1.Pipeline{},
 	}
 }
 

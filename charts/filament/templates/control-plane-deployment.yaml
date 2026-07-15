@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "filament.controlPlane.fullname" . }}
+  labels:
+    {{- include "filament.controlPlane.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.controlPlane.autoscaling.enabled }}
+  replicas: {{ .Values.controlPlane.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "filament.controlPlane.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/control-plane-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "filament.controlPlane.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "filament.controlPlane.serviceAccountName" . }}
+      containers:
+        - name: control-plane
+          image: {{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag }}
+          imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
+          env:
+            - name: PERSISTENCE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "filament.postgresql.secretName" . }}
+                  key: {{ include "filament.postgresql.secretKey" . }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "filament.controlPlane.fullname" . }}
+          resources:
+            {{- toYaml .Values.controlPlane.resources | nindent 12 }}

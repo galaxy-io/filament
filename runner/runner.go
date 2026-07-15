@@ -36,7 +36,6 @@ func SpecFromState(s ingestion.RunState) ingestion.RunSpec {
 		Run:           s.Run,
 		Source:        r.Source,
 		Sink:          r.Sink,
-		DataStore:     r.DataStore,
 		Resources:     r.Resources,
 		Selectors:     r.Selectors,
 		IngestionType: r.IngestionType.OrDefault(),
@@ -55,7 +54,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
 
-	if err := resolveConfigRefs(ctx, deps.Secrets, &spec); err != nil {
+	if err := ResolveConfigRefs(ctx, deps.Secrets, &spec); err != nil {
 		em.fail(err)
 		return
 	}
@@ -185,25 +184,28 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	emit(em, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes})
 }
 
-func resolveConfigRefs(ctx context.Context, secrets ingestion.Secrets, spec *ingestion.RunSpec) error {
-	if err := resolveRefConfig(ctx, secrets, &spec.Source, "source"); err != nil {
+// ResolveConfigRefs resolves opaque config and field references into the
+// process-local RunSpec copy immediately before connector configuration.
+func ResolveConfigRefs(ctx context.Context, secrets ingestion.Secrets, spec *ingestion.RunSpec) error {
+	if err := resolveRefConfig(ctx, secrets, &spec.Source, spec.Tenant, "source"); err != nil {
 		return err
 	}
-	if err := resolveRefConfig(ctx, secrets, &spec.Sink, "sink"); err != nil {
+	if err := resolveRefConfig(ctx, secrets, &spec.Sink, spec.Tenant, "sink"); err != nil {
 		return err
 	}
-	if err := resolveSecretRefs(ctx, secrets, &spec.Source, "source"); err != nil {
+	if err := resolveSecretRefs(ctx, secrets, &spec.Source, spec.Tenant, "source"); err != nil {
 		return err
 	}
-	if err := resolveSecretRefs(ctx, secrets, &spec.Sink, "sink"); err != nil {
+	if err := resolveSecretRefs(ctx, secrets, &spec.Sink, spec.Tenant, "sink"); err != nil {
 		return err
 	}
 	return nil
 }
 
 // resolveSecretRefs reads each of the ref's declared secrets and injects the
-// plaintext value into the provider config under the mapped field.
-func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *ingestion.Ref, role string) error {
+// plaintext value into the provider config under the mapped field. Every ref is
+// tenant-scoped first, so a spec cannot read another tenant's connection secrets.
+func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *ingestion.Ref, tenant ingestion.TenantID, role string) error {
 	if len(ref.SecretRefs) == 0 {
 		return nil
 	}
@@ -214,6 +216,9 @@ func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *inge
 		ref.Config = make(map[string]any, len(ref.SecretRefs))
 	}
 	for field, name := range ref.SecretRefs {
+		if err := ingestion.ValidateConnectionSecretRef(name, tenant); err != nil {
+			return fmt.Errorf("resolve %s secret for field %q: %w", role, field, err)
+		}
 		secret, err := secrets.Read(ctx, name)
 		if err != nil {
 			return fmt.Errorf("resolve %s secret %q for field %q: %w", role, name, field, err)
@@ -223,12 +228,15 @@ func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *inge
 	return nil
 }
 
-func resolveRefConfig(ctx context.Context, secrets ingestion.Secrets, ref *ingestion.Ref, role string) error {
+func resolveRefConfig(ctx context.Context, secrets ingestion.Secrets, ref *ingestion.Ref, tenant ingestion.TenantID, role string) error {
 	if ref.ConfigRef == "" || len(ref.Config) > 0 {
 		return nil
 	}
 	if secrets == nil {
 		return fmt.Errorf("%s %q has config ref %q but no secrets store is configured", role, ref.Provider, ref.ConfigRef)
+	}
+	if err := ingestion.ValidateConnectionSecretRef(ref.ConfigRef, tenant); err != nil {
+		return fmt.Errorf("read %s config ref: %w", role, err)
 	}
 	secret, err := secrets.Read(ctx, ref.ConfigRef)
 	if err != nil {

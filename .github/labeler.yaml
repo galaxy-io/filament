@@ -5,15 +5,21 @@ connectors:
 worker:
   - changed-files:
       - any-glob-to-any-file:
-          - "cmd/ingestion-worker/**"
+          - "cmd/worker/**"
           - "runner/**"
           - "pipeline/**"
+
+server:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "cmd/server/**"
+          - "server/**"
+          - "ui/**"
 
 control-plane:
   - changed-files:
       - any-glob-to-any-file:
-          - "cmd/ingestion-control/**"
-          - "server/**"
+          - "cmd/control-plane/**"
           - "internal/modules/**"
 
 migrations:

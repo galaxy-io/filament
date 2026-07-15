@@ -1,0 +1,12 @@
+# Generates the ConnectRPC TypeScript client from ../api protos.
+# Run with: pnpm codegen
+version: v2
+clean: true
+inputs:
+  - directory: ../api
+plugins:
+  - local: protoc-gen-es
+    out: src/gen
+    opt:
+      - target=ts
+      - import_extension=none

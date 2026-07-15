@@ -7,6 +7,11 @@
 /cmd/ingestiond/ingestiond
 /examples/my-pipeline/my-pipeline
 
+# Web UI
+/ui/node_modules/
+/ui/dist/
+/ui/*.tsbuildinfo
+
 # Local/editor files
 .DS_Store
 .idea/
@@ -21,3 +26,6 @@ coverage.out
 # Helm
 # Vendored charts
 charts/filament/charts/*
+
+# Environment
+.env
