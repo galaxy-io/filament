@@ -1,5 +1,6 @@
-import { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+
+import type { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
 
 interface CreateConnectionNameInputProps {
   value: CreateConnectionRequest["name"];

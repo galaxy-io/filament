@@ -21,26 +21,21 @@ export const CONNECTOR_KIND_TO_LABEL_MAP: Record<ConnectorKind, string> = {
 };
 
 // ConnectorKind → Label (plural, for filters)
-export const CONNECTOR_KIND_FILTER_TO_LABEL_MAP: Record<ConnectorKind, string> =
-  {
-    [ConnectorKind.UNSPECIFIED]: "All connectors",
-    [ConnectorKind.SOURCE]: "Sources",
-    [ConnectorKind.SINK]: "Sinks",
-  };
+export const CONNECTOR_KIND_FILTER_TO_LABEL_MAP: Record<ConnectorKind, string> = {
+  [ConnectorKind.UNSPECIFIED]: "All connectors",
+  [ConnectorKind.SOURCE]: "Sources",
+  [ConnectorKind.SINK]: "Sinks",
+};
 
 // ConnectorKind → Description
-export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> =
-  {
-    [ConnectorKind.UNSPECIFIED]: "All connector types",
-    [ConnectorKind.SOURCE]: "Ingest data from external systems",
-    [ConnectorKind.SINK]: "Send data to external destinations",
-  };
+export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = {
+  [ConnectorKind.UNSPECIFIED]: "All connector types",
+  [ConnectorKind.SOURCE]: "Ingest data from external systems",
+  [ConnectorKind.SINK]: "Send data to external destinations",
+};
 
 // ConnectorKind → Chip variant
-export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<
-  ConnectorKind,
-  ChipVariant
-> = {
+export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<ConnectorKind, ChipVariant> = {
   [ConnectorKind.UNSPECIFIED]: ChipVariant.TERTIARY,
   [ConnectorKind.SOURCE]: ChipVariant.LIME,
   [ConnectorKind.SINK]: ChipVariant.PINK,

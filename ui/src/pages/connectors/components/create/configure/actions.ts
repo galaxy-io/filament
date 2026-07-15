@@ -1,9 +1,9 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 
+import type { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
 import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
 import type { CreateConnectionPhase } from "./types";
-import { CreateConnectionRequest } from "@/gen/ingestion/v1/connections_pb";
 
 export enum CreateConnectionActionType {
   SET_REQUEST_NAME = "SET_REQUEST_NAME",
