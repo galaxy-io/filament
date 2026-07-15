@@ -13,7 +13,7 @@ import { Route as MainRouteRouteImport } from './routes/_main/route'
 import { Route as MainIndexRouteImport } from './routes/_main/index'
 import { Route as PipelinesIdRouteImport } from './routes/pipelines/$id'
 import { Route as MainPipelinesRouteImport } from './routes/_main/pipelines'
-import { Route as MainConnectorsRouteImport } from './routes/_main/connectors'
+import { Route as MainConnectionsRouteImport } from './routes/_main/connections'
 import { Route as PipelinesIdIndexRouteImport } from './routes/pipelines/$id/index'
 import { Route as PipelinesIdSettingsRouteImport } from './routes/pipelines/$id/settings'
 import { Route as PipelinesIdHistoryRouteImport } from './routes/pipelines/$id/history'
@@ -38,9 +38,9 @@ const MainPipelinesRoute = MainPipelinesRouteImport.update({
   path: '/pipelines',
   getParentRoute: () => MainRouteRoute,
 } as any)
-const MainConnectorsRoute = MainConnectorsRouteImport.update({
-  id: '/connectors',
-  path: '/connectors',
+const MainConnectionsRoute = MainConnectionsRouteImport.update({
+  id: '/connections',
+  path: '/connections',
   getParentRoute: () => MainRouteRoute,
 } as any)
 const PipelinesIdIndexRoute = PipelinesIdIndexRouteImport.update({
@@ -66,7 +66,7 @@ const PipelinesIdCanvasRoute = PipelinesIdCanvasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MainIndexRoute
-  '/connectors': typeof MainConnectorsRoute
+  '/connections': typeof MainConnectionsRoute
   '/pipelines': typeof MainPipelinesRoute
   '/pipelines/$id': typeof PipelinesIdRouteWithChildren
   '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
@@ -75,7 +75,7 @@ export interface FileRoutesByFullPath {
   '/pipelines/$id/': typeof PipelinesIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/connectors': typeof MainConnectorsRoute
+  '/connections': typeof MainConnectionsRoute
   '/pipelines': typeof MainPipelinesRoute
   '/': typeof MainIndexRoute
   '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
@@ -86,7 +86,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_main': typeof MainRouteRouteWithChildren
-  '/_main/connectors': typeof MainConnectorsRoute
+  '/_main/connections': typeof MainConnectionsRoute
   '/_main/pipelines': typeof MainPipelinesRoute
   '/pipelines/$id': typeof PipelinesIdRouteWithChildren
   '/_main/': typeof MainIndexRoute
@@ -99,7 +99,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/connectors'
+    | '/connections'
     | '/pipelines'
     | '/pipelines/$id'
     | '/pipelines/$id/canvas'
@@ -108,7 +108,7 @@ export interface FileRouteTypes {
     | '/pipelines/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/connectors'
+    | '/connections'
     | '/pipelines'
     | '/'
     | '/pipelines/$id/canvas'
@@ -118,7 +118,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_main'
-    | '/_main/connectors'
+    | '/_main/connections'
     | '/_main/pipelines'
     | '/pipelines/$id'
     | '/_main/'
@@ -163,11 +163,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainPipelinesRouteImport
       parentRoute: typeof MainRouteRoute
     }
-    '/_main/connectors': {
-      id: '/_main/connectors'
-      path: '/connectors'
-      fullPath: '/connectors'
-      preLoaderRoute: typeof MainConnectorsRouteImport
+    '/_main/connections': {
+      id: '/_main/connections'
+      path: '/connections'
+      fullPath: '/connections'
+      preLoaderRoute: typeof MainConnectionsRouteImport
       parentRoute: typeof MainRouteRoute
     }
     '/pipelines/$id/': {
@@ -202,13 +202,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface MainRouteRouteChildren {
-  MainConnectorsRoute: typeof MainConnectorsRoute
+  MainConnectionsRoute: typeof MainConnectionsRoute
   MainPipelinesRoute: typeof MainPipelinesRoute
   MainIndexRoute: typeof MainIndexRoute
 }
 
 const MainRouteRouteChildren: MainRouteRouteChildren = {
-  MainConnectorsRoute: MainConnectorsRoute,
+  MainConnectionsRoute: MainConnectionsRoute,
   MainPipelinesRoute: MainPipelinesRoute,
   MainIndexRoute: MainIndexRoute,
 }

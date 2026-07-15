@@ -1,8 +1,8 @@
 import type { PropsWithChildren } from "react";
 
-import { Position } from "@xyflow/react";
 import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
+import { Position } from "@xyflow/react";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -10,32 +10,35 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
-  PIPELINE_NODE_WIDTH,
-  PIPELINE_NODE_SINK_WIDTH,
-  PIPELINE_NODE_PADDING,
   PIPELINE_NODE_BORDER_RADIUS,
   PIPELINE_NODE_HANDLE_SLOT_SIZE,
+  PIPELINE_NODE_PADDING,
+  PIPELINE_NODE_SINK_WIDTH,
+  PIPELINE_NODE_WIDTH,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 // Island base styles - used by header and child islands
 export const Island = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolean }>>`
   padding: ${PIPELINE_NODE_PADDING}px;
 
   background-color: ${({ theme }) => theme.color.background.primary};
-  border: 1px solid ${({ theme, $isSelected }) =>
-    $isSelected ? theme.color.background.galaxy : theme.color.border.primary};
+  border: 1px solid
+    ${({ theme, $isSelected }) =>
+      $isSelected ? theme.color.background.galaxy : theme.color.border.primary};
   border-radius: ${PIPELINE_NODE_BORDER_RADIUS}px;
 
   transition: border-color 100ms ease;
 `);
 
 // Container that propagates hover to all islands
-const NodeContainer = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolean; $width: number }>>`
+const NodeContainer = withTheme(styled.div<
+  PropsWithTheme<{ $isSelected?: boolean; $width: number }>
+>`
   width: ${({ $width }) => $width}px;
 
   &:hover ${Island} {

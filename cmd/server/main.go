@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
@@ -20,6 +23,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
 
@@ -53,6 +57,10 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
+	secrets, err := newSecrets(pool)
+	if err != nil {
+		return err
+	}
 
 	busOpts := []natsbus.Option{}
 	if stream := os.Getenv("NATS_STREAM"); stream != "" {
@@ -91,9 +99,25 @@ func run(ctx context.Context) error {
 		addr = ":8080"
 	}
 	mux := http.NewServeMux()
-	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus).Mount(mux)
+	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, server.WithSecrets(secrets)).Mount(mux)
 	mux.Handle("/", ui.Handler())
 	fmt.Println("server:", "http://localhost"+addr)
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	return srv.ListenAndServe()
+}
+
+func newSecrets(pool *pgxpool.Pool) (*secretpostgres.Provider, error) {
+	encoded := os.Getenv("ENCRYPTION_KEY")
+	if encoded == "" {
+		return nil, errors.New("ENCRYPTION_KEY is required")
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	return secretpostgres.New(pool, keyID, key)
 }

@@ -1,17 +1,14 @@
 import { useCallback } from "react";
+
 import {
-  useNodesState,
-  useEdgesState,
   addEdge,
   type Connection,
   type OnConnect,
+  useEdgesState,
+  useNodesState,
 } from "@xyflow/react";
 
-import type { PipelineNode, PipelineEdge } from "@/pages/pipelines/canvas/types";
-import {
-  DEMO_INITIAL_NODES,
-  DEMO_INITIAL_EDGES,
-} from "@/pages/pipelines/canvas/constants";
+import type { PipelineEdge, PipelineNode } from "@/pages/pipelines/canvas/types";
 
 interface UsePipelineCanvasOptions {
   initialNodes?: PipelineNode[];
@@ -19,43 +16,37 @@ interface UsePipelineCanvasOptions {
 }
 
 const usePipelineCanvas = (options?: UsePipelineCanvasOptions) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState<PipelineNode>(
-    options?.initialNodes ?? DEMO_INITIAL_NODES
-  );
+  const [nodes, setNodes, onNodesChange] = useNodesState<PipelineNode>(options?.initialNodes ?? []);
 
-  const [edges, setEdges, onEdgesChange] = useEdgesState<PipelineEdge>(
-    options?.initialEdges ?? DEMO_INITIAL_EDGES
-  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState<PipelineEdge>(options?.initialEdges ?? []);
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
       setEdges((eds) => addEdge(connection, eds));
     },
-    [setEdges]
+    [setEdges],
   );
 
   const addNode = useCallback(
     (node: PipelineNode) => {
       setNodes((nds) => [...nds, node]);
     },
-    [setNodes]
+    [setNodes],
   );
 
   const removeNode = useCallback(
     (nodeId: string) => {
       setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
-      );
+      setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
     },
-    [setNodes, setEdges]
+    [setNodes, setEdges],
   );
 
   const removeEdge = useCallback(
     (edgeId: string) => {
       setEdges((eds) => eds.filter((edge) => edge.id !== edgeId));
     },
-    [setEdges]
+    [setEdges],
   );
 
   return {

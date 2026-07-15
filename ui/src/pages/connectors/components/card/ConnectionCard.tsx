@@ -1,28 +1,22 @@
-import { FlowArrowIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { FlowArrowIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
-import Bold from "@galaxy-io/dls/text/Bold";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
-
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
+
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -52,18 +46,14 @@ const CardSection = styled.div`
   padding: 16px;
 `;
 
-interface ConnectorCardProps {
-  connector: ConnectorSpec;
+interface ConnectionCardProps {
+  connection: Connection;
   pipelineCount?: number;
   onClick?: () => void;
 }
 
-const ConnectorCard = ({
-  connector,
-  pipelineCount = 0,
-  onClick,
-}: ConnectorCardProps) => {
-  const isSource = connector.kind === ConnectorKind.SOURCE;
+const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCardProps) => {
+  const isSource = connection.kind === ConnectorKind.SOURCE;
   const kindLabel = isSource ? "Source" : "Sink";
   const pipelineLabel = pluralize("pipeline", pipelineCount, true);
 
@@ -77,37 +67,20 @@ const ConnectorCard = ({
         >
           <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
             <FlexItem shrink={0}>
-              <ConnectorTile connector={connector.name} />
+              <ConnectorTile connector={connection.connector} />
             </FlexItem>
             <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-              {connector.displayName || connector.name}
+              {connection.name}
             </Text>
           </FlexWrapper>
-          <Chip
-            label={kindLabel}
-            variant={isSource ? ChipVariant.LIME : ChipVariant.PINK}
-          />
+          <Chip label={kindLabel} variant={isSource ? ChipVariant.LIME : ChipVariant.PINK} />
         </FlexWrapper>
         <FlexItem shrink={0}>
-          <Chip
-            icon={FlowArrowIcon}
-            label={pipelineLabel}
-            variant={ChipVariant.TERTIARY}
-          />
+          <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.TERTIARY} />
         </FlexItem>
-      </CardSection>
-
-      <HorizontalDivider />
-
-      <CardSection>
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
-          <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-            Created on <Bold>Jan 1, 2025</Bold>
-          </Text>
-        </FlexWrapper>
       </CardSection>
     </CardWrapper>
   );
 };
 
-export default ConnectorCard;
+export default ConnectionCard;

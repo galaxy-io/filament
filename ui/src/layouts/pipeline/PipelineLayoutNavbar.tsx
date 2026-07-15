@@ -1,20 +1,9 @@
-import {
-  ArrowLeftIcon,
-  ClockCounterClockwiseIcon,
-  PlayIcon,
-} from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
-import { useNavigate } from "@tanstack/react-router";
+import { PlayIcon } from "@phosphor-icons/react";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -25,24 +14,11 @@ import {
   PIPELINE_STATUS_TO_CHIP_VARIANT_MAP,
   PIPELINE_STATUS_TO_LABEL_MAP,
 } from "@/layouts/pipeline/constants";
-import { PipelineStatus } from "@/layouts/pipeline/types";
+import type { PipelineStatus } from "@/layouts/pipeline/types";
+
 import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
-import { useOpenConnectorDrawer } from "@/pages/connectors/hooks";
 
-const BackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  height: ${PIPELINE_NAVBAR_HEIGHT}px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  flex-shrink: 0;
-
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
-
-const NavbarContentWrapper = withTheme(styled.div<PropsWithTheme>`
+const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
   height: ${PIPELINE_NAVBAR_HEIGHT}px;
 
@@ -57,26 +33,7 @@ const NavbarContentWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const BackButton = () => {
-  const navigate = useNavigate();
-
-  const handleBack = () => {
-    navigate({ to: "/pipelines" });
-  };
-
-  return (
-    <BackButtonWrapper>
-      <Button
-        variant={ButtonVariant.SECONDARY}
-        size={ButtonSize.SMALL}
-        icon={ArrowLeftIcon}
-        onClick={handleBack}
-      />
-    </BackButtonWrapper>
-  );
-};
-
-interface NavbarContentProps {
+interface PipelineLayoutNavbarProps {
   name: string;
   status: PipelineStatus;
   source: string;
@@ -86,7 +43,7 @@ interface NavbarContentProps {
   onRun: () => void;
 }
 
-const Content = ({
+const PipelineLayoutNavbar = ({
   name,
   status,
   source,
@@ -94,22 +51,16 @@ const Content = ({
   isEnabled,
   onToggleEnabled,
   onRun,
-}: NavbarContentProps) => {
-  const openConnectorDrawer = useOpenConnectorDrawer();
-
+}: PipelineLayoutNavbarProps) => {
   return (
-    <NavbarContentWrapper>
+    <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
         <Chip
           label={PIPELINE_STATUS_TO_LABEL_MAP[status]}
           variant={PIPELINE_STATUS_TO_CHIP_VARIANT_MAP[status]}
         />
         <Text weight={TextWeight.MEDIUM}>{name}</Text>
-        <PipelineFlow
-          source={source}
-          sinks={sinks}
-          onConnectorClick={openConnectorDrawer}
-        />
+        <PipelineFlow source={source} sinks={sinks} />
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
@@ -122,13 +73,8 @@ const Content = ({
           onClick={onRun}
         />
       </FlexWrapper>
-    </NavbarContentWrapper>
+    </PipelineLayoutNavbarWrapper>
   );
-};
-
-const PipelineLayoutNavbar = {
-  BackButton,
-  Content,
 };
 
 export default PipelineLayoutNavbar;

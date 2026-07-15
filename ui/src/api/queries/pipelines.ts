@@ -1,13 +1,13 @@
 import {
   createConnectQueryKey,
+  type UseMutationOptions,
+  type UseQueryOptions,
   useMutation,
   useQuery,
-  UseMutationOptions,
-  UseQueryOptions,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
-import {
+import type {
   GetPipelineRequest,
   GetPipelineResponse,
   ListPipelinesRequest,
@@ -56,10 +56,7 @@ export const useGetPipelineQuery = ({
   options = {},
 }: {
   input: GetPipelineRequest;
-  options?: UseQueryOptions<
-    typeof IngestionService.method.getPipeline.output,
-    GetPipelineResponse
-  >;
+  options?: UseQueryOptions<typeof IngestionService.method.getPipeline.output, GetPipelineResponse>;
 }) => {
   return useQuery<
     typeof IngestionService.method.getPipeline.input,

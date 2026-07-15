@@ -1,4 +1,4 @@
-import { Interceptor, Transport } from "@connectrpc/connect";
+import type { Interceptor, Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 
 import { API_BASE_URL, IS_DEBUG, IS_PRODUCTION } from "@/constants";

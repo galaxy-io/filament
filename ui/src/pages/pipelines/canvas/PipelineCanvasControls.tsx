@@ -1,6 +1,6 @@
-import { useReactFlow } from "@xyflow/react";
 import { styled } from "@linaria/react";
-import { PlusIcon, MinusIcon, CornersOutIcon } from "@phosphor-icons/react";
+import { CornersOutIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react";
+import { useReactFlow } from "@xyflow/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -58,11 +58,7 @@ const PipelineCanvasControls = () => {
         <Icon component={MinusIcon} size={12} variant={IconVariant.SECONDARY} />
       </ControlButton>
       <ControlButton onClick={() => fitView()}>
-        <Icon
-          component={CornersOutIcon}
-          size={12}
-          variant={IconVariant.SECONDARY}
-        />
+        <Icon component={CornersOutIcon} size={12} variant={IconVariant.SECONDARY} />
       </ControlButton>
     </ControlsContainer>
   );

@@ -1,20 +1,17 @@
 import { styled } from "@linaria/react";
 
-import FlexWrapper, {
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import {
-  PIPELINE_SIDEBAR_ITEMS,
-  PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP,
-  PIPELINE_SIDEBAR_WIDTH,
   PIPELINE_SIDEBAR_BUTTON_SIZE,
+  PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP,
+  PIPELINE_SIDEBAR_ITEMS,
+  PIPELINE_SIDEBAR_WIDTH,
 } from "@/layouts/pipeline/constants";
-import { PipelineSidebarItem } from "@/layouts/pipeline/types";
+import type { PipelineSidebarItem } from "@/layouts/pipeline/types";
 
 const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: ${PIPELINE_SIDEBAR_WIDTH}px;
@@ -29,9 +26,7 @@ const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const SidebarButton = withTheme(styled.button<
-  PropsWithTheme<{ $isActive?: boolean }>
->`
+const SidebarButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boolean }>>`
   width: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
   height: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
 
@@ -64,21 +59,14 @@ interface PipelineLayoutSidebarProps {
   onItemClick: (item: PipelineSidebarItem) => void;
 }
 
-const PipelineLayoutSidebar = ({
-  activeItem,
-  onItemClick,
-}: PipelineLayoutSidebarProps) => {
+const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSidebarProps) => {
   return (
     <SidebarWrapper>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM}>
         {PIPELINE_SIDEBAR_ITEMS.map((item) => {
           const isActive = activeItem === item;
           return (
-            <SidebarButton
-              key={item}
-              $isActive={isActive}
-              onClick={() => onItemClick(item)}
-            >
+            <SidebarButton key={item} $isActive={isActive} onClick={() => onItemClick(item)}>
               <Icon
                 component={PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP[item]}
                 size={18}

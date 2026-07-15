@@ -1,4 +1,4 @@
-import type { Node, Edge, BuiltInNode } from "@xyflow/react";
+import type { BuiltInNode, Edge, Node } from "@xyflow/react";
 
 // Node type identifiers
 export enum PipelineNodeType {

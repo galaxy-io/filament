@@ -165,7 +165,7 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 func (a *Server) storeSecretFields(ctx context.Context, schema ingestion.ConfigSchema, tenant, id string, version int64, cfg map[string]any, refs map[string]string) ([]string, error) {
 	var written []string
 	for _, field := range schema.Fields {
-		if field.Type != ingestion.FieldSecret {
+		if field.Type != ingestion.FieldSecret && !field.Secret {
 			continue
 		}
 		value, present := cfg[field.Name]

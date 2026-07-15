@@ -46,17 +46,17 @@ _each cmd:
 # tidy go.mod/go.sum in every Go module
 tidy: (_each "GOWORK=off go mod tidy")
 
-# apply gofumpt + goimports to every Go module (settings in .golangci.yaml)
-format: (_each "GOWORK=off golangci-lint fmt ./...")
+# apply gofumpt + goimports to every Go module (settings in .golangci.yaml), plus UI formatting
+format: (_each "GOWORK=off golangci-lint fmt ./...") ui-format
 
 # check formatting without writing
-format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...")
+format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...") ui-format-check
 
 # run linters and apply auto-fixes where possible
-lint: (_each "GOWORK=off golangci-lint run --fix ./...")
+lint: (_each "GOWORK=off golangci-lint run --fix ./...") ui-lint
 
 # run linters without fixing (what CI runs)
-lint-check: (_each "GOWORK=off golangci-lint run ./...")
+lint-check: (_each "GOWORK=off golangci-lint run ./...") ui-lint-check
 
 # run unit tests in every Go module except tests/ (integration; needs docker)
 test:
@@ -77,6 +77,7 @@ server:
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
+      ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       GOWORK=off go run .
 
 # run the control plane locally (defaults match docker-compose.yaml; env overrides)
@@ -87,11 +88,28 @@ control-plane:
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
       DISPATCH_MODE="${DISPATCH_MODE:-inproc}" \
+      ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       GOWORK=off go run .
 
 # run the web UI dev server (vite, proxies API to :8080)
 ui:
     cd ui && pnpm install && pnpm dev
+
+# apply Biome formatting to the UI package
+ui-format:
+    cd ui && pnpm run format
+
+# check UI formatting without writing
+ui-format-check:
+    cd ui && pnpm run format:check
+
+# run Biome lint and apply auto-fixes where possible
+ui-lint:
+    cd ui && pnpm run lint
+
+# run Biome lint without fixing (what CI runs)
+ui-lint-check:
+    cd ui && pnpm run lint:check
 
 # run the full app: control plane, API server, UI
 dev:

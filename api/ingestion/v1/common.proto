@@ -86,6 +86,8 @@ message ConfigField {
   repeated string enum = 5;
   string help = 6;
   FieldScope scope = 7;
+  // secret marks the field as sensitive: rendered masked, stored as a ref.
+  bool secret = 8;
 }
 
 // ConfigSchema mirrors pkg.ConfigSchema.

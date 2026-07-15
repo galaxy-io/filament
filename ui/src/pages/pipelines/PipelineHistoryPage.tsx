@@ -18,7 +18,7 @@ const PageWrapper = withTheme(styled.div<PropsWithTheme>`
 const PipelineHistoryPage = () => {
   return (
     <PageWrapper>
-      <Text variant={TextVariant.TERTIARY}>Run History - Coming Soon</Text>
+      <Text variant={TextVariant.TERTIARY}>No runs yet</Text>
     </PageWrapper>
   );
 };
