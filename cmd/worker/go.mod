@@ -9,6 +9,7 @@ require (
 	github.com/galaxy-io/filament/connectors/object v0.0.0
 	github.com/galaxy-io/filament/connectors/postgres v0.0.0
 	github.com/galaxy-io/filament/datastore/postgres v0.0.0
+	github.com/galaxy-io/filament/secret/postgres v0.0.0
 )
 
 require (
@@ -178,3 +179,5 @@ replace github.com/galaxy-io/filament/connectors/object => ../../connectors/obje
 replace github.com/galaxy-io/filament/connectors/postgres => ../../connectors/postgres
 
 replace github.com/galaxy-io/filament/datastore/postgres => ../../datastore/postgres
+
+replace github.com/galaxy-io/filament/secret/postgres => ../../secret/postgres

@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,8 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
+	"github.com/galaxy-io/filament/server"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
@@ -80,6 +83,22 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
+	encoded := os.Getenv("FILAMENT_SECRETS_KEY")
+	if encoded == "" {
+		return errors.New("FILAMENT_SECRETS_KEY is required")
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("FILAMENT_SECRETS_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	secrets, err := secretpostgres.New(pool, keyID, key)
+	if err != nil {
+		return err
+	}
 	if err := store.EnsureTenant(ctx, ingestion.TenantID(defaultTenantID()), "Default tenant"); err != nil {
 		return err
 	}
@@ -123,8 +142,16 @@ func run(ctx context.Context) error {
 		fmt.Println("mounted:", name)
 	}
 
-	<-ctx.Done()
-	return nil
+	addr := os.Getenv("INGESTION_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	mux := http.NewServeMux()
+	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus,
+		server.WithSecrets(secrets)).Mount(mux)
+	fmt.Println("connectrpc:", "http://localhost"+addr)
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	return srv.ListenAndServe()
 }
 
 func migrateEnabled() bool {
