@@ -141,13 +141,13 @@ func run(ctx context.Context) error {
 }
 
 func newSecrets(pool *pgxpool.Pool) (*secretpostgres.Provider, error) {
-	encoded := os.Getenv("FILAMENT_SECRETS_KEY")
+	encoded := os.Getenv("ENCRYPTION_KEY")
 	if encoded == "" {
-		return nil, errors.New("FILAMENT_SECRETS_KEY is required")
+		return nil, errors.New("ENCRYPTION_KEY is required")
 	}
 	key, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		return nil, fmt.Errorf("FILAMENT_SECRETS_KEY must be base64: %w", err)
+		return nil, fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
 	}
 	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
 	if keyID == "" {

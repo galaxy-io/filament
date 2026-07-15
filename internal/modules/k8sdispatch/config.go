@@ -44,7 +44,7 @@ func ConfigFromEnv() Config {
 		Kubeconfig:            getenv("K8S_KUBECONFIG", os.Getenv("KUBECONFIG")),
 		WorkerRestartPolicy:   getenv("K8S_WORKER_RESTART_POLICY", "Never"),
 		PassthroughEnv: append(splitCSV(os.Getenv("K8S_WORKER_PASSTHROUGH_ENV")),
-			"FILAMENT_SECRETS_KEY", "FILAMENT_SECRETS_KEY_ID"),
+			"ENCRYPTION_KEY", "FILAMENT_SECRETS_KEY_ID"),
 	}
 	if v := os.Getenv("K8S_JOB_TTL_SECONDS_AFTER_FINISHED"); v != "" {
 		n := int32Env("K8S_JOB_TTL_SECONDS_AFTER_FINISHED", 0)

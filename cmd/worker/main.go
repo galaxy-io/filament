@@ -60,13 +60,13 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	encoded := os.Getenv("FILAMENT_SECRETS_KEY")
+	encoded := os.Getenv("ENCRYPTION_KEY")
 	if encoded == "" {
-		return errors.New("FILAMENT_SECRETS_KEY is required")
+		return errors.New("ENCRYPTION_KEY is required")
 	}
 	key, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		return fmt.Errorf("FILAMENT_SECRETS_KEY must be base64: %w", err)
+		return fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
 	}
 	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
 	if keyID == "" {
