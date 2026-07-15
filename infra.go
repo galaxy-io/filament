@@ -43,6 +43,7 @@ type DataStore interface {
 // ConnectorKind identifies which registry owns a reusable connection.
 type ConnectorKind int
 
+// Connector kinds identify which registry owns a reusable connection.
 const (
 	ConnectorKindUnspecified ConnectorKind = iota
 	ConnectorKindSource
@@ -62,6 +63,7 @@ type Connection struct {
 	Version    int64
 }
 
+// ConnectionFilter narrows a connection listing by tenant and/or kind.
 type ConnectionFilter struct {
 	Tenant string
 	Kind   ConnectorKind

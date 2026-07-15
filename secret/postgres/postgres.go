@@ -39,7 +39,10 @@ func New(pool *pgxpool.Pool, keyID string, key []byte) (*Provider, error) {
 	}
 	return &Provider{q: sqlcgen.New(pool), keyID: keyID, gcm: gcm}, nil
 }
+
+// Name returns the provider identifier.
 func (p *Provider) Name() string { return "postgres" }
+
 func (p *Provider) Write(ctx context.Context, ref string, secret ingestion.Secret) error {
 	nonce := make([]byte, p.gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -77,6 +80,7 @@ func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, erro
 	return ingestion.Secret{Value: value, Meta: meta}, nil
 }
 
+// Delete removes the secret at ref; deleting a missing ref is a no-op.
 func (p *Provider) Delete(ctx context.Context, ref string) error {
 	if err := p.q.DeleteSecret(ctx, ref); err != nil {
 		return fmt.Errorf("secret/postgres: delete: %w", err)

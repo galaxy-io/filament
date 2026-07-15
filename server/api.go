@@ -24,8 +24,10 @@ type Server struct {
 	secrets ingestion.Secrets
 }
 
+// Option configures a Server.
 type Option func(*Server)
 
+// WithSecrets sets the secrets provider used to resolve secret refs.
 func WithSecrets(secrets ingestion.Secrets) Option { return func(s *Server) { s.secrets = secrets } }
 
 // New returns a Server wired to the given providers.

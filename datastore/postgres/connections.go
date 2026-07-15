@@ -11,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
+// CreateConnection stores a new connection at version 1, rejecting a duplicate ID.
 func (s *Store) CreateConnection(ctx context.Context, c ingestion.Connection) (ingestion.Connection, error) {
 	if c.ID == "" {
 		return ingestion.Connection{}, fmt.Errorf("datastore/postgres: connection id is required")
@@ -27,6 +28,7 @@ func (s *Store) CreateConnection(ctx context.Context, c ingestion.Connection) (i
 	return c, nil
 }
 
+// UpdateConnection replaces a stored connection, enforcing optimistic version matching.
 func (s *Store) UpdateConnection(ctx context.Context, c ingestion.Connection) (ingestion.Connection, error) {
 	if c.ID == "" {
 		return ingestion.Connection{}, fmt.Errorf("datastore/postgres: connection id is required")
@@ -46,6 +48,7 @@ func (s *Store) UpdateConnection(ctx context.Context, c ingestion.Connection) (i
 	return c, nil
 }
 
+// LoadConnection returns the connection with the given ID, or ErrNotFound.
 func (s *Store) LoadConnection(ctx context.Context, id string) (ingestion.Connection, error) {
 	row, err := s.q.GetConnection(ctx, id)
 	if err != nil {
@@ -57,6 +60,7 @@ func (s *Store) LoadConnection(ctx context.Context, id string) (ingestion.Connec
 	return connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version)
 }
 
+// ListConnections returns connections matching the filter, sorted by ID.
 func (s *Store) ListConnections(ctx context.Context, f ingestion.ConnectionFilter) ([]ingestion.Connection, error) {
 	kind := sqlcgen.NullConnectionKind{}
 	if f.Kind != ingestion.ConnectorKindUnspecified {
@@ -77,6 +81,7 @@ func (s *Store) ListConnections(ctx context.Context, f ingestion.ConnectionFilte
 	return out, nil
 }
 
+// DeleteConnection removes the connection with the given ID; deleting a missing ID is a no-op.
 func (s *Store) DeleteConnection(ctx context.Context, id string) error {
 	if err := s.q.DeleteConnection(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete connection: %w", err)

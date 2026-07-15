@@ -55,6 +55,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 	return connect.NewResponse(&ingestionv1.CreateConnectionResponse{Connection: connectionToProto(conn)}), nil
 }
 
+// UpdateConnection applies changes to an existing connection, enforcing optimistic versioning.
 func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[ingestionv1.UpdateConnectionRequest]) (*connect.Response[ingestionv1.UpdateConnectionResponse], error) {
 	in := req.Msg.GetConnection()
 	if in == nil || in.GetId() == "" {
@@ -107,6 +108,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: connectionToProto(next)}), nil
 }
 
+// GetConnection returns the connection with the requested ID.
 func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingestionv1.GetConnectionRequest]) (*connect.Response[ingestionv1.GetConnectionResponse], error) {
 	conn, err := a.store.LoadConnection(ctx, req.Msg.GetId())
 	if err != nil {
@@ -118,6 +120,7 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 	return connect.NewResponse(&ingestionv1.GetConnectionResponse{Connection: connectionToProto(conn)}), nil
 }
 
+// ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
 	connections, err := a.store.ListConnections(ctx, ingestion.ConnectionFilter{Tenant: req.Msg.GetTenant(), Kind: connectionKindFromProto(req.Msg.GetKind())})
 	if err != nil {
@@ -130,6 +133,7 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out}), nil
 }
 
+// DeleteConnection removes the connection with the requested ID.
 func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[ingestionv1.DeleteConnectionRequest]) (*connect.Response[ingestionv1.DeleteConnectionResponse], error) {
 	id := req.Msg.GetId()
 	conn, loadErr := a.store.LoadConnection(ctx, id)

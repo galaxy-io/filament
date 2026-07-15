@@ -14,6 +14,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	ingestion "github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -36,8 +38,9 @@ import (
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	if err := run(ctx); err != nil {
+	err := run(ctx)
+	stop()
+	if err != nil {
 		log.Fatal(err)
 	}
 }
@@ -86,19 +89,7 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	encoded := os.Getenv("FILAMENT_SECRETS_KEY")
-	if encoded == "" {
-		return errors.New("FILAMENT_SECRETS_KEY is required")
-	}
-	key, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return fmt.Errorf("FILAMENT_SECRETS_KEY must be base64: %w", err)
-	}
-	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
-	if keyID == "" {
-		keyID = "default"
-	}
-	secrets, err := secretpostgres.New(pool, keyID, key)
+	secrets, err := newSecrets(pool)
 	if err != nil {
 		return err
 	}
@@ -147,6 +138,22 @@ func run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+func newSecrets(pool *pgxpool.Pool) (*secretpostgres.Provider, error) {
+	encoded := os.Getenv("FILAMENT_SECRETS_KEY")
+	if encoded == "" {
+		return nil, errors.New("FILAMENT_SECRETS_KEY is required")
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("FILAMENT_SECRETS_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	return secretpostgres.New(pool, keyID, key)
 }
 
 func migrateEnabled() bool {

@@ -1,5 +1,8 @@
 set dotenv-load
 
+default:
+    @just --list
+
 # generate all checked-in generated code
 gen: proto sqlc
 

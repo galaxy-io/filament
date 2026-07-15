@@ -67,7 +67,9 @@ func WithSources(s ingestion.SourceRegistry) Option { return func(c *Config) { c
 
 // WithSinks overrides the sink registry (default: registry.DefaultSinks).
 func WithSinks(s ingestion.SinkRegistry) Option { return func(c *Config) { c.Sinks = s } }
-func WithSecrets(s ingestion.Secrets) Option    { return func(c *Config) { c.Secrets = s } }
+
+// WithSecrets sets the secrets provider used to resolve secret refs (default: none).
+func WithSecrets(s ingestion.Secrets) Option { return func(c *Config) { c.Secrets = s } }
 
 // WithUI mounts a handler for the web UI at "/" (default: none). The ui
 // package provides one: app.WithUI(ui.Handler()). ConnectRPC routes take

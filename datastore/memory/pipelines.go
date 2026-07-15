@@ -6,11 +6,13 @@ import (
 	"slices"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"google.golang.org/protobuf/proto"
 )
 
+// CreatePipeline stores a new pipeline at version 1, rejecting a duplicate ID.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -26,6 +28,7 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return next, nil
 }
 
+// UpdatePipeline replaces a stored pipeline, enforcing optimistic version matching.
 func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -45,6 +48,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return next, nil
 }
 
+// LoadPipeline returns the pipeline with the given ID, or ErrNotFound.
 func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -58,6 +62,7 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	return clonePipeline(p), nil
 }
 
+// ListPipelines returns pipelines for the tenant (all tenants if empty), sorted by ID.
 func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -74,6 +79,7 @@ func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv
 	return out, nil
 }
 
+// DeletePipeline removes the pipeline with the given ID; deleting a missing ID is a no-op.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
