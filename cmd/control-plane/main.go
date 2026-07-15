@@ -11,6 +11,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	ingestion "github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
@@ -23,7 +25,6 @@ import (
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
-	"github.com/galaxy-io/filament/server"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
@@ -34,7 +35,9 @@ import (
 )
 
 func main() {
-	if err := run(context.Background()); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -121,7 +124,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
+		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
 		tracker.New(),
 		dispatch,
 	)
@@ -142,16 +145,8 @@ func run(ctx context.Context) error {
 		fmt.Println("mounted:", name)
 	}
 
-	addr := os.Getenv("INGESTION_ADDR")
-	if addr == "" {
-		addr = ":8080"
-	}
-	mux := http.NewServeMux()
-	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus,
-		server.WithSecrets(secrets)).Mount(mux)
-	fmt.Println("connectrpc:", "http://localhost"+addr)
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	return srv.ListenAndServe()
+	<-ctx.Done()
+	return nil
 }
 
 func migrateEnabled() bool {

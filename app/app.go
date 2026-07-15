@@ -47,8 +47,10 @@ import (
 type Config struct {
 	Bus     eventbus.Bus
 	Store   ingestion.DataStore
+	Secrets ingestion.Secrets
 	Sources ingestion.SourceRegistry
 	Sinks   ingestion.SinkRegistry
+	UI      http.Handler
 }
 
 // Option mutates a Config. Options passed to Run override the defaults.
