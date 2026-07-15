@@ -2,24 +2,20 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
-	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/proto"
+	"github.com/google/uuid"
 
 	ingestion "github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
 // CreatePipeline stores a new pipeline and assigns its id.
-func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	a.nextID++
-	id := fmt.Sprintf("pipe-%d", a.nextID)
+func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
+	id := uuid.NewString()
 	pipeline := &ingestionv1.Pipeline{
 		Id:      id,
 		Tenant:  defaultTenant(req.Msg.GetTenant()),
@@ -28,94 +24,91 @@ func (a *Server) CreatePipeline(_ context.Context, req *connect.Request[ingestio
 		Edges:   req.Msg.GetEdges(),
 		Version: 1,
 	}
-	a.pipelines[id] = proto.Clone(pipeline).(*ingestionv1.Pipeline)
-	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: pipeline}), nil
+	created, err := a.store.CreatePipeline(ctx, pipeline)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: created}), nil
 }
 
 // UpdatePipeline replaces the stored pipeline, bumping its version.
-func (a *Server) UpdatePipeline(_ context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
+func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
 	pipeline := req.Msg.GetPipeline()
 	if pipeline == nil || pipeline.GetId() == "" {
 		return nil, fmt.Errorf("pipeline.id is required")
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	next := proto.Clone(pipeline).(*ingestionv1.Pipeline)
-	next.Version++
-	if next.Tenant == "" {
-		next.Tenant = "t1"
+	if pipeline.Tenant == "" {
+		pipeline.Tenant = "t1"
 	}
-	a.pipelines[next.Id] = next
-	return connect.NewResponse(&ingestionv1.UpdatePipelineResponse{Pipeline: proto.Clone(next).(*ingestionv1.Pipeline)}), nil
+	next, err := a.store.UpdatePipeline(ctx, pipeline)
+	if errors.Is(err, ingestion.ErrVersionConflict) {
+		return nil, connect.NewError(connect.CodeAborted, err)
+	}
+	if errors.Is(err, ingestion.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.UpdatePipelineResponse{Pipeline: next}), nil
 }
 
 // GetPipeline returns the pipeline by id.
-func (a *Server) GetPipeline(_ context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	pipeline := a.pipelines[req.Msg.GetId()]
-	if pipeline == nil {
-		return nil, fmt.Errorf("pipeline %q not found", req.Msg.GetId())
+func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
+	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetId())
+	if errors.Is(err, ingestion.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	return connect.NewResponse(&ingestionv1.GetPipelineResponse{Pipeline: proto.Clone(pipeline).(*ingestionv1.Pipeline)}), nil
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.GetPipelineResponse{Pipeline: pipeline}), nil
 }
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
-func (a *Server) ListPipelines(_ context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	var pipelines []*ingestionv1.Pipeline
-	for _, pipeline := range a.pipelines {
-		if req.Msg.GetTenant() != "" && pipeline.GetTenant() != req.Msg.GetTenant() {
-			continue
-		}
-		pipelines = append(pipelines, proto.Clone(pipeline).(*ingestionv1.Pipeline))
+func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
+	pipelines, err := a.store.ListPipelines(ctx, req.Msg.GetTenant())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	slices.SortFunc(pipelines, func(a, b *ingestionv1.Pipeline) int {
-		if a.GetId() < b.GetId() {
-			return -1
-		}
-		if a.GetId() > b.GetId() {
-			return 1
-		}
-		return 0
-	})
 	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines}), nil
 }
 
 // DeletePipeline removes the pipeline by id.
-func (a *Server) DeletePipeline(_ context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	delete(a.pipelines, req.Msg.GetId())
+func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
+	if err := a.store.DeletePipeline(ctx, req.Msg.GetId()); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }
 
 // RunPipeline groups the pipeline's edges into per-route runs and submits each
 // to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
-	a.mu.RLock()
-	stored := a.pipelines[req.Msg.GetPipelineId()]
-	connections := make(map[string]*ingestionv1.Connection, len(a.connections))
-	for id, conn := range a.connections {
-		connections[id] = proto.Clone(conn).(*ingestionv1.Connection)
+	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetPipelineId())
+	if errors.Is(err, ingestion.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	a.mu.RUnlock()
-	if stored == nil {
-		return nil, fmt.Errorf("pipeline %q not found", req.Msg.GetPipelineId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	pipeline := proto.Clone(stored).(*ingestionv1.Pipeline)
 	nodes := map[string]*ingestionv1.PipelineNode{}
+	connections := map[string]ingestion.Connection{}
 	for _, node := range pipeline.GetNodes() {
 		nodes[node.GetId()] = node
+		if _, ok := connections[node.GetConnectionId()]; !ok {
+			conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
+			if err != nil {
+				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
+			}
+			connections[node.GetConnectionId()] = conn
+		}
 	}
 
 	var bindings []*ingestionv1.RunBinding
 	token := req.Msg.GetClientToken()
 	if token == "" {
-		token = fmt.Sprint(time.Now().UnixNano())
+		token = uuid.NewString()
 	}
 	groups, err := groupEdges(pipeline.GetEdges(), nodes)
 	if err != nil {
@@ -148,7 +141,6 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 			IdempotencyKey: fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
 			Source:         sourceRef,
 			Sink:           sinkRef,
-			DataStore:      ingestion.Ref{Provider: "default"},
 			Resources:      resources,
 			Selectors:      selectors,
 			IngestionType:  group.ingestionType,
@@ -189,7 +181,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			return nil, fmt.Errorf("edge references missing node")
 		}
 		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-		key := fmt.Sprintf("%s||%s||%s", edge.GetFromNode(), edge.GetToNode(), ingestionType)
+		key := fmt.Sprintf("route/%s/%s/%s", edge.GetFromNode(), edge.GetToNode(), ingestionType)
 		group := byKey[key]
 		if group == nil {
 			group = &routeGroup{
@@ -224,21 +216,21 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 // Connection it references, with the node's config/secret_refs shallow-merged
 // on top as the PIPELINE overlay (node keys win). connection_id is required.
 // It rejects an overlay that tries to set a CONNECTION-scoped field.
-func (a *Server) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]*ingestionv1.Connection) (ingestion.Ref, error) {
-	conn := connections[node.GetConnectionId()]
-	if conn == nil {
+func (a *Server) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]ingestion.Connection) (ingestion.Ref, error) {
+	conn, ok := connections[node.GetConnectionId()]
+	if !ok {
 		return ingestion.Ref{}, fmt.Errorf("node %q references missing connection %q", node.GetId(), node.GetConnectionId())
 	}
 	overlay := structMap(node.GetConfig())
-	if schema, err := a.schemaFor(conn.GetKind(), conn.GetConnector()); err == nil {
+	if schema, err := a.schemaFor(connectionKindToProto(conn.Kind), conn.Connector); err == nil {
 		if err := validateOverlayConfig(schema, overlay); err != nil {
 			return ingestion.Ref{}, fmt.Errorf("node %q: %w", node.GetId(), err)
 		}
 	}
 	return ingestion.Ref{
-		Provider:   conn.GetConnector(),
-		Config:     mergeConfig(structMap(conn.GetConfig()), overlay),
-		SecretRefs: mergeStrings(conn.GetSecretRefs(), node.GetSecretRefs()),
+		Provider:   conn.Connector,
+		Config:     mergeConfig(conn.Config, overlay),
+		SecretRefs: mergeStrings(conn.SecretRefs, node.GetSecretRefs()),
 	}, nil
 }
 

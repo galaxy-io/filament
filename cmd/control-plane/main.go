@@ -5,11 +5,16 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	ingestion "github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
@@ -21,6 +26,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
@@ -31,7 +37,10 @@ import (
 )
 
 func main() {
-	if err := run(context.Background()); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := run(ctx)
+	stop()
+	if err != nil {
 		log.Fatal(err)
 	}
 }
@@ -80,6 +89,10 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
+	secrets, err := newSecrets(pool)
+	if err != nil {
+		return err
+	}
 	if err := store.EnsureTenant(ctx, ingestion.TenantID(defaultTenantID()), "Default tenant"); err != nil {
 		return err
 	}
@@ -102,7 +115,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
+		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
 		tracker.New(),
 		dispatch,
 	)
@@ -125,6 +138,22 @@ func run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+func newSecrets(pool *pgxpool.Pool) (*secretpostgres.Provider, error) {
+	encoded := os.Getenv("ENCRYPTION_KEY")
+	if encoded == "" {
+		return nil, errors.New("ENCRYPTION_KEY is required")
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	return secretpostgres.New(pool, keyID, key)
 }
 
 func migrateEnabled() bool {

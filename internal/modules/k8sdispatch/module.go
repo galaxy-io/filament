@@ -103,7 +103,6 @@ func specFromState(s ingestion.RunState) ingestion.RunSpec {
 		Run:           s.Run,
 		Source:        r.Source,
 		Sink:          r.Sink,
-		DataStore:     r.DataStore,
 		Resources:     r.Resources,
 		Selectors:     r.Selectors,
 		IngestionType: r.IngestionType.OrDefault(),

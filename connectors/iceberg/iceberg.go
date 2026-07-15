@@ -227,7 +227,7 @@ func (s *Sink) Stage(_ context.Context) (ingestion.StageID, error) {
 	if s.cat == nil {
 		return "", fmt.Errorf("iceberg sink: Stage called before Open")
 	}
-	id := ingestion.StageID(uuid.New().String())
+	id := ingestion.StageID(uuid.NewString())
 	s.stages[id] = newStage(id)
 	s.curStage = id
 	return id, nil
@@ -342,7 +342,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	s.mu.Lock()
 	st := s.stages[s.curStage]
 	if st == nil && s.writeMode == writeModeReplace && len(s.tables) > 0 {
-		st = newStage(ingestion.StageID(uuid.New().String()))
+		st = newStage(ingestion.StageID(uuid.NewString()))
 		s.stages[st.id] = st
 		s.curStage = st.id
 	}
@@ -429,7 +429,7 @@ func (s *Sink) activeStageLocked() *stage {
 	if st := s.stages[s.curStage]; st != nil {
 		return st
 	}
-	id := ingestion.StageID(uuid.New().String())
+	id := ingestion.StageID(uuid.NewString())
 	st := newStage(id)
 	s.stages[id] = st
 	s.curStage = id

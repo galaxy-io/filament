@@ -2,10 +2,11 @@ go 1.26.4
 
 use (
 	.
-	./examples/ingestiond
 	./connectors/http
 	./connectors/iceberg
 	./connectors/object
 	./connectors/postgres
+	./examples/ingestiond
+	./secret/postgres
 	./tests
 )

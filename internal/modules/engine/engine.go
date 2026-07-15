@@ -16,6 +16,7 @@ import (
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/runner"
 )
 
 // Module is the extraction engine. One run.requested fact drives one extraction.
@@ -25,6 +26,7 @@ type Module struct {
 	sources ingestion.SourceRegistry
 	sinks   ingestion.SinkRegistry
 	log     ingestion.Logger
+	secrets ingestion.Secrets
 }
 
 // New returns an unmounted engine. Providers are injected by Mount.
@@ -50,6 +52,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.sources = d.Sources
 	m.sinks = d.Sinks
 	m.log = d.Log
+	m.secrets = d.Secrets
 	return nil
 }
 
@@ -86,7 +89,6 @@ func specFromState(s ingestion.RunState) ingestion.RunSpec {
 		Run:           s.Run,
 		Source:        r.Source,
 		Sink:          r.Sink,
-		DataStore:     r.DataStore,
 		Resources:     r.Resources,
 		Selectors:     r.Selectors,
 		IngestionType: r.IngestionType.OrDefault(),
@@ -103,6 +105,10 @@ func specFromState(s ingestion.RunState) ingestion.RunSpec {
 func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	em := newEmitter(ctx, m.bus, m.log, spec.Tenant, spec.Run)
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
+	if err := runner.ResolveConfigRefs(ctx, m.secrets, &spec); err != nil {
+		em.fail(err)
+		return
+	}
 
 	src, err := m.sources.Resolve(spec.Source.Provider)
 	if err != nil {
