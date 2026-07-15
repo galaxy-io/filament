@@ -10,7 +10,6 @@ export const CONNECTOR_GRID_MIN_COLUMN_WIDTH = 320;
 export const CONNECTOR_DRAWER_WIDTH = 600;
 export const CREATE_CONNECTION_MODAL_SELECTOR_WIDTH = 900;
 export const CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH = 720;
-export const CREATE_CONNECTION_MODAL_MIN_HEIGHT = 640;
 export const CREATE_CONNECTION_MODAL_MAX_HEIGHT = 720;
 
 // ConnectorKind → Label (singular)
@@ -21,21 +20,26 @@ export const CONNECTOR_KIND_TO_LABEL_MAP: Record<ConnectorKind, string> = {
 };
 
 // ConnectorKind → Label (plural, for filters)
-export const CONNECTOR_KIND_FILTER_TO_LABEL_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "All connectors",
-  [ConnectorKind.SOURCE]: "Sources",
-  [ConnectorKind.SINK]: "Sinks",
-};
+export const CONNECTOR_KIND_FILTER_TO_LABEL_MAP: Record<ConnectorKind, string> =
+  {
+    [ConnectorKind.UNSPECIFIED]: "All connectors",
+    [ConnectorKind.SOURCE]: "Sources",
+    [ConnectorKind.SINK]: "Sinks",
+  };
 
 // ConnectorKind → Description
-export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "All connector types",
-  [ConnectorKind.SOURCE]: "Ingest data from external systems",
-  [ConnectorKind.SINK]: "Send data to external destinations",
-};
+export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> =
+  {
+    [ConnectorKind.UNSPECIFIED]: "All connector types",
+    [ConnectorKind.SOURCE]: "Ingest data from external systems",
+    [ConnectorKind.SINK]: "Send data to external destinations",
+  };
 
 // ConnectorKind → Chip variant
-export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<ConnectorKind, ChipVariant> = {
+export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<
+  ConnectorKind,
+  ChipVariant
+> = {
   [ConnectorKind.UNSPECIFIED]: ChipVariant.TERTIARY,
   [ConnectorKind.SOURCE]: ChipVariant.LIME,
   [ConnectorKind.SINK]: ChipVariant.PINK,
