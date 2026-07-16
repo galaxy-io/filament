@@ -1,161 +1,203 @@
-nameOverride: ""
-fullnameOverride: ""
-namespaceOverride: ""
-commonLabels: {}
-commonAnnotations: {}
+# Default values for the Filament Helm chart.
+#
+# This file is intentionally production-safe: connection strings and
+# encryption keys must be supplied by the installer or by an existing Secret.
 
-# Bring-your-own Secret holding Persistence, Secrets, and Event Bus configuration
+# -- Provide a name in place of `filament`.
+nameOverride: ""
+
+# -- String to fully override the generated release name.
+fullnameOverride: ""
+
+# -- Override the namespace used in rendered manifests.
+namespaceOverride: ""
+
+# -- Labels added to all Filament resources.
+commonLabels: {}
+
+# -- Name of an existing Secret containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`, and `NATS_URL`.
+# When set, the chart does not create its own Secret.
 existingSecret: ""
 
 server:
   image:
+    # -- Server image repository.
     repository: galaxy-io/filament-server
-    tag: "latest"
+    # -- Server image tag.
+    # @default -- `""` (defaults to chart appVersion)
+    tag: ""
+    # -- Server image pull policy.
     pullPolicy: IfNotPresent
+    # -- Image pull secrets for the server Deployment.
     pullSecrets: []
 
+  # -- Number of server replicas. Ignored when `server.autoscaling.enabled` is true.
   replicas: 1
 
-  # Autoscaling takes precedence over replicas
   autoscaling:
+    # -- Enable a HorizontalPodAutoscaler for the server.
     enabled: false
+    # -- Minimum server replicas when autoscaling is enabled.
     minReplicas: 1
+    # -- Maximum server replicas when autoscaling is enabled.
     maxReplicas: 10
+    # -- Target average CPU utilization percentage for server autoscaling.
     targetCpu: 80
 
   service:
+    # -- Server service and container port.
     port: 8080
 
-  resources:
-    limits:
-      cpu: 100m
-      memory: 128Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
+  # -- Server resource requests and limits.
+  # @default -- `{}` (See [values.yaml])
+  resources: {}
 
 controlPlane:
+  # -- Deploy the Filament control plane.
   enabled: true
 
   image:
+    # -- Control plane image repository.
     repository: galaxy-io/filament-control-plane
-    tag: "latest"
+    # -- Control plane image tag.
+    # @default -- `""` (defaults to chart appVersion)
+    tag: ""
+    # -- Control plane image pull policy.
     pullPolicy: IfNotPresent
+    # -- Image pull secrets for the control plane Deployment.
     pullSecrets: []
 
+  # -- Number of control plane replicas. Ignored when `controlPlane.autoscaling.enabled` is true.
   replicas: 1
 
-  # Autoscaling takes precedence over replicas
   autoscaling:
+    # -- Enable a HorizontalPodAutoscaler for the control plane.
     enabled: false
+    # -- Minimum control plane replicas when autoscaling is enabled.
     minReplicas: 1
+    # -- Maximum control plane replicas when autoscaling is enabled.
     maxReplicas: 10
+    # -- Target average CPU utilization percentage for control plane autoscaling.
     targetCpu: 80
 
-  resources:
-    limits:
-      cpu: 100m
-      memory: 128Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
+  # -- Control plane resource requests and limits.
+  # @default -- `{}` (See [values.yaml])
+  resources: {}
 
-  # Dispatch
   dispatch:
+    # -- Worker dispatch backend.
     mode: kubernetes
+
     worker:
       image:
+        # -- Worker image repository used for dispatched Jobs.
         repository: galaxy-io/filament-worker
-        tag: "latest"
+        # -- Worker image tag.
+        # @default -- `""` (defaults to chart appVersion)
+        tag: ""
+        # -- Worker image pull policy.
         pullPolicy: IfNotPresent
-        # Pull secrets for dispatched worker Jobs
+        # -- Image pull secrets for dispatched worker Jobs.
         pullSecrets: []
+      # -- Existing ServiceAccount name for dispatched worker Jobs. Defaults to the chart-created worker ServiceAccount.
       serviceAccount: ""
+      # -- Restart policy for dispatched worker Jobs.
       restartPolicy: Never
+      # -- Worker Job termination grace period in seconds.
       terminationGraceSeconds: 30
+      # -- Worker Job active deadline in seconds. Leave empty for no deadline.
       activeDeadlineSeconds: ""
+
     job:
+      # -- Prefix used when naming dispatched worker Jobs.
       namePrefix: filament
+      # -- Kubernetes Job backoff limit for dispatched workers.
       backoffLimit: 1
+      # -- Seconds to retain completed dispatched worker Jobs.
       ttlSecondsAfterFinished: 3600
 
 persistence:
+  # -- Persistence provider.
   type: postgresql
-  # Run migrations as a post-install/post-upgrade hook Job after Postgres is up.
+
+  # -- Run database migrations as a post-install/post-upgrade hook Job.
   migrate: true
 
   postgresql:
-    enabled: true
-    # Must match postgresql.auth below when using the bundled instance
-    dsn: "postgresql://filament:super-secret-key@filament-postgresql:5432/filament?sslmode=disable"
+    # -- PostgreSQL connection string stored in the chart-created Secret as `PERSISTENCE_DSN`.
+    # Required unless `existingSecret` is set.
+    # @default -- required
+    dsn: ""
 
-    # Not wired yet; dsn is the interface
-    host: filament-postgresql
-    port: 5432
-    database: filament
-    username: filament
-    password:
-      value: super-secret-key
-      existingSecret:
-        name: ""
-        key: ""
-
-    sslMode: disable
-
-  # NOTE: MySQL is not currently supported
+  # @ignore
   mysql: {}
 
 secrets:
-  enabled: true
+  # -- Secret storage provider.
   type: postgres
 
   postgres:
-    # Stored with each secret row; bump when rotating
+    # -- Encryption key identifier stored with each secret row. Change this when rotating keys.
     encryptionKeyId: ""
-    # base64 AES key (16/24/32 bytes); override in production
-    encryptionKey: ZmlsYW1lbnQtZGV2LWVuY3J5cHRpb24ta2V5LTAwMDA=
+    # -- Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`.
+    # Required unless `existingSecret` is set.
+    # @default -- required
+    encryptionKey: ""
 
-  # AWS is not currently supported
+  # @ignore
   aws: {}
 
-  # GCP is not currently supported
+  # @ignore
   gcp: {}
 
-  # Azure is not currently supported
+  # @ignore
   azure: {}
 
-  # Vault is not currently supported
+  # @ignore
   vault: {}
 
 eventBus:
+  # -- Event bus provider.
   type: nats
 
   nats:
-    enabled: true
-    url: nats://filament-nats:4222
+    # -- NATS connection URL stored in the chart-created Secret as `NATS_URL`.
+    # Required unless `existingSecret` is set.
+    # @default -- required
+    url: ""
+    # -- NATS stream used by Filament.
     stream: EVENTBUS
+    # -- NATS subject filter consumed by Filament.
     subjects: "ingestion.v1.>"
 
-  # NOTE: Kafka is not currently supported
+  # @ignore
   kafka: {}
 
-# NOTE: It is strongly recommended to use an external PostgreSQL instance in production
-# Minimal vendored PostgreSQL configuration
-# More configuration can be found in the Bitnami PostgreSQL chart: https://artifacthub.io/packages/helm/bitnami/postgresql
+# Vendored Bitnami PostgreSQL configuration.
+# It is strongly recommended to use an external PostgreSQL instance in production.
 postgresql:
-  enabled: true
+  # -- Enable the vendored Bitnami PostgreSQL chart for local or test clusters. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) for additional configuration.
+  enabled: false
+  # -- Full name override for the vendored PostgreSQL release.
   fullnameOverride: filament-postgresql
   auth:
+    # -- Disable the default `postgres` superuser in the vendored PostgreSQL chart.
     enablePostgresUser: false
+    # -- Database created by the vendored PostgreSQL chart.
     database: filament
+    # -- Username created by the vendored PostgreSQL chart.
     username: filament
-    password: super-secret-key
+    # -- Password for the vendored PostgreSQL user. Must match `persistence.postgresql.dsn` when vendored PostgreSQL is enabled.
+    # @default -- required when `postgresql.enabled=true`
+    password: ""
 
-# Minimal vendored NATS configuration
-# More configuration can be found in the NATS chart: https://artifacthub.io/packages/helm/nats/nats
+# Vendored NATS configuration.
 nats:
-  enabled: true
+  # -- Enable the vendored NATS chart for local or test clusters. See the [NATS chart](https://artifacthub.io/packages/helm/nats/nats) for additional configuration.
+  enabled: false
+  # -- Full name override for the vendored NATS release.
   fullnameOverride: filament-nats
   config:
     jetstream:
+      # -- Enable JetStream in the vendored NATS chart.
       enabled: true

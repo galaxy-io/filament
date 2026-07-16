@@ -28,7 +28,7 @@ spec:
       {{- end }}
       containers:
         - name: control-plane
-          image: {{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag }}
+          image: {{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
           ports:
             - name: health
