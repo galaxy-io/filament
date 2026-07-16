@@ -1,9 +1,9 @@
-{{- if or .Values.controlPlane.autoscaling.enabled (gt (int .Values.controlPlane.replicas) 1) }}
+{{- if and .Values.controlPlane.enabled (or .Values.controlPlane.autoscaling.enabled (gt (int .Values.controlPlane.replicas) 1)) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ include "filament.controlPlane.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "filament.namespace" . }}
   labels:
     {{- include "filament.controlPlane.labels" . | nindent 4 }}
 spec:

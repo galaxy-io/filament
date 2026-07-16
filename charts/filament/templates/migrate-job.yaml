@@ -1,0 +1,39 @@
+{{- if .Values.persistence.migrate }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-migrate" (include "filament.fullname" .) }}
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        {{- include "filament.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      {{- with .Values.server.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          args: ["-migrate"]
+          env:
+            - name: PERSISTENCE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "filament.secretName" . }}
+                  key: PERSISTENCE_DSN
+{{- end }}

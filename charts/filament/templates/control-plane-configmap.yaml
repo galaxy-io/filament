@@ -1,26 +1,30 @@
+{{- if .Values.controlPlane.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "filament.controlPlane.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "filament.namespace" . }}
 data:
-  PERSISTENCE_MIGRATE: {{ .Values.persistence.migrate | quote }}
-
   # NATS
-  NATS_URL: {{ .Values.eventBus.nats.url }}
-  NATS_STREAM: {{ .Values.eventBus.nats.stream }}
-  NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects }}
+  NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
+  NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
 
   # Dispatch
-  DISPATCH_MODE: {{ .Values.controlPlane.dispatchMode | quote }}
+  DISPATCH_MODE: {{ .Values.controlPlane.dispatch.mode | quote }}
+
+  # Secrets
+  SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
+  {{- with .Values.secrets.postgres.encryptionKeyId }}
+  ENCRYPTION_KEY_ID: {{ . | quote }}
+  {{- end }}
 
   # Worker
-  K8S_NAMESPACE: {{ .Release.Namespace }}
+  K8S_NAMESPACE: {{ include "filament.namespace" . }}
   K8S_WORKER_IMAGE: {{ .Values.controlPlane.dispatch.worker.image.repository }}:{{ .Values.controlPlane.dispatch.worker.image.tag }}
-  K8S_WORKER_IMAGE_PULL_POLICY: {{ .Values.controlPlane.dispatch.worker.image.pullPolicy }}
+  K8S_WORKER_IMAGE_PULL_POLICY: {{ .Values.controlPlane.dispatch.worker.image.pullPolicy | quote }}
   K8S_WORKER_SERVICE_ACCOUNT: {{ include "filament.worker.serviceAccountName" . | quote }}
-  K8S_WORKER_RESTART_POLICY: {{ .Values.controlPlane.dispatch.worker.restartPolicy }}
-  K8S_WORKER_PASSTHROUGH_ENV: {{ join "," .Values.controlPlane.dispatch.worker.passthroughEnv | quote }}
+  K8S_WORKER_RESTART_POLICY: {{ .Values.controlPlane.dispatch.worker.restartPolicy | quote }}
+  K8S_WORKER_SECRET_NAME: {{ include "filament.secretName" . | quote }}
   {{- with .Values.controlPlane.dispatch.worker.terminationGraceSeconds }}
   K8S_WORKER_TERMINATION_GRACE_SECONDS: {{ . | quote }}
   {{- end }}
@@ -29,6 +33,7 @@ data:
   {{- end }}
 
   # Jobs
-  K8S_JOB_NAME_PREFIX: {{ .Values.controlPlane.dispatch.job.namePrefix }}
+  K8S_JOB_NAME_PREFIX: {{ .Values.controlPlane.dispatch.job.namePrefix | quote }}
   K8S_JOB_BACKOFF_LIMIT: {{ .Values.controlPlane.dispatch.job.backoffLimit | quote }}
   K8S_JOB_TTL_SECONDS_AFTER_FINISHED: {{ .Values.controlPlane.dispatch.job.ttlSecondsAfterFinished | quote }}
+{{- end }}

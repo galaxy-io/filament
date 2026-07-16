@@ -1,7 +1,9 @@
+{{- if .Values.controlPlane.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "filament.controlPlane.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
   labels:
     {{- include "filament.controlPlane.labels" . | nindent 4 }}
 spec:
@@ -15,22 +17,40 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/control-plane-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "filament.controlPlane.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "filament.controlPlane.serviceAccountName" . }}
+      {{- with .Values.controlPlane.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: control-plane
           image: {{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag }}
           imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
-          env:
-            - name: PERSISTENCE_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "filament.postgresql.secretName" . }}
-                  key: {{ include "filament.postgresql.secretKey" . }}
+          ports:
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
           envFrom:
             - configMapRef:
                 name: {{ include "filament.controlPlane.fullname" . }}
+            - secretRef:
+                name: {{ include "filament.secretName" . }}
           resources:
             {{- toYaml .Values.controlPlane.resources | nindent 12 }}
+{{- end }}

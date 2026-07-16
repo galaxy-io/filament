@@ -1,25 +1,25 @@
-{{- if and .Values.controlPlane.enabled .Values.controlPlane.autoscaling.enabled }}
+{{- if .Values.server.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "filament.controlPlane.fullname" . }}
+  name: {{ include "filament.server.fullname" . }}
   namespace: {{ include "filament.namespace" . }}
   labels:
-    {{- include "filament.controlPlane.labels" . | nindent 4 }}
+    {{- include "filament.server.labels" . | nindent 4 }}
 spec:
-  minReplicas: {{ .Values.controlPlane.autoscaling.minReplicas }}
-  maxReplicas: {{ .Values.controlPlane.autoscaling.maxReplicas }}
+  minReplicas: {{ .Values.server.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.server.autoscaling.maxReplicas }}
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "filament.controlPlane.fullname" . }}
+    name: {{ include "filament.server.fullname" . }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.controlPlane.autoscaling.targetCpu }}
+          averageUtilization: {{ .Values.server.autoscaling.targetCpu }}
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 300

@@ -2,10 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "filament.server.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
   labels:
     {{- include "filament.server.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.server.autoscaling.enabled }}
   replicas: {{ .Values.server.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "filament.server.selectorLabels" . | nindent 6 }}
@@ -13,10 +16,15 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/server-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "filament.server.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "filament.server.serviceAccountName" . }}
+      {{- with .Values.server.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: server
           image: {{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}
@@ -25,14 +33,22 @@ spec:
             - name: http
               containerPort: {{ .Values.server.service.port }}
               protocol: TCP
-          env:
-            - name: PERSISTENCE_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "filament.postgresql.secretName" . }}
-                  key: {{ include "filament.postgresql.secretKey" . }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
           envFrom:
             - configMapRef:
                 name: {{ include "filament.server.fullname" . }}
+            - secretRef:
+                name: {{ include "filament.secretName" . }}
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}

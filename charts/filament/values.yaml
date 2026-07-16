@@ -4,6 +4,9 @@ namespaceOverride: ""
 commonLabels: {}
 commonAnnotations: {}
 
+# Bring-your-own Secret holding Persistence, Secrets, and Event Bus configuration
+existingSecret: ""
+
 server:
   image:
     repository: galaxy-io/filament-server
@@ -11,7 +14,14 @@ server:
     pullPolicy: IfNotPresent
     pullSecrets: []
 
-  replicas: 1
+  replicas: 3
+
+  # Autoscaling takes precedence over replicas
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCpu: 80
 
   service:
     port: 8080
@@ -33,7 +43,7 @@ controlPlane:
     pullPolicy: IfNotPresent
     pullSecrets: []
 
-  replicas: 1
+  replicas: 3
 
   # Autoscaling takes precedence over replicas
   autoscaling:
@@ -41,9 +51,6 @@ controlPlane:
     minReplicas: 1
     maxReplicas: 10
     targetCpu: 80
-
-  # Execution environment for requested runs: kubernetes | inproc
-  dispatchMode: kubernetes
 
   resources:
     limits:
@@ -55,40 +62,40 @@ controlPlane:
 
   # Dispatch
   dispatch:
+    mode: kubernetes
     worker:
       image:
         repository: galaxy-io/filament-worker
         tag: "latest"
         pullPolicy: IfNotPresent
+        # Pull secrets for dispatched worker Jobs
+        pullSecrets: []
       serviceAccount: ""
       restartPolicy: Never
       terminationGraceSeconds: 30
       activeDeadlineSeconds: ""
-      passthroughEnv: []
     job:
       namePrefix: filament
       backoffLimit: 1
       ttlSecondsAfterFinished: 3600
 
 persistence:
+  type: postgresql
+  # Run migrations as a post-install/post-upgrade hook Job after Postgres is up.
   migrate: true
 
   postgresql:
     enabled: true
-    dsn: 
-      value: "postgresql://filament:super-secret-key@filament-postgresql:5432/filament?sslmode=disable"
-      # Existing Secret for credentials
-      existingSecret:
-        name: ""
-        key: ""
+    # Must match postgresql.auth below when using the bundled instance
+    dsn: "postgresql://filament:super-secret-key@filament-postgresql:5432/filament?sslmode=disable"
 
+    # Not wired yet; dsn is the interface
     host: filament-postgresql
     port: 5432
     database: filament
     username: filament
     password:
       value: super-secret-key
-      # Existing Secret for credentials
       existingSecret:
         name: ""
         key: ""
@@ -98,7 +105,31 @@ persistence:
   # NOTE: MySQL is not currently supported
   mysql: {}
 
+secrets:
+  enabled: true
+  type: postgres
+
+  postgres:
+    # Stored with each secret row; bump when rotating
+    encryptionKeyId: ""
+    # base64 AES key (16/24/32 bytes); override in production
+    encryptionKey: ZmlsYW1lbnQtZGV2LWVuY3J5cHRpb24ta2V5LTAwMDA=
+
+  # AWS is not currently supported
+  aws: {}
+
+  # GCP is not currently supported
+  gcp: {}
+
+  # Azure is not currently supported
+  azure: {}
+
+  # Vault is not currently supported
+  vault: {}
+
 eventBus:
+  type: nats
+
   nats:
     enabled: true
     url: nats://filament-nats:4222
