@@ -14,7 +14,7 @@ server:
     pullPolicy: IfNotPresent
     pullSecrets: []
 
-  replicas: 3
+  replicas: 1
 
   # Autoscaling takes precedence over replicas
   autoscaling:
@@ -43,7 +43,7 @@ controlPlane:
     pullPolicy: IfNotPresent
     pullSecrets: []
 
-  replicas: 3
+  replicas: 1
 
   # Autoscaling takes precedence over replicas
   autoscaling:
