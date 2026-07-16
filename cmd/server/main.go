@@ -27,6 +27,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/secret"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
 
@@ -78,7 +79,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	secrets, err := newSecrets(pool)
+	secrets, err := secret.FromEnv(pool)
 	if err != nil {
 		return err
 	}
@@ -146,7 +147,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return fmt.Errorf("run host: %w", err)
 	}
 
-	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus).Mount(mux)
+	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, server.WithSecrets(secrets)).Mount(mux)
 	mux.Handle("/", ui.Handler())
 	fmt.Println("server:", "http://localhost"+addr)
 	select {
