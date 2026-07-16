@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
@@ -44,7 +44,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	conn, err := a.store.CreateConnection(ctx, ingestion.Connection{
+	conn, err := a.store.CreateConnection(ctx, filament.Connection{
 		ID: id, Tenant: tenant, Kind: connectionKindFromProto(req.Msg.GetKind()), Name: req.Msg.GetName(),
 		Connector: req.Msg.GetConnector(), Config: config.AsMap(), SecretRefs: refs,
 	})
@@ -63,7 +63,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	}
 	stored, err := a.store.LoadConnection(ctx, in.GetId())
 	if err != nil {
-		if errors.Is(err, ingestion.ErrNotFound) {
+		if errors.Is(err, filament.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -112,7 +112,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingestionv1.GetConnectionRequest]) (*connect.Response[ingestionv1.GetConnectionResponse], error) {
 	conn, err := a.store.LoadConnection(ctx, req.Msg.GetId())
 	if err != nil {
-		if errors.Is(err, ingestion.ErrNotFound) {
+		if errors.Is(err, filament.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -122,7 +122,7 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 
 // ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
-	connections, err := a.store.ListConnections(ctx, ingestion.ConnectionFilter{Tenant: req.Msg.GetTenant(), Kind: connectionKindFromProto(req.Msg.GetKind())})
+	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenant(), Kind: connectionKindFromProto(req.Msg.GetKind())})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -137,7 +137,7 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[ingestionv1.DeleteConnectionRequest]) (*connect.Response[ingestionv1.DeleteConnectionResponse], error) {
 	id := req.Msg.GetId()
 	conn, loadErr := a.store.LoadConnection(ctx, id)
-	if loadErr != nil && !errors.Is(loadErr, ingestion.ErrNotFound) {
+	if loadErr != nil && !errors.Is(loadErr, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeInternal, loadErr)
 	}
 
@@ -162,10 +162,10 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 	return connect.NewResponse(&ingestionv1.DeleteConnectionResponse{}), nil
 }
 
-func (a *Server) storeSecretFields(ctx context.Context, schema ingestion.ConfigSchema, tenant, id string, version int64, cfg map[string]any, refs map[string]string) ([]string, error) {
+func (a *Server) storeSecretFields(ctx context.Context, schema filament.ConfigSchema, tenant, id string, version int64, cfg map[string]any, refs map[string]string) ([]string, error) {
 	var written []string
 	for _, field := range schema.Fields {
-		if field.Type != ingestion.FieldSecret && !field.Secret {
+		if field.Type != filament.FieldSecret && !field.Secret {
 			continue
 		}
 		value, present := cfg[field.Name]
@@ -182,8 +182,8 @@ func (a *Server) storeSecretFields(ctx context.Context, schema ingestion.ConfigS
 			a.deleteSecretRefs(ctx, written)
 			return nil, fmt.Errorf("secret field %q supplied but no secret provider is configured", field.Name)
 		}
-		ref := ingestion.ConnectionSecretRef(tenant, id, field.Name, version)
-		if err := a.secrets.Write(ctx, ref, ingestion.Secret{Value: []byte(s), Meta: map[string]string{"tenant": tenant, "connection": id, "field": field.Name}}); err != nil {
+		ref := filament.ConnectionSecretRef(tenant, id, field.Name, version)
+		if err := a.secrets.Write(ctx, ref, filament.Secret{Value: []byte(s), Meta: map[string]string{"tenant": tenant, "connection": id, "field": field.Name}}); err != nil {
 			a.deleteSecretRefs(ctx, written)
 			return nil, fmt.Errorf("store secret field %q: %w", field.Name, err)
 		}
@@ -208,7 +208,7 @@ func (a *Server) deleteSecretRefs(ctx context.Context, refs []string) {
 	for _, ref := range refs {
 		// Only ever delete refs this server minted; never a caller-supplied ref
 		// that might point at an env var or another store's key.
-		if strings.HasPrefix(ref, ingestion.ConnectionSecretPrefix) {
+		if strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
 			_ = a.secrets.Delete(ctx, ref)
 		}
 	}
@@ -219,7 +219,7 @@ func (a *Server) deleteSecretRefs(ctx context.Context, refs []string) {
 // can never reference another tenant's secrets.
 func validateSecretRefTenant(refs map[string]string, tenant string) error {
 	for field, ref := range refs {
-		if err := ingestion.ValidateConnectionSecretRef(ref, ingestion.TenantID(tenant)); err != nil {
+		if err := filament.ValidateConnectionSecretRef(ref, filament.TenantID(tenant)); err != nil {
 			return fmt.Errorf("secret ref for field %q: %w", field, err)
 		}
 	}

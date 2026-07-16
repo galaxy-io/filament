@@ -1,4 +1,4 @@
-// Package mysql implements the ingestion.Source interface as a full-snapshot
+// Package mysql implements the filament.Source interface as a full-snapshot
 // (ModeFull) reader for MySQL (8.0+).
 //
 // Each requested resource is a table name. InnoDB stores rows clustered by primary
@@ -26,7 +26,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 const (
@@ -77,42 +77,42 @@ type querier interface {
 }
 
 var (
-	_ ingestion.Source          = (*Source)(nil)
-	_ ingestion.Discoverable    = (*Source)(nil)
-	_ ingestion.LiveValidatable = (*Source)(nil)
-	_ ingestion.SchemaProvider  = (*Source)(nil)
-	_ ingestion.Resumable       = (*Source)(nil)
-	_ ingestion.ResumePlanner   = (*Source)(nil)
+	_ filament.Source          = (*Source)(nil)
+	_ filament.Discoverable    = (*Source)(nil)
+	_ filament.LiveValidatable = (*Source)(nil)
+	_ filament.SchemaProvider  = (*Source)(nil)
+	_ filament.Resumable       = (*Source)(nil)
+	_ filament.ResumePlanner   = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.
-func (s *Source) Spec() ingestion.ConnectorSpec {
-	return ingestion.ConnectorSpec{
+func (s *Source) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{
 		Name:        "mysql",
 		DisplayName: "MySQL",
 		Version:     "1",
-		Modes:       []ingestion.ReplicationMode{ingestion.ModeFull, ingestion.ModeCDC},
-		SourcePolicies: ingestion.SourcePolicies(
-			ingestion.IngestionSnapshotReplace,
-			ingestion.IngestionSnapshotUpsert,
-			ingestion.IngestionAppend,
-			ingestion.IngestionCDC,
+		Modes:       []filament.ReplicationMode{filament.ModeFull, filament.ModeCDC},
+		SourcePolicies: filament.SourcePolicies(
+			filament.IngestionSnapshotReplace,
+			filament.IngestionSnapshotUpsert,
+			filament.IngestionAppend,
+			filament.IngestionCDC,
 		),
-		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
-			{Name: "database", Type: ingestion.FieldString, Scope: ingestion.ScopePipeline, Help: "Database to read tables from (defaults to the DSN's database)"},
-			{Name: "page_size", Type: ingestion.FieldInt, Default: defaultPageSize, Scope: ingestion.ScopePipeline, Help: "Rows to target per read page"},
-			{Name: "shard_pages", Type: ingestion.FieldInt, Default: defaultShardPages, Scope: ingestion.ScopePipeline, Help: "InnoDB pages per shard; 0 disables sharding"},
-			{Name: "max_conns", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Maximum source database connections"},
-			{Name: "server_id", Type: ingestion.FieldInt, Default: defaultServerID, Scope: ingestion.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
+		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
+			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Database to read tables from (defaults to the DSN's database)"},
+			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
+			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "InnoDB pages per shard; 0 disables sharding"},
+			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
+			{Name: "server_id", Type: filament.FieldInt, Default: defaultServerID, Scope: filament.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
 		}},
-		Resources: ingestion.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
 
 // Validate rejects a config missing the connection string or one whose DSN names no
 // database when "database" is also unset.
-func (s *Source) Validate(cfg ingestion.Config) error {
+func (s *Source) Validate(cfg filament.Config) error {
 	if cfg.String("dsn") == "" {
 		return fmt.Errorf("mysql source: dsn is required")
 	}
@@ -129,7 +129,7 @@ func (s *Source) Validate(cfg ingestion.Config) error {
 }
 
 // TestConnection opens a short-lived pool and pings the database.
-func (s *Source) TestConnection(ctx context.Context, cfg ingestion.Config) error {
+func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg ingestion.Config) error
 // Configure reads dsn/database/page_size/shard_pages/max_conns and opens a connection
 // pool. Set max_conns to at least the run's parallelism so concurrent shard reads
 // each get a connection instead of queueing.
-func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
+func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
@@ -197,9 +197,9 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 }
 
 // Discover lists tables in the configured database with their primary keys and row estimates.
-func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
+func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filament.DiscoverResult, error) {
 	if s.db == nil {
-		return ingestion.DiscoverResult{}, fmt.Errorf("mysql source: discover before configure")
+		return filament.DiscoverResult{}, fmt.Errorf("mysql source: discover before configure")
 	}
 	const q = `
 SELECT
@@ -216,22 +216,22 @@ WHERE t.TABLE_SCHEMA = ? AND t.TABLE_TYPE = 'BASE TABLE'
 ORDER BY t.TABLE_NAME`
 	rows, err := s.db.QueryContext(ctx, q, s.database)
 	if err != nil {
-		return ingestion.DiscoverResult{}, fmt.Errorf("mysql source: discover tables: %w", err)
+		return filament.DiscoverResult{}, fmt.Errorf("mysql source: discover tables: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var resources []ingestion.Resource
+	var resources []filament.Resource
 	for rows.Next() {
 		var name, pkCSV string
 		var estimated int64
 		if err := rows.Scan(&name, &pkCSV, &estimated); err != nil {
-			return ingestion.DiscoverResult{}, fmt.Errorf("mysql source: scan table: %w", err)
+			return filament.DiscoverResult{}, fmt.Errorf("mysql source: scan table: %w", err)
 		}
 		var pk []string
 		if pkCSV != "" {
 			pk = strings.Split(pkCSV, ",")
 		}
-		resources = append(resources, ingestion.Resource{
+		resources = append(resources, filament.Resource{
 			Name:       name,
 			Selectable: true,
 			PrimaryKey: pk,
@@ -239,16 +239,16 @@ ORDER BY t.TABLE_NAME`
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return ingestion.DiscoverResult{}, fmt.Errorf("mysql source: discover rows: %w", err)
+		return filament.DiscoverResult{}, fmt.Errorf("mysql source: discover rows: %w", err)
 	}
-	return ingestion.DiscoverResult{Resources: resources}, nil
+	return filament.DiscoverResult{Resources: resources}, nil
 }
 
 // Extract plans every requested table into keyset shards and pages them out through
 // the sink. With Parallelism > 1 the shards are read concurrently (bounded by
 // Parallelism), each inside its own consistent-snapshot transaction; paging within a
 // shard stays sequential. The first shard error cancels the rest and is returned.
-func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		tjobs, err := s.tableJobs(ctx, sink, table, nil, opts.Limit)
@@ -263,7 +263,7 @@ func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts in
 // tableJobs plans one table into its shard read jobs: a fresh keyset plan for a keyed
 // table, or a single streaming full scan for a keyless one. prev seeds each keyset
 // shard's cursor when resuming.
-func (s *Source) tableJobs(ctx context.Context, sink ingestion.RecordSink, table string, ks *keysetPlan, limit int) ([]func(context.Context, querier) error, error) {
+func (s *Source) tableJobs(ctx context.Context, sink filament.RecordSink, table string, ks *keysetPlan, limit int) ([]func(context.Context, querier) error, error) {
 	cols, pks, err := s.tableMeta(ctx, table)
 	if err != nil {
 		return nil, err
@@ -297,7 +297,7 @@ func (s *Source) tableJobs(ctx context.Context, sink ingestion.RecordSink, table
 // extractKeyless streams a keyless table in one pass. There is no stable key to page
 // or resume by, so the whole table is read in a single query; ROW_NUMBER() supplies a
 // synthetic id unique within the snapshot (the Postgres reader's ctid fallback).
-func (s *Source) extractKeyless(ctx context.Context, sink ingestion.RecordSink, q querier, table, qualified, jsonExpr string, limit int) error {
+func (s *Source) extractKeyless(ctx context.Context, sink filament.RecordSink, q querier, table, qualified, jsonExpr string, limit int) error {
 	stmt := fmt.Sprintf("SELECT CAST(ROW_NUMBER() OVER () AS CHAR) AS id, %s AS data FROM %s t", jsonExpr, qualified)
 	rows, err := q.QueryContext(ctx, stmt)
 	if err != nil {
@@ -315,7 +315,7 @@ func (s *Source) extractKeyless(ctx context.Context, sink ingestion.RecordSink, 
 		if err := rows.Scan(&id, &data); err != nil {
 			return fmt.Errorf("read row: %w", err)
 		}
-		if err := sink.Push(ingestion.NewRecord(table, id, data)); err != nil {
+		if err := sink.Push(filament.NewRecord(table, id, data)); err != nil {
 			return err
 		}
 		emitted++
@@ -448,15 +448,15 @@ func quoteLiteral(s string) string {
 // Schema returns the column schema of one table: every column in ordinal order with
 // its MySQL type (COLUMN_TYPE, kept verbatim in Native for a same-engine round-trip
 // and classified into a LogicalType), plus the primary key. It implements
-// ingestion.SchemaProvider so a Schematized sink can build matching typed tables.
-func (s *Source) Schema(ctx context.Context, resource string) (ingestion.RecordSchema, error) {
+// filament.SchemaProvider so a Schematized sink can build matching typed tables.
+func (s *Source) Schema(ctx context.Context, resource string) (filament.RecordSchema, error) {
 	cols, pks, err := s.tableMeta(ctx, resource)
 	if err != nil {
-		return ingestion.RecordSchema{}, err
+		return filament.RecordSchema{}, err
 	}
-	fields := make([]ingestion.SchemaField, len(cols))
+	fields := make([]filament.SchemaField, len(cols))
 	for i, c := range cols {
-		fields[i] = ingestion.SchemaField{
+		fields[i] = filament.SchemaField{
 			Name:     c.name,
 			Nullable: c.nullable,
 			Logical:  mysqlTypeToLogical(c.dataType, c.fullType),
@@ -467,58 +467,58 @@ func (s *Source) Schema(ctx context.Context, resource string) (ingestion.RecordS
 	for i, pk := range pks {
 		key[i] = pk.name
 	}
-	return ingestion.RecordSchema{Resource: resource, Fields: fields, PrimaryKey: key}, nil
+	return filament.RecordSchema{Resource: resource, Fields: fields, PrimaryKey: key}, nil
 }
 
 // mysqlTypeToLogical classifies an information_schema DATA_TYPE into a portable
 // LogicalType. The exact type (including display width, unsigned, enum values) is
 // kept in SchemaField.Native, so an unknown type degrading to string is harmless for
 // a same-engine (MySQL→MySQL) sink that reuses Native verbatim.
-func mysqlTypeToLogical(dataType, fullType string) ingestion.LogicalType {
+func mysqlTypeToLogical(dataType, fullType string) filament.LogicalType {
 	t := strings.ToLower(dataType)
 	unsigned := strings.Contains(strings.ToLower(fullType), "unsigned")
 	switch t {
 	case "tinyint":
 		// tinyint(1) is MySQL's boolean idiom.
 		if strings.HasPrefix(strings.ToLower(fullType), "tinyint(1)") && !unsigned {
-			return ingestion.LogicalBool
+			return filament.LogicalBool
 		}
-		return ingestion.LogicalInt16
+		return filament.LogicalInt16
 	case "smallint":
 		if unsigned {
-			return ingestion.LogicalInt32
+			return filament.LogicalInt32
 		}
-		return ingestion.LogicalInt16
+		return filament.LogicalInt16
 	case "mediumint", "int", "integer":
 		if unsigned {
-			return ingestion.LogicalInt64
+			return filament.LogicalInt64
 		}
-		return ingestion.LogicalInt32
+		return filament.LogicalInt32
 	case "bigint":
 		if unsigned {
-			return ingestion.LogicalDecimal // may exceed int64
+			return filament.LogicalDecimal // may exceed int64
 		}
-		return ingestion.LogicalInt64
+		return filament.LogicalInt64
 	case "float":
-		return ingestion.LogicalFloat32
+		return filament.LogicalFloat32
 	case "double", "real":
-		return ingestion.LogicalFloat64
+		return filament.LogicalFloat64
 	case "decimal", "numeric":
-		return ingestion.LogicalDecimal
+		return filament.LogicalDecimal
 	case "json":
-		return ingestion.LogicalJSON
+		return filament.LogicalJSON
 	case "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "bit":
-		return ingestion.LogicalBytes
+		return filament.LogicalBytes
 	case "date":
-		return ingestion.LogicalDate
+		return filament.LogicalDate
 	case "datetime":
-		return ingestion.LogicalTimestamp
+		return filament.LogicalTimestamp
 	case "timestamp":
-		return ingestion.LogicalTimestampTZ
+		return filament.LogicalTimestampTZ
 	case "time":
-		return ingestion.LogicalTime
+		return filament.LogicalTime
 	default:
-		return ingestion.LogicalString
+		return filament.LogicalString
 	}
 }
 

@@ -8,14 +8,14 @@ import (
 	iceberg "github.com/apache/iceberg-go"
 	icetable "github.com/apache/iceberg-go/table"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // buildIcebergSchema maps a RecordSchema to an Iceberg schema. Field IDs are
 // allocated from a single monotonic counter that also covers nested element IDs,
 // so every ID is unique across the tree — iceberg-go panics on a duplicate
 // (e.g. a list element colliding with a column).
-func buildIcebergSchema(schema ingestion.RecordSchema) *iceberg.Schema {
+func buildIcebergSchema(schema filament.RecordSchema) *iceberg.Schema {
 	var nextID int
 	next := func() int { nextID++; return nextID }
 
@@ -50,7 +50,7 @@ func buildIcebergSchema(schema ingestion.RecordSchema) *iceberg.Schema {
 // dropped columns are intentionally NOT applied (an Iceberg promote tolerates a
 // superset schema, but a narrowing change could break readers). New column IDs —
 // including nested element IDs — are assigned by iceberg-go.
-func evolveSchema(ctx context.Context, tbl *icetable.Table, schema ingestion.RecordSchema) error {
+func evolveSchema(ctx context.Context, tbl *icetable.Table, schema filament.RecordSchema) error {
 	existing := tbl.Schema()
 	txn := tbl.NewTransaction()
 	us := txn.UpdateSchema(false, false)
@@ -78,36 +78,36 @@ func evolveSchema(ctx context.Context, tbl *icetable.Table, schema ingestion.Rec
 // the source's own spelling (e.g. "numeric(12,2)") and refines types that need
 // parameters. nextID allocates IDs for nested elements; it may be nil on the
 // evolve path, where iceberg-go assigns nested IDs itself.
-func logicalToIceType(l ingestion.LogicalType, native string, nextID func() int) iceberg.Type {
+func logicalToIceType(l filament.LogicalType, native string, nextID func() int) iceberg.Type {
 	switch l {
-	case ingestion.LogicalBool:
+	case filament.LogicalBool:
 		return iceberg.PrimitiveTypes.Bool
-	case ingestion.LogicalInt16, ingestion.LogicalInt32:
+	case filament.LogicalInt16, filament.LogicalInt32:
 		return iceberg.PrimitiveTypes.Int32
-	case ingestion.LogicalInt64:
+	case filament.LogicalInt64:
 		return iceberg.PrimitiveTypes.Int64
-	case ingestion.LogicalFloat32:
+	case filament.LogicalFloat32:
 		return iceberg.PrimitiveTypes.Float32
-	case ingestion.LogicalFloat64:
+	case filament.LogicalFloat64:
 		return iceberg.PrimitiveTypes.Float64
-	case ingestion.LogicalDecimal:
+	case filament.LogicalDecimal:
 		prec, scale := decimalPrecScale(native)
 		return iceberg.DecimalTypeOf(prec, scale)
-	case ingestion.LogicalString, ingestion.LogicalJSON:
+	case filament.LogicalString, filament.LogicalJSON:
 		return iceberg.PrimitiveTypes.String
-	case ingestion.LogicalBytes:
+	case filament.LogicalBytes:
 		return iceberg.PrimitiveTypes.Binary
-	case ingestion.LogicalDate:
+	case filament.LogicalDate:
 		return iceberg.PrimitiveTypes.Date
-	case ingestion.LogicalTime:
+	case filament.LogicalTime:
 		return iceberg.PrimitiveTypes.Time
-	case ingestion.LogicalTimestamp:
+	case filament.LogicalTimestamp:
 		return iceberg.PrimitiveTypes.Timestamp
-	case ingestion.LogicalTimestampTZ:
+	case filament.LogicalTimestampTZ:
 		return iceberg.PrimitiveTypes.TimestampTz
-	case ingestion.LogicalUUID:
+	case filament.LogicalUUID:
 		return iceberg.PrimitiveTypes.UUID
-	case ingestion.LogicalArray:
+	case filament.LogicalArray:
 		elemID := -1 // unassigned placeholder; iceberg-go fills it in on evolve
 		if nextID != nil {
 			elemID = nextID()

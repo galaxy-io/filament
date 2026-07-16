@@ -1,4 +1,4 @@
-// Package sample implements the ingestion.Source interface as a synthetic generator
+// Package sample implements the filament.Source interface as a synthetic generator
 // (dev/test). It emits a configurable number of rows per requested resource with
 // no external dependencies, serving as the zero-dep reference source — the
 // counterpart to the stdout sink — for end-to-end wiring, demos, and tests.
@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strconv"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // defaultRows is emitted per resource when "rows" is not configured.
@@ -25,30 +25,30 @@ type Source struct {
 func New() *Source { return &Source{rows: defaultRows} }
 
 var (
-	_ ingestion.Source       = (*Source)(nil)
-	_ ingestion.Discoverable = (*Source)(nil)
+	_ filament.Source       = (*Source)(nil)
+	_ filament.Discoverable = (*Source)(nil)
 )
 
 // Spec describes the generator's config fields, modes, and write policies.
-func (s *Source) Spec() ingestion.ConnectorSpec {
-	return ingestion.ConnectorSpec{
+func (s *Source) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{
 		Name:           "sample",
 		DisplayName:    "Sample Generator",
 		Version:        "1",
-		Modes:          []ingestion.ReplicationMode{ingestion.ModeFull},
-		SourcePolicies: ingestion.SourcePolicies(ingestion.IngestionSnapshotReplace),
-		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "rows", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Rows to generate per resource"},
+		Modes:          []filament.ReplicationMode{filament.ModeFull},
+		SourcePolicies: filament.SourcePolicies(filament.IngestionSnapshotReplace),
+		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
+			{Name: "rows", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Rows to generate per resource"},
 		}},
-		Resources: ingestion.ResourceCapabilities{Discoverable: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true},
 	}
 }
 
 // Validate accepts any config; every field is optional.
-func (s *Source) Validate(ingestion.Config) error { return nil }
+func (s *Source) Validate(filament.Config) error { return nil }
 
 // Configure reads the optional "rows" count from the source config.
-func (s *Source) Configure(_ context.Context, cfg ingestion.Config) error {
+func (s *Source) Configure(_ context.Context, cfg filament.Config) error {
 	if cfg.Has("rows") {
 		s.rows = cfg.Int("rows")
 	}
@@ -56,12 +56,12 @@ func (s *Source) Configure(_ context.Context, cfg ingestion.Config) error {
 }
 
 // Discover lists the synthetic users and orders resources with row estimates.
-func (s *Source) Discover(context.Context, ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
+func (s *Source) Discover(context.Context, filament.DiscoverOpts) (filament.DiscoverResult, error) {
 	rows := int64(s.rows)
 	if rows <= 0 {
 		rows = defaultRows
 	}
-	return ingestion.DiscoverResult{Resources: []ingestion.Resource{
+	return filament.DiscoverResult{Resources: []filament.Resource{
 		{Name: "users", Selectable: true, PrimaryKey: []string{"id"}, Estimated: rows},
 		{Name: "orders", Selectable: true, PrimaryKey: []string{"id"}, Estimated: rows},
 	}}, nil
@@ -70,7 +70,7 @@ func (s *Source) Discover(context.Context, ingestion.DiscoverOpts) (ingestion.Di
 // Extract emits rows synthetic records for each requested resource (defaulting to
 // a single "items" resource when none are named), respecting cancellation and
 // pipeline backpressure via the sink.
-func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 	resources := opts.Resources
 	if len(resources) == 0 {
 		resources = []string{"items"}
@@ -85,7 +85,7 @@ func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts in
 				return err
 			}
 			data := fmt.Appendf(nil, `{"resource":%q,"i":%d}`, resource, i)
-			if err := sink.Push(ingestion.NewRecord(resource, strconv.Itoa(i), data)); err != nil {
+			if err := sink.Push(filament.NewRecord(resource, strconv.Itoa(i), data)); err != nil {
 				return err
 			}
 		}

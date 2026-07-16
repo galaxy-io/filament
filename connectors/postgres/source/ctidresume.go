@@ -25,7 +25,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -122,7 +122,7 @@ func (s *Source) currentFilenode(ctx context.Context, qualified string) (string,
 // by re-delivering rows that churned since the run-start horizon, and (b) tail-scan any heap
 // blocks appended past the run-start size (all such rows are post-horizon). Reconcile/tail
 // rows are plain (no Part/Coarse) — pure idempotent re-deliveries that touch no cursor.
-func (s *Source) ctidJobs(ctx context.Context, sink ingestion.RecordSink, table, qualified string, ks checkpoint.KeysetCheckpoint, limit int) []func(context.Context, querier) error {
+func (s *Source) ctidJobs(ctx context.Context, sink filament.RecordSink, table, qualified string, ks checkpoint.KeysetCheckpoint, limit int) []func(context.Context, querier) error {
 	shards := s.ctidShardsFrom(ctx, table, qualified, ks)
 	horizon := ks.Meta[metaXminHorizon]
 	unfiltered := s.freezeAdvanced(ctx, qualified, horizon)
@@ -205,7 +205,7 @@ func (s *Source) freezeAdvanced(ctx context.Context, qualified, horizon string) 
 // horizon: numeric xid compare age(xmin) <= age(H1) (avoids pg_visible_in_snapshot, which is
 // unsafe with subtransaction xmins). unfiltered re-delivers the whole range (freeze guard, or
 // the append tail). Pushes plain records — idempotent re-deliveries that advance no cursor.
-func (s *Source) reconcileCtidBlocks(ctx context.Context, sink ingestion.RecordSink, q querier, sh shard, horizon string, unfiltered bool) error {
+func (s *Source) reconcileCtidBlocks(ctx context.Context, sink filament.RecordSink, q querier, sh shard, horizon string, unfiltered bool) error {
 	filter := ""
 	if !unfiltered && horizon != "" {
 		filter = " AND age(t.xmin) <= age($3::xid)"
@@ -236,7 +236,7 @@ FROM (
 				rows.Close()
 				return fmt.Errorf("reconcile scan %q: %w", sh.table, err)
 			}
-			if err := sink.Push(ingestion.NewRecord(sh.table, id, append([]byte(nil), data...))); err != nil {
+			if err := sink.Push(filament.NewRecord(sh.table, id, append([]byte(nil), data...))); err != nil {
 				rows.Close()
 				return err
 			}
@@ -273,7 +273,7 @@ func atoiOr(s []string, def int) int {
 // extractCtidShard reads one block range, stamping every row Coarse with the shard ordinal
 // (so the tracker ack-counts completion), then pushes a Drained sentinel on a clean drain.
 // A row-limit truncation suppresses the sentinel so the shard stays resumable.
-func (s *Source) extractCtidShard(ctx context.Context, sink ingestion.RecordSink, q querier, sh shard, part, limit int) error {
+func (s *Source) extractCtidShard(ctx context.Context, sink filament.RecordSink, q querier, sh shard, part, limit int) error {
 	sql := fmt.Sprintf(`
 SELECT %[1]s AS id, j::text AS data
 FROM (
@@ -301,5 +301,5 @@ FROM (
 			}
 		}
 	}
-	return sink.Push(ingestion.Record{Resource: sh.table, Part: part, Coarse: true, Drained: true})
+	return sink.Push(filament.Record{Resource: sh.table, Part: part, Coarse: true, Drained: true})
 }

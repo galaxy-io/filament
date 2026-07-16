@@ -3,7 +3,7 @@ package httpapi
 import (
 	_ "embed"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 //go:embed manifests/notion.yaml
@@ -14,14 +14,14 @@ var linearManifest []byte
 
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
-	return NewManifest("notion", "Notion", notionManifest, ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-		{Name: "api_key", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "Notion integration secret"},
+	return NewManifest("notion", "Notion", notionManifest, filament.ConfigSchema{Fields: []filament.ConfigField{
+		{Name: "api_key", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "Notion integration secret"},
 	}})
 }
 
 // NewLinear returns a Source backed by the embedded Linear manifest.
 func NewLinear() *Source {
-	return NewManifest("linear", "Linear", linearManifest, ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-		{Name: "api_key", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "Linear API key"},
+	return NewManifest("linear", "Linear", linearManifest, filament.ConfigSchema{Fields: []filament.ConfigField{
+		{Name: "api_key", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "Linear API key"},
 	}})
 }

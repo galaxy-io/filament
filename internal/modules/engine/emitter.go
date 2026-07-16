@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 )
@@ -19,9 +19,9 @@ import (
 type emitter struct {
 	ctx    context.Context
 	bus    eventbus.Bus
-	log    ingestion.Logger
-	tenant ingestion.TenantID
-	run    ingestion.RunID
+	log    filament.Logger
+	tenant filament.TenantID
+	run    filament.RunID
 
 	seq atomic.Uint64
 
@@ -36,7 +36,7 @@ type tally struct {
 	bytes   int64
 }
 
-func newEmitter(ctx context.Context, bus eventbus.Bus, log ingestion.Logger, tenant ingestion.TenantID, run ingestion.RunID) *emitter {
+func newEmitter(ctx context.Context, bus eventbus.Bus, log filament.Logger, tenant filament.TenantID, run filament.RunID) *emitter {
 	return &emitter{ctx: ctx, bus: bus, log: log, tenant: tenant, run: run, res: map[string]*tally{}}
 }
 
@@ -64,7 +64,7 @@ func (e *emitter) publish(f events.Fact) {
 		e.mu.Unlock()
 	}
 	if err := events.Publish(e.ctx, e.bus, f); err != nil && e.log != nil {
-		e.log.Error("engine: publish fact", err, ingestion.Field{Key: "type", Value: f.Name})
+		e.log.Error("engine: publish fact", err, filament.Field{Key: "type", Value: f.Name})
 	}
 }
 
@@ -83,14 +83,14 @@ func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 // fail publishes the terminal run.failed fact carrying the error message.
 func (e *emitter) fail(err error) {
 	if e.log != nil {
-		e.log.Error("engine: run failed", err, ingestion.Field{Key: "run", Value: string(e.run)})
+		e.log.Error("engine: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
 	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error()})
 }
 
 func (e *emitter) partial(err error) {
 	if e.log != nil {
-		e.log.Error("engine: run partial", err, ingestion.Field{Key: "run", Value: string(e.run)})
+		e.log.Error("engine: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
 	emit(e, events.RunPartial, "", events.RunPartialEvent{Error: err.Error()})
 }

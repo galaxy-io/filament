@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
@@ -37,10 +37,10 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	defer s.mu.Unlock()
 	stored, ok := s.pipelines[p.GetId()]
 	if !ok {
-		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), ingestion.ErrNotFound)
+		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrNotFound)
 	}
 	if stored.GetVersion() != p.GetVersion() {
-		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), ingestion.ErrVersionConflict)
+		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrVersionConflict)
 	}
 	next := clonePipeline(p)
 	next.Version++
@@ -57,7 +57,7 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	defer s.mu.RUnlock()
 	p, ok := s.pipelines[id]
 	if !ok {
-		return nil, fmt.Errorf("pipeline %q: %w", id, ingestion.ErrNotFound)
+		return nil, fmt.Errorf("pipeline %q: %w", id, filament.ErrNotFound)
 	}
 	return clonePipeline(p), nil
 }

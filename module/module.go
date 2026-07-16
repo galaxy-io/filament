@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 )
@@ -27,18 +27,18 @@ type Module interface {
 // the registries resolve workload providers (Source, Sink) per run.
 type Deps struct {
 	Bus       eventbus.Bus
-	DataStore ingestion.DataStore
-	Secrets   ingestion.Secrets
-	Runtime   ingestion.Runtime
-	Scheduler ingestion.Scheduler
-	Dispatch  ingestion.Dispatcher
+	DataStore filament.DataStore
+	Secrets   filament.Secrets
+	Runtime   filament.Runtime
+	Scheduler filament.Scheduler
+	Dispatch  filament.Dispatcher
 
-	Sources ingestion.SourceRegistry
-	Sinks   ingestion.SinkRegistry
+	Sources filament.SourceRegistry
+	Sinks   filament.SinkRegistry
 
-	Log     ingestion.Logger
-	Metrics ingestion.Metrics
-	Tracer  ingestion.Tracer
+	Log     filament.Logger
+	Metrics filament.Metrics
+	Tracer  filament.Tracer
 }
 
 // MountAll injects d into each module and returns them as host.Runnables ready

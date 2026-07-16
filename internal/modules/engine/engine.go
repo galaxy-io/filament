@@ -10,7 +10,7 @@ import (
 	"context"
 	"fmt"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
@@ -22,11 +22,11 @@ import (
 // Module is the extraction engine. One run.requested fact drives one extraction.
 type Module struct {
 	bus     eventbus.Bus
-	ds      ingestion.DataStore
-	sources ingestion.SourceRegistry
-	sinks   ingestion.SinkRegistry
-	log     ingestion.Logger
-	secrets ingestion.Secrets
+	ds      filament.DataStore
+	sources filament.SourceRegistry
+	sinks   filament.SinkRegistry
+	log     filament.Logger
+	secrets filament.Secrets
 }
 
 // New returns an unmounted engine. Providers are injected by Mount.
@@ -70,9 +70,9 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 	// a completed CDC run, which is a catch-up cycle by construction: re-requesting
 	// it continues the change stream from its persisted cursor, so each request
 	// drains the source up to a fresh watermark and completes again.
-	cdcCycle := state.Request.IngestionType.OrDefault() == ingestion.IngestionCDC &&
-		state.Status == ingestion.RunCompleted
-	if state.Status != ingestion.RunRequested && state.Status != ingestion.RunPartial && !cdcCycle {
+	cdcCycle := state.Request.IngestionType.OrDefault() == filament.IngestionCDC &&
+		state.Status == filament.RunCompleted
+	if state.Status != filament.RunRequested && state.Status != filament.RunPartial && !cdcCycle {
 		return nil
 	}
 	m.runOne(ctx, specFromState(state))
@@ -82,9 +82,9 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 // specFromState builds the RunSpec the engine executes from the persisted run
 // request. Mode defaults to full; checkpoint-based resume lands with incremental
 // sources in a later phase.
-func specFromState(s ingestion.RunState) ingestion.RunSpec {
+func specFromState(s filament.RunState) filament.RunSpec {
 	r := s.Request
-	return ingestion.RunSpec{
+	return filament.RunSpec{
 		Tenant:        r.Tenant,
 		Run:           s.Run,
 		Source:        r.Source,
@@ -92,7 +92,7 @@ func specFromState(s ingestion.RunState) ingestion.RunSpec {
 		Resources:     r.Resources,
 		Selectors:     r.Selectors,
 		IngestionType: r.IngestionType.OrDefault(),
-		Mode:          ingestion.ModeFull,
+		Mode:          filament.ModeFull,
 		Options:       r.Options,
 	}
 }
@@ -102,7 +102,7 @@ func specFromState(s ingestion.RunState) ingestion.RunSpec {
 // run.started first and exactly one terminal fact (run.completed | run.failed).
 //
 //nolint:funlen // the run lifecycle reads best as one sequence
-func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
+func (m *Module) runOne(ctx context.Context, spec filament.RunSpec) {
 	em := newEmitter(ctx, m.bus, m.log, spec.Tenant, spec.Run)
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
 	if err := runner.ResolveConfigRefs(ctx, m.secrets, &spec); err != nil {
@@ -115,12 +115,12 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 		em.fail(fmt.Errorf("resolve source %q: %w", spec.Source.Provider, err))
 		return
 	}
-	if err := src.Configure(ctx, ingestion.NewConfig(spec.Source.Config)); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(spec.Source.Config)); err != nil {
 		em.fail(fmt.Errorf("configure source %q: %w", spec.Source.Provider, err))
 		return
 	}
 	defer func() { _ = src.Teardown(ctx) }()
-	if planner, ok := src.(ingestion.ResourcePlanner); ok {
+	if planner, ok := src.(filament.ResourcePlanner); ok {
 		resources, err := planner.PlanResources(ctx, spec.Resources, spec.Selectors)
 		if err != nil {
 			em.fail(fmt.Errorf("plan resources: %w", err))
@@ -154,7 +154,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
 	if err := ensureSchemas(ctx, src, snk, spec); err != nil {
 		if aerr := snk.Abort(ctx); aerr != nil && m.log != nil {
-			m.log.Error("engine: sink abort", aerr, ingestion.Field{Key: "run", Value: string(spec.Run)})
+			m.log.Error("engine: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
 		em.fail(fmt.Errorf("ensure schema: %w", err))
 		return
@@ -168,7 +168,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	extractor, err := m.resolveExtractor(ctx, src, spec, plan)
 	if err != nil {
 		if aerr := snk.Abort(ctx); aerr != nil && m.log != nil {
-			m.log.Error("engine: sink abort", aerr, ingestion.Field{Key: "run", Value: string(spec.Run)})
+			m.log.Error("engine: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
 		em.fail(err)
 		return
@@ -192,7 +192,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 	extractErrCh := make(chan error, 1)
 	go func() {
 		extractErrCh <- safeCall(func() error {
-			return extractor(ctx, p.Records(), ingestion.ExtractOpts{
+			return extractor(ctx, p.Records(), filament.ExtractOpts{
 				Resources:   spec.Resources,
 				Selectors:   spec.Selectors,
 				Mode:        spec.Mode,
@@ -224,7 +224,7 @@ func (m *Module) runOne(ctx context.Context, spec ingestion.RunSpec) {
 			return
 		}
 		if err := snk.Abort(ctx); err != nil && m.log != nil {
-			m.log.Error("engine: sink abort", err, ingestion.Field{Key: "run", Value: string(spec.Run)})
+			m.log.Error("engine: sink abort", err, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
 		for _, res := range resources {
 			emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})

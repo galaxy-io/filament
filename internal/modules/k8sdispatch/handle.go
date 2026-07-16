@@ -5,17 +5,17 @@ import (
 	"errors"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 type runHandle struct {
-	run ingestion.RunID
-	ds  ingestion.DataStore
+	run filament.RunID
+	ds  filament.DataStore
 }
 
-func (h runHandle) ID() ingestion.RunID { return h.run }
+func (h runHandle) ID() filament.RunID { return h.run }
 
-func (h runHandle) Status(ctx context.Context) (ingestion.RunStatus, error) {
+func (h runHandle) Status(ctx context.Context) (filament.RunStatus, error) {
 	if h.ds == nil {
 		return 0, errors.New("k8sdispatch: handle has no datastore")
 	}
@@ -26,20 +26,20 @@ func (h runHandle) Status(ctx context.Context) (ingestion.RunStatus, error) {
 	return state.Status, nil
 }
 
-func (h runHandle) Wait(ctx context.Context) (ingestion.RunResult, error) {
+func (h runHandle) Wait(ctx context.Context) (filament.RunResult, error) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		if h.ds == nil {
-			return ingestion.RunResult{}, errors.New("k8sdispatch: handle has no datastore")
+			return filament.RunResult{}, errors.New("k8sdispatch: handle has no datastore")
 		}
 		state, err := h.ds.LoadRun(ctx, h.run)
 		if err != nil {
-			return ingestion.RunResult{}, err
+			return filament.RunResult{}, err
 		}
 		switch state.Status {
-		case ingestion.RunCompleted, ingestion.RunFailed, ingestion.RunCanceled:
-			return ingestion.RunResult{
+		case filament.RunCompleted, filament.RunFailed, filament.RunCanceled:
+			return filament.RunResult{
 				Status:  state.Status,
 				Records: state.Records,
 				Bytes:   state.Bytes,
@@ -48,7 +48,7 @@ func (h runHandle) Wait(ctx context.Context) (ingestion.RunResult, error) {
 		}
 		select {
 		case <-ctx.Done():
-			return ingestion.RunResult{}, ctx.Err()
+			return filament.RunResult{}, ctx.Err()
 		case <-ticker.C:
 		}
 	}

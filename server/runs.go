@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
@@ -15,8 +15,8 @@ import (
 
 // ListRuns returns runs matching the request's tenant, source, and limit.
 func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.ListRunsRequest]) (*connect.Response[ingestionv1.ListRunsResponse], error) {
-	states, err := a.store.ListRuns(ctx, ingestion.RunFilter{
-		Tenant: ingestion.TenantID(req.Msg.GetTenant()),
+	states, err := a.store.ListRuns(ctx, filament.RunFilter{
+		Tenant: filament.TenantID(req.Msg.GetTenant()),
 		Source: req.Msg.GetSource(),
 		Limit:  int(req.Msg.GetLimit()),
 	})
@@ -32,7 +32,7 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 
 // GetRun returns the run's state and per-resource progress.
 func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.GetRunRequest]) (*connect.Response[ingestionv1.GetRunResponse], error) {
-	state, err := a.store.LoadRun(ctx, ingestion.RunID(req.Msg.GetRunId()))
+	state, err := a.store.LoadRun(ctx, filament.RunID(req.Msg.GetRunId()))
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +65,8 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 		return fmt.Errorf("event bus is not configured")
 	}
 	send := stream.Send
-	tenant := ingestion.TenantID(defaultTenant(req.Msg.GetTenant()))
-	run := ingestion.RunID(req.Msg.GetRunId())
+	tenant := filament.TenantID(defaultTenant(req.Msg.GetTenant()))
+	run := filament.RunID(req.Msg.GetRunId())
 	if run == "" {
 		return fmt.Errorf("run_id is required")
 	}
@@ -122,7 +122,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 	}
 }
 
-func (a *Server) replayRun(ctx context.Context, run ingestion.RunID, send func(*ingestionv1.TailRunResponse) error) error {
+func (a *Server) replayRun(ctx context.Context, run filament.RunID, send func(*ingestionv1.TailRunResponse) error) error {
 	state, ok, err := a.loadRunSnapshot(ctx, run)
 	if err != nil {
 		return err
@@ -152,13 +152,13 @@ func (a *Server) replayRun(ctx context.Context, run ingestion.RunID, send func(*
 	return nil
 }
 
-func (a *Server) loadRunSnapshot(ctx context.Context, run ingestion.RunID) (ingestion.RunState, bool, error) {
+func (a *Server) loadRunSnapshot(ctx context.Context, run filament.RunID) (filament.RunState, bool, error) {
 	state, err := a.store.LoadRun(ctx, run)
 	if err != nil {
 		if ctx.Err() != nil {
-			return ingestion.RunState{}, false, ctx.Err()
+			return filament.RunState{}, false, ctx.Err()
 		}
-		return ingestion.RunState{}, false, nil
+		return filament.RunState{}, false, nil
 	}
 	return state, true, nil
 }

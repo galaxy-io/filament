@@ -1,4 +1,4 @@
-// Package s3 implements the ingestion.Sink interface, writing each resource to its own
+// Package s3 implements the filament.Sink interface, writing each resource to its own
 // NDJSON object in an S3 bucket.
 //
 // A run lands one object per resource at <prefix>/<run>/<resource>.ndjson, each
@@ -35,7 +35,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // s3debug enables per-call S3 API timing to stderr; set S3_SINK_DEBUG=1 to turn on.
@@ -63,7 +63,7 @@ type Sink struct {
 	client   *s3.Client
 	bucket   string
 	prefix   string
-	run      ingestion.RunID
+	run      filament.RunID
 	partSize int
 
 	sem         chan struct{} // sink-wide in-flight part limiter
@@ -90,27 +90,27 @@ type upload struct {
 // New returns an unconfigured sink. Open wires it to S3.
 func New() *Sink { return &Sink{uploads: map[string]*upload{}} }
 
-var _ ingestion.Sink = (*Sink)(nil)
+var _ filament.Sink = (*Sink)(nil)
 
 // Spec describes the sink's config fields and write capabilities.
-func (s *Sink) Spec() ingestion.SinkSpec {
-	return ingestion.SinkSpec{
+func (s *Sink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{
 		Name:        "s3",
 		DisplayName: "Amazon S3 (NDJSON per resource)",
 		Version:     "1",
-		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "bucket", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopeConnection, Help: "Destination S3 bucket."},
-			{Name: "prefix", Type: ingestion.FieldString, Scope: ingestion.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.ndjson."},
-			{Name: "region", Type: ingestion.FieldString, Scope: ingestion.ScopeConnection, Help: "AWS region; defaults to the SDK's resolved region."},
-			{Name: "endpoint", Type: ingestion.FieldString, Scope: ingestion.ScopeConnection, Help: "Custom S3 endpoint (e.g. MinIO); defaults to AWS."},
-			{Name: "access_key_id", Type: ingestion.FieldSecret, Scope: ingestion.ScopeConnection, Help: "Static access key; omit to use the SDK credential chain."},
-			{Name: "secret_access_key", Type: ingestion.FieldSecret, Scope: ingestion.ScopeConnection, Help: "Static secret key; omit to use the SDK credential chain."},
-			{Name: "part_size_mib", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Multipart part size in MiB; min 5, default 16."},
-			{Name: "upload_concurrency", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Max in-flight part uploads across all resources; default 8."},
+		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
+			{Name: "bucket", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Destination S3 bucket."},
+			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.ndjson."},
+			{Name: "region", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "AWS region; defaults to the SDK's resolved region."},
+			{Name: "endpoint", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "Custom S3 endpoint (e.g. MinIO); defaults to AWS."},
+			{Name: "access_key_id", Type: filament.FieldSecret, Scope: filament.ScopeConnection, Help: "Static access key; omit to use the SDK credential chain."},
+			{Name: "secret_access_key", Type: filament.FieldSecret, Scope: filament.ScopeConnection, Help: "Static secret key; omit to use the SDK credential chain."},
+			{Name: "part_size_mib", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Multipart part size in MiB; min 5, default 16."},
+			{Name: "upload_concurrency", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Max in-flight part uploads across all resources; default 8."},
 		}},
-		Capabilities: ingestion.SinkCapabilities{WritePolicies: ingestion.WriteCapabilities(
-			ingestion.IngestionAppend,
-			ingestion.IngestionSnapshotReplace,
+		Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(
+			filament.IngestionAppend,
+			filament.IngestionSnapshotReplace,
 		)},
 	}
 }
@@ -119,8 +119,8 @@ func (s *Sink) Spec() ingestion.SinkSpec {
 func (s *Sink) Name() string { return "s3" }
 
 // Open reads the sink config, builds an S3 client, and resets per-run state.
-func (s *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
-	cfg := ingestion.NewConfig(run.Sink.Config)
+func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
+	cfg := filament.NewConfig(run.Sink.Config)
 	s.bucket = cfg.String("bucket")
 	if s.bucket == "" {
 		return fmt.Errorf("s3 sink: bucket is required")
@@ -178,13 +178,13 @@ func (s *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 // full buffer is handed to a background goroutine to upload, so Write never waits
 // on the network. Safe for concurrent calls across resources and across parts of
 // one resource.
-func (s *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
+func (s *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	if s.client == nil {
-		return ingestion.WriteReceipt{}, fmt.Errorf("s3 sink: write before open")
+		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: write before open")
 	}
 	u, err := s.uploadFor(ctx, b.Resource)
 	if err != nil {
-		return ingestion.WriteReceipt{}, err
+		return filament.WriteReceipt{}, err
 	}
 
 	// Encode outside u.mu: JSON serialization is pure CPU and would otherwise
@@ -195,7 +195,7 @@ func (s *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteRec
 		line, err := encodeRecord(b.Records[i])
 		if err != nil {
 			s.scratchPool.Put(&scratch)
-			return ingestion.WriteReceipt{}, fmt.Errorf("s3 sink: encode %s: %w", b.Resource, err)
+			return filament.WriteReceipt{}, fmt.Errorf("s3 sink: encode %s: %w", b.Resource, err)
 		}
 		scratch = append(scratch, line...)
 		scratch = append(scratch, '\n')
@@ -207,7 +207,7 @@ func (s *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteRec
 		err := u.err
 		u.mu.Unlock()
 		s.scratchPool.Put(&scratch)
-		return ingestion.WriteReceipt{}, fmt.Errorf("s3 sink: upload part %s: %w", b.Resource, err)
+		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: upload part %s: %w", b.Resource, err)
 	}
 	u.buf = append(u.buf, scratch...)
 	var body []byte
@@ -225,8 +225,8 @@ func (s *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteRec
 		s.startPartUpload(ctx, u, body, num)
 	}
 
-	crc, _ := ingestion.CRC32C(b.Records)
-	return ingestion.WriteReceipt{
+	crc, _ := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{
 		URI:      fmt.Sprintf("s3://%s/%s", s.bucket, u.key),
 		Bytes:    nbytes,
 		Rows:     len(b.Records),
@@ -235,15 +235,15 @@ func (s *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteRec
 }
 
 // Apply validates the batch against the run's write policy, then delegates to Write.
-func (s *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
+func (s *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
-	case ingestion.WriteAppend, ingestion.WriteReplace:
+	case filament.WriteAppend, filament.WriteReplace:
 		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("s3 sink: %w", err)
+			return filament.WriteReceipt{}, fmt.Errorf("s3 sink: %w", err)
 		}
 		return s.Write(ctx, b)
 	default:
-		return ingestion.WriteReceipt{}, fmt.Errorf("s3 sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
+		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
 }
 
@@ -453,7 +453,7 @@ type recordLine struct {
 	Data json.RawMessage `json:"data"`
 }
 
-func encodeRecord(r ingestion.Record) ([]byte, error) {
+func encodeRecord(r filament.Record) ([]byte, error) {
 	data := json.RawMessage(r.Data)
 	if !json.Valid(r.Data) {
 		s, err := json.Marshal(string(r.Data))

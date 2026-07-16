@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
@@ -53,7 +53,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("update pipeline %q at version %d: %w", p.GetId(), p.GetVersion(), ingestion.ErrVersionConflict)
+			return nil, fmt.Errorf("update pipeline %q at version %d: %w", p.GetId(), p.GetVersion(), filament.ErrVersionConflict)
 		}
 		return nil, fmt.Errorf("datastore/postgres: update pipeline: %w", err)
 	}
@@ -67,7 +67,7 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	row, err := s.q.GetPipeline(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("get pipeline %q: %w", id, ingestion.ErrNotFound)
+			return nil, fmt.Errorf("get pipeline %q: %w", id, filament.ErrNotFound)
 		}
 		return nil, fmt.Errorf("datastore/postgres: get pipeline: %w", err)
 	}

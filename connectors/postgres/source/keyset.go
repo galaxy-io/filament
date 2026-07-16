@@ -22,7 +22,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -45,8 +45,8 @@ type keyShard struct {
 // carried over from prev. A resource without a primary key maps to nil (non-resumable;
 // read whole via ctid). The engine persists this plan so a later resume reuses the same
 // stable shard boundaries.
-func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[string]ingestion.Checkpoint) (map[string]ingestion.Checkpoint, error) {
-	plan := make(map[string]ingestion.Checkpoint, len(resources))
+func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[string]filament.Checkpoint) (map[string]filament.Checkpoint, error) {
+	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, table := range resources {
 		pks, err := s.lookupPrimaryKey(ctx, s.schema, table)
 		if err != nil {
@@ -164,7 +164,7 @@ func dedupeOrdered(vals []string) []string {
 // ExtractFrom reads each resource from its checkpoint. Keyed resources read via keyset
 // shards (concurrently, under one exported snapshot, like Extract); a resource with no
 // keyset plan (no primary key) falls back to the ctid reader and is read whole.
-func (s *Source) ExtractFrom(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts, prev map[string]ingestion.Checkpoint) error {
+func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		ks, ok := checkpoint.ParseKeyset(prev[table])
@@ -223,7 +223,7 @@ func keyShardsFrom(table, qualified string, ks checkpoint.KeysetCheckpoint) []ke
 // cursor (or the shard's lower bound) and below the shard's upper bound, ORDER BY the key,
 // LIMIT a page. Every record is stamped with the shard ordinal and its key so the
 // pipeline can carry the cursor forward.
-func (s *Source) extractKeysetShard(ctx context.Context, sink ingestion.RecordSink, q querier, sh keyShard, limit int) error {
+func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
 	idSel := keysetIDExpr(sh.pks)
 	keySel, keyCols := keysetKeyProjection(sh.pks)
 	order := keysetOrder(sh.pks)
@@ -254,7 +254,7 @@ func (s *Source) extractKeysetShard(ctx context.Context, sink ingestion.RecordSi
 				rows.Close()
 				return fmt.Errorf("keyset scan %q: %w", sh.table, err)
 			}
-			rec := ingestion.NewRecord(sh.table, id, append([]byte(nil), data...))
+			rec := filament.NewRecord(sh.table, id, append([]byte(nil), data...))
 			rec.Part = sh.part
 			rec.Key = append([]string(nil), keys...)
 			if err := sink.Push(rec); err != nil {

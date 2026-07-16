@@ -24,7 +24,7 @@ import (
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -56,7 +56,7 @@ func (s *Source) gtidExecuted(ctx context.Context) (gomysql.GTIDSet, error) {
 
 // extractChangesGTID streams row events from the checkpointed GTID set up to the
 // watermark captured at run start.
-func (s *Source) extractChangesGTID(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ChangeExtractOpts, watermark gomysql.GTIDSet) error {
+func (s *Source) extractChangesGTID(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts, watermark gomysql.GTIDSet) error {
 	start, ok, err := startGTID(opts.Checkpoints)
 	if err != nil {
 		return err
@@ -150,7 +150,7 @@ func gtidCursor(set gomysql.GTIDSet) string { return gtidCursorPrefix + set.Stri
 // by all the others (per-resource cursors form a monotone chain, so a minimum
 // exists; re-delivering from an older set is safe, skipping is not). Incomparable
 // sets mean the checkpoints came from different streams — fail rather than guess.
-func startGTID(cps map[string]ingestion.Checkpoint) (gomysql.GTIDSet, bool, error) {
+func startGTID(cps map[string]filament.Checkpoint) (gomysql.GTIDSet, bool, error) {
 	var minSet gomysql.GTIDSet
 	for _, cp := range cps {
 		lsn, _, ok := checkpoint.ParseStream(cp)

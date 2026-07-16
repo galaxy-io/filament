@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
@@ -17,14 +17,14 @@ const DefaultTenantID = "t1"
 
 // Tenant is a control-plane tenant row.
 type Tenant struct {
-	ID        ingestion.TenantID
+	ID        filament.TenantID
 	Name      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 // EnsureTenant creates or updates a tenant row.
-func (s *Store) EnsureTenant(ctx context.Context, id ingestion.TenantID, name string) error {
+func (s *Store) EnsureTenant(ctx context.Context, id filament.TenantID, name string) error {
 	if id == "" {
 		return fmt.Errorf("datastore/postgres: tenant id is required")
 	}
@@ -38,11 +38,11 @@ func (s *Store) EnsureTenant(ctx context.Context, id ingestion.TenantID, name st
 }
 
 // LoadTenant returns a tenant row by id.
-func (s *Store) LoadTenant(ctx context.Context, id ingestion.TenantID) (Tenant, error) {
+func (s *Store) LoadTenant(ctx context.Context, id filament.TenantID) (Tenant, error) {
 	row, err := s.q.LoadTenant(ctx, string(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Tenant{}, fmt.Errorf("load tenant %q: %w", id, ingestion.ErrNotFound)
+			return Tenant{}, fmt.Errorf("load tenant %q: %w", id, filament.ErrNotFound)
 		}
 		return Tenant{}, fmt.Errorf("datastore/postgres: load tenant: %w", err)
 	}
@@ -63,7 +63,7 @@ func (s *Store) ListTenants(ctx context.Context) ([]Tenant, error) {
 }
 
 func tenantFromRow(id, name string, created, updated *time.Time) Tenant {
-	t := Tenant{ID: ingestion.TenantID(id), Name: name}
+	t := Tenant{ID: filament.TenantID(id), Name: name}
 	if created != nil {
 		t.CreatedAt = *created
 	}

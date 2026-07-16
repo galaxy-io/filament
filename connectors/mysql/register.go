@@ -5,7 +5,7 @@
 package mysql
 
 import (
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/registry"
 
 	sink "github.com/galaxy-io/filament/connectors/mysql/sink"
@@ -13,6 +13,6 @@ import (
 )
 
 func init() {
-	registry.RegisterSource("mysql", func() ingestion.Source { return source.New() })
-	registry.RegisterSink("mysql", func() ingestion.Sink { return sink.New() })
+	registry.RegisterSource("mysql", func() filament.Source { return source.New() })
+	registry.RegisterSink("mysql", func() filament.Sink { return sink.New() })
 }

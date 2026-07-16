@@ -1,7 +1,7 @@
 package stdout
 
 import (
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -9,5 +9,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/stdout"
 func init() {
-	registry.RegisterSink("stdout", func() ingestion.Sink { return New() })
+	registry.RegisterSink("stdout", func() filament.Sink { return New() })
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -24,7 +24,7 @@ func (p *Pipeline) writer(ctx context.Context) {
 			continue
 		}
 
-		readCRC, _ := ingestion.CRC32C(b.Records)
+		readCRC, _ := filament.CRC32C(b.Records)
 		receipt, err := p.writeBatch(ctx, b)
 		if err != nil {
 			p.setErr(fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err))
@@ -45,10 +45,10 @@ func (p *Pipeline) writer(ctx context.Context) {
 
 		if p.log != nil {
 			p.log.Warn("chunk divergence",
-				ingestion.Field{Key: "resource", Value: b.Resource},
-				ingestion.Field{Key: "seq", Value: b.Seq},
-				ingestion.Field{Key: "read_crc", Value: readCRC},
-				ingestion.Field{Key: "write_crc", Value: receipt.WriteCRC},
+				filament.Field{Key: "resource", Value: b.Resource},
+				filament.Field{Key: "seq", Value: b.Seq},
+				filament.Field{Key: "read_crc", Value: readCRC},
+				filament.Field{Key: "write_crc", Value: receipt.WriteCRC},
 			)
 		}
 		p.publish(events.NewFact(events.ChunkDivergence, events.Envelope{Resource: b.Resource},
@@ -56,15 +56,15 @@ func (p *Pipeline) writer(ctx context.Context) {
 	}
 }
 
-func (p *Pipeline) writeBatch(ctx context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
+func (p *Pipeline) writeBatch(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	policy, err := p.policyFor(b.Resource)
 	if err != nil {
-		return ingestion.WriteReceipt{}, err
+		return filament.WriteReceipt{}, err
 	}
-	return p.sink.Apply(ctx, b, ingestion.ApplyOptions{Policy: policy})
+	return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy})
 }
 
-func (p *Pipeline) policyFor(resource string) (ingestion.WritePolicy, error) {
+func (p *Pipeline) policyFor(resource string) (filament.WritePolicy, error) {
 	if p.writePolicies != nil {
 		if policy, ok := p.writePolicies[resource]; ok {
 			return policy, nil
@@ -74,10 +74,10 @@ func (p *Pipeline) policyFor(resource string) (ingestion.WritePolicy, error) {
 			return policy, nil
 		}
 	}
-	return ingestion.WritePolicy{}, fmt.Errorf("missing write policy for resource %q", resource)
+	return filament.WritePolicy{}, fmt.Errorf("missing write policy for resource %q", resource)
 }
 
-func receiptCheckpoint(receipt ingestion.WriteReceipt, b ingestion.Batch) *ingestion.CheckpointData {
+func receiptCheckpoint(receipt filament.WriteReceipt, b filament.Batch) *filament.CheckpointData {
 	if receipt.Checkpoint != nil {
 		return receipt.Checkpoint
 	}

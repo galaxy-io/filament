@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 )
 
@@ -54,8 +54,8 @@ func Unmarshal(b []byte) (Fact, error) {
 	}
 	return Fact{
 		Envelope: Envelope{
-			Tenant:   ingestion.TenantID(w.Tenant),
-			Run:      ingestion.RunID(w.Run),
+			Tenant:   filament.TenantID(w.Tenant),
+			Run:      filament.RunID(w.Run),
 			Resource: w.Resource,
 			Seq:      w.Seq,
 			At:       w.At,

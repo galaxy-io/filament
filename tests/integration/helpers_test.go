@@ -9,22 +9,22 @@ import (
 	"testing"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 type collectSink struct {
 	mu   sync.Mutex
-	recs []ingestion.Record
+	recs []filament.Record
 }
 
-func (s *collectSink) Push(r ingestion.Record) error {
+func (s *collectSink) Push(r filament.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recs = append(s.recs, r)
 	return nil
 }
 
-func (s *collectSink) PushBatch(rs []ingestion.Record) error {
+func (s *collectSink) PushBatch(rs []filament.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recs = append(s.recs, rs...)
@@ -32,20 +32,20 @@ func (s *collectSink) PushBatch(rs []ingestion.Record) error {
 }
 
 type flakySink struct {
-	ingestion.Sink
+	filament.Sink
 	failAt int
 	writes int
 }
 
-func (s *flakySink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
+func (s *flakySink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.writes++
 	if s.failAt > 0 && s.writes == s.failAt {
-		return ingestion.WriteReceipt{}, fmt.Errorf("injected write failure at batch %d", s.writes)
+		return filament.WriteReceipt{}, fmt.Errorf("injected write failure at batch %d", s.writes)
 	}
 	return s.Sink.Apply(ctx, b, opts)
 }
 
-func waitStatus(t *testing.T, ctx context.Context, store ingestion.DataStore, id ingestion.RunID, want ingestion.RunStatus) ingestion.RunState {
+func waitStatus(t *testing.T, ctx context.Context, store filament.DataStore, id filament.RunID, want filament.RunStatus) filament.RunState {
 	t.Helper()
 	ticker := time.NewTicker(25 * time.Millisecond)
 	defer ticker.Stop()

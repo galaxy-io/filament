@@ -1,4 +1,4 @@
-package ingestion
+package filament
 
 import (
 	"fmt"
@@ -128,7 +128,7 @@ type SyncSnapshot struct {
 
 // IngestionType names how a run moves data end to end; it determines both the
 // source's read policy and the sink's write policy.
-type IngestionType string //nolint:revive // stutters as ingestion.IngestionType, but it is the established API name
+type IngestionType string
 
 // The defined ingestion types.
 const (
@@ -285,7 +285,7 @@ type SourcePolicy struct {
 
 // IngestionPlan is the resolved policy set for a run: one source policy plus
 // per-resource write policies.
-type IngestionPlan struct { //nolint:revive // stutters as ingestion.IngestionPlan, but it is the established API name
+type IngestionPlan struct {
 	Type          IngestionType
 	SourcePolicy  SourcePolicy
 	WritePolicies map[string]WritePolicy

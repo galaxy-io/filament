@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -17,18 +17,18 @@ import (
 
 // Module consumes every ingestion fact and persists the derived run state.
 type Module struct {
-	ds  ingestion.DataStore
-	log ingestion.Logger
+	ds  filament.DataStore
+	log filament.Logger
 
 	// Resumable-checkpoint accumulators, keyed by (run, resource). A single durable
 	// consumer folds facts serially, but the maps are mutex-guarded in case the host
 	// delivers concurrently. cp holds the live merged cursor; since counts written
 	// batches toward the per-run persist cadence.
 	mu    sync.Mutex
-	cp    map[ckKey]ingestion.Checkpoint
+	cp    map[ckKey]filament.Checkpoint
 	since map[ckKey]int
-	every map[ingestion.RunID]int // cached per-run CheckpointEvery cadence
-	bm    map[ckKey]*bmAccount    // bitmap per-shard ack/want counters
+	every map[filament.RunID]int // cached per-run CheckpointEvery cadence
+	bm    map[ckKey]*bmAccount   // bitmap per-shard ack/want counters
 }
 
 // bmAccount counts written rows per bitmap shard against the shard's expected total. A
@@ -45,13 +45,13 @@ func newBmAccount() *bmAccount {
 }
 
 type ckKey struct {
-	run      ingestion.RunID
+	run      filament.RunID
 	resource string
 }
 
 // New returns an unmounted tracker. Providers are injected by Mount.
 func New() *Module {
-	return &Module{cp: map[ckKey]ingestion.Checkpoint{}, since: map[ckKey]int{}, every: map[ingestion.RunID]int{}, bm: map[ckKey]*bmAccount{}}
+	return &Module{cp: map[ckKey]filament.Checkpoint{}, since: map[ckKey]int{}, every: map[filament.RunID]int{}, bm: map[ckKey]*bmAccount{}}
 }
 
 // compile-time check that we satisfy the Module contract.
@@ -107,16 +107,16 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	env := f.Envelope
 	switch d := f.Data.(type) {
 	case events.RunStartedEvent:
-		return m.mutate(ctx, env, func(r *ingestion.RunState) {
-			r.Status = ingestion.RunRunning
+		return m.mutate(ctx, env, func(r *filament.RunState) {
+			r.Status = filament.RunRunning
 			if r.StartedAt.IsZero() {
 				r.StartedAt = env.At
 			}
 		})
 
 	case events.RunCompletedEvent:
-		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
-			r.Status = ingestion.RunCompleted
+		if err := m.mutate(ctx, env, func(r *filament.RunState) {
+			r.Status = filament.RunCompleted
 			finishedAt(r, env.At)
 			// The terminal fact carries the engine's authoritative totals.
 			r.Records = d.Records
@@ -128,8 +128,8 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return nil
 
 	case events.RunFailedEvent:
-		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
-			r.Status = ingestion.RunFailed
+		if err := m.mutate(ctx, env, func(r *filament.RunState) {
+			r.Status = filament.RunFailed
 			finishedAt(r, env.At)
 			r.Error = d.Error
 		}); err != nil {
@@ -139,8 +139,8 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return nil
 
 	case events.RunPartialEvent:
-		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
-			r.Status = ingestion.RunPartial
+		if err := m.mutate(ctx, env, func(r *filament.RunState) {
+			r.Status = filament.RunPartial
 			finishedAt(r, env.At)
 			r.Error = d.Error
 		}); err != nil {
@@ -150,18 +150,18 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return nil
 
 	case events.ResourceStartedEvent:
-		return m.mutate(ctx, env, func(r *ingestion.RunState) {
+		return m.mutate(ctx, env, func(r *filament.RunState) {
 			rs := resourceRef(r, env.Resource)
 			rs.Enabled = true
-			if rs.Status == ingestion.RunRequested {
-				rs.Status = ingestion.RunRunning
+			if rs.Status == filament.RunRequested {
+				rs.Status = filament.RunRunning
 			}
 		})
 
 	case events.ResourceCompletedEvent:
-		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
+		if err := m.mutate(ctx, env, func(r *filament.RunState) {
 			rs := resourceRef(r, env.Resource)
-			rs.Status = ingestion.RunCompleted
+			rs.Status = filament.RunCompleted
 			rs.Records = d.Records
 			rs.Bytes = d.Bytes
 		}); err != nil {
@@ -171,30 +171,30 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return nil
 
 	case events.ResourceFailedEvent:
-		return m.mutate(ctx, env, func(r *ingestion.RunState) {
+		return m.mutate(ctx, env, func(r *filament.RunState) {
 			rs := resourceRef(r, env.Resource)
-			rs.Status = ingestion.RunFailed
+			rs.Status = filament.RunFailed
 			rs.Error = d.Error
 		})
 
 	case events.BatchWrittenEvent:
 		// Incremental progress: accumulate per-resource and run totals as chunks
 		// land, so observers see counts climb before the run finishes.
-		if err := m.mutate(ctx, env, func(r *ingestion.RunState) {
+		if err := m.mutate(ctx, env, func(r *filament.RunState) {
 			r.Records += d.Records
 			r.Bytes += d.Bytes
 			rs := resourceRef(r, env.Resource)
 			rs.Records += d.Records
 			rs.Bytes += d.Bytes
-			if rs.Status == ingestion.RunRequested {
-				rs.Status = ingestion.RunRunning
+			if rs.Status == filament.RunRequested {
+				rs.Status = filament.RunRunning
 			}
 		}); err != nil {
 			return err
 		}
 		if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
 			if err := m.ds.SaveCheckpoint(ctx, env.Run, cp); err != nil && m.log != nil {
-				m.log.Error("tracker: save checkpoint", err, ingestion.Field{Key: "run", Value: string(env.Run)})
+				m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
 			}
 		}
 		return nil
@@ -211,14 +211,14 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 }
 
 // applyCheckpoint persists a cursor fact's checkpoint and pins it on the resource.
-func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *ingestion.CheckpointData) error {
+func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *filament.CheckpointData) error {
 	if cp == nil {
 		return nil
 	}
 	if err := m.ds.SaveCheckpoint(ctx, env.Run, cp); err != nil {
 		return err
 	}
-	return m.mutate(ctx, env, func(r *ingestion.RunState) {
+	return m.mutate(ctx, env, func(r *filament.RunState) {
 		resourceRef(r, env.Resource).Checkpoint = cp
 	})
 }
@@ -226,7 +226,7 @@ func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *i
 // foldCursor merges a batch.written keyset delta into the resource's accumulated
 // checkpoint and reports whether the run's persist cadence is due. Returns (nil,false)
 // for a non-keyset batch or before the shard layout (the plan) has been seeded.
-func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *ingestion.CheckpointData) (ingestion.Checkpoint, bool) {
+func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *filament.CheckpointData) (filament.Checkpoint, bool) {
 	if cp == nil {
 		return nil, false
 	}
@@ -262,7 +262,7 @@ func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *ingest
 // foldStream folds a change-stream position delta: the newer position (guarded by the
 // per-run seq, since concurrent writers can publish batch facts out of order) replaces
 // the resource's cursor wholesale — a stream cursor has no shard layout to merge into.
-func (m *Module) foldStream(ctx context.Context, env events.Envelope, cp *ingestion.CheckpointData) (ingestion.Checkpoint, bool) {
+func (m *Module) foldStream(ctx context.Context, env events.Envelope, cp *filament.CheckpointData) (filament.Checkpoint, bool) {
 	key := ckKey{env.Run, env.Resource}
 
 	m.mu.Lock()
@@ -290,7 +290,7 @@ func (m *Module) foldStream(ctx context.Context, env events.Envelope, cp *ingest
 // the part is fully written, flips its Done flag in the resource checkpoint and persists.
 // Returns (nil, false) for a plain ack or before completion. Order-independent of whether
 // the want marker or the acks land first, so it is correct under parallel writers.
-func (m *Module) foldBitmap(ctx context.Context, env events.Envelope, part, ack, want int, hasWant bool) (ingestion.Checkpoint, bool) {
+func (m *Module) foldBitmap(ctx context.Context, env events.Envelope, part, ack, want int, hasWant bool) (filament.Checkpoint, bool) {
 	key := ckKey{env.Run, env.Resource}
 
 	m.mu.Lock()
@@ -327,7 +327,7 @@ func (m *Module) foldBitmap(ctx context.Context, env events.Envelope, part, ack,
 
 // flushResource persists the resource's latest accumulated cursor immediately,
 // regardless of cadence (called on resource.completed and run termination).
-func (m *Module) flushResource(ctx context.Context, run ingestion.RunID, resource string) {
+func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource string) {
 	key := ckKey{run, resource}
 	m.mu.Lock()
 	cp := m.cp[key]
@@ -335,16 +335,16 @@ func (m *Module) flushResource(ctx context.Context, run ingestion.RunID, resourc
 	m.mu.Unlock()
 	if cp != nil {
 		if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil && m.log != nil {
-			m.log.Error("tracker: flush checkpoint", err, ingestion.Field{Key: "run", Value: string(run)})
+			m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
 		}
 	}
 }
 
 // flushRun persists every accumulated cursor for the run (called on terminal facts so
 // a resumable failure leaves the freshest possible cursors on disk).
-func (m *Module) flushRun(ctx context.Context, run ingestion.RunID) {
+func (m *Module) flushRun(ctx context.Context, run filament.RunID) {
 	m.mu.Lock()
-	pending := make(map[string]ingestion.Checkpoint)
+	pending := make(map[string]filament.Checkpoint)
 	for key, cp := range m.cp {
 		if key.run == run && cp != nil {
 			pending[key.resource] = cp
@@ -356,17 +356,17 @@ func (m *Module) flushRun(ctx context.Context, run ingestion.RunID) {
 	m.mu.Unlock()
 	for _, cp := range pending {
 		if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil && m.log != nil {
-			m.log.Error("tracker: flush checkpoint", err, ingestion.Field{Key: "run", Value: string(run)})
+			m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
 		}
 	}
 }
 
 // cadence is the run's CheckpointEvery (cached; default when unset).
-func (m *Module) cadence(ctx context.Context, run ingestion.RunID) int {
+func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
 	if n, ok := m.every[run]; ok {
 		return n
 	}
-	n := ingestion.DefaultCheckpointEvery
+	n := filament.DefaultCheckpointEvery
 	if r, err := m.ds.LoadRun(ctx, run); err == nil && r.Request.Options.CheckpointEvery > 0 {
 		n = r.Request.Options.CheckpointEvery
 	}
@@ -375,7 +375,7 @@ func (m *Module) cadence(ctx context.Context, run ingestion.RunID) int {
 }
 
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.
-func (m *Module) loadCheckpoint(ctx context.Context, run ingestion.RunID, resource string) ingestion.Checkpoint {
+func (m *Module) loadCheckpoint(ctx context.Context, run filament.RunID, resource string) filament.Checkpoint {
 	cp, err := m.ds.LoadCheckpoint(ctx, run, resource)
 	if err != nil {
 		return nil
@@ -388,10 +388,10 @@ func (m *Module) loadCheckpoint(ctx context.Context, run ingestion.RunID, resour
 // any prior state exists). Loading the full state first preserves fields this
 // fact doesn't touch (notably the original Request). The tracker's single pump
 // goroutine serializes these, so no row is lost to a concurrent fold.
-func (m *Module) mutate(ctx context.Context, env events.Envelope, fn func(*ingestion.RunState)) error {
+func (m *Module) mutate(ctx context.Context, env events.Envelope, fn func(*filament.RunState)) error {
 	r, err := m.ds.LoadRun(ctx, env.Run)
-	if errors.Is(err, ingestion.ErrNotFound) {
-		r = ingestion.RunState{Run: env.Run, Tenant: env.Tenant}
+	if errors.Is(err, filament.ErrNotFound) {
+		r = filament.RunState{Run: env.Run, Tenant: env.Tenant}
 	} else if err != nil {
 		return err
 	}
@@ -402,24 +402,24 @@ func (m *Module) mutate(ctx context.Context, env events.Envelope, fn func(*inges
 // resourceRef returns a pointer to the named resource's state on the run,
 // appending a fresh one if absent. Saving the run cascades the slice back to the
 // store, so mutations through this pointer persist.
-func resourceRef(r *ingestion.RunState, name string) *ingestion.ResourceState {
+func resourceRef(r *filament.RunState, name string) *filament.ResourceState {
 	for i := range r.Resources {
 		if r.Resources[i].Resource == name {
 			return &r.Resources[i]
 		}
 	}
-	r.Resources = append(r.Resources, ingestion.ResourceState{
+	r.Resources = append(r.Resources, filament.ResourceState{
 		Run:      r.Run,
 		Tenant:   r.Tenant,
 		Resource: name,
 		Enabled:  true,
-		Status:   ingestion.RunRunning,
+		Status:   filament.RunRunning,
 	})
 	return &r.Resources[len(r.Resources)-1]
 }
 
 // finishedAt stamps the run's finish time once.
-func finishedAt(r *ingestion.RunState, at time.Time) {
+func finishedAt(r *filament.RunState, at time.Time) {
 	if r.FinishedAt == nil {
 		t := at
 		r.FinishedAt = &t
