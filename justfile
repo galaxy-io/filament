@@ -49,14 +49,20 @@ tidy: (_each "GOWORK=off go mod tidy")
 # apply gofumpt + goimports to every Go module (settings in .golangci.yaml), plus UI formatting
 format: (_each "GOWORK=off golangci-lint fmt ./...") ui-format
 
+# check Go formatting without writing (what CI runs)
+go-format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...")
+
 # check formatting without writing
-format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...") ui-format-check
+format-check: go-format-check ui-format-check
 
 # run linters and apply auto-fixes where possible
 lint: (_each "GOWORK=off golangci-lint run --fix ./...") ui-lint
 
-# run linters without fixing (what CI runs)
-lint-check: (_each "GOWORK=off golangci-lint run ./...") ui-lint-check
+# run Go linters without fixing (what CI runs)
+go-lint-check: (_each "GOWORK=off golangci-lint run ./...")
+
+# run all linters without fixing
+lint-check: go-lint-check ui-lint-check
 
 # run unit tests in every Go module except tests/ (integration; needs docker)
 test:
