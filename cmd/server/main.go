@@ -50,6 +50,7 @@ func main() {
 	}
 }
 
+//nolint:funlen // startup wiring reads better linear
 func run(ctx context.Context, migrateOnly bool) error {
 	persistenceDSN := os.Getenv("PERSISTENCE_DSN")
 	if persistenceDSN == "" {
@@ -150,6 +151,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, server.WithSecrets(secrets)).Mount(mux)
 	mux.Handle("/", ui.Handler())
 	fmt.Println("server:", "http://localhost"+addr)
+
 	select {
 	case err := <-errCh:
 		return err
