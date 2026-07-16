@@ -15,7 +15,11 @@ import FlexWrapper, {
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, {
+  TextSize,
+  TextVariant,
+  TextWeight,
+} from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
@@ -23,7 +27,10 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import { ToastVariant } from "@/providers/toast/Toast";
 import { useToast } from "@/providers/toast/useToast";
 
-import { useDeletePipelineMutation, useGetPipelineQuery } from "@/api/queries/pipelines";
+import {
+  useDeletePipelineMutation,
+  useGetPipelineQuery,
+} from "@/api/queries/pipelines";
 
 import {
   DeletePipelineRequestSchema,
@@ -59,7 +66,9 @@ const DEFAULT_STATE: PipelineSettingsPageState = {
 
 const PipelineSettingsPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
+
   const navigate = useNavigate();
+
   const { data } = useGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
   });
@@ -110,8 +119,8 @@ const PipelineSettingsPage = () => {
 
   return (
     <PageWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={16} maxWidth={600} fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL}>
+      <FlexWrapper direction={FlexDirection.COLUMN} gap={16} minWidth={400} maxWidth={600}>
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
           <Text size={TextSize.HEADING_SM} weight={TextWeight.MEDIUM}>
             Settings
           </Text>
@@ -120,7 +129,7 @@ const PipelineSettingsPage = () => {
           </Text>
         </FlexWrapper>
 
-        <Widget header="General" noHover>
+        <Widget header="General" noHover fillWidth>
           <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
             <FlexWrapper direction={FlexDirection.COLUMN} gap={6} fillWidth>
               <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
@@ -147,12 +156,16 @@ const PipelineSettingsPage = () => {
             </FlexWrapper>
 
             <FlexWrapper justifyContent={JustifyContent.END} fillWidth>
-              <Button label="Save" isDisabled={!hasChanges} onClick={handleSave} />
+              <Button
+                label="Save"
+                isDisabled={!hasChanges}
+                onClick={handleSave}
+              />
             </FlexWrapper>
           </FlexWrapper>
         </Widget>
 
-        <Widget header="Schedule" noHover>
+        <Widget header="Schedule" noHover fillWidth>
           <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={16}>
             <FlexWrapper direction={FlexDirection.COLUMN} gap={6} fillWidth>
               <Text>Enable scheduling</Text>
@@ -160,11 +173,14 @@ const PipelineSettingsPage = () => {
                 Run this pipeline on a recurring schedule.
               </Text>
             </FlexWrapper>
-            <ToggleInput value={state.scheduleEnabled} onChange={handleScheduleEnabledChange} />
+            <ToggleInput
+              value={state.scheduleEnabled}
+              onChange={handleScheduleEnabledChange}
+            />
           </FlexWrapper>
         </Widget>
 
-        <Widget header="Notifications" noHover>
+        <Widget header="Notifications" noHover fillWidth>
           <FlexWrapper
             direction={FlexDirection.COLUMN}
             alignItems={AlignItems.CENTER}
@@ -199,7 +215,7 @@ const PipelineSettingsPage = () => {
           </FlexWrapper>
         </Widget>
 
-        <Widget header="Danger zone" variant={WidgetVariant.ERROR} noHover>
+        <Widget header="Danger zone" variant={WidgetVariant.ERROR} noHover fillWidth>
           <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
             <FlexWrapper direction={FlexDirection.COLUMN} gap={6} fillWidth>
               <Text weight={TextWeight.MEDIUM}>Delete pipeline</Text>
