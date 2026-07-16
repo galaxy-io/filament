@@ -1,9 +1,9 @@
 // Package pipeline implements the batcher → writer → integrity extraction loop.
 //
-// A Source pushes ingestion.Records into the inlet (Records). A pool of batcher
+// A Source pushes filament.Records into the inlet (Records). A pool of batcher
 // goroutines — sharded by resource so a resource is always handled by the same
 // batcher — accumulates records and, on a row-count threshold or a timer tick,
-// flushes a ingestion.Batch. A pool of writer goroutines hands each batch to the Sink:
+// flushes a filament.Batch. A pool of writer goroutines hands each batch to the Sink:
 // the writer computes the read-side CRC and compares it against the Sink's
 // write-side CRC, publishing facts (batch buffered/written, integrity verified,
 // chunk divergence) via an injected emit callback. Computing the read CRC in the
@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -33,14 +33,14 @@ const defaultFlushInterval = time.Second
 // Commit/Abort are the engine's responsibility, not the pipeline's — the pipeline
 // only calls Apply.
 type Config struct {
-	Tenant        ingestion.TenantID
-	Run           ingestion.RunID
-	Sink          ingestion.Sink
+	Tenant        filament.TenantID
+	Run           filament.RunID
+	Sink          filament.Sink
 	Emit          func(events.Fact) // nil → facts discarded
-	WritePolicies map[string]ingestion.WritePolicy
-	Options       ingestion.RunOptions
-	FlushInterval time.Duration    // default 1s
-	Log           ingestion.Logger // optional
+	WritePolicies map[string]filament.WritePolicy
+	Options       filament.RunOptions
+	FlushInterval time.Duration   // default 1s
+	Log           filament.Logger // optional
 	NextSeq       func() uint64
 }
 
@@ -48,19 +48,19 @@ type Config struct {
 // with Start, feed via Records, signal end-of-input with CloseIngest, and block
 // for completion with Wait.
 type Pipeline struct {
-	tenant        ingestion.TenantID
-	run           ingestion.RunID
-	sink          ingestion.Sink
+	tenant        filament.TenantID
+	run           filament.RunID
+	sink          filament.Sink
 	emit          func(events.Fact)
-	writePolicies map[string]ingestion.WritePolicy
+	writePolicies map[string]filament.WritePolicy
 	batchRows     int
 	flushIvl      time.Duration
 	writers       int // concurrent sink writers
 	shards        int // batcher goroutines; records route to a shard by resource hash
-	log           ingestion.Logger
+	log           filament.Logger
 
-	ingestChs []chan ingestion.Record // one inlet channel per batcher shard
-	batchCh   chan ingestion.Batch
+	ingestChs []chan filament.Record // one inlet channel per batcher shard
+	batchCh   chan filament.Batch
 
 	nextSeq   func() uint64 // monotonic fact sequence for (tenant, run) dedup
 	pubMu     sync.Mutex    // serializes publish so concurrent writers emit facts safely
@@ -98,9 +98,9 @@ func New(cfg Config) *Pipeline {
 		var seq atomic.Uint64
 		nextSeq = func() uint64 { return seq.Add(1) }
 	}
-	ingestChs := make([]chan ingestion.Record, parallelism)
+	ingestChs := make([]chan filament.Record, parallelism)
 	for i := range ingestChs {
-		ingestChs[i] = make(chan ingestion.Record, rows*4)
+		ingestChs[i] = make(chan filament.Record, rows*4)
 	}
 	return &Pipeline{
 		tenant:        cfg.Tenant,
@@ -114,14 +114,14 @@ func New(cfg Config) *Pipeline {
 		shards:        parallelism,
 		log:           cfg.Log,
 		ingestChs:     ingestChs,
-		batchCh:       make(chan ingestion.Batch, 4),
+		batchCh:       make(chan filament.Batch, 4),
 		nextSeq:       nextSeq,
 		done:          make(chan struct{}),
 	}
 }
 
 // Records returns the inlet a Source pushes into. Safe to call before Start.
-func (p *Pipeline) Records() ingestion.RecordSink {
+func (p *Pipeline) Records() filament.RecordSink {
 	return &inlet{chs: p.ingestChs, done: p.done, err: p.Err}
 }
 

@@ -1,4 +1,4 @@
-// Package stdout implements the ingestion.Sink interface by printing batches as NDJSON.
+// Package stdout implements the filament.Sink interface by printing batches as NDJSON.
 // It is the simplest concrete sink: it serializes each record to its own JSON line,
 // computes the write-side CRC the engine verifies against the read CRC, and on
 // Commit prints a one-line manifest summarizing the run. It holds no buffering or
@@ -19,14 +19,14 @@ import (
 	"sort"
 	"sync"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // Sink writes batches as NDJSON to an io.Writer (os.Stdout by default).
 type Sink struct {
 	mu      sync.Mutex
 	w       io.Writer
-	run     ingestion.RunID
+	run     filament.RunID
 	acct    map[string]*resourceAcct
 	aborted bool
 }
@@ -53,17 +53,17 @@ func New(opts ...Option) *Sink {
 	return s
 }
 
-var _ ingestion.Sink = (*Sink)(nil)
+var _ filament.Sink = (*Sink)(nil)
 
 // Spec describes the sink's write capabilities.
-func (s *Sink) Spec() ingestion.SinkSpec {
-	return ingestion.SinkSpec{
+func (s *Sink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{
 		Name:        "stdout",
 		DisplayName: "Standard Output (NDJSON)",
 		Version:     "1",
-		Capabilities: ingestion.SinkCapabilities{WritePolicies: ingestion.WriteCapabilities(
-			ingestion.IngestionAppend,
-			ingestion.IngestionSnapshotReplace,
+		Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(
+			filament.IngestionAppend,
+			filament.IngestionSnapshotReplace,
 		)},
 	}
 }
@@ -72,7 +72,7 @@ func (s *Sink) Spec() ingestion.SinkSpec {
 func (s *Sink) Name() string { return "stdout" }
 
 // Open begins a run, resetting per-run accounting.
-func (s *Sink) Open(_ context.Context, run ingestion.RunSpec) error {
+func (s *Sink) Open(_ context.Context, run filament.RunSpec) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.run = run.Run
@@ -84,7 +84,7 @@ func (s *Sink) Open(_ context.Context, run ingestion.RunSpec) error {
 // Write prints each record as one canonical NDJSON line and returns a receipt
 // whose WriteCRC is computed over the same records the batcher hashed for ReadCRC
 // — so the engine's integrity check passes unless the stream write itself failed.
-func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
+func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -92,13 +92,13 @@ func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteRecei
 	for i := range b.Records {
 		line, err := encodeRecord(b.Records[i])
 		if err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("stdout: encode %s: %w", b.Resource, err)
+			return filament.WriteReceipt{}, fmt.Errorf("stdout: encode %s: %w", b.Resource, err)
 		}
 		if _, err := s.w.Write(line); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
+			return filament.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
 		}
 		if _, err := s.w.Write(newline); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
+			return filament.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
 		}
 		nbytes += int64(len(line)) + 1
 	}
@@ -112,8 +112,8 @@ func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteRecei
 	a.bytes += nbytes
 	a.batches++
 
-	crc, _ := ingestion.CRC32C(b.Records)
-	return ingestion.WriteReceipt{
+	crc, _ := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{
 		URI:      fmt.Sprintf("stdout://%s/%s", s.run, b.Resource),
 		Bytes:    nbytes,
 		Rows:     len(b.Records),
@@ -122,15 +122,15 @@ func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteRecei
 }
 
 // Apply validates the batch against the run's write policy, then delegates to Write.
-func (s *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
+func (s *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
-	case ingestion.WriteAppend, ingestion.WriteReplace:
+	case filament.WriteAppend, filament.WriteReplace:
 		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("stdout: %w", err)
+			return filament.WriteReceipt{}, fmt.Errorf("stdout: %w", err)
 		}
 		return s.Write(ctx, b)
 	default:
-		return ingestion.WriteReceipt{}, fmt.Errorf("stdout: write policy %q is not implemented", opts.Policy.Capability.Mode)
+		return filament.WriteReceipt{}, fmt.Errorf("stdout: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
 }
 
@@ -184,8 +184,8 @@ type recordLine struct {
 // encodeRecord serializes one record to a JSON line. A payload that is already valid
 // JSON is embedded raw; anything else is emitted as a JSON string so the line is
 // always valid JSON. This is the stdout sink's own concern — the integrity CRC uses
-// the canonical encoding (ingestion.CRC32C), which does no such validation.
-func encodeRecord(r ingestion.Record) ([]byte, error) {
+// the canonical encoding (filament.CRC32C), which does no such validation.
+func encodeRecord(r filament.Record) ([]byte, error) {
 	data := json.RawMessage(r.Data)
 	if !json.Valid(r.Data) {
 		s, err := json.Marshal(string(r.Data))

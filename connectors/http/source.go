@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
@@ -19,8 +19,8 @@ import (
 
 const providerName = "httpapi"
 
-var genericConfig = ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-	{Name: "manifest_path", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopeConnection, Help: "Path to a v2 HTTP API connector manifest"},
+var genericConfig = filament.ConfigSchema{Fields: []filament.ConfigField{
+	{Name: "manifest_path", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Path to a v2 HTTP API connector manifest"},
 }}
 
 type selectorToken struct {
@@ -33,18 +33,18 @@ type Source struct {
 	connector        *Connector
 	name             string
 	displayName      string
-	config           ingestion.ConfigSchema
+	config           filament.ConfigSchema
 	manifestData     []byte
 	dynamicResources map[string]string
 }
 
 var (
-	_ ingestion.Source          = (*Source)(nil)
-	_ ingestion.Discoverable    = (*Source)(nil)
-	_ ingestion.Resumable       = (*Source)(nil)
-	_ ingestion.ResumePlanner   = (*Source)(nil)
-	_ ingestion.ResourcePlanner = (*Source)(nil)
-	_ ingestion.SchemaProvider  = (*Source)(nil)
+	_ filament.Source          = (*Source)(nil)
+	_ filament.Discoverable    = (*Source)(nil)
+	_ filament.Resumable       = (*Source)(nil)
+	_ filament.ResumePlanner   = (*Source)(nil)
+	_ filament.ResourcePlanner = (*Source)(nil)
+	_ filament.SchemaProvider  = (*Source)(nil)
 )
 
 // New returns the generic manifest-path-configured HTTP source.
@@ -53,37 +53,37 @@ func New() *Source {
 }
 
 // NewManifest returns a Source bound to embedded manifest bytes and a config schema.
-func NewManifest(name, displayName string, manifestData []byte, config ingestion.ConfigSchema) *Source {
+func NewManifest(name, displayName string, manifestData []byte, config filament.ConfigSchema) *Source {
 	return &Source{name: name, displayName: displayName, manifestData: manifestData, config: config}
 }
 
 // Spec reports the source's capabilities and configuration surface.
-func (s *Source) Spec() ingestion.ConnectorSpec {
-	return ingestion.ConnectorSpec{
+func (s *Source) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{
 		Name:        s.name,
 		DisplayName: s.displayName,
 		Version:     "1",
-		Modes:       []ingestion.ReplicationMode{ingestion.ModeFull, ingestion.ModeIncremental},
-		SourcePolicies: ingestion.SourcePolicies(
-			ingestion.IngestionSnapshotReplace,
-			ingestion.IngestionSnapshotUpsert,
-			ingestion.IngestionAppend,
+		Modes:       []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental},
+		SourcePolicies: filament.SourcePolicies(
+			filament.IngestionSnapshotReplace,
+			filament.IngestionSnapshotUpsert,
+			filament.IngestionAppend,
 		),
 		Config:    s.config,
-		Resources: ingestion.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
 
 // Validate checks that all required config fields are present and non-empty.
-func (s *Source) Validate(cfg ingestion.Config) error {
+func (s *Source) Validate(cfg filament.Config) error {
 	for _, field := range s.config.Fields {
 		if field.Required && !cfg.Has(field.Name) {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
-		if field.Required && field.Type == ingestion.FieldString && cfg.String(field.Name) == "" {
+		if field.Required && field.Type == filament.FieldString && cfg.String(field.Name) == "" {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
-		if field.Required && field.Type == ingestion.FieldSecret && cfg.Secret(field.Name) == "" {
+		if field.Required && field.Type == filament.FieldSecret && cfg.Secret(field.Name) == "" {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
 	}
@@ -91,7 +91,7 @@ func (s *Source) Validate(cfg ingestion.Config) error {
 }
 
 // Configure validates cfg and builds the underlying connector.
-func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
+func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
@@ -114,19 +114,19 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 
 // Discover enumerates selectable resources, falling back to the manifest's
 // static resource list when the manifest declares no discovery spec.
-func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
+func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filament.DiscoverResult, error) {
 	if s.connector == nil || s.connector.manifest == nil {
-		return ingestion.DiscoverResult{}, fmt.Errorf("httpapi source: discover before configure")
+		return filament.DiscoverResult{}, fmt.Errorf("httpapi source: discover before configure")
 	}
 	res, err := s.connector.Discover(ctx, pipeline.DiscoverOptions{Logger: slog.Default()})
 	if err != nil {
-		return ingestion.DiscoverResult{}, err
+		return filament.DiscoverResult{}, err
 	}
 	if len(res.Resources) == 0 {
-		out := make([]ingestion.Resource, 0, len(s.connector.manifest.Resources))
+		out := make([]filament.Resource, 0, len(s.connector.manifest.Resources))
 		for _, r := range s.connector.manifest.Resources {
 			schema, _ := s.Schema(ctx, r.Name)
-			out = append(out, ingestion.Resource{
+			out = append(out, filament.Resource{
 				Name:       r.Name,
 				Selector:   r.Name,
 				Selectable: true,
@@ -134,15 +134,15 @@ func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingest
 				Schema:     &schema,
 			})
 		}
-		return ingestion.DiscoverResult{Resources: out}, nil
+		return filament.DiscoverResult{Resources: out}, nil
 	}
-	out := make([]ingestion.Resource, 0, len(res.Resources))
+	out := make([]filament.Resource, 0, len(res.Resources))
 	for _, r := range res.Resources {
 		name := r.ID
 		if name == "" {
 			name = r.Name
 		}
-		out = append(out, ingestion.Resource{
+		out = append(out, filament.Resource{
 			Name:        name,
 			Selector:    encodeSelector(r.Kind, r.ID),
 			Selectable:  true,
@@ -150,17 +150,17 @@ func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingest
 			Metadata:    r.Metadata,
 		})
 	}
-	return ingestion.DiscoverResult{Resources: out}, nil
+	return filament.DiscoverResult{Resources: out}, nil
 }
 
 // Extract runs a full extraction into sink.
-func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 	return s.extract(ctx, sink, opts, nil, nil)
 }
 
 // ExtractFrom resumes extraction from per-resource keyset checkpoints,
 // decoding them into resume cursors and watermarks.
-func (s *Source) ExtractFrom(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts, prev map[string]ingestion.Checkpoint) error {
+func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
 	resumeCursors := make(map[string]string, len(prev))
 	resumeWatermarks := make(map[string]map[string]string, len(prev))
 	for resource, cp := range prev {
@@ -193,7 +193,7 @@ func (s *Source) PlanResources(_ context.Context, resources, selectors []string)
 
 // PlanResume builds per-resource keyset checkpoints seeded from prev,
 // reshaping columns to the current cursor + watermark layout.
-func (s *Source) PlanResume(_ context.Context, resources []string, prev map[string]ingestion.Checkpoint) (map[string]ingestion.Checkpoint, error) {
+func (s *Source) PlanResume(_ context.Context, resources []string, prev map[string]filament.Checkpoint) (map[string]filament.Checkpoint, error) {
 	if s.connector == nil || s.connector.manifest == nil {
 		return nil, fmt.Errorf("httpapi source: plan resume before configure")
 	}
@@ -201,7 +201,7 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 	if err != nil {
 		return nil, err
 	}
-	plan := make(map[string]ingestion.Checkpoint, len(resources))
+	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, resource := range resources {
 		cols := append([]string{"cursor"}, s.watermarkKeys(resource)...)
 		types := make([]string, len(cols))
@@ -227,21 +227,21 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 }
 
 // Schema returns the declared record schema for a resource.
-func (s *Source) Schema(_ context.Context, resource string) (ingestion.RecordSchema, error) {
+func (s *Source) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
 	if s.connector == nil || s.connector.manifest == nil {
-		return ingestion.RecordSchema{}, fmt.Errorf("httpapi source: schema before configure")
+		return filament.RecordSchema{}, fmt.Errorf("httpapi source: schema before configure")
 	}
 	base := s.baseResourceName(resource)
 	for _, res := range s.connector.manifest.Resources {
 		if res.Name != base {
 			continue
 		}
-		return ingestion.RecordSchema{Resource: resource, Fields: schemaFields(res), PrimaryKey: append([]string(nil), res.PrimaryKey...)}, nil
+		return filament.RecordSchema{Resource: resource, Fields: schemaFields(res), PrimaryKey: append([]string(nil), res.PrimaryKey...)}, nil
 	}
-	return ingestion.RecordSchema{}, fmt.Errorf("httpapi source: unknown resource %q", resource)
+	return filament.RecordSchema{}, fmt.Errorf("httpapi source: unknown resource %q", resource)
 }
 
-func (s *Source) extract(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts, resumeCursors map[string]string, resumeWatermarks map[string]map[string]string) error {
+func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, resumeCursors map[string]string, resumeWatermarks map[string]map[string]string) error {
 	if s.connector == nil || s.connector.manifest == nil {
 		return fmt.Errorf("httpapi source: extract before configure")
 	}
@@ -438,7 +438,7 @@ func (s *Source) Teardown(ctx context.Context) error {
 	return s.connector.Teardown(ctx)
 }
 
-func credentialsFromConfig(cfg ingestion.Config) map[string]string {
+func credentialsFromConfig(cfg filament.Config) map[string]string {
 	creds := map[string]string{}
 	for k, v := range cfg.Raw() {
 		if k == "manifest_path" {
@@ -496,8 +496,8 @@ func decodeSelector(selector string) (pipeline.ResourceRef, bool) {
 	return pipeline.ResourceRef{Kind: token.Kind, ID: token.ID}, true
 }
 
-func toIngestionRecord(rec pipeline.Record) ingestion.Record {
-	out := ingestion.Record{
+func toIngestionRecord(rec pipeline.Record) filament.Record {
+	out := filament.Record{
 		Resource: rec.Resource,
 		ID:       recordID(rec.KeyJSON),
 		Op:       operationToPkg(rec.Operation),
@@ -568,13 +568,13 @@ func recordID(keyJSON []byte) string {
 	return string(keyJSON)
 }
 
-func operationToPkg(op pipeline.Operation) ingestion.Operation {
+func operationToPkg(op pipeline.Operation) filament.Operation {
 	switch op {
 	case pipeline.OperationDelete:
-		return ingestion.OpDelete
+		return filament.OpDelete
 	case pipeline.OperationUpdate:
-		return ingestion.OpUpdate
+		return filament.OpUpdate
 	default:
-		return ingestion.OpInsert
+		return filament.OpInsert
 	}
 }

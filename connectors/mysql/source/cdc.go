@@ -32,7 +32,7 @@ import (
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -40,7 +40,7 @@ import (
 // from the server's and any real replica's server_id. Override with "server_id".
 const defaultServerID = 62347
 
-var _ ingestion.ChangeSource = (*Source)(nil)
+var _ filament.ChangeSource = (*Source)(nil)
 
 // ExtractChanges streams binlog row events from the checkpointed position to the
 // position the server reports at call time, pushing one record per changed row.
@@ -49,7 +49,7 @@ var _ ingestion.ChangeSource = (*Source)(nil)
 // global to the topology, binlog file offsets are not), file:pos otherwise.
 // Existing file:pos checkpoints keep the file:pos path even on a GTID server,
 // so an in-flight stream never jumps cursors mid-run; a new run id migrates.
-func (s *Source) ExtractChanges(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ChangeExtractOpts) error {
+func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts) error {
 	if s.db == nil {
 		return fmt.Errorf("mysql source: extract changes before configure")
 	}
@@ -125,7 +125,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink ingestion.RecordSink, 
 // it AND no resource carries a legacy file:pos cursor (continuity beats upgrade —
 // jumping cursor kinds mid-stream would need a file:pos → GTID translation the
 // binlog does not offer).
-func (s *Source) chooseGTID(ctx context.Context, cps map[string]ingestion.Checkpoint) (bool, error) {
+func (s *Source) chooseGTID(ctx context.Context, cps map[string]filament.Checkpoint) (bool, error) {
 	for _, cp := range cps {
 		if lsn, _, ok := checkpoint.ParseStream(cp); ok && !strings.HasPrefix(lsn, gtidCursorPrefix) {
 			return false, nil
@@ -135,7 +135,7 @@ func (s *Source) chooseGTID(ctx context.Context, cps map[string]ingestion.Checkp
 }
 
 type cdcRun struct {
-	sink      ingestion.RecordSink
+	sink      filament.RecordSink
 	resources []string
 	tracked   map[string]bool
 	tables    map[string][]column // schema cache, invalidated on DDL
@@ -144,7 +144,7 @@ type cdcRun struct {
 	limit     int
 }
 
-func newCDCRun(sink ingestion.RecordSink, resources []string, limit int) *cdcRun {
+func newCDCRun(sink filament.RecordSink, resources []string, limit int) *cdcRun {
 	tracked := make(map[string]bool, len(resources))
 	for _, r := range resources {
 		tracked[r] = true
@@ -184,7 +184,7 @@ func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.E
 // this run.
 func (r *cdcRun) pushStreamMarksLSN(lsn string) error {
 	for _, resource := range r.resources {
-		rec := ingestion.Record{Resource: resource, Drained: true}
+		rec := filament.Record{Resource: resource, Drained: true}
 		rec.Meta.LSN = lsn
 		rec.Meta.Seq = r.seq
 		if err := r.sink.Push(rec); err != nil {
@@ -198,14 +198,14 @@ func (r *cdcRun) pushStreamMarksLSN(lsn string) error {
 // stream cursor. Updates arrive as (before, after) pairs: an unchanged-key update
 // emits OpUpdate with the after image; a key-changing update emits
 // OpDelete(before) + OpInsert(after) so the sink's merge keeps exactly one row.
-func (s *Source) pushRowsEventLSN(sink ingestion.RecordSink, typ replication.EventType, table string, cols []column, rows [][]any, lsn string, seq *uint64) (int, error) {
-	push := func(op ingestion.Operation, row []any) error {
+func (s *Source) pushRowsEventLSN(sink filament.RecordSink, typ replication.EventType, table string, cols []column, rows [][]any, lsn string, seq *uint64) (int, error) {
+	push := func(op filament.Operation, row []any) error {
 		data, err := encodeRowJSON(cols, row)
 		if err != nil {
 			return fmt.Errorf("mysql cdc: encode %s row: %w", table, err)
 		}
 		*seq++
-		rec := ingestion.Record{
+		rec := filament.Record{
 			Resource: table,
 			ID:       rowID(cols, row),
 			Op:       op,
@@ -220,14 +220,14 @@ func (s *Source) pushRowsEventLSN(sink ingestion.RecordSink, typ replication.Eve
 	switch {
 	case isWriteRows(typ):
 		for _, row := range rows {
-			if err := push(ingestion.OpInsert, row); err != nil {
+			if err := push(filament.OpInsert, row); err != nil {
 				return n, err
 			}
 			n++
 		}
 	case isDeleteRows(typ):
 		for _, row := range rows {
-			if err := push(ingestion.OpDelete, row); err != nil {
+			if err := push(filament.OpDelete, row); err != nil {
 				return n, err
 			}
 			n++
@@ -236,16 +236,16 @@ func (s *Source) pushRowsEventLSN(sink ingestion.RecordSink, typ replication.Eve
 		for i := 0; i+1 < len(rows); i += 2 {
 			before, after := rows[i], rows[i+1]
 			if rowID(cols, before) == rowID(cols, after) {
-				if err := push(ingestion.OpUpdate, after); err != nil {
+				if err := push(filament.OpUpdate, after); err != nil {
 					return n, err
 				}
 				n++
 				continue
 			}
-			if err := push(ingestion.OpDelete, before); err != nil {
+			if err := push(filament.OpDelete, before); err != nil {
 				return n, err
 			}
-			if err := push(ingestion.OpInsert, after); err != nil {
+			if err := push(filament.OpInsert, after); err != nil {
 				return n + 1, err
 			}
 			n += 2
@@ -455,7 +455,7 @@ func scanPosition(rows interface {
 
 // startPosition picks the oldest checkpointed position across the run's resources —
 // the safe restart point; re-delivered events are absorbed by the idempotent merge.
-func startPosition(cps map[string]ingestion.Checkpoint) (gomysql.Position, bool) {
+func startPosition(cps map[string]filament.Checkpoint) (gomysql.Position, bool) {
 	var out gomysql.Position
 	found := false
 	for _, cp := range cps {

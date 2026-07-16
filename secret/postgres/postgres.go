@@ -1,4 +1,4 @@
-// Package postgres implements ingestion.Secrets using the shared Filament Postgres schema.
+// Package postgres implements filament.Secrets using the shared Filament Postgres schema.
 package postgres
 
 import (
@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
@@ -27,7 +27,7 @@ type Provider struct {
 	gcm   cipher.AEAD
 }
 
-var _ ingestion.Secrets = (*Provider)(nil)
+var _ filament.Secrets = (*Provider)(nil)
 
 // NewFromEnv constructs a provider from ENCRYPTION_KEY (base64-encoded AES
 // key) and ENCRYPTION_KEY_ID (defaults to "default").
@@ -63,7 +63,7 @@ func New(pool *pgxpool.Pool, keyID string, key []byte) (*Provider, error) {
 // Name returns the provider identifier.
 func (p *Provider) Name() string { return "postgres" }
 
-func (p *Provider) Write(ctx context.Context, ref string, secret ingestion.Secret) error {
+func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret) error {
 	nonce := make([]byte, p.gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return fmt.Errorf("secret/postgres: nonce: %w", err)
@@ -79,25 +79,25 @@ func (p *Provider) Write(ctx context.Context, ref string, secret ingestion.Secre
 	return nil
 }
 
-func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, error) {
+func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error) {
 	row, err := p.q.ReadSecret(ctx, ref)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ingestion.Secret{}, fmt.Errorf("read secret %q: %w", ref, ingestion.ErrNotFound)
+			return filament.Secret{}, fmt.Errorf("read secret %q: %w", ref, filament.ErrNotFound)
 		}
-		return ingestion.Secret{}, fmt.Errorf("secret/postgres: read: %w", err)
+		return filament.Secret{}, fmt.Errorf("secret/postgres: read: %w", err)
 	}
 	value, err := p.gcm.Open(nil, row.Nonce, row.Ciphertext, nil)
 	if err != nil {
-		return ingestion.Secret{}, fmt.Errorf("secret/postgres: decrypt %q: %w", ref, err)
+		return filament.Secret{}, fmt.Errorf("secret/postgres: decrypt %q: %w", ref, err)
 	}
 	var meta map[string]string
 	if len(row.Metadata) > 0 {
 		if err := json.Unmarshal(row.Metadata, &meta); err != nil {
-			return ingestion.Secret{}, fmt.Errorf("secret/postgres: unmarshal metadata: %w", err)
+			return filament.Secret{}, fmt.Errorf("secret/postgres: unmarshal metadata: %w", err)
 		}
 	}
-	return ingestion.Secret{Value: value, Meta: meta}, nil
+	return filament.Secret{Value: value, Meta: meta}, nil
 }
 
 // Delete removes the secret at ref; deleting a missing ref is a no-op.

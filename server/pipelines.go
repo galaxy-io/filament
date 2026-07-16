@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
@@ -41,10 +41,10 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 		pipeline.Tenant = "t1"
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
-	if errors.Is(err, ingestion.ErrVersionConflict) {
+	if errors.Is(err, filament.ErrVersionConflict) {
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
-	if errors.Is(err, ingestion.ErrNotFound) {
+	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	if err != nil {
@@ -56,7 +56,7 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 // GetPipeline returns the pipeline by id.
 func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
 	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetId())
-	if errors.Is(err, ingestion.ErrNotFound) {
+	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	if err != nil {
@@ -86,14 +86,14 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 // to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
 	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetPipelineId())
-	if errors.Is(err, ingestion.ErrNotFound) {
+	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	nodes := map[string]*ingestionv1.PipelineNode{}
-	connections := map[string]ingestion.Connection{}
+	connections := map[string]filament.Connection{}
 	for _, node := range pipeline.GetNodes() {
 		nodes[node.GetId()] = node
 		if _, ok := connections[node.GetConnectionId()]; !ok {
@@ -136,8 +136,8 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 		if err != nil {
 			return nil, err
 		}
-		run, err := a.orch.Submit(ctx, ingestion.RunRequest{
-			Tenant:         ingestion.TenantID(defaultTenant(pipeline.GetTenant())),
+		run, err := a.orch.Submit(ctx, filament.RunRequest{
+			Tenant:         filament.TenantID(defaultTenant(pipeline.GetTenant())),
 			IdempotencyKey: fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
 			Source:         sourceRef,
 			Sink:           sinkRef,
@@ -163,7 +163,7 @@ type routeGroup struct {
 	sink          *ingestionv1.PipelineNode
 	from          string
 	to            string
-	ingestionType ingestion.IngestionType
+	ingestionType filament.IngestionType
 	all           bool
 	resources     map[string]bool
 	selectors     map[string]bool
@@ -216,18 +216,18 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 // Connection it references, with the node's config/secret_refs shallow-merged
 // on top as the PIPELINE overlay (node keys win). connection_id is required.
 // It rejects an overlay that tries to set a CONNECTION-scoped field.
-func (a *Server) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]ingestion.Connection) (ingestion.Ref, error) {
+func (a *Server) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]filament.Connection) (filament.Ref, error) {
 	conn, ok := connections[node.GetConnectionId()]
 	if !ok {
-		return ingestion.Ref{}, fmt.Errorf("node %q references missing connection %q", node.GetId(), node.GetConnectionId())
+		return filament.Ref{}, fmt.Errorf("node %q references missing connection %q", node.GetId(), node.GetConnectionId())
 	}
 	overlay := structMap(node.GetConfig())
 	if schema, err := a.schemaFor(connectionKindToProto(conn.Kind), conn.Connector); err == nil {
 		if err := validateOverlayConfig(schema, overlay); err != nil {
-			return ingestion.Ref{}, fmt.Errorf("node %q: %w", node.GetId(), err)
+			return filament.Ref{}, fmt.Errorf("node %q: %w", node.GetId(), err)
 		}
 	}
-	return ingestion.Ref{
+	return filament.Ref{
 		Provider:   conn.Connector,
 		Config:     mergeConfig(conn.Config, overlay),
 		SecretRefs: mergeStrings(conn.SecretRefs, node.GetSecretRefs()),

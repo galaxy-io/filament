@@ -4,19 +4,19 @@ import (
 	"context"
 	"fmt"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // ensureSchemas drives a Schematized sink's DDL from a SchemaProvider source for
 // each named resource. It is a no-op when the sink isn't schema-aware. A
 // schema-aware sink paired with a source that can't supply schemas is a
 // misconfiguration and fails the run before any data moves.
-func ensureSchemas(ctx context.Context, src ingestion.Source, snk ingestion.Sink, spec ingestion.RunSpec) error {
-	sch, ok := snk.(ingestion.Schematized)
+func ensureSchemas(ctx context.Context, src filament.Source, snk filament.Sink, spec filament.RunSpec) error {
+	sch, ok := snk.(filament.Schematized)
 	if !ok {
 		return nil
 	}
-	prov, ok := src.(ingestion.SchemaProvider)
+	prov, ok := src.(filament.SchemaProvider)
 	if !ok {
 		return fmt.Errorf("sink %q requires a schema but source %q provides none", spec.Sink.Provider, spec.Source.Provider)
 	}

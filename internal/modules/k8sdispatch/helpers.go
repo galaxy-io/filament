@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
-func jobName(prefix string, run ingestion.RunID) string {
+func jobName(prefix string, run filament.RunID) string {
 	p := cleanDNS1123(prefix)
 	r := cleanDNS1123(string(run))
 	name := p + "-" + r

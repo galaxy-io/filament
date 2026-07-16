@@ -28,7 +28,7 @@ import (
 	"os"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/memory"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -46,10 +46,10 @@ import (
 // transports and stores without touching the wiring below.
 type Config struct {
 	Bus     eventbus.Bus
-	Store   ingestion.DataStore
-	Secrets ingestion.Secrets
-	Sources ingestion.SourceRegistry
-	Sinks   ingestion.SinkRegistry
+	Store   filament.DataStore
+	Secrets filament.Secrets
+	Sources filament.SourceRegistry
+	Sinks   filament.SinkRegistry
 	UI      http.Handler
 }
 
@@ -60,16 +60,16 @@ type Option func(*Config)
 func WithBus(b eventbus.Bus) Option { return func(c *Config) { c.Bus = b } }
 
 // WithDataStore sets the run/checkpoint store (default: memory.New()).
-func WithDataStore(s ingestion.DataStore) Option { return func(c *Config) { c.Store = s } }
+func WithDataStore(s filament.DataStore) Option { return func(c *Config) { c.Store = s } }
 
 // WithSources overrides the source registry (default: registry.DefaultSources).
-func WithSources(s ingestion.SourceRegistry) Option { return func(c *Config) { c.Sources = s } }
+func WithSources(s filament.SourceRegistry) Option { return func(c *Config) { c.Sources = s } }
 
 // WithSinks overrides the sink registry (default: registry.DefaultSinks).
-func WithSinks(s ingestion.SinkRegistry) Option { return func(c *Config) { c.Sinks = s } }
+func WithSinks(s filament.SinkRegistry) Option { return func(c *Config) { c.Sinks = s } }
 
 // WithSecrets sets the secrets provider used to resolve secret refs (default: none).
-func WithSecrets(s ingestion.Secrets) Option { return func(c *Config) { c.Secrets = s } }
+func WithSecrets(s filament.Secrets) Option { return func(c *Config) { c.Secrets = s } }
 
 // WithUI mounts a handler for the web UI at "/" (default: none). The ui
 // package provides one: app.WithUI(ui.Handler()). ConnectRPC routes take

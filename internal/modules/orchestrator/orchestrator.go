@@ -8,7 +8,7 @@ package orchestrator
 import (
 	"context"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/internal/runs"
@@ -20,8 +20,8 @@ import (
 // calls Submit.
 type Module struct {
 	bus eventbus.Bus
-	ds  ingestion.DataStore
-	log ingestion.Logger
+	ds  filament.DataStore
+	log filament.Logger
 }
 
 // New returns an unmounted orchestrator. Providers are injected by Mount.
@@ -47,13 +47,13 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 // id. It is idempotent on the request's IdempotencyKey: re-submitting the same
 // (tenant, key) returns the existing run without persisting or publishing again,
 // so a retried caller never starts a duplicate extraction.
-func (m *Module) Submit(ctx context.Context, req ingestion.RunRequest) (ingestion.RunID, error) {
+func (m *Module) Submit(ctx context.Context, req filament.RunRequest) (filament.RunID, error) {
 	id, err := runs.Submit(ctx, m.bus, m.ds, req)
 	if err != nil {
 		return "", err
 	}
 	if m.log != nil {
-		m.log.Info("run submitted", ingestion.Field{Key: "run", Value: string(id)}, ingestion.Field{Key: "tenant", Value: string(req.Tenant)})
+		m.log.Info("run submitted", filament.Field{Key: "run", Value: string(id)}, filament.Field{Key: "tenant", Value: string(req.Tenant)})
 	}
 	return id, nil
 }

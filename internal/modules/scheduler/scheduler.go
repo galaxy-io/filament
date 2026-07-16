@@ -1,6 +1,6 @@
 // Package scheduler is the cron registry + intake module — the control plane that
 // fires runs on a schedule. It owns schedule lifecycle (register/update/pause/
-// resume/delete) over a ingestion.ScheduleStore, computes the next fire time with the
+// resume/delete) over a filament.ScheduleStore, computes the next fire time with the
 // dependency-free cron parser, and on each tick claims due schedules and submits
 // their runs via the shared runs intake. Immediate one-off runs go through
 // Trigger. It declares no bus subscriptions; its driver is a timer, started
@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
@@ -28,10 +28,10 @@ const defaultInterval = time.Second
 
 // Module is the schedule registry and run-firing timer.
 type Module struct {
-	store    ingestion.ScheduleStore
+	store    filament.ScheduleStore
 	bus      eventbus.Bus
-	ds       ingestion.DataStore
-	log      ingestion.Logger
+	ds       filament.DataStore
+	log      filament.Logger
 	interval time.Duration
 }
 
@@ -43,7 +43,7 @@ func WithInterval(d time.Duration) Option { return func(m *Module) { m.interval 
 
 // New returns an unmounted scheduler over the given ScheduleStore. Bus/DataStore
 // are injected by Mount; the timer is launched by Start.
-func New(store ingestion.ScheduleStore, opts ...Option) *Module {
+func New(store filament.ScheduleStore, opts ...Option) *Module {
 	m := &Module{store: store, interval: defaultInterval}
 	for _, o := range opts {
 		o(m)
@@ -86,13 +86,13 @@ func (m *Module) Start(ctx context.Context) {
 }
 
 // Trigger submits an immediate one-off run, bypassing scheduling.
-func (m *Module) Trigger(ctx context.Context, req ingestion.RunRequest) (ingestion.RunID, error) {
+func (m *Module) Trigger(ctx context.Context, req filament.RunRequest) (filament.RunID, error) {
 	return runs.Submit(ctx, m.bus, m.ds, req)
 }
 
 // Register validates the spec's cron, computes the first fire time, and persists
 // the schedule, returning its id.
-func (m *Module) Register(ctx context.Context, spec ingestion.ScheduleSpec) (ingestion.ScheduleID, error) {
+func (m *Module) Register(ctx context.Context, spec filament.ScheduleSpec) (filament.ScheduleID, error) {
 	if err := spec.Tenant.Valid(); err != nil {
 		return "", fmt.Errorf("scheduler: tenant %w", err)
 	}
@@ -101,7 +101,7 @@ func (m *Module) Register(ctx context.Context, spec ingestion.ScheduleSpec) (ing
 		return "", err
 	}
 	id := newScheduleID()
-	st := ingestion.ScheduleState{
+	st := filament.ScheduleState{
 		ID:        id,
 		Spec:      spec,
 		Enabled:   spec.Enabled,
@@ -115,7 +115,7 @@ func (m *Module) Register(ctx context.Context, spec ingestion.ScheduleSpec) (ing
 }
 
 // Update replaces a schedule's spec and recomputes its next fire time.
-func (m *Module) Update(ctx context.Context, id ingestion.ScheduleID, spec ingestion.ScheduleSpec) error {
+func (m *Module) Update(ctx context.Context, id filament.ScheduleID, spec filament.ScheduleSpec) error {
 	st, err := m.store.LoadSchedule(ctx, id)
 	if err != nil {
 		return err
@@ -131,22 +131,22 @@ func (m *Module) Update(ctx context.Context, id ingestion.ScheduleID, spec inges
 }
 
 // Get returns one schedule's state.
-func (m *Module) Get(ctx context.Context, id ingestion.ScheduleID) (ingestion.ScheduleState, error) {
+func (m *Module) Get(ctx context.Context, id filament.ScheduleID) (filament.ScheduleState, error) {
 	return m.store.LoadSchedule(ctx, id)
 }
 
 // List returns schedules matching the filter.
-func (m *Module) List(ctx context.Context, f ingestion.ScheduleFilter) ([]ingestion.ScheduleState, error) {
+func (m *Module) List(ctx context.Context, f filament.ScheduleFilter) ([]filament.ScheduleState, error) {
 	return m.store.ListSchedules(ctx, f)
 }
 
 // Pause disables a schedule so the timer stops claiming it.
-func (m *Module) Pause(ctx context.Context, id ingestion.ScheduleID) error {
+func (m *Module) Pause(ctx context.Context, id filament.ScheduleID) error {
 	return m.setEnabled(ctx, id, false)
 }
 
 // Resume re-enables a schedule, recomputing its next fire from now.
-func (m *Module) Resume(ctx context.Context, id ingestion.ScheduleID) error {
+func (m *Module) Resume(ctx context.Context, id filament.ScheduleID) error {
 	st, err := m.store.LoadSchedule(ctx, id)
 	if err != nil {
 		return err
@@ -161,11 +161,11 @@ func (m *Module) Resume(ctx context.Context, id ingestion.ScheduleID) error {
 }
 
 // Delete removes a schedule.
-func (m *Module) Delete(ctx context.Context, id ingestion.ScheduleID) error {
+func (m *Module) Delete(ctx context.Context, id filament.ScheduleID) error {
 	return m.store.DeleteSchedule(ctx, id)
 }
 
-func (m *Module) setEnabled(ctx context.Context, id ingestion.ScheduleID, on bool) error {
+func (m *Module) setEnabled(ctx context.Context, id filament.ScheduleID, on bool) error {
 	st, err := m.store.LoadSchedule(ctx, id)
 	if err != nil {
 		return err
@@ -186,14 +186,14 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 	}
 	fired := 0
 	for _, st := range due {
-		if st.Spec.Overlap == ingestion.OverlapSkip && m.previousActive(ctx, st) {
+		if st.Spec.Overlap == filament.OverlapSkip && m.previousActive(ctx, st) {
 			m.advance(ctx, st, now)
 			continue
 		}
 		runID, err := runs.Submit(ctx, m.bus, m.ds, st.Spec.Request)
 		if err != nil {
 			if m.log != nil {
-				m.log.Error("scheduler: submit", err, ingestion.Field{Key: "schedule", Value: string(st.ID)})
+				m.log.Error("scheduler: submit", err, filament.Field{Key: "schedule", Value: string(st.ID)})
 			}
 			m.advance(ctx, st, now)
 			continue
@@ -202,7 +202,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 		t := now
 		st.LastFired = &t
 		st.LastRun = runID
-		st.LastStatus = ingestion.RunRequested
+		st.LastStatus = filament.RunRequested
 		if next, err := nextFire(st.Spec, now); err == nil {
 			st.NextFire = next
 		}
@@ -218,7 +218,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 }
 
 // advance recomputes and persists a schedule's next fire without firing it.
-func (m *Module) advance(ctx context.Context, st ingestion.ScheduleState, now time.Time) {
+func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now time.Time) {
 	if next, err := nextFire(st.Spec, now); err == nil {
 		st.NextFire = next
 		_ = m.store.SaveSchedule(ctx, st)
@@ -227,7 +227,7 @@ func (m *Module) advance(ctx context.Context, st ingestion.ScheduleState, now ti
 
 // previousActive reports whether the schedule's last run is still requested or
 // running — the condition OverlapSkip avoids stacking on.
-func (m *Module) previousActive(ctx context.Context, st ingestion.ScheduleState) bool {
+func (m *Module) previousActive(ctx context.Context, st filament.ScheduleState) bool {
 	if st.LastRun == "" {
 		return false
 	}
@@ -235,12 +235,12 @@ func (m *Module) previousActive(ctx context.Context, st ingestion.ScheduleState)
 	if err != nil {
 		return false
 	}
-	return prev.Status == ingestion.RunRequested || prev.Status == ingestion.RunRunning
+	return prev.Status == filament.RunRequested || prev.Status == filament.RunRunning
 }
 
 // nextFire computes the next fire time after `after` for the spec's cron in its
 // timezone (UTC when unset).
-func nextFire(spec ingestion.ScheduleSpec, after time.Time) (*time.Time, error) {
+func nextFire(spec filament.ScheduleSpec, after time.Time) (*time.Time, error) {
 	sched, err := cron.Parse(spec.Cron)
 	if err != nil {
 		return nil, err
@@ -260,6 +260,6 @@ func nextFire(spec ingestion.ScheduleSpec, after time.Time) (*time.Time, error) 
 	return &next, nil
 }
 
-func newScheduleID() ingestion.ScheduleID {
-	return ingestion.ScheduleID(uuid.NewString())
+func newScheduleID() filament.ScheduleID {
+	return filament.ScheduleID(uuid.NewString())
 }

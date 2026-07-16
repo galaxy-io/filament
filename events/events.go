@@ -7,15 +7,15 @@ package events
 import (
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 )
 
 // Envelope is the routing identity every fact shares: who and what it is
 // about, plus its producer-assigned sequence and emit time.
 type Envelope struct {
-	Tenant   ingestion.TenantID
-	Run      ingestion.RunID
+	Tenant   filament.TenantID
+	Run      filament.RunID
 	Resource string
 	Seq      uint64
 	At       time.Time

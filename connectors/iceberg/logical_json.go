@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // jsonColumns returns the names of schema fields typed LogicalJSON, or nil when
 // there are none. These map to Iceberg string columns, so their buffered values
 // must be re-encoded as JSON strings before Arrow parsing.
-func jsonColumns(schema ingestion.RecordSchema) map[string]bool {
+func jsonColumns(schema filament.RecordSchema) map[string]bool {
 	var cols map[string]bool
 	for _, f := range schema.Fields {
-		if f.Logical == ingestion.LogicalJSON {
+		if f.Logical == filament.LogicalJSON {
 			if cols == nil {
 				cols = map[string]bool{}
 			}

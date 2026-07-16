@@ -20,7 +20,7 @@ import (
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed/tpch"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	icesink "github.com/galaxy-io/filament/connectors/iceberg"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	"github.com/galaxy-io/filament/pipeline"
@@ -126,7 +126,7 @@ func runPipeline(t *testing.T, ctx context.Context, pg *testcontainers.PG, dl *t
 	t.Helper()
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"dsn":    pg.DSN(),
 		"schema": "public",
 	})); err != nil {
@@ -135,11 +135,11 @@ func runPipeline(t *testing.T, ctx context.Context, pg *testcontainers.PG, dl *t
 	defer func() { _ = src.Teardown(ctx) }()
 
 	snk := icesink.New()
-	spec := ingestion.RunSpec{
+	spec := filament.RunSpec{
 		Tenant:    "t0",
 		Run:       "run1",
 		Resources: resources,
-		Sink: ingestion.Ref{
+		Sink: filament.Ref{
 			Provider: "iceberg",
 			Config:   sinkConfig(t, ctx, dl),
 		},
@@ -163,7 +163,7 @@ func runPipeline(t *testing.T, ctx context.Context, pg *testcontainers.PG, dl *t
 	p := pipeline.New(pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: snk})
 	p.Start(ctx)
 	go func() {
-		_ = src.Extract(ctx, p.Records(), ingestion.ExtractOpts{Resources: resources, Parallelism: 1})
+		_ = src.Extract(ctx, p.Records(), filament.ExtractOpts{Resources: resources, Parallelism: 1})
 		p.CloseIngest()
 	}()
 	if err := p.Wait(); err != nil {

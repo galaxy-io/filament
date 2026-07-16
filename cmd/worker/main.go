@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"os"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
@@ -36,7 +36,7 @@ func run(ctx context.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	runID := ingestion.RunID(os.Getenv("RUN_ID"))
+	runID := filament.RunID(os.Getenv("RUN_ID"))
 	if runID == "" {
 		return errors.New("RUN_ID is required")
 	}
@@ -81,7 +81,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if state.Status != ingestion.RunRequested && state.Status != ingestion.RunPartial {
+	if state.Status != filament.RunRequested && state.Status != filament.RunPartial {
 		return nil
 	}
 

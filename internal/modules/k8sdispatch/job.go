@@ -5,10 +5,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
-func (m *Module) jobForSpec(spec ingestion.RunSpec) *batchv1.Job {
+func (m *Module) jobForSpec(spec filament.RunSpec) *batchv1.Job {
 	name := jobName(m.cfg.JobNamePrefix, spec.Run)
 	// PERSISTENCE_DSN, NATS_URL, and ENCRYPTION_KEY arrive via the worker
 	// Secret (envFrom); only per-run and plain config are set explicitly.

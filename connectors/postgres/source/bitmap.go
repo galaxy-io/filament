@@ -20,7 +20,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -73,7 +73,7 @@ func (s *Source) planBitmap(ctx context.Context, table string, pks []pkColumn) c
 // streaming every row stamped Coarse with the shard ordinal. On a clean full drain it pushes
 // a Drained sentinel so the shard can be marked complete; if a row limit truncated the read
 // it does NOT (an incomplete shard must stay resumable).
-func (s *Source) extractBitmapShard(ctx context.Context, sink ingestion.RecordSink, q querier, sh keyShard, limit int) error {
+func (s *Source) extractBitmapShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
 	idSel := keysetIDExpr(sh.pks)
 	where, args := bitmapWhere(sh)
 	sql := fmt.Sprintf("SELECT %s AS id, to_jsonb(t)::text AS data FROM %s t%s", idSel, sh.qualified, where)
@@ -92,7 +92,7 @@ func (s *Source) extractBitmapShard(ctx context.Context, sink ingestion.RecordSi
 			rows.Close()
 			return fmt.Errorf("bitmap scan %q: %w", sh.table, err)
 		}
-		rec := ingestion.NewRecord(sh.table, id, append([]byte(nil), data...))
+		rec := filament.NewRecord(sh.table, id, append([]byte(nil), data...))
 		rec.Part = sh.part
 		rec.Coarse = true
 		if err := sink.Push(rec); err != nil {
@@ -114,7 +114,7 @@ func (s *Source) extractBitmapShard(ctx context.Context, sink ingestion.RecordSi
 		return nil // partial shard: no completion marker, so resume re-reads it
 	}
 	// Completion sentinel: the pipeline turns it into this shard's expected-row count.
-	return sink.Push(ingestion.Record{Resource: sh.table, Part: sh.part, Coarse: true, Drained: true})
+	return sink.Push(filament.Record{Resource: sh.table, Part: sh.part, Coarse: true, Drained: true})
 }
 
 // bitmapWhere builds the sub-range predicate from the shard's leading-column bounds only —

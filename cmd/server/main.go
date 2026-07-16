@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
@@ -104,7 +104,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 			return
 		}
 		if !tenantEnsured.Load() {
-			if err := store.EnsureTenant(ctx, ingestion.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+			if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
 				http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
 				return
 			}

@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
@@ -56,9 +56,9 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 
 	// Engine wiring: in-process bus + memory store + orchestrator/engine/tracker.
 	sources := registry.NewSources()
-	sources.Register("postgres", func() ingestion.Source { return pgsource.New() })
+	sources.Register("postgres", func() filament.Source { return pgsource.New() })
 	sinks := registry.NewSinks()
-	sinks.Register("postgres", func() ingestion.Sink { return pgsink.New() })
+	sinks.Register("postgres", func() filament.Sink { return pgsink.New() })
 
 	bus := inproc.New()
 	store := memory.New()
@@ -139,9 +139,9 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	}
 
 	for _, b := range runResp.Msg.GetRuns() {
-		final := waitRunStatus(t, ctx, store, ingestion.RunID(b.GetRunId()),
-			ingestion.RunCompleted, ingestion.RunFailed, ingestion.RunPartial)
-		if final.Status != ingestion.RunCompleted {
+		final := waitRunStatus(t, ctx, store, filament.RunID(b.GetRunId()),
+			filament.RunCompleted, filament.RunFailed, filament.RunPartial)
+		if final.Status != filament.RunCompleted {
 			t.Fatalf("run %s status = %v, error = %q", b.GetRunId(), final.Status, final.Error)
 		}
 	}

@@ -5,13 +5,13 @@
 package postgres
 
 import (
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	sink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	source "github.com/galaxy-io/filament/connectors/postgres/source"
 	"github.com/galaxy-io/filament/registry"
 )
 
 func init() {
-	registry.RegisterSource("postgres", func() ingestion.Source { return source.New() })
-	registry.RegisterSink("postgres", func() ingestion.Sink { return sink.New() })
+	registry.RegisterSource("postgres", func() filament.Source { return source.New() })
+	registry.RegisterSink("postgres", func() filament.Sink { return sink.New() })
 }

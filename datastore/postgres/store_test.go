@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/postgres"
 )
@@ -57,18 +57,18 @@ func TestStore_RunLifecycle(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t)
 
-	run := ingestion.RunState{
+	run := filament.RunState{
 		Run:    "run-1",
 		Tenant: "tenant-a",
-		Status: ingestion.RunRequested,
-		Request: ingestion.RunRequest{
+		Status: filament.RunRequested,
+		Request: filament.RunRequest{
 			Tenant:        "tenant-a",
-			Source:        ingestion.Ref{Provider: "postgres", Config: map[string]any{"dsn": "ref:pg-dsn"}},
-			Sink:          ingestion.Ref{Provider: "stdout"},
-			IngestionType: ingestion.IngestionSnapshotReplace,
+			Source:        filament.Ref{Provider: "postgres", Config: map[string]any{"dsn": "ref:pg-dsn"}},
+			Sink:          filament.Ref{Provider: "stdout"},
+			IngestionType: filament.IngestionSnapshotReplace,
 		},
-		Resources: []ingestion.ResourceState{
-			{Resource: "orders", Enabled: true, Status: ingestion.RunRunning, Records: 10},
+		Resources: []filament.ResourceState{
+			{Resource: "orders", Enabled: true, Status: filament.RunRunning, Records: 10},
 		},
 		StartedAt: time.Now().Truncate(time.Microsecond),
 	}
@@ -92,7 +92,7 @@ func TestStore_RunLifecycle(t *testing.T) {
 		t.Fatal("expected ErrNotFound for missing run")
 	}
 
-	runs, err := store.ListRuns(ctx, ingestion.RunFilter{Tenant: "tenant-a"})
+	runs, err := store.ListRuns(ctx, filament.RunFilter{Tenant: "tenant-a"})
 	if err != nil {
 		t.Fatalf("ListRuns: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestStore_RunLifecycle(t *testing.T) {
 		t.Fatalf("expected 1 run, got %d", len(runs))
 	}
 
-	cp := ingestion.NewCheckpoint("orders").Set("page", 3)
+	cp := filament.NewCheckpoint("orders").Set("page", 3)
 	if err := store.SaveCheckpoint(ctx, "run-1", cp); err != nil {
 		t.Fatalf("SaveCheckpoint: %v", err)
 	}
@@ -177,15 +177,15 @@ func TestStore_ScheduleClaimDue(t *testing.T) {
 	store := newTestStore(t)
 
 	past := time.Now().Add(-time.Minute)
-	sched := ingestion.ScheduleState{
+	sched := filament.ScheduleState{
 		ID: "sched-1",
-		Spec: ingestion.ScheduleSpec{
+		Spec: filament.ScheduleSpec{
 			Tenant: "tenant-a",
 			Cron:   "* * * * *",
-			Request: ingestion.RunRequest{
+			Request: filament.RunRequest{
 				Tenant: "tenant-a",
-				Source: ingestion.Ref{Provider: "postgres"},
-				Sink:   ingestion.Ref{Provider: "stdout"},
+				Source: filament.Ref{Provider: "postgres"},
+				Sink:   filament.Ref{Provider: "stdout"},
 			},
 		},
 		Enabled:   true,
@@ -277,7 +277,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 
 	// Reusing the stale (version=1) copy must be rejected, not silently applied.
 	created.Name = "stale-write"
-	if _, err := store.UpdatePipeline(ctx, created); !errors.Is(err, ingestion.ErrVersionConflict) {
+	if _, err := store.UpdatePipeline(ctx, created); !errors.Is(err, filament.ErrVersionConflict) {
 		t.Fatalf("expected ErrVersionConflict for stale update, got %v", err)
 	}
 

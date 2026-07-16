@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	icebergsink "github.com/galaxy-io/filament/connectors/iceberg"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	"github.com/galaxy-io/filament/datastore/memory"
@@ -59,7 +59,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 
 	bus, err := natsbus.New(nats.URL, events.Codec,
 		natsbus.WithStream("INGESTION_E2E"),
-		natsbus.WithSubjects("ingestion.v1.>"),
+		natsbus.WithSubjects("filament.v1.>"),
 	)
 	if err != nil {
 		t.Fatalf("nats bus: %v", err)
@@ -67,9 +67,9 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	defer func() { _ = bus.Close() }()
 
 	sources := registry.NewSources()
-	sources.Register("postgres", func() ingestion.Source { return pgsource.New() })
+	sources.Register("postgres", func() filament.Source { return pgsource.New() })
 	sinks := registry.NewSinks()
-	sinks.Register("iceberg", func() ingestion.Sink { return icebergsink.New() })
+	sinks.Register("iceberg", func() filament.Sink { return icebergsink.New() })
 
 	store := memory.New()
 	orch := orchestrator.New()
@@ -89,13 +89,13 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	defer func() { _ = h.Close() }()
 
 	resources := []string{"region", "nation", "supplier"}
-	runID, err := orch.Submit(ctx, ingestion.RunRequest{
+	runID, err := orch.Submit(ctx, filament.RunRequest{
 		Tenant: "t1",
-		Source: ingestion.Ref{
+		Source: filament.Ref{
 			Provider: "postgres",
 			Config:   map[string]any{"dsn": pg.DSN()},
 		},
-		Sink: ingestion.Ref{
+		Sink: filament.Ref{
 			Provider: "iceberg",
 			Config: map[string]any{
 				"warehouse":  "s3://" + lake.Bucket + "/",
@@ -108,7 +108,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 			},
 		},
 		Resources: resources,
-		Options: ingestion.RunOptions{
+		Options: filament.RunOptions{
 			BatchMaxRows:        500,
 			SnapshotParallelism: 2,
 		},
@@ -117,8 +117,8 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 		t.Fatalf("submit run: %v", err)
 	}
 
-	final := waitRunStatus(t, ctx, store, runID, ingestion.RunCompleted, ingestion.RunFailed, ingestion.RunPartial)
-	if final.Status != ingestion.RunCompleted {
+	final := waitRunStatus(t, ctx, store, runID, filament.RunCompleted, filament.RunFailed, filament.RunPartial)
+	if final.Status != filament.RunCompleted {
 		t.Fatalf("run %s status = %v, error = %q", runID, final.Status, final.Error)
 	}
 
@@ -144,9 +144,9 @@ func icebergRESTURI(t *testing.T, ctx context.Context, lake *gxtc.DataLake) stri
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func waitRunStatus(t *testing.T, ctx context.Context, store ingestion.DataStore, id ingestion.RunID, statuses ...ingestion.RunStatus) ingestion.RunState {
+func waitRunStatus(t *testing.T, ctx context.Context, store filament.DataStore, id filament.RunID, statuses ...filament.RunStatus) filament.RunState {
 	t.Helper()
-	want := map[ingestion.RunStatus]bool{}
+	want := map[filament.RunStatus]bool{}
 	for _, status := range statuses {
 		want[status] = true
 	}

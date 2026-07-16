@@ -1,4 +1,4 @@
-// Package postgres implements the ingestion.Source interface as a full-snapshot
+// Package postgres implements the filament.Source interface as a full-snapshot
 // (ModeFull) reader for PostgreSQL.
 //
 // Each requested resource is a table name. A table's heap is sliced into one or
@@ -32,7 +32,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 const (
@@ -79,40 +79,40 @@ func New() *Source {
 }
 
 var (
-	_ ingestion.Source          = (*Source)(nil)
-	_ ingestion.Discoverable    = (*Source)(nil)
-	_ ingestion.LiveValidatable = (*Source)(nil)
-	_ ingestion.SchemaProvider  = (*Source)(nil)
-	_ ingestion.Resumable       = (*Source)(nil)
-	_ ingestion.ResumePlanner   = (*Source)(nil)
+	_ filament.Source          = (*Source)(nil)
+	_ filament.Discoverable    = (*Source)(nil)
+	_ filament.LiveValidatable = (*Source)(nil)
+	_ filament.SchemaProvider  = (*Source)(nil)
+	_ filament.Resumable       = (*Source)(nil)
+	_ filament.ResumePlanner   = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.
-func (s *Source) Spec() ingestion.ConnectorSpec {
-	return ingestion.ConnectorSpec{
+func (s *Source) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{
 		Name:        "postgres",
 		DisplayName: "PostgreSQL",
 		Version:     "1",
-		Modes:       []ingestion.ReplicationMode{ingestion.ModeFull},
-		SourcePolicies: ingestion.SourcePolicies(
-			ingestion.IngestionSnapshotReplace,
-			ingestion.IngestionSnapshotUpsert,
-			ingestion.IngestionAppend,
+		Modes:       []filament.ReplicationMode{filament.ModeFull},
+		SourcePolicies: filament.SourcePolicies(
+			filament.IngestionSnapshotReplace,
+			filament.IngestionSnapshotUpsert,
+			filament.IngestionAppend,
 		),
-		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "PostgreSQL connection string"},
-			{Name: "schema", Type: ingestion.FieldString, Default: defaultSchema, Scope: ingestion.ScopePipeline, Help: "Schema to read tables from"},
-			{Name: "page_size", Type: ingestion.FieldInt, Default: defaultPageSize, Scope: ingestion.ScopePipeline, Help: "Rows to target per read page"},
-			{Name: "shard_pages", Type: ingestion.FieldInt, Default: defaultShardPages, Scope: ingestion.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
-			{Name: "max_conns", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Maximum source database connections"},
-			{Name: "read_mode", Type: ingestion.FieldEnum, Enum: []string{"auto", "keyset", "bitmap"}, Scope: ingestion.ScopePipeline, Help: "Read strategy"},
+		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
+			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
+			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Schema to read tables from"},
+			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
+			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
+			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
+			{Name: "read_mode", Type: filament.FieldEnum, Enum: []string{"auto", "keyset", "bitmap"}, Scope: filament.ScopePipeline, Help: "Read strategy"},
 		}},
-		Resources: ingestion.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
 
 // Validate rejects a config missing the connection string.
-func (s *Source) Validate(cfg ingestion.Config) error {
+func (s *Source) Validate(cfg filament.Config) error {
 	if cfg.String("dsn") == "" {
 		return fmt.Errorf("postgres source: dsn is required")
 	}
@@ -120,7 +120,7 @@ func (s *Source) Validate(cfg ingestion.Config) error {
 }
 
 // TestConnection opens a short-lived pool and pings the database.
-func (s *Source) TestConnection(ctx context.Context, cfg ingestion.Config) error {
+func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg ingestion.Config) error
 // pool. Set max_conns to at least the run's parallelism + 1 (the snapshot
 // coordinator holds one connection) so concurrent shard reads each get a connection
 // instead of queueing; unset keeps pgx's default (max(4, NumCPU)).
-func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
+func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
@@ -180,9 +180,9 @@ func (s *Source) Configure(ctx context.Context, cfg ingestion.Config) error {
 }
 
 // Discover lists tables in the configured schema with their primary keys and row estimates.
-func (s *Source) Discover(ctx context.Context, _ ingestion.DiscoverOpts) (ingestion.DiscoverResult, error) {
+func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filament.DiscoverResult, error) {
 	if s.pool == nil {
-		return ingestion.DiscoverResult{}, fmt.Errorf("postgres source: discover before configure")
+		return filament.DiscoverResult{}, fmt.Errorf("postgres source: discover before configure")
 	}
 	const q = `
 SELECT
@@ -200,22 +200,22 @@ GROUP BY c.relname, c.reltuples
 ORDER BY c.relname`
 	rows, err := s.pool.Query(ctx, q, s.schema)
 	if err != nil {
-		return ingestion.DiscoverResult{}, fmt.Errorf("postgres source: discover tables: %w", err)
+		return filament.DiscoverResult{}, fmt.Errorf("postgres source: discover tables: %w", err)
 	}
 	defer rows.Close()
 
-	var resources []ingestion.Resource
+	var resources []filament.Resource
 	for rows.Next() {
 		var name, pkCSV string
 		var estimated int64
 		if err := rows.Scan(&name, &pkCSV, &estimated); err != nil {
-			return ingestion.DiscoverResult{}, fmt.Errorf("postgres source: scan table: %w", err)
+			return filament.DiscoverResult{}, fmt.Errorf("postgres source: scan table: %w", err)
 		}
 		var pk []string
 		if pkCSV != "" {
 			pk = strings.Split(pkCSV, ",")
 		}
-		resources = append(resources, ingestion.Resource{
+		resources = append(resources, filament.Resource{
 			Name:       name,
 			Selectable: true,
 			PrimaryKey: pk,
@@ -223,16 +223,16 @@ ORDER BY c.relname`
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return ingestion.DiscoverResult{}, fmt.Errorf("postgres source: discover rows: %w", err)
+		return filament.DiscoverResult{}, fmt.Errorf("postgres source: discover rows: %w", err)
 	}
-	return ingestion.DiscoverResult{Resources: resources}, nil
+	return filament.DiscoverResult{Resources: resources}, nil
 }
 
 // Extract plans every requested table into shards and pages them out through the
 // sink. With Parallelism > 1 the shards are read concurrently (bounded by
 // Parallelism) into the shared sink under one exported snapshot; paging within a
 // shard stays sequential. The first shard error cancels the rest and is returned.
-func (s *Source) Extract(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 	shards, err := s.planShards(ctx, opts.Resources, opts.Parallelism)
 	if err != nil {
 		return err
@@ -382,7 +382,7 @@ type querier interface {
 // at a time. Each window is a half-open block range bound on both ends, so the query
 // is a bounded TID range scan reading only that window — never the rest of the table.
 // limit > 0 stops the shard after that many rows (best-effort per shard when split).
-func (s *Source) extractShard(ctx context.Context, sink ingestion.RecordSink, q querier, sh shard, limit int) error {
+func (s *Source) extractShard(ctx context.Context, sink filament.RecordSink, q querier, sh shard, limit int) error {
 	// Both ctid bounds are bound parameters; the scan reads blocks [lo, hi).
 	sql := fmt.Sprintf(`
 SELECT %[1]s AS id, j::text AS data
@@ -417,14 +417,14 @@ FROM (
 // readWindow runs one block window and returns its records. Rows are drained and
 // closed before returning so the connection is free before records are pushed (a
 // push can block on backpressure).
-func (s *Source) readWindow(ctx context.Context, q querier, sql, lo, hi, table string) ([]ingestion.Record, error) {
+func (s *Source) readWindow(ctx context.Context, q querier, sql, lo, hi, table string) ([]filament.Record, error) {
 	rows, err := q.Query(ctx, sql, lo, hi)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	out := make([]ingestion.Record, 0, s.pageSize)
+	out := make([]filament.Record, 0, s.pageSize)
 	// Scan destinations are hoisted and reused: pgx writes a freshly allocated
 	// string and []byte into id/data on every row (so each Record keeps its own
 	// backing), while the locals and the dest slice are allocated once for the whole
@@ -438,7 +438,7 @@ func (s *Source) readWindow(ctx context.Context, q querier, sql, lo, hi, table s
 		if err := rows.Scan(dest...); err != nil {
 			return nil, fmt.Errorf("read row: %w", err)
 		}
-		out = append(out, ingestion.NewRecord(table, id, data))
+		out = append(out, filament.NewRecord(table, id, data))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -487,7 +487,7 @@ func (sn *snapshot) close(ctx context.Context) {
 
 // extractShardSnapshot reads one shard inside its own transaction that imports the
 // run's exported snapshot, then delegates to the shared page loop.
-func (s *Source) extractShardSnapshot(ctx context.Context, sink ingestion.RecordSink, snap *snapshot, sh shard, limit int) error {
+func (s *Source) extractShardSnapshot(ctx context.Context, sink filament.RecordSink, snap *snapshot, sh shard, limit int) error {
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("acquire shard conn: %w", err)
@@ -569,8 +569,8 @@ ORDER  BY array_position(i.indkey, a.attnum)`
 // Schema returns the column schema of one table: every live column in attribute
 // order with its Postgres type (format_type, kept verbatim in Native for a same-engine
 // round-trip and classified into a LogicalType), plus the primary key. It implements
-// ingestion.SchemaProvider so a Schematized sink can build matching typed tables.
-func (s *Source) Schema(ctx context.Context, resource string) (ingestion.RecordSchema, error) {
+// filament.SchemaProvider so a Schematized sink can build matching typed tables.
+func (s *Source) Schema(ctx context.Context, resource string) (filament.RecordSchema, error) {
 	const q = `
 SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull
 FROM   pg_attribute a
@@ -580,17 +580,17 @@ WHERE  ns.nspname = $1 AND cl.relname = $2 AND a.attnum > 0 AND NOT a.attisdropp
 ORDER  BY a.attnum`
 	rows, err := s.pool.Query(ctx, q, s.schema, resource)
 	if err != nil {
-		return ingestion.RecordSchema{}, err
+		return filament.RecordSchema{}, err
 	}
 	defer rows.Close()
-	var fields []ingestion.SchemaField
+	var fields []filament.SchemaField
 	for rows.Next() {
 		var name, native string
 		var notNull bool
 		if err := rows.Scan(&name, &native, &notNull); err != nil {
-			return ingestion.RecordSchema{}, fmt.Errorf("scan column: %w", err)
+			return filament.RecordSchema{}, fmt.Errorf("scan column: %w", err)
 		}
-		fields = append(fields, ingestion.SchemaField{
+		fields = append(fields, filament.SchemaField{
 			Name:     name,
 			Nullable: !notNull,
 			Logical:  pgTypeToLogical(native),
@@ -598,65 +598,65 @@ ORDER  BY a.attnum`
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return ingestion.RecordSchema{}, err
+		return filament.RecordSchema{}, err
 	}
 	if len(fields) == 0 {
-		return ingestion.RecordSchema{}, fmt.Errorf("resource %q has no columns (missing table?)", resource)
+		return filament.RecordSchema{}, fmt.Errorf("resource %q has no columns (missing table?)", resource)
 	}
 	pks, err := s.lookupPrimaryKey(ctx, s.schema, resource)
 	if err != nil {
-		return ingestion.RecordSchema{}, fmt.Errorf("lookup pk: %w", err)
+		return filament.RecordSchema{}, fmt.Errorf("lookup pk: %w", err)
 	}
 	key := make([]string, len(pks))
 	for i, pk := range pks {
 		key[i] = pk.name
 	}
-	return ingestion.RecordSchema{Resource: resource, Fields: fields, PrimaryKey: key}, nil
+	return filament.RecordSchema{Resource: resource, Fields: fields, PrimaryKey: key}, nil
 }
 
 // pgTypeToLogical classifies a Postgres format_type string into a portable
 // LogicalType. The exact type (including precision/scale and array element) is kept
 // in SchemaField.Native, so an unknown type degrading to string is harmless for a
 // same-engine (Postgres→Postgres) sink that reuses Native verbatim.
-func pgTypeToLogical(native string) ingestion.LogicalType {
+func pgTypeToLogical(native string) filament.LogicalType {
 	t := strings.ToLower(strings.TrimSpace(native))
 	if strings.HasSuffix(t, "[]") {
-		return ingestion.LogicalArray
+		return filament.LogicalArray
 	}
 	if i := strings.IndexByte(t, '('); i >= 0 { // drop a type modifier like (12,2)
 		t = strings.TrimSpace(t[:i])
 	}
 	switch t {
 	case "boolean":
-		return ingestion.LogicalBool
+		return filament.LogicalBool
 	case "smallint", "int2":
-		return ingestion.LogicalInt16
+		return filament.LogicalInt16
 	case "integer", "int", "int4":
-		return ingestion.LogicalInt32
+		return filament.LogicalInt32
 	case "bigint", "int8":
-		return ingestion.LogicalInt64
+		return filament.LogicalInt64
 	case "real", "float4":
-		return ingestion.LogicalFloat32
+		return filament.LogicalFloat32
 	case "double precision", "float8":
-		return ingestion.LogicalFloat64
+		return filament.LogicalFloat64
 	case "numeric", "decimal":
-		return ingestion.LogicalDecimal
+		return filament.LogicalDecimal
 	case "uuid":
-		return ingestion.LogicalUUID
+		return filament.LogicalUUID
 	case "json", "jsonb":
-		return ingestion.LogicalJSON
+		return filament.LogicalJSON
 	case "bytea":
-		return ingestion.LogicalBytes
+		return filament.LogicalBytes
 	case "date":
-		return ingestion.LogicalDate
+		return filament.LogicalDate
 	case "timestamp without time zone":
-		return ingestion.LogicalTimestamp
+		return filament.LogicalTimestamp
 	case "timestamp with time zone":
-		return ingestion.LogicalTimestampTZ
+		return filament.LogicalTimestampTZ
 	case "time without time zone", "time with time zone":
-		return ingestion.LogicalTime
+		return filament.LogicalTime
 	default:
-		return ingestion.LogicalString
+		return filament.LogicalString
 	}
 }
 

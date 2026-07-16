@@ -1,4 +1,4 @@
-// Package secret selects the ingestion.Secrets provider.
+// Package secret selects the filament.Secrets provider.
 package secret
 
 import (
@@ -8,14 +8,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/secret/postgres"
 )
 
 // FromEnv selects the provider per SECRET_PROVIDER; postgres is the default
 // and currently the only option. Datastore-backed providers assert the
 // accessor for their store's native handle.
-func FromEnv(store ingestion.DataStore) (ingestion.Secrets, error) {
+func FromEnv(store filament.DataStore) (filament.Secrets, error) {
 	switch provider := os.Getenv("SECRET_PROVIDER"); provider {
 	case "", "postgres":
 		pg, ok := store.(interface{ Pool() *pgxpool.Pool })
