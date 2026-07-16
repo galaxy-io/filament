@@ -1,80 +1,46 @@
 # Filament
 
-Filament is a Go ingestion runtime for moving records from sources into sinks with
-checkpointing, batching, integrity events, and pluggable connectors.
+Filament moves data from sources to sinks with full, incremental, and CDC replication. Every batch is integrity checked on both the read and write side, and interrupted runs resume from checkpoints. It is written in Go, and its major pieces are pluggable. Connectors, the data store, and the event bus are interfaces with swappable implementations.
 
-## Repository Layout
+## Architecture
 
-- `app/`: public composition root for running the service.
-- `api/`: ConnectRPC protobuf API and generated Go bindings.
-- `examples/ingestiond/`: example service binary.
-- `connectors/`: optional source and sink implementations.
-- `eventbus/`: event transport interfaces and local implementations.
-- `pipeline/`: batching, writing, and integrity verification loop.
-- `registry/`: provider registration and lookup.
-- `server/`: ConnectRPC service handlers.
-- `tests/`: integration and end-to-end test modules.
+Filament is three components over a data store and an event bus.
 
-## Quick Start
+- `server` serves the API and web UI and owns connections, pipelines, and run requests
+- `control-plane` dispatches requested runs and tracks run state
+- `worker` executes a single run from extraction to verified write
+
+The data store holds durable state such as connections, pipelines, runs, and checkpoints. The event bus carries the events the components communicate through, rather than the components calling each other. Workers emit events as a run progresses and the control plane folds them into run state. Within a run, the pipeline handles batching, writing, integrity verification, and checkpoint advancement, so interrupted runs resume where they left off.
+
+## Deploying
+
+Filament runs on Kubernetes through the Helm chart. The chart deploys the server and control plane and can provision the backing data store and event bus or point at existing instances. Each run executes as its own Job. See [charts/filament](charts/filament/README.md) for installation and configuration.
+
+Filament also embeds as a library. Connectors self-register via blank imports.
 
 ```go
-package main
-
 import (
-	"context"
-	"log"
-
 	"github.com/galaxy-io/filament/app"
-	_ "github.com/galaxy-io/filament/connectors/http"
+
 	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/stdout"
 )
 
-func main() {
-	if err := app.Run(context.Background()); err != nil {
-		log.Fatal(err)
-	}
-}
-
-// Eventually also without running the entire service
-result, err := runner.Run(ctx, runner.Config{
-  SourceConfig:   filament.NewConfig(pgsource.New(), map[string]any{"dsn": pgDSN}),
-  SinkConfig:     filament.NewConfig(mysqlsink.New(), map[string]any{"dsn": mysqlDSN}),
-  Resources:      []string{"users"},
-})
+func main() { log.Fatal(app.Run(context.Background())) }
 ```
 
-## Development
+## Writing a connector
 
-On macOS, install the toolchain (Go, just, golangci-lint, buf, sqlc, node, pnpm)
-from the checked-in [`Brewfile`](Brewfile):
+A source implements `Spec`, `Validate`, `Configure`, `Extract`, and `Teardown` in [source.go](source.go). A sink implements `Spec`, `Open`, `Apply`, `Commit`, and `Abort` in [sink.go](sink.go). Optional interfaces add checkpointed resume, CDC, discovery, rate limits, staged transactions, upserts, and typed DDL. The engine detects them at runtime.
+
+## Contributing
+
+Run `brew bundle` to install the toolchain and make sure Docker is running.
 
 ```sh
-brew bundle
+just infra   # local data store + event bus via docker compose
+just dev     # control plane, API server, and UI on port 5173
+just test    # unit tests (just test-integration for e2e, needs Docker)
 ```
 
-Docker is also required for local infra and integration tests.
-
-The repo uses a Go workspace so optional connectors can carry their heavy
-dependencies independently:
-
-```sh
-go work sync
-go test ./...
-```
-
-Some integration tests require Docker through `testcontainers-go`.
-
-Common tasks are driven by [`just`](https://github.com/casey/just); CI runs the
-same recipes, so a green run locally is a green run in CI:
-
-```sh
-just binaries         # build linux binaries into bin/
-just images           # build docker images
-just tidy             # tidy go.mod/go.sum in every module
-just format           # apply gofumpt + goimports to every module (settings in .golangci.yaml)
-just format-check     # check formatting without writing
-just lint             # run golangci-lint with auto-fixes across every module
-just lint-check       # run golangci-lint without fixing (what CI runs)
-just test             # run unit tests in every module except tests/
-just test-integration # run the integration/e2e suite (requires Docker)
-```
+Run `just format`, `just lint`, and `just test` before opening a PR. Filament is pre-1.0 and APIs may change.
