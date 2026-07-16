@@ -70,8 +70,14 @@ test-integration:
 infra:
     docker compose up -d --wait
 
+# run datastore migrations against the local database
+migrate:
+    cd cmd/server && \
+      PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
+      GOWORK=off go run . -migrate
+
 # run the API server locally (defaults match docker-compose.yaml; env overrides)
-server:
+server: migrate
     cd cmd/server && \
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \
