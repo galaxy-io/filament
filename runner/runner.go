@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/pipeline"
@@ -21,17 +21,17 @@ import (
 // Deps are the process-local dependencies needed to execute one run.
 type Deps struct {
 	Bus       eventbus.Bus
-	DataStore ingestion.DataStore
-	Secrets   ingestion.Secrets
-	Sources   ingestion.SourceRegistry
-	Sinks     ingestion.SinkRegistry
-	Log       ingestion.Logger
+	DataStore filament.DataStore
+	Secrets   filament.Secrets
+	Sources   filament.SourceRegistry
+	Sinks     filament.SinkRegistry
+	Log       filament.Logger
 }
 
 // SpecFromState builds the RunSpec to execute from a persisted run state.
-func SpecFromState(s ingestion.RunState) ingestion.RunSpec {
+func SpecFromState(s filament.RunState) filament.RunSpec {
 	r := s.Request
-	return ingestion.RunSpec{
+	return filament.RunSpec{
 		Tenant:        r.Tenant,
 		Run:           s.Run,
 		Source:        r.Source,
@@ -39,7 +39,7 @@ func SpecFromState(s ingestion.RunState) ingestion.RunSpec {
 		Resources:     r.Resources,
 		Selectors:     r.Selectors,
 		IngestionType: r.IngestionType.OrDefault(),
-		Mode:          ingestion.ModeFull,
+		Mode:          filament.ModeFull,
 		Options:       r.Options,
 	}
 }
@@ -50,7 +50,7 @@ func SpecFromState(s ingestion.RunState) ingestion.RunSpec {
 // run.partial).
 //
 //nolint:funlen // the run lifecycle reads best as one sequence
-func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
+func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
 
@@ -64,12 +64,12 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 		em.fail(fmt.Errorf("resolve source %q: %w", spec.Source.Provider, err))
 		return
 	}
-	if err := src.Configure(ctx, ingestion.NewConfig(spec.Source.Config)); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(spec.Source.Config)); err != nil {
 		em.fail(fmt.Errorf("configure source %q: %w", spec.Source.Provider, err))
 		return
 	}
 	defer func() { _ = src.Teardown(ctx) }()
-	if planner, ok := src.(ingestion.ResourcePlanner); ok {
+	if planner, ok := src.(filament.ResourcePlanner); ok {
 		resources, err := planner.PlanResources(ctx, spec.Resources, spec.Selectors)
 		if err != nil {
 			em.fail(fmt.Errorf("plan resources: %w", err))
@@ -100,7 +100,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 
 	if err := ensureSchemas(ctx, src, snk, spec); err != nil {
 		if aerr := snk.Abort(ctx); aerr != nil && deps.Log != nil {
-			deps.Log.Error("runner: sink abort", aerr, ingestion.Field{Key: "run", Value: string(spec.Run)})
+			deps.Log.Error("runner: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
 		em.fail(fmt.Errorf("ensure schema: %w", err))
 		return
@@ -113,7 +113,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	extractor, err := resolveExtractor(ctx, deps.DataStore, src, spec, plan)
 	if err != nil {
 		if aerr := snk.Abort(ctx); aerr != nil && deps.Log != nil {
-			deps.Log.Error("runner: sink abort", aerr, ingestion.Field{Key: "run", Value: string(spec.Run)})
+			deps.Log.Error("runner: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
 		em.fail(err)
 		return
@@ -134,7 +134,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 	extractErrCh := make(chan error, 1)
 	go func() {
 		extractErrCh <- safeCall(func() error {
-			return extractor(ctx, p.Records(), ingestion.ExtractOpts{
+			return extractor(ctx, p.Records(), filament.ExtractOpts{
 				Resources:   spec.Resources,
 				Selectors:   spec.Selectors,
 				Mode:        spec.Mode,
@@ -163,7 +163,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 			return
 		}
 		if err := snk.Abort(ctx); err != nil && deps.Log != nil {
-			deps.Log.Error("runner: sink abort", err, ingestion.Field{Key: "run", Value: string(spec.Run)})
+			deps.Log.Error("runner: sink abort", err, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
 		for _, res := range resources {
 			emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
@@ -186,7 +186,7 @@ func RunOne(ctx context.Context, deps Deps, spec ingestion.RunSpec) {
 
 // ResolveConfigRefs resolves opaque config and field references into the
 // process-local RunSpec copy immediately before connector configuration.
-func ResolveConfigRefs(ctx context.Context, secrets ingestion.Secrets, spec *ingestion.RunSpec) error {
+func ResolveConfigRefs(ctx context.Context, secrets filament.Secrets, spec *filament.RunSpec) error {
 	if err := resolveRefConfig(ctx, secrets, &spec.Source, spec.Tenant, "source"); err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func ResolveConfigRefs(ctx context.Context, secrets ingestion.Secrets, spec *ing
 // resolveSecretRefs reads each of the ref's declared secrets and injects the
 // plaintext value into the provider config under the mapped field. Every ref is
 // tenant-scoped first, so a spec cannot read another tenant's connection secrets.
-func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *ingestion.Ref, tenant ingestion.TenantID, role string) error {
+func resolveSecretRefs(ctx context.Context, secrets filament.Secrets, ref *filament.Ref, tenant filament.TenantID, role string) error {
 	if len(ref.SecretRefs) == 0 {
 		return nil
 	}
@@ -216,7 +216,7 @@ func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *inge
 		ref.Config = make(map[string]any, len(ref.SecretRefs))
 	}
 	for field, name := range ref.SecretRefs {
-		if err := ingestion.ValidateConnectionSecretRef(name, tenant); err != nil {
+		if err := filament.ValidateConnectionSecretRef(name, tenant); err != nil {
 			return fmt.Errorf("resolve %s secret for field %q: %w", role, field, err)
 		}
 		secret, err := secrets.Read(ctx, name)
@@ -228,14 +228,14 @@ func resolveSecretRefs(ctx context.Context, secrets ingestion.Secrets, ref *inge
 	return nil
 }
 
-func resolveRefConfig(ctx context.Context, secrets ingestion.Secrets, ref *ingestion.Ref, tenant ingestion.TenantID, role string) error {
+func resolveRefConfig(ctx context.Context, secrets filament.Secrets, ref *filament.Ref, tenant filament.TenantID, role string) error {
 	if ref.ConfigRef == "" || len(ref.Config) > 0 {
 		return nil
 	}
 	if secrets == nil {
 		return fmt.Errorf("%s %q has config ref %q but no secrets store is configured", role, ref.Provider, ref.ConfigRef)
 	}
-	if err := ingestion.ValidateConnectionSecretRef(ref.ConfigRef, tenant); err != nil {
+	if err := filament.ValidateConnectionSecretRef(ref.ConfigRef, tenant); err != nil {
 		return fmt.Errorf("read %s config ref: %w", role, err)
 	}
 	secret, err := secrets.Read(ctx, ref.ConfigRef)
@@ -250,11 +250,11 @@ func resolveRefConfig(ctx context.Context, secrets ingestion.Secrets, ref *inges
 	return nil
 }
 
-type extractorFunc func(context.Context, ingestion.RecordSink, ingestion.ExtractOpts) error
+type extractorFunc func(context.Context, filament.RecordSink, filament.ExtractOpts) error
 
-func resolveExtractor(ctx context.Context, ds ingestion.DataStore, src ingestion.Source, spec ingestion.RunSpec, plan ingestion.IngestionPlan) (extractorFunc, error) {
-	if plan.Type == ingestion.IngestionCDC {
-		changes, ok := src.(ingestion.ChangeSource)
+func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.Source, spec filament.RunSpec, plan filament.IngestionPlan) (extractorFunc, error) {
+	if plan.Type == filament.IngestionCDC {
+		changes, ok := src.(filament.ChangeSource)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Provider)
 		}
@@ -262,8 +262,8 @@ func resolveExtractor(ctx context.Context, ds ingestion.DataStore, src ingestion
 		if err != nil {
 			return nil, err
 		}
-		return func(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
-			return changes.ExtractChanges(ctx, sink, ingestion.ChangeExtractOpts{
+		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+			return changes.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{
 				Resources:   opts.Resources,
 				Checkpoints: checkpoints,
 				Limit:       opts.Limit,
@@ -271,20 +271,20 @@ func resolveExtractor(ctx context.Context, ds ingestion.DataStore, src ingestion
 		}, nil
 	}
 	if isResumableRun(plan) {
-		planner, ok := src.(ingestion.ResumePlanner)
+		planner, ok := src.(filament.ResumePlanner)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
 		}
-		resumable, ok := src.(ingestion.Resumable)
+		resumable, ok := src.(filament.Resumable)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support resumable extraction", spec.Source.Provider)
 		}
-		prev := make(map[string]ingestion.Checkpoint, len(spec.Resources))
+		prev := make(map[string]filament.Checkpoint, len(spec.Resources))
 		for _, resource := range spec.Resources {
 			cp, err := ds.LoadCheckpoint(ctx, spec.Run, resource)
 			if err == nil {
 				prev[resource] = cp
-			} else if err != nil && !errors.Is(err, ingestion.ErrNotFound) {
+			} else if err != nil && !errors.Is(err, filament.ErrNotFound) {
 				return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 			}
 		}
@@ -300,24 +300,24 @@ func resolveExtractor(ctx context.Context, ds ingestion.DataStore, src ingestion
 				return nil, fmt.Errorf("seed checkpoint %q: %w", cp.Resource(), err)
 			}
 		}
-		return func(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 			return resumable.ExtractFrom(ctx, sink, opts, resumePlan)
 		}, nil
 	}
-	return func(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+	return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 		return src.Extract(ctx, sink, opts)
 	}, nil
 }
 
-func loadChangeCheckpoints(ctx context.Context, ds ingestion.DataStore, spec ingestion.RunSpec) (map[string]ingestion.Checkpoint, error) {
-	out := make(map[string]ingestion.Checkpoint, len(spec.Resources))
+func loadChangeCheckpoints(ctx context.Context, ds filament.DataStore, spec filament.RunSpec) (map[string]filament.Checkpoint, error) {
+	out := make(map[string]filament.Checkpoint, len(spec.Resources))
 	for _, resource := range spec.Resources {
 		cp, err := ds.LoadCheckpoint(ctx, spec.Run, resource)
 		if err == nil {
 			out[resource] = cp
 			continue
 		}
-		if !errors.Is(err, ingestion.ErrNotFound) {
+		if !errors.Is(err, filament.ErrNotFound) {
 			return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 		}
 	}
@@ -327,8 +327,8 @@ func loadChangeCheckpoints(ctx context.Context, ds ingestion.DataStore, spec ing
 	return out, nil
 }
 
-func isResumableRun(plan ingestion.IngestionPlan) bool {
-	return plan.Type == ingestion.IngestionSnapshotUpsert
+func isResumableRun(plan filament.IngestionPlan) bool {
+	return plan.Type == filament.IngestionSnapshotUpsert
 }
 
 func safeCall(fn func() error) (err error) {
@@ -340,19 +340,19 @@ func safeCall(fn func() error) (err error) {
 	return fn()
 }
 
-func resolveIngestionPlan(ctx context.Context, src ingestion.Source, snk ingestion.Sink, spec ingestion.RunSpec) (ingestion.IngestionPlan, error) {
+func resolveIngestionPlan(ctx context.Context, src filament.Source, snk filament.Sink, spec filament.RunSpec) (filament.IngestionPlan, error) {
 	ingestionType := spec.IngestionType.OrDefault()
-	sourcePolicy := ingestion.SourcePolicyForIngestion(ingestionType)
-	writePolicy := ingestion.WritePolicyForIngestion(ingestionType)
+	sourcePolicy := filament.SourcePolicyForIngestion(ingestionType)
+	writePolicy := filament.WritePolicyForIngestion(ingestionType)
 
 	if err := validateSourcePolicy(src.Spec(), sourcePolicy); err != nil {
-		return ingestion.IngestionPlan{}, err
+		return filament.IngestionPlan{}, err
 	}
 	if err := validateSinkPolicy(snk, writePolicy); err != nil {
-		return ingestion.IngestionPlan{}, err
+		return filament.IngestionPlan{}, err
 	}
 
-	policies := map[string]ingestion.WritePolicy{}
+	policies := map[string]filament.WritePolicy{}
 	if len(spec.Resources) == 0 {
 		policies[""] = writePolicy
 	} else {
@@ -362,10 +362,10 @@ func resolveIngestionPlan(ctx context.Context, src ingestion.Source, snk ingesti
 			if policy.Capability.RequiresPK {
 				keys, err := primaryKeyForResource(ctx, src, resource)
 				if err != nil {
-					return ingestion.IngestionPlan{}, err
+					return filament.IngestionPlan{}, err
 				}
 				if len(keys) == 0 {
-					return ingestion.IngestionPlan{}, fmt.Errorf("%s requested for resource %q but no primary key was discovered", ingestionType, resource)
+					return filament.IngestionPlan{}, fmt.Errorf("%s requested for resource %q but no primary key was discovered", ingestionType, resource)
 				}
 				policy.Keys = keys
 			}
@@ -373,16 +373,16 @@ func resolveIngestionPlan(ctx context.Context, src ingestion.Source, snk ingesti
 		}
 	}
 
-	return ingestion.IngestionPlan{
+	return filament.IngestionPlan{
 		Type:          ingestionType,
 		SourcePolicy:  sourcePolicy,
 		WritePolicies: policies,
-		RequiresCDC:   ingestionType == ingestion.IngestionCDC,
+		RequiresCDC:   ingestionType == filament.IngestionCDC,
 		RequiresPK:    writePolicy.Capability.RequiresPK,
 	}, nil
 }
 
-func validateSourcePolicy(spec ingestion.ConnectorSpec, policy ingestion.SourcePolicy) error {
+func validateSourcePolicy(spec filament.ConnectorSpec, policy filament.SourcePolicy) error {
 	for _, candidate := range spec.SourcePolicies {
 		if candidate.Mode == policy.Mode && acceptsOperations(candidate.EmitsOps, policy.EmitsOps) && (!policy.Ordered || candidate.Ordered) {
 			return nil
@@ -396,7 +396,7 @@ func validateSourcePolicy(spec ingestion.ConnectorSpec, policy ingestion.SourceP
 	return fmt.Errorf("source %q does not support replication mode %v required by ingestion policy", spec.Name, policy.Mode)
 }
 
-func validateSinkPolicy(snk ingestion.Sink, policy ingestion.WritePolicy) error {
+func validateSinkPolicy(snk filament.Sink, policy filament.WritePolicy) error {
 	spec := snk.Spec()
 	for _, candidate := range spec.Capabilities.WritePolicies {
 		if candidate.Mode == policy.Capability.Mode && (!policy.Capability.RequiresPK || candidate.RequiresPK) &&
@@ -405,9 +405,9 @@ func validateSinkPolicy(snk ingestion.Sink, policy ingestion.WritePolicy) error 
 		}
 	}
 	switch policy.Capability.Mode {
-	case ingestion.WriteAppend, ingestion.WriteReplace:
+	case filament.WriteAppend, filament.WriteReplace:
 		return nil
-	case ingestion.WriteUpsert:
+	case filament.WriteUpsert:
 		if spec.Capabilities.Upsertable {
 			return nil
 		}
@@ -415,16 +415,16 @@ func validateSinkPolicy(snk ingestion.Sink, policy ingestion.WritePolicy) error 
 	return fmt.Errorf("sink %q does not support write policy %q", spec.Name, policy.Capability.Mode)
 }
 
-func primaryKeyForResource(ctx context.Context, src ingestion.Source, resource string) ([]string, error) {
-	if schemas, ok := src.(ingestion.SchemaProvider); ok {
+func primaryKeyForResource(ctx context.Context, src filament.Source, resource string) ([]string, error) {
+	if schemas, ok := src.(filament.SchemaProvider); ok {
 		schema, err := schemas.Schema(ctx, resource)
 		if err != nil {
 			return nil, fmt.Errorf("schema for %q: %w", resource, err)
 		}
 		return schema.PrimaryKey, nil
 	}
-	if discoverable, ok := src.(ingestion.Discoverable); ok {
-		result, err := discoverable.Discover(ctx, ingestion.DiscoverOpts{})
+	if discoverable, ok := src.(filament.Discoverable); ok {
+		result, err := discoverable.Discover(ctx, filament.DiscoverOpts{})
 		if err != nil {
 			return nil, fmt.Errorf("discover resources: %w", err)
 		}
@@ -437,14 +437,14 @@ func primaryKeyForResource(ctx context.Context, src ingestion.Source, resource s
 	return nil, nil
 }
 
-func acceptsOperations(have, want []ingestion.Operation) bool {
+func acceptsOperations(have, want []filament.Operation) bool {
 	if len(want) == 0 {
 		return true
 	}
 	if len(have) == 0 {
 		return false
 	}
-	set := make(map[ingestion.Operation]bool, len(have))
+	set := make(map[filament.Operation]bool, len(have))
 	for _, op := range have {
 		set[op] = true
 	}
@@ -456,12 +456,12 @@ func acceptsOperations(have, want []ingestion.Operation) bool {
 	return true
 }
 
-func ensureSchemas(ctx context.Context, src ingestion.Source, snk ingestion.Sink, spec ingestion.RunSpec) error {
-	sch, ok := snk.(ingestion.Schematized)
+func ensureSchemas(ctx context.Context, src filament.Source, snk filament.Sink, spec filament.RunSpec) error {
+	sch, ok := snk.(filament.Schematized)
 	if !ok {
 		return nil
 	}
-	prov, ok := src.(ingestion.SchemaProvider)
+	prov, ok := src.(filament.SchemaProvider)
 	if !ok {
 		return fmt.Errorf("sink %q requires a schema but source %q provides none", spec.Sink.Provider, spec.Source.Provider)
 	}
@@ -480,9 +480,9 @@ func ensureSchemas(ctx context.Context, src ingestion.Source, snk ingestion.Sink
 type emitter struct {
 	ctx    context.Context
 	bus    eventbus.Bus
-	log    ingestion.Logger
-	tenant ingestion.TenantID
-	run    ingestion.RunID
+	log    filament.Logger
+	tenant filament.TenantID
+	run    filament.RunID
 
 	seq atomic.Uint64
 
@@ -497,7 +497,7 @@ type tally struct {
 	bytes   int64
 }
 
-func newEmitter(ctx context.Context, bus eventbus.Bus, log ingestion.Logger, tenant ingestion.TenantID, run ingestion.RunID) *emitter {
+func newEmitter(ctx context.Context, bus eventbus.Bus, log filament.Logger, tenant filament.TenantID, run filament.RunID) *emitter {
 	return &emitter{ctx: ctx, bus: bus, log: log, tenant: tenant, run: run, res: map[string]*tally{}}
 }
 
@@ -519,19 +519,19 @@ func (e *emitter) publish(f events.Fact) {
 	}
 	if e.log != nil {
 		records, bytes, errMsg := factProgress(f)
-		fields := []ingestion.Field{
+		fields := []filament.Field{
 			{Key: "run", Value: string(f.Run)},
 			{Key: "resource", Value: f.Resource},
 			{Key: "records", Value: records},
 			{Key: "bytes", Value: bytes},
 		}
 		if errMsg != "" {
-			fields = append(fields, ingestion.Field{Key: "error", Value: errMsg})
+			fields = append(fields, filament.Field{Key: "error", Value: errMsg})
 		}
 		e.log.Info(f.Name, fields...)
 	}
 	if err := events.Publish(e.ctx, e.bus, f); err != nil && e.log != nil {
-		e.log.Error("runner: publish fact", err, ingestion.Field{Key: "type", Value: f.Name})
+		e.log.Error("runner: publish fact", err, filament.Field{Key: "type", Value: f.Name})
 	}
 }
 
@@ -571,14 +571,14 @@ func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 
 func (e *emitter) fail(err error) {
 	if e.log != nil {
-		e.log.Error("runner: run failed", err, ingestion.Field{Key: "run", Value: string(e.run)})
+		e.log.Error("runner: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
 	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error()})
 }
 
 func (e *emitter) partial(err error) {
 	if e.log != nil {
-		e.log.Error("runner: run partial", err, ingestion.Field{Key: "run", Value: string(e.run)})
+		e.log.Error("runner: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
 	emit(e, events.RunPartial, "", events.RunPartialEvent{Error: err.Error()})
 }

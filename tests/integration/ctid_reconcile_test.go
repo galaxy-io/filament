@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
@@ -33,7 +33,7 @@ func TestCtidReconcileHorizon(t *testing.T) {
 	}
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "ctid", "shard_pages": 1})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "ctid", "shard_pages": 1})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()
@@ -52,7 +52,7 @@ func TestCtidReconcileHorizon(t *testing.T) {
 	for i := range ks.Shards {
 		ks.Shards[i].Done = true
 	}
-	donePlan := map[string]ingestion.Checkpoint{"phys": ks.ToCheckpoint("phys")}
+	donePlan := map[string]filament.Checkpoint{"phys": ks.ToCheckpoint("phys")}
 
 	// Churn after H1: a non-PK update, a PK move, a fresh insert, and a delete.
 	churn := []string{
@@ -68,7 +68,7 @@ func TestCtidReconcileHorizon(t *testing.T) {
 	}
 
 	sink := &collectSink{}
-	if err := src.ExtractFrom(ctx, sink, ingestion.ExtractOpts{Resources: []string{"phys"}, Parallelism: 4}, donePlan); err != nil {
+	if err := src.ExtractFrom(ctx, sink, filament.ExtractOpts{Resources: []string{"phys"}, Parallelism: 4}, donePlan); err != nil {
 		t.Fatalf("extract from (reconcile): %v", err)
 	}
 
@@ -114,7 +114,7 @@ func TestCtidRewriteGuard(t *testing.T) {
 	}
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "ctid", "shard_pages": 1})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "ctid", "shard_pages": 1})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()
@@ -127,7 +127,7 @@ func TestCtidRewriteGuard(t *testing.T) {
 	for i := range ks.Shards {
 		ks.Shards[i].Done = true
 	}
-	prev := map[string]ingestion.Checkpoint{"rw": ks.ToCheckpoint("rw")}
+	prev := map[string]filament.Checkpoint{"rw": ks.ToCheckpoint("rw")}
 
 	// Rewrite the heap → new filenode → stale block ranges.
 	if _, err := pg.Pool().Exec(ctx, "VACUUM (FULL) rw"); err != nil {

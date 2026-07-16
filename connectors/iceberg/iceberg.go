@@ -1,4 +1,4 @@
-// Package iceberg implements ingestion.Sink writing records as Parquet data files into
+// Package iceberg implements filament.Sink writing records as Parquet data files into
 // Iceberg tables managed by any catalog backend registered with iceberg-go.
 package iceberg
 
@@ -26,7 +26,7 @@ import (
 	// the actual data and metadata files.
 	_ "github.com/apache/iceberg-go/io/gocloud"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 const defaultStageBufLimitBytes = 256 << 20 // 256 MiB
@@ -49,26 +49,26 @@ type Sink struct {
 	namespace          string
 	stageBufLimitBytes int64
 	writeMode          writeMode
-	run                ingestion.RunID
+	run                filament.RunID
 
 	cat catalog.Catalog
 
 	mu       sync.Mutex
 	tables   map[string]*iceTable // populated by EnsureSchema
-	stages   map[ingestion.StageID]*stage
-	curStage ingestion.StageID // the stage Write targets; "" until first Stage/Write
+	stages   map[filament.StageID]*stage
+	curStage filament.StageID // the stage Write targets; "" until first Stage/Write
 }
 
 type iceTable struct {
 	tbl        *icetable.Table
 	schema     *iceberg.Schema
-	record     ingestion.RecordSchema
+	record     filament.RecordSchema
 	primaryKey []string
 }
 
 // stage holds per-resource record buffers for one pending commit.
 type stage struct {
-	id                  ingestion.StageID
+	id                  filament.StageID
 	mu                  sync.Mutex
 	buf                 map[string]*recordBuf
 	committed           map[string]bool
@@ -79,39 +79,39 @@ type stage struct {
 func New() *Sink {
 	return &Sink{
 		tables: map[string]*iceTable{},
-		stages: map[ingestion.StageID]*stage{},
+		stages: map[filament.StageID]*stage{},
 	}
 }
 
 var (
-	_ ingestion.Sink          = (*Sink)(nil)
-	_ ingestion.Transactional = (*Sink)(nil)
-	_ ingestion.Schematized   = (*Sink)(nil)
+	_ filament.Sink          = (*Sink)(nil)
+	_ filament.Transactional = (*Sink)(nil)
+	_ filament.Schematized   = (*Sink)(nil)
 )
 
 // Spec reports the sink's capabilities and configuration surface.
-func (s *Sink) Spec() ingestion.SinkSpec {
-	return ingestion.SinkSpec{
+func (s *Sink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{
 		Name:        "iceberg",
 		DisplayName: "Apache Iceberg",
 		Version:     "1",
-		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "warehouse", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopeConnection, Help: "Warehouse root location (shared catalog storage)."},
-			{Name: "catalog", Type: ingestion.FieldObject, Required: true, Scope: ingestion.ScopeConnection, Help: "Catalog connection props; requires type or uri (plus backend credentials)."},
-			{Name: "namespace", Type: ingestion.FieldString, Required: true, Scope: ingestion.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables."},
-			{Name: "write_mode", Type: ingestion.FieldEnum, Enum: []string{"auto", "append", "replace", "upsert", "delete", "merge"}, Default: "auto", Scope: ingestion.ScopePipeline, Help: "Write behavior; auto picks replace for full loads, append otherwise."},
-			{Name: "stage_buffer_limit_mb", Type: ingestion.FieldInt, Scope: ingestion.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
+		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
+			{Name: "warehouse", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Warehouse root location (shared catalog storage)."},
+			{Name: "catalog", Type: filament.FieldObject, Required: true, Scope: filament.ScopeConnection, Help: "Catalog connection props; requires type or uri (plus backend credentials)."},
+			{Name: "namespace", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables."},
+			{Name: "write_mode", Type: filament.FieldEnum, Enum: []string{"auto", "append", "replace", "upsert", "delete", "merge"}, Default: "auto", Scope: filament.ScopePipeline, Help: "Write behavior; auto picks replace for full loads, append otherwise."},
+			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
 		}},
-		Capabilities: ingestion.SinkCapabilities{
+		Capabilities: filament.SinkCapabilities{
 			Transactional: true,
 			Schematized:   true,
-			WritePolicies: ingestion.WriteCapabilities(
-				ingestion.IngestionSnapshotReplace,
-				ingestion.IngestionAppend,
-				ingestion.IngestionSnapshotUpsert,
-				ingestion.IngestionUpsert,
-				ingestion.IngestionDelete,
-				ingestion.IngestionCDC,
+			WritePolicies: filament.WriteCapabilities(
+				filament.IngestionSnapshotReplace,
+				filament.IngestionAppend,
+				filament.IngestionSnapshotUpsert,
+				filament.IngestionUpsert,
+				filament.IngestionDelete,
+				filament.IngestionCDC,
 			),
 		},
 	}
@@ -121,8 +121,8 @@ func (s *Sink) Spec() ingestion.SinkSpec {
 func (s *Sink) Name() string { return "iceberg" }
 
 // Open connects to the catalog and prepares per-resource tables for the run.
-func (s *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
-	cfg := ingestion.NewConfig(run.Sink.Config)
+func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
+	cfg := filament.NewConfig(run.Sink.Config)
 	s.warehouse = cfg.String("warehouse")
 	if s.warehouse == "" {
 		return fmt.Errorf("iceberg sink: warehouse required")
@@ -161,7 +161,7 @@ func (s *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 	s.cat = cat
 	s.writeMode = mode
 	s.tables = map[string]*iceTable{}
-	s.stages = map[ingestion.StageID]*stage{}
+	s.stages = map[filament.StageID]*stage{}
 	s.curStage = ""
 	s.mu.Unlock()
 	return nil
@@ -169,7 +169,7 @@ func (s *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 
 // EnsureSchema creates the Iceberg table if absent, or evolves it by adding any
 // columns not yet present.
-func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema ingestion.RecordSchema) error {
+func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
 	s.mu.Lock()
 	cat := s.cat
 	s.mu.Unlock()
@@ -221,27 +221,27 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema ingesti
 }
 
 // Stage opens a new staging scope; batches applied under it commit atomically.
-func (s *Sink) Stage(_ context.Context) (ingestion.StageID, error) {
+func (s *Sink) Stage(_ context.Context) (filament.StageID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.cat == nil {
 		return "", fmt.Errorf("iceberg sink: Stage called before Open")
 	}
-	id := ingestion.StageID(uuid.NewString())
+	id := filament.StageID(uuid.NewString())
 	s.stages[id] = newStage(id)
 	s.curStage = id
 	return id, nil
 }
 
 // Write buffers each record's JSON payload into the active stage, auto-opening
-// one if Stage was never called (the direct ingestion.Sink lifecycle). Spills to a
+// one if Stage was never called (the direct filament.Sink lifecycle). Spills to a
 // temp file once the per-resource byte total exceeds stageBufLimitBytes.
-func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
+func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]
 	if it == nil {
 		s.mu.Unlock()
-		return ingestion.WriteReceipt{}, fmt.Errorf("iceberg sink: no schema ensured for resource %q", b.Resource)
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: no schema ensured for resource %q", b.Resource)
 	}
 	st := s.activeStageLocked()
 	s.mu.Unlock()
@@ -256,14 +256,14 @@ func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteRecei
 	for i := range b.Records {
 		if err := rb.appendRecord(b.Records[i].Data, b.Records[i].Op); err != nil {
 			st.mu.Unlock()
-			return ingestion.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+			return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
 		}
 		nbytes += int64(len(b.Records[i].Data))
 	}
 	st.mu.Unlock()
 
-	crc, _ := ingestion.CRC32C(b.Records)
-	return ingestion.WriteReceipt{
+	crc, _ := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{
 		URI:      joinURI(s.warehouse, namespacePath(s.namespace), b.Resource),
 		Bytes:    nbytes,
 		Rows:     len(b.Records),
@@ -273,12 +273,12 @@ func (s *Sink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteRecei
 
 // Apply validates the batch against the run's write policy and buffers it
 // for the resource's table.
-func (s *Sink) Apply(_ context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
+func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]
 	if it == nil {
 		s.mu.Unlock()
-		return ingestion.WriteReceipt{}, fmt.Errorf("iceberg sink: no schema ensured for resource %q", b.Resource)
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: no schema ensured for resource %q", b.Resource)
 	}
 	policy := opts.Policy
 	if len(policy.Keys) == 0 {
@@ -286,7 +286,7 @@ func (s *Sink) Apply(_ context.Context, b ingestion.Batch, opts ingestion.ApplyO
 	}
 	if policy.Capability.RequiresPK && len(policy.Keys) == 0 {
 		s.mu.Unlock()
-		return ingestion.WriteReceipt{}, fmt.Errorf("iceberg sink: write policy %q requires primary key for resource %q", policy.Capability.Mode, b.Resource)
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: write policy %q requires primary key for resource %q", policy.Capability.Mode, b.Resource)
 	}
 	st := s.activeStageLocked()
 	s.mu.Unlock()
@@ -299,24 +299,24 @@ func (s *Sink) Apply(_ context.Context, b ingestion.Batch, opts ingestion.ApplyO
 	}
 	if err := rb.setPolicy(policy); err != nil {
 		st.mu.Unlock()
-		return ingestion.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
 	}
 	var nbytes int64
 	if err := policy.ValidateRecords(b.Resource, b.Records); err != nil {
 		st.mu.Unlock()
-		return ingestion.WriteReceipt{}, fmt.Errorf("iceberg sink: %w", err)
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: %w", err)
 	}
 	for i := range b.Records {
 		if err := rb.appendRecord(b.Records[i].Data, b.Records[i].Op); err != nil {
 			st.mu.Unlock()
-			return ingestion.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+			return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
 		}
 		nbytes += int64(len(b.Records[i].Data))
 	}
 	st.mu.Unlock()
 
-	crc, _ := ingestion.CRC32C(b.Records)
-	return ingestion.WriteReceipt{
+	crc, _ := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{
 		URI:      joinURI(s.warehouse, namespacePath(s.namespace), b.Resource),
 		Bytes:    nbytes,
 		Rows:     len(b.Records),
@@ -326,7 +326,7 @@ func (s *Sink) Apply(_ context.Context, b ingestion.Batch, opts ingestion.ApplyO
 
 // Promote drains each resource buffer into the Iceberg table, one transaction
 // per resource, then drops the stage after every resource succeeds.
-func (s *Sink) Promote(ctx context.Context, id ingestion.StageID) error {
+func (s *Sink) Promote(ctx context.Context, id filament.StageID) error {
 	s.mu.Lock()
 	st := s.stages[id]
 	s.mu.Unlock()
@@ -342,7 +342,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	s.mu.Lock()
 	st := s.stages[s.curStage]
 	if st == nil && s.writeMode == writeModeReplace && len(s.tables) > 0 {
-		st = newStage(ingestion.StageID(uuid.NewString()))
+		st = newStage(filament.StageID(uuid.NewString()))
 		s.stages[st.id] = st
 		s.curStage = st.id
 	}
@@ -362,7 +362,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 func (s *Sink) Abort(_ context.Context) error {
 	s.mu.Lock()
 	stages := s.stages
-	s.stages = map[ingestion.StageID]*stage{}
+	s.stages = map[filament.StageID]*stage{}
 	s.curStage = ""
 	s.mu.Unlock()
 	for _, st := range stages {
@@ -429,14 +429,14 @@ func (s *Sink) activeStageLocked() *stage {
 	if st := s.stages[s.curStage]; st != nil {
 		return st
 	}
-	id := ingestion.StageID(uuid.NewString())
+	id := filament.StageID(uuid.NewString())
 	st := newStage(id)
 	s.stages[id] = st
 	s.curStage = id
 	return st
 }
 
-func newStage(id ingestion.StageID) *stage {
+func newStage(id filament.StageID) *stage {
 	return &stage{id: id, buf: map[string]*recordBuf{}, committed: map[string]bool{}}
 }
 
@@ -460,7 +460,7 @@ func (s *Sink) stageResources(st *stage) []string {
 	return out
 }
 
-func (s *Sink) dropStage(id ingestion.StageID) {
+func (s *Sink) dropStage(id filament.StageID) {
 	s.mu.Lock()
 	delete(s.stages, id)
 	if s.curStage == id {
@@ -474,14 +474,14 @@ func (s *Sink) tableIdent(resource string) icetable.Identifier {
 	return catalog.ToIdentifier(append(parts, resource)...)
 }
 
-func resolveWriteMode(configured string, runMode ingestion.ReplicationMode) (writeMode, error) {
+func resolveWriteMode(configured string, runMode filament.ReplicationMode) (writeMode, error) {
 	mode := writeMode(strings.ToLower(strings.TrimSpace(configured)))
 	if mode == "" {
 		mode = writeModeAuto
 	}
 	switch mode {
 	case writeModeAuto:
-		if runMode == ingestion.ModeFull {
+		if runMode == filament.ModeFull {
 			return writeModeReplace, nil
 		}
 		return writeModeAppend, nil

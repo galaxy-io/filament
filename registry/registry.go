@@ -9,7 +9,7 @@ import (
 	"sort"
 	"sync"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // ErrUnknownProvider is returned by Resolve when no factory is registered.
@@ -18,16 +18,16 @@ var ErrUnknownProvider = errors.New("registry: unknown provider")
 // Sources is the source-provider registry.
 type Sources struct {
 	mu        sync.RWMutex
-	factories map[string]ingestion.SourceFactory
+	factories map[string]filament.SourceFactory
 }
 
 // NewSources returns an empty source registry.
-func NewSources() *Sources { return &Sources{factories: map[string]ingestion.SourceFactory{}} }
+func NewSources() *Sources { return &Sources{factories: map[string]filament.SourceFactory{}} }
 
-var _ ingestion.SourceRegistry = (*Sources)(nil)
+var _ filament.SourceRegistry = (*Sources)(nil)
 
 // Register adds a factory under name. It panics on a nil factory or a duplicate
-func (r *Sources) Register(name string, f ingestion.SourceFactory) {
+func (r *Sources) Register(name string, f filament.SourceFactory) {
 	if f == nil {
 		panic("registry: nil source factory for " + name)
 	}
@@ -40,7 +40,7 @@ func (r *Sources) Register(name string, f ingestion.SourceFactory) {
 }
 
 // Resolve constructs a fresh source instance for name.
-func (r *Sources) Resolve(name string) (ingestion.Source, error) {
+func (r *Sources) Resolve(name string) (filament.Source, error) {
 	r.mu.RLock()
 	f, ok := r.factories[name]
 	r.mu.RUnlock()
@@ -52,16 +52,16 @@ func (r *Sources) Resolve(name string) (ingestion.Source, error) {
 
 // Specs returns every registered source's spec, sorted by name. Powers the
 // DiscoveryService catalog.
-func (r *Sources) Specs() []ingestion.ConnectorSpec {
+func (r *Sources) Specs() []filament.ConnectorSpec {
 	facs := r.snapshot()
-	out := make([]ingestion.ConnectorSpec, len(facs))
+	out := make([]filament.ConnectorSpec, len(facs))
 	for i, f := range facs {
 		out[i] = f().Spec()
 	}
 	return out
 }
 
-func (r *Sources) snapshot() []ingestion.SourceFactory {
+func (r *Sources) snapshot() []filament.SourceFactory {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	names := make([]string, 0, len(r.factories))
@@ -69,7 +69,7 @@ func (r *Sources) snapshot() []ingestion.SourceFactory {
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	out := make([]ingestion.SourceFactory, len(names))
+	out := make([]filament.SourceFactory, len(names))
 	for i, n := range names {
 		out[i] = r.factories[n]
 	}
@@ -79,16 +79,16 @@ func (r *Sources) snapshot() []ingestion.SourceFactory {
 // Sinks is the sink-provider registry.
 type Sinks struct {
 	mu        sync.RWMutex
-	factories map[string]ingestion.SinkFactory
+	factories map[string]filament.SinkFactory
 }
 
 // NewSinks returns an empty sink registry.
-func NewSinks() *Sinks { return &Sinks{factories: map[string]ingestion.SinkFactory{}} }
+func NewSinks() *Sinks { return &Sinks{factories: map[string]filament.SinkFactory{}} }
 
-var _ ingestion.SinkRegistry = (*Sinks)(nil)
+var _ filament.SinkRegistry = (*Sinks)(nil)
 
 // Register adds a factory under name. Panics on nil factory or duplicate name.
-func (r *Sinks) Register(name string, f ingestion.SinkFactory) {
+func (r *Sinks) Register(name string, f filament.SinkFactory) {
 	if f == nil {
 		panic("registry: nil sink factory for " + name)
 	}
@@ -101,7 +101,7 @@ func (r *Sinks) Register(name string, f ingestion.SinkFactory) {
 }
 
 // Resolve constructs a fresh sink instance for name.
-func (r *Sinks) Resolve(name string) (ingestion.Sink, error) {
+func (r *Sinks) Resolve(name string) (filament.Sink, error) {
 	r.mu.RLock()
 	f, ok := r.factories[name]
 	r.mu.RUnlock()
@@ -112,16 +112,16 @@ func (r *Sinks) Resolve(name string) (ingestion.Sink, error) {
 }
 
 // Specs returns every registered sink's spec, sorted by name.
-func (r *Sinks) Specs() []ingestion.SinkSpec {
+func (r *Sinks) Specs() []filament.SinkSpec {
 	facs := r.snapshot()
-	out := make([]ingestion.SinkSpec, len(facs))
+	out := make([]filament.SinkSpec, len(facs))
 	for i, f := range facs {
 		out[i] = f().Spec()
 	}
 	return out
 }
 
-func (r *Sinks) snapshot() []ingestion.SinkFactory {
+func (r *Sinks) snapshot() []filament.SinkFactory {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	names := make([]string, 0, len(r.factories))
@@ -129,7 +129,7 @@ func (r *Sinks) snapshot() []ingestion.SinkFactory {
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	out := make([]ingestion.SinkFactory, len(names))
+	out := make([]filament.SinkFactory, len(names))
 	for i, n := range names {
 		out[i] = r.factories[n]
 	}

@@ -5,12 +5,12 @@ import (
 
 	"google.golang.org/protobuf/types/known/structpb"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/events"
 )
 
-func sourceSpecToProto(spec ingestion.ConnectorSpec) *ingestionv1.ConnectorSpec {
+func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 	return &ingestionv1.ConnectorSpec{
 		Name:         spec.Name,
 		DisplayName:  spec.DisplayName,
@@ -26,7 +26,7 @@ func sourceSpecToProto(spec ingestion.ConnectorSpec) *ingestionv1.ConnectorSpec 
 	}
 }
 
-func sinkSpecToProto(spec ingestion.SinkSpec) *ingestionv1.ConnectorSpec {
+func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 	return &ingestionv1.ConnectorSpec{
 		Name:         spec.Name,
 		DisplayName:  spec.DisplayName,
@@ -42,7 +42,7 @@ func sinkSpecToProto(spec ingestion.SinkSpec) *ingestionv1.ConnectorSpec {
 	}
 }
 
-func configSchemaToProto(schema ingestion.ConfigSchema) *ingestionv1.ConfigSchema {
+func configSchemaToProto(schema filament.ConfigSchema) *ingestionv1.ConfigSchema {
 	fields := make([]*ingestionv1.ConfigField, 0, len(schema.Fields))
 	for _, field := range schema.Fields {
 		fields = append(fields, &ingestionv1.ConfigField{
@@ -53,13 +53,13 @@ func configSchemaToProto(schema ingestion.ConfigSchema) *ingestionv1.ConfigSchem
 			Enum:     field.Enum,
 			Help:     field.Help,
 			Scope:    fieldScopeToProto(field.Scope),
-			Secret:   field.Secret || field.Type == ingestion.FieldSecret,
+			Secret:   field.Secret || field.Type == filament.FieldSecret,
 		})
 	}
 	return &ingestionv1.ConfigSchema{Fields: fields}
 }
 
-func sourcePoliciesToProto(policies []ingestion.SourcePolicy) []*ingestionv1.SourcePolicy {
+func sourcePoliciesToProto(policies []filament.SourcePolicy) []*ingestionv1.SourcePolicy {
 	out := make([]*ingestionv1.SourcePolicy, 0, len(policies))
 	for _, policy := range policies {
 		out = append(out, &ingestionv1.SourcePolicy{
@@ -72,7 +72,7 @@ func sourcePoliciesToProto(policies []ingestion.SourcePolicy) []*ingestionv1.Sou
 	return out
 }
 
-func writePolicyCapabilitiesToProto(caps []ingestion.WritePolicyCapability) []*ingestionv1.WritePolicyCapability {
+func writePolicyCapabilitiesToProto(caps []filament.WritePolicyCapability) []*ingestionv1.WritePolicyCapability {
 	out := make([]*ingestionv1.WritePolicyCapability, 0, len(caps))
 	for _, cap := range caps {
 		out = append(out, &ingestionv1.WritePolicyCapability{
@@ -86,7 +86,7 @@ func writePolicyCapabilitiesToProto(caps []ingestion.WritePolicyCapability) []*i
 	return out
 }
 
-func modesToProto(modes []ingestion.ReplicationMode) []ingestionv1.ReplicationMode {
+func modesToProto(modes []filament.ReplicationMode) []ingestionv1.ReplicationMode {
 	out := make([]ingestionv1.ReplicationMode, 0, len(modes))
 	for _, mode := range modes {
 		out = append(out, modeToProto(mode))
@@ -94,45 +94,45 @@ func modesToProto(modes []ingestion.ReplicationMode) []ingestionv1.ReplicationMo
 	return out
 }
 
-func modeToProto(mode ingestion.ReplicationMode) ingestionv1.ReplicationMode {
+func modeToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
 	switch mode {
-	case ingestion.ModeFull:
+	case filament.ModeFull:
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_FULL
-	case ingestion.ModeIncremental:
+	case filament.ModeIncremental:
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_INCREMENTAL
-	case ingestion.ModeCDC:
+	case filament.ModeCDC:
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
 	default:
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED
 	}
 }
 
-func ingestionTypeFromProto(t ingestionv1.IngestionType) ingestion.IngestionType {
+func ingestionTypeFromProto(t ingestionv1.IngestionType) filament.IngestionType {
 	switch t {
 	case ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT:
-		return ingestion.IngestionSnapshotUpsert
+		return filament.IngestionSnapshotUpsert
 	case ingestionv1.IngestionType_INGESTION_TYPE_APPEND:
-		return ingestion.IngestionAppend
+		return filament.IngestionAppend
 	case ingestionv1.IngestionType_INGESTION_TYPE_UPSERT:
-		return ingestion.IngestionUpsert
+		return filament.IngestionUpsert
 	case ingestionv1.IngestionType_INGESTION_TYPE_DELETE:
-		return ingestion.IngestionDelete
+		return filament.IngestionDelete
 	case ingestionv1.IngestionType_INGESTION_TYPE_CDC:
-		return ingestion.IngestionCDC
+		return filament.IngestionCDC
 	default:
-		return ingestion.IngestionSnapshotReplace
+		return filament.IngestionSnapshotReplace
 	}
 }
 
-func operationsToProto(ops []ingestion.Operation) []ingestionv1.Operation {
+func operationsToProto(ops []filament.Operation) []ingestionv1.Operation {
 	out := make([]ingestionv1.Operation, 0, len(ops))
 	for _, op := range ops {
 		switch op {
-		case ingestion.OpInsert:
+		case filament.OpInsert:
 			out = append(out, ingestionv1.Operation_OPERATION_INSERT)
-		case ingestion.OpUpdate:
+		case filament.OpUpdate:
 			out = append(out, ingestionv1.Operation_OPERATION_UPDATE)
-		case ingestion.OpDelete:
+		case filament.OpDelete:
 			out = append(out, ingestionv1.Operation_OPERATION_DELETE)
 		default:
 			out = append(out, ingestionv1.Operation_OPERATION_UNSPECIFIED)
@@ -141,103 +141,103 @@ func operationsToProto(ops []ingestion.Operation) []ingestionv1.Operation {
 	return out
 }
 
-func writeModeToProto(mode ingestion.WriteMode) ingestionv1.WriteMode {
+func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
 	switch mode {
-	case ingestion.WriteAppend:
+	case filament.WriteAppend:
 		return ingestionv1.WriteMode_WRITE_MODE_APPEND
-	case ingestion.WriteReplace:
+	case filament.WriteReplace:
 		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
-	case ingestion.WriteUpsert:
+	case filament.WriteUpsert:
 		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
-	case ingestion.WriteDelete:
+	case filament.WriteDelete:
 		return ingestionv1.WriteMode_WRITE_MODE_DELETE
-	case ingestion.WriteMerge:
+	case filament.WriteMerge:
 		return ingestionv1.WriteMode_WRITE_MODE_MERGE
 	default:
 		return ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED
 	}
 }
 
-func writeAtomicityToProto(atomicity ingestion.WriteAtomicity) ingestionv1.WriteAtomicity {
+func writeAtomicityToProto(atomicity filament.WriteAtomicity) ingestionv1.WriteAtomicity {
 	switch atomicity {
-	case ingestion.AtomicityBatch:
+	case filament.AtomicityBatch:
 		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_BATCH
-	case ingestion.AtomicityResource:
+	case filament.AtomicityResource:
 		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_RESOURCE
-	case ingestion.AtomicityRun:
+	case filament.AtomicityRun:
 		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_RUN
 	default:
 		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_UNSPECIFIED
 	}
 }
 
-func checkpointPolicyToProto(policy ingestion.CheckpointPolicy) ingestionv1.CheckpointPolicy {
+func checkpointPolicyToProto(policy filament.CheckpointPolicy) ingestionv1.CheckpointPolicy {
 	switch policy {
-	case ingestion.CheckpointNone:
+	case filament.CheckpointNone:
 		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_NONE
-	case ingestion.CheckpointAfterBatch:
+	case filament.CheckpointAfterBatch:
 		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_AFTER_BATCH
-	case ingestion.CheckpointAfterCommit:
+	case filament.CheckpointAfterCommit:
 		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_AFTER_COMMIT
 	default:
 		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_UNSPECIFIED
 	}
 }
 
-func fieldTypeToProto(t ingestion.FieldType) ingestionv1.FieldType {
+func fieldTypeToProto(t filament.FieldType) ingestionv1.FieldType {
 	switch t {
-	case ingestion.FieldString:
+	case filament.FieldString:
 		return ingestionv1.FieldType_FIELD_TYPE_STRING
-	case ingestion.FieldInt:
+	case filament.FieldInt:
 		return ingestionv1.FieldType_FIELD_TYPE_INT
-	case ingestion.FieldBool:
+	case filament.FieldBool:
 		return ingestionv1.FieldType_FIELD_TYPE_BOOL
-	case ingestion.FieldSecret:
+	case filament.FieldSecret:
 		return ingestionv1.FieldType_FIELD_TYPE_SECRET
-	case ingestion.FieldDuration:
+	case filament.FieldDuration:
 		return ingestionv1.FieldType_FIELD_TYPE_DURATION
-	case ingestion.FieldEnum:
+	case filament.FieldEnum:
 		return ingestionv1.FieldType_FIELD_TYPE_ENUM
-	case ingestion.FieldObject:
+	case filament.FieldObject:
 		return ingestionv1.FieldType_FIELD_TYPE_OBJECT
 	default:
 		return ingestionv1.FieldType_FIELD_TYPE_UNSPECIFIED
 	}
 }
 
-func fieldScopeToProto(s ingestion.FieldScope) ingestionv1.FieldScope {
+func fieldScopeToProto(s filament.FieldScope) ingestionv1.FieldScope {
 	switch s {
-	case ingestion.ScopeConnection:
+	case filament.ScopeConnection:
 		return ingestionv1.FieldScope_FIELD_SCOPE_CONNECTION
-	case ingestion.ScopePipeline:
+	case filament.ScopePipeline:
 		return ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE
 	default:
 		return ingestionv1.FieldScope_FIELD_SCOPE_UNSPECIFIED
 	}
 }
 
-func runStatusToProto(status ingestion.RunStatus) ingestionv1.RunStatus {
+func runStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
 	switch status {
-	case ingestion.RunRequested:
+	case filament.RunRequested:
 		return ingestionv1.RunStatus_RUN_STATUS_REQUESTED
-	case ingestion.RunRunning:
+	case filament.RunRunning:
 		return ingestionv1.RunStatus_RUN_STATUS_RUNNING
-	case ingestion.RunCompleted:
+	case filament.RunCompleted:
 		return ingestionv1.RunStatus_RUN_STATUS_COMPLETED
-	case ingestion.RunFailed:
+	case filament.RunFailed:
 		return ingestionv1.RunStatus_RUN_STATUS_FAILED
-	case ingestion.RunCanceled:
+	case filament.RunCanceled:
 		return ingestionv1.RunStatus_RUN_STATUS_CANCELED
-	case ingestion.RunPaused:
+	case filament.RunPaused:
 		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
-	case ingestion.RunPartial:
+	case filament.RunPartial:
 		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
 	default:
 		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	}
 }
 
-func resourcesToProto(resources []ingestion.Resource) *ingestionv1.DiscoverResourcesResponse {
+func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResourcesResponse {
 	out := make([]*ingestionv1.Resource, 0, len(resources))
 	for _, resource := range resources {
 		out = append(out, &ingestionv1.Resource{
@@ -253,7 +253,7 @@ func resourcesToProto(resources []ingestion.Resource) *ingestionv1.DiscoverResou
 	return &ingestionv1.DiscoverResourcesResponse{Resources: out}
 }
 
-func runInfoToProto(state ingestion.RunState) *ingestionv1.RunInfo {
+func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 	return &ingestionv1.RunInfo{
 		Run:     string(state.Run),
 		Tenant:  string(state.Tenant),
@@ -311,7 +311,7 @@ func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
 	return &ingestionv1.TailRunResponse{Event: ev}
 }
 
-func runSnapshotEvent(state ingestion.RunState, replay bool) *ingestionv1.RunEvent {
+func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
 		Type:   runEventType(state.Status),
 		Tenant: string(state.Tenant),
@@ -325,51 +325,51 @@ func runSnapshotEvent(state ingestion.RunState, replay bool) *ingestionv1.RunEve
 	}
 }
 
-func runStatusTerminal(status ingestion.RunStatus) bool {
+func runStatusTerminal(status filament.RunStatus) bool {
 	switch status {
-	case ingestion.RunCompleted, ingestion.RunFailed, ingestion.RunCanceled, ingestion.RunPartial:
+	case filament.RunCompleted, filament.RunFailed, filament.RunCanceled, filament.RunPartial:
 		return true
 	default:
 		return false
 	}
 }
 
-func runEventType(status ingestion.RunStatus) string {
+func runEventType(status filament.RunStatus) string {
 	switch status {
-	case ingestion.RunRequested:
+	case filament.RunRequested:
 		return events.RunRequested.Name()
-	case ingestion.RunRunning:
+	case filament.RunRunning:
 		return events.RunStarted.Name()
-	case ingestion.RunCompleted:
+	case filament.RunCompleted:
 		return events.RunCompleted.Name()
-	case ingestion.RunFailed:
+	case filament.RunFailed:
 		return events.RunFailed.Name()
-	case ingestion.RunCanceled:
+	case filament.RunCanceled:
 		return "run.canceled"
-	case ingestion.RunPaused:
+	case filament.RunPaused:
 		return "run.paused"
-	case ingestion.RunPartial:
+	case filament.RunPartial:
 		return events.RunPartial.Name()
 	default:
 		return "unspecified"
 	}
 }
 
-func runStatusEventType(status ingestion.RunStatus) string {
+func runStatusEventType(status filament.RunStatus) string {
 	switch status {
-	case ingestion.RunRequested:
+	case filament.RunRequested:
 		return events.RunRequested.Name()
-	case ingestion.RunRunning:
+	case filament.RunRunning:
 		return events.ResourceStarted.Name()
-	case ingestion.RunCompleted:
+	case filament.RunCompleted:
 		return events.ResourceCompleted.Name()
-	case ingestion.RunFailed:
+	case filament.RunFailed:
 		return events.ResourceFailed.Name()
-	case ingestion.RunCanceled:
+	case filament.RunCanceled:
 		return "run.canceled"
-	case ingestion.RunPaused:
+	case filament.RunPaused:
 		return "run.paused"
-	case ingestion.RunPartial:
+	case filament.RunPartial:
 		return events.RunPartial.Name()
 	default:
 		return "unspecified"
@@ -403,7 +403,7 @@ func validationError(message string) *ingestionv1.ValidateConfigResponse {
 	}
 }
 
-func validateConfigSchema(schema ingestion.ConfigSchema, cfg ingestion.Config) error {
+func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config) error {
 	for _, field := range schema.Fields {
 		if field.Required && !cfg.Has(field.Name) {
 			return fmt.Errorf("%s is required", field.Name)

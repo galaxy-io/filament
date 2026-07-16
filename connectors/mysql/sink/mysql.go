@@ -9,18 +9,18 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
 // calls EnsureSchema(resource, schema) up front, Sink builds one typed table per
 // resource then Write casts each batch's JSON payloads into those columns
 // server-side via JSON_TABLE (MySQL 8.0+), the analog of the Postgres sink's
-// jsonb_to_recordset. It implements ingestion.Schematized; the engine only runs
+// jsonb_to_recordset. It implements filament.Schematized; the engine only runs
 // schema discovery for sinks that do.
 type Sink struct {
 	db        *sql.DB
-	run       ingestion.RunID
+	run       filament.RunID
 	database  string
 	resumable bool
 	written   atomic.Int64
@@ -43,31 +43,31 @@ type table struct {
 func New() *Sink { return &Sink{} }
 
 var (
-	_ ingestion.Sink        = (*Sink)(nil)
-	_ ingestion.Schematized = (*Sink)(nil)
+	_ filament.Sink        = (*Sink)(nil)
+	_ filament.Schematized = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
-func (t *Sink) Spec() ingestion.SinkSpec {
-	return ingestion.SinkSpec{
+func (t *Sink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{
 		Name:        "mysql",
 		DisplayName: "MySQL",
 		Version:     "1",
-		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
-			{Name: "database", Type: ingestion.FieldString, Scope: ingestion.ScopePipeline, Help: "Destination database (defaults to the DSN's database)"},
-			{Name: "mode", Type: ingestion.FieldEnum, Default: "typed", Enum: []string{"typed"}, Scope: ingestion.ScopePipeline, Help: "Destination table mode"},
+		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
+			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Destination database (defaults to the DSN's database)"},
+			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []string{"typed"}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
 		}},
-		Capabilities: ingestion.SinkCapabilities{
+		Capabilities: filament.SinkCapabilities{
 			Schematized:        true,
 			Upsertable:         true,
 			PreferredBatchRows: 4096,
-			WritePolicies: ingestion.WriteCapabilities(
-				ingestion.IngestionSnapshotReplace,
-				ingestion.IngestionAppend,
-				ingestion.IngestionSnapshotUpsert,
-				ingestion.IngestionUpsert,
-				ingestion.IngestionCDC,
+			WritePolicies: filament.WriteCapabilities(
+				filament.IngestionSnapshotReplace,
+				filament.IngestionAppend,
+				filament.IngestionSnapshotUpsert,
+				filament.IngestionUpsert,
+				filament.IngestionCDC,
 			),
 		},
 	}
@@ -79,8 +79,8 @@ func (t *Sink) Name() string { return "mysql" }
 // Open reads dsn/database and opens a pool sized for the run's write parallelism. It
 // does no DDL beyond CREATE DATABASE — tables are created per resource by
 // EnsureSchema before extraction.
-func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
-	cfg := ingestion.NewConfig(run.Sink.Config)
+func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
+	cfg := filament.NewConfig(run.Sink.Config)
 	dsn := cfg.Secret("dsn")
 	if dsn == "" {
 		return fmt.Errorf("mysql sink: dsn is required")
@@ -97,9 +97,9 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 		return fmt.Errorf("mysql sink: dsn has no database and \"database\" is unset")
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == ingestion.IngestionSnapshotUpsert ||
-		run.IngestionType == ingestion.IngestionUpsert ||
-		run.IngestionType == ingestion.IngestionCDC // a change stream continues an existing table
+	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert ||
+		run.IngestionType == filament.IngestionUpsert ||
+		run.IngestionType == filament.IngestionCDC // a change stream continues an existing table
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
@@ -129,27 +129,27 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 
 // Apply validates the batch against the run's write policy, then delegates to
 // Write (or writeMerge for CDC).
-func (t *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
+func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
-	case ingestion.WriteReplace, ingestion.WriteAppend:
+	case filament.WriteReplace, filament.WriteAppend:
 		policy := opts.Policy
-		policy.Capability.AcceptsOps = []ingestion.Operation{ingestion.OpInsert}
+		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
 		if err := policy.ValidateRecords(b.Resource, b.Records); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
+			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
 		}
 		return t.Write(ctx, b)
-	case ingestion.WriteUpsert:
+	case filament.WriteUpsert:
 		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
+			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
 		}
 		return t.Write(ctx, b)
-	case ingestion.WriteMerge:
+	case filament.WriteMerge:
 		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
+			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
 		}
 		return t.writeMerge(ctx, b)
 	default:
-		return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
+		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
 }
 
@@ -158,7 +158,7 @@ func (t *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.Appl
 // per-resource INSERT statement. A pre-existing table gains any new columns; an
 // incompatible existing column type surfaces later as a cast error on Write (full
 // type-change handling is deferred to schema evolution).
-func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema ingestion.RecordSchema) error {
+func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
 	if t.db == nil {
 		return fmt.Errorf("mysql sink: ensure schema before open")
 	}
@@ -236,11 +236,11 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema ingesti
 // only, and a multi-table DELETE joined on the key removes every matched row in one
 // statement. Empty for a keyless table (merge requires a key; policy validation
 // enforces it upstream).
-func deleteJoinSQL(qualified string, schema ingestion.RecordSchema) string {
+func deleteJoinSQL(qualified string, schema filament.RecordSchema) string {
 	if len(schema.PrimaryKey) == 0 {
 		return ""
 	}
-	fieldByName := make(map[string]ingestion.SchemaField, len(schema.Fields))
+	fieldByName := make(map[string]filament.SchemaField, len(schema.Fields))
 	for _, f := range schema.Fields {
 		fieldByName[f.Name] = f
 	}
@@ -253,7 +253,7 @@ func deleteJoinSQL(qualified string, schema ingestion.RecordSchema) string {
 		jtCols[i] = jt
 		// A bytes key arrives base64-encoded (the source's TO_BASE64 convention);
 		// decode it on the join so it compares against the binary column.
-		if f.Logical == ingestion.LogicalBytes {
+		if f.Logical == filament.LogicalBytes {
 			on[i] = "t." + id + " = FROM_BASE64(j." + id + ")"
 		} else {
 			on[i] = "t." + id + " = j." + id
@@ -286,12 +286,12 @@ func (t *Sink) columnSet(ctx context.Context, resource string) (map[string]bool,
 // projection. Most types extract directly at their column type; JSON stays JSON (so
 // nested structure survives), and bytes come back through FROM_BASE64 (the source
 // encodes binary columns with TO_BASE64 — MySQL JSON has no binary representation).
-func jsonTableColumn(f ingestion.SchemaField, id string) (jt, sel string) {
+func jsonTableColumn(f filament.SchemaField, id string) (jt, sel string) {
 	path := "PATH " + quotePathLiteral(f.Name)
 	switch f.Logical {
-	case ingestion.LogicalJSON:
+	case filament.LogicalJSON:
 		return id + " JSON " + path, id
-	case ingestion.LogicalBytes:
+	case filament.LogicalBytes:
 		return id + " LONGTEXT " + path, "FROM_BASE64(" + id + ") AS " + id
 	default:
 		return id + " " + mysqlColumnType(f) + " " + path, id
@@ -309,47 +309,47 @@ func quotePathLiteral(name string) string {
 
 // mysqlColumnType maps a portable LogicalType onto a MySQL column type, preferring
 // the source's Native declaration for a same-engine round-trip.
-func mysqlColumnType(f ingestion.SchemaField) string {
+func mysqlColumnType(f filament.SchemaField) string {
 	switch f.Logical {
-	case ingestion.LogicalBool:
+	case filament.LogicalBool:
 		return "tinyint(1)"
-	case ingestion.LogicalInt16:
+	case filament.LogicalInt16:
 		return "smallint"
-	case ingestion.LogicalInt32:
+	case filament.LogicalInt32:
 		return "int"
-	case ingestion.LogicalInt64:
+	case filament.LogicalInt64:
 		return "bigint"
-	case ingestion.LogicalFloat32:
+	case filament.LogicalFloat32:
 		return "float"
-	case ingestion.LogicalFloat64:
+	case filament.LogicalFloat64:
 		return "double"
-	case ingestion.LogicalDecimal:
+	case filament.LogicalDecimal:
 		if native := nativeIfMySQL(f.Native); native != "" {
 			return native
 		}
 		return "decimal(38,9)"
-	case ingestion.LogicalString:
+	case filament.LogicalString:
 		if native := nativeIfMySQL(f.Native); native != "" {
 			return native
 		}
 		return "longtext"
-	case ingestion.LogicalBytes:
+	case filament.LogicalBytes:
 		if native := nativeIfMySQL(f.Native); native != "" {
 			return native
 		}
 		return "longblob"
-	case ingestion.LogicalDate:
+	case filament.LogicalDate:
 		return "date"
-	case ingestion.LogicalTime:
+	case filament.LogicalTime:
 		return "time(6)"
-	case ingestion.LogicalTimestamp:
+	case filament.LogicalTimestamp:
 		return "datetime(6)"
-	case ingestion.LogicalTimestampTZ:
+	case filament.LogicalTimestampTZ:
 		// timestamp's range stops at 2038; datetime holds any instant (rendered UTC).
 		return "datetime(6)"
-	case ingestion.LogicalJSON, ingestion.LogicalArray:
+	case filament.LogicalJSON, filament.LogicalArray:
 		return "json"
-	case ingestion.LogicalUUID:
+	case filament.LogicalUUID:
 		return "char(36)"
 	default:
 		if native := nativeIfMySQL(f.Native); native != "" {
@@ -389,7 +389,7 @@ func nativeIfMySQL(native string) string {
 // constraint. Non-resumable loads keep plain INSERT semantics (empty clause).
 // A PK-only table degrades to a no-op update of its first key column (MySQL's
 // DO NOTHING idiom).
-func onDuplicate(upsert bool, schema ingestion.RecordSchema) string {
+func onDuplicate(upsert bool, schema filament.RecordSchema) string {
 	if !upsert {
 		return ""
 	}
@@ -422,16 +422,16 @@ func quoteIdent(s string) string {
 // single JSON array and expanded server-side by JSON_TABLE, coercing every value to
 // its column type. WriteCRC is over the records, unchanged — the integrity check is
 // identical to the landing sink's.
-func (t *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
+func (t *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	tbl, err := t.tableForBatch(b.Resource)
 	if err != nil {
-		return ingestion.WriteReceipt{}, err
+		return filament.WriteReceipt{}, err
 	}
 
 	buf, nbytes := frameJSONArray(b.Records)
 	res, err := t.db.ExecContext(ctx, tbl.insertSQL, string(buf))
 	if err != nil {
-		return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: load %s seq %d: %w", b.Resource, b.Seq, err)
+		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: load %s seq %d: %w", b.Resource, b.Seq, err)
 	}
 	// ON DUPLICATE KEY UPDATE reports 2 per updated row; the batch's logical row count
 	// is its record count (every record either inserted or updated).
@@ -455,9 +455,9 @@ func (t *Sink) tableForBatch(resource string) (*table, error) {
 	return tbl, nil
 }
 
-func (t *Sink) writeReceipt(resource string, nbytes int64, rows int, recs []ingestion.Record) ingestion.WriteReceipt {
-	crc, _ := ingestion.CRC32C(recs)
-	return ingestion.WriteReceipt{
+func (t *Sink) writeReceipt(resource string, nbytes int64, rows int, recs []filament.Record) filament.WriteReceipt {
+	crc, _ := filament.CRC32C(recs)
+	return filament.WriteReceipt{
 		URI:      fmt.Sprintf("mysql://%s.%s", t.database, resource),
 		Bytes:    nbytes,
 		Rows:     rows,
@@ -467,7 +467,7 @@ func (t *Sink) writeReceipt(resource string, nbytes int64, rows int, recs []inge
 
 // batchBufHint sizes the JSON-array scratch: the payload bytes plus separators and
 // brackets, so the common case appends without growing.
-func batchBufHint(recs []ingestion.Record) int {
+func batchBufHint(recs []filament.Record) int {
 	n := 2 + len(recs) // brackets + commas
 	for i := range recs {
 		n += len(recs[i].Data)
@@ -478,7 +478,7 @@ func batchBufHint(recs []ingestion.Record) int {
 // frameJSONArray concatenates record payloads into one JSON array: [<data>,…].
 // Each Data is already valid JSON, so this is pure concatenation. Returns the
 // framed buffer and the payload byte count.
-func frameJSONArray(recs []ingestion.Record) ([]byte, int64) {
+func frameJSONArray(recs []filament.Record) ([]byte, int64) {
 	var nbytes int64
 	buf := make([]byte, 0, batchBufHint(recs))
 	buf = append(buf, '[')
@@ -497,19 +497,19 @@ func frameJSONArray(recs []ingestion.Record) ([]byte, int64) {
 // re-insert — and each run lands as one statement: inserts/updates through the
 // upsert INSERT … JSON_TABLE, deletes through the JSON_TABLE-join DELETE keyed on
 // the primary key from each delete's before-image payload.
-func (t *Sink) writeMerge(ctx context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
+func (t *Sink) writeMerge(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	tbl, err := t.tableForBatch(b.Resource)
 	if err != nil {
-		return ingestion.WriteReceipt{}, err
+		return filament.WriteReceipt{}, err
 	}
 
 	var nbytes int64
 	rows := 0
 	recs := b.Records
 	for len(recs) > 0 {
-		isDelete := recs[0].Op == ingestion.OpDelete
+		isDelete := recs[0].Op == filament.OpDelete
 		n := 1
-		for n < len(recs) && (recs[n].Op == ingestion.OpDelete) == isDelete {
+		for n < len(recs) && (recs[n].Op == filament.OpDelete) == isDelete {
 			n++
 		}
 		run := recs[:n]
@@ -519,14 +519,14 @@ func (t *Sink) writeMerge(ctx context.Context, b ingestion.Batch) (ingestion.Wri
 		nbytes += runBytes
 		if isDelete {
 			if tbl.deleteSQL == "" {
-				return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: merge delete on keyless resource %q", b.Resource)
+				return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge delete on keyless resource %q", b.Resource)
 			}
 			if _, err := t.db.ExecContext(ctx, tbl.deleteSQL, string(buf)); err != nil {
-				return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: merge delete %s seq %d: %w", b.Resource, b.Seq, err)
+				return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge delete %s seq %d: %w", b.Resource, b.Seq, err)
 			}
 		} else {
 			if _, err := t.db.ExecContext(ctx, tbl.insertSQL, string(buf)); err != nil {
-				return ingestion.WriteReceipt{}, fmt.Errorf("mysql sink: merge load %s seq %d: %w", b.Resource, b.Seq, err)
+				return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge load %s seq %d: %w", b.Resource, b.Seq, err)
 			}
 		}
 		rows += len(run)

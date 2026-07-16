@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // TestKeysetCheckpointRoundTrip checks the keyset cursor survives both an in-process
@@ -39,7 +39,7 @@ func TestKeysetCheckpointRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	got2, ok := ParseKeyset(&ingestion.CheckpointData{ResourceName: "orders", Cursor: decoded})
+	got2, ok := ParseKeyset(&filament.CheckpointData{ResourceName: "orders", Cursor: decoded})
 	if !ok {
 		t.Fatal("ParseKeyset after JSON: not recognized")
 	}

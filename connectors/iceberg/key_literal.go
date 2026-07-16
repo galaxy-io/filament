@@ -11,7 +11,7 @@ import (
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/google/uuid"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 type keyTuple struct {
@@ -114,13 +114,13 @@ func literalValue(it *iceTable, key string, value any) (any, error) {
 		return nil, fmt.Errorf("primary key %q is not in iceberg schema", key)
 	}
 	switch field.Logical {
-	case ingestion.LogicalBool:
+	case filament.LogicalBool:
 		v, ok := value.(bool)
 		if !ok {
 			return nil, fmt.Errorf("primary key %q: expected bool, got %T", key, value)
 		}
 		return v, nil
-	case ingestion.LogicalInt16, ingestion.LogicalInt32:
+	case filament.LogicalInt16, filament.LogicalInt32:
 		n, err := jsonNumber(value)
 		if err != nil {
 			return nil, fmt.Errorf("primary key %q: %w", key, err)
@@ -129,31 +129,31 @@ func literalValue(it *iceTable, key string, value any) (any, error) {
 			return nil, fmt.Errorf("primary key %q: integer %d overflows int32", key, n)
 		}
 		return int32(n), nil
-	case ingestion.LogicalInt64:
+	case filament.LogicalInt64:
 		n, err := jsonNumber(value)
 		if err != nil {
 			return nil, fmt.Errorf("primary key %q: %w", key, err)
 		}
 		return n, nil
-	case ingestion.LogicalFloat32:
+	case filament.LogicalFloat32:
 		n, err := jsonFloat(value)
 		if err != nil {
 			return nil, fmt.Errorf("primary key %q: %w", key, err)
 		}
 		return float32(n), nil
-	case ingestion.LogicalFloat64:
+	case filament.LogicalFloat64:
 		n, err := jsonFloat(value)
 		if err != nil {
 			return nil, fmt.Errorf("primary key %q: %w", key, err)
 		}
 		return n, nil
-	case ingestion.LogicalBytes:
+	case filament.LogicalBytes:
 		s, ok := value.(string)
 		if !ok {
 			return nil, fmt.Errorf("primary key %q: expected base64/string bytes, got %T", key, value)
 		}
 		return []byte(s), nil
-	case ingestion.LogicalUUID:
+	case filament.LogicalUUID:
 		s, ok := value.(string)
 		if !ok {
 			return nil, fmt.Errorf("primary key %q: expected uuid string, got %T", key, value)
@@ -182,13 +182,13 @@ func sortedKeys(m map[string]any) []string {
 	return keys
 }
 
-func fieldByName(schema ingestion.RecordSchema, name string) (ingestion.SchemaField, bool) {
+func fieldByName(schema filament.RecordSchema, name string) (filament.SchemaField, bool) {
 	for _, field := range schema.Fields {
 		if field.Name == name {
 			return field, true
 		}
 	}
-	return ingestion.SchemaField{}, false
+	return filament.SchemaField{}, false
 }
 
 func jsonNumber(value any) (int64, error) {

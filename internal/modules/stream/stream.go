@@ -7,7 +7,7 @@ package stream
 import (
 	"context"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
@@ -17,7 +17,7 @@ import (
 // Module is the client-facing read side.
 type Module struct {
 	bus eventbus.Bus
-	ds  ingestion.DataStore
+	ds  filament.DataStore
 }
 
 // New returns an unmounted stream module. Providers are injected by Mount.
@@ -39,18 +39,18 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 }
 
 // Snapshot returns the run's current persisted state and resource states.
-func (m *Module) Snapshot(ctx context.Context, run ingestion.RunID) (ingestion.SyncSnapshot, error) {
+func (m *Module) Snapshot(ctx context.Context, run filament.RunID) (filament.SyncSnapshot, error) {
 	rs, err := m.ds.LoadRun(ctx, run)
 	if err != nil {
-		return ingestion.SyncSnapshot{}, err
+		return filament.SyncSnapshot{}, err
 	}
-	return ingestion.SyncSnapshot{Run: rs, Resources: rs.Resources}, nil
+	return filament.SyncSnapshot{Run: rs, Resources: rs.Resources}, nil
 }
 
 // Tail streams a run's facts live, returning a channel that closes when ctx is
 // cancelled or the subscription drops. Each fact is acked on read, so a slow
 // reader only backpressures the tail, never producers.
-func (m *Module) Tail(ctx context.Context, tenant ingestion.TenantID, run ingestion.RunID) (<-chan events.Fact, error) {
+func (m *Module) Tail(ctx context.Context, tenant filament.TenantID, run filament.RunID) (<-chan events.Fact, error) {
 	sub, err := m.bus.Subscribe(events.RunPattern(tenant, run), eventbus.SubOpts{})
 	if err != nil {
 		return nil, err

@@ -3,7 +3,7 @@ package events
 import (
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // The catalog: every fact filament emits, with its typed payload. Wire
@@ -56,11 +56,11 @@ type (
 	}
 	// BatchWrittenEvent marks one batch durably applied to the sink.
 	BatchWrittenEvent struct {
-		Records    int64                     `json:"records"`
-		Bytes      int64                     `json:"bytes"`
-		URI        string                    `json:"uri,omitempty"`
-		CRC        uint32                    `json:"crc,omitempty"`
-		Checkpoint *ingestion.CheckpointData `json:"checkpoint,omitempty"`
+		Records    int64                    `json:"records"`
+		Bytes      int64                    `json:"bytes"`
+		URI        string                   `json:"uri,omitempty"`
+		CRC        uint32                   `json:"crc,omitempty"`
+		Checkpoint *filament.CheckpointData `json:"checkpoint,omitempty"`
 	}
 	// IntegrityVerifiedEvent marks a batch's CRC re-checked after write.
 	IntegrityVerifiedEvent struct {
@@ -74,11 +74,11 @@ type (
 
 	// WatermarkAdvancedEvent marks the incremental cursor moving forward.
 	WatermarkAdvancedEvent struct {
-		Checkpoint *ingestion.CheckpointData `json:"checkpoint,omitempty"`
+		Checkpoint *filament.CheckpointData `json:"checkpoint,omitempty"`
 	}
 	// CheckpointSavedEvent marks a resume point persisted.
 	CheckpointSavedEvent struct {
-		Checkpoint *ingestion.CheckpointData `json:"checkpoint,omitempty"`
+		Checkpoint *filament.CheckpointData `json:"checkpoint,omitempty"`
 	}
 
 	// RateLimitedEvent reports source back-pressure and the advised wait.

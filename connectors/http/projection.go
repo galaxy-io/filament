@@ -6,34 +6,34 @@ import (
 	"strconv"
 	"strings"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
-func schemaFields(res manifest.Resource) []ingestion.SchemaField {
+func schemaFields(res manifest.Resource) []filament.SchemaField {
 	if len(res.Fields) == 0 {
-		fields := make([]ingestion.SchemaField, 0, len(res.PrimaryKey)+1)
+		fields := make([]filament.SchemaField, 0, len(res.PrimaryKey)+1)
 		for _, key := range res.PrimaryKey {
-			fields = append(fields, ingestion.SchemaField{
+			fields = append(fields, filament.SchemaField{
 				Name:     key,
 				Nullable: false,
-				Logical:  ingestion.LogicalString,
+				Logical:  filament.LogicalString,
 				Native:   "string",
 			})
 		}
-		fields = append(fields, ingestion.SchemaField{
+		fields = append(fields, filament.SchemaField{
 			Name:     "data",
 			Nullable: false,
-			Logical:  ingestion.LogicalJSON,
+			Logical:  filament.LogicalJSON,
 			Native:   "json",
 		})
 		return fields
 	}
-	fields := make([]ingestion.SchemaField, 0, len(res.Fields))
+	fields := make([]filament.SchemaField, 0, len(res.Fields))
 	for _, f := range res.Fields {
-		fields = append(fields, ingestion.SchemaField{
+		fields = append(fields, filament.SchemaField{
 			Name:     f.Name,
 			Nullable: f.Nullable,
 			Logical:  logicalType(f.Type),
@@ -271,35 +271,35 @@ func scalarFloat(value any) (float64, error) {
 	}
 }
 
-func logicalType(fieldType string) ingestion.LogicalType {
+func logicalType(fieldType string) filament.LogicalType {
 	switch fieldType {
 	case "bool":
-		return ingestion.LogicalBool
+		return filament.LogicalBool
 	case "int16":
-		return ingestion.LogicalInt16
+		return filament.LogicalInt16
 	case "int32":
-		return ingestion.LogicalInt32
+		return filament.LogicalInt32
 	case "int64":
-		return ingestion.LogicalInt64
+		return filament.LogicalInt64
 	case "float32":
-		return ingestion.LogicalFloat32
+		return filament.LogicalFloat32
 	case "float64":
-		return ingestion.LogicalFloat64
+		return filament.LogicalFloat64
 	case "decimal":
-		return ingestion.LogicalDecimal
+		return filament.LogicalDecimal
 	case "date":
-		return ingestion.LogicalDate
+		return filament.LogicalDate
 	case "time":
-		return ingestion.LogicalTime
+		return filament.LogicalTime
 	case "timestamp":
-		return ingestion.LogicalTimestamp
+		return filament.LogicalTimestamp
 	case "timestamptz":
-		return ingestion.LogicalTimestampTZ
+		return filament.LogicalTimestampTZ
 	case "json":
-		return ingestion.LogicalJSON
+		return filament.LogicalJSON
 	case "uuid":
-		return ingestion.LogicalUUID
+		return filament.LogicalUUID
 	default:
-		return ingestion.LogicalString
+		return filament.LogicalString
 	}
 }

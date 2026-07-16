@@ -25,7 +25,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
@@ -58,7 +58,7 @@ const (
 type readMode struct {
 	name string
 	tier tier
-	opts ingestion.RunOptions
+	opts filament.RunOptions
 	src  map[string]any // extra source config (e.g. read_mode, shard_pages)
 }
 
@@ -66,10 +66,10 @@ type readMode struct {
 // each then runs the full op grid with its tier's assertions, no new wiring.
 func modesUnderTest() []readMode {
 	// Small batches so the injected failure lands mid-extract.
-	opts := ingestion.RunOptions{SnapshotParallelism: 4, BatchMaxRows: 100}
+	opts := filament.RunOptions{SnapshotParallelism: 4, BatchMaxRows: 100}
 	return []readMode{
 		// SnapshotParallelism 1 keeps keyset's existing single-shard-per-uuid-table shape.
-		{name: "keyset", tier: tierKeySpace, opts: ingestion.RunOptions{SnapshotParallelism: 1, BatchMaxRows: 100}},
+		{name: "keyset", tier: tierKeySpace, opts: filament.RunOptions{SnapshotParallelism: 1, BatchMaxRows: 100}},
 		// Bitmap forces sub-range splitting (low shard_pages) and runs with parallel writers
 		// + concurrent shards — the configuration its ack-counted completion must survive.
 		{name: "bitmap", tier: tierKeySpace, opts: opts, src: map[string]any{"read_mode": "bitmap", "shard_pages": 1}},
@@ -167,9 +167,9 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	var firstRun atomic.Bool
 	firstRun.Store(true)
 	sources := registry.NewSources()
-	sources.Register("postgres", func() ingestion.Source { return pgsource.New() })
+	sources.Register("postgres", func() filament.Source { return pgsource.New() })
 	sinks := registry.NewSinks()
-	sinks.Register("postgres_typed", func() ingestion.Sink {
+	sinks.Register("postgres_typed", func() filament.Sink {
 		ts := pgsink.New()
 		if firstRun.CompareAndSwap(true, false) {
 			return &flakySink{Sink: ts, failAt: 5}
@@ -195,12 +195,12 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	for k, v := range mode.src {
 		srcCfg[k] = v
 	}
-	id, err := orch.Submit(ctx, ingestion.RunRequest{
+	id, err := orch.Submit(ctx, filament.RunRequest{
 		Tenant:        "t1",
-		Source:        ingestion.Ref{Provider: "postgres", Config: srcCfg},
-		Sink:          ingestion.Ref{Provider: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
+		Source:        filament.Ref{Provider: "postgres", Config: srcCfg},
+		Sink:          filament.Ref{Provider: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
 		Resources:     resources,
-		IngestionType: ingestion.IngestionSnapshotUpsert,
+		IngestionType: filament.IngestionSnapshotUpsert,
 		Options:       mode.opts,
 	})
 	if err != nil {
@@ -208,8 +208,8 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	}
 
 	// Injected failure must leave the run resumable (partial), not terminal.
-	partial := waitStatus(t, ctx, store, id, ingestion.RunPartial)
-	if partial.Status != ingestion.RunPartial {
+	partial := waitStatus(t, ctx, store, id, filament.RunPartial)
+	if partial.Status != filament.RunPartial {
 		t.Fatalf("after injected failure: status = %v (err %q), want partial", partial.Status, partial.Error)
 	}
 
@@ -227,8 +227,8 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	if err := events.Emit(ctx, bus, events.RunRequested, events.Envelope{Tenant: "t1", Run: id}, events.RunRequestedEvent{}); err != nil {
 		t.Fatalf("re-request run: %v", err)
 	}
-	final := waitStatus(t, ctx, store, id, ingestion.RunCompleted)
-	if final.Status != ingestion.RunCompleted {
+	final := waitStatus(t, ctx, store, id, filament.RunCompleted)
+	if final.Status != filament.RunCompleted {
 		t.Fatalf("after resume: status = %v (err %q), want completed", final.Status, final.Error)
 	}
 
@@ -403,7 +403,7 @@ func scanIDs(t *testing.T, rows pgx.Rows) []string {
 
 // countDoneShards totals the bitmap shards already flagged complete across all resources'
 // persisted checkpoints.
-func countDoneShards(ctx context.Context, store *memory.Store, id ingestion.RunID, resources []string) int {
+func countDoneShards(ctx context.Context, store *memory.Store, id filament.RunID, resources []string) int {
 	n := 0
 	for _, res := range resources {
 		cp, err := store.LoadCheckpoint(ctx, id, res)

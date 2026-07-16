@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	datastorepostgres "github.com/galaxy-io/filament/datastore/postgres"
 	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
 )
@@ -37,7 +37,7 @@ func TestProviderRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	ref := "tenant-a/pg-dsn"
-	original := ingestion.Secret{Value: []byte("postgres://user:pw@host/db"), Meta: map[string]string{"rotated": "2026-01-01"}}
+	original := filament.Secret{Value: []byte("postgres://user:pw@host/db"), Meta: map[string]string{"rotated": "2026-01-01"}}
 	if err := p.Write(ctx, ref, original); err != nil {
 		t.Fatal(err)
 	}

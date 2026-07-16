@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 )
@@ -27,7 +27,7 @@ func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 	defer api.Close()
 
 	src := New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"manifest_path": writeTestManifest(t, api.URL),
 	})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -42,7 +42,7 @@ func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 		t.Fatalf("primary key = %v, want [id]", schema.PrimaryKey)
 	}
 
-	prev := map[string]ingestion.Checkpoint{
+	prev := map[string]filament.Checkpoint{
 		"items": checkpoint.KeysetCheckpoint{
 			Cols:   []string{"cursor"},
 			Types:  []string{"string"},
@@ -50,7 +50,7 @@ func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 		}.ToCheckpoint("items"),
 	}
 	var sink collectSink
-	if err := src.ExtractFrom(ctx, &sink, ingestion.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}, prev); err != nil {
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}, prev); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 	if gotCursor != "two" {
@@ -73,7 +73,7 @@ func TestSourcePlanResumeExpandsManifestResources(t *testing.T) {
 	defer api.Close()
 
 	src := New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"manifest_path": writeTestManifest(t, api.URL),
 	})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -108,7 +108,7 @@ func TestSourceExtractFromSeedsAndEmitsWatermark(t *testing.T) {
 	defer api.Close()
 
 	src := New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"manifest_path": writeIncrementalTestManifest(t, api.URL),
 	})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -127,7 +127,7 @@ func TestSourceExtractFromSeedsAndEmitsWatermark(t *testing.T) {
 		t.Fatalf("checkpoint cols = %v, want %v", got, want)
 	}
 
-	prev := map[string]ingestion.Checkpoint{
+	prev := map[string]filament.Checkpoint{
 		"items": checkpoint.KeysetCheckpoint{
 			Cols:   []string{"cursor", "items_since"},
 			Types:  []string{"string", "string"},
@@ -135,7 +135,7 @@ func TestSourceExtractFromSeedsAndEmitsWatermark(t *testing.T) {
 		}.ToCheckpoint("items"),
 	}
 	var sink collectSink
-	if err := src.ExtractFrom(ctx, &sink, ingestion.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}, prev); err != nil {
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}, prev); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 	if gotSince != "2026-01-01T00:00:00Z" {
@@ -152,7 +152,7 @@ func TestSourceExtractFromSeedsAndEmitsWatermark(t *testing.T) {
 func TestSourcePlanResourcesExpandsSelectedNotionDatabase(t *testing.T) {
 	ctx := context.Background()
 	src := New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"manifest_path": writeNotionTestManifest(t, "https://notion.test"),
 		"api_key":       "test-token",
 	})); err != nil {
@@ -175,11 +175,11 @@ func TestSourcePlanResourcesExpandsSelectedNotionDatabase(t *testing.T) {
 	if schema.Resource != "pages_db1" || len(schema.PrimaryKey) != 1 || schema.PrimaryKey[0] != "id" {
 		t.Fatalf("schema = %#v, want dynamic pages schema with id primary key", schema)
 	}
-	fields := map[string]ingestion.LogicalType{}
+	fields := map[string]filament.LogicalType{}
 	for _, field := range schema.Fields {
 		fields[field.Name] = field.Logical
 	}
-	if fields["database_id"] != ingestion.LogicalString || fields["last_edited_time"] != ingestion.LogicalTimestampTZ || fields["properties"] != ingestion.LogicalJSON {
+	if fields["database_id"] != filament.LogicalString || fields["last_edited_time"] != filament.LogicalTimestampTZ || fields["properties"] != filament.LogicalJSON {
 		t.Fatalf("schema fields = %#v, want typed notion page fields", fields)
 	}
 }
@@ -253,7 +253,7 @@ func TestSourceNotionHTTPAPIManifestDiscoverAndExtractSelectedDatabase(t *testin
 	defer api.Close()
 
 	src := New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"manifest_path": writeNotionTestManifest(t, api.URL),
 		"api_key":       "test-token",
 	})); err != nil {
@@ -261,7 +261,7 @@ func TestSourceNotionHTTPAPIManifestDiscoverAndExtractSelectedDatabase(t *testin
 	}
 	defer src.Teardown(ctx)
 
-	discovered, err := src.Discover(ctx, ingestion.DiscoverOpts{})
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
 	if err != nil {
 		t.Fatalf("discover: %v", err)
 	}
@@ -279,7 +279,7 @@ func TestSourceNotionHTTPAPIManifestDiscoverAndExtractSelectedDatabase(t *testin
 	}
 
 	var sink collectSink
-	if err := src.Extract(ctx, &sink, ingestion.ExtractOpts{Selectors: []string{dbSelector}, Parallelism: 1}); err != nil {
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Selectors: []string{dbSelector}, Parallelism: 1}); err != nil {
 		t.Fatalf("extract: %v", err)
 	}
 	if !sawAuth {
@@ -338,13 +338,13 @@ func TestNewNotionSpecHidesManifestPath(t *testing.T) {
 	if spec.DisplayName != "Notion" {
 		t.Fatalf("display name = %q, want Notion", spec.DisplayName)
 	}
-	if len(spec.Config.Fields) != 1 || spec.Config.Fields[0].Name != "api_key" || spec.Config.Fields[0].Type != ingestion.FieldSecret {
+	if len(spec.Config.Fields) != 1 || spec.Config.Fields[0].Name != "api_key" || spec.Config.Fields[0].Type != filament.FieldSecret {
 		t.Fatalf("config fields = %#v, want api_key secret only", spec.Config.Fields)
 	}
-	if err := src.Validate(ingestion.NewConfig(map[string]any{})); err == nil {
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
 		t.Fatal("validate without api_key succeeded")
 	}
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{"api_key": "test-token"})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "test-token"})); err != nil {
 		t.Fatalf("configure embedded notion manifest: %v", err)
 	}
 	defer src.Teardown(ctx)
@@ -398,7 +398,7 @@ func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testin
 	defer api.Close()
 
 	src := New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"manifest_path": writeLinearTestManifest(t, api.URL),
 		"api_key":       "linear-token",
 	})); err != nil {
@@ -406,7 +406,7 @@ func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testin
 	}
 	defer src.Teardown(ctx)
 
-	discovered, err := src.Discover(ctx, ingestion.DiscoverOpts{})
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
 	if err != nil {
 		t.Fatalf("discover: %v", err)
 	}
@@ -417,17 +417,17 @@ func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testin
 	if err != nil {
 		t.Fatalf("schema issues: %v", err)
 	}
-	fields := map[string]ingestion.LogicalType{}
+	fields := map[string]filament.LogicalType{}
 	for _, field := range schema.Fields {
 		fields[field.Name] = field.Logical
 	}
-	if fields["created_at"] != ingestion.LogicalTimestampTZ || fields["priority"] != ingestion.LogicalInt64 ||
-		fields["labels"] != ingestion.LogicalJSON || fields["assignee"] != ingestion.LogicalJSON || fields["creator"] != ingestion.LogicalJSON {
+	if fields["created_at"] != filament.LogicalTimestampTZ || fields["priority"] != filament.LogicalInt64 ||
+		fields["labels"] != filament.LogicalJSON || fields["assignee"] != filament.LogicalJSON || fields["creator"] != filament.LogicalJSON {
 		t.Fatalf("issue schema fields = %#v", fields)
 	}
 
 	var sink collectSink
-	if err := src.Extract(ctx, &sink, ingestion.ExtractOpts{Resources: []string{"issues"}, Parallelism: 1}); err != nil {
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"issues"}, Parallelism: 1}); err != nil {
 		t.Fatalf("extract: %v", err)
 	}
 	if !sawAuth {
@@ -479,15 +479,15 @@ func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testin
 }
 
 type collectSink struct {
-	records []ingestion.Record
+	records []filament.Record
 }
 
-func (s *collectSink) Push(r ingestion.Record) error {
+func (s *collectSink) Push(r filament.Record) error {
 	s.records = append(s.records, r)
 	return nil
 }
 
-func (s *collectSink) PushBatch(records []ingestion.Record) error {
+func (s *collectSink) PushBatch(records []filament.Record) error {
 	for _, r := range records {
 		if err := s.Push(r); err != nil {
 			return err

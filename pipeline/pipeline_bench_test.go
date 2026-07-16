@@ -8,28 +8,28 @@ import (
 	"testing"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
-// nullSink is a zero-I/O ingestion.Sink. It recomputes the write-side CRC exactly as a
+// nullSink is a zero-I/O filament.Sink. It recomputes the write-side CRC exactly as a
 // real sink does (so the integrity work stays in the measurement) and discards
 // the batch — it stores nothing, so memory stays flat across bench iterations.
 type nullSink struct{}
 
-func (nullSink) Spec() ingestion.SinkSpec                      { return ingestion.SinkSpec{Name: "null"} }
-func (nullSink) Name() string                                  { return "null" }
-func (nullSink) Open(context.Context, ingestion.RunSpec) error { return nil }
-func (nullSink) Commit(context.Context) error                  { return nil }
-func (nullSink) Abort(context.Context) error                   { return nil }
+func (nullSink) Spec() filament.SinkSpec                      { return filament.SinkSpec{Name: "null"} }
+func (nullSink) Name() string                                 { return "null" }
+func (nullSink) Open(context.Context, filament.RunSpec) error { return nil }
+func (nullSink) Commit(context.Context) error                 { return nil }
+func (nullSink) Abort(context.Context) error                  { return nil }
 
-func (nullSink) Write(_ context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
-	crc, nbytes := ingestion.CRC32C(b.Records)
-	return ingestion.WriteReceipt{WriteCRC: crc, Bytes: nbytes, Rows: len(b.Records)}, nil
+func (nullSink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt, error) {
+	crc, nbytes := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{WriteCRC: crc, Bytes: nbytes, Rows: len(b.Records)}, nil
 }
 
-func (nullSink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
+func (nullSink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
-		return ingestion.WriteReceipt{}, err
+		return filament.WriteReceipt{}, err
 	}
 	return nullSink{}.Write(ctx, b)
 }
@@ -37,12 +37,12 @@ func (nullSink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.App
 // benchRecords builds n ~80-byte JSON records with unique ids. Built once in
 // setup and reused across iterations, so the allocs reported are the pipeline's,
 // not the fixture's.
-func benchRecords(n int) []ingestion.Record {
-	out := make([]ingestion.Record, n)
+func benchRecords(n int) []filament.Record {
+	out := make([]filament.Record, n)
 	for i := range out {
 		id := strconv.Itoa(i)
 		data := []byte(`{"i":` + id + `,"name":"row","payload":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}`)
-		out[i] = ingestion.NewRecord("bench", id, data)
+		out[i] = filament.NewRecord("bench", id, data)
 	}
 	return out
 }
@@ -66,8 +66,8 @@ func BenchmarkNullSinkPipeline(b *testing.B) {
 		p := New(Config{
 			Run:           "bench",
 			Sink:          nullSink{},
-			WritePolicies: map[string]ingestion.WritePolicy{"bench": appendPolicy("bench")},
-			Options:       ingestion.RunOptions{BatchMaxRows: 1000},
+			WritePolicies: map[string]filament.WritePolicy{"bench": appendPolicy("bench")},
+			Options:       filament.RunOptions{BatchMaxRows: 1000},
 			FlushInterval: time.Hour, // row-count + close drive batching, not the timer
 		})
 		p.Start(ctx)
@@ -88,8 +88,8 @@ func BenchmarkNullSinkPipeline(b *testing.B) {
 	}
 }
 
-func appendPolicy(resource string) ingestion.WritePolicy {
-	policy := ingestion.WritePolicyForIngestion(ingestion.IngestionAppend)
+func appendPolicy(resource string) filament.WritePolicy {
+	policy := filament.WritePolicyForIngestion(filament.IngestionAppend)
 	policy.Resource = resource
 	return policy
 }
@@ -103,11 +103,11 @@ func appendPolicy(resource string) ingestion.WritePolicy {
 func BenchmarkNullSinkPipelineParallel(b *testing.B) {
 	const rows = 40_000
 	const resources = 8
-	recs := make([]ingestion.Record, rows)
+	recs := make([]filament.Record, rows)
 	for i := range recs {
 		id := strconv.Itoa(i)
 		data := []byte(`{"i":` + id + `,"name":"row","payload":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}`)
-		recs[i] = ingestion.NewRecord("res-"+strconv.Itoa(i%resources), id, data)
+		recs[i] = filament.NewRecord("res-"+strconv.Itoa(i%resources), id, data)
 	}
 	ctx := context.Background()
 
@@ -120,7 +120,7 @@ func BenchmarkNullSinkPipelineParallel(b *testing.B) {
 					Run:           "bench",
 					Sink:          nullSink{},
 					WritePolicies: appendPolicies(resources),
-					Options:       ingestion.RunOptions{BatchMaxRows: 1000, SnapshotParallelism: parallelism},
+					Options:       filament.RunOptions{BatchMaxRows: 1000, SnapshotParallelism: parallelism},
 					FlushInterval: time.Hour,
 				})
 				pl.Start(ctx)
@@ -152,8 +152,8 @@ func BenchmarkNullSinkPipelineParallel(b *testing.B) {
 	}
 }
 
-func appendPolicies(resources int) map[string]ingestion.WritePolicy {
-	policies := make(map[string]ingestion.WritePolicy, resources)
+func appendPolicies(resources int) map[string]filament.WritePolicy {
+	policies := make(map[string]filament.WritePolicy, resources)
 	for i := range resources {
 		resource := "res-" + strconv.Itoa(i)
 		policies[resource] = appendPolicy(resource)

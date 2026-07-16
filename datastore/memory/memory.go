@@ -1,4 +1,4 @@
-// Package memory implements the ingestion.DataStore interface on PostgreSQL (default).
+// Package memory implements the filament.DataStore interface on PostgreSQL (default).
 package memory
 
 import (
@@ -8,50 +8,50 @@ import (
 	"sort"
 	"sync"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
 // ErrNotFound is returned (wrapped) when a requested run or checkpoint does not
-// exist. It aliases ingestion.ErrNotFound so callers branch with errors.Is on the
+// exist. It aliases filament.ErrNotFound so callers branch with errors.Is on the
 // shared sentinel regardless of which DataStore impl they hold.
-var ErrNotFound = ingestion.ErrNotFound
+var ErrNotFound = filament.ErrNotFound
 
 // Store is an in-memory DataStore.
 type Store struct {
 	mu          sync.RWMutex
-	runs        map[ingestion.RunID]ingestion.RunState
-	resources   map[ingestion.RunID]map[string]ingestion.ResourceState // run → resource → state
-	checkpoints map[ckey]ingestion.Checkpoint
+	runs        map[filament.RunID]filament.RunState
+	resources   map[filament.RunID]map[string]filament.ResourceState // run → resource → state
+	checkpoints map[ckey]filament.Checkpoint
 	seen        map[dkey]struct{} // dedup keys already applied
-	connections map[string]ingestion.Connection
+	connections map[string]filament.Connection
 	pipelines   map[string]*ingestionv1.Pipeline
 }
 
 type ckey struct {
-	run      ingestion.RunID
+	run      filament.RunID
 	resource string
 }
 
 type dkey struct {
 	tenant string
-	run    ingestion.RunID
+	run    filament.RunID
 	seq    uint64
 }
 
 // New returns a ready-to-use in-memory store.
 func New() *Store {
 	return &Store{
-		runs:        map[ingestion.RunID]ingestion.RunState{},
-		resources:   map[ingestion.RunID]map[string]ingestion.ResourceState{},
-		checkpoints: map[ckey]ingestion.Checkpoint{},
+		runs:        map[filament.RunID]filament.RunState{},
+		resources:   map[filament.RunID]map[string]filament.ResourceState{},
+		checkpoints: map[ckey]filament.Checkpoint{},
 		seen:        map[dkey]struct{}{},
-		connections: map[string]ingestion.Connection{},
+		connections: map[string]filament.Connection{},
 		pipelines:   map[string]*ingestionv1.Pipeline{},
 	}
 }
 
-var _ ingestion.DataStore = (*Store)(nil)
+var _ filament.DataStore = (*Store)(nil)
 
 // Name identifies this store implementation.
 func (s *Store) Name() string { return "memory" }
@@ -59,7 +59,7 @@ func (s *Store) Name() string { return "memory" }
 // SaveRun stores the run record. Any Resources carried on it are seeded into the
 // resource index (keyed by run); the stored run keeps no Resources slice — the
 // index is the single source of truth, reattached on read.
-func (s *Store) SaveRun(ctx context.Context, r ingestion.RunState) error {
+func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -75,27 +75,27 @@ func (s *Store) SaveRun(ctx context.Context, r ingestion.RunState) error {
 }
 
 // LoadRun returns the run with its current resource states reattached.
-func (s *Store) LoadRun(ctx context.Context, id ingestion.RunID) (ingestion.RunState, error) {
+func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
-		return ingestion.RunState{}, err
+		return filament.RunState{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r, ok := s.runs[id]
 	if !ok {
-		return ingestion.RunState{}, fmt.Errorf("load run %q: %w", id, ErrNotFound)
+		return filament.RunState{}, fmt.Errorf("load run %q: %w", id, ErrNotFound)
 	}
 	r.Resources = s.listResourcesLocked(id)
 	return r, nil
 }
 
 // ListRuns returns runs matching the filter, sorted by StartedAt then Run.
-func (s *Store) ListRuns(ctx context.Context, f ingestion.RunFilter) ([]ingestion.RunState, error) {
+func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
-	var out []ingestion.RunState
+	var out []filament.RunState
 	for id, r := range s.runs {
 		if !matchRun(r, f) {
 			continue
@@ -118,7 +118,7 @@ func (s *Store) ListRuns(ctx context.Context, f ingestion.RunFilter) ([]ingestio
 }
 
 // UpsertResource records (or replaces) a resource's state under its run.
-func (s *Store) UpsertResource(ctx context.Context, rs ingestion.ResourceState) error {
+func (s *Store) UpsertResource(ctx context.Context, rs filament.ResourceState) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (s *Store) UpsertResource(ctx context.Context, rs ingestion.ResourceState) 
 }
 
 // ListResources returns a run's resource states, sorted by name.
-func (s *Store) ListResources(ctx context.Context, id ingestion.RunID) ([]ingestion.ResourceState, error) {
+func (s *Store) ListResources(ctx context.Context, id filament.RunID) ([]filament.ResourceState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (s *Store) ListResources(ctx context.Context, id ingestion.RunID) ([]ingest
 }
 
 // SaveCheckpoint stores a resumable cursor keyed by (run, resource).
-func (s *Store) SaveCheckpoint(ctx context.Context, id ingestion.RunID, cp ingestion.Checkpoint) error {
+func (s *Store) SaveCheckpoint(ctx context.Context, id filament.RunID, cp filament.Checkpoint) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func (s *Store) SaveCheckpoint(ctx context.Context, id ingestion.RunID, cp inges
 }
 
 // LoadCheckpoint returns the saved cursor for (run, resource), or ErrNotFound.
-func (s *Store) LoadCheckpoint(ctx context.Context, id ingestion.RunID, resource string) (ingestion.Checkpoint, error) {
+func (s *Store) LoadCheckpoint(ctx context.Context, id filament.RunID, resource string) (filament.Checkpoint, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (s *Store) LoadCheckpoint(ctx context.Context, id ingestion.RunID, resource
 
 // DedupSeen reports whether (tenant, run, seq) was already applied, marking it
 // seen on the first call. Lets consumers make fact application idempotent.
-func (s *Store) DedupSeen(ctx context.Context, tenant string, run ingestion.RunID, seq uint64) (bool, error) {
+func (s *Store) DedupSeen(ctx context.Context, tenant string, run filament.RunID, seq uint64) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -181,21 +181,21 @@ func (s *Store) DedupSeen(ctx context.Context, tenant string, run ingestion.RunI
 
 // ── helpers (lock held by caller) ───────────────────────────────────────────
 
-func (s *Store) putResourceLocked(rs ingestion.ResourceState) {
+func (s *Store) putResourceLocked(rs filament.ResourceState) {
 	m := s.resources[rs.Run]
 	if m == nil {
-		m = map[string]ingestion.ResourceState{}
+		m = map[string]filament.ResourceState{}
 		s.resources[rs.Run] = m
 	}
 	m[rs.Resource] = rs
 }
 
-func (s *Store) listResourcesLocked(id ingestion.RunID) []ingestion.ResourceState {
+func (s *Store) listResourcesLocked(id filament.RunID) []filament.ResourceState {
 	m := s.resources[id]
 	if len(m) == 0 {
 		return nil
 	}
-	out := make([]ingestion.ResourceState, 0, len(m))
+	out := make([]filament.ResourceState, 0, len(m))
 	for _, rs := range m {
 		out = append(out, rs)
 	}
@@ -203,7 +203,7 @@ func (s *Store) listResourcesLocked(id ingestion.RunID) []ingestion.ResourceStat
 	return out
 }
 
-func matchRun(r ingestion.RunState, f ingestion.RunFilter) bool {
+func matchRun(r filament.RunState, f filament.RunFilter) bool {
 	if f.Tenant != "" && r.Tenant != f.Tenant {
 		return false
 	}

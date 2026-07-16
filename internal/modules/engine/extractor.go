@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
-type extractorFunc func(context.Context, ingestion.RecordSink, ingestion.ExtractOpts) error
+type extractorFunc func(context.Context, filament.RecordSink, filament.ExtractOpts) error
 
-func (m *Module) resolveExtractor(ctx context.Context, src ingestion.Source, spec ingestion.RunSpec, plan ingestion.IngestionPlan) (extractorFunc, error) {
-	if plan.Type == ingestion.IngestionCDC {
-		changes, ok := src.(ingestion.ChangeSource)
+func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec filament.RunSpec, plan filament.IngestionPlan) (extractorFunc, error) {
+	if plan.Type == filament.IngestionCDC {
+		changes, ok := src.(filament.ChangeSource)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Provider)
 		}
@@ -21,8 +21,8 @@ func (m *Module) resolveExtractor(ctx context.Context, src ingestion.Source, spe
 		if err != nil {
 			return nil, err
 		}
-		return func(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
-			return changes.ExtractChanges(ctx, sink, ingestion.ChangeExtractOpts{
+		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+			return changes.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{
 				Resources:   opts.Resources,
 				Checkpoints: checkpoints,
 				Limit:       opts.Limit,
@@ -30,20 +30,20 @@ func (m *Module) resolveExtractor(ctx context.Context, src ingestion.Source, spe
 		}, nil
 	}
 	if isResumableRun(plan) {
-		planner, ok := src.(ingestion.ResumePlanner)
+		planner, ok := src.(filament.ResumePlanner)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
 		}
-		resumable, ok := src.(ingestion.Resumable)
+		resumable, ok := src.(filament.Resumable)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support resumable extraction", spec.Source.Provider)
 		}
-		prev := make(map[string]ingestion.Checkpoint, len(spec.Resources))
+		prev := make(map[string]filament.Checkpoint, len(spec.Resources))
 		for _, resource := range spec.Resources {
 			cp, err := m.ds.LoadCheckpoint(ctx, spec.Run, resource)
 			if err == nil {
 				prev[resource] = cp
-			} else if err != nil && !errors.Is(err, ingestion.ErrNotFound) {
+			} else if err != nil && !errors.Is(err, filament.ErrNotFound) {
 				return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 			}
 		}
@@ -59,24 +59,24 @@ func (m *Module) resolveExtractor(ctx context.Context, src ingestion.Source, spe
 				return nil, fmt.Errorf("seed checkpoint %q: %w", cp.Resource(), err)
 			}
 		}
-		return func(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 			return resumable.ExtractFrom(ctx, sink, opts, resumePlan)
 		}, nil
 	}
-	return func(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts) error {
+	return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
 		return src.Extract(ctx, sink, opts)
 	}, nil
 }
 
-func (m *Module) loadChangeCheckpoints(ctx context.Context, spec ingestion.RunSpec) (map[string]ingestion.Checkpoint, error) {
-	out := make(map[string]ingestion.Checkpoint, len(spec.Resources))
+func (m *Module) loadChangeCheckpoints(ctx context.Context, spec filament.RunSpec) (map[string]filament.Checkpoint, error) {
+	out := make(map[string]filament.Checkpoint, len(spec.Resources))
 	for _, resource := range spec.Resources {
 		cp, err := m.ds.LoadCheckpoint(ctx, spec.Run, resource)
 		if err == nil {
 			out[resource] = cp
 			continue
 		}
-		if !errors.Is(err, ingestion.ErrNotFound) {
+		if !errors.Is(err, filament.ErrNotFound) {
 			return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 		}
 	}
@@ -86,8 +86,8 @@ func (m *Module) loadChangeCheckpoints(ctx context.Context, spec ingestion.RunSp
 	return out, nil
 }
 
-func isResumableRun(plan ingestion.IngestionPlan) bool {
-	return plan.Type == ingestion.IngestionSnapshotUpsert
+func isResumableRun(plan filament.IngestionPlan) bool {
+	return plan.Type == filament.IngestionSnapshotUpsert
 }
 
 // safeCall runs source extraction code, converting a panic into an error so a

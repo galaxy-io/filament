@@ -3,7 +3,7 @@ package iceberg
 import (
 	"encoding/json"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 type mutationState struct {
@@ -38,7 +38,7 @@ func collectMutationState(it *iceTable, rb *recordBuf, keys []string) (mutationS
 	for _, encoded := range order {
 		state.filterKeys = append(state.filterKeys, tuples[encoded])
 		entry := latest[encoded]
-		if entry.Op != ingestion.OpDelete {
+		if entry.Op != filament.OpDelete {
 			cp := make(json.RawMessage, len(entry.Data))
 			copy(cp, entry.Data)
 			state.live = append(state.live, cp)
@@ -51,7 +51,7 @@ func recordsFromRaw(records []json.RawMessage) *recordBuf {
 	rb := newRecordBuf(0)
 	rb.mem = make([]recordEntry, len(records))
 	for i := range records {
-		rb.mem[i] = recordEntry{Op: ingestion.OpInsert, Data: records[i]}
+		rb.mem[i] = recordEntry{Op: filament.OpInsert, Data: records[i]}
 	}
 	return rb
 }

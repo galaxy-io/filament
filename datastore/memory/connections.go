@@ -6,18 +6,18 @@ import (
 	"slices"
 	"strings"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // CreateConnection stores a new connection at version 1, rejecting a duplicate ID.
-func (s *Store) CreateConnection(ctx context.Context, c ingestion.Connection) (ingestion.Connection, error) {
+func (s *Store) CreateConnection(ctx context.Context, c filament.Connection) (filament.Connection, error) {
 	if err := ctx.Err(); err != nil {
-		return ingestion.Connection{}, err
+		return filament.Connection{}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.connections[c.ID]; exists {
-		return ingestion.Connection{}, fmt.Errorf("connection %q already exists", c.ID)
+		return filament.Connection{}, fmt.Errorf("connection %q already exists", c.ID)
 	}
 	c.Version = 1
 	c = cloneConnection(c)
@@ -26,18 +26,18 @@ func (s *Store) CreateConnection(ctx context.Context, c ingestion.Connection) (i
 }
 
 // UpdateConnection replaces a stored connection, enforcing optimistic version matching.
-func (s *Store) UpdateConnection(ctx context.Context, c ingestion.Connection) (ingestion.Connection, error) {
+func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (filament.Connection, error) {
 	if err := ctx.Err(); err != nil {
-		return ingestion.Connection{}, err
+		return filament.Connection{}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stored, exists := s.connections[c.ID]
 	if !exists {
-		return ingestion.Connection{}, fmt.Errorf("connection %q: %w", c.ID, ingestion.ErrNotFound)
+		return filament.Connection{}, fmt.Errorf("connection %q: %w", c.ID, filament.ErrNotFound)
 	}
 	if stored.Version != c.Version {
-		return ingestion.Connection{}, fmt.Errorf("connection %q version conflict", c.ID)
+		return filament.Connection{}, fmt.Errorf("connection %q version conflict", c.ID)
 	}
 	c.Version++
 	c = cloneConnection(c)
@@ -46,37 +46,37 @@ func (s *Store) UpdateConnection(ctx context.Context, c ingestion.Connection) (i
 }
 
 // LoadConnection returns the connection with the given ID, or ErrNotFound.
-func (s *Store) LoadConnection(ctx context.Context, id string) (ingestion.Connection, error) {
+func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connection, error) {
 	if err := ctx.Err(); err != nil {
-		return ingestion.Connection{}, err
+		return filament.Connection{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	c, exists := s.connections[id]
 	if !exists {
-		return ingestion.Connection{}, fmt.Errorf("connection %q: %w", id, ingestion.ErrNotFound)
+		return filament.Connection{}, fmt.Errorf("connection %q: %w", id, filament.ErrNotFound)
 	}
 	return cloneConnection(c), nil
 }
 
 // ListConnections returns connections matching the filter, sorted by ID.
-func (s *Store) ListConnections(ctx context.Context, f ingestion.ConnectionFilter) ([]ingestion.Connection, error) {
+func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter) ([]filament.Connection, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	var out []ingestion.Connection
+	var out []filament.Connection
 	for _, c := range s.connections {
 		if f.Tenant != "" && c.Tenant != f.Tenant {
 			continue
 		}
-		if f.Kind != ingestion.ConnectorKindUnspecified && c.Kind != f.Kind {
+		if f.Kind != filament.ConnectorKindUnspecified && c.Kind != f.Kind {
 			continue
 		}
 		out = append(out, cloneConnection(c))
 	}
-	slices.SortFunc(out, func(a, b ingestion.Connection) int { return strings.Compare(a.ID, b.ID) })
+	slices.SortFunc(out, func(a, b filament.Connection) int { return strings.Compare(a.ID, b.ID) })
 	return out, nil
 }
 
@@ -91,7 +91,7 @@ func (s *Store) DeleteConnection(ctx context.Context, id string) error {
 	return nil
 }
 
-func cloneConnection(c ingestion.Connection) ingestion.Connection {
+func cloneConnection(c filament.Connection) filament.Connection {
 	c.Config = cloneAnyMap(c.Config)
 	c.SecretRefs = cloneStringMap(c.SecretRefs)
 	return c

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // recordBuf is a per-resource accumulator that starts in memory and spills to a
@@ -18,7 +18,7 @@ type recordBuf struct {
 	count      int   // records appended
 	hasUpdate  bool
 	hasDelete  bool
-	policy     *ingestion.WritePolicy
+	policy     *filament.WritePolicy
 
 	// in-memory path
 	mem []recordEntry
@@ -33,18 +33,18 @@ func newRecordBuf(limitBytes int64) *recordBuf {
 }
 
 type recordEntry struct {
-	Op   ingestion.Operation `json:"op"`
-	Data json.RawMessage     `json:"data"`
+	Op   filament.Operation `json:"op"`
+	Data json.RawMessage    `json:"data"`
 }
 
 // append adds one JSON payload to the buffer, spilling to disk if needed.
 //
 //nolint:unused // kept as the insert-only entry point
 func (rb *recordBuf) append(data json.RawMessage) error {
-	return rb.appendRecord(data, ingestion.OpInsert)
+	return rb.appendRecord(data, filament.OpInsert)
 }
 
-func (rb *recordBuf) setPolicy(policy ingestion.WritePolicy) error {
+func (rb *recordBuf) setPolicy(policy filament.WritePolicy) error {
 	if rb.policy == nil {
 		cp := policy
 		cp.Keys = append([]string(nil), policy.Keys...)
@@ -65,28 +65,28 @@ func (rb *recordBuf) writeMode(fallback writeMode) writeMode {
 		return fallback
 	}
 	switch rb.policy.Capability.Mode {
-	case ingestion.WriteAppend:
+	case filament.WriteAppend:
 		return writeModeAppend
-	case ingestion.WriteReplace:
+	case filament.WriteReplace:
 		return writeModeReplace
-	case ingestion.WriteUpsert:
+	case filament.WriteUpsert:
 		return writeModeUpsert
-	case ingestion.WriteDelete:
+	case filament.WriteDelete:
 		return writeModeDelete
-	case ingestion.WriteMerge:
+	case filament.WriteMerge:
 		return writeModeMerge
 	default:
 		return fallback
 	}
 }
 
-func (rb *recordBuf) appendRecord(data json.RawMessage, op ingestion.Operation) error {
+func (rb *recordBuf) appendRecord(data json.RawMessage, op filament.Operation) error {
 	rb.bytes += int64(len(data))
 	rb.count++
-	if op == ingestion.OpUpdate {
+	if op == filament.OpUpdate {
 		rb.hasUpdate = true
 	}
-	if op == ingestion.OpDelete {
+	if op == filament.OpDelete {
 		rb.hasDelete = true
 	}
 

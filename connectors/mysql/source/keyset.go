@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -49,8 +49,8 @@ type keyShard struct {
 // carried over from prev. A resource without a primary key maps to nil (non-resumable;
 // re-read whole). The engine persists this plan so a later resume reuses the same
 // stable shard boundaries.
-func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[string]ingestion.Checkpoint) (map[string]ingestion.Checkpoint, error) {
-	plan := make(map[string]ingestion.Checkpoint, len(resources))
+func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[string]filament.Checkpoint) (map[string]filament.Checkpoint, error) {
+	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, table := range resources {
 		_, pks, err := s.tableMeta(ctx, table)
 		if err != nil {
@@ -176,7 +176,7 @@ func dedupeOrdered(vals []string) []string {
 // ExtractFrom reads each resource from its checkpoint. Keyed resources read via keyset
 // shards (concurrently, like Extract); a resource with no keyset plan (no primary key)
 // falls back to the streaming full scan and is re-read whole.
-func (s *Source) ExtractFrom(ctx context.Context, sink ingestion.RecordSink, opts ingestion.ExtractOpts, prev map[string]ingestion.Checkpoint) error {
+func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		var plan *keysetPlan
@@ -215,7 +215,7 @@ func keyShardsFrom(table, qualified, jsonExpr string, pks []pkColumn, ks keysetP
 // the key, LIMIT a page. Every record is stamped with the shard ordinal and its key so
 // the pipeline can carry the cursor forward. Each page is buffered and the result set
 // closed before any Push (a push can block on backpressure while holding a connection).
-func (s *Source) extractKeysetShard(ctx context.Context, sink ingestion.RecordSink, q querier, sh keyShard, limit int) error {
+func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
 	idSel := keysetIDExpr(sh.pks)
 	keySel, keyCols := keysetKeyProjection(sh.pks)
 	order := keysetOrder(sh.pks)
@@ -277,10 +277,10 @@ func (s *Source) extractKeysetShard(ctx context.Context, sink ingestion.RecordSi
 // readKeysetPage drains one page's rows into records, stamped with shard part
 // and key tuple. The result set is closed before returning so the connection
 // is free before records are pushed.
-func (s *Source) readKeysetPage(rows *sql.Rows, sh keyShard, keyCols int) ([]ingestion.Record, error) {
+func (s *Source) readKeysetPage(rows *sql.Rows, sh keyShard, keyCols int) ([]filament.Record, error) {
 	defer func() { _ = rows.Close() }()
 
-	out := make([]ingestion.Record, 0, s.pageSize)
+	out := make([]filament.Record, 0, s.pageSize)
 	// Scan destinations are hoisted and reused: database/sql clones the driver's
 	// buffer into freshly allocated id/data/keys values on every row (so each
 	// Record keeps its own backing), while the dest slice is allocated once for
@@ -299,7 +299,7 @@ func (s *Source) readKeysetPage(rows *sql.Rows, sh keyShard, keyCols int) ([]ing
 		if err := rows.Scan(dest...); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
-		rec := ingestion.NewRecord(sh.table, id, data)
+		rec := filament.NewRecord(sh.table, id, data)
 		rec.Part = sh.part
 		rec.Key = append([]string(nil), keys...)
 		out = append(out, rec)

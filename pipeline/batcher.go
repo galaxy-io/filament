@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/events"
 )
@@ -20,7 +20,7 @@ func (p *Pipeline) batcher(ctx context.Context, shard int) {
 	// Buffer per (resource, part): a keyset read fans a resource across parts whose
 	// records interleave on this one inlet, and a batch must stay part-pure so its
 	// cursor delta (the last record's key) belongs to a single shard.
-	buffers := make(map[partKey][]ingestion.Record)
+	buffers := make(map[partKey][]filament.Record)
 	chunkSeq := make(map[partKey]uint64)
 	// seen counts every data record per part, so a bitmap part's Drained sentinel can
 	// publish the exact row total the tracker must see acked before flagging it complete.
@@ -41,7 +41,7 @@ func (p *Pipeline) batcher(ctx context.Context, shard int) {
 		seq := chunkSeq[key]
 		chunkSeq[key] = seq + 1
 
-		b := ingestion.Batch{
+		b := filament.Batch{
 			Tenant:   p.tenant,
 			Run:      p.run,
 			Resource: key.resource,
@@ -116,7 +116,7 @@ func (p *Pipeline) batcher(ctx context.Context, shard int) {
 // row count, for the writer to publish as the part's want without a sink write. Returns
 // false if the pipeline is shutting down.
 func sendDrained(ctx context.Context, p *Pipeline, key partKey, total int) bool {
-	b := ingestion.Batch{
+	b := filament.Batch{
 		Tenant:   p.tenant,
 		Run:      p.run,
 		Resource: key.resource,
@@ -140,8 +140,8 @@ type partKey struct {
 // sendStreamMark queues a stream-position marker (no records) so the writer publishes
 // the final CDC position without a sink write. Returns false if the pipeline is
 // shutting down.
-func sendStreamMark(ctx context.Context, p *Pipeline, key partKey, meta ingestion.RecordMeta) bool {
-	b := ingestion.Batch{
+func sendStreamMark(ctx context.Context, p *Pipeline, key partKey, meta filament.RecordMeta) bool {
+	b := filament.Batch{
 		Tenant:   p.tenant,
 		Run:      p.run,
 		Resource: key.resource,
@@ -162,7 +162,7 @@ func sendStreamMark(ctx context.Context, p *Pipeline, key partKey, meta ingestio
 // has no key cursor, so the delta is an ack of this batch's row count, which the
 // tracker sums toward the shard's expected total. A keyset read carries the last
 // record's key. A plain ctid read carries neither → nil.
-func shardCursor(resource string, part int, recs []ingestion.Record) *ingestion.CheckpointData {
+func shardCursor(resource string, part int, recs []filament.Record) *filament.CheckpointData {
 	last := recs[len(recs)-1]
 	if last.Meta.LSN != "" {
 		return checkpoint.NewStreamDelta(resource, last.Meta.LSN, last.Meta.Seq)

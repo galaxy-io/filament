@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
@@ -82,7 +82,7 @@ func TestRouteProbe(t *testing.T) {
 	}
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{"dsn": pg.DSN()})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN()})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()
@@ -119,7 +119,7 @@ func TestSourceBitmapSharded(t *testing.T) {
 	}
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "bitmap", "shard_pages": 1})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "bitmap", "shard_pages": 1})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()
@@ -134,7 +134,7 @@ func TestSourceBitmapSharded(t *testing.T) {
 	}
 
 	sink := &collectSink{}
-	if err := src.ExtractFrom(ctx, sink, ingestion.ExtractOpts{Resources: []string{"bm_keyed"}, Parallelism: 4}, plan); err != nil {
+	if err := src.ExtractFrom(ctx, sink, filament.ExtractOpts{Resources: []string{"bm_keyed"}, Parallelism: 4}, plan); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 
@@ -160,7 +160,7 @@ func TestSourceBitmapSharded(t *testing.T) {
 func readSharded(t *testing.T, ctx context.Context, pg *testcontainers.PG, table string, want int) {
 	t.Helper()
 	src := pgsource.New()
-	if err := src.Configure(ctx, ingestion.NewConfig(map[string]any{"dsn": pg.DSN(), "shard_pages": 2})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "shard_pages": 2})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()
@@ -175,7 +175,7 @@ func readSharded(t *testing.T, ctx context.Context, pg *testcontainers.PG, table
 	}
 
 	sink := &collectSink{}
-	if err := src.ExtractFrom(ctx, sink, ingestion.ExtractOpts{Resources: []string{table}, Parallelism: 4}, plan); err != nil {
+	if err := src.ExtractFrom(ctx, sink, filament.ExtractOpts{Resources: []string{table}, Parallelism: 4}, plan); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 

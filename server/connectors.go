@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
@@ -36,7 +36,7 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
 
-	cfg := ingestion.NewConfig(structMap(req.Msg.GetConfig()))
+	cfg := filament.NewConfig(structMap(req.Msg.GetConfig()))
 	switch req.Msg.GetKind() {
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
 		source, err := a.sources.Resolve(req.Msg.GetConnector())
@@ -47,7 +47,7 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
 		if req.Msg.GetLive() {
-			if live, ok := source.(ingestion.LiveValidatable); ok {
+			if live, ok := source.(filament.LiveValidatable); ok {
 				if err := live.TestConnection(ctx, cfg); err != nil {
 					return connect.NewResponse(validationError(err.Error())), nil
 				}
@@ -76,17 +76,17 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 	if err != nil {
 		return nil, err
 	}
-	cfg := ingestion.NewConfig(structMap(req.Msg.GetConfig()))
+	cfg := filament.NewConfig(structMap(req.Msg.GetConfig()))
 	if err := source.Configure(ctx, cfg); err != nil {
 		return nil, err
 	}
 	defer func() { _ = source.Teardown(ctx) }()
 
-	discoverable, ok := source.(ingestion.Discoverable)
+	discoverable, ok := source.(filament.Discoverable)
 	if !ok {
 		return nil, fmt.Errorf("connector %q does not support discovery", req.Msg.GetConnector())
 	}
-	result, err := discoverable.Discover(ctx, ingestion.DiscoverOpts{Refresh: req.Msg.GetRefresh()})
+	result, err := discoverable.Discover(ctx, filament.DiscoverOpts{Refresh: req.Msg.GetRefresh()})
 	if err != nil {
 		return nil, err
 	}

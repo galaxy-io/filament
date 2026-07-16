@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 )
@@ -23,7 +23,7 @@ import (
 // assigned id. It is idempotent on the request's IdempotencyKey: a run already
 // filed under the derived id is returned as-is, without re-persisting or
 // re-dispatching, so a retried caller never starts a duplicate extraction.
-func Submit(ctx context.Context, bus eventbus.Bus, ds ingestion.DataStore, req ingestion.RunRequest) (ingestion.RunID, error) {
+func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req filament.RunRequest) (filament.RunID, error) {
 	if err := req.Tenant.Valid(); err != nil {
 		return "", fmt.Errorf("runs: tenant %w", err)
 	}
@@ -34,14 +34,14 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds ingestion.DataStore, req i
 
 	if _, err := ds.LoadRun(ctx, id); err == nil {
 		return id, nil // already submitted
-	} else if !errors.Is(err, ingestion.ErrNotFound) {
+	} else if !errors.Is(err, filament.ErrNotFound) {
 		return "", fmt.Errorf("runs: load run %q: %w", id, err)
 	}
 
-	if err := ds.SaveRun(ctx, ingestion.RunState{
+	if err := ds.SaveRun(ctx, filament.RunState{
 		Run:     id,
 		Tenant:  req.Tenant,
-		Status:  ingestion.RunRequested,
+		Status:  filament.RunRequested,
 		Request: req,
 	}); err != nil {
 		return "", fmt.Errorf("runs: save run %q: %w", id, err)
@@ -56,10 +56,10 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds ingestion.DataStore, req i
 
 // IDFor derives a stable id from the request's idempotency key (so retries
 // converge on one run) or a random id when no key is given.
-func IDFor(req ingestion.RunRequest) ingestion.RunID {
+func IDFor(req filament.RunRequest) filament.RunID {
 	if req.IdempotencyKey != "" {
 		sum := sha256.Sum256([]byte(string(req.Tenant) + "|" + req.IdempotencyKey))
-		return ingestion.RunID("run_" + hex.EncodeToString(sum[:8]))
+		return filament.RunID("run_" + hex.EncodeToString(sum[:8]))
 	}
-	return ingestion.RunID(uuid.NewString())
+	return filament.RunID(uuid.NewString())
 }

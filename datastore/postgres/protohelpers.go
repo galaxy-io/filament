@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
@@ -35,7 +35,7 @@ func cloneProto(p *ingestionv1.Pipeline) *ingestionv1.Pipeline {
 	return proto.Clone(p).(*ingestionv1.Pipeline)
 }
 
-func marshalConnectionConfig(c ingestion.Connection) ([]byte, []byte, error) {
+func marshalConnectionConfig(c filament.Connection) ([]byte, []byte, error) {
 	cfg := c.Config
 	if cfg == nil {
 		cfg = map[string]any{}
@@ -55,35 +55,35 @@ func marshalConnectionConfig(c ingestion.Connection) ([]byte, []byte, error) {
 	return configJSON, refsJSON, nil
 }
 
-func connectionKindToDB(kind ingestion.ConnectorKind) sqlcgen.ConnectionKind {
-	if kind == ingestion.ConnectorKindSink {
+func connectionKindToDB(kind filament.ConnectorKind) sqlcgen.ConnectionKind {
+	if kind == filament.ConnectorKindSink {
 		return sqlcgen.ConnectionKindSink
 	}
 	return sqlcgen.ConnectionKindSource
 }
 
-func connectionKindFromDB(kind sqlcgen.ConnectionKind) ingestion.ConnectorKind {
+func connectionKindFromDB(kind sqlcgen.ConnectionKind) filament.ConnectorKind {
 	if kind == sqlcgen.ConnectionKindSink {
-		return ingestion.ConnectorKindSink
+		return filament.ConnectorKindSink
 	}
 	if kind == sqlcgen.ConnectionKindSource {
-		return ingestion.ConnectorKindSource
+		return filament.ConnectorKindSource
 	}
-	return ingestion.ConnectorKindUnspecified
+	return filament.ConnectorKindUnspecified
 }
 
-func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64) (ingestion.Connection, error) {
+func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64) (filament.Connection, error) {
 	cfg := map[string]any{}
 	if len(configJSON) > 0 {
 		if err := json.Unmarshal(configJSON, &cfg); err != nil {
-			return ingestion.Connection{}, fmt.Errorf("datastore/postgres: unmarshal connection config: %w", err)
+			return filament.Connection{}, fmt.Errorf("datastore/postgres: unmarshal connection config: %w", err)
 		}
 	}
 	refs := map[string]string{}
 	if len(refsJSON) > 0 {
 		if err := json.Unmarshal(refsJSON, &refs); err != nil {
-			return ingestion.Connection{}, fmt.Errorf("datastore/postgres: unmarshal connection secret_refs: %w", err)
+			return filament.Connection{}, fmt.Errorf("datastore/postgres: unmarshal connection secret_refs: %w", err)
 		}
 	}
-	return ingestion.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: provider, Config: cfg, SecretRefs: refs, Version: version}, nil
+	return filament.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: provider, Config: cfg, SecretRefs: refs, Version: version}, nil
 }

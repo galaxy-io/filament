@@ -1,4 +1,4 @@
-// Package env is an ingestion.Secrets provider backed by process environment
+// Package env is an filament.Secrets provider backed by process environment
 // variables. A reference like "postgres-creds/dsn" maps to the env var
 // POSTGRES_CREDS_DSN. It is read-only and intended for local and development
 // deployments.
@@ -11,10 +11,10 @@ import (
 	"os"
 	"strings"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
-var _ ingestion.Secrets = (*Provider)(nil)
+var _ filament.Secrets = (*Provider)(nil)
 
 // ErrReadOnly is returned by writes: the process environment is fixed at runtime.
 var ErrReadOnly = errors.New("env secret provider is read-only")
@@ -26,17 +26,17 @@ type Provider struct{}
 func New() *Provider { return &Provider{} }
 
 // Read returns the value of the environment variable that ref maps to.
-func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, error) {
+func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error) {
 	key := envKey(ref)
 	v, ok := os.LookupEnv(key)
 	if !ok {
-		return ingestion.Secret{}, fmt.Errorf("env: %q (%s) not set: %w", ref, key, ingestion.ErrNotFound)
+		return filament.Secret{}, fmt.Errorf("env: %q (%s) not set: %w", ref, key, filament.ErrNotFound)
 	}
-	return ingestion.Secret{Value: []byte(v)}, nil
+	return filament.Secret{Value: []byte(v)}, nil
 }
 
 // Write is unsupported: the process environment is read-only at runtime.
-func (p *Provider) Write(ctx context.Context, ref string, s ingestion.Secret) error {
+func (p *Provider) Write(ctx context.Context, ref string, s filament.Secret) error {
 	return ErrReadOnly
 }
 

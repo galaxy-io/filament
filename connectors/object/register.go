@@ -1,7 +1,7 @@
 package s3
 
 import (
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -9,5 +9,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/object"
 func init() {
-	registry.RegisterSink("s3", func() ingestion.Sink { return New() })
+	registry.RegisterSink("s3", func() filament.Sink { return New() })
 }

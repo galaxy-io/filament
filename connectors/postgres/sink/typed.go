@@ -10,17 +10,17 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
 // calls EnsureSchema(resource, schema) up front — Sink builds one typed table per
 // resource — then Write casts each batch's jsonb payloads into those columns
-// server-side via jsonb_to_recordset. It implements ingestion.Schematized; the engine only
+// server-side via jsonb_to_recordset. It implements filament.Schematized; the engine only
 // runs schema discovery for sinks that do.
 type Sink struct {
 	pool      *pgxpool.Pool
-	run       ingestion.RunID
+	run       filament.RunID
 	schema    string
 	dsn       string
 	resumable bool
@@ -44,29 +44,29 @@ const defaultSchema = "public"
 func New() *Sink { return &Sink{schema: defaultSchema} }
 
 var (
-	_ ingestion.Sink        = (*Sink)(nil)
-	_ ingestion.Schematized = (*Sink)(nil)
+	_ filament.Sink        = (*Sink)(nil)
+	_ filament.Schematized = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
-func (t *Sink) Spec() ingestion.SinkSpec {
-	return ingestion.SinkSpec{
+func (t *Sink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{
 		Name:        "postgres",
 		DisplayName: "PostgreSQL",
 		Version:     "1",
-		Config: ingestion.ConfigSchema{Fields: []ingestion.ConfigField{
-			{Name: "dsn", Type: ingestion.FieldSecret, Required: true, Scope: ingestion.ScopeConnection, Help: "PostgreSQL connection string"},
-			{Name: "schema", Type: ingestion.FieldString, Default: defaultSchema, Scope: ingestion.ScopePipeline, Help: "Destination schema"},
-			{Name: "mode", Type: ingestion.FieldEnum, Default: "typed", Enum: []string{"typed"}, Scope: ingestion.ScopePipeline, Help: "Destination table mode"},
+		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
+			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
+			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Destination schema"},
+			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []string{"typed"}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
 		}},
-		Capabilities: ingestion.SinkCapabilities{
+		Capabilities: filament.SinkCapabilities{
 			Schematized: true,
 			Upsertable:  true,
-			WritePolicies: ingestion.WriteCapabilities(
-				ingestion.IngestionSnapshotReplace,
-				ingestion.IngestionAppend,
-				ingestion.IngestionSnapshotUpsert,
-				ingestion.IngestionUpsert,
+			WritePolicies: filament.WriteCapabilities(
+				filament.IngestionSnapshotReplace,
+				filament.IngestionAppend,
+				filament.IngestionSnapshotUpsert,
+				filament.IngestionUpsert,
 			),
 		},
 	}
@@ -77,8 +77,8 @@ func (t *Sink) Name() string { return "postgres" }
 
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
-func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
-	cfg := ingestion.NewConfig(run.Sink.Config)
+func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
+	cfg := filament.NewConfig(run.Sink.Config)
 	t.dsn = cfg.Secret("dsn")
 	if t.dsn == "" {
 		return fmt.Errorf("postgres sink: dsn is required")
@@ -87,7 +87,7 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 		t.schema = v
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == ingestion.IngestionSnapshotUpsert || run.IngestionType == ingestion.IngestionUpsert
+	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert || run.IngestionType == filament.IngestionUpsert
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
@@ -111,22 +111,22 @@ func (t *Sink) Open(ctx context.Context, run ingestion.RunSpec) error {
 }
 
 // Apply validates the batch against the run's write policy, then delegates to Write.
-func (t *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.ApplyOptions) (ingestion.WriteReceipt, error) {
+func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
-	case ingestion.WriteReplace, ingestion.WriteAppend:
+	case filament.WriteReplace, filament.WriteAppend:
 		policy := opts.Policy
-		policy.Capability.AcceptsOps = []ingestion.Operation{ingestion.OpInsert}
+		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
 		if err := policy.ValidateRecords(b.Resource, b.Records); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
+			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
 		return t.Write(ctx, b)
-	case ingestion.WriteUpsert:
+	case filament.WriteUpsert:
 		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
-			return ingestion.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
+			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
 		return t.Write(ctx, b)
 	default:
-		return ingestion.WriteReceipt{}, fmt.Errorf("postgres sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
 }
 
@@ -135,7 +135,7 @@ func (t *Sink) Apply(ctx context.Context, b ingestion.Batch, opts ingestion.Appl
 // per-resource INSERT statement. A pre-existing table gains any new columns
 // (ADD COLUMN IF NOT EXISTS); an incompatible existing column type surfaces later as
 // a cast error on Write (full type-change handling is deferred to schema evolution).
-func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema ingestion.RecordSchema) error {
+func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
 	if t.pool == nil {
 		return fmt.Errorf("postgres sink: ensure schema before open")
 	}
@@ -193,42 +193,42 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema ingesti
 	return nil
 }
 
-func postgresColumnType(f ingestion.SchemaField) string {
+func postgresColumnType(f filament.SchemaField) string {
 	switch f.Logical {
-	case ingestion.LogicalBool:
+	case filament.LogicalBool:
 		return "boolean"
-	case ingestion.LogicalInt16:
+	case filament.LogicalInt16:
 		return "smallint"
-	case ingestion.LogicalInt32:
+	case filament.LogicalInt32:
 		return "integer"
-	case ingestion.LogicalInt64:
+	case filament.LogicalInt64:
 		return "bigint"
-	case ingestion.LogicalFloat32:
+	case filament.LogicalFloat32:
 		return "real"
-	case ingestion.LogicalFloat64:
+	case filament.LogicalFloat64:
 		return "double precision"
-	case ingestion.LogicalDecimal:
+	case filament.LogicalDecimal:
 		if f.Native != "" {
 			return f.Native
 		}
 		return "numeric"
-	case ingestion.LogicalString:
+	case filament.LogicalString:
 		return "text"
-	case ingestion.LogicalBytes:
+	case filament.LogicalBytes:
 		return "bytea"
-	case ingestion.LogicalDate:
+	case filament.LogicalDate:
 		return "date"
-	case ingestion.LogicalTime:
+	case filament.LogicalTime:
 		return "time"
-	case ingestion.LogicalTimestamp:
+	case filament.LogicalTimestamp:
 		return "timestamp"
-	case ingestion.LogicalTimestampTZ:
+	case filament.LogicalTimestampTZ:
 		return "timestamptz"
-	case ingestion.LogicalJSON:
+	case filament.LogicalJSON:
 		return "jsonb"
-	case ingestion.LogicalUUID:
+	case filament.LogicalUUID:
 		return "uuid"
-	case ingestion.LogicalArray:
+	case filament.LogicalArray:
 		if f.Native != "" {
 			return f.Native
 		}
@@ -245,7 +245,7 @@ func postgresColumnType(f ingestion.SchemaField) string {
 // re-delivered rows (an at-least-once resume re-reads past the last persisted cursor)
 // upsert by primary key instead of erroring on the unique constraint. Non-resumable
 // loads keep plain INSERT semantics (empty clause).
-func onConflict(upsert bool, schema ingestion.RecordSchema) string {
+func onConflict(upsert bool, schema filament.RecordSchema) string {
 	if !upsert {
 		return ""
 	}
@@ -274,13 +274,13 @@ func onConflict(upsert bool, schema ingestion.RecordSchema) string {
 // single jsonb array and expanded server-side by jsonb_to_recordset, coercing every
 // value to its column type. WriteCRC is over the records, unchanged — the integrity
 // check is identical to the landing sink's.
-func (t *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteReceipt, error) {
+func (t *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	if t.pool == nil {
-		return ingestion.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
 	}
 	tbl := t.tables[b.Resource]
 	if tbl == nil {
-		return ingestion.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
 	}
 
 	// Frame the batch as one JSON array: [<data>,<data>,…]. Each Data is already
@@ -299,13 +299,13 @@ func (t *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteRec
 
 	tag, err := t.pool.Exec(ctx, tbl.insertSQL, string(buf))
 	if err != nil {
-		return ingestion.WriteReceipt{}, fmt.Errorf("postgres sink: load %s seq %d: %w", b.Resource, b.Seq, err)
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: load %s seq %d: %w", b.Resource, b.Seq, err)
 	}
 	n := tag.RowsAffected()
 	t.written.Add(n)
 
-	crc, _ := ingestion.CRC32C(b.Records)
-	return ingestion.WriteReceipt{
+	crc, _ := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{
 		URI:      fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource),
 		Bytes:    nbytes,
 		Rows:     int(n),
@@ -315,7 +315,7 @@ func (t *Sink) Write(ctx context.Context, b ingestion.Batch) (ingestion.WriteRec
 
 // batchBufHint sizes the JSON-array scratch: the payload bytes plus separators and
 // brackets, so the common case appends without growing.
-func batchBufHint(recs []ingestion.Record) int {
+func batchBufHint(recs []filament.Record) int {
 	n := 2 + len(recs) // brackets + commas
 	for i := range recs {
 		n += len(recs[i].Data)
