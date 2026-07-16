@@ -49,14 +49,20 @@ tidy: (_each "GOWORK=off go mod tidy")
 # apply gofumpt + goimports to every Go module (settings in .golangci.yaml), plus UI formatting
 format: (_each "GOWORK=off golangci-lint fmt ./...") ui-format
 
+# check Go formatting without writing (what CI runs)
+go-format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...")
+
 # check formatting without writing
-format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...") ui-format-check
+format-check: go-format-check ui-format-check
 
 # run linters and apply auto-fixes where possible
 lint: (_each "GOWORK=off golangci-lint run --fix ./...") ui-lint
 
-# run linters without fixing (what CI runs)
-lint-check: (_each "GOWORK=off golangci-lint run ./...") ui-lint-check
+# run Go linters without fixing (what CI runs)
+go-lint-check: (_each "GOWORK=off golangci-lint run ./...")
+
+# run all linters without fixing
+lint-check: go-lint-check ui-lint-check
 
 # run unit tests in every Go module except tests/ (integration; needs docker)
 test:
@@ -70,8 +76,14 @@ test-integration:
 infra:
     docker compose up -d --wait
 
+# run datastore migrations against the local database
+migrate:
+    cd cmd/server && \
+      PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
+      GOWORK=off go run . -migrate
+
 # run the API server locally (defaults match docker-compose.yaml; env overrides)
-server:
+server: migrate
     cd cmd/server && \
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \

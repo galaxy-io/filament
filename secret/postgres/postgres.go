@@ -6,10 +6,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,6 +28,24 @@ type Provider struct {
 }
 
 var _ ingestion.Secrets = (*Provider)(nil)
+
+// NewFromEnv constructs a provider from ENCRYPTION_KEY (base64-encoded AES
+// key) and ENCRYPTION_KEY_ID (defaults to "default").
+func NewFromEnv(pool *pgxpool.Pool) (*Provider, error) {
+	encoded := os.Getenv("ENCRYPTION_KEY")
+	if encoded == "" {
+		return nil, errors.New("secret/postgres: ENCRYPTION_KEY is required")
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("secret/postgres: ENCRYPTION_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("ENCRYPTION_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	return New(pool, keyID, key)
+}
 
 // New constructs a provider. key must be 16, 24, or 32 bytes.
 func New(pool *pgxpool.Pool, keyID string, key []byte) (*Provider, error) {

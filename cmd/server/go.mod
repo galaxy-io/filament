@@ -9,8 +9,6 @@ require (
 	github.com/galaxy-io/filament/connectors/object v0.0.0
 	github.com/galaxy-io/filament/connectors/postgres v0.0.0
 	github.com/galaxy-io/filament/datastore/postgres v0.0.0
-	github.com/galaxy-io/filament/secret/postgres v0.0.0
-	github.com/jackc/pgx/v5 v5.10.0
 )
 
 require (
@@ -75,6 +73,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/galaxy-io/filament/secret/postgres v0.0.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -92,6 +91,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.10.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect

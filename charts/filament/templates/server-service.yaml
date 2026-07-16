@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "filament.server.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
   labels:
     {{- include "filament.server.labels" . | nindent 4 }}
 spec:

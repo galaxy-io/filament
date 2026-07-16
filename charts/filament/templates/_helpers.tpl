@@ -24,6 +24,13 @@ helm.sh/chart: {{ include "filament.chart" . }}
 {{ include "filament.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
+{{- end -}}
+
+{{- define "filament.namespace" -}}
+{{- .Values.namespaceOverride | default .Release.Namespace -}}
 {{- end -}}
 
 {{- define "filament.selectorLabels" -}}
@@ -65,23 +72,9 @@ app.kubernetes.io/component: worker
 {{- end -}}
 
 
-{{/* Postgres DSN secret: user's existingSecret, else the chart-created one. */}}
-{{- define "filament.postgresql.secretName" -}}
-{{- $es := .Values.persistence.postgresql.dsn.existingSecret -}}
-{{- if $es.name -}}
-{{- $es.name -}}
-{{- else -}}
-{{- printf "%s-db" (include "filament.controlPlane.fullname" .) -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "filament.postgresql.secretKey" -}}
-{{- $es := .Values.persistence.postgresql.dsn.existingSecret -}}
-{{- if $es.name -}}
-{{- $es.key | default "dsn" -}}
-{{- else -}}
-dsn
-{{- end -}}
+{{/* User's existingSecret, else the chart-created Secret. */}}
+{{- define "filament.secretName" -}}
+{{- .Values.existingSecret | default (printf "%s-secret" (include "filament.fullname" .)) -}}
 {{- end -}}
 
 

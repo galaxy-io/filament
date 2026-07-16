@@ -1,21 +1,25 @@
-// Command server runs the Filament API: it serves the ConnectRPC surface and
-// the embedded web UI, persists pipeline and run submissions, and publishes
-// run.requested facts for the control plane to dispatch.
+// Command server runs the Filament API: it migrates the datastore and ensures
+// the default tenant, serves the ConnectRPC surface and the embedded web UI,
+// persists pipeline and run submissions, and publishes run.requested facts for
+// the control plane to dispatch.
 package main
 
 import (
 	"context"
-	"encoding/base64"
+	"database/sql"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"sync/atomic"
+	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
+	ingestion "github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
@@ -23,7 +27,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
-	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
+	"github.com/galaxy-io/filament/secret"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
 
@@ -36,16 +40,35 @@ import (
 )
 
 func main() {
-	if err := run(context.Background()); err != nil {
+	migrateOnly := flag.Bool("migrate", false, "run datastore migrations and exit")
+	flag.Parse()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := run(ctx, *migrateOnly)
+	stop()
+	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(ctx context.Context) error {
+//nolint:funlen // startup wiring reads better linear
+func run(ctx context.Context, migrateOnly bool) error {
 	persistenceDSN := os.Getenv("PERSISTENCE_DSN")
 	if persistenceDSN == "" {
 		return errors.New("PERSISTENCE_DSN is required")
 	}
+
+	if migrateOnly {
+		db, err := ctlpg.NewSQLDB(persistenceDSN)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = db.Close() }()
+		if err := waitForDB(ctx, db); err != nil {
+			return err
+		}
+		return ctlpg.Migrate(db)
+	}
+
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
 		return errors.New("NATS_URL is required")
@@ -57,10 +80,41 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	secrets, err := newSecrets(pool)
+	secrets, err := secret.FromEnv(store)
 	if err != nil {
 		return err
 	}
+
+	// Health endpoints listen before the NATS connect wait so liveness
+	// probes answer while dependencies are still starting.
+	addr := os.Getenv("SERVER_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	var tenantEnsured atomic.Bool
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(ctx); err != nil {
+			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		if !tenantEnsured.Load() {
+			if err := store.EnsureTenant(ctx, ingestion.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+				http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			tenantEnsured.Store(true)
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.ListenAndServe() }()
 
 	busOpts := []natsbus.Option{}
 	if stream := os.Getenv("NATS_STREAM"); stream != "" {
@@ -94,30 +148,40 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("run host: %w", err)
 	}
 
-	addr := os.Getenv("SERVER_ADDR")
-	if addr == "" {
-		addr = ":8080"
-	}
-	mux := http.NewServeMux()
 	server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, server.WithSecrets(secrets)).Mount(mux)
 	mux.Handle("/", ui.Handler())
 	fmt.Println("server:", "http://localhost"+addr)
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	return srv.ListenAndServe()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return srv.Close()
+	}
 }
 
-func newSecrets(pool *pgxpool.Pool) (*secretpostgres.Provider, error) {
-	encoded := os.Getenv("ENCRYPTION_KEY")
-	if encoded == "" {
-		return nil, errors.New("ENCRYPTION_KEY is required")
+// waitForDB pings until the database accepts connections, so the migrate init
+// container rides out postgres still starting on a fresh install.
+func waitForDB(ctx context.Context, db *sql.DB) error {
+	deadline := time.Now().Add(5 * time.Minute)
+	for {
+		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		err := db.PingContext(pingCtx)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("database not reachable: %w", err)
+		}
+		log.Printf("waiting for database: %v", err)
+		time.Sleep(2 * time.Second)
 	}
-	key, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return nil, fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
+}
+
+func defaultTenantID() string {
+	if id := os.Getenv("DEFAULT_TENANT_ID"); id != "" {
+		return id
 	}
-	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
-	if keyID == "" {
-		keyID = "default"
-	}
-	return secretpostgres.New(pool, keyID, key)
+	return ctlpg.DefaultTenantID
 }

@@ -127,11 +127,23 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 			return nil, errors.New("eventbus/nats: empty url")
 		}
 		var err error
-		nc, err = natsgo.Connect(cfg.url)
+		nc, err = natsgo.Connect(cfg.url,
+			natsgo.RetryOnFailedConnect(true),
+			natsgo.MaxReconnects(-1),
+			natsgo.ReconnectWait(2*time.Second),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("eventbus/nats: connect: %w", err)
 		}
 		ownConn = true
+		deadline := time.Now().Add(5 * time.Minute)
+		for !nc.IsConnected() {
+			if time.Now().After(deadline) {
+				nc.Close()
+				return nil, errors.New("eventbus/nats: connect: timed out waiting for nats")
+			}
+			time.Sleep(time.Second)
+		}
 	}
 
 	js, err := nc.JetStream(natsgo.MaxWait(cfg.requestWait))

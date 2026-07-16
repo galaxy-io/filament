@@ -7,14 +7,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -87,10 +82,7 @@ const CreateConnectionConfigureContent = ({
   const { mutate: validateConfig } = useValidateConfigMutation();
   const { mutate: createConnection } = useCreateConnectionMutation();
 
-  const fields = useMemo(
-    () => getConnectorConfigSchemaConnectionFields(connector),
-    [connector],
-  );
+  const fields = useMemo(() => getConnectorConfigSchemaConnectionFields(connector), [connector]);
 
   const isDisabled =
     state.phase === CreateConnectionPhase.VALIDATING ||
@@ -179,8 +171,7 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message =
-            error instanceof Error ? error.message : "Validation failed";
+          const message = error instanceof Error ? error.message : "Validation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -193,13 +184,7 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [
-    state.request,
-    validateAndShowErrors,
-    validateConfig,
-    dispatch,
-    showToast,
-  ]);
+  }, [state.request, validateAndShowErrors, validateConfig, dispatch, showToast]);
 
   const handleCreateConnection = useCallback(() => {
     const name = state.request.name?.trim();
@@ -238,8 +223,7 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message =
-            error instanceof Error ? error.message : "Creation failed";
+          const message = error instanceof Error ? error.message : "Creation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -252,14 +236,7 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [
-    state.request,
-    createConnection,
-    queryClient,
-    showToast,
-    navigate,
-    dispatch,
-  ]);
+  }, [state.request, createConnection, queryClient, showToast, navigate, dispatch]);
 
   // Field handlers (dispatch directly - GX style)
   const handleNameChange = useCallback(
@@ -331,12 +308,7 @@ const CreateConnectionConfigureContent = ({
         />
       ))
       .with(CreateConnectionPhase.VALIDATING, () => (
-        <Button
-          label="Testing..."
-          onClick={NOOP}
-          isLoading={isValidating}
-          isDisabled
-        />
+        <Button label="Testing..." onClick={NOOP} isLoading={isValidating} isDisabled />
       ))
       .with(CreateConnectionPhase.VALIDATED, () => (
         <Button
@@ -347,12 +319,7 @@ const CreateConnectionConfigureContent = ({
         />
       ))
       .with(CreateConnectionPhase.CREATING, () => (
-        <Button
-          label="Creating..."
-          onClick={NOOP}
-          isLoading={isCreating}
-          isDisabled
-        />
+        <Button label="Creating..." onClick={NOOP} isLoading={isCreating} isDisabled />
       ))
       .exhaustive();
   };
@@ -360,11 +327,7 @@ const CreateConnectionConfigureContent = ({
   return (
     <CreateConnectionModalWrapper step={CreateConnectionModalStep.CONFIGURE}>
       <FlexItem grow={0} shrink={0}>
-        <CreateConnectionModalHeader
-          connector={connector}
-          onClose={onClose}
-          onBack={onBack}
-        />
+        <CreateConnectionModalHeader connector={connector} onClose={onClose} onBack={onBack} />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />

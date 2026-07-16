@@ -2,12 +2,11 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "filament.server.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ include "filament.namespace" . }}
 data:
   # NATS
-  NATS_URL: {{ .Values.eventBus.nats.url }}
-  NATS_STREAM: {{ .Values.eventBus.nats.stream }}
-  NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects }}
+  NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
+  NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
 
   # Ingestion
   SERVER_ADDR: ":{{ .Values.server.service.port }}"

@@ -33,6 +33,10 @@ func New(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool, q: sqlcgen.New(pool)}
 }
 
+// Pool exposes the underlying connection pool for components backed by the
+// same database, e.g. the postgres secrets provider.
+func (s *Store) Pool() *pgxpool.Pool { return s.pool }
+
 var (
 	_ ingestion.DataStore     = (*Store)(nil)
 	_ ingestion.ScheduleStore = (*Store)(nil)

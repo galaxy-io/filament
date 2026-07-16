@@ -71,21 +71,6 @@ func getenv(key, fallback string) string {
 	return fallback
 }
 
-func splitCSV(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
 func int32Env(key string, fallback int32) int32 {
 	v := os.Getenv(key)
 	if v == "" {
