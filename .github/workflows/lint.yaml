@@ -102,7 +102,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Dependencies
-        run: helm dependency build charts/filament
+        run: helm dependency update charts/filament
 
       - name: Lint
         run: helm lint charts/filament
