@@ -1,0 +1,149 @@
+# Filament Helm Chart
+
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+{{ template "chart.description" . }}
+
+## Introduction
+
+This chart deploys Filament server, control plane, Kubernetes worker dispatch support, and the configuration needed to connect Filament to PostgreSQL and NATS.
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+{{ if or .Dependencies .KubeVersion }}
+## Optional Requirements
+
+{{ if .KubeVersion }}{{ template "chart.kubeVersionLine" . }}
+
+{{ end }}{{ if .Dependencies }}{{ template "chart.requirementsTable" . }}{{ end }}
+
+The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) and [NATS chart](https://artifacthub.io/packages/helm/nats/nats) documentation for their full configuration surfaces.
+{{ end }}
+
+## Runtime configuration
+
+Filament requires a PostgreSQL DSN, a base64-encoded encryption key, and a NATS URL. Provide them either through `existingSecret` or through chart values so the chart can create the Secret.
+
+To use an existing Secret:
+
+```sh
+kubectl create secret generic filament-runtime \
+  --from-literal=PERSISTENCE_DSN='postgresql://USER:PASSWORD@HOST:5432/filament?sslmode=require' \
+  --from-literal=ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  --from-literal=NATS_URL='nats://nats.example.com:4222'
+
+helm upgrade --install filament . \
+  --set existingSecret=filament-runtime
+```
+
+For a local or test cluster with the vendored PostgreSQL and NATS charts:
+
+```sh
+PG_PASSWORD="$(openssl rand -hex 24)"
+ENC_KEY="$(openssl rand -base64 32)"
+
+helm upgrade --install filament . \
+  --set postgresql.enabled=true \
+  --set nats.enabled=true \
+  --set-string postgresql.auth.password="$PG_PASSWORD" \
+  --set-string persistence.postgresql.dsn="postgresql://filament:${PG_PASSWORD}@filament-postgresql:5432/filament?sslmode=disable" \
+  --set-string secrets.postgres.encryptionKey="$ENC_KEY" \
+  --set-string eventBus.nats.url='nats://filament-nats:4222'
+```
+
+## Overrides
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if or (eq .Key "nameOverride") (eq .Key "fullnameOverride") (eq .Key "namespaceOverride") }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Common parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if or (eq .Key "commonLabels") (eq .Key "existingSecret") }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Server parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "server." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Control plane parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "controlPlane." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Persistence parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "persistence." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Secret provider parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "secrets." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Event bus parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "eventBus." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Vendored PostgreSQL parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "postgresql." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Vendored NATS parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "nats." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+----------------------------------------------
+Autogenerated from chart metadata using [helm-docs](https://github.com/norwoodj/helm-docs)

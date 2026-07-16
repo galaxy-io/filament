@@ -20,7 +20,7 @@ data:
 
   # Worker
   K8S_NAMESPACE: {{ include "filament.namespace" . }}
-  K8S_WORKER_IMAGE: {{ .Values.controlPlane.dispatch.worker.image.repository }}:{{ .Values.controlPlane.dispatch.worker.image.tag }}
+  K8S_WORKER_IMAGE: {{ .Values.controlPlane.dispatch.worker.image.repository }}:{{ .Values.controlPlane.dispatch.worker.image.tag | default .Chart.AppVersion }}
   K8S_WORKER_IMAGE_PULL_POLICY: {{ .Values.controlPlane.dispatch.worker.image.pullPolicy | quote }}
   K8S_WORKER_SERVICE_ACCOUNT: {{ include "filament.worker.serviceAccountName" . | quote }}
   K8S_WORKER_RESTART_POLICY: {{ .Values.controlPlane.dispatch.worker.restartPolicy | quote }}
