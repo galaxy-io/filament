@@ -34,6 +34,7 @@
   box-sizing: border-box;
   border: 0;
   font-size: 100%;
+  /* biome-ignore lint/suspicious/noShorthandPropertyOverrides: standard CSS reset pattern, resets all font-* longhands to inherit */
   font: inherit;
   vertical-align: baseline;
 }

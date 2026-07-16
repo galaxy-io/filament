@@ -1,23 +1,20 @@
 import { useMemo } from "react";
-import { ReactFlow, Background, BackgroundVariant, MiniMap } from "@xyflow/react";
-import { styled } from "@linaria/react";
 
-import { useTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { styled } from "@linaria/react";
+import { Background, BackgroundVariant, MiniMap, ReactFlow } from "@xyflow/react";
+
+import { useTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import "@xyflow/react/dist/style.css";
 
-import {
-  CANVAS_FIT_VIEW_OPTIONS,
-  CANVAS_SNAP_GRID,
-} from "@/pages/pipelines/canvas/constants";
-import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
-import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
-import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
+import { CANVAS_FIT_VIEW_OPTIONS, CANVAS_SNAP_GRID } from "@/pages/pipelines/canvas/constants";
 import usePipelineCanvas from "@/pages/pipelines/canvas/hooks/usePipelineCanvas";
+import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
+import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
+import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
 
 const pipelineNodeTypes = {
   [PipelineNodeType.SOURCE]: PipelineNodeSource,
@@ -66,21 +63,16 @@ interface PipelineCanvasProps {
   pipelineId: string;
 }
 
+// biome-ignore lint/correctness/noUnusedFunctionParameters: pipelineId reserved for wiring saved pipeline state into the canvas (not implemented yet)
 const PipelineCanvas = ({ pipelineId }: PipelineCanvasProps) => {
   const theme = useTheme();
 
-  const {
-    nodes,
-    edges,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-  } = usePipelineCanvas();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } = usePipelineCanvas();
 
   // Get IDs of selected nodes
   const selectedNodeIds = useMemo(
     () => new Set(nodes.filter((node) => node.selected).map((node) => node.id)),
-    [nodes]
+    [nodes],
   );
 
   // Style edges based on selection state or connection to selected nodes
@@ -98,14 +90,12 @@ const PipelineCanvas = ({ pipelineId }: PipelineCanvasProps) => {
           animated: false,
           selectable: true,
           style: {
-            stroke: isHighlighted
-              ? theme.color.background.galaxy
-              : theme.color.border.primary,
+            stroke: isHighlighted ? theme.color.background.galaxy : theme.color.border.primary,
             strokeWidth: isSelected ? 3 : 2,
           },
         };
       }),
-    [edges, selectedNodeIds, theme]
+    [edges, selectedNodeIds, theme],
   );
 
   return (
@@ -133,14 +123,10 @@ const PipelineCanvas = ({ pipelineId }: PipelineCanvasProps) => {
         <PipelineCanvasControls />
         <MiniMap
           nodeColor={(node) =>
-            node.selected
-              ? theme.color.background.galaxy
-              : theme.color.background.tertiary
+            node.selected ? theme.color.background.galaxy : theme.color.background.tertiary
           }
           nodeStrokeColor={(node) =>
-            node.selected
-              ? theme.color.background.galaxy
-              : theme.color.border.primary
+            node.selected ? theme.color.background.galaxy : theme.color.border.primary
           }
           nodeStrokeWidth={1}
           maskColor={`${theme.color.background.primary}80`}

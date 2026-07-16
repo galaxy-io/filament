@@ -1,4 +1,4 @@
-import { TRoutes } from "@/hooks/useRouteMatch";
+import type { TRoutes } from "@/hooks/useRouteMatch";
 
 // Layout constants
 export const NAVBAR_HEIGHT = 52;
@@ -10,5 +10,5 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/pipelines", label: "Pipelines" },
-  { to: "/connectors", label: "Connectors" },
+  { to: "/connections", label: "Connections" },
 ];

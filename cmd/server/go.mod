@@ -179,3 +179,5 @@ replace github.com/galaxy-io/filament/connectors/object => ../../connectors/obje
 replace github.com/galaxy-io/filament/connectors/postgres => ../../connectors/postgres
 
 replace github.com/galaxy-io/filament/datastore/postgres => ../../datastore/postgres
+
+replace github.com/galaxy-io/filament/secret/postgres => ../../secret/postgres

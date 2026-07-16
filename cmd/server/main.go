@@ -78,6 +78,10 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
+	secrets, err := newSecrets(pool)
+	if err != nil {
+		return err
+	}
 
 	// Health endpoints listen before the NATS connect wait so liveness
 	// probes answer while dependencies are still starting.

@@ -12,11 +12,11 @@ export enum PipelineHealth {
 }
 
 export enum PipelineFlowSize {
-  SMALL = "small",
-  MEDIUM = "medium",
+  SMALL = "SMALL",
+  MEDIUM = "MEDIUM",
 }
 
-export interface PipelineListItem {
+export interface PipelineResource {
   id: string;
   name: string;
   health: PipelineHealth;

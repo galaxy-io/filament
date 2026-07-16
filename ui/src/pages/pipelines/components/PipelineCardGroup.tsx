@@ -1,12 +1,16 @@
 import { useState } from "react";
 
-import { CaretRightIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import RotateWithTransition from "@galaxy-io/dls/animations/RotateWithTransition";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
-import FlexWrapper, { AlignItems, FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  AlignItems,
+  FlexDirection,
+  FlexGap,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -18,7 +22,7 @@ import {
   PIPELINE_GROUP_TO_LABEL_MAP,
   PIPELINE_INDICATOR_WIDTH,
 } from "@/pages/pipelines/constants";
-import { PipelineGroup, PipelineListItem } from "@/pages/pipelines/types";
+import { PipelineGroup, type PipelineResource } from "@/pages/pipelines/types";
 
 const IndicatorWrapper = styled.div`
   width: ${PIPELINE_INDICATOR_WIDTH}px;
@@ -55,7 +59,7 @@ const getGroupBadgeVariant = (group: PipelineGroup): BadgeVariant => {
 
 interface PipelineCardGroupProps {
   group: PipelineGroup;
-  pipelines: PipelineListItem[];
+  pipelines: PipelineResource[];
   defaultExpanded?: boolean;
 }
 
@@ -76,11 +80,7 @@ const PipelineCardGroup = ({
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
           <IndicatorWrapper>
             <RotateWithTransition isRotated={isExpanded} deg={90}>
-              <Icon
-                component={CaretRightIcon}
-                size={12}
-                variant={IconVariant.SECONDARY}
-              />
+              <Icon component={CaretRightIcon} size={12} variant={IconVariant.SECONDARY} />
             </RotateWithTransition>
           </IndicatorWrapper>
           <Text>{PIPELINE_GROUP_TO_LABEL_MAP[group]}</Text>

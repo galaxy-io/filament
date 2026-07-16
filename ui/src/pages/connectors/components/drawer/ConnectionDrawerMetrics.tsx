@@ -1,17 +1,14 @@
-import { FlowArrowIcon } from "@phosphor-icons/react";
 import { styled } from "@linaria/react";
+import { FlowArrowIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, {
-  AlignItems,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 const MetricItem = styled.div`
   display: flex;
@@ -19,16 +16,16 @@ const MetricItem = styled.div`
   gap: 6px;
 `;
 
-interface ConnectorDrawerMetricsProps {
-  connector: ConnectorSpec;
+interface ConnectionDrawerMetricsProps {
+  connection: Connection;
   pipelineCount?: number;
 }
 
-const ConnectorDrawerMetrics = ({
-  connector,
+const ConnectionDrawerMetrics = ({
+  connection,
   pipelineCount = 0,
-}: ConnectorDrawerMetricsProps) => {
-  const isSource = connector.kind === ConnectorKind.SOURCE;
+}: ConnectionDrawerMetricsProps) => {
+  const isSource = connection.kind === ConnectorKind.SOURCE;
   const kindLabel = isSource ? "Source" : "Sink";
 
   return (
@@ -39,22 +36,15 @@ const ConnectorDrawerMetrics = ({
         justifyContent={JustifyContent.SPACE_BETWEEN}
       >
         <MetricItem>
-          <Icon
-            component={FlowArrowIcon}
-            size={16}
-            variant={IconVariant.TERTIARY}
-          />
+          <Icon component={FlowArrowIcon} size={16} variant={IconVariant.TERTIARY} />
           <Text size={TextSize.BODY_SM}>
             {pipelineCount} {pipelineCount === 1 ? "pipeline" : "pipelines"}
           </Text>
         </MetricItem>
-        <Chip
-          label={kindLabel}
-          variant={isSource ? ChipVariant.LIME : ChipVariant.PINK}
-        />
+        <Chip label={kindLabel} variant={isSource ? ChipVariant.LIME : ChipVariant.PINK} />
       </FlexWrapper>
     </Widget>
   );
 };
 
-export default ConnectorDrawerMetrics;
+export default ConnectionDrawerMetrics;

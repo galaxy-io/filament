@@ -1,16 +1,16 @@
 import {
   createConnectQueryKey,
+  type UseMutationOptions,
+  type UseQueryOptions,
   useMutation,
   useQuery,
-  UseMutationOptions,
-  UseQueryOptions,
 } from "@connectrpc/connect-query";
 
 import {
-  GetRunRequest,
-  GetRunResponse,
-  ListRunsRequest,
-  ListRunsResponse,
+  type GetRunRequest,
+  type GetRunResponse,
+  type ListRunsRequest,
+  type ListRunsResponse,
   RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
