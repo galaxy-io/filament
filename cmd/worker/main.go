@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -16,7 +15,7 @@ import (
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
-	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
+	"github.com/galaxy-io/filament/secret"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
@@ -60,19 +59,7 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	encoded := os.Getenv("ENCRYPTION_KEY")
-	if encoded == "" {
-		return errors.New("ENCRYPTION_KEY is required")
-	}
-	key, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
-	}
-	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
-	if keyID == "" {
-		keyID = "default"
-	}
-	secrets, err := secretpostgres.New(pool, keyID, key)
+	secrets, err := secret.FromEnv(pool)
 	if err != nil {
 		return err
 	}

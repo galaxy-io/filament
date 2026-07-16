@@ -1,8 +1,6 @@
 package k8sdispatch
 
 import (
-	"os"
-
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,21 +10,23 @@ import (
 
 func (m *Module) jobForSpec(spec ingestion.RunSpec) *batchv1.Job {
 	name := jobName(m.cfg.JobNamePrefix, spec.Run)
-	env := []corev1.EnvVar{
-		{Name: "RUN_ID", Value: string(spec.Run)},
-		{Name: "PERSISTENCE_DSN", Value: m.cfg.PersistenceDSN},
-		{Name: "NATS_URL", Value: m.cfg.NATSURL},
-	}
+	// PERSISTENCE_DSN, NATS_URL, and ENCRYPTION_KEY arrive via the worker
+	// Secret (envFrom); only per-run and plain config are set explicitly.
+	envFrom := []corev1.EnvFromSource{{
+		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: m.cfg.WorkerSecretName}},
+	}}
+	env := []corev1.EnvVar{{Name: "RUN_ID", Value: string(spec.Run)}}
 	if m.cfg.NATSStream != "" {
 		env = append(env, corev1.EnvVar{Name: "NATS_STREAM", Value: m.cfg.NATSStream})
 	}
 	if m.cfg.NATSSubjects != "" {
 		env = append(env, corev1.EnvVar{Name: "NATS_SUBJECTS", Value: m.cfg.NATSSubjects})
 	}
-	for _, key := range m.cfg.PassthroughEnv {
-		if val, ok := os.LookupEnv(key); ok {
-			env = append(env, corev1.EnvVar{Name: key, Value: val})
-		}
+	if m.cfg.SecretProvider != "" {
+		env = append(env, corev1.EnvVar{Name: "SECRET_PROVIDER", Value: m.cfg.SecretProvider})
+	}
+	if m.cfg.EncryptionKeyID != "" {
+		env = append(env, corev1.EnvVar{Name: "ENCRYPTION_KEY_ID", Value: m.cfg.EncryptionKeyID})
 	}
 
 	restartPolicy := m.cfg.WorkerRestartPolicy
@@ -42,6 +42,7 @@ func (m *Module) jobForSpec(spec ingestion.RunSpec) *batchv1.Job {
 			Image:           m.cfg.WorkerImage,
 			ImagePullPolicy: corev1.PullPolicy(m.cfg.WorkerImagePullPolicy),
 			Env:             env,
+			EnvFrom:         envFrom,
 		}},
 		TerminationGracePeriodSeconds: m.cfg.WorkerTerminationGraceSecs,
 		ActiveDeadlineSeconds:         m.cfg.WorkerActiveDeadlineSeconds,

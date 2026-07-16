@@ -1,22 +1,20 @@
-// Command control-plane runs Filament's orchestration loop: it migrates the
-// datastore, executes or dispatches requested runs per DISPATCH_MODE, and
-// folds worker-emitted facts back into Postgres through tracker.
+// Command control-plane runs Filament's orchestration loop: it executes or
+// dispatches requested runs per DISPATCH_MODE and folds worker-emitted facts
+// back into Postgres through tracker.
 package main
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
-	ingestion "github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
@@ -26,7 +24,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
-	secretpostgres "github.com/galaxy-io/filament/secret/postgres"
+	"github.com/galaxy-io/filament/secret"
 
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
@@ -69,34 +67,37 @@ func run(ctx context.Context) error {
 		return errors.New("NATS_URL is required")
 	}
 
-	if migrateEnabled() {
-		db, err := ctlpg.NewSQLDB(persistenceDSN)
-		if err != nil {
-			return err
-		}
-		if err := ctlpg.Migrate(db); err != nil {
-			_ = db.Close()
-			return err
-		}
-		if err := db.Close(); err != nil {
-			return fmt.Errorf("close migration db: %w", err)
-		}
-	}
-
 	pool, err := ctlpg.NewPool(ctx, persistenceDSN)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	secrets, err := newSecrets(pool)
+	secrets, err := secret.FromEnv(pool)
 	if err != nil {
 		return err
 	}
-	if err := store.EnsureTenant(ctx, ingestion.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-		return err
-	}
 
+	healthMux := http.NewServeMux()
+	healthMux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	healthMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		pingCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(pingCtx); err != nil {
+			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	healthAddr := os.Getenv("HEALTH_ADDR")
+	if healthAddr == "" {
+		healthAddr = ":8081"
+	}
+	healthSrv := &http.Server{Addr: healthAddr, Handler: healthMux, ReadHeaderTimeout: 10 * time.Second}
+	go func() { _ = healthSrv.ListenAndServe() }()
+	defer func() { _ = healthSrv.Close() }()
 	busOpts := []natsbus.Option{}
 	if stream := os.Getenv("NATS_STREAM"); stream != "" {
 		busOpts = append(busOpts, natsbus.WithStream(stream))
@@ -138,36 +139,4 @@ func run(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
-}
-
-func newSecrets(pool *pgxpool.Pool) (*secretpostgres.Provider, error) {
-	encoded := os.Getenv("ENCRYPTION_KEY")
-	if encoded == "" {
-		return nil, errors.New("ENCRYPTION_KEY is required")
-	}
-	key, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return nil, fmt.Errorf("ENCRYPTION_KEY must be base64: %w", err)
-	}
-	keyID := os.Getenv("FILAMENT_SECRETS_KEY_ID")
-	if keyID == "" {
-		keyID = "default"
-	}
-	return secretpostgres.New(pool, keyID, key)
-}
-
-func migrateEnabled() bool {
-	switch os.Getenv("PERSISTENCE_MIGRATE") {
-	case "", "1", "true", "TRUE", "yes", "YES":
-		return true
-	default:
-		return false
-	}
-}
-
-func defaultTenantID() string {
-	if id := os.Getenv("DEFAULT_TENANT_ID"); id != "" {
-		return id
-	}
-	return ctlpg.DefaultTenantID
 }
