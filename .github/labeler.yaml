@@ -14,7 +14,10 @@ server:
       - any-glob-to-any-file:
           - "cmd/server/**"
           - "server/**"
-          - "ui/**"
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file: "ui/**"
 
 control-plane:
   - changed-files:
