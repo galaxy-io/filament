@@ -4,8 +4,6 @@ import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 // Layout constants
-export const CONNECTOR_SEARCH_WIDTH = 280;
-export const CONNECTOR_KIND_FILTER_WIDTH = 140;
 export const CONNECTOR_GRID_MIN_COLUMN_WIDTH = 320;
 export const CONNECTOR_DRAWER_WIDTH = 600;
 export const CREATE_CONNECTION_MODAL_SELECTOR_WIDTH = 900;

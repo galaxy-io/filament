@@ -12,11 +12,10 @@ import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  FlexDirection,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
-import DropdownButton from "@galaxy-io/dls/dropdown/DropdownButton";
-import DropdownItem from "@galaxy-io/dls/dropdown/DropdownItem";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
@@ -28,20 +27,22 @@ import ErrorLayout from "@/layouts/ErrorLayout";
 
 import PipelineCardGroup from "@/pages/pipelines/components/PipelineCardGroup";
 import PipelineCardLoading from "@/pages/pipelines/components/PipelineCardLoading";
-import { PIPELINE_GROUP_TO_LABEL_MAP, PIPELINE_SEARCH_WIDTH } from "@/pages/pipelines/constants";
 import { PipelineGroup } from "@/pages/pipelines/types";
-import { toPipelineGroups, toPipelineResource } from "@/pages/pipelines/utils";
+import { toPipelineGroups } from "@/pages/pipelines/utils";
 
 import { ToastVariant } from "@/providers/toast/ToastProvider";
 import { useToast } from "@/providers/toast/useToast";
 
-import { useCreatePipelineMutation, useListPipelinesQuery } from "@/api/queries/pipelines";
+import {
+  useCreatePipelineMutation,
+  useListPipelinesQuery,
+} from "@/api/queries/pipelines";
 
 import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { CONNECTORS_DOCS_URL } from "@/constants";
 
-const LOADING_ROW_COUNT = 20;
+const LOADING_ROW_COUNT = 6;
 
 const PipelineListWrapper = styled.div`
   flex: 1;
@@ -76,36 +77,30 @@ const PipelinesPage = () => {
     setState((prev) => ({ ...prev, search: value }));
   };
 
-  const handleSelectGroupFilter = (group: PipelineGroup | null) => {
-    setState((prev) => ({ ...prev, groupFilter: group, isFiltersOpen: false }));
-  };
-
-  const handleCloseFilters = () => {
-    setState((prev) => ({ ...prev, isFiltersOpen: false }));
-  };
-
-  const handleToggleFiltersOpen = () => {
-    setState((prev) => ({ ...prev, isFiltersOpen: !prev.isFiltersOpen }));
-  };
-
   const { data, isLoading, isError } = useListPipelinesQuery();
-  const { mutate: createPipeline, isPending: isCreatingPipeline } = useCreatePipelineMutation();
+  const { mutate: createPipeline, isPending: isCreatingPipeline } =
+    useCreatePipelineMutation();
 
   const isToolbarDisabled = isLoading || isError;
 
-  const pipelineResources = useMemo(() => data?.pipelines.map(toPipelineResource) ?? [], [data]);
+  const pipelines = data?.pipelines ?? [];
 
   const groups = useMemo(() => {
     const query = state.search.trim().toLowerCase();
     const filtered = query
-      ? pipelineResources.filter((item) => item.name.toLowerCase().includes(query))
-      : pipelineResources;
+      ? pipelines.filter((item) => item.name.toLowerCase().includes(query))
+      : pipelines;
     return toPipelineGroups(filtered);
-  }, [pipelineResources, state.search]);
+  }, [pipelines, state.search]);
 
-  const visibleGroups = state.groupFilter ? [state.groupFilter] : Object.values(PipelineGroup);
+  const visibleGroups = state.groupFilter
+    ? [state.groupFilter]
+    : Object.values(PipelineGroup);
 
-  const totalVisiblePipelines = visibleGroups.reduce((sum, group) => sum + groups[group].length, 0);
+  const totalVisiblePipelines = visibleGroups.reduce(
+    (sum, group) => sum + groups[group].length,
+    0,
+  );
 
   const handleNewPipeline = () => {
     createPipeline(
@@ -152,7 +147,13 @@ const PipelinesPage = () => {
     if (isError) {
       return (
         <ErrorLayout
-          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
+          icon={
+            <Icon
+              component={WarningCircleIcon}
+              size={20}
+              variant={IconVariant.ERROR}
+            />
+          }
           message="Failed to load pipelines. Please try again."
         />
       );
@@ -189,7 +190,9 @@ const PipelinesPage = () => {
       return (
         <EmptyLayout
           message={
-            state.search ? "No pipelines match your search" : "No pipelines match your filters"
+            state.search
+              ? "No pipelines match your search"
+              : "No pipelines match your filters"
           }
         />
       );
@@ -215,41 +218,10 @@ const PipelinesPage = () => {
               value={state.search}
               onChange={handleSearchChange}
               placeholder="Search"
-              width={PIPELINE_SEARCH_WIDTH}
               leading={{ icon: MagnifyingGlassIcon }}
               isDisabled={isToolbarDisabled}
+              fillWidth
             />,
-            <Dropdown
-              key="filters"
-              isOpen={state.isFiltersOpen}
-              onClose={handleCloseFilters}
-              position={DropdownPosition.BOTTOM_START}
-              body={
-                <>
-                  <DropdownItem
-                    label="All pipelines"
-                    onClick={() => handleSelectGroupFilter(null)}
-                  />
-                  {Object.values(PipelineGroup).map((group) => (
-                    <DropdownItem
-                      key={group}
-                      label={PIPELINE_GROUP_TO_LABEL_MAP[group]}
-                      onClick={() => handleSelectGroupFilter(group)}
-                    />
-                  ))}
-                </>
-              }
-            >
-              <DropdownButton
-                label={
-                  state.groupFilter ? PIPELINE_GROUP_TO_LABEL_MAP[state.groupFilter] : "Filters"
-                }
-                isOpen={state.isFiltersOpen}
-                onClick={handleToggleFiltersOpen}
-                variant={ButtonVariant.SECONDARY}
-                isDisabled={isToolbarDisabled}
-              />
-            </Dropdown>,
           ]}
           trailingActions={[
             <Button

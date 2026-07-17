@@ -1,5 +1,5 @@
 import { styled } from "@linaria/react";
-import { PlayIcon } from "@phosphor-icons/react";
+import { FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip from "@galaxy-io/dls/chips/Chip";
@@ -36,6 +36,10 @@ interface PipelineLayoutNavbarProps {
   status: PipelineStatus;
   isEnabled: boolean;
   onToggleEnabled: (enabled: boolean) => void;
+  hasChanges: boolean;
+  isSaving: boolean;
+  onSave: () => void;
+  isRunning: boolean;
   onRun: () => void;
 }
 
@@ -44,6 +48,10 @@ const PipelineLayoutNavbar = ({
   status,
   isEnabled,
   onToggleEnabled,
+  hasChanges,
+  isSaving,
+  onSave,
+  isRunning,
   onRun,
 }: PipelineLayoutNavbarProps) => {
   return (
@@ -53,20 +61,30 @@ const PipelineLayoutNavbar = ({
           label={PIPELINE_STATUS_TO_LABEL_MAP[status]}
           variant={PIPELINE_STATUS_TO_CHIP_VARIANT_MAP[status]}
         />
-        <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-          {name}
-        </Text>
+        <Text size={TextSize.BODY_LG}>{name}</Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <ToggleInput value={isEnabled} onChange={onToggleEnabled} />
-        <Button
-          label="Run"
-          icon={PlayIcon}
-          variant={ButtonVariant.PRIMARY}
-          size={ButtonSize.SMALL}
-          onClick={onRun}
-        />
+        {hasChanges ? (
+          <Button
+            label="Save"
+            icon={FloppyDiskIcon}
+            variant={ButtonVariant.PRIMARY}
+            size={ButtonSize.SMALL}
+            isLoading={isSaving}
+            onClick={onSave}
+          />
+        ) : (
+          <Button
+            label="Run"
+            icon={PlayIcon}
+            variant={ButtonVariant.PRIMARY}
+            size={ButtonSize.SMALL}
+            isLoading={isRunning}
+            onClick={onRun}
+          />
+        )}
       </FlexWrapper>
     </PipelineLayoutNavbarWrapper>
   );

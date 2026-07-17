@@ -2,15 +2,12 @@ import { match } from "ts-pattern";
 
 import { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 
-import { PipelineGroup, PipelineHealth, type PipelineResource } from "@/pages/pipelines/types";
+import { PipelineGroup, PipelineHealth } from "@/pages/pipelines/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-export const toPipelineGroups = (
-  items: PipelineResource[],
-): Record<PipelineGroup, PipelineResource[]> => {
-  const groups: Record<PipelineGroup, PipelineResource[]> = {
+export const toPipelineGroups = (items: Pipeline[]): Record<PipelineGroup, Pipeline[]> => {
+  const groups: Record<PipelineGroup, Pipeline[]> = {
     [PipelineGroup.ACTIVE]: [],
     [PipelineGroup.NEEDS_ATTENTION]: [],
     [PipelineGroup.PAUSED]: [],
@@ -21,12 +18,9 @@ export const toPipelineGroups = (
   return groups;
 };
 
-export const getPipelineGroup = (pipeline: PipelineResource): PipelineGroup => {
-  return match(pipeline.health)
-    .with(PipelineHealth.HEALTHY, () => PipelineGroup.ACTIVE)
-    .with(PipelineHealth.DEGRADED, PipelineHealth.FAILING, () => PipelineGroup.NEEDS_ATTENTION)
-    .with(PipelineHealth.PAUSED, () => PipelineGroup.PAUSED)
-    .exhaustive();
+export const getPipelineGroup = (_pipeline: Pipeline): PipelineGroup => {
+  // TODO: Implement when health is available on Pipeline
+  return PipelineGroup.ACTIVE;
 };
 
 export const getHealthBeaconVariant = (health: PipelineHealth): BeaconVariant => {
@@ -38,19 +32,18 @@ export const getHealthBeaconVariant = (health: PipelineHealth): BeaconVariant =>
     .exhaustive();
 };
 
-export const toPipelineResource = (pipeline: Pipeline): PipelineResource => {
-  const sources = pipeline.nodes.filter((node) => node.kind === ConnectorKind.SOURCE);
-  const sinks = pipeline.nodes.filter((node) => node.kind === ConnectorKind.SINK);
+export const formatCount = (value: bigint): string => {
+  return Number(value).toLocaleString();
+};
 
-  return {
-    id: pipeline.id,
-    name: pipeline.name || pipeline.id,
-    health: PipelineHealth.HEALTHY,
-    source: sources[0]?.connectionId ?? "",
-    sinks: sinks.map((node) => node.connectionId),
-    lastRunLabel: "—",
-    volumeLabel: "—",
-    scheduleLabel: "—",
-    isEnabled: true,
-  };
+const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
+
+export const formatBytes = (value: bigint): string => {
+  let scaled = Number(value);
+  let unitIndex = 0;
+  while (scaled >= 1024 && unitIndex < BYTE_UNITS.length - 1) {
+    scaled /= 1024;
+    unitIndex += 1;
+  }
+  return `${unitIndex === 0 ? scaled : scaled.toFixed(1)} ${BYTE_UNITS[unitIndex]}`;
 };

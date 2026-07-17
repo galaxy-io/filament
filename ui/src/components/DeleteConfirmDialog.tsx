@@ -8,6 +8,7 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Code from "@galaxy-io/dls/text/Code";
+import Paragraph from "@galaxy-io/dls/text/Paragraph";
 import Selectable from "@galaxy-io/dls/text/Selectable";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -87,7 +88,7 @@ const DeleteConfirmDialog = ({
       </FlexItem>
 
       <BodyWrapper>
-        <Text variant={TextVariant.SECONDARY}>{body}</Text>
+        <Paragraph variant={TextVariant.SECONDARY}>{body}</Paragraph>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
           <Text variant={TextVariant.PRIMARY}>
             Type{" "}

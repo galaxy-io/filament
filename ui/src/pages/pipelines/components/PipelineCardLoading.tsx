@@ -8,7 +8,10 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import {
   PIPELINE_CARD_HEIGHT,
   PIPELINE_INDICATOR_WIDTH,
-  PIPELINE_METRIC_COLUMN_WIDTH_MAP,
+  PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS,
+  PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN,
+  PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE,
+  PIPELINE_METRIC_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -52,7 +55,7 @@ const PipelineCardLoading = () => {
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}>
+        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
           <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
             <TextShimmer width={24} height={24} />
             <TextShimmer width={12} height={12} />
@@ -61,17 +64,17 @@ const PipelineCardLoading = () => {
           </FlexWrapper>
         </MetricColumnWrapper>
 
-        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}>
+        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN}>
           <TextShimmer width={50} height={12} />
           <TextShimmer width={56} height={14} />
         </MetricColumnWrapper>
 
-        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.volume}>
+        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME}>
           <TextShimmer width={46} height={12} />
           <TextShimmer width={60} height={14} />
         </MetricColumnWrapper>
 
-        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.schedule}>
+        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE}>
           <TextShimmer width={72} height={14} />
         </MetricColumnWrapper>
 

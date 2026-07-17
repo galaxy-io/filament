@@ -10,8 +10,11 @@ import FlexWrapper, {
   FlexDirection,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput, {
+  TextAreaSize,
+} from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Modal from "@galaxy-io/dls/modal/Modal";
@@ -26,23 +29,30 @@ import { BaseHeaderSize } from "@/layouts/components/types";
 import { ToastVariant } from "@/providers/toast/Toast";
 import { useToast } from "@/providers/toast/useToast";
 
-import { useDeletePipelineMutation, useGetPipelineQuery } from "@/api/queries/pipelines";
+import {
+  useDeletePipelineMutation,
+  useGetPipelineQuery,
+  useUpdatePipelineMutation,
+} from "@/api/queries/pipelines";
 
 import {
   DeletePipelineRequestSchema,
   GetPipelineRequestSchema,
+  UpdatePipelineRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import DangerZone from "@/components/DangerZone";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
   height: 100%;
 
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
 
-  overflow-y: auto;
+  overflow: hidden;
 
   background-color: ${({ theme }) => theme.color.background.primary};
 `);
@@ -71,7 +81,10 @@ const PipelineSettingsPage = () => {
   const { data } = useGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
   });
-  const { mutate: deletePipeline, isPending: isDeleting } = useDeletePipelineMutation();
+  const { mutate: deletePipeline, isPending: isDeleting } =
+    useDeletePipelineMutation();
+  const { mutate: updatePipeline, isPending: isSaving } =
+    useUpdatePipelineMutation();
 
   const { showToast } = useToast();
 
@@ -94,7 +107,10 @@ const PipelineSettingsPage = () => {
       onError: (error) => {
         showToast({
           header: "Delete failed",
-          subheader: error instanceof Error ? error.message : "Failed to delete pipeline",
+          subheader:
+            error instanceof Error
+              ? error.message
+              : "Failed to delete pipeline",
           variant: ToastVariant.ERROR,
         });
         setIsDeleteModalOpen(false);
@@ -133,23 +149,52 @@ const PipelineSettingsPage = () => {
     return state.name !== (data?.pipeline?.name ?? "");
   }, [state.name, data?.pipeline?.name]);
 
+  const canSave = hasChanges && state.name.trim().length > 0;
+
   const handleSave = () => {
-    showToast({
-      header: "Pipeline saved",
-      subheader: "Your pipeline has been saved successfully.",
-      variant: ToastVariant.SUCCESS,
+    const pipeline = data?.pipeline;
+    if (!pipeline) return;
+
+    const request = create(UpdatePipelineRequestSchema, {
+      pipeline: { ...pipeline, name: state.name.trim() },
+    });
+
+    updatePipeline(request, {
+      onSuccess: () => {
+        showToast({
+          header: "Pipeline saved",
+          subheader: "Your pipeline has been saved successfully.",
+          variant: ToastVariant.SUCCESS,
+        });
+      },
+      onError: (error) => {
+        showToast({
+          header: "Save failed",
+          subheader:
+            error instanceof Error ? error.message : "Failed to save pipeline",
+          variant: ToastVariant.ERROR,
+        });
+      },
     });
   };
 
   return (
     <PageWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={16} minWidth={400} maxWidth={600}>
+      <Wrapper padding={"16px"} fillWidth>
         <BaseHeader
           size={BaseHeaderSize.LARGE}
           title="Settings"
           description="Configure your pipeline settings and preferences."
         />
-
+      </Wrapper>
+      <HorizontalDivider />
+      <FlexWrapper
+        direction={FlexDirection.COLUMN}
+        gap={16}
+        padding={"16px"}
+        minWidth={400}
+        maxWidth={600}
+      >
         <Widget header="General" noHover fillWidth>
           <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
             <TextInput
@@ -169,7 +214,12 @@ const PipelineSettingsPage = () => {
               fillWidth
             />
             <FlexWrapper justifyContent={JustifyContent.END} fillWidth>
-              <Button label="Save" isDisabled={!hasChanges} onClick={handleSave} />
+              <Button
+                label="Save"
+                isDisabled={!canSave}
+                isLoading={isSaving}
+                onClick={handleSave}
+              />
             </FlexWrapper>
           </FlexWrapper>
         </Widget>
@@ -182,7 +232,10 @@ const PipelineSettingsPage = () => {
                 Run this pipeline on a recurring schedule.
               </Text>
             </FlexWrapper>
-            <ToggleInput value={state.scheduleEnabled} onChange={handleScheduleEnabledChange} />
+            <ToggleInput
+              value={state.scheduleEnabled}
+              onChange={handleScheduleEnabledChange}
+            />
           </FlexWrapper>
         </Widget>
 
@@ -235,7 +288,7 @@ const PipelineSettingsPage = () => {
           onClose={handleCloseDeleteModal}
           onConfirm={handleConfirmDelete}
           title="Delete pipeline"
-          body="This action cannot be undone. This will permanently delete this pipeline and all associated data."
+          body="This will permanently delete this pipeline and all associated data."
           confirmationPhrase={state.name || ""}
           confirmLabel="Delete pipeline"
           isPending={isDeleting}

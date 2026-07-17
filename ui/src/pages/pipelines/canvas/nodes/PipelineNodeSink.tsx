@@ -1,18 +1,32 @@
 import { memo } from "react";
 
+import { useNodeConnections } from "@xyflow/react";
+
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import { PIPELINE_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import PipelineNode from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import type { PipelineNodeSinkProps } from "@/pages/pipelines/canvas/nodes/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-const PipelineNodeSink = memo(({ data, selected }: PipelineNodeSinkProps) => {
+const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) => {
+  const { dispatch } = usePipelineCanvas();
+  const connections = useNodeConnections({ handleType: "target" });
+
+  const handleDelete = () => {
+    dispatch({ type: PipelineCanvasActionType.REMOVE_NODE, payload: id });
+  };
+
   return (
     <PipelineNode
-      connector={data.label}
+      connector={data.connector}
+      label={data.label}
       kind={ConnectorKind.SINK}
-      handleId="input"
-      isConnected={true}
+      handleId={PIPELINE_NODE_SINK_HANDLE_ID}
+      isConnected={connections.length > 0}
       isSelected={selected}
+      onDelete={handleDelete}
     />
   );
 });

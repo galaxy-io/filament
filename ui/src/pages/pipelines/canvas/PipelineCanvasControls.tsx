@@ -16,7 +16,7 @@ const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   flex-direction: column;
 
   background-color: ${({ theme }) => theme.color.background.primary};
-  border: 1px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
   border-radius: 6px;
   overflow: hidden;
 `);
@@ -32,7 +32,7 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
 
   background-color: transparent;
   border: none;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border.primary};
+  border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
   cursor: pointer;
 
   transition: background-color 100ms ease;

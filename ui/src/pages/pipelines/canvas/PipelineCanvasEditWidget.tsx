@@ -1,13 +1,18 @@
 import { styled } from "@linaria/react";
-import { PencilSimpleIcon, PlusIcon, PulseIcon } from "@phosphor-icons/react";
 
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import EditWidgetSelectorBody from "@/pages/pipelines/canvas/edit/EditWidgetSelectorBody";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+import PipelineCanvasEditWidgetButton from "@/pages/pipelines/canvas/PipelineCanvasEditWidgetButton";
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
 
-const WidgetContainer = withTheme(styled.div<PropsWithTheme>`
+const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
   left: 16px;
   top: 50%;
@@ -25,101 +30,62 @@ const WidgetContainer = withTheme(styled.div<PropsWithTheme>`
   border-radius: 200px;
 `);
 
-const ButtonGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-`;
+const PipelineCanvasEditWidget = () => {
+  const { state, dispatch } = usePipelineCanvas();
 
-const Divider = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  height: 0.5px;
-  background-color: ${({ theme }) => theme.color.border.primary};
-`);
+  const handleModeToggle = (mode: PipelineCanvasEditMode) => {
+    dispatch({
+      type: PipelineCanvasActionType.SET_ACTIVE_MODE,
+      payload: state.activeMode === mode ? null : mode,
+    });
+  };
 
-const IconButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boolean }>>`
-  width: 32px;
-  height: 32px;
-  padding: 0;
+  const handleDropdownClose = () => {
+    dispatch({
+      type: PipelineCanvasActionType.SET_ACTIVE_MODE,
+      payload: null,
+    });
+  };
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background-color: ${({ theme, $isActive }) =>
-    $isActive ? theme.color.background.primaryAlt : "transparent"};
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-
-  transition: all 100ms ease;
-
-  &:hover {
-    background-color: ${({ theme, $isActive }) =>
-      $isActive ? theme.color.background.primaryAlt : theme.color.background.tertiary};
-  }
-`);
-
-interface PipelineCanvasEditWidgetProps {
-  activeMode?: PipelineCanvasEditMode;
-  onModeChange?: (mode: PipelineCanvasEditMode) => void;
-}
-
-const PipelineCanvasEditWidget = ({
-  activeMode = PipelineCanvasEditMode.ADD,
-  onModeChange,
-}: PipelineCanvasEditWidgetProps) => {
   return (
-    <WidgetContainer>
-      <ButtonGroup>
-        <IconButton
-          $isActive={activeMode === PipelineCanvasEditMode.ADD}
-          onClick={() => onModeChange?.(PipelineCanvasEditMode.ADD)}
+    <PipelineCanvasEditWidgetContainer>
+      <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={12}>
+        <Dropdown
+          position={DropdownPosition.RIGHT_START}
+          isOpen={state.activeMode === PipelineCanvasEditMode.ADD_NODE}
+          onClose={handleDropdownClose}
+          body={<EditWidgetSelectorBody />}
+          offset={[-8, 16]}
+          noPadding
         >
-          <Icon
-            component={PlusIcon}
-            weight={
-              activeMode === PipelineCanvasEditMode.ADD ? IconWeight.BOLD : IconWeight.REGULAR
-            }
-            variant={
-              activeMode === PipelineCanvasEditMode.ADD
-                ? IconVariant.PRIMARY_ALT
-                : IconVariant.TERTIARY
-            }
+          <PipelineCanvasEditWidgetButton
+            mode={PipelineCanvasEditMode.ADD_NODE}
+            isActive={state.activeMode === PipelineCanvasEditMode.ADD_NODE}
+            onClick={() => handleModeToggle(PipelineCanvasEditMode.ADD_NODE)}
           />
-        </IconButton>
-        <IconButton
-          $isActive={activeMode === PipelineCanvasEditMode.EDIT}
-          onClick={() => onModeChange?.(PipelineCanvasEditMode.EDIT)}
-        >
-          <Icon
-            component={PencilSimpleIcon}
-            weight={
-              activeMode === PipelineCanvasEditMode.EDIT ? IconWeight.BOLD : IconWeight.REGULAR
-            }
-            variant={activeMode === PipelineCanvasEditMode.EDIT ? undefined : IconVariant.TERTIARY}
-          />
-        </IconButton>
-      </ButtonGroup>
-      <Divider />
-      <ButtonGroup>
-        <IconButton
-          $isActive={activeMode === PipelineCanvasEditMode.ACTIVITY}
-          onClick={() => onModeChange?.(PipelineCanvasEditMode.ACTIVITY)}
-        >
-          <Icon
-            component={PulseIcon}
-            weight={
-              activeMode === PipelineCanvasEditMode.ACTIVITY ? IconWeight.BOLD : IconWeight.REGULAR
-            }
-            variant={
-              activeMode === PipelineCanvasEditMode.ACTIVITY ? undefined : IconVariant.TERTIARY
-            }
-          />
-        </IconButton>
-      </ButtonGroup>
-    </WidgetContainer>
+        </Dropdown>
+        <PipelineCanvasEditWidgetButton
+          mode={PipelineCanvasEditMode.ADD_EDGE}
+          isActive={state.activeMode === PipelineCanvasEditMode.ADD_EDGE}
+          onClick={() => handleModeToggle(PipelineCanvasEditMode.ADD_EDGE)}
+        />
+        <PipelineCanvasEditWidgetButton
+          mode={PipelineCanvasEditMode.GRAB}
+          isActive={state.activeMode === PipelineCanvasEditMode.GRAB}
+          onClick={() => handleModeToggle(PipelineCanvasEditMode.GRAB)}
+        />
+      </FlexWrapper>
+
+      <HorizontalDivider />
+
+      <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={12}>
+        <PipelineCanvasEditWidgetButton
+          mode={PipelineCanvasEditMode.ACTIVITY}
+          isActive={state.activeMode === PipelineCanvasEditMode.ACTIVITY}
+          onClick={() => handleModeToggle(PipelineCanvasEditMode.ACTIVITY)}
+        />
+      </FlexWrapper>
+    </PipelineCanvasEditWidgetContainer>
   );
 };
 

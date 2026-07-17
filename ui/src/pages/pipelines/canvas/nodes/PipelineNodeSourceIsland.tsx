@@ -1,105 +1,135 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { Position } from "@xyflow/react";
 
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
-import {
-  PIPELINE_NODE_GAP,
-  PIPELINE_NODE_HANDLE_SLOT_SIZE,
-  PIPELINE_NODE_PADDING,
-} from "@/pages/pipelines/canvas/constants";
+import ErrorLayout from "@/layouts/ErrorLayout";
+
+import { PIPELINE_NODE_PADDING } from "@/pages/pipelines/canvas/constants";
 import { Island } from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
 import type { PipelineNodeSourceTableInfo } from "@/pages/pipelines/canvas/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 
 const IslandWrapper = styled(Island)`
-  margin-top: ${PIPELINE_NODE_GAP}px;
+  padding: 0;
 `;
 
-const Divider = withTheme(styled.div<PropsWithTheme>`
-  height: 0.5px;
-  margin: ${PIPELINE_NODE_PADDING}px -${PIPELINE_NODE_PADDING}px;
-  background-color: ${({ theme }) => theme.color.border.primary};
-`);
+const SearchSection = styled.div`
+  padding: ${PIPELINE_NODE_PADDING}px;
+`;
 
 const TableList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0px 0px 0px 4px;
+  gap: 4px;
+  padding: ${PIPELINE_NODE_PADDING}px ${PIPELINE_NODE_PADDING}px
+    ${PIPELINE_NODE_PADDING}px 12px;
 `;
 
 const TableRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
-`;
-
-const TableContent = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
   justify-content: space-between;
+  gap: 4px;
 `;
 
-// 24x24 container that centers the handle
-const HandleSlot = styled.div`
-  width: ${PIPELINE_NODE_HANDLE_SLOT_SIZE}px;
-  height: ${PIPELINE_NODE_HANDLE_SLOT_SIZE}px;
+const SHIMMER_COUNT = 5;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
+const TableListShimmer = () => (
+  <>
+    {Array.from({ length: SHIMMER_COUNT }).map((_, index) => (
+      // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder rows with no identity
+      <TextShimmer key={index} height={16} width="100%" />
+    ))}
+  </>
+);
 
 interface PipelineNodeSourceIslandProps {
   tables: PipelineNodeSourceTableInfo[];
+  error?: Error | null;
+  isLoading?: boolean;
   isSelected?: boolean;
 }
 
-const PipelineNodeSourceIsland = ({ tables, isSelected }: PipelineNodeSourceIslandProps) => {
+const PipelineNodeSourceIsland = ({
+  tables,
+  error,
+  isLoading = false,
+  isSelected,
+}: PipelineNodeSourceIslandProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredTables = tables.filter((table) =>
     table.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const renderContent = () => {
+    if (isLoading) {
+      return <TableListShimmer />;
+    }
+
+    if (error) {
+      return (
+        <FlexWrapper padding={"20px 16px"} fillWidth>
+          <ErrorLayout
+            icon={
+              <Icon
+                component={WarningCircleIcon}
+                size={20}
+                variant={IconVariant.ERROR}
+              />
+            }
+            message="Failed to load resources"
+          />
+        </FlexWrapper>
+      );
+    }
+
+    return filteredTables.map((table) => (
+      <TableRow key={table.name}>
+        <Text
+          size={TextSize.BODY_SM}
+          variant={
+            table.isConnected ? TextVariant.SECONDARY : TextVariant.TERTIARY
+          }
+          isMonospace
+        >
+          {table.name}
+        </Text>
+        <PipelineNodeHandle
+          id={table.name}
+          kind={ConnectorKind.SOURCE}
+          position={Position.Right}
+          isConnected={table.isConnected}
+        />
+      </TableRow>
+    ));
+  };
+
   return (
     <IslandWrapper $isSelected={isSelected}>
-      <TextInput placeholder="Search" value={searchQuery} onChange={setSearchQuery} fillWidth />
+      <SearchSection className="nodrag">
+        <TextInput
+          placeholder="Search"
+          value={searchQuery}
+          onChange={setSearchQuery}
+          fillWidth
+        />
+      </SearchSection>
 
-      <Divider />
+      <HorizontalDivider />
 
-      <TableList>
-        {filteredTables.map((table) => (
-          <TableRow key={table.name}>
-            <TableContent>
-              <Text
-                size={TextSize.BODY_SM}
-                variant={table.isConnected ? TextVariant.SECONDARY : TextVariant.TERTIARY}
-                isMonospace
-              >
-                {table.name}
-              </Text>
-            </TableContent>
-            <HandleSlot>
-              <PipelineNodeHandle
-                id={table.name}
-                kind={ConnectorKind.SOURCE}
-                position={Position.Right}
-                isConnected={table.isConnected}
-              />
-            </HandleSlot>
-          </TableRow>
-        ))}
-      </TableList>
+      <TableList>{renderContent()}</TableList>
     </IslandWrapper>
   );
 };

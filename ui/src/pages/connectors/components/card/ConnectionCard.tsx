@@ -2,14 +2,15 @@ import { styled } from "@linaria/react";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
-  FlexGap,
+  FlexDirection,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -38,14 +39,6 @@ const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   }
 `);
 
-const CardSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  padding: 16px;
-`;
-
 interface ConnectionCardProps {
   connection: Connection;
   pipelineCount?: number;
@@ -59,13 +52,9 @@ const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCa
 
   return (
     <CardWrapper onClick={onClick}>
-      <CardSection>
-        <FlexWrapper
-          fillWidth
-          alignItems={AlignItems.CENTER}
-          justifyContent={JustifyContent.SPACE_BETWEEN}
-        >
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+      <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding={"12px"}>
+        <FlexWrapper fillWidth justifyContent={JustifyContent.SPACE_BETWEEN}>
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
             <FlexItem shrink={0}>
               <ConnectorTile connector={connection.connector} />
             </FlexItem>
@@ -73,12 +62,22 @@ const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCa
               {connection.name}
             </Text>
           </FlexWrapper>
-          <Chip label={kindLabel} variant={isSource ? ChipVariant.LIME : ChipVariant.PINK} />
+          <Chip
+            label={kindLabel}
+            variant={isSource ? ChipVariant.LIME : ChipVariant.PINK}
+            size={ChipSize.SMALL}
+          />
         </FlexWrapper>
         <FlexItem shrink={0}>
           <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.TERTIARY} />
         </FlexItem>
-      </CardSection>
+      </FlexWrapper>
+      <HorizontalDivider />
+      <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding={"12px"}>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+          Version {connection.version.toString()}
+        </Text>
+      </FlexWrapper>
     </CardWrapper>
   );
 };

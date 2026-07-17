@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from "react";
 import { useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -12,6 +13,16 @@ import PipelineLayoutBackButton from "@/layouts/pipeline/PipelineLayoutBackButto
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
 import { PipelineSidebarItem, PipelineStatus } from "@/layouts/pipeline/types";
+
+import { usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
+
+import { ToastVariant } from "@/providers/toast/Toast";
+import { useToast } from "@/providers/toast/useToast";
+
+import { useRunPipelineMutation } from "@/api/queries/runs";
+
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
 
@@ -71,14 +82,17 @@ const ContentIsland = withTheme(styled.div<PropsWithTheme>`
 `);
 
 interface PipelineLayoutProps extends PropsWithChildren {
-  pipelineId: string;
-  name: string;
+  pipeline: Pipeline;
   status: PipelineStatus;
 }
 
-const PipelineLayout = ({ pipelineId, name, status, children }: PipelineLayoutProps) => {
+const PipelineLayout = ({ pipeline, status, children }: PipelineLayoutProps) => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [isEnabled, setIsEnabled] = useState(status === PipelineStatus.ACTIVE);
+
+  const { hasChanges, isSaving, save } = usePipelineCanvasSave(pipeline);
+  const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const { isRouteMatch: isHistoryActive } = useRouteMatch({
     route: "/pipelines/$id/history",
@@ -98,12 +112,27 @@ const PipelineLayout = ({ pipelineId, name, status, children }: PipelineLayoutPr
   const handleItemClick = (item: PipelineSidebarItem) => {
     navigate({
       to: `/pipelines/$id/${item}`,
-      params: { id: pipelineId },
+      params: { id: pipeline.id },
     });
   };
 
   const handleRun = () => {
-    // TODO: Implement run logic
+    runPipeline(create(RunPipelineRequestSchema, { pipelineId: pipeline.id }), {
+      onSuccess: () => {
+        showToast({
+          header: "Run started",
+          subheader: `${pipeline.name} is now running.`,
+          variant: ToastVariant.SUCCESS,
+        });
+      },
+      onError: (error) => {
+        showToast({
+          header: "Run failed",
+          subheader: error instanceof Error ? error.message : "Failed to run pipeline",
+          variant: ToastVariant.ERROR,
+        });
+      },
+    });
   };
 
   return (
@@ -114,10 +143,14 @@ const PipelineLayout = ({ pipelineId, name, status, children }: PipelineLayoutPr
       </LeftColumn>
       <RightColumn>
         <PipelineLayoutNavbar
-          name={name}
+          name={pipeline.name}
           status={status}
           isEnabled={isEnabled}
           onToggleEnabled={setIsEnabled}
+          hasChanges={hasChanges}
+          isSaving={isSaving}
+          onSave={save}
+          isRunning={isRunning}
           onRun={handleRun}
         />
         <ContentWrapper>
