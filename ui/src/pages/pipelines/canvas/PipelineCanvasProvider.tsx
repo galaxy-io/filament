@@ -10,6 +10,7 @@ export const DEFAULT_STATE: PipelineCanvasState = {
   nodes: [],
   edges: [],
   activeMode: null,
+  runBindings: [],
 };
 
 const DEFAULT_CONTEXT: PipelineCanvasContextShape = {

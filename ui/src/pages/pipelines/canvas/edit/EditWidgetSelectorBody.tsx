@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -46,6 +46,10 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
   overflow-y: auto;
   padding: 8px;
   background-color: ${({ theme }) => theme.color.background.primary};
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 `);
 
 const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => (
@@ -110,22 +114,20 @@ const EditWidgetSelectorBody = () => {
 
     return (
       <ConnectionList>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={2}>
-          {filteredConnections.map((connection) => {
-            const isDisabled = hasSourceNode && connection.kind === ConnectorKind.SOURCE;
+        {filteredConnections.map((connection) => {
+          const isDisabled = hasSourceNode && connection.kind === ConnectorKind.SOURCE;
 
-            return (
-              <EditWidgetSelectorItem
-                key={connection.id}
-                name={connection.name}
-                connector={connection.connector}
-                kind={connection.kind}
-                isDisabled={isDisabled}
-                onClick={() => handleConnectionClick(connection)}
-              />
-            );
-          })}
-        </FlexWrapper>
+          return (
+            <EditWidgetSelectorItem
+              key={connection.id}
+              name={connection.name}
+              connector={connection.connector}
+              kind={connection.kind}
+              isDisabled={isDisabled}
+              onClick={() => handleConnectionClick(connection)}
+            />
+          );
+        })}
       </ConnectionList>
     );
   };

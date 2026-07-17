@@ -1,7 +1,6 @@
 import { styled } from "@linaria/react";
 
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -18,7 +17,7 @@ const ItemWrapper = withTheme(styled.button<PropsWithTheme<{ $isDisabled?: boole
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px;
+  padding: 8px;
   width: 100%;
 
   background-color: transparent;
@@ -27,22 +26,23 @@ const ItemWrapper = withTheme(styled.button<PropsWithTheme<{ $isDisabled?: boole
   cursor: ${({ $isDisabled }) => ($isDisabled ? "not-allowed" : "pointer")};
   opacity: ${({ $isDisabled }) => ($isDisabled ? 0.5 : 1)};
 
-  transition: all 75ms ease-in-out;
-
   &:hover {
     background-color: ${({ theme, $isDisabled }) =>
       $isDisabled ? "transparent" : theme.color.background.tertiary};
-    padding: ${({ $isDisabled }) => ($isDisabled ? "4px" : "4px 8px")};
   }
 `);
 
 const ItemName = styled.div`
-  flex: 1;
   min-width: 0;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+const ChipWrapper = styled.div`
+  margin-left: auto;
+  flex-shrink: 0;
 `;
 
 interface EditWidgetSelectorItemProps {
@@ -71,13 +71,13 @@ const EditWidgetSelectorItem = ({
           {name}
         </Text>
       </ItemName>
-      <FlexItem shrink={0}>
+      <ChipWrapper>
         <Chip
           label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}
           variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[kind]}
           size={ChipSize.SMALL}
         />
-      </FlexItem>
+      </ChipWrapper>
     </ItemWrapper>
   );
 };

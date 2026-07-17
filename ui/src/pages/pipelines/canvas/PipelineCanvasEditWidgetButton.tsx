@@ -1,5 +1,4 @@
 import { styled } from "@linaria/react";
-import { match, P } from "ts-pattern";
 
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -8,41 +7,17 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP } from "@/pages/pipelines/canvas/constants";
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
 
-const getIconProps = (mode: PipelineCanvasEditMode, isActive: boolean) =>
-  match({ mode, isActive })
-    .with({ mode: PipelineCanvasEditMode.ADD_NODE, isActive: true }, () => ({
-      variant: IconVariant.PRIMARY_ALT,
-    }))
-    .with({ mode: PipelineCanvasEditMode.ADD_NODE, isActive: false }, () => ({
-      variant: IconVariant.PRIMARY,
-    }))
-    .with(
-      {
-        mode: P.union(PipelineCanvasEditMode.ADD_EDGE, PipelineCanvasEditMode.GRAB),
-        isActive: true,
-      },
-      () => ({
-        variant: IconVariant.PRIMARY,
-      }),
-    )
-    .with(
-      {
-        mode: P.union(PipelineCanvasEditMode.ADD_EDGE, PipelineCanvasEditMode.GRAB),
-        isActive: false,
-      },
-      () => ({
-        variant: IconVariant.TERTIARY,
-      }),
-    )
-    .with({ mode: PipelineCanvasEditMode.ACTIVITY, isActive: true }, () => ({
-      variant: undefined,
-      weight: IconWeight.BOLD,
-    }))
-    .with({ mode: PipelineCanvasEditMode.ACTIVITY, isActive: false }, () => ({
-      variant: IconVariant.TERTIARY,
-      weight: IconWeight.REGULAR,
-    }))
-    .exhaustive();
+const getIconProps = (mode: PipelineCanvasEditMode, isActive: boolean) => {
+  if (mode === PipelineCanvasEditMode.ADD_NODE) {
+    return { variant: isActive ? IconVariant.PRIMARY_ALT : IconVariant.PRIMARY };
+  }
+  if (mode === PipelineCanvasEditMode.ACTIVITY) {
+    return isActive
+      ? { variant: undefined, weight: IconWeight.BOLD }
+      : { variant: IconVariant.TERTIARY, weight: IconWeight.REGULAR };
+  }
+  return { variant: isActive ? IconVariant.PRIMARY : IconVariant.TERTIARY };
+};
 
 const StyledButton = withTheme(
   styled.button<PropsWithTheme<{ $mode: PipelineCanvasEditMode; $isActive: boolean }>>`
@@ -54,39 +29,12 @@ const StyledButton = withTheme(
     align-items: center;
     justify-content: center;
 
-    background-color: ${({ theme, $mode, $isActive }) =>
-      match({ mode: $mode, isActive: $isActive })
-        .with(
-          { mode: PipelineCanvasEditMode.ADD_NODE, isActive: true },
-          () => theme.color.background.primaryAlt,
-        )
-        .with(
-          { mode: PipelineCanvasEditMode.ADD_NODE, isActive: false },
-          () => theme.color.background.secondary,
-        )
-        .with(
-          {
-            mode: P.union(
-              PipelineCanvasEditMode.ADD_EDGE,
-              PipelineCanvasEditMode.GRAB,
-              PipelineCanvasEditMode.ACTIVITY,
-            ),
-            isActive: true,
-          },
-          () => theme.color.background.secondary,
-        )
-        .with(
-          {
-            mode: P.union(
-              PipelineCanvasEditMode.ADD_EDGE,
-              PipelineCanvasEditMode.GRAB,
-              PipelineCanvasEditMode.ACTIVITY,
-            ),
-            isActive: false,
-          },
-          () => theme.color.background.base,
-        )
-        .exhaustive()};
+    background-color: ${({ theme, $mode, $isActive }) => {
+      if ($mode === PipelineCanvasEditMode.ADD_NODE) {
+        return $isActive ? theme.color.background.primaryAlt : theme.color.background.galaxy;
+      }
+      return $isActive ? theme.color.background.secondary : theme.color.background.base;
+    }};
     border: none;
     border-radius: 50%;
     cursor: pointer;
@@ -94,35 +42,12 @@ const StyledButton = withTheme(
     transition: background-color 100ms ease;
 
     &:hover {
-      background-color: ${({ theme, $mode, $isActive }) =>
-        match({ mode: $mode, isActive: $isActive })
-          .with(
-            { mode: PipelineCanvasEditMode.ADD_NODE },
-            () => theme.color.background.secondaryAlt,
-          )
-          .with(
-            {
-              mode: P.union(
-                PipelineCanvasEditMode.ADD_EDGE,
-                PipelineCanvasEditMode.GRAB,
-                PipelineCanvasEditMode.ACTIVITY,
-              ),
-              isActive: true,
-            },
-            () => theme.color.background.secondary,
-          )
-          .with(
-            {
-              mode: P.union(
-                PipelineCanvasEditMode.ADD_EDGE,
-                PipelineCanvasEditMode.GRAB,
-                PipelineCanvasEditMode.ACTIVITY,
-              ),
-              isActive: false,
-            },
-            () => theme.color.background.tertiary,
-          )
-          .exhaustive()};
+      background-color: ${({ theme, $mode, $isActive }) => {
+        if ($mode === PipelineCanvasEditMode.ADD_NODE) {
+          return $isActive ? theme.color.background.primaryAlt : theme.color.background.galaxyAlt;
+        }
+        return theme.color.background.secondary;
+      }};
     }
   `,
 );

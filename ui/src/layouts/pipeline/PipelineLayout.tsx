@@ -12,9 +12,11 @@ import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutBackButton from "@/layouts/pipeline/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
-import { PipelineSidebarItem, PipelineStatus } from "@/layouts/pipeline/types";
+import { PipelineSidebarItem, type PipelineStatus } from "@/layouts/pipeline/types";
 
-import { usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import { usePipelineCanvas, usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
+import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
 
 import { ToastVariant } from "@/providers/toast/Toast";
 import { useToast } from "@/providers/toast/useToast";
@@ -81,16 +83,25 @@ const ContentIsland = withTheme(styled.div<PropsWithTheme>`
   overflow: hidden;
 `);
 
-interface PipelineLayoutProps extends PropsWithChildren {
+interface PipelineLayoutProps {
   pipeline: Pipeline;
   status: PipelineStatus;
 }
 
-const PipelineLayout = ({ pipeline, status, children }: PipelineLayoutProps) => {
+interface PipelineLayoutState {
+  isEnabled: boolean;
+}
+
+const DEFAULT_STATE: PipelineLayoutState = {
+  isEnabled: false,
+};
+
+const PipelineLayout = ({ pipeline, status, children }: PropsWithChildren<PipelineLayoutProps>) => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [isEnabled, setIsEnabled] = useState(status === PipelineStatus.ACTIVE);
+  const [state, setState] = useState<PipelineLayoutState>(DEFAULT_STATE);
 
+  const { dispatch } = usePipelineCanvas();
   const { hasChanges, isSaving, save } = usePipelineCanvasSave(pipeline);
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
@@ -109,6 +120,10 @@ const PipelineLayout = ({ pipeline, status, children }: PipelineLayoutProps) => 
     return PipelineSidebarItem.CANVAS;
   };
 
+  const handleToggleEnabled = () => {
+    setState((prev) => ({ ...prev, isEnabled: !prev.isEnabled }));
+  };
+
   const handleItemClick = (item: PipelineSidebarItem) => {
     navigate({
       to: `/pipelines/$id/${item}`,
@@ -118,7 +133,16 @@ const PipelineLayout = ({ pipeline, status, children }: PipelineLayoutProps) => 
 
   const handleRun = () => {
     runPipeline(create(RunPipelineRequestSchema, { pipelineId: pipeline.id }), {
-      onSuccess: () => {
+      onSuccess: (response) => {
+        dispatch({
+          type: PipelineCanvasActionType.SET_RUN_BINDINGS,
+          payload: response.runs,
+        });
+        // Pop the activity terminal so the new run's facts are visible immediately
+        dispatch({
+          type: PipelineCanvasActionType.SET_ACTIVE_MODE,
+          payload: PipelineCanvasEditMode.ACTIVITY,
+        });
         showToast({
           header: "Run started",
           subheader: `${pipeline.name} is now running.`,
@@ -145,8 +169,8 @@ const PipelineLayout = ({ pipeline, status, children }: PipelineLayoutProps) => 
         <PipelineLayoutNavbar
           name={pipeline.name}
           status={status}
-          isEnabled={isEnabled}
-          onToggleEnabled={setIsEnabled}
+          isEnabled={state.isEnabled}
+          onToggleEnabled={handleToggleEnabled}
           hasChanges={hasChanges}
           isSaving={isSaving}
           onSave={save}

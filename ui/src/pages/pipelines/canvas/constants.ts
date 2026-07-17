@@ -35,3 +35,6 @@ export const PIPELINE_NODE_HANDLE_SLOT_SIZE = 24;
 
 export const PIPELINE_NODE_SOURCE_HANDLE_ID = "output";
 export const PIPELINE_NODE_SINK_HANDLE_ID = "input";
+
+export const CANVAS_TERMINAL_WIDTH = 420;
+export const CANVAS_TERMINAL_MAX_HEIGHT = 280;

@@ -50,6 +50,9 @@ const pipelineCanvasReducer = (
     case PipelineCanvasActionType.SET_ACTIVE_MODE:
       return { ...state, activeMode: action.payload };
 
+    case PipelineCanvasActionType.SET_RUN_BINDINGS:
+      return { ...state, runBindings: action.payload };
+
     default:
       return state;
   }

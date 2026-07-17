@@ -54,7 +54,7 @@ const PageWrapper = withTheme(styled.div<PropsWithTheme>`
 
   overflow: hidden;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${({ theme }) => theme.color.background.base};
 `);
 
 interface PipelineSettingsPageState {

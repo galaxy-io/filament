@@ -24,6 +24,7 @@ import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
 import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
+import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
 import type { PipelineEdge, PipelineNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasEditMode, PipelineNodeType } from "@/pages/pipelines/canvas/types";
 
@@ -196,6 +197,7 @@ const PipelineCanvas = () => {
         />
       </ReactFlow>
       <PipelineCanvasEditWidget />
+      {state.activeMode === PipelineCanvasEditMode.ACTIVITY && <PipelineCanvasTerminal />}
     </CanvasWrapper>
   );
 };

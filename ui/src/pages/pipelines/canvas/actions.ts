@@ -6,6 +6,8 @@ import type {
   PipelineNode,
 } from "@/pages/pipelines/canvas/types";
 
+import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
+
 export enum PipelineCanvasActionType {
   ADD_NODE = "ADD_NODE",
   REMOVE_NODE = "REMOVE_NODE",
@@ -17,6 +19,7 @@ export enum PipelineCanvasActionType {
   APPLY_EDGE_CHANGES = "APPLY_EDGE_CHANGES",
   CONNECT = "CONNECT",
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
+  SET_RUN_BINDINGS = "SET_RUN_BINDINGS",
 }
 
 export type PipelineCanvasAction =
@@ -29,4 +32,5 @@ export type PipelineCanvasAction =
   | { type: PipelineCanvasActionType.SET_EDGES; payload: PipelineEdge[] }
   | { type: PipelineCanvasActionType.APPLY_EDGE_CHANGES; payload: EdgeChange<PipelineEdge>[] }
   | { type: PipelineCanvasActionType.CONNECT; payload: Connection }
-  | { type: PipelineCanvasActionType.SET_ACTIVE_MODE; payload: PipelineCanvasEditMode | null };
+  | { type: PipelineCanvasActionType.SET_ACTIVE_MODE; payload: PipelineCanvasEditMode | null }
+  | { type: PipelineCanvasActionType.SET_RUN_BINDINGS; payload: RunBinding[] };

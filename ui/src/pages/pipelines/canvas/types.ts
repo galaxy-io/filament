@@ -2,6 +2,8 @@ import type { BuiltInNode, Edge, Node } from "@xyflow/react";
 
 import type { PipelineCanvasAction } from "@/pages/pipelines/canvas/actions";
 
+import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
+
 export enum PipelineNodeType {
   SOURCE = "SOURCE",
   SINK = "SINK",
@@ -42,6 +44,7 @@ export interface PipelineCanvasState {
   nodes: PipelineNode[];
   edges: PipelineEdge[];
   activeMode: PipelineCanvasEditMode | null;
+  runBindings: RunBinding[];
 }
 
 export interface PipelineCanvasContextShape {
