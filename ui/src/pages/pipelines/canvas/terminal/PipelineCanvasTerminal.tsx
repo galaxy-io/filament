@@ -6,7 +6,11 @@ import { PulseIcon, XIcon } from "@phosphor-icons/react";
 import Flashing from "@galaxy-io/dls/animations/Flashing";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, {
+  TextSize,
+  TextVariant,
+  TextWeight,
+} from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -16,8 +20,10 @@ import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import PipelineCanvasTerminalLine from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminalLine";
 
 import { useTailRunsStream } from "@/api/queries/runs";
+import BaseHeader from "@/layouts/components/BaseHeader";
+import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import { BaseHeaderSize } from "@/layouts/components/types";
 
-// Docked panel: the canvas page splits, canvas left / activity right
 const TerminalWrapper = withTheme(styled.div<PropsWithTheme>`
   width: ${CANVAS_TERMINAL_WIDTH}px;
   max-width: 50%;
@@ -29,39 +35,6 @@ const TerminalWrapper = withTheme(styled.div<PropsWithTheme>`
 
   background-color: ${({ theme }) => theme.color.background.base};
   border-left: 0.5px solid ${({ theme }) => theme.color.border.primary};
-`);
-
-const TerminalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  flex-shrink: 0;
-`;
-
-const HeaderSpacer = styled.div`
-  flex: 1;
-`;
-
-const HeaderButton = withTheme(styled.button<PropsWithTheme>`
-  width: 20px;
-  height: 20px;
-  padding: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background-color: transparent;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  transition: background-color 100ms ease;
-
-  &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
-  }
 `);
 
 const TerminalBody = styled.div`
@@ -101,7 +74,11 @@ const PipelineCanvasTerminal = () => {
   const renderBody = () => {
     if (runIds.length === 0) {
       return (
-        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
+        <Text
+          size={TextSize.CAPTION}
+          variant={TextVariant.TERTIARY}
+          isMonospace
+        >
           Run the pipeline to see activity
         </Text>
       );
@@ -114,7 +91,11 @@ const PipelineCanvasTerminal = () => {
           <PipelineCanvasTerminalLine key={index} event={event} />
         ))}
         {isStreaming && (
-          <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
+          <Text
+            size={TextSize.CAPTION}
+            variant={TextVariant.TERTIARY}
+            isMonospace
+          >
             <Flashing>Listening...</Flashing>
           </Text>
         )}
@@ -124,16 +105,14 @@ const PipelineCanvasTerminal = () => {
 
   return (
     <TerminalWrapper>
-      <TerminalHeader>
-        <Icon component={PulseIcon} size={14} variant={IconVariant.SECONDARY} />
-        <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM}>
-          Activity
-        </Text>
-        <HeaderSpacer />
-        <HeaderButton onClick={handleClose}>
-          <Icon component={XIcon} size={14} variant={IconVariant.TERTIARY} />
-        </HeaderButton>
-      </TerminalHeader>
+      <FlexWrapper padding={"8px 12px"}>
+        <BaseHeader
+          size={BaseHeaderSize.SMALL}
+          title="Activity"
+          icon={PulseIcon}
+          onClose={handleClose}
+        />
+      </FlexWrapper>
 
       <HorizontalDivider />
 

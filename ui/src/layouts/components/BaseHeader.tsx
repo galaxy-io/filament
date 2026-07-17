@@ -1,14 +1,25 @@
 import { styled } from "@linaria/react";
 import { XIcon } from "@phosphor-icons/react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, {
+  ButtonSize,
+  ButtonVariant,
+} from "@galaxy-io/dls/buttons/Button";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
-import { BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP } from "@/layouts/components/constants";
+import {
+  BASE_HEADER_SIZE_TO_GAP_MAP,
+  BASE_HEADER_SIZE_TO_ICON_SIZE_MAP,
+  BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP,
+} from "@/layouts/components/constants";
 import { BaseHeaderSize } from "@/layouts/components/types";
 
+import { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 interface BaseHeaderProps {
   title: string;
+  icon?: PhosphorIcon;
   description?: string;
   actions?: React.ReactNode[];
   size?: BaseHeaderSize;
@@ -40,6 +51,7 @@ const ActionsWrapper = styled.div`
 
 const BaseHeader = ({
   title,
+  icon,
   description,
   actions,
   size = BaseHeaderSize.MEDIUM,
@@ -49,10 +61,28 @@ const BaseHeader = ({
   return (
     <Wrapper $alignItems={alignItems}>
       <TitleWrapper>
-        <Text size={BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP[size]} weight={TextWeight.MEDIUM} isEllipsis>
-          {title}
-        </Text>
-        {description && <Text variant={TextVariant.SECONDARY}>{description}</Text>}
+        <FlexWrapper
+          alignItems={AlignItems.CENTER}
+          gap={BASE_HEADER_SIZE_TO_GAP_MAP[size]}
+        >
+          {icon && (
+            <Icon
+              component={icon}
+              size={BASE_HEADER_SIZE_TO_ICON_SIZE_MAP[size]}
+              variant={IconVariant.SECONDARY}
+            />
+          )}
+          <Text
+            size={BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP[size]}
+            weight={TextWeight.MEDIUM}
+            isEllipsis
+          >
+            {title}
+          </Text>
+        </FlexWrapper>
+        {description && (
+          <Text variant={TextVariant.SECONDARY}>{description}</Text>
+        )}
       </TitleWrapper>
       <ActionsWrapper>
         {actions}
