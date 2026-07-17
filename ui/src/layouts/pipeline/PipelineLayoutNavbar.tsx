@@ -68,7 +68,7 @@ const PipelineLayoutNavbar = ({
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         {hasChanges ? (
-          <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
+          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
             Unsaved changes
           </Text>
         ) : (
@@ -78,7 +78,7 @@ const PipelineLayoutNavbar = ({
           <Button
             label="Save"
             icon={FloppyDiskIcon}
-            variant={ButtonVariant.SUCCESS}
+            variant={ButtonVariant.SECONDARY}
             size={ButtonSize.SMALL}
             isLoading={isSaving}
             onClick={onSave}

@@ -9,6 +9,7 @@ import {
   MiniMap,
   type NodeChange,
   ReactFlow,
+  type ReactFlowInstance,
   SelectionMode,
 } from "@xyflow/react";
 
@@ -20,6 +21,7 @@ import "@xyflow/react/dist/style.css";
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   CANVAS_FIT_VIEW_OPTIONS,
+  CANVAS_FIT_VIEW_Y_OFFSET,
   CANVAS_SNAP_GRID,
   PIPELINE_EDGE_TYPE,
 } from "@/pages/pipelines/canvas/constants";
@@ -147,6 +149,14 @@ const PipelineCanvas = () => {
     [dispatch],
   );
 
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    const viewport = instance.getViewport();
+    instance.setViewport({
+      ...viewport,
+      y: viewport.y - CANVAS_FIT_VIEW_Y_OFFSET,
+    });
+  }, []);
+
   const selectedNodeIds = useMemo(
     () => new Set(state.nodes.filter((node) => node.selected).map((node) => node.id)),
     [state.nodes],
@@ -180,6 +190,7 @@ const PipelineCanvas = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onInit={onInit}
           nodeTypes={pipelineNodeTypes}
           edgeTypes={pipelineEdgeTypes}
           selectionOnDrag={!isGrabMode}
