@@ -62,6 +62,7 @@ message DiscoverResourcesRequest {
   string connector = 1;
   google.protobuf.Struct config = 2;
   bool refresh = 3;
+  string connection_id = 4;
 }
 
 // Resource mirrors pkg.Resource.

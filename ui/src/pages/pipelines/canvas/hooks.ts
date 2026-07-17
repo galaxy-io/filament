@@ -92,8 +92,7 @@ export const useSourceResources = (connectionId: string) => {
   // Fail fast (no retry/pause) so the refresh button can always trigger a fresh fetch
   const { data, error, isFetching, refetch } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, {
-      connector: connection?.connector ?? "",
-      config: connection?.config,
+      connectionId: connection?.id ?? "",
     }),
     options: { enabled: Boolean(connection), retry: false, networkMode: "always" },
   });
