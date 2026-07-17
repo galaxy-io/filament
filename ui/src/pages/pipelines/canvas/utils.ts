@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 
 import {
   CANVAS_SNAP_GRID,
+  PIPELINE_EDGE_TYPE,
   PIPELINE_NODE_SINK_HANDLE_ID,
   PIPELINE_NODE_SOURCE_HANDLE_ID,
 } from "@/pages/pipelines/canvas/constants";
@@ -111,6 +112,7 @@ export const mapPipelineToCanvasState = (
 
   const edges: PipelineEdge[] = pipeline.edges.map((edge) => ({
     id: getProtoEdgeKey(edge),
+    type: PIPELINE_EDGE_TYPE,
     source: edge.fromNode,
     target: edge.toNode,
     sourceHandle: edge.resource || PIPELINE_NODE_SOURCE_HANDLE_ID,
@@ -159,6 +161,12 @@ export const mapCanvasStateToPipeline = (
     edges,
   });
 };
+
+// A pipeline can only run once it has a source, a sink, and at least one route between them
+export const isPipelineRunnable = (pipeline: Pipeline): boolean =>
+  pipeline.nodes.some((node) => node.kind === ConnectorKind.SOURCE) &&
+  pipeline.nodes.some((node) => node.kind === ConnectorKind.SINK) &&
+  pipeline.edges.length > 0;
 
 export const hasPipelineGraphChanges = (
   state: PipelineCanvasState,

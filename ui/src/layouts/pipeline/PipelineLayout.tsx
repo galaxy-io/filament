@@ -17,6 +17,7 @@ import { PipelineSidebarItem, type PipelineStatus } from "@/layouts/pipeline/typ
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { usePipelineCanvas, usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
+import { isPipelineRunnable } from "@/pages/pipelines/canvas/utils";
 
 import { ToastVariant } from "@/providers/toast/Toast";
 import { useToast } from "@/providers/toast/useToast";
@@ -175,6 +176,7 @@ const PipelineLayout = ({ pipeline, status, children }: PropsWithChildren<Pipeli
           isSaving={isSaving}
           onSave={save}
           isRunning={isRunning}
+          isRunDisabled={!isPipelineRunnable(pipeline)}
           onRun={handleRun}
         />
         <ContentWrapper>

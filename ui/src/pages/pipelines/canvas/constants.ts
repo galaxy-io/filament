@@ -26,15 +26,17 @@ export const PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP: Record<PipelineCanvasEditMod
   [PipelineCanvasEditMode.ACTIVITY]: PulseIcon,
 };
 
-export const PIPELINE_NODE_WIDTH = 300;
+export const PIPELINE_NODE_WIDTH = 360;
 export const PIPELINE_NODE_PADDING = 8;
 export const PIPELINE_NODE_BORDER_RADIUS = 6;
 export const PIPELINE_NODE_GAP = 8;
 
 export const PIPELINE_NODE_HANDLE_SLOT_SIZE = 24;
+export const PIPELINE_NODE_TABLE_LIST_MAX_HEIGHT = 300;
 
 export const PIPELINE_NODE_SOURCE_HANDLE_ID = "output";
 export const PIPELINE_NODE_SINK_HANDLE_ID = "input";
 
-export const CANVAS_TERMINAL_WIDTH = 420;
-export const CANVAS_TERMINAL_MAX_HEIGHT = 280;
+export const PIPELINE_EDGE_TYPE = "pipeline";
+
+export const CANVAS_TERMINAL_WIDTH = 480;

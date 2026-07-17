@@ -11,31 +11,24 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
-import {
-  CANVAS_TERMINAL_MAX_HEIGHT,
-  CANVAS_TERMINAL_WIDTH,
-} from "@/pages/pipelines/canvas/constants";
+import { CANVAS_TERMINAL_WIDTH } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import PipelineCanvasTerminalLine from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminalLine";
 
 import { useTailRunsStream } from "@/api/queries/runs";
 
+// Docked panel: the canvas page splits, canvas left / activity right
 const TerminalWrapper = withTheme(styled.div<PropsWithTheme>`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 1001;
-
   width: ${CANVAS_TERMINAL_WIDTH}px;
-  max-height: ${CANVAS_TERMINAL_MAX_HEIGHT}px;
+  max-width: 50%;
+  height: 100%;
+  flex-shrink: 0;
 
   display: flex;
   flex-direction: column;
 
   background-color: ${({ theme }) => theme.color.background.base};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-radius: 6px;
-  overflow: hidden;
+  border-left: 0.5px solid ${({ theme }) => theme.color.border.primary};
 `);
 
 const TerminalHeader = styled.div`

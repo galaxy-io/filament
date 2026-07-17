@@ -18,7 +18,12 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import "@xyflow/react/dist/style.css";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
-import { CANVAS_FIT_VIEW_OPTIONS, CANVAS_SNAP_GRID } from "@/pages/pipelines/canvas/constants";
+import {
+  CANVAS_FIT_VIEW_OPTIONS,
+  CANVAS_SNAP_GRID,
+  PIPELINE_EDGE_TYPE,
+} from "@/pages/pipelines/canvas/constants";
+import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
 import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
@@ -33,9 +38,21 @@ const pipelineNodeTypes = {
   [PipelineNodeType.SINK]: PipelineNodeSink,
 };
 
+const pipelineEdgeTypes = {
+  [PIPELINE_EDGE_TYPE]: PipelineCanvasEdge,
+};
+
+const PageWrapper = styled.div`
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+`;
+
 const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolean }>>`
   position: relative;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 100%;
 
   .react-flow__edges {
@@ -155,50 +172,53 @@ const PipelineCanvas = () => {
   );
 
   return (
-    <CanvasWrapper $isGrabMode={isGrabMode}>
-      <ReactFlow
-        nodes={state.nodes}
-        edges={styledEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={pipelineNodeTypes}
-        selectionOnDrag={!isGrabMode}
-        selectionMode={SelectionMode.Partial}
-        panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
-        panOnScroll
-        nodesDraggable={!isGrabMode}
-        elementsSelectable={!isGrabMode}
-        snapToGrid
-        snapGrid={CANVAS_SNAP_GRID}
-        fitView
-        fitViewOptions={CANVAS_FIT_VIEW_OPTIONS}
-        deleteKeyCode={["Backspace", "Delete"]}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1}
-          color={theme.color.border.primary}
-        />
-        <PipelineCanvasControls />
-        <MiniMap
-          nodeColor={(node) =>
-            node.selected ? theme.color.background.galaxy : theme.color.background.tertiary
-          }
-          nodeStrokeColor={(node) =>
-            node.selected ? theme.color.background.galaxy : theme.color.border.primary
-          }
-          nodeStrokeWidth={1}
-          maskColor={`${theme.color.background.primary}80`}
-          pannable
-          zoomable
-        />
-      </ReactFlow>
-      <PipelineCanvasEditWidget />
+    <PageWrapper>
+      <CanvasWrapper $isGrabMode={isGrabMode}>
+        <ReactFlow
+          nodes={state.nodes}
+          edges={styledEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={pipelineNodeTypes}
+          edgeTypes={pipelineEdgeTypes}
+          selectionOnDrag={!isGrabMode}
+          selectionMode={SelectionMode.Partial}
+          panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
+          panOnScroll
+          nodesDraggable={!isGrabMode}
+          elementsSelectable={!isGrabMode}
+          snapToGrid
+          snapGrid={CANVAS_SNAP_GRID}
+          fitView
+          fitViewOptions={CANVAS_FIT_VIEW_OPTIONS}
+          deleteKeyCode={["Backspace", "Delete"]}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={20}
+            size={1}
+            color={theme.color.border.primary}
+          />
+          <PipelineCanvasControls />
+          <MiniMap
+            nodeColor={(node) =>
+              node.selected ? theme.color.background.galaxy : theme.color.background.tertiary
+            }
+            nodeStrokeColor={(node) =>
+              node.selected ? theme.color.background.galaxy : theme.color.border.primary
+            }
+            nodeStrokeWidth={1}
+            maskColor={`${theme.color.background.primary}80`}
+            pannable
+            zoomable
+          />
+        </ReactFlow>
+        <PipelineCanvasEditWidget />
+      </CanvasWrapper>
       {state.activeMode === PipelineCanvasEditMode.ACTIVITY && <PipelineCanvasTerminal />}
-    </CanvasWrapper>
+    </PageWrapper>
   );
 };
 

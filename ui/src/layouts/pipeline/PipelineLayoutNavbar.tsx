@@ -5,7 +5,7 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import Chip from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -40,6 +40,7 @@ interface PipelineLayoutNavbarProps {
   isSaving: boolean;
   onSave: () => void;
   isRunning: boolean;
+  isRunDisabled: boolean;
   onRun: () => void;
 }
 
@@ -52,6 +53,7 @@ const PipelineLayoutNavbar = ({
   isSaving,
   onSave,
   isRunning,
+  isRunDisabled,
   onRun,
 }: PipelineLayoutNavbarProps) => {
   return (
@@ -65,12 +67,18 @@ const PipelineLayoutNavbar = ({
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-        <ToggleInput value={isEnabled} onChange={onToggleEnabled} />
+        {hasChanges ? (
+          <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
+            Unsaved changes
+          </Text>
+        ) : (
+          <ToggleInput value={isEnabled} onChange={onToggleEnabled} />
+        )}
         {hasChanges ? (
           <Button
             label="Save"
             icon={FloppyDiskIcon}
-            variant={ButtonVariant.PRIMARY}
+            variant={ButtonVariant.SUCCESS}
             size={ButtonSize.SMALL}
             isLoading={isSaving}
             onClick={onSave}
@@ -82,6 +90,7 @@ const PipelineLayoutNavbar = ({
             variant={ButtonVariant.PRIMARY}
             size={ButtonSize.SMALL}
             isLoading={isRunning}
+            isDisabled={isRunDisabled}
             onClick={onRun}
           />
         )}

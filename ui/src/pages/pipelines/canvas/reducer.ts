@@ -4,6 +4,7 @@ import {
   type PipelineCanvasAction,
   PipelineCanvasActionType,
 } from "@/pages/pipelines/canvas/actions";
+import { PIPELINE_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
 import type { PipelineCanvasState } from "@/pages/pipelines/canvas/types";
 
 const pipelineCanvasReducer = (
@@ -45,7 +46,10 @@ const pipelineCanvasReducer = (
       return { ...state, edges: applyEdgeChanges(action.payload, state.edges) };
 
     case PipelineCanvasActionType.CONNECT:
-      return { ...state, edges: addEdge(action.payload, state.edges) };
+      return {
+        ...state,
+        edges: addEdge({ ...action.payload, type: PIPELINE_EDGE_TYPE }, state.edges),
+      };
 
     case PipelineCanvasActionType.SET_ACTIVE_MODE:
       return { ...state, activeMode: action.payload };
