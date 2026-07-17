@@ -74,18 +74,9 @@ interface PipelineLayoutProps extends PropsWithChildren {
   pipelineId: string;
   name: string;
   status: PipelineStatus;
-  source: string;
-  sinks: string[];
 }
 
-const PipelineLayout = ({
-  pipelineId,
-  name,
-  status,
-  source,
-  sinks,
-  children,
-}: PipelineLayoutProps) => {
+const PipelineLayout = ({ pipelineId, name, status, children }: PipelineLayoutProps) => {
   const navigate = useNavigate();
   const [isEnabled, setIsEnabled] = useState(status === PipelineStatus.ACTIVE);
 
@@ -125,8 +116,6 @@ const PipelineLayout = ({
         <PipelineLayoutNavbar
           name={name}
           status={status}
-          source={source}
-          sinks={sinks}
           isEnabled={isEnabled}
           onToggleEnabled={setIsEnabled}
           onRun={handleRun}

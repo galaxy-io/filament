@@ -14,6 +14,7 @@ const FieldBoolean = ({
   return (
     <Field label={label} help={field.help} isRequired={field.required} error={error}>
       <ToggleInput
+        size={InputSize.LARGE}
         value={(value as boolean) ?? false}
         onChange={(v) => onChange(v)}
         isDisabled={isDisabled}

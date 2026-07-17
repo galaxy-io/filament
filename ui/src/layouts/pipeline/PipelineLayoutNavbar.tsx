@@ -5,7 +5,7 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import Chip from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -15,8 +15,6 @@ import {
   PIPELINE_STATUS_TO_LABEL_MAP,
 } from "@/layouts/pipeline/constants";
 import type { PipelineStatus } from "@/layouts/pipeline/types";
-
-import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -36,8 +34,6 @@ const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
 interface PipelineLayoutNavbarProps {
   name: string;
   status: PipelineStatus;
-  source: string;
-  sinks: string[];
   isEnabled: boolean;
   onToggleEnabled: (enabled: boolean) => void;
   onRun: () => void;
@@ -46,8 +42,6 @@ interface PipelineLayoutNavbarProps {
 const PipelineLayoutNavbar = ({
   name,
   status,
-  source,
-  sinks,
   isEnabled,
   onToggleEnabled,
   onRun,
@@ -59,8 +53,9 @@ const PipelineLayoutNavbar = ({
           label={PIPELINE_STATUS_TO_LABEL_MAP[status]}
           variant={PIPELINE_STATUS_TO_CHIP_VARIANT_MAP[status]}
         />
-        <Text weight={TextWeight.MEDIUM}>{name}</Text>
-        <PipelineFlow source={source} sinks={sinks} />
+        <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
+          {name}
+        </Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>

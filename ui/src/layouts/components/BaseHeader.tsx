@@ -2,19 +2,25 @@ import { styled } from "@linaria/react";
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import { BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP } from "@/layouts/components/constants";
 import { BaseHeaderSize } from "@/layouts/components/types";
 
 interface BaseHeaderProps {
-  title: string | React.ReactNode;
-  description?: string | React.ReactNode;
+  title: string;
+  description?: string;
   actions?: React.ReactNode[];
   size?: BaseHeaderSize;
   onClose?: () => void;
 }
+
+const Wrapper = styled.div<{ $alignItems: string }>`
+  display: flex;
+  align-items: ${({ $alignItems }) => $alignItems};
+  gap: 8px;
+  width: 100%;
+`;
 
 const TitleWrapper = styled.div`
   display: flex;
@@ -39,27 +45,14 @@ const BaseHeader = ({
   size = BaseHeaderSize.MEDIUM,
   onClose,
 }: BaseHeaderProps) => {
-  const alignItems = onClose && description ? AlignItems.START : AlignItems.CENTER;
+  const alignItems = onClose && description ? "flex-start" : "center";
   return (
-    <FlexWrapper alignItems={alignItems} justifyContent={JustifyContent.SPACE_BETWEEN} fillWidth>
+    <Wrapper $alignItems={alignItems}>
       <TitleWrapper>
-        {typeof title === "string" ? (
-          <Text
-            size={BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP[size]}
-            weight={TextWeight.MEDIUM}
-            isEllipsis
-          >
-            {title}
-          </Text>
-        ) : (
-          title
-        )}
-        {description &&
-          (typeof description === "string" ? (
-            <Text variant={TextVariant.TERTIARY}>{description}</Text>
-          ) : (
-            description
-          ))}
+        <Text size={BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP[size]} weight={TextWeight.MEDIUM} isEllipsis>
+          {title}
+        </Text>
+        {description && <Text variant={TextVariant.SECONDARY}>{description}</Text>}
       </TitleWrapper>
       <ActionsWrapper>
         {actions}
@@ -72,7 +65,7 @@ const BaseHeader = ({
           />
         )}
       </ActionsWrapper>
-    </FlexWrapper>
+    </Wrapper>
   );
 };
 
