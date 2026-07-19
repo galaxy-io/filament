@@ -53,6 +53,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.23 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.23 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.101.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.40.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.17 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.21 // indirect
@@ -72,6 +73,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/galaxy-io/filament/secret/aws v0.0.0 // indirect
 	github.com/galaxy-io/filament/secret/postgres v0.0.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -181,3 +183,5 @@ replace github.com/galaxy-io/filament/connectors/postgres => ../../connectors/po
 replace github.com/galaxy-io/filament/datastore/postgres => ../../datastore/postgres
 
 replace github.com/galaxy-io/filament/secret/postgres => ../../secret/postgres
+
+replace github.com/galaxy-io/filament/secret/aws => ../../secret/aws

@@ -59,7 +59,7 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 	store := ctlpg.New(pool)
-	secrets, err := secret.FromEnv(store)
+	secrets, err := secret.FromEnv(ctx, store)
 	if err != nil {
 		return err
 	}
