@@ -78,6 +78,8 @@ helm upgrade --install filament . \
 | server.replicas | int | `1` | Number of server replicas. Ignored when `server.autoscaling.enabled` is true. |
 | server.resources | object | `{}` (See [values.yaml]) | Server resource requests and limits. |
 | server.service.port | int | `8080` | Server service and container port. |
+| server.serviceAccount.annotations | object | `{}` | Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN. |
+| server.serviceAccount.name | string | `""` | Existing ServiceAccount name for the server. When set, the chart does not create one. |
 
 ## Control plane parameters
 
@@ -97,7 +99,8 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.worker.image.repository | string | `"galaxy-io/filament-worker"` | Worker image repository used for dispatched Jobs. |
 | controlPlane.dispatch.worker.image.tag | string | `""` (defaults to chart appVersion) | Worker image tag. |
 | controlPlane.dispatch.worker.restartPolicy | string | `"Never"` | Restart policy for dispatched worker Jobs. |
-| controlPlane.dispatch.worker.serviceAccount | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. Defaults to the chart-created worker ServiceAccount. |
+| controlPlane.dispatch.worker.serviceAccount.annotations | object | `{}` | Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN. |
+| controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
 | controlPlane.dispatch.worker.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
 | controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Control plane image pull policy. |
@@ -106,6 +109,8 @@ helm upgrade --install filament . \
 | controlPlane.image.tag | string | `""` (defaults to chart appVersion) | Control plane image tag. |
 | controlPlane.replicas | int | `1` | Number of control plane replicas. Ignored when `controlPlane.autoscaling.enabled` is true. |
 | controlPlane.resources | object | `{}` (See [values.yaml]) | Control plane resource requests and limits. |
+| controlPlane.serviceAccount.annotations | object | `{}` | Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN. |
+| controlPlane.serviceAccount.name | string | `""` | Existing ServiceAccount name for the control plane. When set, the chart does not create one. |
 
 ## Persistence parameters
 
@@ -119,9 +124,11 @@ helm upgrade --install filament . \
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| secrets.aws.region | string | `""` | AWS region for Secrets Manager, stored in the ConfigMap as `AWS_REGION`. Leave empty to use the SDK default chain (env, IMDS). |
 | secrets.postgres.encryptionKey | string | required | Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`. Required unless `existingSecret` is set. |
 | secrets.postgres.encryptionKeyId | string | `""` | Encryption key identifier stored with each secret row. Change this when rotating keys. |
-| secrets.type | string | `"postgres"` | Secret storage provider. |
+| secrets.prefix | string | `""` | Extra name prefix external secret stores apply to every secret reference, stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are already namespaced under `filament/`. Unused by postgres. |
+| secrets.type | string | `"postgres"` | Secret storage provider. Valid values are `postgres` and `aws-secrets-manager`. |
 
 ## Event bus parameters
 
