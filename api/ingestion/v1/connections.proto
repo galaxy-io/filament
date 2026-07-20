@@ -43,7 +43,7 @@ message UpdateConnectionResponse {
 }
 
 message GetConnectionRequest {
-  string connection_id = 1;
+  string id = 1;
 }
 
 message GetConnectionResponse {
@@ -62,7 +62,7 @@ message ListConnectionsResponse {
 }
 
 message DeleteConnectionRequest {
-  string connection_id = 1;
+  string id = 1;
 }
 
 message DeleteConnectionResponse {}
