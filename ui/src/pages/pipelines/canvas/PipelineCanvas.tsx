@@ -149,7 +149,7 @@ const PipelineCanvas = () => {
     [dispatch],
   );
 
-  const onInit = useCallback((instance: ReactFlowInstance) => {
+  const onInit = useCallback((instance: ReactFlowInstance<PipelineNode, PipelineEdge>) => {
     const viewport = instance.getViewport();
     instance.setViewport({
       ...viewport,
@@ -163,7 +163,7 @@ const PipelineCanvas = () => {
   );
 
   // Highlight edges that are selected or attached to a selected node
-  const styledEdges = useMemo(
+  const styledEdges = useMemo<PipelineEdge[]>(
     () =>
       state.edges.map((edge) => {
         const isConnectedToSelected =

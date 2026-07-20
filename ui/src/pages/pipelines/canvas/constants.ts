@@ -43,3 +43,4 @@ export const PIPELINE_EDGE_TYPE = "pipeline";
 export const CANVAS_TERMINAL_WIDTH = 640;
 export const CANVAS_TERMINAL_HEIGHT = 640;
 export const CANVAS_TERMINAL_RIGHT_OFFSET = 24;
+export const CANVAS_TERMINAL_NOTCH_WIDTH = 240;

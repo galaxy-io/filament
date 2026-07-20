@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { styled } from "@linaria/react";
-import { PulseIcon } from "@phosphor-icons/react";
+import { ArrowsOutSimpleIcon, ListIcon, PulseIcon, TerminalIcon } from "@phosphor-icons/react";
 
 import Flashing from "@galaxy-io/dls/animations/Flashing";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -16,6 +17,7 @@ import EmptyLayout from "@/layouts/EmptyLayout";
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   CANVAS_TERMINAL_HEIGHT,
+  CANVAS_TERMINAL_NOTCH_WIDTH,
   CANVAS_TERMINAL_RIGHT_OFFSET,
   CANVAS_TERMINAL_WIDTH,
 } from "@/pages/pipelines/canvas/constants";
@@ -35,27 +37,15 @@ const TerminalWrapper = styled.div`
   align-items: flex-end;
 `;
 
-const Notch = withTheme(styled.button<PropsWithTheme>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
+const HeaderBar = withTheme(styled.div<PropsWithTheme<{ $isOpen: boolean }>>`
+  width: ${({ $isOpen }) => ($isOpen ? "100%" : `${CANVAS_TERMINAL_NOTCH_WIDTH}px`)};
   padding: 8px 12px;
 
   background-color: ${({ theme }) => theme.color.background.primary};
   border: 0.5px solid ${({ theme }) => theme.color.border.primary};
   border-bottom: none;
   border-radius: 6px 6px 0 0;
-  cursor: pointer;
-`);
-
-const HeaderBar = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  padding: 8px 12px;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
+  cursor: ${({ $isOpen }) => ($isOpen ? "default" : "pointer")};
 `);
 
 const PanelClip = styled.div<{ $isOpen: boolean }>`
@@ -117,7 +107,12 @@ const PipelineCanvasTerminal = () => {
 
   const renderBody = () => {
     if (runIds.length === 0) {
-      return <EmptyLayout message="Run the pipeline to see activity" />;
+      return (
+        <EmptyLayout
+          icon={<Icon component={ListIcon} size={16} variant={IconVariant.SECONDARY} />}
+          message="Run the pipeline to see activity"
+        />
+      );
     }
 
     return (
@@ -137,21 +132,27 @@ const PipelineCanvasTerminal = () => {
 
   return (
     <TerminalWrapper>
-      {isOpen ? (
-        <HeaderBar>
-          <BaseHeader
-            size={BaseHeaderSize.SMALL}
-            title="Activity"
-            icon={PulseIcon}
-            onClose={() => setIsOpen(false)}
-          />
-        </HeaderBar>
-      ) : (
-        <Notch onClick={() => setIsOpen(true)}>
-          <Icon component={PulseIcon} size={12} variant={IconVariant.SECONDARY} />
-          <Text variant={TextVariant.SECONDARY}>Activity</Text>
-        </Notch>
-      )}
+      <HeaderBar $isOpen={isOpen} onClick={isOpen ? undefined : () => setIsOpen(true)}>
+        <BaseHeader
+          size={BaseHeaderSize.SMALL}
+          title="Activity"
+          icon={PulseIcon}
+          actions={
+            isOpen
+              ? undefined
+              : [
+                  <Button
+                    key="expand"
+                    icon={ArrowsOutSimpleIcon}
+                    variant={ButtonVariant.TERTIARY}
+                    size={ButtonSize.SMALL}
+                    onClick={() => setIsOpen(true)}
+                  />,
+                ]
+          }
+          onClose={isOpen ? () => setIsOpen(false) : undefined}
+        />
+      </HeaderBar>
 
       <PanelClip $isOpen={isOpen}>
         <Panel>
