@@ -37,7 +37,7 @@ const BodyWrapper = styled.div`
 const SearchWrapper = withTheme(styled.div<PropsWithTheme>`
   padding: 8px;
   flex-shrink: 0;
-  background-color: ${({ theme }) => theme.color.background.tertiary};
+  background-color: ${({ theme }) => theme.color.background.primary};
 `);
 
 const ConnectionList = withTheme(styled.div<PropsWithTheme>`
