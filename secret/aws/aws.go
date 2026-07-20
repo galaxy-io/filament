@@ -1,9 +1,9 @@
-// Package aws implements ingestion.Secrets backed by AWS Secrets Manager.
+// Package aws implements filament.Secrets backed by AWS Secrets Manager.
 //
 // A secret reference maps directly to a Secrets Manager secret name. Both the
 // plaintext value and its metadata are preserved by storing a JSON envelope in
 // the secret's SecretString field, so Read/Write/Delete round-trip the full
-// ingestion.Secret the way the env and postgres providers do.
+// filament.Secret the way the env and postgres providers do.
 package aws
 
 import (
@@ -18,10 +18,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	smtypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
-var _ ingestion.Secrets = (*Provider)(nil)
+var _ filament.Secrets = (*Provider)(nil)
 
 // API is the subset of the Secrets Manager client the provider uses. It is
 // satisfied by *secretsmanager.Client and is exported so callers can inject a
@@ -84,7 +84,7 @@ type envelope struct {
 func (p *Provider) name(ref string) string { return p.prefix + ref }
 
 // Read fetches and decodes the secret at ref.
-func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, error) {
+func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error) {
 	name := p.name(ref)
 	out, err := p.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(name)})
 	if err != nil {
@@ -92,9 +92,9 @@ func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, erro
 		var notFound *smtypes.ResourceNotFoundException
 		var invalid *smtypes.InvalidRequestException
 		if errors.As(err, &notFound) || errors.As(err, &invalid) {
-			return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, ingestion.ErrNotFound)
+			return filament.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, filament.ErrNotFound)
 		}
-		return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, err)
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, err)
 	}
 	var raw []byte
 	switch {
@@ -103,21 +103,21 @@ func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, erro
 	case out.SecretBinary != nil:
 		raw = out.SecretBinary
 	default:
-		return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: empty secret", ref)
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: empty secret", ref)
 	}
 	var env envelope
 	if err := json.Unmarshal(raw, &env); err != nil {
-		return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: decode: %w", ref, err)
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: decode: %w", ref, err)
 	}
 	// Unknown keys are ignored, so foreign secrets decode to a nil Value.
 	if env.Value == nil {
-		return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: not a filament envelope", ref)
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: not a filament envelope", ref)
 	}
-	return ingestion.Secret{Value: env.Value, Meta: env.Meta}, nil
+	return filament.Secret{Value: env.Value, Meta: env.Meta}, nil
 }
 
 // Write creates the secret if absent, otherwise stores a new version.
-func (p *Provider) Write(ctx context.Context, ref string, s ingestion.Secret) error {
+func (p *Provider) Write(ctx context.Context, ref string, s filament.Secret) error {
 	name := p.name(ref)
 	raw, err := json.Marshal(envelope{Value: s.Value, Meta: s.Meta})
 	if err != nil {
@@ -162,9 +162,9 @@ var ErrUnmanaged = errors.New("secret/aws: refusing to delete an unmanaged secre
 // Delete schedules the secret at ref for deletion using Secrets Manager's
 // default recovery window; deleting a missing ref is a no-op. Refs outside
 // the managed namespace (the configured prefix, or without one,
-// ingestion.ConnectionSecretPrefix) return ErrUnmanaged.
+// filament.ConnectionSecretPrefix) return ErrUnmanaged.
 func (p *Provider) Delete(ctx context.Context, ref string) error {
-	if p.prefix == "" && !strings.HasPrefix(ref, ingestion.ConnectionSecretPrefix) {
+	if p.prefix == "" && !strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
 		return fmt.Errorf("delete %q: %w", ref, ErrUnmanaged)
 	}
 	_, err := p.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
