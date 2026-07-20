@@ -1,40 +1,82 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { styled } from "@linaria/react";
-import { PulseIcon, XIcon } from "@phosphor-icons/react";
+import { PulseIcon } from "@phosphor-icons/react";
 
 import Flashing from "@galaxy-io/dls/animations/Flashing";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import BaseHeader from "@/layouts/components/BaseHeader";
+import { BaseHeaderSize } from "@/layouts/components/types";
+import EmptyLayout from "@/layouts/EmptyLayout";
+
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
-import { CANVAS_TERMINAL_WIDTH } from "@/pages/pipelines/canvas/constants";
+import {
+  CANVAS_TERMINAL_HEIGHT,
+  CANVAS_TERMINAL_RIGHT_OFFSET,
+  CANVAS_TERMINAL_WIDTH,
+} from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import PipelineCanvasTerminalLine from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminalLine";
 
 import { useTailRunsStream } from "@/api/queries/runs";
-import BaseHeader from "@/layouts/components/BaseHeader";
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
-import { BaseHeaderSize } from "@/layouts/components/types";
 
-const TerminalWrapper = withTheme(styled.div<PropsWithTheme>`
+const TerminalWrapper = styled.div`
+  position: absolute;
+  bottom: 0;
+  right: ${CANVAS_TERMINAL_RIGHT_OFFSET}px;
+  z-index: 1001;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+`;
+
+const Notch = withTheme(styled.button<PropsWithTheme>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+
+  background-color: ${({ theme }) => theme.color.background.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+`);
+
+const HeaderBar = withTheme(styled.div<PropsWithTheme>`
+  width: 100%;
+  padding: 8px 12px;
+
+  background-color: ${({ theme }) => theme.color.background.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+`);
+
+const PanelClip = styled.div<{ $isOpen: boolean }>`
   width: ${CANVAS_TERMINAL_WIDTH}px;
-  max-width: 50%;
-  height: 100%;
-  flex-shrink: 0;
+  max-width: 40vw;
+  height: ${({ $isOpen }) => ($isOpen ? `${CANVAS_TERMINAL_HEIGHT}px` : "0px")};
+  overflow: hidden;
+
+  transition: height 150ms ease;
+`;
+
+const Panel = withTheme(styled.div<PropsWithTheme>`
+  width: 100%;
+  height: ${CANVAS_TERMINAL_HEIGHT}px;
 
   display: flex;
   flex-direction: column;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-  border-left: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  background-color: ${({ theme }) => theme.color.background.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border-bottom: none;
 `);
 
 const TerminalBody = styled.div`
@@ -51,6 +93,8 @@ const TerminalBody = styled.div`
 const PipelineCanvasTerminal = () => {
   const { state, dispatch } = usePipelineCanvas();
 
+  const isOpen = state.isActivityOpen;
+
   const runIds = useMemo(
     () => [...new Set(state.runBindings.map((binding) => binding.runId))],
     [state.runBindings],
@@ -60,28 +104,20 @@ const PipelineCanvasTerminal = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Stick to the bottom as new lines arrive
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when lines arrive or the panel opens
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [events.length]);
+  }, [events.length, isOpen]);
 
-  const handleClose = () => {
-    dispatch({ type: PipelineCanvasActionType.SET_ACTIVE_MODE, payload: null });
+  const setIsOpen = (payload: boolean) => {
+    dispatch({ type: PipelineCanvasActionType.SET_ACTIVITY_OPEN, payload });
   };
 
   const renderBody = () => {
     if (runIds.length === 0) {
-      return (
-        <Text
-          size={TextSize.CAPTION}
-          variant={TextVariant.TERTIARY}
-          isMonospace
-        >
-          Run the pipeline to see activity
-        </Text>
-      );
+      return <EmptyLayout message="Run the pipeline to see activity" />;
     }
 
     return (
@@ -91,11 +127,7 @@ const PipelineCanvasTerminal = () => {
           <PipelineCanvasTerminalLine key={index} event={event} />
         ))}
         {isStreaming && (
-          <Text
-            size={TextSize.CAPTION}
-            variant={TextVariant.TERTIARY}
-            isMonospace
-          >
+          <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
             <Flashing>Listening...</Flashing>
           </Text>
         )}
@@ -105,18 +137,27 @@ const PipelineCanvasTerminal = () => {
 
   return (
     <TerminalWrapper>
-      <FlexWrapper padding={"8px 12px"}>
-        <BaseHeader
-          size={BaseHeaderSize.SMALL}
-          title="Activity"
-          icon={PulseIcon}
-          onClose={handleClose}
-        />
-      </FlexWrapper>
+      {isOpen ? (
+        <HeaderBar>
+          <BaseHeader
+            size={BaseHeaderSize.SMALL}
+            title="Activity"
+            icon={PulseIcon}
+            onClose={() => setIsOpen(false)}
+          />
+        </HeaderBar>
+      ) : (
+        <Notch onClick={() => setIsOpen(true)}>
+          <Icon component={PulseIcon} size={12} variant={IconVariant.SECONDARY} />
+          <Text variant={TextVariant.SECONDARY}>Activity</Text>
+        </Notch>
+      )}
 
-      <HorizontalDivider />
-
-      <TerminalBody ref={scrollRef}>{renderBody()}</TerminalBody>
+      <PanelClip $isOpen={isOpen}>
+        <Panel>
+          <TerminalBody ref={scrollRef}>{renderBody()}</TerminalBody>
+        </Panel>
+      </PanelClip>
     </TerminalWrapper>
   );
 };

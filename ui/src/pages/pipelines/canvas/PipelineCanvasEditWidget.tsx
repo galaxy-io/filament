@@ -1,7 +1,6 @@
 import { styled } from "@linaria/react";
 
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -73,16 +72,6 @@ const PipelineCanvasEditWidget = () => {
           mode={PipelineCanvasEditMode.GRAB}
           isActive={state.activeMode === PipelineCanvasEditMode.GRAB}
           onClick={() => handleModeToggle(PipelineCanvasEditMode.GRAB)}
-        />
-      </FlexWrapper>
-
-      <HorizontalDivider />
-
-      <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={12}>
-        <PipelineCanvasEditWidgetButton
-          mode={PipelineCanvasEditMode.ACTIVITY}
-          isActive={state.activeMode === PipelineCanvasEditMode.ACTIVITY}
-          onClick={() => handleModeToggle(PipelineCanvasEditMode.ACTIVITY)}
         />
       </FlexWrapper>
     </PipelineCanvasEditWidgetContainer>

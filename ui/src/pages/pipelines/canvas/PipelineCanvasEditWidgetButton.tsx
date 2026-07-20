@@ -1,6 +1,6 @@
 import { styled } from "@linaria/react";
 
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -10,11 +10,6 @@ import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
 const getIconProps = (mode: PipelineCanvasEditMode, isActive: boolean) => {
   if (mode === PipelineCanvasEditMode.ADD_NODE) {
     return { variant: isActive ? IconVariant.PRIMARY_ALT : IconVariant.PRIMARY };
-  }
-  if (mode === PipelineCanvasEditMode.ACTIVITY) {
-    return isActive
-      ? { variant: undefined, weight: IconWeight.BOLD }
-      : { variant: IconVariant.TERTIARY, weight: IconWeight.REGULAR };
   }
   return { variant: isActive ? IconVariant.PRIMARY : IconVariant.TERTIARY };
 };

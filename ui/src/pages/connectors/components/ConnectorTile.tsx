@@ -1,9 +1,10 @@
 import type { ComponentType } from "react";
 
 import { styled } from "@linaria/react";
+import { XIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
-import CellGridBackground from "@galaxy-io/dls/backgrounds/CellGridBackground";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import GithubLogomark from "@galaxy-io/dls/icons/sources/GithubLogomark";
 import GoogleBigqueryLogomark from "@galaxy-io/dls/icons/sources/GoogleBigqueryLogomark";
 import HubspotLogomark from "@galaxy-io/dls/icons/sources/HubspotLogomark";
@@ -19,8 +20,6 @@ import SnowflakeLogomark from "@galaxy-io/dls/icons/sources/SnowflakeLogomark";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { CrossIcon, PlusIcon, Question, QuestionIcon, QuestionMarkIcon, XIcon } from "@phosphor-icons/react";
 
 export enum ConnectorTileSize {
   SMALL = "SMALL",
@@ -28,10 +27,7 @@ export enum ConnectorTileSize {
   LARGE = "LARGE",
 }
 
-const CONNECTOR_TO_LOGOMARK_MAP: Record<
-  string,
-  ComponentType<{ height: number }>
-> = {
+const CONNECTOR_TO_LOGOMARK_MAP: Record<string, ComponentType<{ height: number }>> = {
   bigquery: GoogleBigqueryLogomark,
   github: GithubLogomark,
   hubspot: HubspotLogomark,
@@ -100,9 +96,7 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-const EmptyTileWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $size: ConnectorTileSize }>
->`
+const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
   width: ${({ $size }) => getTileSize($size)}px;
   height: ${({ $size }) => getTileSize($size)}px;
 
@@ -150,11 +144,7 @@ const ConnectorTile = ({
       {Logomark ? (
         <Logomark height={getLogoHeight(size)} />
       ) : (
-        <Text
-          size={getTextSize(size)}
-          variant={TextVariant.SECONDARY}
-          isMonospace
-        >
+        <Text size={getTextSize(size)} variant={TextVariant.SECONDARY} isMonospace>
           {connector.charAt(0).toUpperCase()}
         </Text>
       )}

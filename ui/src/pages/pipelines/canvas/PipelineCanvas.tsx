@@ -227,8 +227,8 @@ const PipelineCanvas = () => {
           />
         </ReactFlow>
         <PipelineCanvasEditWidget />
+        <PipelineCanvasTerminal />
       </CanvasWrapper>
-      {state.activeMode === PipelineCanvasEditMode.ACTIVITY && <PipelineCanvasTerminal />}
     </PageWrapper>
   );
 };

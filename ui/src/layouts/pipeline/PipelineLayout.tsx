@@ -16,7 +16,6 @@ import { PipelineSidebarItem, type PipelineStatus } from "@/layouts/pipeline/typ
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { usePipelineCanvas, usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
-import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
 import { isPipelineRunnable } from "@/pages/pipelines/canvas/utils";
 
 import { ToastVariant } from "@/providers/toast/Toast";
@@ -141,8 +140,8 @@ const PipelineLayout = ({ pipeline, status, children }: PropsWithChildren<Pipeli
         });
         // Pop the activity terminal so the new run's facts are visible immediately
         dispatch({
-          type: PipelineCanvasActionType.SET_ACTIVE_MODE,
-          payload: PipelineCanvasEditMode.ACTIVITY,
+          type: PipelineCanvasActionType.SET_ACTIVITY_OPEN,
+          payload: true,
         });
         showToast({
           header: "Run started",

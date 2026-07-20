@@ -1,10 +1,13 @@
 import { styled } from "@linaria/react";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, {
   ButtonSize,
   ButtonVariant,
 } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import {
@@ -14,9 +17,6 @@ import {
 } from "@/layouts/components/constants";
 import { BaseHeaderSize } from "@/layouts/components/types";
 
-import { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 interface BaseHeaderProps {
   title: string;
   icon?: PhosphorIcon;
@@ -25,13 +25,6 @@ interface BaseHeaderProps {
   size?: BaseHeaderSize;
   onClose?: () => void;
 }
-
-const Wrapper = styled.div<{ $alignItems: string }>`
-  display: flex;
-  align-items: ${({ $alignItems }) => $alignItems};
-  gap: 8px;
-  width: 100%;
-`;
 
 const TitleWrapper = styled.div`
   display: flex;
@@ -57,9 +50,10 @@ const BaseHeader = ({
   size = BaseHeaderSize.MEDIUM,
   onClose,
 }: BaseHeaderProps) => {
-  const alignItems = onClose && description ? "flex-start" : "center";
+  const alignItems =
+    onClose && description ? AlignItems.START : AlignItems.CENTER;
   return (
-    <Wrapper $alignItems={alignItems}>
+    <FlexWrapper alignItems={alignItems} gap={8} fillWidth>
       <TitleWrapper>
         <FlexWrapper
           alignItems={AlignItems.CENTER}
@@ -95,7 +89,7 @@ const BaseHeader = ({
           />
         )}
       </ActionsWrapper>
-    </Wrapper>
+    </FlexWrapper>
   );
 };
 

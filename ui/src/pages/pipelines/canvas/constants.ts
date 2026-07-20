@@ -1,5 +1,5 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { HandIcon, PencilSimpleIcon, PlusIcon, PulseIcon } from "@phosphor-icons/react";
+import { HandIcon, PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import type { FitViewOptions, HandleType } from "@xyflow/react";
 
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
@@ -11,7 +11,7 @@ export const CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
   maxZoom: 1,
 };
 
-export const CANVAS_FIT_VIEW_Y_OFFSET = 100;
+export const CANVAS_FIT_VIEW_Y_OFFSET = 64;
 
 export const CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
@@ -25,7 +25,6 @@ export const PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP: Record<PipelineCanvasEditMod
   [PipelineCanvasEditMode.ADD_NODE]: PlusIcon,
   [PipelineCanvasEditMode.ADD_EDGE]: PencilSimpleIcon,
   [PipelineCanvasEditMode.GRAB]: HandIcon,
-  [PipelineCanvasEditMode.ACTIVITY]: PulseIcon,
 };
 
 export const PIPELINE_NODE_WIDTH = 360;
@@ -41,4 +40,6 @@ export const PIPELINE_NODE_SINK_HANDLE_ID = "input";
 
 export const PIPELINE_EDGE_TYPE = "pipeline";
 
-export const CANVAS_TERMINAL_WIDTH = 480;
+export const CANVAS_TERMINAL_WIDTH = 640;
+export const CANVAS_TERMINAL_HEIGHT = 640;
+export const CANVAS_TERMINAL_RIGHT_OFFSET = 24;

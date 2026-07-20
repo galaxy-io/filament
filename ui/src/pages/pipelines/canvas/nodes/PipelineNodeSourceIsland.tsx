@@ -4,7 +4,7 @@ import { styled } from "@linaria/react";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import { Position, useNodeId, useUpdateNodeInternals } from "@xyflow/react";
 
-import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
+import Badge, { BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";

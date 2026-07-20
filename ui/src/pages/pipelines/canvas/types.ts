@@ -37,13 +37,13 @@ export enum PipelineCanvasEditMode {
   ADD_NODE = "ADD_NODE",
   ADD_EDGE = "ADD_EDGE",
   GRAB = "GRAB",
-  ACTIVITY = "ACTIVITY",
 }
 
 export interface PipelineCanvasState {
   nodes: PipelineNode[];
   edges: PipelineEdge[];
   activeMode: PipelineCanvasEditMode | null;
+  isActivityOpen: boolean;
   runBindings: RunBinding[];
 }
 
