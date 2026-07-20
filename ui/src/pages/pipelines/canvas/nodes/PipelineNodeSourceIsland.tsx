@@ -24,6 +24,7 @@ import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandl
 import type { PipelineNodeSourceTableInfo } from "@/pages/pipelines/canvas/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import EmptyLayout from "@/layouts/EmptyLayout";
 
 const IslandWrapper = styled(Island)`
   padding: 0;
@@ -118,9 +119,23 @@ const PipelineNodeSourceIsland = ({
       return (
         <FlexWrapper padding={"20px 16px"} fillWidth>
           <ErrorLayout
-            icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
+            icon={
+              <Icon
+                component={WarningCircleIcon}
+                size={20}
+                variant={IconVariant.ERROR}
+              />
+            }
             message="Failed to load resources"
           />
+        </FlexWrapper>
+      );
+    }
+
+    if (!filteredTables.length) {
+      return (
+        <FlexWrapper padding={"20px 16px"} fillWidth>
+          <EmptyLayout message="No tables match your search" />
         </FlexWrapper>
       );
     }
@@ -129,7 +144,9 @@ const PipelineNodeSourceIsland = ({
       <TableRow key={table.name}>
         <Text
           size={TextSize.BODY_SM}
-          variant={table.isConnected ? TextVariant.SECONDARY : TextVariant.TERTIARY}
+          variant={
+            table.isConnected ? TextVariant.SECONDARY : TextVariant.TERTIARY
+          }
           isMonospace
         >
           {table.name}
@@ -149,7 +166,12 @@ const PipelineNodeSourceIsland = ({
   return (
     <IslandWrapper $isSelected={isSelected}>
       <SearchSection className="nodrag">
-        <TextInput placeholder="Search" value={searchQuery} onChange={setSearchQuery} fillWidth />
+        <TextInput
+          placeholder="Search"
+          value={searchQuery}
+          onChange={setSearchQuery}
+          fillWidth
+        />
         {/* Edges from rows scrolled out of view anchor to this badge */}
         {connectedCount > 0 && (
           <BadgeSlot data-resource-badge>
@@ -161,7 +183,11 @@ const PipelineNodeSourceIsland = ({
       <HorizontalDivider />
 
       {/* nowheel: scrolling the list shouldn't zoom the canvas */}
-      <TableList className="nowheel" data-table-list onScroll={handleListChanged}>
+      <TableList
+        className="nowheel"
+        data-table-list
+        onScroll={handleListChanged}
+      >
         {renderContent()}
       </TableList>
     </IslandWrapper>
