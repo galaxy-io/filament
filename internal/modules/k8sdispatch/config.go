@@ -22,6 +22,8 @@ type Config struct {
 	WorkerSecretName            string
 	SecretProvider              string
 	EncryptionKeyID             string
+	SecretsPrefix               string
+	AWSRegion                   string
 	Kubeconfig                  string
 	WorkerRestartPolicy         string
 	WorkerTerminationGraceSecs  *int64
@@ -43,6 +45,8 @@ func ConfigFromEnv() Config {
 		WorkerRestartPolicy:   getenv("K8S_WORKER_RESTART_POLICY", "Never"),
 		SecretProvider:        os.Getenv("SECRET_PROVIDER"),
 		EncryptionKeyID:       os.Getenv("ENCRYPTION_KEY_ID"),
+		SecretsPrefix:         os.Getenv("SECRETS_PREFIX"),
+		AWSRegion:             os.Getenv("AWS_REGION"),
 		// envFrom'd whole into worker pods: carries PERSISTENCE_DSN, NATS_URL,
 		// and ENCRYPTION_KEY under keys named after the env vars they feed.
 		WorkerSecretName: os.Getenv("K8S_WORKER_SECRET_NAME"),

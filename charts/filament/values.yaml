@@ -31,6 +31,12 @@ server:
     # -- Image pull secrets for the server Deployment.
     pullSecrets: []
 
+  serviceAccount:
+    # -- Existing ServiceAccount name for the server. When set, the chart does not create one.
+    name: ""
+    # -- Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN.
+    annotations: {}
+
   # -- Number of server replicas. Ignored when `server.autoscaling.enabled` is true.
   replicas: 1
 
@@ -67,6 +73,12 @@ controlPlane:
     # -- Image pull secrets for the control plane Deployment.
     pullSecrets: []
 
+  serviceAccount:
+    # -- Existing ServiceAccount name for the control plane. When set, the chart does not create one.
+    name: ""
+    # -- Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN.
+    annotations: {}
+
   # -- Number of control plane replicas. Ignored when `controlPlane.autoscaling.enabled` is true.
   replicas: 1
 
@@ -99,8 +111,11 @@ controlPlane:
         pullPolicy: IfNotPresent
         # -- Image pull secrets for dispatched worker Jobs.
         pullSecrets: []
-      # -- Existing ServiceAccount name for dispatched worker Jobs. Defaults to the chart-created worker ServiceAccount.
-      serviceAccount: ""
+      serviceAccount:
+        # -- Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one.
+        name: ""
+        # -- Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN.
+        annotations: {}
       # -- Restart policy for dispatched worker Jobs.
       restartPolicy: Never
       # -- Worker Job termination grace period in seconds.
@@ -133,8 +148,13 @@ persistence:
   mysql: {}
 
 secrets:
-  # -- Secret storage provider.
+  # -- Secret storage provider. Valid values are `postgres` and `aws-secrets-manager`.
   type: postgres
+
+  # -- Extra name prefix external secret stores apply to every secret reference,
+  # stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are
+  # already namespaced under `filament/`. Unused by postgres.
+  prefix: ""
 
   postgres:
     # -- Encryption key identifier stored with each secret row. Change this when rotating keys.
@@ -144,8 +164,10 @@ secrets:
     # @default -- required
     encryptionKey: ""
 
-  # @ignore
-  aws: {}
+  aws:
+    # -- AWS region for Secrets Manager, stored in the ConfigMap as `AWS_REGION`.
+    # Leave empty to use the SDK default chain (env, IMDS).
+    region: ""
 
   # @ignore
   gcp: {}

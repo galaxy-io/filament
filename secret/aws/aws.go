@@ -1,9 +1,9 @@
-// Package aws implements ingestion.Secrets backed by AWS Secrets Manager.
+// Package aws implements filament.Secrets backed by AWS Secrets Manager.
 //
 // A secret reference maps directly to a Secrets Manager secret name. Both the
 // plaintext value and its metadata are preserved by storing a JSON envelope in
 // the secret's SecretString field, so Read/Write/Delete round-trip the full
-// ingestion.Secret the way the env and postgres providers do.
+// filament.Secret the way the env and postgres providers do.
 package aws
 
 import (
@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -57,17 +58,21 @@ func New(client API, opts ...Option) *Provider {
 }
 
 // NewFromConfig loads the default AWS config chain (env, shared config,
-// IAM role) and returns a Secrets Manager–backed provider.
+// IAM role) and returns a Secrets Manager–backed provider. Fails fast when
+// no region is configured.
 func NewFromConfig(ctx context.Context, opts ...Option) (*Provider, error) {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("secret/aws: load config: %w", err)
 	}
+	if cfg.Region == "" {
+		return nil, errors.New("secret/aws: no region configured (set AWS_REGION)")
+	}
 	return New(secretsmanager.NewFromConfig(cfg), opts...), nil
 }
 
 // Name returns the provider identifier.
-func (p *Provider) Name() string { return "aws" }
+func (p *Provider) Name() string { return "aws-secrets-manager" }
 
 // envelope is the JSON stored as the secret's SecretString so both value and
 // metadata survive a round trip.
@@ -83,8 +88,10 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 	name := p.name(ref)
 	out, err := p.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(name)})
 	if err != nil {
+		// Scheduled-for-deletion secrets surface as InvalidRequestException.
 		var notFound *smtypes.ResourceNotFoundException
-		if errors.As(err, &notFound) {
+		var invalid *smtypes.InvalidRequestException
+		if errors.As(err, &notFound) || errors.As(err, &invalid) {
 			return filament.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, filament.ErrNotFound)
 		}
 		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, err)
@@ -102,6 +109,10 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 	if err := json.Unmarshal(raw, &env); err != nil {
 		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: decode: %w", ref, err)
 	}
+	// Unknown keys are ignored, so foreign secrets decode to a nil Value.
+	if env.Value == nil {
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: not a filament envelope", ref)
+	}
 	return filament.Secret{Value: env.Value, Meta: env.Meta}, nil
 }
 
@@ -113,10 +124,14 @@ func (p *Provider) Write(ctx context.Context, ref string, s filament.Secret) err
 		return fmt.Errorf("secret/aws: write %q: encode: %w", ref, err)
 	}
 	body := string(raw)
-	_, err = p.client.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{
-		SecretId:     aws.String(name),
-		SecretString: aws.String(body),
-	})
+	put := func() error {
+		_, err := p.client.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{
+			SecretId:     aws.String(name),
+			SecretString: aws.String(body),
+		})
+		return err
+	}
+	err = put()
 	if err == nil {
 		return nil
 	}
@@ -124,27 +139,32 @@ func (p *Provider) Write(ctx context.Context, ref string, s filament.Secret) err
 	if !errors.As(err, &notFound) {
 		return fmt.Errorf("secret/aws: write %q: %w", ref, err)
 	}
-	// Secret does not exist yet; create it.
+	// Secret does not exist yet; create it, or put if a concurrent create wins.
 	if _, err := p.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
 		Name:         aws.String(name),
 		SecretString: aws.String(body),
 	}); err != nil {
-		return fmt.Errorf("secret/aws: create %q: %w", ref, err)
+		var exists *smtypes.ResourceExistsException
+		if !errors.As(err, &exists) {
+			return fmt.Errorf("secret/aws: create %q: %w", ref, err)
+		}
+		if err := put(); err != nil {
+			return fmt.Errorf("secret/aws: write %q: %w", ref, err)
+		}
 	}
 	return nil
 }
 
-// ErrUnmanaged is returned by Delete when the provider has no configured
-// prefix, so it cannot prove a secret is one Filament created.
-var ErrUnmanaged = errors.New("secret/aws: refusing to delete without a managed prefix")
+// ErrUnmanaged is returned by Delete for a secret the provider cannot prove
+// Filament manages.
+var ErrUnmanaged = errors.New("secret/aws: refusing to delete an unmanaged secret")
 
 // Delete schedules the secret at ref for deletion using Secrets Manager's
-// default recovery window; deleting a missing ref is a no-op. To avoid
-// destroying secrets Filament did not create, Delete only operates when a
-// non-empty prefix is configured (see WithPrefix); otherwise it returns
-// ErrUnmanaged.
+// default recovery window; deleting a missing ref is a no-op. Refs outside
+// the managed namespace (the configured prefix, or without one,
+// filament.ConnectionSecretPrefix) return ErrUnmanaged.
 func (p *Provider) Delete(ctx context.Context, ref string) error {
-	if p.prefix == "" {
+	if p.prefix == "" && !strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
 		return fmt.Errorf("delete %q: %w", ref, ErrUnmanaged)
 	}
 	_, err := p.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
