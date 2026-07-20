@@ -1,15 +1,23 @@
 import { styled } from "@linaria/react";
 
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import {
+  PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP,
+  PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP,
+} from "@/pages/pipelines/canvas/constants";
 import EditWidgetSelectorBody from "@/pages/pipelines/canvas/edit/EditWidgetSelectorBody";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import PipelineCanvasEditWidgetButton from "@/pages/pipelines/canvas/PipelineCanvasEditWidgetButton";
-import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
+import {
+  PipelineCanvasEditMode,
+  PipelineCanvasInteractionMode,
+} from "@/pages/pipelines/canvas/types";
 
 const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
@@ -39,6 +47,13 @@ const PipelineCanvasEditWidget = () => {
     });
   };
 
+  const handleInteractionModeSelect = (mode: PipelineCanvasInteractionMode) => {
+    dispatch({
+      type: PipelineCanvasActionType.SET_INTERACTION_MODE,
+      payload: mode,
+    });
+  };
+
   const handleDropdownClose = () => {
     dispatch({
       type: PipelineCanvasActionType.SET_ACTIVE_MODE,
@@ -58,20 +73,26 @@ const PipelineCanvasEditWidget = () => {
           noPadding
         >
           <PipelineCanvasEditWidgetButton
-            mode={PipelineCanvasEditMode.ADD_NODE}
+            icon={PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP[PipelineCanvasEditMode.ADD_NODE]}
             isActive={state.activeMode === PipelineCanvasEditMode.ADD_NODE}
             onClick={() => handleModeToggle(PipelineCanvasEditMode.ADD_NODE)}
+            isPrimary
           />
         </Dropdown>
+      </FlexWrapper>
+
+      <HorizontalDivider />
+
+      <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={12}>
         <PipelineCanvasEditWidgetButton
-          mode={PipelineCanvasEditMode.ADD_EDGE}
-          isActive={state.activeMode === PipelineCanvasEditMode.ADD_EDGE}
-          onClick={() => handleModeToggle(PipelineCanvasEditMode.ADD_EDGE)}
+          icon={PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP[PipelineCanvasInteractionMode.GRAB]}
+          isActive={state.interactionMode === PipelineCanvasInteractionMode.GRAB}
+          onClick={() => handleInteractionModeSelect(PipelineCanvasInteractionMode.GRAB)}
         />
         <PipelineCanvasEditWidgetButton
-          mode={PipelineCanvasEditMode.GRAB}
-          isActive={state.activeMode === PipelineCanvasEditMode.GRAB}
-          onClick={() => handleModeToggle(PipelineCanvasEditMode.GRAB)}
+          icon={PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP[PipelineCanvasInteractionMode.SELECT]}
+          isActive={state.interactionMode === PipelineCanvasInteractionMode.SELECT}
+          onClick={() => handleInteractionModeSelect(PipelineCanvasInteractionMode.SELECT)}
         />
       </FlexWrapper>
     </PipelineCanvasEditWidgetContainer>

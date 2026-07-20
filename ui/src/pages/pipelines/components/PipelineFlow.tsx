@@ -73,7 +73,7 @@ const PipelineFlow = ({
       <Icon
         component={hasSource && hasSinks ? FlowArrowIcon : LinkBreakIcon}
         size={iconSize}
-        variant={IconVariant.TERTIARY}
+        variant={hasSource && hasSinks ? IconVariant.TERTIARY : IconVariant.ERROR}
       />
       {hasSinks ? (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>

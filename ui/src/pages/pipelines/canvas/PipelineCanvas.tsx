@@ -33,7 +33,7 @@ import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasContr
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
 import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
 import type { PipelineEdge, PipelineNode } from "@/pages/pipelines/canvas/types";
-import { PipelineCanvasEditMode, PipelineNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasInteractionMode, PipelineNodeType } from "@/pages/pipelines/canvas/types";
 
 const pipelineNodeTypes = {
   [PipelineNodeType.SOURCE]: PipelineNodeSource,
@@ -117,7 +117,7 @@ const PipelineCanvas = () => {
   const theme = useTheme();
   const { state, dispatch } = usePipelineCanvas();
 
-  const isGrabMode = state.activeMode === PipelineCanvasEditMode.GRAB;
+  const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<PipelineNode>[]) => {
@@ -197,8 +197,6 @@ const PipelineCanvas = () => {
           selectionMode={SelectionMode.Partial}
           panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
           panOnScroll
-          nodesDraggable={!isGrabMode}
-          elementsSelectable={!isGrabMode}
           snapToGrid
           snapGrid={CANVAS_SNAP_GRID}
           fitView

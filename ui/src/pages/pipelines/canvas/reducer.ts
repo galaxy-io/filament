@@ -54,6 +54,9 @@ const pipelineCanvasReducer = (
     case PipelineCanvasActionType.SET_ACTIVE_MODE:
       return { ...state, activeMode: action.payload };
 
+    case PipelineCanvasActionType.SET_INTERACTION_MODE:
+      return { ...state, interactionMode: action.payload };
+
     case PipelineCanvasActionType.SET_ACTIVITY_OPEN:
       return { ...state, isActivityOpen: action.payload };
 

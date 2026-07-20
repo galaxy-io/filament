@@ -1,15 +1,17 @@
 import { createContext, type PropsWithChildren, useReducer } from "react";
 
 import pipelineCanvasReducer from "@/pages/pipelines/canvas/reducer";
-import type {
-  PipelineCanvasContextShape,
-  PipelineCanvasState,
+import {
+  type PipelineCanvasContextShape,
+  PipelineCanvasInteractionMode,
+  type PipelineCanvasState,
 } from "@/pages/pipelines/canvas/types";
 
 export const DEFAULT_STATE: PipelineCanvasState = {
   nodes: [],
   edges: [],
   activeMode: null,
+  interactionMode: PipelineCanvasInteractionMode.GRAB,
   isActivityOpen: false,
   runBindings: [],
 };

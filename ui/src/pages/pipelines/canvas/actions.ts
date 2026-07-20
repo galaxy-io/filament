@@ -2,6 +2,7 @@ import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type {
   PipelineCanvasEditMode,
+  PipelineCanvasInteractionMode,
   PipelineEdge,
   PipelineNode,
 } from "@/pages/pipelines/canvas/types";
@@ -19,6 +20,7 @@ export enum PipelineCanvasActionType {
   APPLY_EDGE_CHANGES = "APPLY_EDGE_CHANGES",
   CONNECT = "CONNECT",
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
+  SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
   SET_ACTIVITY_OPEN = "SET_ACTIVITY_OPEN",
   SET_RUN_BINDINGS = "SET_RUN_BINDINGS",
 }
@@ -34,5 +36,6 @@ export type PipelineCanvasAction =
   | { type: PipelineCanvasActionType.APPLY_EDGE_CHANGES; payload: EdgeChange<PipelineEdge>[] }
   | { type: PipelineCanvasActionType.CONNECT; payload: Connection }
   | { type: PipelineCanvasActionType.SET_ACTIVE_MODE; payload: PipelineCanvasEditMode | null }
+  | { type: PipelineCanvasActionType.SET_INTERACTION_MODE; payload: PipelineCanvasInteractionMode }
   | { type: PipelineCanvasActionType.SET_ACTIVITY_OPEN; payload: boolean }
   | { type: PipelineCanvasActionType.SET_RUN_BINDINGS; payload: RunBinding[] };

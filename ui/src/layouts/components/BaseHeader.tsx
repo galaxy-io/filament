@@ -2,10 +2,7 @@ import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { XIcon } from "@phosphor-icons/react";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -50,15 +47,11 @@ const BaseHeader = ({
   size = BaseHeaderSize.MEDIUM,
   onClose,
 }: BaseHeaderProps) => {
-  const alignItems =
-    onClose && description ? AlignItems.START : AlignItems.CENTER;
+  const alignItems = onClose && description ? AlignItems.START : AlignItems.CENTER;
   return (
     <FlexWrapper alignItems={alignItems} gap={8} fillWidth>
       <TitleWrapper>
-        <FlexWrapper
-          alignItems={AlignItems.CENTER}
-          gap={BASE_HEADER_SIZE_TO_GAP_MAP[size]}
-        >
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={BASE_HEADER_SIZE_TO_GAP_MAP[size]}>
           {icon && (
             <Icon
               component={icon}
@@ -74,9 +67,7 @@ const BaseHeader = ({
             {title}
           </Text>
         </FlexWrapper>
-        {description && (
-          <Text variant={TextVariant.SECONDARY}>{description}</Text>
-        )}
+        {description && <Text variant={TextVariant.SECONDARY}>{description}</Text>}
       </TitleWrapper>
       <ActionsWrapper>
         {actions}

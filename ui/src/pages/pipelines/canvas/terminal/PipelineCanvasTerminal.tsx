@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { styled } from "@linaria/react";
-import { ArrowsOutSimpleIcon, ListIcon, PulseIcon, TerminalIcon } from "@phosphor-icons/react";
+import { ArrowsOutSimpleIcon, PulseIcon } from "@phosphor-icons/react";
 
 import Flashing from "@galaxy-io/dls/animations/Flashing";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -109,7 +109,7 @@ const PipelineCanvasTerminal = () => {
     if (runIds.length === 0) {
       return (
         <EmptyLayout
-          icon={<Icon component={ListIcon} size={16} variant={IconVariant.SECONDARY} />}
+          icon={<Icon component={PulseIcon} size={16} variant={IconVariant.SECONDARY} />}
           message="Run the pipeline to see activity"
         />
       );

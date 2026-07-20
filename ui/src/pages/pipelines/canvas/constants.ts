@@ -1,8 +1,11 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { HandIcon, PencilSimpleIcon, PlusIcon } from "@phosphor-icons/react";
+import { HandIcon, PlusIcon, SelectionIcon } from "@phosphor-icons/react";
 import type { FitViewOptions, HandleType } from "@xyflow/react";
 
-import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/types";
+import {
+  PipelineCanvasEditMode,
+  PipelineCanvasInteractionMode,
+} from "@/pages/pipelines/canvas/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -23,8 +26,14 @@ export const CONNECTOR_KIND_TO_HANDLE_TYPE_MAP: Record<ConnectorKind, HandleType
 
 export const PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP: Record<PipelineCanvasEditMode, PhosphorIcon> = {
   [PipelineCanvasEditMode.ADD_NODE]: PlusIcon,
-  [PipelineCanvasEditMode.ADD_EDGE]: PencilSimpleIcon,
-  [PipelineCanvasEditMode.GRAB]: HandIcon,
+};
+
+export const PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP: Record<
+  PipelineCanvasInteractionMode,
+  PhosphorIcon
+> = {
+  [PipelineCanvasInteractionMode.GRAB]: HandIcon,
+  [PipelineCanvasInteractionMode.SELECT]: SelectionIcon,
 };
 
 export const PIPELINE_NODE_WIDTH = 360;
@@ -43,4 +52,4 @@ export const PIPELINE_EDGE_TYPE = "pipeline";
 export const CANVAS_TERMINAL_WIDTH = 640;
 export const CANVAS_TERMINAL_HEIGHT = 640;
 export const CANVAS_TERMINAL_RIGHT_OFFSET = 24;
-export const CANVAS_TERMINAL_NOTCH_WIDTH = 240;
+export const CANVAS_TERMINAL_NOTCH_WIDTH = 360;

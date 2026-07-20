@@ -14,7 +14,7 @@ const DEFAULT_PRELOAD_STALE_TIME = 300_000;
 const DefaultErrorComponent = ({ error }: { error: Error }) => {
   return (
     <ErrorLayout
-      icon={<Icon component={BugIcon} size={24} variant={IconVariant.SECONDARY} />}
+      icon={<Icon component={BugIcon} size={24} variant={IconVariant.ERROR} />}
       header="Looks like there was a glitch in the matrix"
       message="Please try again later"
       error={error}
