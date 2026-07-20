@@ -54,7 +54,7 @@ app.kubernetes.io/component: control-plane
 {{- end -}}
 
 {{- define "filament.controlPlane.serviceAccountName" -}}
-{{- include "filament.controlPlane.fullname" . -}}
+{{- .Values.controlPlane.serviceAccount.name | default (include "filament.controlPlane.fullname" .) -}}
 {{- end -}}
 
 
@@ -68,7 +68,7 @@ app.kubernetes.io/component: worker
 {{- end -}}
 
 {{- define "filament.worker.serviceAccountName" -}}
-{{- .Values.controlPlane.dispatch.worker.serviceAccount | default (include "filament.worker.fullname" .) -}}
+{{- .Values.controlPlane.dispatch.worker.serviceAccount.name | default (include "filament.worker.fullname" .) -}}
 {{- end -}}
 
 
@@ -93,5 +93,5 @@ app.kubernetes.io/component: server
 {{- end -}}
 
 {{- define "filament.server.serviceAccountName" -}}
-{{- include "filament.server.fullname" . -}}
+{{- .Values.server.serviceAccount.name | default (include "filament.server.fullname" .) -}}
 {{- end -}}
