@@ -95,9 +95,12 @@ var _ filament.Sink = (*Sink)(nil)
 // Spec describes the sink's config fields and write capabilities.
 func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
-		Name:        "s3",
-		DisplayName: "Amazon S3 (NDJSON per resource)",
-		Version:     "1",
+		Name:         "s3",
+		DisplayName:  "Amazon S3 (NDJSON per resource)",
+		Description:  "Amazon Simple Storage Service for secure, scalable, and durable object storage in the cloud.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-s3-light.svg",
+		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "bucket", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Destination S3 bucket."},
 			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.ndjson."},

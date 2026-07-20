@@ -92,9 +92,12 @@ var (
 // Spec reports the sink's capabilities and configuration surface.
 func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
-		Name:        "iceberg",
-		DisplayName: "Apache Iceberg",
-		Version:     "1",
+		Name:         "iceberg",
+		DisplayName:  "Apache Iceberg",
+		Description:  "Open table format for large-scale analytics on data lakes with schema evolution and time travel.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-light.svg",
+		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "warehouse", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Warehouse root location (shared catalog storage)."},
 			{Name: "catalog", Type: filament.FieldObject, Required: true, Scope: filament.ScopeConnection, Help: "Catalog connection props; requires type or uri (plus backend credentials)."},
