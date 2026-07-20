@@ -20,10 +20,16 @@ import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
 import {
   PIPELINE_CARD_HEIGHT,
   PIPELINE_INDICATOR_WIDTH,
-  PIPELINE_METRIC_COLUMN_WIDTH_MAP,
+  PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS,
+  PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN,
+  PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE,
+  PIPELINE_METRIC_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
-import type { PipelineResource } from "@/pages/pipelines/types";
+import { PipelineHealth } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
+
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -77,7 +83,7 @@ const MetricColumn = ({ width, label, value }: MetricColumnProps) => {
 };
 
 interface PipelineCardProps {
-  pipeline: PipelineResource;
+  pipeline: Pipeline;
 }
 
 interface PipelineCardState {
@@ -112,29 +118,23 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           justifyContent={JustifyContent.CENTER}
           width={PIPELINE_INDICATOR_WIDTH}
         >
-          <Beacon variant={getHealthBeaconVariant(pipeline.health)} />
+          <Beacon variant={getHealthBeaconVariant(PipelineHealth.HEALTHY)} />
         </FlexWrapper>
         <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.connectors}>
-          <PipelineFlow source={pipeline.source} sinks={pipeline.sinks} />
+        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
+          <PipelineFlow
+            source={pipeline.nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? ""}
+            sinks={pipeline.nodes
+              .filter((n) => n.kind === ConnectorKind.SINK)
+              .map((n) => n.connectionId)}
+          />
         </MetricColumnWrapper>
-        <MetricColumn
-          width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.lastRun}
-          label="Last run"
-          value={pipeline.lastRunLabel}
-        />
-        <MetricColumn
-          width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.volume}
-          label="Volume"
-          value={pipeline.volumeLabel}
-        />
-        <MetricColumn
-          width={PIPELINE_METRIC_COLUMN_WIDTH_MAP.schedule}
-          value={pipeline.scheduleLabel}
-        />
+        <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN} label="Last run" value="—" />
+        <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME} label="Volume" value="—" />
+        <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE} value="—" />
         <ToggleInput value={state.isEnabled} onChange={handleIsEnabledChange} />
         <Button
           variant={ButtonVariant.TERTIARY}

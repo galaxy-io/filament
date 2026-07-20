@@ -14,7 +14,7 @@ import {
   CREATE_CONNECTION_MODAL_SELECTOR_WIDTH,
 } from "@/pages/connectors/constants";
 
-interface CreateConnectionModalWrapperProps {
+interface CreateConnectionConfigureWrapperProps {
   step: CreateConnectionModalStep;
 }
 
@@ -37,11 +37,11 @@ const Wrapper = withTheme(styled.div<PropsWithTheme & { $step: CreateConnectionM
   overflow: hidden;
 `);
 
-const CreateConnectionModalWrapper = ({
+const CreateConnectionConfigureWrapper = ({
   children,
   step,
-}: PropsWithChildren<CreateConnectionModalWrapperProps>) => {
+}: PropsWithChildren<CreateConnectionConfigureWrapperProps>) => {
   return <Wrapper $step={step}>{children}</Wrapper>;
 };
 
-export default CreateConnectionModalWrapper;
+export default CreateConnectionConfigureWrapper;

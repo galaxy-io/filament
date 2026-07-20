@@ -1,11 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 
-import CreateConnectionModalWrapper from "@/pages/connectors/components/create/components/CreateConnectionModalWrapper";
+import CreateConnectionConfigureWrapper from "@/pages/connectors/components/create/configure/CreateConnectionConfigureWrapper";
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
 import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
 import {
@@ -19,7 +19,6 @@ const CreateConnectionSelector = ({
   onClose,
   onConnectorSelect,
 }: CreateConnectionSelectorProps) => {
-  const navigate = useNavigate();
   const { connectorKind: connectorKindParam } = useSearch({ from: "__root__" });
 
   const [search, setSearch] = useState("");
@@ -33,27 +32,12 @@ const CreateConnectionSelector = ({
     setSearch(value);
   }, []);
 
-  const handleConnectorKindFilterChange = useCallback(
-    (kind: ConnectorKind) => {
-      void navigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          connectorKind: kind,
-        }),
-      });
-    },
-    [navigate],
-  );
-
   return (
-    <CreateConnectionModalWrapper step={CreateConnectionModalStep.SELECT}>
+    <CreateConnectionConfigureWrapper step={CreateConnectionModalStep.SELECT}>
       <FlexItem grow={0} shrink={0}>
         <CreateConnectionSelectorHeader
           search={search}
           onSearchChange={handleSearchChange}
-          connectorKindFilter={connectorKindFilter}
-          onConnectorKindFilterChange={handleConnectorKindFilterChange}
           onClose={onClose}
         />
       </FlexItem>
@@ -65,7 +49,7 @@ const CreateConnectionSelector = ({
         connectorKindFilter={connectorKindFilter}
         onConnectorSelect={onConnectorSelect}
       />
-    </CreateConnectionModalWrapper>
+    </CreateConnectionConfigureWrapper>
   );
 };
 

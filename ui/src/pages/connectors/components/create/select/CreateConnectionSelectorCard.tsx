@@ -8,7 +8,7 @@ import FlexWrapper, {
   FlexDirection,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
@@ -34,7 +34,7 @@ const CreateConnectionSelectorCard = ({
   }, [connector, onConnectorSelect]);
 
   return (
-    <Widget fillWidth minHeight={150} variant={WidgetVariant.TERTIARY} onClick={handleClick}>
+    <Widget fillWidth minHeight={150} variant={WidgetVariant.PRIMARY} onClick={handleClick}>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillHeight>
         <FlexWrapper
           justifyContent={JustifyContent.SPACE_BETWEEN}
@@ -42,7 +42,7 @@ const CreateConnectionSelectorCard = ({
           fillWidth
         >
           <FlexWrapper gap={8} alignItems={AlignItems.CENTER}>
-            <ConnectorTile connector={connector.name} size={ConnectorTileSize.SMALL} />
+            <ConnectorTile connector={connector.name} size={ConnectorTileSize.MEDIUM} />
             <Text weight={TextWeight.MEDIUM}>{connector.displayName || connector.name}</Text>
           </FlexWrapper>
           <Chip
@@ -53,7 +53,7 @@ const CreateConnectionSelectorCard = ({
         </FlexWrapper>
 
         <FlexItem grow={1}>
-          <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
+          <Text variant={TextVariant.TERTIARY}>
             {CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
