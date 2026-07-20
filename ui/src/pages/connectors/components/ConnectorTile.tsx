@@ -1,46 +1,23 @@
-import type { ComponentType } from "react";
+import { useState } from "react";
 
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
 import CellGridBackground from "@galaxy-io/dls/backgrounds/CellGridBackground";
-import GithubLogomark from "@galaxy-io/dls/icons/sources/GithubLogomark";
-import GoogleBigqueryLogomark from "@galaxy-io/dls/icons/sources/GoogleBigqueryLogomark";
-import HubspotLogomark from "@galaxy-io/dls/icons/sources/HubspotLogomark";
-import JiraLogomark from "@galaxy-io/dls/icons/sources/JiraLogomark";
-import LinearLogomark from "@galaxy-io/dls/icons/sources/LinearLogomark";
-import MySQLLogomark from "@galaxy-io/dls/icons/sources/MySQLLogomark";
-import NotionLogomark from "@galaxy-io/dls/icons/sources/NotionLogomark";
-import PostgresLogomark from "@galaxy-io/dls/icons/sources/PostgresLogomark";
-import S3Logomark from "@galaxy-io/dls/icons/sources/S3Logomark";
-import SalesforceLogomark from "@galaxy-io/dls/icons/sources/SalesforceLogomark";
-import SlackLogoIconmark from "@galaxy-io/dls/icons/sources/SlackLogoIconmark";
-import SnowflakeLogomark from "@galaxy-io/dls/icons/sources/SnowflakeLogomark";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
+import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+
+import { useConnectorSpec } from "@/pages/connectors/hooks";
+
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 export enum ConnectorTileSize {
   SMALL = "SMALL",
   MEDIUM = "MEDIUM",
   LARGE = "LARGE",
 }
-
-const CONNECTOR_TO_LOGOMARK_MAP: Record<string, ComponentType<{ height: number }>> = {
-  bigquery: GoogleBigqueryLogomark,
-  github: GithubLogomark,
-  hubspot: HubspotLogomark,
-  jira: JiraLogomark,
-  linear: LinearLogomark,
-  mysql: MySQLLogomark,
-  notion: NotionLogomark,
-  postgres: PostgresLogomark,
-  s3: S3Logomark,
-  object: S3Logomark,
-  salesforce: SalesforceLogomark,
-  slack: SlackLogoIconmark,
-  snowflake: SnowflakeLogomark,
-};
 
 const getTileSize = (size: ConnectorTileSize): number =>
   match(size)
@@ -111,6 +88,13 @@ const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorT
   overflow: hidden;
 `);
 
+const ConnectorLogo = styled.img<{ $height: number }>`
+  display: block;
+  width: ${({ $height }) => $height}px;
+  height: ${({ $height }) => $height}px;
+  object-fit: contain;
+`;
+
 interface EmptyConnectorTileProps {
   size?: ConnectorTileSize;
 }
@@ -127,21 +111,34 @@ export const ConnectorTileEmpty = ({
 
 interface ConnectorTileProps {
   connector: string;
+  spec?: ConnectorSpec;
   size?: ConnectorTileSize;
   onClick?: (e: React.MouseEvent) => void;
 }
 
 const ConnectorTile = ({
   connector,
+  spec,
   size = ConnectorTileSize.MEDIUM,
   onClick,
 }: ConnectorTileProps) => {
-  const Logomark = CONNECTOR_TO_LOGOMARK_MAP[connector.toLowerCase()];
+  const { activeTheme } = useGalaxyTheme();
+  const resolvedSpec = useConnectorSpec(connector);
+  const catalogSpec = spec ?? resolvedSpec;
+  const logoURL =
+    activeTheme === GalaxyTheme.DARK ? catalogSpec?.darkLogoUrl : catalogSpec?.lightLogoUrl;
+  const [failedLogoURL, setFailedLogoURL] = useState<string>();
+  const showLogo = !!logoURL && failedLogoURL !== logoURL;
 
   return (
     <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick}>
-      {Logomark ? (
-        <Logomark height={getLogoHeight(size)} />
+      {showLogo ? (
+        <ConnectorLogo
+          src={logoURL}
+          alt={`${catalogSpec?.displayName || connector} logo`}
+          $height={getLogoHeight(size)}
+          onError={() => setFailedLogoURL(logoURL)}
+        />
       ) : (
         <Text size={getTextSize(size)} variant={TextVariant.SECONDARY} isMonospace>
           {connector.charAt(0).toUpperCase()}

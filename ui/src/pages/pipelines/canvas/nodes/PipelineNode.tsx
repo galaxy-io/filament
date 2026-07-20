@@ -11,6 +11,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import { useConnectorSpec } from "@/pages/connectors/hooks";
 import {
   PIPELINE_NODE_BORDER_RADIUS,
   PIPELINE_NODE_HANDLE_SLOT_SIZE,
@@ -124,6 +125,7 @@ const PipelineNode = ({
   onDelete,
   children,
 }: PipelineNodeProps) => {
+  const connectorSpec = useConnectorSpec(connector, kind);
   const handlePosition = kind === ConnectorKind.SINK ? Position.Left : Position.Right;
   const nodeWidth = kind === ConnectorKind.SINK ? PIPELINE_NODE_SINK_WIDTH : PIPELINE_NODE_WIDTH;
 
@@ -157,8 +159,12 @@ const PipelineNode = ({
       <HeaderIsland $isSelected={isSelected}>
         {kind === ConnectorKind.SINK && handleSlot}
         <HeaderContent>
-          <ConnectorTile connector={connector} size={ConnectorTileSize.SMALL} />
-          <Text size={TextSize.BODY_SM}>{connector}</Text>
+          <ConnectorTile
+            connector={connector}
+            spec={connectorSpec}
+            size={ConnectorTileSize.SMALL}
+          />
+          <Text size={TextSize.BODY_SM}>{connectorSpec?.displayName || connector}</Text>
         </HeaderContent>
         {kind === ConnectorKind.SOURCE && handleSlot}
       </HeaderIsland>

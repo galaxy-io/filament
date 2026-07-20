@@ -31,11 +31,15 @@ const CreateConnectionModalHeader = ({
       />
       <FlexWrapper alignItems={AlignItems.CENTER} gap={12} fillWidth>
         <FlexItem shrink={0}>
-          <ConnectorTile connector={connector.name} size={ConnectorTileSize.MEDIUM} />
+          <ConnectorTile
+            connector={connector.name}
+            spec={connector}
+            size={ConnectorTileSize.MEDIUM}
+          />
         </FlexItem>
         <BaseHeader
           title={`New ${connector.displayName || connector.name} connection`}
-          description="Configure your connection settings"
+          description={connector.description || "Configure your connection settings"}
           onClose={onClose}
         />
       </FlexWrapper>

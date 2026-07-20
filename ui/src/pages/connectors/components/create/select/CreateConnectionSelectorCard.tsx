@@ -42,7 +42,11 @@ const CreateConnectionSelectorCard = ({
           fillWidth
         >
           <FlexWrapper gap={8} alignItems={AlignItems.CENTER}>
-            <ConnectorTile connector={connector.name} size={ConnectorTileSize.SMALL} />
+            <ConnectorTile
+              connector={connector.name}
+              spec={connector}
+              size={ConnectorTileSize.SMALL}
+            />
             <Text weight={TextWeight.MEDIUM}>{connector.displayName || connector.name}</Text>
           </FlexWrapper>
           <Chip
@@ -54,7 +58,7 @@ const CreateConnectionSelectorCard = ({
 
         <FlexItem grow={1}>
           <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
-            {CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
+            {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
 

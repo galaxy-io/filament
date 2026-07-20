@@ -48,7 +48,8 @@ const CreateConnectionSelectorBody = ({
       .filter((connector) => {
         const matchesSearch = search
           ? connector.name.toLowerCase().includes(searchLower) ||
-            connector.displayName.toLowerCase().includes(searchLower)
+            connector.displayName.toLowerCase().includes(searchLower) ||
+            connector.description.toLowerCase().includes(searchLower)
           : true;
 
         const matchesKind =
