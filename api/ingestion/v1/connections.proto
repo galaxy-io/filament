@@ -12,7 +12,7 @@ import "ingestion/v1/common.proto";
 // Pipeline: an update must carry the version it last read.
 message Connection {
   string id = 1;
-  string tenant = 2;
+  string tenant_id = 2;
   ConnectorKind kind = 3;
   string name = 4;
   string connector = 5;
@@ -22,7 +22,7 @@ message Connection {
 }
 
 message CreateConnectionRequest {
-  string tenant = 1;
+  string tenant_id = 1;
   ConnectorKind kind = 2;
   string name = 3;
   string connector = 4;
@@ -43,7 +43,7 @@ message UpdateConnectionResponse {
 }
 
 message GetConnectionRequest {
-  string id = 1;
+  string connection_id = 1;
 }
 
 message GetConnectionResponse {
@@ -53,7 +53,7 @@ message GetConnectionResponse {
 // ListConnections filters by tenant; kind UNSPECIFIED returns both sources and
 // sinks.
 message ListConnectionsRequest {
-  string tenant = 1;
+  string tenant_id = 1;
   ConnectorKind kind = 2;
 }
 
@@ -62,7 +62,7 @@ message ListConnectionsResponse {
 }
 
 message DeleteConnectionRequest {
-  string id = 1;
+  string connection_id = 1;
 }
 
 message DeleteConnectionResponse {}

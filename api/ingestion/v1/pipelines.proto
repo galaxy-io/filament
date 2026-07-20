@@ -4,6 +4,7 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
+import "ingestion/v1/runs.proto";
 
 // PipelineNode is one source or sink on the canvas. connection_id references the
 // reusable Connection that supplies the connector and connection-scoped config
@@ -28,26 +29,46 @@ message PipelineEdge {
   string selector = 5;
 }
 
+message PipelineVersion {
+  string id = 1;
+  int64 version = 2;
+  repeated PipelineNode nodes = 3;
+  repeated PipelineEdge edges = 4;
+  int64 created_at = 5;
+}
+
 // Pipeline is the persisted node graph. version is an optimistic lock: an update
 // must carry the version it last read.
 message Pipeline {
   string id = 1;
-  string tenant = 2;
+  string tenant_id = 2;
   string name = 3;
-  repeated PipelineNode nodes = 4;
-  repeated PipelineEdge edges = 5;
-  int64 version = 6;
+  string description = 4;
+  int64 current_version_id = 6;
+  int64 last_run_version_id = 7;
+  int64 last_run_at = 8;
+  RunStatus last_run_status = 9;
+  int64 last_run_bytes = 10;
 }
 
 message CreatePipelineRequest {
-  string tenant = 1;
+  string tenant_id = 1;
   string name = 2;
-  repeated PipelineNode nodes = 3;
-  repeated PipelineEdge edges = 4;
+  string description = 3;
 }
 
 message CreatePipelineResponse {
   Pipeline pipeline = 1;
+}
+
+message CreatePipelineVersionRequest {
+  string pipeline_id = 1;
+  repeated PipelineNode nodes = 2;
+  repeated PipelineEdge edges = 3;
+}
+
+message CreatePipelineVersionResponse {
+  PipelineVersion version = 1;
 }
 
 message UpdatePipelineRequest {
@@ -64,6 +85,15 @@ message GetPipelineRequest {
 
 message GetPipelineResponse {
   Pipeline pipeline = 1;
+}
+
+message GetPipelineVersionRequest {
+  string pipeline_id = 1;
+  int64 version = 2;
+}
+
+message GetPipelineVersionResponse {
+  PipelineVersion version = 1;
 }
 
 message ListPipelinesRequest {
