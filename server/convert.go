@@ -412,6 +412,28 @@ func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config) err
 	return nil
 }
 
+// runOptionsFromProto maps the proto override message onto filament.RunOptions.
+// A nil message or any zero field defers to the engine default downstream.
+func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
+	if o == nil {
+		return filament.RunOptions{}
+	}
+	opts := filament.RunOptions{
+		FetchSize:           int(o.GetFetchSize()),
+		BatchMaxRows:        int(o.GetBatchMaxRows()),
+		BatchMaxBytes:       o.GetBatchMaxBytes(),
+		SnapshotParallelism: int(o.GetSnapshotParallelism()),
+		CheckpointEvery:     int(o.GetCheckpointEvery()),
+	}
+	if rl := o.GetRateLimit(); rl != nil {
+		opts.RateLimit = &filament.RatePolicy{
+			RequestsPerSecond: rl.GetRequestsPerSecond(),
+			Burst:             int(rl.GetBurst()),
+		}
+	}
+	return opts
+}
+
 func defaultTenant(tenant string) string {
 	if tenant == "" {
 		return "t1"
