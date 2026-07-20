@@ -48,6 +48,20 @@ export const getNextNodePosition = (kind: ConnectorKind, nodes: PipelineNode[]) 
   return { x: baseX, y: Math.round(nextY / snapY) * snapY };
 };
 
+// Re-stack every node into the same deterministic layout a fresh load produces
+export const resetNodePositions = (nodes: PipelineNode[]): PipelineNode[] => {
+  const repositioned: PipelineNode[] = [];
+  for (const node of nodes) {
+    const kind = node.type === PipelineNodeType.SINK ? ConnectorKind.SINK : ConnectorKind.SOURCE;
+    repositioned.push({
+      ...node,
+      position: getNextNodePosition(kind, repositioned),
+      selected: false,
+    });
+  }
+  return repositioned;
+};
+
 export const createNodeFromConnection = (
   connection: Connection,
   position: { x: number; y: number },
