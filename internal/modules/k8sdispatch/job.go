@@ -28,6 +28,12 @@ func (m *Module) jobForSpec(spec filament.RunSpec) *batchv1.Job {
 	if m.cfg.EncryptionKeyID != "" {
 		env = append(env, corev1.EnvVar{Name: "ENCRYPTION_KEY_ID", Value: m.cfg.EncryptionKeyID})
 	}
+	if m.cfg.SecretsPrefix != "" {
+		env = append(env, corev1.EnvVar{Name: "SECRETS_PREFIX", Value: m.cfg.SecretsPrefix})
+	}
+	if m.cfg.AWSRegion != "" {
+		env = append(env, corev1.EnvVar{Name: "AWS_REGION", Value: m.cfg.AWSRegion})
+	}
 
 	restartPolicy := m.cfg.WorkerRestartPolicy
 	if restartPolicy == "" {

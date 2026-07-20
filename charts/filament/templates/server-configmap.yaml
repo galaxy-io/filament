@@ -10,3 +10,20 @@ data:
 
   # Ingestion
   SERVER_ADDR: ":{{ .Values.server.service.port }}"
+
+  # Secrets
+  SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
+  {{- if eq .Values.secrets.type "postgres" }}
+  {{- with .Values.secrets.postgres.encryptionKeyId }}
+  ENCRYPTION_KEY_ID: {{ . | quote }}
+  {{- end }}
+  {{- else }}
+  {{- with .Values.secrets.prefix }}
+  SECRETS_PREFIX: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if eq .Values.secrets.type "aws-secrets-manager" }}
+  {{- with .Values.secrets.aws.region }}
+  AWS_REGION: {{ . | quote }}
+  {{- end }}
+  {{- end }}
