@@ -17,10 +17,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	smtypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 
-	ingestion "github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament"
 )
 
-var _ ingestion.Secrets = (*Provider)(nil)
+var _ filament.Secrets = (*Provider)(nil)
 
 // API is the subset of the Secrets Manager client the provider uses. It is
 // satisfied by *secretsmanager.Client and is exported so callers can inject a
@@ -79,15 +79,15 @@ type envelope struct {
 func (p *Provider) name(ref string) string { return p.prefix + ref }
 
 // Read fetches and decodes the secret at ref.
-func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, error) {
+func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error) {
 	name := p.name(ref)
 	out, err := p.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(name)})
 	if err != nil {
 		var notFound *smtypes.ResourceNotFoundException
 		if errors.As(err, &notFound) {
-			return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, ingestion.ErrNotFound)
+			return filament.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, filament.ErrNotFound)
 		}
-		return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, err)
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, err)
 	}
 	var raw []byte
 	switch {
@@ -96,17 +96,17 @@ func (p *Provider) Read(ctx context.Context, ref string) (ingestion.Secret, erro
 	case out.SecretBinary != nil:
 		raw = out.SecretBinary
 	default:
-		return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: empty secret", ref)
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: empty secret", ref)
 	}
 	var env envelope
 	if err := json.Unmarshal(raw, &env); err != nil {
-		return ingestion.Secret{}, fmt.Errorf("secret/aws: read %q: decode: %w", ref, err)
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: decode: %w", ref, err)
 	}
-	return ingestion.Secret{Value: env.Value, Meta: env.Meta}, nil
+	return filament.Secret{Value: env.Value, Meta: env.Meta}, nil
 }
 
 // Write creates the secret if absent, otherwise stores a new version.
-func (p *Provider) Write(ctx context.Context, ref string, s ingestion.Secret) error {
+func (p *Provider) Write(ctx context.Context, ref string, s filament.Secret) error {
 	name := p.name(ref)
 	raw, err := json.Marshal(envelope{Value: s.Value, Meta: s.Meta})
 	if err != nil {
