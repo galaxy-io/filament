@@ -23,14 +23,16 @@ type RunSpec struct {
 // RunRequest is the caller-facing ask for a run, deduplicated by
 // IdempotencyKey; the engine resolves it into a RunSpec.
 type RunRequest struct {
-	Tenant         TenantID
-	IdempotencyKey string
-	Source         Ref
-	Sink           Ref
-	Resources      []string
-	Selectors      []string
-	IngestionType  IngestionType
-	Options        RunOptions
+	Tenant            TenantID
+	PipelineID        string
+	PipelineVersionID int64
+	IdempotencyKey    string
+	Source            Ref
+	Sink              Ref
+	Resources         []string
+	Selectors         []string
+	IngestionType     IngestionType
+	Options           RunOptions
 }
 
 // RunOptions tunes throughput knobs for a run; zero values defer to engine
@@ -109,13 +111,16 @@ type ResourceState struct {
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
 type RunFilter struct {
-	Tenant   TenantID
-	Source   string
-	Status   []RunStatus
-	Schedule ScheduleID
-	Since    time.Time
-	Limit    int
-	Cursor   string
+	Tenant            TenantID
+	PipelineID        string
+	PipelineVersionID *int64
+	Source            string
+	Status            []RunStatus
+	Schedule          ScheduleID
+	Since             time.Time
+	Limit             int
+	Offset            int
+	Cursor            string
 }
 
 // SyncSnapshot is a consistent read of a run and its resources at bus
