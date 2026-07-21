@@ -13,6 +13,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
+// CreatePipeline stores a new pipeline.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -27,6 +28,7 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return next, nil
 }
 
+// CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -51,6 +53,7 @@ func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v 
 	return next, nil
 }
 
+// UpdatePipeline updates a pipeline's mutable metadata.
 func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -65,6 +68,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return clonePipeline(stored), nil
 }
 
+// LoadPipeline returns a pipeline by ID.
 func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -78,6 +82,7 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	return clonePipeline(p), nil
 }
 
+// LoadPipelineVersion returns a pipeline graph version, or the current version when version is zero.
 func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -96,6 +101,7 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 	return clonePipelineVersion(v), nil
 }
 
+// ListPipelines returns pipelines, optionally filtered by tenant.
 func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -112,6 +118,7 @@ func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv
 	return out, nil
 }
 
+// DeletePipeline removes a pipeline and all of its graph versions.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -129,9 +136,31 @@ func clonePipeline(p *ingestionv1.Pipeline) *ingestionv1.Pipeline {
 	}
 	return proto.Clone(p).(*ingestionv1.Pipeline)
 }
+
 func clonePipelineVersion(v *ingestionv1.PipelineVersion) *ingestionv1.PipelineVersion {
 	if v == nil {
 		return nil
 	}
 	return proto.Clone(v).(*ingestionv1.PipelineVersion)
+}
+
+func pipelineRunStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
+	switch status {
+	case filament.RunRequested:
+		return ingestionv1.RunStatus_RUN_STATUS_REQUESTED
+	case filament.RunRunning:
+		return ingestionv1.RunStatus_RUN_STATUS_RUNNING
+	case filament.RunCompleted:
+		return ingestionv1.RunStatus_RUN_STATUS_COMPLETED
+	case filament.RunFailed:
+		return ingestionv1.RunStatus_RUN_STATUS_FAILED
+	case filament.RunCanceled:
+		return ingestionv1.RunStatus_RUN_STATUS_CANCELED
+	case filament.RunPaused:
+		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
+	case filament.RunPartial:
+		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
+	default:
+		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
+	}
 }

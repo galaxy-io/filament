@@ -14,6 +14,7 @@ import (
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
+// CreatePipeline stores a new pipeline.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription()})
 	if err != nil {
@@ -22,6 +23,7 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return cloneProto(p), nil
 }
 
+// CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
 	nodes, err := marshalProtoSlice(v.GetNodes())
 	if err != nil {
@@ -41,6 +43,7 @@ func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v 
 	return &ingestionv1.PipelineVersion{Id: pipelineID, Version: row.Version, Nodes: v.GetNodes(), Edges: v.GetEdges(), CreatedAt: row.CreatedAt.Time.UnixMilli()}, nil
 }
 
+// UpdatePipeline updates a pipeline's mutable metadata.
 func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription()})
 	if err != nil {
@@ -52,6 +55,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return s.LoadPipeline(ctx, p.GetId())
 }
 
+// LoadPipeline returns a pipeline by ID.
 func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	row, err := s.q.GetPipeline(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -63,6 +67,7 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	return pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt.Time, row.LastRunAt.Valid, row.LastRunStatus, row.LastRunBytes), nil
 }
 
+// LoadPipelineVersion returns a specific immutable pipeline graph version.
 func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error) {
 	row, err := s.q.GetPipelineVersion(ctx, sqlcgen.GetPipelineVersionParams{PipelineID: pipelineID, Version: version})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -78,6 +83,7 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 	return &ingestionv1.PipelineVersion{Id: row.PipelineID, Version: row.Version, Nodes: nodes, Edges: edges, CreatedAt: row.CreatedAt.Time.UnixMilli()}, nil
 }
 
+// ListPipelines returns pipelines, optionally filtered by tenant.
 func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	rows, err := s.q.ListPipelines(ctx, tenant)
 	if err != nil {
@@ -106,6 +112,7 @@ func runStatusToPipelineProto(status int16) ingestionv1.RunStatus {
 	return ingestionv1.RunStatus(int32(status) + 1)
 }
 
+// DeletePipeline removes a pipeline and its graph versions.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := s.q.DeletePipeline(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline: %w", err)

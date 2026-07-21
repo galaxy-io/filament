@@ -26,6 +26,7 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: created}), nil
 }
 
+// CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineVersionRequest]) (*connect.Response[ingestionv1.CreatePipelineVersionResponse], error) {
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
@@ -57,6 +58,7 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 	return connect.NewResponse(&ingestionv1.UpdatePipelineResponse{Pipeline: next}), nil
 }
 
+// GetPipelineVersion returns a specific immutable pipeline graph version.
 func (a *Server) GetPipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineVersionRequest]) (*connect.Response[ingestionv1.GetPipelineVersionResponse], error) {
 	v, err := a.store.LoadPipelineVersion(ctx, req.Msg.GetPipelineId(), req.Msg.GetVersion())
 	if errors.Is(err, filament.ErrNotFound) {

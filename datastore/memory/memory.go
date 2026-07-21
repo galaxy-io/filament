@@ -76,7 +76,7 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	if p := s.pipelines[r.Request.PipelineID]; p != nil && (p.LastRunAt == 0 || p.LastRunAt <= r.StartedAt.UnixMilli()) {
 		p.LastRunVersionId = r.Request.PipelineVersionID
 		p.LastRunAt = r.StartedAt.UnixMilli()
-		p.LastRunStatus = ingestionv1.RunStatus(int32(r.Status) + 1)
+		p.LastRunStatus = pipelineRunStatusToProto(r.Status)
 		p.LastRunBytes = r.Bytes
 	}
 	return nil
