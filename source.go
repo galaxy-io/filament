@@ -66,6 +66,9 @@ type LiveValidatable interface {
 type ConnectorSpec struct {
 	Name           string
 	DisplayName    string
+	Description    string
+	DarkLogoURL    string
+	LightLogoURL   string
 	Version        string
 	Modes          []ReplicationMode
 	SourcePolicies []SourcePolicy

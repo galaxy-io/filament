@@ -10,6 +10,7 @@ import FlexWrapper, {
 import BaseHeader from "@/layouts/components/BaseHeader";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import { useConnectorSpec } from "@/pages/connectors/hooks";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
@@ -23,16 +24,22 @@ interface ConnectionDrawerHeaderProps {
 }
 
 const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderProps) => {
+  const connector = useConnectorSpec(connection.connector, connection.kind);
+
   return (
     <HeaderWrapper>
       <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <FlexItem shrink={0}>
-          <ConnectorTile connector={connection.connector} size={ConnectorTileSize.LARGE} />
+          <ConnectorTile
+            connector={connection.connector}
+            spec={connector}
+            size={ConnectorTileSize.LARGE}
+          />
         </FlexItem>
         <FlexWrapper fillWidth direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
           <BaseHeader
             title={connection.name}
-            description={connection.connector}
+            description={connector?.displayName || connection.connector}
             onClose={onClose}
           />
         </FlexWrapper>

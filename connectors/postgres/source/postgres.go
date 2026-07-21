@@ -90,10 +90,13 @@ var (
 // Spec describes the source's config fields, modes, and write policies.
 func (s *Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
-		Name:        "postgres",
-		DisplayName: "PostgreSQL",
-		Version:     "1",
-		Modes:       []filament.ReplicationMode{filament.ModeFull},
+		Name:         "postgres",
+		DisplayName:  "PostgreSQL",
+		Description:  "Popular open-source relational database management system known for reliability and advanced features.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
+		Version:      "1",
+		Modes:        []filament.ReplicationMode{filament.ModeFull},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,

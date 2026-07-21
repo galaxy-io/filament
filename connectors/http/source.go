@@ -33,6 +33,9 @@ type Source struct {
 	connector        *Connector
 	name             string
 	displayName      string
+	description      string
+	darkLogoURL      string
+	lightLogoURL     string
 	config           filament.ConfigSchema
 	manifestData     []byte
 	dynamicResources map[string]string
@@ -54,16 +57,25 @@ func New() *Source {
 
 // NewManifest returns a Source bound to embedded manifest bytes and a config schema.
 func NewManifest(name, displayName string, manifestData []byte, config filament.ConfigSchema) *Source {
-	return &Source{name: name, displayName: displayName, manifestData: manifestData, config: config}
+	return NewManifestWithMetadata(name, displayName, "", "", "", manifestData, config)
+}
+
+// NewManifestWithMetadata returns a Source bound to embedded manifest bytes,
+// frontend catalog metadata, and a config schema.
+func NewManifestWithMetadata(name, displayName, description, darkLogoURL, lightLogoURL string, manifestData []byte, config filament.ConfigSchema) *Source {
+	return &Source{name: name, displayName: displayName, description: description, darkLogoURL: darkLogoURL, lightLogoURL: lightLogoURL, manifestData: manifestData, config: config}
 }
 
 // Spec reports the source's capabilities and configuration surface.
 func (s *Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
-		Name:        s.name,
-		DisplayName: s.displayName,
-		Version:     "1",
-		Modes:       []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental},
+		Name:         s.name,
+		DisplayName:  s.displayName,
+		Description:  s.description,
+		DarkLogoURL:  s.darkLogoURL,
+		LightLogoURL: s.lightLogoURL,
+		Version:      "1",
+		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,

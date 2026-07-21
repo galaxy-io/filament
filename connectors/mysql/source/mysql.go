@@ -88,10 +88,13 @@ var (
 // Spec describes the source's config fields, modes, and write policies.
 func (s *Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
-		Name:        "mysql",
-		DisplayName: "MySQL",
-		Version:     "1",
-		Modes:       []filament.ReplicationMode{filament.ModeFull, filament.ModeCDC},
+		Name:         "mysql",
+		DisplayName:  "MySQL",
+		Description:  "Widely-used open-source relational database known for speed, reliability, and ease of use.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
+		Version:      "1",
+		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,

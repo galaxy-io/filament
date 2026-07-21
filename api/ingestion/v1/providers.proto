@@ -26,6 +26,9 @@ message ConnectorSpec {
   repeated ReplicationMode modes = 5;
   ConfigSchema config_schema = 6;
   Capabilities capabilities = 7;
+  string description = 8;
+  string dark_logo_url = 9;
+  string light_logo_url = 10;
 }
 
 message ListConnectorsRequest {

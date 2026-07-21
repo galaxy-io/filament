@@ -14,6 +14,9 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 	return &ingestionv1.ConnectorSpec{
 		Name:         spec.Name,
 		DisplayName:  spec.DisplayName,
+		Description:  spec.Description,
+		DarkLogoUrl:  spec.DarkLogoURL,
+		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Version:      spec.Version,
 		Modes:        modesToProto(spec.Modes),
@@ -30,6 +33,9 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 	return &ingestionv1.ConnectorSpec{
 		Name:         spec.Name,
 		DisplayName:  spec.DisplayName,
+		Description:  spec.Description,
+		DarkLogoUrl:  spec.DarkLogoURL,
+		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Version:      spec.Version,
 		ConfigSchema: configSchemaToProto(spec.Config),

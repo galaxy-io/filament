@@ -58,9 +58,12 @@ var _ filament.Sink = (*Sink)(nil)
 // Spec describes the sink's write capabilities.
 func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
-		Name:        "stdout",
-		DisplayName: "Standard Output (NDJSON)",
-		Version:     "1",
+		Name:         "stdout",
+		DisplayName:  "Standard Output (NDJSON)",
+		Description:  "Standard output stream for writing pipeline logs and output directly to the terminal.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-stdout-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-stdout-light.svg",
+		Version:      "1",
 		Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(
 			filament.IngestionAppend,
 			filament.IngestionSnapshotReplace,

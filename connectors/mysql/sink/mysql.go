@@ -50,9 +50,12 @@ var (
 // Spec describes the sink's config fields and write capabilities.
 func (t *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
-		Name:        "mysql",
-		DisplayName: "MySQL",
-		Version:     "1",
+		Name:         "mysql",
+		DisplayName:  "MySQL",
+		Description:  "Widely-used open-source relational database known for speed, reliability, and ease of use.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
+		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
 			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Destination database (defaults to the DSN's database)"},

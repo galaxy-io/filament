@@ -51,9 +51,12 @@ var (
 // Spec describes the sink's config fields and write capabilities.
 func (t *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
-		Name:        "postgres",
-		DisplayName: "PostgreSQL",
-		Version:     "1",
+		Name:         "postgres",
+		DisplayName:  "PostgreSQL",
+		Description:  "Popular open-source relational database management system known for reliability and advanced features.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
+		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Destination schema"},

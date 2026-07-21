@@ -338,6 +338,9 @@ func TestNewNotionSpecHidesManifestPath(t *testing.T) {
 	if spec.DisplayName != "Notion" {
 		t.Fatalf("display name = %q, want Notion", spec.DisplayName)
 	}
+	if spec.Description == "" || spec.DarkLogoURL != "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg" || spec.LightLogoURL != "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg" {
+		t.Fatalf("catalog metadata = %#v, want Notion description and logo URLs", spec)
+	}
 	if len(spec.Config.Fields) != 1 || spec.Config.Fields[0].Name != "api_key" || spec.Config.Fields[0].Type != filament.FieldSecret {
 		t.Fatalf("config fields = %#v, want api_key secret only", spec.Config.Fields)
 	}

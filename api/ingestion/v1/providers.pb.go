@@ -126,6 +126,9 @@ type ConnectorSpec struct {
 	Modes         []ReplicationMode      `protobuf:"varint,5,rep,packed,name=modes,proto3,enum=ingestion.v1.ReplicationMode" json:"modes,omitempty"`
 	ConfigSchema  *ConfigSchema          `protobuf:"bytes,6,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
 	Capabilities  *Capabilities          `protobuf:"bytes,7,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Description   string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	DarkLogoUrl   string                 `protobuf:"bytes,9,opt,name=dark_logo_url,json=darkLogoUrl,proto3" json:"dark_logo_url,omitempty"`
+	LightLogoUrl  string                 `protobuf:"bytes,10,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -207,6 +210,27 @@ func (x *ConnectorSpec) GetCapabilities() *Capabilities {
 		return x.Capabilities
 	}
 	return nil
+}
+
+func (x *ConnectorSpec) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ConnectorSpec) GetDarkLogoUrl() string {
+	if x != nil {
+		return x.DarkLogoUrl
+	}
+	return ""
+}
+
+func (x *ConnectorSpec) GetLightLogoUrl() string {
+	if x != nil {
+		return x.LightLogoUrl
+	}
+	return ""
 }
 
 type ListConnectorsRequest struct {
@@ -693,7 +717,7 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"upsertable\x12 \n" +
 	"\vschematized\x18\x05 \x01(\bR\vschematized\x12J\n" +
 	"\x0ewrite_policies\x18\x06 \x03(\v2#.ingestion.v1.WritePolicyCapabilityR\rwritePolicies\x12C\n" +
-	"\x0fsource_policies\x18\a \x03(\v2\x1a.ingestion.v1.SourcePolicyR\x0esourcePolicies\"\xc7\x02\n" +
+	"\x0fsource_policies\x18\a \x03(\v2\x1a.ingestion.v1.SourcePolicyR\x0esourcePolicies\"\xb3\x03\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -701,7 +725,11 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x123\n" +
 	"\x05modes\x18\x05 \x03(\x0e2\x1d.ingestion.v1.ReplicationModeR\x05modes\x12?\n" +
 	"\rconfig_schema\x18\x06 \x01(\v2\x1a.ingestion.v1.ConfigSchemaR\fconfigSchema\x12>\n" +
-	"\fcapabilities\x18\a \x01(\v2\x1a.ingestion.v1.CapabilitiesR\fcapabilities\"H\n" +
+	"\fcapabilities\x18\a \x01(\v2\x1a.ingestion.v1.CapabilitiesR\fcapabilities\x12 \n" +
+	"\vdescription\x18\b \x01(\tR\vdescription\x12\"\n" +
+	"\rdark_logo_url\x18\t \x01(\tR\vdarkLogoUrl\x12$\n" +
+	"\x0elight_logo_url\x18\n" +
+	" \x01(\tR\flightLogoUrl\"H\n" +
 	"\x15ListConnectorsRequest\x12/\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"U\n" +
 	"\x16ListConnectorsResponse\x12;\n" +

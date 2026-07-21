@@ -41,6 +41,9 @@ type Schematized interface {
 type SinkSpec struct {
 	Name         string
 	DisplayName  string
+	Description  string
+	DarkLogoURL  string
+	LightLogoURL string
 	Version      string
 	Config       ConfigSchema
 	Capabilities SinkCapabilities

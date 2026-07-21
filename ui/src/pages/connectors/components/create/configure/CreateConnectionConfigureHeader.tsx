@@ -1,4 +1,3 @@
-import { styled } from "@linaria/react";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -11,11 +10,6 @@ import { BaseHeaderSize } from "@/layouts/components/types";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
-
-const HeaderWrapper = styled.div`
-  flex: 1;
-  min-width: 0;
-`;
 
 interface CreateConnectionConfigureHeaderProps {
   connector: ConnectorSpec;
@@ -36,17 +30,21 @@ const CreateConnectionConfigureHeader = ({
         size={ButtonSize.SMALL}
         onClick={onBack}
       />
-      <FlexItem shrink={0} grow={0}>
-        <ConnectorTile connector={connector.name} size={ConnectorTileSize.MEDIUM} />
-      </FlexItem>
-      <HeaderWrapper>
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={12} fillWidth>
+        <FlexItem shrink={0}>
+          <ConnectorTile
+            connector={connector.name}
+            spec={connector}
+            size={ConnectorTileSize.MEDIUM}
+          />
+        </FlexItem>
         <BaseHeader
           size={BaseHeaderSize.LARGE}
           title={`New ${connector.displayName || connector.name} connection`}
-          description="Configure your connection settings"
+          description={connector.description || "Configure your connection settings"}
           onClose={onClose}
         />
-      </HeaderWrapper>
+      </FlexWrapper>
     </FlexWrapper>
   );
 };
