@@ -72,12 +72,14 @@ message RunResourceState {
 
 // RunInfo mirrors pkg.RunState (run-level rollup).
 message RunInfo {
-  string run = 1;
-  string tenant = 2;
-  RunStatus status = 3;
-  int64 records = 4;
-  int64 bytes = 5;
-  string error = 6;
+  string run_id = 1;
+  string tenant_id = 2;
+  string pipeline_id = 3;
+  int64 pipeline_version_id = 4;
+  RunStatus status = 5;
+  int64 records = 6;
+  int64 bytes = 7;
+  string error = 8;
 }
 
 message RunSnapshot {
@@ -91,10 +93,12 @@ message GetRunResponse {
 }
 
 message ListRunsRequest {
-  string tenant = 1;
-  repeated RunStatus status = 2;
-  string source = 3;
-  int32 limit = 4;
+  string tenant_id = 1;
+  string pipeline_id = 2;
+  optional int64 pipeline_version_id = 3;
+  repeated RunStatus status = 4;
+  int32 limit = 5;
+  int32 offset = 6;
 }
 
 message ListRunsResponse {
@@ -113,7 +117,7 @@ message SignalRunRequest {
 message SignalRunResponse {}
 
 message TailRunRequest {
-  string tenant = 1;
+  string tenant_id = 1;
   string run_id = 2;
   // replay first emits events synthesized from the current snapshot (each marked
   // replay=true) so progress is correct on reconnect, before live facts stream.
@@ -134,8 +138,8 @@ message RunEventFields {
 // event rather than a live fact.
 message RunEvent {
   string type = 1;
-  string tenant = 2;
-  string run = 3;
+  string tenant_id = 2;
+  string run_id = 3;
   string resource = 4;
   uint64 seq = 5;
   int64 at_unix_ms = 6;

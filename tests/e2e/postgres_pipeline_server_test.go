@@ -4,6 +4,8 @@ package e2e
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,7 +44,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	tpch.RegisterSF(0.01)
+	registerTPCHSmokeScenario()
 	src := gxtc.Postgres(t)
 	dst := gxtc.Postgres(t)
 
@@ -62,9 +64,10 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 
 	bus := inproc.New()
 	store := memory.New()
+	secrets := newMemorySecrets()
 	orch := orchestrator.New()
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: sources, Sinks: sinks},
+		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: sources, Sinks: sinks},
 		tracker.New(), engine.New(), orch,
 	)
 	if err != nil {
@@ -76,19 +79,19 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	}
 	defer func() { _ = h.Close() }()
 
-	api := server.New(sources, sinks, store, orch, bus)
+	api := server.New(sources, sinks, store, orch, bus, server.WithSecrets(secrets))
 
 	// 1. Create the source and sink Connections through the API. dsn is
 	//    CONNECTION-scoped, so it belongs in the connection config.
 	srcConn := mustCreateConnection(t, ctx, api, &ingestionv1.CreateConnectionRequest{
-		Tenant:    "t1",
+		TenantId:  "t1",
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Name:      "tpch-source",
 		Connector: "postgres",
 		Config:    mustStruct(t, map[string]any{"dsn": src.DSN()}),
 	})
 	sinkConn := mustCreateConnection(t, ctx, api, &ingestionv1.CreateConnectionRequest{
-		Tenant:    "t1",
+		TenantId:  "t1",
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Name:      "warehouse",
 		Connector: "postgres",
@@ -116,15 +119,18 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 		})
 	}
 	created, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
-		Tenant: "t1",
-		Name:   "tpch-sync",
-		Nodes:  nodes,
-		Edges:  edges,
+		TenantId: "t1",
+		Name:     "tpch-sync",
 	}))
 	if err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
 	pipelineID := created.Msg.GetPipeline().GetId()
+	if _, err := api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+		PipelineId: pipelineID, Nodes: nodes, Edges: edges,
+	})); err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
 
 	// 3. Run the pipeline.
 	runResp, err := api.RunPipeline(ctx, connect.NewRequest(&ingestionv1.RunPipelineRequest{
@@ -176,3 +182,44 @@ func mustStruct(t *testing.T, m map[string]any) *structpb.Struct {
 	}
 	return s
 }
+
+func registerTPCHSmokeScenario() {
+	if _, ok := seed.Get("tpch-sf0.01"); !ok {
+		tpch.RegisterSF(0.01)
+	}
+}
+
+type memorySecrets struct {
+	mu     sync.RWMutex
+	values map[string]filament.Secret
+}
+
+func newMemorySecrets() *memorySecrets {
+	return &memorySecrets{values: make(map[string]filament.Secret)}
+}
+
+func (s *memorySecrets) Read(_ context.Context, ref string) (filament.Secret, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	secret, ok := s.values[ref]
+	if !ok {
+		return filament.Secret{}, fmt.Errorf("secret %q: %w", ref, filament.ErrNotFound)
+	}
+	return secret, nil
+}
+
+func (s *memorySecrets) Write(_ context.Context, ref string, secret filament.Secret) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.values[ref] = secret
+	return nil
+}
+
+func (s *memorySecrets) Delete(_ context.Context, ref string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.values, ref)
+	return nil
+}
+
+func (s *memorySecrets) Name() string { return "memory" }

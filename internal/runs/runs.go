@@ -38,16 +38,18 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req fi
 		return "", fmt.Errorf("runs: load run %q: %w", id, err)
 	}
 
+	now := time.Now()
 	if err := ds.SaveRun(ctx, filament.RunState{
-		Run:     id,
-		Tenant:  req.Tenant,
-		Status:  filament.RunRequested,
-		Request: req,
+		Run:       id,
+		Tenant:    req.Tenant,
+		Status:    filament.RunRequested,
+		Request:   req,
+		StartedAt: now,
 	}); err != nil {
 		return "", fmt.Errorf("runs: save run %q: %w", id, err)
 	}
 
-	env := events.Envelope{Tenant: req.Tenant, Run: id, At: time.Now()}
+	env := events.Envelope{Tenant: req.Tenant, Run: id, At: now}
 	if err := events.Emit(ctx, bus, events.RunRequested, env, events.RunRequestedEvent{}); err != nil {
 		return "", fmt.Errorf("runs: dispatch run %q: %w", id, err)
 	}

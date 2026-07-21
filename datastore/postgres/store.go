@@ -81,6 +81,18 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 			return err
 		}
 	}
+	if r.Request.PipelineID != "" {
+		err = q.UpdatePipelineRunSummary(ctx, sqlcgen.UpdatePipelineRunSummaryParams{
+			PipelineID: r.Request.PipelineID,
+			Version:    r.Request.PipelineVersionID,
+			StartedAt:  toTimestamptz(nullTime(r.StartedAt)),
+			Status:     int16(r.Status), //nolint:gosec // small enum
+			Bytes:      r.Bytes,
+		})
+		if err != nil {
+			return fmt.Errorf("datastore/postgres: update pipeline run summary: %w", err)
+		}
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
@@ -124,6 +136,12 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	if f.Tenant != "" {
 		q += " AND tenant_id = " + arg(string(f.Tenant))
 	}
+	if f.PipelineID != "" {
+		q += " AND request->>'PipelineID' = " + arg(f.PipelineID)
+	}
+	if f.PipelineVersionID != nil {
+		q += " AND (request->>'PipelineVersionID')::bigint = " + arg(*f.PipelineVersionID)
+	}
 	if f.Schedule != "" {
 		q += " AND schedule_id = " + arg(string(f.Schedule))
 	}
@@ -143,6 +161,9 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	q += " ORDER BY started_at ASC, run_id ASC"
 	if f.Limit > 0 {
 		q += " LIMIT " + arg(f.Limit)
+	}
+	if f.Offset > 0 {
+		q += " OFFSET " + arg(f.Offset)
 	}
 
 	rows, err := s.pool.Query(ctx, q, args...)

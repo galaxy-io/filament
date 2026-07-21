@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -12,7 +13,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-// CreatePipeline stores a new pipeline at version 1, rejecting a duplicate ID.
+// CreatePipeline stores a new pipeline.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -23,12 +24,36 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 		return nil, fmt.Errorf("pipeline %q already exists", p.GetId())
 	}
 	next := clonePipeline(p)
-	next.Version = 1
 	s.pipelines[next.Id] = clonePipeline(next)
 	return next, nil
 }
 
-// UpdatePipeline replaces a stored pipeline, enforcing optimistic version matching.
+// CreatePipelineVersion appends an immutable graph version to a pipeline.
+func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.pipelines[pipelineID]
+	if !ok {
+		return nil, fmt.Errorf("pipeline %q: %w", pipelineID, filament.ErrNotFound)
+	}
+	versions := s.pipelineVersions[pipelineID]
+	if versions == nil {
+		versions = map[int64]*ingestionv1.PipelineVersion{}
+		s.pipelineVersions[pipelineID] = versions
+	}
+	next := clonePipelineVersion(v)
+	next.Id = pipelineID
+	next.Version = p.GetCurrentVersionId() + 1
+	next.CreatedAt = time.Now().UnixMilli()
+	versions[next.Version] = clonePipelineVersion(next)
+	p.CurrentVersionId = next.Version
+	return next, nil
+}
+
+// UpdatePipeline updates a pipeline's mutable metadata.
 func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -39,16 +64,11 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if !ok {
 		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrNotFound)
 	}
-	if stored.GetVersion() != p.GetVersion() {
-		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrVersionConflict)
-	}
-	next := clonePipeline(p)
-	next.Version++
-	s.pipelines[next.Id] = clonePipeline(next)
-	return next, nil
+	stored.Name, stored.Description = p.GetName(), p.GetDescription()
+	return clonePipeline(stored), nil
 }
 
-// LoadPipeline returns the pipeline with the given ID, or ErrNotFound.
+// LoadPipeline returns a pipeline by ID.
 func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -62,7 +82,26 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	return clonePipeline(p), nil
 }
 
-// ListPipelines returns pipelines for the tenant (all tenants if empty), sorted by ID.
+// LoadPipelineVersion returns a pipeline graph version, or the current version when version is zero.
+func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if version == 0 {
+		if p := s.pipelines[pipelineID]; p != nil {
+			version = p.GetCurrentVersionId()
+		}
+	}
+	v := s.pipelineVersions[pipelineID][version]
+	if v == nil {
+		return nil, fmt.Errorf("pipeline %q version %d: %w", pipelineID, version, filament.ErrNotFound)
+	}
+	return clonePipelineVersion(v), nil
+}
+
+// ListPipelines returns pipelines, optionally filtered by tenant.
 func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -71,7 +110,7 @@ func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv
 	defer s.mu.RUnlock()
 	var out []*ingestionv1.Pipeline
 	for _, p := range s.pipelines {
-		if tenant == "" || p.GetTenant() == tenant {
+		if tenant == "" || p.GetTenantId() == tenant {
 			out = append(out, clonePipeline(p))
 		}
 	}
@@ -79,13 +118,14 @@ func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv
 	return out, nil
 }
 
-// DeletePipeline removes the pipeline with the given ID; deleting a missing ID is a no-op.
+// DeletePipeline removes a pipeline and all of its graph versions.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	delete(s.pipelineVersions, id)
 	delete(s.pipelines, id)
 	return nil
 }
@@ -95,4 +135,32 @@ func clonePipeline(p *ingestionv1.Pipeline) *ingestionv1.Pipeline {
 		return nil
 	}
 	return proto.Clone(p).(*ingestionv1.Pipeline)
+}
+
+func clonePipelineVersion(v *ingestionv1.PipelineVersion) *ingestionv1.PipelineVersion {
+	if v == nil {
+		return nil
+	}
+	return proto.Clone(v).(*ingestionv1.PipelineVersion)
+}
+
+func pipelineRunStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
+	switch status {
+	case filament.RunRequested:
+		return ingestionv1.RunStatus_RUN_STATUS_REQUESTED
+	case filament.RunRunning:
+		return ingestionv1.RunStatus_RUN_STATUS_RUNNING
+	case filament.RunCompleted:
+		return ingestionv1.RunStatus_RUN_STATUS_COMPLETED
+	case filament.RunFailed:
+		return ingestionv1.RunStatus_RUN_STATUS_FAILED
+	case filament.RunCanceled:
+		return ingestionv1.RunStatus_RUN_STATUS_CANCELED
+	case filament.RunPaused:
+		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
+	case filament.RunPartial:
+		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
+	default:
+		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
+	}
 }

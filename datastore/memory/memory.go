@@ -19,13 +19,14 @@ var ErrNotFound = filament.ErrNotFound
 
 // Store is an in-memory DataStore.
 type Store struct {
-	mu          sync.RWMutex
-	runs        map[filament.RunID]filament.RunState
-	resources   map[filament.RunID]map[string]filament.ResourceState // run → resource → state
-	checkpoints map[ckey]filament.Checkpoint
-	seen        map[dkey]struct{} // dedup keys already applied
-	connections map[string]filament.Connection
-	pipelines   map[string]*ingestionv1.Pipeline
+	mu               sync.RWMutex
+	runs             map[filament.RunID]filament.RunState
+	resources        map[filament.RunID]map[string]filament.ResourceState // run → resource → state
+	checkpoints      map[ckey]filament.Checkpoint
+	seen             map[dkey]struct{} // dedup keys already applied
+	connections      map[string]filament.Connection
+	pipelines        map[string]*ingestionv1.Pipeline
+	pipelineVersions map[string]map[int64]*ingestionv1.PipelineVersion
 }
 
 type ckey struct {
@@ -42,12 +43,13 @@ type dkey struct {
 // New returns a ready-to-use in-memory store.
 func New() *Store {
 	return &Store{
-		runs:        map[filament.RunID]filament.RunState{},
-		resources:   map[filament.RunID]map[string]filament.ResourceState{},
-		checkpoints: map[ckey]filament.Checkpoint{},
-		seen:        map[dkey]struct{}{},
-		connections: map[string]filament.Connection{},
-		pipelines:   map[string]*ingestionv1.Pipeline{},
+		runs:             map[filament.RunID]filament.RunState{},
+		resources:        map[filament.RunID]map[string]filament.ResourceState{},
+		checkpoints:      map[ckey]filament.Checkpoint{},
+		seen:             map[dkey]struct{}{},
+		connections:      map[string]filament.Connection{},
+		pipelines:        map[string]*ingestionv1.Pipeline{},
+		pipelineVersions: map[string]map[int64]*ingestionv1.PipelineVersion{},
 	}
 }
 
@@ -71,6 +73,12 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	}
 	r.Resources = nil
 	s.runs[r.Run] = r
+	if p := s.pipelines[r.Request.PipelineID]; p != nil && (p.LastRunAt == 0 || p.LastRunAt <= r.StartedAt.UnixMilli()) {
+		p.LastRunVersionId = r.Request.PipelineVersionID
+		p.LastRunAt = r.StartedAt.UnixMilli()
+		p.LastRunStatus = pipelineRunStatusToProto(r.Status)
+		p.LastRunBytes = r.Bytes
+	}
 	return nil
 }
 
@@ -111,6 +119,12 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		}
 		return out[i].StartedAt.Before(out[j].StartedAt)
 	})
+	if f.Offset > 0 {
+		if f.Offset >= len(out) {
+			return nil, nil
+		}
+		out = out[f.Offset:]
+	}
 	if f.Limit > 0 && len(out) > f.Limit {
 		out = out[:f.Limit]
 	}
@@ -205,6 +219,12 @@ func (s *Store) listResourcesLocked(id filament.RunID) []filament.ResourceState 
 
 func matchRun(r filament.RunState, f filament.RunFilter) bool {
 	if f.Tenant != "" && r.Tenant != f.Tenant {
+		return false
+	}
+	if f.PipelineID != "" && r.Request.PipelineID != f.PipelineID {
+		return false
+	}
+	if f.PipelineVersionID != nil && r.Request.PipelineVersionID != *f.PipelineVersionID {
 		return false
 	}
 	if f.Schedule != "" && r.ScheduleID != f.Schedule {

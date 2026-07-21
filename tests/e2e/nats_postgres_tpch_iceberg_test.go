@@ -25,14 +25,13 @@ import (
 	"github.com/galaxy-io/filament/registry"
 	gxtc "github.com/galaxy-io/filament/tests/testcontainers"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
-	"github.com/galaxy-io/filament/tests/testcontainers/seed/tpch"
 )
 
 func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	tpch.RegisterSF(0.01)
+	registerTPCHSmokeScenario()
 	pg := gxtc.Postgres(t)
 	nats := gxtc.NATSContainer(t)
 	lake := gxtc.TrinoDataLake(t)

@@ -243,6 +243,29 @@ func runStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
 	}
 }
 
+func runStatusesFromProto(statuses []ingestionv1.RunStatus) []filament.RunStatus {
+	out := make([]filament.RunStatus, 0, len(statuses))
+	for _, status := range statuses {
+		switch status {
+		case ingestionv1.RunStatus_RUN_STATUS_REQUESTED:
+			out = append(out, filament.RunRequested)
+		case ingestionv1.RunStatus_RUN_STATUS_RUNNING:
+			out = append(out, filament.RunRunning)
+		case ingestionv1.RunStatus_RUN_STATUS_COMPLETED:
+			out = append(out, filament.RunCompleted)
+		case ingestionv1.RunStatus_RUN_STATUS_FAILED:
+			out = append(out, filament.RunFailed)
+		case ingestionv1.RunStatus_RUN_STATUS_CANCELED:
+			out = append(out, filament.RunCanceled)
+		case ingestionv1.RunStatus_RUN_STATUS_PAUSED:
+			out = append(out, filament.RunPaused)
+		case ingestionv1.RunStatus_RUN_STATUS_PARTIAL:
+			out = append(out, filament.RunPartial)
+		}
+	}
+	return out
+}
+
 func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResourcesResponse {
 	out := make([]*ingestionv1.Resource, 0, len(resources))
 	for _, resource := range resources {
@@ -261,20 +284,22 @@ func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResour
 
 func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 	return &ingestionv1.RunInfo{
-		Run:     string(state.Run),
-		Tenant:  string(state.Tenant),
-		Status:  runStatusToProto(state.Status),
-		Records: state.Records,
-		Bytes:   state.Bytes,
-		Error:   state.Error,
+		RunId:             string(state.Run),
+		TenantId:          string(state.Tenant),
+		PipelineId:        state.Request.PipelineID,
+		PipelineVersionId: state.Request.PipelineVersionID,
+		Status:            runStatusToProto(state.Status),
+		Records:           state.Records,
+		Bytes:             state.Bytes,
+		Error:             state.Error,
 	}
 }
 
 func eventToProto(f events.Fact, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
 		Type:     f.Name,
-		Tenant:   string(f.Tenant),
-		Run:      string(f.Run),
+		TenantId: string(f.Tenant),
+		RunId:    string(f.Run),
 		Resource: f.Resource,
 		Seq:      f.Seq,
 		AtUnixMs: f.At.UnixMilli(),
@@ -319,9 +344,9 @@ func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
 
 func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
-		Type:   runEventType(state.Status),
-		Tenant: string(state.Tenant),
-		Run:    string(state.Run),
+		Type:     runEventType(state.Status),
+		TenantId: string(state.Tenant),
+		RunId:    string(state.Run),
 		Fields: &ingestionv1.RunEventFields{
 			Records: state.Records,
 			Bytes:   state.Bytes,

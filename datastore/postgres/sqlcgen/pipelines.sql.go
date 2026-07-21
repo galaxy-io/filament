@@ -7,19 +7,20 @@ package sqlcgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPipeline = `-- name: CreatePipeline :exec
-INSERT INTO pipelines (pipeline_id, tenant_id, name, nodes, edges, version, updated_at)
-VALUES ($1, $2, $3, $4, $5, 1, now())
+INSERT INTO pipelines (pipeline_id, tenant_id, name, description, current_version_id, updated_at)
+VALUES ($1, $2, $3, $4, 0, now())
 `
 
 type CreatePipelineParams struct {
-	PipelineID string
-	TenantID   string
-	Name       string
-	Nodes      []byte
-	Edges      []byte
+	PipelineID  string
+	TenantID    string
+	Name        string
+	Description string
 }
 
 func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) error {
@@ -27,10 +28,40 @@ func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) 
 		arg.PipelineID,
 		arg.TenantID,
 		arg.Name,
-		arg.Nodes,
-		arg.Edges,
+		arg.Description,
 	)
 	return err
+}
+
+const createPipelineVersion = `-- name: CreatePipelineVersion :one
+WITH next AS (
+  SELECT current_version_id + 1 AS version FROM pipelines p WHERE p.pipeline_id = $1 FOR UPDATE
+), inserted AS (
+  INSERT INTO pipeline_versions (pipeline_id, version, nodes, edges)
+  SELECT $1, version, $2, $3 FROM next
+  RETURNING version, created_at
+)
+UPDATE pipelines p SET current_version_id = inserted.version, updated_at = now()
+FROM inserted WHERE p.pipeline_id = $1
+RETURNING inserted.version, inserted.created_at
+`
+
+type CreatePipelineVersionParams struct {
+	PipelineID string
+	Nodes      []byte
+	Edges      []byte
+}
+
+type CreatePipelineVersionRow struct {
+	Version   int64
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreatePipelineVersion(ctx context.Context, arg CreatePipelineVersionParams) (*CreatePipelineVersionRow, error) {
+	row := q.db.QueryRow(ctx, createPipelineVersion, arg.PipelineID, arg.Nodes, arg.Edges)
+	var i CreatePipelineVersionRow
+	err := row.Scan(&i.Version, &i.CreatedAt)
+	return &i, err
 }
 
 const deletePipeline = `-- name: DeletePipeline :exec
@@ -43,16 +74,21 @@ func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
 }
 
 const getPipeline = `-- name: GetPipeline :one
-SELECT pipeline_id, tenant_id, name, nodes, edges, version FROM pipelines WHERE pipeline_id = $1
+SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
+       last_run_at, last_run_status, last_run_bytes
+FROM pipelines WHERE pipeline_id = $1
 `
 
 type GetPipelineRow struct {
-	PipelineID string
-	TenantID   string
-	Name       string
-	Nodes      []byte
-	Edges      []byte
-	Version    int64
+	PipelineID       string
+	TenantID         string
+	Name             string
+	Description      string
+	CurrentVersionID int64
+	LastRunVersionID int64
+	LastRunAt        pgtype.Timestamptz
+	LastRunStatus    int16
+	LastRunBytes     int64
 }
 
 func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipelineRow, error) {
@@ -62,26 +98,56 @@ func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipel
 		&i.PipelineID,
 		&i.TenantID,
 		&i.Name,
+		&i.Description,
+		&i.CurrentVersionID,
+		&i.LastRunVersionID,
+		&i.LastRunAt,
+		&i.LastRunStatus,
+		&i.LastRunBytes,
+	)
+	return &i, err
+}
+
+const getPipelineVersion = `-- name: GetPipelineVersion :one
+SELECT pipeline_id, version, nodes, edges, created_at FROM pipeline_versions
+WHERE pipeline_versions.pipeline_id = $1 AND version = CASE WHEN $2::bigint = 0 THEN
+  (SELECT current_version_id FROM pipelines WHERE pipelines.pipeline_id = $1) ELSE $2 END
+`
+
+type GetPipelineVersionParams struct {
+	PipelineID string
+	Version    int64
+}
+
+func (q *Queries) GetPipelineVersion(ctx context.Context, arg GetPipelineVersionParams) (*PipelineVersion, error) {
+	row := q.db.QueryRow(ctx, getPipelineVersion, arg.PipelineID, arg.Version)
+	var i PipelineVersion
+	err := row.Scan(
+		&i.PipelineID,
+		&i.Version,
 		&i.Nodes,
 		&i.Edges,
-		&i.Version,
+		&i.CreatedAt,
 	)
 	return &i, err
 }
 
 const listPipelines = `-- name: ListPipelines :many
-SELECT pipeline_id, tenant_id, name, nodes, edges, version FROM pipelines
-WHERE ($1::text = '' OR tenant_id = $1)
-ORDER BY pipeline_id
+SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
+       last_run_at, last_run_status, last_run_bytes
+FROM pipelines WHERE ($1::text = '' OR tenant_id = $1) ORDER BY pipeline_id
 `
 
 type ListPipelinesRow struct {
-	PipelineID string
-	TenantID   string
-	Name       string
-	Nodes      []byte
-	Edges      []byte
-	Version    int64
+	PipelineID       string
+	TenantID         string
+	Name             string
+	Description      string
+	CurrentVersionID int64
+	LastRunVersionID int64
+	LastRunAt        pgtype.Timestamptz
+	LastRunStatus    int16
+	LastRunBytes     int64
 }
 
 func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPipelinesRow, error) {
@@ -97,9 +163,12 @@ func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPi
 			&i.PipelineID,
 			&i.TenantID,
 			&i.Name,
-			&i.Nodes,
-			&i.Edges,
-			&i.Version,
+			&i.Description,
+			&i.CurrentVersionID,
+			&i.LastRunVersionID,
+			&i.LastRunAt,
+			&i.LastRunStatus,
+			&i.LastRunBytes,
 		); err != nil {
 			return nil, err
 		}
@@ -111,29 +180,50 @@ func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPi
 	return items, nil
 }
 
-const updatePipeline = `-- name: UpdatePipeline :one
-UPDATE pipelines SET name = $1, nodes = $2, edges = $3, version = version + 1, updated_at = now()
-WHERE pipeline_id = $4 AND version = $5
-RETURNING version
+const updatePipeline = `-- name: UpdatePipeline :execrows
+UPDATE pipelines SET name = $1, description = $2, updated_at = now()
+WHERE pipeline_id = $3
 `
 
 type UpdatePipelineParams struct {
-	Name            string
-	Nodes           []byte
-	Edges           []byte
-	PipelineID      string
-	ExpectedVersion int64
+	Name        string
+	Description string
+	PipelineID  string
 }
 
 func (q *Queries) UpdatePipeline(ctx context.Context, arg UpdatePipelineParams) (int64, error) {
-	row := q.db.QueryRow(ctx, updatePipeline,
-		arg.Name,
-		arg.Nodes,
-		arg.Edges,
+	result, err := q.db.Exec(ctx, updatePipeline, arg.Name, arg.Description, arg.PipelineID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updatePipelineRunSummary = `-- name: UpdatePipelineRunSummary :exec
+UPDATE pipelines SET
+  last_run_version_id = $1,
+  last_run_at = $2,
+  last_run_status = $3,
+  last_run_bytes = $4,
+  updated_at = now()
+WHERE pipeline_id = $5 AND (last_run_at IS NULL OR last_run_at <= $2)
+`
+
+type UpdatePipelineRunSummaryParams struct {
+	Version    int64
+	StartedAt  pgtype.Timestamptz
+	Status     int16
+	Bytes      int64
+	PipelineID string
+}
+
+func (q *Queries) UpdatePipelineRunSummary(ctx context.Context, arg UpdatePipelineRunSummaryParams) error {
+	_, err := q.db.Exec(ctx, updatePipelineRunSummary,
+		arg.Version,
+		arg.StartedAt,
+		arg.Status,
+		arg.Bytes,
 		arg.PipelineID,
-		arg.ExpectedVersion,
 	)
-	var version int64
-	err := row.Scan(&version)
-	return version, err
+	return err
 }
