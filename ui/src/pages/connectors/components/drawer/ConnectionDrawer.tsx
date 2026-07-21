@@ -4,13 +4,11 @@ import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, {
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Modal from "@galaxy-io/dls/modal/Modal";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -18,6 +16,8 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import ConnectionDrawerConfiguration from "@/pages/connectors/components/drawer/ConnectionDrawerConfiguration";
 import ConnectionDrawerHeader from "@/pages/connectors/components/drawer/ConnectionDrawerHeader";
+import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
+import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 import ConnectionDrawerPipelines from "@/pages/connectors/components/drawer/ConnectionDrawerPipelines";
 import ConnectionDrawerSecrets from "@/pages/connectors/components/drawer/ConnectionDrawerSecrets";
 
@@ -28,8 +28,6 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import DangerZone from "@/components/DangerZone";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 
 const DrawerWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -53,8 +51,7 @@ interface ConnectionDrawerProps {
 
 const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
   const navigate = useNavigate();
-  const { mutate: deleteConnection, isPending: isDeleting } =
-    useDeleteConnectionMutation();
+  const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
   const { showToast } = useToast();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -78,10 +75,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
         onError: (error) => {
           showToast({
             header: "Delete failed",
-            subheader:
-              error instanceof Error
-                ? error.message
-                : "Failed to delete connection",
+            subheader: error instanceof Error ? error.message : "Failed to delete connection",
             variant: ToastVariant.ERROR,
           });
           setIsDeleteModalOpen(false);
@@ -97,40 +91,34 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
       <HorizontalDivider />
 
       <DrawerBody>
-        <FlexWrapper
-          direction={FlexDirection.COLUMN}
-          gap={12}
-          padding="16px"
-          fillWidth
-        >
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="16px" fillWidth>
           <ConnectionDrawerList>
             <ConnectionDrawerKeyValueRow
               label="Connection ID"
-              value={connection.id}
-              isMonospace
+              value={
+                <Text size={TextSize.BODY_SM} isMonospace isSelectable>
+                  {connection.id}
+                </Text>
+              }
             />
             <ConnectionDrawerKeyValueRow
               label="Connector"
-              value={connection.connector}
+              value={<Text size={TextSize.BODY_SM}>{connection.connector}</Text>}
             />
             <ConnectionDrawerKeyValueRow
               label="Kind"
               value={
                 <Chip
-                  label={
-                    connection.kind === ConnectorKind.SOURCE ? "Source" : "Sink"
-                  }
+                  label={connection.kind === ConnectorKind.SOURCE ? "Source" : "Sink"}
                   variant={
-                    connection.kind === ConnectorKind.SOURCE
-                      ? ChipVariant.LIME
-                      : ChipVariant.PINK
+                    connection.kind === ConnectorKind.SOURCE ? ChipVariant.LIME : ChipVariant.PINK
                   }
                 />
               }
             />
             <ConnectionDrawerKeyValueRow
               label="Version"
-              value={connection.version.toString()}
+              value={<Text size={TextSize.BODY_SM}>{connection.version.toString()}</Text>}
             />
           </ConnectionDrawerList>
 

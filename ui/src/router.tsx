@@ -7,7 +7,6 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
 import { routeTree } from "./routeTree.gen";
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 
 const DEFAULT_PRELOAD = "intent";
 const DEFAULT_PRELOAD_STALE_TIME = 300_000;
@@ -32,22 +31,10 @@ const DefaultNotFoundComponent = () => {
 
   return (
     <ErrorLayout
-      icon={
-        <Icon
-          component={ImageBrokenIcon}
-          size={24}
-          variant={IconVariant.SECONDARY}
-        />
-      }
+      icon={<Icon component={ImageBrokenIcon} size={24} variant={IconVariant.SECONDARY} />}
       header="Page not found"
       message="The page you are looking for does not exist"
-      actions={
-        <Button
-          label="Go back to app"
-          icon={ArrowLeftIcon}
-          onClick={handleGoToPipelines}
-        />
-      }
+      actions={<Button label="Go back to app" icon={ArrowLeftIcon} onClick={handleGoToPipelines} />}
     />
   );
 };

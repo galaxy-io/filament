@@ -5,10 +5,7 @@ import { ArrowUpRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
   AlignItems,
   FlexGap,
@@ -16,11 +13,7 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
@@ -41,9 +34,7 @@ import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-const CardWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $isCompact?: boolean }>
->`
+const CardWrapper = withTheme(styled.div<PropsWithTheme<{ $isCompact?: boolean }>>`
   width: 100%;
   height: ${({ $isCompact }) =>
     $isCompact ? PIPELINE_CARD_HEIGHT_COMPACT : PIPELINE_CARD_HEIGHT}px;
@@ -129,9 +120,7 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
     });
   };
 
-  const source =
-    pipeline.nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ??
-    "";
+  const source = pipeline.nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? "";
   const sinks = pipeline.nodes
     .filter((n) => n.kind === ConnectorKind.SINK)
     .map((n) => n.connectionId);
@@ -160,10 +149,7 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
         <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
       </FlexWrapper>
 
-      <FlexWrapper
-        alignItems={AlignItems.CENTER}
-        gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}
-      >
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}>
         {isCompact ? (
           <PipelineFlow source={source} sinks={sinks} />
         ) : (
@@ -178,19 +164,9 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
               label="Last run"
               value="—"
             />
-            <MetricColumn
-              width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME}
-              label="Volume"
-              value="—"
-            />
-            <MetricColumn
-              width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE}
-              value="—"
-            />
-            <ToggleInput
-              value={state.isEnabled}
-              onChange={handleIsEnabledChange}
-            />
+            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME} label="Volume" value="—" />
+            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE} value="—" />
+            <ToggleInput value={state.isEnabled} onChange={handleIsEnabledChange} />
           </>
         )}
         <Button

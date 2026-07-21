@@ -7,18 +7,17 @@ import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
+import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
+
 import PipelineCard from "@/pages/pipelines/components/PipelineCard";
 
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
-import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 interface ConnectionDrawerPipelinesProps {
   connectionId: string;
 }
 
-const ConnectionDrawerPipelines = ({
-  connectionId,
-}: ConnectionDrawerPipelinesProps) => {
+const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesProps) => {
   const { data: pipelinesData } = useListPipelinesQuery();
 
   const connectedPipelines = useMemo(() => {
@@ -46,13 +45,7 @@ const ConnectionDrawerPipelines = ({
       {connectedPipelines.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={
-            <Icon
-              component={FlowArrowIcon}
-              size={16}
-              variant={IconVariant.TERTIARY}
-            />
-          }
+          icon={<Icon component={FlowArrowIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No pipelines"
           message="This connection is not used in any pipelines."
         />

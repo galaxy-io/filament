@@ -1,3 +1,4 @@
+import type { JsonObject } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { GearIcon } from "@phosphor-icons/react";
 
@@ -16,8 +17,6 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
-import type { JsonObject } from "@bufbuild/protobuf";
-
 const ConfigValue = withTheme(styled.code<PropsWithTheme>`
   font-family: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
   font-size: 12px;
@@ -32,9 +31,7 @@ interface ConnectionDrawerConfigurationProps {
   config?: JsonObject;
 }
 
-const ConnectionDrawerConfiguration = ({
-  config,
-}: ConnectionDrawerConfigurationProps) => {
+const ConnectionDrawerConfiguration = ({ config }: ConnectionDrawerConfigurationProps) => {
   const configEntries = config ? Object.entries(config) : [];
 
   return (
@@ -53,13 +50,7 @@ const ConnectionDrawerConfiguration = ({
       {configEntries.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={
-            <Icon
-              component={GearIcon}
-              size={16}
-              variant={IconVariant.TERTIARY}
-            />
-          }
+          icon={<Icon component={GearIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No configuration"
           message="This connection has no configuration values."
         />
@@ -76,9 +67,7 @@ const ConnectionDrawerConfiguration = ({
                 {key}
               </Text>
               <ConfigValue>
-                {typeof value === "object"
-                  ? JSON.stringify(value)
-                  : String(value)}
+                {typeof value === "object" ? JSON.stringify(value) : String(value)}
               </ConfigValue>
             </FlexWrapper>
           ))}

@@ -29,9 +29,7 @@ interface ConnectionDrawerSecretsProps {
   secretRefs: { [key: string]: string };
 }
 
-const ConnectionDrawerSecrets = ({
-  secretRefs,
-}: ConnectionDrawerSecretsProps) => {
+const ConnectionDrawerSecrets = ({ secretRefs }: ConnectionDrawerSecretsProps) => {
   const secretRefEntries = Object.entries(secretRefs || {});
 
   return (
@@ -50,13 +48,7 @@ const ConnectionDrawerSecrets = ({
       {secretRefEntries.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={
-            <Icon
-              component={KeyIcon}
-              size={16}
-              variant={IconVariant.TERTIARY}
-            />
-          }
+          icon={<Icon component={KeyIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No secrets"
           message="This connection has no secret references."
         />
