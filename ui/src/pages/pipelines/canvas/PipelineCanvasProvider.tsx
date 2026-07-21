@@ -10,6 +10,7 @@ import {
 export const DEFAULT_STATE: PipelineCanvasState = {
   nodes: [],
   edges: [],
+  isReadOnly: false,
   activeMode: null,
   interactionMode: PipelineCanvasInteractionMode.GRAB,
   initialViewport: null,

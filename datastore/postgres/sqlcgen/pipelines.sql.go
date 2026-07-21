@@ -132,6 +132,37 @@ func (q *Queries) GetPipelineVersion(ctx context.Context, arg GetPipelineVersion
 	return &i, err
 }
 
+const listPipelineVersions = `-- name: ListPipelineVersions :many
+SELECT pipeline_id, version, nodes, edges, created_at FROM pipeline_versions
+WHERE pipeline_id = $1 ORDER BY version DESC
+`
+
+func (q *Queries) ListPipelineVersions(ctx context.Context, pipelineID string) ([]*PipelineVersion, error) {
+	rows, err := q.db.Query(ctx, listPipelineVersions, pipelineID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*PipelineVersion
+	for rows.Next() {
+		var i PipelineVersion
+		if err := rows.Scan(
+			&i.PipelineID,
+			&i.Version,
+			&i.Nodes,
+			&i.Edges,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPipelines = `-- name: ListPipelines :many
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
        last_run_at, last_run_status, last_run_bytes

@@ -1,9 +1,14 @@
 import { styled } from "@linaria/react";
-import { FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
+import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import SelectInput, {
+  type SelectInputOption,
+  SelectInputSize,
+  SelectInputVariant,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -42,6 +47,11 @@ interface PipelineLayoutNavbarProps {
   isRunning: boolean;
   isRunDisabled: boolean;
   onRun: () => void;
+  isPreview: boolean;
+  versionOptions: SelectInputOption[];
+  selectedVersionOption: SelectInputOption | null;
+  onVersionChange: (option: SelectInputOption) => void;
+  onBackToLatest: () => void;
 }
 
 const PipelineLayoutNavbar = ({
@@ -55,6 +65,11 @@ const PipelineLayoutNavbar = ({
   isRunning,
   isRunDisabled,
   onRun,
+  isPreview,
+  versionOptions,
+  selectedVersionOption,
+  onVersionChange,
+  onBackToLatest,
 }: PipelineLayoutNavbarProps) => {
   return (
     <PipelineLayoutNavbarWrapper>
@@ -67,33 +82,56 @@ const PipelineLayoutNavbar = ({
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-        {hasChanges ? (
-          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-            Unsaved changes
-          </Text>
-        ) : (
-          <ToggleInput value={isEnabled} onChange={onToggleEnabled} />
-        )}
-        {hasChanges ? (
-          <Button
-            label="Save"
-            icon={FloppyDiskIcon}
-            variant={ButtonVariant.SECONDARY}
-            size={ButtonSize.SMALL}
-            isLoading={isSaving}
-            onClick={onSave}
-          />
-        ) : (
-          <Button
-            label="Run"
-            icon={PlayIcon}
-            variant={ButtonVariant.PRIMARY}
-            size={ButtonSize.SMALL}
-            isLoading={isRunning}
-            isDisabled={isRunDisabled}
-            onClick={onRun}
+        {/* Save first: previewing remounts the canvas and would discard edits */}
+        {versionOptions.length > 0 && (
+          <SelectInput
+            options={versionOptions}
+            value={selectedVersionOption}
+            onChange={onVersionChange}
+            size={SelectInputSize.SMALL}
+            variant={SelectInputVariant.SECONDARY}
+            dropdownWidth={200}
+            isDisabled={hasChanges}
           />
         )}
+        {isPreview && (
+          <Button
+            label="Back to latest"
+            icon={ArrowUUpLeftIcon}
+            variant={ButtonVariant.TERTIARY}
+            size={ButtonSize.SMALL}
+            onClick={onBackToLatest}
+          />
+        )}
+        {!isPreview &&
+          (hasChanges ? (
+            <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
+              Unsaved changes
+            </Text>
+          ) : (
+            <ToggleInput value={isEnabled} onChange={onToggleEnabled} />
+          ))}
+        {!isPreview &&
+          (hasChanges ? (
+            <Button
+              label="Save"
+              icon={FloppyDiskIcon}
+              variant={ButtonVariant.SECONDARY}
+              size={ButtonSize.SMALL}
+              isLoading={isSaving}
+              onClick={onSave}
+            />
+          ) : (
+            <Button
+              label="Run"
+              icon={PlayIcon}
+              variant={ButtonVariant.PRIMARY}
+              size={ButtonSize.SMALL}
+              isLoading={isRunning}
+              isDisabled={isRunDisabled}
+              onClick={onRun}
+            />
+          ))}
       </FlexWrapper>
     </PipelineLayoutNavbarWrapper>
   );

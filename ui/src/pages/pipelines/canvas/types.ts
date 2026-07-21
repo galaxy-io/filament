@@ -45,6 +45,7 @@ export enum PipelineCanvasInteractionMode {
 export interface PipelineCanvasState {
   nodes: PipelineNode[];
   edges: PipelineEdge[];
+  isReadOnly: boolean;
   activeMode: PipelineCanvasEditMode | null;
   interactionMode: PipelineCanvasInteractionMode;
   initialViewport: Viewport | null;

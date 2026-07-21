@@ -269,6 +269,35 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("expected version 1, got %d", version.Version)
 	}
 
+	second, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion second: %v", err)
+	}
+	if second.Version != 2 {
+		t.Fatalf("expected version 2, got %d", second.Version)
+	}
+
+	versions, err := store.ListPipelineVersions(ctx, created.Id)
+	if err != nil {
+		t.Fatalf("ListPipelineVersions: %v", err)
+	}
+	if len(versions) != 2 {
+		t.Fatalf("expected 2 versions, got %d", len(versions))
+	}
+	if versions[0].Version != 2 || versions[1].Version != 1 {
+		t.Fatalf("expected versions newest first, got %d then %d", versions[0].Version, versions[1].Version)
+	}
+	if versions[0].CreatedAt == 0 {
+		t.Fatalf("expected nonzero CreatedAt")
+	}
+	unknown, err := store.ListPipelineVersions(ctx, "no-such-pipeline")
+	if err != nil {
+		t.Fatalf("ListPipelineVersions unknown: %v", err)
+	}
+	if len(unknown) != 0 {
+		t.Fatalf("expected empty versions for unknown pipeline, got %d", len(unknown))
+	}
+
 	created.Name = "orders-sync-v2"
 	updated, err := store.UpdatePipeline(ctx, created)
 	if err != nil {
@@ -285,7 +314,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	if fetched.Name != "orders-sync-v2" {
 		t.Fatalf("got name %q", fetched.Name)
 	}
-	if fetched.CurrentVersionId != 1 {
-		t.Fatalf("expected current version 1, got %d", fetched.CurrentVersionId)
+	if fetched.CurrentVersionId != 2 {
+		t.Fatalf("expected current version 2, got %d", fetched.CurrentVersionId)
 	}
 }
