@@ -20,9 +20,9 @@ interface EmptyLayoutProps {
 }
 
 const EMPTY_LAYOUT_SIZE_TO_GAP_MAP: Record<EmptyLayoutSize, number> = {
-  [EmptyLayoutSize.SMALL]: 16,
-  [EmptyLayoutSize.MEDIUM]: 24,
-  [EmptyLayoutSize.LARGE]: 32,
+  [EmptyLayoutSize.SMALL]: 12,
+  [EmptyLayoutSize.MEDIUM]: 20,
+  [EmptyLayoutSize.LARGE]: 24,
 };
 
 const EMPTY_LAYOUT_SIZE_TO_HEADER_SIZE_MAP: Record<EmptyLayoutSize, TextSize> = {
