@@ -8,7 +8,7 @@ import FlexWrapper, {
   FlexDirection,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";

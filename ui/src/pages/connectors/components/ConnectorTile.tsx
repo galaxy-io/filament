@@ -123,11 +123,11 @@ const ConnectorTile = ({
   size = ConnectorTileSize.MEDIUM,
   onClick,
 }: ConnectorTileProps) => {
-  const { galaxyTheme } = useGalaxyTheme();
+  const { activeTheme } = useGalaxyTheme();
   const resolvedSpec = useConnectorSpec(connector);
   const catalogSpec = spec ?? resolvedSpec;
   const logoURL =
-    galaxyTheme === GalaxyTheme.DARK ? catalogSpec?.darkLogoUrl : catalogSpec?.lightLogoUrl;
+    activeTheme === GalaxyTheme.DARK ? catalogSpec?.darkLogoUrl : catalogSpec?.lightLogoUrl;
   const [failedLogoURL, setFailedLogoURL] = useState<string>();
   const showLogo = !!logoURL && failedLogoURL !== logoURL;
 
