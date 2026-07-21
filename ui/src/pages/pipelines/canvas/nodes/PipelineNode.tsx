@@ -130,8 +130,7 @@ const PipelineNode = ({
   children,
 }: PipelineNodeProps) => {
   const connectorSpec = useConnectorSpec(connector, kind);
-  const handlePosition = kind === ConnectorKind.SINK ? Position.Left : Position.Right;
-  const nodeWidth = kind === ConnectorKind.SINK ? PIPELINE_NODE_SINK_WIDTH : PIPELINE_NODE_WIDTH;
+  const isSink = kind === ConnectorKind.SINK;
 
   const handleSlot = (
     <PipelineNodeHandle
@@ -177,7 +176,7 @@ const PipelineNode = ({
             spec={connectorSpec}
             size={ConnectorTileSize.SMALL}
           />
-          <Text size={TextSize.BODY_SM}>{connectorSpec?.displayName || connector}</Text>
+          <Text size={TextSize.BODY_SM}>{label}</Text>
         </HeaderContent>
         {!isSink && handleSlot}
       </HeaderIsland>

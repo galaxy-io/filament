@@ -1,4 +1,3 @@
-import { styled } from "@linaria/react";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -11,11 +10,6 @@ import { BaseHeaderSize } from "@/layouts/components/types";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
-
-const HeaderWrapper = styled.div`
-  flex: 1;
-  min-width: 0;
-`;
 
 interface CreateConnectionConfigureHeaderProps {
   connector: ConnectorSpec;
@@ -50,7 +44,7 @@ const CreateConnectionConfigureHeader = ({
           description={connector.description || "Configure your connection settings"}
           onClose={onClose}
         />
-      </HeaderWrapper>
+      </FlexWrapper>
     </FlexWrapper>
   );
 };

@@ -4,7 +4,7 @@ import { styled } from "@linaria/react";
 import { XIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
-import CellGridBackground from "@galaxy-io/dls/backgrounds/CellGridBackground";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -123,11 +123,11 @@ const ConnectorTile = ({
   size = ConnectorTileSize.MEDIUM,
   onClick,
 }: ConnectorTileProps) => {
-  const { activeTheme } = useGalaxyTheme();
+  const { galaxyTheme } = useGalaxyTheme();
   const resolvedSpec = useConnectorSpec(connector);
   const catalogSpec = spec ?? resolvedSpec;
   const logoURL =
-    activeTheme === GalaxyTheme.DARK ? catalogSpec?.darkLogoUrl : catalogSpec?.lightLogoUrl;
+    galaxyTheme === GalaxyTheme.DARK ? catalogSpec?.darkLogoUrl : catalogSpec?.lightLogoUrl;
   const [failedLogoURL, setFailedLogoURL] = useState<string>();
   const showLogo = !!logoURL && failedLogoURL !== logoURL;
 
