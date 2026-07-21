@@ -13,12 +13,15 @@ import (
 	"github.com/galaxy-io/filament/events"
 )
 
-// ListRuns returns runs matching the request's tenant, source, and limit.
+// ListRuns returns runs matching the request's tenant, pipeline, version, and statuses.
 func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.ListRunsRequest]) (*connect.Response[ingestionv1.ListRunsResponse], error) {
 	states, err := a.store.ListRuns(ctx, filament.RunFilter{
-		Tenant: filament.TenantID(req.Msg.GetTenant()),
-		Source: req.Msg.GetSource(),
-		Limit:  int(req.Msg.GetLimit()),
+		Tenant:            filament.TenantID(req.Msg.GetTenantId()),
+		PipelineID:        req.Msg.GetPipelineId(),
+		PipelineVersionID: req.Msg.PipelineVersionId,
+		Status:            runStatusesFromProto(req.Msg.GetStatus()),
+		Limit:             int(req.Msg.GetLimit()),
+		Offset:            int(req.Msg.GetOffset()),
 	})
 	if err != nil {
 		return nil, err
@@ -65,7 +68,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 		return fmt.Errorf("event bus is not configured")
 	}
 	send := stream.Send
-	tenant := filament.TenantID(defaultTenant(req.Msg.GetTenant()))
+	tenant := filament.TenantID(defaultTenant(req.Msg.GetTenantId()))
 	run := filament.RunID(req.Msg.GetRunId())
 	if run == "" {
 		return fmt.Errorf("run_id is required")
@@ -133,8 +136,8 @@ func (a *Server) replayRun(ctx context.Context, run filament.RunID, send func(*i
 	for _, resource := range state.Resources {
 		if err := send(tailResponse(&ingestionv1.RunEvent{
 			Type:     runStatusEventType(resource.Status),
-			Tenant:   string(state.Tenant),
-			Run:      string(state.Run),
+			TenantId: string(state.Tenant),
+			RunId:    string(state.Run),
 			Resource: resource.Resource,
 			Fields: &ingestionv1.RunEventFields{
 				Records: resource.Records,

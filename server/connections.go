@@ -29,7 +29,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 	}
 
 	id := uuid.NewString()
-	tenant := defaultTenant(req.Msg.GetTenant())
+	tenant := defaultTenant(req.Msg.GetTenantId())
 	refs := cloneStrings(req.Msg.GetSecretRefs())
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -122,7 +122,7 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 
 // ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
-	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenant(), Kind: connectionKindFromProto(req.Msg.GetKind())})
+	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind())})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -146,7 +146,14 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	for _, pipeline := range pipelines {
-		for _, node := range pipeline.GetNodes() {
+		version, err := a.store.LoadPipelineVersion(ctx, pipeline.GetId(), 0)
+		if errors.Is(err, filament.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		for _, node := range version.GetNodes() {
 			if node.GetConnectionId() == id {
 				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is in use by pipeline %q", id, pipeline.GetId()))
 			}

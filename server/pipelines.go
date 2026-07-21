@@ -17,12 +17,7 @@ import (
 func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
 	id := uuid.NewString()
 	pipeline := &ingestionv1.Pipeline{
-		Id:      id,
-		Tenant:  defaultTenant(req.Msg.GetTenant()),
-		Name:    req.Msg.GetName(),
-		Nodes:   req.Msg.GetNodes(),
-		Edges:   req.Msg.GetEdges(),
-		Version: 1,
+		Id: id, TenantId: defaultTenant(req.Msg.GetTenantId()), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 	}
 	created, err := a.store.CreatePipeline(ctx, pipeline)
 	if err != nil {
@@ -31,19 +26,28 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: created}), nil
 }
 
-// UpdatePipeline replaces the stored pipeline, bumping its version.
+func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineVersionRequest]) (*connect.Response[ingestionv1.CreatePipelineVersionResponse], error) {
+	if req.Msg.GetPipelineId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
+	}
+	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: req.Msg.GetNodes(), Edges: req.Msg.GetEdges()})
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
+}
+
+// UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
+// immutable versions through CreatePipelineVersion.
 func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
 	pipeline := req.Msg.GetPipeline()
 	if pipeline == nil || pipeline.GetId() == "" {
 		return nil, fmt.Errorf("pipeline.id is required")
 	}
-	if pipeline.Tenant == "" {
-		pipeline.Tenant = "t1"
-	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
-	if errors.Is(err, filament.ErrVersionConflict) {
-		return nil, connect.NewError(connect.CodeAborted, err)
-	}
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -51,6 +55,17 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&ingestionv1.UpdatePipelineResponse{Pipeline: next}), nil
+}
+
+func (a *Server) GetPipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineVersionRequest]) (*connect.Response[ingestionv1.GetPipelineVersionResponse], error) {
+	v, err := a.store.LoadPipelineVersion(ctx, req.Msg.GetPipelineId(), req.Msg.GetVersion())
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.GetPipelineVersionResponse{Version: v}), nil
 }
 
 // GetPipeline returns the pipeline by id.
@@ -67,7 +82,7 @@ func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestion
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
-	pipelines, err := a.store.ListPipelines(ctx, req.Msg.GetTenant())
+	pipelines, err := a.store.ListPipelines(ctx, req.Msg.GetTenantId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -92,9 +107,16 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	version, err := a.store.LoadPipelineVersion(ctx, pipeline.GetId(), pipeline.GetCurrentVersionId())
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline has no version: %w", err))
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	nodes := map[string]*ingestionv1.PipelineNode{}
 	connections := map[string]filament.Connection{}
-	for _, node := range pipeline.GetNodes() {
+	for _, node := range version.GetNodes() {
 		nodes[node.GetId()] = node
 		if _, ok := connections[node.GetConnectionId()]; !ok {
 			conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
@@ -110,7 +132,7 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	if token == "" {
 		token = uuid.NewString()
 	}
-	groups, err := groupEdges(pipeline.GetEdges(), nodes)
+	groups, err := groupEdges(version.GetEdges(), nodes)
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +159,15 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 			return nil, err
 		}
 		run, err := a.orch.Submit(ctx, filament.RunRequest{
-			Tenant:         filament.TenantID(defaultTenant(pipeline.GetTenant())),
-			IdempotencyKey: fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:         sourceRef,
-			Sink:           sinkRef,
-			Resources:      resources,
-			Selectors:      selectors,
-			IngestionType:  group.ingestionType,
+			Tenant:            filament.TenantID(defaultTenant(pipeline.GetTenantId())),
+			PipelineID:        pipeline.GetId(),
+			PipelineVersionID: version.GetVersion(),
+			IdempotencyKey:    fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+			Source:            sourceRef,
+			Sink:              sinkRef,
+			Resources:         resources,
+			Selectors:         selectors,
+			IngestionType:     group.ingestionType,
 		})
 		if err != nil {
 			return nil, err
