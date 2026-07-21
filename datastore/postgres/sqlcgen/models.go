@@ -81,14 +81,25 @@ type DedupSeen struct {
 }
 
 type Pipeline struct {
+	PipelineID       string
+	TenantID         string
+	Name             string
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	Description      string
+	CurrentVersionID int64
+	LastRunVersionID int64
+	LastRunAt        pgtype.Timestamptz
+	LastRunStatus    int16
+	LastRunBytes     int64
+}
+
+type PipelineVersion struct {
 	PipelineID string
-	TenantID   string
-	Name       string
+	Version    int64
 	Nodes      []byte
 	Edges      []byte
-	Version    int64
 	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
 }
 
 type ResourceState struct {

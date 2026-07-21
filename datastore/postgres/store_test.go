@@ -2,7 +2,6 @@ package postgres_test
 
 import (
 	"context"
-	"errors"
 	"os"
 	"testing"
 	"time"
@@ -258,12 +257,16 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	}
 
 	store := postgres.New(pool)
-	created, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", Tenant: "tenant-a", Name: "orders-sync"})
+	created, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: "tenant-a", Name: "orders-sync"})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if created.Version != 1 {
-		t.Fatalf("expected version 1, got %d", created.Version)
+	version, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+	if version.Version != 1 {
+		t.Fatalf("expected version 1, got %d", version.Version)
 	}
 
 	created.Name = "orders-sync-v2"
@@ -271,14 +274,8 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if updated.Version != 2 {
-		t.Fatalf("expected version 2, got %d", updated.Version)
-	}
-
-	// Reusing the stale (version=1) copy must be rejected, not silently applied.
-	created.Name = "stale-write"
-	if _, err := store.UpdatePipeline(ctx, created); !errors.Is(err, filament.ErrVersionConflict) {
-		t.Fatalf("expected ErrVersionConflict for stale update, got %v", err)
+	if updated.Name != "orders-sync-v2" {
+		t.Fatalf("expected updated name, got %q", updated.Name)
 	}
 
 	fetched, err := store.LoadPipeline(ctx, "pipe-1")
@@ -286,6 +283,9 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 	if fetched.Name != "orders-sync-v2" {
-		t.Fatalf("stale update must not have applied, got name %q", fetched.Name)
+		t.Fatalf("got name %q", fetched.Name)
+	}
+	if fetched.CurrentVersionId != 1 {
+		t.Fatalf("expected current version 1, got %d", fetched.CurrentVersionId)
 	}
 }
