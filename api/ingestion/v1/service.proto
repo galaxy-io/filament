@@ -30,8 +30,10 @@ service IngestionService {
 
   // Pipelines; the persisted node graph.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);
+  rpc CreatePipelineVersion(CreatePipelineVersionRequest) returns (CreatePipelineVersionResponse);
   rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
   rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
+  rpc GetPipelineVersion(GetPipelineVersionRequest) returns (GetPipelineVersionResponse);
   rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
   rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
 

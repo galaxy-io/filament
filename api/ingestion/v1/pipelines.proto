@@ -37,8 +37,8 @@ message PipelineVersion {
   int64 created_at = 5;
 }
 
-// Pipeline is the persisted node graph. version is an optimistic lock: an update
-// must carry the version it last read.
+// Pipeline is mutable metadata plus a summary of its current graph version and
+// most recent run.
 message Pipeline {
   string id = 1;
   string tenant_id = 2;
@@ -97,7 +97,7 @@ message GetPipelineVersionResponse {
 }
 
 message ListPipelinesRequest {
-  string tenant = 1;
+  string tenant_id = 1;
 }
 
 message ListPipelinesResponse {

@@ -30,7 +30,7 @@ const (
 type Connection struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Tenant        string                 `protobuf:"bytes,2,opt,name=tenant,proto3" json:"tenant,omitempty"`
+	TenantId      string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Kind          ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	Connector     string                 `protobuf:"bytes,5,opt,name=connector,proto3" json:"connector,omitempty"`
@@ -78,9 +78,9 @@ func (x *Connection) GetId() string {
 	return ""
 }
 
-func (x *Connection) GetTenant() string {
+func (x *Connection) GetTenantId() string {
 	if x != nil {
-		return x.Tenant
+		return x.TenantId
 	}
 	return ""
 }
@@ -129,7 +129,7 @@ func (x *Connection) GetVersion() int64 {
 
 type CreateConnectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tenant        string                 `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Connector     string                 `protobuf:"bytes,4,opt,name=connector,proto3" json:"connector,omitempty"`
@@ -169,9 +169,9 @@ func (*CreateConnectionRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connections_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CreateConnectionRequest) GetTenant() string {
+func (x *CreateConnectionRequest) GetTenantId() string {
 	if x != nil {
-		return x.Tenant
+		return x.TenantId
 	}
 	return ""
 }
@@ -435,7 +435,7 @@ func (x *GetConnectionResponse) GetConnection() *Connection {
 // sinks.
 type ListConnectionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tenant        string                 `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -471,9 +471,9 @@ func (*ListConnectionsRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connections_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ListConnectionsRequest) GetTenant() string {
+func (x *ListConnectionsRequest) GetTenantId() string {
 	if x != nil {
-		return x.Tenant
+		return x.TenantId
 	}
 	return ""
 }
@@ -613,11 +613,11 @@ var File_ingestion_v1_connections_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\n" +
-	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\xec\x02\n" +
+	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\xf1\x02\n" +
 	"\n" +
 	"Connection\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06tenant\x18\x02 \x01(\tR\x06tenant\x12/\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12\x1c\n" +
 	"\tconnector\x18\x05 \x01(\tR\tconnector\x12/\n" +
@@ -627,9 +627,9 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\aversion\x18\b \x01(\x03R\aversion\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdc\x02\n" +
-	"\x17CreateConnectionRequest\x12\x16\n" +
-	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12/\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x02\n" +
+	"\x17CreateConnectionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1c\n" +
 	"\tconnector\x18\x04 \x01(\tR\tconnector\x12/\n" +
@@ -656,9 +656,9 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\x15GetConnectionResponse\x128\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
-	"connection\"a\n" +
-	"\x16ListConnectionsRequest\x12\x16\n" +
-	"\x06tenant\x18\x01 \x01(\tR\x06tenant\x12/\n" +
+	"connection\"f\n" +
+	"\x16ListConnectionsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"U\n" +
 	"\x17ListConnectionsResponse\x12:\n" +
 	"\vconnections\x18\x01 \x03(\v2\x18.ingestion.v1.ConnectionR\vconnections\")\n" +
