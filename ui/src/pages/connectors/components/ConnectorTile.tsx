@@ -57,6 +57,7 @@ const TileWrapper = withTheme(styled.div<
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
@@ -123,11 +124,9 @@ const ConnectorTile = ({
   size = ConnectorTileSize.MEDIUM,
   onClick,
 }: ConnectorTileProps) => {
-  const { activeTheme } = useGalaxyTheme();
   const resolvedSpec = useConnectorSpec(connector);
   const catalogSpec = spec ?? resolvedSpec;
-  const logoURL =
-    activeTheme === GalaxyTheme.DARK ? catalogSpec?.darkLogoUrl : catalogSpec?.lightLogoUrl;
+  const logoURL = catalogSpec?.darkLogoUrl;
   const [failedLogoURL, setFailedLogoURL] = useState<string>();
   const showLogo = !!logoURL && failedLogoURL !== logoURL;
 

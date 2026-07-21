@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/connections.proto.
  */
 export const file_ingestion_v1_connections: GenFile = /*@__PURE__*/
-  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSKgAgoKQ29ubmVjdGlvbhIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKdAgoXQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QSDgoGdGVuYW50GAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIMCgRuYW1lGAMgASgJEhEKCWNvbm5lY3RvchgEIAEoCRInCgZjb25maWcYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EkoKC3NlY3JldF9yZWZzGAYgAygLMjUuaW5nZXN0aW9uLnYxLkNyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0LlNlY3JldFJlZnNFbnRyeRoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJIChhDcmVhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkcKF1VwZGF0ZUNvbm5lY3Rpb25SZXF1ZXN0EiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJIChhVcGRhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIiIKFEdldENvbm5lY3Rpb25SZXF1ZXN0EgoKAmlkGAEgASgJIkUKFUdldENvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iUwoWTGlzdENvbm5lY3Rpb25zUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kIkgKF0xpc3RDb25uZWN0aW9uc1Jlc3BvbnNlEi0KC2Nvbm5lY3Rpb25zGAEgAygLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iJQoXRGVsZXRlQ29ubmVjdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
+  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSKjAgoKQ29ubmVjdGlvbhIKCgJpZBgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKgAgoXQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIMCgRuYW1lGAMgASgJEhEKCWNvbm5lY3RvchgEIAEoCRInCgZjb25maWcYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EkoKC3NlY3JldF9yZWZzGAYgAygLMjUuaW5nZXN0aW9uLnYxLkNyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0LlNlY3JldFJlZnNFbnRyeRoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJIChhDcmVhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkcKF1VwZGF0ZUNvbm5lY3Rpb25SZXF1ZXN0EiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJIChhVcGRhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIiIKFEdldENvbm5lY3Rpb25SZXF1ZXN0EgoKAmlkGAEgASgJIkUKFUdldENvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iVgoWTGlzdENvbm5lY3Rpb25zUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kIkgKF0xpc3RDb25uZWN0aW9uc1Jlc3BvbnNlEi0KC2Nvbm5lY3Rpb25zGAEgAygLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iJQoXRGVsZXRlQ29ubmVjdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
 
 /**
  * Connection is a reusable, tenant-scoped source or sink. It holds the
@@ -31,9 +31,9 @@ export type Connection = Message<"ingestion.v1.Connection"> & {
   id: string;
 
   /**
-   * @generated from field: string tenant = 2;
+   * @generated from field: string tenant_id = 2;
    */
-  tenant: string;
+  tenantId: string;
 
   /**
    * @generated from field: ingestion.v1.ConnectorKind kind = 3;
@@ -80,9 +80,9 @@ export const ConnectionSchema: GenMessage<Connection> = /*@__PURE__*/
  */
 export type CreateConnectionRequest = Message<"ingestion.v1.CreateConnectionRequest"> & {
   /**
-   * @generated from field: string tenant = 1;
+   * @generated from field: string tenant_id = 1;
    */
-  tenant: string;
+  tenantId: string;
 
   /**
    * @generated from field: ingestion.v1.ConnectorKind kind = 2;
@@ -210,9 +210,9 @@ export const GetConnectionResponseSchema: GenMessage<GetConnectionResponse> = /*
  */
 export type ListConnectionsRequest = Message<"ingestion.v1.ListConnectionsRequest"> & {
   /**
-   * @generated from field: string tenant = 1;
+   * @generated from field: string tenant_id = 1;
    */
-  tenant: string;
+  tenantId: string;
 
   /**
    * @generated from field: ingestion.v1.ConnectorKind kind = 2;

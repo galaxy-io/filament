@@ -121,6 +121,7 @@ const PipelineNodeSourceIsland = ({
           <ErrorLayout
             icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
             message="Failed to load resources"
+            error={error}
           />
         </FlexWrapper>
       );

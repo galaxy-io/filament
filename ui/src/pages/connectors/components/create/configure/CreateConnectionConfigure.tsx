@@ -318,7 +318,7 @@ const CreateConnectionConfigureContent = ({
       .with(CreateConnectionPhase.VALIDATED, () => (
         <Button
           size={ButtonSize.LARGE}
-          label="Create Connection"
+          label="Create"
           icon={CheckIcon}
           variant={ButtonVariant.SUCCESS}
           onClick={handleCreate}

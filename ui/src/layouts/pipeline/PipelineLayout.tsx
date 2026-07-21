@@ -22,7 +22,7 @@ import { isPipelineRunnable } from "@/pages/pipelines/canvas/utils";
 
 import { useRunPipelineMutation } from "@/api/queries/runs";
 
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
@@ -84,6 +84,7 @@ const ContentIsland = withTheme(styled.div<PropsWithTheme>`
 
 interface PipelineLayoutProps {
   pipeline: Pipeline;
+  currentVersion?: PipelineVersion;
   status: PipelineStatus;
 }
 
@@ -95,13 +96,18 @@ const DEFAULT_STATE: PipelineLayoutState = {
   isEnabled: false,
 };
 
-const PipelineLayout = ({ pipeline, status, children }: PropsWithChildren<PipelineLayoutProps>) => {
+const PipelineLayout = ({
+  pipeline,
+  currentVersion,
+  status,
+  children,
+}: PropsWithChildren<PipelineLayoutProps>) => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [state, setState] = useState<PipelineLayoutState>(DEFAULT_STATE);
 
   const { dispatch } = usePipelineCanvas();
-  const { hasChanges, isSaving, save } = usePipelineCanvasSave(pipeline);
+  const { hasChanges, isSaving, save } = usePipelineCanvasSave(pipeline, currentVersion);
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const { isRouteMatch: isHistoryActive } = useRouteMatch({
@@ -174,7 +180,7 @@ const PipelineLayout = ({ pipeline, status, children }: PropsWithChildren<Pipeli
           isSaving={isSaving}
           onSave={save}
           isRunning={isRunning}
-          isRunDisabled={!isPipelineRunnable(pipeline)}
+          isRunDisabled={!isPipelineRunnable(currentVersion)}
           onRun={handleRun}
         />
         <ContentWrapper>

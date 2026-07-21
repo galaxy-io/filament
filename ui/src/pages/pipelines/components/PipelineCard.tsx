@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { ArrowUpRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
@@ -31,8 +32,10 @@ import {
 import { PipelineHealth } from "@/pages/pipelines/types";
 import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
 
+import { useGetPipelineVersionQuery } from "@/api/queries/pipelines";
+
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import { GetPipelineVersionRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme<{ $isCompact?: boolean }>>`
   width: 100%;
@@ -109,6 +112,14 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
 
   const [state, setState] = useState<PipelineCardState>(DEFAULT_STATE);
 
+  // The graph lives on the pipeline's current version; NotFound (no saved
+  // version yet) renders as an empty flow
+  const { data: versionData } = useGetPipelineVersionQuery({
+    input: create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
+    options: { retry: false },
+  });
+  const nodes = versionData?.version?.nodes ?? [];
+
   const handleIsEnabledChange = (isEnabled: boolean) => {
     setState((prev) => ({ ...prev, isEnabled }));
   };
@@ -120,10 +131,8 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
     });
   };
 
-  const source = pipeline.nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? "";
-  const sinks = pipeline.nodes
-    .filter((n) => n.kind === ConnectorKind.SINK)
-    .map((n) => n.connectionId);
+  const source = nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? "";
+  const sinks = nodes.filter((n) => n.kind === ConnectorKind.SINK).map((n) => n.connectionId);
 
   return (
     <CardWrapper $isCompact={isCompact} onClick={handlePipelineClick}>

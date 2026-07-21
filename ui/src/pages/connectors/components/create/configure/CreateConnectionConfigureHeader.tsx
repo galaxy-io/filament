@@ -41,7 +41,6 @@ const CreateConnectionConfigureHeader = ({
         <BaseHeader
           size={BaseHeaderSize.LARGE}
           title={`New ${connector.displayName || connector.name} connection`}
-          description={connector.description || "Configure your connection settings"}
           onClose={onClose}
         />
       </FlexWrapper>

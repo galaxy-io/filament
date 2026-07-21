@@ -74,7 +74,7 @@ const RunIdCell = ({ run }: RunCellProps) => {
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} gap={2}>
       <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-        {run.run}
+        {run.runId}
       </Text>
       {run.error && (
         <Text size={TextSize.CAPTION} variant={TextVariant.ERROR} isEllipsis>
@@ -146,7 +146,7 @@ const PipelineHistoryPage = () => {
         <InfiniteTable<RunInfo>
           columns={RUN_TABLE_COLUMNS}
           data={data?.runs ?? []}
-          getRowId={(run) => run.run}
+          getRowId={(run) => run.runId}
           isLoading={isLoading}
           loadingRowCount={RUN_HISTORY_LOADING_ROW_COUNT}
           isError={isError}

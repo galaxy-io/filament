@@ -18,9 +18,10 @@ import {
 import { ConnectorKind, IngestionType } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
-  type Pipeline,
+  type CreatePipelineVersionRequest,
+  CreatePipelineVersionRequestSchema,
   type PipelineEdge as PipelineEdgeProto,
-  PipelineSchema,
+  type PipelineVersion,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 const NODE_STACK_BASE_X_SOURCE = 100;
@@ -99,15 +100,16 @@ const getProtoEdgeKey = (edge: PipelineEdgeProto) =>
 const getCanvasEdgeKey = (edge: PipelineEdge) =>
   `${edge.source}|${getCanvasEdgeResource(edge)}|${edge.target}`;
 
-export const mapPipelineToCanvasState = (
-  pipeline: Pipeline,
+// A pipeline with no saved versions yet maps to an empty canvas
+export const mapPipelineVersionToCanvasState = (
+  version: PipelineVersion | undefined,
   connections: Connection[],
 ): Pick<PipelineCanvasState, "nodes" | "edges"> => {
   const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));
 
   // Positions are not persisted (no proto field) - stack deterministically as nodes accumulate
   const nodes: PipelineNode[] = [];
-  for (const node of pipeline.nodes) {
+  for (const node of version?.nodes ?? []) {
     const connection = connectionsById.get(node.connectionId);
     const kind = node.kind === ConnectorKind.SINK ? ConnectorKind.SINK : ConnectorKind.SOURCE;
     const type = kind === ConnectorKind.SINK ? PipelineNodeType.SINK : PipelineNodeType.SOURCE;
@@ -124,7 +126,7 @@ export const mapPipelineToCanvasState = (
     });
   }
 
-  const edges: PipelineEdge[] = pipeline.edges.map((edge) => ({
+  const edges: PipelineEdge[] = (version?.edges ?? []).map((edge) => ({
     id: getProtoEdgeKey(edge),
     type: PIPELINE_EDGE_TYPE,
     source: edge.fromNode,
@@ -136,12 +138,15 @@ export const mapPipelineToCanvasState = (
   return { nodes, edges };
 };
 
-export const mapCanvasStateToPipeline = (
+export const mapCanvasStateToVersionRequest = (
   state: PipelineCanvasState,
-  basePipeline: Pipeline,
-): Pipeline => {
-  const baseNodesById = new Map(basePipeline.nodes.map((node) => [node.id, node]));
-  const baseEdgesByKey = new Map(basePipeline.edges.map((edge) => [getProtoEdgeKey(edge), edge]));
+  pipelineId: string,
+  baseVersion: PipelineVersion | undefined,
+): CreatePipelineVersionRequest => {
+  const baseNodesById = new Map((baseVersion?.nodes ?? []).map((node) => [node.id, node]));
+  const baseEdgesByKey = new Map(
+    (baseVersion?.edges ?? []).map((edge) => [getProtoEdgeKey(edge), edge]),
+  );
 
   // Preserve fields the canvas doesn't edit (config overlays, ingestion settings)
   const nodes = state.nodes.filter(isConnectionNode).map((node) => {
@@ -166,31 +171,28 @@ export const mapCanvasStateToPipeline = (
     };
   });
 
-  return create(PipelineSchema, {
-    id: basePipeline.id,
-    tenant: basePipeline.tenant,
-    name: basePipeline.name,
-    version: basePipeline.version,
+  return create(CreatePipelineVersionRequestSchema, {
+    pipelineId,
     nodes,
     edges,
   });
 };
 
 // A pipeline can only run once it has a source, a sink, and at least one route between them
-export const isPipelineRunnable = (pipeline: Pipeline): boolean =>
-  pipeline.nodes.some((node) => node.kind === ConnectorKind.SOURCE) &&
-  pipeline.nodes.some((node) => node.kind === ConnectorKind.SINK) &&
-  pipeline.edges.length > 0;
+export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
+  (version?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&
+  (version?.nodes ?? []).some((node) => node.kind === ConnectorKind.SINK) &&
+  (version?.edges ?? []).length > 0;
 
 export const hasPipelineGraphChanges = (
   state: PipelineCanvasState,
-  pipeline: Pipeline,
+  version: PipelineVersion | undefined,
 ): boolean => {
   const canvasNodes = state.nodes
     .filter(isConnectionNode)
     .map((node) => `${node.id}|${getConnectorKind(node)}|${node.data.connectionId}`)
     .sort();
-  const pipelineNodes = pipeline.nodes
+  const pipelineNodes = (version?.nodes ?? [])
     .map(
       (node) =>
         `${node.id}|${node.kind === ConnectorKind.SINK ? ConnectorKind.SINK : ConnectorKind.SOURCE}|${node.connectionId}`,
@@ -198,7 +200,7 @@ export const hasPipelineGraphChanges = (
     .sort();
 
   const canvasEdges = state.edges.map(getCanvasEdgeKey).sort();
-  const pipelineEdges = pipeline.edges.map(getProtoEdgeKey).sort();
+  const pipelineEdges = (version?.edges ?? []).map(getProtoEdgeKey).sort();
 
   return (
     canvasNodes.join(",") !== pipelineNodes.join(",") ||

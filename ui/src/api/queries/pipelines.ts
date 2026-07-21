@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import type {
   GetPipelineRequest,
   GetPipelineResponse,
+  GetPipelineVersionRequest,
+  GetPipelineVersionResponse,
   ListPipelinesRequest,
   ListPipelinesResponse,
 } from "@/gen/ingestion/v1/pipelines_pb";
@@ -75,6 +77,37 @@ export const useGetPipelineQuery = ({
   >(IngestionService.method.getPipeline, input, options);
 };
 
+// ========== GET PIPELINE VERSION ==========
+
+// version 0 resolves to the pipeline's current version on the server
+export const createGetPipelineVersionQueryKey = (
+  input?: GetPipelineVersionRequest,
+  transport?: Transport,
+) => {
+  return createConnectQueryKey({
+    schema: IngestionService.method.getPipelineVersion,
+    input,
+    transport,
+    cardinality: "finite",
+  });
+};
+
+export const useGetPipelineVersionQuery = ({
+  input,
+  options = {},
+}: {
+  input: GetPipelineVersionRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.getPipelineVersion.output,
+    GetPipelineVersionResponse
+  >;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.getPipelineVersion.input,
+    typeof IngestionService.method.getPipelineVersion.output
+  >(IngestionService.method.getPipelineVersion, input, options);
+};
+
 // ========== MUTATIONS ==========
 
 const useInvalidatePipelines = () => {
@@ -99,6 +132,37 @@ export const useCreatePipelineMutation = (
     ...options,
     onSettled: (...args) => {
       void invalidate();
+      return options.onSettled?.(...args);
+    },
+  });
+};
+
+// Graph saves append an immutable version; the pipeline's current_version_id
+// moves forward server-side, so both the pipeline and its version caches go stale
+export const useCreatePipelineVersionMutation = (
+  options: UseMutationOptions<
+    typeof IngestionService.method.createPipelineVersion.input,
+    typeof IngestionService.method.createPipelineVersion.output
+  > = {},
+) => {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidatePipelines();
+  return useMutation(IngestionService.method.createPipelineVersion, {
+    ...options,
+    onSettled: (...args) => {
+      void invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: createConnectQueryKey({
+          schema: IngestionService.method.getPipeline,
+          cardinality: "finite",
+        }),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createConnectQueryKey({
+          schema: IngestionService.method.getPipelineVersion,
+          cardinality: "finite",
+        }),
+      });
       return options.onSettled?.(...args);
     },
   });

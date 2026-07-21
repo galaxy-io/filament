@@ -7,13 +7,15 @@ import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 import type { ConnectorKind, IngestionType } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
+import type { RunStatus } from "./runs_pb";
+import { file_ingestion_v1_runs } from "./runs_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ingestion/v1/pipelines.proto.
  */
 export const file_ingestion_v1_pipelines: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiwEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIzCg5pbmdlc3Rpb25fdHlwZRgEIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhAKCHNlbGVjdG9yGAUgASgJIpsBCghQaXBlbGluZRIKCgJpZBgBIAEoCRIOCgZ0ZW5hbnQYAiABKAkSDAoEbmFtZRgDIAEoCRIpCgVub2RlcxgEIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBSADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlEg8KB3ZlcnNpb24YBiABKAMiiwEKFUNyZWF0ZVBpcGVsaW5lUmVxdWVzdBIOCgZ0ZW5hbnQYASABKAkSDAoEbmFtZRgCIAEoCRIpCgVub2RlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBCADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIkIKFkNyZWF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiQQoVVXBkYXRlUGlwZWxpbmVSZXF1ZXN0EigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIkIKFlVwZGF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIAoSR2V0UGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIj8KE0dldFBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiJgoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSDgoGdGVuYW50GAEgASgJIkIKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIwoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIhgKFkRlbGV0ZVBpcGVsaW5lUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiwEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIzCg5pbmdlc3Rpb25fdHlwZRgEIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhAKCHNlbGVjdG9yGAUgASgJIpgBCg9QaXBlbGluZVZlcnNpb24SCgoCaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoAxIpCgVub2RlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYBCADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlEhIKCmNyZWF0ZWRfYXQYBSABKAMi5AEKCFBpcGVsaW5lEgoKAmlkGAEgASgJEhEKCXRlbmFudF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhoKEmN1cnJlbnRfdmVyc2lvbl9pZBgGIAEoAxIbChNsYXN0X3J1bl92ZXJzaW9uX2lkGAcgASgDEhMKC2xhc3RfcnVuX2F0GAggASgDEjAKD2xhc3RfcnVuX3N0YXR1cxgJIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSFgoObGFzdF9ydW5fYnl0ZXMYCiABKAMiTQoVQ3JlYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJIkIKFkNyZWF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiiQEKHENyZWF0ZVBpcGVsaW5lVmVyc2lvblJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSKQoFbm9kZXMYAiADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVOb2RlEikKBWVkZ2VzGAMgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lRWRnZSJPCh1DcmVhdGVQaXBlbGluZVZlcnNpb25SZXNwb25zZRIuCgd2ZXJzaW9uGAEgASgLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lVmVyc2lvbiJBChVVcGRhdGVQaXBlbGluZVJlcXVlc3QSKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiQgoWVXBkYXRlUGlwZWxpbmVSZXNwb25zZRIoCghwaXBlbGluZRgBIAEoCzIWLmluZ2VzdGlvbi52MS5QaXBlbGluZSIgChJHZXRQaXBlbGluZVJlcXVlc3QSCgoCaWQYASABKAkiPwoTR2V0UGlwZWxpbmVSZXNwb25zZRIoCghwaXBlbGluZRgBIAEoCzIWLmluZ2VzdGlvbi52MS5QaXBlbGluZSJBChlHZXRQaXBlbGluZVZlcnNpb25SZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAMiTAoaR2V0UGlwZWxpbmVWZXJzaW9uUmVzcG9uc2USLgoHdmVyc2lvbhgBIAEoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24iKQoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJIkIKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiIwoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIhgKFkRlbGV0ZVBpcGVsaW5lUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_runs]);
 
 /**
  * PipelineNode is one source or sink on the canvas. connection_id references the
@@ -103,63 +105,18 @@ export const PipelineEdgeSchema: GenMessage<PipelineEdge> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 1);
 
 /**
- * Pipeline is the persisted node graph. version is an optimistic lock: an update
- * must carry the version it last read.
- *
- * @generated from message ingestion.v1.Pipeline
+ * @generated from message ingestion.v1.PipelineVersion
  */
-export type Pipeline = Message<"ingestion.v1.Pipeline"> & {
+export type PipelineVersion = Message<"ingestion.v1.PipelineVersion"> & {
   /**
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * @generated from field: string tenant = 2;
-   */
-  tenant: string;
-
-  /**
-   * @generated from field: string name = 3;
-   */
-  name: string;
-
-  /**
-   * @generated from field: repeated ingestion.v1.PipelineNode nodes = 4;
-   */
-  nodes: PipelineNode[];
-
-  /**
-   * @generated from field: repeated ingestion.v1.PipelineEdge edges = 5;
-   */
-  edges: PipelineEdge[];
-
-  /**
-   * @generated from field: int64 version = 6;
+   * @generated from field: int64 version = 2;
    */
   version: bigint;
-};
-
-/**
- * Describes the message ingestion.v1.Pipeline.
- * Use `create(PipelineSchema)` to create a new message.
- */
-export const PipelineSchema: GenMessage<Pipeline> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 2);
-
-/**
- * @generated from message ingestion.v1.CreatePipelineRequest
- */
-export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"> & {
-  /**
-   * @generated from field: string tenant = 1;
-   */
-  tenant: string;
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name: string;
 
   /**
    * @generated from field: repeated ingestion.v1.PipelineNode nodes = 3;
@@ -170,6 +127,98 @@ export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"
    * @generated from field: repeated ingestion.v1.PipelineEdge edges = 4;
    */
   edges: PipelineEdge[];
+
+  /**
+   * @generated from field: int64 created_at = 5;
+   */
+  createdAt: bigint;
+};
+
+/**
+ * Describes the message ingestion.v1.PipelineVersion.
+ * Use `create(PipelineVersionSchema)` to create a new message.
+ */
+export const PipelineVersionSchema: GenMessage<PipelineVersion> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_pipelines, 2);
+
+/**
+ * Pipeline is mutable metadata plus a summary of its current graph version and
+ * most recent run.
+ *
+ * @generated from message ingestion.v1.Pipeline
+ */
+export type Pipeline = Message<"ingestion.v1.Pipeline"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string tenant_id = 2;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string name = 3;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description: string;
+
+  /**
+   * @generated from field: int64 current_version_id = 6;
+   */
+  currentVersionId: bigint;
+
+  /**
+   * @generated from field: int64 last_run_version_id = 7;
+   */
+  lastRunVersionId: bigint;
+
+  /**
+   * @generated from field: int64 last_run_at = 8;
+   */
+  lastRunAt: bigint;
+
+  /**
+   * @generated from field: ingestion.v1.RunStatus last_run_status = 9;
+   */
+  lastRunStatus: RunStatus;
+
+  /**
+   * @generated from field: int64 last_run_bytes = 10;
+   */
+  lastRunBytes: bigint;
+};
+
+/**
+ * Describes the message ingestion.v1.Pipeline.
+ * Use `create(PipelineSchema)` to create a new message.
+ */
+export const PipelineSchema: GenMessage<Pipeline> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_pipelines, 3);
+
+/**
+ * @generated from message ingestion.v1.CreatePipelineRequest
+ */
+export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"> & {
+  /**
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
 };
 
 /**
@@ -177,7 +226,7 @@ export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"
  * Use `create(CreatePipelineRequestSchema)` to create a new message.
  */
 export const CreatePipelineRequestSchema: GenMessage<CreatePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 3);
+  messageDesc(file_ingestion_v1_pipelines, 4);
 
 /**
  * @generated from message ingestion.v1.CreatePipelineResponse
@@ -194,7 +243,51 @@ export type CreatePipelineResponse = Message<"ingestion.v1.CreatePipelineRespons
  * Use `create(CreatePipelineResponseSchema)` to create a new message.
  */
 export const CreatePipelineResponseSchema: GenMessage<CreatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 4);
+  messageDesc(file_ingestion_v1_pipelines, 5);
+
+/**
+ * @generated from message ingestion.v1.CreatePipelineVersionRequest
+ */
+export type CreatePipelineVersionRequest = Message<"ingestion.v1.CreatePipelineVersionRequest"> & {
+  /**
+   * @generated from field: string pipeline_id = 1;
+   */
+  pipelineId: string;
+
+  /**
+   * @generated from field: repeated ingestion.v1.PipelineNode nodes = 2;
+   */
+  nodes: PipelineNode[];
+
+  /**
+   * @generated from field: repeated ingestion.v1.PipelineEdge edges = 3;
+   */
+  edges: PipelineEdge[];
+};
+
+/**
+ * Describes the message ingestion.v1.CreatePipelineVersionRequest.
+ * Use `create(CreatePipelineVersionRequestSchema)` to create a new message.
+ */
+export const CreatePipelineVersionRequestSchema: GenMessage<CreatePipelineVersionRequest> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_pipelines, 6);
+
+/**
+ * @generated from message ingestion.v1.CreatePipelineVersionResponse
+ */
+export type CreatePipelineVersionResponse = Message<"ingestion.v1.CreatePipelineVersionResponse"> & {
+  /**
+   * @generated from field: ingestion.v1.PipelineVersion version = 1;
+   */
+  version?: PipelineVersion | undefined;
+};
+
+/**
+ * Describes the message ingestion.v1.CreatePipelineVersionResponse.
+ * Use `create(CreatePipelineVersionResponseSchema)` to create a new message.
+ */
+export const CreatePipelineVersionResponseSchema: GenMessage<CreatePipelineVersionResponse> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_pipelines, 7);
 
 /**
  * @generated from message ingestion.v1.UpdatePipelineRequest
@@ -211,7 +304,7 @@ export type UpdatePipelineRequest = Message<"ingestion.v1.UpdatePipelineRequest"
  * Use `create(UpdatePipelineRequestSchema)` to create a new message.
  */
 export const UpdatePipelineRequestSchema: GenMessage<UpdatePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 5);
+  messageDesc(file_ingestion_v1_pipelines, 8);
 
 /**
  * @generated from message ingestion.v1.UpdatePipelineResponse
@@ -228,7 +321,7 @@ export type UpdatePipelineResponse = Message<"ingestion.v1.UpdatePipelineRespons
  * Use `create(UpdatePipelineResponseSchema)` to create a new message.
  */
 export const UpdatePipelineResponseSchema: GenMessage<UpdatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 6);
+  messageDesc(file_ingestion_v1_pipelines, 9);
 
 /**
  * @generated from message ingestion.v1.GetPipelineRequest
@@ -245,7 +338,7 @@ export type GetPipelineRequest = Message<"ingestion.v1.GetPipelineRequest"> & {
  * Use `create(GetPipelineRequestSchema)` to create a new message.
  */
 export const GetPipelineRequestSchema: GenMessage<GetPipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 7);
+  messageDesc(file_ingestion_v1_pipelines, 10);
 
 /**
  * @generated from message ingestion.v1.GetPipelineResponse
@@ -262,16 +355,55 @@ export type GetPipelineResponse = Message<"ingestion.v1.GetPipelineResponse"> & 
  * Use `create(GetPipelineResponseSchema)` to create a new message.
  */
 export const GetPipelineResponseSchema: GenMessage<GetPipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 8);
+  messageDesc(file_ingestion_v1_pipelines, 11);
+
+/**
+ * @generated from message ingestion.v1.GetPipelineVersionRequest
+ */
+export type GetPipelineVersionRequest = Message<"ingestion.v1.GetPipelineVersionRequest"> & {
+  /**
+   * @generated from field: string pipeline_id = 1;
+   */
+  pipelineId: string;
+
+  /**
+   * @generated from field: int64 version = 2;
+   */
+  version: bigint;
+};
+
+/**
+ * Describes the message ingestion.v1.GetPipelineVersionRequest.
+ * Use `create(GetPipelineVersionRequestSchema)` to create a new message.
+ */
+export const GetPipelineVersionRequestSchema: GenMessage<GetPipelineVersionRequest> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_pipelines, 12);
+
+/**
+ * @generated from message ingestion.v1.GetPipelineVersionResponse
+ */
+export type GetPipelineVersionResponse = Message<"ingestion.v1.GetPipelineVersionResponse"> & {
+  /**
+   * @generated from field: ingestion.v1.PipelineVersion version = 1;
+   */
+  version?: PipelineVersion | undefined;
+};
+
+/**
+ * Describes the message ingestion.v1.GetPipelineVersionResponse.
+ * Use `create(GetPipelineVersionResponseSchema)` to create a new message.
+ */
+export const GetPipelineVersionResponseSchema: GenMessage<GetPipelineVersionResponse> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_pipelines, 13);
 
 /**
  * @generated from message ingestion.v1.ListPipelinesRequest
  */
 export type ListPipelinesRequest = Message<"ingestion.v1.ListPipelinesRequest"> & {
   /**
-   * @generated from field: string tenant = 1;
+   * @generated from field: string tenant_id = 1;
    */
-  tenant: string;
+  tenantId: string;
 };
 
 /**
@@ -279,7 +411,7 @@ export type ListPipelinesRequest = Message<"ingestion.v1.ListPipelinesRequest"> 
  * Use `create(ListPipelinesRequestSchema)` to create a new message.
  */
 export const ListPipelinesRequestSchema: GenMessage<ListPipelinesRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 9);
+  messageDesc(file_ingestion_v1_pipelines, 14);
 
 /**
  * @generated from message ingestion.v1.ListPipelinesResponse
@@ -296,7 +428,7 @@ export type ListPipelinesResponse = Message<"ingestion.v1.ListPipelinesResponse"
  * Use `create(ListPipelinesResponseSchema)` to create a new message.
  */
 export const ListPipelinesResponseSchema: GenMessage<ListPipelinesResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 10);
+  messageDesc(file_ingestion_v1_pipelines, 15);
 
 /**
  * @generated from message ingestion.v1.DeletePipelineRequest
@@ -313,7 +445,7 @@ export type DeletePipelineRequest = Message<"ingestion.v1.DeletePipelineRequest"
  * Use `create(DeletePipelineRequestSchema)` to create a new message.
  */
 export const DeletePipelineRequestSchema: GenMessage<DeletePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 11);
+  messageDesc(file_ingestion_v1_pipelines, 16);
 
 /**
  * @generated from message ingestion.v1.DeletePipelineResponse
@@ -326,5 +458,5 @@ export type DeletePipelineResponse = Message<"ingestion.v1.DeletePipelineRespons
  * Use `create(DeletePipelineResponseSchema)` to create a new message.
  */
 export const DeletePipelineResponseSchema: GenMessage<DeletePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 12);
+  messageDesc(file_ingestion_v1_pipelines, 17);
 
