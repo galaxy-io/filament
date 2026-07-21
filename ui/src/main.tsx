@@ -1,3 +1,5 @@
+import "./utils/serialization";
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -6,7 +8,8 @@ import App from "@/App";
 import "@galaxy-io/dls/styles.css";
 import "@/style.css";
 
-import ThemeProvider from "@/providers/theme/ThemeProvider";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
+import { GalaxyThemeProvider } from "@galaxy-io/dls/theme/GalaxyTheme";
 
 import ApiQueryClientProvider from "@/api/query";
 
@@ -18,9 +21,9 @@ const root = createRoot(rootElement);
 root.render(
   <StrictMode>
     <ApiQueryClientProvider>
-      <ThemeProvider>
+      <GalaxyThemeProvider initialTheme={GalaxyTheme.DARK}>
         <App />
-      </ThemeProvider>
+      </GalaxyThemeProvider>
     </ApiQueryClientProvider>
   </StrictMode>,
 );

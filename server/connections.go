@@ -193,6 +193,29 @@ func (a *Server) storeSecretFields(ctx context.Context, schema filament.ConfigSc
 	return written, nil
 }
 
+// resolveConnectionSecrets reads each of the connection's secret refs and
+// injects the plaintext value into cfg under the mapped field. Every ref is
+// tenant-scoped first, so a connection can never read another tenant's secrets.
+func (a *Server) resolveConnectionSecrets(ctx context.Context, conn filament.Connection, cfg map[string]any) error {
+	if len(conn.SecretRefs) == 0 {
+		return nil
+	}
+	if a.secrets == nil {
+		return fmt.Errorf("connection %q has secret refs but no secret provider is configured", conn.ID)
+	}
+	for field, ref := range conn.SecretRefs {
+		if err := filament.ValidateConnectionSecretRef(ref, filament.TenantID(conn.Tenant)); err != nil {
+			return fmt.Errorf("resolve secret for field %q: %w", field, err)
+		}
+		secret, err := a.secrets.Read(ctx, ref)
+		if err != nil {
+			return fmt.Errorf("resolve secret %q for field %q: %w", ref, field, err)
+		}
+		cfg[field] = string(secret.Value)
+	}
+	return nil
+}
+
 func (a *Server) deleteReplacedSecretRefs(ctx context.Context, old, next map[string]string) {
 	for field, ref := range old {
 		if next[field] != ref {

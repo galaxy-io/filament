@@ -10,12 +10,11 @@ import Modal from "@galaxy-io/dls/modal/Modal";
 import { OverlayProvider } from "@galaxy-io/dls/overlay/OverlayProvider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { ToastProvider } from "@galaxy-io/dls/toast/ToastProvider";
 
 import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
-import { ConnectionDrawer } from "@/pages/connectors/components/drawer";
+import ConnectionDrawer from "@/pages/connectors/components/drawer/ConnectionDrawer";
 import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
-
-import { ToastProvider } from "@/providers/toast/ToastProvider";
 
 import { useListConnectionsQuery } from "@/api/queries/connectors";
 

@@ -1,16 +1,23 @@
 import { styled } from "@linaria/react";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
-import { BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP } from "@/layouts/components/constants";
+import {
+  BASE_HEADER_SIZE_TO_GAP_MAP,
+  BASE_HEADER_SIZE_TO_ICON_SIZE_MAP,
+  BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP,
+} from "@/layouts/components/constants";
 import { BaseHeaderSize } from "@/layouts/components/types";
 
 interface BaseHeaderProps {
-  title: string | React.ReactNode;
-  description?: string | React.ReactNode;
+  title: string;
+  icon?: PhosphorIcon;
+  description?: string;
   actions?: React.ReactNode[];
   size?: BaseHeaderSize;
   onClose?: () => void;
@@ -34,6 +41,7 @@ const ActionsWrapper = styled.div`
 
 const BaseHeader = ({
   title,
+  icon,
   description,
   actions,
   size = BaseHeaderSize.MEDIUM,
@@ -41,9 +49,16 @@ const BaseHeader = ({
 }: BaseHeaderProps) => {
   const alignItems = onClose && description ? AlignItems.START : AlignItems.CENTER;
   return (
-    <FlexWrapper alignItems={alignItems} justifyContent={JustifyContent.SPACE_BETWEEN} fillWidth>
+    <FlexWrapper alignItems={alignItems} gap={8} fillWidth>
       <TitleWrapper>
-        {typeof title === "string" ? (
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={BASE_HEADER_SIZE_TO_GAP_MAP[size]}>
+          {icon && (
+            <Icon
+              component={icon}
+              size={BASE_HEADER_SIZE_TO_ICON_SIZE_MAP[size]}
+              variant={IconVariant.SECONDARY}
+            />
+          )}
           <Text
             size={BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP[size]}
             weight={TextWeight.MEDIUM}
@@ -51,15 +66,8 @@ const BaseHeader = ({
           >
             {title}
           </Text>
-        ) : (
-          title
-        )}
-        {description &&
-          (typeof description === "string" ? (
-            <Text variant={TextVariant.TERTIARY}>{description}</Text>
-          ) : (
-            description
-          ))}
+        </FlexWrapper>
+        {description && <Text variant={TextVariant.SECONDARY}>{description}</Text>}
       </TitleWrapper>
       <ActionsWrapper>
         {actions}

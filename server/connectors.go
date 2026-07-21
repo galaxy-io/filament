@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -72,11 +73,30 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
 
-	source, err := a.sources.Resolve(req.Msg.GetConnector())
+	connector := req.Msg.GetConnector()
+	config := structMap(req.Msg.GetConfig())
+	if id := req.Msg.GetConnectionId(); id != "" {
+		conn, err := a.store.LoadConnection(ctx, id)
+		if err != nil {
+			if errors.Is(err, filament.ErrNotFound) {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if connector == "" {
+			connector = conn.Connector
+		}
+		config = mergeConfig(conn.Config, config)
+		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
+
+	source, err := a.sources.Resolve(connector)
 	if err != nil {
 		return nil, err
 	}
-	cfg := filament.NewConfig(structMap(req.Msg.GetConfig()))
+	cfg := filament.NewConfig(config)
 	if err := source.Configure(ctx, cfg); err != nil {
 		return nil, err
 	}

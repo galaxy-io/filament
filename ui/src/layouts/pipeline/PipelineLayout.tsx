@@ -1,17 +1,29 @@
 import type { PropsWithChildren } from "react";
 import { useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutBackButton from "@/layouts/pipeline/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
-import { PipelineSidebarItem, PipelineStatus } from "@/layouts/pipeline/types";
+import { PipelineSidebarItem, type PipelineStatus } from "@/layouts/pipeline/types";
+
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import { usePipelineCanvas, usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
+import { isPipelineRunnable } from "@/pages/pipelines/canvas/utils";
+
+import { useRunPipelineMutation } from "@/api/queries/runs";
+
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
 
@@ -70,24 +82,27 @@ const ContentIsland = withTheme(styled.div<PropsWithTheme>`
   overflow: hidden;
 `);
 
-interface PipelineLayoutProps extends PropsWithChildren {
-  pipelineId: string;
-  name: string;
+interface PipelineLayoutProps {
+  pipeline: Pipeline;
   status: PipelineStatus;
-  source: string;
-  sinks: string[];
 }
 
-const PipelineLayout = ({
-  pipelineId,
-  name,
-  status,
-  source,
-  sinks,
-  children,
-}: PipelineLayoutProps) => {
+interface PipelineLayoutState {
+  isEnabled: boolean;
+}
+
+const DEFAULT_STATE: PipelineLayoutState = {
+  isEnabled: false,
+};
+
+const PipelineLayout = ({ pipeline, status, children }: PropsWithChildren<PipelineLayoutProps>) => {
   const navigate = useNavigate();
-  const [isEnabled, setIsEnabled] = useState(status === PipelineStatus.ACTIVE);
+  const { showToast } = useToast();
+  const [state, setState] = useState<PipelineLayoutState>(DEFAULT_STATE);
+
+  const { dispatch } = usePipelineCanvas();
+  const { hasChanges, isSaving, save } = usePipelineCanvasSave(pipeline);
+  const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const { isRouteMatch: isHistoryActive } = useRouteMatch({
     route: "/pipelines/$id/history",
@@ -104,15 +119,43 @@ const PipelineLayout = ({
     return PipelineSidebarItem.CANVAS;
   };
 
+  const handleToggleEnabled = () => {
+    setState((prev) => ({ ...prev, isEnabled: !prev.isEnabled }));
+  };
+
   const handleItemClick = (item: PipelineSidebarItem) => {
     navigate({
       to: `/pipelines/$id/${item}`,
-      params: { id: pipelineId },
+      params: { id: pipeline.id },
     });
   };
 
   const handleRun = () => {
-    // TODO: Implement run logic
+    runPipeline(create(RunPipelineRequestSchema, { pipelineId: pipeline.id }), {
+      onSuccess: (response) => {
+        dispatch({
+          type: PipelineCanvasActionType.SET_RUN_BINDINGS,
+          payload: response.runs,
+        });
+        // Pop the activity terminal so the new run's facts are visible immediately
+        dispatch({
+          type: PipelineCanvasActionType.SET_ACTIVITY_OPEN,
+          payload: true,
+        });
+        showToast({
+          header: "Run started",
+          subheader: `${pipeline.name} is now running.`,
+          variant: ToastVariant.SUCCESS,
+        });
+      },
+      onError: (error) => {
+        showToast({
+          header: "Run failed",
+          subheader: error instanceof Error ? error.message : "Failed to run pipeline",
+          variant: ToastVariant.ERROR,
+        });
+      },
+    });
   };
 
   return (
@@ -123,12 +166,15 @@ const PipelineLayout = ({
       </LeftColumn>
       <RightColumn>
         <PipelineLayoutNavbar
-          name={name}
+          name={pipeline.name}
           status={status}
-          source={source}
-          sinks={sinks}
-          isEnabled={isEnabled}
-          onToggleEnabled={setIsEnabled}
+          isEnabled={state.isEnabled}
+          onToggleEnabled={handleToggleEnabled}
+          hasChanges={hasChanges}
+          isSaving={isSaving}
+          onSave={save}
+          isRunning={isRunning}
+          isRunDisabled={!isPipelineRunnable(pipeline)}
           onRun={handleRun}
         />
         <ContentWrapper>

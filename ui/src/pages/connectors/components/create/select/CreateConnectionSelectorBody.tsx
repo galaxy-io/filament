@@ -70,7 +70,7 @@ const CreateConnectionSelectorBody = ({
       <GridWrapper columns="repeat(3, 1fr)" gap={12}>
         {filteredConnectors.map((connector) => (
           <CreateConnectionSelectorCard
-            key={connector.name}
+            key={`${connector.name}-${connector.kind}`}
             connector={connector}
             onConnectorSelect={onConnectorSelect}
           />

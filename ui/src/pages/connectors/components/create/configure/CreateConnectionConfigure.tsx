@@ -7,18 +7,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import CreateConnectionModalHeader from "@/pages/connectors/components/create/components/CreateConnectionModalHeader";
-import CreateConnectionModalWrapper from "@/pages/connectors/components/create/components/CreateConnectionModalWrapper";
-import CreateConnectionNameInput from "@/pages/connectors/components/create/components/CreateConnectionNameInput";
 import { CreateConnectionActionType } from "@/pages/connectors/components/create/configure/actions";
+import CreateConnectionConfigureHeader from "@/pages/connectors/components/create/configure/CreateConnectionConfigureHeader";
+import CreateConnectionConfigureNameInput from "@/pages/connectors/components/create/configure/CreateConnectionConfigureNameInput";
 import CreateConnectionConfigureProvider from "@/pages/connectors/components/create/configure/CreateConnectionConfigureProvider";
+import CreateConnectionConfigureWrapper from "@/pages/connectors/components/create/configure/CreateConnectionConfigureWrapper";
 import CreateConnectionField from "@/pages/connectors/components/create/configure/fields/CreateConnectionField";
 import { useCreateConnectionContext } from "@/pages/connectors/components/create/configure/hooks";
 import { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
@@ -30,9 +32,6 @@ import {
   validateRequiredFields,
 } from "@/pages/connectors/components/create/configure/validation";
 import { CreateConnectionModalStep } from "@/pages/connectors/components/create/types";
-
-import { ToastVariant } from "@/providers/toast/Toast";
-import { useToast } from "@/providers/toast/useToast";
 
 import {
   createListConnectionsQueryKey,
@@ -238,7 +237,6 @@ const CreateConnectionConfigureContent = ({
     );
   }, [state.request, createConnection, queryClient, showToast, navigate, dispatch]);
 
-  // Field handlers (dispatch directly - GX style)
   const handleNameChange = useCallback(
     (name: string) =>
       dispatch({
@@ -276,7 +274,7 @@ const CreateConnectionConfigureContent = ({
   const renderBody = () => {
     return (
       <>
-        <CreateConnectionNameInput
+        <CreateConnectionConfigureNameInput
           value={state.request.name}
           onChange={handleNameChange}
           error={nameError}
@@ -300,7 +298,8 @@ const CreateConnectionConfigureContent = ({
     return match(state.phase)
       .with(CreateConnectionPhase.IDLE, CreateConnectionPhase.ERROR, () => (
         <Button
-          label="Test Connection"
+          size={ButtonSize.LARGE}
+          label="Validate"
           icon={ArrowRightIcon}
           onClick={handleTest}
           isDisabled={isDisabled}
@@ -308,10 +307,17 @@ const CreateConnectionConfigureContent = ({
         />
       ))
       .with(CreateConnectionPhase.VALIDATING, () => (
-        <Button label="Testing..." onClick={NOOP} isLoading={isValidating} isDisabled />
+        <Button
+          size={ButtonSize.LARGE}
+          label="Testing..."
+          onClick={NOOP}
+          isLoading={isValidating}
+          isDisabled
+        />
       ))
       .with(CreateConnectionPhase.VALIDATED, () => (
         <Button
+          size={ButtonSize.LARGE}
           label="Create Connection"
           icon={CheckIcon}
           variant={ButtonVariant.SUCCESS}
@@ -319,15 +325,21 @@ const CreateConnectionConfigureContent = ({
         />
       ))
       .with(CreateConnectionPhase.CREATING, () => (
-        <Button label="Creating..." onClick={NOOP} isLoading={isCreating} isDisabled />
+        <Button
+          size={ButtonSize.LARGE}
+          label="Creating..."
+          onClick={NOOP}
+          isLoading={isCreating}
+          isDisabled
+        />
       ))
       .exhaustive();
   };
 
   return (
-    <CreateConnectionModalWrapper step={CreateConnectionModalStep.CONFIGURE}>
+    <CreateConnectionConfigureWrapper step={CreateConnectionModalStep.CONFIGURE}>
       <FlexItem grow={0} shrink={0}>
-        <CreateConnectionModalHeader connector={connector} onClose={onClose} onBack={onBack} />
+        <CreateConnectionConfigureHeader connector={connector} onClose={onClose} onBack={onBack} />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
@@ -344,14 +356,15 @@ const CreateConnectionConfigureContent = ({
       </FlexItem>
       <FooterWrapper>
         <Button
+          size={ButtonSize.LARGE}
           onClick={handleDocsClick}
-          label="Documentation"
+          label="Docs"
           icon={BookOpenIcon}
           variant={ButtonVariant.SECONDARY}
         />
         {renderFooter()}
       </FooterWrapper>
-    </CreateConnectionModalWrapper>
+    </CreateConnectionConfigureWrapper>
   );
 };
 

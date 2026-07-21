@@ -266,6 +266,11 @@ export type DiscoverResourcesRequest = Message<"ingestion.v1.DiscoverResourcesRe
    * @generated from field: bool refresh = 3;
    */
   refresh: boolean;
+
+  /**
+   * @generated from field: string connection_id = 4;
+   */
+  connectionId: string;
 };
 
 /**

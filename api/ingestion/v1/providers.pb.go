@@ -503,6 +503,7 @@ type DiscoverResourcesRequest struct {
 	Connector     string           `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
 	Config        *structpb.Struct `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	Refresh       bool             `protobuf:"varint,3,opt,name=refresh,proto3" json:"refresh,omitempty"`
+	ConnectionId  string           `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -556,6 +557,13 @@ func (x *DiscoverResourcesRequest) GetRefresh() bool {
 		return x.Refresh
 	}
 	return false
+}
+
+func (x *DiscoverResourcesRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
 }
 
 // Resource mirrors pkg.Resource.
@@ -738,11 +746,12 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"e\n" +
 	"\x16ValidateConfigResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x125\n" +
-	"\x06errors\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\"\x83\x01\n" +
+	"\x06errors\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\"\xa8\x01\n" +
 	"\x18DiscoverResourcesRequest\x12\x1c\n" +
 	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x18\n" +
-	"\arefresh\x18\x03 \x01(\bR\arefresh\"\xc4\x02\n" +
+	"\arefresh\x18\x03 \x01(\bR\arefresh\x12#\n" +
+	"\rconnection_id\x18\x04 \x01(\tR\fconnectionId\"\xc4\x02\n" +
 	"\bResource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +

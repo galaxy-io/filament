@@ -16,7 +16,6 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
@@ -27,12 +26,7 @@ import ErrorLayout from "@/layouts/ErrorLayout";
 
 import ConnectionCard from "@/pages/connectors/components/card/ConnectionCard";
 import ConnectionCardLoading from "@/pages/connectors/components/card/ConnectionCardLoading";
-import {
-  CONNECTOR_GRID_MIN_COLUMN_WIDTH,
-  CONNECTOR_KIND_FILTER_WIDTH,
-  CONNECTOR_SEARCH_WIDTH,
-  SELECT_INPUT_OPTIONS_CONNECTOR_KIND,
-} from "@/pages/connectors/constants";
+import { CONNECTOR_GRID_MIN_COLUMN_WIDTH } from "@/pages/connectors/constants";
 import type { ConnectionsPageState } from "@/pages/connectors/types";
 
 import { Flow } from "@/routes/__root";
@@ -44,7 +38,7 @@ import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb"
 
 import { CONNECTORS_DOCS_URL } from "@/constants";
 
-const LOADING_CARD_COUNT = 20;
+const LOADING_CARD_COUNT = 6;
 
 const ConnectorListScrollArea = styled.div`
   flex: 1;
@@ -79,17 +73,6 @@ const ConnectionsPage = () => {
 
   const handleSearchChange = (value: string) => {
     setState((prev) => ({ ...prev, search: value }));
-  };
-
-  const selectedKindOption =
-    SELECT_INPUT_OPTIONS_CONNECTOR_KIND.find((opt) => opt.value === state.kindFilter) ??
-    SELECT_INPUT_OPTIONS_CONNECTOR_KIND[0];
-
-  const handleKindChange = (selected: SelectInputOption | null) => {
-    setState((prev) => ({
-      ...prev,
-      kindFilter: (selected?.value as ConnectorKind) ?? ConnectorKind.UNSPECIFIED,
-    }));
   };
 
   const { data, isLoading, isError } = useListConnectionsQuery({
@@ -212,17 +195,9 @@ const ConnectionsPage = () => {
               value={state.search}
               onChange={handleSearchChange}
               placeholder="Search"
-              width={CONNECTOR_SEARCH_WIDTH}
               leading={{ icon: MagnifyingGlassIcon }}
               isDisabled={isToolbarDisabled}
-            />,
-            <SelectInput
-              key="kind-filter"
-              options={SELECT_INPUT_OPTIONS_CONNECTOR_KIND}
-              value={selectedKindOption}
-              onChange={handleKindChange}
-              width={CONNECTOR_KIND_FILTER_WIDTH}
-              isDisabled={isToolbarDisabled}
+              fillWidth
             />,
           ]}
           trailingActions={[

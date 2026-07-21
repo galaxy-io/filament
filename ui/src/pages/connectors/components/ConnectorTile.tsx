@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
+import { XIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import CellGridBackground from "@galaxy-io/dls/backgrounds/CellGridBackground";
@@ -82,7 +83,7 @@ const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorT
 
   background-color: transparent;
 
-  border: 0.5px dashed ${({ theme }) => theme.color.border.tertiary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.error};
   border-radius: ${({ $size }) => getTileRadius($size)}px;
 
   overflow: hidden;
@@ -104,7 +105,7 @@ export const ConnectorTileEmpty = ({
 }: EmptyConnectorTileProps) => {
   return (
     <EmptyTileWrapper $size={size}>
-      <CellGridBackground cellSize={3} strokeWidth={1} lineOpacity={0.5} fillContainer />
+      <Icon component={XIcon} size={10} variant={IconVariant.ERROR} />
     </EmptyTileWrapper>
   );
 };
