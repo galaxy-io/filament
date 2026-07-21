@@ -1,5 +1,5 @@
 import { styled } from "@linaria/react";
-import { FlowArrowIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, InfoIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -10,9 +10,11 @@ import FlexWrapper, {
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
@@ -73,10 +75,26 @@ const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCa
         </FlexItem>
       </FlexWrapper>
       <HorizontalDivider />
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding={"12px"}>
+      <FlexWrapper
+        alignItems={AlignItems.CENTER}
+        justifyContent={JustifyContent.SPACE_BETWEEN}
+        gap={12}
+        padding={"12px"}
+      >
         <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
           Version {connection.version.toString()}
         </Text>
+        <Tooltip
+          body={
+            <Text size={TextSize.CAPTION} isMonospace isSelectable>
+              {connection.id}
+            </Text>
+          }
+          position={TooltipPosition.LEFT}
+          isInteractive
+        >
+          <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
+        </Tooltip>
       </FlexWrapper>
     </CardWrapper>
   );

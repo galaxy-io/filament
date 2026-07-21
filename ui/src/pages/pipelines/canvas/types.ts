@@ -1,4 +1,4 @@
-import type { BuiltInNode, Edge, Node } from "@xyflow/react";
+import type { BuiltInNode, Edge, Node, Viewport } from "@xyflow/react";
 
 import type { PipelineCanvasAction } from "@/pages/pipelines/canvas/actions";
 
@@ -47,6 +47,7 @@ export interface PipelineCanvasState {
   edges: PipelineEdge[];
   activeMode: PipelineCanvasEditMode | null;
   interactionMode: PipelineCanvasInteractionMode;
+  initialViewport: Viewport | null;
   isActivityOpen: boolean;
   runBindings: RunBinding[];
 }

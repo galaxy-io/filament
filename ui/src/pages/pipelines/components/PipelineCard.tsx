@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { ArrowUpRightIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
@@ -11,14 +11,17 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
 import {
   PIPELINE_CARD_HEIGHT,
+  PIPELINE_CARD_HEIGHT_COMPACT,
   PIPELINE_INDICATOR_WIDTH,
   PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS,
   PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN,
@@ -31,16 +34,17 @@ import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-const CardWrapper = withTheme(styled.div<PropsWithTheme>`
+const CardWrapper = withTheme(styled.div<PropsWithTheme<{ $isCompact?: boolean }>>`
   width: 100%;
-  height: ${PIPELINE_CARD_HEIGHT}px;
+  height: ${({ $isCompact }) =>
+    $isCompact ? PIPELINE_CARD_HEIGHT_COMPACT : PIPELINE_CARD_HEIGHT}px;
 
-  padding: 0 16px;
+  padding: 0 ${({ $isCompact }) => ($isCompact ? "12px" : "16px")};
 
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: ${({ $isCompact }) => ($isCompact ? "12px" : "24px")};
 
   border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
 
@@ -50,6 +54,11 @@ const CardWrapper = withTheme(styled.div<PropsWithTheme>`
 
   &:hover {
     background-color: ${({ theme }) => theme.color.background.tertiary};
+  }
+
+  &:last-child {
+    border-bottom: ${({ $isCompact, theme }) =>
+      $isCompact ? "none" : `0.5px solid ${theme.color.border.primary}`};
   }
 `);
 
@@ -84,6 +93,7 @@ const MetricColumn = ({ width, label, value }: MetricColumnProps) => {
 
 interface PipelineCardProps {
   pipeline: Pipeline;
+  isCompact?: boolean;
 }
 
 interface PipelineCardState {
@@ -94,7 +104,7 @@ const DEFAULT_STATE: PipelineCardState = {
   isEnabled: false,
 };
 
-const PipelineCard = ({ pipeline }: PipelineCardProps) => {
+const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
   const navigate = useNavigate();
 
   const [state, setState] = useState<PipelineCardState>(DEFAULT_STATE);
@@ -110,8 +120,13 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
     });
   };
 
+  const source = pipeline.nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? "";
+  const sinks = pipeline.nodes
+    .filter((n) => n.kind === ConnectorKind.SINK)
+    .map((n) => n.connectionId);
+
   return (
-    <CardWrapper onClick={handlePipelineClick}>
+    <CardWrapper $isCompact={isCompact} onClick={handlePipelineClick}>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <FlexWrapper
           alignItems={AlignItems.CENTER}
@@ -120,22 +135,40 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
         >
           <Beacon variant={getHealthBeaconVariant(PipelineHealth.HEALTHY)} />
         </FlexWrapper>
+        <Tooltip
+          body={
+            <Text size={TextSize.CAPTION} isMonospace isSelectable>
+              {pipeline.id}
+            </Text>
+          }
+          position={TooltipPosition.RIGHT}
+          isInteractive
+        >
+          <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
+        </Tooltip>
         <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
       </FlexWrapper>
 
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XLARGE}>
-        <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
-          <PipelineFlow
-            source={pipeline.nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? ""}
-            sinks={pipeline.nodes
-              .filter((n) => n.kind === ConnectorKind.SINK)
-              .map((n) => n.connectionId)}
-          />
-        </MetricColumnWrapper>
-        <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN} label="Last run" value="—" />
-        <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME} label="Volume" value="—" />
-        <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE} value="—" />
-        <ToggleInput value={state.isEnabled} onChange={handleIsEnabledChange} />
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}>
+        {isCompact ? (
+          <PipelineFlow source={source} sinks={sinks} />
+        ) : (
+          <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
+            <PipelineFlow source={source} sinks={sinks} />
+          </MetricColumnWrapper>
+        )}
+        {!isCompact && (
+          <>
+            <MetricColumn
+              width={PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN}
+              label="Last run"
+              value="—"
+            />
+            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME} label="Volume" value="—" />
+            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE} value="—" />
+            <ToggleInput value={state.isEnabled} onChange={handleIsEnabledChange} />
+          </>
+        )}
         <Button
           variant={ButtonVariant.TERTIARY}
           size={ButtonSize.SMALL}

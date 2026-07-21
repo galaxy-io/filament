@@ -13,6 +13,8 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { CreateConnectionActionType } from "@/pages/connectors/components/create/configure/actions";
 import CreateConnectionConfigureHeader from "@/pages/connectors/components/create/configure/CreateConnectionConfigureHeader";
@@ -30,9 +32,6 @@ import {
   validateRequiredFields,
 } from "@/pages/connectors/components/create/configure/validation";
 import { CreateConnectionModalStep } from "@/pages/connectors/components/create/types";
-
-import { ToastVariant } from "@/providers/toast/Toast";
-import { useToast } from "@/providers/toast/useToast";
 
 import {
   createListConnectionsQueryKey,

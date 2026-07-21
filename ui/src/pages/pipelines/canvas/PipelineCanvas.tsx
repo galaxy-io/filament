@@ -149,13 +149,22 @@ const PipelineCanvas = () => {
     [dispatch],
   );
 
-  const onInit = useCallback((instance: ReactFlowInstance<PipelineNode, PipelineEdge>) => {
-    const viewport = instance.getViewport();
-    instance.setViewport({
-      ...viewport,
-      y: viewport.y - CANVAS_FIT_VIEW_Y_OFFSET,
-    });
-  }, []);
+  const onInit = useCallback(
+    (instance: ReactFlowInstance<PipelineNode, PipelineEdge>) => {
+      const viewport = instance.getViewport();
+      const initialViewport = {
+        ...viewport,
+        y: viewport.y - CANVAS_FIT_VIEW_Y_OFFSET,
+      };
+      instance.setViewport(initialViewport);
+      // Remember the fresh-load framing so "reset view" can restore it exactly
+      dispatch({
+        type: PipelineCanvasActionType.SET_INITIAL_VIEWPORT,
+        payload: initialViewport,
+      });
+    },
+    [dispatch],
+  );
 
   const selectedNodeIds = useMemo(
     () => new Set(state.nodes.filter((node) => node.selected).map((node) => node.id)),

@@ -12,6 +12,7 @@ export const DEFAULT_STATE: PipelineCanvasState = {
   edges: [],
   activeMode: null,
   interactionMode: PipelineCanvasInteractionMode.GRAB,
+  initialViewport: null,
   isActivityOpen: false,
   runBindings: [],
 };
