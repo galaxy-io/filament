@@ -7,6 +7,8 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutBackButton from "@/layouts/pipeline/PipelineLayoutBackButton";
@@ -17,9 +19,6 @@ import { PipelineSidebarItem, type PipelineStatus } from "@/layouts/pipeline/typ
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { usePipelineCanvas, usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
 import { isPipelineRunnable } from "@/pages/pipelines/canvas/utils";
-
-import { ToastVariant } from "@/providers/toast/Toast";
-import { useToast } from "@/providers/toast/useToast";
 
 import { useRunPipelineMutation } from "@/api/queries/runs";
 

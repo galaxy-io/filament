@@ -1,5 +1,5 @@
 import { styled } from "@linaria/react";
-import { FlowArrowIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, InfoIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -10,7 +10,11 @@ import FlexWrapper, {
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, {
+  TextSize,
+  TextVariant,
+  TextWeight,
+} from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -18,6 +22,8 @@ import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -45,7 +51,11 @@ interface ConnectionCardProps {
   onClick?: () => void;
 }
 
-const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCardProps) => {
+const ConnectionCard = ({
+  connection,
+  pipelineCount = 0,
+  onClick,
+}: ConnectionCardProps) => {
   const isSource = connection.kind === ConnectorKind.SOURCE;
   const kindLabel = isSource ? "Source" : "Sink";
   const pipelineLabel = pluralize("pipeline", pipelineCount, true);
@@ -69,14 +79,29 @@ const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCa
           />
         </FlexWrapper>
         <FlexItem shrink={0}>
-          <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.TERTIARY} />
+          <Chip
+            icon={FlowArrowIcon}
+            label={pipelineLabel}
+            variant={ChipVariant.TERTIARY}
+          />
         </FlexItem>
       </FlexWrapper>
       <HorizontalDivider />
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding={"12px"}>
+      <FlexWrapper alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN} gap={12} padding={"12px"}>
         <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
           Version {connection.version.toString()}
         </Text>
+        <Tooltip
+          body={
+            <Text size={TextSize.CAPTION} isMonospace isSelectable>
+              {connection.id}
+            </Text>
+          }
+          position={TooltipPosition.LEFT}
+          isInteractive
+        >
+          <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
+        </Tooltip>
       </FlexWrapper>
     </CardWrapper>
   );

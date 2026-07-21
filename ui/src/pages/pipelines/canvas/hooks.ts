@@ -4,12 +4,12 @@ import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
+
 import { PipelineCanvasContext } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
 import type { PipelineNodeSourceTableInfo } from "@/pages/pipelines/canvas/types";
 import { hasPipelineGraphChanges, mapCanvasStateToPipeline } from "@/pages/pipelines/canvas/utils";
-
-import { ToastVariant } from "@/providers/toast/Toast";
-import { useToast } from "@/providers/toast/useToast";
 
 import { useDiscoverResourcesQuery, useListConnectionsQuery } from "@/api/queries/connectors";
 import { createGetPipelineQueryKey, useUpdatePipelineMutation } from "@/api/queries/pipelines";

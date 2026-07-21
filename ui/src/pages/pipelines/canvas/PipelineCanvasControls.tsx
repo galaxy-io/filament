@@ -58,14 +58,19 @@ const PipelineCanvasControls = () => {
   const { zoomIn, zoomOut, fitView, getViewport, setViewport } = useReactFlow();
   const { state, dispatch } = usePipelineCanvas();
 
-  // Re-stack nodes and reframe the viewport exactly like the initial load
+  // Re-stack nodes and restore the exact framing captured on initial load
   const handleResetView = () => {
     dispatch({
       type: PipelineCanvasActionType.SET_NODES,
       payload: resetNodePositions(state.nodes),
     });
 
-    // Wait for the repositioned nodes to commit before framing them
+    if (state.initialViewport) {
+      setViewport(state.initialViewport);
+      return;
+    }
+
+    // Fallback when no initial framing was captured: refit once nodes commit
     window.setTimeout(async () => {
       await fitView(CANVAS_FIT_VIEW_OPTIONS);
       const viewport = getViewport();
