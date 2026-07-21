@@ -6,6 +6,7 @@ import { PipelineGroup } from "@/pages/pipelines/types";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 export const PIPELINE_CARD_HEIGHT = 48;
+export const PIPELINE_CARD_HEIGHT_COMPACT = 40;
 export const PIPELINE_GROUP_BAND_HEIGHT = 40;
 export const PIPELINE_INDICATOR_WIDTH = 16;
 export const PIPELINE_MAX_VISIBLE_SINKS = 2;

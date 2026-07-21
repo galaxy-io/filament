@@ -1,4 +1,4 @@
-import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
+import type { Connection, EdgeChange, NodeChange, Viewport } from "@xyflow/react";
 
 import type {
   PipelineCanvasEditMode,
@@ -21,6 +21,7 @@ export enum PipelineCanvasActionType {
   CONNECT = "CONNECT",
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
   SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
+  SET_INITIAL_VIEWPORT = "SET_INITIAL_VIEWPORT",
   SET_ACTIVITY_OPEN = "SET_ACTIVITY_OPEN",
   SET_RUN_BINDINGS = "SET_RUN_BINDINGS",
 }
@@ -37,5 +38,6 @@ export type PipelineCanvasAction =
   | { type: PipelineCanvasActionType.CONNECT; payload: Connection }
   | { type: PipelineCanvasActionType.SET_ACTIVE_MODE; payload: PipelineCanvasEditMode | null }
   | { type: PipelineCanvasActionType.SET_INTERACTION_MODE; payload: PipelineCanvasInteractionMode }
+  | { type: PipelineCanvasActionType.SET_INITIAL_VIEWPORT; payload: Viewport }
   | { type: PipelineCanvasActionType.SET_ACTIVITY_OPEN; payload: boolean }
   | { type: PipelineCanvasActionType.SET_RUN_BINDINGS; payload: RunBinding[] };

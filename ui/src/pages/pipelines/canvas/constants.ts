@@ -10,7 +10,7 @@ import {
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 export const CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
-  padding: 0.4,
+  padding: 0.5,
   maxZoom: 1,
 };
 

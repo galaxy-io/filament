@@ -16,6 +16,8 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import { ToastVariant } from "@galaxy-io/dls/toast/ToastProvider";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import ConnectorEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
@@ -27,9 +29,6 @@ import PipelineCardGroup from "@/pages/pipelines/components/PipelineCardGroup";
 import PipelineCardLoading from "@/pages/pipelines/components/PipelineCardLoading";
 import { PipelineGroup } from "@/pages/pipelines/types";
 import { toPipelineGroups } from "@/pages/pipelines/utils";
-
-import { ToastVariant } from "@/providers/toast/ToastProvider";
-import { useToast } from "@/providers/toast/useToast";
 
 import { useCreatePipelineMutation, useListPipelinesQuery } from "@/api/queries/pipelines";
 

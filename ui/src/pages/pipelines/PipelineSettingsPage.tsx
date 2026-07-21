@@ -20,13 +20,12 @@ import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 import { BaseHeaderSize } from "@/layouts/components/types";
-
-import { ToastVariant } from "@/providers/toast/Toast";
-import { useToast } from "@/providers/toast/useToast";
 
 import {
   useDeletePipelineMutation,
