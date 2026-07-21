@@ -136,6 +136,7 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	if err != nil {
 		return nil, err
 	}
+	options := runOptionsFromProto(req.Msg.GetOptions())
 	for _, group := range groups {
 		key := group.key
 		var resources []string
@@ -168,6 +169,7 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 			Resources:         resources,
 			Selectors:         selectors,
 			IngestionType:     group.ingestionType,
+			Options:           options,
 		})
 		if err != nil {
 			return nil, err

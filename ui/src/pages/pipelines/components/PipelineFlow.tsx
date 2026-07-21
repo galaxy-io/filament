@@ -18,8 +18,8 @@ const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, Co
 };
 
 const PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP: Record<PipelineFlowSize, number> = {
-  [PipelineFlowSize.SMALL]: 16,
-  [PipelineFlowSize.MEDIUM]: 20,
+  [PipelineFlowSize.SMALL]: 12,
+  [PipelineFlowSize.MEDIUM]: 16,
 };
 
 interface PipelineFlowProps {
@@ -73,7 +73,7 @@ const PipelineFlow = ({
       <Icon
         component={hasSource && hasSinks ? FlowArrowIcon : LinkBreakIcon}
         size={iconSize}
-        variant={IconVariant.TERTIARY}
+        variant={hasSource && hasSinks ? IconVariant.TERTIARY : IconVariant.ERROR}
       />
       {hasSinks ? (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>

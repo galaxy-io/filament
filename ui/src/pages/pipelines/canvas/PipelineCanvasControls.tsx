@@ -1,10 +1,18 @@
 import { styled } from "@linaria/react";
-import { CornersOutIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react";
 import { useReactFlow } from "@xyflow/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import {
+  CANVAS_FIT_VIEW_OPTIONS,
+  CANVAS_FIT_VIEW_Y_OFFSET,
+} from "@/pages/pipelines/canvas/constants";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+import { resetNodePositions } from "@/pages/pipelines/canvas/utils";
 
 const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
@@ -16,7 +24,7 @@ const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   flex-direction: column;
 
   background-color: ${({ theme }) => theme.color.background.primary};
-  border: 1px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
   border-radius: 6px;
   overflow: hidden;
 `);
@@ -32,7 +40,7 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
 
   background-color: transparent;
   border: none;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border.primary};
+  border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
   cursor: pointer;
 
   transition: background-color 100ms ease;
@@ -47,7 +55,26 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
 `);
 
 const PipelineCanvasControls = () => {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const { zoomIn, zoomOut, fitView, getViewport, setViewport } = useReactFlow();
+  const { state, dispatch } = usePipelineCanvas();
+
+  // Re-stack nodes and reframe the viewport exactly like the initial load
+  const handleResetView = () => {
+    dispatch({
+      type: PipelineCanvasActionType.SET_NODES,
+      payload: resetNodePositions(state.nodes),
+    });
+
+    // Wait for the repositioned nodes to commit before framing them
+    window.setTimeout(async () => {
+      await fitView(CANVAS_FIT_VIEW_OPTIONS);
+      const viewport = getViewport();
+      setViewport({
+        ...viewport,
+        y: viewport.y - CANVAS_FIT_VIEW_Y_OFFSET,
+      });
+    }, 0);
+  };
 
   return (
     <ControlsContainer>
@@ -57,8 +84,8 @@ const PipelineCanvasControls = () => {
       <ControlButton onClick={() => zoomOut()}>
         <Icon component={MinusIcon} size={12} variant={IconVariant.SECONDARY} />
       </ControlButton>
-      <ControlButton onClick={() => fitView()}>
-        <Icon component={CornersOutIcon} size={12} variant={IconVariant.SECONDARY} />
+      <ControlButton onClick={handleResetView}>
+        <Icon component={ArrowCounterClockwiseIcon} size={12} variant={IconVariant.SECONDARY} />
       </ControlButton>
     </ControlsContainer>
   );

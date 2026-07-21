@@ -1,9 +1,12 @@
+import { create } from "@bufbuild/protobuf";
+import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
   useQuery,
+  useTransport,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -12,6 +15,10 @@ import type {
   GetPipelineResponse,
   ListPipelinesRequest,
   ListPipelinesResponse,
+} from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  GetPipelineRequestSchema,
+  GetPipelineResponseSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
@@ -43,10 +50,14 @@ export const useListPipelinesQuery = ({
 
 // ========== GET PIPELINE ==========
 
-export const createGetPipelineQueryKey = (input: GetPipelineRequest) => {
+// transport must be passed for exact-match operations (setQueryData): useQuery
+// includes the context transport in its key, and unlike invalidateQueries
+// (partial matching), setQueryData only writes to an exactly matching key
+export const createGetPipelineQueryKey = (input: GetPipelineRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getPipeline,
     input,
+    transport,
     cardinality: "finite",
   });
 };
@@ -99,12 +110,37 @@ export const useUpdatePipelineMutation = (
     typeof IngestionService.method.updatePipeline.output
   > = {},
 ) => {
+  const queryClient = useQueryClient();
+  const transport = useTransport();
   const invalidate = useInvalidatePipelines();
   return useMutation(IngestionService.method.updatePipeline, {
     ...options,
-    onSettled: (...args) => {
+    onSuccess: (data, variables, onMutateResult, context) => {
+      // Seed the item cache immediately so consumers see the bumped version without a refetch
+      if (data.pipeline?.id) {
+        queryClient.setQueryData(
+          createGetPipelineQueryKey(
+            create(GetPipelineRequestSchema, { id: data.pipeline.id }),
+            transport,
+          ),
+          create(GetPipelineResponseSchema, { pipeline: data.pipeline }),
+        );
+      }
+      return options.onSuccess?.(data, variables, onMutateResult, context);
+    },
+    onSettled: (data, error, ...rest) => {
       void invalidate();
-      return options.onSettled?.(...args);
+      // Refetch the item on failure so a version conflict re-syncs the caller
+      // with the server's current version before the next attempt
+      if (error) {
+        void queryClient.invalidateQueries({
+          queryKey: createConnectQueryKey({
+            schema: IngestionService.method.getPipeline,
+            cardinality: "finite",
+          }),
+        });
+      }
+      return options.onSettled?.(data, error, ...rest);
     },
   });
 };

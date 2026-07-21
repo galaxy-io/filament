@@ -22,11 +22,31 @@ enum Signal {
   SIGNAL_CANCEL = 3;
 }
 
+// RatePolicy throttles source reads.
+message RatePolicy {
+  double requests_per_second = 1;
+  int32 burst = 2;
+}
+
+// RunOptions overrides the engine's throughput defaults for a run. Every field
+// is optional: a zero value defers to the engine default downstream.
+message RunOptions {
+  int32 fetch_size = 1;
+  int32 batch_max_rows = 2;
+  int64 batch_max_bytes = 3;
+  RatePolicy rate_limit = 4;
+  int32 snapshot_parallelism = 5;
+  int32 checkpoint_every = 6;
+}
+
 message RunPipelineRequest {
   string pipeline_id = 1;
   // client_token salts the idempotency key so a deliberate re-run differs from a
   // double-click; reusing a token dedupes to the same runs.
   string client_token = 2;
+  // options overrides engine throughput defaults for every run this call
+  // produces. Unset (or any zero field) defers to defaults.
+  RunOptions options = 3;
 }
 
 // RunBinding ties one compiled edge to the run it produced, so the UI can bind a

@@ -39,7 +39,7 @@ const ErrorLayout = ({ icon, header, message, error, actions }: ErrorLayoutProps
           </Text>
         )}
         {IS_DEBUG && error && (
-          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR} isMonospace isSelectable>
+          <Text size={TextSize.CAPTION} variant={TextVariant.ERROR} isMonospace isSelectable>
             {error.message}
           </Text>
         )}

@@ -22,7 +22,9 @@ import {
   PIPELINE_GROUP_TO_LABEL_MAP,
   PIPELINE_INDICATOR_WIDTH,
 } from "@/pages/pipelines/constants";
-import { PipelineGroup, type PipelineResource } from "@/pages/pipelines/types";
+import { PipelineGroup } from "@/pages/pipelines/types";
+
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 const IndicatorWrapper = styled.div`
   width: ${PIPELINE_INDICATOR_WIDTH}px;
@@ -59,7 +61,7 @@ const getGroupBadgeVariant = (group: PipelineGroup): BadgeVariant => {
 
 interface PipelineCardGroupProps {
   group: PipelineGroup;
-  pipelines: PipelineResource[];
+  pipelines: Pipeline[];
   defaultExpanded?: boolean;
 }
 

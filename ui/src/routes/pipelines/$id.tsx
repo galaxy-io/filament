@@ -4,35 +4,40 @@ import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
 import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
 import { PipelineStatus } from "@/layouts/pipeline/types";
 
+import PipelineCanvasProvider from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { mapPipelineToCanvasState } from "@/pages/pipelines/canvas/utils";
+
+import { useListConnectionsQuery } from "@/api/queries/connectors";
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 const PipelineLayoutRoute = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
-  const { data, isLoading } = useGetPipelineQuery({
+
+  const { data: pipelineData, isLoading: isLoadingPipeline } = useGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
   });
+  const { data: connectionsData, isLoading: isLoadingConnections } = useListConnectionsQuery({
+    input: create(ListConnectionsRequestSchema, { kind: ConnectorKind.UNSPECIFIED }),
+  });
 
-  const pipeline = data?.pipeline;
-  const sources = pipeline?.nodes.filter((n) => n.kind === ConnectorKind.SOURCE) ?? [];
-  const sinks = pipeline?.nodes.filter((n) => n.kind === ConnectorKind.SINK) ?? [];
+  const pipeline = pipelineData?.pipeline;
 
-  if (isLoading) {
+  if (isLoadingPipeline || isLoadingConnections || !pipeline) {
     return null;
   }
 
   return (
-    <PipelineLayout
-      pipelineId={id}
-      name={pipeline?.name || "Untitled Pipeline"}
-      status={PipelineStatus.DRAFT}
-      source={sources[0]?.connectionId ?? ""}
-      sinks={sinks.map((s) => s.connectionId)}
+    <PipelineCanvasProvider
+      initialState={mapPipelineToCanvasState(pipeline, connectionsData?.connections ?? [])}
     >
-      <Outlet />
-    </PipelineLayout>
+      <PipelineLayout pipeline={pipeline} status={PipelineStatus.DRAFT}>
+        <Outlet />
+      </PipelineLayout>
+    </PipelineCanvasProvider>
   );
 };
 

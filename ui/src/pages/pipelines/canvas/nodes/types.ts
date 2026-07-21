@@ -1,11 +1,6 @@
 import type { NodeProps } from "@xyflow/react";
 
-import type { PipelineNodeSinkData, PipelineNodeSourceData } from "@/pages/pipelines/canvas/types";
+import type { PipelineNodeSink, PipelineNodeSource } from "@/pages/pipelines/canvas/types";
 
-export type PipelineNodeSourceProps = NodeProps & {
-  data: PipelineNodeSourceData;
-};
-
-export type PipelineNodeSinkProps = NodeProps & {
-  data: PipelineNodeSinkData;
-};
+export type PipelineNodeSourceProps = NodeProps<PipelineNodeSource>;
+export type PipelineNodeSinkProps = NodeProps<PipelineNodeSink>;

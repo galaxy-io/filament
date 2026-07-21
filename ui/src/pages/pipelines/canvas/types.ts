@@ -1,49 +1,57 @@
 import type { BuiltInNode, Edge, Node } from "@xyflow/react";
 
-// Node type identifiers
+import type { PipelineCanvasAction } from "@/pages/pipelines/canvas/actions";
+
+import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
+
 export enum PipelineNodeType {
-  SOURCE = "source",
-  SINK = "sink",
+  SOURCE = "SOURCE",
+  SINK = "SINK",
 }
 
-// Connector types (data sources/destinations)
-export enum ConnectorType {
-  POSTGRES = "postgres",
-  S3 = "s3",
-  STDOUT = "stdout",
-}
-
-// Table info for source nodes
 export interface PipelineNodeSourceTableInfo {
   name: string;
   rowCount: string;
   isConnected: boolean;
 }
 
-// Source node specific data
 export type PipelineNodeSourceData = {
   label: string;
-  connectorType: ConnectorType;
-  tables?: PipelineNodeSourceTableInfo[];
+  connector: string;
+  connectionId: string;
 };
 
-// Sink node specific data
 export type PipelineNodeSinkData = {
   label: string;
-  connectorType: ConnectorType;
+  connector: string;
+  connectionId: string;
 };
 
-// Typed nodes
 export type PipelineNodeSource = Node<PipelineNodeSourceData, PipelineNodeType.SOURCE>;
 export type PipelineNodeSink = Node<PipelineNodeSinkData, PipelineNodeType.SINK>;
 export type PipelineNode = PipelineNodeSource | PipelineNodeSink | BuiltInNode;
 
-// Typed edges
 export type PipelineEdge = Edge;
 
-// Edit widget modes
 export enum PipelineCanvasEditMode {
-  ADD = "add",
-  EDIT = "edit",
-  ACTIVITY = "activity",
+  ADD_NODE = "ADD_NODE",
+}
+
+export enum PipelineCanvasInteractionMode {
+  GRAB = "GRAB",
+  SELECT = "SELECT",
+}
+
+export interface PipelineCanvasState {
+  nodes: PipelineNode[];
+  edges: PipelineEdge[];
+  activeMode: PipelineCanvasEditMode | null;
+  interactionMode: PipelineCanvasInteractionMode;
+  isActivityOpen: boolean;
+  runBindings: RunBinding[];
+}
+
+export interface PipelineCanvasContextShape {
+  state: PipelineCanvasState;
+  dispatch: React.Dispatch<PipelineCanvasAction>;
 }

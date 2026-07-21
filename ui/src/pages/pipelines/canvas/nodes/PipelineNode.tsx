@@ -4,7 +4,7 @@ import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { Position } from "@xyflow/react";
 
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -13,24 +13,27 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
   PIPELINE_NODE_BORDER_RADIUS,
-  PIPELINE_NODE_HANDLE_SLOT_SIZE,
+  PIPELINE_NODE_GAP,
   PIPELINE_NODE_PADDING,
-  PIPELINE_NODE_SINK_WIDTH,
   PIPELINE_NODE_WIDTH,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-// Island base styles - used by header and child islands
+// Island base styles - used by header and child islands.
+// Selection thickness comes from an outline so the layout never shifts.
 export const Island = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolean }>>`
   padding: ${PIPELINE_NODE_PADDING}px;
 
   background-color: ${({ theme }) => theme.color.background.primary};
-  border: 1px solid
+  border: 0.5px solid
     ${({ theme, $isSelected }) =>
       $isSelected ? theme.color.background.galaxy : theme.color.border.primary};
   border-radius: ${PIPELINE_NODE_BORDER_RADIUS}px;
+  outline: ${({ theme, $isSelected }) =>
+    $isSelected ? `1px solid ${theme.color.background.galaxy}` : "none"};
+  outline-offset: -1px;
 
   transition: border-color 100ms ease;
 `);
@@ -40,6 +43,10 @@ const NodeContainer = withTheme(styled.div<
   PropsWithTheme<{ $isSelected?: boolean; $width: number }>
 >`
   width: ${({ $width }) => $width}px;
+
+  display: flex;
+  flex-direction: column;
+  gap: ${PIPELINE_NODE_GAP}px;
 
   &:hover ${Island} {
     border-color: ${({ theme, $isSelected }) =>
@@ -51,7 +58,6 @@ const ActionBar = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
 `;
 
 const ActionButtons = styled.div`
@@ -84,28 +90,19 @@ const ActionButton = withTheme(styled.button<PropsWithTheme>`
 const HeaderIsland = styled(Island)`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 `;
 
 const HeaderContent = styled.div`
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
-`;
-
-// 24x24 container that centers the handle
-const HandleSlot = styled.div`
-  width: ${PIPELINE_NODE_HANDLE_SLOT_SIZE}px;
-  height: ${PIPELINE_NODE_HANDLE_SLOT_SIZE}px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 8px;
 `;
 
 interface PipelineNodeProps extends PropsWithChildren {
   connector: string;
+  label: string;
   kind: ConnectorKind;
   handleId: string;
   isConnected?: boolean;
@@ -114,8 +111,15 @@ interface PipelineNodeProps extends PropsWithChildren {
   onDelete?: () => void;
 }
 
+// Keep action clicks from bubbling into React Flow's node selection
+const handleActionClick = (event: React.MouseEvent, action: () => void) => {
+  event.stopPropagation();
+  action();
+};
+
 const PipelineNode = ({
   connector,
+  label,
   kind,
   handleId,
   isConnected = false,
@@ -124,43 +128,51 @@ const PipelineNode = ({
   onDelete,
   children,
 }: PipelineNodeProps) => {
-  const handlePosition = kind === ConnectorKind.SINK ? Position.Left : Position.Right;
-  const nodeWidth = kind === ConnectorKind.SINK ? PIPELINE_NODE_SINK_WIDTH : PIPELINE_NODE_WIDTH;
+  const isSink = kind === ConnectorKind.SINK;
 
   const handleSlot = (
-    <HandleSlot>
-      <PipelineNodeHandle
-        id={handleId}
-        kind={kind}
-        position={handlePosition}
-        isConnected={isConnected}
-      />
-    </HandleSlot>
+    <PipelineNodeHandle
+      id={handleId}
+      kind={kind}
+      position={isSink ? Position.Left : Position.Right}
+      isConnected={isConnected}
+    />
   );
 
   return (
-    <NodeContainer $isSelected={isSelected} $width={nodeWidth}>
+    <NodeContainer $isSelected={isSelected} $width={PIPELINE_NODE_WIDTH}>
       <ActionBar>
         <Chip
-          label={kind === ConnectorKind.SOURCE ? "Source" : "Sink"}
-          variant={kind === ConnectorKind.SOURCE ? ChipVariant.LIME : ChipVariant.PINK}
+          label={isSink ? "Sink" : "Source"}
+          variant={isSink ? ChipVariant.PINK : ChipVariant.LIME}
+          size={ChipSize.SMALL}
         />
         <ActionButtons>
-          <ActionButton onClick={onRefresh}>
-            <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />
-          </ActionButton>
-          <ActionButton onClick={onDelete}>
-            <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
-          </ActionButton>
+          {onRefresh && (
+            <ActionButton
+              className="nodrag"
+              onClick={(event) => handleActionClick(event, onRefresh)}
+            >
+              <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />
+            </ActionButton>
+          )}
+          {onDelete && (
+            <ActionButton
+              className="nodrag"
+              onClick={(event) => handleActionClick(event, onDelete)}
+            >
+              <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
+            </ActionButton>
+          )}
         </ActionButtons>
       </ActionBar>
       <HeaderIsland $isSelected={isSelected}>
-        {kind === ConnectorKind.SINK && handleSlot}
+        {isSink && handleSlot}
         <HeaderContent>
           <ConnectorTile connector={connector} size={ConnectorTileSize.SMALL} />
-          <Text size={TextSize.BODY_SM}>{connector}</Text>
+          <Text size={TextSize.BODY_SM}>{label}</Text>
         </HeaderContent>
-        {kind === ConnectorKind.SOURCE && handleSlot}
+        {!isSink && handleSlot}
       </HeaderIsland>
       {children}
     </NodeContainer>

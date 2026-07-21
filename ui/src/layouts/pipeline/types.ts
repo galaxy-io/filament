@@ -9,11 +9,3 @@ export enum PipelineSidebarItem {
   HISTORY = "history",
   SETTINGS = "settings",
 }
-
-export interface PipelineResource {
-  id: string;
-  name: string;
-  status: PipelineStatus;
-  source?: string;
-  sinks?: string[];
-}
