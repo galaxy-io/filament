@@ -20,6 +20,7 @@ import {
   PIPELINE_STATUS_TO_LABEL_MAP,
 } from "@/layouts/pipeline/constants";
 import type { PipelineStatus } from "@/layouts/pipeline/types";
+import PipelineFlow from "@/pages/pipelines/components/PipelineFlow";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
