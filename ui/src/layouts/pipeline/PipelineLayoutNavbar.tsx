@@ -2,7 +2,6 @@ import { styled } from "@linaria/react";
 import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Chip from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import SelectInput, {
   type SelectInputOption,
@@ -14,12 +13,13 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import {
-  PIPELINE_NAVBAR_HEIGHT,
-  PIPELINE_STATUS_TO_CHIP_VARIANT_MAP,
-  PIPELINE_STATUS_TO_LABEL_MAP,
-} from "@/layouts/pipeline/constants";
-import type { PipelineStatus } from "@/layouts/pipeline/types";
+import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
+
+import PipelineFlow, {
+  PipelineFlowSize,
+  type PipelineFlowConnection,
+} from "@/pages/pipelines/components/PipelineFlow";
+import { formatPipelineName } from "@/pages/pipelines/utils";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -38,7 +38,9 @@ const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
 
 interface PipelineLayoutNavbarProps {
   name: string;
-  status: PipelineStatus;
+  source?: PipelineFlowConnection;
+  sinks: PipelineFlowConnection[];
+  hasEdges: boolean;
   isEnabled: boolean;
   onToggleEnabled: (enabled: boolean) => void;
   hasChanges: boolean;
@@ -56,7 +58,9 @@ interface PipelineLayoutNavbarProps {
 
 const PipelineLayoutNavbar = ({
   name,
-  status,
+  source,
+  sinks,
+  hasEdges,
   isEnabled,
   onToggleEnabled,
   hasChanges,
@@ -74,11 +78,8 @@ const PipelineLayoutNavbar = ({
   return (
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-        <Chip
-          label={PIPELINE_STATUS_TO_LABEL_MAP[status]}
-          variant={PIPELINE_STATUS_TO_CHIP_VARIANT_MAP[status]}
-        />
-        <Text size={TextSize.BODY_LG}>{name}</Text>
+        <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} size={PipelineFlowSize.SMALL} />
+        <Text size={TextSize.BODY_LG}>{formatPipelineName(name)}</Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>

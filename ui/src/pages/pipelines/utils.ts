@@ -32,6 +32,12 @@ export const getHealthBeaconVariant = (health: PipelineHealth): BeaconVariant =>
     .exhaustive();
 };
 
+// ABC Diatype's "->" ligature doesn't survive Text's letter-spacing, so
+// render the real arrow glyph instead
+export const formatPipelineName = (name: string): string => {
+  return name.replace(/->/g, "→");
+};
+
 export const formatCount = (value: bigint): string => {
   return Number(value).toLocaleString();
 };

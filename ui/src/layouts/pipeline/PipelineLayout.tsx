@@ -16,10 +16,15 @@ import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutBackButton from "@/layouts/pipeline/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
-import { PipelineSidebarItem, type PipelineStatus } from "@/layouts/pipeline/types";
+import { PipelineSidebarItem } from "@/layouts/pipeline/types";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { usePipelineCanvas, usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
+import {
+  type PipelineNodeSink,
+  type PipelineNodeSource,
+  PipelineNodeType,
+} from "@/pages/pipelines/canvas/types";
 import { isPipelineRunnable } from "@/pages/pipelines/canvas/utils";
 
 import { useRunPipelineMutation } from "@/api/queries/runs";
@@ -99,7 +104,6 @@ const PreviewChipOverlay = styled.div`
 interface PipelineLayoutProps {
   pipeline: Pipeline;
   currentVersion?: PipelineVersion;
-  status: PipelineStatus;
   versions: PipelineVersion[];
   previewVersion: bigint | null;
   onPreviewVersionChange: (version: bigint | null) => void;
@@ -116,7 +120,6 @@ const DEFAULT_STATE: PipelineLayoutState = {
 const PipelineLayout = ({
   pipeline,
   currentVersion,
-  status,
   versions,
   previewVersion,
   onPreviewVersionChange,
@@ -126,8 +129,26 @@ const PipelineLayout = ({
   const { showToast } = useToast();
   const [state, setState] = useState<PipelineLayoutState>(DEFAULT_STATE);
 
-  const { dispatch } = usePipelineCanvas();
+  const { state: canvasState, dispatch } = usePipelineCanvas();
   const { hasChanges, isSaving, save } = usePipelineCanvasSave(pipeline, currentVersion);
+
+  // The navbar flow mirrors the live canvas graph, so it tracks unsaved edits
+  const flowSource = useMemo(() => {
+    const node = canvasState.nodes.find(
+      (n): n is PipelineNodeSource => n.type === PipelineNodeType.SOURCE,
+    );
+    return node
+      ? { connectionId: node.data.connectionId, connector: node.data.connector }
+      : undefined;
+  }, [canvasState.nodes]);
+  const flowSinks = useMemo(
+    () =>
+      canvasState.nodes
+        .filter((n): n is PipelineNodeSink => n.type === PipelineNodeType.SINK)
+        .map((n) => ({ connectionId: n.data.connectionId, connector: n.data.connector })),
+    [canvasState.nodes],
+  );
+  const flowHasEdges = canvasState.edges.length > 0;
 
   const isPreview = previewVersion !== null;
   // In preview the canvas holds an old graph, so comparing it against the
@@ -220,7 +241,9 @@ const PipelineLayout = ({
       <RightColumn>
         <PipelineLayoutNavbar
           name={pipeline.name}
-          status={status}
+          source={flowSource}
+          sinks={flowSinks}
+          hasEdges={flowHasEdges}
           isEnabled={state.isEnabled}
           onToggleEnabled={handleToggleEnabled}
           hasChanges={effectiveHasChanges}
