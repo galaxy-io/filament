@@ -6,8 +6,7 @@ import { match } from "ts-pattern";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
-import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks";

@@ -70,6 +70,18 @@ func (a *Server) GetPipelineVersion(ctx context.Context, req *connect.Request[in
 	return connect.NewResponse(&ingestionv1.GetPipelineVersionResponse{Version: v}), nil
 }
 
+// ListPipelineVersions returns all of a pipeline's graph versions, newest first.
+func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[ingestionv1.ListPipelineVersionsRequest]) (*connect.Response[ingestionv1.ListPipelineVersionsResponse], error) {
+	if req.Msg.GetPipelineId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
+	}
+	versions, err := a.store.ListPipelineVersions(ctx, req.Msg.GetPipelineId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: versions}), nil
+}
+
 // GetPipeline returns the pipeline by id.
 func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
 	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetId())

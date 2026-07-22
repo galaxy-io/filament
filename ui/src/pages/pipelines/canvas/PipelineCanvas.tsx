@@ -9,7 +9,6 @@ import {
   MiniMap,
   type NodeChange,
   ReactFlow,
-  type ReactFlowInstance,
   SelectionMode,
 } from "@xyflow/react";
 
@@ -21,7 +20,6 @@ import "@xyflow/react/dist/style.css";
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   CANVAS_FIT_VIEW_OPTIONS,
-  CANVAS_FIT_VIEW_Y_OFFSET,
   CANVAS_SNAP_GRID,
   PIPELINE_EDGE_TYPE,
 } from "@/pages/pipelines/canvas/constants";
@@ -118,52 +116,39 @@ const PipelineCanvas = () => {
   const { state, dispatch } = usePipelineCanvas();
 
   const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
+  const isReadOnly = state.isReadOnly;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<PipelineNode>[]) => {
+      if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.APPLY_NODE_CHANGES,
         payload: changes,
       });
     },
-    [dispatch],
+    [dispatch, isReadOnly],
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange<PipelineEdge>[]) => {
+      if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.APPLY_EDGE_CHANGES,
         payload: changes,
       });
     },
-    [dispatch],
+    [dispatch, isReadOnly],
   );
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.CONNECT,
         payload: connection,
       });
     },
-    [dispatch],
-  );
-
-  const onInit = useCallback(
-    (instance: ReactFlowInstance<PipelineNode, PipelineEdge>) => {
-      const viewport = instance.getViewport();
-      const initialViewport = {
-        ...viewport,
-        y: viewport.y - CANVAS_FIT_VIEW_Y_OFFSET,
-      };
-      instance.setViewport(initialViewport);
-      // Remember the fresh-load framing so "reset view" can restore it exactly
-      dispatch({
-        type: PipelineCanvasActionType.SET_INITIAL_VIEWPORT,
-        payload: initialViewport,
-      });
-    },
-    [dispatch],
+    [dispatch, isReadOnly],
   );
 
   const selectedNodeIds = useMemo(
@@ -199,10 +184,12 @@ const PipelineCanvas = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onInit={onInit}
           nodeTypes={pipelineNodeTypes}
           edgeTypes={pipelineEdgeTypes}
-          selectionOnDrag={!isGrabMode}
+          nodesDraggable={!isReadOnly}
+          nodesConnectable={!isReadOnly}
+          elementsSelectable={!isReadOnly}
+          selectionOnDrag={!isReadOnly && !isGrabMode}
           selectionMode={SelectionMode.Partial}
           panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
           panOnScroll
@@ -210,7 +197,7 @@ const PipelineCanvas = () => {
           snapGrid={CANVAS_SNAP_GRID}
           fitView
           fitViewOptions={CANVAS_FIT_VIEW_OPTIONS}
-          deleteKeyCode={["Backspace", "Delete"]}
+          deleteKeyCode={isReadOnly ? null : ["Backspace", "Delete"]}
           proOptions={{ hideAttribution: true }}
         >
           <Background
@@ -233,8 +220,8 @@ const PipelineCanvas = () => {
             zoomable
           />
         </ReactFlow>
-        <PipelineCanvasEditWidget />
-        <PipelineCanvasTerminal />
+        {!isReadOnly && <PipelineCanvasEditWidget />}
+        {!isReadOnly && <PipelineCanvasTerminal />}
       </CanvasWrapper>
     </PageWrapper>
   );

@@ -37,6 +37,7 @@ type DataStore interface {
 	UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
 	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
 	LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
+	ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error)
 	ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string

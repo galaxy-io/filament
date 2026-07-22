@@ -124,7 +124,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
-// ListRuns returns runs matching the filter, oldest StartedAt first each with resource states attached.
+// ListRuns returns runs matching the filter, newest StartedAt first each with resource states attached.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
 	q := `SELECT run_id, tenant_id, coalesce(schedule_id, ''), status, request, records, bytes, started_at, finished_at, coalesce(error, '')
 	      FROM runs WHERE 1=1`
@@ -158,7 +158,7 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		}
 		q += " AND status = ANY(" + arg(statuses) + ")"
 	}
-	q += " ORDER BY started_at ASC, run_id ASC"
+	q += " ORDER BY started_at DESC, run_id DESC"
 	if f.Limit > 0 {
 		q += " LIMIT " + arg(f.Limit)
 	}

@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import { useParams } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -26,6 +27,7 @@ import {
   RUN_STATUS_TO_TEXT_VARIANT_MAP,
   RUN_TABLE_COLUMN_WIDTH_RECORDS,
   RUN_TABLE_COLUMN_WIDTH_STATUS,
+  RUN_TABLE_COLUMN_WIDTH_VERSION,
   RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
 import { formatBytes, formatCount } from "@/pages/pipelines/utils";
@@ -100,6 +102,18 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cell: ({ row }) => <RunIdCell run={row.original} />,
   },
   {
+    id: "version",
+    header: "Version",
+    size: RUN_TABLE_COLUMN_WIDTH_VERSION,
+    align: ColumnAlign.RIGHT,
+    cellLoading: () => <TextShimmer width={32} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} isMonospace>
+        {row.original.pipelineVersionId ? `v${row.original.pipelineVersionId}` : "—"}
+      </Text>
+    ),
+  },
+  {
     id: "records",
     header: "Records",
     size: RUN_TABLE_COLUMN_WIDTH_RECORDS,
@@ -126,8 +140,10 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
 ];
 
 const PipelineHistoryPage = () => {
+  const { id } = useParams({ from: "/pipelines/$id" });
+
   const { data, isLoading, isError } = useListRunsQuery({
-    input: create(ListRunsRequestSchema, { limit: RUN_HISTORY_LIMIT }),
+    input: create(ListRunsRequestSchema, { pipelineId: id, limit: RUN_HISTORY_LIMIT }),
   });
 
   return (

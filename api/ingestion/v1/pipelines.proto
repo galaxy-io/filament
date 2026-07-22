@@ -96,6 +96,15 @@ message GetPipelineVersionResponse {
   PipelineVersion version = 1;
 }
 
+message ListPipelineVersionsRequest {
+  string pipeline_id = 1;
+}
+
+message ListPipelineVersionsResponse {
+  // Newest first (descending version).
+  repeated PipelineVersion versions = 1;
+}
+
 message ListPipelinesRequest {
   string tenant_id = 1;
 }

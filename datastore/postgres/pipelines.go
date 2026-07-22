@@ -83,6 +83,24 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 	return &ingestionv1.PipelineVersion{Id: row.PipelineID, Version: row.Version, Nodes: nodes, Edges: edges, CreatedAt: row.CreatedAt.Time.UnixMilli()}, nil
 }
 
+// ListPipelineVersions returns all of a pipeline's graph versions, newest
+// first. An unknown pipeline yields an empty slice.
+func (s *Store) ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error) {
+	rows, err := s.q.ListPipelineVersions(ctx, pipelineID)
+	if err != nil {
+		return nil, fmt.Errorf("datastore/postgres: list pipeline versions: %w", err)
+	}
+	out := make([]*ingestionv1.PipelineVersion, len(rows))
+	for i, row := range rows {
+		nodes, edges, err := unmarshalGraph(row.Nodes, row.Edges)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = &ingestionv1.PipelineVersion{Id: row.PipelineID, Version: row.Version, Nodes: nodes, Edges: edges, CreatedAt: row.CreatedAt.Time.UnixMilli()}
+	}
+	return out, nil
+}
+
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	rows, err := s.q.ListPipelines(ctx, tenant)

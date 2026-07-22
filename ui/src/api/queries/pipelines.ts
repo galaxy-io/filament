@@ -17,6 +17,8 @@ import type {
   GetPipelineVersionResponse,
   ListPipelinesRequest,
   ListPipelinesResponse,
+  ListPipelineVersionsRequest,
+  ListPipelineVersionsResponse,
 } from "@/gen/ingestion/v1/pipelines_pb";
 import {
   GetPipelineRequestSchema,
@@ -108,6 +110,24 @@ export const useGetPipelineVersionQuery = ({
   >(IngestionService.method.getPipelineVersion, input, options);
 };
 
+// ========== LIST PIPELINE VERSIONS ==========
+
+export const useListPipelineVersionsQuery = ({
+  input,
+  options = {},
+}: {
+  input: ListPipelineVersionsRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.listPipelineVersions.output,
+    ListPipelineVersionsResponse
+  >;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.listPipelineVersions.input,
+    typeof IngestionService.method.listPipelineVersions.output
+  >(IngestionService.method.listPipelineVersions, input, options);
+};
+
 // ========== MUTATIONS ==========
 
 const useInvalidatePipelines = () => {
@@ -160,6 +180,12 @@ export const useCreatePipelineVersionMutation = (
       void queryClient.invalidateQueries({
         queryKey: createConnectQueryKey({
           schema: IngestionService.method.getPipelineVersion,
+          cardinality: "finite",
+        }),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createConnectQueryKey({
+          schema: IngestionService.method.listPipelineVersions,
           cardinality: "finite",
         }),
       });

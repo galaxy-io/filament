@@ -101,6 +101,24 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 	return clonePipelineVersion(v), nil
 }
 
+// ListPipelineVersions returns all of a pipeline's graph versions, newest
+// first. An unknown pipeline yields an empty slice.
+func (s *Store) ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []*ingestionv1.PipelineVersion
+	for _, v := range s.pipelineVersions[pipelineID] {
+		out = append(out, clonePipelineVersion(v))
+	}
+	slices.SortFunc(out, func(a, b *ingestionv1.PipelineVersion) int {
+		return int(b.GetVersion() - a.GetVersion())
+	})
+	return out, nil
+}
+
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {

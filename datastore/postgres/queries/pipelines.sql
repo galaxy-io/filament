@@ -28,6 +28,10 @@ SELECT pipeline_id, version, nodes, edges, created_at FROM pipeline_versions
 WHERE pipeline_versions.pipeline_id = sqlc.arg(pipeline_id) AND version = CASE WHEN sqlc.arg(version)::bigint = 0 THEN
   (SELECT current_version_id FROM pipelines WHERE pipelines.pipeline_id = sqlc.arg(pipeline_id)) ELSE sqlc.arg(version) END;
 
+-- name: ListPipelineVersions :many
+SELECT pipeline_id, version, nodes, edges, created_at FROM pipeline_versions
+WHERE pipeline_id = @pipeline_id ORDER BY version DESC;
+
 -- name: ListPipelines :many
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
        last_run_at, last_run_status, last_run_bytes

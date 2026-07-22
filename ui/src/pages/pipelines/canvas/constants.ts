@@ -14,8 +14,6 @@ export const CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
   maxZoom: 1,
 };
 
-export const CANVAS_FIT_VIEW_Y_OFFSET = 64;
-
 export const CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
 export const CONNECTOR_KIND_TO_HANDLE_TYPE_MAP: Record<ConnectorKind, HandleType> = {
