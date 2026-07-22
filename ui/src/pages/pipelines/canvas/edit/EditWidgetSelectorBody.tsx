@@ -25,8 +25,11 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
-const BodyWrapper = styled.div`
-  width: 320px;
+const DEFAULT_BODY_WIDTH = 320;
+
+const BodyWrapper = styled.div<{ $width: number; $fillHeight?: boolean }>`
+  width: ${({ $width }) => $width}px;
+  height: ${({ $fillHeight }) => ($fillHeight ? "100%" : "auto")};
   max-height: 480px;
   display: flex;
   flex-direction: column;
@@ -53,18 +56,30 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
 `);
 
 const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => (
-  <FlexWrapper fillWidth padding={24}>
+  <FlexWrapper fillWidth fillHeight padding={24}>
     <EmptyLayout message={message} icon={icon} />
   </FlexWrapper>
 );
 
-const EditWidgetSelectorBody = () => {
+interface EditWidgetSelectorBodyProps {
+  kindFilter?: ConnectorKind;
+  onSelect?: (connection: Connection) => void;
+  width?: number;
+  fillHeight?: boolean;
+}
+
+const EditWidgetSelectorBody = ({
+  kindFilter = ConnectorKind.UNSPECIFIED,
+  onSelect,
+  width = DEFAULT_BODY_WIDTH,
+  fillHeight = false,
+}: EditWidgetSelectorBodyProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const { state, dispatch } = usePipelineCanvas();
 
   const { data, isLoading, isError } = useListConnectionsQuery({
     input: create(ListConnectionsRequestSchema, {
-      kind: ConnectorKind.UNSPECIFIED,
+      kind: kindFilter,
     }),
   });
 
@@ -82,6 +97,11 @@ const EditWidgetSelectorBody = () => {
   );
 
   const handleConnectionClick = (connection: Connection) => {
+    if (onSelect) {
+      onSelect(connection);
+      return;
+    }
+
     const position = getNextNodePosition(connection.kind, state.nodes);
 
     dispatch({
@@ -133,7 +153,7 @@ const EditWidgetSelectorBody = () => {
   };
 
   return (
-    <BodyWrapper>
+    <BodyWrapper $width={width} $fillHeight={fillHeight}>
       <SearchWrapper>
         <TextInput
           value={searchQuery}

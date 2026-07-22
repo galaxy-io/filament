@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "filament-ui",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "ui", "dev"],
+      "port": 5173
+    }
+  ]
+}

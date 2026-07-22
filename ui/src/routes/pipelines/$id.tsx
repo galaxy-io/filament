@@ -2,7 +2,6 @@ import { create } from "@bufbuild/protobuf";
 import { createFileRoute, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
 import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
-import { PipelineStatus } from "@/layouts/pipeline/types";
 
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/PipelineCanvasProvider";
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/utils";
@@ -89,7 +88,6 @@ const PipelineLayoutRoute = () => {
       <PipelineLayout
         pipeline={pipeline}
         currentVersion={version}
-        status={PipelineStatus.DRAFT}
         versions={versions}
         previewVersion={previewed?.version ?? null}
         onPreviewVersionChange={setPreviewVersion}

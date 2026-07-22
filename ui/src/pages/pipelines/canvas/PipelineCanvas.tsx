@@ -25,6 +25,7 @@ import {
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+import PipelineNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineNodePlaceholder";
 import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
 import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
@@ -32,10 +33,12 @@ import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEdi
 import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
 import type { PipelineEdge, PipelineNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasInteractionMode, PipelineNodeType } from "@/pages/pipelines/canvas/types";
+import { getPlaceholderNodes } from "@/pages/pipelines/canvas/utils";
 
 const pipelineNodeTypes = {
   [PipelineNodeType.SOURCE]: PipelineNodeSource,
   [PipelineNodeType.SINK]: PipelineNodeSink,
+  [PipelineNodeType.PLACEHOLDER]: PipelineNodePlaceholder,
 };
 
 const pipelineEdgeTypes = {
@@ -61,6 +64,12 @@ const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolea
 
   .react-flow__node.selected {
     z-index: 999 !important;
+  }
+
+  /* Placeholder ghosts are non-draggable/selectable/connectable, which makes
+     React Flow drop their pointer events - restore them so clicks expand */
+  .react-flow__node-PLACEHOLDER {
+    pointer-events: all !important;
   }
 
   .react-flow__background {
@@ -151,6 +160,12 @@ const PipelineCanvas = () => {
     [dispatch, isReadOnly],
   );
 
+  // Empty-state ghosts are appended at render time only - never stored, saved, or diffed
+  const renderedNodes = useMemo(
+    () => [...state.nodes, ...getPlaceholderNodes(state.nodes, isReadOnly)],
+    [state.nodes, isReadOnly],
+  );
+
   const selectedNodeIds = useMemo(
     () => new Set(state.nodes.filter((node) => node.selected).map((node) => node.id)),
     [state.nodes],
@@ -179,7 +194,7 @@ const PipelineCanvas = () => {
     <PageWrapper>
       <CanvasWrapper $isGrabMode={isGrabMode}>
         <ReactFlow
-          nodes={state.nodes}
+          nodes={renderedNodes}
           edges={styledEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -208,9 +223,12 @@ const PipelineCanvas = () => {
           />
           <PipelineCanvasControls />
           <MiniMap
-            nodeColor={(node) =>
-              node.selected ? theme.color.background.galaxy : theme.color.background.tertiary
-            }
+            nodeColor={(node) => {
+              if (node.type === PipelineNodeType.PLACEHOLDER) return "transparent";
+              return node.selected
+                ? theme.color.background.galaxy
+                : theme.color.background.tertiary;
+            }}
             nodeStrokeColor={(node) =>
               node.selected ? theme.color.background.galaxy : theme.color.border.primary
             }

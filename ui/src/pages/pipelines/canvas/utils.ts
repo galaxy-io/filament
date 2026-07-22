@@ -10,6 +10,7 @@ import {
   type PipelineCanvasState,
   type PipelineEdge,
   type PipelineNode,
+  type PipelineNodePlaceholder,
   type PipelineNodeSink,
   type PipelineNodeSource,
   PipelineNodeType,
@@ -47,6 +48,39 @@ export const getNextNodePosition = (kind: ConnectorKind, nodes: PipelineNode[]) 
   const [, snapY] = CANVAS_SNAP_GRID;
 
   return { x: baseX, y: Math.round(nextY / snapY) * snapY };
+};
+
+// Empty-state ghosts: virtual nodes injected at render time, never stored in the
+// reducer, so they can't be saved, diffed, or re-stacked. Module-level constants
+// keep references stable across renders so React Flow doesn't re-measure them.
+const buildPlaceholderNode = (kind: ConnectorKind): PipelineNodePlaceholder => ({
+  id: kind === ConnectorKind.SOURCE ? "placeholder-source" : "placeholder-sink",
+  type: PipelineNodeType.PLACEHOLDER,
+  position: {
+    x: kind === ConnectorKind.SOURCE ? NODE_STACK_BASE_X_SOURCE : NODE_STACK_BASE_X_SINK,
+    y: NODE_STACK_START_Y,
+  },
+  data: { kind },
+  draggable: false,
+  selectable: false,
+  deletable: false,
+  connectable: false,
+});
+
+const SOURCE_PLACEHOLDER_NODE = buildPlaceholderNode(ConnectorKind.SOURCE);
+const SINK_PLACEHOLDER_NODE = buildPlaceholderNode(ConnectorKind.SINK);
+
+export const getPlaceholderNodes = (nodes: PipelineNode[], isReadOnly: boolean): PipelineNode[] => {
+  if (isReadOnly) return [];
+
+  const placeholders: PipelineNode[] = [];
+  if (!nodes.some((node) => node.type === PipelineNodeType.SOURCE)) {
+    placeholders.push(SOURCE_PLACEHOLDER_NODE);
+  }
+  if (!nodes.some((node) => node.type === PipelineNodeType.SINK)) {
+    placeholders.push(SINK_PLACEHOLDER_NODE);
+  }
+  return placeholders;
 };
 
 // Re-stack every node into the same deterministic layout a fresh load produces

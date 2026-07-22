@@ -68,11 +68,7 @@ const ConnectionsPage = () => {
   const handleOpenCreateConnectorModal = () => {
     void navigate({
       to: ".",
-      search: (prev) => ({
-        ...prev,
-        flow: Flow.CREATE_CONNECTION,
-        connector: undefined,
-      }),
+      search: { flow: Flow.CREATE_CONNECTION },
     });
   };
 

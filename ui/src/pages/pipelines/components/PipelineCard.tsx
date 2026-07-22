@@ -30,7 +30,12 @@ import {
   PIPELINE_METRIC_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
 import { PipelineHealth } from "@/pages/pipelines/types";
-import { formatBytes, formatTimeAgo, getHealthBeaconVariant } from "@/pages/pipelines/utils";
+import {
+  formatBytes,
+  formatPipelineName,
+  formatTimeAgo,
+  getHealthBeaconVariant,
+} from "@/pages/pipelines/utils";
 
 import { useListConnectionsQuery } from "@/api/queries/connectors";
 import { useGetPipelineVersionQuery } from "@/api/queries/pipelines";
@@ -121,6 +126,7 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
     options: { retry: false },
   });
   const nodes = versionData?.version?.nodes ?? [];
+  const hasEdges = (versionData?.version?.edges ?? []).length > 0;
 
   // Nodes reference connections by id; the tile logo needs the connector name
   const { data: connectionsData } = useListConnectionsQuery({
@@ -177,15 +183,15 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
         >
           <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
         </Tooltip>
-        <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
+        <Text weight={TextWeight.MEDIUM}>{formatPipelineName(pipeline.name)}</Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}>
         {isCompact ? (
-          <PipelineFlow source={source} sinks={sinks} />
+          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
         ) : (
           <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
-            <PipelineFlow source={source} sinks={sinks} />
+            <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
           </MetricColumnWrapper>
         )}
         {!isCompact && (

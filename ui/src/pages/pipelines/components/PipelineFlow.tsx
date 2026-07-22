@@ -32,6 +32,9 @@ export interface PipelineFlowConnection {
 interface PipelineFlowProps {
   source?: PipelineFlowConnection;
   sinks?: PipelineFlowConnection[];
+  // Whether the graph routes at least one source→sink edge; nodes without a
+  // route render the broken link even when both ends exist
+  hasEdges?: boolean;
   size?: PipelineFlowSize;
   maxSinks?: number;
 }
@@ -42,6 +45,7 @@ interface PipelineFlowProps {
 const PipelineFlow = ({
   source,
   sinks = [],
+  hasEdges = true,
   size = PipelineFlowSize.SMALL,
   maxSinks,
 }: PipelineFlowProps) => {
@@ -56,6 +60,7 @@ const PipelineFlow = ({
 
   const hasSource = !!source && source.connectionId.length > 0;
   const hasSinks = sinks.length > 0;
+  const isLinked = hasSource && hasSinks && hasEdges;
 
   const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -78,9 +83,9 @@ const PipelineFlow = ({
         <ConnectorTileEmpty size={tileSize} />
       )}
       <Icon
-        component={hasSource && hasSinks ? FlowArrowIcon : LinkBreakIcon}
+        component={isLinked ? FlowArrowIcon : LinkBreakIcon}
         size={iconSize}
-        variant={hasSource && hasSinks ? IconVariant.TERTIARY : IconVariant.ERROR}
+        variant={isLinked ? IconVariant.TERTIARY : IconVariant.ERROR}
       />
       {hasSinks ? (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
