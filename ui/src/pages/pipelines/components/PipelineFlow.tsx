@@ -22,9 +22,16 @@ const PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP: Record<PipelineFlowSize, number> = {
   [PipelineFlowSize.MEDIUM]: 16,
 };
 
+// The tile logo resolves from the connector name, while click-through
+// navigation needs the connection id - so flow entries carry both
+export interface PipelineFlowConnection {
+  connectionId: string;
+  connector: string;
+}
+
 interface PipelineFlowProps {
-  source?: string;
-  sinks?: string[];
+  source?: PipelineFlowConnection;
+  sinks?: PipelineFlowConnection[];
   size?: PipelineFlowSize;
   maxSinks?: number;
 }
@@ -47,7 +54,7 @@ const PipelineFlow = ({
   const tileSize = PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size];
   const iconSize = PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size];
 
-  const hasSource = !!source && source.length > 0;
+  const hasSource = !!source && source.connectionId.length > 0;
   const hasSinks = sinks.length > 0;
 
   const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
@@ -63,9 +70,9 @@ const PipelineFlow = ({
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
       {hasSource ? (
         <ConnectorTile
-          connector={source}
+          connector={source.connector}
           size={tileSize}
-          onClick={(e) => handleConnectionClick(source, e)}
+          onClick={(e) => handleConnectionClick(source.connectionId, e)}
         />
       ) : (
         <ConnectorTileEmpty size={tileSize} />
@@ -79,11 +86,11 @@ const PipelineFlow = ({
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
           {visibleSinks.map((sink, index) => (
             <ConnectorTile
-              // biome-ignore lint/suspicious/noArrayIndexKey: sinks are connector ids and a pipeline can have two sink nodes on the same connector, so id alone isn't guaranteed unique
-              key={`${sink}-${index}`}
-              connector={sink}
+              // biome-ignore lint/suspicious/noArrayIndexKey: a pipeline can have two sink nodes on the same connection, so id alone isn't guaranteed unique
+              key={`${sink.connectionId}-${index}`}
+              connector={sink.connector}
               size={tileSize}
-              onClick={(e) => handleConnectionClick(sink, e)}
+              onClick={(e) => handleConnectionClick(sink.connectionId, e)}
             />
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}

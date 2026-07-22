@@ -1,7 +1,5 @@
-import { useState } from "react";
-
 import { create } from "@bufbuild/protobuf";
-import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
 import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
 import { PipelineStatus } from "@/layouts/pipeline/types";
@@ -26,9 +24,21 @@ import {
 
 const PipelineLayoutRoute = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
+  const navigate = useNavigate();
 
-  // null = latest (editable); a version number = read-only preview of that version
-  const [previewVersion, setPreviewVersion] = useState<bigint | null>(null);
+  // The preview version lives in the canvas route's ?version search param, so
+  // navigating to history/settings always drops back to the latest version.
+  // null = latest (editable); a version number = read-only preview
+  const search = useSearch({ strict: false }) as { version?: number };
+  const previewVersion = search.version != null ? BigInt(search.version) : null;
+
+  const setPreviewVersion = (version: bigint | null) => {
+    void navigate({
+      to: "/pipelines/$id/canvas",
+      params: { id },
+      search: version === null ? {} : { version: Number(version) },
+    });
+  };
 
   const { data: pipelineData, isLoading: isLoadingPipeline } = useGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
@@ -51,9 +61,13 @@ const PipelineLayoutRoute = () => {
   const versions = versionsData?.versions ?? [];
 
   // The preview graph comes straight from the already-loaded list; a selection
-  // that no longer exists in the list falls back to the editable latest view
+  // that no longer exists in the list falls back to the editable latest view,
+  // and ?version pointing at the latest renders as latest (editable) too
+  const latestVersion = versions[0]?.version;
   const previewed =
-    previewVersion !== null ? versions.find((v) => v.version === previewVersion) : undefined;
+    previewVersion !== null && previewVersion !== latestVersion
+      ? versions.find((v) => v.version === previewVersion)
+      : undefined;
   const renderedVersion = previewed ?? version;
 
   if (isLoadingPipeline || isLoadingVersion || isLoadingConnections || !pipeline) {

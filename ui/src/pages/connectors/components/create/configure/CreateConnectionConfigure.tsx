@@ -167,6 +167,16 @@ const CreateConnectionConfigureContent = ({
               type: CreateConnectionActionType.SET_PHASE,
               payload: CreateConnectionPhase.ERROR,
             });
+            // Live-connection failures come back field-less, so they never
+            // render under an input - the toast is their only surface
+            const message = response.errors
+              .map((error) => (error.field ? `${error.field}: ${error.message}` : error.message))
+              .join("\n");
+            showToast({
+              variant: ToastVariant.ERROR,
+              header: "Validation failed",
+              subheader: message || "Connection could not be validated.",
+            });
           }
         },
         onError: (error) => {

@@ -30,11 +30,13 @@ import {
   PIPELINE_METRIC_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
 import { PipelineHealth } from "@/pages/pipelines/types";
-import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
+import { formatBytes, formatTimeAgo, getHealthBeaconVariant } from "@/pages/pipelines/utils";
 
+import { useListConnectionsQuery } from "@/api/queries/connectors";
 import { useGetPipelineVersionQuery } from "@/api/queries/pipelines";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetPipelineVersionRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme<{ $isCompact?: boolean }>>`
@@ -120,6 +122,18 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
   });
   const nodes = versionData?.version?.nodes ?? [];
 
+  // Nodes reference connections by id; the tile logo needs the connector name
+  const { data: connectionsData } = useListConnectionsQuery({
+    input: create(ListConnectionsRequestSchema, {}),
+  });
+  const connectionsById = new Map(
+    (connectionsData?.connections ?? []).map((connection) => [connection.id, connection]),
+  );
+  const toFlowConnection = (connectionId: string) => ({
+    connectionId,
+    connector: connectionsById.get(connectionId)?.connector ?? connectionId,
+  });
+
   const handleIsEnabledChange = (isEnabled: boolean) => {
     setState((prev) => ({ ...prev, isEnabled }));
   };
@@ -131,8 +145,16 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
     });
   };
 
-  const source = nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? "";
-  const sinks = nodes.filter((n) => n.kind === ConnectorKind.SINK).map((n) => n.connectionId);
+  const sourceNode = nodes.find((n) => n.kind === ConnectorKind.SOURCE);
+  const source = sourceNode ? toFlowConnection(sourceNode.connectionId) : undefined;
+  const sinks = nodes
+    .filter((n) => n.kind === ConnectorKind.SINK)
+    .map((n) => toFlowConnection(n.connectionId));
+
+  const hasRun = pipeline.lastRunAt > 0n;
+  const lastRunLabel = hasRun ? formatTimeAgo(pipeline.lastRunAt) : "—";
+  const volumeLabel = hasRun ? formatBytes(pipeline.lastRunBytes) : "—";
+  const versionLabel = pipeline.currentVersionId > 0n ? pipeline.currentVersionId.toString() : "—";
 
   return (
     <CardWrapper $isCompact={isCompact} onClick={handlePipelineClick}>
@@ -171,10 +193,18 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
             <MetricColumn
               width={PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN}
               label="Last run"
-              value="—"
+              value={lastRunLabel}
             />
-            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME} label="Volume" value="—" />
-            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE} value="—" />
+            <MetricColumn
+              width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME}
+              label="Volume"
+              value={volumeLabel}
+            />
+            <MetricColumn
+              width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE}
+              label="Version"
+              value={versionLabel}
+            />
             <ToggleInput value={state.isEnabled} onChange={handleIsEnabledChange} />
           </>
         )}
