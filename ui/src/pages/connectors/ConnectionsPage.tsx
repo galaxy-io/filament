@@ -14,7 +14,9 @@ import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  FlexDirection,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -68,11 +70,7 @@ const ConnectionsPage = () => {
   const handleOpenCreateConnectorModal = () => {
     void navigate({
       to: ".",
-      search: (prev) => ({
-        ...prev,
-        flow: Flow.CREATE_CONNECTION,
-        connector: undefined,
-      }),
+      search: { flow: Flow.CREATE_CONNECTION },
     });
   };
 
@@ -124,7 +122,8 @@ const ConnectionsPage = () => {
         ? connection.name.toLowerCase().includes(state.search.toLowerCase())
         : true;
       const matchesKind =
-        state.kindFilter === ConnectorKind.UNSPECIFIED || connection.kind === state.kindFilter;
+        state.kindFilter === ConnectorKind.UNSPECIFIED ||
+        connection.kind === state.kindFilter;
       return matchesSearch && matchesKind;
     });
   }, [data?.connections, state.search, state.kindFilter]);
@@ -158,7 +157,13 @@ const ConnectionsPage = () => {
     if (isError) {
       return (
         <ErrorLayout
-          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
+          icon={
+            <Icon
+              component={WarningCircleIcon}
+              size={20}
+              variant={IconVariant.ERROR}
+            />
+          }
           message="Failed to load connections. Please try again."
         />
       );
@@ -196,7 +201,9 @@ const ConnectionsPage = () => {
       return (
         <EmptyLayout
           message={
-            state.search ? "No connectors match your search" : "No connectors match your filters"
+            state.search
+              ? "No connectors match your search"
+              : "No connectors match your filters"
           }
         />
       );

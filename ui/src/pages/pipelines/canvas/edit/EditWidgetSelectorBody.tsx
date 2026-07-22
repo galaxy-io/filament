@@ -25,8 +25,10 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
-const BodyWrapper = styled.div`
-  width: 320px;
+const DEFAULT_BODY_WIDTH = 320;
+
+const BodyWrapper = styled.div<{ $width: number }>`
+  width: ${({ $width }) => $width}px;
   max-height: 480px;
   display: flex;
   flex-direction: column;
@@ -58,13 +60,23 @@ const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode
   </FlexWrapper>
 );
 
-const EditWidgetSelectorBody = () => {
+interface EditWidgetSelectorBodyProps {
+  kindFilter?: ConnectorKind;
+  onSelect?: (connection: Connection) => void;
+  width?: number;
+}
+
+const EditWidgetSelectorBody = ({
+  kindFilter = ConnectorKind.UNSPECIFIED,
+  onSelect,
+  width = DEFAULT_BODY_WIDTH,
+}: EditWidgetSelectorBodyProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const { state, dispatch } = usePipelineCanvas();
 
   const { data, isLoading, isError } = useListConnectionsQuery({
     input: create(ListConnectionsRequestSchema, {
-      kind: ConnectorKind.UNSPECIFIED,
+      kind: kindFilter,
     }),
   });
 
@@ -82,6 +94,11 @@ const EditWidgetSelectorBody = () => {
   );
 
   const handleConnectionClick = (connection: Connection) => {
+    if (onSelect) {
+      onSelect(connection);
+      return;
+    }
+
     const position = getNextNodePosition(connection.kind, state.nodes);
 
     dispatch({
@@ -133,7 +150,7 @@ const EditWidgetSelectorBody = () => {
   };
 
   return (
-    <BodyWrapper>
+    <BodyWrapper $width={width}>
       <SearchWrapper>
         <TextInput
           value={searchQuery}

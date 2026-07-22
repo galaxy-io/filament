@@ -121,6 +121,7 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
     options: { retry: false },
   });
   const nodes = versionData?.version?.nodes ?? [];
+  const hasEdges = (versionData?.version?.edges ?? []).length > 0;
 
   // Nodes reference connections by id; the tile logo needs the connector name
   const { data: connectionsData } = useListConnectionsQuery({
@@ -182,10 +183,10 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}>
         {isCompact ? (
-          <PipelineFlow source={source} sinks={sinks} />
+          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
         ) : (
           <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
-            <PipelineFlow source={source} sinks={sinks} />
+            <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
           </MetricColumnWrapper>
         )}
         {!isCompact && (
