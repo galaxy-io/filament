@@ -2,16 +2,18 @@ import { useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { MagnifyingGlassIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
 
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
+import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import EditWidgetSelectorItem from "@/pages/pipelines/canvas/edit/EditWidgetSelectorItem";
@@ -19,14 +21,19 @@ import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
 import { createNodeFromConnection, getNextNodePosition } from "@/pages/pipelines/canvas/utils";
 
+import { Flow } from "@/routes/__root";
+
 import { useListConnectionsQuery } from "@/api/queries/connectors";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
-const BodyWrapper = styled.div`
-  width: 320px;
+const DEFAULT_BODY_WIDTH = 320;
+
+const BodyWrapper = styled.div<{ $width: number; $fillHeight?: boolean }>`
+  width: ${({ $width }) => $width}px;
+  height: ${({ $fillHeight }) => ($fillHeight ? "100%" : "auto")};
   max-height: 480px;
   display: flex;
   flex-direction: column;
@@ -52,19 +59,59 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
   gap: 2px;
 `);
 
-const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => (
-  <FlexWrapper fillWidth padding={24}>
-    <EmptyLayout message={message} icon={icon} />
-  </FlexWrapper>
-);
+const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => {
+  const navigate = useNavigate();
 
-const EditWidgetSelectorBody = () => {
+  const handleCreateConnection = () => {
+    navigate({ to: ".", search: { flow: Flow.CREATE_CONNECTION } });
+  };
+
+  return (
+    <FlexWrapper
+      fillWidth
+      fillHeight
+      minHeight={240}
+      alignItems={AlignItems.CENTER}
+      justifyContent={JustifyContent.CENTER}
+      padding={24}
+    >
+      <EmptyLayout
+        size={EmptyLayoutSize.SMALL}
+        message={message}
+        icon={icon}
+        actions={[
+          <Button
+            key="create-connection"
+            label="Create connection"
+            icon={PlusIcon}
+            size={ButtonSize.SMALL}
+            onClick={handleCreateConnection}
+          />,
+        ]}
+      />
+    </FlexWrapper>
+  );
+};
+
+interface EditWidgetSelectorBodyProps {
+  kindFilter?: ConnectorKind;
+  onSelect?: (connection: Connection) => void;
+  width?: number;
+  fillHeight?: boolean;
+}
+
+const EditWidgetSelectorBody = ({
+  kindFilter = ConnectorKind.UNSPECIFIED,
+  onSelect,
+  width = DEFAULT_BODY_WIDTH,
+  fillHeight = false,
+}: EditWidgetSelectorBodyProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const { state, dispatch } = usePipelineCanvas();
 
   const { data, isLoading, isError } = useListConnectionsQuery({
     input: create(ListConnectionsRequestSchema, {
-      kind: ConnectorKind.UNSPECIFIED,
+      kind: kindFilter,
     }),
   });
 
@@ -82,6 +129,11 @@ const EditWidgetSelectorBody = () => {
   );
 
   const handleConnectionClick = (connection: Connection) => {
+    if (onSelect) {
+      onSelect(connection);
+      return;
+    }
+
     const position = getNextNodePosition(connection.kind, state.nodes);
 
     dispatch({
@@ -133,7 +185,7 @@ const EditWidgetSelectorBody = () => {
   };
 
   return (
-    <BodyWrapper>
+    <BodyWrapper $width={width} $fillHeight={fillHeight}>
       <SearchWrapper>
         <TextInput
           value={searchQuery}

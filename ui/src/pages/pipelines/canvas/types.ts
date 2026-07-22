@@ -1,12 +1,14 @@
-import type { BuiltInNode, Edge, Node, Viewport } from "@xyflow/react";
+import type { BuiltInNode, Edge, Node } from "@xyflow/react";
 
 import type { PipelineCanvasAction } from "@/pages/pipelines/canvas/actions";
 
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
 
 export enum PipelineNodeType {
   SOURCE = "SOURCE",
   SINK = "SINK",
+  PLACEHOLDER = "PLACEHOLDER",
 }
 
 export interface PipelineNodeSourceTableInfo {
@@ -27,9 +29,21 @@ export type PipelineNodeSinkData = {
   connectionId: string;
 };
 
+export type PipelineNodePlaceholderData = {
+  kind: ConnectorKind;
+};
+
 export type PipelineNodeSource = Node<PipelineNodeSourceData, PipelineNodeType.SOURCE>;
 export type PipelineNodeSink = Node<PipelineNodeSinkData, PipelineNodeType.SINK>;
-export type PipelineNode = PipelineNodeSource | PipelineNodeSink | BuiltInNode;
+export type PipelineNodePlaceholder = Node<
+  PipelineNodePlaceholderData,
+  PipelineNodeType.PLACEHOLDER
+>;
+export type PipelineNode =
+  | PipelineNodeSource
+  | PipelineNodeSink
+  | PipelineNodePlaceholder
+  | BuiltInNode;
 
 export type PipelineEdge = Edge;
 
@@ -45,9 +59,9 @@ export enum PipelineCanvasInteractionMode {
 export interface PipelineCanvasState {
   nodes: PipelineNode[];
   edges: PipelineEdge[];
+  isReadOnly: boolean;
   activeMode: PipelineCanvasEditMode | null;
   interactionMode: PipelineCanvasInteractionMode;
-  initialViewport: Viewport | null;
   isActivityOpen: boolean;
   runBindings: RunBinding[];
 }

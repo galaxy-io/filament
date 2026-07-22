@@ -34,6 +34,7 @@ service IngestionService {
   rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
   rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
   rpc GetPipelineVersion(GetPipelineVersionRequest) returns (GetPipelineVersionResponse);
+  rpc ListPipelineVersions(ListPipelineVersionsRequest) returns (ListPipelineVersionsResponse);
   rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
   rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
 

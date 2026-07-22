@@ -32,8 +32,29 @@ export const getHealthBeaconVariant = (health: PipelineHealth): BeaconVariant =>
     .exhaustive();
 };
 
+// ABC Diatype's "->" ligature doesn't survive Text's letter-spacing, so
+// render the real arrow glyph instead
+export const formatPipelineName = (name: string): string => {
+  return name.replace(/->/g, "→");
+};
+
 export const formatCount = (value: bigint): string => {
   return Number(value).toLocaleString();
+};
+
+export const formatTimeAgo = (unixMillis: bigint): string => {
+  const elapsedMs = Date.now() - Number(unixMillis);
+  const minutes = Math.floor(elapsedMs / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(Number(unixMillis)).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 };
 
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];

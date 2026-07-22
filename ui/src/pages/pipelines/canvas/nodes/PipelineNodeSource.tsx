@@ -12,7 +12,7 @@ import type { PipelineNodeSourceProps } from "@/pages/pipelines/canvas/nodes/typ
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps) => {
-  const { dispatch } = usePipelineCanvas();
+  const { state, dispatch } = usePipelineCanvas();
   const connections = useNodeConnections({ handleType: "source" });
   const {
     tables: discoveredTables,
@@ -47,8 +47,8 @@ const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps
       handleId={PIPELINE_NODE_SOURCE_HANDLE_ID}
       isConnected={connectedHandleIds.has(PIPELINE_NODE_SOURCE_HANDLE_ID)}
       isSelected={selected}
-      onRefresh={refresh}
-      onDelete={handleDelete}
+      onRefresh={state.isReadOnly ? undefined : refresh}
+      onDelete={state.isReadOnly ? undefined : handleDelete}
     >
       {(isLoading || error || tables.length > 0) && (
         <PipelineNodeSourceIsland

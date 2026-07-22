@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import { useParams } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -26,6 +27,7 @@ import {
   RUN_STATUS_TO_TEXT_VARIANT_MAP,
   RUN_TABLE_COLUMN_WIDTH_RECORDS,
   RUN_TABLE_COLUMN_WIDTH_STATUS,
+  RUN_TABLE_COLUMN_WIDTH_VERSION,
   RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
 import { formatBytes, formatCount } from "@/pages/pipelines/utils";
@@ -74,7 +76,7 @@ const RunIdCell = ({ run }: RunCellProps) => {
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} gap={2}>
       <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-        {run.run}
+        {run.runId}
       </Text>
       {run.error && (
         <Text size={TextSize.CAPTION} variant={TextVariant.ERROR} isEllipsis>
@@ -100,10 +102,21 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cell: ({ row }) => <RunIdCell run={row.original} />,
   },
   {
+    id: "version",
+    header: "Version",
+    size: RUN_TABLE_COLUMN_WIDTH_VERSION,
+    cellLoading: () => <TextShimmer width={32} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM}>
+        {row.original.pipelineVersionId ? `Version ${row.original.pipelineVersionId}` : "—"}
+      </Text>
+    ),
+  },
+  {
     id: "records",
     header: "Records",
     size: RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    align: ColumnAlign.RIGHT,
+    align: ColumnAlign.CENTER,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
@@ -126,8 +139,10 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
 ];
 
 const PipelineHistoryPage = () => {
+  const { id } = useParams({ from: "/pipelines/$id" });
+
   const { data, isLoading, isError } = useListRunsQuery({
-    input: create(ListRunsRequestSchema, { limit: RUN_HISTORY_LIMIT }),
+    input: create(ListRunsRequestSchema, { pipelineId: id, limit: RUN_HISTORY_LIMIT }),
   });
 
   return (
@@ -146,7 +161,7 @@ const PipelineHistoryPage = () => {
         <InfiniteTable<RunInfo>
           columns={RUN_TABLE_COLUMNS}
           data={data?.runs ?? []}
-          getRowId={(run) => run.run}
+          getRowId={(run) => run.runId}
           isLoading={isLoading}
           loadingRowCount={RUN_HISTORY_LOADING_ROW_COUNT}
           isError={isError}

@@ -9,7 +9,6 @@ import {
   MiniMap,
   type NodeChange,
   ReactFlow,
-  type ReactFlowInstance,
   SelectionMode,
 } from "@xyflow/react";
 
@@ -21,12 +20,12 @@ import "@xyflow/react/dist/style.css";
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   CANVAS_FIT_VIEW_OPTIONS,
-  CANVAS_FIT_VIEW_Y_OFFSET,
   CANVAS_SNAP_GRID,
   PIPELINE_EDGE_TYPE,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+import PipelineNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineNodePlaceholder";
 import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
 import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
@@ -34,10 +33,12 @@ import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEdi
 import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
 import type { PipelineEdge, PipelineNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasInteractionMode, PipelineNodeType } from "@/pages/pipelines/canvas/types";
+import { getPlaceholderNodes } from "@/pages/pipelines/canvas/utils";
 
 const pipelineNodeTypes = {
   [PipelineNodeType.SOURCE]: PipelineNodeSource,
   [PipelineNodeType.SINK]: PipelineNodeSink,
+  [PipelineNodeType.PLACEHOLDER]: PipelineNodePlaceholder,
 };
 
 const pipelineEdgeTypes = {
@@ -63,6 +64,12 @@ const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolea
 
   .react-flow__node.selected {
     z-index: 999 !important;
+  }
+
+  /* Placeholder ghosts are non-draggable/selectable/connectable, which makes
+     React Flow drop their pointer events - restore them so clicks expand */
+  .react-flow__node-PLACEHOLDER {
+    pointer-events: all !important;
   }
 
   .react-flow__background {
@@ -118,52 +125,45 @@ const PipelineCanvas = () => {
   const { state, dispatch } = usePipelineCanvas();
 
   const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
+  const isReadOnly = state.isReadOnly;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<PipelineNode>[]) => {
+      if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.APPLY_NODE_CHANGES,
         payload: changes,
       });
     },
-    [dispatch],
+    [dispatch, isReadOnly],
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange<PipelineEdge>[]) => {
+      if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.APPLY_EDGE_CHANGES,
         payload: changes,
       });
     },
-    [dispatch],
+    [dispatch, isReadOnly],
   );
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.CONNECT,
         payload: connection,
       });
     },
-    [dispatch],
+    [dispatch, isReadOnly],
   );
 
-  const onInit = useCallback(
-    (instance: ReactFlowInstance<PipelineNode, PipelineEdge>) => {
-      const viewport = instance.getViewport();
-      const initialViewport = {
-        ...viewport,
-        y: viewport.y - CANVAS_FIT_VIEW_Y_OFFSET,
-      };
-      instance.setViewport(initialViewport);
-      // Remember the fresh-load framing so "reset view" can restore it exactly
-      dispatch({
-        type: PipelineCanvasActionType.SET_INITIAL_VIEWPORT,
-        payload: initialViewport,
-      });
-    },
-    [dispatch],
+  // Empty-state ghosts are appended at render time only - never stored, saved, or diffed
+  const renderedNodes = useMemo(
+    () => [...state.nodes, ...getPlaceholderNodes(state.nodes, isReadOnly)],
+    [state.nodes, isReadOnly],
   );
 
   const selectedNodeIds = useMemo(
@@ -194,15 +194,17 @@ const PipelineCanvas = () => {
     <PageWrapper>
       <CanvasWrapper $isGrabMode={isGrabMode}>
         <ReactFlow
-          nodes={state.nodes}
+          nodes={renderedNodes}
           edges={styledEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onInit={onInit}
           nodeTypes={pipelineNodeTypes}
           edgeTypes={pipelineEdgeTypes}
-          selectionOnDrag={!isGrabMode}
+          nodesDraggable={!isReadOnly}
+          nodesConnectable={!isReadOnly}
+          elementsSelectable={!isReadOnly}
+          selectionOnDrag={!isReadOnly && !isGrabMode}
           selectionMode={SelectionMode.Partial}
           panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
           panOnScroll
@@ -210,7 +212,7 @@ const PipelineCanvas = () => {
           snapGrid={CANVAS_SNAP_GRID}
           fitView
           fitViewOptions={CANVAS_FIT_VIEW_OPTIONS}
-          deleteKeyCode={["Backspace", "Delete"]}
+          deleteKeyCode={isReadOnly ? null : ["Backspace", "Delete"]}
           proOptions={{ hideAttribution: true }}
         >
           <Background
@@ -221,9 +223,12 @@ const PipelineCanvas = () => {
           />
           <PipelineCanvasControls />
           <MiniMap
-            nodeColor={(node) =>
-              node.selected ? theme.color.background.galaxy : theme.color.background.tertiary
-            }
+            nodeColor={(node) => {
+              if (node.type === PipelineNodeType.PLACEHOLDER) return "transparent";
+              return node.selected
+                ? theme.color.background.galaxy
+                : theme.color.background.tertiary;
+            }}
             nodeStrokeColor={(node) =>
               node.selected ? theme.color.background.galaxy : theme.color.border.primary
             }
@@ -233,8 +238,8 @@ const PipelineCanvas = () => {
             zoomable
           />
         </ReactFlow>
-        <PipelineCanvasEditWidget />
-        <PipelineCanvasTerminal />
+        {!isReadOnly && <PipelineCanvasEditWidget />}
+        {!isReadOnly && <PipelineCanvasTerminal />}
       </CanvasWrapper>
     </PageWrapper>
   );

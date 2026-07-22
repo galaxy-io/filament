@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { ArrowUpRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
@@ -29,10 +30,19 @@ import {
   PIPELINE_METRIC_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
 import { PipelineHealth } from "@/pages/pipelines/types";
-import { getHealthBeaconVariant } from "@/pages/pipelines/utils";
+import {
+  formatBytes,
+  formatPipelineName,
+  formatTimeAgo,
+  getHealthBeaconVariant,
+} from "@/pages/pipelines/utils";
+
+import { useListConnectionsQuery } from "@/api/queries/connectors";
+import { useGetPipelineVersionQuery } from "@/api/queries/pipelines";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { GetPipelineVersionRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme<{ $isCompact?: boolean }>>`
   width: 100%;
@@ -109,6 +119,27 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
 
   const [state, setState] = useState<PipelineCardState>(DEFAULT_STATE);
 
+  // The graph lives on the pipeline's current version; NotFound (no saved
+  // version yet) renders as an empty flow
+  const { data: versionData } = useGetPipelineVersionQuery({
+    input: create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
+    options: { retry: false },
+  });
+  const nodes = versionData?.version?.nodes ?? [];
+  const hasEdges = (versionData?.version?.edges ?? []).length > 0;
+
+  // Nodes reference connections by id; the tile logo needs the connector name
+  const { data: connectionsData } = useListConnectionsQuery({
+    input: create(ListConnectionsRequestSchema, {}),
+  });
+  const connectionsById = new Map(
+    (connectionsData?.connections ?? []).map((connection) => [connection.id, connection]),
+  );
+  const toFlowConnection = (connectionId: string) => ({
+    connectionId,
+    connector: connectionsById.get(connectionId)?.connector ?? connectionId,
+  });
+
   const handleIsEnabledChange = (isEnabled: boolean) => {
     setState((prev) => ({ ...prev, isEnabled }));
   };
@@ -120,10 +151,16 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
     });
   };
 
-  const source = pipeline.nodes.find((n) => n.kind === ConnectorKind.SOURCE)?.connectionId ?? "";
-  const sinks = pipeline.nodes
+  const sourceNode = nodes.find((n) => n.kind === ConnectorKind.SOURCE);
+  const source = sourceNode ? toFlowConnection(sourceNode.connectionId) : undefined;
+  const sinks = nodes
     .filter((n) => n.kind === ConnectorKind.SINK)
-    .map((n) => n.connectionId);
+    .map((n) => toFlowConnection(n.connectionId));
+
+  const hasRun = pipeline.lastRunAt > 0n;
+  const lastRunLabel = hasRun ? formatTimeAgo(pipeline.lastRunAt) : "—";
+  const volumeLabel = hasRun ? formatBytes(pipeline.lastRunBytes) : "—";
+  const versionLabel = pipeline.currentVersionId > 0n ? pipeline.currentVersionId.toString() : "—";
 
   return (
     <CardWrapper $isCompact={isCompact} onClick={handlePipelineClick}>
@@ -146,15 +183,15 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
         >
           <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
         </Tooltip>
-        <Text weight={TextWeight.MEDIUM}>{pipeline.name}</Text>
+        <Text weight={TextWeight.MEDIUM}>{formatPipelineName(pipeline.name)}</Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}>
         {isCompact ? (
-          <PipelineFlow source={source} sinks={sinks} />
+          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
         ) : (
           <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
-            <PipelineFlow source={source} sinks={sinks} />
+            <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
           </MetricColumnWrapper>
         )}
         {!isCompact && (
@@ -162,10 +199,18 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
             <MetricColumn
               width={PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN}
               label="Last run"
-              value="—"
+              value={lastRunLabel}
             />
-            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME} label="Volume" value="—" />
-            <MetricColumn width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE} value="—" />
+            <MetricColumn
+              width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME}
+              label="Volume"
+              value={volumeLabel}
+            />
+            <MetricColumn
+              width={PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE}
+              label="Version"
+              value={versionLabel}
+            />
             <ToggleInput value={state.isEnabled} onChange={handleIsEnabledChange} />
           </>
         )}

@@ -6,8 +6,7 @@ import { match } from "ts-pattern";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
-import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks";
@@ -57,6 +56,7 @@ const TileWrapper = withTheme(styled.div<
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
@@ -123,11 +123,9 @@ const ConnectorTile = ({
   size = ConnectorTileSize.MEDIUM,
   onClick,
 }: ConnectorTileProps) => {
-  const { activeTheme } = useGalaxyTheme();
   const resolvedSpec = useConnectorSpec(connector);
   const catalogSpec = spec ?? resolvedSpec;
-  const logoURL =
-    activeTheme === GalaxyTheme.DARK ? catalogSpec?.darkLogoUrl : catalogSpec?.lightLogoUrl;
+  const logoURL = catalogSpec?.darkLogoUrl;
   const [failedLogoURL, setFailedLogoURL] = useState<string>();
   const showLogo = !!logoURL && failedLogoURL !== logoURL;
 

@@ -14,8 +14,6 @@ export const CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
   maxZoom: 1,
 };
 
-export const CANVAS_FIT_VIEW_Y_OFFSET = 64;
-
 export const CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
 export const CONNECTOR_KIND_TO_HANDLE_TYPE_MAP: Record<ConnectorKind, HandleType> = {
@@ -40,6 +38,8 @@ export const PIPELINE_NODE_WIDTH = 360;
 export const PIPELINE_NODE_PADDING = 8;
 export const PIPELINE_NODE_BORDER_RADIUS = 6;
 export const PIPELINE_NODE_GAP = 8;
+
+export const PIPELINE_NODE_PLACEHOLDER_SELECTOR_HEIGHT = 300;
 
 export const PIPELINE_NODE_HANDLE_SLOT_SIZE = 24;
 export const PIPELINE_NODE_TABLE_LIST_MAX_HEIGHT = 300;
