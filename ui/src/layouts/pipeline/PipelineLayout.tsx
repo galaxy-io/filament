@@ -16,24 +16,15 @@ import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutBackButton from "@/layouts/pipeline/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
-import {
-  PipelineSidebarItem,
-  type PipelineStatus,
-} from "@/layouts/pipeline/types";
+import { PipelineSidebarItem, type PipelineStatus } from "@/layouts/pipeline/types";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
-import {
-  usePipelineCanvas,
-  usePipelineCanvasSave,
-} from "@/pages/pipelines/canvas/hooks";
+import { usePipelineCanvas, usePipelineCanvasSave } from "@/pages/pipelines/canvas/hooks";
 import { isPipelineRunnable } from "@/pages/pipelines/canvas/utils";
 
 import { useRunPipelineMutation } from "@/api/queries/runs";
 
-import type {
-  Pipeline,
-  PipelineVersion,
-} from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
@@ -80,9 +71,7 @@ const ContentWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const ContentIsland = withTheme(styled.div<
-  PropsWithTheme<{ $isPreview?: boolean }>
->`
+const ContentIsland = withTheme(styled.div<PropsWithTheme<{ $isPreview?: boolean }>>`
   position: relative;
 
   flex: 1;
@@ -138,10 +127,7 @@ const PipelineLayout = ({
   const [state, setState] = useState<PipelineLayoutState>(DEFAULT_STATE);
 
   const { dispatch } = usePipelineCanvas();
-  const { hasChanges, isSaving, save } = usePipelineCanvasSave(
-    pipeline,
-    currentVersion,
-  );
+  const { hasChanges, isSaving, save } = usePipelineCanvasSave(pipeline, currentVersion);
 
   const isPreview = previewVersion !== null;
   // In preview the canvas holds an old graph, so comparing it against the
@@ -163,16 +149,13 @@ const PipelineLayout = ({
     [versions, latestVersion],
   );
   const selectedVersionOption =
-    versionOptions.find(
-      (option) => option.value === (previewVersion ?? latestVersion),
-    ) ?? null;
+    versionOptions.find((option) => option.value === (previewVersion ?? latestVersion)) ?? null;
 
   const handleVersionChange = (option: SelectInputOption) => {
     const version = option.value as bigint;
     onPreviewVersionChange(version === latestVersion ? null : version);
   };
-  const { mutate: runPipeline, isPending: isRunning } =
-    useRunPipelineMutation();
+  const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const { isRouteMatch: isHistoryActive } = useRouteMatch({
     route: "/pipelines/$id/history",
@@ -221,8 +204,7 @@ const PipelineLayout = ({
       onError: (error) => {
         showToast({
           header: "Run failed",
-          subheader:
-            error instanceof Error ? error.message : "Failed to run pipeline",
+          subheader: error instanceof Error ? error.message : "Failed to run pipeline",
           variant: ToastVariant.ERROR,
         });
       },
@@ -233,10 +215,7 @@ const PipelineLayout = ({
     <LayoutWrapper>
       <LeftColumn>
         <PipelineLayoutBackButton />
-        <PipelineLayoutSidebar
-          activeItem={getActiveItem()}
-          onItemClick={handleItemClick}
-        />
+        <PipelineLayoutSidebar activeItem={getActiveItem()} onItemClick={handleItemClick} />
       </LeftColumn>
       <RightColumn>
         <PipelineLayoutNavbar
@@ -260,10 +239,7 @@ const PipelineLayout = ({
           <ContentIsland $isPreview={isPreview}>
             {isPreview && (
               <PreviewChipOverlay>
-                <Chip
-                  label={`Version ${previewVersion}`}
-                  variant={ChipVariant.WARNING}
-                />
+                <Chip label={`Version ${previewVersion}`} variant={ChipVariant.WARNING} />
               </PreviewChipOverlay>
             )}
             {children}
