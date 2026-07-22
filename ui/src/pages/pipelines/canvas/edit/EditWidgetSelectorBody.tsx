@@ -2,16 +2,11 @@ import { useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import {
-  MagnifyingGlassIcon,
-  PlusIcon,
-  WarningCircleIcon,
-} from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
 
-import FlexWrapper, {
-  AlignItems,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -24,19 +19,15 @@ import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import EditWidgetSelectorItem from "@/pages/pipelines/canvas/edit/EditWidgetSelectorItem";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
-import {
-  createNodeFromConnection,
-  getNextNodePosition,
-} from "@/pages/pipelines/canvas/utils";
+import { createNodeFromConnection, getNextNodePosition } from "@/pages/pipelines/canvas/utils";
+
+import { Flow } from "@/routes/__root";
 
 import { useListConnectionsQuery } from "@/api/queries/connectors";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import { useNavigate } from "@tanstack/react-router";
-import { Flow } from "@/routes/__root";
 
 const DEFAULT_BODY_WIDTH = 320;
 
@@ -68,13 +59,7 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
   gap: 2px;
 `);
 
-const EmptyState = ({
-  message,
-  icon,
-}: {
-  message: string;
-  icon?: React.ReactNode;
-}) => {
+const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => {
   const navigate = useNavigate();
 
   const handleCreateConnection = () => {
@@ -165,13 +150,7 @@ const EditWidgetSelectorBody = ({
     if (isError) {
       return (
         <EmptyState
-          icon={
-            <Icon
-              component={WarningCircleIcon}
-              size={20}
-              variant={IconVariant.ERROR}
-            />
-          }
+          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
           message="Failed to load connections"
         />
       );
@@ -188,8 +167,7 @@ const EditWidgetSelectorBody = ({
     return (
       <ConnectionList>
         {filteredConnections.map((connection) => {
-          const isDisabled =
-            hasSourceNode && connection.kind === ConnectorKind.SOURCE;
+          const isDisabled = hasSourceNode && connection.kind === ConnectorKind.SOURCE;
 
           return (
             <EditWidgetSelectorItem
