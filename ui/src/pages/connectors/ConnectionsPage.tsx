@@ -3,13 +3,13 @@ import { useMemo, useState } from "react";
 import { create } from "@bufbuild/protobuf";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { styled } from "@linaria/react";
-import { useQueries } from "@tanstack/react-query";
 import {
   BookOpenIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";

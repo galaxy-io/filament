@@ -1,13 +1,18 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 import { BaseHeaderSize } from "@/layouts/components/types";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import {
+  CONNECTOR_KIND_TO_CHIP_VARIANT_MAP,
+  CONNECTOR_KIND_TO_LABEL_MAP,
+} from "@/pages/connectors/constants";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
@@ -30,20 +35,32 @@ const CreateConnectionConfigureHeader = ({
         size={ButtonSize.SMALL}
         onClick={onBack}
       />
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={12} fillWidth>
-        <FlexItem shrink={0}>
-          <ConnectorTile
-            connector={connector.name}
-            spec={connector}
-            size={ConnectorTileSize.MEDIUM}
-          />
-        </FlexItem>
-        <BaseHeader
-          size={BaseHeaderSize.LARGE}
-          title={`New ${connector.displayName || connector.name} connection`}
-          onClose={onClose}
+      <FlexItem grow={0} shrink={0}>
+        <ConnectorTile
+          connector={connector.name}
+          spec={connector}
+          size={ConnectorTileSize.MEDIUM}
         />
-      </FlexWrapper>
+      </FlexItem>
+      <FlexItem grow={1} minWidth="0px">
+        <FlexWrapper
+          direction={FlexDirection.COLUMN}
+          alignItems={AlignItems.START}
+          gap={4}
+          fillWidth
+        >
+          <BaseHeader
+            size={BaseHeaderSize.LARGE}
+            title={`New ${connector.displayName || connector.name} connection`}
+            onClose={onClose}
+          />
+          <Chip
+            label={CONNECTOR_KIND_TO_LABEL_MAP[connector.kind]}
+            variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[connector.kind]}
+            size={ChipSize.SMALL}
+          />
+        </FlexWrapper>
+      </FlexItem>
     </FlexWrapper>
   );
 };
