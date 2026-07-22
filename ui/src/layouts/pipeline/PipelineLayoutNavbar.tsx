@@ -16,8 +16,8 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
 
 import PipelineFlow, {
-  PipelineFlowSize,
   type PipelineFlowConnection,
+  PipelineFlowSize,
 } from "@/pages/pipelines/components/PipelineFlow";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
@@ -78,7 +78,12 @@ const PipelineLayoutNavbar = ({
   return (
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-        <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} size={PipelineFlowSize.SMALL} />
+        <PipelineFlow
+          source={source}
+          sinks={sinks}
+          hasEdges={hasEdges}
+          size={PipelineFlowSize.SMALL}
+        />
         <Text size={TextSize.BODY_LG}>{formatPipelineName(name)}</Text>
       </FlexWrapper>
 
