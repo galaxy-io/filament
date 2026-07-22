@@ -11,6 +11,7 @@ import {
   PIPELINE_NODE_BORDER_RADIUS,
   PIPELINE_NODE_GAP,
   PIPELINE_NODE_PADDING,
+  PIPELINE_NODE_PLACEHOLDER_SELECTOR_HEIGHT,
   PIPELINE_NODE_SINK_HANDLE_ID,
   PIPELINE_NODE_SOURCE_HANDLE_ID,
   PIPELINE_NODE_WIDTH,
@@ -32,7 +33,7 @@ const PlaceholderCard = withTheme(styled.div<PropsWithTheme>`
   gap: ${PIPELINE_NODE_GAP}px;
 
   background-color: ${({ theme }) => theme.color.background.base};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 1px dashed ${({ theme }) => theme.color.border.primary};
   border-radius: ${PIPELINE_NODE_BORDER_RADIUS}px;
 `);
 
@@ -43,8 +44,10 @@ const CardHeader = styled.div`
 `;
 
 const SelectorIsland = withTheme(styled.div<PropsWithTheme>`
+  height: ${PIPELINE_NODE_PLACEHOLDER_SELECTOR_HEIGHT}px;
+
   background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px dashed ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
   border-radius: ${PIPELINE_NODE_BORDER_RADIUS}px;
   overflow: hidden;
 
@@ -100,6 +103,7 @@ const PipelineNodePlaceholder = memo(
             kindFilter={data.kind}
             width={PIPELINE_NODE_WIDTH - PIPELINE_NODE_PADDING * 2}
             onSelect={handleSelect}
+            fillHeight
           />
         </SelectorIsland>
       </PlaceholderCard>
