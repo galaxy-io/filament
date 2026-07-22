@@ -11,7 +11,7 @@ import type { PipelineNodeSinkProps } from "@/pages/pipelines/canvas/nodes/types
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) => {
-  const { dispatch } = usePipelineCanvas();
+  const { state, dispatch } = usePipelineCanvas();
   const connections = useNodeConnections({ handleType: "target" });
 
   const handleDelete = () => {
@@ -26,7 +26,7 @@ const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) =>
       handleId={PIPELINE_NODE_SINK_HANDLE_ID}
       isConnected={connections.length > 0}
       isSelected={selected}
-      onDelete={handleDelete}
+      onDelete={state.isReadOnly ? undefined : handleDelete}
     />
   );
 });

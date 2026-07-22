@@ -2,7 +2,6 @@ import { KeyIcon } from "@phosphor-icons/react";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
@@ -27,17 +26,15 @@ const ConnectionDrawerSecrets = ({ secretRefs }: ConnectionDrawerSecretsProps) =
         />
       }
       isOpenInitial={false}
-      padding="0"
+      padding={secretRefEntries.length > 0 ? 0 : "24px"}
     >
       {secretRefEntries.length === 0 ? (
-        <FlexWrapper padding="16px" fillWidth>
-          <EmptyLayout
-            size={EmptyLayoutSize.SMALL}
-            icon={<Icon component={KeyIcon} size={16} variant={IconVariant.TERTIARY} />}
-            header="No secrets"
-            message="This connection has no secret references."
-          />
-        </FlexWrapper>
+        <EmptyLayout
+          size={EmptyLayoutSize.SMALL}
+          icon={<Icon component={KeyIcon} size={16} variant={IconVariant.TERTIARY} />}
+          header="No secrets"
+          message="This connection has no secret references."
+        />
       ) : (
         <CodeEditor
           content={JSON.stringify(secretRefs, null, 2)}

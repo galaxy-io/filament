@@ -2,14 +2,14 @@ import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowRightIcon, BookOpenIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowRightIcon, BookOpenIcon, CheckIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -167,6 +167,16 @@ const CreateConnectionConfigureContent = ({
               type: CreateConnectionActionType.SET_PHASE,
               payload: CreateConnectionPhase.ERROR,
             });
+            // Live-connection failures come back field-less, so they never
+            // render under an input - the toast is their only surface
+            const message = response.errors
+              .map((error) => (error.field ? `${error.field}: ${error.message}` : error.message))
+              .join("\n");
+            showToast({
+              variant: ToastVariant.ERROR,
+              header: "Validation failed",
+              subheader: message || "Connection could not be validated.",
+            });
           }
         },
         onError: (error) => {
@@ -318,7 +328,7 @@ const CreateConnectionConfigureContent = ({
       .with(CreateConnectionPhase.VALIDATED, () => (
         <Button
           size={ButtonSize.LARGE}
-          label="Create Connection"
+          label="Create"
           icon={CheckIcon}
           variant={ButtonVariant.SUCCESS}
           onClick={handleCreate}
@@ -339,7 +349,7 @@ const CreateConnectionConfigureContent = ({
   return (
     <CreateConnectionConfigureWrapper step={CreateConnectionModalStep.CONFIGURE}>
       <FlexItem grow={0} shrink={0}>
-        <CreateConnectionConfigureHeader connector={connector} onClose={onClose} onBack={onBack} />
+        <CreateConnectionConfigureHeader connector={connector} onClose={onClose} />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
@@ -355,13 +365,21 @@ const CreateConnectionConfigureContent = ({
         <HorizontalDivider />
       </FlexItem>
       <FooterWrapper>
-        <Button
-          size={ButtonSize.LARGE}
-          onClick={handleDocsClick}
-          label="Docs"
-          icon={BookOpenIcon}
-          variant={ButtonVariant.SECONDARY}
-        />
+        <FlexWrapper gap={8} alignItems={AlignItems.CENTER}>
+          <Button
+            size={ButtonSize.LARGE}
+            onClick={onBack}
+            icon={ArrowLeftIcon}
+            variant={ButtonVariant.SECONDARY}
+          />
+          <Button
+            size={ButtonSize.LARGE}
+            onClick={handleDocsClick}
+            label="Docs"
+            icon={BookOpenIcon}
+            variant={ButtonVariant.TERTIARY}
+          />
+        </FlexWrapper>
         {renderFooter()}
       </FooterWrapper>
     </CreateConnectionConfigureWrapper>

@@ -105,7 +105,6 @@ const PipelinesPage = () => {
           }
         },
         onError: (error) => {
-          console.error(error);
           showToast({
             variant: ToastVariant.ERROR,
             header: "Failed to create pipeline",

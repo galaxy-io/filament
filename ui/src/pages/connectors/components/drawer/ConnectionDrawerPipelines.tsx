@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 
+import { create } from "@bufbuild/protobuf";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { FlowArrowIcon } from "@phosphor-icons/react";
+import { useQueries } from "@tanstack/react-query";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
@@ -13,20 +16,41 @@ import PipelineCard from "@/pages/pipelines/components/PipelineCard";
 
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
 
+import { GetPipelineVersionRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import { IngestionService } from "@/gen/ingestion/v1/service_pb";
+
 interface ConnectionDrawerPipelinesProps {
   connectionId: string;
 }
 
 const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesProps) => {
+  const transport = useTransport();
   const { data: pipelinesData } = useListPipelinesQuery();
 
-  const connectedPipelines = useMemo(() => {
-    if (!pipelinesData?.pipelines) return [];
+  const pipelines = pipelinesData?.pipelines;
 
-    return pipelinesData.pipelines.filter((pipeline) =>
-      pipeline.nodes.some((node) => node.connectionId === connectionId),
+  // The graph lives on each pipeline's current version; NotFound (no saved
+  // version yet) means the pipeline can't reference any connection
+  const versionResults = useQueries({
+    queries: (pipelines ?? []).map((pipeline) => ({
+      ...createQueryOptions(
+        IngestionService.method.getPipelineVersion,
+        create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
+        { transport },
+      ),
+      retry: false,
+    })),
+  });
+
+  const connectedPipelines = useMemo(() => {
+    if (!pipelines) return [];
+
+    return pipelines.filter((_, index) =>
+      versionResults[index]?.data?.version?.nodes.some(
+        (node) => node.connectionId === connectionId,
+      ),
     );
-  }, [pipelinesData?.pipelines, connectionId]);
+  }, [pipelines, versionResults, connectionId]);
 
   return (
     <Accordion
@@ -40,7 +64,7 @@ const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesPr
         />
       }
       isOpenInitial
-      padding={connectedPipelines.length > 0 ? 0 : undefined}
+      padding={connectedPipelines.length > 0 ? 0 : "24px"}
     >
       {connectedPipelines.length === 0 ? (
         <EmptyLayout

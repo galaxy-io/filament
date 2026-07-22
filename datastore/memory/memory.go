@@ -97,7 +97,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
-// ListRuns returns runs matching the filter, sorted by StartedAt then Run.
+// ListRuns returns runs matching the filter, newest StartedAt first.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -115,9 +115,9 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].StartedAt.Equal(out[j].StartedAt) {
-			return out[i].Run < out[j].Run
+			return out[i].Run > out[j].Run
 		}
-		return out[i].StartedAt.Before(out[j].StartedAt)
+		return out[i].StartedAt.After(out[j].StartedAt)
 	})
 	if f.Offset > 0 {
 		if f.Offset >= len(out) {

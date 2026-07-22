@@ -7,10 +7,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
-import {
-  CANVAS_FIT_VIEW_OPTIONS,
-  CANVAS_FIT_VIEW_Y_OFFSET,
-} from "@/pages/pipelines/canvas/constants";
+import { CANVAS_FIT_VIEW_OPTIONS } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import { resetNodePositions } from "@/pages/pipelines/canvas/utils";
 
@@ -55,29 +52,18 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
 `);
 
 const PipelineCanvasControls = () => {
-  const { zoomIn, zoomOut, fitView, getViewport, setViewport } = useReactFlow();
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
   const { state, dispatch } = usePipelineCanvas();
 
-  // Re-stack nodes and restore the exact framing captured on initial load
+  // Re-stack nodes and refit once the repositioned nodes commit
   const handleResetView = () => {
     dispatch({
       type: PipelineCanvasActionType.SET_NODES,
       payload: resetNodePositions(state.nodes),
     });
 
-    if (state.initialViewport) {
-      setViewport(state.initialViewport);
-      return;
-    }
-
-    // Fallback when no initial framing was captured: refit once nodes commit
-    window.setTimeout(async () => {
-      await fitView(CANVAS_FIT_VIEW_OPTIONS);
-      const viewport = getViewport();
-      setViewport({
-        ...viewport,
-        y: viewport.y - CANVAS_FIT_VIEW_Y_OFFSET,
-      });
+    window.setTimeout(() => {
+      void fitView(CANVAS_FIT_VIEW_OPTIONS);
     }, 0);
   };
 

@@ -12,20 +12,30 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
-  const { connector: connectorParam } = useSearch({ from: "__root__" });
+  const { connector: connectorParam, connectorKind: connectorKindParam } = useSearch({
+    from: "__root__",
+  });
 
   const { data } = useListConnectorsQuery();
 
+  // A connector name can exist as both a source and a sink (e.g. postgres), so
+  // the kind must disambiguate which spec the configure step uses
   const selectedConnector = useMemo(() => {
     if (!connectorParam || !data?.connectors) return null;
-    return data.connectors.find((c) => c.name === connectorParam) ?? null;
-  }, [connectorParam, data?.connectors]);
+    return (
+      data.connectors.find(
+        (c) =>
+          c.name === connectorParam &&
+          (connectorKindParam === undefined || c.kind === connectorKindParam),
+      ) ?? null
+    );
+  }, [connectorParam, connectorKindParam, data?.connectors]);
 
   const handleConnectorSelect = useCallback(
     (connector: ConnectorSpec) => {
       void navigate({
         to: ".",
-        search: (prev) => ({ ...prev, connector: connector.name }),
+        search: (prev) => ({ ...prev, connector: connector.name, connectorKind: connector.kind }),
       });
     },
     [navigate],
@@ -35,7 +45,7 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
     void navigate({
       to: ".",
       search: (prev) => {
-        const { connector: _, ...rest } = prev;
+        const { connector: _, connectorKind: __, ...rest } = prev;
         return rest;
       },
     });

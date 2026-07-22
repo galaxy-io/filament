@@ -139,7 +139,7 @@ func (Signal) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{1}
 }
 
-// RatePolicy throttles source reads. Mirrors pkg.RatePolicy.
+// RatePolicy throttles source reads.
 type RatePolicy struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	RequestsPerSecond float64                `protobuf:"fixed64,1,opt,name=requests_per_second,json=requestsPerSecond,proto3" json:"requests_per_second,omitempty"`
@@ -193,8 +193,7 @@ func (x *RatePolicy) GetBurst() int32 {
 }
 
 // RunOptions overrides the engine's throughput defaults for a run. Every field
-// is optional: a zero value defers to the engine default downstream. Mirrors
-// pkg.RunOptions.
+// is optional: a zero value defers to the engine default downstream.
 type RunOptions struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	FetchSize           int32                  `protobuf:"varint,1,opt,name=fetch_size,json=fetchSize,proto3" json:"fetch_size,omitempty"`
@@ -1447,7 +1446,7 @@ func file_ingestion_v1_runs_proto_init() {
 	if File_ingestion_v1_runs_proto != nil {
 		return
 	}
-	file_ingestion_v1_runs_proto_msgTypes[7].OneofWrappers = []any{}
+	file_ingestion_v1_runs_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
