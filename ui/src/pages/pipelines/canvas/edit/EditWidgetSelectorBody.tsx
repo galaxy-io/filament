@@ -2,22 +2,26 @@ import { useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { MagnifyingGlassIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
 
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
+import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import EditWidgetSelectorItem from "@/pages/pipelines/canvas/edit/EditWidgetSelectorItem";
 import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
 import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
 import { createNodeFromConnection, getNextNodePosition } from "@/pages/pipelines/canvas/utils";
+
+import { Flow } from "@/routes/__root";
 
 import { useListConnectionsQuery } from "@/api/queries/connectors";
 
@@ -55,11 +59,39 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
   gap: 2px;
 `);
 
-const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => (
-  <FlexWrapper fillWidth fillHeight padding={24}>
-    <EmptyLayout message={message} icon={icon} />
-  </FlexWrapper>
-);
+const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => {
+  const navigate = useNavigate();
+
+  const handleCreateConnection = () => {
+    navigate({ to: ".", search: { flow: Flow.CREATE_CONNECTION } });
+  };
+
+  return (
+    <FlexWrapper
+      fillWidth
+      fillHeight
+      minHeight={240}
+      alignItems={AlignItems.CENTER}
+      justifyContent={JustifyContent.CENTER}
+      padding={24}
+    >
+      <EmptyLayout
+        size={EmptyLayoutSize.SMALL}
+        message={message}
+        icon={icon}
+        actions={[
+          <Button
+            key="create-connection"
+            label="Create connection"
+            icon={PlusIcon}
+            size={ButtonSize.SMALL}
+            onClick={handleCreateConnection}
+          />,
+        ]}
+      />
+    </FlexWrapper>
+  );
+};
 
 interface EditWidgetSelectorBodyProps {
   kindFilter?: ConnectorKind;
