@@ -92,9 +92,7 @@ const PipelineNodePlaceholder = memo(
             {isSource ? "Select a source" : "Select a sink"}
           </Text>
           <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-            {isSource
-              ? "A source is where data comes from."
-              : "A sink is where data goes to."}
+            {isSource ? "A source is where data comes from." : "A sink is where data goes to."}
           </Text>
         </CardHeader>
         <SelectorIsland className="nodrag nowheel">
