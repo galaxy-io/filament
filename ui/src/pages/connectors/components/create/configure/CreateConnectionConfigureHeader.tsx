@@ -1,6 +1,3 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
-
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -19,22 +16,14 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 interface CreateConnectionConfigureHeaderProps {
   connector: ConnectorSpec;
   onClose: () => void;
-  onBack: () => void;
 }
 
 const CreateConnectionConfigureHeader = ({
   connector,
   onClose,
-  onBack,
 }: CreateConnectionConfigureHeaderProps) => {
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} padding="16px" gap={12} fillWidth>
-      <Button
-        icon={ArrowLeftIcon}
-        variant={ButtonVariant.TERTIARY}
-        size={ButtonSize.SMALL}
-        onClick={onBack}
-      />
       <FlexItem grow={0} shrink={0}>
         <ConnectorTile
           connector={connector.name}
