@@ -13,7 +13,6 @@ export const DEFAULT_STATE: PipelineCanvasState = {
   isReadOnly: false,
   activeMode: null,
   interactionMode: PipelineCanvasInteractionMode.GRAB,
-  initialViewport: null,
   isActivityOpen: false,
   runBindings: [],
 };
