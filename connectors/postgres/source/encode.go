@@ -46,29 +46,26 @@ type column struct {
 }
 
 // lookupColumns returns schema.table's live columns in attribute order — the
-// same set to_jsonb(t) serializes.
+// same set to_jsonb(t) serializes. A zero-row probe supplies them: its
+// RowDescription carries each column's name and type OID, resolving the
+// relation exactly as the window reads will.
 func (s *Source) lookupColumns(ctx context.Context, schema, table string) ([]column, error) {
-	const q = `
-SELECT a.attname, a.atttypid
-FROM   pg_attribute a
-JOIN   pg_class cl ON cl.oid = a.attrelid
-JOIN   pg_namespace ns ON ns.oid = cl.relnamespace
-WHERE  ns.nspname = $1 AND cl.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped
-ORDER  BY a.attnum`
-	rows, err := s.pool.Query(ctx, q, schema, table)
+	q := "SELECT * FROM " + pgx.Identifier{schema, table}.Sanitize() + " LIMIT 0"
+	rows, err := s.pool.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var cols []column
 	for rows.Next() {
-		var c column
-		if err := rows.Scan(&c.name, &c.oid); err != nil {
-			return nil, err
-		}
-		cols = append(cols, c)
 	}
-	return cols, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	var cols []column
+	for _, fd := range rows.FieldDescriptions() {
+		cols = append(cols, column{name: fd.Name, oid: fd.DataTypeOID})
+	}
+	return cols, nil
 }
 
 // encoderFor builds table's row encoder, or nil when the jsonb fallback
