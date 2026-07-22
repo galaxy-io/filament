@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { styled } from "@linaria/react";
+import { useQueries } from "@tanstack/react-query";
 import {
   BookOpenIcon,
   MagnifyingGlassIcon,
@@ -32,9 +34,12 @@ import type { ConnectionsPageState } from "@/pages/connectors/types";
 import { Flow } from "@/routes/__root";
 
 import { useListConnectionsQuery } from "@/api/queries/connectors";
+import { useListPipelinesQuery } from "@/api/queries/pipelines";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { GetPipelineVersionRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { CONNECTORS_DOCS_URL } from "@/constants";
 
@@ -80,6 +85,34 @@ const ConnectionsPage = () => {
       kind: ConnectorKind.UNSPECIFIED,
     }),
   });
+
+  // Each connection's pipeline count comes from the current graph version of
+  // every pipeline; NotFound (no saved version yet) contributes nothing
+  const transport = useTransport();
+  const { data: pipelinesData } = useListPipelinesQuery();
+  const versionResults = useQueries({
+    queries: (pipelinesData?.pipelines ?? []).map((pipeline) => ({
+      ...createQueryOptions(
+        IngestionService.method.getPipelineVersion,
+        create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
+        { transport },
+      ),
+      retry: false,
+    })),
+  });
+  const pipelineCountsByConnectionId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const result of versionResults) {
+      // A pipeline counts once per connection even if two nodes share it
+      const connectionIds = new Set(
+        (result.data?.version?.nodes ?? []).map((node) => node.connectionId),
+      );
+      for (const connectionId of connectionIds) {
+        counts.set(connectionId, (counts.get(connectionId) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [versionResults]);
 
   const isToolbarDisabled = isLoading || isError;
 
@@ -178,6 +211,7 @@ const ConnectionsPage = () => {
           <ConnectionCard
             key={connection.id}
             connection={connection}
+            pipelineCount={pipelineCountsByConnectionId.get(connection.id) ?? 0}
             onClick={() => handleConnectionClick(connection.id)}
           />
         ))}

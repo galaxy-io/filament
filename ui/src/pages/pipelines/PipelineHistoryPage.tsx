@@ -105,11 +105,10 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     id: "version",
     header: "Version",
     size: RUN_TABLE_COLUMN_WIDTH_VERSION,
-    align: ColumnAlign.RIGHT,
     cellLoading: () => <TextShimmer width={32} height={14} />,
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.pipelineVersionId ? `v${row.original.pipelineVersionId}` : "—"}
+      <Text size={TextSize.BODY_SM}>
+        {row.original.pipelineVersionId ? `Version ${row.original.pipelineVersionId}` : "—"}
       </Text>
     ),
   },
@@ -117,7 +116,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     id: "records",
     header: "Records",
     size: RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    align: ColumnAlign.RIGHT,
+    align: ColumnAlign.CENTER,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
