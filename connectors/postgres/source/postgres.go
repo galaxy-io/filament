@@ -115,8 +115,15 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
-			{Name: "read_mode", Type: filament.FieldEnum, Enum: []string{"auto", "keyset", "bitmap"}, Scope: filament.ScopePipeline, Help: "Read strategy"},
-			{Name: "encoding", Type: filament.FieldEnum, Default: encodingNative, Enum: []string{encodingNative, encodingJSONB}, Scope: filament.ScopePipeline, Help: "Row payload encoding"},
+			{Name: "read_mode", Type: filament.FieldEnum, Enum: []filament.EnumOption{
+				{Value: "auto", Label: "Auto"},
+				{Value: "keyset", Label: "Keyset"},
+				{Value: "bitmap", Label: "Bitmap"},
+			}, Scope: filament.ScopePipeline, Help: "Read strategy"},
+			{Name: "encoding", Type: filament.FieldEnum, Default: encodingNative, Enum: []filament.EnumOption{
+				{Value: encodingNative, Label: "Native"},
+				{Value: encodingJSONB, Label: "JSONB"},
+			}, Scope: filament.ScopePipeline, Help: "Row payload encoding"},
 		}},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
