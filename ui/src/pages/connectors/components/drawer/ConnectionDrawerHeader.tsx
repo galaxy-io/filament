@@ -36,7 +36,7 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
             size={ConnectorTileSize.LARGE}
           />
         </FlexItem>
-        <FlexWrapper fillWidth direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
+        <FlexWrapper fillWidth minWidth={0} direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
           <BaseHeader
             title={connection.name}
             description={connector?.displayName || connection.connector}

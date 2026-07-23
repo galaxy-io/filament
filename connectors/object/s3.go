@@ -96,7 +96,7 @@ var _ filament.Sink = (*Sink)(nil)
 func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         "s3",
-		DisplayName:  "Amazon S3 (NDJSON per resource)",
+		DisplayName:  "Amazon S3 (NDJSON)",
 		Description:  "Amazon Simple Storage Service for secure, scalable, and durable object storage in the cloud.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-s3-light.svg",

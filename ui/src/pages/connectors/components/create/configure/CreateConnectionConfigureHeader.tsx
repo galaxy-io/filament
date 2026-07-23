@@ -23,7 +23,7 @@ const CreateConnectionConfigureHeader = ({
   onClose,
 }: CreateConnectionConfigureHeaderProps) => {
   return (
-    <FlexWrapper alignItems={AlignItems.CENTER} padding="16px" gap={12} fillWidth>
+    <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
       <FlexItem shrink={0}>
         <ConnectorTile
           connector={connector.name}
@@ -31,26 +31,20 @@ const CreateConnectionConfigureHeader = ({
           size={ConnectorTileSize.MEDIUM}
         />
       </FlexItem>
-      {/* minWidth 0 lets the column shrink so the title ellipsizes instead of
-          pushing the close button out of view */}
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.START}
-        gap={4}
-        grow={1}
-        minWidth={0}
-      >
-        <BaseHeader
-          size={BaseHeaderSize.LARGE}
-          title={`New ${connector.displayName || connector.name} connection`}
-          onClose={onClose}
-        />
-        <Chip
-          label={CONNECTOR_KIND_TO_LABEL_MAP[connector.kind]}
-          variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[connector.kind]}
-          size={ChipSize.SMALL}
-        />
-      </FlexWrapper>
+      <FlexItem grow={1} minWidth={0}>
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>
+          <BaseHeader
+            size={BaseHeaderSize.LARGE}
+            title={`New ${connector.displayName || connector.name} connection`}
+            onClose={onClose}
+          />
+          <Chip
+            label={CONNECTOR_KIND_TO_LABEL_MAP[connector.kind]}
+            variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[connector.kind]}
+            size={ChipSize.SMALL}
+          />
+        </FlexWrapper>
+      </FlexItem>
     </FlexWrapper>
   );
 };

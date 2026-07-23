@@ -142,7 +142,10 @@ const PipelineHistoryPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
 
   const { data, isLoading, isError } = useListRunsQuery({
-    input: create(ListRunsRequestSchema, { pipelineId: id, limit: RUN_HISTORY_LIMIT }),
+    input: create(ListRunsRequestSchema, {
+      pipelineId: id,
+      limit: RUN_HISTORY_LIMIT,
+    }),
   });
 
   return (
