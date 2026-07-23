@@ -536,6 +536,8 @@ type RunInfo struct {
 	Records           int64                  `protobuf:"varint,6,opt,name=records,proto3" json:"records,omitempty"`
 	Bytes             int64                  `protobuf:"varint,7,opt,name=bytes,proto3" json:"bytes,omitempty"`
 	Error             string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	StartedAt         int64                  `protobuf:"varint,9,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	EndedAt           int64                  `protobuf:"varint,10,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -626,6 +628,20 @@ func (x *RunInfo) GetError() string {
 	return ""
 }
 
+func (x *RunInfo) GetStartedAt() int64 {
+	if x != nil {
+		return x.StartedAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetEndedAt() int64 {
+	if x != nil {
+		return x.EndedAt
+	}
+	return 0
+}
+
 type RunSnapshot struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Run           *RunInfo               `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
@@ -686,6 +702,50 @@ func (x *RunSnapshot) GetAtSeq() uint64 {
 	return 0
 }
 
+type GetRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunRequest) Reset() {
+	*x = GetRunRequest{}
+	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunRequest) ProtoMessage() {}
+
+func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunRequest.ProtoReflect.Descriptor instead.
+func (*GetRunRequest) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
 type GetRunResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Snapshot      *RunSnapshot           `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
@@ -695,7 +755,7 @@ type GetRunResponse struct {
 
 func (x *GetRunResponse) Reset() {
 	*x = GetRunResponse{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -707,7 +767,7 @@ func (x *GetRunResponse) String() string {
 func (*GetRunResponse) ProtoMessage() {}
 
 func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -720,7 +780,7 @@ func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunResponse.ProtoReflect.Descriptor instead.
 func (*GetRunResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{8}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetRunResponse) GetSnapshot() *RunSnapshot {
@@ -744,7 +804,7 @@ type ListRunsRequest struct {
 
 func (x *ListRunsRequest) Reset() {
 	*x = ListRunsRequest{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -756,7 +816,7 @@ func (x *ListRunsRequest) String() string {
 func (*ListRunsRequest) ProtoMessage() {}
 
 func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +829,7 @@ func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListRunsRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{9}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListRunsRequest) GetTenantId() string {
@@ -823,7 +883,7 @@ type ListRunsResponse struct {
 
 func (x *ListRunsResponse) Reset() {
 	*x = ListRunsResponse{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -835,7 +895,7 @@ func (x *ListRunsResponse) String() string {
 func (*ListRunsResponse) ProtoMessage() {}
 
 func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -848,7 +908,7 @@ func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunsResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{10}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListRunsResponse) GetRuns() []*RunInfo {
@@ -856,50 +916,6 @@ func (x *ListRunsResponse) GetRuns() []*RunInfo {
 		return x.Runs
 	}
 	return nil
-}
-
-type GetRunRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetRunRequest) Reset() {
-	*x = GetRunRequest{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetRunRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetRunRequest) ProtoMessage() {}
-
-func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetRunRequest.ProtoReflect.Descriptor instead.
-func (*GetRunRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *GetRunRequest) GetRunId() string {
-	if x != nil {
-		return x.RunId
-	}
-	return ""
 }
 
 type SignalRunRequest struct {
@@ -1312,7 +1328,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\x85\x02\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\xbf\x02\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
@@ -1322,11 +1338,17 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x05 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x06 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\a \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\b \x01(\tR\x05error\"\x8b\x01\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\t \x01(\x03R\tstartedAt\x12\x19\n" +
+	"\bended_at\x18\n" +
+	" \x01(\x03R\aendedAt\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +
-	"\x06at_seq\x18\x03 \x01(\x04R\x05atSeq\"G\n" +
+	"\x06at_seq\x18\x03 \x01(\x04R\x05atSeq\"&\n" +
+	"\rGetRunRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\"G\n" +
 	"\x0eGetRunResponse\x125\n" +
 	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xfb\x01\n" +
 	"\x0fListRunsRequest\x12\x1b\n" +
@@ -1339,9 +1361,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06offset\x18\x06 \x01(\x05R\x06offsetB\x16\n" +
 	"\x14_pipeline_version_id\"=\n" +
 	"\x10ListRunsResponse\x12)\n" +
-	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\"&\n" +
-	"\rGetRunRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\"W\n" +
+	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\"W\n" +
 	"\x10SignalRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12,\n" +
 	"\x06signal\x18\x02 \x01(\x0e2\x14.ingestion.v1.SignalR\x06signal\"\x13\n" +
@@ -1409,10 +1429,10 @@ var file_ingestion_v1_runs_proto_goTypes = []any{
 	(*RunResourceState)(nil),    // 7: ingestion.v1.RunResourceState
 	(*RunInfo)(nil),             // 8: ingestion.v1.RunInfo
 	(*RunSnapshot)(nil),         // 9: ingestion.v1.RunSnapshot
-	(*GetRunResponse)(nil),      // 10: ingestion.v1.GetRunResponse
-	(*ListRunsRequest)(nil),     // 11: ingestion.v1.ListRunsRequest
-	(*ListRunsResponse)(nil),    // 12: ingestion.v1.ListRunsResponse
-	(*GetRunRequest)(nil),       // 13: ingestion.v1.GetRunRequest
+	(*GetRunRequest)(nil),       // 10: ingestion.v1.GetRunRequest
+	(*GetRunResponse)(nil),      // 11: ingestion.v1.GetRunResponse
+	(*ListRunsRequest)(nil),     // 12: ingestion.v1.ListRunsRequest
+	(*ListRunsResponse)(nil),    // 13: ingestion.v1.ListRunsResponse
 	(*SignalRunRequest)(nil),    // 14: ingestion.v1.SignalRunRequest
 	(*SignalRunResponse)(nil),   // 15: ingestion.v1.SignalRunResponse
 	(*TailRunRequest)(nil),      // 16: ingestion.v1.TailRunRequest
@@ -1446,7 +1466,7 @@ func file_ingestion_v1_runs_proto_init() {
 	if File_ingestion_v1_runs_proto != nil {
 		return
 	}
-	file_ingestion_v1_runs_proto_msgTypes[9].OneofWrappers = []any{}
+	file_ingestion_v1_runs_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
