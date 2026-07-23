@@ -24,10 +24,15 @@ export const PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE = 120;
 
 export const RUN_HISTORY_LIMIT = 50;
 export const RUN_HISTORY_LOADING_ROW_COUNT = 10;
+export const RUN_RESOURCE_LOADING_ROW_COUNT = 3;
+export const RUN_RESOURCE_EMPTY_TABLE_HEIGHT = 160;
+export const RUN_ERROR_TOOLTIP_MAX_WIDTH = 360;
 export const RUN_TABLE_COLUMN_WIDTH_STATUS = 110;
 export const RUN_TABLE_COLUMN_WIDTH_VERSION = 110;
 export const RUN_TABLE_COLUMN_WIDTH_RECORDS = 90;
 export const RUN_TABLE_COLUMN_WIDTH_VOLUME = 110;
+export const RUN_TABLE_COLUMN_WIDTH_STARTED_AT = 120;
+export const RUN_TABLE_COLUMN_WIDTH_ENDED_AT = 120;
 
 export const RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.UNSPECIFIED]: "Unknown",
@@ -42,7 +47,7 @@ export const RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
 
 export const RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> = {
   [RunStatus.UNSPECIFIED]: BeaconVariant.SECONDARY,
-  [RunStatus.REQUESTED]: BeaconVariant.SECONDARY,
+  [RunStatus.REQUESTED]: BeaconVariant.YELLOW,
   [RunStatus.RUNNING]: BeaconVariant.BLUE,
   [RunStatus.COMPLETED]: BeaconVariant.SUCCESS,
   [RunStatus.FAILED]: BeaconVariant.ERROR,
@@ -53,7 +58,7 @@ export const RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> 
 
 export const RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVariant> = {
   [RunStatus.UNSPECIFIED]: TextVariant.SECONDARY,
-  [RunStatus.REQUESTED]: TextVariant.SECONDARY,
+  [RunStatus.REQUESTED]: TextVariant.YELLOW,
   [RunStatus.RUNNING]: TextVariant.BLUE,
   [RunStatus.COMPLETED]: TextVariant.SUCCESS,
   [RunStatus.FAILED]: TextVariant.ERROR,

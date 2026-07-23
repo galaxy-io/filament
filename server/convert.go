@@ -283,6 +283,13 @@ func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResour
 }
 
 func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
+	var startedAt, endedAt int64
+	if !state.StartedAt.IsZero() {
+		startedAt = state.StartedAt.UnixMilli()
+	}
+	if state.FinishedAt != nil {
+		endedAt = state.FinishedAt.UnixMilli()
+	}
 	return &ingestionv1.RunInfo{
 		RunId:             string(state.Run),
 		TenantId:          string(state.Tenant),
@@ -292,6 +299,8 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		Records:           state.Records,
 		Bytes:             state.Bytes,
 		Error:             state.Error,
+		StartedAt:         startedAt,
+		EndedAt:           endedAt,
 	}
 }
 
