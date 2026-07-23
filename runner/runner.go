@@ -69,14 +69,12 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		return
 	}
 	defer func() { _ = src.Teardown(ctx) }()
-	if planner, ok := src.(filament.ResourcePlanner); ok {
-		resources, err := planner.PlanResources(ctx, spec.Resources, spec.Selectors)
-		if err != nil {
-			em.fail(fmt.Errorf("plan resources: %w", err))
-			return
-		}
-		spec.Resources = resources
+	plannedResources, err := PlanResources(ctx, src, spec.Resources, spec.Selectors)
+	if err != nil {
+		em.fail(fmt.Errorf("plan resources: %w", err))
+		return
 	}
+	spec.Resources = plannedResources
 
 	snk, err := deps.Sinks.Resolve(spec.Sink.Provider)
 	if err != nil {
