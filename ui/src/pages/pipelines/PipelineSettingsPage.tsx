@@ -114,7 +114,11 @@ const PipelineSettingsPage = () => {
   useEffect(() => {
     const { pipeline } = data ?? {};
     if (pipeline) {
-      setState((prev) => ({ ...prev, name: pipeline.name ?? "" }));
+      setState((prev) => ({
+        ...prev,
+        name: pipeline.name ?? "",
+        description: pipeline.description ?? "",
+      }));
     }
   }, [data]);
 
@@ -139,8 +143,11 @@ const PipelineSettingsPage = () => {
   };
 
   const hasChanges = useMemo(() => {
-    return state.name !== (data?.pipeline?.name ?? "");
-  }, [state.name, data?.pipeline?.name]);
+    return (
+      state.name !== (data?.pipeline?.name ?? "") ||
+      state.description !== (data?.pipeline?.description ?? "")
+    );
+  }, [state.name, state.description, data?.pipeline?.name, data?.pipeline?.description]);
 
   const canSave = hasChanges && state.name.trim().length > 0;
 
@@ -149,7 +156,7 @@ const PipelineSettingsPage = () => {
     if (!pipeline) return;
 
     const request = create(UpdatePipelineRequestSchema, {
-      pipeline: { ...pipeline, name: state.name.trim() },
+      pipeline: { ...pipeline, name: state.name.trim(), description: state.description.trim() },
     });
 
     updatePipeline(request, {
