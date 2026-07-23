@@ -80,14 +80,14 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	dispatch, err := dispatch.FromEnv()
+	dispatcher, err := dispatch.FromEnv()
 	if err != nil {
 		return err
 	}
 	mods, err := module.MountAll(ctx,
 		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
 		tracker.New(),
-		dispatch,
+		dispatcher,
 	)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
