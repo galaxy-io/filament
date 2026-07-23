@@ -16,10 +16,12 @@
 // so every shard sees one consistent point-in-time even under concurrent writes —
 // the same mechanism pg_dump -j uses.
 //
-// Rows are encoded server-side with to_jsonb(t)::text and scanned straight into
-// Record.Data, avoiding any client-side marshaling. The record id is pulled from
-// that same jsonb (data->>'<pk>' == id by construction); a keyless table uses its
-// ctid as the synthetic id.
+// By default rows are read as native typed columns over pgx's binary protocol
+// and assembled into Record.Data (a JSON object) client-side — see encode.go —
+// so the source database never pays to serialize rows to JSON. encoding=jsonb
+// keeps the previous server-side to_jsonb(t)::text read as a fallback. The
+// record id is derived from the primary-key values (text form, composite keys
+// joined with chr(31)); a keyless table uses its ctid as the synthetic id.
 package postgres
 
 import (
@@ -71,7 +73,12 @@ type Source struct {
 	pageSize   int
 	shardPages int
 	readMode   string // "", "keyset" (key-ordered), "bitmap" (unordered sub-ranges), "auto" (probe)
+	encoding   string // "", "native" (typed column reads); "jsonb" (server-side to_jsonb)
 }
+
+// nativeEncoding reports whether rows read as native columns (the default);
+// only an explicit encoding=jsonb selects the server-side to_jsonb path.
+func (s *Source) nativeEncoding() bool { return s.encoding != encodingJSONB }
 
 // New returns an unconfigured source.
 func New() *Source {
@@ -109,6 +116,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
 			{Name: "read_mode", Type: filament.FieldEnum, Enum: []string{"auto", "keyset", "bitmap"}, Scope: filament.ScopePipeline, Help: "Read strategy"},
+			{Name: "encoding", Type: filament.FieldEnum, Default: encodingNative, Enum: []string{encodingNative, encodingJSONB}, Scope: filament.ScopePipeline, Help: "Row payload encoding"},
 		}},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
@@ -164,6 +172,9 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	if v := cfg.String("read_mode"); v != "" {
 		s.readMode = v
+	}
+	if v := cfg.String("encoding"); v != "" {
+		s.encoding = v
 	}
 	poolCfg, err := pgxpool.ParseConfig(cfg.Secret("dsn"))
 	if err != nil {
@@ -294,12 +305,13 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 // blocks, so every query is a bounded TID range scan (no whole-table scan, no sort).
 // qualified and idExpr are precomputed so the window loop is pure string formatting.
 type shard struct {
-	table        string // raw table name, used as the record resource
-	qualified    string // sanitized "schema"."table" for the FROM clause
-	idExpr       string // SQL projecting the record id from j (jsonb) / c (ctid)
-	loBlock      int    // inclusive first heap block
-	hiBlock      int    // exclusive last heap block
-	windowBlocks int    // blocks read per query, sized to ≈ page_size rows
+	table        string      // raw table name, used as the record resource
+	qualified    string      // sanitized "schema"."table" for the FROM clause
+	idExpr       string      // SQL projecting the record id from j (jsonb) / c (ctid); jsonb path only
+	enc          *rowEncoder // native row encoder; nil on the jsonb fallback path
+	loBlock      int         // inclusive first heap block
+	hiBlock      int         // exclusive last heap block
+	windowBlocks int         // blocks read per query, sized to ≈ page_size rows
 }
 
 // planShards turns each requested table into one or more shards. A table is split
@@ -316,6 +328,10 @@ func (s *Source) planShards(ctx context.Context, tables []string, parallelism in
 		}
 		qualified := pgx.Identifier{s.schema, table}.Sanitize()
 		idExpr := idExprFor(pks)
+		enc, err := s.encoderFor(ctx, table, pkNames(pks))
+		if err != nil {
+			return nil, err
+		}
 
 		pages, err := s.lookupPages(ctx, qualified)
 		if err != nil {
@@ -332,7 +348,10 @@ func (s *Source) planShards(ctx context.Context, tables []string, parallelism in
 			if i == k-1 {
 				hi = pages // exact end; rows live in blocks [0, pages)
 			}
-			shards = append(shards, shard{table, qualified, idExpr, lo, hi, window})
+			shards = append(shards, shard{
+				table: table, qualified: qualified, idExpr: idExpr, enc: enc,
+				loBlock: lo, hiBlock: hi, windowBlocks: window,
+			})
 		}
 	}
 	return shards, nil
@@ -387,20 +406,14 @@ type querier interface {
 // limit > 0 stops the shard after that many rows (best-effort per shard when split).
 func (s *Source) extractShard(ctx context.Context, sink filament.RecordSink, q querier, sh shard, limit int) error {
 	// Both ctid bounds are bound parameters; the scan reads blocks [lo, hi).
-	sql := fmt.Sprintf(`
-SELECT %[1]s AS id, j::text AS data
-FROM (
-	SELECT to_jsonb(t) AS j, t.ctid AS c
-	FROM %[2]s t
-	WHERE t.ctid >= $1::tid AND t.ctid < $2::tid
-) page`, sh.idExpr, sh.qualified)
+	sql := ctidWindowSQL(sh, "")
 
 	emitted := 0
 	for b := sh.loBlock; b < sh.hiBlock; b += sh.windowBlocks {
 		hi := min(b+sh.windowBlocks, sh.hiBlock)
 		lo := fmt.Sprintf("(%d,0)", b)
 		hiTid := fmt.Sprintf("(%d,0)", hi)
-		page, err := s.readWindow(ctx, q, sql, lo, hiTid, sh.table)
+		page, err := s.readWindow(ctx, q, sql, sh.table, sh.enc, lo, hiTid)
 		if err != nil {
 			return err
 		}
@@ -417,36 +430,80 @@ FROM (
 	return nil
 }
 
+// ctidWindowSQL builds one shard's block-window query for either encoding, with
+// filter (an extra AND clause on t, or empty) appended to the ctid range.
+func ctidWindowSQL(sh shard, filter string) string {
+	if sh.enc != nil {
+		return fmt.Sprintf(
+			"SELECT %[1]s, t.ctid FROM %[2]s t WHERE t.ctid >= $1::tid AND t.ctid < $2::tid%[3]s",
+			sh.enc.selectList, sh.qualified, filter)
+	}
+	return fmt.Sprintf(`
+SELECT %[1]s AS id, j::text AS data
+FROM (
+	SELECT to_jsonb(t) AS j, t.ctid AS c
+	FROM %[2]s t
+	WHERE t.ctid >= $1::tid AND t.ctid < $2::tid%[3]s
+) page`, sh.idExpr, sh.qualified, filter)
+}
+
 // readWindow runs one block window and returns its records. Rows are drained and
 // closed before returning so the connection is free before records are pushed (a
 // push can block on backpressure).
-func (s *Source) readWindow(ctx context.Context, q querier, sql, lo, hi, table string) ([]filament.Record, error) {
-	rows, err := q.Query(ctx, sql, lo, hi)
+func (s *Source) readWindow(ctx context.Context, q querier, sql, table string, enc *rowEncoder, args ...any) ([]filament.Record, error) {
+	if enc != nil {
+		args = append([]any{binaryResults}, args...)
+	}
+	rows, err := q.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	next := rowReader(table, enc)
 	out := make([]filament.Record, 0, s.pageSize)
-	// Scan destinations are hoisted and reused: pgx writes a freshly allocated
-	// string and []byte into id/data on every row (so each Record keeps its own
-	// backing), while the locals and the dest slice are allocated once for the whole
-	// window instead of per row — three fewer heap objects per row.
-	var (
-		id   string
-		data []byte
-	)
-	dest := []any{&id, &data}
 	for rows.Next() {
-		if err := rows.Scan(dest...); err != nil {
+		rec, err := next(rows)
+		if err != nil {
 			return nil, fmt.Errorf("read row: %w", err)
 		}
-		out = append(out, filament.NewRecord(table, id, data))
+		out = append(out, rec)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+// rowReader returns the per-row decoder for either encoding — the one seam the
+// encoding choice changes. Native assembles id and payload client-side from the
+// raw binary column values; jsonb scans the server-built id/data projection.
+// The closure owns its reused scan state; every record gets its own backing.
+func rowReader(table string, enc *rowEncoder) func(pgx.Rows) (filament.Record, error) {
+	if enc == nil {
+		var id string
+		var data []byte
+		dest := []any{&id, &data}
+		return func(rows pgx.Rows) (filament.Record, error) {
+			if err := rows.Scan(dest...); err != nil {
+				return filament.Record{}, err
+			}
+			return filament.NewRecord(table, id, append([]byte(nil), data...)), nil
+		}
+	}
+	var scratch []byte
+	return func(rows pgx.Rows) (filament.Record, error) {
+		raw := rows.RawValues()
+		var err error
+		if scratch, err = enc.appendRowData(scratch[:0], raw); err != nil {
+			return filament.Record{}, err
+		}
+		id, err := enc.rowID(raw)
+		if err != nil {
+			return filament.Record{}, err
+		}
+		return filament.NewRecord(table, id, append(make([]byte, 0, len(scratch)), scratch...)), nil
+	}
 }
 
 // snapshot holds an exported-snapshot transaction open for a run's lifetime. Its

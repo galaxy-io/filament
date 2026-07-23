@@ -74,25 +74,28 @@ func (s *Source) planBitmap(ctx context.Context, table string, pks []pkColumn) c
 // a Drained sentinel so the shard can be marked complete; if a row limit truncated the read
 // it does NOT (an incomplete shard must stay resumable).
 func (s *Source) extractBitmapShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
-	idSel := keysetIDExpr(sh.pks)
 	where, args := bitmapWhere(sh)
-	sql := fmt.Sprintf("SELECT %s AS id, to_jsonb(t)::text AS data FROM %s t%s", idSel, sh.qualified, where)
+	var sql string
+	if sh.enc != nil {
+		sql = fmt.Sprintf("SELECT %s FROM %s t%s", sh.enc.selectList, sh.qualified, where)
+		args = append([]any{binaryResults}, args...)
+	} else {
+		sql = fmt.Sprintf("SELECT %s AS id, to_jsonb(t)::text AS data FROM %s t%s", keysetIDExpr(sh.pks), sh.qualified, where)
+	}
 
 	rows, err := q.Query(ctx, sql, args...)
 	if err != nil {
 		return fmt.Errorf("bitmap %q: %w", sh.table, err)
 	}
+	next := rowReader(sh.table, sh.enc)
 	emitted := 0
 	truncated := false
-	var id string
-	var data []byte
-	dest := []any{&id, &data}
 	for rows.Next() {
-		if err := rows.Scan(dest...); err != nil {
+		rec, err := next(rows)
+		if err != nil {
 			rows.Close()
 			return fmt.Errorf("bitmap scan %q: %w", sh.table, err)
 		}
-		rec := filament.NewRecord(sh.table, id, append([]byte(nil), data...))
 		rec.Part = sh.part
 		rec.Coarse = true
 		if err := sink.Push(rec); err != nil {
