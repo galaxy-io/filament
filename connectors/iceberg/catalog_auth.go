@@ -18,26 +18,27 @@ func restAuthField(provider string) filament.ConfigField {
 	return filament.ConfigField{
 		Name:        "auth",
 		Type:        filament.FieldObject,
-		Help:        "Catalog authentication.",
+		Help:        "Authentication used for catalog API requests. Storage credentials are configured separately or supplied by the catalog.",
 		VisibleWhen: providerCondition(provider),
 		Fields: []filament.ConfigField{
 			{
 				Name:    "type",
 				Type:    filament.FieldEnum,
 				Default: authNone,
+				Help:    "Authentication flow used when connecting to the REST catalog.",
 				Enum: []filament.EnumOption{
 					{Value: authNone, Label: "None"},
 					{Value: authBearer, Label: "Bearer token"},
 					{Value: authClientCredentials, Label: "Client credentials"},
 				},
 			},
-			{Name: "token", Type: filament.FieldSecret, Secret: true, Required: true, VisibleWhen: authCondition(authBearer)},
-			{Name: "client_id", Type: filament.FieldString, Required: true, VisibleWhen: authCondition(authClientCredentials)},
-			{Name: "client_secret", Type: filament.FieldSecret, Secret: true, Required: true, VisibleWhen: authCondition(authClientCredentials)},
-			{Name: "token_uri", Type: filament.FieldString, VisibleWhen: authCondition(authClientCredentials)},
-			{Name: "scope", Type: filament.FieldString, VisibleWhen: authCondition(authClientCredentials)},
-			{Name: "audience", Type: filament.FieldString, VisibleWhen: authCondition(authClientCredentials)},
-			{Name: "resource", Type: filament.FieldString, VisibleWhen: authCondition(authClientCredentials)},
+			{Name: "token", Type: filament.FieldSecret, Secret: true, Required: true, Help: "Existing OAuth bearer token sent with catalog requests.", VisibleWhen: authCondition(authBearer)},
+			{Name: "client_id", Type: filament.FieldString, Required: true, Help: "OAuth client identifier issued by the catalog service.", VisibleWhen: authCondition(authClientCredentials)},
+			{Name: "client_secret", Type: filament.FieldSecret, Secret: true, Required: true, Help: "OAuth client secret issued with the client identifier.", VisibleWhen: authCondition(authClientCredentials)},
+			{Name: "token_uri", Type: filament.FieldString, Help: "OAuth token endpoint. Leave empty to use the REST catalog's default token endpoint.", VisibleWhen: authCondition(authClientCredentials)},
+			{Name: "scope", Type: filament.FieldString, Help: "Optional OAuth scope. Polaris commonly uses a principal-role scope such as PRINCIPAL_ROLE:ALL.", VisibleWhen: authCondition(authClientCredentials)},
+			{Name: "audience", Type: filament.FieldString, Help: "Optional OAuth audience identifying the intended token recipient.", VisibleWhen: authCondition(authClientCredentials)},
+			{Name: "resource", Type: filament.FieldString, Help: "Optional OAuth resource indicator identifying the protected service.", VisibleWhen: authCondition(authClientCredentials)},
 		},
 	}
 }

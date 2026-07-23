@@ -11,10 +11,10 @@ import (
 var polarisCatalogProvider = catalogProvider{
 	option: filament.EnumOption{Value: catalogProviderPolaris, Label: "Apache Polaris"},
 	fields: []filament.ConfigField{
-		catalogStringField(catalogProviderPolaris, "uri", "Polaris catalog endpoint.", true),
-		catalogStringField(catalogProviderPolaris, "warehouse", "Polaris catalog name.", true),
+		catalogStringField(catalogProviderPolaris, "uri", "Polaris Iceberg REST endpoint, typically ending in /api/catalog.", true),
+		catalogStringField(catalogProviderPolaris, "warehouse", "Name of the catalog registered in Polaris. This is not an object-storage path.", true),
 		restAuthField(catalogProviderPolaris),
-		catalogObjectField(catalogProviderPolaris, "properties", "Additional iceberg-go REST catalog properties."),
+		catalogObjectField(catalogProviderPolaris, "properties", "Advanced REST, credential-vending, and storage properties passed directly to iceberg-go."),
 	},
 	build: buildPolarisCatalog,
 }

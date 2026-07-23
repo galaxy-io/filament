@@ -11,10 +11,10 @@ import (
 var restCatalogProvider = catalogProvider{
 	option: filament.EnumOption{Value: catalogProviderREST, Label: "REST"},
 	fields: []filament.ConfigField{
-		catalogStringField(catalogProviderREST, "uri", "REST catalog endpoint.", true),
-		catalogStringField(catalogProviderREST, "warehouse", "Catalog warehouse identifier or location.", false),
+		catalogStringField(catalogProviderREST, "uri", "Base URL of the Iceberg REST catalog, such as https://catalog.example.com/api/catalog.", true),
+		catalogStringField(catalogProviderREST, "warehouse", "Warehouse identifier sent to the REST catalog. This may be a logical catalog name, as with Apache Polaris, rather than a storage path.", false),
 		restAuthField(catalogProviderREST),
-		catalogObjectField(catalogProviderREST, "properties", "Additional iceberg-go REST catalog properties."),
+		catalogObjectField(catalogProviderREST, "properties", "Advanced REST catalog and storage properties passed directly to iceberg-go."),
 	},
 	build: buildRESTCatalog,
 }

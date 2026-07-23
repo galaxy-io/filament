@@ -41,7 +41,7 @@ func catalogConfigField() filament.ConfigField {
 		Type:     filament.FieldEnum,
 		Required: true,
 		Enum:     options,
-		Help:     "Catalog implementation.",
+		Help:     "Catalog implementation used to manage Iceberg namespaces and tables.",
 	}}
 
 	for _, provider := range catalogProviders {
@@ -69,7 +69,7 @@ func tableConfigField() filament.ConfigField {
 		Fields: []filament.ConfigField{{
 			Name: "location_root",
 			Type: filament.FieldString,
-			Help: "Optional root for client-assigned table locations; omit for catalog-managed locations.",
+			Help: "Optional object-storage root for new tables, such as s3://bucket/warehouse. Leave empty when the catalog assigns table locations.",
 		}},
 	}
 }
