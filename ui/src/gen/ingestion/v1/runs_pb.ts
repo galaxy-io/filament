@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/runs.proto.
  */
 export const file_ingestion_v1_runs: GenFile = /*@__PURE__*/
-  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJqChJSdW5QaXBlbGluZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSFAoMY2xpZW50X3Rva2VuGAIgASgJEikKB29wdGlvbnMYAyABKAsyGC5pbmdlc3Rpb24udjEuUnVuT3B0aW9ucyIqCgpSdW5CaW5kaW5nEgwKBGVkZ2UYASABKAkSDgoGcnVuX2lkGAIgASgJIj0KE1J1blBpcGVsaW5lUmVzcG9uc2USJgoEcnVucxgBIAMoCzIYLmluZ2VzdGlvbi52MS5SdW5CaW5kaW5nIo0BChBSdW5SZXNvdXJjZVN0YXRlEhAKCHJlc291cmNlGAEgASgJEg8KB2VuYWJsZWQYAiABKAgSJwoGc3RhdHVzGAMgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAQgASgDEg0KBWJ5dGVzGAUgASgDEg0KBWVycm9yGAYgASgJIrYBCgdSdW5JbmZvEg4KBnJ1bl9pZBgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSEwoLcGlwZWxpbmVfaWQYAyABKAkSGwoTcGlwZWxpbmVfdmVyc2lvbl9pZBgEIAEoAxInCgZzdGF0dXMYBSABKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg8KB3JlY29yZHMYBiABKAMSDQoFYnl0ZXMYByABKAMSDQoFZXJyb3IYCCABKAkidAoLUnVuU25hcHNob3QSIgoDcnVuGAEgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMQoJcmVzb3VyY2VzGAIgAygLMh4uaW5nZXN0aW9uLnYxLlJ1blJlc291cmNlU3RhdGUSDgoGYXRfc2VxGAMgASgEIj0KDkdldFJ1blJlc3BvbnNlEisKCHNuYXBzaG90GAEgASgLMhkuaW5nZXN0aW9uLnYxLlJ1blNuYXBzaG90IrsBCg9MaXN0UnVuc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEiAKE3BpcGVsaW5lX3ZlcnNpb25faWQYAyABKANIAIgBARInCgZzdGF0dXMYBCADKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg0KBWxpbWl0GAUgASgFEg4KBm9mZnNldBgGIAEoBUIWChRfcGlwZWxpbmVfdmVyc2lvbl9pZCI3ChBMaXN0UnVuc1Jlc3BvbnNlEiMKBHJ1bnMYASADKAsyFS5pbmdlc3Rpb24udjEuUnVuSW5mbyIfCg1HZXRSdW5SZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSJIChBTaWduYWxSdW5SZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIkCgZzaWduYWwYAiABKA4yFC5pbmdlc3Rpb24udjEuU2lnbmFsIhMKEVNpZ25hbFJ1blJlc3BvbnNlIkMKDlRhaWxSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSDgoGcmVwbGF5GAMgASgIIlkKDlJ1bkV2ZW50RmllbGRzEg8KB3JlY29yZHMYASABKAMSDQoFYnl0ZXMYAiABKAMSCwoDdXJpGAMgASgJEgsKA2NyYxgEIAEoDRINCgVlcnJvchgFIAEoCSKsAQoIUnVuRXZlbnQSDAoEdHlwZRgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEhAKCHJlc291cmNlGAQgASgJEgsKA3NlcRgFIAEoBBISCgphdF91bml4X21zGAYgASgDEiwKBmZpZWxkcxgHIAEoCzIcLmluZ2VzdGlvbi52MS5SdW5FdmVudEZpZWxkcxIOCgZyZXBsYXkYCCABKAgiOAoPVGFpbFJ1blJlc3BvbnNlEiUKBWV2ZW50GAEgASgLMhYuaW5nZXN0aW9uLnYxLlJ1bkV2ZW50KtIBCglSdW5TdGF0dXMSGgoWUlVOX1NUQVRVU19VTlNQRUNJRklFRBAAEhgKFFJVTl9TVEFUVVNfUkVRVUVTVEVEEAESFgoSUlVOX1NUQVRVU19SVU5OSU5HEAISGAoUUlVOX1NUQVRVU19DT01QTEVURUQQAxIVChFSVU5fU1RBVFVTX0ZBSUxFRBAEEhcKE1JVTl9TVEFUVVNfQ0FOQ0VMRUQQBRIVChFSVU5fU1RBVFVTX1BBVVNFRBAGEhYKElJVTl9TVEFUVVNfUEFSVElBTBAHKlgKBlNpZ25hbBIWChJTSUdOQUxfVU5TUEVDSUZJRUQQABIQCgxTSUdOQUxfUEFVU0UQARIRCg1TSUdOQUxfUkVTVU1FEAISEQoNU0lHTkFMX0NBTkNFTBADYgZwcm90bzM");
+  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJqChJSdW5QaXBlbGluZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSFAoMY2xpZW50X3Rva2VuGAIgASgJEikKB29wdGlvbnMYAyABKAsyGC5pbmdlc3Rpb24udjEuUnVuT3B0aW9ucyIqCgpSdW5CaW5kaW5nEgwKBGVkZ2UYASABKAkSDgoGcnVuX2lkGAIgASgJIj0KE1J1blBpcGVsaW5lUmVzcG9uc2USJgoEcnVucxgBIAMoCzIYLmluZ2VzdGlvbi52MS5SdW5CaW5kaW5nIo0BChBSdW5SZXNvdXJjZVN0YXRlEhAKCHJlc291cmNlGAEgASgJEg8KB2VuYWJsZWQYAiABKAgSJwoGc3RhdHVzGAMgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAQgASgDEg0KBWJ5dGVzGAUgASgDEg0KBWVycm9yGAYgASgJItwBCgdSdW5JbmZvEg4KBnJ1bl9pZBgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSEwoLcGlwZWxpbmVfaWQYAyABKAkSGwoTcGlwZWxpbmVfdmVyc2lvbl9pZBgEIAEoAxInCgZzdGF0dXMYBSABKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg8KB3JlY29yZHMYBiABKAMSDQoFYnl0ZXMYByABKAMSDQoFZXJyb3IYCCABKAkSEgoKc3RhcnRlZF9hdBgJIAEoAxIQCghlbmRlZF9hdBgKIAEoAyJ0CgtSdW5TbmFwc2hvdBIiCgNydW4YASABKAsyFS5pbmdlc3Rpb24udjEuUnVuSW5mbxIxCglyZXNvdXJjZXMYAiADKAsyHi5pbmdlc3Rpb24udjEuUnVuUmVzb3VyY2VTdGF0ZRIOCgZhdF9zZXEYAyABKAQiHwoNR2V0UnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkiPQoOR2V0UnVuUmVzcG9uc2USKwoIc25hcHNob3QYASABKAsyGS5pbmdlc3Rpb24udjEuUnVuU25hcHNob3QiuwEKD0xpc3RSdW5zUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEwoLcGlwZWxpbmVfaWQYAiABKAkSIAoTcGlwZWxpbmVfdmVyc2lvbl9pZBgDIAEoA0gAiAEBEicKBnN0YXR1cxgEIAMoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSDQoFbGltaXQYBSABKAUSDgoGb2Zmc2V0GAYgASgFQhYKFF9waXBlbGluZV92ZXJzaW9uX2lkIjcKEExpc3RSdW5zUmVzcG9uc2USIwoEcnVucxgBIAMoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvIkgKEFNpZ25hbFJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJEiQKBnNpZ25hbBgCIAEoDjIULmluZ2VzdGlvbi52MS5TaWduYWwiEwoRU2lnbmFsUnVuUmVzcG9uc2UiQwoOVGFpbFJ1blJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIOCgZyZXBsYXkYAyABKAgiWQoOUnVuRXZlbnRGaWVsZHMSDwoHcmVjb3JkcxgBIAEoAxINCgVieXRlcxgCIAEoAxILCgN1cmkYAyABKAkSCwoDY3JjGAQgASgNEg0KBWVycm9yGAUgASgJIqwBCghSdW5FdmVudBIMCgR0eXBlGAEgASgJEhEKCXRlbmFudF9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSEAoIcmVzb3VyY2UYBCABKAkSCwoDc2VxGAUgASgEEhIKCmF0X3VuaXhfbXMYBiABKAMSLAoGZmllbGRzGAcgASgLMhwuaW5nZXN0aW9uLnYxLlJ1bkV2ZW50RmllbGRzEg4KBnJlcGxheRgIIAEoCCI4Cg9UYWlsUnVuUmVzcG9uc2USJQoFZXZlbnQYASABKAsyFi5pbmdlc3Rpb24udjEuUnVuRXZlbnQq0gEKCVJ1blN0YXR1cxIaChZSVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASGAoUUlVOX1NUQVRVU19SRVFVRVNURUQQARIWChJSVU5fU1RBVFVTX1JVTk5JTkcQAhIYChRSVU5fU1RBVFVTX0NPTVBMRVRFRBADEhUKEVJVTl9TVEFUVVNfRkFJTEVEEAQSFwoTUlVOX1NUQVRVU19DQU5DRUxFRBAFEhUKEVJVTl9TVEFUVVNfUEFVU0VEEAYSFgoSUlVOX1NUQVRVU19QQVJUSUFMEAcqWAoGU2lnbmFsEhYKElNJR05BTF9VTlNQRUNJRklFRBAAEhAKDFNJR05BTF9QQVVTRRABEhEKDVNJR05BTF9SRVNVTUUQAhIRCg1TSUdOQUxfQ0FOQ0VMEANiBnByb3RvMw");
 
 /**
  * RatePolicy throttles source reads.
@@ -245,6 +245,16 @@ export type RunInfo = Message<"ingestion.v1.RunInfo"> & {
    * @generated from field: string error = 8;
    */
   error: string;
+
+  /**
+   * @generated from field: int64 started_at = 9;
+   */
+  startedAt: bigint;
+
+  /**
+   * @generated from field: int64 ended_at = 10;
+   */
+  endedAt: bigint;
 };
 
 /**
@@ -282,6 +292,23 @@ export const RunSnapshotSchema: GenMessage<RunSnapshot> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_runs, 7);
 
 /**
+ * @generated from message ingestion.v1.GetRunRequest
+ */
+export type GetRunRequest = Message<"ingestion.v1.GetRunRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message ingestion.v1.GetRunRequest.
+ * Use `create(GetRunRequestSchema)` to create a new message.
+ */
+export const GetRunRequestSchema: GenMessage<GetRunRequest> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_runs, 8);
+
+/**
  * @generated from message ingestion.v1.GetRunResponse
  */
 export type GetRunResponse = Message<"ingestion.v1.GetRunResponse"> & {
@@ -296,7 +323,7 @@ export type GetRunResponse = Message<"ingestion.v1.GetRunResponse"> & {
  * Use `create(GetRunResponseSchema)` to create a new message.
  */
 export const GetRunResponseSchema: GenMessage<GetRunResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_runs, 8);
+  messageDesc(file_ingestion_v1_runs, 9);
 
 /**
  * @generated from message ingestion.v1.ListRunsRequest
@@ -338,7 +365,7 @@ export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
  * Use `create(ListRunsRequestSchema)` to create a new message.
  */
 export const ListRunsRequestSchema: GenMessage<ListRunsRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_runs, 9);
+  messageDesc(file_ingestion_v1_runs, 10);
 
 /**
  * @generated from message ingestion.v1.ListRunsResponse
@@ -355,23 +382,6 @@ export type ListRunsResponse = Message<"ingestion.v1.ListRunsResponse"> & {
  * Use `create(ListRunsResponseSchema)` to create a new message.
  */
 export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_runs, 10);
-
-/**
- * @generated from message ingestion.v1.GetRunRequest
- */
-export type GetRunRequest = Message<"ingestion.v1.GetRunRequest"> & {
-  /**
-   * @generated from field: string run_id = 1;
-   */
-  runId: string;
-};
-
-/**
- * Describes the message ingestion.v1.GetRunRequest.
- * Use `create(GetRunRequestSchema)` to create a new message.
- */
-export const GetRunRequestSchema: GenMessage<GetRunRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_runs, 11);
 
 /**
