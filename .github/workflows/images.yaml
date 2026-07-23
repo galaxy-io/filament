@@ -15,14 +15,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: filament-server
+          - image: filament/server
             dockerfile: cmd/server/Dockerfile
             buildtags: "-tags embedui"
-          - image: filament-control-plane
+          - image: filament/control-plane
             dockerfile: cmd/control-plane/Dockerfile
-          - image: filament-worker
+          - image: filament/worker
             dockerfile: cmd/worker/Dockerfile
-          - image: filament-standalone
+          - image: filament/standalone
             dockerfile: cmd/standalone/Dockerfile
             buildtags: "-tags embedui"
     steps:
