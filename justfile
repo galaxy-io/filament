@@ -29,17 +29,17 @@ ui-dist:
 
 # build linux binaries into bin/ (server and standalone embed ui/dist)
 binaries: ui-dist
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament-server .
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament-control-plane .
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament-worker .
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament-standalone .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
 
 # build docker images
 images: binaries
-    docker build -f cmd/server/Dockerfile -t galaxy-io/filament-server:latest .
-    docker build -f cmd/control-plane/Dockerfile -t galaxy-io/filament-control-plane:latest .
-    docker build -f cmd/worker/Dockerfile -t galaxy-io/filament-worker:latest .
-    docker build -f cmd/standalone/Dockerfile -t galaxy-io/filament-standalone:latest .
+    docker build -f cmd/server/Dockerfile -t galaxy-io/filament/server:latest .
+    docker build -f cmd/control-plane/Dockerfile -t galaxy-io/filament/control-plane:latest .
+    docker build -f cmd/worker/Dockerfile -t galaxy-io/filament/worker:latest .
+    docker build -f cmd/standalone/Dockerfile -t galaxy-io/filament/standalone:latest .
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)
 _each cmd:
