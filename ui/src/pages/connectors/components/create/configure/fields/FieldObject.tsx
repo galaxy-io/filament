@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
@@ -18,13 +18,22 @@ const FieldObject = ({
   const serializedValue = value ? JSON.stringify(value, null, 2) : "";
   const [displayValue, setDisplayValue] = useState(serializedValue);
   const [parseError, setParseError] = useState<string>();
+  // Tracks the serialized form this editor last emitted, so prop-driven syncs
+  // don't reformat (and jump the caret) while the user is mid-edit.
+  const lastEmitted = useRef(serializedValue);
 
-  useEffect(() => setDisplayValue(serializedValue), [serializedValue]);
+  useEffect(() => {
+    if (serializedValue !== lastEmitted.current) {
+      lastEmitted.current = serializedValue;
+      setDisplayValue(serializedValue);
+    }
+  }, [serializedValue]);
 
   const handleChange = (next: string) => {
     setDisplayValue(next);
     if (next.trim() === "") {
       setParseError(undefined);
+      lastEmitted.current = "";
       onChange(null);
       return;
     }
@@ -35,6 +44,7 @@ const FieldObject = ({
         return;
       }
       setParseError(undefined);
+      lastEmitted.current = JSON.stringify(parsed, null, 2);
       onChange(parsed);
     } catch {
       setParseError("Enter valid JSON");
