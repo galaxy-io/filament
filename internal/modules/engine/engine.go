@@ -120,14 +120,12 @@ func (m *Module) runOne(ctx context.Context, spec filament.RunSpec) {
 		return
 	}
 	defer func() { _ = src.Teardown(ctx) }()
-	if planner, ok := src.(filament.ResourcePlanner); ok {
-		resources, err := planner.PlanResources(ctx, spec.Resources, spec.Selectors)
-		if err != nil {
-			em.fail(fmt.Errorf("plan resources: %w", err))
-			return
-		}
-		spec.Resources = resources
+	plannedResources, err := runner.PlanResources(ctx, src, spec.Resources, spec.Selectors)
+	if err != nil {
+		em.fail(fmt.Errorf("plan resources: %w", err))
+		return
 	}
+	spec.Resources = plannedResources
 
 	snk, err := m.sinks.Resolve(spec.Sink.Provider)
 	if err != nil {
