@@ -297,6 +297,7 @@ const CreateConnectionConfigureContent = ({
             value={getFieldValue(field.name)}
             onChange={(value) => handleFieldChange(field.name, value)}
             error={getFieldError(field.name)}
+            getError={getFieldError}
             isDisabled={isDisabled}
           />
         ))}
