@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { styled } from "@linaria/react";
 
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import InfiniteTable, {
@@ -9,26 +10,21 @@ import InfiniteTable, {
 } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
+import { withTheme } from "@galaxy-io/dls/theme";
+import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import RunStatusCell from "@/pages/pipelines/components/RunStatusCell";
+import EmptyLayout from "@/layouts/EmptyLayout";
+
 import {
   RUN_RESOURCE_LOADING_ROW_COUNT,
   RUN_TABLE_COLUMN_WIDTH_RECORDS,
-  RUN_TABLE_COLUMN_WIDTH_STATUS,
   RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
 import { formatBytes, formatCount } from "@/pages/pipelines/utils";
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
-import {
-  GetRunRequestSchema,
-  type RunResourceState,
-} from "@/gen/ingestion/v1/runs_pb";
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { styled } from "@linaria/react";
-import { withTheme } from "@galaxy-io/dls/theme";
-import { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { GetRunRequestSchema, type RunResourceState } from "@/gen/ingestion/v1/runs_pb";
 
 const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;

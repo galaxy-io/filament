@@ -6,10 +6,7 @@ import { useParams } from "@tanstack/react-router";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import InfiniteTable, {
-  ColumnAlign,
-  type ColumnDef,
-} from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -31,18 +28,12 @@ import {
   RUN_TABLE_COLUMN_WIDTH_VERSION,
   RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
-import {
-  formatBytes,
-  formatCount,
-  formatTimestamp,
-} from "@/pages/pipelines/utils";
+import { formatBytes, formatCount, formatTimestamp } from "@/pages/pipelines/utils";
 
 import { useListRunsQuery } from "@/api/queries/runs";
 
-import {
-  ListRunsRequestSchema,
-  type RunInfo,
-} from "@/gen/ingestion/v1/runs_pb";
+import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
+
 import PipelineHistoryRunInfo from "./canvas/history/PipelineHistoryRunInfo";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -69,21 +60,14 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     header: "Status",
     size: RUN_TABLE_COLUMN_WIDTH_STATUS,
     cellLoading: () => <TextShimmer width={64} height={18} />,
-    cell: ({ row }) => (
-      <RunStatusCell status={row.original.status} error={row.original.error} />
-    ),
+    cell: ({ row }) => <RunStatusCell status={row.original.status} error={row.original.error} />,
   },
   {
     id: "run",
     header: "Run",
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
-      <Text
-        size={TextSize.BODY_SM}
-        weight={TextWeight.MEDIUM}
-        isMonospace
-        isEllipsis
-      >
+      <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
         {row.original.runId}
       </Text>
     ),
@@ -117,9 +101,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cellLoading: () => <TextShimmer width={32} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM}>
-        {row.original.pipelineVersionId
-          ? `Version ${row.original.pipelineVersionId}`
-          : "—"}
+        {row.original.pipelineVersionId ? `Version ${row.original.pipelineVersionId}` : "—"}
       </Text>
     ),
   },
@@ -181,21 +163,12 @@ const PipelineHistoryPage = () => {
           isError={isError}
           contentWhenError={
             <ErrorLayout
-              icon={
-                <Icon
-                  component={WarningCircleIcon}
-                  size={20}
-                  variant={IconVariant.ERROR}
-                />
-              }
+              icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
               message="Failed to load runs. Please try again."
             />
           }
           contentWhenEmpty={
-            <EmptyLayout
-              header="No runs yet"
-              message="Run a pipeline to see its history here."
-            />
+            <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
           }
           onRowExpand={(row) => {
             return <PipelineHistoryRunInfo runId={row.original.runId} />;
