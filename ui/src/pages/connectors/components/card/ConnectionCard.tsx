@@ -28,7 +28,6 @@ import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import PipelineIcon from "@/components/PipelineIcon";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -85,7 +84,7 @@ const ConnectionCard = ({
         </FlexWrapper>
         <FlexItem shrink={0}>
           <Chip
-            svg={<PipelineIcon isLinked={true} size={16} />}
+            icon={FlowArrowIcon}
             label={pipelineLabel}
             variant={ChipVariant.TERTIARY}
           />
