@@ -29,7 +29,10 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
-const defaultStageBufLimitBytes = 256 << 20 // 256 MiB
+const (
+	defaultStageBufLimitBytes = 256 << 20 // 256 MiB
+	defaultNamespace          = "default"
+)
 
 type writeMode string
 
@@ -45,7 +48,7 @@ const (
 // Sink writes to Iceberg tables via any catalog backend registered with
 // iceberg-go (selected by the "type" property in catalog config).
 type Sink struct {
-	warehouse          string
+	tableLocationRoot  string
 	namespace          string
 	stageBufLimitBytes int64
 	writeMode          writeMode
@@ -97,12 +100,19 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Description:  "Open table format for large-scale analytics on data lakes with schema evolution and time travel.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-light.svg",
-		Version:      "1",
+		Version:      "2",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "warehouse", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Warehouse root location (shared catalog storage)."},
-			{Name: "catalog", Type: filament.FieldObject, Required: true, Scope: filament.ScopeConnection, Help: "Catalog connection props; requires type or uri (plus backend credentials)."},
-			{Name: "namespace", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables."},
-			{Name: "write_mode", Type: filament.FieldEnum, Enum: []string{"auto", "append", "replace", "upsert", "delete", "merge"}, Default: "auto", Scope: filament.ScopePipeline, Help: "Write behavior; auto picks replace for full loads, append otherwise."},
+			catalogConfigField(),
+			tableConfigField(),
+			{Name: "namespace", Type: filament.FieldString, Default: defaultNamespace, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables; defaults to default."},
+			{Name: "write_mode", Type: filament.FieldEnum, Enum: []filament.EnumOption{
+				{Value: "auto", Label: "Auto"},
+				{Value: "append", Label: "Append"},
+				{Value: "replace", Label: "Replace"},
+				{Value: "upsert", Label: "Upsert"},
+				{Value: "delete", Label: "Delete"},
+				{Value: "merge", Label: "Merge"},
+			}, Default: "auto", Scope: filament.ScopePipeline, Help: "Write behavior; auto picks replace for full loads, append otherwise."},
 			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
 		}},
 		Capabilities: filament.SinkCapabilities{
@@ -126,13 +136,9 @@ func (s *Sink) Name() string { return "iceberg" }
 // Open connects to the catalog and prepares per-resource tables for the run.
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
-	s.warehouse = cfg.String("warehouse")
-	if s.warehouse == "" {
-		return fmt.Errorf("iceberg sink: warehouse required")
-	}
 	s.namespace = cfg.String("namespace")
 	if s.namespace == "" {
-		return fmt.Errorf("iceberg sink: namespace required")
+		s.namespace = defaultNamespace
 	}
 	s.run = run.Run
 
@@ -145,23 +151,18 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		return err
 	}
 
-	// Build catalog properties from the "catalog" sub-config and hand them to
-	// catalog.Load, which dispatches on props["type"] (or the uri scheme) to the
-	// matching registered backend. The warehouse is shared with the data writer.
-	props := iceberg.Properties{"warehouse": s.warehouse}
-	for k, v := range cfg.Sub("catalog").Raw() {
-		props[k] = fmt.Sprint(v)
+	setup, err := buildCatalogSetup(cfg)
+	if err != nil {
+		return fmt.Errorf("iceberg sink: %w", err)
 	}
-	if props["type"] == "" && props["uri"] == "" {
-		return fmt.Errorf("iceberg sink: catalog.type or catalog.uri required")
-	}
-	cat, err := catalog.Load(ctx, "iceberg", props)
+	cat, err := catalog.Load(ctx, "iceberg", setup.Properties)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: open catalog: %w", err)
 	}
 
 	s.mu.Lock()
 	s.cat = cat
+	s.tableLocationRoot = setup.TableLocationRoot
 	s.writeMode = mode
 	s.tables = map[string]*iceTable{}
 	s.stages = map[filament.StageID]*stage{}
@@ -190,12 +191,14 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 
 	iceSchema := buildIcebergSchema(schema)
 	ident := s.tableIdent(resource)
-	location := joinURI(s.warehouse, namespacePath(s.namespace), resource)
-
-	tbl, err := cat.CreateTable(ctx, ident, iceSchema,
-		catalog.WithLocation(location),
+	createOpts := []catalog.CreateTableOpt{
 		catalog.WithProperties(iceberg.Properties{"write.format.default": "parquet"}),
-	)
+	}
+	if s.tableLocationRoot != "" {
+		location := joinURI(s.tableLocationRoot, namespacePath(s.namespace), resource)
+		createOpts = append(createOpts, catalog.WithLocation(location))
+	}
+	tbl, err := cat.CreateTable(ctx, ident, iceSchema, createOpts...)
 	if errors.Is(err, catalog.ErrTableAlreadyExists) {
 		tbl, err = cat.LoadTable(ctx, ident)
 		if err != nil {
@@ -267,7 +270,7 @@ func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt
 
 	crc, _ := filament.CRC32C(b.Records)
 	return filament.WriteReceipt{
-		URI:      joinURI(s.warehouse, namespacePath(s.namespace), b.Resource),
+		URI:      it.tbl.Location(),
 		Bytes:    nbytes,
 		Rows:     len(b.Records),
 		WriteCRC: crc,
@@ -320,7 +323,7 @@ func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOpt
 
 	crc, _ := filament.CRC32C(b.Records)
 	return filament.WriteReceipt{
-		URI:      joinURI(s.warehouse, namespacePath(s.namespace), b.Resource),
+		URI:      it.tbl.Location(),
 		Bytes:    nbytes,
 		Rows:     len(b.Records),
 		WriteCRC: crc,
