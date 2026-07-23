@@ -1,4 +1,7 @@
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  type SelectInputOption,
+  SelectInputSize,
+} from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
 
@@ -28,6 +31,7 @@ const FieldEnum = ({
       isRequired={field.required}
       error={error}
       isDisabled={isDisabled}
+      size={SelectInputSize.LARGE}
       fillWidth
     />
   );
