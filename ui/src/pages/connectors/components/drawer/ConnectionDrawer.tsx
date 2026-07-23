@@ -101,9 +101,6 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
               label="Connection ID"
               value={
                 <CopyInput value={connection.id} size={InputSize.SMALL} width={272} isMonospace />
-                // <Text size={TextSize.BODY_SM} isMonospace isSelectable>
-                //   {connection.id}
-                // </Text>
               }
             />
             <ConnectionDrawerKeyValueRow
