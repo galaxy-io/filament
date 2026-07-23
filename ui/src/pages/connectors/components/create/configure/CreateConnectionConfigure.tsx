@@ -2,14 +2,14 @@ import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowLeftIcon, ArrowRightIcon, BookOpenIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -273,7 +273,7 @@ const CreateConnectionConfigureContent = ({
     handleCreateConnection();
   }, [handleCreateConnection]);
 
-  const handleDocsClick = useCallback(() => {
+  const _handleDocsClick = useCallback(() => {
     window.open(CONNECTORS_DOCS_URL, "_blank");
   }, []);
 
@@ -365,21 +365,13 @@ const CreateConnectionConfigureContent = ({
         <HorizontalDivider />
       </FlexItem>
       <FooterWrapper>
-        <FlexWrapper gap={8} alignItems={AlignItems.CENTER}>
-          <Button
-            size={ButtonSize.LARGE}
-            onClick={onBack}
-            icon={ArrowLeftIcon}
-            variant={ButtonVariant.SECONDARY}
-          />
-          <Button
-            size={ButtonSize.LARGE}
-            onClick={handleDocsClick}
-            label="Docs"
-            icon={BookOpenIcon}
-            variant={ButtonVariant.TERTIARY}
-          />
-        </FlexWrapper>
+        <Button
+          size={ButtonSize.LARGE}
+          onClick={onBack}
+          icon={ArrowLeftIcon}
+          label="Back"
+          variant={ButtonVariant.TERTIARY}
+        />
         {renderFooter()}
       </FooterWrapper>
     </CreateConnectionConfigureWrapper>

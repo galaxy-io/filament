@@ -12,12 +12,13 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Modal from "@galaxy-io/dls/modal/Modal";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -186,6 +187,21 @@ const PipelineSettingsPage = () => {
         minWidth={400}
         maxWidth={600}
       >
+        <Widget noHover fillWidth>
+          <FlexWrapper
+            fillWidth
+            alignItems={AlignItems.CENTER}
+            justifyContent={JustifyContent.SPACE_BETWEEN}
+          >
+            <Text weight={TextWeight.MEDIUM}>Pipeline ID</Text>
+            <CopyInput
+              value={data?.pipeline?.id ?? ""}
+              size={InputSize.SMALL}
+              width={272}
+              isMonospace
+            />
+          </FlexWrapper>
+        </Widget>
         <Widget header="General" noHover fillWidth>
           <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
             <TextInput

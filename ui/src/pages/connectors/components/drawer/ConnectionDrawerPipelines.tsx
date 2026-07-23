@@ -8,7 +8,6 @@ import { useQueries } from "@tanstack/react-query";
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
@@ -69,7 +68,6 @@ const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesPr
       {connectedPipelines.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={<Icon component={FlowArrowIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No pipelines"
           message="This connection is not used in any pipelines."
         />

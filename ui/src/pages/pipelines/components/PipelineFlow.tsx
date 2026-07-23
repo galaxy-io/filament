@@ -1,8 +1,8 @@
-import { FlowArrowIcon, LinkBreakIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, XIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import ConnectorTile, {
   ConnectorOverflowTile,
@@ -18,7 +18,7 @@ const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, Co
 };
 
 const PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP: Record<PipelineFlowSize, number> = {
-  [PipelineFlowSize.SMALL]: 12,
+  [PipelineFlowSize.SMALL]: 16,
   [PipelineFlowSize.MEDIUM]: 16,
 };
 
@@ -83,9 +83,10 @@ const PipelineFlow = ({
         <ConnectorTileEmpty size={tileSize} />
       )}
       <Icon
-        component={isLinked ? FlowArrowIcon : LinkBreakIcon}
+        component={isLinked ? FlowArrowIcon : XIcon}
+        variant={isLinked ? IconVariant.PRIMARY : IconVariant.ERROR}
         size={iconSize}
-        variant={isLinked ? IconVariant.TERTIARY : IconVariant.ERROR}
+        weight={IconWeight.REGULAR}
       />
       {hasSinks ? (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
