@@ -25,8 +25,6 @@ export const PIPELINE_METRIC_COLUMN_WIDTH_SCHEDULE = 120;
 export const RUN_HISTORY_LIMIT = 50;
 export const RUN_HISTORY_LOADING_ROW_COUNT = 10;
 export const RUN_RESOURCE_LOADING_ROW_COUNT = 3;
-// The nested resource table auto-sizes to its rows; when empty it needs an
-// explicit height so the absolutely-positioned empty state has room to render.
 export const RUN_RESOURCE_EMPTY_TABLE_HEIGHT = 160;
 export const RUN_ERROR_TOOLTIP_MAX_WIDTH = 360;
 export const RUN_TABLE_COLUMN_WIDTH_STATUS = 110;
