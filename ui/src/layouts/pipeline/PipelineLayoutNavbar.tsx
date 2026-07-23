@@ -1,18 +1,8 @@
 import { styled } from "@linaria/react";
-import {
-  ArrowUUpLeftIcon,
-  FloppyDiskIcon,
-  PlayIcon,
-} from "@phosphor-icons/react";
+import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import SelectInput, {
   type SelectInputOption,
   SelectInputSize,
@@ -30,7 +20,6 @@ import PipelineFlow, {
   PipelineFlowSize,
 } from "@/pages/pipelines/components/PipelineFlow";
 import { formatPipelineName } from "@/pages/pipelines/utils";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;

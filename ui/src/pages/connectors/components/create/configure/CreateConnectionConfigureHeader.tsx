@@ -1,26 +1,17 @@
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 import { BaseHeaderSize } from "@/layouts/components/types";
 
-import ConnectorTile, {
-  ConnectorTileSize,
-} from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
   CONNECTOR_KIND_TO_CHIP_VARIANT_MAP,
   CONNECTOR_KIND_TO_LABEL_MAP,
 } from "@/pages/connectors/constants";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
 
 interface CreateConnectionConfigureHeaderProps {
   connector: ConnectorSpec;
@@ -32,12 +23,7 @@ const CreateConnectionConfigureHeader = ({
   onClose,
 }: CreateConnectionConfigureHeaderProps) => {
   return (
-    <FlexWrapper
-      alignItems={AlignItems.CENTER}
-      padding="12px 16px"
-      gap={12}
-      fillWidth
-    >
+    <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
       <FlexItem shrink={0}>
         <ConnectorTile
           connector={connector.name}

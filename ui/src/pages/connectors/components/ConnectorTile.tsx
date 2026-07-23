@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { CircleIcon, QuestionMarkIcon, XIcon } from "@phosphor-icons/react";
+import { CircleIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
@@ -74,9 +74,7 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-const EmptyTileWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $size: ConnectorTileSize }>
->`
+const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
   width: ${({ $size }) => getTileSize($size)}px;
   height: ${({ $size }) => getTileSize($size)}px;
 
@@ -147,11 +145,7 @@ const ConnectorTile = ({
           onError={() => setFailedLogoURL(logoURL)}
         />
       ) : (
-        <Text
-          size={getTextSize(size)}
-          variant={TextVariant.SECONDARY}
-          isMonospace
-        >
+        <Text size={getTextSize(size)} variant={TextVariant.SECONDARY} isMonospace>
           {connector.charAt(0).toUpperCase()}
         </Text>
       )}

@@ -14,9 +14,7 @@ import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput, {
-  TextAreaSize,
-} from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Modal from "@galaxy-io/dls/modal/Modal";
@@ -81,10 +79,8 @@ const PipelineSettingsPage = () => {
   const { data } = useGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
   });
-  const { mutate: deletePipeline, isPending: isDeleting } =
-    useDeletePipelineMutation();
-  const { mutate: updatePipeline, isPending: isSaving } =
-    useUpdatePipelineMutation();
+  const { mutate: deletePipeline, isPending: isDeleting } = useDeletePipelineMutation();
+  const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();
 
   const { showToast } = useToast();
 
@@ -107,10 +103,7 @@ const PipelineSettingsPage = () => {
       onError: (error) => {
         showToast({
           header: "Delete failed",
-          subheader:
-            error instanceof Error
-              ? error.message
-              : "Failed to delete pipeline",
+          subheader: error instanceof Error ? error.message : "Failed to delete pipeline",
           variant: ToastVariant.ERROR,
         });
         setIsDeleteModalOpen(false);
@@ -170,8 +163,7 @@ const PipelineSettingsPage = () => {
       onError: (error) => {
         showToast({
           header: "Save failed",
-          subheader:
-            error instanceof Error ? error.message : "Failed to save pipeline",
+          subheader: error instanceof Error ? error.message : "Failed to save pipeline",
           variant: ToastVariant.ERROR,
         });
       },
@@ -247,10 +239,7 @@ const PipelineSettingsPage = () => {
                 Run this pipeline on a recurring schedule.
               </Text>
             </FlexWrapper>
-            <ToggleInput
-              value={state.scheduleEnabled}
-              onChange={handleScheduleEnabledChange}
-            />
+            <ToggleInput value={state.scheduleEnabled} onChange={handleScheduleEnabledChange} />
           </FlexWrapper>
         </Widget>
 

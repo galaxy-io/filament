@@ -1,15 +1,14 @@
 import { useState } from "react";
 
-import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -31,7 +30,6 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import DangerZone from "@/components/DangerZone";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 
 const DrawerWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -55,8 +53,7 @@ interface ConnectionDrawerProps {
 
 const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
   const navigate = useNavigate();
-  const { mutate: deleteConnection, isPending: isDeleting } =
-    useDeleteConnectionMutation();
+  const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
   const { showToast } = useToast();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -82,10 +79,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
         onError: (error) => {
           showToast({
             header: "Delete failed",
-            subheader:
-              error instanceof Error
-                ? error.message
-                : "Failed to delete connection",
+            subheader: error instanceof Error ? error.message : "Failed to delete connection",
             variant: ToastVariant.ERROR,
           });
           setIsDeleteModalOpen(false);
@@ -101,22 +95,12 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
       <HorizontalDivider />
 
       <DrawerBody>
-        <FlexWrapper
-          direction={FlexDirection.COLUMN}
-          gap={12}
-          padding="16px"
-          fillWidth
-        >
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="16px" fillWidth>
           <ConnectionDrawerList>
             <ConnectionDrawerKeyValueRow
               label="Connection ID"
               value={
-                <CopyInput
-                  value={connection.id}
-                  size={InputSize.SMALL}
-                  width={272}
-                  isMonospace
-                />
+                <CopyInput value={connection.id} size={InputSize.SMALL} width={272} isMonospace />
                 // <Text size={TextSize.BODY_SM} isMonospace isSelectable>
                 //   {connection.id}
                 // </Text>
@@ -124,32 +108,22 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
             />
             <ConnectionDrawerKeyValueRow
               label="Connector"
-              value={
-                <Text size={TextSize.BODY_SM}>{connection.connector}</Text>
-              }
+              value={<Text size={TextSize.BODY_SM}>{connection.connector}</Text>}
             />
             <ConnectionDrawerKeyValueRow
               label="Kind"
               value={
                 <Chip
-                  label={
-                    connection.kind === ConnectorKind.SOURCE ? "Source" : "Sink"
-                  }
+                  label={connection.kind === ConnectorKind.SOURCE ? "Source" : "Sink"}
                   variant={
-                    connection.kind === ConnectorKind.SOURCE
-                      ? ChipVariant.LIME
-                      : ChipVariant.PINK
+                    connection.kind === ConnectorKind.SOURCE ? ChipVariant.LIME : ChipVariant.PINK
                   }
                 />
               }
             />
             <ConnectionDrawerKeyValueRow
               label="Version"
-              value={
-                <Text size={TextSize.BODY_SM}>
-                  {connection.version.toString()}
-                </Text>
-              }
+              value={<Text size={TextSize.BODY_SM}>{connection.version.toString()}</Text>}
             />
           </ConnectionDrawerList>
 

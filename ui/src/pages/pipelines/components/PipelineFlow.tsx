@@ -1,10 +1,8 @@
 import { FlowArrowIcon, XIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import ConnectorTile, {
   ConnectorOverflowTile,
@@ -13,13 +11,8 @@ import ConnectorTile, {
 } from "@/pages/connectors/components/ConnectorTile";
 import { PIPELINE_MAX_VISIBLE_SINKS } from "@/pages/pipelines/constants";
 import { PipelineFlowSize } from "@/pages/pipelines/types";
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
-import { TextWeight } from "@galaxy-io/dls/text/Text";
 
-const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<
-  PipelineFlowSize,
-  ConnectorTileSize
-> = {
+const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, ConnectorTileSize> = {
   [PipelineFlowSize.SMALL]: ConnectorTileSize.SMALL,
   [PipelineFlowSize.MEDIUM]: ConnectorTileSize.MEDIUM,
 };

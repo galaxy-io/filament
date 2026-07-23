@@ -8,7 +8,6 @@ import { useQueries } from "@tanstack/react-query";
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
@@ -55,6 +54,7 @@ const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesPr
   return (
     <Accordion
       header="Pipelines"
+      icon={FlowArrowIcon}
       metric={
         <Badge
           count={connectedPipelines.length}
