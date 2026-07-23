@@ -15,10 +15,11 @@ import (
 )
 
 // FromEnv selects the datastore per PERSISTENCE_PROVIDER; postgres is the
-// default. postgres pools connections from PERSISTENCE_DSN.
+// default ("postgresql" is accepted as an alias, matching the Helm chart).
+// postgres pools connections from PERSISTENCE_DSN.
 func FromEnv(ctx context.Context) (filament.DataStore, error) {
 	switch provider := os.Getenv("PERSISTENCE_PROVIDER"); provider {
-	case "", "postgres":
+	case "", "postgres", "postgresql":
 		dsn, err := dsnFromEnv()
 		if err != nil {
 			return nil, err
@@ -37,7 +38,7 @@ func FromEnv(ctx context.Context) (filament.DataStore, error) {
 // reachable first.
 func MigrateFromEnv(ctx context.Context) error {
 	switch provider := os.Getenv("PERSISTENCE_PROVIDER"); provider {
-	case "", "postgres":
+	case "", "postgres", "postgresql":
 		dsn, err := dsnFromEnv()
 		if err != nil {
 			return err

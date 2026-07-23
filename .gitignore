@@ -27,5 +27,8 @@ coverage.out
 # Vendored charts
 charts/filament/charts/*
 
+# Local testing values
+charts/filament/values.local.yaml
+
 # Environment
 .env

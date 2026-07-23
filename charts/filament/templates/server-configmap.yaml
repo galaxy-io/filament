@@ -4,7 +4,11 @@ metadata:
   name: {{ include "filament.server.fullname" . }}
   namespace: {{ include "filament.namespace" . }}
 data:
-  # NATS
+  # Persistence
+  PERSISTENCE_PROVIDER: {{ .Values.persistence.type | quote }}
+
+  # Event bus
+  EVENTBUS_PROVIDER: {{ .Values.eventBus.type | quote }}
   NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
   NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
 

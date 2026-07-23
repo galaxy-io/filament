@@ -31,6 +31,8 @@ spec:
           imagePullPolicy: {{ .Values.server.image.pullPolicy }}
           args: ["-migrate"]
           env:
+            - name: PERSISTENCE_PROVIDER
+              value: {{ .Values.persistence.type | quote }}
             - name: PERSISTENCE_DSN
               valueFrom:
                 secretKeyRef:
