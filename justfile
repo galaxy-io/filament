@@ -45,8 +45,9 @@ images: binaries
 _each cmd:
     for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{cmd}}) || exit 1; done
 
-# tidy go.mod/go.sum in every Go module
+# tidy go.mod/go.sum in every Go module, then sync workspace versions
 tidy: (_each "GOWORK=off go mod tidy")
+    go work sync
 
 # apply gofumpt + goimports to every Go module (settings in .golangci.yaml), plus UI formatting
 format: (_each "GOWORK=off golangci-lint fmt ./...") ui-format
@@ -132,5 +133,6 @@ dev:
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
     just control-plane &
     just server &
+    until curl -sf http://localhost:8080/livez > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait

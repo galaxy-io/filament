@@ -3,12 +3,16 @@ name: filament
 services:
   postgres:
     image: postgres:16
+    networks:
+      - filament
     ports:
       - "5432:5432"
     environment:
       POSTGRES_USER: filament
       POSTGRES_PASSWORD: filament
       POSTGRES_DB: filament
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U filament -d filament"]
       interval: 2s
@@ -17,11 +21,22 @@ services:
 
   nats:
     image: nats:2-alpine
-    command: ["-js", "-m", "8222"]
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    networks:
+      - filament
     ports:
       - "4222:4222"
+    volumes:
+      - nats-data:/data
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz > /dev/null"]
       interval: 2s
       timeout: 2s
       retries: 15
+
+networks:
+  filament:
+
+volumes:
+  postgres-data:
+  nats-data:
