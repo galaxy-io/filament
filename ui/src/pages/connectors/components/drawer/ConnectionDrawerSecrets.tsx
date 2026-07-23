@@ -3,7 +3,6 @@ import { KeyIcon } from "@phosphor-icons/react";
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
@@ -31,7 +30,6 @@ const ConnectionDrawerSecrets = ({ secretRefs }: ConnectionDrawerSecretsProps) =
       {secretRefEntries.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={<Icon component={KeyIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No secrets"
           message="This connection has no secret references."
         />

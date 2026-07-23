@@ -77,7 +77,7 @@ const PipelineLayoutNavbar = ({
 }: PipelineLayoutNavbarProps) => {
   return (
     <PipelineLayoutNavbarWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <PipelineFlow
           source={source}
           sinks={sinks}

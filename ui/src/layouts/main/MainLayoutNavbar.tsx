@@ -51,14 +51,19 @@ const MainLayoutNavbar = () => {
     route: "/pipelines",
     fuzzy: true,
   });
-  const { isRouteMatch: isConnectionsActive } = useRouteMatch({
-    route: "/connections",
+  const { isRouteMatch: isSourcesActive } = useRouteMatch({
+    route: "/sources",
+    fuzzy: true,
+  });
+  const { isRouteMatch: isSinksActive } = useRouteMatch({
+    route: "/sinks",
     fuzzy: true,
   });
 
   const isActiveByRoute: Record<string, boolean> = {
     "/pipelines": isPipelinesActive,
-    "/connections": isConnectionsActive,
+    "/sources": isSourcesActive,
+    "/sinks": isSinksActive,
   };
 
   return (

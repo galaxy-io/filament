@@ -7,6 +7,8 @@ import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -70,7 +72,9 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
             variant: ToastVariant.SUCCESS,
           });
           onClose();
-          navigate({ to: "/connections" });
+          navigate({
+            to: connection.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
+          });
         },
         onError: (error) => {
           showToast({
@@ -96,9 +100,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
             <ConnectionDrawerKeyValueRow
               label="Connection ID"
               value={
-                <Text size={TextSize.BODY_SM} isMonospace isSelectable>
-                  {connection.id}
-                </Text>
+                <CopyInput value={connection.id} size={InputSize.SMALL} width={272} isMonospace />
               }
             />
             <ConnectionDrawerKeyValueRow

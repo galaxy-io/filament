@@ -10,5 +10,6 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/pipelines", label: "Pipelines" },
-  { to: "/connections", label: "Connections" },
+  { to: "/sources", label: "Sources" },
+  { to: "/sinks", label: "Sinks" },
 ];
