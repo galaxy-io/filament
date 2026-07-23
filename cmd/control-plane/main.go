@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,23 +14,16 @@ import (
 	"syscall"
 	"time"
 
-	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
+	"github.com/galaxy-io/filament/cmd/internal/dispatch"
+	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/persistence"
+	"github.com/galaxy-io/filament/cmd/internal/secret"
 	"github.com/galaxy-io/filament/eventbus/host"
-	natsbus "github.com/galaxy-io/filament/eventbus/nats"
-	"github.com/galaxy-io/filament/events"
-	"github.com/galaxy-io/filament/internal/modules/engine"
-	"github.com/galaxy-io/filament/internal/modules/k8sdispatch"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
-	"github.com/galaxy-io/filament/secret"
 
-	_ "github.com/galaxy-io/filament/connectors/http"
-	_ "github.com/galaxy-io/filament/connectors/iceberg"
-	_ "github.com/galaxy-io/filament/connectors/object"
-	_ "github.com/galaxy-io/filament/connectors/postgres"
-	_ "github.com/galaxy-io/filament/connectors/sample"
-	_ "github.com/galaxy-io/filament/connectors/stdout"
+	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {
@@ -43,36 +35,16 @@ func main() {
 	}
 }
 
-// dispatchModule selects the execution environment for requested runs:
-// kubernetes launches one worker Job per run; inproc executes runs inside
-// this process through the engine module.
-func dispatchModule() (module.Module, error) {
-	switch mode := os.Getenv("DISPATCH_MODE"); mode {
-	case "", "kubernetes":
-		return k8sdispatch.NewFromEnv(), nil
-	case "inproc":
-		return engine.New(), nil
-	default:
-		return nil, fmt.Errorf("unknown DISPATCH_MODE %q (kubernetes|inproc)", mode)
-	}
-}
-
 func run(ctx context.Context) error {
-	persistenceDSN := os.Getenv("PERSISTENCE_DSN")
-	if persistenceDSN == "" {
-		return errors.New("PERSISTENCE_DSN is required")
-	}
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		return errors.New("NATS_URL is required")
-	}
-
-	pool, err := ctlpg.NewPool(ctx, persistenceDSN)
+	store, err := persistence.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
-	store := ctlpg.New(pool)
+	defer func() {
+		if c, ok := store.(io.Closer); ok {
+			_ = c.Close()
+		}
+	}()
 	secrets, err := secret.FromEnv(ctx, store)
 	if err != nil {
 		return err
@@ -85,7 +57,7 @@ func run(ctx context.Context) error {
 	healthMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		pingCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
-		if err := pool.Ping(pingCtx); err != nil {
+		if err := store.Ping(pingCtx); err != nil {
 			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
 			return
 		}
@@ -98,20 +70,17 @@ func run(ctx context.Context) error {
 	healthSrv := &http.Server{Addr: healthAddr, Handler: healthMux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = healthSrv.ListenAndServe() }()
 	defer func() { _ = healthSrv.Close() }()
-	busOpts := []natsbus.Option{}
-	if stream := os.Getenv("NATS_STREAM"); stream != "" {
-		busOpts = append(busOpts, natsbus.WithStream(stream))
-	}
-	if subjects := os.Getenv("NATS_SUBJECTS"); subjects != "" {
-		busOpts = append(busOpts, natsbus.WithSubjects(subjects))
-	}
-	bus, err := natsbus.New(natsURL, events.Codec, busOpts...)
+	bus, err := eventbus.FromEnv()
 	if err != nil {
 		return err
 	}
-	defer func() { _ = bus.Close() }()
+	defer func() {
+		if c, ok := any(bus).(io.Closer); ok {
+			_ = c.Close()
+		}
+	}()
 
-	dispatch, err := dispatchModule()
+	dispatch, err := dispatch.FromEnv()
 	if err != nil {
 		return err
 	}
