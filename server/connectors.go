@@ -59,7 +59,7 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		if err != nil {
 			return nil, err
 		}
-		if err := validateConfigSchema(sink.Spec().Config, cfg); err != nil {
+		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
 	default:
