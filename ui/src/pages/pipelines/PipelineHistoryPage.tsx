@@ -3,13 +3,11 @@ import { styled } from "@linaria/react";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
 
-import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -19,22 +17,24 @@ import { BaseHeaderSize } from "@/layouts/components/types";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
+import RunStatusCell from "@/pages/pipelines/components/RunStatusCell";
 import {
   RUN_HISTORY_LIMIT,
   RUN_HISTORY_LOADING_ROW_COUNT,
-  RUN_STATUS_TO_BEACON_VARIANT_MAP,
-  RUN_STATUS_TO_LABEL_MAP,
-  RUN_STATUS_TO_TEXT_VARIANT_MAP,
+  RUN_TABLE_COLUMN_WIDTH_ENDED_AT,
   RUN_TABLE_COLUMN_WIDTH_RECORDS,
+  RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
   RUN_TABLE_COLUMN_WIDTH_STATUS,
   RUN_TABLE_COLUMN_WIDTH_VERSION,
   RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
-import { formatBytes, formatCount } from "@/pages/pipelines/utils";
+import { formatBytes, formatCount, formatTimestamp } from "@/pages/pipelines/utils";
 
 import { useListRunsQuery } from "@/api/queries/runs";
 
-import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
+
+import PipelineHistoryRunInfo from "./canvas/history/PipelineHistoryRunInfo";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -54,52 +54,45 @@ const RunTableWrapper = styled.div`
   min-height: 0;
 `;
 
-interface RunCellProps {
-  run: RunInfo;
-}
-
-const StatusCell = ({ run }: RunCellProps) => {
-  return (
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
-      <Beacon
-        variant={RUN_STATUS_TO_BEACON_VARIANT_MAP[run.status]}
-        isPulse={run.status === RunStatus.RUNNING}
-      />
-      <Text size={TextSize.BODY_SM} variant={RUN_STATUS_TO_TEXT_VARIANT_MAP[run.status]}>
-        {RUN_STATUS_TO_LABEL_MAP[run.status]}
-      </Text>
-    </FlexWrapper>
-  );
-};
-
-const RunIdCell = ({ run }: RunCellProps) => {
-  return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={2}>
-      <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-        {run.runId}
-      </Text>
-      {run.error && (
-        <Text size={TextSize.CAPTION} variant={TextVariant.ERROR} isEllipsis>
-          {run.error}
-        </Text>
-      )}
-    </FlexWrapper>
-  );
-};
-
 const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "status",
     header: "Status",
     size: RUN_TABLE_COLUMN_WIDTH_STATUS,
     cellLoading: () => <TextShimmer width={64} height={18} />,
-    cell: ({ row }) => <StatusCell run={row.original} />,
+    cell: ({ row }) => <RunStatusCell status={row.original.status} error={row.original.error} />,
   },
   {
     id: "run",
     header: "Run",
     cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => <RunIdCell run={row.original} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
+        {row.original.runId}
+      </Text>
+    ),
+  },
+  {
+    id: "startedAt",
+    header: "Started",
+    size: RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
+    cellLoading: () => <TextShimmer width={160} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
+        {formatTimestamp(row.original.startedAt)}
+      </Text>
+    ),
+  },
+  {
+    id: "endedAt",
+    header: "Ended",
+    size: RUN_TABLE_COLUMN_WIDTH_ENDED_AT,
+    cellLoading: () => <TextShimmer width={160} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
+        {formatTimestamp(row.original.endedAt)}
+      </Text>
+    ),
   },
   {
     id: "version",
@@ -177,6 +170,9 @@ const PipelineHistoryPage = () => {
           contentWhenEmpty={
             <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
           }
+          onRowExpand={(row) => {
+            return <PipelineHistoryRunInfo runId={row.original.runId} />;
+          }}
           fillWidth
           fillHeight
         />

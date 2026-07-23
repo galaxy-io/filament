@@ -57,6 +57,27 @@ export const formatTimeAgo = (unixMillis: bigint): string => {
   });
 };
 
+export const formatTimestamp = (unixMillis: bigint): string => {
+  if (!unixMillis) return "—";
+  return new Date(Number(unixMillis)).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+export const formatDuration = (startMillis: bigint, endMillis: bigint): string => {
+  if (!startMillis || !endMillis) return "—";
+  const elapsedMs = Number(endMillis - startMillis);
+  if (elapsedMs < 1_000) return `${elapsedMs}ms`;
+  const seconds = elapsedMs / 1_000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${Math.round(seconds % 60)}s`;
+};
+
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
 
 export const formatBytes = (value: bigint): string => {
