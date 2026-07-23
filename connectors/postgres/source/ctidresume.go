@@ -122,14 +122,13 @@ func (s *Source) currentFilenode(ctx context.Context, qualified string) (string,
 // by re-delivering rows that churned since the run-start horizon, and (b) tail-scan any heap
 // blocks appended past the run-start size (all such rows are post-horizon). Reconcile/tail
 // rows are plain (no Part/Coarse) — pure idempotent re-deliveries that touch no cursor.
-func (s *Source) ctidJobs(ctx context.Context, sink filament.RecordSink, table, qualified string, ks checkpoint.KeysetCheckpoint, limit int) []func(context.Context, querier) error {
-	shards := s.ctidShardsFrom(ctx, table, qualified, ks)
+func (s *Source) ctidJobs(ctx context.Context, sink filament.RecordSink, table, qualified string, ks checkpoint.KeysetCheckpoint, enc *rowEncoder, limit int) []func(context.Context, querier) error {
+	shards := s.ctidShardsFrom(ctx, table, qualified, ks, enc)
 	horizon := ks.Meta[metaXminHorizon]
 	unfiltered := s.freezeAdvanced(ctx, qualified, horizon)
 
 	var jobs []func(context.Context, querier) error
 	for i, sh := range shards {
-		i, sh := i, sh
 		if ks.Shards[i].Done {
 			jobs = append(jobs, func(ctx context.Context, q querier) error {
 				return s.reconcileCtidBlocks(ctx, sink, q, sh, horizon, unfiltered)
@@ -164,7 +163,7 @@ func toSlice(s string) []string {
 
 // ctidShardsFrom reconstructs block-range shards (and the pk columns for id projection)
 // from a decoded ctid checkpoint.
-func (s *Source) ctidShardsFrom(ctx context.Context, table, qualified string, ks checkpoint.KeysetCheckpoint) []shard {
+func (s *Source) ctidShardsFrom(ctx context.Context, table, qualified string, ks checkpoint.KeysetCheckpoint, enc *rowEncoder) []shard {
 	pks := pkColumnsFrom(ks)
 	idExpr := idExprFor(pks)
 	window, err := s.windowBlocks(ctx, qualified)
@@ -177,6 +176,7 @@ func (s *Source) ctidShardsFrom(ctx context.Context, table, qualified string, ks
 			table:        table,
 			qualified:    qualified,
 			idExpr:       idExpr,
+			enc:          enc,
 			loBlock:      atoiOr(sh.Lo, 0),
 			hiBlock:      atoiOr(sh.Hi, 0),
 			windowBlocks: window,
@@ -210,13 +210,7 @@ func (s *Source) reconcileCtidBlocks(ctx context.Context, sink filament.RecordSi
 	if !unfiltered && horizon != "" {
 		filter = " AND age(t.xmin) <= age($3::xid)"
 	}
-	sql := fmt.Sprintf(`
-SELECT %[1]s AS id, j::text AS data
-FROM (
-	SELECT to_jsonb(t) AS j, t.ctid AS c
-	FROM %[2]s t
-	WHERE t.ctid >= $1::tid AND t.ctid < $2::tid%[3]s
-) page`, sh.idExpr, sh.qualified, filter)
+	sql := ctidWindowSQL(sh, filter)
 
 	for b := sh.loBlock; b < sh.hiBlock; b += sh.windowBlocks {
 		hi := min(b+sh.windowBlocks, sh.hiBlock)
@@ -224,28 +218,15 @@ FROM (
 		if filter != "" {
 			args = append(args, horizon)
 		}
-		rows, err := q.Query(ctx, sql, args...)
+		page, err := s.readWindow(ctx, q, sql, sh.table, sh.enc, args...)
 		if err != nil {
-			return err
+			return fmt.Errorf("reconcile %q: %w", sh.table, err)
 		}
-		var id string
-		var data []byte
-		dest := []any{&id, &data}
-		for rows.Next() {
-			if err := rows.Scan(dest...); err != nil {
-				rows.Close()
-				return fmt.Errorf("reconcile scan %q: %w", sh.table, err)
-			}
-			if err := sink.Push(filament.NewRecord(sh.table, id, append([]byte(nil), data...))); err != nil {
-				rows.Close()
+		for _, rec := range page {
+			if err := sink.Push(rec); err != nil {
 				return err
 			}
 		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return err
-		}
-		rows.Close()
 	}
 	return nil
 }
@@ -274,18 +255,12 @@ func atoiOr(s []string, def int) int {
 // (so the tracker ack-counts completion), then pushes a Drained sentinel on a clean drain.
 // A row-limit truncation suppresses the sentinel so the shard stays resumable.
 func (s *Source) extractCtidShard(ctx context.Context, sink filament.RecordSink, q querier, sh shard, part, limit int) error {
-	sql := fmt.Sprintf(`
-SELECT %[1]s AS id, j::text AS data
-FROM (
-	SELECT to_jsonb(t) AS j, t.ctid AS c
-	FROM %[2]s t
-	WHERE t.ctid >= $1::tid AND t.ctid < $2::tid
-) page`, sh.idExpr, sh.qualified)
+	sql := ctidWindowSQL(sh, "")
 
 	emitted := 0
 	for b := sh.loBlock; b < sh.hiBlock; b += sh.windowBlocks {
 		hi := min(b+sh.windowBlocks, sh.hiBlock)
-		page, err := s.readWindow(ctx, q, sql, fmt.Sprintf("(%d,0)", b), fmt.Sprintf("(%d,0)", hi), sh.table)
+		page, err := s.readWindow(ctx, q, sql, sh.table, sh.enc, fmt.Sprintf("(%d,0)", b), fmt.Sprintf("(%d,0)", hi))
 		if err != nil {
 			return err
 		}
