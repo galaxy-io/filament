@@ -56,9 +56,10 @@ const FieldObject = ({
       <CodeEditor
         content={displayValue}
         onChange={handleChange}
-        placeholder={field.help || "Enter JSON..."}
+        placeholder="{}"
         lang="json"
         isReadOnly={isDisabled}
+        noLineNumbers
       />
     </Field>
   );

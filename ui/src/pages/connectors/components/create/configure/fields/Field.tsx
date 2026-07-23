@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
+import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import Spacing from "@galaxy-io/dls/containers/Spacing";
 import HelpIcon from "@galaxy-io/dls/icons/HelpIcon";
@@ -51,22 +51,7 @@ const Field = ({
 }: PropsWithChildren<FieldProps>) => {
   if (isSection) {
     return (
-      <Accordion
-        header={label}
-        isOpen={true}
-        metric={
-          (isRequired || help) && (
-            <FlexWrapper alignItems={AlignItems.CENTER} gap={1}>
-              {isRequired && <RequiredMarker />}
-              {help && (
-                <Tooltip body={help} position={TooltipPosition.RIGHT}>
-                  <HelpIcon />
-                </Tooltip>
-              )}
-            </FlexWrapper>
-          )
-        }
-      >
+      <Accordion variant={AccordionVariant.PRIMARY} header={label} subheader={help} isOpenInitial>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={6} fillWidth>
           {children}
           <FieldError error={error} />
