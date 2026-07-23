@@ -17,7 +17,6 @@ const ConnectionDrawerSecrets = ({ secretRefs }: ConnectionDrawerSecretsProps) =
   return (
     <Accordion
       header="Secrets"
-      icon={KeyIcon}
       metric={
         <Badge
           count={secretRefEntries.length}
@@ -31,7 +30,6 @@ const ConnectionDrawerSecrets = ({ secretRefs }: ConnectionDrawerSecretsProps) =
       {secretRefEntries.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={<Icon component={KeyIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No secrets"
           message="This connection has no secret references."
         />

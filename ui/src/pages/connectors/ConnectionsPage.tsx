@@ -45,6 +45,35 @@ import { CONNECTORS_DOCS_URL } from "@/constants";
 
 const LOADING_CARD_COUNT = 6;
 
+const KIND_TO_COPY: Record<
+  ConnectorKind.SOURCE | ConnectorKind.SINK,
+  {
+    plural: string;
+    searchPlaceholder: string;
+    newLabel: string;
+    errorMessage: string;
+    emptyHeader: string;
+    emptyMessage: string;
+  }
+> = {
+  [ConnectorKind.SOURCE]: {
+    plural: "sources",
+    searchPlaceholder: "Search sources",
+    newLabel: "New source",
+    errorMessage: "Failed to load sources. Please try again.",
+    emptyHeader: "No sources found",
+    emptyMessage: "Connect data sources to move data in.",
+  },
+  [ConnectorKind.SINK]: {
+    plural: "sinks",
+    searchPlaceholder: "Search sinks",
+    newLabel: "New sink",
+    errorMessage: "Failed to load sinks. Please try again.",
+    emptyHeader: "No sinks found",
+    emptyMessage: "Connect data sinks to move data out.",
+  },
+};
+
 const ConnectorListScrollArea = styled.div`
   flex: 1;
   width: 100%;
@@ -57,18 +86,23 @@ const ConnectorListScrollArea = styled.div`
 
 const DEFAULT_STATE: ConnectionsPageState = {
   search: "",
-  kindFilter: ConnectorKind.UNSPECIFIED,
 };
 
-const ConnectionsPage = () => {
+interface ConnectionsPageProps {
+  kind: ConnectorKind.SOURCE | ConnectorKind.SINK;
+}
+
+const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   const navigate = useNavigate();
+
+  const copy = KIND_TO_COPY[kind];
 
   const [state, setState] = useState<ConnectionsPageState>(DEFAULT_STATE);
 
   const handleOpenCreateConnectorModal = () => {
     void navigate({
       to: ".",
-      search: { flow: Flow.CREATE_CONNECTION },
+      search: { flow: Flow.CREATE_CONNECTION, connectorKind: kind },
     });
   };
 
@@ -77,9 +111,7 @@ const ConnectionsPage = () => {
   };
 
   const { data, isLoading, isError } = useListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, {
-      kind: ConnectorKind.UNSPECIFIED,
-    }),
+    input: create(ListConnectionsRequestSchema, { kind }),
   });
 
   // Each connection's pipeline count comes from the current graph version of
@@ -115,15 +147,10 @@ const ConnectionsPage = () => {
   const filteredConnections = useMemo(() => {
     if (!data?.connections) return [];
 
-    return data.connections.filter((connection) => {
-      const matchesSearch = state.search
-        ? connection.name.toLowerCase().includes(state.search.toLowerCase())
-        : true;
-      const matchesKind =
-        state.kindFilter === ConnectorKind.UNSPECIFIED || connection.kind === state.kindFilter;
-      return matchesSearch && matchesKind;
-    });
-  }, [data?.connections, state.search, state.kindFilter]);
+    return data.connections.filter((connection) =>
+      state.search ? connection.name.toLowerCase().includes(state.search.toLowerCase()) : true,
+    );
+  }, [data?.connections, state.search]);
 
   const handleConnectionClick = (connectionId: string) => {
     void navigate({
@@ -155,7 +182,7 @@ const ConnectionsPage = () => {
       return (
         <ErrorLayout
           icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
-          message="Failed to load connections. Please try again."
+          message={copy.errorMessage}
         />
       );
     }
@@ -166,12 +193,12 @@ const ConnectionsPage = () => {
       return (
         <EmptyLayout
           icon={<ConnectorsEmptyDark height={200} />}
-          header="No connections found"
-          message="Connect data sources and destinations to move data in and out."
+          header={copy.emptyHeader}
+          message={copy.emptyMessage}
           actions={
             <FlexWrapper gap={8}>
               <Button
-                label="New connection"
+                label={copy.newLabel}
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
                 onClick={handleOpenCreateConnectorModal}
@@ -189,13 +216,7 @@ const ConnectionsPage = () => {
     }
 
     if (!filteredConnections.length) {
-      return (
-        <EmptyLayout
-          message={
-            state.search ? "No connectors match your search" : "No connectors match your filters"
-          }
-        />
-      );
+      return <EmptyLayout message={`No ${copy.plural} match your search`} />;
     }
 
     return (
@@ -224,7 +245,7 @@ const ConnectionsPage = () => {
               key="search"
               value={state.search}
               onChange={handleSearchChange}
-              placeholder="Search"
+              placeholder={copy.searchPlaceholder}
               leading={{ icon: MagnifyingGlassIcon }}
               isDisabled={isToolbarDisabled}
               fillWidth
@@ -233,7 +254,7 @@ const ConnectionsPage = () => {
           trailingActions={[
             <Button
               key="new-connector"
-              label="New connection"
+              label={copy.newLabel}
               icon={PlusIcon}
               variant={ButtonVariant.PRIMARY}
               isDisabled={isToolbarDisabled}

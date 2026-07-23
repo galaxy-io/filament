@@ -18,7 +18,6 @@ const ConnectionDrawerConfiguration = ({ config }: ConnectionDrawerConfiguration
   return (
     <Accordion
       header="Configuration"
-      icon={SlidersIcon}
       metric={
         <Badge
           count={configEntries.length}
@@ -32,7 +31,6 @@ const ConnectionDrawerConfiguration = ({ config }: ConnectionDrawerConfiguration
       {configEntries.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={<Icon component={SlidersIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No configuration"
           message="This connection has no configuration values."
         />

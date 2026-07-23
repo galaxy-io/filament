@@ -1,8 +1,10 @@
-import { FlowArrowIcon, LinkBreakIcon } from "@phosphor-icons/react";
+import {} from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import FlexWrapper, {
+  AlignItems,
+  FlexGap,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 
 import ConnectorTile, {
   ConnectorOverflowTile,
@@ -11,14 +13,18 @@ import ConnectorTile, {
 } from "@/pages/connectors/components/ConnectorTile";
 import { PIPELINE_MAX_VISIBLE_SINKS } from "@/pages/pipelines/constants";
 import { PipelineFlowSize } from "@/pages/pipelines/types";
+import PipelineIcon from "@/components/PipelineIcon";
 
-const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, ConnectorTileSize> = {
+const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<
+  PipelineFlowSize,
+  ConnectorTileSize
+> = {
   [PipelineFlowSize.SMALL]: ConnectorTileSize.SMALL,
   [PipelineFlowSize.MEDIUM]: ConnectorTileSize.MEDIUM,
 };
 
 const PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP: Record<PipelineFlowSize, number> = {
-  [PipelineFlowSize.SMALL]: 12,
+  [PipelineFlowSize.SMALL]: 16,
   [PipelineFlowSize.MEDIUM]: 16,
 };
 
@@ -82,11 +88,7 @@ const PipelineFlow = ({
       ) : (
         <ConnectorTileEmpty size={tileSize} />
       )}
-      <Icon
-        component={isLinked ? FlowArrowIcon : LinkBreakIcon}
-        size={iconSize}
-        variant={isLinked ? IconVariant.TERTIARY : IconVariant.ERROR}
-      />
+      <PipelineIcon isLinked={isLinked} size={iconSize} />
       {hasSinks ? (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
           {visibleSinks.map((sink, index) => (

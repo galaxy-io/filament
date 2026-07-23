@@ -55,7 +55,6 @@ const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesPr
   return (
     <Accordion
       header="Pipelines"
-      icon={FlowArrowIcon}
       metric={
         <Badge
           count={connectedPipelines.length}
@@ -69,7 +68,6 @@ const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesPr
       {connectedPipelines.length === 0 ? (
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}
-          icon={<Icon component={FlowArrowIcon} size={16} variant={IconVariant.TERTIARY} />}
           header="No pipelines"
           message="This connection is not used in any pipelines."
         />

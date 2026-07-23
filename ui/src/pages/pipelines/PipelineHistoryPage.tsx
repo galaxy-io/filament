@@ -4,11 +4,17 @@ import { WarningCircleIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  AlignItems,
+  FlexDirection,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable, {
+  ColumnAlign,
+  type ColumnDef,
+} from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -34,7 +40,12 @@ import { formatBytes, formatCount } from "@/pages/pipelines/utils";
 
 import { useListRunsQuery } from "@/api/queries/runs";
 
-import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import {
+  ListRunsRequestSchema,
+  type RunInfo,
+  RunStatus,
+} from "@/gen/ingestion/v1/runs_pb";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -65,7 +76,10 @@ const StatusCell = ({ run }: RunCellProps) => {
         variant={RUN_STATUS_TO_BEACON_VARIANT_MAP[run.status]}
         isPulse={run.status === RunStatus.RUNNING}
       />
-      <Text size={TextSize.BODY_SM} variant={RUN_STATUS_TO_TEXT_VARIANT_MAP[run.status]}>
+      <Text
+        size={TextSize.BODY_SM}
+        variant={RUN_STATUS_TO_TEXT_VARIANT_MAP[run.status]}
+      >
         {RUN_STATUS_TO_LABEL_MAP[run.status]}
       </Text>
     </FlexWrapper>
@@ -108,7 +122,9 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cellLoading: () => <TextShimmer width={32} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM}>
-        {row.original.pipelineVersionId ? `Version ${row.original.pipelineVersionId}` : "—"}
+        {row.original.pipelineVersionId
+          ? `Version ${row.original.pipelineVersionId}`
+          : "—"}
       </Text>
     ),
   },
@@ -142,7 +158,10 @@ const PipelineHistoryPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
 
   const { data, isLoading, isError } = useListRunsQuery({
-    input: create(ListRunsRequestSchema, { pipelineId: id, limit: RUN_HISTORY_LIMIT }),
+    input: create(ListRunsRequestSchema, {
+      pipelineId: id,
+      limit: RUN_HISTORY_LIMIT,
+    }),
   });
 
   return (
@@ -167,12 +186,21 @@ const PipelineHistoryPage = () => {
           isError={isError}
           contentWhenError={
             <ErrorLayout
-              icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
+              icon={
+                <Icon
+                  component={WarningCircleIcon}
+                  size={20}
+                  variant={IconVariant.ERROR}
+                />
+              }
               message="Failed to load runs. Please try again."
             />
           }
           contentWhenEmpty={
-            <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
+            <EmptyLayout
+              header="No runs yet"
+              message="Run a pipeline to see its history here."
+            />
           }
           fillWidth
           fillHeight

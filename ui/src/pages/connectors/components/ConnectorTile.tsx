@@ -1,10 +1,10 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { XIcon } from "@phosphor-icons/react";
+import { CircleIcon, QuestionMarkIcon, XIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -61,6 +61,7 @@ const TileWrapper = withTheme(styled.div<
   background-color: ${({ theme }) => theme.color.background.secondary};
 
   border-radius: ${({ $size }) => getTileRadius($size)}px;
+  border: 0.5px solid ${({ theme }) => theme.color.border.secondary};
 
   overflow: hidden;
 
@@ -73,7 +74,9 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
+const EmptyTileWrapper = withTheme(styled.div<
+  PropsWithTheme<{ $size: ConnectorTileSize }>
+>`
   width: ${({ $size }) => getTileSize($size)}px;
   height: ${({ $size }) => getTileSize($size)}px;
 
@@ -105,7 +108,12 @@ export const ConnectorTileEmpty = ({
 }: EmptyConnectorTileProps) => {
   return (
     <EmptyTileWrapper $size={size}>
-      <Icon component={XIcon} size={10} variant={IconVariant.ERROR} />
+      <Icon
+        component={CircleIcon}
+        size={getTileSize(size) / 2}
+        variant={IconVariant.ERROR}
+        weight={IconWeight.REGULAR}
+      />
     </EmptyTileWrapper>
   );
 };
@@ -139,7 +147,11 @@ const ConnectorTile = ({
           onError={() => setFailedLogoURL(logoURL)}
         />
       ) : (
-        <Text size={getTextSize(size)} variant={TextVariant.SECONDARY} isMonospace>
+        <Text
+          size={getTextSize(size)}
+          variant={TextVariant.SECONDARY}
+          isMonospace
+        >
           {connector.charAt(0).toUpperCase()}
         </Text>
       )}
