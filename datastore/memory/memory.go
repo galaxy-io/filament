@@ -58,6 +58,12 @@ var _ filament.DataStore = (*Store)(nil)
 // Name identifies this store implementation.
 func (s *Store) Name() string { return "memory" }
 
+// Ping reports the store reachable; memory is always up.
+func (s *Store) Ping(context.Context) error { return nil }
+
+// EnsureTenant is a no-op; the in-memory store keeps no tenant rows.
+func (s *Store) EnsureTenant(context.Context, filament.TenantID, string) error { return nil }
+
 // SaveRun stores the run record. Any Resources carried on it are seeded into the
 // resource index (keyed by run); the stored run keeps no Resources slice — the
 // index is the single source of truth, reattached on read.

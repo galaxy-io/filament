@@ -37,6 +37,15 @@ func New(pool *pgxpool.Pool) *Store {
 // same database, e.g. the postgres secrets provider.
 func (s *Store) Pool() *pgxpool.Pool { return s.pool }
 
+// Ping verifies database connectivity.
+func (s *Store) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+
+// Close releases the underlying connection pool.
+func (s *Store) Close() error {
+	s.pool.Close()
+	return nil
+}
+
 var (
 	_ filament.DataStore     = (*Store)(nil)
 	_ filament.ScheduleStore = (*Store)(nil)
