@@ -49,20 +49,47 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 }
 
 func configSchemaToProto(schema filament.ConfigSchema) *ingestionv1.ConfigSchema {
-	fields := make([]*ingestionv1.ConfigField, 0, len(schema.Fields))
-	for _, field := range schema.Fields {
+	return &ingestionv1.ConfigSchema{Fields: configFieldsToProto(schema.Fields)}
+}
+
+func configFieldsToProto(configFields []filament.ConfigField) []*ingestionv1.ConfigField {
+	fields := make([]*ingestionv1.ConfigField, 0, len(configFields))
+	for _, field := range configFields {
 		fields = append(fields, &ingestionv1.ConfigField{
-			Name:     field.Name,
-			Type:     fieldTypeToProto(field.Type),
-			Required: field.Required,
-			Default:  valueToProto(field.Default),
-			Enum:     field.Enum,
-			Help:     field.Help,
-			Scope:    fieldScopeToProto(field.Scope),
-			Secret:   field.Secret || field.Type == filament.FieldSecret,
+			Name:        field.Name,
+			Type:        fieldTypeToProto(field.Type),
+			Required:    field.Required,
+			Default:     valueToProto(field.Default),
+			Enum:        enumOptionsToProto(field.Enum),
+			Help:        field.Help,
+			Scope:       fieldScopeToProto(field.Scope),
+			Secret:      field.Secret || field.Type == filament.FieldSecret,
+			Fields:      configFieldsToProto(field.Fields),
+			VisibleWhen: fieldConditionToProto(field.VisibleWhen),
 		})
 	}
-	return &ingestionv1.ConfigSchema{Fields: fields}
+	return fields
+}
+
+func enumOptionsToProto(options []filament.EnumOption) []*ingestionv1.EnumOption {
+	out := make([]*ingestionv1.EnumOption, 0, len(options))
+	for _, option := range options {
+		out = append(out, &ingestionv1.EnumOption{
+			Value: option.Value,
+			Label: option.Label,
+		})
+	}
+	return out
+}
+
+func fieldConditionToProto(condition *filament.FieldCondition) *ingestionv1.FieldCondition {
+	if condition == nil {
+		return nil
+	}
+	return &ingestionv1.FieldCondition{
+		Field:  condition.Field,
+		Values: condition.Values,
+	}
 }
 
 func sourcePoliciesToProto(policies []filament.SourcePolicy) []*ingestionv1.SourcePolicy {
@@ -434,13 +461,48 @@ func validationError(message string) *ingestionv1.ValidateConfigResponse {
 	}
 }
 
-func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config) error {
+func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config, scope filament.FieldScope) error {
 	for _, field := range schema.Fields {
-		if field.Required && !cfg.Has(field.Name) {
-			return fmt.Errorf("%s is required", field.Name)
+		if field.Scope != scope {
+			continue
+		}
+		if err := validateConfigField(field, cfg, field.Name); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func validateConfigField(field filament.ConfigField, cfg filament.Config, path string) error {
+	if !fieldIsVisible(field, cfg) {
+		return nil
+	}
+	if field.Required && !cfg.Has(field.Name) {
+		return fmt.Errorf("%s is required", path)
+	}
+	if !cfg.Has(field.Name) || len(field.Fields) == 0 {
+		return nil
+	}
+	nested := cfg.Sub(field.Name)
+	for _, child := range field.Fields {
+		if err := validateConfigField(child, nested, path+"."+child.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func fieldIsVisible(field filament.ConfigField, cfg filament.Config) bool {
+	if field.VisibleWhen == nil {
+		return true
+	}
+	actual := cfg.String(field.VisibleWhen.Field)
+	for _, value := range field.VisibleWhen.Values {
+		if actual == value {
+			return true
+		}
+	}
+	return false
 }
 
 // runOptionsFromProto maps the proto override message onto filament.RunOptions.

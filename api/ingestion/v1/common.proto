@@ -83,11 +83,26 @@ message ConfigField {
   FieldType type = 2;
   bool required = 3;
   google.protobuf.Value default = 4;
-  repeated string enum = 5;
+  repeated EnumOption enum = 5;
   string help = 6;
   FieldScope scope = 7;
   // secret marks the field as sensitive: rendered masked, stored as a ref.
   bool secret = 8;
+  // fields describes members when type is FIELD_TYPE_OBJECT. An empty list
+  // means the object is intentionally free-form.
+  repeated ConfigField fields = 9;
+  // visible_when conditionally includes this field based on a sibling field.
+  FieldCondition visible_when = 10;
+}
+
+message EnumOption {
+  string value = 1;
+  string label = 2;
+}
+
+message FieldCondition {
+  string field = 1;
+  repeated string values = 2;
 }
 
 // ConfigSchema mirrors pkg.ConfigSchema.

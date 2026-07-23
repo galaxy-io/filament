@@ -521,11 +521,16 @@ type ConfigField struct {
 	Type     FieldType              `protobuf:"varint,2,opt,name=type,proto3,enum=ingestion.v1.FieldType" json:"type,omitempty"`
 	Required bool                   `protobuf:"varint,3,opt,name=required,proto3" json:"required,omitempty"`
 	Default  *structpb.Value        `protobuf:"bytes,4,opt,name=default,proto3" json:"default,omitempty"`
-	Enum     []string               `protobuf:"bytes,5,rep,name=enum,proto3" json:"enum,omitempty"`
+	Enum     []*EnumOption          `protobuf:"bytes,5,rep,name=enum,proto3" json:"enum,omitempty"`
 	Help     string                 `protobuf:"bytes,6,opt,name=help,proto3" json:"help,omitempty"`
 	Scope    FieldScope             `protobuf:"varint,7,opt,name=scope,proto3,enum=ingestion.v1.FieldScope" json:"scope,omitempty"`
 	// secret marks the field as sensitive: rendered masked, stored as a ref.
-	Secret        bool `protobuf:"varint,8,opt,name=secret,proto3" json:"secret,omitempty"`
+	Secret bool `protobuf:"varint,8,opt,name=secret,proto3" json:"secret,omitempty"`
+	// fields describes members when type is FIELD_TYPE_OBJECT. An empty list
+	// means the object is intentionally free-form.
+	Fields []*ConfigField `protobuf:"bytes,9,rep,name=fields,proto3" json:"fields,omitempty"`
+	// visible_when conditionally includes this field based on a sibling field.
+	VisibleWhen   *FieldCondition `protobuf:"bytes,10,opt,name=visible_when,json=visibleWhen,proto3" json:"visible_when,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -588,7 +593,7 @@ func (x *ConfigField) GetDefault() *structpb.Value {
 	return nil
 }
 
-func (x *ConfigField) GetEnum() []string {
+func (x *ConfigField) GetEnum() []*EnumOption {
 	if x != nil {
 		return x.Enum
 	}
@@ -616,6 +621,124 @@ func (x *ConfigField) GetSecret() bool {
 	return false
 }
 
+func (x *ConfigField) GetFields() []*ConfigField {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *ConfigField) GetVisibleWhen() *FieldCondition {
+	if x != nil {
+		return x.VisibleWhen
+	}
+	return nil
+}
+
+type EnumOption struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnumOption) Reset() {
+	*x = EnumOption{}
+	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnumOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnumOption) ProtoMessage() {}
+
+func (x *EnumOption) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnumOption.ProtoReflect.Descriptor instead.
+func (*EnumOption) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *EnumOption) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *EnumOption) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+type FieldCondition struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Values        []string               `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FieldCondition) Reset() {
+	*x = FieldCondition{}
+	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FieldCondition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FieldCondition) ProtoMessage() {}
+
+func (x *FieldCondition) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FieldCondition.ProtoReflect.Descriptor instead.
+func (*FieldCondition) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *FieldCondition) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *FieldCondition) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
 // ConfigSchema mirrors pkg.ConfigSchema.
 type ConfigSchema struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -626,7 +749,7 @@ type ConfigSchema struct {
 
 func (x *ConfigSchema) Reset() {
 	*x = ConfigSchema{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	mi := &file_ingestion_v1_common_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +761,7 @@ func (x *ConfigSchema) String() string {
 func (*ConfigSchema) ProtoMessage() {}
 
 func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	mi := &file_ingestion_v1_common_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +774,7 @@ func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSchema.ProtoReflect.Descriptor instead.
 func (*ConfigSchema) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{1}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ConfigSchema) GetFields() []*ConfigField {
@@ -674,7 +797,7 @@ type WritePolicyCapability struct {
 
 func (x *WritePolicyCapability) Reset() {
 	*x = WritePolicyCapability{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	mi := &file_ingestion_v1_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -686,7 +809,7 @@ func (x *WritePolicyCapability) String() string {
 func (*WritePolicyCapability) ProtoMessage() {}
 
 func (x *WritePolicyCapability) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	mi := &file_ingestion_v1_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -699,7 +822,7 @@ func (x *WritePolicyCapability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WritePolicyCapability.ProtoReflect.Descriptor instead.
 func (*WritePolicyCapability) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{2}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *WritePolicyCapability) GetMode() WriteMode {
@@ -749,7 +872,7 @@ type SourcePolicy struct {
 
 func (x *SourcePolicy) Reset() {
 	*x = SourcePolicy{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[3]
+	mi := &file_ingestion_v1_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -761,7 +884,7 @@ func (x *SourcePolicy) String() string {
 func (*SourcePolicy) ProtoMessage() {}
 
 func (x *SourcePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[3]
+	mi := &file_ingestion_v1_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -774,7 +897,7 @@ func (x *SourcePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourcePolicy.ProtoReflect.Descriptor instead.
 func (*SourcePolicy) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SourcePolicy) GetMode() ReplicationMode {
@@ -809,16 +932,26 @@ var File_ingestion_v1_common_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x19ingestion/v1/common.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x8c\x02\n" +
+	"\x19ingestion/v1/common.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x9a\x03\n" +
 	"\vConfigField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.ingestion.v1.FieldTypeR\x04type\x12\x1a\n" +
 	"\brequired\x18\x03 \x01(\bR\brequired\x120\n" +
-	"\adefault\x18\x04 \x01(\v2\x16.google.protobuf.ValueR\adefault\x12\x12\n" +
-	"\x04enum\x18\x05 \x03(\tR\x04enum\x12\x12\n" +
+	"\adefault\x18\x04 \x01(\v2\x16.google.protobuf.ValueR\adefault\x12,\n" +
+	"\x04enum\x18\x05 \x03(\v2\x18.ingestion.v1.EnumOptionR\x04enum\x12\x12\n" +
 	"\x04help\x18\x06 \x01(\tR\x04help\x12.\n" +
 	"\x05scope\x18\a \x01(\x0e2\x18.ingestion.v1.FieldScopeR\x05scope\x12\x16\n" +
-	"\x06secret\x18\b \x01(\bR\x06secret\"A\n" +
+	"\x06secret\x18\b \x01(\bR\x06secret\x121\n" +
+	"\x06fields\x18\t \x03(\v2\x19.ingestion.v1.ConfigFieldR\x06fields\x12?\n" +
+	"\fvisible_when\x18\n" +
+	" \x01(\v2\x1c.ingestion.v1.FieldConditionR\vvisibleWhen\"8\n" +
+	"\n" +
+	"EnumOption\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\">\n" +
+	"\x0eFieldCondition\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x16\n" +
+	"\x06values\x18\x02 \x03(\tR\x06values\"A\n" +
 	"\fConfigSchema\x121\n" +
 	"\x06fields\x18\x01 \x03(\v2\x19.ingestion.v1.ConfigFieldR\x06fields\"\x82\x02\n" +
 	"\x15WritePolicyCapability\x12+\n" +
@@ -902,7 +1035,7 @@ func file_ingestion_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_ingestion_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_ingestion_v1_common_proto_goTypes = []any{
 	(ConnectorKind)(0),            // 0: ingestion.v1.ConnectorKind
 	(FieldType)(0),                // 1: ingestion.v1.FieldType
@@ -914,27 +1047,32 @@ var file_ingestion_v1_common_proto_goTypes = []any{
 	(CheckpointPolicy)(0),         // 7: ingestion.v1.CheckpointPolicy
 	(FieldScope)(0),               // 8: ingestion.v1.FieldScope
 	(*ConfigField)(nil),           // 9: ingestion.v1.ConfigField
-	(*ConfigSchema)(nil),          // 10: ingestion.v1.ConfigSchema
-	(*WritePolicyCapability)(nil), // 11: ingestion.v1.WritePolicyCapability
-	(*SourcePolicy)(nil),          // 12: ingestion.v1.SourcePolicy
-	(*structpb.Value)(nil),        // 13: google.protobuf.Value
+	(*EnumOption)(nil),            // 10: ingestion.v1.EnumOption
+	(*FieldCondition)(nil),        // 11: ingestion.v1.FieldCondition
+	(*ConfigSchema)(nil),          // 12: ingestion.v1.ConfigSchema
+	(*WritePolicyCapability)(nil), // 13: ingestion.v1.WritePolicyCapability
+	(*SourcePolicy)(nil),          // 14: ingestion.v1.SourcePolicy
+	(*structpb.Value)(nil),        // 15: google.protobuf.Value
 }
 var file_ingestion_v1_common_proto_depIdxs = []int32{
 	1,  // 0: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
-	13, // 1: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
-	8,  // 2: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
-	9,  // 3: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
-	5,  // 4: ingestion.v1.WritePolicyCapability.mode:type_name -> ingestion.v1.WriteMode
-	3,  // 5: ingestion.v1.WritePolicyCapability.accepts_ops:type_name -> ingestion.v1.Operation
-	6,  // 6: ingestion.v1.WritePolicyCapability.atomicity:type_name -> ingestion.v1.WriteAtomicity
-	2,  // 7: ingestion.v1.SourcePolicy.mode:type_name -> ingestion.v1.ReplicationMode
-	3,  // 8: ingestion.v1.SourcePolicy.emits_ops:type_name -> ingestion.v1.Operation
-	7,  // 9: ingestion.v1.SourcePolicy.checkpointing:type_name -> ingestion.v1.CheckpointPolicy
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	15, // 1: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
+	10, // 2: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
+	8,  // 3: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
+	9,  // 4: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
+	11, // 5: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
+	9,  // 6: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
+	5,  // 7: ingestion.v1.WritePolicyCapability.mode:type_name -> ingestion.v1.WriteMode
+	3,  // 8: ingestion.v1.WritePolicyCapability.accepts_ops:type_name -> ingestion.v1.Operation
+	6,  // 9: ingestion.v1.WritePolicyCapability.atomicity:type_name -> ingestion.v1.WriteAtomicity
+	2,  // 10: ingestion.v1.SourcePolicy.mode:type_name -> ingestion.v1.ReplicationMode
+	3,  // 11: ingestion.v1.SourcePolicy.emits_ops:type_name -> ingestion.v1.Operation
+	7,  // 12: ingestion.v1.SourcePolicy.checkpointing:type_name -> ingestion.v1.CheckpointPolicy
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_common_proto_init() }
@@ -948,7 +1086,7 @@ func file_ingestion_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_common_proto_rawDesc), len(file_ingestion_v1_common_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
