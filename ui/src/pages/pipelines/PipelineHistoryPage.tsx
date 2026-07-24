@@ -21,14 +21,14 @@ import RunStatusCell from "@/pages/pipelines/components/RunStatusCell";
 import {
   RUN_HISTORY_LIMIT,
   RUN_HISTORY_LOADING_ROW_COUNT,
-  RUN_TABLE_COLUMN_WIDTH_ENDED_AT,
+  RUN_TABLE_COLUMN_WIDTH_DURATION,
   RUN_TABLE_COLUMN_WIDTH_RECORDS,
   RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
   RUN_TABLE_COLUMN_WIDTH_STATUS,
   RUN_TABLE_COLUMN_WIDTH_VERSION,
   RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/constants";
-import { formatBytes, formatCount, formatTimestamp } from "@/pages/pipelines/utils";
+import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/pages/pipelines/utils";
 
 import { useListRunsQuery } from "@/api/queries/runs";
 
@@ -63,6 +63,17 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cell: ({ row }) => <RunStatusCell status={row.original.status} error={row.original.error} />,
   },
   {
+    id: "startedAt",
+    header: "Started",
+    size: RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
+    cellLoading: () => <TextShimmer width={160} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} isEllipsis>
+        {formatTimestamp(row.original.startedAt)}
+      </Text>
+    ),
+  },
+  {
     id: "run",
     header: "Run",
     cellLoading: () => <TextShimmer width={160} height={14} />,
@@ -73,24 +84,13 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     ),
   },
   {
-    id: "startedAt",
-    header: "Started",
-    size: RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
+    id: "duration",
+    header: "Duration",
+    size: RUN_TABLE_COLUMN_WIDTH_DURATION,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-        {formatTimestamp(row.original.startedAt)}
-      </Text>
-    ),
-  },
-  {
-    id: "endedAt",
-    header: "Ended",
-    size: RUN_TABLE_COLUMN_WIDTH_ENDED_AT,
-    cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-        {formatTimestamp(row.original.endedAt)}
+      <Text size={TextSize.BODY_SM} isEllipsis>
+        {formatDuration(row.original.startedAt, row.original.endedAt)}
       </Text>
     ),
   },
