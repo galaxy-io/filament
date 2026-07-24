@@ -1,5 +1,6 @@
-// Package k8sdispatch turns run.requested facts into Kubernetes Jobs.
-package k8sdispatch
+// Package k8s is the Kubernetes dispatch backend: it turns run.requested
+// facts into worker Jobs.
+package k8s
 
 import (
 	"context"
