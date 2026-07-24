@@ -85,10 +85,28 @@ type ConfigField struct {
 	Type     FieldType
 	Required bool
 	Default  any
-	Enum     []string
+	Enum     []EnumOption
 	Help     string
 	Scope    FieldScope
 	Secret   bool
+	// VisibleWhen conditionally includes this field based on a sibling field.
+	VisibleWhen *FieldCondition
+	// Fields describes the members of an object field. It is empty for scalar
+	// fields and for intentionally free-form objects.
+	Fields []ConfigField
+}
+
+// EnumOption is one ordered choice for an enum config field.
+type EnumOption struct {
+	Value string
+	Label string
+}
+
+// FieldCondition controls whether a config field applies based on a sibling's
+// string value.
+type FieldCondition struct {
+	Field  string
+	Values []string
 }
 
 // FieldType is a ConfigField's value kind.

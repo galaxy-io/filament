@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/common.proto.
  */
 export const file_ingestion_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEi0gEKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIMCgRlbnVtGAUgAygJEgwKBGhlbHAYBiABKAkSJwoFc2NvcGUYByABKA4yGC5pbmdlc3Rpb24udjEuRmllbGRTY29wZRIOCgZzZWNyZXQYCCABKAgiOQoMQ29uZmlnU2NoZW1hEikKBmZpZWxkcxgBIAMoCzIZLmluZ2VzdGlvbi52MS5Db25maWdGaWVsZCLKAQoVV3JpdGVQb2xpY3lDYXBhYmlsaXR5EiUKBG1vZGUYASABKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlEhMKC3JlcXVpcmVzX3BrGAIgASgIEhYKDnJlcXVpcmVzX29yZGVyGAMgASgIEiwKC2FjY2VwdHNfb3BzGAQgAygOMhcuaW5nZXN0aW9uLnYxLk9wZXJhdGlvbhIvCglhdG9taWNpdHkYBSABKA4yHC5pbmdlc3Rpb24udjEuV3JpdGVBdG9taWNpdHkirwEKDFNvdXJjZVBvbGljeRIrCgRtb2RlGAEgASgOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIqCgllbWl0c19vcHMYAiADKA4yFy5pbmdlc3Rpb24udjEuT3BlcmF0aW9uEg8KB29yZGVyZWQYAyABKAgSNQoNY2hlY2twb2ludGluZxgEIAEoDjIeLmluZ2VzdGlvbi52MS5DaGVja3BvaW50UG9saWN5KmMKDUNvbm5lY3RvcktpbmQSHgoaQ09OTkVDVE9SX0tJTkRfVU5TUEVDSUZJRUQQABIZChVDT05ORUNUT1JfS0lORF9TT1VSQ0UQARIXChNDT05ORUNUT1JfS0lORF9TSU5LEAIqwwEKCUZpZWxkVHlwZRIaChZGSUVMRF9UWVBFX1VOU1BFQ0lGSUVEEAASFQoRRklFTERfVFlQRV9TVFJJTkcQARISCg5GSUVMRF9UWVBFX0lOVBACEhMKD0ZJRUxEX1RZUEVfQk9PTBADEhUKEUZJRUxEX1RZUEVfU0VDUkVUEAQSFwoTRklFTERfVFlQRV9EVVJBVElPThAFEhMKD0ZJRUxEX1RZUEVfRU5VTRAGEhUKEUZJRUxEX1RZUEVfT0JKRUNUEAcqigEKD1JlcGxpY2F0aW9uTW9kZRIgChxSRVBMSUNBVElPTl9NT0RFX1VOU1BFQ0lGSUVEEAASGQoVUkVQTElDQVRJT05fTU9ERV9GVUxMEAESIAocUkVQTElDQVRJT05fTU9ERV9JTkNSRU1FTlRBTBACEhgKFFJFUExJQ0FUSU9OX01PREVfQ0RDEAMqaAoJT3BlcmF0aW9uEhkKFU9QRVJBVElPTl9VTlNQRUNJRklFRBAAEhQKEE9QRVJBVElPTl9JTlNFUlQQARIUChBPUEVSQVRJT05fVVBEQVRFEAISFAoQT1BFUkFUSU9OX0RFTEVURRADKuEBCg1Jbmdlc3Rpb25UeXBlEh4KGklOR0VTVElPTl9UWVBFX1VOU1BFQ0lGSUVEEAASIwofSU5HRVNUSU9OX1RZUEVfU05BUFNIT1RfUkVQTEFDRRABEiIKHklOR0VTVElPTl9UWVBFX1NOQVBTSE9UX1VQU0VSVBACEhkKFUlOR0VTVElPTl9UWVBFX0FQUEVORBADEhkKFUlOR0VTVElPTl9UWVBFX1VQU0VSVBAEEhkKFUlOR0VTVElPTl9UWVBFX0RFTEVURRAFEhYKEklOR0VTVElPTl9UWVBFX0NEQxAGKpoBCglXcml0ZU1vZGUSGgoWV1JJVEVfTU9ERV9VTlNQRUNJRklFRBAAEhUKEVdSSVRFX01PREVfQVBQRU5EEAESFgoSV1JJVEVfTU9ERV9SRVBMQUNFEAISFQoRV1JJVEVfTU9ERV9VUFNFUlQQAxIVChFXUklURV9NT0RFX0RFTEVURRAEEhQKEFdSSVRFX01PREVfTUVSR0UQBSqDAQoOV3JpdGVBdG9taWNpdHkSHwobV1JJVEVfQVRPTUlDSVRZX1VOU1BFQ0lGSUVEEAASGQoVV1JJVEVfQVRPTUlDSVRZX0JBVENIEAESHAoYV1JJVEVfQVRPTUlDSVRZX1JFU09VUkNFEAISFwoTV1JJVEVfQVRPTUlDSVRZX1JVThADKpgBChBDaGVja3BvaW50UG9saWN5EiEKHUNIRUNLUE9JTlRfUE9MSUNZX1VOU1BFQ0lGSUVEEAASGgoWQ0hFQ0tQT0lOVF9QT0xJQ1lfTk9ORRABEiEKHUNIRUNLUE9JTlRfUE9MSUNZX0FGVEVSX0JBVENIEAISIgoeQ0hFQ0tQT0lOVF9QT0xJQ1lfQUZURVJfQ09NTUlUEAMqXwoKRmllbGRTY29wZRIbChdGSUVMRF9TQ09QRV9VTlNQRUNJRklFRBAAEhoKFkZJRUxEX1NDT1BFX0NPTk5FQ1RJT04QARIYChRGSUVMRF9TQ09QRV9QSVBFTElORRACYgZwcm90bzM", [file_google_protobuf_struct]);
+  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiywIKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRImCgRlbnVtGAUgAygLMhguaW5nZXN0aW9uLnYxLkVudW1PcHRpb24SDAoEaGVscBgGIAEoCRInCgVzY29wZRgHIAEoDjIYLmluZ2VzdGlvbi52MS5GaWVsZFNjb3BlEg4KBnNlY3JldBgIIAEoCBIpCgZmaWVsZHMYCSADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQSMgoMdmlzaWJsZV93aGVuGAogASgLMhwuaW5nZXN0aW9uLnYxLkZpZWxkQ29uZGl0aW9uIioKCkVudW1PcHRpb24SDQoFdmFsdWUYASABKAkSDQoFbGFiZWwYAiABKAkiLwoORmllbGRDb25kaXRpb24SDQoFZmllbGQYASABKAkSDgoGdmFsdWVzGAIgAygJIjkKDENvbmZpZ1NjaGVtYRIpCgZmaWVsZHMYASADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQiygEKFVdyaXRlUG9saWN5Q2FwYWJpbGl0eRIlCgRtb2RlGAEgASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRITCgtyZXF1aXJlc19waxgCIAEoCBIWCg5yZXF1aXJlc19vcmRlchgDIAEoCBIsCgthY2NlcHRzX29wcxgEIAMoDjIXLmluZ2VzdGlvbi52MS5PcGVyYXRpb24SLwoJYXRvbWljaXR5GAUgASgOMhwuaW5nZXN0aW9uLnYxLldyaXRlQXRvbWljaXR5Iq8BCgxTb3VyY2VQb2xpY3kSKwoEbW9kZRgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXBsaWNhdGlvbk1vZGUSKgoJZW1pdHNfb3BzGAIgAygOMhcuaW5nZXN0aW9uLnYxLk9wZXJhdGlvbhIPCgdvcmRlcmVkGAMgASgIEjUKDWNoZWNrcG9pbnRpbmcYBCABKA4yHi5pbmdlc3Rpb24udjEuQ2hlY2twb2ludFBvbGljeSpjCg1Db25uZWN0b3JLaW5kEh4KGkNPTk5FQ1RPUl9LSU5EX1VOU1BFQ0lGSUVEEAASGQoVQ09OTkVDVE9SX0tJTkRfU09VUkNFEAESFwoTQ09OTkVDVE9SX0tJTkRfU0lOSxACKsMBCglGaWVsZFR5cGUSGgoWRklFTERfVFlQRV9VTlNQRUNJRklFRBAAEhUKEUZJRUxEX1RZUEVfU1RSSU5HEAESEgoORklFTERfVFlQRV9JTlQQAhITCg9GSUVMRF9UWVBFX0JPT0wQAxIVChFGSUVMRF9UWVBFX1NFQ1JFVBAEEhcKE0ZJRUxEX1RZUEVfRFVSQVRJT04QBRITCg9GSUVMRF9UWVBFX0VOVU0QBhIVChFGSUVMRF9UWVBFX09CSkVDVBAHKooBCg9SZXBsaWNhdGlvbk1vZGUSIAocUkVQTElDQVRJT05fTU9ERV9VTlNQRUNJRklFRBAAEhkKFVJFUExJQ0FUSU9OX01PREVfRlVMTBABEiAKHFJFUExJQ0FUSU9OX01PREVfSU5DUkVNRU5UQUwQAhIYChRSRVBMSUNBVElPTl9NT0RFX0NEQxADKmgKCU9wZXJhdGlvbhIZChVPUEVSQVRJT05fVU5TUEVDSUZJRUQQABIUChBPUEVSQVRJT05fSU5TRVJUEAESFAoQT1BFUkFUSU9OX1VQREFURRACEhQKEE9QRVJBVElPTl9ERUxFVEUQAyrhAQoNSW5nZXN0aW9uVHlwZRIeChpJTkdFU1RJT05fVFlQRV9VTlNQRUNJRklFRBAAEiMKH0lOR0VTVElPTl9UWVBFX1NOQVBTSE9UX1JFUExBQ0UQARIiCh5JTkdFU1RJT05fVFlQRV9TTkFQU0hPVF9VUFNFUlQQAhIZChVJTkdFU1RJT05fVFlQRV9BUFBFTkQQAxIZChVJTkdFU1RJT05fVFlQRV9VUFNFUlQQBBIZChVJTkdFU1RJT05fVFlQRV9ERUxFVEUQBRIWChJJTkdFU1RJT05fVFlQRV9DREMQBiqaAQoJV3JpdGVNb2RlEhoKFldSSVRFX01PREVfVU5TUEVDSUZJRUQQABIVChFXUklURV9NT0RFX0FQUEVORBABEhYKEldSSVRFX01PREVfUkVQTEFDRRACEhUKEVdSSVRFX01PREVfVVBTRVJUEAMSFQoRV1JJVEVfTU9ERV9ERUxFVEUQBBIUChBXUklURV9NT0RFX01FUkdFEAUqgwEKDldyaXRlQXRvbWljaXR5Eh8KG1dSSVRFX0FUT01JQ0lUWV9VTlNQRUNJRklFRBAAEhkKFVdSSVRFX0FUT01JQ0lUWV9CQVRDSBABEhwKGFdSSVRFX0FUT01JQ0lUWV9SRVNPVVJDRRACEhcKE1dSSVRFX0FUT01JQ0lUWV9SVU4QAyqYAQoQQ2hlY2twb2ludFBvbGljeRIhCh1DSEVDS1BPSU5UX1BPTElDWV9VTlNQRUNJRklFRBAAEhoKFkNIRUNLUE9JTlRfUE9MSUNZX05PTkUQARIhCh1DSEVDS1BPSU5UX1BPTElDWV9BRlRFUl9CQVRDSBACEiIKHkNIRUNLUE9JTlRfUE9MSUNZX0FGVEVSX0NPTU1JVBADKl8KCkZpZWxkU2NvcGUSGwoXRklFTERfU0NPUEVfVU5TUEVDSUZJRUQQABIaChZGSUVMRF9TQ09QRV9DT05ORUNUSU9OEAESGAoURklFTERfU0NPUEVfUElQRUxJTkUQAmIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * ConfigField mirrors pkg.ConfigField.
@@ -41,9 +41,9 @@ export type ConfigField = Message<"ingestion.v1.ConfigField"> & {
   default?: Value | undefined;
 
   /**
-   * @generated from field: repeated string enum = 5;
+   * @generated from field: repeated ingestion.v1.EnumOption enum = 5;
    */
-  enum: string[];
+  enum: EnumOption[];
 
   /**
    * @generated from field: string help = 6;
@@ -61,6 +61,21 @@ export type ConfigField = Message<"ingestion.v1.ConfigField"> & {
    * @generated from field: bool secret = 8;
    */
   secret: boolean;
+
+  /**
+   * fields describes members when type is FIELD_TYPE_OBJECT. An empty list
+   * means the object is intentionally free-form.
+   *
+   * @generated from field: repeated ingestion.v1.ConfigField fields = 9;
+   */
+  fields: ConfigField[];
+
+  /**
+   * visible_when conditionally includes this field based on a sibling field.
+   *
+   * @generated from field: ingestion.v1.FieldCondition visible_when = 10;
+   */
+  visibleWhen?: FieldCondition | undefined;
 };
 
 /**
@@ -69,6 +84,50 @@ export type ConfigField = Message<"ingestion.v1.ConfigField"> & {
  */
 export const ConfigFieldSchema: GenMessage<ConfigField> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_common, 0);
+
+/**
+ * @generated from message ingestion.v1.EnumOption
+ */
+export type EnumOption = Message<"ingestion.v1.EnumOption"> & {
+  /**
+   * @generated from field: string value = 1;
+   */
+  value: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message ingestion.v1.EnumOption.
+ * Use `create(EnumOptionSchema)` to create a new message.
+ */
+export const EnumOptionSchema: GenMessage<EnumOption> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 1);
+
+/**
+ * @generated from message ingestion.v1.FieldCondition
+ */
+export type FieldCondition = Message<"ingestion.v1.FieldCondition"> & {
+  /**
+   * @generated from field: string field = 1;
+   */
+  field: string;
+
+  /**
+   * @generated from field: repeated string values = 2;
+   */
+  values: string[];
+};
+
+/**
+ * Describes the message ingestion.v1.FieldCondition.
+ * Use `create(FieldConditionSchema)` to create a new message.
+ */
+export const FieldConditionSchema: GenMessage<FieldCondition> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 2);
 
 /**
  * ConfigSchema mirrors pkg.ConfigSchema.
@@ -87,7 +146,7 @@ export type ConfigSchema = Message<"ingestion.v1.ConfigSchema"> & {
  * Use `create(ConfigSchemaSchema)` to create a new message.
  */
 export const ConfigSchemaSchema: GenMessage<ConfigSchema> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 1);
+  messageDesc(file_ingestion_v1_common, 3);
 
 /**
  * @generated from message ingestion.v1.WritePolicyCapability
@@ -124,7 +183,7 @@ export type WritePolicyCapability = Message<"ingestion.v1.WritePolicyCapability"
  * Use `create(WritePolicyCapabilitySchema)` to create a new message.
  */
 export const WritePolicyCapabilitySchema: GenMessage<WritePolicyCapability> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 2);
+  messageDesc(file_ingestion_v1_common, 4);
 
 /**
  * @generated from message ingestion.v1.SourcePolicy
@@ -156,7 +215,7 @@ export type SourcePolicy = Message<"ingestion.v1.SourcePolicy"> & {
  * Use `create(SourcePolicySchema)` to create a new message.
  */
 export const SourcePolicySchema: GenMessage<SourcePolicy> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 3);
+  messageDesc(file_ingestion_v1_common, 5);
 
 /**
  * ConnectorKind distinguishes a source from a sink in the catalog.

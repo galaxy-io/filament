@@ -1,3 +1,7 @@
+import { useEffect, useRef, useState } from "react";
+
+import type { JsonValue } from "@bufbuild/protobuf";
+
 import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
 
 import Field from "@/pages/connectors/components/create/configure/fields/Field";
@@ -11,17 +15,51 @@ const FieldObject = ({
   isDisabled = false,
   label,
 }: FieldComponentProps) => {
-  const displayValue =
-    typeof value === "string" ? value : value ? JSON.stringify(value, null, 2) : "";
+  const serializedValue = value ? JSON.stringify(value, null, 2) : "";
+  const [displayValue, setDisplayValue] = useState(serializedValue);
+  const [parseError, setParseError] = useState<string>();
+  // Tracks the serialized form this editor last emitted, so prop-driven syncs
+  // don't reformat (and jump the caret) while the user is mid-edit.
+  const lastEmitted = useRef(serializedValue);
+
+  useEffect(() => {
+    if (serializedValue !== lastEmitted.current) {
+      lastEmitted.current = serializedValue;
+      setDisplayValue(serializedValue);
+    }
+  }, [serializedValue]);
+
+  const handleChange = (next: string) => {
+    setDisplayValue(next);
+    if (next.trim() === "") {
+      setParseError(undefined);
+      lastEmitted.current = "";
+      onChange(null);
+      return;
+    }
+    try {
+      const parsed: JsonValue = JSON.parse(next);
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        setParseError("Enter a JSON object");
+        return;
+      }
+      setParseError(undefined);
+      lastEmitted.current = JSON.stringify(parsed, null, 2);
+      onChange(parsed);
+    } catch {
+      setParseError("Enter valid JSON");
+    }
+  };
 
   return (
-    <Field label={label} help={field.help} isRequired={field.required} error={error}>
+    <Field label={label} help={field.help} isRequired={field.required} error={parseError ?? error}>
       <CodeEditor
         content={displayValue}
-        onChange={(v) => onChange(v)}
-        placeholder={field.help || "Enter JSON..."}
+        onChange={handleChange}
+        placeholder="{}"
         lang="json"
         isReadOnly={isDisabled}
+        noLineNumbers
       />
     </Field>
   );

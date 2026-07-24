@@ -1,4 +1,7 @@
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  type SelectInputOption,
+  SelectInputSize,
+} from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
 
@@ -10,10 +13,10 @@ const FieldEnum = ({
   isDisabled = false,
   label,
 }: FieldComponentProps) => {
-  const options: SelectInputOption[] = field.enum.map((enumValue) => ({
-    id: enumValue,
-    label: enumValue,
-    value: enumValue,
+  const options: SelectInputOption[] = field.enum.map((enumOption) => ({
+    id: enumOption.value,
+    label: enumOption.label || enumOption.value,
+    value: enumOption.value,
   }));
 
   const selectedOption = options.find((opt) => opt.value === value) ?? null;
@@ -28,6 +31,7 @@ const FieldEnum = ({
       isRequired={field.required}
       error={error}
       isDisabled={isDisabled}
+      size={SelectInputSize.LARGE}
       fillWidth
     />
   );

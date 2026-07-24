@@ -83,6 +83,7 @@ const PipelineLayoutNavbar = ({
           sinks={sinks}
           hasEdges={hasEdges}
           size={PipelineFlowSize.SMALL}
+          maxSinks={3}
         />
         <Text size={TextSize.BODY_LG}>{formatPipelineName(name)}</Text>
       </FlexWrapper>

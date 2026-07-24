@@ -297,6 +297,7 @@ const CreateConnectionConfigureContent = ({
             value={getFieldValue(field.name)}
             onChange={(value) => handleFieldChange(field.name, value)}
             error={getFieldError(field.name)}
+            getError={getFieldError}
             isDisabled={isDisabled}
           />
         ))}
@@ -378,9 +379,13 @@ const CreateConnectionConfigureContent = ({
   );
 };
 
-const CreateConnectionConfigure = (props: CreateConnectionConfigureProps) => (
-  <CreateConnectionConfigureProvider connector={props.connector}>
-    <CreateConnectionConfigureContent {...props} />
+const CreateConnectionConfigure = ({
+  connector,
+  onClose,
+  onBack,
+}: CreateConnectionConfigureProps) => (
+  <CreateConnectionConfigureProvider connector={connector}>
+    <CreateConnectionConfigureContent connector={connector} onClose={onClose} onBack={onBack} />
   </CreateConnectionConfigureProvider>
 );
 

@@ -60,7 +60,7 @@ func (t *Sink) Spec() filament.SinkSpec {
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Destination schema"},
-			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []string{"typed"}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
+			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []filament.EnumOption{{Value: "typed", Label: "Typed"}}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
 		}},
 		Capabilities: filament.SinkCapabilities{
 			Schematized: true,

@@ -69,4 +69,5 @@ export const ACRONYMS_TO_CAPITALIZE: string[] = [
   "ssh",
   "ssl",
   "dsn",
+  "uri",
 ];
