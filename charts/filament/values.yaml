@@ -22,7 +22,7 @@ existingSecret: ""
 server:
   image:
     # -- Server image repository.
-    repository: galaxy-io/filament-server
+    repository: ghcr.io/galaxy-io/filament/server
     # -- Server image tag.
     # @default -- `""` (defaults to chart appVersion)
     tag: ""
@@ -64,7 +64,7 @@ controlPlane:
 
   image:
     # -- Control plane image repository.
-    repository: galaxy-io/filament-control-plane
+    repository: ghcr.io/galaxy-io/filament/control-plane
     # -- Control plane image tag.
     # @default -- `""` (defaults to chart appVersion)
     tag: ""
@@ -103,7 +103,7 @@ controlPlane:
     worker:
       image:
         # -- Worker image repository used for dispatched Jobs.
-        repository: galaxy-io/filament-worker
+        repository: ghcr.io/galaxy-io/filament/worker
         # -- Worker image tag.
         # @default -- `""` (defaults to chart appVersion)
         tag: ""

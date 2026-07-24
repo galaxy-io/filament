@@ -73,7 +73,7 @@ helm upgrade --install filament . \
 | server.autoscaling.targetCpu | int | `80` | Target average CPU utilization percentage for server autoscaling. |
 | server.image.pullPolicy | string | `"IfNotPresent"` | Server image pull policy. |
 | server.image.pullSecrets | list | `[]` | Image pull secrets for the server Deployment. |
-| server.image.repository | string | `"galaxy-io/filament-server"` | Server image repository. |
+| server.image.repository | string | `"ghcr.io/galaxy-io/filament/server"` | Server image repository. |
 | server.image.tag | string | `""` (defaults to chart appVersion) | Server image tag. |
 | server.replicas | int | `1` | Number of server replicas. Ignored when `server.autoscaling.enabled` is true. |
 | server.resources | object | `{}` (See [values.yaml]) | Server resource requests and limits. |
@@ -96,7 +96,7 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.worker.activeDeadlineSeconds | string | `""` | Worker Job active deadline in seconds. Leave empty for no deadline. |
 | controlPlane.dispatch.worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
 | controlPlane.dispatch.worker.image.pullSecrets | list | `[]` | Image pull secrets for dispatched worker Jobs. |
-| controlPlane.dispatch.worker.image.repository | string | `"galaxy-io/filament-worker"` | Worker image repository used for dispatched Jobs. |
+| controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs. |
 | controlPlane.dispatch.worker.image.tag | string | `""` (defaults to chart appVersion) | Worker image tag. |
 | controlPlane.dispatch.worker.restartPolicy | string | `"Never"` | Restart policy for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.serviceAccount.annotations | object | `{}` | Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN. |
@@ -105,7 +105,7 @@ helm upgrade --install filament . \
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
 | controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Control plane image pull policy. |
 | controlPlane.image.pullSecrets | list | `[]` | Image pull secrets for the control plane Deployment. |
-| controlPlane.image.repository | string | `"galaxy-io/filament-control-plane"` | Control plane image repository. |
+| controlPlane.image.repository | string | `"ghcr.io/galaxy-io/filament/control-plane"` | Control plane image repository. |
 | controlPlane.image.tag | string | `""` (defaults to chart appVersion) | Control plane image tag. |
 | controlPlane.replicas | int | `1` | Number of control plane replicas. Ignored when `controlPlane.autoscaling.enabled` is true. |
 | controlPlane.resources | object | `{}` (See [values.yaml]) | Control plane resource requests and limits. |
