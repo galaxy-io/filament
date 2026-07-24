@@ -2,23 +2,14 @@ import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  CheckIcon,
-} from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -90,10 +81,7 @@ const CreateConnectionConfigureContent = ({
   const { mutate: validateConfig } = useValidateConfigMutation();
   const { mutate: createConnection } = useCreateConnectionMutation();
 
-  const fields = useMemo(
-    () => getConnectorConfigSchemaConnectionFields(connector),
-    [connector],
-  );
+  const fields = useMemo(() => getConnectorConfigSchemaConnectionFields(connector), [connector]);
 
   const isDisabled =
     state.phase === CreateConnectionPhase.VALIDATING ||
@@ -182,11 +170,7 @@ const CreateConnectionConfigureContent = ({
             // Live-connection failures come back field-less, so they never
             // render under an input - the toast is their only surface
             const message = response.errors
-              .map((error) =>
-                error.field
-                  ? `${error.field}: ${error.message}`
-                  : error.message,
-              )
+              .map((error) => (error.field ? `${error.field}: ${error.message}` : error.message))
               .join("\n");
             showToast({
               variant: ToastVariant.ERROR,
@@ -196,8 +180,7 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message =
-            error instanceof Error ? error.message : "Validation failed";
+          const message = error instanceof Error ? error.message : "Validation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -210,13 +193,7 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [
-    state.request,
-    validateAndShowErrors,
-    validateConfig,
-    dispatch,
-    showToast,
-  ]);
+  }, [state.request, validateAndShowErrors, validateConfig, dispatch, showToast]);
 
   const handleCreateConnection = useCallback(() => {
     const name = state.request.name?.trim();
@@ -255,8 +232,7 @@ const CreateConnectionConfigureContent = ({
           }
         },
         onError: (error) => {
-          const message =
-            error instanceof Error ? error.message : "Creation failed";
+          const message = error instanceof Error ? error.message : "Creation failed";
           dispatch({
             type: CreateConnectionActionType.SET_ERROR,
             payload: message,
@@ -269,14 +245,7 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [
-    state.request,
-    createConnection,
-    queryClient,
-    showToast,
-    navigate,
-    dispatch,
-  ]);
+  }, [state.request, createConnection, queryClient, showToast, navigate, dispatch]);
 
   const handleNameChange = useCallback(
     (name: string) =>
@@ -379,14 +348,9 @@ const CreateConnectionConfigureContent = ({
   };
 
   return (
-    <CreateConnectionConfigureWrapper
-      step={CreateConnectionModalStep.CONFIGURE}
-    >
+    <CreateConnectionConfigureWrapper step={CreateConnectionModalStep.CONFIGURE}>
       <FlexItem grow={0} shrink={0}>
-        <CreateConnectionConfigureHeader
-          connector={connector}
-          onClose={onClose}
-        />
+        <CreateConnectionConfigureHeader connector={connector} onClose={onClose} />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
@@ -421,11 +385,7 @@ const CreateConnectionConfigure = ({
   onBack,
 }: CreateConnectionConfigureProps) => (
   <CreateConnectionConfigureProvider connector={connector}>
-    <CreateConnectionConfigureContent
-      connector={connector}
-      onClose={onClose}
-      onBack={onBack}
-    />
+    <CreateConnectionConfigureContent connector={connector} onClose={onClose} onBack={onBack} />
   </CreateConnectionConfigureProvider>
 );
 

@@ -12,10 +12,9 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
-  const { connector: connectorParam, connectorKind: connectorKindParam } =
-    useSearch({
-      from: "__root__",
-    });
+  const { connector: connectorParam, connectorKind: connectorKindParam } = useSearch({
+    from: "__root__",
+  });
 
   const { data } = useListConnectorsQuery();
 
@@ -66,12 +65,7 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
     );
   }
 
-  return (
-    <CreateConnectionSelector
-      onClose={onClose}
-      onConnectorSelect={handleConnectorSelect}
-    />
-  );
+  return <CreateConnectionSelector onClose={onClose} onConnectorSelect={handleConnectorSelect} />;
 };
 
 export default CreateConnectionModal;
