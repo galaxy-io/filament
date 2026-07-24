@@ -6,8 +6,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,23 +18,18 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/persistence"
+	"github.com/galaxy-io/filament/cmd/internal/secret"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
-	natsbus "github.com/galaxy-io/filament/eventbus/nats"
-	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
-	"github.com/galaxy-io/filament/secret"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
 
-	_ "github.com/galaxy-io/filament/connectors/http"
-	_ "github.com/galaxy-io/filament/connectors/iceberg"
-	_ "github.com/galaxy-io/filament/connectors/object"
-	_ "github.com/galaxy-io/filament/connectors/postgres"
-	_ "github.com/galaxy-io/filament/connectors/sample"
-	_ "github.com/galaxy-io/filament/connectors/stdout"
+	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {
@@ -52,37 +45,32 @@ func main() {
 
 //nolint:funlen // startup wiring reads better linear
 func run(ctx context.Context, migrateOnly bool) error {
-	persistenceDSN := os.Getenv("PERSISTENCE_DSN")
-	if persistenceDSN == "" {
-		return errors.New("PERSISTENCE_DSN is required")
-	}
-
 	if migrateOnly {
-		db, err := ctlpg.NewSQLDB(persistenceDSN)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = db.Close() }()
-		if err := waitForDB(ctx, db); err != nil {
-			return err
-		}
-		return ctlpg.Migrate(db)
+		return persistence.MigrateFromEnv(ctx)
 	}
 
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		return errors.New("NATS_URL is required")
-	}
-
-	pool, err := ctlpg.NewPool(ctx, persistenceDSN)
+	store, err := persistence.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
-	store := ctlpg.New(pool)
+	defer func() {
+		if c, ok := store.(io.Closer); ok {
+			_ = c.Close()
+		}
+	}()
 	secrets, err := secret.FromEnv(ctx, store)
 	if err != nil {
 		return err
+	}
+
+	// Ensure the default tenant up front so a deployment with no readiness
+	// probes (local dev) still gets one; readyz retries until it lands when
+	// the database is still starting.
+	var tenantEnsured atomic.Bool
+	if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+		log.Printf("default tenant not ensured yet: %v", err)
+	} else {
+		tenantEnsured.Store(true)
 	}
 
 	// Health endpoints listen before the NATS connect wait so liveness
@@ -95,11 +83,10 @@ func run(ctx context.Context, migrateOnly bool) error {
 	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	var tenantEnsured atomic.Bool
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
-		if err := pool.Ping(ctx); err != nil {
+		if err := store.Ping(ctx); err != nil {
 			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
 			return
 		}
@@ -116,18 +103,15 @@ func run(ctx context.Context, migrateOnly bool) error {
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 
-	busOpts := []natsbus.Option{}
-	if stream := os.Getenv("NATS_STREAM"); stream != "" {
-		busOpts = append(busOpts, natsbus.WithStream(stream))
-	}
-	if subjects := os.Getenv("NATS_SUBJECTS"); subjects != "" {
-		busOpts = append(busOpts, natsbus.WithSubjects(subjects))
-	}
-	bus, err := natsbus.New(natsURL, events.Codec, busOpts...)
+	bus, err := eventbus.FromEnv()
 	if err != nil {
 		return err
 	}
-	defer func() { _ = bus.Close() }()
+	defer func() {
+		if c, ok := any(bus).(io.Closer); ok {
+			_ = c.Close()
+		}
+	}()
 
 	orch := orchestrator.New()
 	mods, err := module.MountAll(ctx,
@@ -157,25 +141,6 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	case <-ctx.Done():
 		return srv.Close()
-	}
-}
-
-// waitForDB pings until the database accepts connections, so the migrate init
-// container rides out postgres still starting on a fresh install.
-func waitForDB(ctx context.Context, db *sql.DB) error {
-	deadline := time.Now().Add(5 * time.Minute)
-	for {
-		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		err := db.PingContext(pingCtx)
-		cancel()
-		if err == nil {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("database not reachable: %w", err)
-		}
-		log.Printf("waiting for database: %v", err)
-		time.Sleep(2 * time.Second)
 	}
 }
 

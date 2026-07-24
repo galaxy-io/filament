@@ -1,4 +1,4 @@
-package k8sdispatch
+package k8s
 
 import (
 	batchv1 "k8s.io/api/batch/v1"

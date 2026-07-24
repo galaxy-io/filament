@@ -2,12 +2,9 @@ go 1.26.4
 
 use (
 	.
-	./connectors/http
+	./cmd
 	./connectors/iceberg
 	./connectors/object
-	./connectors/postgres
-	./examples/ingestiond
 	./secret/aws
-	./secret/postgres
 	./tests
 )

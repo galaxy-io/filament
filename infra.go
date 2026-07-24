@@ -14,6 +14,9 @@ import (
 // DataStore persists run, resource, checkpoint, and dedup state — the
 // control plane's system of record.
 type DataStore interface {
+	Ping(ctx context.Context) error // reachability, for readiness probes
+	EnsureTenant(ctx context.Context, id TenantID, name string) error
+
 	SaveRun(ctx context.Context, s RunState) error
 	LoadRun(ctx context.Context, id RunID) (RunState, error)
 	ListRuns(ctx context.Context, f RunFilter) ([]RunState, error)

@@ -1,4 +1,4 @@
-package k8sdispatch
+package k8s
 
 import (
 	"errors"
