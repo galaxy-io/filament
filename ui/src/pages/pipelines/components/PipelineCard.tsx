@@ -188,10 +188,10 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}>
         {isCompact ? (
-          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
+          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} maxSinks={3} />
         ) : (
           <MetricColumnWrapper $width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
-            <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
+            <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} maxSinks={3} />
           </MetricColumnWrapper>
         )}
         {!isCompact && (
