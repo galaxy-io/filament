@@ -12,9 +12,10 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
-  const { connector: connectorParam, connectorKind: connectorKindParam } = useSearch({
-    from: "__root__",
-  });
+  const { connector: connectorParam, connectorKind: connectorKindParam } =
+    useSearch({
+      from: "__root__",
+    });
 
   const { data } = useListConnectorsQuery();
 
@@ -35,7 +36,11 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
     (connector: ConnectorSpec) => {
       void navigate({
         to: ".",
-        search: (prev) => ({ ...prev, connector: connector.name, connectorKind: connector.kind }),
+        search: (prev) => ({
+          ...prev,
+          connector: connector.name,
+          connectorKind: connector.kind,
+        }),
       });
     },
     [navigate],
@@ -44,10 +49,10 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const handleBack = useCallback(() => {
     void navigate({
       to: ".",
-      search: (prev) => {
-        const { connector: _, connectorKind: __, ...rest } = prev;
-        return rest;
-      },
+      search: (prev) => ({
+        ...prev,
+        connector: undefined,
+      }),
     });
   }, [navigate]);
 
@@ -61,7 +66,12 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
     );
   }
 
-  return <CreateConnectionSelector onClose={onClose} onConnectorSelect={handleConnectorSelect} />;
+  return (
+    <CreateConnectionSelector
+      onClose={onClose}
+      onConnectorSelect={handleConnectorSelect}
+    />
+  );
 };
 
 export default CreateConnectionModal;
