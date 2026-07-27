@@ -8,7 +8,7 @@ import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Tex
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { NAV_ITEMS, NAVBAR_HEIGHT } from "@/layouts/main/constants";
+import { NAV_ITEMS, NAVBAR_HEIGHT, type NavItem } from "@/layouts/main/constants";
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
 
@@ -46,26 +46,26 @@ const NavTabsWrapper = styled.div`
   align-items: flex-start;
 `;
 
+const MainLayoutNavTab = ({ item }: { item: NavItem }) => {
+  const { isRouteMatch: isActive } = useRouteMatch({ route: item.to, fuzzy: true });
+
+  return (
+    <Link to={item.to}>
+      <NavTabWrapper $isActive={isActive}>
+        <Text
+          size={TextSize.BODY_MD}
+          variant={isActive ? TextVariant.PRIMARY : TextVariant.SECONDARY}
+          weight={isActive ? TextWeight.MEDIUM : TextWeight.REGULAR}
+          cursor="pointer"
+        >
+          {item.label}
+        </Text>
+      </NavTabWrapper>
+    </Link>
+  );
+};
+
 const MainLayoutNavbar = () => {
-  const { isRouteMatch: isPipelinesActive } = useRouteMatch({
-    route: "/pipelines",
-    fuzzy: true,
-  });
-  const { isRouteMatch: isSourcesActive } = useRouteMatch({
-    route: "/sources",
-    fuzzy: true,
-  });
-  const { isRouteMatch: isSinksActive } = useRouteMatch({
-    route: "/sinks",
-    fuzzy: true,
-  });
-
-  const isActiveByRoute: Record<string, boolean> = {
-    "/pipelines": isPipelinesActive,
-    "/sources": isSourcesActive,
-    "/sinks": isSinksActive,
-  };
-
   return (
     <NavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
@@ -73,23 +73,9 @@ const MainLayoutNavbar = () => {
         <Text isMonospace>FILAMENT</Text>
       </FlexWrapper>
       <NavTabsWrapper>
-        {NAV_ITEMS.map((item) => {
-          const isActive = isActiveByRoute[item.to] ?? false;
-          return (
-            <Link key={item.to} to={item.to}>
-              <NavTabWrapper $isActive={isActive}>
-                <Text
-                  size={TextSize.BODY_MD}
-                  variant={isActive ? TextVariant.PRIMARY : TextVariant.SECONDARY}
-                  weight={isActive ? TextWeight.MEDIUM : TextWeight.REGULAR}
-                  cursor="pointer"
-                >
-                  {item.label}
-                </Text>
-              </NavTabWrapper>
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map((item) => (
+          <MainLayoutNavTab key={item.to} item={item} />
+        ))}
       </NavTabsWrapper>
       <GitHubButton
         href={GITHUB_REPO_URL}

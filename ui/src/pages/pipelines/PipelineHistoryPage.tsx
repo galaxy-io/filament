@@ -1,40 +1,35 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { WarningCircleIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
 
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import BaseHeader from "@/layouts/components/BaseHeader";
-import { BaseHeaderSize } from "@/layouts/components/types";
-import EmptyLayout from "@/layouts/EmptyLayout";
-import ErrorLayout from "@/layouts/ErrorLayout";
-
-import RunStatusCell from "@/pages/pipelines/components/RunStatusCell";
-import {
-  RUN_HISTORY_LIMIT,
-  RUN_HISTORY_LOADING_ROW_COUNT,
-  RUN_TABLE_COLUMN_WIDTH_DURATION,
-  RUN_TABLE_COLUMN_WIDTH_RECORDS,
-  RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
-  RUN_TABLE_COLUMN_WIDTH_STATUS,
-  RUN_TABLE_COLUMN_WIDTH_VERSION,
-  RUN_TABLE_COLUMN_WIDTH_VOLUME,
-} from "@/pages/pipelines/constants";
-import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/pages/pipelines/utils";
-
-import { useListRunsQuery } from "@/api/queries/runs";
-
 import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineHistoryRunInfo from "./canvas/history/PipelineHistoryRunInfo";
+import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import EmptyLayout from "@/layouts/EmptyLayout";
+
+import {
+  PIPELINE_RUN_HISTORY_LIMIT,
+  PIPELINE_RUN_TABLE_COLUMN_WIDTH_DURATION,
+  PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+  PIPELINE_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
+  PIPELINE_RUN_TABLE_COLUMN_WIDTH_STATUS,
+  PIPELINE_RUN_TABLE_COLUMN_WIDTH_VERSION,
+  PIPELINE_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+} from "@/pages/pipelines/history/constants";
+import PipelineRunInfo from "@/pages/pipelines/history/PipelineRunInfo";
+import PipelineRunStatus from "@/pages/pipelines/history/PipelineRunStatus";
+
+import { useSuspenseListRunsQuery } from "@/api/queries/runs";
+
+import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -58,14 +53,16 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "status",
     header: "Status",
-    size: RUN_TABLE_COLUMN_WIDTH_STATUS,
+    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_STATUS,
     cellLoading: () => <TextShimmer width={64} height={18} />,
-    cell: ({ row }) => <RunStatusCell status={row.original.status} error={row.original.error} />,
+    cell: ({ row }) => (
+      <PipelineRunStatus status={row.original.status} error={row.original.error} />
+    ),
   },
   {
     id: "startedAt",
     header: "Started",
-    size: RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
+    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
@@ -86,7 +83,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "duration",
     header: "Duration",
-    size: RUN_TABLE_COLUMN_WIDTH_DURATION,
+    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_DURATION,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
@@ -97,7 +94,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "version",
     header: "Version",
-    size: RUN_TABLE_COLUMN_WIDTH_VERSION,
+    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cellLoading: () => <TextShimmer width={32} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM}>
@@ -108,7 +105,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "records",
     header: "Records",
-    size: RUN_TABLE_COLUMN_WIDTH_RECORDS,
+    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
     align: ColumnAlign.CENTER,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
@@ -120,7 +117,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "volume",
     header: "Volume",
-    size: RUN_TABLE_COLUMN_WIDTH_VOLUME,
+    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_VOLUME,
     align: ColumnAlign.RIGHT,
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
@@ -134,10 +131,10 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
 const PipelineHistoryPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
 
-  const { data, isLoading, isError } = useListRunsQuery({
+  const { data } = useSuspenseListRunsQuery({
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
-      limit: RUN_HISTORY_LIMIT,
+      limit: PIPELINE_RUN_HISTORY_LIMIT,
     }),
   });
 
@@ -156,22 +153,13 @@ const PipelineHistoryPage = () => {
       <RunTableWrapper>
         <InfiniteTable<RunInfo>
           columns={RUN_TABLE_COLUMNS}
-          data={data?.runs ?? []}
+          data={data.runs}
           getRowId={(run) => run.runId}
-          isLoading={isLoading}
-          loadingRowCount={RUN_HISTORY_LOADING_ROW_COUNT}
-          isError={isError}
-          contentWhenError={
-            <ErrorLayout
-              icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
-              message="Failed to load runs. Please try again."
-            />
-          }
           contentWhenEmpty={
             <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
           }
           onRowExpand={(row) => {
-            return <PipelineHistoryRunInfo runId={row.original.runId} />;
+            return <PipelineRunInfo runId={row.original.runId} />;
           }}
           fillWidth
           fillHeight

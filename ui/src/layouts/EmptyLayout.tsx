@@ -53,7 +53,7 @@ const EmptyLayout = ({
       justifyContent={JustifyContent.CENTER}
       gap={EMPTY_LAYOUT_SIZE_TO_GAP_MAP[size]}
     >
-      {icon && icon}
+      {icon}
       <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={8}>
         {header && (
           <Text size={EMPTY_LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
@@ -66,7 +66,7 @@ const EmptyLayout = ({
           </Text>
         )}
       </FlexWrapper>
-      {actions && actions}
+      {actions}
     </FlexWrapper>
   );
 };

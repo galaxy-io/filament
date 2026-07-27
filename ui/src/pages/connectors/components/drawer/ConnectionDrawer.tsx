@@ -1,9 +1,7 @@
-import { useState } from "react";
-
 import { styled } from "@linaria/react";
+import { KeyIcon, SlidersIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
@@ -13,23 +11,23 @@ import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
-import { useToast } from "@galaxy-io/dls/toast/useToast";
-
-import ConnectionDrawerConfiguration from "@/pages/connectors/components/drawer/ConnectionDrawerConfiguration";
-import ConnectionDrawerHeader from "@/pages/connectors/components/drawer/ConnectionDrawerHeader";
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
-import ConnectionDrawerPipelines from "@/pages/connectors/components/drawer/ConnectionDrawerPipelines";
-import ConnectionDrawerSecrets from "@/pages/connectors/components/drawer/ConnectionDrawerSecrets";
-
-import { useDeleteConnectionMutation } from "@/api/queries/connectors";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import DangerZone from "@/components/DangerZone";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+
+import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
+import ConnectionDrawerHeader from "@/pages/connectors/components/drawer/ConnectionDrawerHeader";
+import ConnectionDrawerJsonSection from "@/pages/connectors/components/drawer/ConnectionDrawerJsonSection";
+import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
+import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
+import ConnectionDrawerPipelines from "@/pages/connectors/components/drawer/ConnectionDrawerPipelines";
+
+import { useDeleteConnectionMutation } from "@/api/queries/connections";
+
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
 const DrawerWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -53,40 +51,20 @@ interface ConnectionDrawerProps {
 
 const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
   const navigate = useNavigate();
+
   const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
-  const { showToast } = useToast();
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-  const handleOpenDeleteModal = () => setIsDeleteModalOpen(true);
-  const handleCloseDeleteModal = () => setIsDeleteModalOpen(false);
-
-  const handleConfirmDelete = () => {
-    deleteConnection(
-      { id: connection.id },
-      {
-        onSuccess: () => {
-          showToast({
-            header: "Connection deleted",
-            subheader: `${connection.name} has been deleted successfully.`,
-            variant: ToastVariant.SUCCESS,
-          });
-          onClose();
-          navigate({
-            to: connection.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
-          });
-        },
-        onError: (error) => {
-          showToast({
-            header: "Delete failed",
-            subheader: error instanceof Error ? error.message : "Failed to delete connection",
-            variant: ToastVariant.ERROR,
-          });
-          setIsDeleteModalOpen(false);
-        },
-      },
-    );
-  };
+  const deleteConfirm = useDeleteConfirm({
+    entityLabel: "Connection",
+    entityName: connection.name,
+    onDelete: (callbacks) => deleteConnection({ id: connection.id }, callbacks),
+    onDeleted: () => {
+      onClose();
+      navigate({
+        to: connection.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
+      });
+    },
+  });
 
   return (
     <DrawerWrapper>
@@ -109,14 +87,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
             />
             <ConnectionDrawerKeyValueRow
               label="Kind"
-              value={
-                <Chip
-                  label={connection.kind === ConnectorKind.SOURCE ? "Source" : "Sink"}
-                  variant={
-                    connection.kind === ConnectorKind.SOURCE ? ChipVariant.LIME : ChipVariant.PINK
-                  }
-                />
-              }
+              value={<ConnectionKindChip kind={connection.kind} />}
             />
             <ConnectionDrawerKeyValueRow
               label="Version"
@@ -124,10 +95,20 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
             />
           </ConnectionDrawerList>
 
-          <ConnectionDrawerConfiguration config={connection.config} />
-
-          <ConnectionDrawerSecrets secretRefs={connection.secretRefs} />
-
+          <ConnectionDrawerJsonSection
+            header="Configuration"
+            icon={SlidersIcon}
+            data={connection.config}
+            emptyHeader="No configuration"
+            emptyMessage="This connection has no configuration values."
+          />
+          <ConnectionDrawerJsonSection
+            header="Secrets"
+            icon={KeyIcon}
+            data={connection.secretRefs}
+            emptyHeader="No secrets"
+            emptyMessage="This connection has no secret references."
+          />
           <ConnectionDrawerPipelines connectionId={connection.id} />
         </FlexWrapper>
       </DrawerBody>
@@ -138,16 +119,15 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
         <DangerZone
           title="Delete connection"
           description="This will permanently delete this connection."
-          buttonLabel="Delete"
-          onAction={handleOpenDeleteModal}
+          onClick={deleteConfirm.handleOpen}
         />
       </FlexItem>
 
-      <Modal open={isDeleteModalOpen} onClose={handleCloseDeleteModal}>
+      <Modal open={deleteConfirm.isOpen} onClose={deleteConfirm.handleClose}>
         <DeleteConfirmDialog
-          open={isDeleteModalOpen}
-          onClose={handleCloseDeleteModal}
-          onConfirm={handleConfirmDelete}
+          open={deleteConfirm.isOpen}
+          onClose={deleteConfirm.handleClose}
+          onConfirm={deleteConfirm.handleConfirm}
           title="Delete connection"
           body="This will permanently delete this connection and all associated data."
           confirmationPhrase={connection.name || ""}

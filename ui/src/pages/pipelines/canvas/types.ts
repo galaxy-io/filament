@@ -1,9 +1,9 @@
 import type { BuiltInNode, Edge, Node } from "@xyflow/react";
 
-import type { PipelineCanvasAction } from "@/pages/pipelines/canvas/actions";
-
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
+
+import type { PipelineCanvasAction } from "@/pages/pipelines/canvas/actions";
 
 export enum PipelineNodeType {
   SOURCE = "SOURCE",
@@ -11,41 +11,34 @@ export enum PipelineNodeType {
   PLACEHOLDER = "PLACEHOLDER",
 }
 
-export interface PipelineNodeSourceTableInfo {
+export interface PipelineSourceNodeTableInfo {
   name: string;
-  rowCount: string;
   isConnected: boolean;
 }
 
-export type PipelineNodeSourceData = {
+export type PipelineConnectionNodeData = {
   label: string;
   connector: string;
   connectionId: string;
 };
 
-export type PipelineNodeSinkData = {
-  label: string;
-  connector: string;
-  connectionId: string;
-};
-
-export type PipelineNodePlaceholderData = {
+export type PipelinePlaceholderNodeData = {
   kind: ConnectorKind;
 };
 
-export type PipelineNodeSource = Node<PipelineNodeSourceData, PipelineNodeType.SOURCE>;
-export type PipelineNodeSink = Node<PipelineNodeSinkData, PipelineNodeType.SINK>;
-export type PipelineNodePlaceholder = Node<
-  PipelineNodePlaceholderData,
+export type PipelineSourceNode = Node<PipelineConnectionNodeData, PipelineNodeType.SOURCE>;
+export type PipelineSinkNode = Node<PipelineConnectionNodeData, PipelineNodeType.SINK>;
+export type PipelinePlaceholderNode = Node<
+  PipelinePlaceholderNodeData,
   PipelineNodeType.PLACEHOLDER
 >;
-export type PipelineNode =
-  | PipelineNodeSource
-  | PipelineNodeSink
-  | PipelineNodePlaceholder
+export type CanvasNode =
+  | PipelineSourceNode
+  | PipelineSinkNode
+  | PipelinePlaceholderNode
   | BuiltInNode;
 
-export type PipelineEdge = Edge;
+export type CanvasEdge = Edge;
 
 export enum PipelineCanvasEditMode {
   ADD_NODE = "ADD_NODE",
@@ -57,8 +50,8 @@ export enum PipelineCanvasInteractionMode {
 }
 
 export interface PipelineCanvasState {
-  nodes: PipelineNode[];
-  edges: PipelineEdge[];
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
   isReadOnly: boolean;
   activeMode: PipelineCanvasEditMode | null;
   interactionMode: PipelineCanvasInteractionMode;

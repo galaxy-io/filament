@@ -7,8 +7,7 @@ import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
-import BaseHeader from "@/layouts/components/BaseHeader";
-import { BaseHeaderSize } from "@/layouts/components/types";
+import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
 interface CreateConnectionSelectorHeaderProps {
   search: string;

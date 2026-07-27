@@ -1,64 +1,36 @@
 import { useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
-import {
-  BookOpenIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  WarningCircleIcon,
-} from "@phosphor-icons/react";
+import { BookOpenIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { ToastVariant } from "@galaxy-io/dls/toast/ToastProvider";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import ConnectorEmptyDark from "@/assets/components/ConnectorsEmptyDark";
-
-import BaseToolbar from "@/layouts/components/BaseToolbar";
-import EmptyLayout from "@/layouts/EmptyLayout";
-import ErrorLayout from "@/layouts/ErrorLayout";
-
-import PipelineCardGroup from "@/pages/pipelines/components/PipelineCardGroup";
-import PipelineCardLoading from "@/pages/pipelines/components/PipelineCardLoading";
-import { PipelineGroup } from "@/pages/pipelines/types";
-import { toPipelineGroups } from "@/pages/pipelines/utils";
-
-import { useCreatePipelineMutation, useListPipelinesQuery } from "@/api/queries/pipelines";
-
 import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { CONNECTORS_DOCS_URL } from "@/constants";
+import ConnectorEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
-const LOADING_ROW_COUNT = 6;
+import EmptyLayout from "@/layouts/EmptyLayout";
+import ListPageShell from "@/layouts/ListPageShell";
 
-const PipelineListWrapper = styled.div`
-  flex: 1;
-  width: 100%;
-  min-height: 0;
+import PipelineCard from "@/pages/pipelines/components/card/PipelineCard";
 
-  display: flex;
-  flex-direction: column;
+import { useCreatePipelineMutation, useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
 
-  overflow-y: auto;
-`;
+import { DOCUMENTATION_URL } from "@/constants";
 
-export interface PipelinesPageState {
+import { isSearchMatch } from "@/utils/search";
+
+interface PipelinesPageState {
   search: string;
-  groupFilter: PipelineGroup | null;
-  isFiltersOpen: boolean;
 }
 
 const DEFAULT_STATE: PipelinesPageState = {
   search: "",
-  groupFilter: null,
-  isFiltersOpen: false,
 };
 
 const PipelinesPage = () => {
@@ -67,28 +39,19 @@ const PipelinesPage = () => {
   const [state, setState] = useState<PipelinesPageState>(DEFAULT_STATE);
   const { showToast } = useToast();
 
-  const handleSearchChange = (value: string) => {
-    setState((prev) => ({ ...prev, search: value }));
+  const handleSearchChange = (search: string) => {
+    setState((prev) => ({ ...prev, search }));
   };
 
-  const { data, isLoading, isError } = useListPipelinesQuery();
+  const { data } = useSuspenseListPipelinesQuery();
   const { mutate: createPipeline, isPending: isCreatingPipeline } = useCreatePipelineMutation();
 
-  const isToolbarDisabled = isLoading || isError;
+  const pipelines = data.pipelines;
 
-  const pipelines = data?.pipelines ?? [];
-
-  const groups = useMemo(() => {
-    const query = state.search.trim().toLowerCase();
-    const filtered = query
-      ? pipelines.filter((item) => item.name.toLowerCase().includes(query))
-      : pipelines;
-    return toPipelineGroups(filtered);
-  }, [pipelines, state.search]);
-
-  const visibleGroups = state.groupFilter ? [state.groupFilter] : Object.values(PipelineGroup);
-
-  const totalVisiblePipelines = visibleGroups.reduce((sum, group) => sum + groups[group].length, 0);
+  const visiblePipelines = useMemo(
+    () => pipelines.filter((item) => isSearchMatch(state.search, item.name)),
+    [pipelines, state.search],
+  );
 
   const handleNewPipeline = () => {
     createPipeline(
@@ -116,31 +79,11 @@ const PipelinesPage = () => {
   };
 
   const handleReadTheDocs = () => {
-    window.open(CONNECTORS_DOCS_URL, "_blank");
+    window.open(DOCUMENTATION_URL, "_blank");
   };
 
   const renderContent = () => {
-    if (isLoading) {
-      return (
-        <FlexWrapper fillWidth direction={FlexDirection.COLUMN}>
-          {Array.from({ length: LOADING_ROW_COUNT }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length loading skeleton, never reordered
-            <PipelineCardLoading key={index} />
-          ))}
-        </FlexWrapper>
-      );
-    }
-
-    if (isError) {
-      return (
-        <ErrorLayout
-          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
-          message="Failed to load pipelines. Please try again."
-        />
-      );
-    }
-
-    if (!data?.pipelines.length) {
+    if (!pipelines.length) {
       return (
         <EmptyLayout
           icon={<ConnectorEmptyDark height={200} />}
@@ -167,58 +110,38 @@ const PipelinesPage = () => {
       );
     }
 
-    if (totalVisiblePipelines === 0) {
+    if (visiblePipelines.length === 0) {
       return (
         <EmptyLayout
-          message={
-            state.search ? "No pipelines match your search" : "No pipelines match your filters"
-          }
+          icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
+          message="No pipelines match your search"
         />
       );
     }
 
-    return visibleGroups.map((group) => (
-      <PipelineCardGroup
-        key={group}
-        group={group}
-        pipelines={groups[group]}
-        defaultExpanded={group !== PipelineGroup.PAUSED}
-      />
+    return visiblePipelines.map((pipeline) => (
+      <PipelineCard key={pipeline.id} pipeline={pipeline} />
     ));
   };
 
   return (
-    <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
-      <FlexWrapper padding={"8px 12px"} fillWidth>
-        <BaseToolbar
-          leadingActions={[
-            <TextInput
-              key="search"
-              value={state.search}
-              onChange={handleSearchChange}
-              placeholder="Search"
-              leading={{ icon: MagnifyingGlassIcon }}
-              isDisabled={isToolbarDisabled}
-              fillWidth
-            />,
-          ]}
-          trailingActions={[
-            <Button
-              key="new-pipeline"
-              label={isCreatingPipeline ? "Creating..." : "New pipeline"}
-              icon={PlusIcon}
-              variant={ButtonVariant.PRIMARY}
-              isDisabled={isToolbarDisabled || isCreatingPipeline}
-              onClick={handleNewPipeline}
-            />,
-          ]}
-        />
-      </FlexWrapper>
-      <FlexItem grow={0} shrink={0} fillWidth>
-        <HorizontalDivider />
-      </FlexItem>
-      <PipelineListWrapper>{renderContent()}</PipelineListWrapper>
-    </FlexWrapper>
+    <ListPageShell
+      search={state.search}
+      onSearchChange={handleSearchChange}
+      searchPlaceholder="Search"
+      trailingActions={[
+        <Button
+          key="new-pipeline"
+          label={isCreatingPipeline ? "Creating..." : "New pipeline"}
+          icon={PlusIcon}
+          variant={ButtonVariant.PRIMARY}
+          isDisabled={isCreatingPipeline}
+          onClick={handleNewPipeline}
+        />,
+      ]}
+    >
+      {renderContent()}
+    </ListPageShell>
   );
 };
 

@@ -11,7 +11,7 @@ import "@/style.css";
 import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
 import { GalaxyThemeProvider } from "@galaxy-io/dls/theme/GalaxyTheme";
 
-import ApiQueryClientProvider from "@/api/query";
+import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -20,10 +20,10 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   <StrictMode>
-    <ApiQueryClientProvider>
+    <TransportQueryClientProvider>
       <GalaxyThemeProvider initialTheme={GalaxyTheme.DARK}>
         <App />
       </GalaxyThemeProvider>
-    </ApiQueryClientProvider>
+    </TransportQueryClientProvider>
   </StrictMode>,
 );

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
@@ -11,14 +11,11 @@ import FlexWrapper, {
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import {
-  CONNECTOR_KIND_TO_CHIP_VARIANT_MAP,
-  CONNECTOR_KIND_TO_DESCRIPTION_MAP,
-  CONNECTOR_KIND_TO_LABEL_MAP,
-} from "@/pages/connectors/constants";
-
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+
+import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import { CONNECTOR_KIND_TO_DESCRIPTION_MAP } from "@/pages/connectors/constants";
 
 interface CreateConnectionSelectorCardProps {
   connector: ConnectorSpec;
@@ -49,11 +46,7 @@ const CreateConnectionSelectorCard = ({
             />
             <Text weight={TextWeight.MEDIUM}>{connector.displayName || connector.name}</Text>
           </FlexWrapper>
-          <Chip
-            label={CONNECTOR_KIND_TO_LABEL_MAP[connector.kind]}
-            variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[connector.kind]}
-            size={ChipSize.SMALL}
-          />
+          <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
         </FlexWrapper>
 
         <FlexItem grow={1}>

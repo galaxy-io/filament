@@ -1,15 +1,38 @@
 import { memo, useMemo } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
+
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { PIPELINE_NODE_SOURCE_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
-import { usePipelineCanvas, useSourceResources } from "@/pages/pipelines/canvas/hooks";
 import PipelineNode from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import PipelineNodeSourceIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeSourceIsland";
 import type { PipelineNodeSourceProps } from "@/pages/pipelines/canvas/nodes/types";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import type { PipelineSourceNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
+
+const useSourceResources = (connectionId: string) => {
+  const { data, error, isFetching, refetch } = useDiscoverResourcesQuery({
+    input: create(DiscoverResourcesRequestSchema, { connectionId }),
+    options: { enabled: connectionId !== "", retry: false, networkMode: "always" },
+  });
+
+  const tables = useMemo<PipelineSourceNodeTableInfo[]>(
+    () =>
+      data?.resources.map((resource) => ({
+        name: resource.name,
+        isConnected: false,
+      })) ?? [],
+    [data?.resources],
+  );
+
+  return { tables, error, isLoading: isFetching, refresh: () => void refetch() };
+};
 
 const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps) => {
   const { state, dispatch } = usePipelineCanvas();
