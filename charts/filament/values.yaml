@@ -54,6 +54,23 @@ server:
     # -- Server service and container port.
     port: 8080
 
+  ingress:
+    # -- Enable an Ingress for the server API and UI.
+    enabled: false
+    # -- IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default.
+    className: ""
+    # -- Annotations for the Ingress, e.g. a cert-manager issuer or ALB settings.
+    annotations: {}
+    # -- Path served by the Ingress.
+    path: /
+    # -- PathType for the path.
+    pathType: Prefix
+    # -- Hostnames served by the Ingress.
+    hosts:
+      - filament.example.com
+    # -- Ingress TLS configuration, passed through verbatim.
+    tls: []
+
   # -- Server resource requests and limits.
   # @default -- `{}` (See [values.yaml])
   resources: {}
