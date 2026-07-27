@@ -29,3 +29,7 @@ migrations:
   - changed-files:
       - any-glob-to-any-file:
           - "datastore/postgres/migrations/**"
+
+helm:
+  - changed-files:
+      - any-glob-to-any-file: "charts/**"
