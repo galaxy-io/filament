@@ -139,6 +139,12 @@ helm upgrade --install filament . \
 | eventBus.nats.url | string | required | NATS connection URL stored in the chart-created Secret as `NATS_URL`. Required unless `existingSecret` is set. |
 | eventBus.type | string | `"nats"` | Event bus provider. |
 
+## Observability parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| observability.otel.endpoint | string | `""` | OTLP gRPC endpoint metrics and traces are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for plaintext in-cluster collectors. Empty disables export. |
+
 ## Vendored PostgreSQL parameters
 
 | Key | Type | Default | Description |

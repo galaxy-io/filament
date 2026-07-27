@@ -16,6 +16,12 @@ data:
   # Dispatch
   DISPATCH_MODE: {{ .Values.controlPlane.dispatch.mode | quote }}
 
+  # Observability
+  {{- with .Values.observability.otel.endpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
+  OTEL_SERVICE_NAME: {{ include "filament.controlPlane.fullname" $ | quote }}
+  {{- end }}
+
   # Secrets
   SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
   {{- if eq .Values.secrets.type "postgres" }}
