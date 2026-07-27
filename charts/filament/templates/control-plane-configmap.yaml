@@ -20,6 +20,9 @@ data:
   {{- with .Values.observability.otel.endpoint }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   OTEL_SERVICE_NAME: {{ include "filament.controlPlane.fullname" $ | quote }}
+  {{- with $.Values.observability.otel.protocol }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
+  {{- end }}
   {{- end }}
 
   # Secrets

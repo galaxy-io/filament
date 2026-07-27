@@ -10,7 +10,9 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -24,21 +26,18 @@ const scope = "github.com/galaxy-io/filament"
 
 // FromEnv builds Metrics and Tracer providers. When no OTEL_EXPORTER_OTLP_*
 // endpoint is set they wrap otel's built-in noops. Otherwise they export OTLP
-// over gRPC; the exporters and resource read the standard OTEL_* variables
-// (endpoint, headers, service name, sampler). Call shutdown on exit to flush.
+// over gRPC, or HTTP when OTEL_EXPORTER_OTLP_PROTOCOL is http/protobuf; the
+// exporters and resource read the standard OTEL_* variables (endpoint,
+// headers, service name, sampler). Call shutdown on exit to flush.
 func FromEnv(ctx context.Context) (filament.Metrics, filament.Tracer, func(context.Context) error, error) {
 	if !enabled() {
 		return metrics{m: noopmetric.NewMeterProvider().Meter(scope)},
 			tracer{t: nooptrace.NewTracerProvider().Tracer(scope)},
 			func(context.Context) error { return nil }, nil
 	}
-	me, err := otlpmetricgrpc.New(ctx)
+	me, te, err := exporters(ctx)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("otel: metric exporter: %w", err)
-	}
-	te, err := otlptracegrpc.New(ctx)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("otel: trace exporter: %w", err)
+		return nil, nil, nil, err
 	}
 	res := resource.Default()
 	mp := sdkmetric.NewMeterProvider(
@@ -57,6 +56,35 @@ func FromEnv(ctx context.Context) (filament.Metrics, filament.Tracer, func(conte
 		return errors.Join(mp.Shutdown(ctx), tp.Shutdown(ctx))
 	}
 	return metrics{m: mp.Meter(scope)}, tracer{t: tp.Tracer(scope)}, shutdown, nil
+}
+
+// exporters builds the metric and span exporters per OTEL_EXPORTER_OTLP_PROTOCOL;
+// gRPC is the default.
+func exporters(ctx context.Context) (sdkmetric.Exporter, sdktrace.SpanExporter, error) {
+	switch p := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"); p {
+	case "", "grpc":
+		me, err := otlpmetricgrpc.New(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("otel: metric exporter: %w", err)
+		}
+		te, err := otlptracegrpc.New(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("otel: trace exporter: %w", err)
+		}
+		return me, te, nil
+	case "http/protobuf":
+		me, err := otlpmetrichttp.New(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("otel: metric exporter: %w", err)
+		}
+		te, err := otlptracehttp.New(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("otel: trace exporter: %w", err)
+		}
+		return me, te, nil
+	default:
+		return nil, nil, fmt.Errorf("otel: unknown OTEL_EXPORTER_OTLP_PROTOCOL %q (grpc, http/protobuf)", p)
+	}
 }
 
 func enabled() bool {
