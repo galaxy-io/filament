@@ -8,6 +8,8 @@ import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Tex
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import FilamentLogo from "@/assets/components/FilamentLogo";
+
 import { NAV_ITEMS, NAVBAR_HEIGHT, type NavItem } from "@/layouts/main/constants";
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
@@ -47,7 +49,10 @@ const NavTabsWrapper = styled.div`
 `;
 
 const MainLayoutNavTab = ({ item }: { item: NavItem }) => {
-  const { isRouteMatch: isActive } = useRouteMatch({ route: item.to, fuzzy: true });
+  const { isRouteMatch: isActive } = useRouteMatch({
+    route: item.to,
+    fuzzy: true,
+  });
 
   return (
     <Link to={item.to}>
@@ -70,7 +75,7 @@ const MainLayoutNavbar = () => {
     <NavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <GalaxyLogomark height={12} />
-        <Text isMonospace>FILAMENT</Text>
+        <FilamentLogo height={16} />
       </FlexWrapper>
       <NavTabsWrapper>
         {NAV_ITEMS.map((item) => (
