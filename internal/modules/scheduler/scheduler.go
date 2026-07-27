@@ -32,6 +32,7 @@ type Module struct {
 	bus      eventbus.Bus
 	ds       filament.DataStore
 	log      filament.Logger
+	mx       filament.Metrics
 	interval time.Duration
 }
 
@@ -64,6 +65,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore
 	m.log = d.Log
+	m.mx = d.Metrics
 	return nil
 }
 
@@ -77,8 +79,13 @@ func (m *Module) Start(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case now := <-ticker.C:
-				if _, err := m.runDue(ctx, now); err != nil && m.log != nil {
-					m.log.Error("scheduler: tick", err)
+				if _, err := m.runDue(ctx, now); err != nil {
+					if m.mx != nil {
+						m.mx.Counter("filament_schedule_tick_failures_total").Inc()
+					}
+					if m.log != nil {
+						m.log.Error("scheduler: tick", err)
+					}
 				}
 			}
 		}
@@ -187,11 +194,17 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 	fired := 0
 	for _, st := range due {
 		if st.Spec.Overlap == filament.OverlapSkip && m.previousActive(ctx, st) {
+			if m.mx != nil {
+				m.mx.Counter("filament_schedule_overlap_skips_total").Inc()
+			}
 			m.advance(ctx, st, now)
 			continue
 		}
 		runID, err := runs.Submit(ctx, m.bus, m.ds, st.Spec.Request)
 		if err != nil {
+			if m.mx != nil {
+				m.mx.Counter("filament_schedule_submit_failures_total").Inc()
+			}
 			if m.log != nil {
 				m.log.Error("scheduler: submit", err, filament.Field{Key: "schedule", Value: string(st.ID)})
 			}
@@ -212,6 +225,9 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 
 		_ = events.Emit(ctx, m.bus, events.ScheduleFired,
 			events.Envelope{Tenant: st.Spec.Tenant, Run: runID, At: now}, events.ScheduleFiredEvent{})
+		if m.mx != nil {
+			m.mx.Counter("filament_schedule_fires_total").Inc()
+		}
 		fired++
 	}
 	return fired, nil
