@@ -10,7 +10,7 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text from "@galaxy-io/dls/text/Text";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -86,7 +86,7 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
   return (
     <CardLinkWrapper to="/pipelines/$id" params={{ id: pipeline.id }}>
       <CardWrapper>
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
           <FlexWrapper
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.CENTER}
@@ -94,7 +94,7 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           >
             <Beacon variant={BeaconVariant.SUCCESS} />
           </FlexWrapper>
-          <Text>{formatPipelineName(pipeline)}</Text>
+          <Text size={TextSize.BODY_SM}>{formatPipelineName(pipeline)}</Text>
         </FlexWrapper>
 
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
