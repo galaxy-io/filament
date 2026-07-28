@@ -125,6 +125,16 @@ helm upgrade --install filament . \
   {{- end }}
 {{- end }}
 
+## Observability parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "observability." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
 ## Vendored PostgreSQL parameters
 
 | Key | Type | Default | Description |

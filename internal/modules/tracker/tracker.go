@@ -19,6 +19,7 @@ import (
 type Module struct {
 	ds  filament.DataStore
 	log filament.Logger
+	mx  filament.Metrics
 
 	// Resumable-checkpoint accumulators, keyed by (run, resource). A single durable
 	// consumer folds facts serially, but the maps are mutex-guarded in case the host
@@ -72,6 +73,7 @@ func (m *Module) Subscriptions() []host.Subscription {
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.ds = d.DataStore
 	m.log = d.Log
+	m.mx = d.Metrics
 	return nil
 }
 
@@ -115,39 +117,24 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.RunCompletedEvent:
-		if err := m.mutate(ctx, env, func(r *filament.RunState) {
+		return m.terminal(ctx, env, "completed", func(r *filament.RunState) {
 			r.Status = filament.RunCompleted
-			finishedAt(r, env.At)
 			// The terminal fact carries the engine's authoritative totals.
 			r.Records = d.Records
 			r.Bytes = d.Bytes
-		}); err != nil {
-			return err
-		}
-		m.flushRun(ctx, env.Run)
-		return nil
+		})
 
 	case events.RunFailedEvent:
-		if err := m.mutate(ctx, env, func(r *filament.RunState) {
+		return m.terminal(ctx, env, "failed", func(r *filament.RunState) {
 			r.Status = filament.RunFailed
-			finishedAt(r, env.At)
 			r.Error = d.Error
-		}); err != nil {
-			return err
-		}
-		m.flushRun(ctx, env.Run)
-		return nil
+		})
 
 	case events.RunPartialEvent:
-		if err := m.mutate(ctx, env, func(r *filament.RunState) {
+		return m.terminal(ctx, env, "partial", func(r *filament.RunState) {
 			r.Status = filament.RunPartial
-			finishedAt(r, env.At)
 			r.Error = d.Error
-		}); err != nil {
-			return err
-		}
-		m.flushRun(ctx, env.Run)
-		return nil
+		})
 
 	case events.ResourceStartedEvent:
 		return m.mutate(ctx, env, func(r *filament.RunState) {
@@ -180,6 +167,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	case events.BatchWrittenEvent:
 		// Incremental progress: accumulate per-resource and run totals as chunks
 		// land, so observers see counts climb before the run finishes.
+		var pipeline string
 		if err := m.mutate(ctx, env, func(r *filament.RunState) {
 			r.Records += d.Records
 			r.Bytes += d.Bytes
@@ -189,12 +177,17 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 			if rs.Status == filament.RunRequested {
 				rs.Status = filament.RunRunning
 			}
+			pipeline = r.Request.PipelineID
 		}); err != nil {
 			return err
 		}
+		m.observeBatch(env, pipeline, d.Records, d.Bytes)
 		if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
-			if err := m.ds.SaveCheckpoint(ctx, env.Run, cp); err != nil && m.log != nil {
-				m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
+			if err := m.ds.SaveCheckpoint(ctx, env.Run, cp); err != nil {
+				m.observeCheckpointFailure()
+				if m.log != nil {
+					m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
+				}
 			}
 		}
 		return nil
@@ -208,6 +201,22 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	default:
 		return nil // facts this module doesn't fold are acked and ignored
 	}
+}
+
+// terminal folds a run's terminal fact: apply the status mutation, stamp the
+// finish time, record the run metrics, and flush the run's cursors.
+func (m *Module) terminal(ctx context.Context, env events.Envelope, status string, fn func(*filament.RunState)) error {
+	var labels runLabels
+	if err := m.mutate(ctx, env, func(r *filament.RunState) {
+		fn(r)
+		finishedAt(r, env.At)
+		labels = labelsFor(r)
+	}); err != nil {
+		return err
+	}
+	m.observeRun(env, status, labels)
+	m.flushRun(ctx, env.Run)
+	return nil
 }
 
 // applyCheckpoint persists a cursor fact's checkpoint and pins it on the resource.
@@ -334,8 +343,11 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	m.since[key] = 0
 	m.mu.Unlock()
 	if cp != nil {
-		if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil && m.log != nil {
-			m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
+		if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil {
+			m.observeCheckpointFailure()
+			if m.log != nil {
+				m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
+			}
 		}
 	}
 }
@@ -355,8 +367,11 @@ func (m *Module) flushRun(ctx context.Context, run filament.RunID) {
 	}
 	m.mu.Unlock()
 	for _, cp := range pending {
-		if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil && m.log != nil {
-			m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
+		if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil {
+			m.observeCheckpointFailure()
+			if m.log != nil {
+				m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
+			}
 		}
 	}
 }

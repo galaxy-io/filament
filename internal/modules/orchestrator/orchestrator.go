@@ -22,6 +22,7 @@ type Module struct {
 	bus eventbus.Bus
 	ds  filament.DataStore
 	log filament.Logger
+	mx  filament.Metrics
 }
 
 // New returns an unmounted orchestrator. Providers are injected by Mount.
@@ -40,6 +41,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore
 	m.log = d.Log
+	m.mx = d.Metrics
 	return nil
 }
 
@@ -51,6 +53,9 @@ func (m *Module) Submit(ctx context.Context, req filament.RunRequest) (filament.
 	id, err := runs.Submit(ctx, m.bus, m.ds, req)
 	if err != nil {
 		return "", err
+	}
+	if m.mx != nil {
+		m.mx.Counter("filament_runs_submitted_total", filament.Label{Key: "tenant", Value: string(req.Tenant)}).Inc()
 	}
 	if m.log != nil {
 		m.log.Info("run submitted", filament.Field{Key: "run", Value: string(id)}, filament.Field{Key: "tenant", Value: string(req.Tenant)})
