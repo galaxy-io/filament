@@ -13,10 +13,10 @@ import { transport } from "@/api/transport";
 export const Route = createFileRoute("/_main/sinks")({
   loader: () =>
     queryClient.ensureQueryData(
-      createListConnectionsQueryOptions(
-        create(ListConnectionsRequestSchema, { kind: ConnectorKind.SINK }),
+      createListConnectionsQueryOptions({
+        input: create(ListConnectionsRequestSchema, { kind: ConnectorKind.SINK }),
         transport,
-      ),
+      }),
     ),
   component: () => <ConnectionsPage kind={ConnectorKind.SINK} />,
 });

@@ -13,10 +13,10 @@ import { transport } from "@/api/transport";
 export const Route = createFileRoute("/_main/sources")({
   loader: () =>
     queryClient.ensureQueryData(
-      createListConnectionsQueryOptions(
-        create(ListConnectionsRequestSchema, { kind: ConnectorKind.SOURCE }),
+      createListConnectionsQueryOptions({
+        input: create(ListConnectionsRequestSchema, { kind: ConnectorKind.SOURCE }),
         transport,
-      ),
+      }),
     ),
   component: () => <ConnectionsPage kind={ConnectorKind.SOURCE} />,
 });
