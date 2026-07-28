@@ -6,7 +6,7 @@ import (
 )
 
 // init registers the manifest-driven HTTP source plus the bundled SaaS catalog
-// (Notion, Linear). Enable with:
+// (Notion, Linear, GitHub). Enable with:
 //
 //	import _ "github.com/galaxy-io/filament/connectors/http"
 //
@@ -16,4 +16,5 @@ func init() {
 	registry.RegisterSource("httpapi", func() filament.Source { return New() })
 	registry.RegisterSource("notion", func() filament.Source { return NewNotion() })
 	registry.RegisterSource("linear", func() filament.Source { return NewLinear() })
+	registry.RegisterSource("github", func() filament.Source { return NewGitHub() })
 }
