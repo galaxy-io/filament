@@ -20,13 +20,14 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   hasPipelineGraphChanges,
   isPipelineRunnable,
   mapCanvasStateToVersionRequest,
 } from "@/pages/pipelines/canvas/graph";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import { PipelineCanvasRunActionType } from "@/pages/pipelines/canvas/providers/run/actions";
+import { usePipelineCanvasRunDispatch } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
@@ -69,42 +70,40 @@ const PipelineLayoutNavbar = ({
 }: PipelineLayoutNavbarProps) => {
   const { showToast } = useToast();
 
-  const { state: canvasState, dispatch } = usePipelineCanvas();
+  const state = usePipelineCanvasState();
+  const dispatch = usePipelineCanvasRunDispatch();
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const hasChanges = useMemo(
-    () => hasPipelineGraphChanges(canvasState, currentVersion),
-    [canvasState, currentVersion],
+    () => hasPipelineGraphChanges({ nodes: state.nodes, edges: state.edges }, currentVersion),
+    [state.nodes, state.edges, currentVersion],
   );
 
   const handleSave = () => {
-    createPipelineVersion(
-      mapCanvasStateToVersionRequest(canvasState, pipeline.id, currentVersion),
-      {
-        onSuccess: () => {
-          showToast({
-            header: "Pipeline saved",
-            subheader: `${pipeline.name} has been saved successfully.`,
-            variant: ToastVariant.SUCCESS,
-          });
-        },
-        onError: (error) => {
-          showToast({
-            header: "Save failed",
-            subheader: getErrorMessage(error, "Failed to save pipeline"),
-            variant: ToastVariant.ERROR,
-          });
-        },
+    createPipelineVersion(mapCanvasStateToVersionRequest(state, pipeline.id, currentVersion), {
+      onSuccess: () => {
+        showToast({
+          header: "Pipeline saved",
+          subheader: `${formatPipelineName(pipeline)} has been saved successfully.`,
+          variant: ToastVariant.SUCCESS,
+        });
       },
-    );
+      onError: (error) => {
+        showToast({
+          header: "Save failed",
+          subheader: getErrorMessage(error, "Failed to save pipeline"),
+          variant: ToastVariant.ERROR,
+        });
+      },
+    });
   };
 
   const { source, sinks } = useMemo(
-    () => mapCanvasNodesToFlowEndpoints(canvasState.nodes),
-    [canvasState.nodes],
+    () => mapCanvasNodesToFlowEndpoints(state.nodes),
+    [state.nodes],
   );
-  const hasEdges = canvasState.edges.length > 0;
+  const hasEdges = state.edges.length > 0;
 
   const isPreview = previewVersion !== null;
   const hasUnsavedChanges = !isPreview && hasChanges;
@@ -134,16 +133,12 @@ const PipelineLayoutNavbar = ({
     runPipeline(create(RunPipelineRequestSchema, { pipelineId: pipeline.id }), {
       onSuccess: (response) => {
         dispatch({
-          type: PipelineCanvasActionType.SET_RUN_BINDINGS,
+          type: PipelineCanvasRunActionType.START_RUN,
           payload: response.runs,
-        });
-        dispatch({
-          type: PipelineCanvasActionType.SET_ACTIVITY_OPEN,
-          payload: true,
         });
         showToast({
           header: "Run started",
-          subheader: `${pipeline.name} is now running.`,
+          subheader: `${formatPipelineName(pipeline)} is now running.`,
           variant: ToastVariant.SUCCESS,
         });
       },
@@ -161,7 +156,7 @@ const PipelineLayoutNavbar = ({
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        <Text size={TextSize.BODY_LG}>{formatPipelineName(pipeline.name)}</Text>
+        <Text>{formatPipelineName(pipeline)}</Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>

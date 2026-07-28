@@ -75,6 +75,13 @@ helm upgrade --install filament . \
 | server.image.pullSecrets | list | `[]` | Image pull secrets for the server Deployment. |
 | server.image.repository | string | `"ghcr.io/galaxy-io/filament/server"` | Server image repository. |
 | server.image.tag | string | `""` (defaults to chart appVersion) | Server image tag. |
+| server.ingress.annotations | object | `{}` | Annotations for the Ingress, e.g. a cert-manager issuer or ALB settings. |
+| server.ingress.className | string | `""` | IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default. |
+| server.ingress.enabled | bool | `false` | Enable an Ingress for the server API and UI. |
+| server.ingress.hosts | list | `["filament.example.com"]` | Hostnames served by the Ingress. |
+| server.ingress.path | string | `"/"` | Path served by the Ingress. |
+| server.ingress.pathType | string | `"Prefix"` | PathType for the path. |
+| server.ingress.tls | list | `[]` | Ingress TLS configuration, passed through verbatim. |
 | server.replicas | int | `1` | Number of server replicas. Ignored when `server.autoscaling.enabled` is true. |
 | server.resources | object | `{}` (See [values.yaml]) | Server resource requests and limits. |
 | server.service.port | int | `8080` | Server service and container port. |
@@ -138,6 +145,13 @@ helm upgrade --install filament . \
 | eventBus.nats.subjects | string | `"ingestion.v1.>"` | NATS subject filter consumed by Filament. |
 | eventBus.nats.url | string | required | NATS connection URL stored in the chart-created Secret as `NATS_URL`. Required unless `existingSecret` is set. |
 | eventBus.type | string | `"nats"` | Event bus provider. |
+
+## Observability parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| observability.otel.endpoint | string | `""` | OTLP endpoint metrics and traces are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for plaintext in-cluster collectors. Empty disables export. |
+| observability.otel.protocol | string | `""` | OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`. Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318). Empty defaults to `grpc`. |
 
 ## Vendored PostgreSQL parameters
 

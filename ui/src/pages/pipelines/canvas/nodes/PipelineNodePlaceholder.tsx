@@ -9,7 +9,6 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   PIPELINE_NODE_SINK_HANDLE_ID,
   PIPELINE_NODE_SOURCE_HANDLE_ID,
@@ -24,7 +23,11 @@ import {
 } from "@/pages/pipelines/canvas/nodes/constants";
 import type { PipelineNodePlaceholderProps } from "@/pages/pipelines/canvas/nodes/types";
 import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelector";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
 
 const PlaceholderCard = withTheme(styled.div<PropsWithTheme>`
@@ -63,7 +66,8 @@ const SelectorIsland = withTheme(styled.div<PropsWithTheme>`
 
 const PipelineNodePlaceholder = memo(
   ({ data, positionAbsoluteX, positionAbsoluteY }: PipelineNodePlaceholderProps) => {
-    const { state, dispatch } = usePipelineCanvas();
+    const state = usePipelineCanvasState();
+    const dispatch = usePipelineCanvasDispatch();
 
     const isSource = data.kind === ConnectorKind.SOURCE;
 

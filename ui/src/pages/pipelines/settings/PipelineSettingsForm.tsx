@@ -35,6 +35,8 @@ import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
+import { formatPipelineName } from "@/pages/pipelines/utils";
+
 import { useDeletePipelineMutation, useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -165,7 +167,7 @@ const PipelineSettingsForm = ({ pipeline }: PipelineSettingsFormProps) => {
               value={state.name}
               onChange={handleNameChange}
               size={InputSize.LARGE}
-              placeholder="Pipeline name"
+              placeholder={formatPipelineName(pipeline)}
               label="Name"
               fillWidth
             />
@@ -202,7 +204,7 @@ const PipelineSettingsForm = ({ pipeline }: PipelineSettingsFormProps) => {
           onConfirm={handleConfirm}
           title="Delete pipeline"
           body="This will permanently delete this pipeline and all associated data."
-          confirmationPhrase={state.name || ""}
+          confirmationPhrase={formatPipelineName(pipeline)}
           confirmLabel="Delete pipeline"
           isPending={isDeleting}
         />

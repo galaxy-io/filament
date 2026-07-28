@@ -10,12 +10,12 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
-const ScrollArea = styled.div<{ $padding: number }>`
+const ScrollArea = styled.div<{ $noPadding?: boolean }>`
   flex: 1;
   width: 100%;
   min-height: 0;
 
-  padding: ${({ $padding }) => $padding}px;
+  padding: ${({ $noPadding }) => ($noPadding ? 0 : 12)}px;
 
   display: flex;
   flex-direction: column;
@@ -23,22 +23,20 @@ const ScrollArea = styled.div<{ $padding: number }>`
   overflow-y: auto;
 `;
 
-interface ListPageShellProps {
+interface ListPageLayoutProps {
   search: string;
   onSearchChange: (search: string) => void;
-  searchPlaceholder: string;
-  trailingActions: ReactNode[];
-  contentPadding?: number;
+  actions: ReactNode[];
+  noPadding?: boolean;
 }
 
-const ListPageShell = ({
+const ListPageLayout = ({
   search,
   onSearchChange,
-  searchPlaceholder,
-  trailingActions,
-  contentPadding = 0,
+  actions,
+  noPadding = false,
   children,
-}: PropsWithChildren<ListPageShellProps>) => {
+}: PropsWithChildren<ListPageLayoutProps>) => {
   return (
     <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
       <BaseToolbar
@@ -47,19 +45,19 @@ const ListPageShell = ({
             key="search"
             value={search}
             onChange={onSearchChange}
-            placeholder={searchPlaceholder}
+            placeholder="Search"
             leading={{ icon: MagnifyingGlassIcon }}
             fillWidth
           />,
         ]}
-        trailingActions={trailingActions}
+        trailingActions={actions}
       />
       <FlexItem grow={0} shrink={0} fillWidth>
         <HorizontalDivider />
       </FlexItem>
-      <ScrollArea $padding={contentPadding}>{children}</ScrollArea>
+      <ScrollArea $noPadding={noPadding}>{children}</ScrollArea>
     </FlexWrapper>
   );
 };
 
-export default ListPageShell;
+export default ListPageLayout;

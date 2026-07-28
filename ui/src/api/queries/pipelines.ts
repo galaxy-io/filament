@@ -1,6 +1,7 @@
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -27,6 +28,18 @@ export const createListPipelinesQueryKey = (
     input,
     transport,
     cardinality: "finite",
+  });
+};
+
+export const createListPipelinesQueryOptions = ({
+  input,
+  transport,
+}: {
+  input?: ListPipelinesRequest;
+  transport: Transport;
+}) => {
+  return createQueryOptions(IngestionService.method.listPipelines, input, {
+    transport,
   });
 };
 
@@ -61,6 +74,18 @@ export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?
     input,
     transport,
     cardinality: "finite",
+  });
+};
+
+export const createGetPipelineQueryOptions = ({
+  input,
+  transport,
+}: {
+  input: GetPipelineRequest;
+  transport: Transport;
+}) => {
+  return createQueryOptions(IngestionService.method.getPipeline, input, {
+    transport,
   });
 };
 

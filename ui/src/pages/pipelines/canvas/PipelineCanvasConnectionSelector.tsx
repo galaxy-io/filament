@@ -18,15 +18,18 @@ import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { createNodeFromConnection, getNextNodePosition } from "@/pages/pipelines/canvas/graph";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
 
-import { useListConnectionsQuery } from "@/api/queries/connections";
+import { Flow } from "@/routes/__root";
 
-import { Flow } from "@/constants";
+import { useListConnectionsQuery } from "@/api/queries/connections";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -120,7 +123,8 @@ const PipelineCanvasConnectionSelector = ({
   const handleSearchChange = (search: string) => {
     setState((prev) => ({ ...prev, search }));
   };
-  const { state: canvasState, dispatch } = usePipelineCanvas();
+  const canvasState = usePipelineCanvasState();
+  const dispatch = usePipelineCanvasDispatch();
 
   const { data, isLoading, isError } = useListConnectionsQuery({
     input: create(ListConnectionsRequestSchema, { kind: kindFilter }),

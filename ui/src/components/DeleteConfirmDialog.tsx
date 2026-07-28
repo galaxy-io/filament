@@ -106,6 +106,7 @@ const DeleteConfirmDialog = ({
             onChange={handleInputChange}
             placeholder={confirmationPhrase}
             fillWidth
+            autoFocus
           />
         </FlexWrapper>
       </DeleteConfirmDialogBodyWrapper>

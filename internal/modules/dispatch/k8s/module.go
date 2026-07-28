@@ -21,6 +21,7 @@ type Module struct {
 	ds     filament.DataStore
 	client *client
 	log    filament.Logger
+	mx     filament.Metrics
 }
 
 // New returns an unmounted k8s dispatcher.
@@ -62,6 +63,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	}
 	m.ds = d.DataStore
 	m.log = d.Log
+	m.mx = d.Metrics
 	m.client = c
 	return nil
 }
@@ -85,7 +87,13 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 	}
 	job := m.jobForSpec(spec)
 	if err := m.client.createJob(ctx, m.cfg.Namespace, job); err != nil {
+		if m.mx != nil {
+			m.mx.Counter("filament_dispatch_failures_total").Inc()
+		}
 		return nil, err
+	}
+	if m.mx != nil {
+		m.mx.Counter("filament_runs_dispatched_total").Inc()
 	}
 	if m.log != nil {
 		m.log.Info("k8sdispatch: dispatched run",

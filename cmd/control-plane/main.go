@@ -16,6 +16,7 @@ import (
 
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -49,6 +50,15 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = otelShutdown(flushCtx)
+	}()
 
 	healthMux := http.NewServeMux()
 	healthMux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
@@ -85,7 +95,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
+		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Metrics: metrics, Tracer: tracer},
 		tracker.New(),
 		dispatcher,
 	)

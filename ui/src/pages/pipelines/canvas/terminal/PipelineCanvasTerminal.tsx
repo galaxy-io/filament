@@ -13,8 +13,11 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasRunActionType } from "@/pages/pipelines/canvas/providers/run/actions";
+import {
+  usePipelineCanvasRunDispatch,
+  usePipelineCanvasRunState,
+} from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import {
   PIPELINE_CANVAS_TERMINAL_HEIGHT,
   PIPELINE_CANVAS_TERMINAL_NOTCH_WIDTH,
@@ -80,13 +83,12 @@ const TerminalBody = styled.div`
 `;
 
 const PipelineCanvasTerminal = () => {
-  const { state, dispatch } = usePipelineCanvas();
-
-  const isOpen = state.isActivityOpen;
+  const { runBindings, isActivityOpen: isOpen } = usePipelineCanvasRunState();
+  const dispatch = usePipelineCanvasRunDispatch();
 
   const runIds = useMemo(
-    () => [...new Set(state.runBindings.map((binding) => binding.runId))],
-    [state.runBindings],
+    () => [...new Set(runBindings.map((binding) => binding.runId))],
+    [runBindings],
   );
 
   const { events, isStreaming } = useTailRunsStream(runIds);
@@ -101,7 +103,7 @@ const PipelineCanvasTerminal = () => {
   }, [events.length, isOpen]);
 
   const setIsOpen = (payload: boolean) => {
-    dispatch({ type: PipelineCanvasActionType.SET_ACTIVITY_OPEN, payload });
+    dispatch({ type: PipelineCanvasRunActionType.SET_ACTIVITY_OPEN, payload });
   };
 
   const renderBody = () => {

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { WarningCircleIcon } from "@phosphor-icons/react";
-import { Position, useNodeId, useUpdateNodeInternals } from "@xyflow/react";
+import { Position, useNodeId, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
 
 import Badge, { BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
@@ -22,6 +22,10 @@ import {
   PIPELINE_NODE_PADDING,
   PIPELINE_NODE_TABLE_LIST_MAX_HEIGHT,
 } from "@/pages/pipelines/canvas/nodes/constants";
+import {
+  removePipelineNodeMeasurements,
+  setPipelineNodeMeasurements,
+} from "@/pages/pipelines/canvas/nodes/measurements";
 import { Island } from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
 import type { PipelineSourceNodeTableInfo } from "@/pages/pipelines/canvas/types";
@@ -100,6 +104,9 @@ const PipelineNodeSourceIsland = ({
 }: PipelineNodeSourceIslandProps) => {
   const nodeId = useNodeId();
   const updateNodeInternals = useUpdateNodeInternals();
+  const { getZoom } = useReactFlow();
+  const listRef = useRef<HTMLDivElement>(null);
+  const badgeRef = useRef<HTMLSpanElement>(null);
   const [state, setState] = useState<PipelineNodeSourceIslandState>(DEFAULT_STATE);
 
   const handleSearchChange = (search: string) => {
@@ -108,16 +115,47 @@ const PipelineNodeSourceIsland = ({
 
   const filteredTables = tables.filter((table) => isSearchMatch(state.search, table.name));
 
+  const publishMeasurements = () => {
+    const listElement = listRef.current;
+    const nodeElement = listElement?.closest(".react-flow__node");
+    const zoom = getZoom();
+    if (!nodeId || !listElement || !nodeElement || zoom <= 0) return;
+
+    const nodeRect = nodeElement.getBoundingClientRect();
+    const listRect = listElement.getBoundingClientRect();
+    const badgeRect = badgeRef.current?.getBoundingClientRect() ?? null;
+    const toNodeY = (clientY: number) => Math.round(((clientY - nodeRect.top) / zoom) * 100) / 100;
+
+    setPipelineNodeMeasurements(nodeId, {
+      listTop: toNodeY(listRect.top),
+      listBottom: toNodeY(listRect.bottom),
+      badgeCenterY: badgeRect ? toNodeY(badgeRect.top + badgeRect.height / 2) : null,
+    });
+  };
+
   const handleListChanged = () => {
     if (nodeId) {
       updateNodeInternals(nodeId);
     }
+    publishMeasurements();
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure on content changes
   useEffect(() => {
     handleListChanged();
   }, [filteredTables.length, isLoading, error]);
+
+  useLayoutEffect(() => {
+    publishMeasurements();
+  });
+
+  useEffect(() => {
+    return () => {
+      if (nodeId) {
+        removePipelineNodeMeasurements(nodeId);
+      }
+    };
+  }, [nodeId]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -175,7 +213,7 @@ const PipelineNodeSourceIsland = ({
           fillWidth
         />
         {connectedCount > 0 && (
-          <BadgeSlot data-resource-badge>
+          <BadgeSlot ref={badgeRef}>
             <Badge count={connectedCount} variant={BadgeVariant.SECONDARY} />
           </BadgeSlot>
         )}
@@ -183,7 +221,7 @@ const PipelineNodeSourceIsland = ({
 
       <HorizontalDivider />
 
-      <TableList className="nowheel" data-table-list onScroll={handleListChanged}>
+      <TableList ref={listRef} className="nowheel" onScroll={handleListChanged}>
         {renderContent()}
       </TableList>
     </IslandWrapper>
