@@ -7,7 +7,6 @@ import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
 
 export const Route = createFileRoute("/_main/pipelines")({
-  loader: () =>
-    queryClient.ensureQueryData(createListPipelinesQueryOptions({ transport })),
+  loader: () => queryClient.ensureQueryData(createListPipelinesQueryOptions({ transport })),
   component: PipelinesPage,
 });

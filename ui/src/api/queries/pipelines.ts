@@ -59,9 +59,7 @@ export const useListPipelinesQuery = ({
   >(IngestionService.method.listPipelines, input, options);
 };
 
-export const useSuspenseListPipelinesQuery = ({
-  input,
-}: { input?: ListPipelinesRequest } = {}) => {
+export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelinesRequest } = {}) => {
   return useSuspenseQuery<
     typeof IngestionService.method.listPipelines.input,
     typeof IngestionService.method.listPipelines.output
@@ -70,10 +68,7 @@ export const useSuspenseListPipelinesQuery = ({
 
 // ========== GET PIPELINE ==========
 
-export const createGetPipelineQueryKey = (
-  input?: GetPipelineRequest,
-  transport?: Transport,
-) => {
+export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getPipeline,
     input,
@@ -94,11 +89,7 @@ export const createGetPipelineQueryOptions = ({
   });
 };
 
-export const useSuspenseGetPipelineQuery = ({
-  input,
-}: {
-  input: GetPipelineRequest;
-}) => {
+export const useSuspenseGetPipelineQuery = ({ input }: { input: GetPipelineRequest }) => {
   return useSuspenseQuery<
     typeof IngestionService.method.getPipeline.input,
     typeof IngestionService.method.getPipeline.output

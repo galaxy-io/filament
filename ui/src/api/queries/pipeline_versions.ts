@@ -15,10 +15,7 @@ import type {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import {
-  createGetPipelineQueryKey,
-  createListPipelinesQueryKey,
-} from "@/api/queries/pipelines";
+import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
 
 // ========== GET PIPELINE VERSION ==========
 

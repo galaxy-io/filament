@@ -26,21 +26,11 @@ const PipelineNotFoundComponent = () => {
 
   return (
     <ErrorLayout
-      icon={
-        <Icon
-          component={ImageBrokenIcon}
-          size={24}
-          variant={IconVariant.SECONDARY}
-        />
-      }
+      icon={<Icon component={ImageBrokenIcon} size={24} variant={IconVariant.SECONDARY} />}
       header="Pipeline not found"
       message="The pipeline you are looking for does not exist"
       actions={
-        <Button
-          label="Go back to pipelines"
-          icon={ArrowLeftIcon}
-          onClick={handleGoToPipelines}
-        />
+        <Button label="Go back to pipelines" icon={ArrowLeftIcon} onClick={handleGoToPipelines} />
       }
     />
   );
@@ -56,9 +46,7 @@ export const Route = createFileRoute("/pipelines/$id")({
             transport,
           }),
         ),
-        queryClient.ensureQueryData(
-          createListConnectionsQueryOptions({ transport }),
-        ),
+        queryClient.ensureQueryData(createListConnectionsQueryOptions({ transport })),
       ]);
     } catch (error) {
       if (error instanceof ConnectError && error.code === Code.NotFound) {
