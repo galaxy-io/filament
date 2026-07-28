@@ -204,7 +204,7 @@ const PipelineSettingsForm = ({ pipeline }: PipelineSettingsFormProps) => {
           onConfirm={handleConfirm}
           title="Delete pipeline"
           body="This will permanently delete this pipeline and all associated data."
-          confirmationPhrase={state.name || ""}
+          confirmationPhrase={state.name || pipeline.id}
           confirmLabel="Delete pipeline"
           isPending={isDeleting}
         />
