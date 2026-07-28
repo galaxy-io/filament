@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type ReactElement, useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { BookOpenIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
@@ -10,14 +10,14 @@ import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
-import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-
-import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ListPageLayout from "@/layouts/ListPageLayout";
 
+import ConnectionsPageSinksEmptyGraphic from "@/pages/connectors/components/ConnectionsPageSinksEmptyGraphic";
+import ConnectionsPageSourcesEmptyGraphic from "@/pages/connectors/components/ConnectionsPageSourcesEmptyGraphic";
 import ConnectionCard from "@/pages/connectors/components/card/ConnectionCard";
 import {
   CONNECTOR_GRID_MIN_COLUMN_WIDTH,
@@ -44,6 +44,14 @@ interface ConnectionsPageState {
 
 const DEFAULT_STATE: ConnectionsPageState = {
   search: "",
+};
+
+const CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP: Record<
+  ConnectorKind.SOURCE | ConnectorKind.SINK,
+  () => ReactElement
+> = {
+  [ConnectorKind.SOURCE]: ConnectionsPageSourcesEmptyGraphic,
+  [ConnectorKind.SINK]: ConnectionsPageSinksEmptyGraphic,
 };
 
 const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
@@ -99,9 +107,11 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
 
   const renderContent = () => {
     if (!kindConnections.length) {
+      const EmptyGraphic = CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP[kind];
+
       return (
         <EmptyLayout
-          icon={<ConnectorsEmptyDark height={200} />}
+          icon={<EmptyGraphic />}
           header={`No ${kindPlural} found`}
           message={CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP[kind]}
           actions={

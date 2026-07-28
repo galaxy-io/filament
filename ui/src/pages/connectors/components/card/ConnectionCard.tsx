@@ -1,5 +1,5 @@
 import { styled } from "@linaria/react";
-import { FlowArrowIcon, InfoIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -10,15 +10,9 @@ import FlexWrapper, {
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
@@ -51,11 +45,7 @@ interface ConnectionCardProps {
   onClick?: () => void;
 }
 
-const ConnectionCard = ({
-  connection,
-  pipelineCount = 0,
-  onClick,
-}: ConnectionCardProps) => {
+const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCardProps) => {
   const pipelineLabel = pluralize("pipeline", pipelineCount, true);
 
   return (
@@ -73,11 +63,7 @@ const ConnectionCard = ({
           <ConnectionKindChip kind={connection.kind} size={ChipSize.SMALL} />
         </FlexWrapper>
         <FlexItem shrink={0}>
-          <Chip
-            icon={FlowArrowIcon}
-            label={pipelineLabel}
-            variant={ChipVariant.TERTIARY}
-          />
+          <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.TERTIARY} />
         </FlexItem>
       </FlexWrapper>
       <HorizontalDivider />
