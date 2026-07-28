@@ -75,6 +75,13 @@ helm upgrade --install filament . \
 | server.image.pullSecrets | list | `[]` | Image pull secrets for the server Deployment. |
 | server.image.repository | string | `"ghcr.io/galaxy-io/filament/server"` | Server image repository. |
 | server.image.tag | string | `""` (defaults to chart appVersion) | Server image tag. |
+| server.ingress.annotations | object | `{}` | Annotations for the Ingress, e.g. a cert-manager issuer or ALB settings. |
+| server.ingress.className | string | `""` | IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default. |
+| server.ingress.enabled | bool | `false` | Enable an Ingress for the server API and UI. |
+| server.ingress.hosts | list | `["filament.example.com"]` | Hostnames served by the Ingress. |
+| server.ingress.path | string | `"/"` | Path served by the Ingress. |
+| server.ingress.pathType | string | `"Prefix"` | PathType for the path. |
+| server.ingress.tls | list | `[]` | Ingress TLS configuration, passed through verbatim. |
 | server.replicas | int | `1` | Number of server replicas. Ignored when `server.autoscaling.enabled` is true. |
 | server.resources | object | `{}` (See [values.yaml]) | Server resource requests and limits. |
 | server.service.port | int | `8080` | Server service and container port. |
