@@ -19,21 +19,21 @@ import "@xyflow/react/dist/style.css";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
-  CANVAS_FIT_VIEW_OPTIONS,
-  CANVAS_SNAP_GRID,
-  PIPELINE_EDGE_TYPE,
+  PIPELINE_CANVAS_EDGE_TYPE,
+  PIPELINE_CANVAS_FIT_VIEW_OPTIONS,
+  PIPELINE_CANVAS_SNAP_GRID,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph";
 import PipelineNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineNodePlaceholder";
 import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
 import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
 import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
-import type { PipelineEdge, PipelineNode } from "@/pages/pipelines/canvas/types";
+import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasInteractionMode, PipelineNodeType } from "@/pages/pipelines/canvas/types";
-import { getPlaceholderNodes } from "@/pages/pipelines/canvas/utils";
 
 const pipelineNodeTypes = {
   [PipelineNodeType.SOURCE]: PipelineNodeSource,
@@ -42,7 +42,7 @@ const pipelineNodeTypes = {
 };
 
 const pipelineEdgeTypes = {
-  [PIPELINE_EDGE_TYPE]: PipelineCanvasEdge,
+  [PIPELINE_CANVAS_EDGE_TYPE]: PipelineCanvasEdge,
 };
 
 const PageWrapper = styled.div`
@@ -128,7 +128,7 @@ const PipelineCanvas = () => {
   const isReadOnly = state.isReadOnly;
 
   const onNodesChange = useCallback(
-    (changes: NodeChange<PipelineNode>[]) => {
+    (changes: NodeChange<CanvasNode>[]) => {
       if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.APPLY_NODE_CHANGES,
@@ -139,7 +139,7 @@ const PipelineCanvas = () => {
   );
 
   const onEdgesChange = useCallback(
-    (changes: EdgeChange<PipelineEdge>[]) => {
+    (changes: EdgeChange<CanvasEdge>[]) => {
       if (isReadOnly) return;
       dispatch({
         type: PipelineCanvasActionType.APPLY_EDGE_CHANGES,
@@ -160,7 +160,6 @@ const PipelineCanvas = () => {
     [dispatch, isReadOnly],
   );
 
-  // Empty-state ghosts are appended at render time only - never stored, saved, or diffed
   const renderedNodes = useMemo(
     () => [...state.nodes, ...getPlaceholderNodes(state.nodes, isReadOnly)],
     [state.nodes, isReadOnly],
@@ -171,8 +170,7 @@ const PipelineCanvas = () => {
     [state.nodes],
   );
 
-  // Highlight edges that are selected or attached to a selected node
-  const styledEdges = useMemo<PipelineEdge[]>(
+  const styledEdges = useMemo<CanvasEdge[]>(
     () =>
       state.edges.map((edge) => {
         const isConnectedToSelected =
@@ -209,9 +207,9 @@ const PipelineCanvas = () => {
           panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
           panOnScroll
           snapToGrid
-          snapGrid={CANVAS_SNAP_GRID}
+          snapGrid={PIPELINE_CANVAS_SNAP_GRID}
           fitView
-          fitViewOptions={CANVAS_FIT_VIEW_OPTIONS}
+          fitViewOptions={PIPELINE_CANVAS_FIT_VIEW_OPTIONS}
           deleteKeyCode={isReadOnly ? null : ["Backspace", "Delete"]}
           proOptions={{ hideAttribution: true }}
         >

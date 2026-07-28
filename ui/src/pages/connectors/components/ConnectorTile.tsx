@@ -2,16 +2,15 @@ import { useState } from "react";
 
 import { styled } from "@linaria/react";
 import { CircleIcon } from "@phosphor-icons/react";
-import { match } from "ts-pattern";
 
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { useConnectorSpec } from "@/pages/connectors/hooks";
-
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+
+import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 export enum ConnectorTileSize {
   SMALL = "SMALL",
@@ -19,39 +18,35 @@ export enum ConnectorTileSize {
   LARGE = "LARGE",
 }
 
-const getTileSize = (size: ConnectorTileSize): number =>
-  match(size)
-    .with(ConnectorTileSize.SMALL, () => 24)
-    .with(ConnectorTileSize.MEDIUM, () => 32)
-    .with(ConnectorTileSize.LARGE, () => 40)
-    .exhaustive();
+const CONNECTOR_TILE_SIZE_TO_SIZE_MAP: Record<ConnectorTileSize, number> = {
+  [ConnectorTileSize.SMALL]: 24,
+  [ConnectorTileSize.MEDIUM]: 32,
+  [ConnectorTileSize.LARGE]: 40,
+};
 
-const getTileRadius = (size: ConnectorTileSize): number =>
-  match(size)
-    .with(ConnectorTileSize.SMALL, () => 4)
-    .with(ConnectorTileSize.MEDIUM, () => 5)
-    .with(ConnectorTileSize.LARGE, () => 6)
-    .exhaustive();
+const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
+  [ConnectorTileSize.SMALL]: 4,
+  [ConnectorTileSize.MEDIUM]: 5,
+  [ConnectorTileSize.LARGE]: 6,
+};
 
-const getLogoHeight = (size: ConnectorTileSize): number =>
-  match(size)
-    .with(ConnectorTileSize.SMALL, () => 16)
-    .with(ConnectorTileSize.MEDIUM, () => 20)
-    .with(ConnectorTileSize.LARGE, () => 24)
-    .exhaustive();
+const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
+  [ConnectorTileSize.SMALL]: 16,
+  [ConnectorTileSize.MEDIUM]: 20,
+  [ConnectorTileSize.LARGE]: 24,
+};
 
-const getTextSize = (size: ConnectorTileSize): TextSize =>
-  match(size)
-    .with(ConnectorTileSize.SMALL, () => TextSize.CAPTION)
-    .with(ConnectorTileSize.MEDIUM, () => TextSize.BODY_MD)
-    .with(ConnectorTileSize.LARGE, () => TextSize.BODY_LG)
-    .exhaustive();
+const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> = {
+  [ConnectorTileSize.SMALL]: TextSize.CAPTION,
+  [ConnectorTileSize.MEDIUM]: TextSize.BODY_MD,
+  [ConnectorTileSize.LARGE]: TextSize.BODY_LG,
+};
 
 const TileWrapper = withTheme(styled.div<
   PropsWithTheme<{ $size: ConnectorTileSize; $isClickable: boolean }>
 >`
-  width: ${({ $size }) => getTileSize($size)}px;
-  height: ${({ $size }) => getTileSize($size)}px;
+  width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
+  height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
 
   display: flex;
   align-items: center;
@@ -60,7 +55,7 @@ const TileWrapper = withTheme(styled.div<
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
-  border-radius: ${({ $size }) => getTileRadius($size)}px;
+  border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
   border: 0.5px solid ${({ theme }) => theme.color.border.secondary};
 
   overflow: hidden;
@@ -75,17 +70,16 @@ const TileWrapper = withTheme(styled.div<
 `);
 
 const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
-  width: ${({ $size }) => getTileSize($size)}px;
-  height: ${({ $size }) => getTileSize($size)}px;
+  width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
+  height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  background-color: transparent;
-
+  background-color: ${({ theme }) => theme.color.background.error};
   border: 0.5px solid ${({ theme }) => theme.color.border.error};
-  border-radius: ${({ $size }) => getTileRadius($size)}px;
+  border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
 
   overflow: hidden;
 `);
@@ -108,7 +102,7 @@ export const ConnectorTileEmpty = ({
     <EmptyTileWrapper $size={size}>
       <Icon
         component={CircleIcon}
-        size={getTileSize(size) / 2}
+        size={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size] / 2}
         variant={IconVariant.ERROR}
         weight={IconWeight.REGULAR}
       />
@@ -123,6 +117,12 @@ interface ConnectorTileProps {
   onClick?: (e: React.MouseEvent) => void;
 }
 
+interface ConnectorTileState {
+  failedLogoURL?: string;
+}
+
+const DEFAULT_STATE: ConnectorTileState = {};
+
 const ConnectorTile = ({
   connector,
   spec,
@@ -132,8 +132,12 @@ const ConnectorTile = ({
   const resolvedSpec = useConnectorSpec(connector);
   const catalogSpec = spec ?? resolvedSpec;
   const logoURL = catalogSpec?.darkLogoUrl;
-  const [failedLogoURL, setFailedLogoURL] = useState<string>();
-  const showLogo = !!logoURL && failedLogoURL !== logoURL;
+  const [state, setState] = useState<ConnectorTileState>(DEFAULT_STATE);
+  const showLogo = !!logoURL && state.failedLogoURL !== logoURL;
+
+  const handleLogoError = () => {
+    setState((prev) => ({ ...prev, failedLogoURL: logoURL }));
+  };
 
   return (
     <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick}>
@@ -141,11 +145,15 @@ const ConnectorTile = ({
         <ConnectorLogo
           src={logoURL}
           alt={`${catalogSpec?.displayName || connector} logo`}
-          $height={getLogoHeight(size)}
-          onError={() => setFailedLogoURL(logoURL)}
+          $height={CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP[size]}
+          onError={handleLogoError}
         />
       ) : (
-        <Text size={getTextSize(size)} variant={TextVariant.SECONDARY} isMonospace>
+        <Text
+          size={CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP[size]}
+          variant={TextVariant.SECONDARY}
+          isMonospace
+        >
           {connector.charAt(0).toUpperCase()}
         </Text>
       )}

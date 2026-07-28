@@ -7,6 +7,15 @@ import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
 import Field from "@/pages/connectors/components/create/configure/fields/Field";
 import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
 
+interface FieldObjectState {
+  displayValue: string;
+  parseError?: string;
+}
+
+const DEFAULT_STATE: FieldObjectState = {
+  displayValue: "",
+};
+
 const FieldObject = ({
   field,
   value,
@@ -16,23 +25,22 @@ const FieldObject = ({
   label,
 }: FieldComponentProps) => {
   const serializedValue = value ? JSON.stringify(value, null, 2) : "";
-  const [displayValue, setDisplayValue] = useState(serializedValue);
-  const [parseError, setParseError] = useState<string>();
-  // Tracks the serialized form this editor last emitted, so prop-driven syncs
-  // don't reformat (and jump the caret) while the user is mid-edit.
+  const [state, setState] = useState<FieldObjectState>(() => ({
+    ...DEFAULT_STATE,
+    displayValue: serializedValue,
+  }));
   const lastEmitted = useRef(serializedValue);
 
   useEffect(() => {
     if (serializedValue !== lastEmitted.current) {
       lastEmitted.current = serializedValue;
-      setDisplayValue(serializedValue);
+      setState((prev) => ({ ...prev, displayValue: serializedValue }));
     }
   }, [serializedValue]);
 
   const handleChange = (next: string) => {
-    setDisplayValue(next);
     if (next.trim() === "") {
-      setParseError(undefined);
+      setState((prev) => ({ ...prev, displayValue: next, parseError: undefined }));
       lastEmitted.current = "";
       onChange(null);
       return;
@@ -40,21 +48,26 @@ const FieldObject = ({
     try {
       const parsed: JsonValue = JSON.parse(next);
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        setParseError("Enter a JSON object");
+        setState((prev) => ({ ...prev, displayValue: next, parseError: "Enter a JSON object" }));
         return;
       }
-      setParseError(undefined);
+      setState((prev) => ({ ...prev, displayValue: next, parseError: undefined }));
       lastEmitted.current = JSON.stringify(parsed, null, 2);
       onChange(parsed);
     } catch {
-      setParseError("Enter valid JSON");
+      setState((prev) => ({ ...prev, displayValue: next, parseError: "Enter valid JSON" }));
     }
   };
 
   return (
-    <Field label={label} help={field.help} isRequired={field.required} error={parseError ?? error}>
+    <Field
+      label={label}
+      help={field.help}
+      isRequired={field.required}
+      error={state.parseError ?? error}
+    >
       <CodeEditor
-        content={displayValue}
+        content={state.displayValue}
         onChange={handleChange}
         placeholder="{}"
         lang="json"

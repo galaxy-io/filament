@@ -1,35 +1,21 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
+
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import CreateConnectionConfigure from "@/pages/connectors/components/create/configure/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
-
-import { useListConnectorsQuery } from "@/api/queries/connectors";
-
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
-  const { connector: connectorParam, connectorKind: connectorKindParam } = useSearch({
+  const { connector, connectorKind } = useSearch({
     from: "__root__",
   });
 
-  const { data } = useListConnectorsQuery();
-
-  // A connector name can exist as both a source and a sink (e.g. postgres), so
-  // the kind must disambiguate which spec the configure step uses
-  const selectedConnector = useMemo(() => {
-    if (!connectorParam || !data?.connectors) return null;
-    return (
-      data.connectors.find(
-        (c) =>
-          c.name === connectorParam &&
-          (connectorKindParam === undefined || c.kind === connectorKindParam),
-      ) ?? null
-    );
-  }, [connectorParam, connectorKindParam, data?.connectors]);
+  const selectedConnector = useConnectorSpec(connector ?? "", connectorKind);
 
   const handleConnectorSelect = useCallback(
     (connector: ConnectorSpec) => {

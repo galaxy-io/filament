@@ -5,11 +5,9 @@ import Button from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
+import PendingLayout from "@/layouts/PendingLayout";
 
-import { routeTree } from "./routeTree.gen";
-
-const DEFAULT_PRELOAD = "intent";
-const DEFAULT_PRELOAD_STALE_TIME = 300_000;
+import { routeTree } from "@/routeTree.gen";
 
 const DefaultErrorComponent = ({ error }: { error: Error }) => {
   return (
@@ -39,12 +37,15 @@ const DefaultNotFoundComponent = () => {
   );
 };
 
+const DefaultPendingComponent = () => {
+  return <PendingLayout />;
+};
+
 export const router = createRouter({
   routeTree,
   defaultErrorComponent: DefaultErrorComponent,
   defaultNotFoundComponent: DefaultNotFoundComponent,
-  defaultPreload: DEFAULT_PRELOAD,
-  defaultPreloadStaleTime: DEFAULT_PRELOAD_STALE_TIME,
+  defaultPendingComponent: DefaultPendingComponent,
 });
 
 declare module "@tanstack/react-router" {

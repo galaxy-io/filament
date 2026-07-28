@@ -1,4 +1,4 @@
-import { createContext, type PropsWithChildren, useReducer } from "react";
+import { createContext, type PropsWithChildren, useContext, useReducer } from "react";
 
 import pipelineCanvasReducer from "@/pages/pipelines/canvas/reducer";
 import {
@@ -7,7 +7,7 @@ import {
   type PipelineCanvasState,
 } from "@/pages/pipelines/canvas/types";
 
-export const DEFAULT_STATE: PipelineCanvasState = {
+const DEFAULT_STATE: PipelineCanvasState = {
   nodes: [],
   edges: [],
   isReadOnly: false,
@@ -22,8 +22,16 @@ const DEFAULT_CONTEXT: PipelineCanvasContextShape = {
   dispatch: () => undefined,
 };
 
-export const PipelineCanvasContext = createContext<PipelineCanvasContextShape>(DEFAULT_CONTEXT);
+const PipelineCanvasContext = createContext<PipelineCanvasContextShape>(DEFAULT_CONTEXT);
 PipelineCanvasContext.displayName = "PipelineCanvasContext";
+
+export const usePipelineCanvas = () => {
+  const context = useContext(PipelineCanvasContext);
+  if (!context) {
+    throw new Error("usePipelineCanvas must be used within PipelineCanvasProvider");
+  }
+  return context;
+};
 
 interface PipelineCanvasProviderProps {
   initialState?: Partial<PipelineCanvasState>;

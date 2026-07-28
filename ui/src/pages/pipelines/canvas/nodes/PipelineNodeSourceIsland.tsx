@@ -12,6 +12,8 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -19,12 +21,12 @@ import {
   PIPELINE_NODE_HANDLE_SLOT_SIZE,
   PIPELINE_NODE_PADDING,
   PIPELINE_NODE_TABLE_LIST_MAX_HEIGHT,
-} from "@/pages/pipelines/canvas/constants";
+} from "@/pages/pipelines/canvas/nodes/constants";
 import { Island } from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
-import type { PipelineNodeSourceTableInfo } from "@/pages/pipelines/canvas/types";
+import type { PipelineSourceNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { isSearchMatch } from "@/utils/search";
 
 const IslandWrapper = styled(Island)`
   padding: 0;
@@ -37,7 +39,6 @@ const SearchSection = styled.div`
   padding: ${PIPELINE_NODE_PADDING}px;
 `;
 
-// Same fixed slot as the handles so the badge centers on the handle axis
 const BadgeSlot = styled.span`
   width: ${PIPELINE_NODE_HANDLE_SLOT_SIZE}px;
   flex-shrink: 0;
@@ -77,11 +78,19 @@ const TableListShimmer = () => (
 );
 
 interface PipelineNodeSourceIslandProps {
-  tables: PipelineNodeSourceTableInfo[];
+  tables: PipelineSourceNodeTableInfo[];
   error?: Error | null;
   isLoading?: boolean;
   isSelected?: boolean;
 }
+
+interface PipelineNodeSourceIslandState {
+  search: string;
+}
+
+const DEFAULT_STATE: PipelineNodeSourceIslandState = {
+  search: "",
+};
 
 const PipelineNodeSourceIsland = ({
   tables,
@@ -91,14 +100,14 @@ const PipelineNodeSourceIsland = ({
 }: PipelineNodeSourceIslandProps) => {
   const nodeId = useNodeId();
   const updateNodeInternals = useUpdateNodeInternals();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [state, setState] = useState<PipelineNodeSourceIslandState>(DEFAULT_STATE);
 
-  const filteredTables = tables.filter((table) =>
-    table.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const handleSearchChange = (search: string) => {
+    setState((prev) => ({ ...prev, search }));
+  };
 
-  // React Flow measures handle positions once per node; re-measure whenever rows
-  // move (scroll) or the list content changes so edges stay anchored to their rows
+  const filteredTables = tables.filter((table) => isSearchMatch(state.search, table.name));
+
   const handleListChanged = () => {
     if (nodeId) {
       updateNodeInternals(nodeId);
@@ -159,8 +168,12 @@ const PipelineNodeSourceIsland = ({
   return (
     <IslandWrapper $isSelected={isSelected}>
       <SearchSection className="nodrag">
-        <TextInput placeholder="Search" value={searchQuery} onChange={setSearchQuery} fillWidth />
-        {/* Edges from rows scrolled out of view anchor to this badge */}
+        <TextInput
+          placeholder="Search"
+          value={state.search}
+          onChange={handleSearchChange}
+          fillWidth
+        />
         {connectedCount > 0 && (
           <BadgeSlot data-resource-badge>
             <Badge count={connectedCount} variant={BadgeVariant.SECONDARY} />
@@ -170,7 +183,6 @@ const PipelineNodeSourceIsland = ({
 
       <HorizontalDivider />
 
-      {/* nowheel: scrolling the list shouldn't zoom the canvas */}
       <TableList className="nowheel" data-table-list onScroll={handleListChanged}>
         {renderContent()}
       </TableList>

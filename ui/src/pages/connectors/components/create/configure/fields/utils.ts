@@ -1,0 +1,39 @@
+import type { JsonValue } from "@bufbuild/protobuf";
+
+import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
+
+const ACRONYMS_TO_CAPITALIZE: string[] = [
+  "api",
+  "url",
+  "id",
+  "s3",
+  "aws",
+  "sql",
+  "json",
+  "http",
+  "ssh",
+  "ssl",
+  "dsn",
+  "uri",
+];
+
+export function formatFieldName(fieldName: string): string {
+  return fieldName
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(" ")
+    .map((word) => {
+      if (ACRONYMS_TO_CAPITALIZE.includes(word.toLowerCase())) {
+        return word.toUpperCase();
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
+export function isFieldVisible(field: ConfigField, siblings: Record<string, JsonValue>): boolean {
+  if (!field.visibleWhen) return true;
+
+  const value = siblings[field.visibleWhen.field];
+  return typeof value === "string" && field.visibleWhen.values.includes(value);
+}

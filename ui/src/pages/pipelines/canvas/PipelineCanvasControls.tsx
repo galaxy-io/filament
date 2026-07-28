@@ -7,9 +7,9 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
-import { CANVAS_FIT_VIEW_OPTIONS } from "@/pages/pipelines/canvas/constants";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
-import { resetNodePositions } from "@/pages/pipelines/canvas/utils";
+import { PIPELINE_CANVAS_FIT_VIEW_OPTIONS } from "@/pages/pipelines/canvas/constants";
+import { mapNodesToStackedPositions } from "@/pages/pipelines/canvas/graph";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
 
 const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
@@ -55,15 +55,14 @@ const PipelineCanvasControls = () => {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const { state, dispatch } = usePipelineCanvas();
 
-  // Re-stack nodes and refit once the repositioned nodes commit
   const handleResetView = () => {
     dispatch({
       type: PipelineCanvasActionType.SET_NODES,
-      payload: resetNodePositions(state.nodes),
+      payload: mapNodesToStackedPositions(state.nodes),
     });
 
     window.setTimeout(() => {
-      void fitView(CANVAS_FIT_VIEW_OPTIONS);
+      void fitView(PIPELINE_CANVAS_FIT_VIEW_OPTIONS);
     }, 0);
   };
 

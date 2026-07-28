@@ -1,11 +1,8 @@
 import type { Interceptor, Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 
-import { API_BASE_URL, IS_DEBUG, IS_PRODUCTION } from "@/constants";
+import { API_URL, IS_DEBUG, IS_PRODUCTION } from "@/constants";
 
-/**
- * Create an interceptor for request/response logging in development
- */
 export function createLoggingInterceptor(): Interceptor {
   return (next) => async (req) => {
     if (IS_DEBUG) {
@@ -41,8 +38,8 @@ export function createLoggingInterceptor(): Interceptor {
   };
 }
 
-export const createApiTransport = ({
-  baseUrl = API_BASE_URL,
+export const createTransport = ({
+  baseUrl = API_URL,
   interceptors = [createLoggingInterceptor()],
   useBinaryFormat = IS_PRODUCTION,
 }: {
@@ -56,3 +53,5 @@ export const createApiTransport = ({
     interceptors,
   });
 };
+
+export const transport = createTransport();

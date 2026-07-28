@@ -21,9 +21,10 @@ const TrailingWrapper = styled.div`
 interface BaseToolbarProps {
   leadingActions: React.ReactNode[];
   trailingActions?: React.ReactNode[];
+  noPadding?: boolean;
 }
 
-const BaseToolbar = ({ leadingActions, trailingActions }: BaseToolbarProps) => {
+const BaseToolbar = ({ leadingActions, trailingActions, noPadding }: BaseToolbarProps) => {
   const hasTrailingActions = trailingActions && trailingActions.length > 0;
 
   return (
@@ -33,6 +34,7 @@ const BaseToolbar = ({ leadingActions, trailingActions }: BaseToolbarProps) => {
       overflow="scroll"
       gap={8}
       fillWidth
+      padding={noPadding ? "0" : "8px 12px"}
     >
       <LeadingWrapper>{leadingActions}</LeadingWrapper>
       {hasTrailingActions && <TrailingWrapper>{trailingActions}</TrailingWrapper>}

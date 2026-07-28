@@ -10,20 +10,18 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import { useConnectorSpec } from "@/pages/connectors/hooks";
+import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 import {
   PIPELINE_NODE_BORDER_RADIUS,
   PIPELINE_NODE_GAP,
   PIPELINE_NODE_PADDING,
   PIPELINE_NODE_WIDTH,
-} from "@/pages/pipelines/canvas/constants";
+} from "@/pages/pipelines/canvas/nodes/constants";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
-// Island base styles - used by header and child islands.
-// Selection thickness comes from an outline so the layout never shifts.
 export const Island = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolean }>>`
   padding: ${PIPELINE_NODE_PADDING}px;
 
@@ -39,7 +37,6 @@ export const Island = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolea
   transition: border-color 100ms ease;
 `);
 
-// Container that propagates hover to all islands
 const NodeContainer = withTheme(styled.div<
   PropsWithTheme<{ $isSelected?: boolean; $width: number }>
 >`
@@ -112,7 +109,6 @@ interface PipelineNodeProps extends PropsWithChildren {
   onDelete?: () => void;
 }
 
-// Keep action clicks from bubbling into React Flow's node selection
 const handleActionClick = (event: React.MouseEvent, action: () => void) => {
   event.stopPropagation();
   action();

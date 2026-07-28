@@ -4,7 +4,11 @@ import { styled } from "@linaria/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  AlignItems,
+  FlexDirection,
+  JustifyContent,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Code from "@galaxy-io/dls/text/Code";
@@ -27,7 +31,7 @@ export interface DeleteConfirmDialogProps {
   isPending?: boolean;
 }
 
-const Wrapper = withTheme(styled.div<PropsWithTheme>`
+const DeleteConfirmDialogWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   flex-direction: column;
   width: 520px;
@@ -37,11 +41,7 @@ const Wrapper = withTheme(styled.div<PropsWithTheme>`
   overflow: hidden;
 `);
 
-const HeaderWrapper = styled.div`
-  padding: 16px;
-`;
-
-const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
+const DeleteConfirmDialogBodyWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -49,13 +49,13 @@ const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const FooterWrapper = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  padding: 16px;
-`;
+interface DeleteConfirmDialogState {
+  inputValue: string;
+}
+
+const DEFAULT_STATE: DeleteConfirmDialogState = {
+  inputValue: "",
+};
 
 const DeleteConfirmDialog = ({
   open,
@@ -67,27 +67,31 @@ const DeleteConfirmDialog = ({
   confirmLabel = "Delete",
   isPending = false,
 }: DeleteConfirmDialogProps) => {
-  const [inputValue, setInputValue] = useState("");
+  const [state, setState] = useState<DeleteConfirmDialogState>(DEFAULT_STATE);
+
+  const handleInputChange = (value: string) => {
+    setState((prev) => ({ ...prev, inputValue: value }));
+  };
 
   useEffect(() => {
     if (open) {
-      setInputValue("");
+      setState(DEFAULT_STATE);
     }
   }, [open]);
 
-  const isConfirmDisabled = inputValue !== confirmationPhrase || isPending;
+  const isConfirmDisabled = state.inputValue !== confirmationPhrase || isPending;
 
   return (
-    <Wrapper>
-      <HeaderWrapper>
+    <DeleteConfirmDialogWrapper>
+      <FlexWrapper padding={"16px"}>
         <BaseHeader title={title} onClose={onClose} />
-      </HeaderWrapper>
+      </FlexWrapper>
 
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
       </FlexItem>
 
-      <BodyWrapper>
+      <DeleteConfirmDialogBodyWrapper>
         <Paragraph variant={TextVariant.SECONDARY}>{body}</Paragraph>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
           <Text variant={TextVariant.PRIMARY}>
@@ -98,19 +102,25 @@ const DeleteConfirmDialog = ({
             to confirm:
           </Text>
           <TextInput
-            value={inputValue}
-            onChange={setInputValue}
+            value={state.inputValue}
+            onChange={handleInputChange}
             placeholder={confirmationPhrase}
             fillWidth
           />
         </FlexWrapper>
-      </BodyWrapper>
+      </DeleteConfirmDialogBodyWrapper>
 
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
       </FlexItem>
 
-      <FooterWrapper>
+      <FlexWrapper
+        justifyContent={JustifyContent.END}
+        alignItems={AlignItems.CENTER}
+        padding={"16px"}
+        gap={8}
+        fillWidth
+      >
         <Button
           size={ButtonSize.LARGE}
           label="Cancel"
@@ -126,8 +136,8 @@ const DeleteConfirmDialog = ({
           isDisabled={isConfirmDisabled}
           isLoading={isPending}
         />
-      </FooterWrapper>
-    </Wrapper>
+      </FlexWrapper>
+    </DeleteConfirmDialogWrapper>
   );
 };
 

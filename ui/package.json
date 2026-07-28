@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "format": "biome check --write src",
-    "format:check": "biome format src",
+    "format:check": "biome check src",
     "lint": "biome lint --write src",
     "lint:check": "biome lint src"
   },
