@@ -26,6 +26,7 @@ type Module struct {
 	sources filament.SourceRegistry
 	sinks   filament.SinkRegistry
 	log     filament.Logger
+	tracer  filament.Tracer
 	secrets filament.Secrets
 }
 
@@ -52,6 +53,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.sources = d.Sources
 	m.sinks = d.Sinks
 	m.log = d.Log
+	m.tracer = d.Tracer
 	m.secrets = d.Secrets
 	return nil
 }
@@ -103,7 +105,18 @@ func specFromState(s filament.RunState) filament.RunSpec {
 //
 //nolint:funlen // the run lifecycle reads best as one sequence
 func (m *Module) runOne(ctx context.Context, spec filament.RunSpec) {
+	var span filament.Span
+	if m.tracer != nil {
+		ctx, span = m.tracer.Start(ctx, "filament.run")
+		defer span.End()
+		span.SetAttr("run", string(spec.Run))
+		span.SetAttr("tenant", string(spec.Tenant))
+		span.SetAttr("source", spec.Source.Provider)
+		span.SetAttr("sink", spec.Sink.Provider)
+	}
+
 	em := newEmitter(ctx, m.bus, m.log, spec.Tenant, spec.Run)
+	em.span = span
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
 	if err := runner.ResolveConfigRefs(ctx, m.secrets, &spec); err != nil {
 		em.fail(err)

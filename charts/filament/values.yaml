@@ -54,6 +54,23 @@ server:
     # -- Server service and container port.
     port: 8080
 
+  ingress:
+    # -- Enable an Ingress for the server API and UI.
+    enabled: false
+    # -- IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default.
+    className: ""
+    # -- Annotations for the Ingress, e.g. a cert-manager issuer or ALB settings.
+    annotations: {}
+    # -- Path served by the Ingress.
+    path: /
+    # -- PathType for the path.
+    pathType: Prefix
+    # -- Hostnames served by the Ingress.
+    hosts:
+      - filament.example.com
+    # -- Ingress TLS configuration, passed through verbatim.
+    tls: []
+
   # -- Server resource requests and limits.
   # @default -- `{}` (See [values.yaml])
   resources: {}
@@ -194,6 +211,18 @@ eventBus:
 
   # @ignore
   kafka: {}
+
+observability:
+  otel:
+    # -- OTLP endpoint metrics and traces are exported to, stored in the
+    # ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for
+    # plaintext in-cluster collectors. Empty disables export.
+    endpoint: ""
+
+    # -- OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`.
+    # Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318).
+    # Empty defaults to `grpc`.
+    protocol: ""
 
 # Vendored Bitnami PostgreSQL configuration.
 # It is strongly recommended to use an external PostgreSQL instance in production.

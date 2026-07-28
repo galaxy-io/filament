@@ -20,6 +20,7 @@ type emitter struct {
 	ctx    context.Context
 	bus    eventbus.Bus
 	log    filament.Logger
+	span   filament.Span
 	tenant filament.TenantID
 	run    filament.RunID
 
@@ -82,6 +83,9 @@ func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 
 // fail publishes the terminal run.failed fact carrying the error message.
 func (e *emitter) fail(err error) {
+	if e.span != nil {
+		e.span.SetError(err)
+	}
 	if e.log != nil {
 		e.log.Error("engine: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
@@ -89,6 +93,9 @@ func (e *emitter) fail(err error) {
 }
 
 func (e *emitter) partial(err error) {
+	if e.span != nil {
+		e.span.SetError(err)
+	}
 	if e.log != nil {
 		e.log.Error("engine: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
