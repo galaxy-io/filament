@@ -12,6 +12,9 @@ var notionManifest []byte
 //go:embed manifests/linear.yaml
 var linearManifest []byte
 
+//go:embed manifests/attio.yaml
+var attioManifest []byte
+
 //go:embed manifests/github.yaml
 var githubManifest []byte
 
@@ -26,6 +29,11 @@ func NewNotion() *Source {
 // NewLinear returns a Source backed by the embedded Linear manifest.
 func NewLinear() *Source {
 	return NewManifestWithMetadata("linear", "Linear", "Modern issue tracking and project management tool built for high-performance teams.", "https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-linear-light.svg", linearManifest, manifestOwnedConfig())
+}
+
+// NewAttio returns a Source backed by the embedded Attio REST API manifest.
+func NewAttio() *Source {
+	return NewManifestWithMetadata("attio", "Attio", "CRM platform designed for modern teams to centralize customer data, pipelines, and workflows.", "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg", attioManifest, manifestOwnedConfig())
 }
 
 // NewGitHub returns a Source backed by the embedded GitHub REST API manifest.
