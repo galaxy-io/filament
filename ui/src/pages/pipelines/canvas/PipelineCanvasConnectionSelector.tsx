@@ -4,6 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
+import pluralize from "pluralize";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -18,6 +19,7 @@ import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import { createNodeFromConnection, getNextNodePosition } from "@/pages/pipelines/canvas/graph";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
@@ -63,11 +65,22 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
   gap: 2px;
 `);
 
-const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode }) => {
+const PipelineCanvasConnectionSelectorEmpty = ({
+  message,
+  icon,
+  connectorKind,
+}: {
+  message: string;
+  icon?: React.ReactNode;
+  connectorKind: ConnectorKind;
+}) => {
   const navigate = useNavigate();
 
   const handleCreateConnection = () => {
-    navigate({ to: ".", search: { flow: Flow.CREATE_CONNECTION } });
+    navigate({
+      to: ".",
+      search: { flow: Flow.CREATE_CONNECTION, connectorKind },
+    });
   };
 
   return (
@@ -86,7 +99,7 @@ const EmptyState = ({ message, icon }: { message: string; icon?: React.ReactNode
         actions={[
           <Button
             key="create-connection"
-            label="Create connection"
+            label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
             icon={PlusIcon}
             size={ButtonSize.SMALL}
             onClick={handleCreateConnection}
@@ -158,24 +171,40 @@ const PipelineCanvasConnectionSelector = ({
 
   const renderContent = () => {
     if (isLoading) {
-      return <EmptyState message="Loading connections..." />;
+      return (
+        <PipelineCanvasConnectionSelectorEmpty
+          message="Loading connections..."
+          connectorKind={kindFilter}
+        />
+      );
     }
 
     if (isError) {
       return (
-        <EmptyState
+        <PipelineCanvasConnectionSelectorEmpty
           icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
           message="Failed to load connections"
+          connectorKind={kindFilter}
         />
       );
     }
 
     if (!kindConnections.length) {
-      return <EmptyState message="No connections found" />;
+      return (
+        <PipelineCanvasConnectionSelectorEmpty
+          message={`No ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[kindFilter].toLowerCase())} found`}
+          connectorKind={kindFilter}
+        />
+      );
     }
 
     if (!filteredConnections.length) {
-      return <EmptyState message="No connections match your search" />;
+      return (
+        <PipelineCanvasConnectionSelectorEmpty
+          message="No connections match your search"
+          connectorKind={kindFilter}
+        />
+      );
     }
 
     return (

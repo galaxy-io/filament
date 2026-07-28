@@ -11,11 +11,9 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import ConnectorEmptyDark from "@/assets/components/ConnectorsEmptyDark";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
 import ListPageLayout from "@/layouts/ListPageLayout";
 
+import PipelinesPageEmptyGraphic from "@/pages/pipelines/components/PipelinesPageEmptyGraphic";
 import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
 
 import { useCreatePipelineMutation, useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
@@ -77,10 +75,7 @@ const PipelinesPage = () => {
   const renderContent = () => {
     if (!data.pipelines.length) {
       return (
-        <EmptyLayout
-          icon={<ConnectorEmptyDark height={200} />}
-          header="No pipelines found"
-          message="Create pipelines to move data between your connectors."
+        <PipelinesPageEmptyGraphic
           actions={
             <FlexWrapper gap={8}>
               <Button
