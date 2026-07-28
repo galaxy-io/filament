@@ -17,8 +17,11 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
@@ -62,6 +65,15 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if err != nil {
 		return err
 	}
+	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = otelShutdown(flushCtx)
+	}()
 
 	// Ensure the default tenant up front so a deployment with no readiness
 	// probes (local dev) still gets one; readyz retries until it lands when
@@ -99,7 +111,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 
@@ -115,7 +127,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 
 	orch := orchestrator.New()
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks},
+		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Metrics: metrics, Tracer: tracer},
 		orch,
 	)
 	if err != nil {

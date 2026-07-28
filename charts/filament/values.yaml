@@ -195,6 +195,18 @@ eventBus:
   # @ignore
   kafka: {}
 
+observability:
+  otel:
+    # -- OTLP endpoint metrics and traces are exported to, stored in the
+    # ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for
+    # plaintext in-cluster collectors. Empty disables export.
+    endpoint: ""
+
+    # -- OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`.
+    # Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318).
+    # Empty defaults to `grpc`.
+    protocol: ""
+
 # Vendored Bitnami PostgreSQL configuration.
 # It is strongly recommended to use an external PostgreSQL instance in production.
 postgresql:
