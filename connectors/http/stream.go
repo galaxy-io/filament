@@ -90,13 +90,13 @@ func (c *Connector) streamResource(
 				return nil
 			}
 		}
-		keyJSON, err := json.Marshal(extractKey(record, res.PrimaryKey))
-		if err != nil {
-			return fmt.Errorf("marshal stream key: %w", err)
-		}
 		data, projected, err := projectRecord(res, record, parent)
 		if err != nil {
 			return err
+		}
+		keyJSON, err := json.Marshal(extractKey(data, res.PrimaryKey))
+		if err != nil {
+			return fmt.Errorf("marshal stream key: %w", err)
 		}
 		dataJSON, err := json.Marshal(data)
 		if err != nil {
@@ -117,6 +117,11 @@ func (c *Connector) streamResource(
 		totalRecords++
 
 		if fields := extractor.Capture(record, res.Capture); fields != nil {
+			for key, value := range parent {
+				if _, exists := fields[key]; !exists {
+					fields[key] = value
+				}
+			}
 			captured = append(captured, fields)
 		}
 

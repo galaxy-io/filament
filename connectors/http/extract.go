@@ -414,9 +414,25 @@ func (c *Connector) filteredResources(resources []manifest.Resource) []manifest.
 	if len(c.enabledResources) == 0 {
 		return resources
 	}
+	required := make(map[string]struct{}, len(c.enabledResources))
+	for name := range c.enabledResources {
+		required[name] = struct{}{}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, res := range resources {
+			if _, ok := required[res.Name]; !ok || res.Parent == nil {
+				continue
+			}
+			if _, ok := required[res.Parent.Resource]; !ok {
+				required[res.Parent.Resource] = struct{}{}
+				changed = true
+			}
+		}
+	}
 	out := make([]manifest.Resource, 0, len(resources))
 	for _, res := range resources {
-		if _, ok := c.enabledResources[res.Name]; ok {
+		if _, ok := required[res.Name]; ok {
 			out = append(out, res)
 		}
 	}
@@ -430,7 +446,7 @@ func (c *Connector) filteredResources(resources []manifest.Resource) []manifest.
 func (c *Connector) buildEnabledFilter(refs []pipeline.ResourceRef) {
 	c.enabledByResource = nil
 	c.enabledIDPath = nil
-	if len(refs) == 0 || c.manifest == nil || len(c.manifest.Discovery) == 0 {
+	if len(refs) == 0 || c.manifest == nil || len(c.manifest.Discovery.Resources) == 0 {
 		return
 	}
 	byKind := make(map[string]map[string]struct{})
@@ -447,9 +463,9 @@ func (c *Connector) buildEnabledFilter(refs []pipeline.ResourceRef) {
 		}
 		set[r.ID] = struct{}{}
 	}
-	c.enabledByResource = make(map[string]map[string]struct{}, len(c.manifest.Discovery))
-	c.enabledIDPath = make(map[string]string, len(c.manifest.Discovery))
-	for _, d := range c.manifest.Discovery {
+	c.enabledByResource = make(map[string]map[string]struct{}, len(c.manifest.Discovery.Resources))
+	c.enabledIDPath = make(map[string]string, len(c.manifest.Discovery.Resources))
+	for _, d := range c.manifest.Discovery.Resources {
 		if set, ok := byKind[d.Map.Kind]; ok {
 			c.enabledByResource[d.From] = set
 			c.enabledIDPath[d.From] = d.Map.IDPath

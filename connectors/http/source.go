@@ -68,6 +68,7 @@ func NewManifestWithMetadata(name, displayName, description, darkLogoURL, lightL
 
 // Spec reports the source's capabilities and configuration surface.
 func (s *Source) Spec() filament.ConnectorSpec {
+	config := s.configSchema()
 	return filament.ConnectorSpec{
 		Name:         s.name,
 		DisplayName:  s.displayName,
@@ -81,14 +82,14 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionSnapshotUpsert,
 			filament.IngestionAppend,
 		),
-		Config:    s.config,
+		Config:    config,
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
 
 // Validate checks that all required config fields are present and non-empty.
 func (s *Source) Validate(cfg filament.Config) error {
-	for _, field := range s.config.Fields {
+	for _, field := range s.configSchema().Fields {
 		if field.Required && !cfg.Has(field.Name) {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
@@ -102,6 +103,53 @@ func (s *Source) Validate(cfg filament.Config) error {
 	return nil
 }
 
+func (s *Source) configSchema() filament.ConfigSchema {
+	if len(s.manifestData) == 0 {
+		return s.config
+	}
+	m, err := manifest.Parse(s.manifestData)
+	if err != nil || len(m.Config) == 0 {
+		return s.config
+	}
+	names := make([]string, 0, len(m.Config))
+	for name := range m.Config {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	fields := make([]filament.ConfigField, 0, len(names))
+	for _, name := range names {
+		spec := m.Config[name]
+		fieldType := filament.FieldString
+		switch spec.Type {
+		case "int":
+			fieldType = filament.FieldInt
+		case "bool":
+			fieldType = filament.FieldBool
+		case "duration":
+			fieldType = filament.FieldDuration
+		case "enum":
+			fieldType = filament.FieldEnum
+		case "object":
+			fieldType = filament.FieldObject
+		case "secret":
+			fieldType = filament.FieldSecret
+		}
+		scope := filament.ScopeConnection
+		if spec.Scope == "pipeline" {
+			scope = filament.ScopePipeline
+		}
+		options := make([]filament.EnumOption, len(spec.Enum))
+		for i, value := range spec.Enum {
+			options[i] = filament.EnumOption{Value: value, Label: value}
+		}
+		fields = append(fields, filament.ConfigField{
+			Name: name, Type: fieldType, Required: spec.Required, Default: spec.Default,
+			Enum: options, Help: spec.Help, Scope: scope, Secret: spec.Type == "secret",
+		})
+	}
+	return filament.ConfigSchema{Fields: fields}
+}
+
 // Configure validates cfg and builds the underlying connector.
 func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
@@ -113,7 +161,15 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	} else {
 		c.SetManifestPath(cfg.String("manifest_path"))
 	}
-	c.SetCredentials(credentialsFromConfig(cfg))
+	var configSpecs map[string]manifest.ConfigSpec
+	if len(s.manifestData) > 0 {
+		if parsed, err := manifest.Parse(s.manifestData); err == nil {
+			configSpecs = parsed.Config
+		}
+	} else if parsed, err := manifest.Load(cfg.String("manifest_path")); err == nil {
+		configSpecs = parsed.Config
+	}
+	c.SetCredentials(credentialsFromConfig(cfg, configSpecs))
 	if err := c.Validate(); err != nil {
 		return fmt.Errorf("httpapi source: validate connector: %w", err)
 	}
@@ -135,8 +191,19 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 		return filament.DiscoverResult{}, err
 	}
 	if len(res.Resources) == 0 {
-		out := make([]filament.Resource, 0, len(s.connector.manifest.Resources))
-		for _, r := range s.connector.manifest.Resources {
+		staticResources := s.connector.manifest.Resources
+		if include := s.connector.manifest.Discovery.Include; len(include) > 0 {
+			byName := make(map[string]manifest.Resource, len(staticResources))
+			for _, resource := range staticResources {
+				byName[resource.Name] = resource
+			}
+			staticResources = make([]manifest.Resource, 0, len(include))
+			for _, name := range include {
+				staticResources = append(staticResources, byName[name])
+			}
+		}
+		out := make([]filament.Resource, 0, len(staticResources))
+		for _, r := range staticResources {
 			schema, _ := s.Schema(ctx, r.Name)
 			out = append(out, filament.Resource{
 				Name:       r.Name,
@@ -331,6 +398,19 @@ func (s *Source) planResources(resources, selectors []string) ([]string, error) 
 	if len(resources) > 0 && len(selectors) == 0 {
 		return resources, nil
 	}
+	// Static discovery uses the resource name itself as its selector. Only
+	// encoded selectors carry dynamic discovery semantics; otherwise a single
+	// static edge would fall through below and plan every manifest resource.
+	hasDynamicSelector := false
+	for _, selector := range selectors {
+		if _, ok := decodeSelector(selector); ok {
+			hasDynamicSelector = true
+			break
+		}
+	}
+	if len(resources) > 0 && !hasDynamicSelector {
+		return resources, nil
+	}
 	sorted := manifest.SortResources(s.connector.manifest.Resources)
 	out := make([]string, 0, len(sorted)+len(selectors))
 	seen := map[string]struct{}{}
@@ -378,7 +458,7 @@ func (s *Source) syntheticParentsFor(res manifest.Resource, refs []pipeline.Reso
 		return nil
 	}
 	var out []Capture
-	for _, disc := range s.connector.manifest.Discovery {
+	for _, disc := range s.connector.manifest.Discovery.Resources {
 		if disc.From != parent.Name {
 			continue
 		}
@@ -450,9 +530,18 @@ func (s *Source) Teardown(ctx context.Context) error {
 	return s.connector.Teardown(ctx)
 }
 
-func credentialsFromConfig(cfg filament.Config) map[string]string {
+func credentialsFromConfig(cfg filament.Config, specs map[string]manifest.ConfigSpec) map[string]string {
 	creds := map[string]string{}
-	for k, v := range cfg.Raw() {
+	values := make(map[string]any, len(cfg.Raw())+len(specs))
+	for key, value := range cfg.Raw() {
+		values[key] = value
+	}
+	for name, spec := range specs {
+		if _, exists := values[name]; !exists && spec.Default != nil {
+			values[name] = spec.Default
+		}
+	}
+	for k, v := range values {
 		if k == "manifest_path" {
 			continue
 		}
