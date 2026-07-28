@@ -16,10 +16,12 @@ export const usePipelineConnectionMap = () => {
 
   const versionResults = useQueries({
     queries: pipelines.map((pipeline) => ({
-      ...createGetPipelineVersionQueryOptions(
-        create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
+      ...createGetPipelineVersionQueryOptions({
+        input: create(GetPipelineVersionRequestSchema, {
+          pipelineId: pipeline.id,
+        }),
         transport,
-      ),
+      }),
       retry: false,
     })),
   });

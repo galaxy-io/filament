@@ -9,6 +9,9 @@ import PendingLayout from "@/layouts/PendingLayout";
 
 import { routeTree } from "@/routeTree.gen";
 
+const DEFAULT_PRELOAD = "intent";
+const DEFAULT_PRELOAD_STALE_TIME = 0;
+
 const DefaultErrorComponent = ({ error }: { error: Error }) => {
   return (
     <ErrorLayout
@@ -43,6 +46,8 @@ const DefaultPendingComponent = () => {
 
 export const router = createRouter({
   routeTree,
+  defaultPreload: DEFAULT_PRELOAD,
+  defaultPreloadStaleTime: DEFAULT_PRELOAD_STALE_TIME,
   defaultErrorComponent: DefaultErrorComponent,
   defaultNotFoundComponent: DefaultNotFoundComponent,
   defaultPendingComponent: DefaultPendingComponent,

@@ -73,10 +73,12 @@ const MainLayoutNavTab = ({ item }: { item: NavItem }) => {
 const MainLayoutNavbar = () => {
   return (
     <NavbarWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-        <GalaxyLogomark height={12} />
-        <FilamentLogo height={16} />
-      </FlexWrapper>
+      <Link to={"/"}>
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+          <GalaxyLogomark height={12} />
+          <FilamentLogo height={16} />
+        </FlexWrapper>
+      </Link>
       <NavTabsWrapper>
         {NAV_ITEMS.map((item) => (
           <MainLayoutNavTab key={item.to} item={item} />

@@ -1,6 +1,7 @@
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -28,6 +29,18 @@ export const createListConnectionsQueryKey = (
     input,
     transport,
     cardinality: "finite",
+  });
+};
+
+export const createListConnectionsQueryOptions = ({
+  input,
+  transport,
+}: {
+  input?: ListConnectionsRequest;
+  transport: Transport;
+}) => {
+  return createQueryOptions(IngestionService.method.listConnections, input, {
+    transport,
   });
 };
 

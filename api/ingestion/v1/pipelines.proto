@@ -85,6 +85,8 @@ message GetPipelineRequest {
 
 message GetPipelineResponse {
   Pipeline pipeline = 1;
+  PipelineVersion current_version = 2;
+  repeated PipelineVersion versions = 3;
 }
 
 message GetPipelineVersionRequest {
@@ -101,7 +103,6 @@ message ListPipelineVersionsRequest {
 }
 
 message ListPipelineVersionsResponse {
-  // Newest first (descending version).
   repeated PipelineVersion versions = 1;
 }
 

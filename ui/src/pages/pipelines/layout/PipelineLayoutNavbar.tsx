@@ -161,7 +161,7 @@ const PipelineLayoutNavbar = ({
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        <Text size={TextSize.BODY_LG}>{formatPipelineName(pipeline.name)}</Text>
+        <Text size={TextSize.BODY_LG}>{formatPipelineName(pipeline)}</Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>

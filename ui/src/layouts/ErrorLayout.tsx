@@ -24,7 +24,7 @@ const ErrorLayout = ({ icon, header, message, error, actions }: ErrorLayoutProps
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={FlexGap.MEDIUM}
+      gap={FlexGap.LARGE}
     >
       {icon}
       <FlexWrapper

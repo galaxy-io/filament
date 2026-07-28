@@ -16,7 +16,7 @@ import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb"
 import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
-import ListPageShell from "@/layouts/ListPageShell";
+import ListPageLayout from "@/layouts/ListPageLayout";
 
 import ConnectionCard from "@/pages/connectors/components/card/ConnectionCard";
 import {
@@ -149,12 +149,10 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   };
 
   return (
-    <ListPageShell
+    <ListPageLayout
       search={state.search}
       onSearchChange={handleSearchChange}
-      searchPlaceholder={`Search ${kindPlural}`}
-      contentPadding={12}
-      trailingActions={[
+      actions={[
         <Button
           key="new-connector"
           label={`New ${kindLabel}`}
@@ -165,7 +163,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
       ]}
     >
       {renderContent()}
-    </ListPageShell>
+    </ListPageLayout>
   );
 };
 
