@@ -51,10 +51,10 @@ export const Route = createFileRoute("/pipelines/$id")({
     try {
       await Promise.all([
         queryClient.ensureQueryData(
-          createGetPipelineQueryOptions(
-            create(GetPipelineRequestSchema, { id: params.id }),
+          createGetPipelineQueryOptions({
+            input: create(GetPipelineRequestSchema, { id: params.id }),
             transport,
-          ),
+          }),
         ),
         queryClient.ensureQueryData(
           createListConnectionsQueryOptions({ transport }),

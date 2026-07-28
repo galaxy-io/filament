@@ -82,10 +82,13 @@ export const createGetPipelineQueryKey = (
   });
 };
 
-export const createGetPipelineQueryOptions = (
-  input: GetPipelineRequest | undefined,
-  transport: Transport,
-) => {
+export const createGetPipelineQueryOptions = ({
+  input,
+  transport,
+}: {
+  input: GetPipelineRequest;
+  transport: Transport;
+}) => {
   return createQueryOptions(IngestionService.method.getPipeline, input, {
     transport,
   });
