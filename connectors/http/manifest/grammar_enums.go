@@ -5,8 +5,8 @@ import (
 	"slices"
 )
 
-// Enum values for the v2 manifest. These are the authoritative lists for
-// validateSemantics. grammar.v2.json mirrors them for IDE autocomplete and
+// Enum values for the v1 manifest. These are the authoritative lists for
+// validateSemantics. grammar.v1.json mirrors them for IDE autocomplete and
 // pre-decode shape checks; keep both in sync when adding a value.
 //
 // Empty string is permitted in many enums to represent "use the default"

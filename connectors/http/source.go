@@ -20,7 +20,7 @@ import (
 const providerName = "httpapi"
 
 var genericConfig = filament.ConfigSchema{Fields: []filament.ConfigField{
-	{Name: "manifest_path", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Path to a v2 HTTP API connector manifest"},
+	{Name: "manifest_path", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Path to a v1 HTTP API connector manifest"},
 }}
 
 type selectorToken struct {

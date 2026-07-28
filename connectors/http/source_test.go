@@ -502,7 +502,7 @@ func (s *collectSink) PushBatch(records []filament.Record) error {
 func writeTestManifest(t *testing.T, baseURL string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "manifest.yaml")
-	data := fmt.Sprintf(`version: 2
+	data := fmt.Sprintf(`version: 1
 name: test_http
 connection:
   base_url: %s
@@ -512,14 +512,12 @@ resources:
     method: GET
     primary_key: [id]
     response:
-      root: object
-      records_path: items
-    pagination:
-      type: cursor
-      cursor_path: next_cursor
-      cursor_param: start_cursor
-      inject_into: query
-      has_more_path: has_more
+      records: $.items
+      pagination:
+        cursor:
+          response: next_cursor
+          request: query.start_cursor
+          more: has_more
 `, baseURL)
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatalf("write manifest: %v", err)
@@ -530,7 +528,7 @@ resources:
 func writeIncrementalTestManifest(t *testing.T, baseURL string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "manifest.yaml")
-	data := fmt.Sprintf(`version: 2
+	data := fmt.Sprintf(`version: 1
 name: test_http
 connection:
   base_url: %s
@@ -540,14 +538,12 @@ resources:
     method: GET
     primary_key: [id]
     response:
-      root: object
-      records_path: items
-    pagination:
-      type: cursor
-      cursor_path: next_cursor
-      cursor_param: start_cursor
-      inject_into: query
-      has_more_path: has_more
+      records: $.items
+      pagination:
+        cursor:
+          response: next_cursor
+          request: query.start_cursor
+          more: has_more
     incremental:
       cursor_field: updated_at
       start_param: since
@@ -574,13 +570,12 @@ func writeLinearTestManifest(t *testing.T, baseURL string) string {
 func writeNotionTestManifest(t *testing.T, baseURL string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "notion.yaml")
-	data := fmt.Sprintf(`version: 2
+	data := fmt.Sprintf(`version: 1
 name: notion
 connection:
   base_url: %s
   auth:
-    type: bearer
-    token: "{{ config.api_key }}"
+    bearer: config.api_key
   headers:
     Notion-Version: "2022-06-28"
 resources:
@@ -589,12 +584,12 @@ resources:
     method: POST
     primary_key: [id]
     fields:
-      - { name: id, path: id, type: string }
-      - { name: object, path: object, type: string }
-      - { name: created_time, path: created_time, type: timestamptz, nullable: true }
-      - { name: last_edited_time, path: last_edited_time, type: timestamptz, nullable: true }
-      - { name: title, path: title.0.plain_text, type: string, nullable: true }
-      - { name: raw, path: "$", type: json }
+      id: string
+      object: string
+      created_time: timestamptz?
+      last_edited_time: timestamptz?
+      title: { path: title.0.plain_text, type: string, nullable: true }
+      raw: { path: $, type: json }
     capture:
       database_id: id
     body:
@@ -604,48 +599,46 @@ resources:
           property: object
           value: database
     response:
-      root: object
-      records_path: results
-    pagination:
-      type: cursor
-      cursor_path: next_cursor
-      cursor_param: start_cursor
-      inject_into: body
-      has_more_path: has_more
+      records: $.results
+      pagination:
+        cursor:
+          response: next_cursor
+          request: body.start_cursor
+          more: has_more
   - name: pages
     emit_as: "pages_{{ parent.database_id }}"
     path: /v1/databases/{{ parent.database_id }}/query
     method: POST
     primary_key: [id]
     fields:
-      - { name: id, path: id, type: string }
-      - { name: database_id, path: parent.database_id, type: string }
-      - { name: object, path: object, type: string }
-      - { name: created_time, path: created_time, type: timestamptz, nullable: true }
-      - { name: last_edited_time, path: last_edited_time, type: timestamptz, nullable: true }
-      - { name: archived, path: archived, type: bool, nullable: true }
-      - { name: url, path: url, type: string, nullable: true }
-      - { name: properties, path: properties, type: json, nullable: true }
-      - { name: raw, path: "$", type: json }
+      id: string
+      database_id: { path: parent.database_id, type: string }
+      object: string
+      created_time: timestamptz?
+      last_edited_time: timestamptz?
+      archived: bool?
+      url: string?
+      properties: json?
+      raw: { path: $, type: json }
     parent:
       resource: databases
     response:
-      root: object
-      records_path: results
-    pagination:
-      type: cursor
-      cursor_path: next_cursor
-      cursor_param: start_cursor
-      inject_into: body
-      has_more_path: has_more
+      records: $.results
+      pagination:
+        cursor:
+          response: next_cursor
+          request: body.start_cursor
+          more: has_more
 discovery:
-  - from: databases
-    map:
-      kind: database
-      id: id
-      name: title.0.plain_text
-      metadata:
-        object: object
+  mode: dynamic
+  resources:
+    - from: databases
+      map:
+        kind: database
+        id: id
+        name: title.0.plain_text
+        metadata:
+          object: object
 `, baseURL)
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatalf("write notion manifest: %v", err)
