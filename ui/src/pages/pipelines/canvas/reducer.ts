@@ -15,10 +15,12 @@ import {
   type SetActiveModeAction,
   type SetActivityOpenAction,
   type SetInteractionModeAction,
+  type SetNodeConfigAction,
   type SetNodesAction,
   type SetRunBindingsAction,
 } from "@/pages/pipelines/canvas/actions";
 import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
+import { restackNodes } from "@/pages/pipelines/canvas/graph";
 import type { PipelineCanvasState } from "@/pages/pipelines/canvas/types";
 
 function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCanvasState {
@@ -49,9 +51,14 @@ function applyNodeChanges(
   state: PipelineCanvasState,
   action: ApplyNodeChangesAction,
 ): PipelineCanvasState {
+  const nodes = xyflowApplyNodeChanges(action.payload, state.nodes);
+  // A dimension change means a node grew or shrank (config island toggled):
+  // reflow the column so taller nodes push their neighbors instead of
+  // covering them.
+  const resized = action.payload.some((change) => change.type === "dimensions");
   return {
     ...state,
-    nodes: xyflowApplyNodeChanges(action.payload, state.nodes),
+    nodes: resized ? restackNodes(nodes) : nodes,
   };
 }
 
@@ -102,6 +109,20 @@ function setActivityOpen(
   };
 }
 
+function setNodeConfig(
+  state: PipelineCanvasState,
+  action: SetNodeConfigAction,
+): PipelineCanvasState {
+  return {
+    ...state,
+    nodes: state.nodes.map((node) =>
+      node.id === action.payload.nodeId
+        ? { ...node, data: { ...node.data, config: action.payload.config } }
+        : node,
+    ) as PipelineCanvasState["nodes"],
+  };
+}
+
 function setRunBindings(
   state: PipelineCanvasState,
   action: SetRunBindingsAction,
@@ -135,6 +156,8 @@ const pipelineCanvasReducer = (
       return setInteractionMode(state, action);
     case PipelineCanvasActionType.SET_ACTIVITY_OPEN:
       return setActivityOpen(state, action);
+    case PipelineCanvasActionType.SET_NODE_CONFIG:
+      return setNodeConfig(state, action);
     case PipelineCanvasActionType.SET_RUN_BINDINGS:
       return setRunBindings(state, action);
   }

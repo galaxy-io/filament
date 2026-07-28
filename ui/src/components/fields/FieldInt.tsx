@@ -1,6 +1,6 @@
 import NumberInput from "@galaxy-io/dls/inputs/NumberInput";
 
-import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
+import type { FieldComponentProps } from "@/components/fields/types";
 
 const FieldInt = ({
   field,

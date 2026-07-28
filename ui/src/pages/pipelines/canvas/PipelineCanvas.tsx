@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { styled } from "@linaria/react";
 import {
@@ -52,7 +52,9 @@ const PageWrapper = styled.div`
   display: flex;
 `;
 
-const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolean }>>`
+const CanvasWrapper = withTheme(styled.div<
+  PropsWithTheme<{ $isGrabMode?: boolean; $isNodeDragging?: boolean }>
+>`
   position: relative;
   flex: 1;
   min-width: 0;
@@ -64,6 +66,18 @@ const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolea
 
   .react-flow__node.selected {
     z-index: 999 !important;
+  }
+
+  /* Restacked nodes glide to their pushed positions, and edge paths
+     transition their d attribute so connectors glide in sync (Chromium;
+     other engines snap). Every transition is suppressed while a node is
+     being dragged so dragging tracks the cursor directly. */
+  .react-flow__node {
+    transition: ${({ $isNodeDragging }) => ($isNodeDragging ? "none" : "transform 150ms ease")};
+  }
+
+  .react-flow__edge-path {
+    transition: ${({ $isNodeDragging }) => ($isNodeDragging ? "none" : "d 150ms ease")};
   }
 
   /* Placeholder ghosts are non-draggable/selectable/connectable, which makes
@@ -123,6 +137,7 @@ const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolea
 const PipelineCanvas = () => {
   const theme = useTheme();
   const { state, dispatch } = usePipelineCanvas();
+  const [isNodeDragging, setIsNodeDragging] = useState(false);
 
   const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
   const isReadOnly = state.isReadOnly;
@@ -190,13 +205,15 @@ const PipelineCanvas = () => {
 
   return (
     <PageWrapper>
-      <CanvasWrapper $isGrabMode={isGrabMode}>
+      <CanvasWrapper $isGrabMode={isGrabMode} $isNodeDragging={isNodeDragging}>
         <ReactFlow
           nodes={renderedNodes}
           edges={styledEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDragStart={() => setIsNodeDragging(true)}
+          onNodeDragStop={() => setIsNodeDragging(false)}
           nodeTypes={pipelineNodeTypes}
           edgeTypes={pipelineEdgeTypes}
           nodesDraggable={!isReadOnly}

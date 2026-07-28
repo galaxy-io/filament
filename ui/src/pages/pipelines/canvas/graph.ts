@@ -1,4 +1,4 @@
-import { create } from "@bufbuild/protobuf";
+import { create, type JsonValue } from "@bufbuild/protobuf";
 
 import { ConnectorKind, IngestionType } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -92,6 +92,33 @@ export const getPlaceholderNodes = (nodes: CanvasNode[], isReadOnly: boolean): C
   return placeholders;
 };
 
+// restackNodes reflows each column by measured node heights, so a node that
+// grows (an open config island) pushes the nodes below it down instead of
+// covering them. Column order follows current Y, so drag-reordering sticks.
+export const restackNodes = (nodes: CanvasNode[]): CanvasNode[] => {
+  const [, snapY] = PIPELINE_CANVAS_SNAP_GRID;
+  const positions = new Map<string, number>();
+
+  for (const type of [PipelineNodeType.SOURCE, PipelineNodeType.SINK]) {
+    const column = nodes
+      .filter((node) => node.type === type)
+      .sort((a, b) => a.position.y - b.position.y);
+    let y = NODE_STACK_START_Y;
+    for (const node of column) {
+      const snapped = Math.round(y / snapY) * snapY;
+      positions.set(node.id, snapped);
+      y = snapped + (node.measured?.height ?? NODE_STACK_HEIGHT) + NODE_STACK_GAP;
+    }
+  }
+
+  return nodes.map((node) => {
+    const y = positions.get(node.id);
+    return y === undefined || y === node.position.y
+      ? node
+      : { ...node, position: { ...node.position, y } };
+  });
+};
+
 export const mapNodesToStackedPositions = (nodes: CanvasNode[]): CanvasNode[] => {
   const repositioned: CanvasNode[] = [];
   for (const node of nodes) {
@@ -122,7 +149,7 @@ export const createNodeFromConnection = (
   return { id: crypto.randomUUID(), type: PipelineNodeType.SINK, position, data };
 };
 
-const isConnectionNode = (node: CanvasNode): node is PipelineSourceNode | PipelineSinkNode =>
+export const isConnectionNode = (node: CanvasNode): node is PipelineSourceNode | PipelineSinkNode =>
   node.type === PipelineNodeType.SOURCE || node.type === PipelineNodeType.SINK;
 
 const getConnectorKind = (node: PipelineSourceNode | PipelineSinkNode) =>
@@ -159,6 +186,7 @@ export const mapPipelineVersionToCanvasState = (
         label: connection?.name ?? node.connectionId,
         connector: connection?.connector ?? "",
         connectionId: node.connectionId,
+        config: node.config,
       },
     });
   }
@@ -191,7 +219,7 @@ export const mapCanvasStateToVersionRequest = (
       id: node.id,
       kind: getConnectorKind(node),
       connectionId: node.data.connectionId,
-      config: baseNode?.config,
+      config: node.data.config ?? baseNode?.config,
       secretRefs: baseNode?.secretRefs ?? {},
     };
   });
@@ -219,16 +247,37 @@ export const isPipelineRunnable = (version: PipelineVersion | undefined): boolea
   (version?.nodes ?? []).some((node) => node.kind === ConnectorKind.SINK) &&
   (version?.edges ?? []).length > 0;
 
+const canonicalize = (value: JsonValue): JsonValue => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalize(value[key] ?? null)]),
+    );
+  }
+  return value;
+};
+
+const serializeNodeConfig = (config: Record<string, JsonValue> | undefined): string =>
+  config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
+
 export const hasPipelineGraphChanges = (
   state: PipelineCanvasState,
   version: PipelineVersion | undefined,
 ): boolean => {
   const canvasNodes = state.nodes
     .filter(isConnectionNode)
-    .map((node) => `${node.id}|${getConnectorKind(node)}|${node.data.connectionId}`)
+    .map(
+      (node) =>
+        `${node.id}|${getConnectorKind(node)}|${node.data.connectionId}|${serializeNodeConfig(node.data.config)}`,
+    )
     .sort();
   const pipelineNodes = (version?.nodes ?? [])
-    .map((node) => `${node.id}|${getNormalizedConnectorKind(node.kind)}|${node.connectionId}`)
+    .map(
+      (node) =>
+        `${node.id}|${getNormalizedConnectorKind(node.kind)}|${node.connectionId}|${serializeNodeConfig(node.config)}`,
+    )
     .sort();
 
   const canvasEdges = state.edges.map(getCanvasEdgeKey).sort();

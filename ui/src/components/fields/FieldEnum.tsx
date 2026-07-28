@@ -3,7 +3,7 @@ import SelectInput, {
   SelectInputSize,
 } from "@galaxy-io/dls/inputs/SelectInput";
 
-import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
+import type { FieldComponentProps } from "@/components/fields/types";
 
 const FieldEnum = ({
   field,

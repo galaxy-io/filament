@@ -1,3 +1,4 @@
+import type { JsonValue } from "@bufbuild/protobuf";
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
@@ -19,6 +20,7 @@ export enum PipelineCanvasActionType {
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
   SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
   SET_ACTIVITY_OPEN = "SET_ACTIVITY_OPEN",
+  SET_NODE_CONFIG = "SET_NODE_CONFIG",
   SET_RUN_BINDINGS = "SET_RUN_BINDINGS",
 }
 
@@ -67,6 +69,11 @@ export interface SetActivityOpenAction {
   payload: boolean;
 }
 
+export interface SetNodeConfigAction {
+  type: PipelineCanvasActionType.SET_NODE_CONFIG;
+  payload: { nodeId: string; config: Record<string, JsonValue> };
+}
+
 export interface SetRunBindingsAction {
   type: PipelineCanvasActionType.SET_RUN_BINDINGS;
   payload: RunBinding[];
@@ -82,4 +89,5 @@ export type PipelineCanvasAction =
   | SetActiveModeAction
   | SetInteractionModeAction
   | SetActivityOpenAction
+  | SetNodeConfigAction
   | SetRunBindingsAction;

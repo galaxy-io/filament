@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
-import { ArrowsClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, GearSixIcon, TrashIcon } from "@phosphor-icons/react";
 import { Position } from "@xyflow/react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -11,6 +11,8 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
+import { getPipelineScopedFields } from "@/components/fields/utils";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
@@ -107,6 +109,7 @@ interface PipelineNodeProps extends PropsWithChildren {
   isSelected?: boolean;
   onRefresh?: () => void;
   onDelete?: () => void;
+  onConfigure?: () => void;
 }
 
 const handleActionClick = (event: React.MouseEvent, action: () => void) => {
@@ -123,10 +126,13 @@ const PipelineNode = ({
   isSelected = false,
   onRefresh,
   onDelete,
+  onConfigure,
   children,
 }: PipelineNodeProps) => {
   const connectorSpec = useConnectorSpec(connector, kind);
   const isSink = kind === ConnectorKind.SINK;
+  const hasPipelineFields =
+    getPipelineScopedFields(connectorSpec?.configSchema?.fields ?? []).length > 0;
 
   const handleSlot = (
     <PipelineNodeHandle
@@ -146,6 +152,13 @@ const PipelineNode = ({
           size={ChipSize.SMALL}
         />
         <ActionButtons>
+          {onConfigure && hasPipelineFields && (
+            // Propagates so React Flow also selects the node, lifting it above
+            // its neighbors while the config island is open.
+            <ActionButton className="nodrag" onClick={onConfigure}>
+              <Icon component={GearSixIcon} size={14} variant={IconVariant.TERTIARY} />
+            </ActionButton>
+          )}
           {onRefresh && (
             <ActionButton
               className="nodrag"
