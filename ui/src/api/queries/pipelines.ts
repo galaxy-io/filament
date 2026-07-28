@@ -1,6 +1,7 @@
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -30,6 +31,18 @@ export const createListPipelinesQueryKey = (
   });
 };
 
+export const createListPipelinesQueryOptions = ({
+  input,
+  transport,
+}: {
+  input?: ListPipelinesRequest;
+  transport: Transport;
+}) => {
+  return createQueryOptions(IngestionService.method.listPipelines, input, {
+    transport,
+  });
+};
+
 export const useListPipelinesQuery = ({
   input,
   options = {},
@@ -46,7 +59,9 @@ export const useListPipelinesQuery = ({
   >(IngestionService.method.listPipelines, input, options);
 };
 
-export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelinesRequest } = {}) => {
+export const useSuspenseListPipelinesQuery = ({
+  input,
+}: { input?: ListPipelinesRequest } = {}) => {
   return useSuspenseQuery<
     typeof IngestionService.method.listPipelines.input,
     typeof IngestionService.method.listPipelines.output
@@ -55,7 +70,10 @@ export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelines
 
 // ========== GET PIPELINE ==========
 
-export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?: Transport) => {
+export const createGetPipelineQueryKey = (
+  input?: GetPipelineRequest,
+  transport?: Transport,
+) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getPipeline,
     input,
@@ -64,7 +82,20 @@ export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?
   });
 };
 
-export const useSuspenseGetPipelineQuery = ({ input }: { input: GetPipelineRequest }) => {
+export const createGetPipelineQueryOptions = (
+  input: GetPipelineRequest | undefined,
+  transport: Transport,
+) => {
+  return createQueryOptions(IngestionService.method.getPipeline, input, {
+    transport,
+  });
+};
+
+export const useSuspenseGetPipelineQuery = ({
+  input,
+}: {
+  input: GetPipelineRequest;
+}) => {
   return useSuspenseQuery<
     typeof IngestionService.method.getPipeline.input,
     typeof IngestionService.method.getPipeline.output

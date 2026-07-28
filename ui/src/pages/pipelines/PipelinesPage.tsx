@@ -15,7 +15,7 @@ import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import ConnectorEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
-import ListPageShell from "@/layouts/ListPageShell";
+import ListPageLayout from "@/layouts/ListPageLayout";
 
 import PipelineCard from "@/pages/pipelines/components/card/PipelineCard";
 
@@ -54,28 +54,23 @@ const PipelinesPage = () => {
   );
 
   const handleNewPipeline = () => {
-    createPipeline(
-      create(CreatePipelineRequestSchema, {
-        name: "Untitled Pipeline",
-      }),
-      {
-        onSuccess: (response) => {
-          if (response.pipeline?.id) {
-            navigate({
-              to: "/pipelines/$id",
-              params: { id: response.pipeline.id },
-            });
-          }
-        },
-        onError: (error) => {
-          showToast({
-            variant: ToastVariant.ERROR,
-            header: "Failed to create pipeline",
-            subheader: error.message,
+    createPipeline(create(CreatePipelineRequestSchema, {}), {
+      onSuccess: (response) => {
+        if (response.pipeline?.id) {
+          navigate({
+            to: "/pipelines/$id",
+            params: { id: response.pipeline.id },
           });
-        },
+        }
       },
-    );
+      onError: (error) => {
+        showToast({
+          variant: ToastVariant.ERROR,
+          header: "Failed to create pipeline",
+          subheader: error.message,
+        });
+      },
+    });
   };
 
   const handleReadTheDocs = () => {
@@ -125,11 +120,10 @@ const PipelinesPage = () => {
   };
 
   return (
-    <ListPageShell
+    <ListPageLayout
       search={state.search}
       onSearchChange={handleSearchChange}
-      searchPlaceholder="Search"
-      trailingActions={[
+      actions={[
         <Button
           key="new-pipeline"
           label={isCreatingPipeline ? "Creating..." : "New pipeline"}
@@ -139,9 +133,10 @@ const PipelinesPage = () => {
           onClick={handleNewPipeline}
         />,
       ]}
+      noPadding
     >
       {renderContent()}
-    </ListPageShell>
+    </ListPageLayout>
   );
 };
 

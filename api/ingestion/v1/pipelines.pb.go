@@ -708,8 +708,13 @@ func (x *GetPipelineRequest) GetId() string {
 }
 
 type GetPipelineResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pipeline      *Pipeline              `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Pipeline *Pipeline              `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	// Version referenced by pipeline.current_version_id; unset when the pipeline
+	// has no versions.
+	CurrentVersion *PipelineVersion `protobuf:"bytes,2,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	// Newest first (descending version).
+	Versions      []*PipelineVersion `protobuf:"bytes,3,rep,name=versions,proto3" json:"versions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -747,6 +752,20 @@ func (*GetPipelineResponse) Descriptor() ([]byte, []int) {
 func (x *GetPipelineResponse) GetPipeline() *Pipeline {
 	if x != nil {
 		return x.Pipeline
+	}
+	return nil
+}
+
+func (x *GetPipelineResponse) GetCurrentVersion() *PipelineVersion {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return nil
+}
+
+func (x *GetPipelineResponse) GetVersions() []*PipelineVersion {
+	if x != nil {
+		return x.Versions
 	}
 	return nil
 }
@@ -1161,9 +1180,11 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x16UpdatePipelineResponse\x122\n" +
 	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"$\n" +
 	"\x12GetPipelineRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"I\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\xcc\x01\n" +
 	"\x13GetPipelineResponse\x122\n" +
-	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"V\n" +
+	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\x12F\n" +
+	"\x0fcurrent_version\x18\x02 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\x0ecurrentVersion\x129\n" +
+	"\bversions\x18\x03 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\"V\n" +
 	"\x19GetPipelineVersionRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12\x18\n" +
@@ -1239,14 +1260,16 @@ var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
 	3,  // 11: ingestion.v1.UpdatePipelineRequest.pipeline:type_name -> ingestion.v1.Pipeline
 	3,  // 12: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
 	3,  // 13: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	2,  // 14: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	2,  // 15: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	3,  // 16: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	2,  // 14: ingestion.v1.GetPipelineResponse.current_version:type_name -> ingestion.v1.PipelineVersion
+	2,  // 15: ingestion.v1.GetPipelineResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	2,  // 16: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	2,  // 17: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	3,  // 18: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_pipelines_proto_init() }

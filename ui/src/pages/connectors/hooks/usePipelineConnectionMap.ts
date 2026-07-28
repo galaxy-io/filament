@@ -16,10 +16,12 @@ export const usePipelineConnectionMap = () => {
 
   const versionResults = useQueries({
     queries: pipelines.map((pipeline) => ({
-      ...createGetPipelineVersionQueryOptions(
-        create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
+      ...createGetPipelineVersionQueryOptions({
+        input: create(GetPipelineVersionRequestSchema, {
+          pipelineId: pipeline.id,
+        }),
         transport,
-      ),
+      }),
       retry: false,
     })),
   });
@@ -30,7 +32,9 @@ export const usePipelineConnectionMap = () => {
       map.set(
         pipeline.id,
         new Set(
-          (versionResults[index]?.data?.version?.nodes ?? []).map((node) => node.connectionId),
+          (versionResults[index]?.data?.version?.nodes ?? []).map(
+            (node) => node.connectionId,
+          ),
         ),
       );
     });
