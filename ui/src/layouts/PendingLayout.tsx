@@ -4,8 +4,8 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import GalaxyLogomarkAnimation from "@galaxy-io/dls/icons/GalaxyLogomarkAnimation";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 interface PendingLayoutProps {
   message?: string;
