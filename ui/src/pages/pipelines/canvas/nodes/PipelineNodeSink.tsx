@@ -5,18 +5,24 @@ import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { PIPELINE_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { isConnectionNode } from "@/pages/pipelines/canvas/graph";
 import PipelineNode from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import PipelineNodeConfigIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeConfigIsland";
 import type { PipelineNodeSinkProps } from "@/pages/pipelines/canvas/nodes/types";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasReadOnly,
+  usePipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
 import { normalizeIdentifier } from "@/utils/naming";
 
 const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) => {
-  const { state, dispatch } = usePipelineCanvas();
+  const state = usePipelineCanvasState();
+  const dispatch = usePipelineCanvasDispatch();
+  const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "target" });
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
@@ -53,7 +59,7 @@ const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) =>
       handleId={PIPELINE_NODE_SINK_HANDLE_ID}
       isConnected={connections.length > 0}
       isSelected={selected}
-      onDelete={state.isReadOnly ? undefined : handleDelete}
+      onDelete={isReadOnly ? undefined : handleDelete}
       onConfigure={() => setIsConfigOpen((open) => !open)}
     >
       {isConfigOpen && (
@@ -64,7 +70,7 @@ const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) =>
           onChange={handleConfigChange}
           defaultSchema={defaultSchema}
           isSelected={selected}
-          isDisabled={state.isReadOnly}
+          isDisabled={isReadOnly}
         />
       )}
     </PipelineNode>

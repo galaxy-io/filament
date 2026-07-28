@@ -1,11 +1,15 @@
-import { BaseEdge, type EdgeProps, getBezierPath, useInternalNode, useStore } from "@xyflow/react";
+import { useSyncExternalStore } from "react";
+
+import { BaseEdge, type EdgeProps, getBezierPath, useInternalNode } from "@xyflow/react";
 
 import { PIPELINE_NODE_SOURCE_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { PIPELINE_NODE_PADDING } from "@/pages/pipelines/canvas/nodes/constants";
+import {
+  getPipelineNodeMeasurements,
+  subscribePipelineNodeMeasurements,
+} from "@/pages/pipelines/canvas/nodes/measurements";
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-const zoomSelector = (state: { transform: [number, number, number] }) => state.transform[2];
 
 const PipelineCanvasEdge = ({
   id,
@@ -21,7 +25,9 @@ const PipelineCanvasEdge = ({
   markerEnd,
 }: EdgeProps) => {
   const sourceNode = useInternalNode(source);
-  const zoom = useStore(zoomSelector);
+  const sourceMeasurements = useSyncExternalStore(subscribePipelineNodeMeasurements, () =>
+    getPipelineNodeMeasurements(source),
+  );
 
   let anchorX = sourceX;
   let anchorY = sourceY;
@@ -37,25 +43,14 @@ const PipelineCanvasEdge = ({
     anchorY = clamp(sourceY, nodeTop + PIPELINE_NODE_PADDING, nodeBottom - PIPELINE_NODE_PADDING);
 
     const isTableEdge = sourceHandleId && sourceHandleId !== PIPELINE_NODE_SOURCE_HANDLE_ID;
-    if (isTableEdge && zoom > 0) {
-      const nodeElement = document.querySelector(`.react-flow__node[data-id="${source}"]`);
-      const listElement = nodeElement?.querySelector("[data-table-list]");
-      const badgeElement = nodeElement?.querySelector("[data-resource-badge]");
+    if (isTableEdge && sourceMeasurements && sourceMeasurements.badgeCenterY !== null) {
+      const listTop = nodeTop + sourceMeasurements.listTop;
+      const listBottom = nodeTop + sourceMeasurements.listBottom;
+      const isRowVisible = sourceY >= listTop && sourceY <= listBottom;
 
-      if (nodeElement && listElement && badgeElement) {
-        const nodeRect = nodeElement.getBoundingClientRect();
-        const listRect = listElement.getBoundingClientRect();
-        const badgeRect = badgeElement.getBoundingClientRect();
-
-        const toFlowY = (clientY: number) => nodeTop + (clientY - nodeRect.top) / zoom;
-        const listTop = toFlowY(listRect.top);
-        const listBottom = toFlowY(listRect.bottom);
-        const isRowVisible = sourceY >= listTop && sourceY <= listBottom;
-
-        if (!isRowVisible) {
-          anchorX = nodeRight;
-          anchorY = toFlowY(badgeRect.top + badgeRect.height / 2);
-        }
+      if (!isRowVisible) {
+        anchorX = nodeRight;
+        anchorY = nodeTop + sourceMeasurements.badgeCenterY;
       }
     }
   }

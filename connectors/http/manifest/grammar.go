@@ -1,10 +1,10 @@
-// grammar.go enforces the v2 manifest meta-grammar — the shape every
+// grammar.go enforces the v1 manifest meta-grammar — the shape every
 // manifest.yaml must conform to (object structure, field types, enum values).
 //
 // Two-layer validation keeps responsibilities separate:
 //
 //   - Grammar (this file)        — shape: required objects, field types,
-//     enum membership. Authoritative source is grammar.v2.json; the matching
+//     enum membership. Authoritative source is grammar.v1.json; the matching
 //     enum constants in grammar_enums.go are mirrored for use by Go-side
 //     semantics validation.
 //   - Semantics (validate.go)    — cross-field rules: parent cycles,
@@ -24,7 +24,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed grammar.v2.json
+//go:embed grammar.v1.json
 var grammarJSON []byte
 
 var (
@@ -36,16 +36,16 @@ var (
 func getGrammar() (*jsonschema.Schema, error) {
 	compiledOnce.Do(func() {
 		c := jsonschema.NewCompiler()
-		if err := c.AddResource("manifest.v2.json", strings.NewReader(string(grammarJSON))); err != nil {
+		if err := c.AddResource("manifest.v1.json", strings.NewReader(string(grammarJSON))); err != nil {
 			compileErr = fmt.Errorf("add grammar resource: %w", err)
 			return
 		}
-		compiled, compileErr = c.Compile("manifest.v2.json")
+		compiled, compileErr = c.Compile("manifest.v1.json")
 	})
 	return compiled, compileErr
 }
 
-// ValidateGrammar checks that yamlData conforms to the v2 manifest meta-grammar
+// ValidateGrammar checks that yamlData conforms to the v1 manifest meta-grammar
 // (shape, field types, enum membership). Cross-field semantics live in
 // validateSemantics — the two run sequentially inside Parse.
 func ValidateGrammar(yamlData []byte) error {

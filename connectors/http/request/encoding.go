@@ -1,4 +1,4 @@
-// Package request builds outgoing HTTP requests from a v2 manifest.Resource.
+// Package request builds outgoing HTTP requests from a v1 manifest.Resource.
 //
 // The Builder renders the resource against a template.Scope, encodes the body
 // per the resource's encoding choice, applies arbitrary connection + resource

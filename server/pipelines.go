@@ -84,7 +84,8 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: versions}), nil
 }
 
-// GetPipeline returns the pipeline by id.
+// GetPipeline returns the pipeline by id along with its current graph version
+// and full version history, newest first.
 func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
 	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetId())
 	if errors.Is(err, filament.ErrNotFound) {
@@ -93,7 +94,18 @@ func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestion
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.GetPipelineResponse{Pipeline: pipeline}), nil
+	versions, err := a.store.ListPipelineVersions(ctx, pipeline.GetId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	res := &ingestionv1.GetPipelineResponse{Pipeline: pipeline, Versions: versions}
+	for _, v := range versions {
+		if v.GetVersion() == pipeline.GetCurrentVersionId() {
+			res.CurrentVersion = v
+			break
+		}
+	}
+	return connect.NewResponse(res), nil
 }
 
 // ListPipelines returns pipelines, optionally filtered by tenant.

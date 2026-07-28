@@ -82,7 +82,7 @@ func projectRecord(res manifest.Resource, record map[string]any, parent Capture)
 	return out, true, nil
 }
 
-func recordRemainder(record map[string]any, fields []manifest.FieldSpec) map[string]any {
+func recordRemainder(record map[string]any, fields manifest.FieldList) map[string]any {
 	out := deepCopyMap(record)
 	for _, field := range fields {
 		if field.Mode == "remainder" || strings.HasPrefix(field.Path, "parent.") {

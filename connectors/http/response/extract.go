@@ -40,6 +40,23 @@ func (e *Extractor) Records(raw []byte) ([]map[string]any, error) {
 	}
 
 	var arr gjson.Result
+	if e.spec.Cardinality == "one" {
+		item := gjson.ParseBytes(raw)
+		if e.spec.RecordsPath != "" {
+			item = gjson.GetBytes(raw, e.spec.RecordsPath)
+		}
+		if !item.Exists() || item.Type == gjson.Null {
+			return nil, nil
+		}
+		record, err := resultToMap(item)
+		if err != nil {
+			return nil, err
+		}
+		if record == nil {
+			return nil, fmt.Errorf("response: records_path %q does not resolve to an object", e.spec.RecordsPath)
+		}
+		return []map[string]any{record}, nil
+	}
 	if e.spec.RecordsPath == "" {
 		if e.spec.Root != "array" {
 			return nil, fmt.Errorf("response: records_path is empty but root is not \"array\"")

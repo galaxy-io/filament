@@ -6,18 +6,21 @@ import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP,
   PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelector";
 import PipelineCanvasEditWidgetButton from "@/pages/pipelines/canvas/PipelineCanvasEditWidgetButton";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import {
   PipelineCanvasEditMode,
   PipelineCanvasInteractionMode,
-} from "@/pages/pipelines/canvas/types";
+} from "@/pages/pipelines/canvas/providers/canvas/types";
 
 const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
@@ -38,7 +41,8 @@ const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
 `);
 
 const PipelineCanvasEditWidget = () => {
-  const { state, dispatch } = usePipelineCanvas();
+  const state = usePipelineCanvasState();
+  const dispatch = usePipelineCanvasDispatch();
 
   const handleModeToggle = (mode: PipelineCanvasEditMode) => {
     dispatch({

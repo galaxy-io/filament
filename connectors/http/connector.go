@@ -1,4 +1,4 @@
-// Package httpapi is the generic Tier-2 HTTP connector. It is driven by a v2
+// Package httpapi is the generic Tier-2 HTTP connector. It is driven by a v1
 // YAML manifest and composes a pluggable auth, request builder, paginator,
 // response extractor, watermark tracker, and stream reader to extract records
 // from arbitrary REST/SSE/streaming APIs.
@@ -39,7 +39,7 @@ const (
 	maxRetryBackoff         = 60 * time.Second
 )
 
-// Connector is the generic HTTP connector. Configure with a v2 manifest and
+// Connector is the generic HTTP connector. Configure with a v1 manifest and
 // per-source credentials, then call Extract.
 type Connector struct {
 	manifestPath string

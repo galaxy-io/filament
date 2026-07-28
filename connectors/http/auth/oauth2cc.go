@@ -147,6 +147,10 @@ func (a *oauth2CC) token(ctx context.Context, scope template.Scope) (string, err
 // Errors are wrapped with errs.ErrAuthRefresh so callers can distinguish
 // refresh failures from other transport errors.
 func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, error) {
+	tokenURL, err := template.Render(a.tokenURL, scope)
+	if err != nil {
+		return "", fmt.Errorf("%w: render token_url: %v", errs.ErrAuthRefresh, err)
+	}
 	clientID, err := template.Render(a.clientID, scope)
 	if err != nil {
 		return "", fmt.Errorf("%w: render client_id: %v", errs.ErrAuthRefresh, err)
@@ -164,7 +168,7 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 		form.Set("scope", a.scope)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.tokenURL, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("%w: build token request: %v", errs.ErrAuthRefresh, err)
 	}

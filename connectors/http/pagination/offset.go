@@ -17,6 +17,7 @@ type offsetPaginator struct {
 	offsetParam string
 	limitParam  string
 	pageSize    int
+	injectInto  string
 	lastOffset  int
 }
 
@@ -31,6 +32,7 @@ func newOffset(spec manifest.PaginationSpec) (*offsetPaginator, error) {
 		offsetParam: spec.OffsetParam,
 		limitParam:  spec.LimitParam,
 		pageSize:    spec.PageSize,
+		injectInto:  spec.OffsetInjectInto,
 	}, nil
 }
 
@@ -38,6 +40,13 @@ func (p *offsetPaginator) Initial() State { return State{Offset: 0} }
 
 func (p *offsetPaginator) Apply(req *http.Request, s State) (map[string]any, error) {
 	p.lastOffset = s.Offset
+	if p.injectInto == "body" {
+		out := map[string]any{p.offsetParam: s.Offset}
+		if p.limitParam != "" {
+			out[p.limitParam] = p.pageSize
+		}
+		return out, nil
+	}
 	q := req.URL.Query()
 	q.Set(p.offsetParam, strconv.Itoa(s.Offset))
 	if p.limitParam != "" {

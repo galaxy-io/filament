@@ -1,10 +1,14 @@
-version: 2
+version: 1
 name: notion
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Notion integration secret
 connection:
   base_url: https://api.notion.com
   auth:
-    type: bearer
-    token: "{{ config.api_key }}"
+    bearer: config.api_key
   headers:
     Notion-Version: "2022-06-28"
 resources:
@@ -13,12 +17,12 @@ resources:
     method: POST
     primary_key: [id]
     fields:
-      - { name: id, path: id, type: string }
-      - { name: object, path: object, type: string }
-      - { name: created_time, path: created_time, type: timestamptz, nullable: true }
-      - { name: last_edited_time, path: last_edited_time, type: timestamptz, nullable: true }
-      - { name: title, path: title.0.plain_text, type: string, nullable: true }
-      - { name: raw, path: "$", type: json }
+      id: string
+      object: string
+      created_time: timestamptz?
+      last_edited_time: timestamptz?
+      title: { path: title.0.plain_text, type: string, nullable: true }
+      raw: { path: $, type: json }
     capture:
       database_id: id
     body:
@@ -28,45 +32,82 @@ resources:
           property: object
           value: database
     response:
-      root: object
-      records_path: results
-    pagination:
-      type: cursor
-      cursor_path: next_cursor
-      cursor_param: start_cursor
-      inject_into: body
-      has_more_path: has_more
+      records: $.results
+      pagination:
+        cursor:
+          response: next_cursor
+          request: body.start_cursor
+          more: has_more
   - name: pages
-    emit_as: "pages_{{ parent.database_id }}"
-    path: /v1/databases/{{ parent.database_id }}/query
+    path: /v1/databases/{database}/query
+    params:
+      database: parent.database_id
     method: POST
     primary_key: [id]
     fields:
-      - { name: id, path: id, type: string }
-      - { name: database_id, path: parent.database_id, type: string }
-      - { name: object, path: object, type: string }
-      - { name: created_time, path: created_time, type: timestamptz, nullable: true }
-      - { name: last_edited_time, path: last_edited_time, type: timestamptz, nullable: true }
-      - { name: archived, path: archived, type: bool, nullable: true }
-      - { name: url, path: url, type: string, nullable: true }
-      - { name: properties, path: properties, type: json, nullable: true }
-      - { name: raw, path: "$", type: json }
-    parent:
-      resource: databases
+      id: string
+      database_id: { path: parent.database_id, type: string }
+      object: string
+      created_time: timestamptz?
+      last_edited_time: timestamptz?
+      archived: bool?
+      url: string?
+      properties: json?
+      raw: { path: $, type: json }
+    capture:
+      block_id: id
+    for_each: databases
     response:
-      root: object
-      records_path: results
-    pagination:
-      type: cursor
-      cursor_path: next_cursor
-      cursor_param: start_cursor
-      inject_into: body
-      has_more_path: has_more
+      records: $.results
+      pagination:
+        cursor:
+          response: next_cursor
+          request: body.start_cursor
+          more: has_more
+  - name: users
+    path: /v1/users
+    method: GET
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      type: string?
+      avatar_url: string?
+      person: json?
+      bot: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: next_cursor
+          request: query.start_cursor
+          more: has_more
+  - name: blocks
+    path: /v1/blocks/{block}/children
+    params:
+      block: parent.block_id
+    method: GET
+    primary_key: [id]
+    fields:
+      id: string
+      page_id: { path: parent.block_id, type: string }
+      type: string
+      created_time: timestamptz?
+      last_edited_time: timestamptz?
+      archived: bool?
+      has_children: bool?
+      created_by: json?
+      last_edited_by: json?
+      raw: { path: $, type: json, mode: remainder }
+    for_each: pages
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: next_cursor
+          request: query.start_cursor
+          more: has_more
 discovery:
-  - from: databases
-    map:
-      kind: database
-      id: id
-      name: title.0.plain_text
-      metadata:
-        object: object
+  mode: static
+  include: [users, databases, pages, blocks]

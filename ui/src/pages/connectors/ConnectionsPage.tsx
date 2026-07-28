@@ -16,7 +16,7 @@ import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb"
 import ConnectorsEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
-import ListPageShell from "@/layouts/ListPageShell";
+import ListPageLayout from "@/layouts/ListPageLayout";
 
 import ConnectionCard from "@/pages/connectors/components/card/ConnectionCard";
 import {
@@ -26,9 +26,11 @@ import {
 } from "@/pages/connectors/constants";
 import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineConnectionMap";
 
+import { Flow } from "@/routes/__root";
+
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 
-import { DOCUMENTATION_URL, Flow } from "@/constants";
+import { DOCUMENTATION_URL } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -149,12 +151,10 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   };
 
   return (
-    <ListPageShell
+    <ListPageLayout
       search={state.search}
       onSearchChange={handleSearchChange}
-      searchPlaceholder={`Search ${kindPlural}`}
-      contentPadding={12}
-      trailingActions={[
+      actions={[
         <Button
           key="new-connector"
           label={`New ${kindLabel}`}
@@ -165,7 +165,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
       ]}
     >
       {renderContent()}
-    </ListPageShell>
+    </ListPageLayout>
   );
 };
 

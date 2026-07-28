@@ -17,7 +17,6 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import "@xyflow/react/dist/style.css";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
   PIPELINE_CANVAS_FIT_VIEW_OPTIONS,
@@ -30,10 +29,16 @@ import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
 import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasReadOnly,
+  usePipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import { PipelineCanvasInteractionMode } from "@/pages/pipelines/canvas/providers/canvas/types";
 import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
-import { PipelineCanvasInteractionMode, PipelineNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
 
 const pipelineNodeTypes = {
   [PipelineNodeType.SOURCE]: PipelineNodeSource,
@@ -136,11 +141,12 @@ const CanvasWrapper = withTheme(styled.div<
 
 const PipelineCanvas = () => {
   const theme = useTheme();
-  const { state, dispatch } = usePipelineCanvas();
+  const state = usePipelineCanvasState();
+  const dispatch = usePipelineCanvasDispatch();
+  const isReadOnly = usePipelineCanvasReadOnly();
   const [isNodeDragging, setIsNodeDragging] = useState(false);
 
   const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
-  const isReadOnly = state.isReadOnly;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {

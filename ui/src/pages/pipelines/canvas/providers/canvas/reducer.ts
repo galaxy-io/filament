@@ -4,6 +4,8 @@ import {
   applyNodeChanges as xyflowApplyNodeChanges,
 } from "@xyflow/react";
 
+import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
+import { restackNodes } from "@/pages/pipelines/canvas/graph";
 import {
   type AddNodeAction,
   type ApplyEdgeChangesAction,
@@ -13,15 +15,11 @@ import {
   PipelineCanvasActionType,
   type RemoveNodeAction,
   type SetActiveModeAction,
-  type SetActivityOpenAction,
   type SetInteractionModeAction,
   type SetNodeConfigAction,
   type SetNodesAction,
-  type SetRunBindingsAction,
-} from "@/pages/pipelines/canvas/actions";
-import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
-import { restackNodes } from "@/pages/pipelines/canvas/graph";
-import type { PipelineCanvasState } from "@/pages/pipelines/canvas/types";
+} from "@/pages/pipelines/canvas/providers/canvas/actions";
+import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
 
 function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCanvasState {
   return {
@@ -99,16 +97,6 @@ function setInteractionMode(
   };
 }
 
-function setActivityOpen(
-  state: PipelineCanvasState,
-  action: SetActivityOpenAction,
-): PipelineCanvasState {
-  return {
-    ...state,
-    isActivityOpen: action.payload,
-  };
-}
-
 function setNodeConfig(
   state: PipelineCanvasState,
   action: SetNodeConfigAction,
@@ -120,16 +108,6 @@ function setNodeConfig(
         ? { ...node, data: { ...node.data, config: action.payload.config } }
         : node,
     ) as PipelineCanvasState["nodes"],
-  };
-}
-
-function setRunBindings(
-  state: PipelineCanvasState,
-  action: SetRunBindingsAction,
-): PipelineCanvasState {
-  return {
-    ...state,
-    runBindings: action.payload,
   };
 }
 
@@ -154,12 +132,8 @@ const pipelineCanvasReducer = (
       return setActiveMode(state, action);
     case PipelineCanvasActionType.SET_INTERACTION_MODE:
       return setInteractionMode(state, action);
-    case PipelineCanvasActionType.SET_ACTIVITY_OPEN:
-      return setActivityOpen(state, action);
     case PipelineCanvasActionType.SET_NODE_CONFIG:
       return setNodeConfig(state, action);
-    case PipelineCanvasActionType.SET_RUN_BINDINGS:
-      return setRunBindings(state, action);
   }
 };
 

@@ -345,14 +345,32 @@ func (c *Connector) sendRecords(
 
 	var captured []Capture
 	n := 0
+	emitResource := len(c.enabledResources) == 0
+	if !emitResource {
+		_, emitResource = c.enabledResources[res.Name]
+	}
 	for _, rec := range records {
-		keyJSON, err := json.Marshal(extractKey(rec, res.PrimaryKey))
-		if err != nil {
-			return n, captured, fmt.Errorf("marshal key: %w", err)
+		if fields := extractor.Capture(rec, res.Capture); fields != nil {
+			// A grandchild often needs both a value from this record and scope
+			// inherited from its parent. Preserve that ancestry without making
+			// manifests project synthetic parent.* paths from the raw response.
+			for key, value := range parent {
+				if _, exists := fields[key]; !exists {
+					fields[key] = value
+				}
+			}
+			captured = append(captured, fields)
+		}
+		if !emitResource {
+			continue
 		}
 		data, projected, err := projectRecord(res, rec, parent)
 		if err != nil {
 			return n, captured, err
+		}
+		keyJSON, err := json.Marshal(extractKey(data, res.PrimaryKey))
+		if err != nil {
+			return n, captured, fmt.Errorf("marshal key: %w", err)
 		}
 		dataJSON, err := json.Marshal(data)
 		if err != nil {
@@ -373,9 +391,6 @@ func (c *Connector) sendRecords(
 		}
 		n++
 
-		if fields := extractor.Capture(rec, res.Capture); fields != nil {
-			captured = append(captured, fields)
-		}
 	}
 	return n, captured, nil
 }

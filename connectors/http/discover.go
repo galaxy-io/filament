@@ -25,7 +25,7 @@ func (c *Connector) Discover(ctx context.Context, opts pipeline.DiscoverOptions)
 	if c.manifest == nil {
 		return nil, fmt.Errorf("connector not configured")
 	}
-	if len(c.manifest.Discovery) == 0 {
+	if len(c.manifest.Discovery.Resources) == 0 {
 		return &pipeline.DiscoverResult{}, nil
 	}
 
@@ -38,8 +38,8 @@ func (c *Connector) Discover(ctx context.Context, opts pipeline.DiscoverOptions)
 	}
 
 	var out []pipeline.Resource
-	for i := range c.manifest.Discovery {
-		disc := &c.manifest.Discovery[i]
+	for i := range c.manifest.Discovery.Resources {
+		disc := &c.manifest.Discovery.Resources[i]
 		if len(kindFilter) > 0 {
 			if _, ok := kindFilter[disc.Map.Kind]; !ok {
 				continue

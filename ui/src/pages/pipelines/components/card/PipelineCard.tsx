@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowUpRightIcon, InfoIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { ArrowUpRightIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -10,25 +10,17 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetPipelineVersionRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   PIPELINE_CARD_HEIGHT,
-  PIPELINE_CARD_HEIGHT_COMPACT,
   PIPELINE_INDICATOR_WIDTH,
-  PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS,
-  PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN,
-  PIPELINE_METRIC_COLUMN_WIDTH_VERSION,
-  PIPELINE_METRIC_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/components/card/constants";
-import PipelineCardMetric from "@/pages/pipelines/components/card/PipelineCardMetric";
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapVersionNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import { formatPipelineName } from "@/pages/pipelines/utils";
@@ -36,19 +28,25 @@ import { formatPipelineName } from "@/pages/pipelines/utils";
 import { useListConnectionsQuery } from "@/api/queries/connections";
 import { useGetPipelineVersionQuery } from "@/api/queries/pipeline_versions";
 
-import { formatBytes, formatTimeAgo } from "@/utils/format";
+import { NOOP } from "@/constants";
 
-const CardWrapper = withTheme(styled.div<PropsWithTheme<{ $isCompact?: boolean }>>`
+const CardLinkWrapper = styled(Link)`
+  display: block;
   width: 100%;
-  height: ${({ $isCompact }) =>
-    $isCompact ? PIPELINE_CARD_HEIGHT_COMPACT : PIPELINE_CARD_HEIGHT}px;
+  text-decoration: none;
+  color: inherit;
+`;
 
-  padding: 0 ${({ $isCompact }) => ($isCompact ? "12px" : "16px")};
+const CardWrapper = withTheme(styled.div<PropsWithTheme>`
+  width: 100%;
+  height: ${PIPELINE_CARD_HEIGHT}px;
+
+  padding: 0 12px;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: ${({ $isCompact }) => ($isCompact ? "12px" : "24px")};
+  gap: 12px;
 
   border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
 
@@ -60,20 +58,16 @@ const CardWrapper = withTheme(styled.div<PropsWithTheme<{ $isCompact?: boolean }
     background-color: ${({ theme }) => theme.color.background.tertiary};
   }
 
-  &:last-child {
-    border-bottom: ${({ $isCompact, theme }) =>
-      $isCompact ? "none" : `0.5px solid ${theme.color.border.primary}`};
+  ${CardLinkWrapper}:last-child > & {
+    border-bottom: none;
   }
 `);
 
 interface PipelineCardProps {
   pipeline: Pipeline;
-  isCompact?: boolean;
 }
 
-const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
-  const navigate = useNavigate();
-
+const PipelineCard = ({ pipeline }: PipelineCardProps) => {
   const { data: versionData } = useGetPipelineVersionQuery({
     input: create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
     options: { retry: false },
@@ -89,75 +83,31 @@ const PipelineCard = ({ pipeline, isCompact = false }: PipelineCardProps) => {
     connectionsData?.connections ?? [],
   );
 
-  const handlePipelineClick = () => {
-    navigate({
-      to: "/pipelines/$id",
-      params: { id: pipeline.id },
-    });
-  };
-
-  const hasRun = pipeline.lastRunAt > 0n;
-  const lastRunLabel = hasRun ? formatTimeAgo(pipeline.lastRunAt) : "—";
-  const volumeLabel = hasRun ? formatBytes(pipeline.lastRunBytes) : "—";
-  const versionLabel = pipeline.currentVersionId > 0n ? pipeline.currentVersionId.toString() : "—";
-
   return (
-    <CardWrapper $isCompact={isCompact} onClick={handlePipelineClick}>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-        <FlexWrapper
-          alignItems={AlignItems.CENTER}
-          justifyContent={JustifyContent.CENTER}
-          width={PIPELINE_INDICATOR_WIDTH}
-        >
-          <Beacon variant={BeaconVariant.SUCCESS} />
+    <CardLinkWrapper to="/pipelines/$id" params={{ id: pipeline.id }}>
+      <CardWrapper>
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+          <FlexWrapper
+            alignItems={AlignItems.CENTER}
+            justifyContent={JustifyContent.CENTER}
+            width={PIPELINE_INDICATOR_WIDTH}
+          >
+            <Beacon variant={BeaconVariant.SUCCESS} />
+          </FlexWrapper>
+          <Text>{formatPipelineName(pipeline)}</Text>
         </FlexWrapper>
-        <Tooltip
-          body={
-            <Text size={TextSize.CAPTION} isMonospace isSelectable>
-              {pipeline.id}
-            </Text>
-          }
-          position={TooltipPosition.RIGHT}
-          isInteractive
-        >
-          <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
-        </Tooltip>
-        <Text weight={TextWeight.MEDIUM}>{formatPipelineName(pipeline.name)}</Text>
-      </FlexWrapper>
 
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={isCompact ? FlexGap.MEDIUM : FlexGap.XLARGE}>
-        {isCompact ? (
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
           <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        ) : (
-          <>
-            <PipelineCardMetric width={PIPELINE_METRIC_COLUMN_WIDTH_CONNECTORS}>
-              <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-            </PipelineCardMetric>
-            <PipelineCardMetric
-              width={PIPELINE_METRIC_COLUMN_WIDTH_LAST_RUN}
-              label="Last run"
-              value={lastRunLabel}
-            />
-            <PipelineCardMetric
-              width={PIPELINE_METRIC_COLUMN_WIDTH_VOLUME}
-              label="Volume"
-              value={volumeLabel}
-            />
-            <PipelineCardMetric
-              width={PIPELINE_METRIC_COLUMN_WIDTH_VERSION}
-              label="Version"
-              value={versionLabel}
-            />
-          </>
-        )}
-        <Button
-          variant={ButtonVariant.TERTIARY}
-          size={ButtonSize.SMALL}
-          icon={ArrowUpRightIcon}
-          onClick={handlePipelineClick}
-        />
-      </FlexWrapper>
-    </CardWrapper>
+          <Button
+            variant={ButtonVariant.TERTIARY}
+            size={ButtonSize.SMALL}
+            icon={ArrowUpRightIcon}
+            onClick={NOOP}
+          />
+        </FlexWrapper>
+      </CardWrapper>
+    </CardLinkWrapper>
   );
 };
 

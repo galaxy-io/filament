@@ -1,0 +1,130 @@
+version: 1
+name: github
+config:
+  token:
+    type: secret
+    required: true
+    help: GitHub personal access token or GitHub App installation token
+  organization:
+    type: string
+    required: true
+    help: GitHub organization login
+defaults:
+  method: GET
+  query:
+    per_page: "100"
+  response:
+    records: $
+    pagination:
+      link: next
+field_sets:
+  issue_lifecycle:
+    created_at: timestamptz
+    updated_at: timestamptz
+    closed_at: timestamptz?
+connection:
+  base_url: https://api.github.com
+  auth:
+    bearer: config.token
+  headers:
+    Accept: application/vnd.github+json
+    X-GitHub-Api-Version: "2022-11-28"
+resources:
+  - name: repositories
+    path: /orgs/{organization}/repos
+    params:
+      organization: config.organization
+    query:
+      type: all
+      sort: full_name
+      direction: asc
+    primary_key: [id]
+    fields:
+      id: int64
+      node_id: string
+      name: string
+      full_name: string
+      private: bool
+      fork: bool
+      archived: bool
+      disabled: bool
+      visibility: string?
+      description: string?
+      language: string?
+      default_branch: string?
+      html_url: string
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      pushed_at: timestamptz?
+      topics: json?
+      owner: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      repository: name
+  - name: issues
+    path: /repos/{organization}/{repository}/issues
+    params:
+      organization: config.organization
+      repository: parent.repository
+    query:
+      state: all
+      direction: asc
+      sort: created
+    primary_key: [id]
+    use_fields: [issue_lifecycle]
+    fields:
+      id: int64
+      node_id: string
+      repository: { path: parent.repository, type: string }
+      number: int64
+      title: string
+      body: string?
+      state: string
+      state_reason: string?
+      locked: bool
+      comments: int64
+      html_url: string
+      user: json?
+      assignee: json?
+      assignees: json?
+      labels: json?
+      milestone: json?
+      pull_request: json?
+      raw: { path: $, type: json, mode: remainder }
+    for_each: repositories
+  - name: pull_requests
+    path: /repos/{organization}/{repository}/pulls
+    params:
+      organization: config.organization
+      repository: parent.repository
+    query:
+      state: all
+      direction: asc
+      sort: created
+    primary_key: [id]
+    use_fields: [issue_lifecycle]
+    fields:
+      id: int64
+      node_id: string
+      repository: { path: parent.repository, type: string }
+      number: int64
+      title: string
+      body: string?
+      state: string
+      draft: bool?
+      locked: bool
+      html_url: string
+      user: json?
+      assignee: json?
+      assignees: json?
+      requested_reviewers: json?
+      requested_teams: json?
+      labels: json?
+      milestone: json?
+      head: json?
+      base: json?
+      merged_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    for_each: repositories
+discovery:
+  mode: static
