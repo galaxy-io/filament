@@ -196,7 +196,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 		catalog.WithProperties(iceberg.Properties{"write.format.default": "parquet"}),
 	}
 	if s.tableLocationRoot != "" {
-		location := joinURI(s.tableLocationRoot, namespacePath(s.namespace), resource)
+		location := joinURI(s.tableLocationRoot, namespacePath(s.namespace), tableName(resource))
 		createOpts = append(createOpts, catalog.WithLocation(location))
 	}
 	tbl, err := cat.CreateTable(ctx, ident, iceSchema, createOpts...)
@@ -478,7 +478,7 @@ func (s *Sink) dropStage(id filament.StageID) {
 
 func (s *Sink) tableIdent(resource string) icetable.Identifier {
 	parts := splitNamespace(s.namespace)
-	return catalog.ToIdentifier(append(parts, resource)...)
+	return catalog.ToIdentifier(append(parts, tableName(resource))...)
 }
 
 func resolveWriteMode(configured string, runMode filament.ReplicationMode) (writeMode, error) {
