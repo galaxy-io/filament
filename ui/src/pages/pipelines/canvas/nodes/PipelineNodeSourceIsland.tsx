@@ -8,6 +8,7 @@ import Badge, { BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
@@ -210,6 +211,7 @@ const PipelineNodeSourceIsland = ({
           placeholder="Search"
           value={state.search}
           onChange={handleSearchChange}
+          size={InputSize.LARGE}
           fillWidth
         />
         {connectedCount > 0 && (
