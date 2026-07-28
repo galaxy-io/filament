@@ -28,7 +28,7 @@ coverage.out
 charts/filament/charts/*
 
 # Local testing values
-charts/filament/values.local.yaml
+charts/filament/values-*.yaml
 
 # Environment
 .env

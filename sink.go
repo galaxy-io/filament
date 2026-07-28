@@ -47,6 +47,11 @@ type SinkSpec struct {
 	Version      string
 	Config       ConfigSchema
 	Capabilities SinkCapabilities
+
+	// SchemaField names the pipeline-scoped config field holding the sink's
+	// destination schema/namespace, so the server can default it from the
+	// source connection's normalized name. Empty for sinks without one.
+	SchemaField string
 }
 
 // SinkCapabilities advertises the optional contracts and write modes a sink
