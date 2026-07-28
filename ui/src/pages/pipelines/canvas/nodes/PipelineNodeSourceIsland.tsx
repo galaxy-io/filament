@@ -72,8 +72,6 @@ const TableRow = styled.div`
 
 const SHIMMER_COUNT = 5;
 
-const roundMeasurement = (value: number) => Math.round(value * 100) / 100;
-
 const TableListShimmer = () => (
   <>
     {Array.from({ length: SHIMMER_COUNT }).map((_, index) => (
@@ -126,7 +124,7 @@ const PipelineNodeSourceIsland = ({
     const nodeRect = nodeElement.getBoundingClientRect();
     const listRect = listElement.getBoundingClientRect();
     const badgeRect = badgeRef.current?.getBoundingClientRect() ?? null;
-    const toNodeY = (clientY: number) => roundMeasurement((clientY - nodeRect.top) / zoom);
+    const toNodeY = (clientY: number) => Math.round(((clientY - nodeRect.top) / zoom) * 100) / 100;
 
     setPipelineNodeMeasurements(nodeId, {
       listTop: toNodeY(listRect.top),

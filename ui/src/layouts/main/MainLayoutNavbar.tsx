@@ -75,6 +75,7 @@ const MainLayoutNavbar = () => {
   const handleDocs = () => {
     window.open(DOCUMENTATION_URL, "_blank");
   };
+
   const handleStarRepository = () => {
     window.open(GITHUB_REPO_URL, "_blank");
   };

@@ -70,47 +70,40 @@ const PipelineLayoutNavbar = ({
 }: PipelineLayoutNavbarProps) => {
   const { showToast } = useToast();
 
-  const canvasState = usePipelineCanvasState();
-  const runDispatch = usePipelineCanvasRunDispatch();
+  const state = usePipelineCanvasState();
+  const dispatch = usePipelineCanvasRunDispatch();
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const hasChanges = useMemo(
-    () =>
-      hasPipelineGraphChanges(
-        { nodes: canvasState.nodes, edges: canvasState.edges },
-        currentVersion,
-      ),
-    [canvasState.nodes, canvasState.edges, currentVersion],
+    () => hasPipelineGraphChanges({ nodes: state.nodes, edges: state.edges }, currentVersion),
+    [state.nodes, state.edges, currentVersion],
   );
 
   const handleSave = () => {
-    createPipelineVersion(
-      mapCanvasStateToVersionRequest(canvasState, pipeline.id, currentVersion),
-      {
-        onSuccess: () => {
-          showToast({
-            header: "Pipeline saved",
-            subheader: `${pipeline.name} has been saved successfully.`,
-            variant: ToastVariant.SUCCESS,
-          });
-        },
-        onError: (error) => {
-          showToast({
-            header: "Save failed",
-            subheader: getErrorMessage(error, "Failed to save pipeline"),
-            variant: ToastVariant.ERROR,
-          });
-        },
+    createPipelineVersion(mapCanvasStateToVersionRequest(state, pipeline.id, currentVersion), {
+      onSuccess: () => {
+        showToast({
+          header: "Pipeline saved",
+          subheader: `${pipeline.name} has been saved successfully.`,
+          variant: ToastVariant.SUCCESS,
+        });
       },
-    );
+      onError: (error) => {
+        showToast({
+          header: "Save failed",
+          subheader: getErrorMessage(error, "Failed to save pipeline"),
+          variant: ToastVariant.ERROR,
+        });
+      },
+    });
   };
 
   const { source, sinks } = useMemo(
-    () => mapCanvasNodesToFlowEndpoints(canvasState.nodes),
-    [canvasState.nodes],
+    () => mapCanvasNodesToFlowEndpoints(state.nodes),
+    [state.nodes],
   );
-  const hasEdges = canvasState.edges.length > 0;
+  const hasEdges = state.edges.length > 0;
 
   const isPreview = previewVersion !== null;
   const hasUnsavedChanges = !isPreview && hasChanges;
@@ -139,7 +132,7 @@ const PipelineLayoutNavbar = ({
   const handleRun = () => {
     runPipeline(create(RunPipelineRequestSchema, { pipelineId: pipeline.id }), {
       onSuccess: (response) => {
-        runDispatch({
+        dispatch({
           type: PipelineCanvasRunActionType.START_RUN,
           payload: response.runs,
         });

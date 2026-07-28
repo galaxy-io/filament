@@ -1,15 +1,12 @@
 import {
   type PipelineCanvasRunAction,
+  PipelineCanvasRunActionType,
   type SetActivityOpenAction,
   type StartRunAction,
-  PipelineCanvasRunActionType,
 } from "@/pages/pipelines/canvas/providers/run/actions";
 import type { PipelineCanvasRunState } from "@/pages/pipelines/canvas/providers/run/types";
 
-function startRun(
-  state: PipelineCanvasRunState,
-  action: StartRunAction,
-): PipelineCanvasRunState {
+function startRun(state: PipelineCanvasRunState, action: StartRunAction): PipelineCanvasRunState {
   return { ...state, runBindings: action.payload, isActivityOpen: true };
 }
 
