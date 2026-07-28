@@ -170,34 +170,71 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 }
 
 func (a *Server) storeSecretFields(ctx context.Context, schema filament.ConfigSchema, tenant, id string, version int64, cfg map[string]any, refs map[string]string) ([]string, error) {
-	var written []string
-	for _, field := range schema.Fields {
-		if field.Type != filament.FieldSecret && !field.Secret {
-			continue
+	fields, err := extractSecretFields(schema.Fields, cfg, "")
+	if err != nil {
+		return nil, err
+	}
+	if len(fields) > 0 && a.secrets == nil {
+		return nil, fmt.Errorf("secret field %q supplied but no secret provider is configured", fields[0].path)
+	}
+
+	written := make([]string, 0, len(fields))
+	for _, field := range fields {
+		ref := filament.ConnectionSecretRef(tenant, id, field.path, version)
+		secret := filament.Secret{
+			Value: []byte(field.value),
+			Meta:  map[string]string{"tenant": tenant, "connection": id, "field": field.path},
 		}
-		value, present := cfg[field.Name]
-		delete(cfg, field.Name) // plaintext must never reach the connection store
-		if !present {
-			continue
-		}
-		s, ok := value.(string)
-		if !ok {
+		if err := a.secrets.Write(ctx, ref, secret); err != nil {
 			a.deleteSecretRefs(ctx, written)
-			return nil, fmt.Errorf("secret field %q must be a string", field.Name)
+			return nil, fmt.Errorf("store secret field %q: %w", field.path, err)
 		}
-		if a.secrets == nil {
-			a.deleteSecretRefs(ctx, written)
-			return nil, fmt.Errorf("secret field %q supplied but no secret provider is configured", field.Name)
-		}
-		ref := filament.ConnectionSecretRef(tenant, id, field.Name, version)
-		if err := a.secrets.Write(ctx, ref, filament.Secret{Value: []byte(s), Meta: map[string]string{"tenant": tenant, "connection": id, "field": field.Name}}); err != nil {
-			a.deleteSecretRefs(ctx, written)
-			return nil, fmt.Errorf("store secret field %q: %w", field.Name, err)
-		}
-		refs[field.Name] = ref
+		refs[field.path] = ref
 		written = append(written, ref)
 	}
 	return written, nil
+}
+
+type extractedSecretField struct {
+	path  string
+	value string
+}
+
+// extractSecretFields removes schema-declared secret values from config and
+// returns their dotted paths for storage. Objects left empty by extraction are
+// removed as well, so secret-only containers are not persisted.
+func extractSecretFields(schema []filament.ConfigField, cfg map[string]any, parent string) ([]extractedSecretField, error) {
+	var secrets []extractedSecretField
+	for _, field := range schema {
+		path := joinConfigPath(parent, field.Name)
+		if field.Type == filament.FieldSecret || field.Secret {
+			value, present := cfg[field.Name]
+			delete(cfg, field.Name) // plaintext must never reach the connection store
+			if !present {
+				continue
+			}
+			s, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("secret field %q must be a string", path)
+			}
+			secrets = append(secrets, extractedSecretField{path: path, value: s})
+			continue
+		}
+
+		nested, ok := cfg[field.Name].(map[string]any)
+		if !ok || len(field.Fields) == 0 {
+			continue
+		}
+		extracted, err := extractSecretFields(field.Fields, nested, path)
+		if err != nil {
+			return nil, err
+		}
+		secrets = append(secrets, extracted...)
+		if len(nested) == 0 {
+			delete(cfg, field.Name)
+		}
+	}
+	return secrets, nil
 }
 
 // resolveConnectionSecrets reads each of the connection's secret refs and
@@ -218,9 +255,30 @@ func (a *Server) resolveConnectionSecrets(ctx context.Context, conn filament.Con
 		if err != nil {
 			return fmt.Errorf("resolve secret %q for field %q: %w", ref, field, err)
 		}
-		cfg[field] = string(secret.Value)
+		setConfigPath(cfg, field, string(secret.Value))
 	}
 	return nil
+}
+
+func joinConfigPath(parent, field string) string {
+	if parent == "" {
+		return field
+	}
+	return parent + "." + field
+}
+
+func setConfigPath(cfg map[string]any, path string, value any) {
+	parts := strings.Split(path, ".")
+	current := cfg
+	for _, part := range parts[:len(parts)-1] {
+		nested, ok := current[part].(map[string]any)
+		if !ok {
+			nested = make(map[string]any)
+			current[part] = nested
+		}
+		current = nested
+	}
+	current[parts[len(parts)-1]] = value
 }
 
 func (a *Server) deleteReplacedSecretRefs(ctx context.Context, old, next map[string]string) {
