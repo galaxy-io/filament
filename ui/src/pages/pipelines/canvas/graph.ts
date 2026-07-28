@@ -287,11 +287,12 @@ export const hasPipelineGraphChanges = (
   state: Pick<PipelineCanvasState, "nodes" | "edges">,
   version: PipelineVersion | undefined,
 ): boolean => {
+  const versionNodesById = new Map((version?.nodes ?? []).map((node) => [node.id, node]));
   const canvasNodes = state.nodes
     .filter(isConnectionNode)
     .map(
       (node) =>
-        `${node.id}|${getConnectorKind(node)}|${node.data.connectionId}|${serializeNodeConfig(node.data.config)}`,
+        `${node.id}|${getConnectorKind(node)}|${node.data.connectionId}|${serializeNodeConfig(node.data.config ?? versionNodesById.get(node.id)?.config)}`,
     )
     .sort();
   const pipelineNodes = (version?.nodes ?? [])
