@@ -92,31 +92,52 @@ export const getPlaceholderNodes = (nodes: CanvasNode[], isReadOnly: boolean): C
   return placeholders;
 };
 
-// restackNodes reflows each column by measured node heights, so a node that
-// grows (an open config island) pushes the nodes below it down instead of
-// covering them. Column order follows current Y, so drag-reordering sticks.
-export const restackNodes = (nodes: CanvasNode[]): CanvasNode[] => {
+export interface OverlapResolution {
+  nodes: CanvasNode[];
+  restoreYs: Record<string, number>;
+}
+
+// resolveNodeOverlaps pushes a node down only when the node above it in its
+// own column would occlude it (by measured height plus the stack gap),
+// remembering the position it was pushed from so it returns once the space
+// above frees up again. Nodes with room around them, custom placements, and
+// the other column are never touched.
+export const resolveNodeOverlaps = (
+  nodes: CanvasNode[],
+  restoreYs: Record<string, number>,
+): OverlapResolution => {
   const [, snapY] = PIPELINE_CANVAS_SNAP_GRID;
   const positions = new Map<string, number>();
+  const nextRestoreYs = { ...restoreYs };
 
   for (const type of [PipelineNodeType.SOURCE, PipelineNodeType.SINK]) {
     const column = nodes
       .filter((node) => node.type === type)
       .sort((a, b) => a.position.y - b.position.y);
-    let y = NODE_STACK_START_Y;
+    let previousBottom = Number.NEGATIVE_INFINITY;
     for (const node of column) {
-      const snapped = Math.round(y / snapY) * snapY;
-      positions.set(node.id, snapped);
-      y = snapped + (node.measured?.height ?? NODE_STACK_HEIGHT) + NODE_STACK_GAP;
+      const desired = nextRestoreYs[node.id] ?? node.position.y;
+      const minY = previousBottom + NODE_STACK_GAP;
+      const y = minY > desired ? Math.ceil(minY / snapY) * snapY : desired;
+      if (y !== node.position.y) {
+        positions.set(node.id, y);
+      }
+      if (y > desired) {
+        nextRestoreYs[node.id] = desired;
+      } else if (nextRestoreYs[node.id] !== undefined) {
+        delete nextRestoreYs[node.id];
+      }
+      previousBottom = y + (node.measured?.height ?? NODE_STACK_HEIGHT);
     }
   }
 
-  return nodes.map((node) => {
-    const y = positions.get(node.id);
-    return y === undefined || y === node.position.y
-      ? node
-      : { ...node, position: { ...node.position, y } };
-  });
+  return {
+    nodes: nodes.map((node) => {
+      const y = positions.get(node.id);
+      return y === undefined ? node : { ...node, position: { ...node.position, y } };
+    }),
+    restoreYs: nextRestoreYs,
+  };
 };
 
 export const mapNodesToStackedPositions = (nodes: CanvasNode[]): CanvasNode[] => {

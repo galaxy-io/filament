@@ -5,7 +5,7 @@ import {
 } from "@xyflow/react";
 
 import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
-import { restackNodes } from "@/pages/pipelines/canvas/graph";
+import { resolveNodeOverlaps } from "@/pages/pipelines/canvas/graph";
 import {
   type AddNodeAction,
   type ApplyEdgeChangesAction,
@@ -50,14 +50,25 @@ function applyNodeChanges(
   action: ApplyNodeChangesAction,
 ): PipelineCanvasState {
   const nodes = xyflowApplyNodeChanges(action.payload, state.nodes);
+
+  // A user repositioning or removing a node takes ownership of its position:
+  // it no longer returns anywhere.
+  const restoreYs = { ...state.restoreYs };
+  for (const change of action.payload) {
+    if (change.type === "position" || change.type === "remove") {
+      delete restoreYs[change.id];
+    }
+  }
+
   // A dimension change means a node grew or shrank (config island toggled):
-  // reflow the column so taller nodes push their neighbors instead of
-  // covering them.
+  // push down only the nodes its new height would occlude, and let previously
+  // pushed nodes return to their remembered positions as space frees up.
   const resized = action.payload.some((change) => change.type === "dimensions");
-  return {
-    ...state,
-    nodes: resized ? restackNodes(nodes) : nodes,
-  };
+  if (!resized) {
+    return { ...state, nodes, restoreYs };
+  }
+  const resolution = resolveNodeOverlaps(nodes, restoreYs);
+  return { ...state, nodes: resolution.nodes, restoreYs: resolution.restoreYs };
 }
 
 function applyEdgeChanges(
