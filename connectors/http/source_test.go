@@ -541,7 +541,7 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover: %v", err)
 	}
-	wantResources := []string{"team", "users", "user_groups", "conversations", "messages", "thread_replies", "files", "bookmarks", "pins", "reactions"}
+	wantResources := []string{"team", "users", "user_groups", "conversations", "messages", "thread_replies", "files", "bookmarks", "pins"}
 	if len(discovered.Resources) != len(wantResources) {
 		t.Fatalf("resources = %#v, want %v", discovered.Resources, wantResources)
 	}

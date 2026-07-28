@@ -295,28 +295,6 @@ resources:
       records: $.items
       pagination: none
 
-  - name: reactions
-    path: /reactions.list
-    query:
-      limit: "200"
-      full: "true"
-    primary_key: [type, channel, message_ts, file_id]
-    fields:
-      type: string
-      channel: string?
-      message_ts: { path: message.ts, type: string, nullable: true }
-      file_id: { path: file.id, type: string, nullable: true }
-      message: json?
-      file: json?
-      comment: json?
-      raw: { path: $, type: json, mode: remainder }
-    response:
-      records: $.items
-      pagination:
-        cursor:
-          response: response_metadata.next_cursor
-          request: query.cursor
-
 discovery:
   mode: static
   include:
@@ -329,4 +307,3 @@ discovery:
     - files
     - bookmarks
     - pins
-    - reactions
