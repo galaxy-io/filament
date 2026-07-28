@@ -26,7 +26,7 @@ import {
 } from "@/pages/pipelines/canvas/types";
 
 const NODE_STACK_BASE_X_SOURCE = 100;
-const NODE_STACK_BASE_X_SINK = 500;
+const NODE_STACK_BASE_X_SINK = 600;
 const NODE_STACK_START_Y = 100;
 const NODE_STACK_HEIGHT = 120;
 const NODE_STACK_GAP = 40;
