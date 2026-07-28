@@ -1,0 +1,543 @@
+version: 1
+name: attio
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Attio workspace API key
+defaults:
+  method: GET
+field_sets:
+  record:
+    workspace_id: { path: id.workspace_id, type: uuid }
+    object_id: { path: id.object_id, type: uuid }
+    record_id: { path: id.record_id, type: uuid }
+    created_at: timestamptz
+    web_url: string?
+    values: json?
+    raw: { path: $, type: json, mode: remainder }
+connection:
+  base_url: https://api.attio.com
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+resources:
+  - name: objects
+    path: /v2/objects
+    primary_key: [object_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      object_id: { path: id.object_id, type: uuid }
+      api_slug: string
+      singular_noun: string?
+      plural_noun: string?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      object: api_slug
+    response:
+      records: $.data
+      pagination: none
+  - name: records
+    path: /v2/objects/{object}/records/query
+    params:
+      object: parent.object
+    method: POST
+    for_each: objects
+    primary_key: [record_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      object_id: { path: id.object_id, type: uuid }
+      record_id: { path: id.record_id, type: uuid }
+      object: { path: parent.object, type: string }
+      created_at: timestamptz
+      web_url: string?
+      values: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      object: id.object_id
+      record_id: id.record_id
+    body:
+      encoding: json
+      template:
+        limit: 500
+        offset: 0
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 500
+  - name: lists
+    path: /v2/lists
+    primary_key: [list_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      list_id: { path: id.list_id, type: uuid }
+      api_slug: string?
+      name: string
+      parent_object: json?
+      workspace_access: string?
+      workspace_member_access: json?
+      created_by_actor: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      list: api_slug
+    response:
+      records: $.data
+      pagination: none
+  - name: entries
+    path: /v2/lists/{list}/entries/query
+    params:
+      list: parent.list
+    method: POST
+    for_each: lists
+    primary_key: [entry_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      list_id: { path: id.list_id, type: uuid }
+      entry_id: { path: id.entry_id, type: uuid }
+      list: { path: parent.list, type: string }
+      parent_record_id: uuid?
+      parent_object: string?
+      created_at: timestamptz
+      entry_values: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        limit: 500
+        offset: 0
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 500
+  - name: object_attributes
+    path: /v2/objects/{object}/attributes
+    params:
+      object: parent.object
+    for_each: objects
+    primary_key: [attribute_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      object_id: { path: id.object_id, type: uuid }
+      attribute_id: { path: id.attribute_id, type: uuid }
+      object: { path: parent.object, type: string }
+      title: string
+      description: string?
+      api_slug: string
+      type: string
+      is_system_attribute: bool
+      is_writable: bool
+      is_required: bool
+      is_unique: bool
+      is_multiselect: bool
+      is_default_value_enabled: bool
+      is_archived: bool
+      default_value: json?
+      relationship: json?
+      config: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+  - name: list_attributes
+    path: /v2/lists/{list}/attributes
+    params:
+      list: parent.list
+    for_each: lists
+    primary_key: [attribute_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      list_id: { path: id.object_id, type: uuid }
+      attribute_id: { path: id.attribute_id, type: uuid }
+      list: { path: parent.list, type: string }
+      title: string
+      description: string?
+      api_slug: string
+      type: string
+      is_system_attribute: bool
+      is_writable: bool
+      is_required: bool
+      is_unique: bool
+      is_multiselect: bool
+      is_default_value_enabled: bool
+      is_archived: bool
+      default_value: json?
+      relationship: json?
+      config: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+  - name: object_views
+    path: /v2/objects/{object}/views
+    params:
+      object: parent.object
+    for_each: objects
+    primary_key: [view_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      object_id: { path: id.object_id, type: uuid }
+      view_id: { path: id.view_id, type: uuid }
+      object: { path: parent.object, type: string }
+      title: string
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      limit: "500"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          null_terminates: true
+  - name: list_views
+    path: /v2/lists/{list}/views
+    params:
+      list: parent.list
+    for_each: lists
+    primary_key: [view_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      list_id: { path: id.list_id, type: uuid }
+      view_id: { path: id.view_id, type: uuid }
+      list: { path: parent.list, type: string }
+      title: string
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      limit: "500"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          null_terminates: true
+  - name: record_entries
+    path: /v2/objects/{object}/records/{record}/entries
+    params:
+      object: parent.object
+      record: parent.record_id
+    for_each: records
+    primary_key: [entry_id]
+    fields:
+      object: { path: parent.object, type: string }
+      record_id: { path: parent.record_id, type: uuid }
+      list_id: uuid
+      list_api_slug: string
+      entry_id: uuid
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+  - name: files
+    path: /v2/files
+    for_each: records
+    query:
+      object: "{{ parent.object }}"
+      record_id: "{{ parent.record_id }}"
+      limit: "200"
+    primary_key: [file_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      file_id: { path: id.file_id, type: uuid }
+      object_id: uuid?
+      object_slug: string?
+      record_id: uuid?
+      file_type: string?
+      storage_provider: string?
+      name: string?
+      content_type: string?
+      content_size: int64?
+      parent_folder_id: uuid?
+      created_by_actor: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          null_terminates: true
+  - name: workspace_members
+    path: /v2/workspace_members
+    primary_key: [workspace_member_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      workspace_member_id: { path: id.workspace_member_id, type: uuid }
+      first_name: string
+      last_name: string
+      avatar_url: string?
+      email_address: string
+      access_level: string
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination: none
+  - name: notes
+    path: /v2/notes
+    query:
+      limit: "500"
+    primary_key: [note_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      note_id: { path: id.note_id, type: uuid }
+      parent_object: string
+      parent_record_id: uuid
+      title: string
+      meeting_id: uuid?
+      content_plaintext: string
+      content_markdown: string
+      tags: json
+      created_by_actor: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+  - name: tasks
+    path: /v2/tasks
+    query:
+      limit: "500"
+    primary_key: [task_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      task_id: { path: id.task_id, type: uuid }
+      content_plaintext: string
+      deadline_at: timestamptz?
+      is_completed: bool
+      completed_at: timestamptz?
+      linked_records: json
+      assignees: json
+      created_by_actor: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+  - name: threads
+    path: /v2/threads
+    query:
+      limit: "500"
+    primary_key: [thread_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      thread_id: { path: id.thread_id, type: uuid }
+      comments: json
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+  - name: meetings
+    path: /v2/meetings
+    query:
+      limit: "500"
+    primary_key: [meeting_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      meeting_id: { path: id.meeting_id, type: uuid }
+      title: string
+      description: string?
+      is_all_day: bool
+      start: json
+      end: json
+      participants: json
+      linked_records: json
+      created_by_actor: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      meeting_id: id.meeting_id
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          null_terminates: true
+  - name: call_recordings
+    path: /v2/meetings/{meeting}/call_recordings
+    params:
+      meeting: parent.meeting_id
+    for_each: meetings
+    query:
+      limit: "500"
+    primary_key: [call_recording_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      meeting_id: { path: id.meeting_id, type: uuid }
+      call_recording_id: { path: id.call_recording_id, type: uuid }
+      status: string
+      web_url: string
+      created_by_actor: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      meeting_id: id.meeting_id
+      call_recording_id: id.call_recording_id
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          null_terminates: true
+  - name: transcripts
+    path: /v2/meetings/{meeting}/call_recordings/{recording}/transcript
+    params:
+      meeting: parent.meeting_id
+      recording: parent.call_recording_id
+    for_each: call_recordings
+    primary_key: [call_recording_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      meeting_id: { path: id.meeting_id, type: uuid }
+      call_recording_id: { path: id.call_recording_id, type: uuid }
+      transcript: json
+      raw_transcript: string
+      web_url: string
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      cardinality: one
+      pagination: none
+  - name: webhooks
+    path: /v2/webhooks
+    query:
+      limit: "500"
+    primary_key: [webhook_id]
+    fields:
+      workspace_id: { path: id.workspace_id, type: uuid }
+      webhook_id: { path: id.webhook_id, type: uuid }
+      target_url: string
+      subscriptions: json
+      status: string
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+  - name: people
+    path: /v2/objects/people/records/query
+    method: POST
+    primary_key: [record_id]
+    use_fields: [record]
+    body:
+      encoding: json
+      template: { limit: 500, offset: 0 }
+    response:
+      records: $.data
+      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+  - name: companies
+    path: /v2/objects/companies/records/query
+    method: POST
+    primary_key: [record_id]
+    use_fields: [record]
+    body:
+      encoding: json
+      template: { limit: 500, offset: 0 }
+    response:
+      records: $.data
+      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+  - name: deals
+    path: /v2/objects/deals/records/query
+    method: POST
+    primary_key: [record_id]
+    use_fields: [record]
+    body:
+      encoding: json
+      template: { limit: 500, offset: 0 }
+    response:
+      records: $.data
+      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+  - name: users
+    path: /v2/objects/users/records/query
+    method: POST
+    primary_key: [record_id]
+    use_fields: [record]
+    body:
+      encoding: json
+      template: { limit: 500, offset: 0 }
+    response:
+      records: $.data
+      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+  - name: workspaces
+    path: /v2/objects/workspaces/records/query
+    method: POST
+    primary_key: [record_id]
+    use_fields: [record]
+    body:
+      encoding: json
+      template: { limit: 500, offset: 0 }
+    response:
+      records: $.data
+      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+discovery:
+  mode: static
+  include:
+    - objects
+    - records
+    - object_attributes
+    - object_views
+    - record_entries
+    - files
+    - lists
+    - entries
+    - list_attributes
+    - list_views
+    - workspace_members
+    - notes
+    - tasks
+    - threads
+    - meetings
+    - call_recordings
+    - transcripts
+    - webhooks
+    - people
+    - companies
+    - deals
+    - users
+    - workspaces

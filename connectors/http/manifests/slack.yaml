@@ -1,0 +1,332 @@
+version: 1
+name: slack
+config:
+  token:
+    type: secret
+    required: true
+    help: Slack bot or user OAuth token
+  conversation_types:
+    type: string
+    default: public_channel
+    help: Comma-separated Slack conversation types (public_channel, private_channel, mpim, im)
+defaults:
+  method: GET
+  response:
+    error:
+      path: error
+      when_present: true
+      message_path: error
+connection:
+  base_url: https://slack.com/api
+  auth:
+    bearer: config.token
+  headers:
+    Accept: application/json
+resources:
+  - name: team
+    path: /team.info
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      domain: string?
+      email_domain: string?
+      icon: json?
+      enterprise_id: string?
+      enterprise_name: string?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.team
+      cardinality: one
+      pagination: none
+
+  - name: users
+    path: /users.list
+    query:
+      limit: "200"
+    primary_key: [id]
+    fields:
+      id: string
+      team_id: string?
+      name: string?
+      real_name: string?
+      deleted: bool?
+      color: string?
+      tz: string?
+      tz_label: string?
+      tz_offset: int64?
+      is_admin: bool?
+      is_owner: bool?
+      is_primary_owner: bool?
+      is_restricted: bool?
+      is_ultra_restricted: bool?
+      is_bot: bool?
+      updated: int64?
+      profile: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.members
+      pagination:
+        cursor:
+          response: response_metadata.next_cursor
+          request: query.cursor
+
+  - name: user_groups
+    path: /usergroups.list
+    query:
+      include_users: "true"
+      include_count: "true"
+      include_disabled: "true"
+    primary_key: [id]
+    fields:
+      id: string
+      team_id: string?
+      name: string
+      handle: string?
+      description: string?
+      date_create: int64?
+      date_update: int64?
+      date_delete: int64?
+      auto_type: string?
+      created_by: string?
+      updated_by: string?
+      deleted_by: string?
+      prefs: json?
+      users: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.usergroups
+      pagination: none
+
+  - name: conversations
+    # Membership-aware inventory: conversations.history rejects channels a bot
+    # can discover but has not joined with not_in_channel.
+    path: /users.conversations
+    query:
+      types: "{{ config.conversation_types }}"
+      exclude_archived: "false"
+      limit: "200"
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      created: int64?
+      creator: string?
+      updated: int64?
+      topic: json?
+      purpose: json?
+      num_members: int64?
+      is_channel: bool?
+      is_group: bool?
+      is_im: bool?
+      is_mpim: bool?
+      is_private: bool?
+      is_archived: bool?
+      is_general: bool?
+      is_shared: bool?
+      is_org_shared: bool?
+      is_ext_shared: bool?
+      is_member: bool?
+      user: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      channel_id: id
+    response:
+      records: $.channels
+      pagination:
+        cursor:
+          response: response_metadata.next_cursor
+          request: query.cursor
+
+  - name: messages
+    path: /conversations.history
+    query:
+      channel: "{{ parent.channel_id }}"
+      limit: "200"
+    for_each: conversations
+    primary_key: [channel_id, ts]
+    fields:
+      channel_id: { path: parent.channel_id, type: string }
+      ts: string
+      thread_ts: string?
+      type: string?
+      subtype: string?
+      user: string?
+      bot_id: string?
+      app_id: string?
+      text: string?
+      client_msg_id: string?
+      team: string?
+      reply_count: int64?
+      reply_users_count: int64?
+      latest_reply: string?
+      subscribed: bool?
+      hidden: bool?
+      blocks: json?
+      attachments: json?
+      files: json?
+      reactions: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      thread_ts: ts
+    response:
+      records: $.messages
+      pagination:
+        cursor:
+          response: response_metadata.next_cursor
+          request: query.cursor
+    incremental:
+      cursor_field: ts
+      start_param: oldest
+      inject_into: query
+      checkpoint_key: messages_since
+      comparator: numeric
+
+  - name: thread_replies
+    path: /conversations.replies
+    query:
+      channel: "{{ parent.channel_id }}"
+      ts: "{{ parent.thread_ts }}"
+      limit: "200"
+    for_each: messages
+    primary_key: [channel_id, thread_ts, ts]
+    fields:
+      channel_id: { path: parent.channel_id, type: string }
+      thread_ts: { path: parent.thread_ts, type: string }
+      ts: string
+      type: string?
+      subtype: string?
+      user: string?
+      bot_id: string?
+      app_id: string?
+      text: string?
+      client_msg_id: string?
+      reply_count: int64?
+      blocks: json?
+      attachments: json?
+      files: json?
+      reactions: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.messages
+      pagination:
+        cursor:
+          response: response_metadata.next_cursor
+          request: query.cursor
+
+  - name: files
+    path: /files.list
+    primary_key: [id]
+    fields:
+      id: string
+      created: int64?
+      timestamp: int64?
+      name: string?
+      title: string?
+      mimetype: string?
+      filetype: string?
+      pretty_type: string?
+      user: string?
+      size: int64?
+      mode: string?
+      editable: bool?
+      is_external: bool?
+      external_type: string?
+      is_public: bool?
+      public_url_shared: bool?
+      url_private: string?
+      url_private_download: string?
+      permalink: string?
+      permalink_public: string?
+      channels: json?
+      groups: json?
+      ims: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.files
+      pagination:
+        page:
+          number: page
+          size: count
+          page_size: 100
+          total_pages: paging.pages
+
+  - name: bookmarks
+    path: /bookmarks.list
+    query:
+      channel_id: "{{ parent.channel_id }}"
+    for_each: conversations
+    primary_key: [id]
+    fields:
+      id: string
+      channel_id: { path: parent.channel_id, type: string }
+      title: string?
+      link: string?
+      emoji: string?
+      icon_url: string?
+      type: string?
+      entity_id: string?
+      date_created: int64?
+      date_updated: int64?
+      rank: string?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.bookmarks
+      pagination: none
+
+  - name: pins
+    path: /pins.list
+    query:
+      channel: "{{ parent.channel_id }}"
+    for_each: conversations
+    primary_key: [channel_id, created]
+    fields:
+      channel_id: { path: parent.channel_id, type: string }
+      type: string
+      created: int64
+      created_by: string?
+      message: json?
+      file: json?
+      comment: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.items
+      pagination: none
+
+  - name: reactions
+    path: /reactions.list
+    query:
+      limit: "200"
+      full: "true"
+    primary_key: [type, channel, message_ts, file_id]
+    fields:
+      type: string
+      channel: string?
+      message_ts: { path: message.ts, type: string, nullable: true }
+      file_id: { path: file.id, type: string, nullable: true }
+      message: json?
+      file: json?
+      comment: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.items
+      pagination:
+        cursor:
+          response: response_metadata.next_cursor
+          request: query.cursor
+
+discovery:
+  mode: static
+  include:
+    - team
+    - users
+    - user_groups
+    - conversations
+    - messages
+    - thread_replies
+    - files
+    - bookmarks
+    - pins
+    - reactions

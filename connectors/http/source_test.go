@@ -184,6 +184,25 @@ func TestSourcePlanResourcesExpandsSelectedNotionDatabase(t *testing.T) {
 	}
 }
 
+func TestSourcePlanResourcesKeepsSingleStaticResource(t *testing.T) {
+	ctx := context.Background()
+	src := NewAttio()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key": "test-token",
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	got, err := src.PlanResources(ctx, []string{"objects"}, []string{"objects"})
+	if err != nil {
+		t.Fatalf("plan resources: %v", err)
+	}
+	if len(got) != 1 || got[0] != "objects" {
+		t.Fatalf("resources = %v, want [objects]", got)
+	}
+}
+
 func TestToIngestionRecordWrapsHTTPAPIPayload(t *testing.T) {
 	rec := toIngestionRecord(pipeline.Record{
 		Resource: "databases",
@@ -351,6 +370,338 @@ func TestNewNotionSpecHidesManifestPath(t *testing.T) {
 		t.Fatalf("configure embedded notion manifest: %v", err)
 	}
 	defer src.Teardown(ctx)
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover static Notion resources: %v", err)
+	}
+	want := []string{"users", "databases", "pages", "blocks"}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name || discovered.Resources[i].Selector != name {
+			t.Fatalf("resource[%d] = %#v, want stable %q selector", i, discovered.Resources[i], name)
+		}
+	}
+}
+
+func TestEmbeddedCatalogMetadata(t *testing.T) {
+	tests := []struct {
+		name, description, darkLogo, lightLogo string
+		source                                 *Source
+	}{
+		{
+			name: "github", source: NewGitHub(),
+			description: "Code hosting platform for version control, collaboration, and software development workflows.",
+			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg",
+			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-github-light.svg",
+		},
+		{
+			name: "slack", source: NewSlack(),
+			description: "Messaging and collaboration platform designed for teams to communicate and work together efficiently.",
+			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg",
+			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg",
+		},
+		{
+			name: "attio", source: NewAttio(),
+			description: "CRM platform designed for modern teams to centralize customer data, pipelines, and workflows.",
+			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg",
+			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			spec := test.source.Spec()
+			if spec.Description != test.description ||
+				spec.DarkLogoURL != test.darkLogo ||
+				spec.LightLogoURL != test.lightLogo {
+				t.Fatalf("metadata = %#v", spec)
+			}
+		})
+	}
+}
+
+func TestNewAttioSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewAttio()
+	spec := src.Spec()
+	if spec.Name != "attio" || spec.DisplayName != "Attio" {
+		t.Fatalf("spec identity = %q/%q, want attio/Attio", spec.Name, spec.DisplayName)
+	}
+	if len(spec.Config.Fields) != 1 {
+		t.Fatalf("config fields = %#v, want api_key", spec.Config.Fields)
+	}
+	field := spec.Config.Fields[0]
+	if field.Name != "api_key" || field.Type != filament.FieldSecret || !field.Required {
+		t.Fatalf("api_key field = %#v, want required secret", field)
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without API key succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key": "test-api-key",
+	})); err != nil {
+		t.Fatalf("configure embedded Attio manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	want := []string{
+		"objects", "records", "object_attributes", "object_views", "record_entries", "files",
+		"lists", "entries", "list_attributes", "list_views", "workspace_members", "notes",
+		"tasks", "threads", "meetings", "call_recordings", "transcripts", "webhooks",
+		"people", "companies", "deals", "users", "workspaces",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
+	ctx := context.Background()
+	var authorization string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/objects":
+			fmt.Fprint(w, `{"data":[{"id":{"workspace_id":"14beef7a-99f7-4534-a87e-70b564330a4c","object_id":"97052eb9-e65e-443f-a297-f2d9a4a7f795"},"api_slug":"people","singular_noun":"Person","plural_noun":"People","created_at":"2022-11-21T13:22:49Z"}]}`)
+		case "/v2/lists":
+			fmt.Fprint(w, `{"data":[{"id":{"workspace_id":"14beef7a-99f7-4534-a87e-70b564330a4c","list_id":"33ebdbe9-e529-47c9-b894-0ba25e9c15c0"},"api_slug":"sales","name":"Sales","parent_object":["companies"],"workspace_access":null,"workspace_member_access":[],"created_by_actor":null,"created_at":"2022-11-21T13:22:49Z"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(attioManifest), "https://api.attio.com", api.URL, 1))
+	src := NewManifest("attio", "Attio", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "attio-key"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"objects", "lists"}}); err != nil {
+		t.Fatalf("extract Attio catalog: %v", err)
+	}
+	if authorization != "Bearer attio-key" {
+		t.Fatalf("Authorization = %q, want Bearer attio-key", authorization)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %#v, want one Attio object and list", sink.records)
+	}
+}
+
+func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
+	ctx := context.Background()
+	var authorization string
+	var historyChannels []string
+	var replyScopes []string
+	var conversationTypes string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/users.conversations":
+			conversationTypes = r.URL.Query().Get("types")
+			fmt.Fprint(w, `{"ok":true,"channels":[{"id":"C123","name":"general","is_channel":true}],"response_metadata":{"next_cursor":""}}`)
+		case "/conversations.history":
+			historyChannels = append(historyChannels, r.URL.Query().Get("channel"))
+			if r.URL.Query().Get("cursor") == "" {
+				fmt.Fprint(w, `{"ok":true,"messages":[{"type":"message","user":"U123","text":"hello","ts":"1710000000.000001"}],"response_metadata":{"next_cursor":"next-page"}}`)
+				return
+			}
+			fmt.Fprint(w, `{"ok":true,"messages":[{"type":"message","user":"U456","text":"world","ts":"1710000001.000002"}],"response_metadata":{"next_cursor":""}}`)
+		case "/conversations.replies":
+			replyScopes = append(replyScopes, r.URL.Query().Get("channel")+"|"+r.URL.Query().Get("ts"))
+			fmt.Fprintf(w, `{"ok":true,"messages":[{"type":"message","user":"U789","text":"reply","ts":"%s"}],"response_metadata":{"next_cursor":""}}`, r.URL.Query().Get("ts"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(slackManifest), "https://slack.com/api", api.URL, 1))
+	src := NewManifest("slack", "Slack", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"token": "xoxb-test"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	wantResources := []string{"team", "users", "user_groups", "conversations", "messages", "thread_replies", "files", "bookmarks", "pins", "reactions"}
+	if len(discovered.Resources) != len(wantResources) {
+		t.Fatalf("resources = %#v, want %v", discovered.Resources, wantResources)
+	}
+	for i, name := range wantResources {
+		if discovered.Resources[i].Name != name || discovered.Resources[i].Selector != name {
+			t.Fatalf("resource[%d] = %#v, want %q", i, discovered.Resources[i], name)
+		}
+	}
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"thread_replies"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract thread replies: %v", err)
+	}
+	if authorization != "Bearer xoxb-test" {
+		t.Fatalf("Authorization = %q, want Bearer xoxb-test", authorization)
+	}
+	if conversationTypes != "public_channel" {
+		t.Fatalf("conversation types = %q, want least-privilege public_channel default", conversationTypes)
+	}
+	if len(historyChannels) != 2 || historyChannels[0] != "C123" || historyChannels[1] != "C123" {
+		t.Fatalf("history channels = %v, want C123 for both pages", historyChannels)
+	}
+	gotReplyScopes := make(map[string]bool, len(replyScopes))
+	for _, scope := range replyScopes {
+		gotReplyScopes[scope] = true
+	}
+	if len(replyScopes) != 2 ||
+		!gotReplyScopes["C123|1710000000.000001"] ||
+		!gotReplyScopes["C123|1710000001.000002"] {
+		t.Fatalf("reply scopes = %v, want inherited channel and message timestamps", replyScopes)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %#v, want two thread replies only", sink.records)
+	}
+	for _, rec := range sink.records {
+		if rec.Resource != "thread_replies" {
+			t.Fatalf("resource = %q, want thread_replies (dependencies must not emit)", rec.Resource)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(rec.Data, &data); err != nil {
+			t.Fatalf("decode message: %v", err)
+		}
+		if data["channel_id"] != "C123" {
+			t.Fatalf("channel_id = %#v, want inherited C123", data["channel_id"])
+		}
+	}
+}
+
+func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewGitHub()
+	spec := src.Spec()
+	if spec.Name != "github" || spec.DisplayName != "GitHub" {
+		t.Fatalf("spec identity = %q/%q, want github/GitHub", spec.Name, spec.DisplayName)
+	}
+	if len(spec.Config.Fields) != 2 {
+		t.Fatalf("config fields = %#v, want token and organization", spec.Config.Fields)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if fields["token"].Type != filament.FieldSecret || !fields["token"].Required {
+		t.Fatalf("token field = %#v, want required secret", fields["token"])
+	}
+	if fields["organization"].Type != filament.FieldString || !fields["organization"].Required {
+		t.Fatalf("organization field = %#v, want required string", fields["organization"])
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"token":        "github-token",
+		"organization": "galaxy-io",
+	})); err != nil {
+		t.Fatalf("configure embedded GitHub manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	want := []string{"repositories", "issues", "pull_requests"}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
+	}
+	for i := range want {
+		if discovered.Resources[i].Name != want[i] {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, want[i])
+		}
+	}
+}
+
+func TestStaticDiscoveryChildSelectionScansButDoesNotEmitParents(t *testing.T) {
+	ctx := context.Background()
+	var parentRequests, childRequests int
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/parents":
+			parentRequests++
+			fmt.Fprint(w, `[{"id":"parent-1"}]`)
+		case "/parents/parent-1/children":
+			childRequests++
+			fmt.Fprint(w, `[{"id":"child-1","name":"Child"}]`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	path := filepath.Join(t.TempDir(), "static.yaml")
+	data := fmt.Sprintf(`version: 1
+name: static
+connection:
+  base_url: %s
+resources:
+  - name: parents
+    path: /parents
+    primary_key: [id]
+    fields:
+      id: string
+    capture:
+      id: id
+    response:
+      records: $
+      pagination: none
+  - name: children
+    path: /parents/{parent}/children
+    params:
+      parent: parent.id
+    for_each: parents
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+    response:
+      records: $
+      pagination: none
+discovery:
+  mode: static
+  include: [parents, children]
+`, api.URL)
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	src := New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"manifest_path": path})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"children"}}); err != nil {
+		t.Fatalf("extract children: %v", err)
+	}
+	if parentRequests != 1 || childRequests != 1 {
+		t.Fatalf("requests parent=%d child=%d, want 1 each", parentRequests, childRequests)
+	}
+	if len(sink.records) != 1 || sink.records[0].Resource != "children" {
+		t.Fatalf("emitted records = %#v, want only selected child", sink.records)
+	}
 }
 
 func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testing.T) {
