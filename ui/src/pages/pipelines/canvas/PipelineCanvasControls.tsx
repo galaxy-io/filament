@@ -6,10 +6,13 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { PIPELINE_CANVAS_FIT_VIEW_OPTIONS } from "@/pages/pipelines/canvas/constants";
 import { mapNodesToStackedPositions } from "@/pages/pipelines/canvas/graph";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
 const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
@@ -53,7 +56,8 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
 
 const PipelineCanvasControls = () => {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
-  const { state, dispatch } = usePipelineCanvas();
+  const state = usePipelineCanvasState();
+  const dispatch = usePipelineCanvasDispatch();
 
   const handleResetView = () => {
     dispatch({

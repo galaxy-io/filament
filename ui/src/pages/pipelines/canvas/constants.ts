@@ -7,7 +7,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import {
   PipelineCanvasEditMode,
   PipelineCanvasInteractionMode,
-} from "@/pages/pipelines/canvas/types";
+} from "@/pages/pipelines/canvas/providers/canvas/types";
 
 export const PIPELINE_CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
   padding: 0.5,

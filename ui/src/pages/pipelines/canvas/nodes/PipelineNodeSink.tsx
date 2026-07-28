@@ -4,14 +4,18 @@ import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { PIPELINE_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import PipelineNode from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import type { PipelineNodeSinkProps } from "@/pages/pipelines/canvas/nodes/types";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasReadOnly,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
 const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) => {
-  const { state, dispatch } = usePipelineCanvas();
+  const dispatch = usePipelineCanvasDispatch();
+  const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "target" });
 
   const handleDelete = () => {
@@ -26,7 +30,7 @@ const PipelineNodeSink = memo(({ id, data, selected }: PipelineNodeSinkProps) =>
       handleId={PIPELINE_NODE_SINK_HANDLE_ID}
       isConnected={connections.length > 0}
       isSelected={selected}
-      onDelete={state.isReadOnly ? undefined : handleDelete}
+      onDelete={isReadOnly ? undefined : handleDelete}
     />
   );
 });

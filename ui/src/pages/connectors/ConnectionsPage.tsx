@@ -26,9 +26,11 @@ import {
 } from "@/pages/connectors/constants";
 import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineConnectionMap";
 
+import { Flow } from "@/routes/__root";
+
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 
-import { DOCUMENTATION_URL, Flow } from "@/constants";
+import { DOCUMENTATION_URL } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
 
