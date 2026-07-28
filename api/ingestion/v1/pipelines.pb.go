@@ -708,15 +708,12 @@ func (x *GetPipelineRequest) GetId() string {
 }
 
 type GetPipelineResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Pipeline *Pipeline              `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
-	// Version referenced by pipeline.current_version_id; unset when the pipeline
-	// has no versions.
-	CurrentVersion *PipelineVersion `protobuf:"bytes,2,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
-	// Newest first (descending version).
-	Versions      []*PipelineVersion `protobuf:"bytes,3,rep,name=versions,proto3" json:"versions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Pipeline       *Pipeline              `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	CurrentVersion *PipelineVersion       `protobuf:"bytes,2,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	Versions       []*PipelineVersion     `protobuf:"bytes,3,rep,name=versions,proto3" json:"versions,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetPipelineResponse) Reset() {
@@ -911,9 +908,8 @@ func (x *ListPipelineVersionsRequest) GetPipelineId() string {
 }
 
 type ListPipelineVersionsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Newest first (descending version).
-	Versions      []*PipelineVersion `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Versions      []*PipelineVersion     `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

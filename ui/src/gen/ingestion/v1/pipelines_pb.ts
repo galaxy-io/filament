@@ -350,16 +350,11 @@ export type GetPipelineResponse = Message<"ingestion.v1.GetPipelineResponse"> & 
   pipeline?: Pipeline | undefined;
 
   /**
-   * Version referenced by pipeline.current_version_id; unset when the pipeline
-   * has no versions.
-   *
    * @generated from field: ingestion.v1.PipelineVersion current_version = 2;
    */
   currentVersion?: PipelineVersion | undefined;
 
   /**
-   * Newest first (descending version).
-   *
    * @generated from field: repeated ingestion.v1.PipelineVersion versions = 3;
    */
   versions: PipelineVersion[];
@@ -433,8 +428,6 @@ export const ListPipelineVersionsRequestSchema: GenMessage<ListPipelineVersionsR
  */
 export type ListPipelineVersionsResponse = Message<"ingestion.v1.ListPipelineVersionsResponse"> & {
   /**
-   * Newest first (descending version).
-   *
    * @generated from field: repeated ingestion.v1.PipelineVersion versions = 1;
    */
   versions: PipelineVersion[];
