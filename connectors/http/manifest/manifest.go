@@ -296,8 +296,7 @@ func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
 			if err := value.Decode(&spec); err != nil {
 				return fmt.Errorf("field %q: %w", name, err)
 			}
-			field.Path, field.Type, field.Shape, field.Mode, field.Nullable =
-				spec.Path, spec.Type, spec.Shape, spec.Mode, spec.Nullable
+			field.Path, field.Type, field.Shape, field.Mode, field.Nullable = spec.Path, spec.Type, spec.Shape, spec.Mode, spec.Nullable
 			if field.Path == "" && len(field.Shape) == 0 {
 				field.Path = name
 			}
@@ -381,15 +380,16 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 	}
 	// Internal explicit form remains useful to generated test manifests.
 	for i := 0; i < len(node.Content); i += 2 {
-		if node.Content[i].Value == "type" {
-			type plain PaginationSpec
-			var out plain
-			if err := node.Decode(&out); err != nil {
-				return err
-			}
-			*p = PaginationSpec(out)
-			return nil
+		if node.Content[i].Value != "type" {
+			continue
 		}
+		type plain PaginationSpec
+		var out plain
+		if err := node.Decode(&out); err != nil {
+			return err
+		}
+		*p = PaginationSpec(out)
+		return nil
 	}
 	if len(node.Content) != 2 {
 		return fmt.Errorf("pagination must contain exactly one strategy")
@@ -416,8 +416,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		if !ok || (target != "query" && target != "body" && target != "header") {
 			return fmt.Errorf("cursor.request must be query.<name>, body.<path>, or header.<name>")
 		}
-		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates =
-			"cursor", spec.Response, target, param, spec.More, spec.NullTerminates
+		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
 	case "offset":
 		var spec struct {
 			Offset   string `yaml:"offset"`
@@ -438,8 +437,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body") {
 			return fmt.Errorf("offset pagination fields must share a query or body target")
 		}
-		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto =
-			"offset", offsetParam, limitParam, spec.PageSize, offsetTarget
+		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
 	case "page":
 		var spec struct {
 			Number     string `yaml:"number"`
@@ -450,8 +448,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		if err := value.Decode(&spec); err != nil {
 			return err
 		}
-		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath =
-			"page", spec.Number, spec.Size, spec.PageSize, spec.TotalPages
+		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", spec.Number, spec.Size, spec.PageSize, spec.TotalPages
 	default:
 		return fmt.Errorf("unknown pagination strategy %q", strategy)
 	}
