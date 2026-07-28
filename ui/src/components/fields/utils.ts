@@ -15,6 +15,14 @@ const ACRONYMS_TO_CAPITALIZE: string[] = [
   "ssl",
   "dsn",
   "uri",
+  "kb",
+  "mb",
+  "gb",
+  "tb",
+  "kib",
+  "mib",
+  "gib",
+  "tib",
 ];
 
 export function formatFieldName(fieldName: string): string {
