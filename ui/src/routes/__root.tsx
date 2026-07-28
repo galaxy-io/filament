@@ -19,14 +19,15 @@ import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
 
-import { Flow } from "@/constants";
+export enum Flow {
+  CREATE_CONNECTION = "CREATE_CONNECTION",
+}
 
 const validateSearchSchema = z.object({
   connectionId: z.string().optional(),
   flow: z.enum(Flow).optional(),
   connectorKind: z.enum(ConnectorKind).optional(),
   connector: z.string().optional(),
-  version: z.number().optional(),
 });
 
 export const Route = createRootRoute({

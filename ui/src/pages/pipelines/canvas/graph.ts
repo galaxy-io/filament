@@ -15,10 +15,10 @@ import {
   PIPELINE_NODE_SINK_HANDLE_ID,
   PIPELINE_NODE_SOURCE_HANDLE_ID,
 } from "@/pages/pipelines/canvas/constants";
+import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
 import {
   type CanvasEdge,
   type CanvasNode,
-  type PipelineCanvasState,
   PipelineNodeType,
   type PipelinePlaceholderNode,
   type PipelineSinkNode,
@@ -176,7 +176,7 @@ export const mapPipelineVersionToCanvasState = (
 };
 
 export const mapCanvasStateToVersionRequest = (
-  state: PipelineCanvasState,
+  state: Pick<PipelineCanvasState, "nodes" | "edges">,
   pipelineId: string,
   baseVersion: PipelineVersion | undefined,
 ): CreatePipelineVersionRequest => {
@@ -220,7 +220,7 @@ export const isPipelineRunnable = (version: PipelineVersion | undefined): boolea
   (version?.edges ?? []).length > 0;
 
 export const hasPipelineGraphChanges = (
-  state: PipelineCanvasState,
+  state: Pick<PipelineCanvasState, "nodes" | "edges">,
   version: PipelineVersion | undefined,
 ): boolean => {
   const canvasNodes = state.nodes

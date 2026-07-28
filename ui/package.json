@@ -29,13 +29,10 @@
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.141.2",
-    "@tanstack/zod-adapter": "^1.141.2",
     "@xyflow/react": "^12.11.2",
-    "framer-motion": "^12.42.2",
     "pluralize": "^8.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-github-btn": "^1.4.0",
     "ts-pattern": "^5.9.0",
     "zod": "^4.3.6"
   },

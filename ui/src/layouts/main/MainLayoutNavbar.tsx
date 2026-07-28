@@ -1,7 +1,8 @@
 import { styled } from "@linaria/react";
+import { BookOpenIcon, GithubLogoIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import GitHubButton from "react-github-btn";
 
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -14,7 +15,7 @@ import { NAV_ITEMS, NAVBAR_HEIGHT, type NavItem } from "@/layouts/main/constants
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
 
-import { GITHUB_REPO_URL } from "@/constants";
+import { DOCUMENTATION_URL, GITHUB_REPO_URL } from "@/constants";
 
 const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -71,6 +72,14 @@ const MainLayoutNavTab = ({ item }: { item: NavItem }) => {
 };
 
 const MainLayoutNavbar = () => {
+  const handleDocs = () => {
+    window.open(DOCUMENTATION_URL, "_blank");
+  };
+
+  const handleStarRepository = () => {
+    window.open(GITHUB_REPO_URL, "_blank");
+  };
+
   return (
     <NavbarWrapper>
       <Link to={"/"}>
@@ -84,14 +93,21 @@ const MainLayoutNavbar = () => {
           <MainLayoutNavTab key={item.to} item={item} />
         ))}
       </NavTabsWrapper>
-      <GitHubButton
-        href={GITHUB_REPO_URL}
-        data-color-scheme="no-preference: dark; light: light; dark: dark;"
-        data-show-count="true"
-        aria-label="Star galaxy-io/filament on GitHub"
-      >
-        Star
-      </GitHubButton>
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+        <Button
+          label="Docs"
+          icon={BookOpenIcon}
+          onClick={handleDocs}
+          variant={ButtonVariant.TERTIARY}
+          size={ButtonSize.SMALL}
+        />
+        <Button
+          icon={GithubLogoIcon}
+          onClick={handleStarRepository}
+          variant={ButtonVariant.SECONDARY}
+          size={ButtonSize.SMALL}
+        />
+      </FlexWrapper>
     </NavbarWrapper>
   );
 };

@@ -6,12 +6,15 @@ import { useNodeConnections } from "@xyflow/react";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
 import { PIPELINE_NODE_SOURCE_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import PipelineNode from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import PipelineNodeSourceIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeSourceIsland";
 import type { PipelineNodeSourceProps } from "@/pages/pipelines/canvas/nodes/types";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
+import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
+import {
+  usePipelineCanvasDispatch,
+  usePipelineCanvasReadOnly,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { PipelineSourceNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
@@ -35,7 +38,8 @@ const useSourceResources = (connectionId: string) => {
 };
 
 const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps) => {
-  const { state, dispatch } = usePipelineCanvas();
+  const dispatch = usePipelineCanvasDispatch();
+  const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "source" });
   const {
     tables: discoveredTables,
@@ -70,8 +74,8 @@ const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps
       handleId={PIPELINE_NODE_SOURCE_HANDLE_ID}
       isConnected={connectedHandleIds.has(PIPELINE_NODE_SOURCE_HANDLE_ID)}
       isSelected={selected}
-      onRefresh={state.isReadOnly ? undefined : refresh}
-      onDelete={state.isReadOnly ? undefined : handleDelete}
+      onRefresh={isReadOnly ? undefined : refresh}
+      onDelete={isReadOnly ? undefined : handleDelete}
     >
       {(isLoading || error || tables.length > 0) && (
         <PipelineNodeSourceIsland
