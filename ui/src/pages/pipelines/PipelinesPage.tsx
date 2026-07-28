@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { BookOpenIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
+import { BookOpenIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { ToastVariant } from "@galaxy-io/dls/toast/ToastProvider";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -17,7 +16,7 @@ import ConnectorEmptyDark from "@/assets/components/ConnectorsEmptyDark";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ListPageLayout from "@/layouts/ListPageLayout";
 
-import PipelineCard from "@/pages/pipelines/components/card/PipelineCard";
+import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
 
 import { useCreatePipelineMutation, useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
 
@@ -46,11 +45,9 @@ const PipelinesPage = () => {
   const { data } = useSuspenseListPipelinesQuery();
   const { mutate: createPipeline, isPending: isCreatingPipeline } = useCreatePipelineMutation();
 
-  const pipelines = data.pipelines;
-
   const visiblePipelines = useMemo(
-    () => pipelines.filter((item) => isSearchMatch(state.search, item.name)),
-    [pipelines, state.search],
+    () => data.pipelines.filter((item) => isSearchMatch(state.search, item.name, item.id)),
+    [data.pipelines, state.search],
   );
 
   const handleNewPipeline = () => {
@@ -78,7 +75,7 @@ const PipelinesPage = () => {
   };
 
   const renderContent = () => {
-    if (!pipelines.length) {
+    if (!data.pipelines.length) {
       return (
         <EmptyLayout
           icon={<ConnectorEmptyDark height={200} />}
@@ -105,18 +102,7 @@ const PipelinesPage = () => {
       );
     }
 
-    if (visiblePipelines.length === 0) {
-      return (
-        <EmptyLayout
-          icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
-          message="No pipelines match your search"
-        />
-      );
-    }
-
-    return visiblePipelines.map((pipeline) => (
-      <PipelineCard key={pipeline.id} pipeline={pipeline} />
-    ));
+    return <PipelinesTable pipelines={visiblePipelines} />;
   };
 
   return (

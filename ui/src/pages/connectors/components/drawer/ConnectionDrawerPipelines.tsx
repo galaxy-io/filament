@@ -34,7 +34,7 @@ const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesPr
     >
       <FlexWrapper fillWidth direction={FlexDirection.COLUMN}>
         {connectedPipelines.map((pipeline) => (
-          <PipelineCard key={pipeline.id} pipeline={pipeline} isCompact />
+          <PipelineCard key={pipeline.id} pipeline={pipeline} />
         ))}
       </FlexWrapper>
     </ConnectionDrawerSection>
