@@ -6,18 +6,14 @@ import { Handle, type Position } from "@xyflow/react";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import {
-  CONNECTOR_KIND_TO_HANDLE_TYPE_MAP,
-  PIPELINE_NODE_HANDLE_SLOT_SIZE,
-} from "@/pages/pipelines/canvas/constants";
-
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-// Port sizes from Figma
+import { CONNECTOR_KIND_TO_HANDLE_TYPE_MAP } from "@/pages/pipelines/canvas/constants";
+import { PIPELINE_NODE_HANDLE_SLOT_SIZE } from "@/pages/pipelines/canvas/nodes/constants";
+
 const PORT_SIZE_ACTIVE = 12;
 const PORT_SIZE_IDLE = 5;
 
-// Fixed-size slot that centers the port so layout doesn't shift as it grows
 const HandleSlot = styled.div`
   width: ${PIPELINE_NODE_HANDLE_SLOT_SIZE}px;
   height: ${PIPELINE_NODE_HANDLE_SLOT_SIZE}px;
@@ -27,7 +23,6 @@ const HandleSlot = styled.div`
   justify-content: center;
 `;
 
-// Strip styling-only props so styled() doesn't forward them to the DOM through Handle
 const HandleBase = ({
   $isConnected: _isConnected,
   theme: _theme,
@@ -36,7 +31,6 @@ const HandleBase = ({
   <Handle {...props} />
 );
 
-// Override React Flow's absolute positioning so the handle works in the slot system
 const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?: boolean }>>`
   position: relative !important;
   top: auto !important;

@@ -1,120 +1,34 @@
 import {
-  createConnectQueryKey,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
   useQuery,
 } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
 
-import type {
-  ListConnectionsRequest,
-  ListConnectionsResponse,
-} from "@/gen/ingestion/v1/connections_pb";
 import type {
   DiscoverResourcesRequest,
   DiscoverResourcesResponse,
   ListConnectorsRequest,
   ListConnectorsResponse,
-  ValidateConfigRequest,
-  ValidateConfigResponse,
 } from "@/gen/ingestion/v1/providers_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-const listConnections = IngestionService.method.listConnections;
-const listConnectors = IngestionService.method.listConnectors;
-const validateConfig = IngestionService.method.validateConfig;
-const discoverResources = IngestionService.method.discoverResources;
-
-// ========== LIST CONNECTIONS ==========
-
-export const createListConnectionsQueryKey = (input?: ListConnectionsRequest) => {
-  return createConnectQueryKey({
-    schema: listConnections,
-    input,
-    cardinality: "finite",
-  });
-};
-
-export const useListConnectionsQuery = ({
-  input,
-  options = {},
-}: {
-  input?: ListConnectionsRequest;
-  options?: UseQueryOptions<typeof listConnections.output, ListConnectionsResponse>;
-} = {}) => {
-  return useQuery<typeof listConnections.input, typeof listConnections.output>(
-    listConnections,
-    input,
-    options,
-  );
-};
-
-const useInvalidateConnections = () => {
-  const queryClient = useQueryClient();
-  return () =>
-    queryClient.invalidateQueries({
-      queryKey: createConnectQueryKey({
-        schema: listConnections,
-        cardinality: "finite",
-      }),
-    });
-};
-
-export const useDeleteConnectionMutation = (
-  options: UseMutationOptions<
-    typeof IngestionService.method.deleteConnection.input,
-    typeof IngestionService.method.deleteConnection.output
-  > = {},
-) => {
-  const invalidate = useInvalidateConnections();
-  return useMutation(IngestionService.method.deleteConnection, {
-    ...options,
-    onSettled: (...args) => {
-      void invalidate();
-      return options.onSettled?.(...args);
-    },
-  });
-};
-
 // ========== LIST CONNECTORS ==========
-
-export const createListConnectorsQueryKey = (input?: ListConnectorsRequest) => {
-  return createConnectQueryKey({
-    schema: listConnectors,
-    input,
-    cardinality: "finite",
-  });
-};
 
 export const useListConnectorsQuery = ({
   input,
   options = {},
 }: {
   input?: ListConnectorsRequest;
-  options?: UseQueryOptions<typeof listConnectors.output, ListConnectorsResponse>;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.listConnectors.output,
+    ListConnectorsResponse
+  >;
 } = {}) => {
-  return useQuery<typeof listConnectors.input, typeof listConnectors.output>(
-    listConnectors,
-    input,
-    options,
-  );
-};
-
-// ========== VALIDATE CONFIG ==========
-
-export const useValidateConfigQuery = ({
-  input,
-  options = {},
-}: {
-  input: ValidateConfigRequest;
-  options?: UseQueryOptions<typeof validateConfig.output, ValidateConfigResponse>;
-}) => {
-  return useQuery<typeof validateConfig.input, typeof validateConfig.output>(
-    validateConfig,
-    input,
-    options,
-  );
+  return useQuery<
+    typeof IngestionService.method.listConnectors.input,
+    typeof IngestionService.method.listConnectors.output
+  >(IngestionService.method.listConnectors, input, options);
 };
 
 // ========== DISCOVER RESOURCES ==========
@@ -124,45 +38,18 @@ export const useDiscoverResourcesQuery = ({
   options = {},
 }: {
   input: DiscoverResourcesRequest;
-  options?: UseQueryOptions<typeof discoverResources.output, DiscoverResourcesResponse>;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.discoverResources.output,
+    DiscoverResourcesResponse
+  >;
 }) => {
-  return useQuery<typeof discoverResources.input, typeof discoverResources.output>(
-    discoverResources,
-    input,
-    options,
-  );
+  return useQuery<
+    typeof IngestionService.method.discoverResources.input,
+    typeof IngestionService.method.discoverResources.output
+  >(IngestionService.method.discoverResources, input, options);
 };
 
-// ========== CREATE CONNECTION ==========
-
-export const useCreateConnectionMutation = (
-  options: UseMutationOptions<
-    typeof IngestionService.method.createConnection.input,
-    typeof IngestionService.method.createConnection.output
-  > = {},
-) => {
-  const invalidate = useInvalidateConnections();
-  return useMutation(IngestionService.method.createConnection, {
-    ...options,
-    onSettled: (...args) => {
-      void invalidate();
-      return options.onSettled?.(...args);
-    },
-  });
-};
-
-// ========== SECRETS ==========
-
-export const usePutSecretMutation = (
-  options: UseMutationOptions<
-    typeof IngestionService.method.putSecret.input,
-    typeof IngestionService.method.putSecret.output
-  > = {},
-) => {
-  return useMutation(IngestionService.method.putSecret, options);
-};
-
-// ========== VALIDATE CONFIG (MUTATION) ==========
+// ========== MUTATIONS ==========
 
 export const useValidateConfigMutation = (
   options: UseMutationOptions<
@@ -170,5 +57,8 @@ export const useValidateConfigMutation = (
     typeof IngestionService.method.validateConfig.output
   > = {},
 ) => {
-  return useMutation(IngestionService.method.validateConfig, options);
+  return useMutation<
+    typeof IngestionService.method.validateConfig.input,
+    typeof IngestionService.method.validateConfig.output
+  >(IngestionService.method.validateConfig, options);
 };

@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useSearch } from "@tanstack/react-router";
 
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import CreateConnectionConfigureWrapper from "@/pages/connectors/components/create/configure/CreateConnectionConfigureWrapper";
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
@@ -13,30 +15,31 @@ import {
   type CreateConnectionSelectorProps,
 } from "@/pages/connectors/components/create/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+interface CreateConnectionSelectorState {
+  search: string;
+}
+
+const DEFAULT_STATE: CreateConnectionSelectorState = {
+  search: "",
+};
 
 const CreateConnectionSelector = ({
   onClose,
   onConnectorSelect,
 }: CreateConnectionSelectorProps) => {
-  const { connectorKind: connectorKindParam } = useSearch({ from: "__root__" });
+  const { connectorKind } = useSearch({ from: "__root__" });
 
-  const [search, setSearch] = useState("");
+  const [state, setState] = useState<CreateConnectionSelectorState>(DEFAULT_STATE);
 
-  const connectorKindFilter = useMemo(
-    () => connectorKindParam ?? ConnectorKind.UNSPECIFIED,
-    [connectorKindParam],
-  );
-
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
+  const handleSearchChange = useCallback((search: string) => {
+    setState((prev) => ({ ...prev, search }));
   }, []);
 
   return (
     <CreateConnectionConfigureWrapper step={CreateConnectionModalStep.SELECT}>
       <FlexItem grow={0} shrink={0}>
         <CreateConnectionSelectorHeader
-          search={search}
+          search={state.search}
           onSearchChange={handleSearchChange}
           onClose={onClose}
         />
@@ -45,8 +48,8 @@ const CreateConnectionSelector = ({
         <HorizontalDivider />
       </FlexItem>
       <CreateConnectionSelectorBody
-        search={search}
-        connectorKindFilter={connectorKindFilter}
+        search={state.search}
+        connectorKind={connectorKind ?? ConnectorKind.UNSPECIFIED}
         onConnectorSelect={onConnectorSelect}
       />
     </CreateConnectionConfigureWrapper>

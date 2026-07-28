@@ -1,6 +1,9 @@
-import { createContext, type PropsWithChildren, useReducer } from "react";
+import { createContext, type PropsWithChildren, useContext, useReducer } from "react";
 
 import { create } from "@bufbuild/protobuf";
+
+import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import type { CreateConnectionAction } from "@/pages/connectors/components/create/configure/actions";
 import createConnectionReducer from "@/pages/connectors/components/create/configure/reducer";
@@ -8,9 +11,6 @@ import {
   type CreateConnectionConfigureState,
   CreateConnectionPhase,
 } from "@/pages/connectors/components/create/configure/types";
-
-import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 export type CreateConnectionConfigureContextShape = {
   state: CreateConnectionConfigureState;
@@ -23,22 +23,25 @@ export function createInitialState(connector: ConnectorSpec): CreateConnectionCo
       kind: connector.kind,
       connector: connector.name,
     }),
-    connector,
     phase: CreateConnectionPhase.IDLE,
     validationErrors: [],
-    error: null,
     shouldShowErrors: false,
   };
 }
 
-const DEFAULT_CONTEXT: CreateConnectionConfigureContextShape = {
-  state: createInitialState({} as ConnectorSpec),
-  dispatch: () => undefined,
-};
-
 export const CreateConnectionConfigureContext =
-  createContext<CreateConnectionConfigureContextShape>(DEFAULT_CONTEXT);
+  createContext<CreateConnectionConfigureContextShape | null>(null);
 CreateConnectionConfigureContext.displayName = "CreateConnectionConfigureContext";
+
+export function useCreateConnectionContext() {
+  const context = useContext(CreateConnectionConfigureContext);
+  if (!context) {
+    throw new Error(
+      "useCreateConnectionContext must be used within CreateConnectionConfigureProvider",
+    );
+  }
+  return context;
+}
 
 interface CreateConnectionConfigureProviderProps {
   connector: ConnectorSpec;

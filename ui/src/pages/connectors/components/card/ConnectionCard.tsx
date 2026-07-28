@@ -16,10 +16,10 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+
+import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 const CardWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -48,8 +48,6 @@ interface ConnectionCardProps {
 }
 
 const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCardProps) => {
-  const isSource = connection.kind === ConnectorKind.SOURCE;
-  const kindLabel = isSource ? "Source" : "Sink";
   const pipelineLabel = pluralize("pipeline", pipelineCount, true);
 
   return (
@@ -64,11 +62,7 @@ const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCa
               {connection.name}
             </Text>
           </FlexWrapper>
-          <Chip
-            label={kindLabel}
-            variant={isSource ? ChipVariant.LIME : ChipVariant.PINK}
-            size={ChipSize.SMALL}
-          />
+          <ConnectionKindChip kind={connection.kind} size={ChipSize.SMALL} />
         </FlexWrapper>
         <FlexItem shrink={0}>
           <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.TERTIARY} />

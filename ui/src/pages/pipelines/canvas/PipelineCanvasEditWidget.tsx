@@ -11,9 +11,9 @@ import {
   PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP,
   PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP,
 } from "@/pages/pipelines/canvas/constants";
-import EditWidgetSelectorBody from "@/pages/pipelines/canvas/edit/EditWidgetSelectorBody";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelector";
 import PipelineCanvasEditWidgetButton from "@/pages/pipelines/canvas/PipelineCanvasEditWidgetButton";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
 import {
   PipelineCanvasEditMode,
   PipelineCanvasInteractionMode,
@@ -68,7 +68,7 @@ const PipelineCanvasEditWidget = () => {
           position={DropdownPosition.RIGHT_START}
           isOpen={state.activeMode === PipelineCanvasEditMode.ADD_NODE}
           onClose={handleDropdownClose}
-          body={<EditWidgetSelectorBody />}
+          body={<PipelineCanvasConnectionSelector />}
           offset={[-8, 16]}
           noPadding
         >
