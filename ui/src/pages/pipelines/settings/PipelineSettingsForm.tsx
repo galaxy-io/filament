@@ -81,11 +81,14 @@ const PipelineSettingsForm = ({ pipeline }: PipelineSettingsFormProps) => {
     description: pipeline.description,
   }));
 
-  const deleteConfirm = useDeleteConfirm({
+  const { handleOpen, isOpen, handleClose, handleConfirm } = useDeleteConfirm({
     entityLabel: "Pipeline",
     entityName: state.name,
-    onDelete: (callbacks) =>
-      deletePipeline(create(DeletePipelineRequestSchema, { id: pipeline.id }), callbacks),
+    onDelete: ({ onSuccess, onError }) =>
+      deletePipeline(create(DeletePipelineRequestSchema, { id: pipeline.id }), {
+        onSuccess,
+        onError,
+      }),
     onDeleted: () => navigate({ to: "/pipelines" }),
   });
 
@@ -188,15 +191,15 @@ const PipelineSettingsForm = ({ pipeline }: PipelineSettingsFormProps) => {
         <DangerZone
           title="Delete pipeline"
           description="This will permanently delete this pipeline and all of its data."
-          onClick={deleteConfirm.handleOpen}
+          onDelete={handleOpen}
         />
       </FlexWrapper>
 
-      <Modal open={deleteConfirm.isOpen} onClose={deleteConfirm.handleClose}>
+      <Modal open={isOpen} onClose={handleClose}>
         <DeleteConfirmDialog
-          open={deleteConfirm.isOpen}
-          onClose={deleteConfirm.handleClose}
-          onConfirm={deleteConfirm.handleConfirm}
+          open={isOpen}
+          onClose={handleClose}
+          onConfirm={handleConfirm}
           title="Delete pipeline"
           body="This will permanently delete this pipeline and all associated data."
           confirmationPhrase={state.name || ""}

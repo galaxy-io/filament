@@ -8,7 +8,13 @@ import { getErrorMessage } from "@/utils/errors";
 interface UseDeleteConfirmInput {
   entityLabel: string;
   entityName: string;
-  onDelete: (callbacks: { onSuccess: () => void; onError: (error: unknown) => void }) => void;
+  onDelete: ({
+    onSuccess,
+    onError,
+  }: {
+    onSuccess: () => void;
+    onError: (error: unknown) => void;
+  }) => void;
   onDeleted: () => void;
 }
 

@@ -54,10 +54,11 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
 
   const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
 
-  const deleteConfirm = useDeleteConfirm({
+  const { handleOpen, isOpen, handleClose, handleConfirm } = useDeleteConfirm({
     entityLabel: "Connection",
     entityName: connection.name,
-    onDelete: (callbacks) => deleteConnection({ id: connection.id }, callbacks),
+    onDelete: ({ onSuccess, onError }) =>
+      deleteConnection({ id: connection.id }, { onSuccess, onError }),
     onDeleted: () => {
       onClose();
       navigate({
@@ -119,15 +120,15 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
         <DangerZone
           title="Delete connection"
           description="This will permanently delete this connection."
-          onClick={deleteConfirm.handleOpen}
+          onDelete={handleOpen}
         />
       </FlexItem>
 
-      <Modal open={deleteConfirm.isOpen} onClose={deleteConfirm.handleClose}>
+      <Modal open={isOpen} onClose={handleClose}>
         <DeleteConfirmDialog
-          open={deleteConfirm.isOpen}
-          onClose={deleteConfirm.handleClose}
-          onConfirm={deleteConfirm.handleConfirm}
+          open={isOpen}
+          onClose={handleClose}
+          onConfirm={handleConfirm}
           title="Delete connection"
           body="This will permanently delete this connection and all associated data."
           confirmationPhrase={connection.name || ""}

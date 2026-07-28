@@ -13,10 +13,10 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 export interface DangerZoneProps {
   title: string;
   description: string;
-  onClick: () => void;
+  onDelete: () => void;
 }
 
-const DangerZone = ({ title, description, onClick }: DangerZoneProps) => {
+const DangerZone = ({ title, description, onDelete }: DangerZoneProps) => {
   return (
     <Widget header="Danger zone" variant={WidgetVariant.ERROR} fillWidth noHover>
       <FlexWrapper
@@ -30,7 +30,7 @@ const DangerZone = ({ title, description, onClick }: DangerZoneProps) => {
             {description}
           </Text>
         </FlexWrapper>
-        <Button label="Delete" icon={TrashIcon} variant={ButtonVariant.ERROR} onClick={onClick} />
+        <Button label="Delete" icon={TrashIcon} variant={ButtonVariant.ERROR} onClick={onDelete} />
       </FlexWrapper>
     </Widget>
   );
