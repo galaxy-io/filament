@@ -21,13 +21,14 @@ import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import { ValidateConfigRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
+import ConfigFieldRenderer from "@/components/fields/ConfigFieldRenderer";
+
 import { CreateConnectionActionType } from "@/pages/connectors/components/create/configure/actions";
 import CreateConnectionConfigureHeader from "@/pages/connectors/components/create/configure/CreateConnectionConfigureHeader";
 import CreateConnectionConfigureProvider, {
   useCreateConnectionContext,
 } from "@/pages/connectors/components/create/configure/CreateConnectionConfigureProvider";
 import CreateConnectionConfigureWrapper from "@/pages/connectors/components/create/configure/CreateConnectionConfigureWrapper";
-import CreateConnectionField from "@/pages/connectors/components/create/configure/fields/CreateConnectionField";
 import { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
 import { getConnectorConfigSchemaConnectionFields } from "@/pages/connectors/components/create/configure/utils";
 import {
@@ -263,7 +264,7 @@ const CreateConnectionConfigureContent = ({
           autoFocus
         />
         {fields.map((field) => (
-          <CreateConnectionField
+          <ConfigFieldRenderer
             key={field.name}
             field={field}
             value={getFieldValue(field.name)}

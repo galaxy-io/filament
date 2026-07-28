@@ -1,6 +1,6 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 
-import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
+import { type ConfigField, FieldScope } from "@/gen/ingestion/v1/common_pb";
 
 const ACRONYMS_TO_CAPITALIZE: string[] = [
   "api",
@@ -36,4 +36,12 @@ export function isFieldVisible(field: ConfigField, siblings: Record<string, Json
 
   const value = siblings[field.visibleWhen.field];
   return typeof value === "string" && field.visibleWhen.values.includes(value);
+}
+
+export function isJsonObject(value: JsonValue): value is Record<string, JsonValue> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function getPipelineScopedFields(fields: ConfigField[]): ConfigField[] {
+  return fields.filter((field) => field.scope === FieldScope.PIPELINE);
 }

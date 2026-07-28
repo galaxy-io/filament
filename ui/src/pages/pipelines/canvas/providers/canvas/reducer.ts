@@ -5,6 +5,7 @@ import {
 } from "@xyflow/react";
 
 import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
+import { resolveNodeOverlaps } from "@/pages/pipelines/canvas/graph";
 import {
   type AddNodeAction,
   type ApplyEdgeChangesAction,
@@ -15,6 +16,7 @@ import {
   type RemoveNodeAction,
   type SetActiveModeAction,
   type SetInteractionModeAction,
+  type SetNodeConfigAction,
   type SetNodesAction,
 } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
@@ -47,10 +49,26 @@ function applyNodeChanges(
   state: PipelineCanvasState,
   action: ApplyNodeChangesAction,
 ): PipelineCanvasState {
-  return {
-    ...state,
-    nodes: xyflowApplyNodeChanges(action.payload, state.nodes),
-  };
+  const nodes = xyflowApplyNodeChanges(action.payload, state.nodes);
+
+  // A user repositioning or removing a node takes ownership of its position:
+  // it no longer returns anywhere.
+  const restoreYs = { ...state.restoreYs };
+  for (const change of action.payload) {
+    if (change.type === "position" || change.type === "remove") {
+      delete restoreYs[change.id];
+    }
+  }
+
+  // A dimension change means a node grew or shrank (config island toggled):
+  // push down only the nodes its new height would occlude, and let previously
+  // pushed nodes return to their remembered positions as space frees up.
+  const resized = action.payload.some((change) => change.type === "dimensions");
+  if (!resized) {
+    return { ...state, nodes, restoreYs };
+  }
+  const resolution = resolveNodeOverlaps(nodes, restoreYs);
+  return { ...state, nodes: resolution.nodes, restoreYs: resolution.restoreYs };
 }
 
 function applyEdgeChanges(
@@ -90,6 +108,20 @@ function setInteractionMode(
   };
 }
 
+function setNodeConfig(
+  state: PipelineCanvasState,
+  action: SetNodeConfigAction,
+): PipelineCanvasState {
+  return {
+    ...state,
+    nodes: state.nodes.map((node) =>
+      node.id === action.payload.nodeId
+        ? { ...node, data: { ...node.data, config: action.payload.config } }
+        : node,
+    ) as PipelineCanvasState["nodes"],
+  };
+}
+
 const pipelineCanvasReducer = (
   state: PipelineCanvasState,
   action: PipelineCanvasAction,
@@ -111,6 +143,8 @@ const pipelineCanvasReducer = (
       return setActiveMode(state, action);
     case PipelineCanvasActionType.SET_INTERACTION_MODE:
       return setInteractionMode(state, action);
+    case PipelineCanvasActionType.SET_NODE_CONFIG:
+      return setNodeConfig(state, action);
   }
 };
 

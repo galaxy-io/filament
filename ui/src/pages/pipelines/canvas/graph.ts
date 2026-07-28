@@ -1,4 +1,4 @@
-import { create } from "@bufbuild/protobuf";
+import { create, type JsonValue } from "@bufbuild/protobuf";
 
 import { ConnectorKind, IngestionType } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -26,7 +26,7 @@ import {
 } from "@/pages/pipelines/canvas/types";
 
 const NODE_STACK_BASE_X_SOURCE = 100;
-const NODE_STACK_BASE_X_SINK = 500;
+const NODE_STACK_BASE_X_SINK = 600;
 const NODE_STACK_START_Y = 100;
 const NODE_STACK_HEIGHT = 120;
 const NODE_STACK_GAP = 40;
@@ -92,6 +92,54 @@ export const getPlaceholderNodes = (nodes: CanvasNode[], isReadOnly: boolean): C
   return placeholders;
 };
 
+export interface OverlapResolution {
+  nodes: CanvasNode[];
+  restoreYs: Record<string, number>;
+}
+
+// resolveNodeOverlaps pushes a node down only when the node above it in its
+// own column would occlude it (by measured height plus the stack gap),
+// remembering the position it was pushed from so it returns once the space
+// above frees up again. Nodes with room around them, custom placements, and
+// the other column are never touched.
+export const resolveNodeOverlaps = (
+  nodes: CanvasNode[],
+  restoreYs: Record<string, number>,
+): OverlapResolution => {
+  const [, snapY] = PIPELINE_CANVAS_SNAP_GRID;
+  const positions = new Map<string, number>();
+  const nextRestoreYs = { ...restoreYs };
+
+  for (const type of [PipelineNodeType.SOURCE, PipelineNodeType.SINK]) {
+    const column = nodes
+      .filter((node) => node.type === type)
+      .sort((a, b) => a.position.y - b.position.y);
+    let previousBottom = Number.NEGATIVE_INFINITY;
+    for (const node of column) {
+      const desired = nextRestoreYs[node.id] ?? node.position.y;
+      const minY = previousBottom + NODE_STACK_GAP;
+      const y = minY > desired ? Math.ceil(minY / snapY) * snapY : desired;
+      if (y !== node.position.y) {
+        positions.set(node.id, y);
+      }
+      if (y > desired) {
+        nextRestoreYs[node.id] = desired;
+      } else if (nextRestoreYs[node.id] !== undefined) {
+        delete nextRestoreYs[node.id];
+      }
+      previousBottom = y + (node.measured?.height ?? NODE_STACK_HEIGHT);
+    }
+  }
+
+  return {
+    nodes: nodes.map((node) => {
+      const y = positions.get(node.id);
+      return y === undefined ? node : { ...node, position: { ...node.position, y } };
+    }),
+    restoreYs: nextRestoreYs,
+  };
+};
+
 export const mapNodesToStackedPositions = (nodes: CanvasNode[]): CanvasNode[] => {
   const repositioned: CanvasNode[] = [];
   for (const node of nodes) {
@@ -122,7 +170,7 @@ export const createNodeFromConnection = (
   return { id: crypto.randomUUID(), type: PipelineNodeType.SINK, position, data };
 };
 
-const isConnectionNode = (node: CanvasNode): node is PipelineSourceNode | PipelineSinkNode =>
+export const isConnectionNode = (node: CanvasNode): node is PipelineSourceNode | PipelineSinkNode =>
   node.type === PipelineNodeType.SOURCE || node.type === PipelineNodeType.SINK;
 
 const getConnectorKind = (node: PipelineSourceNode | PipelineSinkNode) =>
@@ -159,6 +207,7 @@ export const mapPipelineVersionToCanvasState = (
         label: connection?.name ?? node.connectionId,
         connector: connection?.connector ?? "",
         connectionId: node.connectionId,
+        config: node.config,
       },
     });
   }
@@ -191,7 +240,7 @@ export const mapCanvasStateToVersionRequest = (
       id: node.id,
       kind: getConnectorKind(node),
       connectionId: node.data.connectionId,
-      config: baseNode?.config,
+      config: node.data.config ?? baseNode?.config,
       secretRefs: baseNode?.secretRefs ?? {},
     };
   });
@@ -219,16 +268,37 @@ export const isPipelineRunnable = (version: PipelineVersion | undefined): boolea
   (version?.nodes ?? []).some((node) => node.kind === ConnectorKind.SINK) &&
   (version?.edges ?? []).length > 0;
 
+const canonicalize = (value: JsonValue): JsonValue => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonicalize(value[key] ?? null)]),
+    );
+  }
+  return value;
+};
+
+const serializeNodeConfig = (config: Record<string, JsonValue> | undefined): string =>
+  config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
+
 export const hasPipelineGraphChanges = (
   state: Pick<PipelineCanvasState, "nodes" | "edges">,
   version: PipelineVersion | undefined,
 ): boolean => {
   const canvasNodes = state.nodes
     .filter(isConnectionNode)
-    .map((node) => `${node.id}|${getConnectorKind(node)}|${node.data.connectionId}`)
+    .map(
+      (node) =>
+        `${node.id}|${getConnectorKind(node)}|${node.data.connectionId}|${serializeNodeConfig(node.data.config)}`,
+    )
     .sort();
   const pipelineNodes = (version?.nodes ?? [])
-    .map((node) => `${node.id}|${getNormalizedConnectorKind(node.kind)}|${node.connectionId}`)
+    .map(
+      (node) =>
+        `${node.id}|${getNormalizedConnectorKind(node.kind)}|${node.connectionId}|${serializeNodeConfig(node.config)}`,
+    )
     .sort();
 
   const canvasEdges = state.edges.map(getCanvasEdgeKey).sort();

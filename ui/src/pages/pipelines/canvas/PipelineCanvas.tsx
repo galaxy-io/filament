@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { styled } from "@linaria/react";
 import {
@@ -57,7 +57,9 @@ const PageWrapper = styled.div`
   display: flex;
 `;
 
-const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolean }>>`
+const CanvasWrapper = withTheme(styled.div<
+  PropsWithTheme<{ $isGrabMode?: boolean; $isSettling?: boolean }>
+>`
   position: relative;
   flex: 1;
   min-width: 0;
@@ -69,6 +71,18 @@ const CanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolea
 
   .react-flow__node.selected {
     z-index: 999 !important;
+  }
+
+  /* Pushed nodes glide to their resolved positions, and edge paths
+     transition their d attribute so connectors glide in sync (Chromium;
+     other engines snap). Transitions are live only during the brief settle
+     after a node resizes, so dragging, panning, and zooming stay direct. */
+  .react-flow__node {
+    transition: ${({ $isSettling }) => ($isSettling ? "transform 150ms ease" : "none")};
+  }
+
+  .react-flow__edge-path {
+    transition: ${({ $isSettling }) => ($isSettling ? "d 150ms ease" : "none")};
   }
 
   /* Placeholder ghosts are non-draggable/selectable/connectable, which makes
@@ -130,12 +144,21 @@ const PipelineCanvas = () => {
   const state = usePipelineCanvasState();
   const dispatch = usePipelineCanvasDispatch();
   const isReadOnly = usePipelineCanvasReadOnly();
+  const [isSettling, setIsSettling] = useState(false);
+  const settleTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {
       if (isReadOnly) return;
+      // A dimension change kicks off overlap resolution: enable transitions
+      // just long enough for pushed nodes and edges to glide into place.
+      if (changes.some((change) => change.type === "dimensions")) {
+        setIsSettling(true);
+        clearTimeout(settleTimeout.current);
+        settleTimeout.current = setTimeout(() => setIsSettling(false), 250);
+      }
       dispatch({
         type: PipelineCanvasActionType.APPLY_NODE_CHANGES,
         payload: changes,
@@ -196,7 +219,7 @@ const PipelineCanvas = () => {
 
   return (
     <PageWrapper>
-      <CanvasWrapper $isGrabMode={isGrabMode}>
+      <CanvasWrapper $isGrabMode={isGrabMode} $isSettling={isSettling}>
         <ReactFlow
           nodes={renderedNodes}
           edges={styledEdges}

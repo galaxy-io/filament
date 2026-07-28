@@ -18,6 +18,7 @@ const DEFAULT_STATE: PipelineCanvasState = {
   edges: [],
   activeMode: null,
   interactionMode: PipelineCanvasInteractionMode.GRAB,
+  restoreYs: {},
 };
 
 const PipelineCanvasStateContext = createContext<PipelineCanvasState | null>(null);

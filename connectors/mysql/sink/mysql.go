@@ -58,9 +58,10 @@ func (t *Sink) Spec() filament.SinkSpec {
 		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
-			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Destination database (defaults to the DSN's database)"},
+			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Destination database. Empty defaults to the normalized source connection name."},
 			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []filament.EnumOption{{Value: "typed", Label: "Typed"}}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
 		}},
+		SchemaField: "database",
 		Capabilities: filament.SinkCapabilities{
 			Schematized:        true,
 			Upsertable:         true,

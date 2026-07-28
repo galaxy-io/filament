@@ -1,7 +1,7 @@
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 
-import Field from "@/pages/connectors/components/create/configure/fields/Field";
-import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
+import Field from "@/components/fields/Field";
+import type { FieldComponentProps } from "@/components/fields/types";
 
 const FieldBoolean = ({
   field,

@@ -1,3 +1,4 @@
+import type { JsonValue } from "@bufbuild/protobuf";
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type {
@@ -15,6 +16,7 @@ export enum PipelineCanvasActionType {
   CONNECT = "CONNECT",
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
   SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
+  SET_NODE_CONFIG = "SET_NODE_CONFIG",
 }
 
 export interface AddNodeAction {
@@ -57,6 +59,11 @@ export interface SetInteractionModeAction {
   payload: PipelineCanvasInteractionMode;
 }
 
+export interface SetNodeConfigAction {
+  type: PipelineCanvasActionType.SET_NODE_CONFIG;
+  payload: { nodeId: string; config: Record<string, JsonValue> };
+}
+
 export type PipelineCanvasAction =
   | AddNodeAction
   | RemoveNodeAction
@@ -65,4 +72,5 @@ export type PipelineCanvasAction =
   | ApplyEdgeChangesAction
   | ConnectAction
   | SetActiveModeAction
-  | SetInteractionModeAction;
+  | SetInteractionModeAction
+  | SetNodeConfigAction;

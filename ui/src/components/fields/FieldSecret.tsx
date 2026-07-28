@@ -1,7 +1,7 @@
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
-import type { FieldComponentProps } from "@/pages/connectors/components/create/configure/fields/types";
+import type { FieldComponentProps } from "@/components/fields/types";
 
 const FieldSecret = ({
   field,

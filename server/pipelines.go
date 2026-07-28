@@ -31,7 +31,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
-	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: req.Msg.GetNodes(), Edges: req.Msg.GetEdges()})
+	nodes, edges := req.Msg.GetNodes(), req.Msg.GetEdges()
+	a.defaultSinkSchemas(ctx, nodes, edges)
+	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: nodes, Edges: edges})
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}

@@ -39,6 +39,7 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Version:      spec.Version,
 		ConfigSchema: configSchemaToProto(spec.Config),
+		SchemaField:  spec.SchemaField,
 		Capabilities: &ingestionv1.Capabilities{
 			Transactional: spec.Capabilities.Transactional,
 			Upsertable:    spec.Capabilities.Upsertable,

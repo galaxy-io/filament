@@ -1,3 +1,4 @@
+import type { JsonValue } from "@bufbuild/protobuf";
 import type { BuiltInNode, Edge, Node } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -17,6 +18,7 @@ export type PipelineConnectionNodeData = {
   label: string;
   connector: string;
   connectionId: string;
+  config?: Record<string, JsonValue>;
 };
 
 export type PipelinePlaceholderNodeData = {

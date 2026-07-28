@@ -104,7 +104,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			catalogConfigField(),
 			tableConfigField(),
-			{Name: "namespace", Type: filament.FieldString, Default: defaultNamespace, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables; defaults to default."},
+			{Name: "namespace", Type: filament.FieldString, Default: defaultNamespace, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables. Empty defaults to the normalized source connection name."},
 			{Name: "write_mode", Type: filament.FieldEnum, Enum: []filament.EnumOption{
 				{Value: "auto", Label: "Auto"},
 				{Value: "append", Label: "Append"},
@@ -115,6 +115,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 			}, Default: "auto", Scope: filament.ScopePipeline, Help: "Write behavior; auto picks replace for full loads, append otherwise."},
 			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
 		}},
+		SchemaField: "namespace",
 		Capabilities: filament.SinkCapabilities{
 			Transactional: true,
 			Schematized:   true,

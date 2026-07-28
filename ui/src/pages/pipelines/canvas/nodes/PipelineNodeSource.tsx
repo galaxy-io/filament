@@ -1,6 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 
-import { create } from "@bufbuild/protobuf";
+import { create, type JsonValue } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -8,6 +8,7 @@ import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb"
 
 import { PIPELINE_NODE_SOURCE_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import PipelineNode from "@/pages/pipelines/canvas/nodes/PipelineNode";
+import PipelineNodeConfigIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeConfigIsland";
 import PipelineNodeSourceIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeSourceIsland";
 import type { PipelineNodeSourceProps } from "@/pages/pipelines/canvas/nodes/types";
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
@@ -41,6 +42,7 @@ const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps
   const dispatch = usePipelineCanvasDispatch();
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "source" });
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const {
     tables: discoveredTables,
     error,
@@ -66,6 +68,10 @@ const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps
     dispatch({ type: PipelineCanvasActionType.REMOVE_NODE, payload: id });
   };
 
+  const handleConfigChange = (config: Record<string, JsonValue>) => {
+    dispatch({ type: PipelineCanvasActionType.SET_NODE_CONFIG, payload: { nodeId: id, config } });
+  };
+
   return (
     <PipelineNode
       connector={data.connector}
@@ -76,7 +82,18 @@ const PipelineNodeSource = memo(({ id, data, selected }: PipelineNodeSourceProps
       isSelected={selected}
       onRefresh={isReadOnly ? undefined : refresh}
       onDelete={isReadOnly ? undefined : handleDelete}
+      onConfigure={() => setIsConfigOpen((open) => !open)}
     >
+      {isConfigOpen && (
+        <PipelineNodeConfigIsland
+          connector={data.connector}
+          kind={ConnectorKind.SOURCE}
+          config={data.config}
+          onChange={handleConfigChange}
+          isSelected={selected}
+          isDisabled={isReadOnly}
+        />
+      )}
       {(isLoading || error || tables.length > 0) && (
         <PipelineNodeSourceIsland
           tables={tables}
