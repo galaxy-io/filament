@@ -1,14 +1,11 @@
-import { CircleNotchIcon } from "@phosphor-icons/react";
-
-import SpinAnimation from "@galaxy-io/dls/animations/SpinAnimation";
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import GalaxyLogomarkAnimation from "@galaxy-io/dls/icons/GalaxyLogomarkAnimation";
 
 interface PendingLayoutProps {
   message?: string;
@@ -24,9 +21,7 @@ const PendingLayout = ({ message }: PendingLayoutProps) => {
       justifyContent={JustifyContent.CENTER}
       gap={FlexGap.MEDIUM}
     >
-      <SpinAnimation>
-        <Icon component={CircleNotchIcon} size={24} variant={IconVariant.SECONDARY} />
-      </SpinAnimation>
+      <GalaxyLogomarkAnimation height={32} speed={2} />
       {message && (
         <Text size={TextSize.BODY_MD} variant={TextVariant.SECONDARY}>
           {message}
