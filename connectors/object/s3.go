@@ -103,7 +103,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "bucket", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Destination S3 bucket."},
-			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.ndjson."},
+			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.ndjson. Empty defaults to the normalized source connection name."},
 			{Name: "region", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "AWS region; defaults to the SDK's resolved region."},
 			{Name: "endpoint", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "Custom S3 endpoint (e.g. MinIO); defaults to AWS."},
 			{Name: "access_key_id", Type: filament.FieldSecret, Scope: filament.ScopeConnection, Help: "Static access key; omit to use the SDK credential chain."},
@@ -111,6 +111,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 			{Name: "part_size_mib", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Multipart part size in MiB; min 5, default 16."},
 			{Name: "upload_concurrency", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Max in-flight part uploads across all resources; default 8."},
 		}},
+		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(
 			filament.IngestionAppend,
 			filament.IngestionSnapshotReplace,
