@@ -65,7 +65,7 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
   gap: 2px;
 `);
 
-const EmptyState = ({
+const PipelineCanvasConnectionSelectorEmpty = ({
   message,
   icon,
   connectorKind,
@@ -171,12 +171,17 @@ const PipelineCanvasConnectionSelector = ({
 
   const renderContent = () => {
     if (isLoading) {
-      return <EmptyState message="Loading connections..." connectorKind={kindFilter} />;
+      return (
+        <PipelineCanvasConnectionSelectorEmpty
+          message="Loading connections..."
+          connectorKind={kindFilter}
+        />
+      );
     }
 
     if (isError) {
       return (
-        <EmptyState
+        <PipelineCanvasConnectionSelectorEmpty
           icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
           message="Failed to load connections"
           connectorKind={kindFilter}
@@ -186,7 +191,7 @@ const PipelineCanvasConnectionSelector = ({
 
     if (!kindConnections.length) {
       return (
-        <EmptyState
+        <PipelineCanvasConnectionSelectorEmpty
           message={`No ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[kindFilter].toLowerCase())} found`}
           connectorKind={kindFilter}
         />
@@ -194,7 +199,12 @@ const PipelineCanvasConnectionSelector = ({
     }
 
     if (!filteredConnections.length) {
-      return <EmptyState message="No connections match your search" connectorKind={kindFilter} />;
+      return (
+        <PipelineCanvasConnectionSelectorEmpty
+          message="No connections match your search"
+          connectorKind={kindFilter}
+        />
+      );
     }
 
     return (
