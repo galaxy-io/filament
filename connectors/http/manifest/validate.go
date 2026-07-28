@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/template"
@@ -19,6 +20,76 @@ const (
 func (m *Manifest) Normalize() {
 	for i := range m.Resources {
 		r := &m.Resources[i]
+		if len(r.UseFields) > 0 {
+			var inherited FieldList
+			for _, name := range r.UseFields {
+				inherited = append(inherited, m.FieldSets[name]...)
+			}
+			r.Fields = append(inherited, r.Fields...)
+		}
+		if len(r.ExcludeFields) > 0 {
+			excluded := make(map[string]struct{}, len(r.ExcludeFields))
+			for _, name := range r.ExcludeFields {
+				excluded[name] = struct{}{}
+			}
+			fields := r.Fields[:0]
+			for _, field := range r.Fields {
+				if _, skip := excluded[field.Name]; !skip {
+					fields = append(fields, field)
+				}
+			}
+			r.Fields = fields
+		}
+		for name, ref := range r.Params {
+			r.Path = strings.ReplaceAll(r.Path, "{"+name+"}", referenceTemplate(ref))
+		}
+		if r.Method == "" {
+			r.Method = m.Defaults.Method
+		}
+		r.Headers = mergeStringDefaults(m.Defaults.Headers, r.Headers)
+		r.Query = mergeStringDefaults(m.Defaults.Query, r.Query)
+		if r.Response.Root == "" {
+			r.Response.Root = m.Defaults.Response.Root
+		}
+		if r.Response.RecordsPath == "" {
+			r.Response.RecordsPath = m.Defaults.Response.RecordsPath
+		}
+		if r.Response.Cardinality == "" {
+			r.Response.Cardinality = m.Defaults.Response.Cardinality
+		}
+		if r.Response.Error == nil {
+			r.Response.Error = m.Defaults.Response.Error
+		}
+		if r.Response.Records == "" && r.Records == "" {
+			r.Response.Records = m.Defaults.Response.Records
+		}
+		if r.Response.Pagination == nil && r.Pagination.Type == "" {
+			r.Response.Pagination = m.Defaults.Response.Pagination
+		}
+		if r.Response.Pagination != nil {
+			r.Pagination = *r.Response.Pagination
+		}
+		if r.Response.Records != "" {
+			r.Records = r.Response.Records
+		}
+		if r.Pagination.Type == "" {
+			r.Pagination = m.Defaults.Pagination
+		}
+		if r.Records != "" {
+			if r.Records == "$" {
+				r.Response.Root = "array"
+				r.Response.RecordsPath = ""
+			} else {
+				r.Response.Root = "object"
+				r.Response.RecordsPath = strings.TrimPrefix(r.Records, "$.")
+			}
+		}
+		if r.ForEach != "" && r.Parent == nil {
+			r.Parent = &ParentRef{Resource: r.ForEach}
+		}
+		if r.Pagination.Type == "none" {
+			r.Pagination.Type = ""
+		}
 		if r.Mode == "" {
 			r.Mode = DefaultMode
 		}
@@ -26,6 +97,20 @@ func (m *Manifest) Normalize() {
 			r.Response.Root = DefaultResponseRoot
 		}
 	}
+}
+
+func mergeStringDefaults(defaults, local map[string]string) map[string]string {
+	if len(defaults) == 0 {
+		return local
+	}
+	out := make(map[string]string, len(defaults)+len(local))
+	for k, v := range defaults {
+		out[k] = v
+	}
+	for k, v := range local {
+		out[k] = v
+	}
+	return out
 }
 
 // validateSemantics runs every cross-field check and aggregates issues into a
@@ -64,6 +149,11 @@ func (m *Manifest) validateSemantics() error {
 			continue
 		}
 		path = fmt.Sprintf("resources[%q]", r.Name)
+		for j, fieldSet := range r.UseFields {
+			if _, ok := m.FieldSets[fieldSet]; !ok {
+				_ = agg.Addf(fmt.Sprintf("%s.use_fields[%d]", path, j), "unknown field set %q", fieldSet)
+			}
+		}
 		if _, dup := names[r.Name]; dup {
 			_ = agg.Addf(path, "duplicate resource name")
 		}
@@ -139,6 +229,9 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Response.Root, ValidResponseRoots); err != nil {
 			_ = agg.Addf(path+".response.root", "%v", err)
 		}
+		if r.Response.Cardinality != "" && r.Response.Cardinality != "many" && r.Response.Cardinality != "one" {
+			_ = agg.Addf(path+".response.cardinality", "must be many or one")
+		}
 		if err := checkEnum(r.Pagination.Type, ValidPaginationTypes); err != nil {
 			_ = agg.Addf(path+".pagination.type", "%v", err)
 		}
@@ -160,11 +253,31 @@ func (m *Manifest) validateSemantics() error {
 		}
 	}
 
-	seenKinds := make(map[string]struct{}, len(m.Discovery))
-	for i := range m.Discovery {
+	seenKinds := make(map[string]struct{}, len(m.Discovery.Resources))
+	if m.Discovery.Mode == "" {
+		m.Discovery.Mode = "static"
+	}
+	if m.Discovery.Mode != "static" && m.Discovery.Mode != "dynamic" {
+		_ = agg.Addf("discovery.mode", "must be static or dynamic")
+	}
+	if m.Discovery.Mode == "static" && len(m.Discovery.Resources) > 0 {
+		_ = agg.Addf("discovery.resources", "must be empty in static mode")
+	}
+	if m.Discovery.Mode == "dynamic" && len(m.Discovery.Resources) == 0 {
+		_ = agg.Addf("discovery.resources", "must not be empty in dynamic mode")
+	}
+	for i, name := range m.Discovery.Include {
+		if _, ok := names[name]; !ok {
+			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "unknown resource %q", name)
+		}
+	}
+	if m.Discovery.Mode == "dynamic" && len(m.Discovery.Include) > 0 {
+		_ = agg.Addf("discovery.include", "is only supported in static mode")
+	}
+	for i := range m.Discovery.Resources {
 		path := fmt.Sprintf("discovery[%d]", i)
-		validateDiscovery(&agg, path, &m.Discovery[i], names)
-		kind := m.Discovery[i].Map.Kind
+		validateDiscovery(&agg, path, &m.Discovery.Resources[i], names)
+		kind := m.Discovery.Resources[i].Map.Kind
 		if kind == "" {
 			continue
 		}

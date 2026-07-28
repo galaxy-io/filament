@@ -1,14 +1,14 @@
-// Package manifest defines the v2 YAML connector manifest schema and loader
+// Package manifest defines the v1 YAML connector manifest schema and loader
 // for the generic HTTP connector. A manifest describes the connection,
 // authentication, rate limits, and a set of resources (endpoints) to extract.
 //
-// A manifest MUST set `version: 2`. Any other value is rejected.
+// A manifest MUST set `version: 1`. Any other value is rejected.
 //
 // # Worked example
 //
 // Minimal Notion-style cursor-paginated manifest:
 //
-//	version: 2
+//	version: 1
 //	name: notion
 //	connection:
 //	  base_url: https://api.notion.com/v1
@@ -40,7 +40,7 @@
 //   - File missing / unreadable     → "read manifest: ..."
 //   - JSON-schema mismatch          → "manifest schema: ..."
 //   - YAML parse error              → "parse manifest: ..."
-//   - Wrong version                 → "unsupported manifest version N (want 2)"
+//   - Wrong version                 → "unsupported manifest version N (want 1)"
 //   - Required-field/template/cycle → wrapped errs.ErrManifestValidate with
 //     all issues listed (see validateSemantics)
 package manifest
@@ -49,25 +49,57 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 // SupportedVersion is the manifest schema version this package accepts.
-const SupportedVersion = 2
+const SupportedVersion = 1
 
 // Manifest is the root document describing one HTTP API connector.
 type Manifest struct {
-	Version    int        `yaml:"version"`
-	Name       string     `yaml:"name"`
-	Connection Connection `yaml:"connection"`
-	Resources  []Resource `yaml:"resources"`
+	Version    int                   `yaml:"version"`
+	Name       string                `yaml:"name"`
+	Config     map[string]ConfigSpec `yaml:"config,omitempty"`
+	Defaults   Defaults              `yaml:"defaults,omitempty"`
+	FieldSets  map[string]FieldList  `yaml:"field_sets,omitempty"`
+	Connection Connection            `yaml:"connection"`
+	Resources  []Resource            `yaml:"resources"`
 	// Discovery, when set, lets the connector enumerate user-toggleable
 	// resources by reusing existing extraction streams. Each entry projects a
 	// distinct resource Kind (e.g. notion exposes both "database" and "page"
 	// as togglable). Enabled selections are then injected back into other
 	// streams via each entry's Scope.
-	Discovery []Discovery `yaml:"discovery,omitempty"`
+	Discovery DiscoverySpec `yaml:"discovery,omitempty"`
+}
+
+// DiscoverySpec chooses stable manifest resources or dynamically projected
+// upstream objects. Static discovery performs no HTTP requests.
+type DiscoverySpec struct {
+	Mode      string      `yaml:"mode"` // static | dynamic
+	Include   []string    `yaml:"include,omitempty"`
+	Resources []Discovery `yaml:"resources,omitempty"`
+}
+
+// ConfigSpec declares one user-facing connector configuration field.
+type ConfigSpec struct {
+	Type     string   `yaml:"type"`
+	Required bool     `yaml:"required,omitempty"`
+	Default  any      `yaml:"default,omitempty"`
+	Enum     []string `yaml:"enum,omitempty"`
+	Help     string   `yaml:"help,omitempty"`
+	Scope    string   `yaml:"scope,omitempty"`
+}
+
+// Defaults are inherited by resources when the corresponding resource field
+// is omitted. Resource-local values always win.
+type Defaults struct {
+	Method     string            `yaml:"method,omitempty"`
+	Headers    map[string]string `yaml:"headers,omitempty"`
+	Query      map[string]string `yaml:"query,omitempty"`
+	Response   ResponseSpec      `yaml:"response,omitempty"`
+	Pagination PaginationSpec    `yaml:"pagination,omitempty"`
 }
 
 // Discovery declares how to enumerate togglable resources from a manifest. It
@@ -126,6 +158,61 @@ type AuthSpec struct {
 	Params map[string]any `yaml:",inline"`
 }
 
+// UnmarshalYAML compiles concise authentication declarations into the
+// runtime strategy descriptor.
+func (a *AuthSpec) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode || len(node.Content) != 2 {
+		return fmt.Errorf("auth must contain exactly one strategy")
+	}
+	strategy, value := node.Content[0].Value, node.Content[1]
+	a.Params = map[string]any{}
+	switch strategy {
+	case "none":
+		a.Type = ""
+	case "bearer":
+		a.Type = "bearer"
+		if value.Kind != yaml.ScalarNode {
+			return fmt.Errorf("auth.bearer must be a reference")
+		}
+		a.Params["token"] = referenceTemplate(value.Value)
+	case "header":
+		a.Type = "header"
+		var spec struct {
+			Name  string `yaml:"name"`
+			Value string `yaml:"value"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		a.Params["name"], a.Params["value"] = spec.Name, referenceTemplate(spec.Value)
+	case "oauth2":
+		a.Type = "oauth2_cc"
+		var spec struct {
+			TokenURL     string `yaml:"token_url"`
+			ClientID     string `yaml:"client_id"`
+			ClientSecret string `yaml:"client_secret"`
+			Scope        string `yaml:"scope"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		a.Params["token_url"] = spec.TokenURL
+		a.Params["client_id"] = referenceTemplate(spec.ClientID)
+		a.Params["client_secret"] = referenceTemplate(spec.ClientSecret)
+		a.Params["scope"] = spec.Scope
+	default:
+		return fmt.Errorf("unknown auth strategy %q", strategy)
+	}
+	return nil
+}
+
+func referenceTemplate(value string) string {
+	if strings.Contains(value, "{{") || !strings.Contains(value, ".") {
+		return value
+	}
+	return "{{ " + value + " }}"
+}
+
 // RateLimit configures the request rate ceiling, optionally header-driven.
 type RateLimit struct {
 	RequestsPerSecond float64       `yaml:"requests_per_second"`
@@ -143,13 +230,21 @@ type DynamicLimit struct {
 // Resource declares one extractable endpoint and how to page, decode, and
 // incrementally track it.
 type Resource struct {
-	Name        string            `yaml:"name"`
-	EmitAs      string            `yaml:"emit_as,omitempty"`
-	Path        string            `yaml:"path"`
-	Method      string            `yaml:"method"`
-	Mode        string            `yaml:"mode"` // paginated | stream (default paginated)
-	PrimaryKey  []string          `yaml:"primary_key"`
-	Fields      []FieldSpec       `yaml:"fields,omitempty"`
+	Name          string    `yaml:"name"`
+	EmitAs        string    `yaml:"emit_as,omitempty"`
+	Path          string    `yaml:"path"`
+	Method        string    `yaml:"method"`
+	Mode          string    `yaml:"mode"` // paginated | stream (default paginated)
+	PrimaryKey    []string  `yaml:"primary_key"`
+	Fields        FieldList `yaml:"fields,omitempty"`
+	UseFields     []string  `yaml:"use_fields,omitempty"`
+	ExcludeFields []string  `yaml:"exclude_fields,omitempty"`
+	// Records is concise syntax for response.root + response.records_path.
+	// "$" means an array at the document root; "$.data.items" selects a path.
+	Records string `yaml:"records,omitempty"`
+	// ForEach is concise syntax for parent.resource.
+	ForEach     string            `yaml:"for_each,omitempty"`
+	Params      map[string]string `yaml:"params,omitempty"`
 	Capture     map[string]string `yaml:"capture,omitempty"`
 	Query       map[string]string `yaml:"query,omitempty"`
 	Headers     map[string]string `yaml:"headers,omitempty"`
@@ -171,6 +266,47 @@ type FieldSpec struct {
 	Nullable bool              `yaml:"nullable,omitempty"`
 }
 
+// FieldList is the v1 map-based field declaration. YAML mapping order is
+// retained so schemas remain stable and readable.
+type FieldList []FieldSpec
+
+// UnmarshalYAML accepts `field: type?` or an expanded value with path, type,
+// shape, mode, and nullable. The old list syntax is intentionally rejected.
+func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("fields must be a mapping")
+	}
+	out := make(FieldList, 0, len(node.Content)/2)
+	for i := 0; i < len(node.Content); i += 2 {
+		name := node.Content[i].Value
+		value := node.Content[i+1]
+		field := FieldSpec{Name: name, Path: name}
+		if value.Kind == yaml.ScalarNode {
+			field.Nullable = strings.HasSuffix(value.Value, "?")
+			field.Type = strings.TrimSuffix(value.Value, "?")
+		} else {
+			type valueSpec struct {
+				Path     string            `yaml:"path"`
+				Type     string            `yaml:"type"`
+				Shape    map[string]string `yaml:"shape,omitempty"`
+				Mode     string            `yaml:"mode,omitempty"`
+				Nullable bool              `yaml:"nullable,omitempty"`
+			}
+			var spec valueSpec
+			if err := value.Decode(&spec); err != nil {
+				return fmt.Errorf("field %q: %w", name, err)
+			}
+			field.Path, field.Type, field.Shape, field.Mode, field.Nullable = spec.Path, spec.Type, spec.Shape, spec.Mode, spec.Nullable
+			if field.Path == "" && len(field.Shape) == 0 {
+				field.Path = name
+			}
+		}
+		out = append(out, field)
+	}
+	*fields = out
+	return nil
+}
+
 // BodySpec configures the request body encoding and template.
 type BodySpec struct {
 	Encoding string `yaml:"encoding"` // json | form | multipart | raw | none
@@ -179,9 +315,12 @@ type BodySpec struct {
 
 // ResponseSpec configures where records live in the response body.
 type ResponseSpec struct {
-	Root        string     `yaml:"root"` // array | object (default object)
-	RecordsPath string     `yaml:"records_path"`
-	Error       *ErrorSpec `yaml:"error,omitempty"`
+	Root        string          `yaml:"root"` // array | object (default object)
+	RecordsPath string          `yaml:"records_path"`
+	Cardinality string          `yaml:"cardinality,omitempty"` // many (default) | one
+	Error       *ErrorSpec      `yaml:"error,omitempty"`
+	Records     string          `yaml:"records,omitempty"`
+	Pagination  *PaginationSpec `yaml:"pagination,omitempty"`
 }
 
 // ErrorSpec configures detection of errors wrapped in 200 responses.
@@ -209,9 +348,10 @@ type PaginationSpec struct {
 	AllowNullTerminates bool `yaml:"allow_null_terminates,omitempty"`
 
 	// offset
-	OffsetParam string `yaml:"offset_param,omitempty"`
-	LimitParam  string `yaml:"limit_param,omitempty"`
-	PageSize    int    `yaml:"page_size,omitempty"`
+	OffsetParam      string `yaml:"offset_param,omitempty"`
+	LimitParam       string `yaml:"limit_param,omitempty"`
+	PageSize         int    `yaml:"page_size,omitempty"`
+	OffsetInjectInto string `yaml:"offset_inject_into,omitempty"`
 
 	// page-number
 	PageParam      string `yaml:"page_param,omitempty"`
@@ -223,6 +363,96 @@ type PaginationSpec struct {
 
 	// next_url
 	NextURLPath string `yaml:"next_url_path,omitempty"`
+}
+
+// UnmarshalYAML accepts concise pagination strategies while retaining a
+// strategy-neutral runtime representation.
+func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		if node.Value != "none" {
+			return fmt.Errorf("pagination scalar must be none")
+		}
+		p.Type = "none"
+		return nil
+	}
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("pagination must be a strategy mapping")
+	}
+	// Internal explicit form remains useful to generated test manifests.
+	for i := 0; i < len(node.Content); i += 2 {
+		if node.Content[i].Value != "type" {
+			continue
+		}
+		type plain PaginationSpec
+		var out plain
+		if err := node.Decode(&out); err != nil {
+			return err
+		}
+		*p = PaginationSpec(out)
+		return nil
+	}
+	if len(node.Content) != 2 {
+		return fmt.Errorf("pagination must contain exactly one strategy")
+	}
+	strategy, value := node.Content[0].Value, node.Content[1]
+	switch strategy {
+	case "link":
+		p.Type = "link_header"
+		return value.Decode(&p.Rel)
+	case "next_url":
+		p.Type = "next_url"
+		return value.Decode(&p.NextURLPath)
+	case "cursor":
+		var spec struct {
+			Response       string `yaml:"response"`
+			Request        string `yaml:"request"`
+			More           string `yaml:"more"`
+			NullTerminates bool   `yaml:"null_terminates"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		target, param, ok := strings.Cut(spec.Request, ".")
+		if !ok || (target != "query" && target != "body" && target != "header") {
+			return fmt.Errorf("cursor.request must be query.<name>, body.<path>, or header.<name>")
+		}
+		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
+	case "offset":
+		var spec struct {
+			Offset   string `yaml:"offset"`
+			Limit    string `yaml:"limit"`
+			PageSize int    `yaml:"page_size"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		offsetTarget, offsetParam, ok := strings.Cut(spec.Offset, ".")
+		if !ok {
+			offsetTarget, offsetParam = "query", spec.Offset
+		}
+		limitTarget, limitParam, ok := strings.Cut(spec.Limit, ".")
+		if !ok {
+			limitTarget, limitParam = "query", spec.Limit
+		}
+		if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body") {
+			return fmt.Errorf("offset pagination fields must share a query or body target")
+		}
+		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
+	case "page":
+		var spec struct {
+			Number     string `yaml:"number"`
+			Size       string `yaml:"size"`
+			PageSize   int    `yaml:"page_size"`
+			TotalPages string `yaml:"total_pages"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", spec.Number, spec.Size, spec.PageSize, spec.TotalPages
+	default:
+		return fmt.Errorf("unknown pagination strategy %q", strategy)
+	}
+	return nil
 }
 
 // IncrementalSpec configures watermark-based incremental extraction.
