@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { createRootRoute, Outlet, useNavigate, useSearch } from "@tanstack/react-router";
@@ -12,29 +10,28 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastProvider } from "@galaxy-io/dls/toast/ToastProvider";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+
 import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
 import ConnectionDrawer from "@/pages/connectors/components/drawer/ConnectionDrawer";
 import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
 
-import { useListConnectionsQuery } from "@/api/queries/connectors";
+import { useGetConnectionQuery } from "@/api/queries/connections";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { Flow } from "@/constants";
 
-export enum Flow {
-  CREATE_CONNECTION = "CREATE_CONNECTION",
-}
-
-const rootSearchSchema = z.object({
+const validateSearchSchema = z.object({
   connectionId: z.string().optional(),
   flow: z.enum(Flow).optional(),
   connectorKind: z.enum(ConnectorKind).optional(),
   connector: z.string().optional(),
+  version: z.number().optional(),
 });
 
 export const Route = createRootRoute({
   component: RootComponent,
-  validateSearch: rootSearchSchema,
+  validateSearch: validateSearchSchema,
 });
 
 const RootComponentWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -54,19 +51,14 @@ function RootComponent() {
   const navigate = useNavigate();
   const { connectionId, flow } = useSearch({ from: "__root__" });
 
-  const { data } = useListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, {
-      kind: ConnectorKind.UNSPECIFIED,
-    }),
+  const { data } = useGetConnectionQuery({
+    input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
     options: {
       enabled: !!connectionId,
     },
   });
 
-  const selectedConnection = useMemo(() => {
-    if (!connectionId || !data?.connections) return null;
-    return data.connections.find((c) => c.id === connectionId) ?? null;
-  }, [connectionId, data?.connections]);
+  const connection = data?.connection ?? null;
 
   const handleCloseDrawer = () => {
     void navigate({
@@ -95,14 +87,8 @@ function RootComponent() {
           <Outlet />
         </RootComponentWrapper>
 
-        <Drawer
-          open={!!selectedConnection}
-          onClose={handleCloseDrawer}
-          width={CONNECTOR_DRAWER_WIDTH}
-        >
-          {selectedConnection && (
-            <ConnectionDrawer connection={selectedConnection} onClose={handleCloseDrawer} />
-          )}
+        <Drawer open={!!connection} onClose={handleCloseDrawer} width={CONNECTOR_DRAWER_WIDTH}>
+          {connection && <ConnectionDrawer connection={connection} onClose={handleCloseDrawer} />}
         </Drawer>
 
         <Modal open={flow === Flow.CREATE_CONNECTION} onClose={handleCloseFlow}>

@@ -1,22 +1,17 @@
-import { styled } from "@linaria/react";
-
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
   FlexGap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import Wrapper from "@galaxy-io/dls/containers/Wrapper";
+
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import { useConnectorSpec } from "@/pages/connectors/hooks";
-
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-
-const HeaderWrapper = styled.div`
-  padding: 12px 16px;
-`;
+import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 interface ConnectionDrawerHeaderProps {
   connection: Connection;
@@ -27,7 +22,7 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
   const connector = useConnectorSpec(connection.connector, connection.kind);
 
   return (
-    <HeaderWrapper>
+    <Wrapper padding="12px 16px">
       <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <FlexItem shrink={0}>
           <ConnectorTile
@@ -44,7 +39,7 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
           />
         </FlexWrapper>
       </FlexWrapper>
-    </HeaderWrapper>
+    </Wrapper>
   );
 };
 

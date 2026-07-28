@@ -1,31 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { create } from "@bufbuild/protobuf";
-import { createClient } from "@connectrpc/connect";
+import { createClient, type Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
   useQuery,
+  useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
+import { experimental_streamedQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 
 import {
   type GetRunRequest,
   type GetRunResponse,
   type ListRunsRequest,
-  type ListRunsResponse,
   type RunEvent,
+  type RunInfo,
   RunStatus,
+  type TailRunRequest,
   TailRunRequestSchema,
+  type TailRunResponse,
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
-
-const listRuns = IngestionService.method.listRuns;
-const getRun = IngestionService.method.getRun;
-const runPipeline = IngestionService.method.runPipeline;
-const signalRun = IngestionService.method.signalRun;
 
 const ACTIVE_RUN_STATUSES = new Set<RunStatus>([
   RunStatus.REQUESTED,
@@ -33,42 +30,42 @@ const ACTIVE_RUN_STATUSES = new Set<RunStatus>([
   RunStatus.PAUSED,
 ]);
 
+const LIST_RUNS_REFETCH_INTERVAL = 3 * 1000;
+const GET_RUN_REFETCH_INTERVAL = 2 * 1000;
+const MAX_TAIL_EVENTS = 2000;
+
 // ========== LIST RUNS ==========
 
-export const createListRunsQueryKey = (input?: ListRunsRequest) => {
+export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Transport) => {
   return createConnectQueryKey({
-    schema: listRuns,
+    schema: IngestionService.method.listRuns,
     input,
+    transport,
     cardinality: "finite",
   });
 };
 
-export const useListRunsQuery = ({
-  input,
-  options = {},
-}: {
-  input?: ListRunsRequest;
-  options?: UseQueryOptions<typeof listRuns.output, ListRunsResponse>;
-} = {}) => {
-  return useQuery<typeof listRuns.input, typeof listRuns.output>(listRuns, input, {
+const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
+  return runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status))
+    ? LIST_RUNS_REFETCH_INTERVAL
+    : false;
+};
+
+export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } = {}) => {
+  return useSuspenseQuery<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output
+  >(IngestionService.method.listRuns, input, {
     refetchInterval: (query) => {
-      const runs = query.state.data?.runs;
-      // Poll while any run is still in flight.
-      const hasActiveRun = runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status));
-      return hasActiveRun ? 3 * 1000 : false;
+      return getListRunsRefetchInterval(query.state.data?.runs);
     },
-    ...options,
   });
 };
 
 // ========== GET RUN ==========
 
-export const createGetRunQueryKey = (input: GetRunRequest) => {
-  return createConnectQueryKey({
-    schema: getRun,
-    input,
-    cardinality: "finite",
-  });
+const getGetRunRefetchInterval = (status: RunStatus | undefined) => {
+  return status !== undefined && ACTIVE_RUN_STATUSES.has(status) ? GET_RUN_REFETCH_INTERVAL : false;
 };
 
 export const useGetRunQuery = ({
@@ -76,125 +73,71 @@ export const useGetRunQuery = ({
   options = {},
 }: {
   input: GetRunRequest;
-  options?: UseQueryOptions<typeof getRun.output, GetRunResponse>;
+  options?: UseQueryOptions<typeof IngestionService.method.getRun.output, GetRunResponse>;
 }) => {
-  return useQuery<typeof getRun.input, typeof getRun.output>(getRun, input, {
+  return useQuery<
+    typeof IngestionService.method.getRun.input,
+    typeof IngestionService.method.getRun.output
+  >(IngestionService.method.getRun, input, {
     refetchInterval: (query) => {
-      const status = query.state.data?.snapshot?.run?.status;
-      return status !== undefined && ACTIVE_RUN_STATUSES.has(status) ? 2 * 1000 : false;
+      return getGetRunRefetchInterval(query.state.data?.snapshot?.run?.status);
     },
     ...options,
   });
 };
 
+// ========== TAIL RUN ==========
+
+export const createTailRunQueryKey = (input?: TailRunRequest) => {
+  return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
+};
+
+export const useTailRunsStream = (runIds: string[]) => {
+  const transport = useTransport();
+  const results = useQueries({
+    queries: runIds.map((runId) => {
+      const input = create(TailRunRequestSchema, { runId, replay: true });
+      return {
+        queryKey: createTailRunQueryKey(input),
+        queryFn: experimental_streamedQuery({
+          streamFn: ({ signal }: { signal: AbortSignal }) =>
+            createClient(IngestionService, transport).tailRun(input, {
+              signal,
+            }),
+          reducer: (events: RunEvent[], response: TailRunResponse) =>
+            response.event ? [...events, response.event].slice(-MAX_TAIL_EVENTS) : events,
+          initialValue: [] as RunEvent[],
+        }),
+        gcTime: 0,
+      };
+    }),
+  });
+
+  return {
+    events: results.flatMap((result) => result.data ?? []),
+    isStreaming: results.some((result) => result.isFetching),
+  };
+};
+
 // ========== MUTATIONS ==========
 
 export const useRunPipelineMutation = (
-  options: UseMutationOptions<typeof runPipeline.input, typeof runPipeline.output> = {},
+  options: UseMutationOptions<
+    typeof IngestionService.method.runPipeline.input,
+    typeof IngestionService.method.runPipeline.output
+  > = {},
 ) => {
-  return useMutation(runPipeline, options);
-};
-
-export const useSignalRunMutation = (
-  options: UseMutationOptions<typeof signalRun.input, typeof signalRun.output> = {},
-) => {
-  return useMutation(signalRun, options);
-};
-
-// ========== TAIL RUNS (server streaming) ==========
-
-const MAX_TAIL_EVENTS = 2000;
-const TAIL_FLUSH_INTERVAL_MS = 400;
-
-/**
- * Tails one or more runs via the TailRun server stream into a single merged feed.
- * Reconnects (with snapshot replay) whenever the run ids change; aborts on unmount.
- * Events are flushed in batches so a chatty run doesn't cause a render per fact.
- */
-export const useTailRunsStream = (runIds: string[]) => {
-  const transport = useTransport();
-  const client = useMemo(() => createClient(IngestionService, transport), [transport]);
-
-  const [events, setEvents] = useState<RunEvent[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-
-  // Key by content so a re-created array with the same ids doesn't reconnect
-  const runIdsKey = runIds.join("|");
-
-  const connect = useCallback(async () => {
-    abortRef.current?.abort();
-    setEvents([]);
-
-    const ids = runIdsKey ? runIdsKey.split("|") : [];
-    if (ids.length === 0) {
-      setIsStreaming(false);
-      return;
-    }
-
-    const abortController = new AbortController();
-    abortRef.current = abortController;
-
-    const buffer: RunEvent[] = [];
-    let flushTimer: number | null = null;
-
-    const flushBuffer = () => {
-      flushTimer = null;
-      if (buffer.length === 0 || abortController.signal.aborted) return;
-      const batch = buffer.splice(0, buffer.length);
-      setEvents((prev) => {
-        const merged = [...prev, ...batch];
-        return merged.length > MAX_TAIL_EVENTS
-          ? merged.slice(merged.length - MAX_TAIL_EVENTS)
-          : merged;
+  const queryClient = useQueryClient();
+  return useMutation<
+    typeof IngestionService.method.runPipeline.input,
+    typeof IngestionService.method.runPipeline.output
+  >(IngestionService.method.runPipeline, {
+    ...options,
+    onSettled: (...args) => {
+      void queryClient.invalidateQueries({
+        queryKey: createListRunsQueryKey(),
       });
-    };
-
-    const scheduleFlush = () => {
-      if (flushTimer === null) {
-        flushTimer = window.setTimeout(flushBuffer, TAIL_FLUSH_INTERVAL_MS);
-      }
-    };
-
-    setIsStreaming(true);
-    try {
-      await Promise.all(
-        ids.map(async (runId) => {
-          for await (const response of client.tailRun(
-            create(TailRunRequestSchema, { runId, replay: true }),
-            { signal: abortController.signal },
-          )) {
-            if (!response.event) continue;
-            buffer.push(response.event);
-            scheduleFlush();
-          }
-        }),
-      );
-    } catch (error) {
-      if (!abortController.signal.aborted) {
-        console.error("[TailRuns] stream error:", error);
-      }
-    } finally {
-      if (flushTimer !== null) {
-        window.clearTimeout(flushTimer);
-      }
-      flushBuffer();
-      if (!abortController.signal.aborted) {
-        setIsStreaming(false);
-      }
-    }
-  }, [client, runIdsKey]);
-
-  useEffect(() => {
-    void connect();
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, [connect]);
-
-  const clear = useCallback(() => {
-    setEvents([]);
-  }, []);
-
-  return { events, isStreaming, clear };
+      return options.onSettled?.(...args);
+    },
+  });
 };

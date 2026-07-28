@@ -1,21 +1,12 @@
 import { BaseEdge, type EdgeProps, getBezierPath, useInternalNode, useStore } from "@xyflow/react";
 
-import {
-  PIPELINE_NODE_PADDING,
-  PIPELINE_NODE_SOURCE_HANDLE_ID,
-} from "@/pages/pipelines/canvas/constants";
+import { PIPELINE_NODE_SOURCE_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
+import { PIPELINE_NODE_PADDING } from "@/pages/pipelines/canvas/nodes/constants";
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const zoomSelector = (state: { transform: [number, number, number] }) => state.transform[2];
 
-/**
- * Bezier edge that keeps table-row edges attached to the source island.
- * Row handles live in a scrollable list; a row scrolled out of view keeps a
- * layout position outside the island, so its raw anchor would fly away.
- * Out-of-view rows anchor to the resource badge next to the island's search
- * input instead; visible rows track their handle exactly.
- */
 const PipelineCanvasEdge = ({
   id,
   source,
@@ -42,7 +33,6 @@ const PipelineCanvasEdge = ({
     const nodeBottom = nodeTop + height;
     const nodeRight = positionAbsolute.x + width;
 
-    // Fallback: never let an anchor escape the node bounds
     anchorX = Math.min(sourceX, nodeRight);
     anchorY = clamp(sourceY, nodeTop + PIPELINE_NODE_PADDING, nodeBottom - PIPELINE_NODE_PADDING);
 
@@ -57,7 +47,6 @@ const PipelineCanvasEdge = ({
         const listRect = listElement.getBoundingClientRect();
         const badgeRect = badgeElement.getBoundingClientRect();
 
-        // Convert client-space rects into flow coordinates relative to the node
         const toFlowY = (clientY: number) => nodeTop + (clientY - nodeRect.top) / zoom;
         const listTop = toFlowY(listRect.top);
         const listBottom = toFlowY(listRect.bottom);

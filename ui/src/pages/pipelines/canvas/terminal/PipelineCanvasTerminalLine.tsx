@@ -4,13 +4,13 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import type { RunEvent } from "@/gen/ingestion/v1/runs_pb";
+
 import {
   formatRunEventDetail,
   formatRunEventTime,
   getRunEventTextVariant,
-} from "@/pages/pipelines/canvas/terminal/utils";
-
-import type { RunEvent } from "@/gen/ingestion/v1/runs_pb";
+} from "@/pages/pipelines/canvas/terminal/format";
 
 const LineWrapper = styled.div`
   display: flex;

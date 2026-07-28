@@ -7,23 +7,40 @@ import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Paragraph from "@galaxy-io/dls/text/Paragraph";
-import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
-import {
-  BASE_HEADER_SIZE_TO_GAP_MAP,
-  BASE_HEADER_SIZE_TO_ICON_SIZE_MAP,
-  BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP,
-} from "@/layouts/components/constants";
-import { BaseHeaderSize } from "@/layouts/components/types";
+export enum BaseHeaderSize {
+  SMALL = "SMALL",
+  MEDIUM = "MEDIUM",
+  LARGE = "LARGE",
+}
 
 interface BaseHeaderProps {
   title: string;
+  size?: BaseHeaderSize;
   icon?: PhosphorIcon;
   description?: string;
   actions?: React.ReactNode[];
-  size?: BaseHeaderSize;
   onClose?: () => void;
 }
+
+const BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP: Record<BaseHeaderSize, TextSize> = {
+  [BaseHeaderSize.SMALL]: TextSize.BODY_MD,
+  [BaseHeaderSize.MEDIUM]: TextSize.BODY_LG,
+  [BaseHeaderSize.LARGE]: TextSize.HEADING_SM,
+};
+
+const BASE_HEADER_SIZE_TO_ICON_SIZE_MAP: Record<BaseHeaderSize, number> = {
+  [BaseHeaderSize.SMALL]: 14,
+  [BaseHeaderSize.MEDIUM]: 16,
+  [BaseHeaderSize.LARGE]: 20,
+};
+
+const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, number> = {
+  [BaseHeaderSize.SMALL]: 8,
+  [BaseHeaderSize.MEDIUM]: 12,
+  [BaseHeaderSize.LARGE]: 16,
+};
 
 const TitleWrapper = styled.div`
   display: flex;

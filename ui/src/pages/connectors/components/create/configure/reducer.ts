@@ -1,9 +1,10 @@
 import { create } from "@bufbuild/protobuf";
 
+import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+
 import {
   type CreateConnectionAction,
   CreateConnectionActionType,
-  type SetErrorAction,
   type SetPhaseAction,
   type SetRequestConfigFieldAction,
   type SetRequestNameAction,
@@ -14,8 +15,6 @@ import {
   type CreateConnectionConfigureState,
   CreateConnectionPhase,
 } from "@/pages/connectors/components/create/configure/types";
-
-import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 function resetPhaseOnEdit(phase: CreateConnectionPhase): CreateConnectionPhase {
   return phase === CreateConnectionPhase.VALIDATED || phase === CreateConnectionPhase.ERROR
@@ -63,7 +62,6 @@ function setPhase(
   return {
     ...state,
     phase: action.payload,
-    error: action.payload === CreateConnectionPhase.ERROR ? state.error : null,
   };
 }
 
@@ -74,17 +72,6 @@ function setValidationErrors(
   return {
     ...state,
     validationErrors: action.payload,
-  };
-}
-
-function setError(
-  state: CreateConnectionConfigureState,
-  action: SetErrorAction,
-): CreateConnectionConfigureState {
-  return {
-    ...state,
-    error: action.payload,
-    phase: action.payload ? CreateConnectionPhase.ERROR : state.phase,
   };
 }
 
@@ -111,8 +98,6 @@ const createConnectionReducer = (
       return setPhase(state, action);
     case CreateConnectionActionType.SET_VALIDATION_ERRORS:
       return setValidationErrors(state, action);
-    case CreateConnectionActionType.SET_ERROR:
-      return setError(state, action);
     case CreateConnectionActionType.SET_SHOULD_SHOW_ERRORS:
       return setShouldShowErrors(state, action);
   }

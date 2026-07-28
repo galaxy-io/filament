@@ -1,4 +1,4 @@
-import { Children } from "react";
+import { Children, type PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -23,11 +23,7 @@ const ListItem = withTheme(styled.div<PropsWithTheme>`
   }
 `);
 
-interface ConnectionDrawerListProps {
-  children: React.ReactNode;
-}
-
-const ConnectionDrawerList = ({ children }: ConnectionDrawerListProps) => {
+const ConnectionDrawerList = ({ children }: PropsWithChildren) => {
   return (
     <ListWrapper>
       {Children.map(children, (child) => (

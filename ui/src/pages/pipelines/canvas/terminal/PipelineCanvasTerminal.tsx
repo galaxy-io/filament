@@ -10,18 +10,17 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import BaseHeader from "@/layouts/components/BaseHeader";
-import { BaseHeaderSize } from "@/layouts/components/types";
+import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
 import {
-  CANVAS_TERMINAL_HEIGHT,
-  CANVAS_TERMINAL_NOTCH_WIDTH,
-  CANVAS_TERMINAL_RIGHT_OFFSET,
-  CANVAS_TERMINAL_WIDTH,
-} from "@/pages/pipelines/canvas/constants";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+  PIPELINE_CANVAS_TERMINAL_HEIGHT,
+  PIPELINE_CANVAS_TERMINAL_NOTCH_WIDTH,
+  PIPELINE_CANVAS_TERMINAL_RIGHT_OFFSET,
+  PIPELINE_CANVAS_TERMINAL_WIDTH,
+} from "@/pages/pipelines/canvas/terminal/constants";
 import PipelineCanvasTerminalLine from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminalLine";
 
 import { useTailRunsStream } from "@/api/queries/runs";
@@ -29,7 +28,7 @@ import { useTailRunsStream } from "@/api/queries/runs";
 const TerminalWrapper = styled.div`
   position: absolute;
   bottom: 0;
-  right: ${CANVAS_TERMINAL_RIGHT_OFFSET}px;
+  right: ${PIPELINE_CANVAS_TERMINAL_RIGHT_OFFSET}px;
   z-index: 1001;
 
   display: flex;
@@ -38,7 +37,7 @@ const TerminalWrapper = styled.div`
 `;
 
 const HeaderBar = withTheme(styled.div<PropsWithTheme<{ $isOpen: boolean }>>`
-  width: ${({ $isOpen }) => ($isOpen ? "100%" : `${CANVAS_TERMINAL_NOTCH_WIDTH}px`)};
+  width: ${({ $isOpen }) => ($isOpen ? "100%" : `${PIPELINE_CANVAS_TERMINAL_NOTCH_WIDTH}px`)};
   padding: 8px 12px;
 
   background-color: ${({ theme }) => theme.color.background.primary};
@@ -49,9 +48,9 @@ const HeaderBar = withTheme(styled.div<PropsWithTheme<{ $isOpen: boolean }>>`
 `);
 
 const PanelClip = styled.div<{ $isOpen: boolean }>`
-  width: ${CANVAS_TERMINAL_WIDTH}px;
+  width: ${PIPELINE_CANVAS_TERMINAL_WIDTH}px;
   max-width: 40vw;
-  height: ${({ $isOpen }) => ($isOpen ? `${CANVAS_TERMINAL_HEIGHT}px` : "0px")};
+  height: ${({ $isOpen }) => ($isOpen ? `${PIPELINE_CANVAS_TERMINAL_HEIGHT}px` : "0px")};
   overflow: hidden;
 
   transition: height 150ms ease;
@@ -59,7 +58,7 @@ const PanelClip = styled.div<{ $isOpen: boolean }>`
 
 const Panel = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
-  height: ${CANVAS_TERMINAL_HEIGHT}px;
+  height: ${PIPELINE_CANVAS_TERMINAL_HEIGHT}px;
 
   display: flex;
   flex-direction: column;

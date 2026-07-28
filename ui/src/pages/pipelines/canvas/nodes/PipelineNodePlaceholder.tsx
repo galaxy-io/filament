@@ -6,24 +6,26 @@ import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Tex
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+
 import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/actions";
+import {
+  PIPELINE_NODE_SINK_HANDLE_ID,
+  PIPELINE_NODE_SOURCE_HANDLE_ID,
+} from "@/pages/pipelines/canvas/constants";
+import { createNodeFromConnection } from "@/pages/pipelines/canvas/graph";
 import {
   PIPELINE_NODE_BORDER_RADIUS,
   PIPELINE_NODE_GAP,
   PIPELINE_NODE_PADDING,
   PIPELINE_NODE_PLACEHOLDER_SELECTOR_HEIGHT,
-  PIPELINE_NODE_SINK_HANDLE_ID,
-  PIPELINE_NODE_SOURCE_HANDLE_ID,
   PIPELINE_NODE_WIDTH,
-} from "@/pages/pipelines/canvas/constants";
-import EditWidgetSelectorBody from "@/pages/pipelines/canvas/edit/EditWidgetSelectorBody";
-import { usePipelineCanvas } from "@/pages/pipelines/canvas/hooks";
+} from "@/pages/pipelines/canvas/nodes/constants";
 import type { PipelineNodePlaceholderProps } from "@/pages/pipelines/canvas/nodes/types";
+import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelector";
+import { usePipelineCanvas } from "@/pages/pipelines/canvas/PipelineCanvasProvider";
 import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
-import { createNodeFromConnection } from "@/pages/pipelines/canvas/utils";
-
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 const PlaceholderCard = withTheme(styled.div<PropsWithTheme>`
   padding: 20px 16px;
@@ -73,7 +75,6 @@ const PipelineNodePlaceholder = memo(
 
       dispatch({ type: PipelineCanvasActionType.ADD_NODE, payload: node });
 
-      // Wire the pipeline as soon as both ends exist
       const counterpartType = isSource ? PipelineNodeType.SINK : PipelineNodeType.SOURCE;
       for (const counterpart of state.nodes.filter((n) => n.type === counterpartType)) {
         dispatch({
@@ -99,7 +100,7 @@ const PipelineNodePlaceholder = memo(
           </Text>
         </CardHeader>
         <SelectorIsland className="nodrag nowheel">
-          <EditWidgetSelectorBody
+          <PipelineCanvasConnectionSelector
             kindFilter={data.kind}
             width={PIPELINE_NODE_WIDTH - PIPELINE_NODE_PADDING * 2}
             onSelect={handleSelect}

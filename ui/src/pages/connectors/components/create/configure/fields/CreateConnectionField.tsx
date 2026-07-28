@@ -4,32 +4,29 @@ import type { JsonValue } from "@bufbuild/protobuf";
 
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
+import { type ConfigField, FieldType } from "@/gen/ingestion/v1/common_pb";
+
 import { FIELD_TYPE_TO_FIELD_COMPONENT_MAP } from "@/pages/connectors/components/create/configure/fields/constants";
 import Field from "@/pages/connectors/components/create/configure/fields/Field";
-import { isFieldVisible } from "@/pages/connectors/components/create/configure/fields/visibility";
-import { formatFieldName } from "@/pages/connectors/utils";
-
-import { type ConfigField, FieldType } from "@/gen/ingestion/v1/common_pb";
+import {
+  formatFieldName,
+  isFieldVisible,
+} from "@/pages/connectors/components/create/configure/fields/utils";
+import { isJsonObject } from "@/pages/connectors/components/create/configure/validation";
 
 interface CreateConnectionFieldProps {
   field: ConfigField;
   value: JsonValue;
   onChange: (value: JsonValue) => void;
-  error?: string;
   isDisabled?: boolean;
   path?: string;
   getError?: (path: string) => string | undefined;
-}
-
-function asJsonObject(value: JsonValue): Record<string, JsonValue> {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 const CreateConnectionField = ({
   field,
   value,
   onChange,
-  error,
   isDisabled = false,
   path = field.name,
   getError,
@@ -37,13 +34,13 @@ const CreateConnectionField = ({
   const label = useMemo(() => formatFieldName(field.name), [field.name]);
 
   if (field.type === FieldType.OBJECT && field.fields.length > 0) {
-    const objectValue = asJsonObject(value);
+    const objectValue = isJsonObject(value) ? value : {};
     return (
       <Field
         label={label}
         help={field.help}
         isRequired={field.required}
-        error={getError?.(path) ?? error}
+        error={getError?.(path)}
         isSection
       >
         <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
@@ -62,7 +59,6 @@ const CreateConnectionField = ({
                       [child.name]: childValue,
                     })
                   }
-                  error={getError?.(childPath)}
                   isDisabled={isDisabled}
                   path={childPath}
                   getError={getError}
@@ -82,7 +78,7 @@ const CreateConnectionField = ({
       field={field}
       value={value}
       onChange={onChange}
-      error={error}
+      error={getError?.(path)}
       isDisabled={isDisabled}
       label={label}
     />
