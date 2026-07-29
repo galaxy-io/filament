@@ -60,9 +60,6 @@ const buildPlaceholderNode = (kind: ConnectorKind): PipelineCanvasPlaceholderNod
   selectable: false,
   deletable: false,
   connectable: false,
-  // Non-interactive nodes lose pointer events in React Flow — restore them so
-  // clicks reach the embedded connection selector. node.style wins over the
-  // wrapper's computed pointerEvents.
   style: { pointerEvents: "all" },
 });
 
@@ -82,8 +79,6 @@ export const getPlaceholderNodes = (nodes: CanvasNode[], isReadOnly: boolean): C
   return placeholders;
 };
 
-// Unmeasured nodes (fresh placeholders, read-only mode) fall back to the stack
-// dimensions so bounds stay usable before React Flow has measured anything.
 export const getGraphBounds = (nodes: CanvasNode[]): Rect =>
   getNodesBounds(
     nodes.map((node) => ({

@@ -38,8 +38,6 @@ function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): Pipelin
 
 function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCanvasState {
   const node = action.payload;
-  // Silent backstop against graph corruption: every dispatch site already
-  // presents this rule via canAddSourceNode, so rejection needs no feedback.
   if (node.type === PipelineCanvasNodeType.SOURCE && !canAddSourceNode(state.nodes)) {
     return state;
   }

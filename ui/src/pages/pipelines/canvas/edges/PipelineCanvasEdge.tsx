@@ -21,8 +21,6 @@ const PipelineCanvasEdge = ({
   let anchorX = sourceX;
   let anchorY = sourceY;
 
-  // Table-row handles can scroll out of the source island's viewport — pin the
-  // edge to the node bounds so it never anchors to an off-node position.
   const { positionAbsolute } = sourceNode?.internals ?? {};
   const { width, height } = sourceNode?.measured ?? {};
   if (positionAbsolute && width && height) {

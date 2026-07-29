@@ -75,8 +75,6 @@ const PipelineCanvasNodeSourceIsland = ({
   const updateNodeInternals = useUpdateNodeInternals();
   const [state, setState] = useState<PipelineCanvasNodeSourceIslandState>(DEFAULT_STATE);
 
-  // Scrolling and filtering move table handles without resizing the node, so
-  // React Flow's own resize observation misses them.
   const syncNodeInternals = () => {
     if (nodeId) {
       updateNodeInternals(nodeId);

@@ -71,9 +71,6 @@ const Panel = withTheme(styled.div<PropsWithTheme>`
   border-bottom: none;
 `);
 
-// column-reverse (with lines rendered newest-first) makes the browser pin the
-// scroll position to the visual bottom natively, and hold it when the user
-// scrolls up to read history.
 const TerminalBody = styled.div`
   flex: 1;
   min-height: 0;
