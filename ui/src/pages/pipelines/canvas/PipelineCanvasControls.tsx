@@ -1,16 +1,25 @@
 import { styled } from "@linaria/react";
 import { ArrowCounterClockwiseIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react";
-import { useReactFlow } from "@xyflow/react";
+import { getViewportForBounds, useReactFlow, useStore } from "@xyflow/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { PIPELINE_CANVAS_FIT_VIEW_OPTIONS } from "@/pages/pipelines/canvas/constants";
-import { mapNodesToStackedPositions } from "@/pages/pipelines/canvas/graph";
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import {
-  usePipelineCanvasDispatch,
+  PIPELINE_CANVAS_FIT_MAX_ZOOM,
+  PIPELINE_CANVAS_FIT_MIN_ZOOM,
+  PIPELINE_CANVAS_FIT_PADDING,
+  PIPELINE_CANVAS_OVERLAY_Z_INDEX,
+} from "@/pages/pipelines/canvas/constants";
+import {
+  getGraphBounds,
+  getPlaceholderNodes,
+  mapNodesToStackedPositions,
+} from "@/pages/pipelines/canvas/graph/layout";
+import {
+  usePipelineCanvasActions,
+  usePipelineCanvasReadOnly,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
@@ -18,7 +27,7 @@ const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
   bottom: 16px;
   left: 16px;
-  z-index: 1001;
+  z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 
   display: flex;
   flex-direction: column;
@@ -55,19 +64,33 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
 `);
 
 const PipelineCanvasControls = () => {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const { zoomIn, zoomOut, setViewport } = useReactFlow();
+  const width = useStore((store) => store.width);
+  const height = useStore((store) => store.height);
   const state = usePipelineCanvasState();
-  const dispatch = usePipelineCanvasDispatch();
+  const isReadOnly = usePipelineCanvasReadOnly();
+  const { setNodes } = usePipelineCanvasActions();
 
   const handleResetView = () => {
-    dispatch({
-      type: PipelineCanvasActionType.SET_NODES,
-      payload: mapNodesToStackedPositions(state.nodes),
-    });
+    const repositioned = mapNodesToStackedPositions(state.nodes);
+    setNodes(repositioned);
 
-    window.setTimeout(() => {
-      void fitView(PIPELINE_CANVAS_FIT_VIEW_OPTIONS);
-    }, 0);
+    const bounds = getGraphBounds([
+      ...repositioned,
+      ...getPlaceholderNodes(repositioned, isReadOnly),
+    ]);
+    if (bounds.width === 0) return;
+
+    void setViewport(
+      getViewportForBounds(
+        bounds,
+        width,
+        height,
+        PIPELINE_CANVAS_FIT_MIN_ZOOM,
+        PIPELINE_CANVAS_FIT_MAX_ZOOM,
+        PIPELINE_CANVAS_FIT_PADDING,
+      ),
+    );
   };
 
   return (

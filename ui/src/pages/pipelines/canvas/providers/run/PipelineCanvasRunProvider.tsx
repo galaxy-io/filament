@@ -3,10 +3,16 @@ import {
   type Dispatch,
   type PropsWithChildren,
   useContext,
+  useMemo,
   useReducer,
 } from "react";
 
-import type { PipelineCanvasRunAction } from "@/pages/pipelines/canvas/providers/run/actions";
+import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
+
+import {
+  type PipelineCanvasRunAction,
+  PipelineCanvasRunActionType,
+} from "@/pages/pipelines/canvas/providers/run/actions";
 import pipelineCanvasRunReducer from "@/pages/pipelines/canvas/providers/run/reducer";
 import type { PipelineCanvasRunState } from "@/pages/pipelines/canvas/providers/run/types";
 
@@ -31,12 +37,29 @@ export const usePipelineCanvasRunState = () => {
   return state;
 };
 
-export const usePipelineCanvasRunDispatch = () => {
+const usePipelineCanvasRunDispatch = () => {
   const dispatch = useContext(PipelineCanvasRunDispatchContext);
   if (!dispatch) {
     throw new Error("usePipelineCanvasRunDispatch must be used within PipelineCanvasRunProvider");
   }
   return dispatch;
+};
+
+export const usePipelineCanvasRunActions = () => {
+  const dispatch = usePipelineCanvasRunDispatch();
+
+  return useMemo(
+    () => ({
+      startRun: (runBindings: RunBinding[]) =>
+        dispatch({ type: PipelineCanvasRunActionType.START_RUN, payload: runBindings }),
+      setActivityOpen: (isActivityOpen: boolean) =>
+        dispatch({
+          type: PipelineCanvasRunActionType.SET_ACTIVITY_OPEN,
+          payload: isActivityOpen,
+        }),
+    }),
+    [dispatch],
+  );
 };
 
 const PipelineCanvasRunProvider = ({ children }: PropsWithChildren) => {

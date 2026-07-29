@@ -16,7 +16,7 @@ const FieldInt = ({
       onChange={(v) => onChange(v)}
       placeholder={`Enter ${label}...`}
       label={label}
-      labelTooltip={field.help}
+      labelTooltip={field.help || undefined}
       isRequired={field.required}
       error={error}
       isDisabled={isDisabled}

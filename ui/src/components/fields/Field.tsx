@@ -1,71 +1,97 @@
-import type { PropsWithChildren } from "react";
+import { useMemo } from "react";
 
-import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Spacing from "@galaxy-io/dls/containers/Spacing";
-import HelpIcon from "@galaxy-io/dls/icons/HelpIcon";
-import RequiredMarker from "@galaxy-io/dls/text/RequiredMarker";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import type { JsonValue } from "@bufbuild/protobuf";
+
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+
+import { type ConfigField, FieldType } from "@/gen/ingestion/v1/common_pb";
+
+import FieldBoolean from "@/components/fields/FieldBoolean";
+import FieldEnum from "@/components/fields/FieldEnum";
+import FieldInt from "@/components/fields/FieldInt";
+import FieldObject from "@/components/fields/FieldObject";
+import FieldSecret from "@/components/fields/FieldSecret";
+import FieldString from "@/components/fields/FieldString";
+import FieldWrapper from "@/components/fields/FieldWrapper";
+import type { FieldComponent } from "@/components/fields/types";
+import { formatFieldName, isFieldVisible, isJsonObject } from "@/components/fields/utils";
+
+const FIELD_TYPE_TO_FIELD_COMPONENT_MAP: Partial<Record<FieldType, FieldComponent>> = {
+  [FieldType.STRING]: FieldString,
+  [FieldType.UNSPECIFIED]: FieldString,
+  [FieldType.DURATION]: FieldString,
+  [FieldType.INT]: FieldInt,
+  [FieldType.BOOL]: FieldBoolean,
+  [FieldType.SECRET]: FieldSecret,
+  [FieldType.ENUM]: FieldEnum,
+  [FieldType.OBJECT]: FieldObject,
+};
 
 interface FieldProps {
-  label: string;
-  help?: string;
-  isRequired?: boolean;
-  error?: string;
-  isSection?: boolean;
+  field: ConfigField;
+  value: JsonValue;
+  onChange: (value: JsonValue) => void;
+  isDisabled?: boolean;
+  path?: string;
+  getError?: (path: string) => string | undefined;
 }
 
-const FieldLabel = ({
-  label,
-  help,
-  isRequired,
-}: Pick<FieldProps, "label" | "help" | "isRequired">) => (
-  <FlexWrapper alignItems={AlignItems.CENTER} gap={1}>
-    <Text variant={TextVariant.SECONDARY}>{label}</Text>
-    {isRequired && <RequiredMarker />}
-    {help && (
-      <Spacing left={4}>
-        <Tooltip body={help} position={TooltipPosition.RIGHT}>
-          <HelpIcon />
-        </Tooltip>
-      </Spacing>
-    )}
-  </FlexWrapper>
-);
-
-const FieldError = ({ error }: Pick<FieldProps, "error">) =>
-  error ? (
-    <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
-      {error}
-    </Text>
-  ) : null;
-
 const Field = ({
-  label,
-  help,
-  isRequired,
-  error,
-  isSection = false,
-  children,
-}: PropsWithChildren<FieldProps>) => {
-  if (isSection) {
+  field,
+  value,
+  onChange,
+  isDisabled = false,
+  path = field.name,
+  getError,
+}: FieldProps) => {
+  const label = useMemo(() => formatFieldName(field.name), [field.name]);
+
+  if (field.type === FieldType.OBJECT && field.fields.length > 0) {
+    const objectValue = isJsonObject(value) ? value : {};
     return (
-      <Accordion variant={AccordionVariant.PRIMARY} header={label} subheader={help} isOpenInitial>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={6} fillWidth>
-          {children}
-          <FieldError error={error} />
+      <FieldWrapper
+        label={label}
+        help={field.help}
+        isRequired={field.required}
+        error={getError?.(path)}
+        isSection
+      >
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
+          {field.fields
+            .filter((child) => isFieldVisible(child, objectValue))
+            .map((child) => (
+              <Field
+                key={child.name}
+                field={child}
+                value={objectValue[child.name] ?? null}
+                onChange={(childValue) =>
+                  onChange({
+                    ...objectValue,
+                    [child.name]: childValue,
+                  })
+                }
+                isDisabled={isDisabled}
+                path={`${path}.${child.name}`}
+                getError={getError}
+              />
+            ))}
         </FlexWrapper>
-      </Accordion>
+      </FieldWrapper>
     );
   }
 
+  const Component = FIELD_TYPE_TO_FIELD_COMPONENT_MAP[field.type];
+  if (!Component) return null;
+
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={6} fillWidth>
-      <FieldLabel label={label} help={help} isRequired={isRequired} />
-      {children}
-      <FieldError error={error} />
-    </FlexWrapper>
+    <Component
+      field={field}
+      value={value}
+      onChange={onChange}
+      error={getError?.(path)}
+      isDisabled={isDisabled}
+      label={label}
+    />
   );
 };
 

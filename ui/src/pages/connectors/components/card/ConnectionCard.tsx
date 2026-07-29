@@ -63,7 +63,7 @@ const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCa
           <ConnectionKindChip kind={connection.kind} size={ChipSize.SMALL} />
         </FlexWrapper>
         <FlexItem shrink={0}>
-          <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.TERTIARY} />
+          <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.SECONDARY} />
         </FlexItem>
       </FlexWrapper>
       <HorizontalDivider />

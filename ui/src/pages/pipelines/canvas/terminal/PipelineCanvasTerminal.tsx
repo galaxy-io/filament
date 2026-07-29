@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 import { styled } from "@linaria/react";
 import { ArrowsOutSimpleIcon, PulseIcon } from "@phosphor-icons/react";
@@ -13,9 +13,9 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
-import { PipelineCanvasRunActionType } from "@/pages/pipelines/canvas/providers/run/actions";
+import { PIPELINE_CANVAS_OVERLAY_Z_INDEX } from "@/pages/pipelines/canvas/constants";
 import {
-  usePipelineCanvasRunDispatch,
+  usePipelineCanvasRunActions,
   usePipelineCanvasRunState,
 } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import {
@@ -32,7 +32,7 @@ const TerminalWrapper = styled.div`
   position: absolute;
   bottom: 0;
   right: ${PIPELINE_CANVAS_TERMINAL_RIGHT_OFFSET}px;
-  z-index: 1001;
+  z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 
   display: flex;
   flex-direction: column;
@@ -77,14 +77,14 @@ const TerminalBody = styled.div`
   overflow-y: auto;
 
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 2px;
   padding: 8px 10px;
 `;
 
 const PipelineCanvasTerminal = () => {
   const { runBindings, isActivityOpen: isOpen } = usePipelineCanvasRunState();
-  const dispatch = usePipelineCanvasRunDispatch();
+  const { setActivityOpen } = usePipelineCanvasRunActions();
 
   const runIds = useMemo(
     () => [...new Set(runBindings.map((binding) => binding.runId))],
@@ -92,19 +92,7 @@ const PipelineCanvasTerminal = () => {
   );
 
   const { events, isStreaming } = useTailRunsStream(runIds);
-
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when lines arrive or the panel opens
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [events.length, isOpen]);
-
-  const setIsOpen = (payload: boolean) => {
-    dispatch({ type: PipelineCanvasRunActionType.SET_ACTIVITY_OPEN, payload });
-  };
+  const reversedEvents = useMemo(() => [...events].reverse(), [events]);
 
   const renderBody = () => {
     if (runIds.length === 0) {
@@ -118,22 +106,22 @@ const PipelineCanvasTerminal = () => {
 
     return (
       <>
-        {events.map((event, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: append-only feed without stable identity
-          <PipelineCanvasTerminalLine key={index} event={event} />
-        ))}
         {isStreaming && (
           <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
             <Flashing>Listening...</Flashing>
           </Text>
         )}
+        {reversedEvents.map((event, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: append-only feed without stable identity
+          <PipelineCanvasTerminalLine key={index} event={event} />
+        ))}
       </>
     );
   };
 
   return (
     <TerminalWrapper>
-      <HeaderBar $isOpen={isOpen} onClick={isOpen ? undefined : () => setIsOpen(true)}>
+      <HeaderBar $isOpen={isOpen} onClick={isOpen ? undefined : () => setActivityOpen(true)}>
         <BaseHeader
           size={BaseHeaderSize.SMALL}
           title="Activity"
@@ -147,17 +135,17 @@ const PipelineCanvasTerminal = () => {
                     icon={ArrowsOutSimpleIcon}
                     variant={ButtonVariant.TERTIARY}
                     size={ButtonSize.SMALL}
-                    onClick={() => setIsOpen(true)}
+                    onClick={() => setActivityOpen(true)}
                   />,
                 ]
           }
-          onClose={isOpen ? () => setIsOpen(false) : undefined}
+          onClose={isOpen ? () => setActivityOpen(false) : undefined}
         />
       </HeaderBar>
 
       <PanelClip $isOpen={isOpen}>
         <Panel>
-          <TerminalBody ref={scrollRef}>{renderBody()}</TerminalBody>
+          <TerminalBody>{renderBody()}</TerminalBody>
         </Panel>
       </PanelClip>
     </TerminalWrapper>

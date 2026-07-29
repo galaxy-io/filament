@@ -16,16 +16,16 @@ import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
   PIPELINE_RUN_HISTORY_LIMIT,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_DURATION,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_STATUS,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_VERSION,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/history/constants";
-import PipelineRunInfo from "@/pages/pipelines/history/PipelineRunInfo";
-import PipelineRunStatus from "@/pages/pipelines/history/PipelineRunStatus";
+import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
+import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
 import { useSuspenseListRunsQuery } from "@/api/queries/runs";
 
@@ -53,16 +53,16 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "status",
     header: "Status",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_STATUS,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
     cellLoading: () => <TextShimmer width={64} height={18} />,
     cell: ({ row }) => (
-      <PipelineRunStatus status={row.original.status} error={row.original.error} />
+      <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
     ),
   },
   {
     id: "startedAt",
     header: "Started",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
@@ -83,7 +83,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "duration",
     header: "Duration",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_DURATION,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
@@ -94,7 +94,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "version",
     header: "Version",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_VERSION,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cellLoading: () => <TextShimmer width={32} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM}>
@@ -105,8 +105,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "records",
     header: "Records",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    align: ColumnAlign.CENTER,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
@@ -117,7 +116,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   {
     id: "volume",
     header: "Volume",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
     align: ColumnAlign.RIGHT,
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
@@ -159,7 +158,7 @@ const PipelineHistoryPage = () => {
             <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
           }
           onRowExpand={(row) => {
-            return <PipelineRunInfo runId={row.original.runId} />;
+            return <PipelineHistoryRunInfo runId={row.original.runId} />;
           }}
           fillWidth
           fillHeight

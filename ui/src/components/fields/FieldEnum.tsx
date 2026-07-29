@@ -3,6 +3,7 @@ import SelectInput, {
   SelectInputSize,
 } from "@galaxy-io/dls/inputs/SelectInput";
 
+import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
 
 const FieldEnum = ({
@@ -22,18 +23,18 @@ const FieldEnum = ({
   const selectedOption = options.find((opt) => opt.value === value) ?? null;
 
   return (
-    <SelectInput
-      options={options}
-      value={selectedOption}
-      onChange={(opt) => onChange(opt.value as string)}
-      placeholder={`Select ${label}...`}
-      label={label}
-      isRequired={field.required}
-      error={error}
-      isDisabled={isDisabled}
-      size={SelectInputSize.LARGE}
-      fillWidth
-    />
+    <FieldWrapper label={label} help={field.help} isRequired={field.required}>
+      <SelectInput
+        options={options}
+        value={selectedOption}
+        onChange={(opt) => onChange(opt.value as string)}
+        placeholder={`Select ${label}...`}
+        error={error}
+        isDisabled={isDisabled}
+        size={SelectInputSize.LARGE}
+        fillWidth
+      />
+    </FieldWrapper>
   );
 };
 

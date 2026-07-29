@@ -18,8 +18,6 @@ import type {
 } from "@/gen/ingestion/v1/connections_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-// ========== LIST CONNECTIONS ==========
-
 export const createListConnectionsQueryKey = (
   input?: ListConnectionsRequest,
   transport?: Transport,
@@ -71,8 +69,6 @@ export const useSuspenseListConnectionsQuery = ({
   >(IngestionService.method.listConnections, input);
 };
 
-// ========== GET CONNECTION ==========
-
 export const useGetConnectionQuery = ({
   input,
   options = {},
@@ -88,8 +84,6 @@ export const useGetConnectionQuery = ({
     typeof IngestionService.method.getConnection.output
   >(IngestionService.method.getConnection, input, options);
 };
-
-// ========== MUTATIONS ==========
 
 export const useCreateConnectionMutation = (
   options: UseMutationOptions<

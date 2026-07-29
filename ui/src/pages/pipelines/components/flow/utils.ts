@@ -4,9 +4,9 @@ import type { PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   type CanvasNode,
-  PipelineNodeType,
-  type PipelineSinkNode,
-  type PipelineSourceNode,
+  PipelineCanvasNodeType,
+  type PipelineCanvasSinkNode,
+  type PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
 import type { PipelineFlowConnection } from "@/pages/pipelines/components/flow/PipelineFlow";
 
@@ -36,14 +36,14 @@ export const mapVersionNodesToFlowEndpoints = (
 
 export const mapCanvasNodesToFlowEndpoints = (nodes: CanvasNode[]): PipelineFlowEndpoints => {
   const sourceNode = nodes.find(
-    (node): node is PipelineSourceNode => node.type === PipelineNodeType.SOURCE,
+    (node): node is PipelineCanvasSourceNode => node.type === PipelineCanvasNodeType.SOURCE,
   );
   return {
     source: sourceNode
       ? { connectionId: sourceNode.data.connectionId, connector: sourceNode.data.connector }
       : undefined,
     sinks: nodes
-      .filter((node): node is PipelineSinkNode => node.type === PipelineNodeType.SINK)
+      .filter((node): node is PipelineCanvasSinkNode => node.type === PipelineCanvasNodeType.SINK)
       .map((node) => ({ connectionId: node.data.connectionId, connector: node.data.connector })),
   };
 };
