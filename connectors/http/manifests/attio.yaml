@@ -303,7 +303,7 @@ resources:
   - name: notes
     path: /v2/notes
     query:
-      limit: "500"
+      limit: "50"
     primary_key: [note_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -324,7 +324,7 @@ resources:
         offset:
           offset: query.offset
           limit: query.limit
-          page_size: 500
+          page_size: 50
   - name: tasks
     path: /v2/tasks
     query:
@@ -351,8 +351,11 @@ resources:
           page_size: 500
   - name: threads
     path: /v2/threads
+    for_each: records
     query:
-      limit: "500"
+      record_id: "{{ parent.record_id }}"
+      object: "{{ parent.object }}"
+      limit: "50"
     primary_key: [thread_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -366,11 +369,11 @@ resources:
         offset:
           offset: query.offset
           limit: query.limit
-          page_size: 500
+          page_size: 50
   - name: meetings
     path: /v2/meetings
     query:
-      limit: "500"
+      limit: "200"
     primary_key: [meeting_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -400,7 +403,7 @@ resources:
       meeting: parent.meeting_id
     for_each: meetings
     query:
-      limit: "500"
+      limit: "200"
     primary_key: [call_recording_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -443,7 +446,7 @@ resources:
   - name: webhooks
     path: /v2/webhooks
     query:
-      limit: "500"
+      limit: "100"
     primary_key: [webhook_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -459,7 +462,7 @@ resources:
         offset:
           offset: query.offset
           limit: query.limit
-          page_size: 500
+          page_size: 100
   - name: people
     path: /v2/objects/people/records/query
     method: POST
