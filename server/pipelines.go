@@ -188,16 +188,18 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 			return nil, err
 		}
 		run, err := a.orch.Submit(ctx, filament.RunRequest{
-			Tenant:            filament.TenantID(defaultTenant(pipeline.GetTenantId())),
-			PipelineID:        pipeline.GetId(),
-			PipelineVersionID: version.GetVersion(),
-			IdempotencyKey:    fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:            sourceRef,
-			Sink:              sinkRef,
-			Resources:         resources,
-			Selectors:         selectors,
-			IngestionType:     group.ingestionType,
-			Options:           options,
+			Tenant:             filament.TenantID(defaultTenant(pipeline.GetTenantId())),
+			PipelineID:         pipeline.GetId(),
+			PipelineVersionID:  version.GetVersion(),
+			IdempotencyKey:     fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+			Source:             sourceRef,
+			Sink:               sinkRef,
+			SourceConnectionID: group.source.GetConnectionId(),
+			SinkConnectionID:   group.sink.GetConnectionId(),
+			Resources:          resources,
+			Selectors:          selectors,
+			IngestionType:      group.ingestionType,
+			Options:            options,
 		})
 		if err != nil {
 			return nil, err

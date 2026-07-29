@@ -23,16 +23,18 @@ type RunSpec struct {
 // RunRequest is the caller-facing ask for a run, deduplicated by
 // IdempotencyKey; the engine resolves it into a RunSpec.
 type RunRequest struct {
-	Tenant            TenantID
-	PipelineID        string
-	PipelineVersionID int64
-	IdempotencyKey    string
-	Source            Ref
-	Sink              Ref
-	Resources         []string
-	Selectors         []string
-	IngestionType     IngestionType
-	Options           RunOptions
+	Tenant             TenantID
+	PipelineID         string
+	PipelineVersionID  int64
+	IdempotencyKey     string
+	Source             Ref
+	Sink               Ref
+	SourceConnectionID string
+	SinkConnectionID   string
+	Resources          []string
+	Selectors          []string
+	IngestionType      IngestionType
+	Options            RunOptions
 }
 
 // RunOptions tunes throughput knobs for a run; zero values defer to engine

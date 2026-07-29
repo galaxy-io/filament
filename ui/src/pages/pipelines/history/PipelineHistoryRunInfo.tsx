@@ -1,13 +1,13 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import InfiniteTable, {
   ColumnAlign,
   type ColumnDef,
   TableVariant,
 } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -21,7 +21,6 @@ import {
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
@@ -30,6 +29,7 @@ import {
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
+import PipelineHistoryRunInfoResourceColumn from "./components/PipelineHistoryRunInfoResourceColumn";
 import { formatBytes, formatCount } from "@/utils/format";
 
 const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -40,27 +40,17 @@ const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.tertiary};
 `);
 
-const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceState>[] = [
+export interface RunResourceStateColumn extends RunResourceState {
+  sourceConnectionId: string;
+  sinkConnectionId: string;
+}
+
+const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceStateColumn>[] = [
   {
     id: "resource",
     header: "Resource",
     cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => {
-      return (
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-          <ConnectorTile connector={row.original.resource} size={ConnectorTileSize.SMALL} />
-          <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
-            connection_name
-          </Text>
-          <Text size={TextSize.BODY_SM} isMonospace>
-            /
-          </Text>
-          <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-            {row.original.resource}
-          </Text>
-        </FlexWrapper>
-      );
-    },
+    cell: ({ row }) => <PipelineHistoryRunInfoResourceColumn runResource={row.original} />,
   },
   {
     id: "records",
@@ -96,7 +86,11 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     input: create(GetRunRequestSchema, { runId }),
   });
 
-  const resources = data?.snapshot?.resources ?? [];
+  const resources = (data?.snapshot?.resources ?? []).map((resource) => ({
+    ...resource,
+    sourceConnectionId: data?.snapshot?.run?.sourceConnectionId ?? "",
+    sinkConnectionId: data?.snapshot?.run?.sinkConnectionId ?? "",
+  }));
   const isEmpty = !isLoading && resources.length === 0;
 
   if (isError) {
@@ -121,7 +115,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
 
   return (
     <ResourceTableWrapper>
-      <InfiniteTable<RunResourceState>
+      <InfiniteTable<RunResourceStateColumn>
         variant={TableVariant.TERTIARY}
         columns={RESOURCE_TABLE_COLUMNS}
         data={resources}

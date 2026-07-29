@@ -527,19 +527,21 @@ func (x *RunResourceState) GetError() string {
 
 // RunInfo mirrors pkg.RunState (run-level rollup).
 type RunInfo struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RunId             string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	TenantId          string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	PipelineId        string                 `protobuf:"bytes,3,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
-	PipelineVersionId int64                  `protobuf:"varint,4,opt,name=pipeline_version_id,json=pipelineVersionId,proto3" json:"pipeline_version_id,omitempty"`
-	Status            RunStatus              `protobuf:"varint,5,opt,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
-	Records           int64                  `protobuf:"varint,6,opt,name=records,proto3" json:"records,omitempty"`
-	Bytes             int64                  `protobuf:"varint,7,opt,name=bytes,proto3" json:"bytes,omitempty"`
-	Error             string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
-	StartedAt         int64                  `protobuf:"varint,9,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	EndedAt           int64                  `protobuf:"varint,10,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RunId              string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	TenantId           string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId         string                 `protobuf:"bytes,3,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	PipelineVersionId  int64                  `protobuf:"varint,4,opt,name=pipeline_version_id,json=pipelineVersionId,proto3" json:"pipeline_version_id,omitempty"`
+	Status             RunStatus              `protobuf:"varint,5,opt,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
+	Records            int64                  `protobuf:"varint,6,opt,name=records,proto3" json:"records,omitempty"`
+	Bytes              int64                  `protobuf:"varint,7,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Error              string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	StartedAt          int64                  `protobuf:"varint,9,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	EndedAt            int64                  `protobuf:"varint,10,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	SourceConnectionId string                 `protobuf:"bytes,11,opt,name=source_connection_id,json=sourceConnectionId,proto3" json:"source_connection_id,omitempty"`
+	SinkConnectionId   string                 `protobuf:"bytes,12,opt,name=sink_connection_id,json=sinkConnectionId,proto3" json:"sink_connection_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -640,6 +642,20 @@ func (x *RunInfo) GetEndedAt() int64 {
 		return x.EndedAt
 	}
 	return 0
+}
+
+func (x *RunInfo) GetSourceConnectionId() string {
+	if x != nil {
+		return x.SourceConnectionId
+	}
+	return ""
+}
+
+func (x *RunInfo) GetSinkConnectionId() string {
+	if x != nil {
+		return x.SinkConnectionId
+	}
+	return ""
 }
 
 type RunSnapshot struct {
@@ -1328,7 +1344,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\xbf\x02\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\x9f\x03\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
@@ -1342,7 +1358,9 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\t \x01(\x03R\tstartedAt\x12\x19\n" +
 	"\bended_at\x18\n" +
-	" \x01(\x03R\aendedAt\"\x8b\x01\n" +
+	" \x01(\x03R\aendedAt\x120\n" +
+	"\x14source_connection_id\x18\v \x01(\tR\x12sourceConnectionId\x12,\n" +
+	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +
