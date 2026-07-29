@@ -351,7 +351,10 @@ resources:
           page_size: 500
   - name: threads
     path: /v2/threads
+    for_each: records
     query:
+      record_id: "{{ parent.record_id }}"
+      object: "{{ parent.object }}"
       limit: "50"
     primary_key: [thread_id]
     fields:
