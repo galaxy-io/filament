@@ -21,6 +21,7 @@ import {
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
+import PipelineHistoryRunInfoResourceColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoResourceColumn";
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
@@ -29,7 +30,6 @@ import {
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
-import PipelineHistoryRunInfoResourceColumn from "./components/PipelineHistoryRunInfoResourceColumn";
 import { formatBytes, formatCount } from "@/utils/format";
 
 const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
