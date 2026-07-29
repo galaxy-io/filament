@@ -5,12 +5,13 @@ import {
 } from "@xyflow/react";
 
 import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
-import { resolveNodeOverlaps } from "@/pages/pipelines/canvas/graph";
+import { canAddSourceNode, getAutoConnections } from "@/pages/pipelines/canvas/graph/rules";
 import {
   type AddNodeAction,
   type ApplyEdgeChangesAction,
   type ApplyNodeChangesAction,
   type ConnectAction,
+  type LoadGraphAction,
   type PipelineCanvasAction,
   PipelineCanvasActionType,
   type RemoveNodeAction,
@@ -19,13 +20,37 @@ import {
   type SetNodeConfigAction,
   type SetNodesAction,
 } from "@/pages/pipelines/canvas/providers/canvas/actions";
-import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
+import {
+  PipelineCanvasInteractionMode,
+  type PipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/types";
+import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 
-function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCanvasState {
+function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): PipelineCanvasState {
   return {
     ...state,
-    nodes: [...state.nodes, action.payload],
+    nodes: action.payload.nodes,
+    edges: action.payload.edges,
+    activeMode: null,
+    interactionMode: PipelineCanvasInteractionMode.GRAB,
   };
+}
+
+function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCanvasState {
+  const node = action.payload;
+  // Silent backstop against graph corruption: every dispatch site already
+  // presents this rule via canAddSourceNode, so rejection needs no feedback.
+  if (node.type === PipelineCanvasNodeType.SOURCE && !canAddSourceNode(state.nodes)) {
+    return state;
+  }
+
+  const edges = getAutoConnections(node, state.nodes).reduce(
+    (nextEdges, connection) =>
+      xyflowAddEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, nextEdges),
+    state.edges,
+  );
+
+  return { ...state, nodes: [...state.nodes, node], edges };
 }
 
 function removeNode(state: PipelineCanvasState, action: RemoveNodeAction): PipelineCanvasState {
@@ -49,26 +74,10 @@ function applyNodeChanges(
   state: PipelineCanvasState,
   action: ApplyNodeChangesAction,
 ): PipelineCanvasState {
-  const nodes = xyflowApplyNodeChanges(action.payload, state.nodes);
-
-  // A user repositioning or removing a node takes ownership of its position:
-  // it no longer returns anywhere.
-  const restoreYs = { ...state.restoreYs };
-  for (const change of action.payload) {
-    if (change.type === "position" || change.type === "remove") {
-      delete restoreYs[change.id];
-    }
-  }
-
-  // A dimension change means a node grew or shrank (config island toggled):
-  // push down only the nodes its new height would occlude, and let previously
-  // pushed nodes return to their remembered positions as space frees up.
-  const resized = action.payload.some((change) => change.type === "dimensions");
-  if (!resized) {
-    return { ...state, nodes, restoreYs };
-  }
-  const resolution = resolveNodeOverlaps(nodes, restoreYs);
-  return { ...state, nodes: resolution.nodes, restoreYs: resolution.restoreYs };
+  return {
+    ...state,
+    nodes: xyflowApplyNodeChanges(action.payload, state.nodes),
+  };
 }
 
 function applyEdgeChanges(
@@ -115,10 +124,10 @@ function setNodeConfig(
   return {
     ...state,
     nodes: state.nodes.map((node) =>
-      node.id === action.payload.nodeId
+      node.id === action.payload.nodeId && isConnectionNode(node)
         ? { ...node, data: { ...node.data, config: action.payload.config } }
         : node,
-    ) as PipelineCanvasState["nodes"],
+    ),
   };
 }
 
@@ -127,6 +136,8 @@ const pipelineCanvasReducer = (
   action: PipelineCanvasAction,
 ): PipelineCanvasState => {
   switch (action.type) {
+    case PipelineCanvasActionType.LOAD_GRAPH:
+      return loadGraph(state, action);
     case PipelineCanvasActionType.ADD_NODE:
       return addNode(state, action);
     case PipelineCanvasActionType.REMOVE_NODE:

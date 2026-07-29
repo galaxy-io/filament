@@ -1,8 +1,5 @@
-import { useEffect } from "react";
-
 import type { JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { useNodeId, useUpdateNodeInternals } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -10,7 +7,8 @@ import Field from "@/components/fields/Field";
 import { getPipelineScopedFields, isFieldVisible } from "@/components/fields/utils";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
-import PipelineNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeIsland";
+import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
+import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
 const FieldList = styled.div`
   display: flex;
@@ -18,25 +16,24 @@ const FieldList = styled.div`
   gap: 12px;
 `;
 
-interface PipelineNodeConfigIslandProps {
+interface PipelineCanvasNodeConfigIslandProps {
   connector: string;
   kind: ConnectorKind;
   config?: Record<string, JsonValue>;
   onChange: (config: Record<string, JsonValue>) => void;
+  isOpen: boolean;
   isSelected?: boolean;
-  isDisabled?: boolean;
 }
 
-const PipelineNodeConfigIsland = ({
+const PipelineCanvasNodeConfigIsland = ({
   connector,
   kind,
   config,
   onChange,
+  isOpen,
   isSelected,
-  isDisabled = false,
-}: PipelineNodeConfigIslandProps) => {
-  const nodeId = useNodeId();
-  const updateNodeInternals = useUpdateNodeInternals();
+}: PipelineCanvasNodeConfigIslandProps) => {
+  const isReadOnly = usePipelineCanvasReadOnly();
   const spec = useConnectorSpec(connector, kind);
 
   const configValue = config ?? {};
@@ -44,17 +41,11 @@ const PipelineNodeConfigIsland = ({
     isFieldVisible(field, configValue),
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure on content changes
-  useEffect(() => {
-    if (nodeId) {
-      updateNodeInternals(nodeId);
-    }
-  }, [fields.length]);
-
+  if (!isOpen) return null;
   if (fields.length === 0) return null;
 
   return (
-    <PipelineNodeIsland $isSelected={isSelected}>
+    <PipelineCanvasNodeIsland $isSelected={isSelected}>
       <FieldList className="nodrag">
         {fields.map((field) => (
           <Field
@@ -62,12 +53,12 @@ const PipelineNodeConfigIsland = ({
             field={field}
             value={configValue[field.name] ?? null}
             onChange={(value) => onChange({ ...configValue, [field.name]: value })}
-            isDisabled={isDisabled}
+            isDisabled={isReadOnly}
           />
         ))}
       </FieldList>
-    </PipelineNodeIsland>
+    </PipelineCanvasNodeIsland>
   );
 };
 
-export default PipelineNodeConfigIsland;
+export default PipelineCanvasNodeConfigIsland;

@@ -9,12 +9,12 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import {
   PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP,
   PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP,
+  PIPELINE_CANVAS_OVERLAY_Z_INDEX,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelector";
 import PipelineCanvasEditWidgetButton from "@/pages/pipelines/canvas/PipelineCanvasEditWidgetButton";
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import {
-  usePipelineCanvasDispatch,
+  usePipelineCanvasActions,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import {
@@ -27,7 +27,7 @@ const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 1001;
+  z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 
   display: flex;
   flex-direction: column;
@@ -42,27 +42,14 @@ const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
 
 const PipelineCanvasEditWidget = () => {
   const state = usePipelineCanvasState();
-  const dispatch = usePipelineCanvasDispatch();
+  const { setActiveMode, setInteractionMode } = usePipelineCanvasActions();
 
   const handleModeToggle = (mode: PipelineCanvasEditMode) => {
-    dispatch({
-      type: PipelineCanvasActionType.SET_ACTIVE_MODE,
-      payload: state.activeMode === mode ? null : mode,
-    });
-  };
-
-  const handleInteractionModeSelect = (mode: PipelineCanvasInteractionMode) => {
-    dispatch({
-      type: PipelineCanvasActionType.SET_INTERACTION_MODE,
-      payload: mode,
-    });
+    setActiveMode(state.activeMode === mode ? null : mode);
   };
 
   const handleDropdownClose = () => {
-    dispatch({
-      type: PipelineCanvasActionType.SET_ACTIVE_MODE,
-      payload: null,
-    });
+    setActiveMode(null);
   };
 
   return (
@@ -91,12 +78,12 @@ const PipelineCanvasEditWidget = () => {
         <PipelineCanvasEditWidgetButton
           icon={PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP[PipelineCanvasInteractionMode.GRAB]}
           isActive={state.interactionMode === PipelineCanvasInteractionMode.GRAB}
-          onClick={() => handleInteractionModeSelect(PipelineCanvasInteractionMode.GRAB)}
+          onClick={() => setInteractionMode(PipelineCanvasInteractionMode.GRAB)}
         />
         <PipelineCanvasEditWidgetButton
           icon={PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP[PipelineCanvasInteractionMode.SELECT]}
           isActive={state.interactionMode === PipelineCanvasInteractionMode.SELECT}
-          onClick={() => handleInteractionModeSelect(PipelineCanvasInteractionMode.SELECT)}
+          onClick={() => setInteractionMode(PipelineCanvasInteractionMode.SELECT)}
         />
       </FlexWrapper>
     </PipelineCanvasEditWidgetContainer>

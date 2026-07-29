@@ -10,7 +10,7 @@ import {
   formatRunEventDetail,
   formatRunEventTime,
   getRunEventTextVariant,
-} from "@/pages/pipelines/canvas/terminal/format";
+} from "@/pages/pipelines/canvas/terminal/utils";
 
 const LineWrapper = styled.div`
   display: flex;

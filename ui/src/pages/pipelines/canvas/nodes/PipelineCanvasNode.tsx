@@ -1,10 +1,9 @@
-import type { PropsWithChildren } from "react";
+import { type PropsWithChildren, useCallback } from "react";
 
 import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, GearSixIcon, TrashIcon } from "@phosphor-icons/react";
-import { Position } from "@xyflow/react";
 
-import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -15,10 +14,19 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { getPipelineScopedFields } from "@/components/fields/utils";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
-import { PIPELINE_NODE_GAP, PIPELINE_NODE_WIDTH } from "@/pages/pipelines/canvas/nodes/constants";
-import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
-import PipelineNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeIsland";
+import {
+  CONNECTOR_KIND_TO_CHIP_VARIANT_MAP,
+  CONNECTOR_KIND_TO_HANDLE_ID_MAP,
+  CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP,
+} from "@/pages/pipelines/canvas/constants";
+import {
+  PIPELINE_CANVAS_NODE_GAP,
+  PIPELINE_CANVAS_NODE_WIDTH,
+} from "@/pages/pipelines/canvas/nodes/constants";
+import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
+import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
 
 const NodeContainer = withTheme(styled.div<
   PropsWithTheme<{ $isSelected?: boolean; $width: number }>
@@ -27,9 +35,9 @@ const NodeContainer = withTheme(styled.div<
 
   display: flex;
   flex-direction: column;
-  gap: ${PIPELINE_NODE_GAP}px;
+  gap: ${PIPELINE_CANVAS_NODE_GAP}px;
 
-  &:hover ${PipelineNodeIsland} {
+  &:hover ${PipelineCanvasNodeIsland} {
     border-color: ${({ theme, $isSelected }) =>
       $isSelected ? theme.color.background.galaxyAlt : theme.color.border.tertiary};
   }
@@ -68,7 +76,7 @@ const ActionButton = withTheme(styled.button<PropsWithTheme>`
   }
 `);
 
-const HeaderIsland = styled(PipelineNodeIsland)`
+const HeaderIsland = styled(PipelineCanvasNodeIsland)`
   display: flex;
   align-items: center;
   gap: 4px;
@@ -81,11 +89,10 @@ const HeaderContent = styled.div`
   gap: 8px;
 `;
 
-interface PipelineNodeProps extends PropsWithChildren {
+interface PipelineCanvasNodeProps extends PropsWithChildren {
   connector: string;
   label: string;
   kind: ConnectorKind;
-  handleId: string;
   isConnected?: boolean;
   isSelected?: boolean;
   onRefresh?: () => void;
@@ -93,82 +100,89 @@ interface PipelineNodeProps extends PropsWithChildren {
   onConfigure?: () => void;
 }
 
-const handleActionClick = (event: React.MouseEvent, action: () => void) => {
-  event.stopPropagation();
-  action();
-};
-
-const PipelineNode = ({
+const PipelineCanvasNode = ({
   connector,
   label,
   kind,
-  handleId,
   isConnected = false,
   isSelected = false,
   onRefresh,
   onDelete,
   onConfigure,
   children,
-}: PipelineNodeProps) => {
+}: PipelineCanvasNodeProps) => {
   const connectorSpec = useConnectorSpec(connector, kind);
-  const isSink = kind === ConnectorKind.SINK;
+
   const hasPipelineFields =
     getPipelineScopedFields(connectorSpec?.configSchema?.fields ?? []).length > 0;
 
-  const handleSlot = (
-    <PipelineNodeHandle
-      id={handleId}
-      kind={kind}
-      position={isSink ? Position.Left : Position.Right}
-      isConnected={isConnected}
-    />
+  const handleRefresh = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      onRefresh?.();
+    },
+    [onRefresh],
+  );
+
+  const handleDelete = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      onDelete?.();
+    },
+    [onDelete],
   );
 
   return (
-    <NodeContainer $isSelected={isSelected} $width={PIPELINE_NODE_WIDTH}>
+    <NodeContainer $isSelected={isSelected} $width={PIPELINE_CANVAS_NODE_WIDTH}>
       <ActionBar>
         <Chip
-          label={isSink ? "Sink" : "Source"}
-          variant={isSink ? ChipVariant.PINK : ChipVariant.LIME}
+          label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}
+          variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[kind]}
           size={ChipSize.SMALL}
         />
         <ActionButtons>
           {onConfigure && hasPipelineFields && (
-            // Propagates so React Flow also selects the node, lifting it above
-            // its neighbors while the config island is open.
             <ActionButton className="nodrag" onClick={onConfigure}>
               <Icon component={GearSixIcon} size={14} variant={IconVariant.TERTIARY} />
             </ActionButton>
           )}
           {onRefresh && (
-            <ActionButton
-              className="nodrag"
-              onClick={(event) => handleActionClick(event, onRefresh)}
-            >
+            <ActionButton className="nodrag" onClick={handleRefresh}>
               <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />
             </ActionButton>
           )}
           {onDelete && (
-            <ActionButton
-              className="nodrag"
-              onClick={(event) => handleActionClick(event, onDelete)}
-            >
+            <ActionButton className="nodrag" onClick={handleDelete}>
               <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
             </ActionButton>
           )}
         </ActionButtons>
       </ActionBar>
       <HeaderIsland $isSelected={isSelected}>
-        {isSink && handleSlot}
+        {kind === ConnectorKind.SINK && (
+          <PipelineCanvasNodeHandle
+            id={CONNECTOR_KIND_TO_HANDLE_ID_MAP[kind]}
+            kind={kind}
+            position={CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP[kind]}
+            isConnected={isConnected}
+          />
+        )}
         <HeaderContent>
           <ConnectorTile connector={connector} spec={connectorSpec} />
           <Text size={TextSize.BODY_SM}>{label}</Text>
         </HeaderContent>
-        {!isSink && handleSlot}
+        {kind === ConnectorKind.SOURCE && (
+          <PipelineCanvasNodeHandle
+            id={CONNECTOR_KIND_TO_HANDLE_ID_MAP[kind]}
+            kind={kind}
+            position={CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP[kind]}
+            isConnected={isConnected}
+          />
+        )}
       </HeaderIsland>
       {children}
     </NodeContainer>
   );
 };
 
-export default PipelineNode;
+export default PipelineCanvasNode;

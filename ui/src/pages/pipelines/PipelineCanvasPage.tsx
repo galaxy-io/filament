@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 import { styled } from "@linaria/react";
 import {
@@ -13,9 +13,10 @@ import {
 } from "@xyflow/react";
 
 import { useTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import "@xyflow/react/dist/style.css";
+
+import type { PropsWithTheme } from "@galaxy-io/dls/theme";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
@@ -23,30 +24,30 @@ import {
   PIPELINE_CANVAS_SNAP_GRID,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
-import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph";
-import PipelineNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineNodePlaceholder";
-import PipelineNodeSink from "@/pages/pipelines/canvas/nodes/PipelineNodeSink";
-import PipelineNodeSource from "@/pages/pipelines/canvas/nodes/PipelineNodeSource";
+import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph/layout";
+import PipelineCanvasNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodePlaceholder";
+import PipelineCanvasNodeSink from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSink";
+import PipelineCanvasNodeSource from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
-import { PipelineCanvasActionType } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import {
-  usePipelineCanvasDispatch,
+  usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { PipelineCanvasInteractionMode } from "@/pages/pipelines/canvas/providers/canvas/types";
 import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
-import { PipelineNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { mapEdgesToStyledEdges } from "@/pages/pipelines/canvas/utils";
 
-const pipelineNodeTypes = {
-  [PipelineNodeType.SOURCE]: PipelineNodeSource,
-  [PipelineNodeType.SINK]: PipelineNodeSink,
-  [PipelineNodeType.PLACEHOLDER]: PipelineNodePlaceholder,
+const PIPELINE_CANVAS_NODE_TYPE_TO_COMPONENT_MAP = {
+  [PipelineCanvasNodeType.SOURCE]: PipelineCanvasNodeSource,
+  [PipelineCanvasNodeType.SINK]: PipelineCanvasNodeSink,
+  [PipelineCanvasNodeType.PLACEHOLDER]: PipelineCanvasNodePlaceholder,
 };
 
-const pipelineEdgeTypes = {
+const PIPELINE_EDGE_TYPE_TO_COMPONENT_MAP = {
   [PIPELINE_CANVAS_EDGE_TYPE]: PipelineCanvasEdge,
 };
 
@@ -57,43 +58,11 @@ const PageWrapper = styled.div`
   display: flex;
 `;
 
-const CanvasWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $isGrabMode?: boolean; $isSettling?: boolean }>
->`
+const PipelineCanvasWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolean }>>`
   position: relative;
   flex: 1;
   min-width: 0;
   height: 100%;
-
-  .react-flow__edges {
-    z-index: 1000 !important;
-  }
-
-  .react-flow__node.selected {
-    z-index: 999 !important;
-  }
-
-  /* Pushed nodes glide to their resolved positions, and edge paths
-     transition their d attribute so connectors glide in sync (Chromium;
-     other engines snap). Transitions are live only during the brief settle
-     after a node resizes, so dragging, panning, and zooming stay direct. */
-  .react-flow__node {
-    transition: ${({ $isSettling }) => ($isSettling ? "transform 150ms ease" : "none")};
-  }
-
-  .react-flow__edge-path {
-    transition: ${({ $isSettling }) => ($isSettling ? "d 150ms ease" : "none")};
-  }
-
-  /* Placeholder ghosts are non-draggable/selectable/connectable, which makes
-     React Flow drop their pointer events - restore them so clicks expand */
-  .react-flow__node-PLACEHOLDER {
-    pointer-events: all !important;
-  }
-
-  .react-flow__background {
-    background-color: ${({ theme }) => theme.color.background.base};
-  }
 
   .react-flow__selection {
     background: color-mix(
@@ -132,61 +101,39 @@ const CanvasWrapper = withTheme(styled.div<
     display: flex;
     align-items: center;
     justify-content: center;
-
-    svg {
-      background-color: ${({ theme }) => theme.color.background.base};
-    }
   }
 `);
 
 const PipelineCanvas = () => {
   const theme = useTheme();
   const state = usePipelineCanvasState();
-  const dispatch = usePipelineCanvasDispatch();
+  const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();
   const isReadOnly = usePipelineCanvasReadOnly();
-  const [isSettling, setIsSettling] = useState(false);
-  const settleTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {
       if (isReadOnly) return;
-      // A dimension change kicks off overlap resolution: enable transitions
-      // just long enough for pushed nodes and edges to glide into place.
-      if (changes.some((change) => change.type === "dimensions")) {
-        setIsSettling(true);
-        clearTimeout(settleTimeout.current);
-        settleTimeout.current = setTimeout(() => setIsSettling(false), 250);
-      }
-      dispatch({
-        type: PipelineCanvasActionType.APPLY_NODE_CHANGES,
-        payload: changes,
-      });
+      applyNodeChanges(changes);
     },
-    [dispatch, isReadOnly],
+    [applyNodeChanges, isReadOnly],
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange<CanvasEdge>[]) => {
       if (isReadOnly) return;
-      dispatch({
-        type: PipelineCanvasActionType.APPLY_EDGE_CHANGES,
-        payload: changes,
-      });
+      applyEdgeChanges(changes);
     },
-    [dispatch, isReadOnly],
+    [applyEdgeChanges, isReadOnly],
   );
 
   const onConnect = useCallback(
     (connection: Connection) => {
       if (isReadOnly) return;
-      dispatch({
-        type: PipelineCanvasActionType.CONNECT,
-        payload: connection,
-      });
+      connect(connection);
     },
-    [dispatch, isReadOnly],
+    [connect, isReadOnly],
   );
 
   const renderedNodes = useMemo(
@@ -194,40 +141,22 @@ const PipelineCanvas = () => {
     [state.nodes, isReadOnly],
   );
 
-  const selectedNodeIds = useMemo(
-    () => new Set(state.nodes.filter((node) => node.selected).map((node) => node.id)),
-    [state.nodes],
-  );
-
-  const styledEdges = useMemo<CanvasEdge[]>(
-    () =>
-      state.edges.map((edge) => {
-        const isConnectedToSelected =
-          selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target);
-        const isHighlighted = edge.selected || isConnectedToSelected;
-
-        return {
-          ...edge,
-          style: {
-            stroke: isHighlighted ? theme.color.background.galaxy : theme.color.border.primary,
-            strokeWidth: edge.selected ? 3 : 2,
-          },
-        };
-      }),
-    [state.edges, selectedNodeIds, theme],
+  const styledEdges = useMemo(
+    () => mapEdgesToStyledEdges(state.edges, state.nodes, theme),
+    [state.edges, state.nodes, theme],
   );
 
   return (
     <PageWrapper>
-      <CanvasWrapper $isGrabMode={isGrabMode} $isSettling={isSettling}>
+      <PipelineCanvasWrapper $isGrabMode={isGrabMode}>
         <ReactFlow
           nodes={renderedNodes}
           edges={styledEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          nodeTypes={pipelineNodeTypes}
-          edgeTypes={pipelineEdgeTypes}
+          nodeTypes={PIPELINE_CANVAS_NODE_TYPE_TO_COMPONENT_MAP}
+          edgeTypes={PIPELINE_EDGE_TYPE_TO_COMPONENT_MAP}
           nodesDraggable={!isReadOnly}
           nodesConnectable={!isReadOnly}
           elementsSelectable={!isReadOnly}
@@ -247,11 +176,12 @@ const PipelineCanvas = () => {
             gap={20}
             size={1}
             color={theme.color.border.primary}
+            bgColor={theme.color.background.base}
           />
           <PipelineCanvasControls />
           <MiniMap
             nodeColor={(node) => {
-              if (node.type === PipelineNodeType.PLACEHOLDER) return "transparent";
+              if (node.type === PipelineCanvasNodeType.PLACEHOLDER) return "transparent";
               return node.selected
                 ? theme.color.background.galaxy
                 : theme.color.background.tertiary;
@@ -260,6 +190,7 @@ const PipelineCanvas = () => {
               node.selected ? theme.color.background.galaxy : theme.color.border.primary
             }
             nodeStrokeWidth={1}
+            bgColor={theme.color.background.base}
             maskColor={`${theme.color.background.primary}80`}
             pannable
             zoomable
@@ -267,7 +198,7 @@ const PipelineCanvas = () => {
         </ReactFlow>
         {!isReadOnly && <PipelineCanvasEditWidget />}
         {!isReadOnly && <PipelineCanvasTerminal />}
-      </CanvasWrapper>
+      </PipelineCanvasWrapper>
     </PageWrapper>
   );
 };

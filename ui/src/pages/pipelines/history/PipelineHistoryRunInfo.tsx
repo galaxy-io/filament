@@ -23,9 +23,9 @@ import ErrorLayout from "@/layouts/ErrorLayout";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
   PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-  PIPELINE_RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/history/constants";
 
 import { useGetRunQuery } from "@/api/queries/runs";
@@ -65,7 +65,7 @@ const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceState>[] = [
   {
     id: "records",
     header: "Records",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
@@ -76,7 +76,7 @@ const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceState>[] = [
   {
     id: "volume",
     header: "Volume",
-    size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
     align: ColumnAlign.RIGHT,
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
@@ -87,11 +87,11 @@ const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceState>[] = [
   },
 ];
 
-interface PipelineRunInfoProps {
+interface PipelineHistoryRunInfoProps {
   runId: RunInfo["runId"];
 }
 
-const PipelineRunInfo = ({ runId }: PipelineRunInfoProps) => {
+const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   const { data, isLoading, isError } = useGetRunQuery({
     input: create(GetRunRequestSchema, { runId }),
   });
@@ -136,4 +136,4 @@ const PipelineRunInfo = ({ runId }: PipelineRunInfoProps) => {
   );
 };
 
-export default PipelineRunInfo;
+export default PipelineHistoryRunInfo;

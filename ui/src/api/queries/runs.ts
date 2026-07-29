@@ -24,7 +24,7 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-const ACTIVE_RUN_STATUSES = new Set<RunStatus>([
+export const ACTIVE_RUN_STATUSES = new Set<RunStatus>([
   RunStatus.REQUESTED,
   RunStatus.RUNNING,
   RunStatus.PAUSED,

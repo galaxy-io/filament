@@ -16,12 +16,12 @@ import {
   PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP,
 } from "@/pages/pipelines/history/constants";
 
-interface PipelineRunStatusProps {
+interface PipelineHistoryRunStatusProps {
   status: RunStatus;
   error?: string;
 }
 
-const PipelineRunStatus = ({ status, error }: PipelineRunStatusProps) => {
+const PipelineHistoryRunStatus = ({ status, error }: PipelineHistoryRunStatusProps) => {
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
       <Beacon
@@ -50,4 +50,4 @@ const PipelineRunStatus = ({ status, error }: PipelineRunStatusProps) => {
   );
 };
 
-export default PipelineRunStatus;
+export default PipelineHistoryRunStatus;

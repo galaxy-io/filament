@@ -9,12 +9,14 @@ export enum PipelineCanvasInteractionMode {
   SELECT = "SELECT",
 }
 
+export interface PipelineCanvasGraph {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+}
+
 export interface PipelineCanvasState {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   activeMode: PipelineCanvasEditMode | null;
   interactionMode: PipelineCanvasInteractionMode;
-  // Y positions nodes were pushed from by overlap resolution, so they return
-  // when the space above them frees up. Keyed by node id.
-  restoreYs: Record<string, number>;
 }

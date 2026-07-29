@@ -3,23 +3,27 @@ import {
   type Dispatch,
   type PropsWithChildren,
   useContext,
+  useMemo,
   useReducer,
+  useState,
 } from "react";
 
-import type { PipelineCanvasAction } from "@/pages/pipelines/canvas/providers/canvas/actions";
-import pipelineCanvasReducer from "@/pages/pipelines/canvas/providers/canvas/reducer";
-import {
-  PipelineCanvasInteractionMode,
-  type PipelineCanvasState,
-} from "@/pages/pipelines/canvas/providers/canvas/types";
+import type { JsonValue } from "@bufbuild/protobuf";
+import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
-const DEFAULT_STATE: PipelineCanvasState = {
-  nodes: [],
-  edges: [],
-  activeMode: null,
-  interactionMode: PipelineCanvasInteractionMode.GRAB,
-  restoreYs: {},
-};
+import {
+  type PipelineCanvasAction,
+  PipelineCanvasActionType,
+} from "@/pages/pipelines/canvas/providers/canvas/actions";
+import pipelineCanvasReducer from "@/pages/pipelines/canvas/providers/canvas/reducer";
+import type {
+  PipelineCanvasEditMode,
+  PipelineCanvasGraph,
+  PipelineCanvasInteractionMode,
+  PipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/types";
+import { createInitialPipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/utils";
+import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 
 const PipelineCanvasStateContext = createContext<PipelineCanvasState | null>(null);
 PipelineCanvasStateContext.displayName = "PipelineCanvasStateContext";
@@ -38,7 +42,7 @@ export const usePipelineCanvasState = () => {
   return state;
 };
 
-export const usePipelineCanvasDispatch = () => {
+const usePipelineCanvasDispatch = () => {
   const dispatch = useContext(PipelineCanvasDispatchContext);
   if (!dispatch) {
     throw new Error("usePipelineCanvasDispatch must be used within PipelineCanvasProvider");
@@ -48,20 +52,79 @@ export const usePipelineCanvasDispatch = () => {
 
 export const usePipelineCanvasReadOnly = () => useContext(PipelineCanvasReadOnlyContext);
 
+export const usePipelineCanvasActions = () => {
+  const dispatch = usePipelineCanvasDispatch();
+
+  return useMemo(
+    () => ({
+      loadGraph: (graph: PipelineCanvasGraph) =>
+        dispatch({ type: PipelineCanvasActionType.LOAD_GRAPH, payload: graph }),
+      addNode: (node: CanvasNode) =>
+        dispatch({ type: PipelineCanvasActionType.ADD_NODE, payload: node }),
+      removeNode: (nodeId: string) =>
+        dispatch({
+          type: PipelineCanvasActionType.REMOVE_NODE,
+          payload: nodeId,
+        }),
+      setNodes: (nodes: CanvasNode[]) =>
+        dispatch({ type: PipelineCanvasActionType.SET_NODES, payload: nodes }),
+      applyNodeChanges: (changes: NodeChange<CanvasNode>[]) =>
+        dispatch({
+          type: PipelineCanvasActionType.APPLY_NODE_CHANGES,
+          payload: changes,
+        }),
+      applyEdgeChanges: (changes: EdgeChange<CanvasEdge>[]) =>
+        dispatch({
+          type: PipelineCanvasActionType.APPLY_EDGE_CHANGES,
+          payload: changes,
+        }),
+      connect: (connection: Connection) =>
+        dispatch({
+          type: PipelineCanvasActionType.CONNECT,
+          payload: connection,
+        }),
+      setActiveMode: (mode: PipelineCanvasEditMode | null) =>
+        dispatch({
+          type: PipelineCanvasActionType.SET_ACTIVE_MODE,
+          payload: mode,
+        }),
+      setInteractionMode: (mode: PipelineCanvasInteractionMode) =>
+        dispatch({
+          type: PipelineCanvasActionType.SET_INTERACTION_MODE,
+          payload: mode,
+        }),
+      setNodeConfig: (nodeId: string, config: Record<string, JsonValue>) =>
+        dispatch({
+          type: PipelineCanvasActionType.SET_NODE_CONFIG,
+          payload: { nodeId, config },
+        }),
+    }),
+    [dispatch],
+  );
+};
+
 interface PipelineCanvasProviderProps {
-  initialState?: Partial<PipelineCanvasState>;
+  graph: PipelineCanvasGraph;
+  graphKey: string;
   isReadOnly?: boolean;
 }
 
 const PipelineCanvasProvider = ({
-  children,
-  initialState,
+  graph,
+  graphKey,
   isReadOnly = false,
+  children,
 }: PropsWithChildren<PipelineCanvasProviderProps>) => {
-  const [state, dispatch] = useReducer(pipelineCanvasReducer, {
-    ...DEFAULT_STATE,
-    ...initialState,
-  });
+  const [state, dispatch] = useReducer(
+    pipelineCanvasReducer,
+    createInitialPipelineCanvasState(graph),
+  );
+
+  const [previousGraphKey, setPreviousGraphKey] = useState(graphKey);
+  if (previousGraphKey !== graphKey) {
+    setPreviousGraphKey(graphKey);
+    dispatch({ type: PipelineCanvasActionType.LOAD_GRAPH, payload: graph });
+  }
 
   return (
     <PipelineCanvasReadOnlyContext.Provider value={isReadOnly}>
