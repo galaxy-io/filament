@@ -319,16 +319,18 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		endedAt = state.FinishedAt.UnixMilli()
 	}
 	return &ingestionv1.RunInfo{
-		RunId:             string(state.Run),
-		TenantId:          string(state.Tenant),
-		PipelineId:        state.Request.PipelineID,
-		PipelineVersionId: state.Request.PipelineVersionID,
-		Status:            runStatusToProto(state.Status),
-		Records:           state.Records,
-		Bytes:             state.Bytes,
-		Error:             state.Error,
-		StartedAt:         startedAt,
-		EndedAt:           endedAt,
+		RunId:              string(state.Run),
+		TenantId:           string(state.Tenant),
+		PipelineId:         state.Request.PipelineID,
+		PipelineVersionId:  state.Request.PipelineVersionID,
+		Status:             runStatusToProto(state.Status),
+		Records:            state.Records,
+		Bytes:              state.Bytes,
+		Error:              state.Error,
+		StartedAt:          startedAt,
+		EndedAt:            endedAt,
+		SourceConnectionId: state.Request.SourceConnectionID,
+		SinkConnectionId:   state.Request.SinkConnectionID,
 	}
 }
 
