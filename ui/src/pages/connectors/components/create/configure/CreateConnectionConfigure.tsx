@@ -21,7 +21,8 @@ import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import { ValidateConfigRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
-import ConfigFieldRenderer from "@/components/fields/ConfigFieldRenderer";
+import Field from "@/components/fields/Field";
+import { getConnectionScopedFields } from "@/components/fields/utils";
 
 import { CreateConnectionActionType } from "@/pages/connectors/components/create/configure/actions";
 import CreateConnectionConfigureHeader from "@/pages/connectors/components/create/configure/CreateConnectionConfigureHeader";
@@ -30,7 +31,6 @@ import CreateConnectionConfigureProvider, {
 } from "@/pages/connectors/components/create/configure/CreateConnectionConfigureProvider";
 import CreateConnectionConfigureWrapper from "@/pages/connectors/components/create/configure/CreateConnectionConfigureWrapper";
 import { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
-import { getConnectorConfigSchemaConnectionFields } from "@/pages/connectors/components/create/configure/utils";
 import {
   createRequiredFieldsValidationErrorMap,
   getNameError,
@@ -80,7 +80,10 @@ const CreateConnectionConfigureContent = ({
   const { mutate: validateConfig } = useValidateConfigMutation();
   const { mutate: createConnection } = useCreateConnectionMutation();
 
-  const fields = useMemo(() => getConnectorConfigSchemaConnectionFields(connector), [connector]);
+  const fields = useMemo(
+    () => getConnectionScopedFields(connector.configSchema?.fields ?? []),
+    [connector],
+  );
 
   const isDisabled =
     state.phase === CreateConnectionPhase.VALIDATING ||
@@ -264,7 +267,7 @@ const CreateConnectionConfigureContent = ({
           autoFocus
         />
         {fields.map((field) => (
-          <ConfigFieldRenderer
+          <Field
             key={field.name}
             field={field}
             value={getFieldValue(field.name)}

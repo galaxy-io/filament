@@ -17,24 +17,31 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
-import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
+import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
+import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
 import {
-  hasPipelineGraphChanges,
-  isPipelineRunnable,
   mapCanvasStateToVersionRequest,
-} from "@/pages/pipelines/canvas/graph";
-import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { PipelineCanvasRunActionType } from "@/pages/pipelines/canvas/providers/run/actions";
-import { usePipelineCanvasRunDispatch } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
+  mapPipelineVersionToCanvasState,
+} from "@/pages/pipelines/canvas/graph/serialize";
+import {
+  usePipelineCanvasActions,
+  usePipelineCanvasState,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import { usePipelineCanvasRunActions } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
-import { useRunPipelineMutation } from "@/api/queries/runs";
+import {
+  ACTIVE_RUN_STATUSES,
+  useRunPipelineMutation,
+  useSuspenseListRunsQuery,
+} from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -57,6 +64,7 @@ interface PipelineLayoutNavbarProps {
   pipeline: Pipeline;
   currentVersion?: PipelineVersion;
   versions: PipelineVersion[];
+  connections: Connection[];
   previewVersion: bigint | null;
   onPreviewVersionChange: (version: bigint | null) => void;
 }
@@ -65,20 +73,35 @@ const PipelineLayoutNavbar = ({
   pipeline,
   currentVersion,
   versions,
+  connections,
   previewVersion,
   onPreviewVersionChange,
 }: PipelineLayoutNavbarProps) => {
   const { showToast } = useToast();
 
   const state = usePipelineCanvasState();
-  const dispatch = usePipelineCanvasRunDispatch();
+  const { loadGraph } = usePipelineCanvasActions();
+  const { startRun } = usePipelineCanvasRunActions();
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
+
+  const { data: activeRunsData } = useSuspenseListRunsQuery({
+    input: create(ListRunsRequestSchema, {
+      pipelineId: pipeline.id,
+      status: [...ACTIVE_RUN_STATUSES],
+      limit: 1,
+    }),
+  });
+  const hasActiveRun = activeRunsData.runs.length > 0;
 
   const hasChanges = useMemo(
     () => hasPipelineGraphChanges({ nodes: state.nodes, edges: state.edges }, currentVersion),
     [state.nodes, state.edges, currentVersion],
   );
+
+  const handleUndo = () => {
+    loadGraph(mapPipelineVersionToCanvasState(currentVersion, connections));
+  };
 
   const handleSave = () => {
     createPipelineVersion(mapCanvasStateToVersionRequest(state, pipeline.id, currentVersion), {
@@ -115,7 +138,7 @@ const PipelineLayoutNavbar = ({
         id: version.version.toString(),
         label:
           version.version === latestVersion
-            ? `Version ${version.version} • Latest`
+            ? `Version ${version.version} - Latest`
             : `Version ${version.version}`,
         value: version.version,
       })),
@@ -132,10 +155,7 @@ const PipelineLayoutNavbar = ({
   const handleRun = () => {
     runPipeline(create(RunPipelineRequestSchema, { pipelineId: pipeline.id }), {
       onSuccess: (response) => {
-        dispatch({
-          type: PipelineCanvasRunActionType.START_RUN,
-          payload: response.runs,
-        });
+        startRun(response.runs);
         showToast({
           header: "Run started",
           subheader: `${formatPipelineName(pipeline)} is now running.`,
@@ -187,22 +207,31 @@ const PipelineLayoutNavbar = ({
         )}
         {!isPreview &&
           (hasUnsavedChanges ? (
-            <Button
-              label="Save"
-              icon={FloppyDiskIcon}
-              variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.SMALL}
-              isLoading={isSaving}
-              onClick={handleSave}
-            />
+            <>
+              <Button
+                label="Undo"
+                icon={ArrowUUpLeftIcon}
+                variant={ButtonVariant.TERTIARY}
+                size={ButtonSize.SMALL}
+                onClick={handleUndo}
+              />
+              <Button
+                label="Save"
+                icon={FloppyDiskIcon}
+                variant={ButtonVariant.PRIMARY_ALT}
+                size={ButtonSize.SMALL}
+                isLoading={isSaving}
+                onClick={handleSave}
+              />
+            </>
           ) : (
             <Button
-              label="Run"
+              label={!isPipelineRunnable(currentVersion) || hasActiveRun ? "Running..." : "Run"}
               icon={PlayIcon}
               variant={ButtonVariant.PRIMARY}
               size={ButtonSize.SMALL}
               isLoading={isRunning}
-              isDisabled={!isPipelineRunnable(currentVersion)}
+              isDisabled={!isPipelineRunnable(currentVersion) || hasActiveRun}
               onClick={handleRun}
             />
           ))}

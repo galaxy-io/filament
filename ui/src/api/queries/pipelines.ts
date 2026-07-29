@@ -17,8 +17,6 @@ import type {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-// ========== LIST PIPELINES ==========
-
 export const createListPipelinesQueryKey = (
   input?: ListPipelinesRequest,
   transport?: Transport,
@@ -66,8 +64,6 @@ export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelines
   >(IngestionService.method.listPipelines, input);
 };
 
-// ========== GET PIPELINE ==========
-
 export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getPipeline,
@@ -95,8 +91,6 @@ export const useSuspenseGetPipelineQuery = ({ input }: { input: GetPipelineReque
     typeof IngestionService.method.getPipeline.output
   >(IngestionService.method.getPipeline, input);
 };
-
-// ========== MUTATIONS ==========
 
 export const useCreatePipelineMutation = (
   options: UseMutationOptions<

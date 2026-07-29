@@ -1,40 +1,50 @@
 import type { JsonValue } from "@bufbuild/protobuf";
-import type { BuiltInNode, Edge, Node } from "@xyflow/react";
+import type { Edge, Node } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-export enum PipelineNodeType {
+export enum PipelineCanvasNodeType {
   SOURCE = "SOURCE",
   SINK = "SINK",
   PLACEHOLDER = "PLACEHOLDER",
 }
 
-export interface PipelineSourceNodeTableInfo {
+export interface PipelineCanvasNodeTableInfo {
   name: string;
   isConnected: boolean;
 }
 
-export type PipelineConnectionNodeData = {
+export type PipelineCanvasConnectionNodeData = {
   label: string;
   connector: string;
   connectionId: string;
   config?: Record<string, JsonValue>;
 };
 
-export type PipelinePlaceholderNodeData = {
+export type PipelineCanvasPlaceholderNodeData = {
   kind: ConnectorKind;
 };
 
-export type PipelineSourceNode = Node<PipelineConnectionNodeData, PipelineNodeType.SOURCE>;
-export type PipelineSinkNode = Node<PipelineConnectionNodeData, PipelineNodeType.SINK>;
-export type PipelinePlaceholderNode = Node<
-  PipelinePlaceholderNodeData,
-  PipelineNodeType.PLACEHOLDER
+export type PipelineCanvasSourceNode = Node<
+  PipelineCanvasConnectionNodeData,
+  PipelineCanvasNodeType.SOURCE
+>;
+export type PipelineCanvasSinkNode = Node<
+  PipelineCanvasConnectionNodeData,
+  PipelineCanvasNodeType.SINK
+>;
+export type PipelineCanvasPlaceholderNode = Node<
+  PipelineCanvasPlaceholderNodeData,
+  PipelineCanvasNodeType.PLACEHOLDER
 >;
 export type CanvasNode =
-  | PipelineSourceNode
-  | PipelineSinkNode
-  | PipelinePlaceholderNode
-  | BuiltInNode;
+  | PipelineCanvasSourceNode
+  | PipelineCanvasSinkNode
+  | PipelineCanvasPlaceholderNode;
 
 export type CanvasEdge = Edge;
+
+export const isConnectionNode = (
+  node: CanvasNode,
+): node is PipelineCanvasSourceNode | PipelineCanvasSinkNode =>
+  node.type === PipelineCanvasNodeType.SOURCE || node.type === PipelineCanvasNodeType.SINK;

@@ -14,7 +14,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
-import ListPageLayout from "@/layouts/ListPageLayout";
+import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
 import ConnectionsPageSinksEmptyGraphic from "@/pages/connectors/components/ConnectionsPageSinksEmptyGraphic";
 import ConnectionsPageSourcesEmptyGraphic from "@/pages/connectors/components/ConnectionsPageSourcesEmptyGraphic";
@@ -161,7 +161,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   };
 
   return (
-    <ListPageLayout
+    <MainLayoutListPage
       search={state.search}
       onSearchChange={handleSearchChange}
       actions={[
@@ -175,7 +175,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
       ]}
     >
       {renderContent()}
-    </ListPageLayout>
+    </MainLayoutListPage>
   );
 };
 

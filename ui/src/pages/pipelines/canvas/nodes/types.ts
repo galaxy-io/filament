@@ -1,11 +1,11 @@
 import type { NodeProps } from "@xyflow/react";
 
 import type {
-  PipelinePlaceholderNode,
-  PipelineSinkNode,
-  PipelineSourceNode,
+  PipelineCanvasPlaceholderNode,
+  PipelineCanvasSinkNode,
+  PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
 
-export type PipelineNodeSourceProps = NodeProps<PipelineSourceNode>;
-export type PipelineNodeSinkProps = NodeProps<PipelineSinkNode>;
-export type PipelineNodePlaceholderProps = NodeProps<PipelinePlaceholderNode>;
+export type PipelineCanvasNodeSourceProps = NodeProps<PipelineCanvasSourceNode>;
+export type PipelineCanvasNodeSinkProps = NodeProps<PipelineCanvasSinkNode>;
+export type PipelineCanvasNodePlaceholderProps = NodeProps<PipelineCanvasPlaceholderNode>;

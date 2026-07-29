@@ -50,6 +50,10 @@ export function isJsonObject(value: JsonValue): value is Record<string, JsonValu
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+export function getConnectionScopedFields(fields: ConfigField[]): ConfigField[] {
+  return fields.filter((field) => field.scope === FieldScope.CONNECTION);
+}
+
 export function getPipelineScopedFields(fields: ConfigField[]): ConfigField[] {
   return fields.filter((field) => field.scope === FieldScope.PIPELINE);
 }

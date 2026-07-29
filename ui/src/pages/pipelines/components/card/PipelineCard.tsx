@@ -1,10 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
   AlignItems,
   FlexGap,
@@ -27,8 +25,6 @@ import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useListConnectionsQuery } from "@/api/queries/connections";
 import { useGetPipelineVersionQuery } from "@/api/queries/pipeline_versions";
-
-import { NOOP } from "@/constants";
 
 const CardLinkWrapper = styled(Link)`
   display: block;
@@ -99,12 +95,6 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
 
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
           <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-          <Button
-            variant={ButtonVariant.TERTIARY}
-            size={ButtonSize.SMALL}
-            icon={ArrowUpRightIcon}
-            onClick={NOOP}
-          />
         </FlexWrapper>
       </CardWrapper>
     </CardLinkWrapper>

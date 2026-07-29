@@ -14,7 +14,7 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_DESCRIPTION_MAP } from "@/pages/connectors/constants";
 
 interface CreateConnectionSelectorCardProps {
@@ -39,11 +39,7 @@ const CreateConnectionSelectorCard = ({
           fillWidth
         >
           <FlexWrapper gap={8} alignItems={AlignItems.CENTER}>
-            <ConnectorTile
-              connector={connector.name}
-              spec={connector}
-              size={ConnectorTileSize.SMALL}
-            />
+            <ConnectorTile connector={connector.name} spec={connector} />
             <Text weight={TextWeight.MEDIUM}>{connector.displayName || connector.name}</Text>
           </FlexWrapper>
           <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />

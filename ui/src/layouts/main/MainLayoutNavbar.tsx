@@ -11,11 +11,22 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import FilamentLogo from "@/assets/components/FilamentLogo";
 
-import { NAV_ITEMS, NAVBAR_HEIGHT, type NavItem } from "@/layouts/main/constants";
-
-import { useRouteMatch } from "@/hooks/useRouteMatch";
+import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
 
 import { DOCUMENTATION_URL, GITHUB_REPO_URL } from "@/constants";
+
+export const NAVBAR_HEIGHT = 52;
+
+export interface NavItem {
+  to: TRoutes;
+  label: string;
+}
+
+export const NAV_ITEMS: NavItem[] = [
+  { to: "/pipelines", label: "Pipelines" },
+  { to: "/sources", label: "Sources" },
+  { to: "/sinks", label: "Sinks" },
+];
 
 const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;

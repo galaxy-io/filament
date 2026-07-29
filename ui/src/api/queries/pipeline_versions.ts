@@ -17,8 +17,6 @@ import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
 
-// ========== GET PIPELINE VERSION ==========
-
 export const createGetPipelineVersionQueryKey = (
   input?: GetPipelineVersionRequest,
   transport?: Transport,
@@ -58,8 +56,6 @@ export const useGetPipelineVersionQuery = ({
     typeof IngestionService.method.getPipelineVersion.output
   >(IngestionService.method.getPipelineVersion, input, options);
 };
-
-// ========== MUTATIONS ==========
 
 export const useCreatePipelineVersionMutation = (
   options: UseMutationOptions<

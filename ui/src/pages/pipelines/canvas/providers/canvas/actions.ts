@@ -3,11 +3,13 @@ import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type {
   PipelineCanvasEditMode,
+  PipelineCanvasGraph,
   PipelineCanvasInteractionMode,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 
 export enum PipelineCanvasActionType {
+  LOAD_GRAPH = "LOAD_GRAPH",
   ADD_NODE = "ADD_NODE",
   REMOVE_NODE = "REMOVE_NODE",
   SET_NODES = "SET_NODES",
@@ -17,6 +19,11 @@ export enum PipelineCanvasActionType {
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
   SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
+}
+
+export interface LoadGraphAction {
+  type: PipelineCanvasActionType.LOAD_GRAPH;
+  payload: PipelineCanvasGraph;
 }
 
 export interface AddNodeAction {
@@ -65,6 +72,7 @@ export interface SetNodeConfigAction {
 }
 
 export type PipelineCanvasAction =
+  | LoadGraphAction
   | AddNodeAction
   | RemoveNodeAction
   | SetNodesAction

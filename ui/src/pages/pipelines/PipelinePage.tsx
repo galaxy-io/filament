@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-route
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph";
+import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import PipelineCanvasRunProvider from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import PipelineLayout from "@/pages/pipelines/layout/PipelineLayout";
@@ -43,11 +43,8 @@ const PipelinePage = () => {
 
   return (
     <PipelineCanvasProvider
-      key={`${id}:${previewed?.version ?? "latest"}`}
-      initialState={mapPipelineVersionToCanvasState(
-        previewed ?? version,
-        connectionsData.connections,
-      )}
+      graphKey={`${id}:${previewed?.version ?? "latest"}`}
+      graph={mapPipelineVersionToCanvasState(previewed ?? version, connectionsData.connections)}
       isReadOnly={Boolean(previewed)}
     >
       <PipelineCanvasRunProvider>
@@ -55,6 +52,7 @@ const PipelinePage = () => {
           pipeline={pipeline}
           currentVersion={version}
           versions={versions}
+          connections={connectionsData.connections}
           previewVersion={previewed?.version ?? null}
           onPreviewVersionChange={handlePreviewVersionChange}
         >

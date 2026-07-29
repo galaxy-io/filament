@@ -25,12 +25,8 @@ const SlotsWrapper = styled.div`
   grid-template-columns: repeat(${SLOT_COLUMN_COUNT}, ${SLOT_SIZE}px);
   gap: 12px;
 
-  mask-image: radial-gradient(closest-side at 50% 50%, black 55%, transparent);
-  -webkit-mask-image: radial-gradient(
-    closest-side at 50% 50%,
-    black 55%,
-    transparent
-  );
+  mask-image: linear-gradient(180deg, black 55%, transparent 110%);
+  -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
 `;
 
 const Slot = withTheme(styled.div<PropsWithTheme<{ $isLive: boolean; $isFilled: boolean }>>`

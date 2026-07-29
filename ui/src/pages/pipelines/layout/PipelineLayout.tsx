@@ -7,6 +7,7 @@ import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { PIPELINE_SIDEBAR_WIDTH } from "@/pages/pipelines/layout/constants";
@@ -87,6 +88,7 @@ interface PipelineLayoutProps {
   pipeline: Pipeline;
   currentVersion?: PipelineVersion;
   versions: PipelineVersion[];
+  connections: Connection[];
   previewVersion: bigint | null;
   onPreviewVersionChange: (version: bigint | null) => void;
 }
@@ -95,6 +97,7 @@ const PipelineLayout = ({
   pipeline,
   currentVersion,
   versions,
+  connections,
   previewVersion,
   onPreviewVersionChange,
   children,
@@ -136,6 +139,7 @@ const PipelineLayout = ({
           pipeline={pipeline}
           currentVersion={currentVersion}
           versions={versions}
+          connections={connections}
           previewVersion={previewVersion}
           onPreviewVersionChange={onPreviewVersionChange}
         />

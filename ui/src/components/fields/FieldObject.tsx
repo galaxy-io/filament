@@ -4,7 +4,7 @@ import type { JsonValue } from "@bufbuild/protobuf";
 
 import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
 
-import Field from "@/components/fields/Field";
+import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
 
 interface FieldObjectState {
@@ -60,7 +60,7 @@ const FieldObject = ({
   };
 
   return (
-    <Field
+    <FieldWrapper
       label={label}
       help={field.help}
       isRequired={field.required}
@@ -74,7 +74,7 @@ const FieldObject = ({
         isReadOnly={isDisabled}
         noLineNumbers
       />
-    </Field>
+    </FieldWrapper>
   );
 };
 
