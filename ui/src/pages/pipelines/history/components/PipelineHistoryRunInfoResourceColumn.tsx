@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { useNavigate } from "@tanstack/react-router";
 
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -17,17 +18,34 @@ interface PipelineHistoryRunInfoResourceColumnProps {
 const PipelineHistoryRunInfoResourceColumn = ({
   runResource,
 }: PipelineHistoryRunInfoResourceColumnProps) => {
+  const navigate = useNavigate();
+
   const { data: sourceConnection } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, {
       id: runResource.sourceConnectionId,
     }),
   });
 
+  const handleConnectorTileClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (sourceConnection?.connection) {
+      navigate({
+        to: ".",
+        search: (prev) => ({
+          ...prev,
+          connectionId: sourceConnection?.connection?.id,
+        }),
+      });
+    }
+  };
+
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
       <ConnectorTile
         connector={sourceConnection?.connection?.connector ?? ""}
         size={ConnectorTileSize.SMALL}
+        onClick={handleConnectorTileClick}
       />
       <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
         {sourceConnection?.connection?.name ?? "—"}
