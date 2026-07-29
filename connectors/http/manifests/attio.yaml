@@ -324,7 +324,7 @@ resources:
         offset:
           offset: query.offset
           limit: query.limit
-          page_size: 500
+          page_size: 50
   - name: tasks
     path: /v2/tasks
     query:
@@ -366,7 +366,7 @@ resources:
         offset:
           offset: query.offset
           limit: query.limit
-          page_size: 500
+          page_size: 50
   - name: meetings
     path: /v2/meetings
     query:
@@ -459,7 +459,7 @@ resources:
         offset:
           offset: query.offset
           limit: query.limit
-          page_size: 500
+          page_size: 100
   - name: people
     path: /v2/objects/people/records/query
     method: POST
