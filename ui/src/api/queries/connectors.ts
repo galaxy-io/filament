@@ -13,8 +13,6 @@ import type {
 } from "@/gen/ingestion/v1/providers_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-// ========== LIST CONNECTORS ==========
-
 export const useListConnectorsQuery = ({
   input,
   options = {},
@@ -31,8 +29,6 @@ export const useListConnectorsQuery = ({
   >(IngestionService.method.listConnectors, input, options);
 };
 
-// ========== DISCOVER RESOURCES ==========
-
 export const useDiscoverResourcesQuery = ({
   input,
   options = {},
@@ -48,8 +44,6 @@ export const useDiscoverResourcesQuery = ({
     typeof IngestionService.method.discoverResources.output
   >(IngestionService.method.discoverResources, input, options);
 };
-
-// ========== MUTATIONS ==========
 
 export const useValidateConfigMutation = (
   options: UseMutationOptions<

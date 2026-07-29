@@ -10,7 +10,7 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
-const ScrollArea = styled.div<{ $noPadding?: boolean }>`
+const MainLayoutListPageScrollArea = styled.div<{ $noPadding?: boolean }>`
   flex: 1;
   width: 100%;
   min-height: 0;
@@ -23,20 +23,20 @@ const ScrollArea = styled.div<{ $noPadding?: boolean }>`
   overflow-y: auto;
 `;
 
-interface ListPageLayoutProps {
+interface MainLayoutListPage {
   search: string;
   onSearchChange: (search: string) => void;
   actions: ReactNode[];
   noPadding?: boolean;
 }
 
-const ListPageLayout = ({
+const MainLayoutListPage = ({
   search,
   onSearchChange,
   actions,
   noPadding = false,
   children,
-}: PropsWithChildren<ListPageLayoutProps>) => {
+}: PropsWithChildren<MainLayoutListPage>) => {
   return (
     <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
       <BaseToolbar
@@ -55,9 +55,9 @@ const ListPageLayout = ({
       <FlexItem grow={0} shrink={0} fillWidth>
         <HorizontalDivider />
       </FlexItem>
-      <ScrollArea $noPadding={noPadding}>{children}</ScrollArea>
+      <MainLayoutListPageScrollArea $noPadding={noPadding}>{children}</MainLayoutListPageScrollArea>
     </FlexWrapper>
   );
 };
 
-export default ListPageLayout;
+export default MainLayoutListPage;

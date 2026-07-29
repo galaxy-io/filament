@@ -27,13 +27,13 @@ import {
   removePipelineNodeMeasurements,
   setPipelineNodeMeasurements,
 } from "@/pages/pipelines/canvas/nodes/measurements";
-import { Island } from "@/pages/pipelines/canvas/nodes/PipelineNode";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
+import PipelineNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeIsland";
 import type { PipelineSourceNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
 import { isSearchMatch } from "@/utils/search";
 
-const IslandWrapper = styled(Island)`
+const IslandWrapper = styled(PipelineNodeIsland)`
   padding: 0;
 `;
 

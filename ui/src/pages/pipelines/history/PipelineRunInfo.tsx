@@ -1,11 +1,10 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import InfiniteTable, {
   ColumnAlign,
   type ColumnDef,
-  TableDensity,
   TableVariant,
 } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -20,7 +19,9 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
+import ErrorLayout from "@/layouts/ErrorLayout";
 
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
   PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT,
   PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
@@ -44,17 +45,27 @@ const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceState>[] = [
     id: "resource",
     header: "Resource",
     cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-        {row.original.resource}
-      </Text>
-    ),
+    cell: ({ row }) => {
+      return (
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+          <ConnectorTile connector={row.original.resource} size={ConnectorTileSize.SMALL} />
+          <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
+            connection_name
+          </Text>
+          <Text size={TextSize.BODY_SM} isMonospace>
+            /
+          </Text>
+          <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
+            {row.original.resource}
+          </Text>
+        </FlexWrapper>
+      );
+    },
   },
   {
     id: "records",
     header: "Records",
     size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    align: ColumnAlign.CENTER,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
@@ -82,9 +93,7 @@ interface PipelineRunInfoProps {
 
 const PipelineRunInfo = ({ runId }: PipelineRunInfoProps) => {
   const { data, isLoading, isError } = useGetRunQuery({
-    input: create(GetRunRequestSchema, {
-      runId,
-    }),
+    input: create(GetRunRequestSchema, { runId }),
   });
 
   const resources = data?.snapshot?.resources ?? [];
@@ -92,18 +101,18 @@ const PipelineRunInfo = ({ runId }: PipelineRunInfoProps) => {
 
   if (isError) {
     return (
-      <FlexWrapper padding={"12px"}>
-        <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-          Failed to load run details.
-        </Text>
-      </FlexWrapper>
+      <ResourceTableWrapper>
+        <FlexWrapper height={240}>
+          <ErrorLayout message="Failed to load run details." />
+        </FlexWrapper>
+      </ResourceTableWrapper>
     );
   }
 
   if (isEmpty) {
     return (
       <ResourceTableWrapper>
-        <FlexWrapper padding={"32px"}>
+        <FlexWrapper height={240}>
           <EmptyLayout message="The run did not record any resource activity." />
         </FlexWrapper>
       </ResourceTableWrapper>
@@ -113,7 +122,6 @@ const PipelineRunInfo = ({ runId }: PipelineRunInfoProps) => {
   return (
     <ResourceTableWrapper>
       <InfiniteTable<RunResourceState>
-        density={TableDensity.SMALL}
         variant={TableVariant.TERTIARY}
         columns={RESOURCE_TABLE_COLUMNS}
         data={resources}

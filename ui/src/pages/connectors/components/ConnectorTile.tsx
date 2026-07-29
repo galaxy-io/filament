@@ -19,9 +19,9 @@ export enum ConnectorTileSize {
 }
 
 const CONNECTOR_TILE_SIZE_TO_SIZE_MAP: Record<ConnectorTileSize, number> = {
-  [ConnectorTileSize.SMALL]: 24,
-  [ConnectorTileSize.MEDIUM]: 32,
-  [ConnectorTileSize.LARGE]: 40,
+  [ConnectorTileSize.SMALL]: 20,
+  [ConnectorTileSize.MEDIUM]: 24,
+  [ConnectorTileSize.LARGE]: 36,
 };
 
 const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
@@ -32,8 +32,8 @@ const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
 
 const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.SMALL]: 16,
-  [ConnectorTileSize.MEDIUM]: 20,
-  [ConnectorTileSize.LARGE]: 24,
+  [ConnectorTileSize.MEDIUM]: 18,
+  [ConnectorTileSize.LARGE]: 21,
 };
 
 const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> = {
@@ -56,7 +56,7 @@ const TileWrapper = withTheme(styled.div<
   background-color: ${({ theme }) => theme.color.background.secondary};
 
   border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
-  border: 0.5px solid ${({ theme }) => theme.color.border.secondary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.tertiary};
 
   overflow: hidden;
 

@@ -14,30 +14,11 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { getPipelineScopedFields } from "@/components/fields/utils";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
-import {
-  PIPELINE_NODE_BORDER_RADIUS,
-  PIPELINE_NODE_GAP,
-  PIPELINE_NODE_PADDING,
-  PIPELINE_NODE_WIDTH,
-} from "@/pages/pipelines/canvas/nodes/constants";
+import { PIPELINE_NODE_GAP, PIPELINE_NODE_WIDTH } from "@/pages/pipelines/canvas/nodes/constants";
 import PipelineNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineNodeHandle";
-
-export const Island = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolean }>>`
-  padding: ${PIPELINE_NODE_PADDING}px;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid
-    ${({ theme, $isSelected }) =>
-      $isSelected ? theme.color.background.galaxy : theme.color.border.primary};
-  border-radius: ${PIPELINE_NODE_BORDER_RADIUS}px;
-  outline: ${({ theme, $isSelected }) =>
-    $isSelected ? `1px solid ${theme.color.background.galaxy}` : "none"};
-  outline-offset: -1px;
-
-  transition: border-color 100ms ease;
-`);
+import PipelineNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeIsland";
 
 const NodeContainer = withTheme(styled.div<
   PropsWithTheme<{ $isSelected?: boolean; $width: number }>
@@ -48,7 +29,7 @@ const NodeContainer = withTheme(styled.div<
   flex-direction: column;
   gap: ${PIPELINE_NODE_GAP}px;
 
-  &:hover ${Island} {
+  &:hover ${PipelineNodeIsland} {
     border-color: ${({ theme, $isSelected }) =>
       $isSelected ? theme.color.background.galaxyAlt : theme.color.border.tertiary};
   }
@@ -87,7 +68,7 @@ const ActionButton = withTheme(styled.button<PropsWithTheme>`
   }
 `);
 
-const HeaderIsland = styled(Island)`
+const HeaderIsland = styled(PipelineNodeIsland)`
   display: flex;
   align-items: center;
   gap: 4px;
@@ -180,11 +161,7 @@ const PipelineNode = ({
       <HeaderIsland $isSelected={isSelected}>
         {isSink && handleSlot}
         <HeaderContent>
-          <ConnectorTile
-            connector={connector}
-            spec={connectorSpec}
-            size={ConnectorTileSize.SMALL}
-          />
+          <ConnectorTile connector={connector} spec={connectorSpec} />
           <Text size={TextSize.BODY_SM}>{label}</Text>
         </HeaderContent>
         {!isSink && handleSlot}

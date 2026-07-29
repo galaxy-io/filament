@@ -10,14 +10,13 @@ const FieldString = ({
   error,
   isDisabled = false,
   label,
-  placeholder,
 }: FieldComponentProps) => {
   return (
     <TextInput
       value={(value as string) ?? ""}
       onChange={(v) => onChange(v)}
       size={InputSize.LARGE}
-      placeholder={placeholder ?? `Enter ${label}...`}
+      placeholder={`Enter ${label}...`}
       label={label}
       labelTooltip={field.help || undefined}
       isRequired={field.required}

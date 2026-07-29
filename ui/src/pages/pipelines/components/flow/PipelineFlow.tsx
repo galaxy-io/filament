@@ -7,7 +7,6 @@ import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import ConnectorTile, {
   ConnectorOverflowTile,
   ConnectorTileEmpty,
-  ConnectorTileSize,
 } from "@/pages/connectors/components/ConnectorTile";
 
 const PIPELINE_FLOW_MAX_VISIBLE_SINKS = 3;
@@ -47,11 +46,10 @@ const PipelineFlow = ({ source, sinks = [], hasEdges = true }: PipelineFlowProps
       {hasSource ? (
         <ConnectorTile
           connector={source.connector}
-          size={ConnectorTileSize.SMALL}
           onClick={(e) => handleConnectionClick(source.connectionId, e)}
         />
       ) : (
-        <ConnectorTileEmpty size={ConnectorTileSize.SMALL} />
+        <ConnectorTileEmpty />
       )}
       <Icon
         component={isLinked ? FlowArrowIcon : XIcon}
@@ -66,14 +64,13 @@ const PipelineFlow = ({ source, sinks = [], hasEdges = true }: PipelineFlowProps
               // biome-ignore lint/suspicious/noArrayIndexKey: two sink nodes can share a connection
               key={`${sink.connectionId}-${index}`}
               connector={sink.connector}
-              size={ConnectorTileSize.SMALL}
               onClick={(e) => handleConnectionClick(sink.connectionId, e)}
             />
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
         </FlexWrapper>
       ) : (
-        <ConnectorTileEmpty size={ConnectorTileSize.SMALL} />
+        <ConnectorTileEmpty />
       )}
     </FlexWrapper>
   );

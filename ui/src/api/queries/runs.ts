@@ -34,8 +34,6 @@ const LIST_RUNS_REFETCH_INTERVAL = 3 * 1000;
 const GET_RUN_REFETCH_INTERVAL = 2 * 1000;
 const MAX_TAIL_EVENTS = 2000;
 
-// ========== LIST RUNS ==========
-
 export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: IngestionService.method.listRuns,
@@ -62,8 +60,6 @@ export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } 
   });
 };
 
-// ========== GET RUN ==========
-
 const getGetRunRefetchInterval = (status: RunStatus | undefined) => {
   return status !== undefined && ACTIVE_RUN_STATUSES.has(status) ? GET_RUN_REFETCH_INTERVAL : false;
 };
@@ -85,8 +81,6 @@ export const useGetRunQuery = ({
     ...options,
   });
 };
-
-// ========== TAIL RUN ==========
 
 export const createTailRunQueryKey = (input?: TailRunRequest) => {
   return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
@@ -118,8 +112,6 @@ export const useTailRunsStream = (runIds: string[]) => {
     isStreaming: results.some((result) => result.isFetching),
   };
 };
-
-// ========== MUTATIONS ==========
 
 export const useRunPipelineMutation = (
   options: UseMutationOptions<

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
@@ -6,11 +6,11 @@ import { useNodeId, useUpdateNodeInternals } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import ConfigFieldRenderer from "@/components/fields/ConfigFieldRenderer";
+import Field from "@/components/fields/Field";
 import { getPipelineScopedFields, isFieldVisible } from "@/components/fields/utils";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
-import { Island } from "@/pages/pipelines/canvas/nodes/PipelineNode";
+import PipelineNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineNodeIsland";
 
 const FieldList = styled.div`
   display: flex;
@@ -23,7 +23,6 @@ interface PipelineNodeConfigIslandProps {
   kind: ConnectorKind;
   config?: Record<string, JsonValue>;
   onChange: (config: Record<string, JsonValue>) => void;
-  defaultSchema?: string;
   isSelected?: boolean;
   isDisabled?: boolean;
 }
@@ -33,7 +32,6 @@ const PipelineNodeConfigIsland = ({
   kind,
   config,
   onChange,
-  defaultSchema,
   isSelected,
   isDisabled = false,
 }: PipelineNodeConfigIslandProps) => {
@@ -53,27 +51,13 @@ const PipelineNodeConfigIsland = ({
     }
   }, [fields.length]);
 
-  // Populate the schema field with its derived default once per open, as soon
-  // as the spec is loaded, so the destination is visible and editable. The
-  // effect re-runs when the spec resolves but populates only once.
-  const schemaField = spec?.schemaField;
-  const populated = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: populate once per open
-  useEffect(() => {
-    if (populated.current || !schemaField || !defaultSchema || isDisabled) return;
-    populated.current = true;
-    const current = configValue[schemaField];
-    if (typeof current === "string" && current !== "") return;
-    onChange({ ...configValue, [schemaField]: defaultSchema });
-  }, [schemaField, defaultSchema]);
-
   if (fields.length === 0) return null;
 
   return (
-    <Island $isSelected={isSelected}>
+    <PipelineNodeIsland $isSelected={isSelected}>
       <FieldList className="nodrag">
         {fields.map((field) => (
-          <ConfigFieldRenderer
+          <Field
             key={field.name}
             field={field}
             value={configValue[field.name] ?? null}
@@ -82,7 +66,7 @@ const PipelineNodeConfigIsland = ({
           />
         ))}
       </FieldList>
-    </Island>
+    </PipelineNodeIsland>
   );
 };
 

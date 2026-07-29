@@ -11,7 +11,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import ListPageLayout from "@/layouts/ListPageLayout";
+import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
 import PipelinesPageEmptyGraphic from "@/pages/pipelines/components/PipelinesPageEmptyGraphic";
 import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
@@ -101,7 +101,7 @@ const PipelinesPage = () => {
   };
 
   return (
-    <ListPageLayout
+    <MainLayoutListPage
       search={state.search}
       onSearchChange={handleSearchChange}
       actions={[
@@ -117,7 +117,7 @@ const PipelinesPage = () => {
       noPadding
     >
       {renderContent()}
-    </ListPageLayout>
+    </MainLayoutListPage>
   );
 };
 

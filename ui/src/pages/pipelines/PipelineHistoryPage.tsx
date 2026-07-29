@@ -106,7 +106,6 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     id: "records",
     header: "Records",
     size: PIPELINE_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    align: ColumnAlign.CENTER,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>

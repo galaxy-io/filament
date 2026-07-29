@@ -10,6 +10,7 @@ import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -233,6 +234,7 @@ const PipelineCanvasConnectionSelector = ({
           onChange={handleSearchChange}
           placeholder="Search connections..."
           leading={{ icon: MagnifyingGlassIcon }}
+          size={InputSize.LARGE}
           fillWidth
         />
       </SearchWrapper>
