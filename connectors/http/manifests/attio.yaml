@@ -303,7 +303,7 @@ resources:
   - name: notes
     path: /v2/notes
     query:
-      limit: "500"
+      limit: "50"
     primary_key: [note_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -352,7 +352,7 @@ resources:
   - name: threads
     path: /v2/threads
     query:
-      limit: "500"
+      limit: "50"
     primary_key: [thread_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -370,7 +370,7 @@ resources:
   - name: meetings
     path: /v2/meetings
     query:
-      limit: "500"
+      limit: "200"
     primary_key: [meeting_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -400,7 +400,7 @@ resources:
       meeting: parent.meeting_id
     for_each: meetings
     query:
-      limit: "500"
+      limit: "200"
     primary_key: [call_recording_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
@@ -443,7 +443,7 @@ resources:
   - name: webhooks
     path: /v2/webhooks
     query:
-      limit: "500"
+      limit: "100"
     primary_key: [webhook_id]
     fields:
       workspace_id: { path: id.workspace_id, type: uuid }
