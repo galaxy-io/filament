@@ -3,8 +3,8 @@
   "theme": "aspen",
   "name": "Filament",
   "colors": {
-    "primary": "#3075FF",
-    "light": "#5B92FF",
+    "primary": "#005EFF",
+    "light": "#005EFF",
     "dark": "#005EFF"
   },
   "background": {
