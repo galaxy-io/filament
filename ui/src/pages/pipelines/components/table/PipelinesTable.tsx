@@ -11,7 +11,7 @@ import InfiniteTable, {
   type ColumnDef,
   type Row,
 } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -45,7 +45,9 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
         <FlexItem shrink={0} grow={0}>
           <Beacon variant={BeaconVariant.SUCCESS} />
         </FlexItem>
-        <Text isEllipsis>{formatPipelineName(row.original)}</Text>
+        <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isEllipsis>
+          {formatPipelineName(row.original)}
+        </Text>
       </FlexWrapper>
     ),
   },

@@ -8,7 +8,7 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -90,7 +90,9 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           >
             <Beacon variant={BeaconVariant.SUCCESS} />
           </FlexWrapper>
-          <Text size={TextSize.BODY_SM}>{formatPipelineName(pipeline)}</Text>
+          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM}>
+            {formatPipelineName(pipeline)}
+          </Text>
         </FlexWrapper>
 
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>

@@ -11,7 +11,7 @@ import SelectInput, {
   SelectInputSize,
   SelectInputVariant,
 } from "@galaxy-io/dls/inputs/SelectInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -176,7 +176,9 @@ const PipelineLayoutNavbar = ({
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        <Text>{formatPipelineName(pipeline)}</Text>
+        <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM}>
+          {formatPipelineName(pipeline)}
+        </Text>
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
