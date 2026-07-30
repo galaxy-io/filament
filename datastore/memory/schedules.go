@@ -9,6 +9,7 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
+// SaveSchedule creates or updates a pipeline schedule.
 func (s *Store) SaveSchedule(ctx context.Context, schedule filament.ScheduleState) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -32,6 +33,7 @@ func (s *Store) SaveSchedule(ctx context.Context, schedule filament.ScheduleStat
 	return nil
 }
 
+// LoadPipelineSchedule returns the schedule associated with a pipeline.
 func (s *Store) LoadPipelineSchedule(ctx context.Context, pipelineID string) (filament.ScheduleState, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.ScheduleState{}, err
@@ -46,6 +48,7 @@ func (s *Store) LoadPipelineSchedule(ctx context.Context, pipelineID string) (fi
 	return filament.ScheduleState{}, fmt.Errorf("load pipeline schedule %q: %w", pipelineID, ErrNotFound)
 }
 
+// LoadSchedule returns a schedule by ID.
 func (s *Store) LoadSchedule(ctx context.Context, id filament.ScheduleID) (filament.ScheduleState, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.ScheduleState{}, err
@@ -59,6 +62,7 @@ func (s *Store) LoadSchedule(ctx context.Context, id filament.ScheduleID) (filam
 	return schedule, nil
 }
 
+// ListSchedules returns schedules matching the supplied filter.
 func (s *Store) ListSchedules(ctx context.Context, filter filament.ScheduleFilter) ([]filament.ScheduleState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -82,6 +86,7 @@ func (s *Store) ListSchedules(ctx context.Context, filter filament.ScheduleFilte
 	return out, nil
 }
 
+// DeleteSchedule removes a schedule by ID.
 func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -93,6 +98,7 @@ func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) erro
 	return nil
 }
 
+// ClaimDue claims and returns schedules due to fire at or before now.
 func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filament.ScheduleState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -117,6 +123,7 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 	return out, nil
 }
 
+// ReleaseScheduleClaim releases the active claim for a schedule.
 func (s *Store) ReleaseScheduleClaim(ctx context.Context, id filament.ScheduleID) error {
 	if err := ctx.Err(); err != nil {
 		return err
