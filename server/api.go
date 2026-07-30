@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"connectrpc.com/vanguard"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
 	"github.com/galaxy-io/filament/eventbus"
