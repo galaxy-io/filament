@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { useNavigate } from "@tanstack/react-router";
 
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
@@ -11,30 +11,30 @@ import type { RunResourceStateColumn } from "@/pages/pipelines/history/PipelineH
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
 
-interface PipelineHistoryRunInfoResourceColumnProps {
+interface PipelineHistoryRunInfoSinkColumnProps {
   runResource: RunResourceStateColumn;
 }
 
-const PipelineHistoryRunInfoResourceColumn = ({
+const PipelineHistoryRunInfoSinkColumn = ({
   runResource,
-}: PipelineHistoryRunInfoResourceColumnProps) => {
+}: PipelineHistoryRunInfoSinkColumnProps) => {
   const navigate = useNavigate();
 
-  const { data: sourceConnection } = useGetConnectionQuery({
+  const { data: sinkConnection } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, {
-      id: runResource.sourceConnectionId,
+      id: runResource.sinkConnectionId,
     }),
   });
 
   const handleConnectorTileClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (sourceConnection?.connection) {
+    if (sinkConnection?.connection) {
       navigate({
         to: ".",
         search: (prev) => ({
           ...prev,
-          connectionId: sourceConnection?.connection?.id,
+          connectionId: sinkConnection?.connection?.id,
         }),
       });
     }
@@ -44,17 +44,11 @@ const PipelineHistoryRunInfoResourceColumn = ({
     return (
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} width={200}>
         <ConnectorTile
-          connector={sourceConnection?.connection?.connector ?? ""}
+          connector={sinkConnection?.connection?.connector ?? ""}
           size={ConnectorTileSize.SMALL}
           onClick={handleConnectorTileClick}
         />
-        <Text size={TextSize.BODY_SM}>{sourceConnection?.connection?.name ?? "—"}</Text>
-        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isMonospace>
-          /
-        </Text>
-        <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
-          {runResource.resource}
-        </Text>
+        <Text size={TextSize.BODY_SM}>{sinkConnection?.connection?.name ?? "—"}</Text>
       </FlexWrapper>
     );
   };
@@ -62,4 +56,4 @@ const PipelineHistoryRunInfoResourceColumn = ({
   return renderContent();
 };
 
-export default PipelineHistoryRunInfoResourceColumn;
+export default PipelineHistoryRunInfoSinkColumn;

@@ -13,13 +13,12 @@ const PipelineSettingsPage = () => {
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
   });
-  const pipeline = data.pipeline;
 
-  if (!pipeline) {
+  if (!data.pipeline) {
     throw new Error(`Pipeline ${id} not found`);
   }
 
-  return <PipelineSettingsForm key={pipeline.id} pipeline={pipeline} />;
+  return <PipelineSettingsForm key={data.pipeline.id} pipeline={data.pipeline} />;
 };
 
 export default PipelineSettingsPage;
