@@ -1,0 +1,40 @@
+---
+title: "Sources Overview"
+description: "Connectors Filament can read from."
+---
+
+Filament ships eight source connectors today: two native database
+connectors, five manifest-driven SaaS connectors sharing one implementation,
+and a synthetic generator for testing.
+
+## Databases
+
+| Source | Package | Notes |
+|---|---|---|
+| [PostgreSQL](/pages/connectors/sources/postgres) | `connectors/postgres/source` | Adaptive read-mode routing (keyset, bitmap, ctid); full + incremental + CDC |
+| [MySQL](/pages/connectors/sources/mysql) | `connectors/mysql/source` | Keyset reads plus GTID-based CDC |
+
+## SaaS Apps
+
+All five run on the same [HTTP](/pages/connectors/sources/http) connector,
+configured by a declarative manifest rather than by their own Go package:
+
+| Source | Manifest | Notes |
+|---|---|---|
+| [Attio](/pages/connectors/sources/attio) | `attio.yaml` | 23 resources — the deepest parent/child nesting of the five |
+| [GitHub](/pages/connectors/sources/github) | `github.yaml` | Repositories, issues, pull requests for one organization |
+| [Linear](/pages/connectors/sources/linear) | `linear.yaml` | The one GraphQL manifest — everything else is REST |
+| [Notion](/pages/connectors/sources/notion) | `notion.yaml` | Databases, pages, blocks |
+| [Slack](/pages/connectors/sources/slack) | `slack.yaml` | The only bundled manifest with incremental sync |
+
+## Custom & Testing
+
+| Source | Package | Notes |
+|---|---|---|
+| [HTTP](/pages/connectors/sources/http) | `connectors/http` | The manifest-driven mechanism the five SaaS sources above run on; new APIs are onboarded declaratively |
+| [Sample](/pages/connectors/sources/sample) | `connectors/sample` | Synthetic data, for testing pipelines without a real upstream |
+
+Every source implements the base `Source` contract; several add optional
+capabilities like resumability or CDC. See [Optional
+interfaces](/pages/connectors/building-a-connector/optional-interfaces) for the
+full list.

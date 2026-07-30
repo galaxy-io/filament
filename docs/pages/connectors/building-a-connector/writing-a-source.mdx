@@ -1,0 +1,46 @@
+---
+title: "Writing a Source"
+description: "The Source interface and how to implement it."
+---
+
+A source implements `Source`, defined in the repo's root `source.go`:
+
+```go
+type Source interface {
+	Spec() ConnectorSpec
+	Validate(cfg Config) error
+	Configure(ctx context.Context, cfg Config) error
+	Extract(ctx context.Context, sink RecordSink, opts ExtractOpts) error
+	Teardown(ctx context.Context) error
+}
+```
+
+- **`Spec`** is the connector's self-description — identity, supported
+  [replication modes](/pages/guides/concepts/replication-modes), config schema, and
+  resource capabilities. It's what powers the catalog (see [Connectors
+  overview](/pages/connectors/overview/introduction)).
+- **`Validate`** and **`Configure`** check and apply a `Config` before any
+  extraction runs.
+- **`Extract`** reads into a `RecordSink` under the given `ExtractOpts`
+  (which resources, which mode, how fast).
+- **`Teardown`** releases whatever `Configure` acquired.
+
+## Describing your config
+
+`ConnectorSpec.Config` is a `ConfigSchema` — a list of `ConfigField`s, each
+with a type (`FieldString`, `FieldSecret`, `FieldEnum`, `FieldObject`, …), a
+scope (`ScopeConnection` for fields reusable across runs, like a DSN;
+`ScopePipeline` for fields that vary per pipeline, like a table name), and
+optionally a `VisibleWhen` condition for conditional fields in the UI.
+
+## Optional capabilities
+
+A source can implement none, some, or all of several optional interfaces —
+resumable extraction, CDC, resource discovery, rate limiting, and more. See
+[Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces).
+
+## Registering it
+
+Add a `register.go` that registers your source with the engine, then blank-import
+the package wherever it should be available — see [Embedding as a
+library](/pages/guides/deployment/embedding-as-a-library).

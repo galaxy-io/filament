@@ -1,0 +1,38 @@
+---
+title: "Installation"
+description: "The two ways to run Filament: embed it as a Go library, or deploy it as a service."
+---
+
+Filament runs two ways depending on whether you want it inside your own Go
+process or as a standalone service.
+
+## As a library
+
+Filament embeds directly. Connectors self-register via blank imports, so you
+only pull in the ones you use:
+
+```go
+import (
+	"github.com/galaxy-io/filament/app"
+
+	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/stdout"
+)
+
+func main() { log.Fatal(app.Run(context.Background())) }
+```
+
+See [Embedding as a library](/pages/guides/deployment/embedding-as-a-library) for the full picture.
+
+## As a service, on Kubernetes
+
+Filament runs on Kubernetes through the Helm chart. The chart deploys the
+server and control plane, dispatches each run as its own Job, and can
+provision or point at existing Postgres and NATS instances.
+
+See [Kubernetes](/pages/guides/deployment/kubernetes) for the install steps.
+
+<Note>
+  Evaluating locally first? [Quickstart](/pages/guides/get-started/quickstart) runs the
+  whole stack with `just dev` and no Kubernetes required.
+</Note>

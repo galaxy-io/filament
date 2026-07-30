@@ -1,0 +1,38 @@
+---
+title: "Local Development"
+description: "Set up the toolchain and run Filament from source."
+icon: "laptop-code"
+---
+
+## Setup
+
+Run `brew bundle` to install the toolchain, and make sure Docker is running
+— local infra depends on it.
+
+## Day to day
+
+```sh
+just infra   # local data store + event bus via docker compose
+just dev     # control plane, API server, and UI on port 5173
+just test    # unit tests (just test-integration for e2e, needs Docker)
+```
+
+`just dev` runs the control plane and API server, waits for the server's
+health check, then starts the UI dev server (Vite, proxying the API on
+`:8080`) — see the `dev` recipe in the repo's `justfile` if you want to run
+components individually (`just server`, `just control-plane`, `just ui`).
+
+## Before opening a PR
+
+```sh
+just format   # gofumpt + goimports across every Go module, plus UI formatting
+just lint     # golangci-lint, plus Biome for the UI package
+just test     # unit tests
+```
+
+See [Style & Testing](/pages/guides/contributing/style-and-testing) for what each of
+these actually runs, and the `-check` variants CI uses.
+
+<Warning>
+  Filament is pre-1.0 and APIs may change.
+</Warning>

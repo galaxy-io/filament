@@ -1,0 +1,43 @@
+---
+title: "MySQL"
+description: "Write to MySQL."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg"
+---
+
+`connectors/mysql/sink` loads each resource into its own typed table with
+native MySQL columns.
+
+## Typed loading
+
+The engine calls `EnsureSchema` once per resource before extraction, which
+creates the destination table (adding any new columns to an existing one)
+and caches a prebuilt `INSERT` statement. `Write` then casts each batch's
+JSON row payloads into those typed columns server-side via `JSON_TABLE`
+(MySQL 8.0+) — the same role Postgres's sink gives `jsonb_to_recordset`. A
+batch never gets parsed client-side; it's framed as one JSON array and
+handed to MySQL as a single bound parameter.
+
+Binary columns round-trip through `TO_BASE64`/`FROM_BASE64` (MySQL JSON has
+no binary representation, matching the source's encoding convention); JSON
+columns pass through unchanged so nested structure survives the round trip.
+
+## Write policies
+
+A resumable ingestion type (`SnapshotUpsert`, `Upsert`, `CDC`) upserts by
+primary key via `ON DUPLICATE KEY UPDATE`, so a re-delivered row from an
+at-least-once resume overwrites rather than errors on the unique
+constraint. A non-resumable load skips the upsert clause and truncates the
+table first for full-snapshot replace semantics.
+
+CDC batches apply through a different path: consecutive same-op records
+(insert/update vs. delete) are split into maximal runs in arrival order —
+so a delete never jumps ahead of the insert it's paired with — and each run
+lands as one statement: inserts/updates through the same upsert `INSERT …
+JSON_TABLE`, deletes through a `JSON_TABLE`-join `DELETE` keyed on the
+batch's primary-key columns.
+
+## Modes
+
+Supports `SnapshotReplace`, `SnapshotUpsert`, `Append`, `Upsert`, and `CDC`
+write policies (see [Replication
+modes](/pages/guides/concepts/replication-modes)).

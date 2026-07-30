@@ -1,0 +1,42 @@
+---
+title: "GitHub"
+description: "Read repositories, issues, and pull requests from a GitHub organization."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"
+---
+
+GitHub is a manifest-driven source — `connectors/http/manifests/github.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no GitHub-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A personal access token or GitHub App installation token (bearer auth), plus
+the target `organization` login — every request is scoped to one org.
+
+## Resources
+
+Three resources, all statically discovered:
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `repositories` | `/orgs/{organization}/repos` | — (every repo in the org) |
+| `issues` | `/repos/{organization}/{repository}/issues` | `repositories` |
+| `pull_requests` | `/repos/{organization}/{repository}/pulls` | `repositories` |
+
+`issues` and `pull_requests` both request `state=all` so closed and merged
+items sync alongside open ones, and both share an `issue_lifecycle` field set
+(`created_at` / `updated_at` / `closed_at`) via `use_fields`. Note that the
+GitHub REST API includes pull requests in the issues endpoint's results —
+`issues` and `pull_requests` will overlap for PRs; dedupe downstream on `id`
+if a pipeline reads both.
+
+Pagination follows GitHub's `Link` response header (`pagination: { link:
+next }` in the manifest's connection-wide `defaults:` block), and every
+request carries `per_page=100` and the pinned API version header
+(`X-GitHub-Api-Version: 2022-11-28`).
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
+this manifest declares no `incremental:` block, so runs are full extracts.

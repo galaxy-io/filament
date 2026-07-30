@@ -1,0 +1,64 @@
+---
+title: "PostgreSQL"
+description: "Resumable full-snapshot and incremental reads from PostgreSQL."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
+---
+
+`connectors/postgres/source` implements resumable reads from a PostgreSQL
+source, with a router that picks a physical read strategy per table rather
+than using one strategy for everything.
+
+## How it chooses a read strategy
+
+At plan time — before the first row is read — the router asks Postgres one
+question (`pg_stats.correlation` for the leading primary-key column: how
+close is the heap to physical key order?) and combines it with a couple of
+facts from the run config:
+
+| Condition | Mode | What it means |
+|---|---|---|
+| CDC run with a logical slot available | `ModeSlot` | Streams via WAL replay (arrives with CDC) |
+| Table declared append-only | `ModeCtidAppendOnly` | Physical block reads, no xmin bookkeeping needed |
+| `\|correlation\| >= 0.8` | `ModeKeyset` | Heap is already near key order — walk the PK index in order |
+| Primary key is mutable | `ModeCtidXmin` | Physical block reads plus a reconciliation pass for moved rows |
+| Otherwise (random keys, immutable PK) | `ModeBitmap` | Bitmap heap scan — same correctness as keyset, better I/O pattern |
+
+The chosen mode is frozen into the checkpoint at plan time and reused on
+every resume of the same run, so the shard layout never changes mid-flight —
+see [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints) for why
+that matters.
+
+<Accordion title="What each mode actually does">
+  **ModeKeyset** — issues `ORDER BY pk LIMIT` page queries, walking the PK
+  index in order. Each page is one contiguous disk read when the heap is
+  already correlated with the key. Resumable to the exact row.
+
+  **ModeBitmap** — splits the key space into sub-ranges and reads each with
+  a plain range predicate (no `ORDER BY`), letting Postgres collect matching
+  index TIDs, sort by heap block, and read them in ascending order with
+  prefetch. Resume is all-or-nothing per sub-range.
+
+  **ModeCtidXmin** — divides the table into physical block-range shards
+  (`ctid`) for fast sequential I/O, with three guards for safety across a
+  resume boundary: a rewrite guard (VACUUM FULL / CLUSTER / TRUNCATE
+  invalidates the cursor), horizon-compare reconciliation (re-scans for rows
+  written or moved after run-start), and a freeze guard (falls back to an
+  unfiltered rescan if `relfrozenxid` advanced past the horizon).
+
+  **ModeCtidAppendOnly** — like `ModeCtidXmin` without the xmin apparatus,
+  since rows never move or update.
+
+  **ModeSlot** — a logical replication slot pins an LSN so updated or moved
+  rows return via WAL replay; used for CDC.
+</Accordion>
+
+## Modes
+
+Supports `ModeFull` and `ModeIncremental` today; `ModeCDC` arrives via
+`ModeSlot`. See [Replication modes](/pages/guides/concepts/replication-modes).
+
+<Info>
+  This page covers the read-strategy routing, which is what makes this
+  connector interesting. A full config reference (DSN, TLS, per-table
+  overrides) belongs here as the connector catalog UI solidifies.
+</Info>

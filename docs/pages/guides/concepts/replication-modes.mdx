@@ -1,0 +1,26 @@
+---
+title: "Replication Modes"
+description: "Full, incremental, and CDC — how a source reads."
+icon: "arrows-rotate"
+---
+
+A source reads data in one of three modes, declared as `ReplicationMode` in
+its `ConnectorSpec`:
+
+| Mode | Constant | What it does |
+|---|---|---|
+| Full | `ModeFull` | Reads the entire resource from scratch every run |
+| Incremental | `ModeIncremental` | Reads only what changed since a cursor from the previous run |
+| CDC | `ModeCDC` | Streams ordered changes (inserts/updates/deletes) from a checkpoint, via the source's [`ChangeSource`](/pages/connectors/building-a-connector/optional-interfaces) contract |
+
+A connector advertises which modes it supports through `ConnectorSpec.Modes`
+— not every source implements all three. Incremental and CDC extraction
+build on the same checkpointing machinery described in [Integrity &
+checkpoints](/pages/guides/concepts/integrity-and-checkpoints).
+
+<Tip>
+  PostgreSQL is a good example of a source that picks its read strategy
+  dynamically even within a single mode — see [Postgres
+  source](/pages/connectors/sources/postgres) for how it chooses between keyset,
+  bitmap, and ctid-based scans.
+</Tip>

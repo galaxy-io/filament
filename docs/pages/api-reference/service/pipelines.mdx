@@ -1,0 +1,26 @@
+---
+title: "Pipelines"
+description: "The persisted node graph connecting a source to a sink."
+---
+
+Defined in `api/ingestion/v1/pipelines.proto`. A pipeline connects a source
+connection to a sink connection, and is versioned — each edit creates a new
+version rather than mutating in place.
+
+## RPCs
+
+| RPC | Purpose |
+|---|---|
+| `CreatePipeline` | Create a new pipeline |
+| `CreatePipelineVersion` | Create a new version of an existing pipeline |
+| `UpdatePipeline` | Update pipeline-level metadata |
+| `GetPipeline` | Fetch a pipeline |
+| `GetPipelineVersion` | Fetch a specific pipeline version |
+| `ListPipelineVersions` | List a pipeline's versions |
+| `ListPipelines` | List pipelines |
+| `DeletePipeline` | Delete a pipeline |
+
+<Info>
+  This page is a placeholder for full request/response field documentation,
+  generated from `pipelines.proto`.
+</Info>

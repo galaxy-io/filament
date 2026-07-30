@@ -1,0 +1,16 @@
+{
+  "name": "filament-docs",
+  "private": true,
+  "description": "Documentation site for Filament, powered by Mintlify.",
+  "scripts": {
+    "dev": "mint dev",
+    "validate": "mint validate",
+    "check": "mint broken-links"
+  },
+  "devDependencies": {
+    "mint": "^4.2.762"
+  },
+  "engines": {
+    "node": ">=20.17.0"
+  }
+}

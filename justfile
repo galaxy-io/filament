@@ -136,3 +136,7 @@ dev:
     until curl -sf http://localhost:8080/livez > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait
+
+# run the docs site locally (mintlify preview at :3000; installs deps on first run)
+docs:
+    cd docs && pnpm install && pnpm dev

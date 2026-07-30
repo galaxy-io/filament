@@ -1,0 +1,61 @@
+---
+title: "Kubernetes"
+description: "Deploy Filament with the Helm chart."
+icon: "dharmachakra"
+---
+
+Filament runs on Kubernetes through its Helm chart. The chart deploys the
+server and control plane, wires up Kubernetes worker dispatch, and can
+provision — or point at — the PostgreSQL and NATS instances Filament needs.
+
+## What the chart deploys
+
+The chart deploys the Filament server, control plane, Kubernetes worker
+dispatch support, and the configuration needed to connect Filament to
+PostgreSQL and NATS. PostgreSQL and NATS themselves are vendored as optional
+dependencies (disabled by default):
+
+| Dependency | Chart | Version |
+|---|---|---|
+| PostgreSQL | `bitnami/postgresql` | 18.7.11 |
+| NATS | `nats-io/nats` | 2.14.2 |
+
+## Runtime configuration
+
+Filament requires a PostgreSQL DSN, a base64-encoded encryption key, and a
+NATS URL — provided either via `existingSecret` or chart values.
+
+**Using an existing Secret:**
+
+```sh
+kubectl create secret generic filament-runtime \
+  --from-literal=PERSISTENCE_DSN='postgresql://USER:PASSWORD@HOST:5432/filament?sslmode=require' \
+  --from-literal=ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  --from-literal=NATS_URL='nats://nats.example.com:4222'
+
+helm upgrade --install filament . \
+  --set existingSecret=filament-runtime
+```
+
+**Local or test cluster, with the vendored charts:**
+
+```sh
+PG_PASSWORD="$(openssl rand -hex 24)"
+ENC_KEY="$(openssl rand -base64 32)"
+
+helm upgrade --install filament . \
+  --set postgresql.enabled=true \
+  --set nats.enabled=true \
+  --set-string postgresql.auth.password="$PG_PASSWORD" \
+  --set-string persistence.postgresql.dsn="postgresql://filament:${PG_PASSWORD}@filament-postgresql:5432/filament?sslmode=disable" \
+  --set-string secrets.postgres.encryptionKey="$ENC_KEY" \
+  --set-string eventBus.nats.url='nats://filament-nats:4222'
+```
+
+## Full values reference
+
+Server and control-plane parameters — autoscaling, image, ingress, resources,
+worker dispatch — are covered in
+[`charts/filament/README.md`](https://github.com/galaxy-io/filament/blob/main/charts/filament/README.md)
+in the repo. See [Configuration](/pages/guides/deployment/configuration) for how these
+line up with the local (non-Kubernetes) environment variables.

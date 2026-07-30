@@ -19,7 +19,7 @@ import {
   PIPELINE_CARD_HEIGHT,
   PIPELINE_INDICATOR_WIDTH,
 } from "@/pages/pipelines/components/card/constants";
-import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
+import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapVersionNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
@@ -96,7 +96,12 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
         </FlexWrapper>
 
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
+          <PipelineFlow
+            source={source}
+            sinks={sinks}
+            hasEdges={hasEdges}
+            size={PipelineFlowSize.SMALL}
+          />
         </FlexWrapper>
       </CardWrapper>
     </CardLinkWrapper>
