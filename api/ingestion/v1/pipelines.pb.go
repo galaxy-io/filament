@@ -22,6 +22,57 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
+// Omit it when creating a pipeline that should only run manually.
+type PipelineScheduleOverlapPolicy int32
+
+const (
+	PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED PipelineScheduleOverlapPolicy = 0
+	PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP        PipelineScheduleOverlapPolicy = 1
+	PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW       PipelineScheduleOverlapPolicy = 2
+)
+
+// Enum value maps for PipelineScheduleOverlapPolicy.
+var (
+	PipelineScheduleOverlapPolicy_name = map[int32]string{
+		0: "PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED",
+		1: "PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP",
+		2: "PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW",
+	}
+	PipelineScheduleOverlapPolicy_value = map[string]int32{
+		"PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED": 0,
+		"PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP":        1,
+		"PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW":       2,
+	}
+)
+
+func (x PipelineScheduleOverlapPolicy) Enum() *PipelineScheduleOverlapPolicy {
+	p := new(PipelineScheduleOverlapPolicy)
+	*p = x
+	return p
+}
+
+func (x PipelineScheduleOverlapPolicy) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PipelineScheduleOverlapPolicy) Descriptor() protoreflect.EnumDescriptor {
+	return file_ingestion_v1_pipelines_proto_enumTypes[0].Descriptor()
+}
+
+func (PipelineScheduleOverlapPolicy) Type() protoreflect.EnumType {
+	return &file_ingestion_v1_pipelines_proto_enumTypes[0]
+}
+
+func (x PipelineScheduleOverlapPolicy) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PipelineScheduleOverlapPolicy.Descriptor instead.
+func (PipelineScheduleOverlapPolicy) EnumDescriptor() ([]byte, []int) {
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{0}
+}
+
 // PipelineNode is one source or sink on the canvas. connection_id references the
 // reusable Connection that supplies the connector and connection-scoped config
 // (host/bucket/credentials). config/secret_refs are the per-node PIPELINE-scoped
@@ -367,13 +418,12 @@ func (x *Pipeline) GetLastRunBytes() int64 {
 	return 0
 }
 
-// PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
-// Omit it when creating a pipeline that should only run manually.
 type PipelineScheduleConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cron          string                 `protobuf:"bytes,1,opt,name=cron,proto3" json:"cron,omitempty"`
-	Timezone      string                 `protobuf:"bytes,2,opt,name=timezone,proto3" json:"timezone,omitempty"`
-	Enabled       bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Cron          string                        `protobuf:"bytes,1,opt,name=cron,proto3" json:"cron,omitempty"`
+	Timezone      string                        `protobuf:"bytes,2,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	Enabled       bool                          `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	OverlapPolicy PipelineScheduleOverlapPolicy `protobuf:"varint,4,opt,name=overlap_policy,json=overlapPolicy,proto3,enum=ingestion.v1.PipelineScheduleOverlapPolicy" json:"overlap_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -427,6 +477,13 @@ func (x *PipelineScheduleConfig) GetEnabled() bool {
 		return x.Enabled
 	}
 	return false
+}
+
+func (x *PipelineScheduleConfig) GetOverlapPolicy() PipelineScheduleOverlapPolicy {
+	if x != nil {
+		return x.OverlapPolicy
+	}
+	return PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED
 }
 
 // PipelineSchedule includes the server-owned identity and derived fire times.
@@ -1768,11 +1825,12 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\vlast_run_at\x18\b \x01(\x03R\tlastRunAt\x12?\n" +
 	"\x0flast_run_status\x18\t \x01(\x0e2\x17.ingestion.v1.RunStatusR\rlastRunStatus\x12$\n" +
 	"\x0elast_run_bytes\x18\n" +
-	" \x01(\x03R\flastRunBytes\"b\n" +
+	" \x01(\x03R\flastRunBytes\"\xb6\x01\n" +
 	"\x16PipelineScheduleConfig\x12\x12\n" +
 	"\x04cron\x18\x01 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x02 \x01(\tR\btimezone\x12\x18\n" +
-	"\aenabled\x18\x03 \x01(\bR\aenabled\"\xc7\x01\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12R\n" +
+	"\x0eoverlap_policy\x18\x04 \x01(\x0e2+.ingestion.v1.PipelineScheduleOverlapPolicyR\roverlapPolicy\"\xc7\x01\n" +
 	"\x10PipelineSchedule\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
@@ -1850,7 +1908,11 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\tpipelines\x18\x01 \x03(\v2\x16.ingestion.v1.PipelineR\tpipelines\"'\n" +
 	"\x15DeletePipelineRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x18\n" +
-	"\x16DeletePipelineResponseB\xaf\x01\n" +
+	"\x16DeletePipelineResponse*\xa8\x01\n" +
+	"\x1dPipelineScheduleOverlapPolicy\x120\n" +
+	",PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED\x10\x00\x12)\n" +
+	"%PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP\x10\x01\x12*\n" +
+	"&PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW\x10\x02B\xaf\x01\n" +
 	"\x10com.ingestion.v1B\x0ePipelinesProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -1865,81 +1927,84 @@ func file_ingestion_v1_pipelines_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_pipelines_proto_rawDescData
 }
 
+var file_ingestion_v1_pipelines_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_ingestion_v1_pipelines_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_ingestion_v1_pipelines_proto_goTypes = []any{
-	(*PipelineNode)(nil),                   // 0: ingestion.v1.PipelineNode
-	(*PipelineEdge)(nil),                   // 1: ingestion.v1.PipelineEdge
-	(*PipelineVersion)(nil),                // 2: ingestion.v1.PipelineVersion
-	(*Pipeline)(nil),                       // 3: ingestion.v1.Pipeline
-	(*PipelineScheduleConfig)(nil),         // 4: ingestion.v1.PipelineScheduleConfig
-	(*PipelineSchedule)(nil),               // 5: ingestion.v1.PipelineSchedule
-	(*CreatePipelineRequest)(nil),          // 6: ingestion.v1.CreatePipelineRequest
-	(*CreatePipelineResponse)(nil),         // 7: ingestion.v1.CreatePipelineResponse
-	(*CreatePipelineScheduleRequest)(nil),  // 8: ingestion.v1.CreatePipelineScheduleRequest
-	(*CreatePipelineScheduleResponse)(nil), // 9: ingestion.v1.CreatePipelineScheduleResponse
-	(*UpdatePipelineScheduleRequest)(nil),  // 10: ingestion.v1.UpdatePipelineScheduleRequest
-	(*UpdatePipelineScheduleResponse)(nil), // 11: ingestion.v1.UpdatePipelineScheduleResponse
-	(*DeletePipelineScheduleRequest)(nil),  // 12: ingestion.v1.DeletePipelineScheduleRequest
-	(*DeletePipelineScheduleResponse)(nil), // 13: ingestion.v1.DeletePipelineScheduleResponse
-	(*PausePipelineScheduleRequest)(nil),   // 14: ingestion.v1.PausePipelineScheduleRequest
-	(*PausePipelineScheduleResponse)(nil),  // 15: ingestion.v1.PausePipelineScheduleResponse
-	(*ResumePipelineScheduleRequest)(nil),  // 16: ingestion.v1.ResumePipelineScheduleRequest
-	(*ResumePipelineScheduleResponse)(nil), // 17: ingestion.v1.ResumePipelineScheduleResponse
-	(*CreatePipelineVersionRequest)(nil),   // 18: ingestion.v1.CreatePipelineVersionRequest
-	(*CreatePipelineVersionResponse)(nil),  // 19: ingestion.v1.CreatePipelineVersionResponse
-	(*UpdatePipelineRequest)(nil),          // 20: ingestion.v1.UpdatePipelineRequest
-	(*UpdatePipelineResponse)(nil),         // 21: ingestion.v1.UpdatePipelineResponse
-	(*GetPipelineRequest)(nil),             // 22: ingestion.v1.GetPipelineRequest
-	(*GetPipelineResponse)(nil),            // 23: ingestion.v1.GetPipelineResponse
-	(*GetPipelineVersionRequest)(nil),      // 24: ingestion.v1.GetPipelineVersionRequest
-	(*GetPipelineVersionResponse)(nil),     // 25: ingestion.v1.GetPipelineVersionResponse
-	(*ListPipelineVersionsRequest)(nil),    // 26: ingestion.v1.ListPipelineVersionsRequest
-	(*ListPipelineVersionsResponse)(nil),   // 27: ingestion.v1.ListPipelineVersionsResponse
-	(*ListPipelinesRequest)(nil),           // 28: ingestion.v1.ListPipelinesRequest
-	(*ListPipelinesResponse)(nil),          // 29: ingestion.v1.ListPipelinesResponse
-	(*DeletePipelineRequest)(nil),          // 30: ingestion.v1.DeletePipelineRequest
-	(*DeletePipelineResponse)(nil),         // 31: ingestion.v1.DeletePipelineResponse
-	nil,                                    // 32: ingestion.v1.PipelineNode.SecretRefsEntry
-	(ConnectorKind)(0),                     // 33: ingestion.v1.ConnectorKind
-	(*structpb.Struct)(nil),                // 34: google.protobuf.Struct
-	(IngestionType)(0),                     // 35: ingestion.v1.IngestionType
-	(RunStatus)(0),                         // 36: ingestion.v1.RunStatus
+	(PipelineScheduleOverlapPolicy)(0),     // 0: ingestion.v1.PipelineScheduleOverlapPolicy
+	(*PipelineNode)(nil),                   // 1: ingestion.v1.PipelineNode
+	(*PipelineEdge)(nil),                   // 2: ingestion.v1.PipelineEdge
+	(*PipelineVersion)(nil),                // 3: ingestion.v1.PipelineVersion
+	(*Pipeline)(nil),                       // 4: ingestion.v1.Pipeline
+	(*PipelineScheduleConfig)(nil),         // 5: ingestion.v1.PipelineScheduleConfig
+	(*PipelineSchedule)(nil),               // 6: ingestion.v1.PipelineSchedule
+	(*CreatePipelineRequest)(nil),          // 7: ingestion.v1.CreatePipelineRequest
+	(*CreatePipelineResponse)(nil),         // 8: ingestion.v1.CreatePipelineResponse
+	(*CreatePipelineScheduleRequest)(nil),  // 9: ingestion.v1.CreatePipelineScheduleRequest
+	(*CreatePipelineScheduleResponse)(nil), // 10: ingestion.v1.CreatePipelineScheduleResponse
+	(*UpdatePipelineScheduleRequest)(nil),  // 11: ingestion.v1.UpdatePipelineScheduleRequest
+	(*UpdatePipelineScheduleResponse)(nil), // 12: ingestion.v1.UpdatePipelineScheduleResponse
+	(*DeletePipelineScheduleRequest)(nil),  // 13: ingestion.v1.DeletePipelineScheduleRequest
+	(*DeletePipelineScheduleResponse)(nil), // 14: ingestion.v1.DeletePipelineScheduleResponse
+	(*PausePipelineScheduleRequest)(nil),   // 15: ingestion.v1.PausePipelineScheduleRequest
+	(*PausePipelineScheduleResponse)(nil),  // 16: ingestion.v1.PausePipelineScheduleResponse
+	(*ResumePipelineScheduleRequest)(nil),  // 17: ingestion.v1.ResumePipelineScheduleRequest
+	(*ResumePipelineScheduleResponse)(nil), // 18: ingestion.v1.ResumePipelineScheduleResponse
+	(*CreatePipelineVersionRequest)(nil),   // 19: ingestion.v1.CreatePipelineVersionRequest
+	(*CreatePipelineVersionResponse)(nil),  // 20: ingestion.v1.CreatePipelineVersionResponse
+	(*UpdatePipelineRequest)(nil),          // 21: ingestion.v1.UpdatePipelineRequest
+	(*UpdatePipelineResponse)(nil),         // 22: ingestion.v1.UpdatePipelineResponse
+	(*GetPipelineRequest)(nil),             // 23: ingestion.v1.GetPipelineRequest
+	(*GetPipelineResponse)(nil),            // 24: ingestion.v1.GetPipelineResponse
+	(*GetPipelineVersionRequest)(nil),      // 25: ingestion.v1.GetPipelineVersionRequest
+	(*GetPipelineVersionResponse)(nil),     // 26: ingestion.v1.GetPipelineVersionResponse
+	(*ListPipelineVersionsRequest)(nil),    // 27: ingestion.v1.ListPipelineVersionsRequest
+	(*ListPipelineVersionsResponse)(nil),   // 28: ingestion.v1.ListPipelineVersionsResponse
+	(*ListPipelinesRequest)(nil),           // 29: ingestion.v1.ListPipelinesRequest
+	(*ListPipelinesResponse)(nil),          // 30: ingestion.v1.ListPipelinesResponse
+	(*DeletePipelineRequest)(nil),          // 31: ingestion.v1.DeletePipelineRequest
+	(*DeletePipelineResponse)(nil),         // 32: ingestion.v1.DeletePipelineResponse
+	nil,                                    // 33: ingestion.v1.PipelineNode.SecretRefsEntry
+	(ConnectorKind)(0),                     // 34: ingestion.v1.ConnectorKind
+	(*structpb.Struct)(nil),                // 35: google.protobuf.Struct
+	(IngestionType)(0),                     // 36: ingestion.v1.IngestionType
+	(RunStatus)(0),                         // 37: ingestion.v1.RunStatus
 }
 var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
-	33, // 0: ingestion.v1.PipelineNode.kind:type_name -> ingestion.v1.ConnectorKind
-	34, // 1: ingestion.v1.PipelineNode.config:type_name -> google.protobuf.Struct
-	32, // 2: ingestion.v1.PipelineNode.secret_refs:type_name -> ingestion.v1.PipelineNode.SecretRefsEntry
-	35, // 3: ingestion.v1.PipelineEdge.ingestion_type:type_name -> ingestion.v1.IngestionType
-	0,  // 4: ingestion.v1.PipelineVersion.nodes:type_name -> ingestion.v1.PipelineNode
-	1,  // 5: ingestion.v1.PipelineVersion.edges:type_name -> ingestion.v1.PipelineEdge
-	36, // 6: ingestion.v1.Pipeline.last_run_status:type_name -> ingestion.v1.RunStatus
-	4,  // 7: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
-	4,  // 8: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	3,  // 9: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	5,  // 10: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	4,  // 11: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	5,  // 12: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	4,  // 13: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	5,  // 14: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	5,  // 15: ingestion.v1.PausePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	5,  // 16: ingestion.v1.ResumePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	0,  // 17: ingestion.v1.CreatePipelineVersionRequest.nodes:type_name -> ingestion.v1.PipelineNode
-	1,  // 18: ingestion.v1.CreatePipelineVersionRequest.edges:type_name -> ingestion.v1.PipelineEdge
-	2,  // 19: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	3,  // 20: ingestion.v1.UpdatePipelineRequest.pipeline:type_name -> ingestion.v1.Pipeline
-	3,  // 21: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	3,  // 22: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	2,  // 23: ingestion.v1.GetPipelineResponse.current_version:type_name -> ingestion.v1.PipelineVersion
-	2,  // 24: ingestion.v1.GetPipelineResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	5,  // 25: ingestion.v1.GetPipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	2,  // 26: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	2,  // 27: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	3,  // 28: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	34, // 0: ingestion.v1.PipelineNode.kind:type_name -> ingestion.v1.ConnectorKind
+	35, // 1: ingestion.v1.PipelineNode.config:type_name -> google.protobuf.Struct
+	33, // 2: ingestion.v1.PipelineNode.secret_refs:type_name -> ingestion.v1.PipelineNode.SecretRefsEntry
+	36, // 3: ingestion.v1.PipelineEdge.ingestion_type:type_name -> ingestion.v1.IngestionType
+	1,  // 4: ingestion.v1.PipelineVersion.nodes:type_name -> ingestion.v1.PipelineNode
+	2,  // 5: ingestion.v1.PipelineVersion.edges:type_name -> ingestion.v1.PipelineEdge
+	37, // 6: ingestion.v1.Pipeline.last_run_status:type_name -> ingestion.v1.RunStatus
+	0,  // 7: ingestion.v1.PipelineScheduleConfig.overlap_policy:type_name -> ingestion.v1.PipelineScheduleOverlapPolicy
+	5,  // 8: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
+	5,  // 9: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	4,  // 10: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	6,  // 11: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	5,  // 12: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	6,  // 13: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	5,  // 14: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	6,  // 15: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	6,  // 16: ingestion.v1.PausePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	6,  // 17: ingestion.v1.ResumePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	1,  // 18: ingestion.v1.CreatePipelineVersionRequest.nodes:type_name -> ingestion.v1.PipelineNode
+	2,  // 19: ingestion.v1.CreatePipelineVersionRequest.edges:type_name -> ingestion.v1.PipelineEdge
+	3,  // 20: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	4,  // 21: ingestion.v1.UpdatePipelineRequest.pipeline:type_name -> ingestion.v1.Pipeline
+	4,  // 22: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	4,  // 23: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	3,  // 24: ingestion.v1.GetPipelineResponse.current_version:type_name -> ingestion.v1.PipelineVersion
+	3,  // 25: ingestion.v1.GetPipelineResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	6,  // 26: ingestion.v1.GetPipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	3,  // 27: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	3,  // 28: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	4,  // 29: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_pipelines_proto_init() }
@@ -1954,13 +2019,14 @@ func file_ingestion_v1_pipelines_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_pipelines_proto_rawDesc), len(file_ingestion_v1_pipelines_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_ingestion_v1_pipelines_proto_goTypes,
 		DependencyIndexes: file_ingestion_v1_pipelines_proto_depIdxs,
+		EnumInfos:         file_ingestion_v1_pipelines_proto_enumTypes,
 		MessageInfos:      file_ingestion_v1_pipelines_proto_msgTypes,
 	}.Build()
 	File_ingestion_v1_pipelines_proto = out.File

@@ -53,10 +53,17 @@ message Pipeline {
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
 // Omit it when creating a pipeline that should only run manually.
+enum PipelineScheduleOverlapPolicy {
+  PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED = 0;
+  PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP = 1;
+  PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW = 2;
+}
+
 message PipelineScheduleConfig {
   string cron = 1;
   string timezone = 2;
   bool enabled = 3;
+  PipelineScheduleOverlapPolicy overlap_policy = 4;
 }
 
 // PipelineSchedule includes the server-owned identity and derived fire times.
