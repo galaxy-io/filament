@@ -1,0 +1,34 @@
+---
+title: "Embedding as a Library"
+description: "Run Filament inside your own Go process."
+icon: "cube"
+---
+
+Filament embeds as a library. Connectors self-register via blank imports, so
+a binary only pulls in the connectors it actually uses:
+
+```go
+import (
+	"github.com/galaxy-io/filament/app"
+
+	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/stdout"
+)
+
+func main() { log.Fatal(app.Run(context.Background())) }
+```
+
+## Why blank imports
+
+Each connector package registers itself with the engine on import (see
+`register.go` in any `connectors/*` package). This keeps the core engine
+free of a hardcoded connector list — adding support for a new source or sink
+is purely additive, and a binary's dependency footprint is exactly the
+connectors it imports.
+
+## Choosing connectors
+
+See [Connectors](/pages/connectors/overview/introduction) for what's available today, split
+into [sources](/pages/connectors/sources/overview) and
+[sinks](/pages/connectors/sinks/overview). To add one that doesn't exist yet, see
+[Building a connector](/pages/connectors/building-a-connector/writing-a-source).

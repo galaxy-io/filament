@@ -1,0 +1,64 @@
+---
+title: "MySQL"
+description: "Keyset reads and GTID-based CDC from MySQL."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg"
+---
+
+`connectors/mysql/source` reads from MySQL 8.0+, with separate code paths for
+snapshot reads (`keyset.go`) and change data capture (`cdc.go`,
+`cdc_gtid.go`).
+
+## Snapshot reads
+
+InnoDB stores rows clustered by primary key, so on MySQL — unlike Postgres —
+key order **is** physical order. That removes the need for a physical
+read tier: every table with a primary key reads via keyset (`WHERE pk >
+cursor ORDER BY pk LIMIT page`), and each page is already a contiguous,
+sequential-I/O range scan of the clustered index.
+
+A table splits into primary-key range shards so one large table doesn't pin
+a single worker while the rest sit idle, sized off `information_schema`'s
+data-length estimate divided by the configured `shard_pages` (default target:
+~256 MiB per shard, capped at 64 shards):
+
+| Leading key type | Split strategy |
+|---|---|
+| Integer | Arithmetic split over `MIN`/`MAX` — free, no extra query |
+| Anything else (UUID, varchar, datetime) | Sampled equal-count boundaries via a single `ROW_NUMBER()` scan |
+| No primary key | Not shardable — one streaming pass with a synthetic per-snapshot `ROW_NUMBER()` id, re-read whole on resume |
+
+Every shard's WHERE clause is written as a disjunctive expansion —
+`a > ? OR (a = ? AND b > ?)` — rather than a row-constructor comparison,
+because MySQL's range optimizer can't use `(a, b) > (?, ?)` for an index
+seek; it degrades to a full scan and filter. The expanded form gets a
+covering index range scan straight to the cursor.
+
+## CDC
+
+Streams the binlog via the replication protocol (ROW format), decoding
+insert/update/delete events into the same JSON row shape the snapshot reader
+produces, so a sink can't tell the two apart. A run has catch-up semantics:
+it captures the server's current binlog position as a watermark, streams the
+checkpointed position up to it, and returns — continuous CDC is a
+re-request loop, the same mechanism as snapshot resume.
+
+The cursor is chosen automatically: a **GTID set** when the server runs
+`gtid_mode=ON` (the default on 8.0+, and the preferred path — a GTID set
+survives replica promotion since it's global to the topology, unlike a
+binlog file name and offset), falling back to **file:pos** otherwise. An
+existing file:pos checkpoint keeps that cursor kind even if the server later
+enables GTIDs, so an in-flight stream never jumps cursor kinds mid-run.
+
+<Info>
+  Requires `ROW` binlog format (the 8.0+ default), binlog retention covering
+  the resume window, and `REPLICATION SLAVE`/`REPLICATION CLIENT` privileges.
+  Column names aren't in the binlog itself, so each table's column list is
+  read from `information_schema` and invalidated on any DDL event — a
+  column-count mismatch mid-stream fails the run rather than mis-mapping
+  values into the wrong columns.
+</Info>
+
+## Modes
+
+`ModeFull` (keyset) and `ModeCDC` (GTID or file:pos streaming) — see
+[Replication modes](/pages/guides/concepts/replication-modes).

@@ -1,0 +1,49 @@
+---
+title: "Connectors Overview"
+description: "How sources and sinks plug into Filament."
+icon: "plug"
+---
+
+A connector is a source, a sink, or both. Sources implement `Source`
+(described in [Writing a source](/pages/connectors/building-a-connector/writing-a-source));
+sinks implement `Sink` (described in [Writing a
+sink](/pages/connectors/building-a-connector/writing-a-sink)). Some connectors —
+PostgreSQL and MySQL today — ship both, as separate packages
+(`connectors/postgres/source`, `connectors/postgres/sink`).
+
+## Self-description
+
+Every connector describes itself through its spec — `ConnectorSpec` for
+sources, `SinkSpec` for sinks — covering identity, config schema, and
+capabilities. This is what powers the catalog: the API server's
+`ListConnectors` RPC (see [API Reference](/pages/api-reference/service/providers)) surfaces
+exactly this metadata to the UI, so a new connector shows up automatically
+once it's registered, with no separate catalog to update by hand.
+
+## Self-registration
+
+Connectors self-register via a blank import (see [Embedding as a
+library](/pages/guides/deployment/embedding-as-a-library)):
+
+```go
+_ "github.com/galaxy-io/filament/connectors/postgres"
+```
+
+## Browse by direction
+
+<CardGroup cols={2}>
+  <Card title="Sources" icon="download" href="/pages/connectors/sources/overview">
+    Connectors that read data: PostgreSQL, MySQL, five manifest-driven SaaS
+    apps (Attio, GitHub, Linear, Notion, Slack), and Sample.
+  </Card>
+  <Card title="Sinks" icon="upload" href="/pages/connectors/sinks/overview">
+    Connectors that write data: PostgreSQL, MySQL, Iceberg, Object Storage, and Stdout.
+  </Card>
+</CardGroup>
+
+Want to add one? Start at [Writing a
+source](/pages/connectors/building-a-connector/writing-a-source) or [Writing a
+sink](/pages/connectors/building-a-connector/writing-a-sink). Adding a new
+SaaS API specifically is usually just a new
+[HTTP](/pages/connectors/sources/http) manifest — see that page before
+reaching for a full custom connector.

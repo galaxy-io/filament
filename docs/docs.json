@@ -1,0 +1,186 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "aspen",
+  "name": "Filament",
+  "colors": {
+    "primary": "#3075FF",
+    "light": "#5B92FF",
+    "dark": "#005EFF"
+  },
+  "background": {
+    "color": {
+      "light": "#ffffff",
+      "dark": "#131313"
+    },
+    "decoration": "grid"
+  },
+  "appearance": {
+    "default": "dark"
+  },
+  "logo": {
+    "light": "/assets/filament-light.svg",
+    "dark": "/assets/filament-dark.svg",
+    "href": "https://github.com/galaxy-io/filament"
+  },
+  "favicon": "/assets/favicon.svg",
+  "fonts": {
+    "family": "ABC Diatype",
+    "weight": 400,
+    "source": "https://cdn.getgalaxy.io/fonts/Diatype/ABCDiatype-Regular.woff2",
+    "format": "woff2",
+    "heading": {
+      "family": "ABC Diatype",
+      "weight": 500,
+      "source": "https://cdn.getgalaxy.io/fonts/Diatype/ABCDiatype-Medium.woff2",
+      "format": "woff2"
+    }
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs",
+    "codeblocks": {
+      "theme": {
+        "light": "catppuccin-latte",
+        "dark": "catppuccin-mocha"
+      }
+    }
+  },
+  "navbar": {
+    "links": [
+      { "type": "github", "href": "https://github.com/galaxy-io/filament" }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Talk to us",
+      "href": "https://getgalaxy.com/filament"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "icon": "rocket",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "pages/guides/get-started/introduction",
+              "pages/guides/get-started/quickstart",
+              "pages/guides/get-started/installation"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "pages/guides/concepts/architecture",
+              "pages/guides/concepts/replication-modes",
+              "pages/guides/concepts/integrity-and-checkpoints"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "pages/guides/deployment/kubernetes",
+              "pages/guides/deployment/configuration",
+              "pages/guides/deployment/embedding-as-a-library"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "pages/guides/contributing/local-development",
+              "pages/guides/contributing/style-and-testing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Connectors",
+        "icon": "plug",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["pages/connectors/overview/introduction"]
+          },
+          {
+            "group": "Sources",
+            "pages": [
+              "pages/connectors/sources/overview",
+              "pages/connectors/sources/postgres",
+              "pages/connectors/sources/mysql",
+              "pages/connectors/sources/attio",
+              "pages/connectors/sources/github",
+              "pages/connectors/sources/linear",
+              "pages/connectors/sources/notion",
+              "pages/connectors/sources/slack",
+              "pages/connectors/sources/http",
+              "pages/connectors/sources/sample"
+            ]
+          },
+          {
+            "group": "Sinks",
+            "pages": [
+              "pages/connectors/sinks/overview",
+              "pages/connectors/sinks/postgres",
+              "pages/connectors/sinks/mysql",
+              "pages/connectors/sinks/iceberg",
+              "pages/connectors/sinks/object-storage",
+              "pages/connectors/sinks/stdout"
+            ]
+          },
+          {
+            "group": "Building a Connector",
+            "pages": [
+              "pages/connectors/building-a-connector/writing-a-source",
+              "pages/connectors/building-a-connector/writing-a-sink",
+              "pages/connectors/building-a-connector/optional-interfaces"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "icon": "code",
+        "groups": [
+          {
+            "group": "Service",
+            "pages": [
+              "pages/api-reference/service/introduction",
+              "pages/api-reference/service/connections",
+              "pages/api-reference/service/pipelines",
+              "pages/api-reference/service/providers",
+              "pages/api-reference/service/runs",
+              "pages/api-reference/service/secrets"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Benchmarks",
+        "icon": "gauge",
+        "groups": [
+          {
+            "group": "Methodology",
+            "pages": ["pages/benchmarks/methodology/introduction"]
+          },
+          {
+            "group": "Pipeline",
+            "pages": ["pages/benchmarks/pipeline/throughput"]
+          },
+          {
+            "group": "Event Bus",
+            "pages": ["pages/benchmarks/event-bus/publish-overhead"]
+          }
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/pages/guides/get-started/introduction"
+    }
+  ]
+}

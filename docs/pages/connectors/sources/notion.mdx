@@ -1,0 +1,36 @@
+---
+title: "Notion"
+description: "Read databases, pages, and blocks from a Notion workspace."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg"
+---
+
+Notion is a manifest-driven source — `connectors/http/manifests/notion.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Notion-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A Notion integration secret (bearer auth), plus a pinned `Notion-Version`
+header (`2022-06-28`) so a Notion API upgrade can't silently change response
+shapes mid-stream.
+
+## Resources
+
+Four resources, statically discovered:
+
+| Resource | Path | Fans out from | Notes |
+|---|---|---|---|
+| `databases` | `POST /v1/search` | — | Notion has no list-databases endpoint; this filters search results to `object: database` |
+| `pages` | `POST /v1/databases/{database}/query` | `databases` | |
+| `users` | `GET /v1/users` | — | Workspace members and bots |
+| `blocks` | `GET /v1/blocks/{block}/children` | `pages` | The page's content, one level of children at a time |
+
+All four paginate the same way: a `next_cursor` / `has_more` pair in the
+response, fed back as `start_cursor` on the next request (in the body for the
+two `POST` resources, in the query string for the two `GET` ones).
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
+this manifest declares no `incremental:` block, so runs are full extracts.

@@ -1,0 +1,46 @@
+---
+title: "Linear"
+description: "Read teams, issues, and projects from Linear's GraphQL API."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg"
+---
+
+Linear is a manifest-driven source — `connectors/http/manifests/linear.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Linear-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## GraphQL, not REST
+
+Linear only exposes a GraphQL API, so every resource in this manifest is a
+`POST /graphql` with a different query and variables in its `body.template` —
+the one manifest in the catalog that isn't a plain REST client. `for_each`
+fan-out and pagination still work the same as the REST-backed connectors; the
+difference is entirely in how each request body is built.
+
+## Auth
+
+An API key, sent as a raw `Authorization` header value (`auth.header`) rather
+than the `bearer:` shorthand the other manifests use — Linear's key is not
+prefixed with `Bearer `.
+
+## Resources
+
+Four resources, all statically discovered, none with a parent:
+
+| Resource | GraphQL query | Notes |
+|---|---|---|
+| `teams` | `Teams($first, $after)` | |
+| `users` | `Users($first, $after)` | |
+| `projects` | `Projects($first, $after)` | |
+| `issues` | `Issues($first, $after)` | Denormalizes `team`, `state`, `assignee`, `creator`, and `project` as both a flat `_id` field and a nested `json` object |
+
+Every query pages 100 nodes at a time and reads cursor state from GraphQL's
+standard `pageInfo { hasNextPage, endCursor }` shape — the manifest's cursor
+pagination points at `data.<field>.pageInfo.endCursor` /
+`data.<field>.pageInfo.hasNextPage` and feeds the cursor back in as the
+`after` GraphQL variable.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
+this manifest declares no `incremental:` block, so runs are full extracts.

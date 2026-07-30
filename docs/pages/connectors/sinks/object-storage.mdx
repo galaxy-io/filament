@@ -1,0 +1,42 @@
+---
+title: "Object Storage"
+description: "Write to S3-compatible object storage."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"
+---
+
+`connectors/object` (registered as `s3`) writes each resource to its own
+NDJSON object in an S3-compatible bucket, one record per line — the same
+dev-readable line shape the [Stdout](/pages/connectors/sinks/stdout) sink
+emits.
+
+## Layout
+
+A run lands one object per resource at `<prefix>/<run>/<resource>.ndjson`.
+
+## Streaming multipart upload
+
+S3 objects aren't appendable, so each resource streams through its own
+multipart upload: `Write` buffers records into a part, and once the buffer
+crosses the configured part size (default 16 MiB, 5 MiB minimum — S3's
+floor for any non-final part) it's handed to a background goroutine to
+upload while the next part keeps encoding. A sink-wide semaphore
+(`upload_concurrency`, default 8) caps total in-flight parts across every
+resource, backpressuring `Write` once the cap is hit rather than growing
+unboundedly. `Commit` waits out every in-flight part, flushes each
+resource's tail, and completes the multipart uploads in parallel; a
+resource that produced zero records still lands as an empty object (S3
+forbids a zero-part multipart upload, so that path uses a plain
+`PutObject`). `Abort` cancels every in-flight upload so a failed run leaves
+nothing behind.
+
+## S3-compatible endpoints
+
+Setting `endpoint` points the client at a non-AWS gateway (MinIO and most
+others) and switches to path-style addressing automatically. Static
+`access_key_id`/`secret_access_key` are optional — omitted, the sink falls
+back to the AWS SDK's default credential chain.
+
+## Modes
+
+Supports `Append` and `SnapshotReplace` write policies (see [Replication
+modes](/pages/guides/concepts/replication-modes)).

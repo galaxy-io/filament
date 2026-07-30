@@ -1,0 +1,75 @@
+---
+title: "Slack"
+description: "Read channels, messages, and files from a Slack workspace."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg"
+---
+
+Slack is a manifest-driven source — `connectors/http/manifests/slack.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Slack-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+It's also the only bundled SaaS manifest that declares an `incremental:`
+block, so it's the best reference for what incremental support looks like at
+the manifest level.
+
+## Auth
+
+A bot or user OAuth token (bearer auth), plus an optional
+`conversation_types` config value (default `public_channel`) that controls
+which conversation types `conversations` enumerates — set it to include
+`private_channel`, `mpim`, or `im` if the token has access.
+
+## Resources
+
+Nine resources, statically discovered:
+
+| Resource | Fans out from | Notes |
+|---|---|---|
+| `team` | — | Single record (`cardinality: one`) — workspace metadata |
+| `users` | — | |
+| `user_groups` | — | |
+| `conversations` | — | Channels/DMs the token's identity can see, via `users.conversations` |
+| `messages` | `conversations` | Incremental (see below) |
+| `thread_replies` | `messages` | Only fetched for messages that started a thread |
+| `files` | — | |
+| `bookmarks` | `conversations` | |
+| `pins` | `conversations` | |
+
+<Info>
+  `conversations` is deliberately membership-aware: it calls
+  `users.conversations` rather than a workspace-wide channel list, because
+  `conversations.history` (used by `messages`) rejects a channel the bot can
+  see but hasn't joined with `not_in_channel`. Enumerating only channels the
+  token is actually a member of keeps discovery and extraction consistent.
+</Info>
+
+## Incremental sync
+
+`messages` is the one resource in the bundled catalog with an `incremental:`
+block:
+
+```yaml
+incremental:
+  cursor_field: ts
+  start_param: oldest
+  inject_into: query
+  checkpoint_key: messages_since
+  comparator: numeric
+```
+
+Each run reads a channel's messages newer than the last checkpointed `ts`
+(Slack's per-message timestamp, which doubles as a numeric cursor), injects
+it as the `oldest` query parameter on the next run, and checkpoints under
+`messages_since` per conversation.
+
+## Error handling
+
+Slack's Web API returns HTTP 200 even on failure, signaling errors via an
+`error` field in the JSON body. The manifest's connection-wide
+`defaults.response.error` block (`path: error, when_present: true`) makes
+every resource check that field and fail the request instead of silently
+ingesting an error payload as if it were data.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).

@@ -1,0 +1,34 @@
+---
+title: "Style & Testing"
+description: "Formatting, linting, and the two test tiers."
+icon: "flask"
+---
+
+## Formatting & linting
+
+Go code is formatted and linted per-module with `golangci-lint` (gofumpt +
+goimports, configured in `.golangci.yaml`); the UI package uses Biome.
+
+| Command | What it does |
+|---|---|
+| `just format` | Applies formatting across every Go module, plus UI formatting |
+| `just format-check` | Checks formatting without writing — what CI runs |
+| `just lint` | Runs linters and applies auto-fixes where possible |
+| `just lint-check` | Runs linters without fixing — what CI runs |
+
+## Testing
+
+Filament has two test tiers:
+
+| Command | Scope |
+|---|---|
+| `just test` | Unit tests, run in every Go module except `tests/` |
+| `just test-integration` | The full e2e suite in `tests/` — requires Docker |
+
+Run `just format`, `just lint`, and `just test` before opening a PR.
+
+<Info>
+  This page is a placeholder for deeper testing conventions — table-driven
+  test patterns, how connector conformance is tested, and CI specifics
+  belong here as the contributor base grows.
+</Info>

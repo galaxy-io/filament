@@ -1,0 +1,25 @@
+---
+title: "Connections"
+description: "Reusable, tenant-scoped sources and sinks."
+---
+
+Defined in `api/ingestion/v1/connections.proto`. A connection is a
+configured, reusable instance of a connector — the connection-scoped config
+fields from that connector's `ConfigSchema` (see [Writing a
+source](/pages/connectors/building-a-connector/writing-a-source)), persisted once
+and referenced by any number of pipelines.
+
+## RPCs
+
+| RPC | Purpose |
+|---|---|
+| `CreateConnection` | Create a new connection |
+| `UpdateConnection` | Update an existing connection |
+| `GetConnection` | Fetch one connection |
+| `ListConnections` | List connections |
+| `DeleteConnection` | Delete a connection |
+
+<Info>
+  This page is a placeholder for full request/response field documentation,
+  generated from `connections.proto`.
+</Info>

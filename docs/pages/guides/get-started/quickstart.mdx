@@ -1,0 +1,42 @@
+---
+title: "Quickstart"
+description: "Run Filament locally in three commands."
+---
+
+## Prerequisites
+
+Run `brew bundle` from the repo root to install the toolchain, and make sure
+Docker is running — local infra comes up via `docker compose`.
+
+## Run it
+
+<Steps>
+  <Step title="Start local infra">
+    Brings up the data store and event bus via Docker Compose.
+
+    ```sh
+    just infra
+    ```
+  </Step>
+  <Step title="Run the app">
+    Starts the control plane, API server, and web UI together.
+
+    ```sh
+    just dev
+    ```
+
+    The UI is served on `localhost:5173`; the API server listens on `:8080`.
+  </Step>
+  <Step title="Run the tests (optional)">
+    ```sh
+    just test               # unit tests
+    just test-integration   # e2e — needs Docker
+    ```
+  </Step>
+</Steps>
+
+## Next steps
+
+Head to [Architecture](/pages/guides/concepts/architecture) to see how these pieces
+relate, or [Connectors](/pages/connectors/overview/introduction) to see what you can plug in as
+a source or sink.

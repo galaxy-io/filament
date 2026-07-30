@@ -1,0 +1,33 @@
+---
+title: "PostgreSQL"
+description: "Write to PostgreSQL."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
+---
+
+`connectors/postgres/sink` loads each resource into its own typed table with
+native Postgres columns.
+
+## Typed loading
+
+The engine calls `EnsureSchema` once per resource before extraction, which
+creates the destination table (adding any new columns to an existing one via
+`ADD COLUMN IF NOT EXISTS`) and caches a prebuilt `INSERT` statement. `Write`
+then casts each batch's JSON row payloads into those typed columns
+server-side via `jsonb_to_recordset` — the batch is framed as one `jsonb`
+array and expanded in a single statement rather than parsed and bound
+row-by-row from the client.
+
+## Write policies
+
+A resumable ingestion type (`SnapshotUpsert`, `Upsert`) upserts by primary
+key via `ON CONFLICT … DO UPDATE`, so a re-delivered row from an
+at-least-once resume overwrites rather than errors on the unique
+constraint. A non-resumable load truncates the table first and inserts
+plain, for full-snapshot replace semantics.
+
+## Modes
+
+Supports `SnapshotReplace`, `SnapshotUpsert`, `Append`, and `Upsert` write
+policies (see [Replication modes](/pages/guides/concepts/replication-modes)).
+CDC lands through the [MySQL sink's](/pages/connectors/sinks/mysql) merge
+path today; Postgres CDC write support is not yet implemented.

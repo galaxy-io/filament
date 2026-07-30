@@ -1,0 +1,36 @@
+---
+title: "Configuration"
+description: "Runtime configuration, locally and in Kubernetes."
+icon: "gear"
+---
+
+Filament's runtime configuration is the same handful of settings whether
+you're running `just dev` locally or the Helm chart in Kubernetes — only how
+you supply them changes.
+
+## Local (environment variables)
+
+Set directly, or defaulted to match `docker-compose.yaml` — see the `server`
+and `control-plane` recipes in the repo's `justfile`:
+
+| Variable | Purpose |
+|---|---|
+| `PERSISTENCE_DSN` | Postgres connection string for durable state |
+| `NATS_URL` | Event bus connection |
+| `NATS_STREAM` | Event bus stream name |
+| `NATS_SUBJECTS` | Subject filter for ingestion events |
+| `ENCRYPTION_KEY` | Base64-encoded key for encrypting stored secrets |
+| `DISPATCH_MODE` | How the control plane dispatches workers (e.g. `inproc` locally, `kubernetes` in-cluster) |
+
+## Kubernetes (Helm values)
+
+The same settings are supplied via `existingSecret` or chart values — see
+[Kubernetes](/pages/guides/deployment/kubernetes) for the exact commands, and the chart's
+own values reference for the full surface (autoscaling, ingress, resources,
+image repositories, worker dispatch tuning).
+
+<Info>
+  This page is a placeholder for a fuller configuration reference — a
+  generated table from `values.yaml` and a complete environment variable
+  list belong here as the deployment surface grows.
+</Info>
