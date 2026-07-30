@@ -21,13 +21,13 @@ service IngestionService {
   // Ephemeral source/sink operations; no persisted state.
   rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse) {
     option (google.api.http) = {
-      post: "/v1/connectors:validate"
+      post: "/v1/connectors/validate"
       body: "*"
     };
   }
   rpc DiscoverResources(DiscoverResourcesRequest) returns (DiscoverResourcesResponse) {
     option (google.api.http) = {
-      post: "/v1/connectors:discover"
+      post: "/v1/connectors/discover"
       body: "*"
     };
   }
@@ -111,7 +111,7 @@ service IngestionService {
   // Runs; compile + submit a pipeline, then list / snapshot / signal.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse) {
     option (google.api.http) = {
-      post: "/v1/pipelines/{pipeline_id}:run"
+      post: "/v1/pipelines/{pipeline_id}/run"
       body: "*"
     };
   }
@@ -123,7 +123,7 @@ service IngestionService {
   }
   rpc SignalRun(SignalRunRequest) returns (SignalRunResponse) {
     option (google.api.http) = {
-      post: "/v1/runs/{run_id}:signal"
+      post: "/v1/runs/{run_id}/signal"
       body: "*"
     };
   }
