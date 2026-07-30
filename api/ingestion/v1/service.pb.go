@@ -7,6 +7,7 @@
 package ingestionv1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -24,35 +25,37 @@ var File_ingestion_v1_service_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1aingestion/v1/service.proto\x12\fingestion.v1\x1a\x1eingestion/v1/connections.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x1cingestion/v1/providers.proto\x1a\x17ingestion/v1/runs.proto\x1a\x1aingestion/v1/secrets.proto2\x8b\x15\n" +
-	"\x10IngestionService\x12[\n" +
-	"\x0eListConnectors\x12#.ingestion.v1.ListConnectorsRequest\x1a$.ingestion.v1.ListConnectorsResponse\x12[\n" +
-	"\x0eValidateConfig\x12#.ingestion.v1.ValidateConfigRequest\x1a$.ingestion.v1.ValidateConfigResponse\x12d\n" +
-	"\x11DiscoverResources\x12&.ingestion.v1.DiscoverResourcesRequest\x1a'.ingestion.v1.DiscoverResourcesResponse\x12L\n" +
-	"\tPutSecret\x12\x1e.ingestion.v1.PutSecretRequest\x1a\x1f.ingestion.v1.PutSecretResponse\x12U\n" +
-	"\fDeleteSecret\x12!.ingestion.v1.DeleteSecretRequest\x1a\".ingestion.v1.DeleteSecretResponse\x12a\n" +
-	"\x10CreateConnection\x12%.ingestion.v1.CreateConnectionRequest\x1a&.ingestion.v1.CreateConnectionResponse\x12a\n" +
-	"\x10UpdateConnection\x12%.ingestion.v1.UpdateConnectionRequest\x1a&.ingestion.v1.UpdateConnectionResponse\x12X\n" +
-	"\rGetConnection\x12\".ingestion.v1.GetConnectionRequest\x1a#.ingestion.v1.GetConnectionResponse\x12^\n" +
-	"\x0fListConnections\x12$.ingestion.v1.ListConnectionsRequest\x1a%.ingestion.v1.ListConnectionsResponse\x12a\n" +
-	"\x10DeleteConnection\x12%.ingestion.v1.DeleteConnectionRequest\x1a&.ingestion.v1.DeleteConnectionResponse\x12[\n" +
-	"\x0eCreatePipeline\x12#.ingestion.v1.CreatePipelineRequest\x1a$.ingestion.v1.CreatePipelineResponse\x12p\n" +
-	"\x15CreatePipelineVersion\x12*.ingestion.v1.CreatePipelineVersionRequest\x1a+.ingestion.v1.CreatePipelineVersionResponse\x12[\n" +
-	"\x0eUpdatePipeline\x12#.ingestion.v1.UpdatePipelineRequest\x1a$.ingestion.v1.UpdatePipelineResponse\x12R\n" +
-	"\vGetPipeline\x12 .ingestion.v1.GetPipelineRequest\x1a!.ingestion.v1.GetPipelineResponse\x12g\n" +
-	"\x12GetPipelineVersion\x12'.ingestion.v1.GetPipelineVersionRequest\x1a(.ingestion.v1.GetPipelineVersionResponse\x12m\n" +
-	"\x14ListPipelineVersions\x12).ingestion.v1.ListPipelineVersionsRequest\x1a*.ingestion.v1.ListPipelineVersionsResponse\x12X\n" +
-	"\rListPipelines\x12\".ingestion.v1.ListPipelinesRequest\x1a#.ingestion.v1.ListPipelinesResponse\x12[\n" +
-	"\x0eDeletePipeline\x12#.ingestion.v1.DeletePipelineRequest\x1a$.ingestion.v1.DeletePipelineResponse\x12s\n" +
-	"\x16CreatePipelineSchedule\x12+.ingestion.v1.CreatePipelineScheduleRequest\x1a,.ingestion.v1.CreatePipelineScheduleResponse\x12s\n" +
-	"\x16UpdatePipelineSchedule\x12+.ingestion.v1.UpdatePipelineScheduleRequest\x1a,.ingestion.v1.UpdatePipelineScheduleResponse\x12s\n" +
-	"\x16DeletePipelineSchedule\x12+.ingestion.v1.DeletePipelineScheduleRequest\x1a,.ingestion.v1.DeletePipelineScheduleResponse\x12p\n" +
-	"\x15PausePipelineSchedule\x12*.ingestion.v1.PausePipelineScheduleRequest\x1a+.ingestion.v1.PausePipelineScheduleResponse\x12s\n" +
-	"\x16ResumePipelineSchedule\x12+.ingestion.v1.ResumePipelineScheduleRequest\x1a,.ingestion.v1.ResumePipelineScheduleResponse\x12R\n" +
-	"\vRunPipeline\x12 .ingestion.v1.RunPipelineRequest\x1a!.ingestion.v1.RunPipelineResponse\x12I\n" +
-	"\bListRuns\x12\x1d.ingestion.v1.ListRunsRequest\x1a\x1e.ingestion.v1.ListRunsResponse\x12C\n" +
-	"\x06GetRun\x12\x1b.ingestion.v1.GetRunRequest\x1a\x1c.ingestion.v1.GetRunResponse\x12L\n" +
-	"\tSignalRun\x12\x1e.ingestion.v1.SignalRunRequest\x1a\x1f.ingestion.v1.SignalRunResponse\x12H\n" +
+	"\x1aingestion/v1/service.proto\x12\fingestion.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1eingestion/v1/connections.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x1cingestion/v1/providers.proto\x1a\x17ingestion/v1/runs.proto\x1a\x1aingestion/v1/secrets.proto2\x8f\x1d\n" +
+	"\x10IngestionService\x12s\n" +
+	"\x0eListConnectors\x12#.ingestion.v1.ListConnectorsRequest\x1a$.ingestion.v1.ListConnectorsResponse\"\x16\x82\xd3\xe4\x93\x02\x10\x12\x0e/v1/connectors\x12\x7f\n" +
+	"\x0eValidateConfig\x12#.ingestion.v1.ValidateConfigRequest\x1a$.ingestion.v1.ValidateConfigResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/v1/connectors/validate\x12\x88\x01\n" +
+	"\x11DiscoverResources\x12&.ingestion.v1.DiscoverResourcesRequest\x1a'.ingestion.v1.DiscoverResourcesResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/v1/connectors/discover\x12m\n" +
+	"\tPutSecret\x12\x1e.ingestion.v1.PutSecretRequest\x1a\x1f.ingestion.v1.PutSecretResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\x1a\x14/v1/secrets/{ref=**}\x12s\n" +
+	"\fDeleteSecret\x12!.ingestion.v1.DeleteSecretRequest\x1a\".ingestion.v1.DeleteSecretResponse\"\x1c\x82\xd3\xe4\x93\x02\x16*\x14/v1/secrets/{ref=**}\x12}\n" +
+	"\x10CreateConnection\x12%.ingestion.v1.CreateConnectionRequest\x1a&.ingestion.v1.CreateConnectionResponse\"\x1a\x82\xd3\xe4\x93\x02\x14:\x01*\"\x0f/v1/connections\x12\x96\x01\n" +
+	"\x10UpdateConnection\x12%.ingestion.v1.UpdateConnectionRequest\x1a&.ingestion.v1.UpdateConnectionResponse\"3\x82\xd3\xe4\x93\x02-:\n" +
+	"connection\x1a\x1f/v1/connections/{connection.id}\x12v\n" +
+	"\rGetConnection\x12\".ingestion.v1.GetConnectionRequest\x1a#.ingestion.v1.GetConnectionResponse\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/connections/{id}\x12w\n" +
+	"\x0fListConnections\x12$.ingestion.v1.ListConnectionsRequest\x1a%.ingestion.v1.ListConnectionsResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/connections\x12\x7f\n" +
+	"\x10DeleteConnection\x12%.ingestion.v1.DeleteConnectionRequest\x1a&.ingestion.v1.DeleteConnectionResponse\"\x1c\x82\xd3\xe4\x93\x02\x16*\x14/v1/connections/{id}\x12u\n" +
+	"\x0eCreatePipeline\x12#.ingestion.v1.CreatePipelineRequest\x1a$.ingestion.v1.CreatePipelineResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/v1/pipelines\x12\xa1\x01\n" +
+	"\x15CreatePipelineVersion\x12*.ingestion.v1.CreatePipelineVersionRequest\x1a+.ingestion.v1.CreatePipelineVersionResponse\"/\x82\xd3\xe4\x93\x02):\x01*\"$/v1/pipelines/{pipeline_id}/versions\x12\x8a\x01\n" +
+	"\x0eUpdatePipeline\x12#.ingestion.v1.UpdatePipelineRequest\x1a$.ingestion.v1.UpdatePipelineResponse\"-\x82\xd3\xe4\x93\x02':\bpipeline\x1a\x1b/v1/pipelines/{pipeline.id}\x12n\n" +
+	"\vGetPipeline\x12 .ingestion.v1.GetPipelineRequest\x1a!.ingestion.v1.GetPipelineResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/pipelines/{id}\x12\x9f\x01\n" +
+	"\x12GetPipelineVersion\x12'.ingestion.v1.GetPipelineVersionRequest\x1a(.ingestion.v1.GetPipelineVersionResponse\"6\x82\xd3\xe4\x93\x020\x12./v1/pipelines/{pipeline_id}/versions/{version}\x12\x9b\x01\n" +
+	"\x14ListPipelineVersions\x12).ingestion.v1.ListPipelineVersionsRequest\x1a*.ingestion.v1.ListPipelineVersionsResponse\",\x82\xd3\xe4\x93\x02&\x12$/v1/pipelines/{pipeline_id}/versions\x12o\n" +
+	"\rListPipelines\x12\".ingestion.v1.ListPipelinesRequest\x1a#.ingestion.v1.ListPipelinesResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/v1/pipelines\x12w\n" +
+	"\x0eDeletePipeline\x12#.ingestion.v1.DeletePipelineRequest\x1a$.ingestion.v1.DeletePipelineResponse\"\x1a\x82\xd3\xe4\x93\x02\x14*\x12/v1/pipelines/{id}\x12\xab\x01\n" +
+	"\x16CreatePipelineSchedule\x12+.ingestion.v1.CreatePipelineScheduleRequest\x1a,.ingestion.v1.CreatePipelineScheduleResponse\"6\x82\xd3\xe4\x93\x020:\bschedule\"$/v1/pipelines/{pipeline_id}/schedule\x12\xab\x01\n" +
+	"\x16UpdatePipelineSchedule\x12+.ingestion.v1.UpdatePipelineScheduleRequest\x1a,.ingestion.v1.UpdatePipelineScheduleResponse\"6\x82\xd3\xe4\x93\x020:\bschedule\x1a$/v1/pipelines/{pipeline_id}/schedule\x12\xa1\x01\n" +
+	"\x16DeletePipelineSchedule\x12+.ingestion.v1.DeletePipelineScheduleRequest\x1a,.ingestion.v1.DeletePipelineScheduleResponse\",\x82\xd3\xe4\x93\x02&*$/v1/pipelines/{pipeline_id}/schedule\x12\xa4\x01\n" +
+	"\x15PausePipelineSchedule\x12*.ingestion.v1.PausePipelineScheduleRequest\x1a+.ingestion.v1.PausePipelineScheduleResponse\"2\x82\xd3\xe4\x93\x02,\"*/v1/pipelines/{pipeline_id}/schedule/pause\x12\xa8\x01\n" +
+	"\x16ResumePipelineSchedule\x12+.ingestion.v1.ResumePipelineScheduleRequest\x1a,.ingestion.v1.ResumePipelineScheduleResponse\"3\x82\xd3\xe4\x93\x02-\"+/v1/pipelines/{pipeline_id}/schedule/resume\x12~\n" +
+	"\vRunPipeline\x12 .ingestion.v1.RunPipelineRequest\x1a!.ingestion.v1.RunPipelineResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/v1/pipelines/{pipeline_id}/run\x12[\n" +
+	"\bListRuns\x12\x1d.ingestion.v1.ListRunsRequest\x1a\x1e.ingestion.v1.ListRunsResponse\"\x10\x82\xd3\xe4\x93\x02\n" +
+	"\x12\b/v1/runs\x12^\n" +
+	"\x06GetRun\x12\x1b.ingestion.v1.GetRunRequest\x1a\x1c.ingestion.v1.GetRunResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/runs/{run_id}\x12q\n" +
+	"\tSignalRun\x12\x1e.ingestion.v1.SignalRunRequest\x1a\x1f.ingestion.v1.SignalRunResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/v1/runs/{run_id}/signal\x12H\n" +
 	"\aTailRun\x12\x1c.ingestion.v1.TailRunRequest\x1a\x1d.ingestion.v1.TailRunResponse0\x01B\xad\x01\n" +
 	"\x10com.ingestion.v1B\fServiceProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 

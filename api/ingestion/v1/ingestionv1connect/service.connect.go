@@ -155,6 +155,7 @@ type IngestionServiceClient interface {
 	GetRun(context.Context, *connect.Request[v1.GetRunRequest]) (*connect.Response[v1.GetRunResponse], error)
 	SignalRun(context.Context, *connect.Request[v1.SignalRunRequest]) (*connect.Response[v1.SignalRunResponse], error)
 	// Live progress; server-streams a run's facts with optional snapshot replay.
+	// Connect-only: server streaming has no REST mapping, poll GetRun instead.
 	TailRun(context.Context, *connect.Request[v1.TailRunRequest]) (*connect.ServerStreamForClient[v1.TailRunResponse], error)
 }
 
@@ -549,6 +550,7 @@ type IngestionServiceHandler interface {
 	GetRun(context.Context, *connect.Request[v1.GetRunRequest]) (*connect.Response[v1.GetRunResponse], error)
 	SignalRun(context.Context, *connect.Request[v1.SignalRunRequest]) (*connect.Response[v1.SignalRunResponse], error)
 	// Live progress; server-streams a run's facts with optional snapshot replay.
+	// Connect-only: server streaming has no REST mapping, poll GetRun instead.
 	TailRun(context.Context, *connect.Request[v1.TailRunRequest], *connect.ServerStream[v1.TailRunResponse]) error
 }
 

@@ -1,0 +1,2278 @@
+openapi: 3.1.0
+info: {}
+paths:
+  /ingestion.v1.IngestionService/TailRun: {}
+  /v1/connections:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: ListConnections
+      operationId: ingestion.v1.IngestionService.ListConnections
+      parameters:
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            title: tenant_id
+        - name: kind
+          in: query
+          schema:
+            title: kind
+            $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.ListConnectionsResponse'
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: CreateConnection
+      description: Connections; reusable, tenant-scoped sources and sinks.
+      operationId: ingestion.v1.IngestionService.CreateConnection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ingestion.v1.CreateConnectionRequest'
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.CreateConnectionResponse'
+  /v1/connections/{connection.id}:
+    put:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: UpdateConnection
+      operationId: ingestion.v1.IngestionService.UpdateConnection
+      parameters:
+        - name: connection.id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: connection
+              $ref: '#/components/schemas/ingestion.v1.Connection'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.UpdateConnectionResponse'
+  /v1/connections/{id}:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: GetConnection
+      operationId: ingestion.v1.IngestionService.GetConnection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.GetConnectionResponse'
+    delete:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: DeleteConnection
+      operationId: ingestion.v1.IngestionService.DeleteConnection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.DeleteConnectionResponse'
+  /v1/connectors:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: ListConnectors
+      description: Catalog of registered source/sink connectors and their config schemas.
+      operationId: ingestion.v1.IngestionService.ListConnectors
+      parameters:
+        - name: kind
+          in: query
+          description: Filter to one kind; UNSPECIFIED returns both sources and sinks.
+          schema:
+            title: kind
+            $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.ListConnectorsResponse'
+  /v1/connectors/discover:
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: DiscoverResources
+      operationId: ingestion.v1.IngestionService.DiscoverResources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ingestion.v1.DiscoverResourcesRequest'
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.DiscoverResourcesResponse'
+  /v1/connectors/validate:
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: ValidateConfig
+      description: Ephemeral source/sink operations; no persisted state.
+      operationId: ingestion.v1.IngestionService.ValidateConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ingestion.v1.ValidateConfigRequest'
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.ValidateConfigResponse'
+  /v1/pipelines:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: ListPipelines
+      operationId: ingestion.v1.IngestionService.ListPipelines
+      parameters:
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            title: tenant_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.ListPipelinesResponse'
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: CreatePipeline
+      description: Pipelines; the persisted node graph.
+      operationId: ingestion.v1.IngestionService.CreatePipeline
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ingestion.v1.CreatePipelineRequest'
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.CreatePipelineResponse'
+  /v1/pipelines/{id}:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: GetPipeline
+      operationId: ingestion.v1.IngestionService.GetPipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.GetPipelineResponse'
+    delete:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: DeletePipeline
+      operationId: ingestion.v1.IngestionService.DeletePipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.DeletePipelineResponse'
+  /v1/pipelines/{pipeline.id}:
+    put:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: UpdatePipeline
+      operationId: ingestion.v1.IngestionService.UpdatePipeline
+      parameters:
+        - name: pipeline.id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: pipeline
+              $ref: '#/components/schemas/ingestion.v1.Pipeline'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.UpdatePipelineResponse'
+  /v1/pipelines/{pipeline_id}/run:
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: RunPipeline
+      description: Runs; compile + submit a pipeline, then list / snapshot / signal.
+      operationId: ingestion.v1.IngestionService.RunPipeline
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clientToken:
+                  type: string
+                  title: client_token
+                  description: |-
+                    client_token salts the idempotency key so a deliberate re-run differs from a
+                     double-click; reusing a token dedupes to the same runs.
+                options:
+                  title: options
+                  description: |-
+                    options overrides engine throughput defaults for every run this call
+                     produces. Unset (or any zero field) defers to defaults.
+                  $ref: '#/components/schemas/ingestion.v1.RunOptions'
+              title: RunPipelineRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.RunPipelineResponse'
+  /v1/pipelines/{pipeline_id}/schedule:
+    put:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: UpdatePipelineSchedule
+      operationId: ingestion.v1.IngestionService.UpdatePipelineSchedule
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: schedule
+              $ref: '#/components/schemas/ingestion.v1.PipelineScheduleConfig'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.UpdatePipelineScheduleResponse'
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: CreatePipelineSchedule
+      description: Pipeline schedules; one primary schedule per pipeline.
+      operationId: ingestion.v1.IngestionService.CreatePipelineSchedule
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              title: schedule
+              $ref: '#/components/schemas/ingestion.v1.PipelineScheduleConfig'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.CreatePipelineScheduleResponse'
+    delete:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: DeletePipelineSchedule
+      operationId: ingestion.v1.IngestionService.DeletePipelineSchedule
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.DeletePipelineScheduleResponse'
+  /v1/pipelines/{pipeline_id}/schedule/pause:
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: PausePipelineSchedule
+      operationId: ingestion.v1.IngestionService.PausePipelineSchedule
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.PausePipelineScheduleResponse'
+  /v1/pipelines/{pipeline_id}/schedule/resume:
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: ResumePipelineSchedule
+      operationId: ingestion.v1.IngestionService.ResumePipelineSchedule
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.ResumePipelineScheduleResponse'
+  /v1/pipelines/{pipeline_id}/versions:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: ListPipelineVersions
+      operationId: ingestion.v1.IngestionService.ListPipelineVersions
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.ListPipelineVersionsResponse'
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: CreatePipelineVersion
+      operationId: ingestion.v1.IngestionService.CreatePipelineVersion
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nodes:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ingestion.v1.PipelineNode'
+                  title: nodes
+                edges:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ingestion.v1.PipelineEdge'
+                  title: edges
+              title: CreatePipelineVersionRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.CreatePipelineVersionResponse'
+  /v1/pipelines/{pipeline_id}/versions/{version}:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: GetPipelineVersion
+      operationId: ingestion.v1.IngestionService.GetPipelineVersion
+      parameters:
+        - name: pipeline_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: pipeline_id
+        - name: version
+          in: path
+          required: true
+          schema:
+            type:
+              - integer
+              - string
+            title: version
+            format: int64
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.GetPipelineVersionResponse'
+  /v1/runs:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: ListRuns
+      operationId: ingestion.v1.IngestionService.ListRuns
+      parameters:
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            title: tenant_id
+        - name: pipelineId
+          in: query
+          schema:
+            type: string
+            title: pipeline_id
+        - name: pipelineVersionId
+          in: query
+          schema:
+            type:
+              - integer
+              - string
+            title: pipeline_version_id
+            format: int64
+        - name: status
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ingestion.v1.RunStatus'
+            title: status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            title: limit
+            format: int32
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            title: offset
+            format: int32
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.ListRunsResponse'
+  /v1/runs/{run_id}:
+    get:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: GetRun
+      operationId: ingestion.v1.IngestionService.GetRun
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: run_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.GetRunResponse'
+  /v1/runs/{run_id}/signal:
+    post:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: SignalRun
+      operationId: ingestion.v1.IngestionService.SignalRun
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+            title: run_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signal:
+                  title: signal
+                  $ref: '#/components/schemas/ingestion.v1.Signal'
+              title: SignalRunRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.SignalRunResponse'
+  /v1/secrets/{ref}:
+    put:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: PutSecret
+      description: Secrets; write-only values referenced by name from configs.
+      operationId: ingestion.v1.IngestionService.PutSecret
+      parameters:
+        - name: ref
+          in: path
+          required: true
+          allowReserved: true
+          schema:
+            type: string
+            title: ref
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: string
+                  title: value
+                  format: byte
+                meta:
+                  type: object
+                  title: meta
+                  additionalProperties:
+                    type: string
+                    title: value
+              title: PutSecretRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.PutSecretResponse'
+    delete:
+      tags:
+        - ingestion.v1.IngestionService
+      summary: DeleteSecret
+      operationId: ingestion.v1.IngestionService.DeleteSecret
+      parameters:
+        - name: ref
+          in: path
+          required: true
+          allowReserved: true
+          schema:
+            type: string
+            title: ref
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ingestion.v1.DeleteSecretResponse'
+components:
+  schemas:
+    connect-protocol-version:
+      type: number
+      title: Connect-Protocol-Version
+      enum:
+        - 1
+      description: Define the version of the Connect protocol
+      const: 1
+    connect-timeout-header:
+      type: number
+      title: Connect-Timeout-Ms
+      description: Define the timeout, in ms
+    connect.error:
+      type: object
+      properties:
+        code:
+          type: string
+          examples:
+            - not_found
+          enum:
+            - canceled
+            - unknown
+            - invalid_argument
+            - deadline_exceeded
+            - not_found
+            - already_exists
+            - permission_denied
+            - resource_exhausted
+            - failed_precondition
+            - aborted
+            - out_of_range
+            - unimplemented
+            - internal
+            - unavailable
+            - data_loss
+            - unauthenticated
+          description: The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
+        message:
+          type: string
+          description: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/connect.error_details.Any'
+          description: A list of messages that carry the error details. There is no limit on the number of messages.
+      title: Connect Error
+      additionalProperties: true
+      description: 'Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation'
+    connect.error_details.Any:
+      type: object
+      properties:
+        type:
+          type: string
+          description: 'A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field.'
+        value:
+          type: string
+          format: binary
+          description: The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field.
+        debug:
+          oneOf:
+            - type: object
+              title: Any
+              additionalProperties: true
+              description: Detailed error information.
+          discriminator:
+            propertyName: type
+          title: Debug
+          description: Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic.
+      additionalProperties: true
+      description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details.
+    google.protobuf.ListValue:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/google.protobuf.Value'
+          title: values
+          description: Repeated field of dynamically typed values.
+      title: ListValue
+      additionalProperties: false
+      description: |-
+        `ListValue` is a wrapper around a repeated field of values.
+
+         The JSON representation for `ListValue` is JSON array.
+    google.protobuf.NullValue:
+      type: string
+      title: NullValue
+      enum:
+        - NULL_VALUE
+      description: |-
+        `NullValue` is a singleton enumeration to represent the null value for the
+         `Value` type union.
+
+         The JSON representation for `NullValue` is JSON `null`.
+    google.protobuf.Struct:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/google.protobuf.Value'
+      description: |-
+        `Struct` represents a structured data value, consisting of fields
+         which map to dynamically typed values. In some languages, `Struct`
+         might be supported by a native representation. For example, in
+         scripting languages like JS a struct is represented as an
+         object. The details of that representation are described together
+         with the proto support for the language.
+
+         The JSON representation for `Struct` is JSON object.
+    google.protobuf.Struct.FieldsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/google.protobuf.Value'
+      title: FieldsEntry
+      additionalProperties: false
+    google.protobuf.Value:
+      oneOf:
+        - type: "null"
+        - type: number
+        - type: string
+        - type: boolean
+        - type: array
+        - type: object
+          additionalProperties: true
+      description: |-
+        `Value` represents a dynamically typed value which can be either
+         null, a number, a string, a boolean, a recursive struct value, or a
+         list of values. A producer of value is expected to set one of these
+         variants. Absence of any variant indicates an error.
+
+         The JSON representation for `Value` is JSON value.
+    ingestion.v1.Capabilities:
+      type: object
+      properties:
+        discoverable:
+          type: boolean
+          title: discoverable
+        perResourceCursor:
+          type: boolean
+          title: per_resource_cursor
+        transactional:
+          type: boolean
+          title: transactional
+        upsertable:
+          type: boolean
+          title: upsertable
+        schematized:
+          type: boolean
+          title: schematized
+        writePolicies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.WritePolicyCapability'
+          title: write_policies
+        sourcePolicies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.SourcePolicy'
+          title: source_policies
+      title: Capabilities
+      additionalProperties: false
+      description: |-
+        Capabilities flattens source and sink capabilities; fields not relevant to a
+         given kind stay false.
+    ingestion.v1.CheckpointPolicy:
+      type: string
+      title: CheckpointPolicy
+      enum:
+        - CHECKPOINT_POLICY_UNSPECIFIED
+        - CHECKPOINT_POLICY_NONE
+        - CHECKPOINT_POLICY_AFTER_BATCH
+        - CHECKPOINT_POLICY_AFTER_COMMIT
+    ingestion.v1.ConfigField:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        type:
+          title: type
+          $ref: '#/components/schemas/ingestion.v1.FieldType'
+        required:
+          type: boolean
+          title: required
+        default:
+          title: default
+          $ref: '#/components/schemas/google.protobuf.Value'
+        enum:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.EnumOption'
+          title: enum
+        help:
+          type: string
+          title: help
+        scope:
+          title: scope
+          $ref: '#/components/schemas/ingestion.v1.FieldScope'
+        secret:
+          type: boolean
+          title: secret
+          description: 'secret marks the field as sensitive: rendered masked, stored as a ref.'
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.ConfigField'
+          title: fields
+          description: |-
+            fields describes members when type is FIELD_TYPE_OBJECT. An empty list
+             means the object is intentionally free-form.
+        visibleWhen:
+          title: visible_when
+          description: visible_when conditionally includes this field based on a sibling field.
+          $ref: '#/components/schemas/ingestion.v1.FieldCondition'
+      title: ConfigField
+      additionalProperties: false
+      description: ConfigField mirrors pkg.ConfigField.
+    ingestion.v1.ConfigSchema:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.ConfigField'
+          title: fields
+      title: ConfigSchema
+      additionalProperties: false
+      description: ConfigSchema mirrors pkg.ConfigSchema.
+    ingestion.v1.Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        tenantId:
+          type: string
+          title: tenant_id
+        kind:
+          title: kind
+          $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+        name:
+          type: string
+          title: name
+        connector:
+          type: string
+          title: connector
+        config:
+          title: config
+          description: CONNECTION-scoped fields only
+          $ref: '#/components/schemas/google.protobuf.Struct'
+        secretRefs:
+          type: object
+          title: secret_refs
+          additionalProperties:
+            type: string
+            title: value
+        version:
+          type:
+            - integer
+            - string
+          title: version
+          format: int64
+      title: Connection
+      additionalProperties: false
+      description: |-
+        Connection is a reusable, tenant-scoped source or sink. It holds the
+         connection-scoped config (host/bucket/credentials) shared by every pipeline
+         node that references it, keeping connection details in one place instead of
+         duplicated inline on each pipeline. version is an optimistic lock, mirroring
+         Pipeline: an update must carry the version it last read.
+    ingestion.v1.Connection.SecretRefsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: SecretRefsEntry
+      additionalProperties: false
+    ingestion.v1.ConnectorKind:
+      type: string
+      title: ConnectorKind
+      enum:
+        - CONNECTOR_KIND_UNSPECIFIED
+        - CONNECTOR_KIND_SOURCE
+        - CONNECTOR_KIND_SINK
+      description: ConnectorKind distinguishes a source from a sink in the catalog.
+    ingestion.v1.ConnectorSpec:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        displayName:
+          type: string
+          title: display_name
+        kind:
+          title: kind
+          $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+        version:
+          type: string
+          title: version
+        modes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.ReplicationMode'
+          title: modes
+        configSchema:
+          title: config_schema
+          $ref: '#/components/schemas/ingestion.v1.ConfigSchema'
+        capabilities:
+          title: capabilities
+          $ref: '#/components/schemas/ingestion.v1.Capabilities'
+        description:
+          type: string
+          title: description
+        darkLogoUrl:
+          type: string
+          title: dark_logo_url
+        lightLogoUrl:
+          type: string
+          title: light_logo_url
+        schemaField:
+          type: string
+          title: schema_field
+          description: |-
+            Pipeline-scoped config field holding the sink's destination schema, when
+             the sink has one. The server defaults it from the source connection name.
+      title: ConnectorSpec
+      additionalProperties: false
+      description: ConnectorSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
+    ingestion.v1.CreateConnectionRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          title: tenant_id
+        kind:
+          title: kind
+          $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+        name:
+          type: string
+          title: name
+        connector:
+          type: string
+          title: connector
+        config:
+          title: config
+          $ref: '#/components/schemas/google.protobuf.Struct'
+        secretRefs:
+          type: object
+          title: secret_refs
+          additionalProperties:
+            type: string
+            title: value
+      title: CreateConnectionRequest
+      additionalProperties: false
+    ingestion.v1.CreateConnectionRequest.SecretRefsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: SecretRefsEntry
+      additionalProperties: false
+    ingestion.v1.CreateConnectionResponse:
+      type: object
+      properties:
+        connection:
+          title: connection
+          $ref: '#/components/schemas/ingestion.v1.Connection'
+      title: CreateConnectionResponse
+      additionalProperties: false
+    ingestion.v1.CreatePipelineRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          title: tenant_id
+        name:
+          type: string
+          title: name
+        description:
+          type: string
+          title: description
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineScheduleConfig'
+      title: CreatePipelineRequest
+      additionalProperties: false
+    ingestion.v1.CreatePipelineResponse:
+      type: object
+      properties:
+        pipeline:
+          title: pipeline
+          $ref: '#/components/schemas/ingestion.v1.Pipeline'
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineSchedule'
+      title: CreatePipelineResponse
+      additionalProperties: false
+    ingestion.v1.CreatePipelineScheduleRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineScheduleConfig'
+      title: CreatePipelineScheduleRequest
+      additionalProperties: false
+    ingestion.v1.CreatePipelineScheduleResponse:
+      type: object
+      properties:
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineSchedule'
+      title: CreatePipelineScheduleResponse
+      additionalProperties: false
+    ingestion.v1.CreatePipelineVersionRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.PipelineNode'
+          title: nodes
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.PipelineEdge'
+          title: edges
+      title: CreatePipelineVersionRequest
+      additionalProperties: false
+    ingestion.v1.CreatePipelineVersionResponse:
+      type: object
+      properties:
+        version:
+          title: version
+          $ref: '#/components/schemas/ingestion.v1.PipelineVersion'
+      title: CreatePipelineVersionResponse
+      additionalProperties: false
+    ingestion.v1.DeleteConnectionRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+      title: DeleteConnectionRequest
+      additionalProperties: false
+    ingestion.v1.DeleteConnectionResponse:
+      type: object
+      title: DeleteConnectionResponse
+      additionalProperties: false
+    ingestion.v1.DeletePipelineRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+      title: DeletePipelineRequest
+      additionalProperties: false
+    ingestion.v1.DeletePipelineResponse:
+      type: object
+      title: DeletePipelineResponse
+      additionalProperties: false
+    ingestion.v1.DeletePipelineScheduleRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+      title: DeletePipelineScheduleRequest
+      additionalProperties: false
+    ingestion.v1.DeletePipelineScheduleResponse:
+      type: object
+      title: DeletePipelineScheduleResponse
+      additionalProperties: false
+    ingestion.v1.DeleteSecretRequest:
+      type: object
+      properties:
+        ref:
+          type: string
+          title: ref
+      title: DeleteSecretRequest
+      additionalProperties: false
+    ingestion.v1.DeleteSecretResponse:
+      type: object
+      title: DeleteSecretResponse
+      additionalProperties: false
+    ingestion.v1.DiscoverResourcesRequest:
+      type: object
+      properties:
+        connector:
+          type: string
+          title: connector
+          description: Source connector only; discovering a sink is not meaningful.
+        config:
+          title: config
+          $ref: '#/components/schemas/google.protobuf.Struct'
+        refresh:
+          type: boolean
+          title: refresh
+        connectionId:
+          type: string
+          title: connection_id
+      title: DiscoverResourcesRequest
+      additionalProperties: false
+    ingestion.v1.DiscoverResourcesResponse:
+      type: object
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.Resource'
+          title: resources
+      title: DiscoverResourcesResponse
+      additionalProperties: false
+    ingestion.v1.EnumOption:
+      type: object
+      properties:
+        value:
+          type: string
+          title: value
+        label:
+          type: string
+          title: label
+      title: EnumOption
+      additionalProperties: false
+    ingestion.v1.FieldCondition:
+      type: object
+      properties:
+        field:
+          type: string
+          title: field
+        values:
+          type: array
+          items:
+            type: string
+          title: values
+      title: FieldCondition
+      additionalProperties: false
+    ingestion.v1.FieldScope:
+      type: string
+      title: FieldScope
+      enum:
+        - FIELD_SCOPE_UNSPECIFIED
+        - FIELD_SCOPE_CONNECTION
+        - FIELD_SCOPE_PIPELINE
+    ingestion.v1.FieldType:
+      type: string
+      title: FieldType
+      enum:
+        - FIELD_TYPE_UNSPECIFIED
+        - FIELD_TYPE_STRING
+        - FIELD_TYPE_INT
+        - FIELD_TYPE_BOOL
+        - FIELD_TYPE_SECRET
+        - FIELD_TYPE_DURATION
+        - FIELD_TYPE_ENUM
+        - FIELD_TYPE_OBJECT
+      description: FieldType mirrors pkg.FieldType; drives UI form controls for config fields.
+    ingestion.v1.GetConnectionRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+      title: GetConnectionRequest
+      additionalProperties: false
+    ingestion.v1.GetConnectionResponse:
+      type: object
+      properties:
+        connection:
+          title: connection
+          $ref: '#/components/schemas/ingestion.v1.Connection'
+      title: GetConnectionResponse
+      additionalProperties: false
+    ingestion.v1.GetPipelineRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+      title: GetPipelineRequest
+      additionalProperties: false
+    ingestion.v1.GetPipelineResponse:
+      type: object
+      properties:
+        pipeline:
+          title: pipeline
+          $ref: '#/components/schemas/ingestion.v1.Pipeline'
+        currentVersion:
+          title: current_version
+          $ref: '#/components/schemas/ingestion.v1.PipelineVersion'
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.PipelineVersion'
+          title: versions
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineSchedule'
+      title: GetPipelineResponse
+      additionalProperties: false
+    ingestion.v1.GetPipelineVersionRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+        version:
+          type:
+            - integer
+            - string
+          title: version
+          format: int64
+      title: GetPipelineVersionRequest
+      additionalProperties: false
+    ingestion.v1.GetPipelineVersionResponse:
+      type: object
+      properties:
+        version:
+          title: version
+          $ref: '#/components/schemas/ingestion.v1.PipelineVersion'
+      title: GetPipelineVersionResponse
+      additionalProperties: false
+    ingestion.v1.GetRunRequest:
+      type: object
+      properties:
+        runId:
+          type: string
+          title: run_id
+      title: GetRunRequest
+      additionalProperties: false
+    ingestion.v1.GetRunResponse:
+      type: object
+      properties:
+        snapshot:
+          title: snapshot
+          $ref: '#/components/schemas/ingestion.v1.RunSnapshot'
+      title: GetRunResponse
+      additionalProperties: false
+    ingestion.v1.IngestionType:
+      type: string
+      title: IngestionType
+      enum:
+        - INGESTION_TYPE_UNSPECIFIED
+        - INGESTION_TYPE_SNAPSHOT_REPLACE
+        - INGESTION_TYPE_SNAPSHOT_UPSERT
+        - INGESTION_TYPE_APPEND
+        - INGESTION_TYPE_UPSERT
+        - INGESTION_TYPE_DELETE
+        - INGESTION_TYPE_CDC
+    ingestion.v1.ListConnectionsRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          title: tenant_id
+        kind:
+          title: kind
+          $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+      title: ListConnectionsRequest
+      additionalProperties: false
+      description: |-
+        ListConnections filters by tenant; kind UNSPECIFIED returns both sources and
+         sinks.
+    ingestion.v1.ListConnectionsResponse:
+      type: object
+      properties:
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.Connection'
+          title: connections
+      title: ListConnectionsResponse
+      additionalProperties: false
+    ingestion.v1.ListConnectorsRequest:
+      type: object
+      properties:
+        kind:
+          title: kind
+          description: Filter to one kind; UNSPECIFIED returns both sources and sinks.
+          $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+      title: ListConnectorsRequest
+      additionalProperties: false
+    ingestion.v1.ListConnectorsResponse:
+      type: object
+      properties:
+        connectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.ConnectorSpec'
+          title: connectors
+      title: ListConnectorsResponse
+      additionalProperties: false
+    ingestion.v1.ListPipelineVersionsRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+      title: ListPipelineVersionsRequest
+      additionalProperties: false
+    ingestion.v1.ListPipelineVersionsResponse:
+      type: object
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.PipelineVersion'
+          title: versions
+      title: ListPipelineVersionsResponse
+      additionalProperties: false
+    ingestion.v1.ListPipelinesRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          title: tenant_id
+      title: ListPipelinesRequest
+      additionalProperties: false
+    ingestion.v1.ListPipelinesResponse:
+      type: object
+      properties:
+        pipelines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.Pipeline'
+          title: pipelines
+      title: ListPipelinesResponse
+      additionalProperties: false
+    ingestion.v1.ListRunsRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          title: tenant_id
+        pipelineId:
+          type: string
+          title: pipeline_id
+        pipelineVersionId:
+          type:
+            - integer
+            - string
+            - "null"
+          title: pipeline_version_id
+          format: int64
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.RunStatus'
+          title: status
+        limit:
+          type: integer
+          title: limit
+          format: int32
+        offset:
+          type: integer
+          title: offset
+          format: int32
+      title: ListRunsRequest
+      additionalProperties: false
+    ingestion.v1.ListRunsResponse:
+      type: object
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.RunInfo'
+          title: runs
+      title: ListRunsResponse
+      additionalProperties: false
+    ingestion.v1.Operation:
+      type: string
+      title: Operation
+      enum:
+        - OPERATION_UNSPECIFIED
+        - OPERATION_INSERT
+        - OPERATION_UPDATE
+        - OPERATION_DELETE
+    ingestion.v1.PausePipelineScheduleRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+      title: PausePipelineScheduleRequest
+      additionalProperties: false
+    ingestion.v1.PausePipelineScheduleResponse:
+      type: object
+      properties:
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineSchedule'
+      title: PausePipelineScheduleResponse
+      additionalProperties: false
+    ingestion.v1.Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        tenantId:
+          type: string
+          title: tenant_id
+        name:
+          type: string
+          title: name
+        description:
+          type: string
+          title: description
+        currentVersionId:
+          type:
+            - integer
+            - string
+          title: current_version_id
+          format: int64
+        lastRunVersionId:
+          type:
+            - integer
+            - string
+          title: last_run_version_id
+          format: int64
+        lastRunAt:
+          type:
+            - integer
+            - string
+          title: last_run_at
+          format: int64
+        lastRunStatus:
+          title: last_run_status
+          $ref: '#/components/schemas/ingestion.v1.RunStatus'
+        lastRunBytes:
+          type:
+            - integer
+            - string
+          title: last_run_bytes
+          format: int64
+      title: Pipeline
+      additionalProperties: false
+      description: |-
+        Pipeline is mutable metadata plus a summary of its current graph version and
+         most recent run.
+    ingestion.v1.PipelineEdge:
+      type: object
+      properties:
+        fromNode:
+          type: string
+          title: from_node
+        resource:
+          type: string
+          title: resource
+        toNode:
+          type: string
+          title: to_node
+        ingestionType:
+          title: ingestion_type
+          $ref: '#/components/schemas/ingestion.v1.IngestionType'
+        selector:
+          type: string
+          title: selector
+      title: PipelineEdge
+      additionalProperties: false
+      description: |-
+        PipelineEdge routes from a source node to a sink node. An empty resource routes
+         all enabled resources; a named resource is an additive per-resource route.
+    ingestion.v1.PipelineNode:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        kind:
+          title: kind
+          $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+        connectionId:
+          type: string
+          title: connection_id
+        config:
+          title: config
+          description: PIPELINE overlay only
+          $ref: '#/components/schemas/google.protobuf.Struct'
+        secretRefs:
+          type: object
+          title: secret_refs
+          additionalProperties:
+            type: string
+            title: value
+          description: PIPELINE overlay only
+      title: PipelineNode
+      additionalProperties: false
+      description: |-
+        PipelineNode is one source or sink on the canvas. connection_id references the
+         reusable Connection that supplies the connector and connection-scoped config
+         (host/bucket/credentials). config/secret_refs are the per-node PIPELINE-scoped
+         overlay (prefix, path, target table, write mode) shallow-merged over the
+         connection config at run time, with the node overlay winning on key conflicts.
+    ingestion.v1.PipelineNode.SecretRefsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: SecretRefsEntry
+      additionalProperties: false
+    ingestion.v1.PipelineSchedule:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        pipelineId:
+          type: string
+          title: pipeline_id
+        config:
+          title: config
+          $ref: '#/components/schemas/ingestion.v1.PipelineScheduleConfig'
+        nextFireAt:
+          type:
+            - integer
+            - string
+          title: next_fire_at
+          format: int64
+        lastFiredAt:
+          type:
+            - integer
+            - string
+          title: last_fired_at
+          format: int64
+      title: PipelineSchedule
+      additionalProperties: false
+      description: PipelineSchedule includes the server-owned identity and derived fire times.
+    ingestion.v1.PipelineScheduleConfig:
+      type: object
+      properties:
+        cron:
+          type: string
+          title: cron
+        timezone:
+          type: string
+          title: timezone
+        enabled:
+          type: boolean
+          title: enabled
+        overlapPolicy:
+          title: overlap_policy
+          $ref: '#/components/schemas/ingestion.v1.PipelineScheduleOverlapPolicy'
+      title: PipelineScheduleConfig
+      additionalProperties: false
+    ingestion.v1.PipelineScheduleOverlapPolicy:
+      type: string
+      title: PipelineScheduleOverlapPolicy
+      enum:
+        - PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED
+        - PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP
+        - PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW
+      description: |-
+        PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
+         Omit it when creating a pipeline that should only run manually.
+    ingestion.v1.PipelineVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        version:
+          type:
+            - integer
+            - string
+          title: version
+          format: int64
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.PipelineNode'
+          title: nodes
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.PipelineEdge'
+          title: edges
+        createdAt:
+          type:
+            - integer
+            - string
+          title: created_at
+          format: int64
+      title: PipelineVersion
+      additionalProperties: false
+    ingestion.v1.PutSecretRequest:
+      type: object
+      properties:
+        ref:
+          type: string
+          title: ref
+        value:
+          type: string
+          title: value
+          format: byte
+        meta:
+          type: object
+          title: meta
+          additionalProperties:
+            type: string
+            title: value
+      title: PutSecretRequest
+      additionalProperties: false
+    ingestion.v1.PutSecretRequest.MetaEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: MetaEntry
+      additionalProperties: false
+    ingestion.v1.PutSecretResponse:
+      type: object
+      title: PutSecretResponse
+      additionalProperties: false
+    ingestion.v1.RatePolicy:
+      type: object
+      properties:
+        requestsPerSecond:
+          type: number
+          title: requests_per_second
+          format: double
+        burst:
+          type: integer
+          title: burst
+          format: int32
+      title: RatePolicy
+      additionalProperties: false
+      description: RatePolicy throttles source reads.
+    ingestion.v1.ReplicationMode:
+      type: string
+      title: ReplicationMode
+      enum:
+        - REPLICATION_MODE_UNSPECIFIED
+        - REPLICATION_MODE_FULL
+        - REPLICATION_MODE_INCREMENTAL
+        - REPLICATION_MODE_CDC
+      description: ReplicationMode mirrors pkg.ReplicationMode.
+    ingestion.v1.Resource:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        selectable:
+          type: boolean
+          title: selectable
+        primaryKey:
+          type: array
+          items:
+            type: string
+          title: primary_key
+        estimatedRows:
+          type:
+            - integer
+            - string
+          title: estimated_rows
+          format: int64
+        selector:
+          type: string
+          title: selector
+        displayName:
+          type: string
+          title: display_name
+        metadata:
+          type: object
+          title: metadata
+          additionalProperties:
+            type: string
+            title: value
+      title: Resource
+      additionalProperties: false
+      description: Resource mirrors pkg.Resource.
+    ingestion.v1.Resource.MetadataEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: MetadataEntry
+      additionalProperties: false
+    ingestion.v1.ResumePipelineScheduleRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+      title: ResumePipelineScheduleRequest
+      additionalProperties: false
+    ingestion.v1.ResumePipelineScheduleResponse:
+      type: object
+      properties:
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineSchedule'
+      title: ResumePipelineScheduleResponse
+      additionalProperties: false
+    ingestion.v1.RunBinding:
+      type: object
+      properties:
+        edge:
+          type: string
+          title: edge
+        runId:
+          type: string
+          title: run_id
+      title: RunBinding
+      additionalProperties: false
+      description: |-
+        RunBinding ties one compiled edge to the run it produced, so the UI can bind a
+         canvas edge to live run progress. edge is a stable key: "from|resource|to".
+    ingestion.v1.RunEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          title: type
+        tenantId:
+          type: string
+          title: tenant_id
+        runId:
+          type: string
+          title: run_id
+        resource:
+          type: string
+          title: resource
+        seq:
+          type:
+            - integer
+            - string
+          title: seq
+          format: int64
+        atUnixMs:
+          type:
+            - integer
+            - string
+          title: at_unix_ms
+          format: int64
+        fields:
+          title: fields
+          $ref: '#/components/schemas/ingestion.v1.RunEventFields'
+        replay:
+          type: boolean
+          title: replay
+      title: RunEvent
+      additionalProperties: false
+      description: |-
+        RunEvent is the pkg.Event envelope forwarded verbatim. type is the event's
+         wire token (e.g. "written", "completed"). replay marks a snapshot-synthesized
+         event rather than a live fact.
+    ingestion.v1.RunEventFields:
+      type: object
+      properties:
+        records:
+          type:
+            - integer
+            - string
+          title: records
+          format: int64
+        bytes:
+          type:
+            - integer
+            - string
+          title: bytes
+          format: int64
+        uri:
+          type: string
+          title: uri
+        crc:
+          type: integer
+          title: crc
+        error:
+          type: string
+          title: error
+      title: RunEventFields
+      additionalProperties: false
+      description: RunEventFields mirrors the set fields of pkg.EventFields.
+    ingestion.v1.RunInfo:
+      type: object
+      properties:
+        runId:
+          type: string
+          title: run_id
+        tenantId:
+          type: string
+          title: tenant_id
+        pipelineId:
+          type: string
+          title: pipeline_id
+        pipelineVersionId:
+          type:
+            - integer
+            - string
+          title: pipeline_version_id
+          format: int64
+        status:
+          title: status
+          $ref: '#/components/schemas/ingestion.v1.RunStatus'
+        records:
+          type:
+            - integer
+            - string
+          title: records
+          format: int64
+        bytes:
+          type:
+            - integer
+            - string
+          title: bytes
+          format: int64
+        error:
+          type: string
+          title: error
+        startedAt:
+          type:
+            - integer
+            - string
+          title: started_at
+          format: int64
+        endedAt:
+          type:
+            - integer
+            - string
+          title: ended_at
+          format: int64
+        sourceConnectionId:
+          type: string
+          title: source_connection_id
+        sinkConnectionId:
+          type: string
+          title: sink_connection_id
+      title: RunInfo
+      additionalProperties: false
+      description: RunInfo mirrors pkg.RunState (run-level rollup).
+    ingestion.v1.RunOptions:
+      type: object
+      properties:
+        fetchSize:
+          type: integer
+          title: fetch_size
+          format: int32
+        batchMaxRows:
+          type: integer
+          title: batch_max_rows
+          format: int32
+        batchMaxBytes:
+          type:
+            - integer
+            - string
+          title: batch_max_bytes
+          format: int64
+        rateLimit:
+          title: rate_limit
+          $ref: '#/components/schemas/ingestion.v1.RatePolicy'
+        snapshotParallelism:
+          type: integer
+          title: snapshot_parallelism
+          format: int32
+        checkpointEvery:
+          type: integer
+          title: checkpoint_every
+          format: int32
+      title: RunOptions
+      additionalProperties: false
+      description: |-
+        RunOptions overrides the engine's throughput defaults for a run. Every field
+         is optional: a zero value defers to the engine default downstream.
+    ingestion.v1.RunPipelineRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+        clientToken:
+          type: string
+          title: client_token
+          description: |-
+            client_token salts the idempotency key so a deliberate re-run differs from a
+             double-click; reusing a token dedupes to the same runs.
+        options:
+          title: options
+          description: |-
+            options overrides engine throughput defaults for every run this call
+             produces. Unset (or any zero field) defers to defaults.
+          $ref: '#/components/schemas/ingestion.v1.RunOptions'
+      title: RunPipelineRequest
+      additionalProperties: false
+    ingestion.v1.RunPipelineResponse:
+      type: object
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.RunBinding'
+          title: runs
+      title: RunPipelineResponse
+      additionalProperties: false
+    ingestion.v1.RunResourceState:
+      type: object
+      properties:
+        resource:
+          type: string
+          title: resource
+        enabled:
+          type: boolean
+          title: enabled
+        status:
+          title: status
+          $ref: '#/components/schemas/ingestion.v1.RunStatus'
+        records:
+          type:
+            - integer
+            - string
+          title: records
+          format: int64
+        bytes:
+          type:
+            - integer
+            - string
+          title: bytes
+          format: int64
+        error:
+          type: string
+          title: error
+      title: RunResourceState
+      additionalProperties: false
+      description: RunResourceState mirrors pkg.ResourceState (progress per resource).
+    ingestion.v1.RunSnapshot:
+      type: object
+      properties:
+        run:
+          title: run
+          $ref: '#/components/schemas/ingestion.v1.RunInfo'
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.RunResourceState'
+          title: resources
+        atSeq:
+          type:
+            - integer
+            - string
+          title: at_seq
+          format: int64
+      title: RunSnapshot
+      additionalProperties: false
+    ingestion.v1.RunStatus:
+      type: string
+      title: RunStatus
+      enum:
+        - RUN_STATUS_UNSPECIFIED
+        - RUN_STATUS_REQUESTED
+        - RUN_STATUS_RUNNING
+        - RUN_STATUS_COMPLETED
+        - RUN_STATUS_FAILED
+        - RUN_STATUS_CANCELED
+        - RUN_STATUS_PAUSED
+        - RUN_STATUS_PARTIAL
+      description: RunStatus mirrors pkg.RunStatus.
+    ingestion.v1.Signal:
+      type: string
+      title: Signal
+      enum:
+        - SIGNAL_UNSPECIFIED
+        - SIGNAL_PAUSE
+        - SIGNAL_RESUME
+        - SIGNAL_CANCEL
+      description: Signal mirrors pkg.Signal.
+    ingestion.v1.SignalRunRequest:
+      type: object
+      properties:
+        runId:
+          type: string
+          title: run_id
+        signal:
+          title: signal
+          $ref: '#/components/schemas/ingestion.v1.Signal'
+      title: SignalRunRequest
+      additionalProperties: false
+    ingestion.v1.SignalRunResponse:
+      type: object
+      title: SignalRunResponse
+      additionalProperties: false
+    ingestion.v1.SourcePolicy:
+      type: object
+      properties:
+        mode:
+          title: mode
+          $ref: '#/components/schemas/ingestion.v1.ReplicationMode'
+        emitsOps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.Operation'
+          title: emits_ops
+        ordered:
+          type: boolean
+          title: ordered
+        checkpointing:
+          title: checkpointing
+          $ref: '#/components/schemas/ingestion.v1.CheckpointPolicy'
+      title: SourcePolicy
+      additionalProperties: false
+    ingestion.v1.TailRunRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          title: tenant_id
+        runId:
+          type: string
+          title: run_id
+        replay:
+          type: boolean
+          title: replay
+          description: |-
+            replay first emits events synthesized from the current snapshot (each marked
+             replay=true) so progress is correct on reconnect, before live facts stream.
+      title: TailRunRequest
+      additionalProperties: false
+    ingestion.v1.TailRunResponse:
+      type: object
+      properties:
+        event:
+          title: event
+          $ref: '#/components/schemas/ingestion.v1.RunEvent'
+      title: TailRunResponse
+      additionalProperties: false
+    ingestion.v1.UpdateConnectionRequest:
+      type: object
+      properties:
+        connection:
+          title: connection
+          $ref: '#/components/schemas/ingestion.v1.Connection'
+      title: UpdateConnectionRequest
+      additionalProperties: false
+    ingestion.v1.UpdateConnectionResponse:
+      type: object
+      properties:
+        connection:
+          title: connection
+          $ref: '#/components/schemas/ingestion.v1.Connection'
+      title: UpdateConnectionResponse
+      additionalProperties: false
+    ingestion.v1.UpdatePipelineRequest:
+      type: object
+      properties:
+        pipeline:
+          title: pipeline
+          $ref: '#/components/schemas/ingestion.v1.Pipeline'
+      title: UpdatePipelineRequest
+      additionalProperties: false
+    ingestion.v1.UpdatePipelineResponse:
+      type: object
+      properties:
+        pipeline:
+          title: pipeline
+          $ref: '#/components/schemas/ingestion.v1.Pipeline'
+      title: UpdatePipelineResponse
+      additionalProperties: false
+    ingestion.v1.UpdatePipelineScheduleRequest:
+      type: object
+      properties:
+        pipelineId:
+          type: string
+          title: pipeline_id
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineScheduleConfig'
+      title: UpdatePipelineScheduleRequest
+      additionalProperties: false
+    ingestion.v1.UpdatePipelineScheduleResponse:
+      type: object
+      properties:
+        schedule:
+          title: schedule
+          $ref: '#/components/schemas/ingestion.v1.PipelineSchedule'
+      title: UpdatePipelineScheduleResponse
+      additionalProperties: false
+    ingestion.v1.ValidateConfigRequest:
+      type: object
+      properties:
+        kind:
+          title: kind
+          $ref: '#/components/schemas/ingestion.v1.ConnectorKind'
+        connector:
+          type: string
+          title: connector
+        config:
+          title: config
+          $ref: '#/components/schemas/google.protobuf.Struct'
+        live:
+          type: boolean
+          title: live
+          description: live attempts a TestConnection probe if the connector supports it.
+      title: ValidateConfigRequest
+      additionalProperties: false
+    ingestion.v1.ValidateConfigResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          title: valid
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.ValidationError'
+          title: errors
+      title: ValidateConfigResponse
+      additionalProperties: false
+    ingestion.v1.ValidationError:
+      type: object
+      properties:
+        field:
+          type: string
+          title: field
+        message:
+          type: string
+          title: message
+      title: ValidationError
+      additionalProperties: false
+      description: |-
+        ValidationError carries a field-keyed validation failure. An empty field means
+         the error applies to the whole config.
+    ingestion.v1.WriteAtomicity:
+      type: string
+      title: WriteAtomicity
+      enum:
+        - WRITE_ATOMICITY_UNSPECIFIED
+        - WRITE_ATOMICITY_BATCH
+        - WRITE_ATOMICITY_RESOURCE
+        - WRITE_ATOMICITY_RUN
+    ingestion.v1.WriteMode:
+      type: string
+      title: WriteMode
+      enum:
+        - WRITE_MODE_UNSPECIFIED
+        - WRITE_MODE_APPEND
+        - WRITE_MODE_REPLACE
+        - WRITE_MODE_UPSERT
+        - WRITE_MODE_DELETE
+        - WRITE_MODE_MERGE
+    ingestion.v1.WritePolicyCapability:
+      type: object
+      properties:
+        mode:
+          title: mode
+          $ref: '#/components/schemas/ingestion.v1.WriteMode'
+        requiresPk:
+          type: boolean
+          title: requires_pk
+        requiresOrder:
+          type: boolean
+          title: requires_order
+        acceptsOps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ingestion.v1.Operation'
+          title: accepts_ops
+        atomicity:
+          title: atomicity
+          $ref: '#/components/schemas/ingestion.v1.WriteAtomicity'
+      title: WritePolicyCapability
+      additionalProperties: false
+security: []
+tags:
+  - name: ingestion.v1.IngestionService
+    description: |-
+      IngestionService is the engine-as-a-service surface the pipeline UI drives.
+       The google.api.http annotations expose each rpc as REST under /v1 via the
+       vanguard transcoder; path variables name fields on the request message.
