@@ -15,7 +15,8 @@
     "decoration": "grid"
   },
   "appearance": {
-    "default": "dark"
+    "default": "dark",
+    "strict": true
   },
   "logo": {
     "light": "/assets/filament-light.svg",
@@ -36,7 +37,7 @@
     }
   },
   "icons": {
-    "library": "lucide"
+    "library": "fontawesome"
   },
   "styling": {
     "eyebrows": "breadcrumbs",
@@ -126,7 +127,7 @@
               "pages/connectors/sinks/postgres",
               "pages/connectors/sinks/mysql",
               "pages/connectors/sinks/iceberg",
-              "pages/connectors/sinks/object-storage",
+              "pages/connectors/sinks/aws-s3",
               "pages/connectors/sinks/stdout"
             ]
           },

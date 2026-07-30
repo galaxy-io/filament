@@ -10,7 +10,7 @@ Filament ships five sink connectors today:
 | [PostgreSQL](/pages/connectors/sinks/postgres) | `connectors/postgres/sink` | |
 | [MySQL](/pages/connectors/sinks/mysql) | `connectors/mysql/sink` | |
 | [Iceberg](/pages/connectors/sinks/iceberg) | `connectors/iceberg` | Table-format sink with catalog support (generic, REST, Polaris) |
-| [Object Storage (S3)](/pages/connectors/sinks/object-storage) | `connectors/object` | |
+| [AWS S3](/pages/connectors/sinks/aws-s3) | `connectors/object` | S3-compatible endpoints (MinIO, etc.) via a custom `endpoint` |
 | [Stdout](/pages/connectors/sinks/stdout) | `connectors/stdout` | Prints records — useful for local development and debugging |
 
 Every sink implements the base `Sink` contract; some add optional
