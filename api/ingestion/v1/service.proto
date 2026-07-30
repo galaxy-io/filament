@@ -102,11 +102,27 @@ service IngestionService {
   }
 
   // Pipeline schedules; one primary schedule per pipeline.
-  rpc CreatePipelineSchedule(CreatePipelineScheduleRequest) returns (CreatePipelineScheduleResponse);
-  rpc UpdatePipelineSchedule(UpdatePipelineScheduleRequest) returns (UpdatePipelineScheduleResponse);
-  rpc DeletePipelineSchedule(DeletePipelineScheduleRequest) returns (DeletePipelineScheduleResponse);
-  rpc PausePipelineSchedule(PausePipelineScheduleRequest) returns (PausePipelineScheduleResponse);
-  rpc ResumePipelineSchedule(ResumePipelineScheduleRequest) returns (ResumePipelineScheduleResponse);
+  rpc CreatePipelineSchedule(CreatePipelineScheduleRequest) returns (CreatePipelineScheduleResponse) {
+    option (google.api.http) = {
+      post: "/v1/pipelines/{pipeline_id}/schedule"
+      body: "schedule"
+    };
+  }
+  rpc UpdatePipelineSchedule(UpdatePipelineScheduleRequest) returns (UpdatePipelineScheduleResponse) {
+    option (google.api.http) = {
+      put: "/v1/pipelines/{pipeline_id}/schedule"
+      body: "schedule"
+    };
+  }
+  rpc DeletePipelineSchedule(DeletePipelineScheduleRequest) returns (DeletePipelineScheduleResponse) {
+    option (google.api.http) = {delete: "/v1/pipelines/{pipeline_id}/schedule"};
+  }
+  rpc PausePipelineSchedule(PausePipelineScheduleRequest) returns (PausePipelineScheduleResponse) {
+    option (google.api.http) = {post: "/v1/pipelines/{pipeline_id}/schedule/pause"};
+  }
+  rpc ResumePipelineSchedule(ResumePipelineScheduleRequest) returns (ResumePipelineScheduleResponse) {
+    option (google.api.http) = {post: "/v1/pipelines/{pipeline_id}/schedule/resume"};
+  }
 
   // Runs; compile + submit a pipeline, then list / snapshot / signal.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse) {
