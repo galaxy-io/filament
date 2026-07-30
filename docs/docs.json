@@ -42,10 +42,7 @@
   "styling": {
     "eyebrows": "breadcrumbs",
     "codeblocks": {
-      "theme": {
-        "light": "catppuccin-latte",
-        "dark": "catppuccin-mocha"
-      }
+      "theme": "vitesse-black"
     }
   },
   "navbar": {
