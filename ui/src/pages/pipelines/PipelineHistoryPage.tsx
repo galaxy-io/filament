@@ -61,7 +61,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   },
   {
     id: "startedAt",
-    header: "Started",
+    header: "Start",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
@@ -140,11 +140,7 @@ const PipelineHistoryPage = () => {
   return (
     <PageWrapper>
       <Wrapper padding={"16px"} fillWidth>
-        <BaseHeader
-          size={BaseHeaderSize.LARGE}
-          title="History"
-          description="Review recent pipeline runs."
-        />
+        <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
       </Wrapper>
 
       <HorizontalDivider />
