@@ -4,6 +4,8 @@ import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, GearSixIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -43,18 +45,6 @@ const NodeContainer = withTheme(styled.div<
   }
 `);
 
-const ActionBar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const ActionButtons = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
-
 const ActionButton = withTheme(styled.button<PropsWithTheme>`
   width: 20px;
   height: 20px;
@@ -80,13 +70,6 @@ const HeaderIsland = styled(PipelineCanvasNodeIsland)`
   display: flex;
   align-items: center;
   gap: 4px;
-`;
-
-const HeaderContent = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 `;
 
 interface PipelineCanvasNodeProps extends PropsWithChildren {
@@ -134,13 +117,13 @@ const PipelineCanvasNode = ({
 
   return (
     <NodeContainer $isSelected={isSelected} $width={PIPELINE_CANVAS_NODE_WIDTH}>
-      <ActionBar>
+      <FlexWrapper alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
         <Chip
           label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}
           variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[kind]}
           size={ChipSize.SMALL}
         />
-        <ActionButtons>
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
           {onConfigure && hasPipelineFields && (
             <ActionButton className="nodrag" onClick={onConfigure}>
               <Icon component={GearSixIcon} size={14} variant={IconVariant.TERTIARY} />
@@ -156,8 +139,8 @@ const PipelineCanvasNode = ({
               <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
             </ActionButton>
           )}
-        </ActionButtons>
-      </ActionBar>
+        </FlexWrapper>
+      </FlexWrapper>
       <HeaderIsland $isSelected={isSelected}>
         {kind === ConnectorKind.SINK && (
           <PipelineCanvasNodeHandle
@@ -167,10 +150,12 @@ const PipelineCanvasNode = ({
             isConnected={isConnected}
           />
         )}
-        <HeaderContent>
-          <ConnectorTile connector={connector} spec={connectorSpec} />
-          <Text size={TextSize.BODY_SM}>{label}</Text>
-        </HeaderContent>
+        <FlexItem grow={1} shrink={0}>
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
+            <ConnectorTile connector={connector} spec={connectorSpec} />
+            <Text size={TextSize.BODY_SM}>{label}</Text>
+          </FlexWrapper>
+        </FlexItem>
         {kind === ConnectorKind.SOURCE && (
           <PipelineCanvasNodeHandle
             id={CONNECTOR_KIND_TO_HANDLE_ID_MAP[kind]}

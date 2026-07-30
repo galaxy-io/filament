@@ -23,13 +23,16 @@ import ErrorLayout from "@/layouts/ErrorLayout";
 
 import PipelineHistoryRunInfoResourceColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoResourceColumn";
 import {
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
   PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT,
 } from "@/pages/pipelines/history/constants";
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
+import PipelineHistoryRunInfoSinkColumn from "./components/PipelineHistoryRunInfoSinkColumn";
 import { formatBytes, formatCount } from "@/utils/format";
 
 const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -51,6 +54,15 @@ const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceStateColumn>[] = [
     header: "Resource",
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => <PipelineHistoryRunInfoResourceColumn runResource={row.original} />,
+  },
+  {
+    id: "sink",
+    header: "Sink",
+    size:
+      PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION +
+      PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
+    cellLoading: () => <TextShimmer width={48} height={14} />,
+    cell: ({ row }) => <PipelineHistoryRunInfoSinkColumn runResource={row.original} />,
   },
   {
     id: "records",

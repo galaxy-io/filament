@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
@@ -37,11 +37,19 @@ const useSourceResources = (connectionId: string) => {
   return { tables, error, isLoading: isFetching, refresh: () => void refetch() };
 };
 
+interface PipelineCanvasNodeSourceState {
+  isConfigOpen: boolean;
+}
+
+const DEFAULT_STATE: PipelineCanvasNodeSourceState = {
+  isConfigOpen: false,
+};
+
 const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNodeSourceProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "source" });
   const { removeNode, setNodeConfig } = usePipelineCanvasActions();
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [localState, setLocalState] = useState<PipelineCanvasNodeSourceState>(DEFAULT_STATE);
   const {
     tables: discoveredTables,
     error,
@@ -63,6 +71,10 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
     [discoveredTables, connectedHandleIds],
   );
 
+  const handleConfigure = useCallback(() => {
+    setLocalState((prev) => ({ ...prev, isConfigOpen: !prev.isConfigOpen }));
+  }, []);
+
   return (
     <PipelineCanvasNode
       connector={data.connector}
@@ -72,14 +84,14 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
       isSelected={selected}
       onRefresh={isReadOnly ? undefined : refresh}
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
-      onConfigure={() => setIsConfigOpen((open) => !open)}
+      onConfigure={handleConfigure}
     >
       <PipelineCanvasNodeConfigIsland
         connector={data.connector}
         kind={ConnectorKind.SOURCE}
         config={data.config}
         onChange={(config) => setNodeConfig(id, config)}
-        isOpen={isConfigOpen}
+        isOpen={localState.isConfigOpen}
         isSelected={selected}
       />
       {(isLoading || error || tables.length > 0) && (

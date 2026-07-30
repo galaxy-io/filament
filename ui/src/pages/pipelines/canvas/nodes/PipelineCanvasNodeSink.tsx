@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 
 import { useNodeConnections } from "@xyflow/react";
 
@@ -12,11 +12,23 @@ import {
   usePipelineCanvasReadOnly,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
+interface PipelineCanvasNodeSinkState {
+  isConfigOpen: boolean;
+}
+
+const DEFAULT_STATE: PipelineCanvasNodeSinkState = {
+  isConfigOpen: false,
+};
+
 const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeSinkProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "target" });
   const { removeNode, setNodeConfig } = usePipelineCanvasActions();
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [state, setState] = useState<PipelineCanvasNodeSinkState>(DEFAULT_STATE);
+
+  const handleConfigure = useCallback(() => {
+    setState((prev) => ({ ...prev, isConfigOpen: !prev.isConfigOpen }));
+  }, []);
 
   return (
     <PipelineCanvasNode
@@ -26,14 +38,14 @@ const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeS
       isConnected={connections.length > 0}
       isSelected={selected}
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
-      onConfigure={() => setIsConfigOpen((open) => !open)}
+      onConfigure={handleConfigure}
     >
       <PipelineCanvasNodeConfigIsland
         connector={data.connector}
         kind={ConnectorKind.SINK}
         config={data.config}
         onChange={(config) => setNodeConfig(id, config)}
-        isOpen={isConfigOpen}
+        isOpen={state.isConfigOpen}
         isSelected={selected}
       />
     </PipelineCanvasNode>

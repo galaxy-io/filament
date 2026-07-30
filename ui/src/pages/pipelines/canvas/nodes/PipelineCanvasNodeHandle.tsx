@@ -32,8 +32,6 @@ const HandleBase = ({
 );
 
 const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?: boolean }>>`
-  /* Double the class for specificity over React Flow's .react-flow__handle
-     positioning rules, regardless of stylesheet order. */
   &.react-flow__handle {
     position: relative;
     top: auto;
