@@ -12,8 +12,8 @@ import (
 )
 
 const claimDue = `-- name: ClaimDue :many
-SELECT schedule_id, tenant_id, name, cron_expr, timezone, jitter_ms, overlap_policy, catchup_policy,
-    request, enabled, last_fired_at, next_fire_at, coalesce(last_run_id, '')::text AS last_run_id, last_run_status, created_at
+SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+    enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
 WHERE enabled AND next_fire_at <= $1
   AND (claimed_at IS NULL OR claimed_at < $2::timestamptz)
@@ -31,18 +31,14 @@ type ClaimDueParams struct {
 type ClaimDueRow struct {
 	ScheduleID    string
 	TenantID      string
+	PipelineID    string
 	Name          pgtype.Text
 	CronExpr      string
 	Timezone      string
-	JitterMs      int64
 	OverlapPolicy int16
-	CatchupPolicy int16
-	Request       []byte
 	Enabled       bool
 	LastFiredAt   pgtype.Timestamptz
 	NextFireAt    pgtype.Timestamptz
-	LastRunID     string
-	LastRunStatus pgtype.Int2
 	CreatedAt     pgtype.Timestamptz
 }
 
@@ -60,18 +56,14 @@ func (q *Queries) ClaimDue(ctx context.Context, arg ClaimDueParams) ([]*ClaimDue
 		if err := rows.Scan(
 			&i.ScheduleID,
 			&i.TenantID,
+			&i.PipelineID,
 			&i.Name,
 			&i.CronExpr,
 			&i.Timezone,
-			&i.JitterMs,
 			&i.OverlapPolicy,
-			&i.CatchupPolicy,
-			&i.Request,
 			&i.Enabled,
 			&i.LastFiredAt,
 			&i.NextFireAt,
-			&i.LastRunID,
-			&i.LastRunStatus,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -108,8 +100,8 @@ func (q *Queries) LeaseSchedules(ctx context.Context, arg LeaseSchedulesParams) 
 }
 
 const listSchedules = `-- name: ListSchedules :many
-SELECT schedule_id, tenant_id, name, cron_expr, timezone, jitter_ms, overlap_policy, catchup_policy,
-    request, enabled, last_fired_at, next_fire_at, coalesce(last_run_id, '')::text AS last_run_id, last_run_status, created_at
+SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+    enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
 WHERE ($1::text = '' OR tenant_id = $1)
   AND ($2::boolean IS NULL OR enabled = $2)
@@ -126,18 +118,14 @@ type ListSchedulesParams struct {
 type ListSchedulesRow struct {
 	ScheduleID    string
 	TenantID      string
+	PipelineID    string
 	Name          pgtype.Text
 	CronExpr      string
 	Timezone      string
-	JitterMs      int64
 	OverlapPolicy int16
-	CatchupPolicy int16
-	Request       []byte
 	Enabled       bool
 	LastFiredAt   pgtype.Timestamptz
 	NextFireAt    pgtype.Timestamptz
-	LastRunID     string
-	LastRunStatus pgtype.Int2
 	CreatedAt     pgtype.Timestamptz
 }
 
@@ -153,18 +141,14 @@ func (q *Queries) ListSchedules(ctx context.Context, arg ListSchedulesParams) ([
 		if err := rows.Scan(
 			&i.ScheduleID,
 			&i.TenantID,
+			&i.PipelineID,
 			&i.Name,
 			&i.CronExpr,
 			&i.Timezone,
-			&i.JitterMs,
 			&i.OverlapPolicy,
-			&i.CatchupPolicy,
-			&i.Request,
 			&i.Enabled,
 			&i.LastFiredAt,
 			&i.NextFireAt,
-			&i.LastRunID,
-			&i.LastRunStatus,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -177,27 +161,62 @@ func (q *Queries) ListSchedules(ctx context.Context, arg ListSchedulesParams) ([
 	return items, nil
 }
 
+const loadPipelineSchedule = `-- name: LoadPipelineSchedule :one
+SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+    enabled, last_fired_at, next_fire_at, created_at
+FROM schedules WHERE pipeline_id = $1
+`
+
+type LoadPipelineScheduleRow struct {
+	ScheduleID    string
+	TenantID      string
+	PipelineID    string
+	Name          pgtype.Text
+	CronExpr      string
+	Timezone      string
+	OverlapPolicy int16
+	Enabled       bool
+	LastFiredAt   pgtype.Timestamptz
+	NextFireAt    pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+}
+
+func (q *Queries) LoadPipelineSchedule(ctx context.Context, pipelineID string) (*LoadPipelineScheduleRow, error) {
+	row := q.db.QueryRow(ctx, loadPipelineSchedule, pipelineID)
+	var i LoadPipelineScheduleRow
+	err := row.Scan(
+		&i.ScheduleID,
+		&i.TenantID,
+		&i.PipelineID,
+		&i.Name,
+		&i.CronExpr,
+		&i.Timezone,
+		&i.OverlapPolicy,
+		&i.Enabled,
+		&i.LastFiredAt,
+		&i.NextFireAt,
+		&i.CreatedAt,
+	)
+	return &i, err
+}
+
 const loadSchedule = `-- name: LoadSchedule :one
-SELECT schedule_id, tenant_id, name, cron_expr, timezone, jitter_ms, overlap_policy, catchup_policy,
-    request, enabled, last_fired_at, next_fire_at, coalesce(last_run_id, '')::text AS last_run_id, last_run_status, created_at
+SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+    enabled, last_fired_at, next_fire_at, created_at
 FROM schedules WHERE schedule_id = $1
 `
 
 type LoadScheduleRow struct {
 	ScheduleID    string
 	TenantID      string
+	PipelineID    string
 	Name          pgtype.Text
 	CronExpr      string
 	Timezone      string
-	JitterMs      int64
 	OverlapPolicy int16
-	CatchupPolicy int16
-	Request       []byte
 	Enabled       bool
 	LastFiredAt   pgtype.Timestamptz
 	NextFireAt    pgtype.Timestamptz
-	LastRunID     string
-	LastRunStatus pgtype.Int2
 	CreatedAt     pgtype.Timestamptz
 }
 
@@ -207,75 +226,58 @@ func (q *Queries) LoadSchedule(ctx context.Context, scheduleID string) (*LoadSch
 	err := row.Scan(
 		&i.ScheduleID,
 		&i.TenantID,
+		&i.PipelineID,
 		&i.Name,
 		&i.CronExpr,
 		&i.Timezone,
-		&i.JitterMs,
 		&i.OverlapPolicy,
-		&i.CatchupPolicy,
-		&i.Request,
 		&i.Enabled,
 		&i.LastFiredAt,
 		&i.NextFireAt,
-		&i.LastRunID,
-		&i.LastRunStatus,
 		&i.CreatedAt,
 	)
 	return &i, err
 }
 
-const markFired = `-- name: MarkFired :exec
-UPDATE schedules SET last_fired_at = $1, claimed_at = NULL, updated_at = now() WHERE schedule_id = $2
+const releaseScheduleClaim = `-- name: ReleaseScheduleClaim :exec
+UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE schedule_id = $1
 `
 
-type MarkFiredParams struct {
-	FiredAt    pgtype.Timestamptz
-	ScheduleID string
-}
-
-func (q *Queries) MarkFired(ctx context.Context, arg MarkFiredParams) error {
-	_, err := q.db.Exec(ctx, markFired, arg.FiredAt, arg.ScheduleID)
+func (q *Queries) ReleaseScheduleClaim(ctx context.Context, scheduleID string) error {
+	_, err := q.db.Exec(ctx, releaseScheduleClaim, scheduleID)
 	return err
 }
 
 const saveSchedule = `-- name: SaveSchedule :exec
-INSERT INTO schedules (schedule_id, tenant_id, name, cron_expr, timezone, jitter_ms, overlap_policy, catchup_policy,
-    request, enabled, last_fired_at, next_fire_at, claimed_at, last_run_id, last_run_status, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-    $9, $10, $11, $12, NULL, nullif($13::text, ''), $14, $15, now())
+INSERT INTO schedules (schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+    enabled, last_fired_at, next_fire_at, claimed_at, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7,
+    $8, $9, $10, NULL, $11, now())
 ON CONFLICT (schedule_id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
+    pipeline_id = EXCLUDED.pipeline_id,
     name = EXCLUDED.name,
     cron_expr = EXCLUDED.cron_expr,
     timezone = EXCLUDED.timezone,
-    jitter_ms = EXCLUDED.jitter_ms,
     overlap_policy = EXCLUDED.overlap_policy,
-    catchup_policy = EXCLUDED.catchup_policy,
-    request = EXCLUDED.request,
     enabled = EXCLUDED.enabled,
     last_fired_at = EXCLUDED.last_fired_at,
     next_fire_at = EXCLUDED.next_fire_at,
     claimed_at = NULL,
-    last_run_id = EXCLUDED.last_run_id,
-    last_run_status = EXCLUDED.last_run_status,
     updated_at = now()
 `
 
 type SaveScheduleParams struct {
 	ScheduleID    string
 	TenantID      string
+	PipelineID    string
 	Name          pgtype.Text
 	CronExpr      string
 	Timezone      string
-	JitterMs      int64
 	OverlapPolicy int16
-	CatchupPolicy int16
-	Request       []byte
 	Enabled       bool
 	LastFiredAt   pgtype.Timestamptz
 	NextFireAt    pgtype.Timestamptz
-	LastRunID     string
-	LastRunStatus pgtype.Int2
 	CreatedAt     pgtype.Timestamptz
 }
 
@@ -283,18 +285,14 @@ func (q *Queries) SaveSchedule(ctx context.Context, arg SaveScheduleParams) erro
 	_, err := q.db.Exec(ctx, saveSchedule,
 		arg.ScheduleID,
 		arg.TenantID,
+		arg.PipelineID,
 		arg.Name,
 		arg.CronExpr,
 		arg.Timezone,
-		arg.JitterMs,
 		arg.OverlapPolicy,
-		arg.CatchupPolicy,
-		arg.Request,
 		arg.Enabled,
 		arg.LastFiredAt,
 		arg.NextFireAt,
-		arg.LastRunID,
-		arg.LastRunStatus,
 		arg.CreatedAt,
 	)
 	return err

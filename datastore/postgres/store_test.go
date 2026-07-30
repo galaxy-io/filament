@@ -174,18 +174,19 @@ func TestStore_DedupSeenHighWaterMark(t *testing.T) {
 func TestStore_ScheduleClaimDue(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t)
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{
+		Id: "schedule-pipeline", TenantId: "tenant-a", Name: "scheduled",
+	}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
 
 	past := time.Now().Add(-time.Minute)
 	sched := filament.ScheduleState{
 		ID: "sched-1",
 		Spec: filament.ScheduleSpec{
-			Tenant: "tenant-a",
-			Cron:   "* * * * *",
-			Request: filament.RunRequest{
-				Tenant: "tenant-a",
-				Source: filament.Ref{Provider: "postgres"},
-				Sink:   filament.Ref{Provider: "stdout"},
-			},
+			Tenant:     "tenant-a",
+			PipelineID: "schedule-pipeline",
+			Cron:       "* * * * *",
 		},
 		Enabled:   true,
 		NextFire:  &past,
@@ -214,16 +215,15 @@ func TestStore_ScheduleClaimDue(t *testing.T) {
 		t.Fatalf("expected leased schedule to be excluded from a second claim, got %+v", due2)
 	}
 
-	if err := store.MarkFired(ctx, "sched-1", time.Now()); err != nil {
-		t.Fatalf("MarkFired: %v", err)
+	if err := store.ReleaseScheduleClaim(ctx, "sched-1"); err != nil {
+		t.Fatalf("ReleaseScheduleClaim: %v", err)
 	}
-
-	loaded, err := store.LoadSchedule(ctx, "sched-1")
+	due3, err := store.ClaimDue(ctx, time.Now(), 0)
 	if err != nil {
-		t.Fatalf("LoadSchedule: %v", err)
+		t.Fatalf("ClaimDue (after release): %v", err)
 	}
-	if loaded.LastFired == nil {
-		t.Fatal("expected LastFired to be set after MarkFired")
+	if len(due3) != 1 {
+		t.Fatalf("expected released schedule to be claimable, got %+v", due3)
 	}
 
 	if err := store.DeleteSchedule(ctx, "sched-1"); err != nil {
