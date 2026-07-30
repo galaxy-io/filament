@@ -61,7 +61,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
   },
   {
     id: "startedAt",
-    header: "Start",
+    header: "Started",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
