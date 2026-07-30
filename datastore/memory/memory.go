@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -27,6 +28,8 @@ type Store struct {
 	connections      map[string]filament.Connection
 	pipelines        map[string]*ingestionv1.Pipeline
 	pipelineVersions map[string]map[int64]*ingestionv1.PipelineVersion
+	schedules        map[filament.ScheduleID]filament.ScheduleState
+	scheduleClaims   map[filament.ScheduleID]time.Time
 }
 
 type ckey struct {
@@ -50,10 +53,15 @@ func New() *Store {
 		connections:      map[string]filament.Connection{},
 		pipelines:        map[string]*ingestionv1.Pipeline{},
 		pipelineVersions: map[string]map[int64]*ingestionv1.PipelineVersion{},
+		schedules:        map[filament.ScheduleID]filament.ScheduleState{},
+		scheduleClaims:   map[filament.ScheduleID]time.Time{},
 	}
 }
 
-var _ filament.DataStore = (*Store)(nil)
+var (
+	_ filament.DataStore     = (*Store)(nil)
+	_ filament.ScheduleStore = (*Store)(nil)
+)
 
 // Name identifies this store implementation.
 func (s *Store) Name() string { return "memory" }

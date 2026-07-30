@@ -40,11 +40,12 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req fi
 
 	now := time.Now()
 	if err := ds.SaveRun(ctx, filament.RunState{
-		Run:       id,
-		Tenant:    req.Tenant,
-		Status:    filament.RunRequested,
-		Request:   req,
-		StartedAt: now,
+		Run:        id,
+		Tenant:     req.Tenant,
+		Status:     filament.RunRequested,
+		Request:    req,
+		ScheduleID: req.ScheduleID,
+		StartedAt:  now,
 	}); err != nil {
 		return "", fmt.Errorf("runs: save run %q: %w", id, err)
 	}

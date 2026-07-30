@@ -23,6 +23,33 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return cloneProto(p), nil
 }
 
+// CreatePipelineWithSchedule stores a pipeline and optional schedule atomically.
+func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.Pipeline, schedule *filament.ScheduleState) (*ingestionv1.Pipeline, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("datastore/postgres: begin pipeline creation: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	if err := q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
+		PipelineID:  p.GetId(),
+		TenantID:    p.GetTenantId(),
+		Name:        p.GetName(),
+		Description: p.GetDescription(),
+	}); err != nil {
+		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
+	}
+	if schedule != nil {
+		if err := saveSchedule(ctx, q, *schedule); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("datastore/postgres: commit pipeline creation: %w", err)
+	}
+	return cloneProto(p), nil
+}
+
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
 	nodes, err := marshalProtoSlice(v.GetNodes())

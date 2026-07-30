@@ -28,6 +28,30 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return next, nil
 }
 
+// CreatePipelineWithSchedule stores a pipeline and optional schedule atomically.
+func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.Pipeline, schedule *filament.ScheduleState) (*ingestionv1.Pipeline, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.pipelines[p.GetId()]; exists {
+		return nil, fmt.Errorf("create pipeline %q: already exists", p.GetId())
+	}
+	stored := clonePipeline(p)
+	s.pipelines[p.GetId()] = stored
+	s.pipelineVersions[p.GetId()] = map[int64]*ingestionv1.PipelineVersion{}
+	if schedule != nil {
+		if schedule.Spec.PipelineID != p.GetId() || string(schedule.Spec.Tenant) != p.GetTenantId() {
+			delete(s.pipelines, p.GetId())
+			delete(s.pipelineVersions, p.GetId())
+			return nil, fmt.Errorf("create pipeline: schedule target does not match pipeline")
+		}
+		s.schedules[schedule.ID] = *schedule
+	}
+	return clonePipeline(stored), nil
+}
+
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
 	if err := ctx.Err(); err != nil {
@@ -145,6 +169,12 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	defer s.mu.Unlock()
 	delete(s.pipelineVersions, id)
 	delete(s.pipelines, id)
+	for scheduleID, schedule := range s.schedules {
+		if schedule.Spec.PipelineID == id {
+			delete(s.schedules, scheduleID)
+			delete(s.scheduleClaims, scheduleID)
+		}
+	}
 	return nil
 }
 

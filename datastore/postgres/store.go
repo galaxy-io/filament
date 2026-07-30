@@ -359,25 +359,21 @@ func (s *Store) DedupSeen(ctx context.Context, tenant string, run filament.RunID
 
 // SaveSchedule upserts the schedule row, releasing any ClaimDue lease.
 func (s *Store) SaveSchedule(ctx context.Context, st filament.ScheduleState) error {
-	req, err := json.Marshal(st.Spec.Request)
-	if err != nil {
-		return fmt.Errorf("datastore/postgres: marshal schedule request: %w", err)
-	}
-	err = s.q.SaveSchedule(ctx, sqlcgen.SaveScheduleParams{
+	return saveSchedule(ctx, s.q, st)
+}
+
+func saveSchedule(ctx context.Context, q *sqlcgen.Queries, st filament.ScheduleState) error {
+	err := q.SaveSchedule(ctx, sqlcgen.SaveScheduleParams{
 		ScheduleID:    string(st.ID),
 		TenantID:      string(st.Spec.Tenant),
+		PipelineID:    st.Spec.PipelineID,
 		Name:          toText(st.Spec.Name),
 		CronExpr:      st.Spec.Cron,
 		Timezone:      st.Spec.Timezone,
-		JitterMs:      st.Spec.Jitter.Milliseconds(),
 		OverlapPolicy: int16(st.Spec.Overlap), //nolint:gosec // small enum
-		CatchupPolicy: int16(st.Spec.Catchup), //nolint:gosec // small enum
-		Request:       req,
 		Enabled:       st.Enabled,
 		LastFiredAt:   toTimestamptz(st.LastFired),
 		NextFireAt:    toTimestamptz(st.NextFire),
-		LastRunID:     string(st.LastRun),
-		LastRunStatus: pgtype.Int2{Int16: int16(st.LastStatus), Valid: true}, //nolint:gosec // small enum
 		CreatedAt:     toTimestamptz(nullTime(st.CreatedAt)),
 	})
 	if err != nil {
@@ -395,9 +391,21 @@ func (s *Store) LoadSchedule(ctx context.Context, id filament.ScheduleID) (filam
 		}
 		return filament.ScheduleState{}, fmt.Errorf("datastore/postgres: load schedule: %w", err)
 	}
-	return scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.Name, row.CronExpr, row.Timezone, row.JitterMs,
-		row.OverlapPolicy, row.CatchupPolicy, row.Request, row.Enabled, row.LastFiredAt, row.NextFireAt,
-		row.LastRunID, row.LastRunStatus, row.CreatedAt)
+	return scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+		row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
+}
+
+// LoadPipelineSchedule returns the schedule attached to pipelineID.
+func (s *Store) LoadPipelineSchedule(ctx context.Context, pipelineID string) (filament.ScheduleState, error) {
+	row, err := s.q.LoadPipelineSchedule(ctx, pipelineID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return filament.ScheduleState{}, fmt.Errorf("load pipeline schedule %q: %w", pipelineID, filament.ErrNotFound)
+		}
+		return filament.ScheduleState{}, fmt.Errorf("datastore/postgres: load pipeline schedule: %w", err)
+	}
+	return scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+		row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
 }
 
 // ListSchedules returns schedules matching the filter.
@@ -416,9 +424,8 @@ func (s *Store) ListSchedules(ctx context.Context, f filament.ScheduleFilter) ([
 	}
 	out := make([]filament.ScheduleState, len(rows))
 	for i, row := range rows {
-		st, err := scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.Name, row.CronExpr, row.Timezone, row.JitterMs,
-			row.OverlapPolicy, row.CatchupPolicy, row.Request, row.Enabled, row.LastFiredAt, row.NextFireAt,
-			row.LastRunID, row.LastRunStatus, row.CreatedAt)
+		st, err := scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+			row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -463,9 +470,8 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 	out := make([]filament.ScheduleState, len(rows))
 	ids := make([]string, len(rows))
 	for i, row := range rows {
-		st, err := scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.Name, row.CronExpr, row.Timezone, row.JitterMs,
-			row.OverlapPolicy, row.CatchupPolicy, row.Request, row.Enabled, row.LastFiredAt, row.NextFireAt,
-			row.LastRunID, row.LastRunStatus, row.CreatedAt)
+		st, err := scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+			row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -488,14 +494,11 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 	return out, nil
 }
 
-// MarkFired stamps the schedule's last fire time.
-func (s *Store) MarkFired(ctx context.Context, id filament.ScheduleID, at time.Time) error {
-	err := s.q.MarkFired(ctx, sqlcgen.MarkFiredParams{
-		FiredAt:    pgtype.Timestamptz{Time: at, Valid: true},
-		ScheduleID: string(id),
-	})
+// ReleaseScheduleClaim makes a claimed occurrence eligible for retry.
+func (s *Store) ReleaseScheduleClaim(ctx context.Context, id filament.ScheduleID) error {
+	err := s.q.ReleaseScheduleClaim(ctx, string(id))
 	if err != nil {
-		return fmt.Errorf("datastore/postgres: mark fired: %w", err)
+		return fmt.Errorf("datastore/postgres: release schedule claim: %w", err)
 	}
 	return nil
 }
@@ -507,14 +510,9 @@ func toText(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: true}
 }
 
-func scheduleFromLoadRow(id, tenant string, name pgtype.Text, cronExpr, tz string, jitterMs int64,
-	overlap, catchup int16, req []byte, enabled bool, lastFired, nextFire pgtype.Timestamptz,
-	lastRun string, lastStatus pgtype.Int2, createdAt pgtype.Timestamptz,
+func scheduleFromLoadRow(id, tenant, pipelineID string, name pgtype.Text, cronExpr, tz string,
+	overlap int16, enabled bool, lastFired, nextFire, createdAt pgtype.Timestamptz,
 ) (filament.ScheduleState, error) {
-	var request filament.RunRequest
-	if err := json.Unmarshal(req, &request); err != nil {
-		return filament.ScheduleState{}, fmt.Errorf("datastore/postgres: unmarshal schedule request: %w", err)
-	}
 	var created time.Time
 	if createdAt.Valid {
 		created = createdAt.Time
@@ -522,21 +520,17 @@ func scheduleFromLoadRow(id, tenant string, name pgtype.Text, cronExpr, tz strin
 	return filament.ScheduleState{
 		ID: filament.ScheduleID(id),
 		Spec: filament.ScheduleSpec{
-			Tenant:   filament.TenantID(tenant),
-			Name:     name.String,
-			Cron:     cronExpr,
-			Timezone: tz,
-			Jitter:   time.Duration(jitterMs) * time.Millisecond,
-			Overlap:  filament.OverlapPolicy(overlap),
-			Catchup:  filament.CatchupPolicy(catchup),
-			Request:  request,
-			Enabled:  enabled,
+			Tenant:     filament.TenantID(tenant),
+			Name:       name.String,
+			PipelineID: pipelineID,
+			Cron:       cronExpr,
+			Timezone:   tz,
+			Overlap:    filament.OverlapPolicy(overlap),
+			Enabled:    enabled,
 		},
-		Enabled:    enabled,
-		LastFired:  fromTimestamptz(lastFired),
-		NextFire:   fromTimestamptz(nextFire),
-		LastRun:    filament.RunID(lastRun),
-		LastStatus: filament.RunStatus(lastStatus.Int16),
-		CreatedAt:  created,
+		Enabled:   enabled,
+		LastFired: fromTimestamptz(lastFired),
+		NextFire:  fromTimestamptz(nextFire),
+		CreatedAt: created,
 	}, nil
 }

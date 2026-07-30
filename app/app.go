@@ -35,6 +35,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/internal/modules/engine"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
+	schedulermodule "github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
@@ -97,8 +98,14 @@ func Run(ctx context.Context, opts ...Option) error {
 	cfg := newConfig(opts...)
 
 	orch := orchestrator.New()
+	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus, server.WithSecrets(cfg.Secrets))
+	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
+	if !ok {
+		return fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
+	}
+	scheduler := schedulermodule.New(scheduleStore, schedulermodule.WithPipelineSubmitter(api))
 	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks}
-	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch)
+	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, scheduler)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
 	}
@@ -115,6 +122,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run: %w", err)
 	}
+	scheduler.Start(ctx)
 	for _, name := range h.Mounted() {
 		fmt.Println("mounted:", name)
 	}
@@ -124,7 +132,7 @@ func Run(ctx context.Context, opts ...Option) error {
 		addr = ":8080"
 	}
 	mux := http.NewServeMux()
-	server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus, server.WithSecrets(cfg.Secrets)).Mount(mux)
+	api.Mount(mux)
 	if cfg.UI != nil {
 		mux.Handle("/", cfg.UI)
 		fmt.Println("ui:", "http://localhost"+addr)

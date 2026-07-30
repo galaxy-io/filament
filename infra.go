@@ -83,16 +83,22 @@ var ErrVersionConflict = errors.New("version conflict")
 type ScheduleStore interface {
 	SaveSchedule(ctx context.Context, s ScheduleState) error
 	LoadSchedule(ctx context.Context, id ScheduleID) (ScheduleState, error)
+	LoadPipelineSchedule(ctx context.Context, pipelineID string) (ScheduleState, error)
 	ListSchedules(ctx context.Context, f ScheduleFilter) ([]ScheduleState, error)
 	DeleteSchedule(ctx context.Context, id ScheduleID) error
 	ClaimDue(ctx context.Context, now time.Time, limit int) ([]ScheduleState, error) // SELECT … FOR UPDATE SKIP LOCKED
-	MarkFired(ctx context.Context, id ScheduleID, at time.Time) error
+	ReleaseScheduleClaim(ctx context.Context, id ScheduleID) error
 }
 
-// Scheduler triggers one-off runs and manages the lifecycle of recurring
-// schedules.
+// PipelineScheduleStore atomically creates a pipeline and its optional primary
+// schedule.
+type PipelineScheduleStore interface {
+	ScheduleStore
+	CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.Pipeline, schedule *ScheduleState) (*ingestionv1.Pipeline, error)
+}
+
+// Scheduler manages the lifecycle of recurring pipeline schedules.
 type Scheduler interface {
-	Trigger(ctx context.Context, req RunRequest) (RunHandle, error) // one-off, immediate
 	Register(ctx context.Context, spec ScheduleSpec) (ScheduleID, error)
 	Update(ctx context.Context, id ScheduleID, spec ScheduleSpec) error
 	Pause(ctx context.Context, id ScheduleID) error
@@ -103,53 +109,35 @@ type Scheduler interface {
 	Name() string
 }
 
-// ScheduleSpec defines a recurring run: the cron timing plus the request to
-// fire and the overlap/catchup behavior when ticks collide or are missed.
+// ScheduleSpec defines when a pipeline runs and whether occurrences may overlap.
 type ScheduleSpec struct {
-	Tenant   TenantID
-	Name     string
-	Cron     string
-	Timezone string
-	Jitter   time.Duration
-	Overlap  OverlapPolicy
-	Catchup  CatchupPolicy
-	Request  RunRequest
-	Enabled  bool
+	Tenant     TenantID
+	Name       string
+	PipelineID string
+	Cron       string
+	Timezone   string
+	Overlap    OverlapPolicy
+	Enabled    bool
 }
 
 // OverlapPolicy decides what a tick does when the previous run is still
 // in flight.
 type OverlapPolicy int
 
-// The overlap policies; OverlapSkip drops the tick.
+// The supported overlap policies.
 const (
-	OverlapSkip           OverlapPolicy = iota
-	OverlapAllow                        // run concurrently
-	OverlapBufferOne                    // queue exactly one
-	OverlapCancelPrevious               // cancel the in-flight run, start fresh
-)
-
-// CatchupPolicy decides what happens to ticks missed while the scheduler was
-// down.
-type CatchupPolicy int
-
-// The catchup policies.
-const (
-	CatchupSkip    CatchupPolicy = iota // ignore missed ticks
-	CatchupRunOnce                      // one make-up run after downtime
-	CatchupRunAll                       // fire every missed tick
+	OverlapSkip  OverlapPolicy = iota
+	OverlapAllow               // run concurrently
 )
 
 // ScheduleState is a persisted schedule plus derived timing.
 type ScheduleState struct {
-	ID         ScheduleID
-	Spec       ScheduleSpec
-	Enabled    bool
-	LastFired  *time.Time
-	NextFire   *time.Time
-	LastRun    RunID
-	LastStatus RunStatus
-	CreatedAt  time.Time
+	ID        ScheduleID
+	Spec      ScheduleSpec
+	Enabled   bool
+	LastFired *time.Time
+	NextFire  *time.Time
+	CreatedAt time.Time
 }
 
 // ScheduleFilter narrows a schedule listing; zero fields match everything.
