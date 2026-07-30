@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "google/api/annotations.proto";
 import "ingestion/v1/connections.proto";
 import "ingestion/v1/pipelines.proto";
 import "ingestion/v1/providers.proto";
@@ -9,34 +10,96 @@ import "ingestion/v1/runs.proto";
 import "ingestion/v1/secrets.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
+// The google.api.http annotations expose each rpc as REST under /v1 via the
+// vanguard transcoder; path variables name fields on the request message.
 service IngestionService {
   // Catalog of registered source/sink connectors and their config schemas.
-  rpc ListConnectors(ListConnectorsRequest) returns (ListConnectorsResponse);
+  rpc ListConnectors(ListConnectorsRequest) returns (ListConnectorsResponse) {
+    option (google.api.http) = {get: "/v1/connectors"};
+  }
 
   // Ephemeral source/sink operations; no persisted state.
-  rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);
-  rpc DiscoverResources(DiscoverResourcesRequest) returns (DiscoverResourcesResponse);
+  rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse) {
+    option (google.api.http) = {
+      post: "/v1/connectors:validate"
+      body: "*"
+    };
+  }
+  rpc DiscoverResources(DiscoverResourcesRequest) returns (DiscoverResourcesResponse) {
+    option (google.api.http) = {
+      post: "/v1/connectors:discover"
+      body: "*"
+    };
+  }
 
   // Secrets; write-only values referenced by name from configs.
-  rpc PutSecret(PutSecretRequest) returns (PutSecretResponse);
-  rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse);
+  rpc PutSecret(PutSecretRequest) returns (PutSecretResponse) {
+    option (google.api.http) = {
+      put: "/v1/secrets/{ref=**}"
+      body: "*"
+    };
+  }
+  rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse) {
+    option (google.api.http) = {delete: "/v1/secrets/{ref=**}"};
+  }
 
   // Connections; reusable, tenant-scoped sources and sinks.
-  rpc CreateConnection(CreateConnectionRequest) returns (CreateConnectionResponse);
-  rpc UpdateConnection(UpdateConnectionRequest) returns (UpdateConnectionResponse);
-  rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse);
-  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
-  rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse);
+  rpc CreateConnection(CreateConnectionRequest) returns (CreateConnectionResponse) {
+    option (google.api.http) = {
+      post: "/v1/connections"
+      body: "*"
+    };
+  }
+  rpc UpdateConnection(UpdateConnectionRequest) returns (UpdateConnectionResponse) {
+    option (google.api.http) = {
+      put: "/v1/connections/{connection.id}"
+      body: "connection"
+    };
+  }
+  rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse) {
+    option (google.api.http) = {get: "/v1/connections/{id}"};
+  }
+  rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse) {
+    option (google.api.http) = {get: "/v1/connections"};
+  }
+  rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse) {
+    option (google.api.http) = {delete: "/v1/connections/{id}"};
+  }
 
   // Pipelines; the persisted node graph.
-  rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);
-  rpc CreatePipelineVersion(CreatePipelineVersionRequest) returns (CreatePipelineVersionResponse);
-  rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse);
-  rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse);
-  rpc GetPipelineVersion(GetPipelineVersionRequest) returns (GetPipelineVersionResponse);
-  rpc ListPipelineVersions(ListPipelineVersionsRequest) returns (ListPipelineVersionsResponse);
-  rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
-  rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
+  rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse) {
+    option (google.api.http) = {
+      post: "/v1/pipelines"
+      body: "*"
+    };
+  }
+  rpc CreatePipelineVersion(CreatePipelineVersionRequest) returns (CreatePipelineVersionResponse) {
+    option (google.api.http) = {
+      post: "/v1/pipelines/{pipeline_id}/versions"
+      body: "*"
+    };
+  }
+  rpc UpdatePipeline(UpdatePipelineRequest) returns (UpdatePipelineResponse) {
+    option (google.api.http) = {
+      put: "/v1/pipelines/{pipeline.id}"
+      body: "pipeline"
+    };
+  }
+  rpc GetPipeline(GetPipelineRequest) returns (GetPipelineResponse) {
+    option (google.api.http) = {get: "/v1/pipelines/{id}"};
+  }
+  rpc GetPipelineVersion(GetPipelineVersionRequest) returns (GetPipelineVersionResponse) {
+    option (google.api.http) = {get: "/v1/pipelines/{pipeline_id}/versions/{version}"};
+  }
+  rpc ListPipelineVersions(ListPipelineVersionsRequest) returns (ListPipelineVersionsResponse) {
+    option (google.api.http) = {get: "/v1/pipelines/{pipeline_id}/versions"};
+  }
+  rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse) {
+    option (google.api.http) = {get: "/v1/pipelines"};
+  }
+  rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse) {
+    option (google.api.http) = {delete: "/v1/pipelines/{id}"};
+  }
 
   // Pipeline schedules; one primary schedule per pipeline.
   rpc CreatePipelineSchedule(CreatePipelineScheduleRequest) returns (CreatePipelineScheduleResponse);
@@ -46,11 +109,26 @@ service IngestionService {
   rpc ResumePipelineSchedule(ResumePipelineScheduleRequest) returns (ResumePipelineScheduleResponse);
 
   // Runs; compile + submit a pipeline, then list / snapshot / signal.
-  rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);
-  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
-  rpc GetRun(GetRunRequest) returns (GetRunResponse);
-  rpc SignalRun(SignalRunRequest) returns (SignalRunResponse);
+  rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse) {
+    option (google.api.http) = {
+      post: "/v1/pipelines/{pipeline_id}:run"
+      body: "*"
+    };
+  }
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse) {
+    option (google.api.http) = {get: "/v1/runs"};
+  }
+  rpc GetRun(GetRunRequest) returns (GetRunResponse) {
+    option (google.api.http) = {get: "/v1/runs/{run_id}"};
+  }
+  rpc SignalRun(SignalRunRequest) returns (SignalRunResponse) {
+    option (google.api.http) = {
+      post: "/v1/runs/{run_id}:signal"
+      body: "*"
+    };
+  }
 
   // Live progress; server-streams a run's facts with optional snapshot replay.
+  // Connect-only: server streaming has no REST mapping, poll GetRun instead.
   rpc TailRun(TailRunRequest) returns (stream TailRunResponse);
 }

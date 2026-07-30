@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
+	"connectrpc.com/vanguard"
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
 	"github.com/galaxy-io/filament/eventbus"
@@ -49,10 +51,19 @@ func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store fil
 	return s
 }
 
-// Mount registers the Connect handler on mux.
+// Mount registers the Connect handler on mux, plus REST routes under /v1
+// transcoded from the google.api.http annotations.
 func (a *Server) Mount(mux *http.ServeMux) {
 	path, handler := ingestionv1connect.NewIngestionServiceHandler(a)
-	mux.Handle(path, withCORS(handler))
+	transcoder, err := vanguard.NewTranscoder([]*vanguard.Service{
+		vanguard.NewService(path, handler),
+	})
+	if err != nil {
+		panic(fmt.Sprintf("server: build transcoder: %v", err))
+	}
+	h := withCORS(transcoder)
+	mux.Handle(path, h)
+	mux.Handle("/v1/", h)
 }
 
 var _ ingestionv1connect.IngestionServiceHandler = (*Server)(nil)

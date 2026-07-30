@@ -1,6 +1,9 @@
 version: v2
 managed:
   enabled: true
+  disable:
+    - file_option: go_package_prefix
+      module: buf.build/googleapis/googleapis
   override:
     - file_option: go_package_prefix
       value: github.com/galaxy-io/filament/api
@@ -11,3 +14,6 @@ plugins:
   - local: protoc-gen-connect-go
     out: api
     opt: paths=source_relative
+  - remote: buf.build/community/sudorandom-connect-openapi
+    out: gen/openapi
+    opt: path=ingestion.v1.openapi.yaml
