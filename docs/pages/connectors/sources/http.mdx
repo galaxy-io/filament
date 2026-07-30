@@ -1,0 +1,53 @@
+---
+title: "HTTP"
+description: "A manifest-driven source for REST APIs."
+icon: "globe"
+---
+
+`connectors/http` is a single source implementation driven by declarative
+YAML manifests (`connectors/http/manifests/`) rather than one Go package per
+API. Onboarding a new integration is mostly a matter of writing a manifest,
+not writing a new connector — the bundled catalog (`catalog.go`) is a few
+lines per integration: an embedded manifest file plus a display name,
+description, and logo.
+
+## Integrations shipped today
+
+<CardGroup cols={2}>
+  <Card title="Attio" icon="https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg" href="/pages/connectors/sources/attio" />
+  <Card title="GitHub" icon="https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg" href="/pages/connectors/sources/github" />
+  <Card title="Linear" icon="https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg" href="/pages/connectors/sources/linear" />
+  <Card title="Notion" icon="https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg" href="/pages/connectors/sources/notion" />
+  <Card title="Slack" icon="https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg" href="/pages/connectors/sources/slack" />
+</CardGroup>
+
+## How a manifest works
+
+Every manifest is validated against a two-layer grammar
+(`connectors/http/manifest/`): a JSON Schema (`grammar.v1.json`) checks shape
+— required objects, field types, enum membership — and `validate.go` checks
+cross-field semantics (parent cycles, checkpoint-key collisions, template
+syntax). A manifest declares:
+
+- **`connection`** — base URL, auth (`bearer`, a static `header`, or others
+  the grammar supports), and connection-wide headers.
+- **`resources`** — one entry per extractable resource: its path, HTTP
+  method, primary key, field mappings (each a JSON/GraphQL path plus a
+  type), and how it paginates.
+- **`for_each` / `capture`** — how resources nest. A child resource
+  (`for_each: parent_resource`) runs once per parent record, templating the
+  parent's `capture`d fields into its own path, query, or body (`{{
+  parent.field }}`).
+- **`discovery`** — `static` (extract every declared resource) or a
+  dynamic mode that surfaces individual selectable items (specific channels,
+  repos, databases) to the catalog UI.
+- **`incremental`** — per-resource cursor tracking: which field is the
+  cursor, where it's injected on the next request, and how values compare
+  (`lex`, `numeric`, or `time`). See
+  [Slack](/pages/connectors/sources/slack) for a working example.
+
+<Info>
+  This page covers the concepts; `connectors/http/manifest/grammar.v1.json`
+  in the repo is the authoritative field-by-field schema, and
+  `connectors/http/manifests/*.yaml` are five worked examples.
+</Info>

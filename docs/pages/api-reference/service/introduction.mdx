@@ -1,0 +1,42 @@
+---
+title: "API Reference"
+description: "The IngestionService ConnectRPC API the pipeline UI drives."
+---
+
+Filament's server exposes `IngestionService`, a ConnectRPC API defined in
+`api/ingestion/v1/`. It's the same surface the built-in web UI is built on —
+there's no separate "internal" API behind it.
+
+## Surface areas
+
+<CardGroup cols={2}>
+  <Card title="Connections" icon="link" href="/pages/api-reference/service/connections">
+    Reusable, tenant-scoped sources and sinks.
+  </Card>
+  <Card title="Pipelines" icon="diagram-project" href="/pages/api-reference/service/pipelines">
+    The persisted node graph connecting a source to a sink.
+  </Card>
+  <Card title="Providers" icon="plug" href="/pages/api-reference/service/providers">
+    The connector catalog — registered sources, sinks, and their config schemas.
+  </Card>
+  <Card title="Runs" icon="play" href="/pages/api-reference/service/runs">
+    Compiling and submitting a pipeline, then tracking or signaling it.
+  </Card>
+  <Card title="Secrets" icon="key" href="/pages/api-reference/service/secrets">
+    Write-only values referenced by name from connector configs.
+  </Card>
+</CardGroup>
+
+## Protocol
+
+Generated from `.proto` files via `buf generate` (see `buf.gen.yaml`) into
+Go ConnectRPC stubs — which means the same service also speaks plain gRPC
+and gRPC-Web without any extra gateway.
+
+<Info>
+  This page is a placeholder for a generated reference. Once the API
+  stabilizes, generate this section from the `.proto` files directly (via
+  `mint openapi` / a protobuf-to-OpenAPI step) rather than hand-maintaining
+  it — see the individual RPC pages for what to cover per surface area in
+  the meantime.
+</Info>

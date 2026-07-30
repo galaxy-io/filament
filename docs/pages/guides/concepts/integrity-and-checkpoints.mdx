@@ -1,0 +1,44 @@
+---
+title: "Integrity & Checkpoints"
+description: "How Filament verifies every batch and resumes interrupted runs."
+icon: "shield-check"
+---
+
+Two guarantees run through every Filament pipeline: what gets written is
+verified, and an interrupted run doesn't have to start over.
+
+## Integrity checking
+
+Every batch is integrity checked on both the read and write side. The exact
+verification (e.g. row-count and checksum accounting) lives in the pipeline
+layer between a source's `Extract` and a sink's `Apply`/`Commit`, independent
+of which connector is on either end.
+
+## Checkpointed resume
+
+A source that implements the optional
+[`Resumable`](/pages/connectors/building-a-connector/optional-interfaces) contract
+extracts against a per-resource checkpoint plan instead of reading blind from
+the start:
+
+- **`ResumePlanner`** builds the initial plan for a run — the shard layout
+  (a primary-key split) plus any cursor carried over from a previous
+  attempt. The engine persists this plan *before* extraction starts, so a
+  later resume sees a stable, already-decided shard layout rather than
+  re-deriving it.
+- **`Resumable.ExtractFrom`** reads using that plan, and stamps each record
+  with its shard (`Record.Part`) and keyset position (`Record.Key`) so the
+  pipeline can advance and persist the cursor as it goes.
+- A resource with no primary key can't be resumed — it maps to `nil` in the
+  plan and is simply re-read whole on resume.
+
+CDC sources use the same idea with per-resource checkpoints instead of a
+shard plan — see [`ChangeSource`](/pages/connectors/building-a-connector/optional-interfaces).
+
+<Note>
+  This is why the chosen read strategy for a resumable source is frozen into
+  the checkpoint at plan time: the shard layout can't change mid-flight, or
+  resume would be reading against a plan that no longer matches reality. See
+  [Postgres source](/pages/connectors/sources/postgres) for a concrete example of
+  this in practice.
+</Note>

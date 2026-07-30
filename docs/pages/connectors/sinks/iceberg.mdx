@@ -1,0 +1,56 @@
+---
+title: "Iceberg"
+description: "Write to Apache Iceberg tables."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg"
+---
+
+`connectors/iceberg` writes records as Parquet data files into Iceberg
+tables, via any catalog backend registered with
+[iceberg-go](https://github.com/apache/iceberg-go).
+
+## Catalog backends
+
+Configured through a `catalog.provider` field, which switches which config
+fields are shown:
+
+| Provider | Use case |
+|---|---|
+| `generic` | Any iceberg-go-registered catalog type (`sql`, `hive`, `glue`, …) by name, or by URI scheme |
+| `rest` | A generic Iceberg REST catalog endpoint |
+| `polaris` | Apache Polaris specifically — same REST protocol as `rest`, but requires a `warehouse` (Polaris's catalog name, not a storage path) |
+
+## Write modes
+
+`write_mode` controls how each commit applies a resource's staged records:
+`auto` (the default) resolves to `replace` for a full-mode run or `append`
+otherwise, or it can be pinned explicitly to `append`, `replace`, `upsert`,
+`delete`, or `merge`.
+
+## Staged, transactional commits
+
+The sink implements `filament.Transactional`: `Stage` opens a scope, `Write`
+buffers each resource's records into it (spilling to disk past a configured
+byte threshold), and `Promote` commits every resource in the stage as
+Iceberg transactions — dropping the stage only once every resource
+succeeds, so a retry after a partial failure skips whatever already
+committed. Used directly (no explicit `Stage` call), `Commit` opens and
+promotes an implicit stage itself.
+
+Row buffers are parsed and streamed to the Iceberg writer in bounded
+8192-row chunks (via Arrow record batches) rather than materialized as one
+giant table in memory, so a large resource doesn't require a matching
+memory footprint.
+
+## Schema evolution
+
+`EnsureSchema` is **add-only**: a source column not yet on the table gets
+added, but type changes, nullability changes, and dropped columns are never
+applied automatically. Iceberg tolerates a reader seeing a superset schema;
+a narrowing change could silently break something reading the table, so it's
+left to a deliberate migration instead.
+
+## Modes
+
+Supports `SnapshotReplace`, `Append`, `SnapshotUpsert`, `Upsert`, `Delete`,
+and `CDC` write policies (see [Replication
+modes](/pages/guides/concepts/replication-modes)).

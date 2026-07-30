@@ -1,0 +1,42 @@
+---
+title: "Optional Interfaces"
+description: "The capabilities a source or sink can opt into beyond the base contract."
+---
+
+Beyond the base `Source` and `Sink` contracts, a connector can implement any
+number of optional interfaces. The engine detects them at runtime via type
+assertion — there's no registry to update.
+
+## Source capabilities
+
+| Interface | Adds |
+|---|---|
+| `Resumable` | Checkpointed extraction — `ExtractFrom` reads against a per-resource checkpoint plan instead of from scratch. See [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints). |
+| `ChangeSource` | CDC extraction — emits ordered changes from per-resource checkpoints instead of a full read. |
+| `ResourcePlanner` | Translates externally selected resources (selectors stay source-private) into the concrete resource names the engine uses for policy, schema, and checkpoint setup. |
+| `ResumePlanner` | Builds the initial per-resource checkpoint plan for a resumable run — shard layout plus any carried-over cursor. |
+| `Discoverable` | Lets the UI browse a source's available resources before a pipeline is configured. |
+| `RateLimited` | Declares the source's own extraction rate ceiling (`RatePolicy`: requests/sec and burst) rather than relying on a global default. |
+| `LiveValidatable` | Probes connectivity with a candidate config before any run uses it — powers a "Test Connection" button. |
+| `SchemaProvider` | Returns a single resource's column schema, scoped and lighter than `Discoverable`, so the engine can drive a `Schematized` sink's typed DDL. |
+
+## Sink capabilities
+
+| Interface | Adds |
+|---|---|
+| `Transactional` | Staged, atomic writes — `Stage` writes into a staging area, `Promote` makes it visible on success. |
+| `Upsertable` | Key-based merge writes via `Upsert`, instead of plain appends. |
+| `Schematized` | Typed DDL — `EnsureSchema` materializes a resource's schema before its records arrive. |
+
+A sink advertises which of these it supports via `SinkSpec.Capabilities`
+(`SinkCapabilities`), including its write-policy support and preferred batch
+size.
+
+## The portable type system
+
+Schema-aware connectors (`SchemaProvider` sources, `Schematized` sinks)
+exchange columns as `LogicalType` — an engine-independent classification
+(`LogicalString`, `LogicalTimestamp`, `LogicalDecimal`, `LogicalArray`, …)
+defined in the repo's root `schema.go`. A source's native type maps to a
+`LogicalType` for cross-engine portability, while the exact native type is
+preserved separately for same-engine round-trips.

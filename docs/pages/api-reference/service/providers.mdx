@@ -1,0 +1,22 @@
+---
+title: "Providers"
+description: "The connector catalog — registered sources, sinks, and their config schemas."
+---
+
+Defined in `api/ingestion/v1/providers.proto`. This is how the UI (or any
+other client) discovers what connectors are available without a hardcoded
+list — it reflects whatever is currently registered via blank import (see
+[Connectors overview](/pages/connectors/overview/introduction)).
+
+## RPCs
+
+| RPC | Purpose |
+|---|---|
+| `ListConnectors` | Catalog of registered source/sink connectors and their config schemas |
+| `ValidateConfig` | Validate a candidate config against a connector's schema — ephemeral, no persisted state |
+| `DiscoverResources` | Browse a source's available resources — ephemeral, backed by the connector's `Discoverable` capability |
+
+<Info>
+  This page is a placeholder for full request/response field documentation,
+  generated from `providers.proto`.
+</Info>

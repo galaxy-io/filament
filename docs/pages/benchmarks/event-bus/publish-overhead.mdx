@@ -1,0 +1,38 @@
+---
+title: "Event Bus Publish Overhead"
+description: "Publish cost with no subscribers, fan-out, and contention."
+---
+
+Defined in `eventbus/inproc/inproc_bench_test.go`, against the in-process
+event bus implementation.
+
+## `BenchmarkPublishNoSubscribers`
+
+The floor: publish overhead with nothing listening — sequencing, the bounded
+log, subject splitting, and the subscriber match loop, with no fan-out cost.
+The log is capped (`WithMaxLog(4096)`) so memory stays flat across
+iterations.
+
+```sh
+go test -bench=BenchmarkPublishNoSubscribers -benchmem ./eventbus/inproc/...
+```
+
+## `BenchmarkPublishFanout8`
+
+Adds 8 draining subscribers on a wildcard subject (`app.v1.>`) — the
+realistic per-fact cost once the control plane and any listeners are
+actually receiving events, rather than the theoretical floor above.
+
+```sh
+go test -bench=BenchmarkPublishFanout8 -benchmem ./eventbus/inproc/...
+```
+
+## `BenchmarkPublishParallel`
+
+Concurrent publishers contending on the bus's single mutex, with 4 drained
+subscribers so the match loop also runs under the lock — this is the one
+that shows contention cost as publishers scale, using Go's `RunParallel`.
+
+```sh
+go test -bench=BenchmarkPublishParallel -benchmem ./eventbus/inproc/...
+```

@@ -1,0 +1,26 @@
+---
+title: "Runs"
+description: "Compiling and submitting a pipeline, then tracking or signaling it."
+---
+
+Defined in `api/ingestion/v1/runs.proto`. A run is one execution of a
+pipeline version, dispatched by the control plane and executed by a worker
+(see [Architecture](/pages/guides/concepts/architecture)).
+
+## RPCs
+
+| RPC | Purpose |
+|---|---|
+| `RunPipeline` | Compile and submit a pipeline for execution |
+| `ListRuns` | List runs |
+| `GetRun` | Fetch one run's state |
+| `SignalRun` | Send a signal to a running run (e.g. cancel) |
+| `TailRun` | Server-streamed live progress for a run, with optional snapshot replay |
+
+`TailRun` is the one streaming RPC on the service — it's what the UI uses to
+show live run progress without polling.
+
+<Info>
+  This page is a placeholder for full request/response field documentation,
+  generated from `runs.proto`.
+</Info>

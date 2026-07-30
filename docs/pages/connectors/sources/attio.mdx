@@ -1,0 +1,62 @@
+---
+title: "Attio"
+description: "Read CRM records, lists, and activity from Attio."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg"
+---
+
+Attio is a manifest-driven source — `connectors/http/manifests/attio.yaml` declares
+its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Attio-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A single `api_key` (Attio workspace API key, bearer auth). Attio's objects and
+lists are workspace-defined — CRMs commonly extend `people`/`companies`/`deals`
+with custom objects — so the manifest reads the workspace's actual object and
+list definitions rather than assuming a fixed schema.
+
+## Resources
+
+Twenty-three resources, all statically discovered. Most fan out from a handful
+of top-level resources via `for_each`:
+
+| Resource | Fans out from | Notes |
+|---|---|---|
+| `objects` | — | Every object type defined in the workspace (standard and custom) |
+| `records` | `objects` | All records for each object, via `POST /v2/objects/{object}/records/query` |
+| `object_attributes` | `objects` | Attribute (field) definitions per object |
+| `object_views` | `objects` | Saved views per object |
+| `record_entries` | `records` | List memberships for each record |
+| `threads` | `records` | Comment threads on each record |
+| `files` | `records` | Files attached to each record |
+| `lists` | — | Every list defined in the workspace |
+| `entries` | `lists` | List entries, via `POST /v2/lists/{list}/entries/query` |
+| `list_attributes` | `lists` | Attribute definitions per list |
+| `list_views` | `lists` | Saved views per list |
+| `meetings` | — | Calendar meetings logged in Attio |
+| `call_recordings` | `meetings` | Recordings attached to each meeting |
+| `transcripts` | `call_recordings` | One-to-one with a recording (`cardinality: one`) |
+| `workspace_members`, `notes`, `tasks`, `webhooks` | — | Standalone, no parent |
+| `people`, `companies`, `deals`, `users`, `workspaces` | — | Convenience shortcuts onto `records`, pre-scoped to that standard object |
+
+<Accordion title="Why people/companies/deals/users/workspaces exist alongside records">
+  Attio's standard CRM objects are still just objects — `records` already
+  covers them via the generic `for_each: objects` fan-out. The five shortcut
+  resources reuse `records`' field set (`use_fields: [record]`) with the
+  object slug hardcoded into the path, so a pipeline can select "Companies"
+  directly instead of selecting `records` and filtering to one object
+  afterward.
+</Accordion>
+
+Pagination is per-resource: offset-based for query endpoints (500-record
+pages), cursor-based for list endpoints that return `pagination.next_cursor`,
+and `none` for small unpaginated resources like `objects` and `lists`
+themselves.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
+this manifest declares no `incremental:` blocks, so runs are full extracts —
+see [Slack](/pages/connectors/sources/slack) for what an incremental resource
+looks like in the same grammar.

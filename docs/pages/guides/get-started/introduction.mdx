@@ -1,0 +1,42 @@
+---
+title: "Introduction"
+description: "What Filament is and how its pieces fit together."
+---
+
+Filament moves data from sources to sinks with full, incremental, and CDC
+replication. Every batch is integrity checked on both the read and write
+side, and interrupted runs resume from checkpoints. It is written in Go, and
+its major pieces are pluggable: connectors, the data store, and the event bus
+are interfaces with swappable implementations.
+
+## How it's put together
+
+Filament is three components over a data store and an event bus.
+
+- **`server`** serves the API and web UI and owns connections, pipelines, and run requests.
+- **`control-plane`** dispatches requested runs and tracks run state.
+- **`worker`** executes a single run from extraction to verified write.
+
+Read more about how these fit together in [Architecture](/pages/guides/concepts/architecture).
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="play" href="/pages/guides/get-started/quickstart">
+    Get infra, the control plane, API server, and UI running locally.
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/pages/guides/concepts/architecture">
+    Understand the server / control-plane / worker split.
+  </Card>
+  <Card title="Connectors" icon="plug" href="/pages/connectors/overview/introduction">
+    See what Filament can read from and write to today.
+  </Card>
+  <Card title="Deploy on Kubernetes" icon="dharmachakra" href="/pages/guides/deployment/kubernetes">
+    Install the Helm chart against your own Postgres and NATS.
+  </Card>
+</CardGroup>
+
+<Note>
+  Filament is pre-1.0. APIs — including the interfaces documented here — may
+  still change.
+</Note>
