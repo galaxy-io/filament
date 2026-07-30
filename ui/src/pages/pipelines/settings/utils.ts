@@ -2,11 +2,10 @@ import { CronExpressionParser } from "cron-parser";
 
 import type { PipelineSchedule } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { PIPELINE_SCHEDULE_DEFAULT_TIMEZONE } from "@/pages/pipelines/settings/constants";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/PipelineSettingsPageSchedule";
 
 import { getErrorMessage } from "@/utils/errors";
-
-export const PIPELINE_SCHEDULE_DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export const getPipelineScheduleCronError = (value: string): string | null => {
   const cron = value.trim();

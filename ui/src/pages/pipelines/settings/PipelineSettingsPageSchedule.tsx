@@ -30,10 +30,13 @@ import {
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
+  PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
+  PIPELINE_SCHEDULE_TIMEZONE_OPTIONS,
+} from "@/pages/pipelines/settings/constants";
+import {
   getPipelineScheduleCronError,
   hasPipelineScheduleChanges,
   mapPipelineScheduleCronToCanonical,
-  PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
 } from "@/pages/pipelines/settings/utils";
 
 import {
@@ -44,14 +47,6 @@ import {
 import { getErrorMessage } from "@/utils/errors";
 
 const PIPELINE_SCHEDULE_INPUT_WIDTH = 300;
-
-export const PIPELINE_SCHEDULE_TIMEZONE_OPTIONS: SelectInputOption[] = Intl.supportedValuesOf(
-  "timeZone",
-).map((timezone) => ({
-  id: timezone,
-  label: timezone,
-  value: timezone,
-}));
 
 interface PipelineSettingsPageScheduleProps {
   pipelineId: string;
