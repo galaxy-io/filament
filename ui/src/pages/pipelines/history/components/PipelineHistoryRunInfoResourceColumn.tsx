@@ -10,6 +10,7 @@ import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/
 import type { RunResourceStateColumn } from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
 interface PipelineHistoryRunInfoResourceColumnProps {
   runResource: RunResourceStateColumn;
@@ -48,13 +49,17 @@ const PipelineHistoryRunInfoResourceColumn = ({
           size={ConnectorTileSize.SMALL}
           onClick={handleConnectorTileClick}
         />
-        <Text size={TextSize.BODY_SM}>{sourceConnection?.connection?.name ?? "—"}</Text>
+        <FlexItem shrink={0}>
+          <Text size={TextSize.BODY_SM}>{sourceConnection?.connection?.name ?? "—"}</Text>
+        </FlexItem>
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isMonospace>
           /
         </Text>
-        <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
-          {runResource.resource}
-        </Text>
+        <FlexItem shrink={0}>
+          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
+            {runResource.resource}
+          </Text>
+        </FlexItem>
       </FlexWrapper>
     );
   };
