@@ -8,7 +8,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline, PipelineSchedule, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { PIPELINE_SIDEBAR_WIDTH } from "@/pages/pipelines/layout/constants";
 import PipelineLayoutBackButton from "@/pages/pipelines/layout/PipelineLayoutBackButton";
@@ -86,6 +86,7 @@ const PreviewChipOverlay = styled.div`
 
 interface PipelineLayoutProps {
   pipeline: Pipeline;
+  schedule?: PipelineSchedule;
   currentVersion?: PipelineVersion;
   versions: PipelineVersion[];
   connections: Connection[];
@@ -95,6 +96,7 @@ interface PipelineLayoutProps {
 
 const PipelineLayout = ({
   pipeline,
+  schedule,
   currentVersion,
   versions,
   connections,
@@ -137,6 +139,7 @@ const PipelineLayout = ({
       <RightColumn>
         <PipelineLayoutNavbar
           pipeline={pipeline}
+          schedule={schedule}
           currentVersion={currentVersion}
           versions={versions}
           connections={connections}

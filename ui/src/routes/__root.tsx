@@ -23,7 +23,7 @@ export enum Flow {
   CREATE_CONNECTION = "CREATE_CONNECTION",
 }
 
-const validateSearchSchema = z.object({
+const searchParams = z.object({
   connectionId: z.string().optional(),
   flow: z.enum(Flow).optional(),
   connectorKind: z.enum(ConnectorKind).optional(),
@@ -32,7 +32,7 @@ const validateSearchSchema = z.object({
 
 export const Route = createRootRoute({
   component: RootComponent,
-  validateSearch: validateSearchSchema,
+  validateSearch: searchParams,
 });
 
 const RootComponentWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -87,11 +87,9 @@ function RootComponent() {
         <RootComponentWrapper>
           <Outlet />
         </RootComponentWrapper>
-
         <Drawer open={!!connection} onClose={handleCloseDrawer} width={CONNECTOR_DRAWER_WIDTH}>
           {connection && <ConnectionDrawer connection={connection} onClose={handleCloseDrawer} />}
         </Drawer>
-
         <Modal open={flow === Flow.CREATE_CONNECTION} onClose={handleCloseFlow}>
           <CreateConnectionModal onClose={handleCloseFlow} />
         </Modal>

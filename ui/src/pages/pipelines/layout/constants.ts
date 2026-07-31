@@ -1,5 +1,5 @@
 import type { Icon } from "@phosphor-icons/react";
-import { ClockCounterClockwiseIcon, GearIcon, TreeStructureIcon } from "@phosphor-icons/react";
+import { ClockCounterClockwiseIcon, GearFineIcon, TreeStructureIcon } from "@phosphor-icons/react";
 
 import { PipelineSidebarItem } from "@/pages/pipelines/layout/types";
 
@@ -16,5 +16,5 @@ export const PIPELINE_SIDEBAR_ITEMS: PipelineSidebarItem[] = [
 export const PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP: Record<PipelineSidebarItem, Icon> = {
   [PipelineSidebarItem.CANVAS]: TreeStructureIcon,
   [PipelineSidebarItem.HISTORY]: ClockCounterClockwiseIcon,
-  [PipelineSidebarItem.SETTINGS]: GearIcon,
+  [PipelineSidebarItem.SETTINGS]: GearFineIcon,
 };

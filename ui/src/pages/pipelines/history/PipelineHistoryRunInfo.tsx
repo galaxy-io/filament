@@ -108,7 +108,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   if (isError) {
     return (
       <ResourceTableWrapper>
-        <FlexWrapper height={240}>
+        <FlexWrapper padding={"16px"} fillWidth>
           <ErrorLayout message="Failed to load run details." />
         </FlexWrapper>
       </ResourceTableWrapper>
@@ -118,7 +118,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   if (isEmpty) {
     return (
       <ResourceTableWrapper>
-        <FlexWrapper height={240}>
+        <FlexWrapper padding={"16px"} fillWidth>
           <EmptyLayout message="The run did not record any resource activity." />
         </FlexWrapper>
       </ResourceTableWrapper>

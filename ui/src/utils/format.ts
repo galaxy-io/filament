@@ -17,6 +17,22 @@ export const formatTimeAgo = (unixMillis: bigint): string => {
   });
 };
 
+export const formatTimeUntil = (unixMillis: bigint): string => {
+  if (!unixMillis) return "—";
+  const remainingMs = Number(unixMillis) - Date.now();
+  const minutes = Math.floor(remainingMs / 60_000);
+  if (minutes < 1) return "in <1m";
+  if (minutes < 60) return `in ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `in ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `in ${days}d`;
+  return new Date(Number(unixMillis)).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
 export const formatTimestamp = (unixMillis: bigint): string => {
   if (!unixMillis) return "—";
   return new Date(Number(unixMillis)).toLocaleString("en-US", {

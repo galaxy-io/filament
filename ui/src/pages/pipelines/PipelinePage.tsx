@@ -50,6 +50,7 @@ const PipelinePage = () => {
       <PipelineCanvasRunProvider>
         <PipelineLayout
           pipeline={pipeline}
+          schedule={pipelineData.schedule}
           currentVersion={version}
           versions={versions}
           connections={connectionsData.connections}
