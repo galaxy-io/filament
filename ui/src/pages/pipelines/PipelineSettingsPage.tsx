@@ -38,6 +38,13 @@ const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
+const ScrollWrapper = styled.div`
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+`;
+
 const PipelineSettingsPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
 
@@ -55,27 +62,29 @@ const PipelineSettingsPage = () => {
         <BaseHeader size={BaseHeaderSize.LARGE} title="Settings" />
       </Wrapper>
       <HorizontalDivider />
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        gap={16}
-        padding={"16px"}
-        minWidth={400}
-        maxWidth={600}
-      >
-        <Widget noHover fillWidth>
-          <FlexWrapper
-            fillWidth
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.SPACE_BETWEEN}
-          >
-            <Text weight={TextWeight.MEDIUM}>Pipeline ID</Text>
-            <CopyInput value={data.pipeline.id} size={InputSize.SMALL} width={272} isMonospace />
-          </FlexWrapper>
-        </Widget>
-        <PipelineSettingsPageGeneral pipeline={data.pipeline} />
-        <PipelineSettingsPageSchedule pipelineId={data.pipeline.id} schedule={data.schedule} />
-        <PipelineSettingsPageDanger pipeline={data.pipeline} />
-      </FlexWrapper>
+      <ScrollWrapper>
+        <FlexWrapper
+          direction={FlexDirection.COLUMN}
+          gap={16}
+          padding={"16px"}
+          minWidth={400}
+          maxWidth={600}
+        >
+          <Widget noHover fillWidth>
+            <FlexWrapper
+              fillWidth
+              alignItems={AlignItems.CENTER}
+              justifyContent={JustifyContent.SPACE_BETWEEN}
+            >
+              <Text weight={TextWeight.MEDIUM}>Pipeline ID</Text>
+              <CopyInput value={data.pipeline.id} size={InputSize.SMALL} width={272} isMonospace />
+            </FlexWrapper>
+          </Widget>
+          <PipelineSettingsPageGeneral pipeline={data.pipeline} />
+          <PipelineSettingsPageSchedule pipelineId={data.pipeline.id} schedule={data.schedule} />
+          <PipelineSettingsPageDanger pipeline={data.pipeline} />
+        </FlexWrapper>
+      </ScrollWrapper>
     </PageWrapper>
   );
 };

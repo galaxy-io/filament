@@ -11,14 +11,14 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import SelectInput, {
   type SelectInputOption,
   SelectInputSize,
 } from "@galaxy-io/dls/inputs/SelectInput";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
+import Switcher from "@galaxy-io/dls/switcher/Switcher";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Widget from "@galaxy-io/dls/widget/Widget";
@@ -30,13 +30,22 @@ import {
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
+  PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS,
+  PIPELINE_SCHEDULE_DAY_OPTIONS,
   PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
+  PIPELINE_SCHEDULE_FREQUENCY_OPTIONS,
+  PIPELINE_SCHEDULE_HOUR_OPTIONS,
   PIPELINE_SCHEDULE_TIMEZONE_OPTIONS,
 } from "@/pages/pipelines/settings/constants";
 import {
-  getPipelineScheduleCronError,
+  PipelineScheduleFrequency,
+  type PipelineSettingsPageScheduleState,
+} from "@/pages/pipelines/settings/types";
+import {
+  formatPipelineScheduleSummary,
   hasPipelineScheduleChanges,
-  mapPipelineScheduleCronToCanonical,
+  mapPipelineScheduleCronToState,
+  mapPipelineScheduleStateToCron,
 } from "@/pages/pipelines/settings/utils";
 
 import {
@@ -53,15 +62,12 @@ interface PipelineSettingsPageScheduleProps {
   schedule?: PipelineSchedule;
 }
 
-export interface PipelineSettingsPageScheduleState {
-  enabled: boolean;
-  cron: string;
-  timezone: string;
-}
-
 const DEFAULT_STATE: PipelineSettingsPageScheduleState = {
-  enabled: false,
-  cron: "",
+  isEnabled: false,
+  frequency: PipelineScheduleFrequency.DAILY,
+  days: [1],
+  dayOfMonth: 1,
+  hour: 9,
   timezone: PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
 };
 
@@ -76,17 +82,32 @@ const PipelineSettingsPageSchedule = ({
 
   const [state, setState] = useState<PipelineSettingsPageScheduleState>(() => ({
     ...DEFAULT_STATE,
-    enabled: schedule?.config?.enabled ?? DEFAULT_STATE.enabled,
-    cron: schedule?.config?.cron ?? DEFAULT_STATE.cron,
+    ...mapPipelineScheduleCronToState(schedule?.config?.cron ?? ""),
+    isEnabled: schedule?.config?.enabled ?? DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || DEFAULT_STATE.timezone,
   }));
 
   const handleEnabledChange = (enabled: boolean) => {
-    setState((prev) => ({ ...prev, enabled }));
+    setState((prev) => ({ ...prev, isEnabled: enabled }));
   };
 
-  const handleCronChange = (cron: string) => {
-    setState((prev) => ({ ...prev, cron }));
+  const handleFrequencyChange = (frequency: PipelineScheduleFrequency) => {
+    setState((prev) => ({ ...prev, frequency }));
+  };
+
+  const handleDaysChange = (options: SelectInputOption[]) => {
+    setState((prev) => ({
+      ...prev,
+      days: options.map((option) => option.value as number),
+    }));
+  };
+
+  const handleDayOfMonthChange = (option: SelectInputOption) => {
+    setState((prev) => ({ ...prev, dayOfMonth: option.value as number }));
+  };
+
+  const handleHourChange = (option: SelectInputOption) => {
+    setState((prev) => ({ ...prev, hour: option.value as number }));
   };
 
   const handleTimezoneChange = (option: SelectInputOption) => {
@@ -99,9 +120,9 @@ const PipelineSettingsPageSchedule = ({
 
   const handleSave = () => {
     const config = {
-      cron: mapPipelineScheduleCronToCanonical(state.cron),
+      cron: mapPipelineScheduleStateToCron(state),
       timezone: state.timezone,
-      enabled: state.enabled,
+      enabled: state.isEnabled,
     };
 
     if (schedule?.config) {
@@ -112,7 +133,6 @@ const PipelineSettingsPageSchedule = ({
         }),
         {
           onSuccess: () => {
-            setState((prev) => ({ ...prev, cron: config.cron }));
             showToast({
               header: "Schedule saved",
               subheader: "Your schedule has been saved successfully.",
@@ -138,7 +158,6 @@ const PipelineSettingsPageSchedule = ({
       }),
       {
         onSuccess: () => {
-          setState((prev) => ({ ...prev, cron: config.cron }));
           showToast({
             header: "Schedule created",
             subheader: "Your pipeline will now run on a schedule.",
@@ -156,17 +175,31 @@ const PipelineSettingsPageSchedule = ({
     );
   };
 
-  const cronError = getPipelineScheduleCronError(state.cron);
+  const summary = formatPipelineScheduleSummary(state);
   const hasChanges = hasPipelineScheduleChanges(state, schedule);
-  const isDisabledDraft = !schedule && !state.enabled;
-  const canSave = hasChanges && cronError === null && !isDisabledDraft;
+  const isDisabledDraft = !schedule && !state.isEnabled;
+  const canSave = hasChanges && !isDisabledDraft && summary !== null;
 
+  const frequencyItems = PIPELINE_SCHEDULE_FREQUENCY_OPTIONS.map((option) => ({
+    id: option.frequency,
+    label: option.label,
+    onClick: () => handleFrequencyChange(option.frequency),
+  }));
+
+  const selectedDayOptions = PIPELINE_SCHEDULE_DAY_OPTIONS.filter((option) =>
+    state.days.includes(option.value as number),
+  );
+  const selectedHourOption =
+    PIPELINE_SCHEDULE_HOUR_OPTIONS.find((option) => option.value === state.hour) ?? null;
+  const selectedDayOfMonthOption =
+    PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS.find((option) => option.value === state.dayOfMonth) ??
+    null;
   const selectedTimezoneOption =
     PIPELINE_SCHEDULE_TIMEZONE_OPTIONS.find((option) => option.value === state.timezone) ?? null;
 
   return (
     <Accordion header="Schedule" icon={CalendarIcon} isOpenInitial>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
         <Widget noHover fillWidth>
           <FlexWrapper
             alignItems={AlignItems.CENTER}
@@ -174,7 +207,7 @@ const PipelineSettingsPageSchedule = ({
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Enabled</Text>
-            <ToggleInput value={state.enabled} onChange={handleEnabledChange} />
+            <ToggleInput value={state.isEnabled} onChange={handleEnabledChange} />
           </FlexWrapper>
         </Widget>
         <Widget noHover fillWidth>
@@ -184,38 +217,86 @@ const PipelineSettingsPageSchedule = ({
               justifyContent={JustifyContent.SPACE_BETWEEN}
               fillWidth
             >
-              <Text variant={TextVariant.SECONDARY}>Cron expression</Text>
-              <TextInput
-                value={state.cron}
-                onChange={handleCronChange}
-                size={InputSize.LARGE}
-                placeholder="0 0 * * *"
-                width={PIPELINE_SCHEDULE_INPUT_WIDTH}
-                error={state.cron.trim() ? (cronError ?? undefined) : undefined}
-                isDisabled={!state.enabled}
-                isMonospace
-              />
+              <Text variant={TextVariant.SECONDARY}>Frequency</Text>
+              <Switcher items={frequencyItems} selectedId={state.frequency} />
             </FlexWrapper>
-            <FlexWrapper
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.SPACE_BETWEEN}
-              fillWidth
-            >
-              <Text variant={TextVariant.SECONDARY}>Timezone</Text>
-              <SelectInput
-                options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
-                value={selectedTimezoneOption}
-                onChange={handleTimezoneChange}
-                onSearch={handleTimezoneSearch}
-                debounceMs={100}
-                size={SelectInputSize.LARGE}
-                width={PIPELINE_SCHEDULE_INPUT_WIDTH}
-                isDisabled={!state.enabled}
-              />
-            </FlexWrapper>
+            {state.frequency === PipelineScheduleFrequency.WEEKLY && (
+              <FlexWrapper
+                alignItems={AlignItems.CENTER}
+                justifyContent={JustifyContent.SPACE_BETWEEN}
+                fillWidth
+              >
+                <Text variant={TextVariant.SECONDARY}>Run on</Text>
+                <MultiSelectInput
+                  options={PIPELINE_SCHEDULE_DAY_OPTIONS}
+                  value={selectedDayOptions}
+                  onChange={handleDaysChange}
+                  size={SelectInputSize.LARGE}
+                  width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                  placeholder="Select days"
+                />
+              </FlexWrapper>
+            )}
+            {state.frequency === PipelineScheduleFrequency.MONTHLY && (
+              <FlexWrapper
+                alignItems={AlignItems.CENTER}
+                justifyContent={JustifyContent.SPACE_BETWEEN}
+                fillWidth
+              >
+                <Text variant={TextVariant.SECONDARY}>On the</Text>
+                <SelectInput
+                  options={PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS}
+                  value={selectedDayOfMonthOption}
+                  onChange={handleDayOfMonthChange}
+                  size={SelectInputSize.LARGE}
+                  width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                />
+              </FlexWrapper>
+            )}
+            {state.frequency !== PipelineScheduleFrequency.HOURLY && (
+              <FlexWrapper
+                alignItems={AlignItems.CENTER}
+                justifyContent={JustifyContent.SPACE_BETWEEN}
+                fillWidth
+              >
+                <Text variant={TextVariant.SECONDARY}>At</Text>
+                <SelectInput
+                  options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
+                  value={selectedHourOption}
+                  onChange={handleHourChange}
+                  size={SelectInputSize.LARGE}
+                  width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                />
+              </FlexWrapper>
+            )}
+            {state.frequency !== PipelineScheduleFrequency.HOURLY && (
+              <FlexWrapper
+                alignItems={AlignItems.CENTER}
+                justifyContent={JustifyContent.SPACE_BETWEEN}
+                fillWidth
+              >
+                <Text variant={TextVariant.SECONDARY}>Timezone</Text>
+                <SelectInput
+                  options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
+                  value={selectedTimezoneOption}
+                  onChange={handleTimezoneChange}
+                  onSearch={handleTimezoneSearch}
+                  debounceMs={100}
+                  size={SelectInputSize.LARGE}
+                  width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                />
+              </FlexWrapper>
+            )}
           </FlexWrapper>
         </Widget>
-        <FlexWrapper justifyContent={JustifyContent.END} fillWidth>
+        <FlexWrapper
+          alignItems={AlignItems.CENTER}
+          justifyContent={JustifyContent.SPACE_BETWEEN}
+          fillWidth
+        >
+          <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
+            {state.isEnabled && summary}
+          </Text>
           <Button
             label={"Save"}
             isDisabled={!canSave}
