@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 )
 
 // CreatePipeline stores a new pipeline and assigns its id.
@@ -19,11 +21,32 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := &ingestionv1.Pipeline{
 		Id: id, TenantId: defaultTenant(req.Msg.GetTenantId()), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 	}
-	created, err := a.store.CreatePipeline(ctx, pipeline)
+	var schedule *filament.ScheduleState
+	if config := req.Msg.GetSchedule(); config != nil {
+		if a.schedules == nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("schedule store is not configured"))
+		}
+		state, err := newPipelineSchedule(pipeline, config)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		schedule = &state
+	}
+	var created *ingestionv1.Pipeline
+	var err error
+	if a.schedules != nil {
+		created, err = a.schedules.CreatePipelineWithSchedule(ctx, pipeline, schedule)
+	} else {
+		created, err = a.store.CreatePipeline(ctx, pipeline)
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.CreatePipelineResponse{Pipeline: created}), nil
+	res := &ingestionv1.CreatePipelineResponse{Pipeline: created}
+	if schedule != nil {
+		res.Schedule = pipelineScheduleToProto(*schedule)
+	}
+	return connect.NewResponse(res), nil
 }
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
@@ -105,7 +128,89 @@ func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestion
 			break
 		}
 	}
+	if a.schedules != nil {
+		schedule, err := a.schedules.LoadPipelineSchedule(ctx, pipeline.GetId())
+		if err == nil {
+			res.Schedule = pipelineScheduleToProto(schedule)
+		} else if !errors.Is(err, filament.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
 	return connect.NewResponse(res), nil
+}
+
+func newPipelineSchedule(pipeline *ingestionv1.Pipeline, config *ingestionv1.PipelineScheduleConfig) (filament.ScheduleState, error) {
+	timezone := config.GetTimezone()
+	if timezone == "" {
+		timezone = "UTC"
+	}
+	overlap, err := pipelineScheduleOverlapFromProto(config.GetOverlapPolicy())
+	if err != nil {
+		return filament.ScheduleState{}, err
+	}
+	spec := filament.ScheduleSpec{
+		Tenant:     filament.TenantID(pipeline.GetTenantId()),
+		Name:       pipeline.GetName(),
+		PipelineID: pipeline.GetId(),
+		Cron:       config.GetCron(),
+		Timezone:   timezone,
+		Overlap:    overlap,
+		Enabled:    config.GetEnabled(),
+	}
+	now := time.Now()
+	next, err := scheduledomain.NextFire(spec, now)
+	if err != nil {
+		return filament.ScheduleState{}, err
+	}
+	if !spec.Enabled {
+		next = nil
+	}
+	return filament.ScheduleState{
+		ID:        filament.ScheduleID(uuid.NewString()),
+		Spec:      spec,
+		Enabled:   spec.Enabled,
+		NextFire:  next,
+		CreatedAt: now,
+	}, nil
+}
+
+func pipelineScheduleToProto(schedule filament.ScheduleState) *ingestionv1.PipelineSchedule {
+	out := &ingestionv1.PipelineSchedule{
+		Id:         string(schedule.ID),
+		PipelineId: schedule.Spec.PipelineID,
+		Config: &ingestionv1.PipelineScheduleConfig{
+			Cron:          schedule.Spec.Cron,
+			Timezone:      schedule.Spec.Timezone,
+			Enabled:       schedule.Enabled,
+			OverlapPolicy: pipelineScheduleOverlapToProto(schedule.Spec.Overlap),
+		},
+	}
+	if schedule.NextFire != nil {
+		out.NextFireAt = schedule.NextFire.UnixMilli()
+	}
+	if schedule.LastFired != nil {
+		out.LastFiredAt = schedule.LastFired.UnixMilli()
+	}
+	return out
+}
+
+func pipelineScheduleOverlapFromProto(policy ingestionv1.PipelineScheduleOverlapPolicy) (filament.OverlapPolicy, error) {
+	switch policy {
+	case ingestionv1.PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED,
+		ingestionv1.PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP:
+		return filament.OverlapSkip, nil
+	case ingestionv1.PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW:
+		return filament.OverlapAllow, nil
+	default:
+		return 0, fmt.Errorf("unsupported overlap policy %d", policy)
+	}
+}
+
+func pipelineScheduleOverlapToProto(policy filament.OverlapPolicy) ingestionv1.PipelineScheduleOverlapPolicy {
+	if policy == filament.OverlapAllow {
+		return ingestionv1.PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW
+	}
+	return ingestionv1.PipelineScheduleOverlapPolicy_PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP
 }
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
@@ -128,7 +233,32 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 // RunPipeline groups the pipeline's edges into per-route runs and submits each
 // to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
-	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetPipelineId())
+	bindings, err := a.submitPipeline(ctx, req.Msg, "")
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.RunPipelineResponse{Runs: bindings}), nil
+}
+
+// SubmitScheduledPipeline compiles and submits a pipeline for one claimed
+// schedule occurrence. The occurrence token makes each cron tick idempotent.
+func (a *Server) SubmitScheduledPipeline(ctx context.Context, pipelineID string, scheduleID filament.ScheduleID, token string) ([]filament.RunID, error) {
+	bindings, err := a.submitPipeline(ctx, &ingestionv1.RunPipelineRequest{
+		PipelineId:  pipelineID,
+		ClientToken: token,
+	}, scheduleID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]filament.RunID, 0, len(bindings))
+	for _, binding := range bindings {
+		ids = append(ids, filament.RunID(binding.GetRunId()))
+	}
+	return ids, nil
+}
+
+func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelineRequest, scheduleID filament.ScheduleID) ([]*ingestionv1.RunBinding, error) {
+	pipeline, err := a.store.LoadPipeline(ctx, req.GetPipelineId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -156,7 +286,7 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	}
 
 	var bindings []*ingestionv1.RunBinding
-	token := req.Msg.GetClientToken()
+	token := req.GetClientToken()
 	if token == "" {
 		token = uuid.NewString()
 	}
@@ -164,7 +294,7 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 	if err != nil {
 		return nil, err
 	}
-	options := runOptionsFromProto(req.Msg.GetOptions())
+	options := runOptionsFromProto(req.GetOptions())
 	for _, group := range groups {
 		key := group.key
 		var resources []string
@@ -200,6 +330,7 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 			Selectors:          selectors,
 			IngestionType:      group.ingestionType,
 			Options:            options,
+			ScheduleID:         scheduleID,
 		})
 		if err != nil {
 			return nil, err
@@ -208,7 +339,7 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 		bindings = append(bindings, &ingestionv1.RunBinding{Edge: key, RunId: string(run)})
 	}
 	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", pipeline.GetId(), len(bindings))
-	return connect.NewResponse(&ingestionv1.RunPipelineResponse{Runs: bindings}), nil
+	return bindings, nil
 }
 
 // routeGroup is the set of edges that share a source node, sink node, and

@@ -16,12 +16,13 @@ type runSubmitter interface {
 // Server implements the ingestion Connect API over the registries, store,
 // orchestrator, and bus.
 type Server struct {
-	sources filament.SourceRegistry
-	sinks   filament.SinkRegistry
-	store   filament.DataStore
-	orch    runSubmitter
-	bus     eventbus.Bus
-	secrets filament.Secrets
+	sources   filament.SourceRegistry
+	sinks     filament.SinkRegistry
+	store     filament.DataStore
+	orch      runSubmitter
+	bus       eventbus.Bus
+	secrets   filament.Secrets
+	schedules filament.PipelineScheduleStore
 }
 
 // Option configures a Server.
@@ -38,6 +39,9 @@ func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store fil
 		store:   store,
 		orch:    orch,
 		bus:     bus,
+	}
+	if schedules, ok := store.(filament.PipelineScheduleStore); ok {
+		s.schedules = schedules
 	}
 	for _, opt := range opts {
 		opt(s)

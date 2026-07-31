@@ -140,11 +140,7 @@ const PipelineHistoryPage = () => {
   return (
     <PageWrapper>
       <Wrapper padding={"16px"} fillWidth>
-        <BaseHeader
-          size={BaseHeaderSize.LARGE}
-          title="History"
-          description="Review recent pipeline runs."
-        />
+        <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
       </Wrapper>
 
       <HorizontalDivider />

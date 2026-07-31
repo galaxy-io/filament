@@ -18,7 +18,7 @@ import { createGetPipelineQueryOptions } from "@/api/queries/pipelines";
 import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
 
-const validateSearchSchema = z.object({
+const searchParams = z.object({
   version: z.number().int().positive().optional().catch(undefined),
 });
 
@@ -42,7 +42,7 @@ const PipelineNotFoundComponent = () => {
 };
 
 export const Route = createFileRoute("/pipelines/$id")({
-  validateSearch: validateSearchSchema,
+  validateSearch: searchParams,
   loader: async ({ params }) => {
     try {
       await Promise.all([

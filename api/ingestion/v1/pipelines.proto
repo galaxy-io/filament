@@ -51,14 +51,80 @@ message Pipeline {
   int64 last_run_bytes = 10;
 }
 
+// PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
+// Omit it when creating a pipeline that should only run manually.
+enum PipelineScheduleOverlapPolicy {
+  PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED = 0;
+  PIPELINE_SCHEDULE_OVERLAP_POLICY_SKIP = 1;
+  PIPELINE_SCHEDULE_OVERLAP_POLICY_ALLOW = 2;
+}
+
+message PipelineScheduleConfig {
+  string cron = 1;
+  string timezone = 2;
+  bool enabled = 3;
+  PipelineScheduleOverlapPolicy overlap_policy = 4;
+}
+
+// PipelineSchedule includes the server-owned identity and derived fire times.
+message PipelineSchedule {
+  string id = 1;
+  string pipeline_id = 2;
+  PipelineScheduleConfig config = 3;
+  int64 next_fire_at = 4;
+  int64 last_fired_at = 5;
+}
+
 message CreatePipelineRequest {
   string tenant_id = 1;
   string name = 2;
   string description = 3;
+  PipelineScheduleConfig schedule = 4;
 }
 
 message CreatePipelineResponse {
   Pipeline pipeline = 1;
+  PipelineSchedule schedule = 2;
+}
+
+message CreatePipelineScheduleRequest {
+  string pipeline_id = 1;
+  PipelineScheduleConfig schedule = 2;
+}
+
+message CreatePipelineScheduleResponse {
+  PipelineSchedule schedule = 1;
+}
+
+message UpdatePipelineScheduleRequest {
+  string pipeline_id = 1;
+  PipelineScheduleConfig schedule = 2;
+}
+
+message UpdatePipelineScheduleResponse {
+  PipelineSchedule schedule = 1;
+}
+
+message DeletePipelineScheduleRequest {
+  string pipeline_id = 1;
+}
+
+message DeletePipelineScheduleResponse {}
+
+message PausePipelineScheduleRequest {
+  string pipeline_id = 1;
+}
+
+message PausePipelineScheduleResponse {
+  PipelineSchedule schedule = 1;
+}
+
+message ResumePipelineScheduleRequest {
+  string pipeline_id = 1;
+}
+
+message ResumePipelineScheduleResponse {
+  PipelineSchedule schedule = 1;
 }
 
 message CreatePipelineVersionRequest {
@@ -87,6 +153,7 @@ message GetPipelineResponse {
   Pipeline pipeline = 1;
   PipelineVersion current_version = 2;
   repeated PipelineVersion versions = 3;
+  PipelineSchedule schedule = 4;
 }
 
 message GetPipelineVersionRequest {

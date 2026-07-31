@@ -2,9 +2,10 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
+import { ArrowUUpLeftIcon, CalendarIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import SelectInput, {
   type SelectInputOption,
@@ -18,7 +19,7 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline, PipelineSchedule, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
@@ -44,6 +45,7 @@ import {
 } from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
+import { formatTimeUntil } from "@/utils/format";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -62,6 +64,7 @@ const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
 
 interface PipelineLayoutNavbarProps {
   pipeline: Pipeline;
+  schedule?: PipelineSchedule;
   currentVersion?: PipelineVersion;
   versions: PipelineVersion[];
   connections: Connection[];
@@ -71,6 +74,7 @@ interface PipelineLayoutNavbarProps {
 
 const PipelineLayoutNavbar = ({
   pipeline,
+  schedule,
   currentVersion,
   versions,
   connections,
@@ -227,15 +231,25 @@ const PipelineLayoutNavbar = ({
               />
             </>
           ) : (
-            <Button
-              label={!isPipelineRunnable(currentVersion) || hasActiveRun ? "Running..." : "Run"}
-              icon={PlayIcon}
-              variant={ButtonVariant.PRIMARY}
-              size={ButtonSize.SMALL}
-              isLoading={isRunning}
-              isDisabled={!isPipelineRunnable(currentVersion) || hasActiveRun}
-              onClick={handleRun}
-            />
+            <>
+              {schedule?.config?.enabled && schedule.nextFireAt !== 0n && (
+                <Chip
+                  icon={CalendarIcon}
+                  label={`Next run ${formatTimeUntil(schedule.nextFireAt)}`}
+                  variant={ChipVariant.YELLOW}
+                  isPill
+                />
+              )}
+              <Button
+                label={!isPipelineRunnable(currentVersion) || hasActiveRun ? "Running..." : "Run"}
+                icon={PlayIcon}
+                variant={ButtonVariant.PRIMARY}
+                size={ButtonSize.SMALL}
+                isLoading={isRunning}
+                isDisabled={!isPipelineRunnable(currentVersion) || hasActiveRun}
+                onClick={handleRun}
+              />
+            </>
           ))}
       </FlexWrapper>
     </PipelineLayoutNavbarWrapper>

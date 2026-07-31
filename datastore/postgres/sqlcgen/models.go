@@ -137,18 +137,14 @@ type Schedule struct {
 	Name          pgtype.Text
 	CronExpr      string
 	Timezone      string
-	JitterMs      int64
 	OverlapPolicy int16
-	CatchupPolicy int16
-	Request       []byte
 	Enabled       bool
 	LastFiredAt   pgtype.Timestamptz
 	NextFireAt    pgtype.Timestamptz
 	ClaimedAt     pgtype.Timestamptz
-	LastRunID     pgtype.Text
-	LastRunStatus pgtype.Int2
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	PipelineID    string
 }
 
 type Secret struct {

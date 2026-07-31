@@ -35,6 +35,7 @@ type RunRequest struct {
 	Selectors          []string
 	IngestionType      IngestionType
 	Options            RunOptions
+	ScheduleID         ScheduleID
 }
 
 // RunOptions tunes throughput knobs for a run; zero values defer to engine
