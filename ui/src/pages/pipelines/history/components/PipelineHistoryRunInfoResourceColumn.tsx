@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { useNavigate } from "@tanstack/react-router";
 
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
@@ -10,7 +11,6 @@ import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/
 import type { RunResourceStateColumn } from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 
 interface PipelineHistoryRunInfoResourceColumnProps {
   runResource: RunResourceStateColumn;
