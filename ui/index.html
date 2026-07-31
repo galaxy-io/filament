@@ -21,34 +21,6 @@
     <link rel="preload" href="https://cdn.getgalaxy.io/fonts/BerkeleyMono/BerkeleyMono-Bold.otf" as="font" type="font/otf" crossorigin>
     <!-- Title -->
     <title>Filament</title>
-    <!-- Critical inline script to prevent white flash - runs before any modules load -->
-    <script>
-      (function() {
-        try {
-          // Keep in sync with LocalStorageKey.THEME in src/storage/local-storage.ts
-          const THEME_KEY = 'gx:filament:theme';
-          const storedTheme = localStorage.getItem(THEME_KEY);
-          const selectedTheme =
-            storedTheme === 'SYSTEM' || storedTheme === 'LIGHT' || storedTheme === 'DARK'
-              ? storedTheme
-              : (localStorage.setItem(THEME_KEY, 'SYSTEM'), 'SYSTEM');
-
-          // Resolve to actual theme (DARK/LIGHT)
-          const resolvedTheme = selectedTheme === 'SYSTEM'
-            ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'DARK' : 'LIGHT')
-            : selectedTheme;
-
-          // Apply background immediately to prevent white flash
-          const bg = resolvedTheme === 'DARK' ? '#131313' : '#ffffff';
-          document.documentElement.style.backgroundColor = bg;
-          document.body?.style.setProperty('background-color', bg);
-        } catch (_) {
-          // Fallback on error (e.g. localStorage blocked)
-          document.documentElement.style.backgroundColor = '#131313';
-          document.body?.style.setProperty('background-color', '#131313');
-        }
-      })();
-    </script>
     <style>
       * {
         margin: 0;
