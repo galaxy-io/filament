@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { useNavigate } from "@tanstack/react-router";
 
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
@@ -48,13 +49,17 @@ const PipelineHistoryRunInfoResourceColumn = ({
           size={ConnectorTileSize.SMALL}
           onClick={handleConnectorTileClick}
         />
-        <Text size={TextSize.BODY_SM}>{sourceConnection?.connection?.name ?? "—"}</Text>
+        <FlexItem shrink={0}>
+          <Text size={TextSize.BODY_SM}>{sourceConnection?.connection?.name ?? "—"}</Text>
+        </FlexItem>
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isMonospace>
           /
         </Text>
-        <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
-          {runResource.resource}
-        </Text>
+        <FlexItem shrink={0}>
+          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
+            {runResource.resource}
+          </Text>
+        </FlexItem>
       </FlexWrapper>
     );
   };
