@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -221,9 +222,25 @@ func resolveSecretRefs(ctx context.Context, secrets filament.Secrets, ref *filam
 		if err != nil {
 			return fmt.Errorf("resolve %s secret %q for field %q: %w", role, name, field, err)
 		}
-		ref.Config[field] = string(secret.Value)
+		setConfigPath(ref.Config, field, string(secret.Value))
 	}
 	return nil
+}
+
+// setConfigPath assigns value at a dotted field path, rebuilding objects that
+// were removed when their only submitted values were secrets.
+func setConfigPath(cfg map[string]any, path string, value any) {
+	parts := strings.Split(path, ".")
+	current := cfg
+	for _, part := range parts[:len(parts)-1] {
+		nested, ok := current[part].(map[string]any)
+		if !ok {
+			nested = make(map[string]any)
+			current[part] = nested
+		}
+		current = nested
+	}
+	current[parts[len(parts)-1]] = value
 }
 
 func resolveRefConfig(ctx context.Context, secrets filament.Secrets, ref *filament.Ref, tenant filament.TenantID, role string) error {
