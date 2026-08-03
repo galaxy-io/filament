@@ -4,7 +4,7 @@ brew "go"
 # Tooling
 brew "just"
 brew "golangci-lint"
-brew "bufbuild/buf/buf"
+brew "buf"
 brew "sqlc"
 
 # UI
