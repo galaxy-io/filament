@@ -2,10 +2,20 @@ import { styled } from "@linaria/react";
 import { BookOpenIcon, GithubLogoIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, {
+  ButtonSize,
+  ButtonVariant,
+} from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, {
+  AlignItems,
+  FlexGap,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, {
+  TextSize,
+  TextVariant,
+  TextWeight,
+} from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -14,6 +24,7 @@ import FilamentLogo from "@/assets/components/FilamentLogo";
 import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
 
 import { DOCUMENTATION_URL, GITHUB_REPO_URL } from "@/constants";
+import ReadTheDocs from "@/components/ReadTheDocs";
 
 export const NAVBAR_HEIGHT = 52;
 
@@ -23,6 +34,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  { to: "/observability", label: "Observability" },
   { to: "/pipelines", label: "Pipelines" },
   { to: "/sources", label: "Sources" },
   { to: "/sinks", label: "Sinks" },
@@ -41,11 +53,14 @@ const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const NavTabWrapper = withTheme(styled.div<PropsWithTheme<{ $isActive?: boolean }>>`
+const NavTabWrapper = withTheme(styled.div<
+  PropsWithTheme<{ $isActive?: boolean }>
+>`
   padding-bottom: 8px;
 
   border-bottom: 2px solid
-    ${({ theme, $isActive }) => ($isActive ? theme.color.text.primary : "transparent")};
+    ${({ theme, $isActive }) =>
+      $isActive ? theme.color.text.primary : "transparent"};
 
   transition: border-color 100ms ease;
 `);
@@ -105,19 +120,7 @@ const MainLayoutNavbar = () => {
         ))}
       </NavTabsWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-        <Button
-          label="Docs"
-          icon={BookOpenIcon}
-          onClick={handleDocs}
-          variant={ButtonVariant.TERTIARY}
-          size={ButtonSize.SMALL}
-        />
-        <Button
-          icon={GithubLogoIcon}
-          onClick={handleStarRepository}
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.SMALL}
-        />
+        <ReadTheDocs path="/" />
       </FlexWrapper>
     </NavbarWrapper>
   );
