@@ -9,6 +9,7 @@ export interface FieldComponentProps {
   error?: string;
   isDisabled?: boolean;
   label: string;
+  secretPlaceholder?: string;
 }
 
 export type FieldComponent = React.FC<FieldComponentProps>;

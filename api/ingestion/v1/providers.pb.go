@@ -338,7 +338,10 @@ type ValidateConfigRequest struct {
 	Connector string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
 	Config    *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
 	// live attempts a TestConnection probe if the connector supports it.
-	Live          bool `protobuf:"varint,4,opt,name=live,proto3" json:"live,omitempty"`
+	Live bool `protobuf:"varint,4,opt,name=live,proto3" json:"live,omitempty"`
+	// When set, secrets stored on this connection fill config fields the
+	// request leaves blank.
+	ConnectionId  string `protobuf:"bytes,5,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -399,6 +402,13 @@ func (x *ValidateConfigRequest) GetLive() bool {
 		return x.Live
 	}
 	return false
+}
+
+func (x *ValidateConfigRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
 }
 
 // ValidationError carries a field-keyed validation failure. An empty field means
@@ -746,12 +756,13 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\x16ListConnectorsResponse\x12;\n" +
 	"\n" +
 	"connectors\x18\x01 \x03(\v2\x1b.ingestion.v1.ConnectorSpecR\n" +
-	"connectors\"\xab\x01\n" +
+	"connectors\"\xd0\x01\n" +
 	"\x15ValidateConfigRequest\x12/\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
 	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
 	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x12\n" +
-	"\x04live\x18\x04 \x01(\bR\x04live\"A\n" +
+	"\x04live\x18\x04 \x01(\bR\x04live\x12#\n" +
+	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\"A\n" +
 	"\x0fValidationError\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"e\n" +

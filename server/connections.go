@@ -71,6 +71,12 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	if stored.Version != in.GetVersion() {
 		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", in.GetId(), stored.Version, in.GetVersion()))
 	}
+	if in.GetConnector() != stored.Connector {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q connector cannot change from %q to %q", in.GetId(), stored.Connector, in.GetConnector()))
+	}
+	if connectionKindFromProto(in.GetKind()) != stored.Kind {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q kind cannot change", in.GetId()))
+	}
 	schema, err := a.schemaFor(in.GetKind(), in.GetConnector())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -260,11 +266,57 @@ func (a *Server) resolveConnectionSecrets(ctx context.Context, conn filament.Con
 	return nil
 }
 
+// fillMissingConnectionSecrets resolves the connection's secret refs like
+// resolveConnectionSecrets, but only for fields cfg leaves blank, so a
+// caller-supplied replacement value is never overwritten by the stored one.
+func (a *Server) fillMissingConnectionSecrets(ctx context.Context, conn filament.Connection, cfg map[string]any) error {
+	if len(conn.SecretRefs) == 0 {
+		return nil
+	}
+	if a.secrets == nil {
+		return fmt.Errorf("connection %q has secret refs but no secret provider is configured", conn.ID)
+	}
+	for field, ref := range conn.SecretRefs {
+		if hasConfigPath(cfg, field) {
+			continue
+		}
+		if err := filament.ValidateConnectionSecretRef(ref, filament.TenantID(conn.Tenant)); err != nil {
+			return fmt.Errorf("resolve secret for field %q: %w", field, err)
+		}
+		secret, err := a.secrets.Read(ctx, ref)
+		if err != nil {
+			return fmt.Errorf("resolve secret %q for field %q: %w", ref, field, err)
+		}
+		setConfigPath(cfg, field, string(secret.Value))
+	}
+	return nil
+}
+
 func joinConfigPath(parent, field string) string {
 	if parent == "" {
 		return field
 	}
 	return parent + "." + field
+}
+
+func hasConfigPath(cfg map[string]any, path string) bool {
+	parts := strings.Split(path, ".")
+	current := cfg
+	for _, part := range parts[:len(parts)-1] {
+		nested, ok := current[part].(map[string]any)
+		if !ok {
+			return false
+		}
+		current = nested
+	}
+	value, ok := current[parts[len(parts)-1]]
+	if !ok {
+		return false
+	}
+	if s, isString := value.(string); isString && s == "" {
+		return false
+	}
+	return value != nil
 }
 
 func setConfigPath(cfg map[string]any, path string, value any) {

@@ -49,6 +49,9 @@ message ValidateConfigRequest {
   google.protobuf.Struct config = 3;
   // live attempts a TestConnection probe if the connector supports it.
   bool live = 4;
+  // When set, secrets stored on this connection fill config fields the
+  // request leaves blank.
+  string connection_id = 5;
 }
 
 // ValidationError carries a field-keyed validation failure. An empty field means

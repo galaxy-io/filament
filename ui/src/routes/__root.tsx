@@ -15,12 +15,14 @@ import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
 import ConnectionDrawer from "@/pages/connectors/components/drawer/ConnectionDrawer";
+import EditConnectionModal from "@/pages/connectors/components/edit/EditConnectionModal";
 import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
 
 export enum Flow {
   CREATE_CONNECTION = "CREATE_CONNECTION",
+  EDIT_CONNECTION = "EDIT_CONNECTION",
 }
 
 const searchParams = z.object({
@@ -92,6 +94,11 @@ function RootComponent() {
         </Drawer>
         <Modal open={flow === Flow.CREATE_CONNECTION} onClose={handleCloseFlow}>
           <CreateConnectionModal onClose={handleCloseFlow} />
+        </Modal>
+        <Modal open={flow === Flow.EDIT_CONNECTION && !!connection} onClose={handleCloseFlow}>
+          {flow === Flow.EDIT_CONNECTION && connection && (
+            <EditConnectionModal connection={connection} onClose={handleCloseFlow} />
+          )}
         </Modal>
       </OverlayProvider>
     </ToastProvider>

@@ -3,18 +3,12 @@ import { styled } from "@linaria/react";
 import { useParams } from "@tanstack/react-router";
 
 import FlexWrapper, {
-  AlignItems,
   FlexDirection,
-  JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -70,18 +64,11 @@ const PipelineSettingsPage = () => {
           minWidth={400}
           maxWidth={600}
         >
-          <Widget noHover fillWidth>
-            <FlexWrapper
-              fillWidth
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.SPACE_BETWEEN}
-            >
-              <Text weight={TextWeight.MEDIUM}>Pipeline ID</Text>
-              <CopyInput value={data.pipeline.id} size={InputSize.SMALL} width={272} isMonospace />
-            </FlexWrapper>
-          </Widget>
           <PipelineSettingsPageGeneral pipeline={data.pipeline} />
-          <PipelineSettingsPageSchedule pipelineId={data.pipeline.id} schedule={data.schedule} />
+          <PipelineSettingsPageSchedule
+            pipelineId={data.pipeline.id}
+            schedule={data.schedule}
+          />
           <PipelineSettingsPageDanger pipeline={data.pipeline} />
         </FlexWrapper>
       </ScrollWrapper>
