@@ -96,9 +96,7 @@ function RootComponent() {
           <CreateConnectionModal onClose={handleCloseFlow} />
         </Modal>
         <Modal open={flow === Flow.EDIT_CONNECTION && !!connection} onClose={handleCloseFlow}>
-          {flow === Flow.EDIT_CONNECTION && connection && (
-            <EditConnectionModal connection={connection} onClose={handleCloseFlow} />
-          )}
+          {connection && <EditConnectionModal connection={connection} onClose={handleCloseFlow} />}
         </Modal>
       </OverlayProvider>
     </ToastProvider>
