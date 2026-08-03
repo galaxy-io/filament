@@ -10,14 +10,14 @@ const FieldSecret = ({
   error,
   isDisabled = false,
   label,
-  secretPlaceholder,
+  hasStoredSecret = false,
 }: FieldComponentProps) => {
   return (
     <PasswordInput
       value={(value as string) ?? ""}
       onChange={(v) => onChange(v)}
       size={InputSize.LARGE}
-      placeholder={secretPlaceholder ?? `Enter ${label}...`}
+      placeholder={hasStoredSecret ? "Leave blank to keep current value" : `Enter ${label}...`}
       label={label}
       labelTooltip={field.help || undefined}
       isRequired={field.required}

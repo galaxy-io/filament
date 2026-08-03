@@ -96,8 +96,6 @@ const ConnectionForm = ({
   const isValidating = state.phase === ConnectionFormPhase.VALIDATING;
   const isSubmitting = state.phase === ConnectionFormPhase.SUBMITTING;
 
-  const secretPlaceholder = connectionId ? "Leave blank to keep current value" : undefined;
-
   const nameError = useMemo(
     () => getNameError(state.name, state.shouldShowErrors),
     [state.name, state.shouldShowErrors],
@@ -242,7 +240,7 @@ const ConnectionForm = ({
             onChange={(value) => handleFieldChange(field.name, value)}
             getError={getFieldError}
             isDisabled={isDisabled}
-            secretPlaceholder={secretPlaceholder}
+            hasStoredSecret={!!connectionId}
           />
         ))}
       </>
