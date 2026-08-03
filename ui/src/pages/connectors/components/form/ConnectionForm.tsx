@@ -183,15 +183,7 @@ const ConnectionForm = ({
         },
       },
     );
-  }, [
-    state.name,
-    state.config,
-    connector,
-    connectionId,
-    validateConfig,
-    dispatch,
-    showToast,
-  ]);
+  }, [state.name, state.config, connector, connectionId, validateConfig, dispatch, showToast]);
 
   const handleNameChange = useCallback(
     (name: string) =>

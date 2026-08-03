@@ -91,15 +91,7 @@ const EditConnectionModalContent = ({
         },
       },
     );
-  }, [
-    state.name,
-    state.config,
-    connection,
-    updateConnection,
-    showToast,
-    onClose,
-    dispatch,
-  ]);
+  }, [state.name, state.config, connection, updateConnection, showToast, onClose, dispatch]);
 
   return (
     <ConnectionForm
