@@ -10,20 +10,35 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, {
+  ConnectorTileSize,
+} from "@/pages/connectors/components/ConnectorTile";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
+import Button, {
+  ButtonSize,
+  ButtonVariant,
+} from "@galaxy-io/dls/buttons/Button";
+import { PencilIcon } from "@phosphor-icons/react";
+import Tooltip, { TooltipVariant } from "@galaxy-io/dls/tooltip/Tooltip";
 
 interface ConnectionDrawerHeaderProps {
   connection: Connection;
   onClose: () => void;
 }
 
-const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderProps) => {
+const ConnectionDrawerHeader = ({
+  connection,
+  onClose,
+}: ConnectionDrawerHeaderProps) => {
   const connector = useConnectorSpec(connection.connector, connection.kind);
 
   return (
     <Wrapper padding="12px 16px">
-      <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+      <FlexWrapper
+        fillWidth
+        alignItems={AlignItems.CENTER}
+        gap={FlexGap.MEDIUM}
+      >
         <FlexItem shrink={0}>
           <ConnectorTile
             connector={connection.connector}
@@ -31,10 +46,25 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
             size={ConnectorTileSize.LARGE}
           />
         </FlexItem>
-        <FlexWrapper fillWidth minWidth={0} direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
+        <FlexWrapper
+          fillWidth
+          minWidth={0}
+          direction={FlexDirection.COLUMN}
+          gap={FlexGap.XSMALL}
+        >
           <BaseHeader
             title={connection.name}
             description={connector?.displayName || connection.connector}
+            actions={[
+              <Tooltip body="Edit connection">
+                <Button
+                  icon={PencilIcon}
+                  variant={ButtonVariant.SECONDARY}
+                  size={ButtonSize.SMALL}
+                  onClick={onClose}
+                />
+              </Tooltip>,
+            ]}
             onClose={onClose}
           />
         </FlexWrapper>
