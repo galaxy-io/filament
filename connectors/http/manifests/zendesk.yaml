@@ -1,0 +1,197 @@
+version: 1
+name: zendesk
+config:
+  subdomain:
+    type: string
+    required: true
+    help: Zendesk subdomain (without .zendesk.com)
+  email:
+    type: string
+    required: true
+    help: Zendesk email address
+  api_token:
+    type: secret
+    required: true
+    help: Zendesk API token
+defaults:
+  method: GET
+  pagination: none
+connection:
+  base_url: https://{subdomain}.zendesk.com
+  auth:
+    header:
+      name: Authorization
+      value: Bearer {api_token}
+  headers:
+    Accept: application/json
+    Content-Type: application/json
+    X-Zendesk-Marketplace-Connector-Version: "1.0"
+resources:
+  - name: users
+    path: /api/v2/users
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      email: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      active: bool
+      role: string
+      time_zone: string?
+      email_opt_in: bool?
+      webhook_status: string?
+      avatar: json?
+      custom_fields: json?
+      ticket_restriction: string?
+      api_only: bool?
+      photo: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.users
+      pagination:
+        cursor:
+          response: next_page
+          request: query.page
+          more: meta.has_more
+          null_terminates: true
+  - name: tickets
+    path: /api/v2/tickets
+    primary_key: [id]
+    fields:
+      id: int64
+      subject: string?
+      raw_subject: string?
+      description: string?
+      priority: string?
+      status: string?
+      organization_id: int64?
+      requester_id: int64?
+      assignee_id: int64?
+      organization_name: { path: organization.name, type: string, nullable: true }
+      requester_name: { path: requester.name, type: string, nullable: true }
+      assignee_name: { path: assignee.name, type: string, nullable: true }
+      created_at: timestamptz
+      updated_at: timestamptz
+      due_at: timestamptz?
+      custom_fields: json?
+      tags: json
+      metatdata: json?
+      via: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.tickets
+      pagination:
+        cursor:
+          response: next_page
+          request: query.page
+          more: meta.has_more
+          null_terminates: true
+  - name: organizations
+    path: /api/v2/organizations
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      domain_names: json
+      tags: json
+      custom_fields: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.organizations
+      pagination:
+        cursor:
+          response: next_page
+          request: query.page
+          more: meta.has_more
+          null_terminates: true
+  - name: tickets_incremental
+    path: /api/v2/tickets
+    incremental:
+      cursor_field: updated_at
+      start_param: start_time
+      inject_into: query
+      checkpoint_key: tickets_updated_since
+      comparator: numeric
+    primary_key: [id]
+    fields:
+      id: int64
+      subject: string?
+      raw_subject: string?
+      description: string?
+      priority: string?
+      status: string?
+      organization_id: int64?
+      requester_id: int64?
+      assignee_id: int64?
+      created_at: timestamptz
+      updated_at: timestamptz
+      due_at: timestamptz?
+      tags: json
+      custom_fields: json?
+      via: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.tickets
+      pagination:
+        cursor:
+          response: next_page
+          request: query.page
+          more: meta.has_more
+          null_terminates: true
+  - name: ticket_comments
+    path: /api/v2/tickets/{ticket_id}/comments
+    params:
+      ticket_id: parent.ticket_id
+    for_each: tickets
+    primary_key: [id]
+    fields:
+      id: int64
+      ticket_id: int64
+      author_id: int64
+      body: string?
+      formatted_body: string?
+      public: bool
+      attachments: json?
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      ticket_id: ticket_id
+    response:
+      records: $.comments
+      pagination: none
+  - name: groups
+    path: /api/v2/groups
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      default: bool
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.groups
+      pagination: none
+  - name: brands
+    path: /api/v2/brands
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      subdomain: string?
+      logo_url: string?
+      created_at: timestamptz
+      updated_at: timestamptz
+      domain_names: json
+      active: bool
+      primary: bool
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.brands
+      pagination: none
+discovery:
+  mode: static

@@ -21,6 +21,12 @@ var githubManifest []byte
 //go:embed manifests/slack.yaml
 var slackManifest []byte
 
+//go:embed manifests/zendesk.yaml
+var zendeskManifest []byte
+
+//go:embed manifests/hubspot.yaml
+var hubspotManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
@@ -44,6 +50,16 @@ func NewGitHub() *Source {
 // NewSlack returns a Source backed by the embedded Slack Web API manifest.
 func NewSlack() *Source {
 	return NewManifestWithMetadata("slack", "Slack", "Messaging and collaboration platform designed for teams to communicate and work together efficiently.", "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg", slackManifest, manifestOwnedConfig())
+}
+
+// NewZendesk returns a Source backed by the embedded Zendesk REST API manifest.
+func NewZendesk() *Source {
+	return NewManifestWithMetadata("zendesk", "Zendesk", "Customer service and support platform for helping teams manage customer inquiries and support tickets.", "https://cdn.getgalaxy.io/sources/source-icon-zendesk-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-zendesk-light.svg", zendeskManifest, manifestOwnedConfig())
+}
+
+// NewHubSpot returns a Source backed by the embedded HubSpot REST API manifest.
+func NewHubSpot() *Source {
+	return NewManifestWithMetadata("hubspot", "HubSpot", "Customer relationship management (CRM) platform for marketing, sales, and support.", "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-hubspot-light.svg", hubspotManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }

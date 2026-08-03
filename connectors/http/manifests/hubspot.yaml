@@ -1,0 +1,357 @@
+version: 1
+name: hubspot
+config:
+  api_key:
+    type: secret
+    required: true
+    help: HubSpot API key
+defaults:
+  method: GET
+  pagination: none
+connection:
+  base_url: https://api.hubapi.com
+  auth:
+    header:
+      name: Authorization
+      value: Bearer {api_key}
+  headers:
+    Accept: application/json
+    Content-Type: application/json
+resources:
+  - name: contacts
+    path: /crm/v3/objects/contacts
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      properties: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: contacts_properties
+    path: /crm/v3/properties/contacts
+    query:
+      limit: "100"
+    primary_key: [name]
+    fields:
+      name: string
+      label: string
+      type: string
+      description: string?
+      group_name: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      options: json?
+      display_name: string
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: companies
+    path: /crm/v3/objects/companies
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      properties: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: companies_properties
+    path: /crm/v3/properties/companies
+    query:
+      limit: "100"
+    primary_key: [name]
+    fields:
+      name: string
+      label: string
+      type: string
+      description: string?
+      group_name: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      options: json?
+      display_name: string
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: deals
+    path: /crm/v3/objects/deals
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      properties: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: deals_properties
+    path: /crm/v3/properties/deals
+    query:
+      limit: "100"
+    primary_key: [name]
+    fields:
+      name: string
+      label: string
+      type: string
+      description: string?
+      group_name: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      options: json?
+      display_name: string
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: deals_pipeline
+    path: /crm/v3/pipelines/deals
+    query:
+      limit: "100"
+    primary_key: [pipelineId]
+    fields:
+      pipelineId: string
+      label: string
+      order: int64
+      Stages: json
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      archived: bool
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: owners
+    path: /crm/v3/owners/emails
+    query:
+      limit: "100"
+    primary_key: [email]
+    fields:
+      email: string
+      userId: int64
+      firstName: string?
+      lastName: string?
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      displayName: string?
+      hubId: int64
+      accountId: int64
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: engagements
+    path: /engagements/v1/engagements/paged
+    query:
+      limit: "100"
+    primary_key: [engagementId]
+    fields:
+      engagementId: int64
+      type: string
+      timestamp: timestamptz
+      lastUpdated: timestamptz
+      byUserId: int64?
+      engagedByUserId: int64?
+      source: string?
+      initiatorHubSpotUserId: int64?
+      stickyCookieId: string?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.engagements
+      pagination:
+        cursor:
+          response: paging.next
+          request: query.cursor
+          more: paging.next
+          null_terminates: true
+  - name: engagements_associations
+    path: /engagements/v1/engagements/{engagement_id}/associations
+    params:
+      engagement_id: parent.engagement_id
+    for_each: engagements
+    primary_key: [engagement_id, objId]
+    fields:
+      engagement_id: int64
+      objId: int64
+      type: string
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      engagement_id: engagement_id
+    response:
+      records: $.results
+      pagination: none
+  - name: pipelines
+    path: /crm/v3/pipelines/contacts
+    query:
+      limit: "100"
+    primary_key: [pipelineId]
+    fields:
+      pipelineId: string
+      label: string
+      order: int64
+      stages: json
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      archived: bool
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination: none
+  - name: tickets
+    path: /crm/v3/objects/tickets
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      properties: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: ticket_properties
+    path: /crm/v3/properties/tickets
+    query:
+      limit: "100"
+    primary_key: [name]
+    fields:
+      name: string
+      label: string
+      type: string
+      description: string?
+      group_name: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      options: json?
+      display_name: string
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: ticket_stages
+    path: /crm/v3/pipelines/tickets
+    query:
+      limit: "100"
+    primary_key: [pipelineId]
+    fields:
+      pipelineId: string
+      label: string
+      order: int64
+      stages: json
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      archived: bool
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination: none
+  - name: products
+    path: /crm/v3/objects/products
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      properties: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+  - name: products_properties
+    path: /crm/v3/properties/products
+    query:
+      limit: "100"
+    primary_key: [name]
+    fields:
+      name: string
+      label: string
+      type: string
+      description: string?
+      group_name: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      options: json?
+      display_name: string
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.link
+          request: query.after
+          more: paging.next.link
+          null_terminates: true
+discovery:
+  mode: static
