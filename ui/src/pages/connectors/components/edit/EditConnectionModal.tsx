@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
@@ -13,15 +13,12 @@ import {
 } from "@/gen/ingestion/v1/connections_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
-import { getConnectionScopedFields } from "@/components/fields/utils";
-
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionForm from "@/pages/connectors/components/form/ConnectionForm";
 import ConnectionFormProvider, {
   useConnectionFormContext,
 } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
-import { omitBlankSecretFields } from "@/pages/connectors/components/form/utils";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 import { useUpdateConnectionMutation } from "@/api/queries/connections";
@@ -47,11 +44,6 @@ const EditConnectionModalContent = ({
 
   const { mutate: updateConnection } = useUpdateConnectionMutation();
 
-  const fields = useMemo(
-    () => getConnectionScopedFields(connector.configSchema?.fields ?? []),
-    [connector],
-  );
-
   const handleUpdateConnection = useCallback(() => {
     const name = state.name.trim();
     if (!name) return;
@@ -69,7 +61,7 @@ const EditConnectionModalContent = ({
           kind: connection.kind,
           connector: connection.connector,
           name,
-          config: omitBlankSecretFields(fields, state.config),
+          config: state.config,
           secretRefs: connection.secretRefs,
           version: connection.version,
         }),
@@ -102,7 +94,6 @@ const EditConnectionModalContent = ({
   }, [
     state.name,
     state.config,
-    fields,
     connection,
     updateConnection,
     showToast,

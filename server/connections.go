@@ -223,6 +223,10 @@ func extractSecretFields(schema []filament.ConfigField, cfg map[string]any, pare
 			if !ok {
 				return nil, fmt.Errorf("secret field %q must be a string", path)
 			}
+			if s == "" {
+				// Blank means not provided; an update keeps the existing ref.
+				continue
+			}
 			secrets = append(secrets, extractedSecretField{path: path, value: s})
 			continue
 		}

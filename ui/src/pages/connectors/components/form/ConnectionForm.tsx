@@ -27,7 +27,6 @@ import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionF
 import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
-import { omitBlankSecretFields } from "@/pages/connectors/components/form/utils";
 import {
   createRequiredFieldsValidationErrorMap,
   getNameError,
@@ -138,7 +137,7 @@ const ConnectionForm = ({
       create(ValidateConfigRequestSchema, {
         kind: connector.kind,
         connector: connector.name,
-        config: connectionId ? omitBlankSecretFields(fields, state.config) : state.config,
+        config: state.config,
         live: true,
         connectionId: connectionId ?? "",
       }),
@@ -187,7 +186,6 @@ const ConnectionForm = ({
   }, [
     state.name,
     state.config,
-    fields,
     connector,
     connectionId,
     validateConfig,
