@@ -21,6 +21,9 @@ var githubManifest []byte
 //go:embed manifests/slack.yaml
 var slackManifest []byte
 
+//go:embed manifests/brex.yaml
+var brexManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
@@ -44,6 +47,11 @@ func NewGitHub() *Source {
 // NewSlack returns a Source backed by the embedded Slack Web API manifest.
 func NewSlack() *Source {
 	return NewManifestWithMetadata("slack", "Slack", "Messaging and collaboration platform designed for teams to communicate and work together efficiently.", "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg", slackManifest, manifestOwnedConfig())
+}
+
+// NewBrex returns a Source backed by the embedded Brex API manifest.
+func NewBrex() *Source {
+	return NewManifestWithMetadata("brex", "Brex", "Corporate card and financial management platform.", "https://cdn.getgalaxy.io/sources/source-icon-brex-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-brex-light.svg", brexManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }

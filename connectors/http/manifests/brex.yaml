@@ -1,0 +1,91 @@
+version: 1
+name: brex
+config:
+  token:
+    type: secret
+    required: true
+    help: Brex API token
+defaults:
+  method: GET
+  pagination: none
+connection:
+  base_url: https://api.brex.com/v1
+  auth:
+    bearer: config.token
+  headers:
+    Accept: application/json
+resources:
+  - name: accounts
+    path: /accounts
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      description: string?
+      type: string
+      subtype: string
+      status: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: transactions
+    path: /transactions
+    primary_key: [id]
+    fields:
+      id: string
+      account_id: string
+      amount: int64
+      currency: string
+      description: string
+      type: string
+      subtype: string
+      status: string
+      posted_at: timestamptz
+      created_at: timestamptz
+      updated_at: timestamptz
+      merchant: json?
+      category: string?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: categories
+    path: /categories
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      type: string
+      subtype: string?
+      status: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: budgets
+    path: /budgets
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      description: string?
+      budget_type: string
+      amount: int64
+      currency: string
+      start_date: date
+      end_date: date
+      status: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: users
+    path: /users
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      email: string
+      role: string
+      status: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static
