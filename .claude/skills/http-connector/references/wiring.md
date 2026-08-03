@@ -1,0 +1,70 @@
+# Wiring a new connector
+
+Four mechanical steps after the manifest validates. `<name>` is the manifest's `name:` slug.
+
+## 1. catalog.go — embed + constructor
+
+Add to `connectors/http/catalog.go`, matching the existing entries exactly:
+
+```go
+//go:embed manifests/<name>.yaml
+var <name>Manifest []byte
+
+// New<Name> returns a Source backed by the embedded <Display> manifest.
+func New<Name>() *Source {
+	return NewManifestWithMetadata("<name>", "<Display>", "<one-sentence product description>.", "<dark-logo-url>", "<light-logo-url>", <name>Manifest, manifestOwnedConfig())
+}
+```
+
+Logo URLs follow `https://cdn.getgalaxy.io/sources/source-icon-<name>-dark.svg` / `-light.svg`. If the CDN asset doesn't exist yet, use the pattern anyway and flag it in the final report.
+
+## 2. register.go — one line
+
+```go
+registry.RegisterSource("<name>", func() filament.Source { return New<Name>() })
+```
+
+## 3. Docs
+
+`docs/pages/connectors/sources/<name>.mdx`, modeled on `github.mdx`:
+
+```mdx
+---
+title: "<Display>"
+description: "<what it reads, one sentence>"
+icon: "<dark-logo-url>"
+---
+```
+
+Body sections: a lead paragraph noting it is manifest-driven (link to `/pages/connectors/sources/http`), `## Auth` (what the user supplies), `## Resources` (table: resource, path, fans out from; then pagination/quirks prose), `## Modes` (full vs incremental). Plain prose, no marketing.
+
+Then add a card to the `CardGroup` in `docs/pages/connectors/sources/http.mdx`, alphabetical:
+
+```mdx
+<Card title="<Display>" icon="<dark-logo-url>" href="/pages/connectors/sources/<name>" />
+```
+
+## 4. Test in source_test.go
+
+Two patterns, both required:
+
+**Spec + discovery** (model: `TestNewGitHubSpecAndEmbeddedManifest`): construct via `New<Name>()`, assert `Spec().Name`/`DisplayName`, assert each config field's type/required, `Configure` with fake config, `Discover` and assert the exact resource name list.
+
+**Extraction against httptest** (model: the Attio/Slack tests): stub the API, retarget the embedded manifest, extract, assert auth header and records:
+
+```go
+manifestData := []byte(strings.Replace(string(<name>Manifest), "<base_url>", api.URL, 1))
+src := NewManifest("<name>", "<Display>", manifestData, filament.ConfigSchema{})
+```
+
+Cover in the stub: the happy path for at least one resource, one pagination round-trip (first response points at a second page, second terminates), and parent→child fan-out if the manifest uses `for_each`. Use `collectSink` to gather records.
+
+## Verify
+
+```
+go test ./connectors/http/...
+go vet ./connectors/http/...
+go build -o /dev/null ./connectors/http
+```
+
+No commits, no branches — the user runs git themselves.

@@ -100,6 +100,60 @@ discovery:
 	}
 }
 
+func TestParseConciseBasicAuth(t *testing.T) {
+	m, err := Parse([]byte(`
+version: 1
+name: basic
+config:
+  email:
+    type: string
+    required: true
+  api_token:
+    type: secret
+    required: true
+connection:
+  base_url: https://example.com
+  auth:
+    basic:
+      username: config.email
+      password: config.api_token
+resources:
+  - name: widgets
+    path: /widgets
+`))
+	if err != nil {
+		t.Fatalf("parse basic auth manifest: %v", err)
+	}
+	if m.Connection.Auth.Type != "basic" ||
+		m.Connection.Auth.Params["user"] != "{{ config.email }}" ||
+		m.Connection.Auth.Params["pass"] != "{{ config.api_token }}" {
+		t.Fatalf("concise basic auth = %#v", m.Connection.Auth)
+	}
+
+	m, err = Parse([]byte(`
+version: 1
+name: basic-no-pass
+config:
+  api_key:
+    type: secret
+    required: true
+connection:
+  base_url: https://example.com
+  auth:
+    basic:
+      username: config.api_key
+resources:
+  - name: widgets
+    path: /widgets
+`))
+	if err != nil {
+		t.Fatalf("parse basic auth without password: %v", err)
+	}
+	if m.Connection.Auth.Params["user"] != "{{ config.api_key }}" || m.Connection.Auth.Params["pass"] != "" {
+		t.Fatalf("basic auth without password = %#v", m.Connection.Auth)
+	}
+}
+
 func TestParseConciseFieldRejectsUnknownType(t *testing.T) {
 	_, err := Parse([]byte(`
 version: 1

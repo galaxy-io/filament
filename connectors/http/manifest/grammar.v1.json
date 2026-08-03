@@ -63,6 +63,15 @@
                 "value": { "type": "string", "minLength": 1 }
               }
             },
+            "basic": {
+              "type": "object",
+              "required": ["username"],
+              "additionalProperties": false,
+              "properties": {
+                "username": { "type": "string", "minLength": 1 },
+                "password": { "type": "string" }
+              }
+            },
             "oauth2": {
               "type": "object",
               "required": ["token_url", "client_id", "client_secret"],

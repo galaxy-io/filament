@@ -185,6 +185,17 @@ func (a *AuthSpec) UnmarshalYAML(node *yaml.Node) error {
 			return err
 		}
 		a.Params["name"], a.Params["value"] = spec.Name, referenceTemplate(spec.Value)
+	case "basic":
+		a.Type = "basic"
+		var spec struct {
+			Username string `yaml:"username"`
+			Password string `yaml:"password"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		a.Params["user"] = referenceTemplate(spec.Username)
+		a.Params["pass"] = referenceTemplate(spec.Password)
 	case "oauth2":
 		a.Type = "oauth2_cc"
 		var spec struct {
