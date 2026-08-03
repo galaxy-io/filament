@@ -71,10 +71,10 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	if stored.Version != in.GetVersion() {
 		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", in.GetId(), stored.Version, in.GetVersion()))
 	}
-	if in.GetConnector() != stored.Connector {
+	if stored.Connector != in.GetConnector() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q connector cannot change from %q to %q", in.GetId(), stored.Connector, in.GetConnector()))
 	}
-	if connectionKindFromProto(in.GetKind()) != stored.Kind {
+	if stored.Kind != connectionKindFromProto(in.GetKind()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q kind cannot change", in.GetId()))
 	}
 	schema, err := a.schemaFor(in.GetKind(), in.GetConnector())

@@ -20,8 +20,8 @@ import ConnectionForm from "@/pages/connectors/components/form/ConnectionForm";
 import ConnectionFormProvider, {
   useConnectionFormContext,
 } from "@/pages/connectors/components/form/ConnectionFormProvider";
-import { omitBlankSecretFields } from "@/pages/connectors/components/form/utils";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
+import { omitBlankSecretFields } from "@/pages/connectors/components/form/utils";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 import { useUpdateConnectionMutation } from "@/api/queries/connections";
@@ -91,9 +91,7 @@ const EditConnectionModalContent = ({
           const isConflict = ConnectError.from(error).code === Code.Aborted;
           showToast({
             variant: ToastVariant.ERROR,
-            header: isConflict
-              ? "Connection changed elsewhere"
-              : "Update failed",
+            header: isConflict ? "Connection changed elsewhere" : "Update failed",
             subheader: isConflict
               ? "This connection was modified since you opened it. Close the editor and reopen it to load the latest version."
               : getErrorMessage(error, "Update failed"),
@@ -125,10 +123,7 @@ const EditConnectionModalContent = ({
   );
 };
 
-const EditConnectionModal = ({
-  connection,
-  onClose,
-}: EditConnectionModalProps) => {
+const EditConnectionModal = ({ connection, onClose }: EditConnectionModalProps) => {
   const connector = useConnectorSpec(connection.connector, connection.kind);
 
   if (!connector) return null;
@@ -137,11 +132,7 @@ const EditConnectionModal = ({
     <ConnectionFormProvider
       initialState={{ name: connection.name, config: connection.config ?? {} }}
     >
-      <EditConnectionModalContent
-        connection={connection}
-        connector={connector}
-        onClose={onClose}
-      />
+      <EditConnectionModalContent connection={connection} connector={connector} onClose={onClose} />
     </ConnectionFormProvider>
   );
 };

@@ -2,21 +2,12 @@ import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  CheckIcon,
-} from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -35,8 +26,8 @@ import { ConnectionFormActionType } from "@/pages/connectors/components/form/act
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
 import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
-import { omitBlankSecretFields } from "@/pages/connectors/components/form/utils";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
+import { omitBlankSecretFields } from "@/pages/connectors/components/form/utils";
 import {
   createRequiredFieldsValidationErrorMap,
   getNameError,
@@ -105,9 +96,7 @@ const ConnectionForm = ({
   const isValidating = state.phase === ConnectionFormPhase.VALIDATING;
   const isSubmitting = state.phase === ConnectionFormPhase.SUBMITTING;
 
-  const secretPlaceholder = connectionId
-    ? "Leave blank to keep current value"
-    : undefined;
+  const secretPlaceholder = connectionId ? "Leave blank to keep current value" : undefined;
 
   const nameError = useMemo(
     () => getNameError(state.name, state.shouldShowErrors),
@@ -151,9 +140,7 @@ const ConnectionForm = ({
       create(ValidateConfigRequestSchema, {
         kind: connector.kind,
         connector: connector.name,
-        config: connectionId
-          ? omitBlankSecretFields(fields, state.config)
-          : state.config,
+        config: connectionId ? omitBlankSecretFields(fields, state.config) : state.config,
         live: true,
         connectionId: connectionId ?? "",
       }),
@@ -182,9 +169,7 @@ const ConnectionForm = ({
             showToast({
               variant: ToastVariant.ERROR,
               header: "Validation failed",
-              subheader:
-                response.errors[0]?.message ??
-                "Connection could not be validated.",
+              subheader: response.errors[0]?.message ?? "Connection could not be validated.",
             });
           }
         },
@@ -309,11 +294,7 @@ const ConnectionForm = ({
   return (
     <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
       <FlexItem grow={0} shrink={0}>
-        <ConnectionFormHeader
-          connector={connector}
-          title={title}
-          onClose={onClose}
-        />
+        <ConnectionFormHeader connector={connector} title={title} onClose={onClose} />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />

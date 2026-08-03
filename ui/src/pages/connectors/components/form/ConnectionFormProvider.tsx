@@ -1,9 +1,4 @@
-import {
-  createContext,
-  type PropsWithChildren,
-  useContext,
-  useReducer,
-} from "react";
+import { createContext, type PropsWithChildren, useContext, useReducer } from "react";
 
 import type { ConnectionFormAction } from "@/pages/connectors/components/form/actions";
 import connectionFormReducer from "@/pages/connectors/components/form/reducer";
@@ -29,16 +24,13 @@ export function createInitialState(
   };
 }
 
-export const ConnectionFormContext =
-  createContext<ConnectionFormContextShape | null>(null);
+export const ConnectionFormContext = createContext<ConnectionFormContextShape | null>(null);
 ConnectionFormContext.displayName = "ConnectionFormContext";
 
 export function useConnectionFormContext() {
   const context = useContext(ConnectionFormContext);
   if (!context) {
-    throw new Error(
-      "useConnectionFormContext must be used within ConnectionFormProvider",
-    );
+    throw new Error("useConnectionFormContext must be used within ConnectionFormProvider");
   }
   return context;
 }
@@ -51,11 +43,7 @@ const ConnectionFormProvider = ({
   children,
   initialState,
 }: PropsWithChildren<ConnectionFormProviderProps>) => {
-  const [state, dispatch] = useReducer(
-    connectionFormReducer,
-    initialState,
-    createInitialState,
-  );
+  const [state, dispatch] = useReducer(connectionFormReducer, initialState, createInitialState);
 
   return (
     <ConnectionFormContext.Provider value={{ state, dispatch }}>

@@ -2,9 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useParams } from "@tanstack/react-router";
 
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -65,10 +63,7 @@ const PipelineSettingsPage = () => {
           maxWidth={600}
         >
           <PipelineSettingsPageGeneral pipeline={data.pipeline} />
-          <PipelineSettingsPageSchedule
-            pipelineId={data.pipeline.id}
-            schedule={data.schedule}
-          />
+          <PipelineSettingsPageSchedule pipelineId={data.pipeline.id} schedule={data.schedule} />
           <PipelineSettingsPageDanger pipeline={data.pipeline} />
         </FlexWrapper>
       </ScrollWrapper>
