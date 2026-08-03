@@ -153,7 +153,7 @@ const PipelineCanvasNode = ({
         <FlexItem grow={1} shrink={0}>
           <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
             <ConnectorTile connector={connector} spec={connectorSpec} />
-            <Text size={TextSize.BODY_SM}>{label}</Text>
+            <Text>{label}</Text>
           </FlexWrapper>
         </FlexItem>
         {kind === ConnectorKind.SOURCE && (

@@ -70,9 +70,6 @@ const PipelineCanvasNodePlaceholder = memo(
           <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
             {CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP[data.kind]}
           </Text>
-          <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-            {CONNECTOR_KIND_TO_PLACEHOLDER_DESCRIPTION_MAP[data.kind]}
-          </Text>
         </CardHeader>
         <SelectorIsland className="nodrag nowheel">
           <PipelineCanvasConnectionSelector

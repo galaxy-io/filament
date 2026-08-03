@@ -1,6 +1,8 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
+import type { IngestionType } from "@/gen/ingestion/v1/common_pb";
+
 import type {
   PipelineCanvasEditMode,
   PipelineCanvasGraph,
@@ -19,6 +21,7 @@ export enum PipelineCanvasActionType {
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
   SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
+  SET_EDGE_INGESTION_TYPE = "SET_EDGE_INGESTION_TYPE",
 }
 
 export interface LoadGraphAction {
@@ -71,6 +74,11 @@ export interface SetNodeConfigAction {
   payload: { nodeId: string; config: Record<string, JsonValue> };
 }
 
+export interface SetEdgeIngestionTypeAction {
+  type: PipelineCanvasActionType.SET_EDGE_INGESTION_TYPE;
+  payload: { edgeId: string; ingestionType: IngestionType };
+}
+
 export type PipelineCanvasAction =
   | LoadGraphAction
   | AddNodeAction
@@ -81,4 +89,5 @@ export type PipelineCanvasAction =
   | ConnectAction
   | SetActiveModeAction
   | SetInteractionModeAction
-  | SetNodeConfigAction;
+  | SetNodeConfigAction
+  | SetEdgeIngestionTypeAction;

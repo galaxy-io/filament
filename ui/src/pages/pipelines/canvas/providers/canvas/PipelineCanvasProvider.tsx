@@ -11,6 +11,8 @@ import {
 import type { JsonValue } from "@bufbuild/protobuf";
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
+import type { IngestionType } from "@/gen/ingestion/v1/common_pb";
+
 import {
   type PipelineCanvasAction,
   PipelineCanvasActionType,
@@ -97,6 +99,11 @@ export const usePipelineCanvasActions = () => {
         dispatch({
           type: PipelineCanvasActionType.SET_NODE_CONFIG,
           payload: { nodeId, config },
+        }),
+      setEdgeIngestionType: (edgeId: string, ingestionType: IngestionType) =>
+        dispatch({
+          type: PipelineCanvasActionType.SET_EDGE_INGESTION_TYPE,
+          payload: { edgeId, ingestionType },
         }),
     }),
     [dispatch],

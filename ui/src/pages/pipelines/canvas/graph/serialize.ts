@@ -18,12 +18,20 @@ import {
   PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP,
 } from "@/pages/pipelines/canvas/constants";
 import { getNextNodePosition } from "@/pages/pipelines/canvas/graph/layout";
-import { type CanvasEdge, type CanvasNode, isConnectionNode } from "@/pages/pipelines/canvas/types";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  getCanvasEdgeIngestionType,
+  isConnectionNode,
+} from "@/pages/pipelines/canvas/types";
 
 const getCanvasEdgeResource = (edge: CanvasEdge) =>
   edge.sourceHandle && edge.sourceHandle !== PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID
     ? edge.sourceHandle
     : "";
+
+export const normalizeIngestionType = (type: IngestionType): IngestionType =>
+  type === IngestionType.UNSPECIFIED ? IngestionType.SNAPSHOT_REPLACE : type;
 
 export const getProtoEdgeKey = (edge: PipelineEdgeProto) =>
   `${edge.fromNode}|${edge.resource}|${edge.toNode}`;
@@ -63,6 +71,7 @@ export const mapPipelineVersionToCanvasState = (
     target: edge.toNode,
     sourceHandle: edge.resource || PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
     targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
+    data: { ingestionType: normalizeIngestionType(edge.ingestionType) },
   }));
 
   return { nodes, edges };
@@ -95,7 +104,7 @@ export const mapCanvasStateToVersionRequest = (
       fromNode: edge.source,
       resource: getCanvasEdgeResource(edge),
       toNode: edge.target,
-      ingestionType: baseEdge?.ingestionType ?? IngestionType.UNSPECIFIED,
+      ingestionType: getCanvasEdgeIngestionType(edge),
       selector: baseEdge?.selector ?? "",
     };
   });

@@ -4,6 +4,8 @@ import {
   applyNodeChanges as xyflowApplyNodeChanges,
 } from "@xyflow/react";
 
+import { IngestionType } from "@/gen/ingestion/v1/common_pb";
+
 import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
 import { canAddSourceNode, getAutoConnections } from "@/pages/pipelines/canvas/graph/rules";
 import {
@@ -16,6 +18,7 @@ import {
   PipelineCanvasActionType,
   type RemoveNodeAction,
   type SetActiveModeAction,
+  type SetEdgeIngestionTypeAction,
   type SetInteractionModeAction,
   type SetNodeConfigAction,
   type SetNodesAction,
@@ -44,7 +47,14 @@ function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCan
 
   const edges = getAutoConnections(node, state.nodes).reduce(
     (nextEdges, connection) =>
-      xyflowAddEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, nextEdges),
+      xyflowAddEdge(
+        {
+          ...connection,
+          type: PIPELINE_CANVAS_EDGE_TYPE,
+          data: { ingestionType: IngestionType.SNAPSHOT_REPLACE },
+        },
+        nextEdges,
+      ),
     state.edges,
   );
 
@@ -91,7 +101,14 @@ function applyEdgeChanges(
 function connect(state: PipelineCanvasState, action: ConnectAction): PipelineCanvasState {
   return {
     ...state,
-    edges: xyflowAddEdge({ ...action.payload, type: PIPELINE_CANVAS_EDGE_TYPE }, state.edges),
+    edges: xyflowAddEdge(
+      {
+        ...action.payload,
+        type: PIPELINE_CANVAS_EDGE_TYPE,
+        data: { ingestionType: IngestionType.SNAPSHOT_REPLACE },
+      },
+      state.edges,
+    ),
   };
 }
 
@@ -129,6 +146,20 @@ function setNodeConfig(
   };
 }
 
+function setEdgeIngestionType(
+  state: PipelineCanvasState,
+  action: SetEdgeIngestionTypeAction,
+): PipelineCanvasState {
+  return {
+    ...state,
+    edges: state.edges.map((edge) =>
+      edge.id === action.payload.edgeId
+        ? { ...edge, data: { ...edge.data, ingestionType: action.payload.ingestionType } }
+        : edge,
+    ),
+  };
+}
+
 const pipelineCanvasReducer = (
   state: PipelineCanvasState,
   action: PipelineCanvasAction,
@@ -154,6 +185,8 @@ const pipelineCanvasReducer = (
       return setInteractionMode(state, action);
     case PipelineCanvasActionType.SET_NODE_CONFIG:
       return setNodeConfig(state, action);
+    case PipelineCanvasActionType.SET_EDGE_INGESTION_TYPE:
+      return setEdgeIngestionType(state, action);
   }
 };
 

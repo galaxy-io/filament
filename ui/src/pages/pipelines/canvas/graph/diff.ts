@@ -7,8 +7,17 @@ import {
   CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP,
   PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP,
 } from "@/pages/pipelines/canvas/constants";
-import { getCanvasEdgeKey, getProtoEdgeKey } from "@/pages/pipelines/canvas/graph/serialize";
-import { type CanvasEdge, type CanvasNode, isConnectionNode } from "@/pages/pipelines/canvas/types";
+import {
+  getCanvasEdgeKey,
+  getProtoEdgeKey,
+  normalizeIngestionType,
+} from "@/pages/pipelines/canvas/graph/serialize";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  getCanvasEdgeIngestionType,
+  isConnectionNode,
+} from "@/pages/pipelines/canvas/types";
 
 export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
   (version?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&
@@ -49,8 +58,12 @@ export const hasPipelineGraphChanges = (
     )
     .sort();
 
-  const canvasEdges = state.edges.map(getCanvasEdgeKey).sort();
-  const pipelineEdges = (version?.edges ?? []).map(getProtoEdgeKey).sort();
+  const canvasEdges = state.edges
+    .map((edge) => `${getCanvasEdgeKey(edge)}|${getCanvasEdgeIngestionType(edge)}`)
+    .sort();
+  const pipelineEdges = (version?.edges ?? [])
+    .map((edge) => `${getProtoEdgeKey(edge)}|${normalizeIngestionType(edge.ingestionType)}`)
+    .sort();
 
   return (
     canvasNodes.join(",") !== pipelineNodes.join(",") ||

@@ -1,12 +1,23 @@
-import { BaseEdge, type EdgeProps, getBezierPath, useInternalNode } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  type EdgeProps,
+  getBezierPath,
+  useInternalNode,
+} from "@xyflow/react";
 
+import { IngestionType } from "@/gen/ingestion/v1/common_pb";
+
+import PipelineCanvasEdgeModeLabel from "@/pages/pipelines/canvas/edges/PipelineCanvasEdgeModeLabel";
 import { PIPELINE_CANVAS_NODE_PADDING } from "@/pages/pipelines/canvas/nodes/constants";
+import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const PipelineCanvasEdge = ({
   id,
   source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -15,7 +26,9 @@ const PipelineCanvasEdge = ({
   targetPosition,
   style,
   markerEnd,
-}: EdgeProps) => {
+  data,
+  selected,
+}: EdgeProps<CanvasEdge>) => {
   const sourceNode = useInternalNode(source);
 
   let anchorX = sourceX;
@@ -36,7 +49,7 @@ const PipelineCanvasEdge = ({
     );
   }
 
-  const [path] = getBezierPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: anchorX,
     sourceY: anchorY,
     sourcePosition,
@@ -45,7 +58,22 @@ const PipelineCanvasEdge = ({
     targetPosition,
   });
 
-  return <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />;
+  return (
+    <>
+      <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />
+      <EdgeLabelRenderer>
+        <PipelineCanvasEdgeModeLabel
+          edgeId={id}
+          sourceNodeId={source}
+          targetNodeId={target}
+          ingestionType={data?.ingestionType ?? IngestionType.SNAPSHOT_REPLACE}
+          isSelected={Boolean(selected)}
+          labelX={labelX}
+          labelY={labelY}
+        />
+      </EdgeLabelRenderer>
+    </>
+  );
 };
 
 export default PipelineCanvasEdge;

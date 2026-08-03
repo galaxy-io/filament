@@ -1,7 +1,7 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 import type { Edge, Node } from "@xyflow/react";
 
-import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { type ConnectorKind, IngestionType } from "@/gen/ingestion/v1/common_pb";
 
 export enum PipelineCanvasNodeType {
   SOURCE = "SOURCE",
@@ -42,7 +42,14 @@ export type CanvasNode =
   | PipelineCanvasSinkNode
   | PipelineCanvasPlaceholderNode;
 
-export type CanvasEdge = Edge;
+export type PipelineCanvasEdgeData = {
+  ingestionType: IngestionType;
+};
+
+export type CanvasEdge = Edge<PipelineCanvasEdgeData>;
+
+export const getCanvasEdgeIngestionType = (edge: CanvasEdge): IngestionType =>
+  edge.data?.ingestionType ?? IngestionType.SNAPSHOT_REPLACE;
 
 export const isConnectionNode = (
   node: CanvasNode,
