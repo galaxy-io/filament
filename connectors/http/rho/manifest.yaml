@@ -1,0 +1,94 @@
+version: 1
+name: rho
+config:
+  token:
+    type: secret
+    required: true
+    help: Rho API Access Token
+defaults:
+  method: GET
+  response:
+    records: $
+    pagination:
+      cursor:
+        response: page.next_page_token
+        request: query.page_token
+  query:
+    page_size: "100"
+connection:
+  base_url: https://rhoapi.rho.co/api/v1
+  auth:
+    bearer: config.token
+  headers:
+    Accept: application/json
+resources:
+  - name: accounts
+    path: /accounts
+    primary_key: [id]
+    fields:
+      id: string
+      account_type: string
+      display_name: string
+      masked_account_number: string?
+      masked_routing_number: string?
+      currency: string
+      balance_amount: int64
+      balance_currency: string
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: transactions
+    path: /transactions
+    primary_key: [id]
+    fields:
+      id: string
+      money_movement_id: string
+      account_id: string
+      account_type: string
+      account_display_name: string
+      transaction_type: string
+      status: string
+      amount: int64
+      currency: string
+      initiated_at: timestamptz?
+      posted_at: timestamptz?
+      attachments: json?
+      metadata: json?
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created_at
+      start_param: created_after
+      inject_into: query
+      checkpoint_key: transactions_since
+      comparator: datetime
+  - name: statements
+    path: /statements
+    primary_key: [id]
+    fields:
+      id: string
+      statement_type: string
+      period_start: date
+      period_end: date
+      account_id: string?
+      account_type: string?
+      currency: string
+      opening_balance_amount: int64
+      opening_balance_currency: string
+      closing_balance_amount: int64
+      closing_balance_currency: string
+      total_credits_amount: int64
+      total_credits_currency: string
+      total_debits_amount: int64
+      total_debits_currency: string
+      pdf_url: string?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: period_end
+      start_param: period_end_after
+      inject_into: query
+      checkpoint_key: statements_since
+      comparator: date
+discovery:
+  mode: static
