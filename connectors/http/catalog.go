@@ -21,6 +21,14 @@ var githubManifest []byte
 //go:embed manifests/slack.yaml
 var slackManifest []byte
 
+//go:embed manifests/ramp.yaml
+var rampManifest []byte
+
+// NewRamp returns a Source backed by the embedded Ramp Web API manifest.
+func NewRamp() *Source {
+	return NewManifestWithMetadata("ramp", "Ramp", "Corporate card and financial management platform for modern businesses.", "https://cdn.getgalaxy.io/sources/source-icon-ramp-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-ramp-light.svg", rampManifest, manifestOwnedConfig())
+}
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
