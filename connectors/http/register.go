@@ -19,4 +19,5 @@ func init() {
 	registry.RegisterSource("github", func() filament.Source { return NewGitHub() })
 	registry.RegisterSource("slack", func() filament.Source { return NewSlack() })
 	registry.RegisterSource("granola", func() filament.Source { return NewGranola() })
+	registry.RegisterSource("ramp", func() filament.Source { return NewRamp() })
 }

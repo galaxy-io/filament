@@ -24,6 +24,9 @@ var slackManifest []byte
 //go:embed manifests/granola.yaml
 var granolaManifest []byte
 
+//go:embed manifests/ramp.yaml
+var rampManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
@@ -52,6 +55,11 @@ func NewSlack() *Source {
 // NewGranola returns a Source backed by the embedded Granola API manifest.
 func NewGranola() *Source {
 	return NewManifestWithMetadata("granola", "Granola", "AI notepad for back-to-back meetings that captures, enhances, and acts on meeting insights.", "https://cdn.getgalaxy.io/sources/source-icon-granola-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-granola-light.svg", granolaManifest, manifestOwnedConfig())
+}
+
+// NewRamp returns a Source backed by the embedded Ramp Web API manifest.
+func NewRamp() *Source {
+	return NewManifestWithMetadata("ramp", "Ramp", "Corporate card and financial management platform for modern businesses.", "https://cdn.getgalaxy.io/sources/source-icon-ramp-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-ramp-light.svg", rampManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }
