@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 
+import pluralize from "pluralize";
+
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
@@ -10,26 +12,25 @@ import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
-import ObservabilityTimeframeSwitcher from "@/pages/observability/components/ObservabilityTimeframeSwitcher";
 import {
   OBSERVABILITY_RUN_STATUS_OPTIONS,
+  OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
   OBSERVABILITY_RUNS_DEFAULT_STATUS_OPTIONS,
 } from "@/pages/observability/components/runs/constants";
 import ObservabilityRunsChart from "@/pages/observability/components/runs/ObservabilityRunsChart";
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
+import { useObservabilityTimeframe } from "@/pages/observability/providers/ObservabilityTimeframeProvider";
 
 interface ObservabilityRunsWidgetState {
-  selectedTimeframe: ObservabilityTimeframe;
   selectedStatuses: SelectInputOption[];
 }
 
 const DEFAULT_STATE: ObservabilityRunsWidgetState = {
-  selectedTimeframe: ObservabilityTimeframe.TWENTY_FOUR_HOURS,
   selectedStatuses: OBSERVABILITY_RUNS_DEFAULT_STATUS_OPTIONS,
 };
 
 const ObservabilityRunsWidget = () => {
+  const { timeframe } = useObservabilityTimeframe();
   const [state, setState] = useState<ObservabilityRunsWidgetState>(DEFAULT_STATE);
 
   const selectedStatusValues = useMemo(
@@ -39,10 +40,6 @@ const ObservabilityRunsWidget = () => {
 
   const handleStatusChange = (selectedStatuses: SelectInputOption[]) => {
     setState((prev) => ({ ...prev, selectedStatuses }));
-  };
-
-  const handleTimeframeChange = (selectedTimeframe: ObservabilityTimeframe) => {
-    setState((prev) => ({ ...prev, selectedTimeframe }));
   };
 
   return (
@@ -60,17 +57,18 @@ const ObservabilityRunsWidget = () => {
             value={state.selectedStatuses}
             onChange={handleStatusChange}
             placeholder="Select statuses..."
-            width={200}
-          />,
-          <ObservabilityTimeframeSwitcher
-            key="timeframe-switcher"
-            value={state.selectedTimeframe}
-            onChange={handleTimeframeChange}
+            width={160}
+            pinnedOptions={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION]}
+            renderSelectedText={(selectedOptions, placeholder) =>
+              selectedOptions.length
+                ? pluralize("status", selectedOptions.length, true)
+                : placeholder
+            }
           />,
         ]}
       />
       <HorizontalDivider />
-      <ObservabilityRunsChart timeframe={state.selectedTimeframe} statuses={selectedStatusValues} />
+      <ObservabilityRunsChart timeframe={timeframe} statuses={selectedStatusValues} />
       <HorizontalDivider />
       <ObservabilityRunsTable statuses={selectedStatusValues} />
     </Widget>
