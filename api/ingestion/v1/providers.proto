@@ -85,3 +85,37 @@ message Resource {
 message DiscoverResourcesResponse {
   repeated Resource resources = 1;
 }
+
+message GetResourceColumnsRequest {
+  string connector = 1;
+  google.protobuf.Struct config = 2;
+  string connection_id = 3;
+  // resource is retained for compatibility; new clients should send resources.
+  string resource = 4;
+  repeated string resources = 5;
+}
+
+message ResourceColumn {
+  string name = 1;
+  string logical_type = 2;
+  string native_type = 3;
+  bool nullable = 4;
+  bool primary_key = 5;
+  bool cursor_eligible = 6;
+  bool cursor_recommended = 7;
+  int32 recommendation_rank = 8;
+  string warning = 9;
+  bool configurable = 10;
+  bool supports_lookback = 11;
+}
+
+message ResourceColumns {
+  string resource = 1;
+  repeated ResourceColumn columns = 2;
+}
+
+message GetResourceColumnsResponse {
+  // columns is populated for a legacy single-resource request.
+  repeated ResourceColumn columns = 1;
+  repeated ResourceColumns resources = 2;
+}
