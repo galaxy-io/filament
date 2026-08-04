@@ -83,12 +83,10 @@ func (Metric) EnumDescriptor() ([]byte, []int) {
 type Dimension int32
 
 const (
-	Dimension_DIMENSION_UNSPECIFIED     Dimension = 0
-	Dimension_DIMENSION_TENANT_ID       Dimension = 1
-	Dimension_DIMENSION_PIPELINE_ID     Dimension = 2
-	Dimension_DIMENSION_STATUS          Dimension = 3
-	Dimension_DIMENSION_SOURCE_PROVIDER Dimension = 4
-	Dimension_DIMENSION_INGESTION_TYPE  Dimension = 5
+	Dimension_DIMENSION_UNSPECIFIED Dimension = 0
+	Dimension_DIMENSION_TENANT_ID   Dimension = 1
+	Dimension_DIMENSION_PIPELINE_ID Dimension = 2
+	Dimension_DIMENSION_STATUS      Dimension = 3
 )
 
 // Enum value maps for Dimension.
@@ -98,16 +96,12 @@ var (
 		1: "DIMENSION_TENANT_ID",
 		2: "DIMENSION_PIPELINE_ID",
 		3: "DIMENSION_STATUS",
-		4: "DIMENSION_SOURCE_PROVIDER",
-		5: "DIMENSION_INGESTION_TYPE",
 	}
 	Dimension_value = map[string]int32{
-		"DIMENSION_UNSPECIFIED":     0,
-		"DIMENSION_TENANT_ID":       1,
-		"DIMENSION_PIPELINE_ID":     2,
-		"DIMENSION_STATUS":          3,
-		"DIMENSION_SOURCE_PROVIDER": 4,
-		"DIMENSION_INGESTION_TYPE":  5,
+		"DIMENSION_UNSPECIFIED": 0,
+		"DIMENSION_TENANT_ID":   1,
+		"DIMENSION_PIPELINE_ID": 2,
+		"DIMENSION_STATUS":      3,
 	}
 )
 
@@ -707,14 +701,12 @@ const file_metrics_v1_metrics_proto_rawDesc = "" +
 	"\x10METRIC_RUN_COUNT\x10\x01\x12\x16\n" +
 	"\x12METRIC_RUN_RECORDS\x10\x02\x12\x14\n" +
 	"\x10METRIC_RUN_BYTES\x10\x03\x12\x17\n" +
-	"\x13METRIC_RUN_DURATION\x10\x04*\xad\x01\n" +
+	"\x13METRIC_RUN_DURATION\x10\x04*p\n" +
 	"\tDimension\x12\x19\n" +
 	"\x15DIMENSION_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13DIMENSION_TENANT_ID\x10\x01\x12\x19\n" +
 	"\x15DIMENSION_PIPELINE_ID\x10\x02\x12\x14\n" +
-	"\x10DIMENSION_STATUS\x10\x03\x12\x1d\n" +
-	"\x19DIMENSION_SOURCE_PROVIDER\x10\x04\x12\x1c\n" +
-	"\x18DIMENSION_INGESTION_TYPE\x10\x05*t\n" +
+	"\x10DIMENSION_STATUS\x10\x03*t\n" +
 	"\x12MetricsGranularity\x12#\n" +
 	"\x1fMETRICS_GRANULARITY_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18METRICS_GRANULARITY_HOUR\x10\x01\x12\x1b\n" +

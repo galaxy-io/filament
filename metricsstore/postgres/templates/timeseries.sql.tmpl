@@ -1,0 +1,26 @@
+WITH filtered AS (
+  SELECT {{.KeyExpr}} AS key, {{.BucketExpr}} AS bucket, records, bytes,
+         extract(epoch from (finished_at - started_at)) * 1000 AS duration_ms
+  FROM runs
+  {{.Where}}
+),
+buckets AS (
+  SELECT generate_series(
+    {{.BucketFrom}},
+    {{.BucketTo}},
+    interval '1 {{.Unit}}'
+  ) AS bucket
+),
+groups AS (
+  SELECT DISTINCT key FROM filtered
+  {{if .NoGroupBy}}UNION SELECT ''{{end}}
+),
+spine AS (
+  SELECT buckets.bucket, groups.key FROM buckets CROSS JOIN groups
+),
+agg AS (
+  SELECT key, bucket, {{.AggSelectList}} FROM filtered GROUP BY key, bucket
+)
+SELECT spine.key, spine.bucket, {{.AggColList}}
+FROM spine LEFT JOIN agg ON agg.key = spine.key AND agg.bucket = spine.bucket
+ORDER BY spine.key, spine.bucket

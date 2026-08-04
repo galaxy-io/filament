@@ -28,8 +28,6 @@ enum Dimension {
   DIMENSION_TENANT_ID = 1;
   DIMENSION_PIPELINE_ID = 2;
   DIMENSION_STATUS = 3;
-  DIMENSION_SOURCE_PROVIDER = 4;
-  DIMENSION_INGESTION_TYPE = 5;
 }
 
 // MetricsGranularity is the bucket width for timeseries queries.
