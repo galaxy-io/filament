@@ -1,5 +1,6 @@
 import type { ChartSeriesStyles } from "@galaxy-io/dls/charts/types";
 import { ChartPalette } from "@galaxy-io/dls/charts/types";
+import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -39,15 +40,15 @@ export const OBSERVABILITY_RUN_STATUS_OPTIONS: SelectInputOption[] = OBSERVABILI
   }),
 );
 
+export const OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION: PinnedOptions = {
+  id: "all-statuses",
+  label: "All statuses",
+  optionIds: OBSERVABILITY_RUN_STATUS_OPTIONS.map((option) => option.id),
+};
+
 export const OBSERVABILITY_RUNS_DEFAULT_STATUS_OPTIONS: SelectInputOption[] =
   OBSERVABILITY_RUN_STATUS_OPTIONS.filter(
     (option) => option.value === RunStatus.COMPLETED || option.value === RunStatus.FAILED,
   );
 
-export const OBSERVABILITY_MOCK_PIPELINE_NAMES = [
-  "salesforce-to-snowflake",
-  "hubspot-contacts-sync",
-  "stripe-payments-etl",
-  "postgres-to-bigquery",
-  "mongodb-analytics",
-];
+export const OBSERVABILITY_RUNS_TABLE_LIMIT = 50;

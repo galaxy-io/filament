@@ -11,7 +11,7 @@ interface MetricGroupProps {
 }
 
 const MetricGroup = ({ primary, fillWidth, children }: MetricGroupProps) => (
-  <Widget fillWidth={fillWidth} padding="12px">
+  <Widget fillWidth={fillWidth} maxWidth="100%" padding="12px">
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.LARGE} fillWidth={fillWidth}>
       {primary && (
         <FlexItem grow={1} shrink={0}>
