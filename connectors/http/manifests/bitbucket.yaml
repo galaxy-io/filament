@@ -1,0 +1,94 @@
+version: 1
+name: bitbucket
+config:
+  token:
+    type: secret
+    required: true
+    help: Bitbucket API token or OAuth2 client credentials secret
+defaults:
+  method: GET
+  headers:
+    Accept: application/json
+  response:
+    records: $.values
+    pagination:
+      link: next
+connection:
+  base_url: https://api.bitbucket.org/2.0
+  auth:
+    header:
+      name: Authorization
+      value: "Bearer {{ config.token }}"
+  timeout_seconds: 60
+resources:
+  - name: repositories
+    path: /user/repositories
+    query:
+      role: contributor
+    primary_key: [uuid]
+    fields:
+      uuid: string
+      project: json?
+      full_name: string
+      name: string
+      slug: string
+      description: string?
+      is_private: bool
+      avatar_url: string?
+      created_on: timestamptz
+      updated_on: timestamptz
+      main branch: json?
+      links: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: pullrequests
+    path: /repositories/{workspace}/{repo_slug}/pullrequests
+    params:
+      workspace: parent.workspace
+      repo_slug: parent.repo_slug
+    query:
+      state: open
+      order_by: created_on
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string
+      description: string?
+      source: json?
+      destination: json?
+      state: string
+      author: json?
+      reviewers: json?
+      created_on: timestamptz
+      updated_on: timestamptz
+      closed_at: timestamptz?
+      merge_commit: json?
+      comments_count: int64
+      merge_status: string
+      raw: { path: $, type: json, mode: remainder }
+    for_each: repositories
+  - name: issues
+    path: /repositories/{workspace}/{repo_slug}/issues
+    params:
+      workspace: parent.workspace
+      repo_slug: parent.repo_slug
+    query:
+      order_by: created_on
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string
+      description: string?
+      state: string
+      priority: string?
+      kind: string?
+      reporter: json?
+      assignee: json?
+      component: string?
+      milestone: string?
+      created_on: timestamptz
+      updated_on: timestamptz
+      comments: int64
+      raw: { path: $, type: json, mode: remainder }
+    for_each: repositories
+discovery:
+  mode: static

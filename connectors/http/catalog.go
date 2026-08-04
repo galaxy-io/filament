@@ -24,6 +24,9 @@ var slackManifest []byte
 //go:embed manifests/gitlab.yaml
 var gitlabManifest []byte
 
+//go:embed manifests/bitbucket.yaml
+var bitbucketManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
@@ -52,6 +55,11 @@ func NewSlack() *Source {
 // NewGitLab returns a Source backed by the embedded GitLab REST API manifest.
 func NewGitLab() *Source {
 	return NewManifestWithMetadata("gitlab", "GitLab", "DevSecOps platform for planning, coding, testing, and deploying software with integrated CI/CD.", "https://cdn.getgalaxy.io/sources/source-icon-gitlab-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-gitlab-light.svg", gitlabManifest, manifestOwnedConfig())
+}
+
+// NewBitbucket returns a Source backed by the embedded Bitbucket Cloud REST API manifest.
+func NewBitbucket() *Source {
+	return NewManifestWithMetadata("bitbucket", "Bitbucket", "Git-based code repository hosting with integrated CI/CD and collaboration tools.", "https://cdn.getgalaxy.io/sources/source-icon-bitbucket-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-bitbucket-light.svg", bitbucketManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }
