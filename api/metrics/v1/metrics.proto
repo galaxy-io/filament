@@ -22,18 +22,16 @@ enum Metric {
   METRIC_RUN_DURATION = 4;
 }
 
-// Dimension names a runs column usable for grouping and filtering.
-enum Dimension {
+// MetricDimension names a runs column usable for grouping and filtering.
+enum MetricDimension {
   DIMENSION_UNSPECIFIED = 0;
   DIMENSION_TENANT_ID = 1;
   DIMENSION_PIPELINE_ID = 2;
   DIMENSION_STATUS = 3;
-  DIMENSION_SOURCE_PROVIDER = 4;
-  DIMENSION_INGESTION_TYPE = 5;
 }
 
 // MetricsGranularity is the bucket width for timeseries queries.
-enum MetricsGranularity {
+enum MetricGranularity {
   METRICS_GRANULARITY_UNSPECIFIED = 0;
   METRICS_GRANULARITY_HOUR = 1;
   METRICS_GRANULARITY_DAY = 2;
@@ -42,7 +40,7 @@ enum MetricsGranularity {
 // MetricFilter narrows a query; values are dimension values as strings
 // (a RunStatus number, a pipeline id, a provider name).
 message MetricFilter {
-  Dimension dimension = 1;
+  MetricDimension dimension = 1;
   repeated string values = 2;
 }
 
@@ -56,7 +54,7 @@ message QueryTimeseriesRequest {
   // tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
   // match the viewer's local calendar day.
   int32 tz_offset_minutes = 5;
-  Dimension group_by = 6; // UNSPECIFIED = one total series, key ""
+  MetricDimension group_by = 6; // UNSPECIFIED = one total series, key ""
   repeated MetricFilter filters = 7;
 }
 
@@ -84,7 +82,7 @@ message QueryAggregateRequest {
   repeated Metric metrics = 1;
   int64 since_ms = 2;
   int64 until_ms = 3;
-  Dimension group_by = 4; // UNSPECIFIED = single total row, key ""
+  MetricDimension group_by = 4; // UNSPECIFIED = single total row, key ""
   repeated MetricFilter filters = 5;
 }
 
