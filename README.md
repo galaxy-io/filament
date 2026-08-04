@@ -1,4 +1,4 @@
-# Filament
+<img src=".github/filament.svg" alt="Filament" width="360" />
 
 Filament moves data from sources to sinks with full, incremental, and CDC replication. Every batch is integrity checked on both the read and write side, and interrupted runs resume from checkpoints. It is written in Go, and its major pieces are pluggable. Connectors, the data store, and the event bus are interfaces with swappable implementations.
 
