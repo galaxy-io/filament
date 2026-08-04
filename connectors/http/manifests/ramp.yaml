@@ -1,0 +1,129 @@
+version: 1
+name: ramp
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Ramp API key
+defaults:
+  method: GET
+connection:
+  base_url: https://api.ramp.com
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+resources:
+  - name: transactions
+    path: /v1/transactions
+    primary_key: [id]
+    fields:
+      id: string
+      account_id: string
+      card_id: string
+      merchant: string
+      category: string?
+      amount: float64
+      currency: string
+      created_at: timestamptz
+      settled_at: timestamptz?
+      status: string
+      merchant_category_code: int64?
+      receipt_url: string?
+      card_name: string?
+      cardholder_name: string?
+      card_last_four: string?
+      card_type: string?
+      card_network: string?
+      merchant_location: string?
+      memo: string?
+      reference_id: string?
+      tags: json?
+      custom_fields: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.transactions
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          more: pagination.has_more
+    incremental:
+      cursor_field: created_at
+      start_param: created_after
+      inject_into: query
+      checkpoint_key: transactions_since
+      comparator: time
+  - name: cards
+    path: /v1/cards
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      type: string
+      status: string
+      issued_to: string
+      last_four: string?
+      network: string?
+      created_at: timestamptz
+      spent: float64?
+      limit: float64?
+      currency: string
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.cards
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          more: pagination.has_more
+  - name: accounts
+    path: /v1/accounts
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      type: string
+      subtype: string?
+      status: string
+      balance: float64
+      currency: string
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.accounts
+      pagination:
+        cursor:
+          response: pagination.next_cursor
+          request: query.cursor
+          more: pagination.has_more
+  - name: categories
+    path: /v1/categories
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      type: string
+      parent_id: string?
+      level: int64
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.categories
+      pagination: none
+  - name: merchants
+    path: /v1/merchants
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      type: string
+      category_id: string?
+      location: string?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.merchants
+      pagination: none
+discovery:
+  mode: static
