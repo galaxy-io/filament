@@ -110,7 +110,7 @@ func activeCheckpointRun(r filament.RunState) bool {
 		return false
 	}
 	switch r.Status {
-	case filament.RunRequested, filament.RunRunning, filament.RunPaused, filament.RunPartial:
+	case filament.RunRequested, filament.RunRunning, filament.RunPaused:
 		return true
 	default:
 		return false

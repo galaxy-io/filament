@@ -5,7 +5,7 @@ ON runs (
   (request->>'PipelineVersionID'),
   (request->>'CheckpointRoute')
 )
-WHERE status IN (0, 1, 5, 6)
+WHERE status IN (0, 1, 5)
   AND nullif(request->>'CheckpointRoute', '') IS NOT NULL;
 
 -- +goose Down

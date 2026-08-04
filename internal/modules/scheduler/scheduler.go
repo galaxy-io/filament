@@ -276,7 +276,6 @@ func (m *Module) hasActiveRuns(ctx context.Context, scheduleID filament.Schedule
 			filament.RunRequested,
 			filament.RunRunning,
 			filament.RunPaused,
-			filament.RunPartial,
 		},
 		Limit: 1,
 	})
