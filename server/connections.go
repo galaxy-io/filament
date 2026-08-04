@@ -34,7 +34,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	written, err := a.storeSecretFields(ctx, schema, tenant, id, 1, cfg, refs)
+	written, err := a.storeSecretFields(ctx, schema, tenant, id, 1, cfg, refs, false)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -91,7 +91,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	}
 	// A newly submitted value gets a versioned ref. The old value remains active
 	// until the optimistic connection update succeeds.
-	written, err := a.storeSecretFields(ctx, schema, stored.Tenant, in.GetId(), in.GetVersion()+1, cfg, refs)
+	written, err := a.storeSecretFields(ctx, schema, stored.Tenant, in.GetId(), in.GetVersion()+1, cfg, refs, true)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -175,8 +175,8 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 	return connect.NewResponse(&ingestionv1.DeleteConnectionResponse{}), nil
 }
 
-func (a *Server) storeSecretFields(ctx context.Context, schema filament.ConfigSchema, tenant, id string, version int64, cfg map[string]any, refs map[string]string) ([]string, error) {
-	fields, err := extractSecretFields(schema.Fields, cfg, "")
+func (a *Server) storeSecretFields(ctx context.Context, schema filament.ConfigSchema, tenant, id string, version int64, cfg map[string]any, refs map[string]string, isUpdate bool) ([]string, error) {
+	fields, err := extractSecretFields(schema.Fields, cfg, "", isUpdate)
 	if err != nil {
 		return nil, err
 	}
@@ -208,8 +208,10 @@ type extractedSecretField struct {
 
 // extractSecretFields removes schema-declared secret values from config and
 // returns their dotted paths for storage. Objects left empty by extraction are
-// removed as well, so secret-only containers are not persisted.
-func extractSecretFields(schema []filament.ConfigField, cfg map[string]any, parent string) ([]extractedSecretField, error) {
+// removed as well, so secret-only containers are not persisted. On update, a
+// blank value means not provided and the existing ref is kept; on create
+// there is no existing ref, so a blank value on a required field is an error.
+func extractSecretFields(schema []filament.ConfigField, cfg map[string]any, parent string, isUpdate bool) ([]extractedSecretField, error) {
 	var secrets []extractedSecretField
 	for _, field := range schema {
 		path := joinConfigPath(parent, field.Name)
@@ -224,7 +226,9 @@ func extractSecretFields(schema []filament.ConfigField, cfg map[string]any, pare
 				return nil, fmt.Errorf("secret field %q must be a string", path)
 			}
 			if s == "" {
-				// Blank means not provided; an update keeps the existing ref.
+				if !isUpdate && field.Required {
+					return nil, fmt.Errorf("secret field %q is required", path)
+				}
 				continue
 			}
 			secrets = append(secrets, extractedSecretField{path: path, value: s})
@@ -235,7 +239,7 @@ func extractSecretFields(schema []filament.ConfigField, cfg map[string]any, pare
 		if !ok || len(field.Fields) == 0 {
 			continue
 		}
-		extracted, err := extractSecretFields(field.Fields, nested, path)
+		extracted, err := extractSecretFields(field.Fields, nested, path, isUpdate)
 		if err != nil {
 			return nil, err
 		}
@@ -270,30 +274,35 @@ func (a *Server) resolveConnectionSecrets(ctx context.Context, conn filament.Con
 	return nil
 }
 
-// fillMissingConnectionSecrets resolves the connection's secret refs like
-// resolveConnectionSecrets, but only for fields cfg leaves blank, so a
-// caller-supplied replacement value is never overwritten by the stored one.
-func (a *Server) fillMissingConnectionSecrets(ctx context.Context, conn filament.Connection, cfg map[string]any) error {
-	if len(conn.SecretRefs) == 0 {
-		return nil
+// loadConnectionForTenant loads the connection by id and rejects it if tenant
+// does not match, so a caller can never merge or resolve secrets from another
+// tenant's connection just by naming its id.
+func (a *Server) loadConnectionForTenant(ctx context.Context, id, tenant string) (filament.Connection, error) {
+	conn, err := a.store.LoadConnection(ctx, id)
+	if err != nil {
+		return filament.Connection{}, err
 	}
-	if a.secrets == nil {
-		return fmt.Errorf("connection %q has secret refs but no secret provider is configured", conn.ID)
+	if conn.Tenant != defaultTenant(tenant) {
+		return filament.Connection{}, filament.ErrNotFound
 	}
-	for field, ref := range conn.SecretRefs {
-		if hasConfigPath(cfg, field) {
+	return conn, nil
+}
+
+// overlayConfig shallow-merges overlay over base, like mergeConfig, except a
+// blank string in overlay means "not supplied" and defers to base — so an
+// untouched secret field never clobbers a resolved value with "".
+func overlayConfig(base, overlay map[string]any) map[string]any {
+	out := make(map[string]any, len(base)+len(overlay))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range overlay {
+		if s, ok := v.(string); ok && s == "" {
 			continue
 		}
-		if err := filament.ValidateConnectionSecretRef(ref, filament.TenantID(conn.Tenant)); err != nil {
-			return fmt.Errorf("resolve secret for field %q: %w", field, err)
-		}
-		secret, err := a.secrets.Read(ctx, ref)
-		if err != nil {
-			return fmt.Errorf("resolve secret %q for field %q: %w", ref, field, err)
-		}
-		setConfigPath(cfg, field, string(secret.Value))
+		out[k] = v
 	}
-	return nil
+	return out
 }
 
 func joinConfigPath(parent, field string) string {
@@ -301,26 +310,6 @@ func joinConfigPath(parent, field string) string {
 		return field
 	}
 	return parent + "." + field
-}
-
-func hasConfigPath(cfg map[string]any, path string) bool {
-	parts := strings.Split(path, ".")
-	current := cfg
-	for _, part := range parts[:len(parts)-1] {
-		nested, ok := current[part].(map[string]any)
-		if !ok {
-			return false
-		}
-		current = nested
-	}
-	value, ok := current[parts[len(parts)-1]]
-	if !ok {
-		return false
-	}
-	if s, isString := value.(string); isString && s == "" {
-		return false
-	}
-	return value != nil
 }
 
 func setConfigPath(cfg map[string]any, path string, value any) {
