@@ -340,6 +340,13 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	key := ckKey{run, resource}
 	m.mu.Lock()
 	cp := m.cp[key]
+	if cp == nil {
+		cp = m.loadCheckpoint(ctx, run, resource)
+	}
+	if promoted, ok := checkpoint.PromoteIncrementalBackfill(cp); ok {
+		cp = promoted
+		m.cp[key] = promoted
+	}
 	m.since[key] = 0
 	m.mu.Unlock()
 	if cp != nil {

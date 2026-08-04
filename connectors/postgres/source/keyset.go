@@ -167,7 +167,35 @@ func dedupeOrdered(vals []string) []string {
 // keyset plan (no primary key) falls back to the ctid reader and is read whole.
 func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
 	if opts.Mode == filament.ModeIncremental {
-		return s.extractIncremental(ctx, sink, opts, prev)
+		var incremental, backfill []string
+		for _, table := range opts.Resources {
+			plan, ok := checkpoint.ParseKeyset(prev[table])
+			if !ok {
+				return fmt.Errorf("incremental %q has no valid checkpoint plan", table)
+			}
+			switch plan.Mode {
+			case checkpoint.ModeIncremental:
+				incremental = append(incremental, table)
+			case checkpoint.ModeIncrementalBackfill:
+				backfill = append(backfill, table)
+			default:
+				return fmt.Errorf("incremental %q has checkpoint mode %q", table, plan.Mode)
+			}
+		}
+		if len(incremental) > 0 {
+			incrementalOpts := opts
+			incrementalOpts.Resources = incremental
+			if err := s.extractIncremental(ctx, sink, incrementalOpts, prev); err != nil {
+				return err
+			}
+		}
+		if len(backfill) == 0 {
+			return nil
+		}
+		backfillOpts := opts
+		backfillOpts.Mode = filament.ModeFull
+		backfillOpts.Resources = backfill
+		return s.ExtractFrom(ctx, sink, backfillOpts, prev)
 	}
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {

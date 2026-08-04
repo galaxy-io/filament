@@ -16,6 +16,8 @@ var cursorNamePriority = []string{
 	"updated_at", "modified_at", "last_modified_at", "last_updated_at", "updated", "modified",
 }
 
+const defaultIncrementalLookbackSeconds = 300
+
 // CursorColumns reports every table column and ranks supported conventional
 // watermark names.
 func (s *Source) CursorColumns(ctx context.Context, table string) ([]filament.CursorColumn, error) {
@@ -84,6 +86,9 @@ func (s *Source) PlanIncremental(ctx context.Context, resources []string, prev m
 	}
 	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, table := range resources {
+		if _, configured := s.cursorLookbacks[table]; !configured {
+			s.cursorLookbacks[table] = defaultIncrementalLookbackSeconds
+		}
 		pks, err := s.lookupPrimaryKey(ctx, s.schema, table)
 		if err != nil {
 			return nil, fmt.Errorf("incremental %q primary key: %w", table, err)
@@ -100,15 +105,33 @@ func (s *Source) PlanIncremental(ctx context.Context, resources []string, prev m
 		}
 		cols := append([]string{cursor.name}, pkNames(pks)...)
 		types := append([]string{cursor.typ}, pkTypes(pks)...)
-		if old, ok := checkpoint.ParseKeyset(prev[table]); ok && old.Mode == checkpoint.ModeIncremental &&
-			slices.Equal(old.Cols, cols) && slices.Equal(old.Types, types) && len(old.Shards) == 1 {
-			plan[table] = old.ToCheckpoint(table)
-			continue
+		if old, ok := checkpoint.ParseKeyset(prev[table]); ok {
+			if old.Mode == checkpoint.ModeIncremental && slices.Equal(old.Cols, cols) &&
+				slices.Equal(old.Types, types) && len(old.Shards) == 1 {
+				plan[table] = old.ToCheckpoint(table)
+				continue
+			}
+			if old.Mode == checkpoint.ModeIncrementalBackfill {
+				if promoted, valid := checkpoint.PromoteIncrementalBackfill(prev[table]); valid {
+					target, _ := checkpoint.ParseKeyset(promoted)
+					if slices.Equal(target.Cols, cols) && slices.Equal(target.Types, types) && len(old.Shards) > 0 {
+						plan[table] = old.ToCheckpoint(table)
+						continue
+					}
+				}
+			}
 		}
-		plan[table] = checkpoint.KeysetCheckpoint{
-			Mode: checkpoint.ModeIncremental, Cols: cols, Types: types,
-			Shards: []checkpoint.KeysetShard{{}},
-		}.ToCheckpoint(table)
+		qualified := pgx.Identifier{s.schema, table}.Sanitize()
+		start, err := s.incrementalHigh(ctx, s.pool, qualified, append([]pkColumn{cursor}, pks...))
+		if err != nil {
+			return nil, fmt.Errorf("incremental %q initial watermark: %w", table, err)
+		}
+		backfill, err := s.planKeyset(ctx, table, pks)
+		if err != nil {
+			return nil, fmt.Errorf("incremental %q backfill plan: %w", table, err)
+		}
+		backfill = checkpoint.AsIncrementalBackfill(backfill, cols, types, start, s.cursorLookbacks[table])
+		plan[table] = backfill.ToCheckpoint(table)
 	}
 	return plan, nil
 }

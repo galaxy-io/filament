@@ -15,7 +15,12 @@
 // for an open bound / un-started shard. A null hi marks the open-ended top shard.
 package checkpoint
 
-import "github.com/galaxy-io/filament"
+import (
+	"encoding/json"
+	"strconv"
+
+	"github.com/galaxy-io/filament"
+)
 
 // The checkpoint cursor modes a source can persist.
 const (
@@ -25,6 +30,9 @@ const (
 	// ModeIncremental is an ordered source watermark followed by a complete
 	// primary-key tie-breaker. It is durable across scheduled runs.
 	ModeIncremental = "incremental"
+	// ModeIncrementalBackfill is a resumable, sharded initial snapshot that
+	// promotes to its captured incremental start watermark on completion.
+	ModeIncrementalBackfill = "incremental_backfill"
 	// ModeStream is a change-stream position cursor: a single monotonic location in
 	// the source's replication log (Postgres WAL LSN, MySQL binlog file:pos) plus a
 	// per-run sequence guard. Unlike the shard-based cursors above it has no layout;
@@ -92,7 +100,7 @@ func ParseKeyset(cp filament.Checkpoint) (KeysetCheckpoint, bool) {
 	}
 	raw := cp.Raw()
 	mode, _ := raw["mode"].(string)
-	if mode != ModeKeyset && mode != ModeBitmap && mode != ModeCtid && mode != ModeIncremental {
+	if mode != ModeKeyset && mode != ModeBitmap && mode != ModeCtid && mode != ModeIncremental && mode != ModeIncrementalBackfill {
 		return KeysetCheckpoint{}, false
 	}
 	out := KeysetCheckpoint{Mode: mode, Cols: anyToStrs(raw["cols"]), Types: anyToStrs(raw["types"]), Meta: anyToStrMap(raw["meta"])}
@@ -105,6 +113,61 @@ func ParseKeyset(cp filament.Checkpoint) (KeysetCheckpoint, bool) {
 			Key:  anyToStrs(m["key"]),
 			Done: done,
 		})
+	}
+	return out, true
+}
+
+const (
+	metaIncrementalCols     = "incremental_cols"
+	metaIncrementalTypes    = "incremental_types"
+	metaIncrementalStart    = "incremental_start"
+	metaIncrementalLookback = "incremental_lookback_seconds"
+)
+
+// AsIncrementalBackfill annotates a keyset shard plan with the logical
+// watermark captured before the initial snapshot began.
+func AsIncrementalBackfill(plan KeysetCheckpoint, cols, types, start []string, lookbackSeconds int) KeysetCheckpoint {
+	plan.Mode = ModeIncrementalBackfill
+	if plan.Meta == nil {
+		plan.Meta = map[string]string{}
+	}
+	plan.Meta[metaIncrementalCols] = encodeStrings(cols)
+	plan.Meta[metaIncrementalTypes] = encodeStrings(types)
+	plan.Meta[metaIncrementalStart] = encodeStrings(start)
+	plan.Meta[metaIncrementalLookback] = strconv.Itoa(lookbackSeconds)
+	return plan
+}
+
+// PromoteIncrementalBackfill replaces a completed shard plan with the logical
+// watermark that seeds subsequent scheduled incremental runs.
+func PromoteIncrementalBackfill(cp filament.Checkpoint) (filament.Checkpoint, bool) {
+	plan, ok := ParseKeyset(cp)
+	if !ok || plan.Mode != ModeIncrementalBackfill {
+		return cp, false
+	}
+	cols, colsOK := decodeStrings(plan.Meta[metaIncrementalCols])
+	types, typesOK := decodeStrings(plan.Meta[metaIncrementalTypes])
+	start, startOK := decodeStrings(plan.Meta[metaIncrementalStart])
+	if !colsOK || !typesOK || !startOK || len(cols) == 0 || len(cols) != len(types) {
+		return cp, false
+	}
+	next := KeysetCheckpoint{
+		Mode: ModeIncremental, Cols: cols, Types: types,
+		Shards: []KeysetShard{{Key: start}},
+		Meta:   map[string]string{metaIncrementalLookback: plan.Meta[metaIncrementalLookback]},
+	}
+	return next.ToCheckpoint(cp.Resource()), true
+}
+
+func encodeStrings(values []string) string {
+	b, _ := json.Marshal(values)
+	return string(b)
+}
+
+func decodeStrings(value string) ([]string, bool) {
+	var out []string
+	if value == "" || json.Unmarshal([]byte(value), &out) != nil {
+		return nil, false
 	}
 	return out, true
 }
