@@ -1,0 +1,37 @@
+---
+title: "HubSpot"
+description: "Read contacts, companies, deals, and other CRM objects from HubSpot."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg"
+---
+
+HubSpot is a manifest-driven source — `connectors/http/manifests/hubspot.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no HubSpot-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A HubSpot access token (bearer auth) from the developer portal or private app.
+
+## Resources
+
+Seven resources, all statically discovered:
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `contacts` | `/crm/objects/2026-03/contacts` | — |
+| `companies` | `/crm/objects/2026-03/companies` | — |
+| `deals` | `/crm/objects/2026-03/deals` | — |
+| `tickets` | `/crm/objects/2026-03/tickets` | — |
+| `products` | `/crm/objects/2026-03/products` | — |
+| `line_items` | `/crm/objects/2026-03/line_items` | — |
+| `owners` | `/crm/v3/owners` | — |
+
+All CRM object resources use cursor pagination via the `_after` query parameter
+and support incremental sync via the `updatedSince` parameter on the `updatedAt`
+field.
+
+## Modes
+
+`ModeFull` and `ModeIncremental`; the CRM object resources declare `incremental:`
+blocks that checkpoint the max `updatedAt` per resource for resumption.

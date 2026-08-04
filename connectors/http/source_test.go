@@ -991,8 +991,92 @@ discovery:
         metadata:
           object: object
 `, baseURL)
-	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
-		t.Fatalf("write notion manifest: %v", err)
-	}
-	return path
-}
+ 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+ 		t.Fatalf("write notion manifest: %v", err)
+ 	}
+ 	return path
+ }
+
+ func TestNewHubspotSpecAndEmbeddedManifest(t *testing.T) {
+ 	ctx := context.Background()
+ 	src := NewHubspot()
+ 	spec := src.Spec()
+ 	if spec.Name != "hubspot" || spec.DisplayName != "HubSpot" {
+ 		t.Fatalf("spec identity = %q/%q, want hubspot/HubSpot", spec.Name, spec.DisplayName)
+ 	}
+ 	if len(spec.Config.Fields) != 1 {
+ 		t.Fatalf("config fields = %#v, want access_token", spec.Config.Fields)
+ 	}
+ 	field := spec.Config.Fields[0]
+ 	if field.Name != "access_token" || field.Type != filament.FieldSecret || !field.Required {
+ 		t.Fatalf("access_token field = %#v, want required secret", field)
+ 	}
+ 	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+ 		t.Fatal("validate without access_token succeeded")
+ 	}
+ 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+ 		"access_token": "test-token",
+ 	})); err != nil {
+ 		t.Fatalf("configure embedded HubSpot manifest: %v", err)
+ 	}
+ 	defer src.Teardown(ctx)
+
+ 	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+ 	if err != nil {
+ 		t.Fatalf("discover: %v", err)
+ 	}
+ 	want := []string{"contacts", "companies", "deals", "tickets", "products", "line_items", "owners"}
+ 	if len(discovered.Resources) != len(want) {
+ 		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
+ 	}
+ 	for i := range want {
+ 		if discovered.Resources[i].Name != want[i] {
+ 			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, want[i])
+ 		}
+ 	}
+ }
+
+ func TestHubspotContactsIncrementalPagination(t *testing.T) {
+ 	ctx := context.Background()
+ 	var authorization string
+ 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		authorization = r.Header.Get("Authorization")
+ 		w.Header().Set("Content-Type", "application/json")
+ 		switch r.URL.Path {
+ 		case "/crm/objects/2026-03/contacts":
+ 			if r.URL.Query().Get("_after") == "" {
+ 				fmt.Fprint(w, `{"results":[{"id":"c1","createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-02T00:00:00Z","properties":{"email":"test@example.com"}},{"id":"c2","createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-03T00:00:00Z","properties":{"email":"test2@example.com"}}],"paging":{"next":{"after":"cursor-page-2","link":"/crm/objects/2026-03/contacts?limit=500&_after=cursor-page-2"}}}`)
+ 				return
+ 			}
+ 			fmt.Fprint(w, `{"results":[{"id":"c3","createdAt":"2026-01-02T00:00:00Z","updatedAt":"2026-01-04T00:00:00Z","properties":{"email":"test3@example.com"}}],"paging":{}}`)
+ 		default:
+ 			http.NotFound(w, r)
+ 		}
+ 	}))
+ 	defer api.Close()
+
+ 	manifestData := []byte(strings.Replace(string(hubspotManifest), "https://api.hubapi.com", api.URL, 1))
+ 	src := NewManifest("hubspot", "HubSpot", manifestData, filament.ConfigSchema{})
+ 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+ 		"access_token": "test-token",
+ 	})); err != nil {
+ 		t.Fatalf("configure: %v", err)
+ 	}
+ 	defer src.Teardown(ctx)
+
+ 	var sink collectSink
+ 	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"contacts"}, Parallelism: 1}); err != nil {
+ 		t.Fatalf("extract: %v", err)
+ 	}
+ 	if authorization != "Bearer test-token" {
+ 		t.Fatalf("Authorization = %q, want Bearer test-token", authorization)
+ 	}
+ 	if len(sink.records) != 3 {
+ 		t.Fatalf("records = %d, want 3", len(sink.records))
+ 	}
+ 	for _, rec := range sink.records {
+ 		if rec.Resource != "contacts" {
+ 			t.Fatalf("resource = %q, want contacts", rec.Resource)
+ 		}
+ 	}
+ }

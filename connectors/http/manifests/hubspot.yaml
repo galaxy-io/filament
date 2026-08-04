@@ -5,18 +5,8 @@ config:
     type: secret
     required: true
     help: HubSpot access token from developer settings
-  region:
-    type: enum
-    enum: [us, eu]
-    default: us
-    help: HubSpot region (us or eu)
 defaults:
   method: GET
-  response:
-    error:
-      path: status
-      when_present: true
-      message_path: message
 connection:
   base_url: https://api.hubapi.com
   auth:
@@ -35,9 +25,6 @@ resources:
     path: /crm/objects/2026-03/contacts
     query:
       limit: "500"
-    properties:
-      - hs_created_at
-      - hs_last_modified_at
     primary_key: [id]
     fields:
       id: string
@@ -56,15 +43,13 @@ resources:
       cursor_field: updatedAt
       start_param: updatedSince
       inject_into: query
+      checkpoint_key: contacts_since
       comparator: time
 
   - name: companies
     path: /crm/objects/2026-03/companies
     query:
       limit: "500"
-    properties:
-      - hs_created_at
-      - hs_last_modified_at
     primary_key: [id]
     fields:
       id: string
@@ -83,15 +68,13 @@ resources:
       cursor_field: updatedAt
       start_param: updatedSince
       inject_into: query
+      checkpoint_key: companies_since
       comparator: time
 
   - name: deals
     path: /crm/objects/2026-03/deals
     query:
       limit: "500"
-    properties:
-      - hs_created_at
-      - hs_last_modified_at
     primary_key: [id]
     fields:
       id: string
@@ -110,15 +93,13 @@ resources:
       cursor_field: updatedAt
       start_param: updatedSince
       inject_into: query
+      checkpoint_key: deals_since
       comparator: time
 
   - name: tickets
     path: /crm/objects/2026-03/tickets
     query:
       limit: "500"
-    properties:
-      - hs_created_at
-      - hs_last_modified_at
     primary_key: [id]
     fields:
       id: string
@@ -137,15 +118,13 @@ resources:
       cursor_field: updatedAt
       start_param: updatedSince
       inject_into: query
+      checkpoint_key: tickets_since
       comparator: time
 
   - name: products
     path: /crm/objects/2026-03/products
     query:
       limit: "500"
-    properties:
-      - hs_created_at
-      - hs_last_modified_at
     primary_key: [id]
     fields:
       id: string
@@ -164,15 +143,13 @@ resources:
       cursor_field: updatedAt
       start_param: updatedSince
       inject_into: query
+      checkpoint_key: products_since
       comparator: time
 
   - name: line_items
     path: /crm/objects/2026-03/line_items
     query:
       limit: "500"
-    properties:
-      - hs_created_at
-      - hs_last_modified_at
     primary_key: [id]
     fields:
       id: string
@@ -191,6 +168,7 @@ resources:
       cursor_field: updatedAt
       start_param: updatedSince
       inject_into: query
+      checkpoint_key: line_items_since
       comparator: time
 
   - name: owners
@@ -214,23 +192,6 @@ resources:
           response: paging.next.after
           request: query._after
           null_terminates: true
-
-  - name: custom_objects
-    path: /crm/v3/schemas
-    method: GET
-    primary_key: [id]
-    fields:
-      id: string
-      name: string
-      label: string
-      description: string?
-      created: timestamptz
-      updated: timestamptz
-      raw: { path: $, type: json, mode: remainder }
-    response:
-      records: $.results
-      pagination:
-        offset: { offset: body.offset, limit: body.limit, page_size: 100 }
 
 discovery:
   mode: static
