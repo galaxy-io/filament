@@ -1,0 +1,158 @@
+version: 1
+name: granola
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Granola API key
+defaults:
+  method: GET
+  query:
+    page_size: "10"
+  response:
+    records: $
+    pagination:
+      cursor:
+        response: cursor
+        request: query.cursor
+        more: hasMore
+        null_terminates: true
+    error:
+      path: error
+      when_present: true
+      message_path: message
+connection:
+  base_url: https://public-api.granola.ai
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+resources:
+  - name: notes
+    path: /v1/notes
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_after
+      inject_into: query
+      checkpoint_key: notes_since
+      comparator: time
+    primary_key: [id]
+    fields:
+      id: string
+      object: string
+      title: string?
+      owner: json
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      note_id: id
+  - name: note_detail
+    path: /v1/notes/{note_id}
+    params:
+      note_id: parent.note_id
+    query:
+      include: transcript
+    for_each: notes
+    primary_key: [id]
+    fields:
+      id: string
+      object: string
+      title: string?
+      web_url: string
+      calendar_event: json?
+      attendees: json
+      folder_membership: json
+      summary_text: string
+      summary_markdown: string?
+      transcript: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: folders
+    path: /v1/folders
+    primary_key: [id]
+    fields:
+      id: string
+      object: string
+      name: string
+      parent_folder_id: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: webhook_endpoints
+    path: /v1/webhook-endpoints
+    method: GET
+    primary_key: [id]
+    fields:
+      id: string
+      object: string
+      url: string
+      url_redacted: bool
+      events: json
+      folder_ids: json
+      scopes: json
+      created_by: json?
+      enabled: bool
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: create_webhook_endpoint
+    path: /v1/webhook-endpoints
+    method: POST
+    params:
+      url: config.url
+      scopes: config.scopes
+      events: config.events
+    body:
+      encoding: json
+      template:
+        url: "{{ config.url }}"
+        scopes: "{{ config.scopes }}"
+        events: "{{ config.events }}"
+        folder_ids: "{{ config.folder_ids }}"
+    response:
+      records: $
+      cardinality: one
+    fields:
+      id: string
+      object: string
+      url: string
+      events: json
+      scopes: json
+      created_at: timestamptz
+      signing_secret: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: delete_webhook_endpoint
+    path: /v1/webhook-endpoints/{webhook_endpoint_id}
+    method: DELETE
+    params:
+      webhook_endpoint_id: config.endpoint_id
+    response:
+      records: $
+      cardinality: one
+    fields:
+      id: string
+      object: string
+      deleted: bool
+      signing_secret: string?
+  - name: audit_events
+    path: /v1/audit
+    incremental:
+      cursor_field: occurred_at
+      start_param: occurred_after
+      inject_into: query
+      checkpoint_key: audit_since
+      comparator: time
+    primary_key: [id]
+    fields:
+      id: string
+      object: string
+      action: string
+      occurred_at: timestamptz
+      actor: json
+      data: json
+      context: json
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static
+  include:
+    - notes
+    - folders
+    - webhook_endpoints
+    - audit_events

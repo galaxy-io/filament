@@ -21,6 +21,12 @@ var githubManifest []byte
 //go:embed manifests/slack.yaml
 var slackManifest []byte
 
+//go:embed manifests/granola.yaml
+var granolaManifest []byte
+
+//go:embed manifests/ramp.yaml
+var rampManifest []byte
+
 //go:embed rho/manifest.yaml
 var rhoManifest []byte
 
@@ -47,6 +53,16 @@ func NewGitHub() *Source {
 // NewSlack returns a Source backed by the embedded Slack Web API manifest.
 func NewSlack() *Source {
 	return NewManifestWithMetadata("slack", "Slack", "Messaging and collaboration platform designed for teams to communicate and work together efficiently.", "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg", slackManifest, manifestOwnedConfig())
+}
+
+// NewGranola returns a Source backed by the embedded Granola API manifest.
+func NewGranola() *Source {
+	return NewManifestWithMetadata("granola", "Granola", "AI notepad for back-to-back meetings that captures, enhances, and acts on meeting insights.", "https://cdn.getgalaxy.io/sources/source-icon-granola-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-granola-light.svg", granolaManifest, manifestOwnedConfig())
+}
+
+// NewRamp returns a Source backed by the embedded Ramp Web API manifest.
+func NewRamp() *Source {
+	return NewManifestWithMetadata("ramp", "Ramp", "Corporate card and financial management platform for modern businesses.", "https://cdn.getgalaxy.io/sources/source-icon-ramp-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-ramp-light.svg", rampManifest, manifestOwnedConfig())
 }
 
 // NewRho returns a Source backed by the embedded Rho manifest.
