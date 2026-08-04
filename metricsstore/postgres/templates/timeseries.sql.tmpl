@@ -1,6 +1,5 @@
 WITH filtered AS (
-  SELECT {{.KeyExpr}} AS key, {{.BucketExpr}} AS bucket, records, bytes,
-         extract(epoch from (finished_at - started_at)) * 1000 AS duration_ms
+  SELECT {{.KeyExpr}} AS key, {{.BucketExpr}} AS bucket, records, bytes, started_at, finished_at
   FROM runs
   {{.Where}}
 ),
