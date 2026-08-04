@@ -22,6 +22,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
@@ -141,6 +142,30 @@ func render(name string, data any) (string, error) {
 	return b.String(), nil
 }
 
+// aggregateTemplateData fills templates/aggregate.sql.tmpl.
+type aggregateTemplateData struct {
+	KeyExpr, MetricList, Where, GroupCol string
+}
+
+// timeseriesTemplateData fills templates/timeseries.sql.tmpl.
+type timeseriesTemplateData struct {
+	KeyExpr, BucketExpr, Where, BucketFrom, BucketTo, Unit, AggSelectList, AggColList, GroupKeysExpr string
+	// NoGroupBy adds a "" key so an ungrouped query still gets one series/row.
+	NoGroupBy bool
+}
+
+// valuesOrZero converts nullable metric scan targets to a dense []float64,
+// defaulting NULL (avg() over a group/bucket with no terminal runs) to 0.
+func valuesOrZero(nullable []*float64) []float64 {
+	values := make([]float64, len(nullable))
+	for i, v := range nullable {
+		if v != nil {
+			values[i] = *v
+		}
+	}
+	return values
+}
+
 // QueryRunAggregate returns one row per GroupBy value (a single "" key when
 // GroupBy is unset) over [q.Since, q.Until).
 func (s *Store) QueryRunAggregate(ctx context.Context, q filament.RunAggregateQuery) ([]filament.RunAggregateRow, error) {
@@ -155,9 +180,12 @@ func (s *Store) QueryRunAggregate(ctx context.Context, q filament.RunAggregateQu
 	}
 	key, groupCol := keyExpr(q.GroupBy)
 
-	query, err := render("aggregate.sql.tmpl", struct {
-		KeyExpr, MetricList, Where, GroupCol string
-	}{key, strings.Join(exprs, ", "), where, groupCol})
+	query, err := render("aggregate.sql.tmpl", aggregateTemplateData{
+		KeyExpr:    key,
+		MetricList: strings.Join(exprs, ", "),
+		Where:      where,
+		GroupCol:   groupCol,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -179,13 +207,7 @@ func (s *Store) QueryRunAggregate(ctx context.Context, q filament.RunAggregateQu
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, fmt.Errorf("metricsstore/postgres: scan run aggregate row: %w", err)
 		}
-		values := make([]float64, len(nullable))
-		for i, v := range nullable {
-			if v != nil {
-				values[i] = *v
-			}
-		}
-		out = append(out, filament.RunAggregateRow{Key: rowKey, Values: values})
+		out = append(out, filament.RunAggregateRow{Key: rowKey, Values: valuesOrZero(nullable)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("metricsstore/postgres: run aggregate rows: %w", err)
@@ -209,14 +231,37 @@ func groupKeys(q filament.RunTimeseriesQuery) []string {
 	return nil
 }
 
+// bucketExprs returns the SQL expression for a bucket's own boundary (expr)
+// and the query range's start/end (from/to), all shifted into
+// tzOffsetMinutes-local time and truncated to unit so generate_series's range
+// (from/to) lines up exactly with individual buckets (expr). to backs off one
+// microsecond before truncating so a range whose end lands exactly on a
+// boundary doesn't pull in an extra, out-of-range bucket (until is
+// exclusive).
+func (b *queryBuilder) bucketExprs(since, until time.Time, tzOffsetMinutes int, unit string) (expr, from, to string) {
+	tz := fmt.Sprintf("(%s * interval '1 minute')", b.arg(tzOffsetMinutes))
+	expr = fmt.Sprintf("date_trunc('%s', started_at + %s) - %s", unit, tz, tz)
+	from = fmt.Sprintf("date_trunc('%s', %s::timestamptz + %s) - %s", unit, b.arg(since), tz, tz)
+	to = fmt.Sprintf("date_trunc('%s', (%s::timestamptz - interval '1 microsecond') + %s) - %s", unit, b.arg(until), tz, tz)
+	return expr, from, to
+}
+
+// aggSelectCols builds a timeseries query's per-metric SELECT aliases (m0,
+// m1, ...) and the agg.m* column references that pull them back out after
+// the bucket/key spine LEFT JOINs against them.
+func aggSelectCols(exprs []string) (selectList, cols []string) {
+	selectList = make([]string, len(exprs))
+	cols = make([]string, len(exprs))
+	for i, e := range exprs {
+		selectList[i] = fmt.Sprintf("%s AS m%d", e, i)
+		cols[i] = fmt.Sprintf("agg.m%d", i)
+	}
+	return selectList, cols
+}
+
 // QueryRunTimeseries returns one dense, zero-filled, ascending series per
 // GroupBy value (a single "" series when GroupBy is unset) bucketed at
-// q.Granularity over [q.Since, q.Until). FROM/TO are shifted into
-// TZOffsetMinutes-local time and truncated the same way bucket is, so
-// generate_series's range lines up with the bucket expression's own
-// boundaries; the upper bound backs off one microsecond before truncating so
-// a since/until that lands exactly on a boundary doesn't pull in an extra,
-// out-of-range bucket (until is exclusive). When a filter covers GroupBy, the
+// q.Granularity over [q.Since, q.Until). When a filter covers GroupBy, the
 // filter's values (not the data) determine which series exist and their
 // order, so a requested value with no matching runs still comes back
 // zero-filled rather than missing (see groupKeys).
@@ -235,28 +280,26 @@ func (s *Store) QueryRunTimeseries(ctx context.Context, q filament.RunTimeseries
 		return nil, err
 	}
 	key, groupCol := keyExpr(q.GroupBy)
-
-	tz := fmt.Sprintf("(%s * interval '1 minute')", b.arg(q.TZOffsetMinutes))
-	bucketExpr := fmt.Sprintf("date_trunc('%s', started_at + %s) - %s", unit, tz, tz)
-	bucketFrom := fmt.Sprintf("date_trunc('%s', %s::timestamptz + %s) - %s", unit, b.arg(q.Since), tz, tz)
-	bucketTo := fmt.Sprintf("date_trunc('%s', (%s::timestamptz - interval '1 microsecond') + %s) - %s", unit, b.arg(q.Until), tz, tz)
-
-	aggSelect := make([]string, len(exprs))
-	aggCols := make([]string, len(exprs))
-	for i, e := range exprs {
-		aggSelect[i] = fmt.Sprintf("%s AS m%d", e, i)
-		aggCols[i] = fmt.Sprintf("agg.m%d", i)
-	}
+	bucketExpr, bucketFrom, bucketTo := b.bucketExprs(q.Since, q.Until, q.TZOffsetMinutes, unit)
+	aggSelect, aggCols := aggSelectCols(exprs)
 
 	var groupKeysExpr string
 	if keys := groupKeys(q); len(keys) > 0 {
 		groupKeysExpr = b.arg(keys) + "::text[]"
 	}
 
-	query, err := render("timeseries.sql.tmpl", struct {
-		KeyExpr, BucketExpr, Where, BucketFrom, BucketTo, Unit, AggSelectList, AggColList, GroupKeysExpr string
-		NoGroupBy                                                                                        bool
-	}{key, bucketExpr, where, bucketFrom, bucketTo, unit, strings.Join(aggSelect, ", "), strings.Join(aggCols, ", "), groupKeysExpr, groupCol == ""})
+	query, err := render("timeseries.sql.tmpl", timeseriesTemplateData{
+		KeyExpr:       key,
+		BucketExpr:    bucketExpr,
+		Where:         where,
+		BucketFrom:    bucketFrom,
+		BucketTo:      bucketTo,
+		Unit:          unit,
+		AggSelectList: strings.Join(aggSelect, ", "),
+		AggColList:    strings.Join(aggCols, ", "),
+		GroupKeysExpr: groupKeysExpr,
+		NoGroupBy:     groupCol == "",
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -267,12 +310,20 @@ func (s *Store) QueryRunTimeseries(ctx context.Context, q filament.RunTimeseries
 	}
 	defer rows.Close()
 
+	return scanTimeseries(rows, len(q.Metrics))
+}
+
+// scanTimeseries reads rows shaped (key, bucket, m0, m1, ...) — dense per
+// templates/timeseries.sql.tmpl — into one filament.RunTimeseries per
+// distinct key, preserving the SQL's own row order (see groupKeys for what
+// determines that order).
+func scanTimeseries(rows pgx.Rows, numMetrics int) ([]filament.RunTimeseries, error) {
 	series := map[string]*filament.RunTimeseries{}
 	var order []string
 	for rows.Next() {
 		var rowKey string
 		var bucket time.Time
-		values := make([]*float64, len(q.Metrics))
+		values := make([]*float64, numMetrics)
 		scanArgs := append([]any{&rowKey, &bucket}, valuePtrs(values)...)
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, fmt.Errorf("metricsstore/postgres: scan run timeseries row: %w", err)
@@ -283,13 +334,7 @@ func (s *Store) QueryRunTimeseries(ctx context.Context, q filament.RunTimeseries
 			series[rowKey] = ts
 			order = append(order, rowKey)
 		}
-		point := filament.TimeseriesPoint{BucketStart: bucket, Values: make([]float64, len(values))}
-		for i, v := range values {
-			if v != nil {
-				point.Values[i] = *v
-			}
-		}
-		ts.Points = append(ts.Points, point)
+		ts.Points = append(ts.Points, filament.TimeseriesPoint{BucketStart: bucket, Values: valuesOrZero(values)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("metricsstore/postgres: run timeseries rows: %w", err)
