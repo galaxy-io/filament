@@ -1,0 +1,953 @@
+version: 1
+name: ramp
+config:
+  client_id:
+    type: string
+    required: true
+    help: OAuth2 client ID
+  client_secret:
+    type: secret
+    required: true
+    help: OAuth2 client secret
+  field_id:
+    type: string
+    required: true
+    help: The ID of the custom accounting field that this custom accounting field option belongs to. This is the ramp_id returned…
+  account_id:
+    type: string
+    required: true
+    help: Value for {account_id} in /developer/v1/banking/accounts/{account_id}/balance-history
+  custom_table_name:
+    type: string
+    required: true
+    help: Value for {custom_table_name} in /developer/v1/custom-records/custom-tables/{custom_table_name}/columns
+  native_table_name:
+    type: string
+    required: true
+    help: Value for {native_table_name} in /developer/v1/custom-records/native-tables/{native_table_name}/columns
+  service_key:
+    type: string
+    required: true
+    help: External approval integration key configured on the spend program's External Approval Request nodes. Returned nodes mat…
+  spend_program_id:
+    type: string
+    required: true
+    help: Value for {spend_program_id} in /developer/v1/spend-programs/{spend_program_id}/workflow-nodes
+  vendor_id:
+    type: string
+    required: true
+    help: Value for {vendor_id} in /developer/v1/vendors/{vendor_id}/accounts
+defaults:
+  method: GET
+  response:
+    records: $.data
+    pagination:
+      cursor:
+        response: page.next
+        request: query.start
+connection:
+  base_url: https://api.ramp.com
+  auth:
+    oauth2:
+      # TODO: add scope if the token endpoint requires explicit scopes, e.g. scope: "transactions:read users:read"
+      token_url: https://api.ramp.com/developer/v1/token
+      client_id: config.client_id
+      client_secret: config.client_secret
+  headers:
+    Accept: application/json
+resources:
+  - name: accounting_accounts
+    path: /developer/v1/accounting/accounts
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      classification: string?
+      code: string?
+      created_at: timestamptz
+      entity_remote_ids: json?
+      gl_account_category_info: json?
+      id: string?
+      is_active: bool
+      name: string
+      provider_name: string?
+      ramp_id: uuid
+      updated_at: timestamptz?
+      visibility: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: all_connections
+    path: /developer/v1/accounting/all-connections
+    primary_key: [id]
+    records: $.connections
+    fields:
+      connection_type: string
+      created_at: timestamptz
+      id: uuid
+      is_active: bool
+      is_ready_to_migrate: bool
+      last_linked_at: timestamptz?
+      remote_provider_name: string?
+      settings: json?
+      status: string
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+  - name: field_option_filter_rules
+    path: /developer/v1/accounting/field-option-filter-rules
+    query:
+      page_size: "100"
+    primary_key: [target_field_option_remote_id]
+    fields:
+      required_selections: json
+      target_field_option_remote_id: string
+      target_field_remote_id: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: field_options
+    path: /developer/v1/accounting/field-options
+    query:
+      page_size: "100"
+      field_id: "{{ config.field_id }}"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      code: string?
+      created_at: timestamptz?
+      display_name: string?
+      entity_remote_ids: json?
+      id: string?
+      is_active: bool?
+      provider_name: string?
+      ramp_id: uuid?
+      updated_at: timestamptz?
+      value: string?
+      visibility: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: fields
+    path: /developer/v1/accounting/fields
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      created_at: timestamptz?
+      display_name: string?
+      id: string?
+      input_type: string
+      is_active: bool?
+      is_required_for: json
+      is_splittable: bool?
+      name: string?
+      provider_name: string?
+      ramp_id: uuid?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+  - name: inventory_item_options
+    path: /developer/v1/accounting/inventory-item/options
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      entity_remote_ids: json?
+      gl_account_id: uuid?
+      id: string
+      is_active: bool
+      name: string
+      ramp_id: uuid
+      raw: { path: $, type: json, mode: remainder }
+  - name: ramp_fields
+    path: /developer/v1/accounting/ramp-fields
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      created_at: timestamptz?
+      display_name: string?
+      id: string?
+      input_type: string
+      is_active: bool?
+      is_required_for: json
+      is_splittable: bool?
+      name: string?
+      provider_name: string?
+      ramp_id: uuid?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+  - name: code_options
+    path: /developer/v1/accounting/tax/code/options
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      entity_remote_ids: json?
+      id: string
+      is_active: bool
+      name: string
+      ramp_id: uuid
+      tax_rate_ids: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: rates
+    path: /developer/v1/accounting/tax/rates
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      accounting_gl_account_id: uuid?
+      id: string
+      name: string
+      ramp_id: uuid
+      rate: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: accounting_vendors
+    path: /developer/v1/accounting/vendors
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_connection_id: uuid
+      code: string?
+      created_at: timestamptz
+      entity_remote_ids: json?
+      id: string?
+      is_active: bool
+      is_synced: bool
+      name: string
+      provider_name: string?
+      ramp_id: uuid
+      updated_at: timestamptz
+      vendor_category_info: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: bank_accounts
+    path: /developer/v1/bank-accounts
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      account_name: string
+      account_number_last_four: string
+      account_subtype: string
+      connection_provider: string
+      financial_institution_name: string?
+      id: uuid
+      raw: { path: $, type: json, mode: remainder }
+  - name: banking_accounts
+    path: /developer/v1/banking/accounts
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      account_type: string
+      id: uuid
+      name: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: balance_history
+    path: /developer/v1/banking/accounts/{account_id}/balance-history
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      account_id: config.account_id
+    query:
+      page_size: "100"
+    # TODO: no primary key candidate found; declare primary_key with a real unique field
+    fields:
+      amount: json
+      date: date
+      raw: { path: $, type: json, mode: remainder }
+  - name: syncable_transactions
+    path: /developer/v1/banking/syncable-transactions
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      amount: json
+      date: timestamptz
+      description: string
+      destination_account_name: string?
+      entity_id: uuid?
+      id: uuid
+      source_account_name: string?
+      sync_status: string
+      treasury_transfer_type: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: bills
+    path: /developer/v1/bills
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_date: timestamptz
+      accounting_field_selections: json
+      amount: json
+      applied_vendor_credits: json
+      approval_status: string?
+      archived_at: timestamptz?
+      bill_owner: json
+      created_at: timestamptz
+      deep_link_url: string?
+      draft_bill_created_at: timestamptz?
+      draft_bill_id: uuid?
+      due_at: timestamptz
+      enable_accounting_sync: bool?
+      entity_id: uuid
+      fx_conversion_rate: string
+      id: uuid
+      inventory_line_items: json
+      invoice_number: string?
+      invoice_urls: json
+      is_withholding_release: bool?
+      issued_at: timestamptz
+      item_receipt_ids: json
+      line_items: json
+      memo: string?
+      paid_at: timestamptz?
+      payment: json?
+      posting_date: timestamptz?
+      purchase_order_id: uuid?
+      remote_id: string?
+      status: string
+      status_summary: string
+      sync_status: string
+      vendor: json
+      vendor_contact_id: uuid?
+      vendor_memo: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: drafts
+    path: /developer/v1/bills/drafts
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_date: timestamptz?
+      accounting_field_selections: json
+      amount: json?
+      bill_owner: json?
+      created_at: timestamptz
+      due_at: timestamptz?
+      entity_id: uuid?
+      id: uuid
+      inventory_line_items: json
+      invoice_number: string?
+      invoice_urls: json
+      issued_at: timestamptz?
+      line_items: json
+      memo: string?
+      posting_date: timestamptz?
+      remote_id: string?
+      status: json
+      sync_status: json
+      vendor: json?
+      vendor_memo: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: physical
+    path: /developer/v1/cards/physical
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      automatic_routing_enabled: bool?
+      cardholder_id: uuid?
+      cardholder_name: string?
+      created_at: timestamptz?
+      display_name: string
+      expiration: string
+      fulfillment: json?
+      fund_id: uuid?
+      has_program_overridden: bool
+      id: uuid?
+      is_physical: bool?
+      is_primary: bool?
+      is_suspended: bool
+      last_four: string
+      state: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: virtual
+    path: /developer/v1/cards/virtual
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      created_at: timestamptz?
+      fund_id: uuid?
+      id: uuid?
+      is_card_suspended: bool
+      user_id: uuid?
+      raw: { path: $, type: json, mode: remainder }
+  - name: cashbacks
+    path: /developer/v1/cashbacks
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      amount: json
+      created_at: timestamptz?
+      entity_id: uuid?
+      id: uuid?
+      sync_status: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: custom_tables
+    path: /developer/v1/custom-records/custom-tables
+    # TODO: no primary key candidate found; declare primary_key with a real unique field
+    fields:
+      table_label: string
+      table_name: string
+      type: string
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+  - name: custom_tables_columns
+    path: /developer/v1/custom-records/custom-tables/{custom_table_name}/columns
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      custom_table_name: config.custom_table_name
+    primary_key: [id]
+    fields:
+      allows_writes: bool
+      display_name: string
+      id: string
+      name: string
+      type: json
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+  - name: custom_tables_rows
+    path: /developer/v1/custom-records/custom-tables/{custom_table_name}/rows
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      custom_table_name: config.custom_table_name
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      cells: json
+      display_name: string
+      external_key: string
+      id: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: matrix_tables
+    path: /developer/v1/custom-records/matrix-tables
+    primary_key: [id]
+    fields:
+      id: string
+      input_columns: json
+      label: string
+      name: string
+      result_columns: json
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+  - name: native_tables
+    path: /developer/v1/custom-records/native-tables
+    # TODO: no primary key candidate found; declare primary_key with a real unique field
+    fields:
+      table_name: string
+      type: string
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+  - name: native_tables_columns
+    path: /developer/v1/custom-records/native-tables/{native_table_name}/columns
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      native_table_name: config.native_table_name
+    primary_key: [id]
+    fields:
+      allows_writes: bool
+      display_name: string
+      id: string
+      name: string
+      type: json
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+  - name: native_tables_rows
+    path: /developer/v1/custom-records/native-tables/{native_table_name}/rows
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      native_table_name: config.native_table_name
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      cells: json
+      display_name: string
+      external_key: string
+      id: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: departments
+    path: /developer/v1/departments
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: entities
+    path: /developer/v1/entities
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounts: json
+      connected_subsidiary: json?
+      currency: string?
+      custom_record_fields: json?
+      default_bill_pay_payment_account_id: uuid?
+      entity_name: string
+      id: uuid
+      is_primary: bool?
+      location_ids: json
+      payment_accounts: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: funds
+    path: /developer/v1/funds
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      balance: json?
+      cards: json
+      created_at: timestamptz
+      display_name: string
+      entity_id: uuid?
+      id: uuid
+      is_exempt_from_policy_agent: bool
+      is_shareable: bool
+      members: json
+      overrides_spend_program: bool
+      permitted_spend_types: json
+      spend_program_id: uuid?
+      spending_restrictions: json?
+      state: string
+      suspension: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: item_receipts
+    path: /developer/v1/item-receipts
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      archived_at: timestamptz?
+      created_at: timestamptz
+      documents: json
+      id: uuid
+      item_receipt_number: string
+      line_items: json
+      memo: string?
+      purchase_order_id: uuid
+      received_at: timestamptz
+      remote_id: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: locations
+    path: /developer/v1/locations
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      entity_id: uuid
+      id: uuid
+      name: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: memos
+    path: /developer/v1/memos
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      id: uuid?
+      memo: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: merchants
+    path: /developer/v1/merchants
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      is_auto_approved: bool
+      merchant_name: string
+      sk_category_name: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: purchase_orders
+    path: /developer/v1/purchase-orders
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_field_selections: json
+      amount: json
+      archived_at: timestamptz?
+      bill_ids: json
+      billing_status: string?
+      created_at: timestamptz
+      creation_source: string
+      entity_id: uuid
+      external_id: string?
+      id: uuid
+      item_receipt_ids: json
+      line_items: json
+      memo: string?
+      name: string?
+      net_payment_terms: int64?
+      owner_id: uuid?
+      promise_date: timestamptz?
+      purchase_order_number: string?
+      ramp_url: string
+      receipt_status: string
+      remote_id: string?
+      ship_to_address: json?
+      ship_to_company_name: string?
+      shipping_contact_email: string?
+      shipping_contact_first_name: string?
+      shipping_contact_last_name: string?
+      shipping_contact_phone_number: string?
+      spend_end_date: timestamptz?
+      spend_program_id: uuid?
+      spend_request_id: uuid?
+      spend_start_date: timestamptz?
+      spend_total_amount: json?
+      three_way_match_enabled: bool
+      transaction_ids: json
+      user_id: uuid?
+      vendor_id: uuid?
+      withholding_default_rate: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: receipts
+    path: /developer/v1/receipts
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      created_at: timestamptz?
+      id: uuid?
+      ocr: json?
+      receipt_url: string
+      reimbursement_id: uuid?
+      transaction_id: uuid?
+      user_id: uuid?
+      raw: { path: $, type: json, mode: remainder }
+  - name: reimbursements
+    path: /developer/v1/reimbursements
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_date: timestamptz?
+      accounting_field_selections: json
+      approved_at: timestamptz?
+      attendees: json
+      created_at: timestamptz
+      direction: string
+      distance: float64?
+      employee_id: string?
+      end_location: string?
+      entity_amount: json?
+      entity_id: uuid?
+      fund_id: uuid?
+      id: uuid
+      line_items: json
+      memo: string?
+      merchant: string?
+      merchant_amount: json?
+      merchant_id: uuid?
+      payee_amount: json?
+      payment_batch_id: uuid?
+      payment_id: string?
+      payment_processed_at: timestamptz?
+      receipts: json
+      spend_limit_id: uuid?
+      start_location: string?
+      state: string
+      submitted_at: timestamptz?
+      sync_status: string
+      synced_at: timestamptz?
+      trace_id: json?
+      transaction_date: date?
+      trip_id: uuid?
+      type: string
+      updated_at: timestamptz?
+      user_email: string
+      user_full_name: string
+      user_id: uuid
+      waypoints: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: repayments
+    path: /developer/v1/repayments
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      entity_id: uuid?
+      funding_method: string?
+      id: uuid
+      original_transaction_id: string?
+      repaid_at: timestamptz?
+      repayment_amount: json?
+      status: string
+      user_id: string?
+      user_signature: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: spend_programs
+    path: /developer/v1/spend-programs
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      description: string
+      display_name: string
+      icon: string
+      id: uuid
+      is_shareable: bool
+      issue_physical_card_if_needed: bool
+      permitted_spend_types: json?
+      restrictions: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: workflow_nodes
+    path: /developer/v1/spend-programs/{spend_program_id}/workflow-nodes
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      spend_program_id: config.spend_program_id
+    query:
+      service_key: "{{ config.service_key }}"
+    primary_key: [next_node_id]
+    records: $.workflow_nodes
+    fields:
+      name: string
+      next_node_id: string?
+      node_id: string
+      service_key: string?
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+  - name: statements
+    path: /developer/v1/statements
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      balance_sections: json
+      charges: json
+      credits: json
+      end_date: timestamptz
+      ending_balance: json
+      id: uuid
+      opening_balance: json
+      payments: json
+      preceding_statement_id: uuid?
+      start_date: timestamptz
+      statement_lines: json
+      statement_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: transactions
+    path: /developer/v1/transactions
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_categories: json?
+      accounting_date: timestamptz?
+      accounting_field_selections: json?
+      all_requirements_met_and_approved: bool
+      amount: float64?
+      attendees: json?
+      card_holder: json?
+      card_id: uuid?
+      card_present: bool
+      currency_code: string?
+      decline_details: json?
+      disputes: json?
+      entity_amount: json?
+      entity_id: uuid?
+      fund_id: uuid?
+      id: uuid?
+      limit_id: uuid?
+      line_items: json?
+      memo: string?
+      merchant_amount: json?
+      merchant_category_code: string?
+      merchant_category_code_description: string?
+      merchant_data: json?
+      merchant_descriptor: string?
+      merchant_id: uuid?
+      merchant_location: json?
+      merchant_name: string?
+      minor_unit_conversion_rate: int64?
+      network_merchant_id: string?
+      original_transaction_amount: json?
+      original_transaction_id: string?
+      policy_violations: json?
+      receipts: json?
+      requires_accounting_vendor_creation_to_sync: bool?
+      settlement_date: timestamptz?
+      sk_category_id: int64?
+      sk_category_name: string?
+      spend_program_id: uuid?
+      state: string?
+      statement_id: uuid?
+      sync_status: string
+      synced_at: timestamptz?
+      trip_id: uuid?
+      trip_name: string?
+      updated_at: timestamptz?
+      user_transaction_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+  - name: transfers
+    path: /developer/v1/transfers
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      amount: json?
+      bank_account_id: uuid?
+      created_at: timestamptz?
+      entity_id: uuid?
+      id: uuid?
+      payment_id: string?
+      status: string?
+      sync_status: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: users
+    path: /developer/v1/users
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      business_id: uuid?
+      custom_fields: json
+      department_id: uuid?
+      email: string?
+      employee_id: string?
+      entity_id: uuid?
+      first_name: string?
+      id: uuid?
+      is_manager: bool
+      last_name: string?
+      location_id: uuid?
+      manager_id: uuid?
+      phone: string?
+      role: string?
+      scheduled_deactivation_date: timestamptz?
+      scheduled_invitation_date: timestamptz?
+      status: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: vendors
+    path: /developer/v1/vendors
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_vendor_remote_id: string?
+      address: json?
+      addresses: json
+      billing_frequency: string?
+      contacts: json
+      country: string
+      created_at: timestamptz
+      default_entity_id: uuid?
+      default_payment_method: json?
+      description: string?
+      external_vendor_id: string?
+      federal_tax_classification: string?
+      id: uuid
+      is_active: bool
+      is_deletable: bool
+      merchant_id: uuid?
+      name: string
+      name_legal: string?
+      parent_vendor_id: uuid?
+      sk_category_id: int64?
+      sk_category_name: string?
+      state: string?
+      subsidiary: json?
+      tax_address: json?
+      total_spend_all_time: json
+      total_spend_last_30_days: json
+      total_spend_last_365_days: json
+      total_spend_ytd: json
+      vendor_owner_id: uuid?
+      vendor_type: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: vendors_accounts
+    path: /developer/v1/vendors/{vendor_id}/accounts
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      vendor_id: config.vendor_id
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      account_nickname: string?
+      account_number_last_four: string?
+      currency: string
+      id: uuid
+      is_default: bool?
+      payment_method: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: children
+    path: /developer/v1/vendors/{vendor_id}/children
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      vendor_id: config.vendor_id
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      accounting_vendor_remote_id: string?
+      address: json?
+      addresses: json
+      billing_frequency: string?
+      contacts: json
+      country: string
+      created_at: timestamptz
+      default_entity_id: uuid?
+      default_payment_method: json?
+      description: string?
+      external_vendor_id: string?
+      federal_tax_classification: string?
+      id: uuid
+      is_active: bool
+      is_deletable: bool
+      merchant_id: uuid?
+      name: string
+      name_legal: string?
+      parent_vendor_id: uuid?
+      sk_category_id: int64?
+      sk_category_name: string?
+      state: string?
+      subsidiary: json?
+      tax_address: json?
+      total_spend_all_time: json
+      total_spend_last_30_days: json
+      total_spend_last_365_days: json
+      total_spend_ytd: json
+      vendor_owner_id: uuid?
+      vendor_type: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: contacts
+    path: /developer/v1/vendors/{vendor_id}/contacts
+    # TODO: path params are mapped to config; consider parent/for_each wiring instead
+    params:
+      vendor_id: config.vendor_id
+    query:
+      page_size: "100"
+    primary_key: [id]
+    fields:
+      email: string
+      first_name: string?
+      id: uuid
+      is_default: bool
+      last_name: string?
+      phone: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: webhooks
+    path: /developer/v1/webhooks
+    primary_key: [id]
+    records: $
+    fields:
+      business_id: uuid?
+      created_at: timestamptz
+      endpoint_url: string
+      event_types: json
+      id: string
+      status: string
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    pagination: "none"
+discovery:
+  mode: static

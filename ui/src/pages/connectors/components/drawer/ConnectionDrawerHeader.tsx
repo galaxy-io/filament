@@ -14,9 +14,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
-import ConnectorTile, {
-  ConnectorTileSize,
-} from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 import { Flow } from "@/routes/__root";
@@ -42,11 +40,7 @@ const ConnectionDrawerHeader = ({
 
   return (
     <Wrapper padding="12px 16px">
-      <FlexWrapper
-        fillWidth
-        alignItems={AlignItems.CENTER}
-        gap={FlexGap.MEDIUM}
-      >
+      <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <FlexItem shrink={0}>
           <ConnectorTile
             connector={connection.connector}
@@ -54,12 +48,7 @@ const ConnectionDrawerHeader = ({
             size={ConnectorTileSize.LARGE}
           />
         </FlexItem>
-        <FlexWrapper
-          fillWidth
-          minWidth={0}
-          direction={FlexDirection.COLUMN}
-          gap={FlexGap.XSMALL}
-        >
+        <FlexWrapper fillWidth minWidth={0} direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
           <BaseHeader
             title={connection.name}
             description={connector?.displayName || connection.connector}

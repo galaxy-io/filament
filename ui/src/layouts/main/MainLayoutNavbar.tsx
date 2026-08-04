@@ -1,30 +1,18 @@
 import { styled } from "@linaria/react";
-import { BookOpenIcon, GithubLogoIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 
-import Button, {
-  ButtonSize,
-  ButtonVariant,
-} from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import FilamentLogo from "@/assets/components/FilamentLogo";
 
-import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
+import DocsButton from "@/components/DocsButton";
+import GithubButton from "@/components/GithubButton";
 
-import { DOCUMENTATION_URL, GITHUB_REPO_URL } from "@/constants";
-import ReadTheDocs from "@/components/ReadTheDocs";
+import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
 
 export const NAVBAR_HEIGHT = 52;
 
@@ -53,14 +41,11 @@ const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const NavTabWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $isActive?: boolean }>
->`
+const NavTabWrapper = withTheme(styled.div<PropsWithTheme<{ $isActive?: boolean }>>`
   padding-bottom: 8px;
 
   border-bottom: 2px solid
-    ${({ theme, $isActive }) =>
-      $isActive ? theme.color.text.primary : "transparent"};
+    ${({ theme, $isActive }) => ($isActive ? theme.color.text.primary : "transparent")};
 
   transition: border-color 100ms ease;
 `);
@@ -98,14 +83,6 @@ const MainLayoutNavTab = ({ item }: { item: NavItem }) => {
 };
 
 const MainLayoutNavbar = () => {
-  const handleDocs = () => {
-    window.open(DOCUMENTATION_URL, "_blank");
-  };
-
-  const handleStarRepository = () => {
-    window.open(GITHUB_REPO_URL, "_blank");
-  };
-
   return (
     <NavbarWrapper>
       <Link to={"/"}>
@@ -119,8 +96,9 @@ const MainLayoutNavbar = () => {
           <MainLayoutNavTab key={item.to} item={item} />
         ))}
       </NavTabsWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-        <ReadTheDocs path="/" />
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+        <DocsButton path="/" />
+        <GithubButton />
       </FlexWrapper>
     </NavbarWrapper>
   );
