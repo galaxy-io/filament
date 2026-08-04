@@ -1,0 +1,55 @@
+---
+title: "HubSpot"
+description: "Read contacts, companies, deals, tickets, organizations, and products from HubSpot CRM."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg"
+---
+
+HubSpot is a manifest-driven source — connectors/http/manifests/hubspot.yaml
+declares its resources, auth, and pagination against the shared grammar in
+connectors/http/manifest/; no HubSpot-specific Go code exists. See
+HTTP for how the manifest mechanism works.
+
+All six core CRM objects support incremental sync via the updated_at
+timestamp.
+
+## Auth
+
+A HubSpot API key (passed as a Bearer token in the Authorization header),
+obtained from HubSpot Settings > Keywords & tracking > API keys. The region
+config value (us or eu) does not affect the endpoint base URL (always
+https://api.hubapi.com), but is documented for completeness.
+
+## Resources
+
+Six core CRM resources, statically discovered:
+
+| Resource | Notes |
+|---|---|
+| contacts | Contact records with email, name, phone, timestamps |
+| companies | Company records with domain, industry, phone |
+| deals | Deal records with pipeline, stage, amount, close date |
+| tickets | Ticket records with priority, status, content |
+| organizations | Organization records with website, description |
+| products | Product records with price, category |
+
+All resources use offset pagination with a 100-record page limit.
+
+## Incremental sync
+
+All six resources declare incremental blocks using the updated_at
+(property lastmodifieddate) cursor field:
+
+incremental:
+  cursor_field: updated_at
+  start_param: createdAfter
+  inject_into: query
+  comparator: time
+  checkpoint_key: hubspot_<resource>_updated
+
+Each run fetches records newer than the last checkpoint, injecting the cursor as
+the createdAfter query parameter. Checkpoints are keyed per resource so
+different objects can be synced at different intervals.
+
+## Modes
+
+ModeFull and ModeIncremental (see HTTP).

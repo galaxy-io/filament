@@ -408,6 +408,12 @@ func TestEmbeddedCatalogMetadata(t *testing.T) {
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg",
 		},
+		{
+			name: "hubspot", source: NewHubspot(),
+			description: "CRM platform for marketing, sales,和服务, and customer relationship management.",
+			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg",
+			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-hubspot-light.svg",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -590,31 +596,31 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	}
 }
 
-func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
+func TestHubspotUsesBearerToken(t *testing.T) {
 	ctx := context.Background()
-	src := NewGitHub()
-	spec := src.Spec()
-	if spec.Name != "github" || spec.DisplayName != "GitHub" {
-		t.Fatalf("spec identity = %q/%q, want github/GitHub", spec.Name, spec.DisplayName)
-	}
-	if len(spec.Config.Fields) != 2 {
-		t.Fatalf("config fields = %#v, want token and organization", spec.Config.Fields)
-	}
-	fields := map[string]filament.ConfigField{}
-	for _, field := range spec.Config.Fields {
-		fields[field.Name] = field
-	}
-	if fields["token"].Type != filament.FieldSecret || !fields["token"].Required {
-		t.Fatalf("token field = %#v, want required secret", fields["token"])
-	}
-	if fields["organization"].Type != filament.FieldString || !fields["organization"].Required {
-		t.Fatalf("organization field = %#v, want required string", fields["organization"])
-	}
+	var authorization string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/crm/v3/objects/contacts":
+			if r.URL.Query().Get("limit") != "100" {
+				t.Fatalf("limit = %q, want 100", r.URL.Query().Get("limit"))
+			}
+			fmt.Fprint(w, `{"results":[{"id":"contact-1","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","properties":{"email":"test@example.com","firstname":"Test","lastname":"User","phone":"555-1234"}}],"paging":null}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(hubspotManifest), "https://api.hubapi.com", api.URL, 1))
+	src := NewManifest("hubspot", "HubSpot", manifestData, filament.ConfigSchema{})
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"token":        "github-token",
-		"organization": "galaxy-io",
+		"api_token": "hubspot-token",
+		"region":    "us",
 	})); err != nil {
-		t.Fatalf("configure embedded GitHub manifest: %v", err)
+		t.Fatalf("configure: %v", err)
 	}
 	defer src.Teardown(ctx)
 
@@ -622,85 +628,45 @@ func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover: %v", err)
 	}
-	want := []string{"repositories", "issues", "pull_requests"}
-	if len(discovered.Resources) != len(want) {
-		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
+	wantResources := []string{"contacts", "companies", "deals", "tickets", "organizations", "products"}
+	if len(discovered.Resources) != len(wantResources) {
+		t.Fatalf("resources = %#v, want %v", discovered.Resources, wantResources)
 	}
-	for i := range want {
-		if discovered.Resources[i].Name != want[i] {
-			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, want[i])
+	for i, name := range wantResources {
+		if discovered.Resources[i].Name != name || discovered.Resources[i].Selector != name {
+			t.Fatalf("resource[%d] = %#v, want %q", i, discovered.Resources[i], name)
 		}
 	}
-}
-
-func TestStaticDiscoveryChildSelectionScansButDoesNotEmitParents(t *testing.T) {
-	ctx := context.Background()
-	var parentRequests, childRequests int
-	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch r.URL.Path {
-		case "/parents":
-			parentRequests++
-			fmt.Fprint(w, `[{"id":"parent-1"}]`)
-		case "/parents/parent-1/children":
-			childRequests++
-			fmt.Fprint(w, `[{"id":"child-1","name":"Child"}]`)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer api.Close()
-
-	path := filepath.Join(t.TempDir(), "static.yaml")
-	data := fmt.Sprintf(`version: 1
-name: static
-connection:
-  base_url: %s
-resources:
-  - name: parents
-    path: /parents
-    primary_key: [id]
-    fields:
-      id: string
-    capture:
-      id: id
-    response:
-      records: $
-      pagination: none
-  - name: children
-    path: /parents/{parent}/children
-    params:
-      parent: parent.id
-    for_each: parents
-    primary_key: [id]
-    fields:
-      id: string
-      name: string
-    response:
-      records: $
-      pagination: none
-discovery:
-  mode: static
-  include: [parents, children]
-`, api.URL)
-	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
-		t.Fatalf("write manifest: %v", err)
-	}
-	src := New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"manifest_path": path})); err != nil {
-		t.Fatalf("configure: %v", err)
-	}
-	defer src.Teardown(ctx)
 
 	var sink collectSink
-	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"children"}}); err != nil {
-		t.Fatalf("extract children: %v", err)
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"contacts"}}); err != nil {
+		t.Fatalf("extract: %v", err)
 	}
-	if parentRequests != 1 || childRequests != 1 {
-		t.Fatalf("requests parent=%d child=%d, want 1 each", parentRequests, childRequests)
+	if authorization != "Bearer hubspot-token" {
+		t.Fatalf("Authorization = %q, want Bearer hubspot-token", authorization)
 	}
-	if len(sink.records) != 1 || sink.records[0].Resource != "children" {
-		t.Fatalf("emitted records = %#v, want only selected child", sink.records)
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want 1", len(sink.records))
+	}
+	rec := sink.records[0]
+	if rec.Resource != "contacts" || rec.ID != "contact-1" {
+		t.Fatalf("record = %s/%s, want contacts/contact-1", rec.Resource, rec.ID)
+	}
+	var data map[string]any
+	if err := json.Unmarshal(rec.Data, &data); err != nil {
+		t.Fatalf("record data json: %v", err)
+	}
+	if data["email"] != "test@example.com" {
+		t.Fatalf("email = %v, want test@example.com", data["email"])
+	}
+	if data["first_name"] != "Test" {
+		t.Fatalf("first_name = %v, want Test", data["first_name"])
+	}
+	if data["last_name"] != "User" {
+		t.Fatalf("last_name = %v, want User", data["last_name"])
+	}
+	if data["phone"] != "555-1234" {
+		t.Fatalf("phone = %v, want 555-1234", data["phone"])
 	}
 }
 

@@ -1,0 +1,170 @@
+version: 1
+name: hubspot
+config:
+  api_token:
+    type: secret
+    required: true
+    help: HubSpot API key from Settings > Keywords & tracking > API keys
+  region:
+    type: enum
+    enum: [us, eu]
+    default: us
+    help: Account region (us or eu)
+defaults:
+  method: GET
+  response:
+    records: $.results
+    pagination:
+      offset:
+        offset: body.offset
+        limit: body.limit
+        page_size: 100
+connection:
+  base_url: https://api.hubapi.com
+  auth:
+    header:
+      name: Authorization
+      value: Bearer {{ config.api_token }}
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+resources:
+  - name: contacts
+    path: /crm/v3/objects/contacts
+    query:
+      properties: "email,firstname,lastname,phone,createdate,lastmodifieddate"
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      email: string?
+      first_name: string?
+      last_name: string?
+      phone: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: createdAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: hubspot_contacts_updated
+
+  - name: companies
+    path: /crm/v3/objects/companies
+    query:
+      properties: "name,domain,phone,address,industry,createdate,lastmodifieddate"
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      name: string
+      domain: string?
+      phone: string?
+      address: string?
+      industry: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: createdAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: hubspot_companies_updated
+
+  - name: deals
+    path: /crm/v3/objects/deals
+    query:
+      properties: "pipelinename,dealname,amount,closedate,stage,createdate,lastmodifieddate"
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      pipeline: string?
+      deal_name: string?
+      amount: decimal?
+      close_date: timestamptz?
+      stage: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: createdAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: hubspot_deals_updated
+
+  - name: tickets
+    path: /crm/v3/objects/tickets
+    query:
+      properties: "content,subject,priority,ticket_status,pipeline,createdate,lastmodifieddate"
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      content: string?
+      subject: string?
+      priority: string?
+      status: string?
+      pipeline: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: createdAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: hubspot_tickets_updated
+
+  - name: organizations
+    path: /crm/v3/objects/organizations
+    query:
+      properties: "name,domain,phone,website,description,createdate,lastmodifieddate"
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      name: string
+      domain: string?
+      phone: string?
+      website: string?
+      description: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: createdAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: hubspot_organizations_updated
+
+  - name: products
+    path: /crm/v3/objects/products
+    query:
+      properties: "name,description,price,product_id,hubspot_definitions_category,createdate,lastmodifieddate"
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      name: string
+      description: string?
+      price: decimal?
+      product_id: string?
+      category: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: createdAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: hubspot_products_updated
+
+discovery:
+  mode: static
