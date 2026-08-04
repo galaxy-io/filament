@@ -86,3 +86,19 @@ func TestMergeShardDelta(t *testing.T) {
 		t.Fatalf("merge onto nil base = %v, want nil", got)
 	}
 }
+
+func TestMergeIncrementalDelta(t *testing.T) {
+	base := KeysetCheckpoint{
+		Mode: ModeIncremental, Cols: []string{"updated_at", "id"},
+		Types: []string{"timestamptz", "bigint"}, Shards: []KeysetShard{{}},
+	}.ToCheckpoint("users")
+	merged := MergeShardDelta(base, NewShardDelta("users", 0, []string{"2026-08-04T12:00:00Z", "42"}))
+	got, ok := ParseKeyset(merged)
+	if !ok || got.Mode != ModeIncremental {
+		t.Fatalf("incremental checkpoint = %#v", merged)
+	}
+	want := []string{"2026-08-04T12:00:00Z", "42"}
+	if !reflect.DeepEqual(got.Shards[0].Key, want) {
+		t.Fatalf("watermark = %v, want %v", got.Shards[0].Key, want)
+	}
+}

@@ -22,6 +22,9 @@ const (
 	ModeKeyset = "keyset"
 	ModeBitmap = "bitmap"
 	ModeCtid   = "ctid"
+	// ModeIncremental is an ordered source watermark followed by a complete
+	// primary-key tie-breaker. It is durable across scheduled runs.
+	ModeIncremental = "incremental"
 	// ModeStream is a change-stream position cursor: a single monotonic location in
 	// the source's replication log (Postgres WAL LSN, MySQL binlog file:pos) plus a
 	// per-run sequence guard. Unlike the shard-based cursors above it has no layout;
@@ -89,7 +92,7 @@ func ParseKeyset(cp filament.Checkpoint) (KeysetCheckpoint, bool) {
 	}
 	raw := cp.Raw()
 	mode, _ := raw["mode"].(string)
-	if mode != ModeKeyset && mode != ModeBitmap && mode != ModeCtid {
+	if mode != ModeKeyset && mode != ModeBitmap && mode != ModeCtid && mode != ModeIncremental {
 		return KeysetCheckpoint{}, false
 	}
 	out := KeysetCheckpoint{Mode: mode, Cols: anyToStrs(raw["cols"]), Types: anyToStrs(raw["types"]), Meta: anyToStrMap(raw["meta"])}

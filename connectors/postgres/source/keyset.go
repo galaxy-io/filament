@@ -166,6 +166,9 @@ func dedupeOrdered(vals []string) []string {
 // shards (concurrently, under one exported snapshot, like Extract); a resource with no
 // keyset plan (no primary key) falls back to the ctid reader and is read whole.
 func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
+	if opts.Mode == filament.ModeIncremental {
+		return s.extractIncremental(ctx, sink, opts, prev)
+	}
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		ks, ok := checkpoint.ParseKeyset(prev[table])
