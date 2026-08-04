@@ -191,12 +191,6 @@ func toGranularity(g metricsv1.MetricGranularity) (filament.MetricsGranularity, 
 	}
 }
 
-// tenantFromRequest resolves the calling tenant. MetricsService has no
-// tenant_id request field yet (unlike ListRunsRequest); DIMENSION_TENANT_ID
-// filters/group_by still work against whatever the store scopes queries to.
-// TODO: thread a real tenant once auth/session context exists.
-func tenantFromRequest() filament.TenantID { return "" }
-
 // QueryAggregate returns one row per group_by value (a single "" key when
 // group_by is unset) over [since_ms, until_ms).
 func (s *Server) QueryAggregate(ctx context.Context, req *connect.Request[metricsv1.QueryAggregateRequest]) (*connect.Response[metricsv1.QueryAggregateResponse], error) {
@@ -212,7 +206,7 @@ func (s *Server) QueryAggregate(ctx context.Context, req *connect.Request[metric
 	groupBy := toDimension(m.GetGroupBy())
 
 	rows, err := s.store.QueryRunAggregate(ctx, filament.RunAggregateQuery{
-		Tenant:  tenantFromRequest(),
+		Tenant:  filament.TenantID(m.GetTenantId()),
 		Metrics: metrics,
 		Since:   time.UnixMilli(m.GetSinceMs()),
 		Until:   time.UnixMilli(m.GetUntilMs()),
@@ -254,7 +248,7 @@ func (s *Server) QueryTimeseries(ctx context.Context, req *connect.Request[metri
 	groupBy := toDimension(m.GetGroupBy())
 
 	series, err := s.store.QueryRunTimeseries(ctx, filament.RunTimeseriesQuery{
-		Tenant:          tenantFromRequest(),
+		Tenant:          filament.TenantID(m.GetTenantId()),
 		Metrics:         metrics,
 		Since:           time.UnixMilli(m.GetSinceMs()),
 		Until:           time.UnixMilli(m.GetUntilMs()),

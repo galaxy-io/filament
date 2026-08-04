@@ -238,17 +238,20 @@ func (x *MetricFilter) GetValues() []string {
 
 type QueryTimeseriesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// tenant_id scopes the query; "" matches every tenant. Mirrors
+	// ListRunsRequest.tenant_id (ingestion.v1).
+	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	// metrics are computed together per bucket; point values align with this
 	// order positionally.
-	Metrics     []Metric          `protobuf:"varint,1,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
-	SinceMs     int64             `protobuf:"varint,2,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"` // inclusive
-	UntilMs     int64             `protobuf:"varint,3,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"` // exclusive
-	Granularity MetricGranularity `protobuf:"varint,4,opt,name=granularity,proto3,enum=metrics.v1.MetricGranularity" json:"granularity,omitempty"`
+	Metrics     []Metric          `protobuf:"varint,2,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
+	SinceMs     int64             `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"` // inclusive
+	UntilMs     int64             `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"` // exclusive
+	Granularity MetricGranularity `protobuf:"varint,5,opt,name=granularity,proto3,enum=metrics.v1.MetricGranularity" json:"granularity,omitempty"`
 	// tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
 	// match the viewer's local calendar day.
-	TzOffsetMinutes int32           `protobuf:"varint,5,opt,name=tz_offset_minutes,json=tzOffsetMinutes,proto3" json:"tz_offset_minutes,omitempty"`
-	GroupBy         MetricDimension `protobuf:"varint,6,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.MetricDimension" json:"group_by,omitempty"` // UNSPECIFIED = one total series, key ""
-	Filters         []*MetricFilter `protobuf:"bytes,7,rep,name=filters,proto3" json:"filters,omitempty"`
+	TzOffsetMinutes int32           `protobuf:"varint,6,opt,name=tz_offset_minutes,json=tzOffsetMinutes,proto3" json:"tz_offset_minutes,omitempty"`
+	GroupBy         MetricDimension `protobuf:"varint,7,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.MetricDimension" json:"group_by,omitempty"` // UNSPECIFIED = one total series, key ""
+	Filters         []*MetricFilter `protobuf:"bytes,8,rep,name=filters,proto3" json:"filters,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -281,6 +284,13 @@ func (x *QueryTimeseriesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use QueryTimeseriesRequest.ProtoReflect.Descriptor instead.
 func (*QueryTimeseriesRequest) Descriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *QueryTimeseriesRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *QueryTimeseriesRequest) GetMetrics() []Metric {
@@ -487,12 +497,15 @@ func (x *QueryTimeseriesResponse) GetSeries() []*Timeseries {
 }
 
 type QueryAggregateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metrics       []Metric               `protobuf:"varint,1,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
-	SinceMs       int64                  `protobuf:"varint,2,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
-	UntilMs       int64                  `protobuf:"varint,3,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
-	GroupBy       MetricDimension        `protobuf:"varint,4,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.MetricDimension" json:"group_by,omitempty"` // UNSPECIFIED = single total row, key ""
-	Filters       []*MetricFilter        `protobuf:"bytes,5,rep,name=filters,proto3" json:"filters,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// tenant_id scopes the query; "" matches every tenant. Mirrors
+	// ListRunsRequest.tenant_id (ingestion.v1).
+	TenantId      string          `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Metrics       []Metric        `protobuf:"varint,2,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
+	SinceMs       int64           `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
+	UntilMs       int64           `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
+	GroupBy       MetricDimension `protobuf:"varint,5,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.MetricDimension" json:"group_by,omitempty"` // UNSPECIFIED = single total row, key ""
+	Filters       []*MetricFilter `protobuf:"bytes,6,rep,name=filters,proto3" json:"filters,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -525,6 +538,13 @@ func (x *QueryAggregateRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use QueryAggregateRequest.ProtoReflect.Descriptor instead.
 func (*QueryAggregateRequest) Descriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *QueryAggregateRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *QueryAggregateRequest) GetMetrics() []Metric {
@@ -667,15 +687,16 @@ const file_metrics_v1_metrics_proto_rawDesc = "" +
 	"metrics.v1\"a\n" +
 	"\fMetricFilter\x129\n" +
 	"\tdimension\x18\x01 \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\tdimension\x12\x16\n" +
-	"\x06values\x18\x02 \x03(\tR\x06values\"\xd5\x02\n" +
-	"\x16QueryTimeseriesRequest\x12,\n" +
-	"\ametrics\x18\x01 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
-	"\bsince_ms\x18\x02 \x01(\x03R\asinceMs\x12\x19\n" +
-	"\buntil_ms\x18\x03 \x01(\x03R\auntilMs\x12?\n" +
-	"\vgranularity\x18\x04 \x01(\x0e2\x1d.metrics.v1.MetricGranularityR\vgranularity\x12*\n" +
-	"\x11tz_offset_minutes\x18\x05 \x01(\x05R\x0ftzOffsetMinutes\x126\n" +
-	"\bgroup_by\x18\x06 \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\agroupBy\x122\n" +
-	"\afilters\x18\a \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"Q\n" +
+	"\x06values\x18\x02 \x03(\tR\x06values\"\xf2\x02\n" +
+	"\x16QueryTimeseriesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12,\n" +
+	"\ametrics\x18\x02 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
+	"\bsince_ms\x18\x03 \x01(\x03R\asinceMs\x12\x19\n" +
+	"\buntil_ms\x18\x04 \x01(\x03R\auntilMs\x12?\n" +
+	"\vgranularity\x18\x05 \x01(\x0e2\x1d.metrics.v1.MetricGranularityR\vgranularity\x12*\n" +
+	"\x11tz_offset_minutes\x18\x06 \x01(\x05R\x0ftzOffsetMinutes\x126\n" +
+	"\bgroup_by\x18\a \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\agroupBy\x122\n" +
+	"\afilters\x18\b \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"Q\n" +
 	"\x0fTimeseriesPoint\x12&\n" +
 	"\x0fbucket_start_ms\x18\x01 \x01(\x03R\rbucketStartMs\x12\x16\n" +
 	"\x06values\x18\x02 \x03(\x01R\x06values\"S\n" +
@@ -684,13 +705,14 @@ const file_metrics_v1_metrics_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
 	"\x06points\x18\x02 \x03(\v2\x1b.metrics.v1.TimeseriesPointR\x06points\"I\n" +
 	"\x17QueryTimeseriesResponse\x12.\n" +
-	"\x06series\x18\x01 \x03(\v2\x16.metrics.v1.TimeseriesR\x06series\"\xe7\x01\n" +
-	"\x15QueryAggregateRequest\x12,\n" +
-	"\ametrics\x18\x01 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
-	"\bsince_ms\x18\x02 \x01(\x03R\asinceMs\x12\x19\n" +
-	"\buntil_ms\x18\x03 \x01(\x03R\auntilMs\x126\n" +
-	"\bgroup_by\x18\x04 \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\agroupBy\x122\n" +
-	"\afilters\x18\x05 \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"8\n" +
+	"\x06series\x18\x01 \x03(\v2\x16.metrics.v1.TimeseriesR\x06series\"\x84\x02\n" +
+	"\x15QueryAggregateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12,\n" +
+	"\ametrics\x18\x02 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
+	"\bsince_ms\x18\x03 \x01(\x03R\asinceMs\x12\x19\n" +
+	"\buntil_ms\x18\x04 \x01(\x03R\auntilMs\x126\n" +
+	"\bgroup_by\x18\x05 \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\agroupBy\x122\n" +
+	"\afilters\x18\x06 \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"8\n" +
 	"\fAggregateRow\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
 	"\x06values\x18\x02 \x03(\x01R\x06values\"F\n" +
