@@ -1,0 +1,77 @@
+---
+title: "Granola"
+description: "Read meeting notes, transcripts, and folders from Granola AI notepad."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-granola-dark.svg"
+---
+
+Granola is a manifest-driven source — `connectors/http/manifests/granola.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Granola-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A Granola API key (bearer auth with `grn_` prefix). API keys support two access
+scopes:
+
+| Scope | Access |
+|---|---|
+| `personal` | Notes you own, notes directly shared with you, notes in private folders shared with you |
+| `public` | Notes visible to everyone in the workspace, notes in the Team space |
+
+Workspace admins on Business/Enterprise plans can also create workspace API keys
+that access public workspace notes plus notes in spaces granted Granola API
+access.
+
+## Resources
+
+Five resources, statically discovered:
+
+| Resource | Path | Description |
+|---|---|---|
+| `notes` | `/v1/notes` | List of meeting notes with updated_at cursor for incremental sync |
+| `note_detail` | `/v1/notes/{note_id}` | Full note details with transcript, attendees, folder membership |
+| `folders` | `/v1/folders` | Folder hierarchy (top-level and parent_folder_id hierarchy) |
+| `webhook_endpoints` | `/v1/webhook-endpoints` | List your registered webhook endpoints |
+| `audit_events` | `/v1/audit` | Audit events for workspace activity |
+
+### Incremental sync
+
+The `notes` resource supports incremental extraction via `updated_at` (datetime
+comparator). Each run fetches notes updated since the last checkpoint, making it
+efficient for repeated syncs.
+
+### Note detail extraction
+
+`note_detail` fans out from `notes`, fetching the complete note including
+transcript (with speaker diarization) when `include=transcript` is passed. This
+is useful for extracting meeting transcription for downstream AI processing.
+
+### Webhook management
+
+Granola's webhook endpoints (available on Business/Enterprise plans) can be
+listed, created, and deleted through the connector:
+
+| Resource | Path | Description |
+|---|---|---|
+| `create_webhook_endpoint` | `/v1/webhook-endpoints` | Register a webhook endpoint (returns signing secret) |
+| `delete_webhook_endpoint` | `/v1/webhook-endpoints/{id}` | Remove a webhook endpoint by ID |
+
+Webhook deliveries are signed with HMAC-SHA256 (Standard Webhooks format), and
+the signing secret is returned on creation. Store it securely — it cannot be
+retrieved later.
+
+## Events
+
+When webhook endpoints are configured, Granola delivers events for note changes:
+
+| Event | Triggered when |
+|---|---|
+| `note.generated` | First AI summary generated for a note |
+| `note.regenerated` | AI summary regenerated |
+| `note.edited` | Note summary edited |
+| `note.access_granted` | Note shared with you |
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
