@@ -1,0 +1,190 @@
+version: 1
+name: gitlab
+config:
+  token:
+    type: secret
+    required: true
+    help: GitLab personal access token
+  hostname:
+    type: string
+    required: false
+    default: gitlab.com
+    help: GitLab hostname (for self-hosted instances)
+defaults:
+  method: GET
+  query:
+    per_page: "100"
+connection:
+  base_url: https://{{ config.hostname }}/api/v4
+  auth:
+    bearer: config.token
+  headers:
+    Accept: application/json
+resources:
+  - name: projects
+    path: /projects
+    query:
+      with_issues_enabled: "true"
+      with_merge_requests_enabled: "true"
+    response:
+      records: $
+      pagination:
+        page:
+          number: page
+          size: per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      path: string
+      path_with_namespace: string
+      description: string?
+      visibility: string
+      http_url: string
+      web_url: string
+      fork: bool
+      open_issues_count: int64?
+      creator_id: int64?
+      archived: bool
+      allow_forking: bool
+      web_runner_enabled: bool
+      web_runner_max_timeout: int64?
+      web_runner_max_size: int64?
+      packages_enabled: bool
+      snippets_enabled: bool
+      request_access_enabled: bool
+      group_is_shared: bool
+      shared_with_groups: json?
+      shared_projects: json?
+      namespace: json?
+      avatar_url: string?
+      license: string?
+      lfs_enabled: bool
+      builds_enabled: bool
+      artifacts_enabled: bool
+      services_enabled: bool
+      videos_enabled: bool
+      warnings: json?
+      security: json?
+      custom_attributes: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      project_id: id
+      project_path: path
+  - name: issues
+    path: /projects/{{ project_id }}/issues
+    params:
+      project_id: parent.project_id
+    response:
+      records: $
+      pagination:
+        page:
+          number: page
+          size: per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string
+      description: string?
+      state: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      closed_at: timestamptz?
+      closed_by: json?
+      author: json?
+      assignees: json?
+      assignee: json?
+      labels: json?
+      milestone: json?
+      reference: string
+      web_url: string
+      url: string?
+      project_id: int64
+      project: json?
+      due_date: timestamptz?
+      start_date: timestamptz?
+      position: int64?
+      weight: int64?
+      confidential: bool
+      task_count: int64?
+      has_tasks: bool
+      lock_version: int64?
+      work_in_progress: bool
+      priority: int64?
+      severity: string?
+      chat_message_count: int64?
+      summary: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      project_path: parent.project_path
+      issue_id: id
+    for_each: projects
+  - name: merge_requests
+    path: /projects/{{ project_id }}/merge_requests
+    params:
+      project_id: parent.project_id
+    response:
+      records: $
+      pagination:
+        page:
+          number: page
+          size: per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+    query:
+      state: "opened"
+    primary_key: [id]
+    fields:
+      id: int64
+      iid: int64
+      project_id: int64
+      title: string
+      description: string?
+      state: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      merged_by: json?
+      merged_at: timestamptz?
+      closed_by: json?
+      closed_at: timestamptz?
+      author: json?
+      assignees: json?
+      assignee: json?
+      reviewers: json?
+      source_branch: string
+      target_branch: string
+      merge_commit_sha: string?
+      merge_status: string
+      web_url: string
+      url: string?
+      work_in_progress: bool
+      draft: bool?
+      task_completion_count: int64?
+      added_lines: int64?
+      removed_lines: int64?
+      total_diffs: json?
+      changes_count: int64?
+      latest_diff_refs: json?
+      diff_refs: json?
+      labels: json?
+      milestone: json?
+      user_notes_count: int64?
+      has_conflicts: bool?
+      blocking_discussions_resolved: bool?
+      should_dismiss_reviews: bool?
+      approvals_before_merge: int64?
+      reference: string
+      task_completion: json?
+      time_stats: json?
+      subscriptions: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      project_path: parent.project_path
+      merge_request_iid: iid
+    for_each: projects
+discovery:
+  mode: static

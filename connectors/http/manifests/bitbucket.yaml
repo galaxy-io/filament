@@ -1,0 +1,99 @@
+version: 1
+name: bitbucket
+config:
+  token:
+    type: secret
+    required: true
+    help: Bitbucket API token
+  username:
+    type: string
+    required: true
+    help: Bitbucket username (email for API token auth)
+defaults:
+  method: GET
+  query:
+    pagelen: "100"
+  response:
+    records: $
+    pagination:
+      offset:
+        offset: query.page
+        limit: query.pagelen
+        page_size: 100
+        total_pages: pagination.pages
+connection:
+  base_url: https://api.bitbucket.org/2.0
+  auth:
+    basic:
+      username: config.username
+      password: config.token
+  headers:
+    Accept: application/json
+resources:
+  - name: workspaces
+    path: /workspaces
+    primary_key: [uuid]
+    fields:
+      uuid: string
+      type: string
+      slug: string
+      name: string
+      is_private: bool
+      created_on: timestamptz
+      updated_on: timestamptz
+      is_privacy_enforced: bool
+      forking_mode: string
+      links: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      workspace_slug: slug
+  - name: repositories
+    path: /repositories/{{ workspace_slug }}
+    params:
+      workspace_slug: parent.workspace_slug
+    primary_key: [uuid]
+    fields:
+      uuid: string
+      type: string
+      slug: string
+      name: string
+      description: string?
+      scm: string
+      is_private: bool
+      project: json?
+      owner: json?
+      link: json?
+      has_issues: bool
+      has_wiki: bool
+      fork_policy: string
+      website: string?
+      created_on: timestamptz
+      updated_on: timestamptz
+      size: int64?
+      language: string?
+      mainbranch: json?
+      links: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      repository_slug: slug
+    for_each: workspaces
+  - name: users
+    path: /workspaces/{{ workspace_slug }}/members
+    params:
+      workspace_slug: parent.workspace_slug
+    primary_key: [uuid]
+    fields:
+      uuid: string
+      type: string
+      display_name: string
+      account_id: string?
+      nickname: string?
+      created_on: timestamptz
+      avatar: json?
+      accounts: json?
+      links: json?
+      raw: { path: $, type: json, mode: remainder }
+    for_each: workspaces
+discovery:
+  mode: static
+  include: [workspaces, repositories, users]
