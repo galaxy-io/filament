@@ -131,9 +131,13 @@ type ConnectorSpec struct {
 	LightLogoUrl string                 `protobuf:"bytes,10,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
 	// Pipeline-scoped config field holding the sink's destination schema, when
 	// the sink has one. The server defaults it from the source connection name.
-	SchemaField   string `protobuf:"bytes,11,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SchemaField string `protobuf:"bytes,11,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
+	// Ingestion types this connector can serve on its side of a pipeline,
+	// derived server-side from its declared policies and capabilities. A pair
+	// supports the intersection of the source's and sink's lists.
+	SupportedIngestionTypes []IngestionType `protobuf:"varint,12,rep,packed,name=supported_ingestion_types,json=supportedIngestionTypes,proto3,enum=ingestion.v1.IngestionType" json:"supported_ingestion_types,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ConnectorSpec) Reset() {
@@ -241,6 +245,13 @@ func (x *ConnectorSpec) GetSchemaField() string {
 		return x.SchemaField
 	}
 	return ""
+}
+
+func (x *ConnectorSpec) GetSupportedIngestionTypes() []IngestionType {
+	if x != nil {
+		return x.SupportedIngestionTypes
+	}
+	return nil
 }
 
 type ListConnectorsRequest struct {
@@ -737,7 +748,7 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"upsertable\x12 \n" +
 	"\vschematized\x18\x05 \x01(\bR\vschematized\x12J\n" +
 	"\x0ewrite_policies\x18\x06 \x03(\v2#.ingestion.v1.WritePolicyCapabilityR\rwritePolicies\x12C\n" +
-	"\x0fsource_policies\x18\a \x03(\v2\x1a.ingestion.v1.SourcePolicyR\x0esourcePolicies\"\xd6\x03\n" +
+	"\x0fsource_policies\x18\a \x03(\v2\x1a.ingestion.v1.SourcePolicyR\x0esourcePolicies\"\xaf\x04\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -750,7 +761,8 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\rdark_logo_url\x18\t \x01(\tR\vdarkLogoUrl\x12$\n" +
 	"\x0elight_logo_url\x18\n" +
 	" \x01(\tR\flightLogoUrl\x12!\n" +
-	"\fschema_field\x18\v \x01(\tR\vschemaField\"H\n" +
+	"\fschema_field\x18\v \x01(\tR\vschemaField\x12W\n" +
+	"\x19supported_ingestion_types\x18\f \x03(\x0e2\x1b.ingestion.v1.IngestionTypeR\x17supportedIngestionTypes\"H\n" +
 	"\x15ListConnectorsRequest\x12/\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"U\n" +
 	"\x16ListConnectorsResponse\x12;\n" +
@@ -822,7 +834,8 @@ var file_ingestion_v1_providers_proto_goTypes = []any{
 	(ConnectorKind)(0),                // 13: ingestion.v1.ConnectorKind
 	(ReplicationMode)(0),              // 14: ingestion.v1.ReplicationMode
 	(*ConfigSchema)(nil),              // 15: ingestion.v1.ConfigSchema
-	(*structpb.Struct)(nil),           // 16: google.protobuf.Struct
+	(IngestionType)(0),                // 16: ingestion.v1.IngestionType
+	(*structpb.Struct)(nil),           // 17: google.protobuf.Struct
 }
 var file_ingestion_v1_providers_proto_depIdxs = []int32{
 	11, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
@@ -831,19 +844,20 @@ var file_ingestion_v1_providers_proto_depIdxs = []int32{
 	14, // 3: ingestion.v1.ConnectorSpec.modes:type_name -> ingestion.v1.ReplicationMode
 	15, // 4: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
 	0,  // 5: ingestion.v1.ConnectorSpec.capabilities:type_name -> ingestion.v1.Capabilities
-	13, // 6: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	1,  // 7: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
-	13, // 8: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	16, // 9: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
-	5,  // 10: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
-	16, // 11: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
-	10, // 12: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
-	8,  // 13: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	16, // 6: ingestion.v1.ConnectorSpec.supported_ingestion_types:type_name -> ingestion.v1.IngestionType
+	13, // 7: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	1,  // 8: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
+	13, // 9: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	17, // 10: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
+	5,  // 11: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
+	17, // 12: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
+	10, // 13: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
+	8,  // 14: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_providers_proto_init() }

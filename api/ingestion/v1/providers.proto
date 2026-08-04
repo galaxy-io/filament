@@ -32,6 +32,10 @@ message ConnectorSpec {
   // Pipeline-scoped config field holding the sink's destination schema, when
   // the sink has one. The server defaults it from the source connection name.
   string schema_field = 11;
+  // Ingestion types this connector can serve on its side of a pipeline,
+  // derived server-side from its declared policies and capabilities. A pair
+  // supports the intersection of the source's and sink's lists.
+  repeated IngestionType supported_ingestion_types = 12;
 }
 
 message ListConnectorsRequest {

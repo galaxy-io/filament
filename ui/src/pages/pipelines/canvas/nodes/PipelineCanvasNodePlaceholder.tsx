@@ -2,7 +2,7 @@ import { memo } from "react";
 
 import { styled } from "@linaria/react";
 
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -10,7 +10,6 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import { createNodeFromConnection } from "@/pages/pipelines/canvas/graph/rules";
 import {
-  CONNECTOR_KIND_TO_PLACEHOLDER_DESCRIPTION_MAP,
   CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP,
   PIPELINE_CANVAS_NODE_BORDER_RADIUS,
   PIPELINE_CANVAS_NODE_GAP,

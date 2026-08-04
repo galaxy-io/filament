@@ -8,11 +8,12 @@ import {
 
 import { IngestionType } from "@/gen/ingestion/v1/common_pb";
 
-import PipelineCanvasEdgeModeLabel from "@/pages/pipelines/canvas/edges/PipelineCanvasEdgeModeLabel";
+import PipelineCanvasEdgeIngestionTypeLabel from "@/pages/pipelines/canvas/edges/PipelineCanvasEdgeIngestionTypeLabel";
 import { PIPELINE_CANVAS_NODE_PADDING } from "@/pages/pipelines/canvas/nodes/constants";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
 
 const PipelineCanvasEdge = ({
   id,
@@ -62,7 +63,7 @@ const PipelineCanvasEdge = ({
     <>
       <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />
       <EdgeLabelRenderer>
-        <PipelineCanvasEdgeModeLabel
+        <PipelineCanvasEdgeIngestionTypeLabel
           edgeId={id}
           sourceNodeId={source}
           targetNodeId={target}

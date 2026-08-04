@@ -7,7 +7,7 @@ import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -29,6 +29,7 @@ import {
 } from "@/pages/pipelines/canvas/nodes/constants";
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
+import PipelineCanvasActionButton from "@/pages/pipelines/canvas/PipelineCanvasActionButton";
 
 const NodeContainer = withTheme(styled.div<
   PropsWithTheme<{ $isSelected?: boolean; $width: number }>
@@ -42,27 +43,6 @@ const NodeContainer = withTheme(styled.div<
   &:hover ${PipelineCanvasNodeIsland} {
     border-color: ${({ theme, $isSelected }) =>
       $isSelected ? theme.color.background.galaxyAlt : theme.color.border.tertiary};
-  }
-`);
-
-const ActionButton = withTheme(styled.button<PropsWithTheme>`
-  width: 20px;
-  height: 20px;
-  padding: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  transition: background-color 100ms ease;
-
-  &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
   }
 `);
 
@@ -125,19 +105,19 @@ const PipelineCanvasNode = ({
         />
         <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
           {onConfigure && hasPipelineFields && (
-            <ActionButton className="nodrag" onClick={onConfigure}>
+            <PipelineCanvasActionButton className="nodrag" onClick={onConfigure}>
               <Icon component={GearSixIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
+            </PipelineCanvasActionButton>
           )}
           {onRefresh && (
-            <ActionButton className="nodrag" onClick={handleRefresh}>
+            <PipelineCanvasActionButton className="nodrag" onClick={handleRefresh}>
               <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
+            </PipelineCanvasActionButton>
           )}
           {onDelete && (
-            <ActionButton className="nodrag" onClick={handleDelete}>
+            <PipelineCanvasActionButton className="nodrag" onClick={handleDelete}>
               <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
+            </PipelineCanvasActionButton>
           )}
         </FlexWrapper>
       </FlexWrapper>

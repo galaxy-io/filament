@@ -21,6 +21,9 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
+		SupportedIngestionTypes: ingestionTypesToProto(
+			filament.SupportedSourceIngestionTypes(spec),
+		),
 		Capabilities: &ingestionv1.Capabilities{
 			Discoverable:      spec.Resources.Discoverable,
 			PerResourceCursor: spec.Resources.PerResourceCursor,
@@ -40,6 +43,9 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		ConfigSchema: configSchemaToProto(spec.Config),
 		SchemaField:  spec.SchemaField,
+		SupportedIngestionTypes: ingestionTypesToProto(
+			filament.SupportedSinkIngestionTypes(spec),
+		),
 		Capabilities: &ingestionv1.Capabilities{
 			Transactional: spec.Capabilities.Transactional,
 			Upsertable:    spec.Capabilities.Upsertable,
@@ -138,6 +144,31 @@ func modeToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
 	default:
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED
+	}
+}
+
+func ingestionTypesToProto(types []filament.IngestionType) []ingestionv1.IngestionType {
+	out := make([]ingestionv1.IngestionType, 0, len(types))
+	for _, t := range types {
+		out = append(out, ingestionTypeToProto(t))
+	}
+	return out
+}
+
+func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
+	switch t {
+	case filament.IngestionSnapshotUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT
+	case filament.IngestionAppend:
+		return ingestionv1.IngestionType_INGESTION_TYPE_APPEND
+	case filament.IngestionUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_UPSERT
+	case filament.IngestionDelete:
+		return ingestionv1.IngestionType_INGESTION_TYPE_DELETE
+	case filament.IngestionCDC:
+		return ingestionv1.IngestionType_INGESTION_TYPE_CDC
+	default:
+		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_REPLACE
 	}
 }
 

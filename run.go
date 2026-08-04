@@ -2,6 +2,7 @@ package filament
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -339,6 +340,93 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	}
 
 	return WritePolicy{Capability: capability, Checkpoint: checkpoint}
+}
+
+// IngestionTypes lists every defined ingestion type in canonical order.
+var IngestionTypes = []IngestionType{
+	IngestionSnapshotReplace,
+	IngestionSnapshotUpsert,
+	IngestionAppend,
+	IngestionUpsert,
+	IngestionDelete,
+	IngestionCDC,
+}
+
+// SourceSupportsIngestion reports whether a source can serve the read-side
+// policy an ingestion type implies: a declared source policy matching the
+// required mode, operations, and ordering, else a declared replication mode.
+func SourceSupportsIngestion(spec ConnectorSpec, t IngestionType) bool {
+	policy := SourcePolicyForIngestion(t)
+	for _, candidate := range spec.SourcePolicies {
+		if candidate.Mode == policy.Mode && acceptsOperations(candidate.EmitsOps, policy.EmitsOps) && (!policy.Ordered || candidate.Ordered) {
+			return true
+		}
+	}
+	return slices.Contains(spec.Modes, policy.Mode)
+}
+
+// SinkSupportsIngestion reports whether a sink can land the write-side policy
+// an ingestion type implies. Append and replace are assumed universal; upsert
+// falls back to the Upsertable capability.
+func SinkSupportsIngestion(spec SinkSpec, t IngestionType) bool {
+	capability := WritePolicyForIngestion(t).Capability
+	for _, candidate := range spec.Capabilities.WritePolicies {
+		if candidate.Mode == capability.Mode && (!capability.RequiresPK || candidate.RequiresPK) &&
+			(!capability.RequiresOrder || candidate.RequiresOrder) && acceptsOperations(candidate.AcceptsOps, capability.AcceptsOps) {
+			return true
+		}
+	}
+	switch capability.Mode {
+	case WriteAppend, WriteReplace:
+		return true
+	case WriteUpsert:
+		return spec.Capabilities.Upsertable
+	}
+	return false
+}
+
+// SupportedSourceIngestionTypes lists the ingestion types a source can serve.
+func SupportedSourceIngestionTypes(spec ConnectorSpec) []IngestionType {
+	out := make([]IngestionType, 0, len(IngestionTypes))
+	for _, t := range IngestionTypes {
+		if SourceSupportsIngestion(spec, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// SupportedSinkIngestionTypes lists the ingestion types a sink can land.
+func SupportedSinkIngestionTypes(spec SinkSpec) []IngestionType {
+	out := make([]IngestionType, 0, len(IngestionTypes))
+	for _, t := range IngestionTypes {
+		if SinkSupportsIngestion(spec, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// acceptsOperations reports whether the operations a connector handles cover
+// the operations a policy requires. An empty requirement always passes; an
+// empty capability only passes an empty requirement.
+func acceptsOperations(have, want []Operation) bool {
+	if len(want) == 0 {
+		return true
+	}
+	if len(have) == 0 {
+		return false
+	}
+	set := make(map[Operation]bool, len(have))
+	for _, op := range have {
+		set[op] = true
+	}
+	for _, op := range want {
+		if !set[op] {
+			return false
+		}
+	}
+	return true
 }
 
 // SourcePolicyForIngestion derives the canonical read-side policy for an

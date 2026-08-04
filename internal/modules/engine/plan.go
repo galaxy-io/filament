@@ -12,10 +12,10 @@ func resolveIngestionPlan(ctx context.Context, src filament.Source, snk filament
 	sourcePolicy := filament.SourcePolicyForIngestion(ingestionType)
 	writePolicy := filament.WritePolicyForIngestion(ingestionType)
 
-	if err := validateSourcePolicy(src.Spec(), sourcePolicy); err != nil {
+	if err := validateSourcePolicy(src.Spec(), ingestionType); err != nil {
 		return filament.IngestionPlan{}, err
 	}
-	if err := validateSinkPolicy(snk, writePolicy); err != nil {
+	if err := validateSinkPolicy(snk, ingestionType); err != nil {
 		return filament.IngestionPlan{}, err
 	}
 
@@ -49,36 +49,20 @@ func resolveIngestionPlan(ctx context.Context, src filament.Source, snk filament
 	}, nil
 }
 
-func validateSourcePolicy(spec filament.ConnectorSpec, policy filament.SourcePolicy) error {
-	for _, candidate := range spec.SourcePolicies {
-		if candidate.Mode == policy.Mode && acceptsOperations(candidate.EmitsOps, policy.EmitsOps) && (!policy.Ordered || candidate.Ordered) {
-			return nil
-		}
+func validateSourcePolicy(spec filament.ConnectorSpec, ingestionType filament.IngestionType) error {
+	if filament.SourceSupportsIngestion(spec, ingestionType) {
+		return nil
 	}
-	for _, mode := range spec.Modes {
-		if mode == policy.Mode {
-			return nil
-		}
-	}
+	policy := filament.SourcePolicyForIngestion(ingestionType)
 	return fmt.Errorf("source %q does not support replication mode %v required by ingestion policy", spec.Name, policy.Mode)
 }
 
-func validateSinkPolicy(snk filament.Sink, policy filament.WritePolicy) error {
+func validateSinkPolicy(snk filament.Sink, ingestionType filament.IngestionType) error {
 	spec := snk.Spec()
-	for _, candidate := range spec.Capabilities.WritePolicies {
-		if candidate.Mode == policy.Capability.Mode && (!policy.Capability.RequiresPK || candidate.RequiresPK) &&
-			(!policy.Capability.RequiresOrder || candidate.RequiresOrder) && acceptsOperations(candidate.AcceptsOps, policy.Capability.AcceptsOps) {
-			return nil
-		}
-	}
-	switch policy.Capability.Mode {
-	case filament.WriteAppend, filament.WriteReplace:
+	if filament.SinkSupportsIngestion(spec, ingestionType) {
 		return nil
-	case filament.WriteUpsert:
-		if spec.Capabilities.Upsertable {
-			return nil
-		}
 	}
+	policy := filament.WritePolicyForIngestion(ingestionType)
 	return fmt.Errorf("sink %q does not support write policy %q", spec.Name, policy.Capability.Mode)
 }
 
@@ -102,23 +86,4 @@ func primaryKeyForResource(ctx context.Context, src filament.Source, resource st
 		}
 	}
 	return nil, nil
-}
-
-func acceptsOperations(have, want []filament.Operation) bool {
-	if len(want) == 0 {
-		return true
-	}
-	if len(have) == 0 {
-		return false
-	}
-	set := make(map[filament.Operation]bool, len(have))
-	for _, op := range have {
-		set[op] = true
-	}
-	for _, op := range want {
-		if !set[op] {
-			return false
-		}
-	}
-	return true
 }

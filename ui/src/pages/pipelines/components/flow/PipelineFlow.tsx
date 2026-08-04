@@ -1,7 +1,10 @@
 import { FlowArrowIcon, XIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, {
+  AlignItems,
+  FlexGap,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import ConnectorTile, {
@@ -9,6 +12,7 @@ import ConnectorTile, {
   ConnectorTileEmpty,
   ConnectorTileSize,
 } from "@/pages/connectors/components/ConnectorTile";
+import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
 const PIPELINE_FLOW_MAX_VISIBLE_SINKS = 3;
 
@@ -23,7 +27,10 @@ export interface PipelineFlowConnection {
   connector: string;
 }
 
-const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, ConnectorTileSize> = {
+const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<
+  PipelineFlowSize,
+  ConnectorTileSize
+> = {
   [PipelineFlowSize.SMALL]: ConnectorTileSize.SMALL,
   [PipelineFlowSize.MEDIUM]: ConnectorTileSize.MEDIUM,
   [PipelineFlowSize.LARGE]: ConnectorTileSize.LARGE,
@@ -66,28 +73,24 @@ const PipelineFlow = ({
     });
   };
 
-  return (
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-      {hasSource ? (
+  const renderSource = () => {
+    if (hasSource) {
+      return (
         <ConnectorTile
           connector={source.connector}
           onClick={(e) => handleConnectionClick(source.connectionId, e)}
           size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
         />
-      ) : (
-        <ConnectorTileEmpty />
-      )}
-      <Icon
-        component={isLinked ? FlowArrowIcon : XIcon}
-        variant={isLinked ? IconVariant.PRIMARY : IconVariant.ERROR}
-        size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
-        weight={IconWeight.REGULAR}
-      />
-      {hasSinks ? (
+      );
+    }
+  };
+
+  const renderSinks = () => {
+    if (hasSinks) {
+      return (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
           {visibleSinks.map((sink, index) => (
             <ConnectorTile
-              // biome-ignore lint/suspicious/noArrayIndexKey: two sink nodes can share a connection
               key={`${sink.connectionId}-${index}`}
               connector={sink.connector}
               size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
@@ -96,9 +99,29 @@ const PipelineFlow = ({
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
         </FlexWrapper>
-      ) : (
-        <ConnectorTileEmpty />
-      )}
+      );
+    }
+  };
+
+  const renderLinkOrChip = () => {
+    if (isLinked) {
+      return (
+        <Icon
+          component={FlowArrowIcon}
+          variant={IconVariant.PRIMARY}
+          size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
+          weight={IconWeight.REGULAR}
+        />
+      );
+    }
+    return <Chip variant={ChipVariant.ERROR} label="Invalid setup" />;
+  };
+
+  return (
+    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+      {renderSource()}
+      {renderLinkOrChip()}
+      {renderSinks()}
     </FlexWrapper>
   );
 };

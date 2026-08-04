@@ -11,6 +11,7 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
+import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
 export enum ConnectorTileSize {
   SMALL = "SMALL",
@@ -30,13 +31,19 @@ const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.LARGE]: 6,
 };
 
-const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
+const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<
+  ConnectorTileSize,
+  number
+> = {
   [ConnectorTileSize.SMALL]: 16,
   [ConnectorTileSize.MEDIUM]: 18,
   [ConnectorTileSize.LARGE]: 21,
 };
 
-const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> = {
+const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<
+  ConnectorTileSize,
+  TextSize
+> = {
   [ConnectorTileSize.SMALL]: TextSize.CAPTION,
   [ConnectorTileSize.MEDIUM]: TextSize.BODY_MD,
   [ConnectorTileSize.LARGE]: TextSize.BODY_LG,
@@ -69,7 +76,9 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
+const EmptyTileWrapper = withTheme(styled.div<
+  PropsWithTheme<{ $size: ConnectorTileSize }>
+>`
   width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
   height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
 
@@ -91,23 +100,8 @@ const ConnectorLogo = styled.img<{ $height: number }>`
   object-fit: contain;
 `;
 
-interface EmptyConnectorTileProps {
-  size?: ConnectorTileSize;
-}
-
-export const ConnectorTileEmpty = ({
-  size = ConnectorTileSize.MEDIUM,
-}: EmptyConnectorTileProps) => {
-  return (
-    <EmptyTileWrapper $size={size}>
-      <Icon
-        component={CircleIcon}
-        size={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size] / 2}
-        variant={IconVariant.ERROR}
-        weight={IconWeight.REGULAR}
-      />
-    </EmptyTileWrapper>
-  );
+export const ConnectorTileEmpty = () => {
+  return <Chip variant={ChipVariant.ERROR} label="Not setup" />;
 };
 
 interface ConnectorTileProps {
