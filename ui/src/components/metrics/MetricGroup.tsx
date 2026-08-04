@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import Widget from "@galaxy-io/dls/widget/Widget";
 import Spacing from "@galaxy-io/dls/containers/Spacing";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 interface MetricGroupProps {
   primary?: ReactNode;

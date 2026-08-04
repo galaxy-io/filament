@@ -9,7 +9,6 @@ import FlexWrapper, {
   FlexGap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
@@ -25,10 +24,7 @@ interface ConnectionDrawerHeaderProps {
   onClose: () => void;
 }
 
-const ConnectionDrawerHeader = ({
-  connection,
-  onClose,
-}: ConnectionDrawerHeaderProps) => {
+const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderProps) => {
   const navigate = useNavigate();
   const connector = useConnectorSpec(connection.connector, connection.kind);
 

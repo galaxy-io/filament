@@ -64,13 +64,13 @@ func toMetrics(ms []metricsv1.Metric) ([]filament.Metric, error) {
 	return out, nil
 }
 
-func toDimension(d metricsv1.Dimension) filament.MetricsDimension {
+func toDimension(d metricsv1.MetricDimension) filament.MetricsDimension {
 	switch d {
-	case metricsv1.Dimension_DIMENSION_TENANT_ID:
+	case metricsv1.MetricDimension_METRIC_DIMENSION_TENANT_ID:
 		return filament.DimensionTenantID
-	case metricsv1.Dimension_DIMENSION_PIPELINE_ID:
+	case metricsv1.MetricDimension_METRIC_DIMENSION_PIPELINE_ID:
 		return filament.DimensionPipelineID
-	case metricsv1.Dimension_DIMENSION_STATUS:
+	case metricsv1.MetricDimension_METRIC_DIMENSION_STATUS:
 		return filament.DimensionStatus
 	default:
 		return filament.DimensionUnspecified
@@ -180,11 +180,11 @@ func toFilters(fs []*metricsv1.MetricFilter) ([]filament.MetricsFilter, error) {
 	return out, nil
 }
 
-func toGranularity(g metricsv1.MetricsGranularity) (filament.MetricsGranularity, error) {
+func toGranularity(g metricsv1.MetricGranularity) (filament.MetricsGranularity, error) {
 	switch g {
-	case metricsv1.MetricsGranularity_METRICS_GRANULARITY_HOUR:
+	case metricsv1.MetricGranularity_METRIC_GRANULARITY_HOUR:
 		return filament.GranularityHour, nil
-	case metricsv1.MetricsGranularity_METRICS_GRANULARITY_DAY:
+	case metricsv1.MetricGranularity_METRIC_GRANULARITY_DAY:
 		return filament.GranularityDay, nil
 	default:
 		return 0, fmt.Errorf("metrics: granularity must be set")
