@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/providers.proto.
  */
 export const file_ingestion_v1_providers: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3ki3AIKDUNvbm5lY3RvclNwZWMSDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEg8KB3ZlcnNpb24YBCABKAkSLAoFbW9kZXMYBSADKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjEKDWNvbmZpZ19zY2hlbWEYBiABKAsyGi5pbmdlc3Rpb24udjEuQ29uZmlnU2NoZW1hEjAKDGNhcGFiaWxpdGllcxgHIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSEwoLZGVzY3JpcHRpb24YCCABKAkSFQoNZGFya19sb2dvX3VybBgJIAEoCRIWCg5saWdodF9sb2dvX3VybBgKIAEoCRIUCgxzY2hlbWFfZmllbGQYCyABKAkiQgoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJJChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKMAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIMCgRsaXZlGAQgASgIIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJ+ChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCBIVCg1jb25uZWN0aW9uX2lkGAQgASgJIuoBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhIKCnNlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSFgoOZXN0aW1hdGVkX3Jvd3MYBCABKAMSEAoIc2VsZWN0b3IYBSABKAkSFAoMZGlzcGxheV9uYW1lGAcgASgJEjYKCG1ldGFkYXRhGAsgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3ki3AIKDUNvbm5lY3RvclNwZWMSDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEg8KB3ZlcnNpb24YBCABKAkSLAoFbW9kZXMYBSADKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjEKDWNvbmZpZ19zY2hlbWEYBiABKAsyGi5pbmdlc3Rpb24udjEuQ29uZmlnU2NoZW1hEjAKDGNhcGFiaWxpdGllcxgHIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSEwoLZGVzY3JpcHRpb24YCCABKAkSFQoNZGFya19sb2dvX3VybBgJIAEoCRIWCg5saWdodF9sb2dvX3VybBgKIAEoCRIUCgxzY2hlbWFfZmllbGQYCyABKAkiQgoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJJChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKMAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIMCgRsaXZlGAQgASgIIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJ+ChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCBIVCg1jb25uZWN0aW9uX2lkGAQgASgJIuoBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhIKCnNlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSFgoOZXN0aW1hdGVkX3Jvd3MYBCABKAMSEAoIc2VsZWN0b3IYBSABKAkSFAoMZGlzcGxheV9uYW1lGAcgASgJEjYKCG1ldGFkYXRhGAsgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlIpMBChlHZXRSZXNvdXJjZUNvbHVtbnNSZXF1ZXN0EhEKCWNvbm5lY3RvchgBIAEoCRInCgZjb25maWcYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWNvbm5lY3Rpb25faWQYAyABKAkSEAoIcmVzb3VyY2UYBCABKAkSEQoJcmVzb3VyY2VzGAUgAygJIoQCCg5SZXNvdXJjZUNvbHVtbhIMCgRuYW1lGAEgASgJEhQKDGxvZ2ljYWxfdHlwZRgCIAEoCRITCgtuYXRpdmVfdHlwZRgDIAEoCRIQCghudWxsYWJsZRgEIAEoCBITCgtwcmltYXJ5X2tleRgFIAEoCBIXCg9jdXJzb3JfZWxpZ2libGUYBiABKAgSGgoSY3Vyc29yX3JlY29tbWVuZGVkGAcgASgIEhsKE3JlY29tbWVuZGF0aW9uX3JhbmsYCCABKAUSDwoHd2FybmluZxgJIAEoCRIUCgxjb25maWd1cmFibGUYCiABKAgSGQoRc3VwcG9ydHNfbG9va2JhY2sYCyABKAgiUgoPUmVzb3VyY2VDb2x1bW5zEhAKCHJlc291cmNlGAEgASgJEi0KB2NvbHVtbnMYAiADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW4ifQoaR2V0UmVzb3VyY2VDb2x1bW5zUmVzcG9uc2USLQoHY29sdW1ucxgBIAMoCzIcLmluZ2VzdGlvbi52MS5SZXNvdXJjZUNvbHVtbhIwCglyZXNvdXJjZXMYAiADKAsyHS5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5zYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
 
 /**
  * Capabilities flattens source and sink capabilities; fields not relevant to a
@@ -353,4 +353,156 @@ export type DiscoverResourcesResponse = Message<"ingestion.v1.DiscoverResourcesR
  */
 export const DiscoverResourcesResponseSchema: GenMessage<DiscoverResourcesResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_providers, 9);
+
+/**
+ * @generated from message ingestion.v1.GetResourceColumnsRequest
+ */
+export type GetResourceColumnsRequest = Message<"ingestion.v1.GetResourceColumnsRequest"> & {
+  /**
+   * @generated from field: string connector = 1;
+   */
+  connector: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct config = 2;
+   */
+  config?: JsonObject | undefined;
+
+  /**
+   * @generated from field: string connection_id = 3;
+   */
+  connectionId: string;
+
+  /**
+   * resource is retained for compatibility; new clients should send resources.
+   *
+   * @generated from field: string resource = 4;
+   */
+  resource: string;
+
+  /**
+   * @generated from field: repeated string resources = 5;
+   */
+  resources: string[];
+};
+
+/**
+ * Describes the message ingestion.v1.GetResourceColumnsRequest.
+ * Use `create(GetResourceColumnsRequestSchema)` to create a new message.
+ */
+export const GetResourceColumnsRequestSchema: GenMessage<GetResourceColumnsRequest> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_providers, 10);
+
+/**
+ * @generated from message ingestion.v1.ResourceColumn
+ */
+export type ResourceColumn = Message<"ingestion.v1.ResourceColumn"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string logical_type = 2;
+   */
+  logicalType: string;
+
+  /**
+   * @generated from field: string native_type = 3;
+   */
+  nativeType: string;
+
+  /**
+   * @generated from field: bool nullable = 4;
+   */
+  nullable: boolean;
+
+  /**
+   * @generated from field: bool primary_key = 5;
+   */
+  primaryKey: boolean;
+
+  /**
+   * @generated from field: bool cursor_eligible = 6;
+   */
+  cursorEligible: boolean;
+
+  /**
+   * @generated from field: bool cursor_recommended = 7;
+   */
+  cursorRecommended: boolean;
+
+  /**
+   * @generated from field: int32 recommendation_rank = 8;
+   */
+  recommendationRank: number;
+
+  /**
+   * @generated from field: string warning = 9;
+   */
+  warning: string;
+
+  /**
+   * @generated from field: bool configurable = 10;
+   */
+  configurable: boolean;
+
+  /**
+   * @generated from field: bool supports_lookback = 11;
+   */
+  supportsLookback: boolean;
+};
+
+/**
+ * Describes the message ingestion.v1.ResourceColumn.
+ * Use `create(ResourceColumnSchema)` to create a new message.
+ */
+export const ResourceColumnSchema: GenMessage<ResourceColumn> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_providers, 11);
+
+/**
+ * @generated from message ingestion.v1.ResourceColumns
+ */
+export type ResourceColumns = Message<"ingestion.v1.ResourceColumns"> & {
+  /**
+   * @generated from field: string resource = 1;
+   */
+  resource: string;
+
+  /**
+   * @generated from field: repeated ingestion.v1.ResourceColumn columns = 2;
+   */
+  columns: ResourceColumn[];
+};
+
+/**
+ * Describes the message ingestion.v1.ResourceColumns.
+ * Use `create(ResourceColumnsSchema)` to create a new message.
+ */
+export const ResourceColumnsSchema: GenMessage<ResourceColumns> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_providers, 12);
+
+/**
+ * @generated from message ingestion.v1.GetResourceColumnsResponse
+ */
+export type GetResourceColumnsResponse = Message<"ingestion.v1.GetResourceColumnsResponse"> & {
+  /**
+   * columns is populated for a legacy single-resource request.
+   *
+   * @generated from field: repeated ingestion.v1.ResourceColumn columns = 1;
+   */
+  columns: ResourceColumn[];
+
+  /**
+   * @generated from field: repeated ingestion.v1.ResourceColumns resources = 2;
+   */
+  resources: ResourceColumns[];
+};
+
+/**
+ * Describes the message ingestion.v1.GetResourceColumnsResponse.
+ * Use `create(GetResourceColumnsResponseSchema)` to create a new message.
+ */
+export const GetResourceColumnsResponseSchema: GenMessage<GetResourceColumnsResponse> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_providers, 13);
 

@@ -55,6 +55,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
 	nodes, edges := req.Msg.GetNodes(), req.Msg.GetEdges()
+	if err := validateCursorConfigs(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	a.defaultSinkSchemas(ctx, nodes, edges)
 	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: nodes, Edges: edges})
 	if errors.Is(err, filament.ErrNotFound) {
@@ -64,6 +67,40 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
+}
+
+func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
+	for _, edge := range edges {
+		if len(edge.GetCursors()) == 0 {
+			continue
+		}
+		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
+		policy := filament.SourcePolicyForIngestion(ingestionType)
+		if policy.Mode != filament.ModeIncremental {
+			return fmt.Errorf("cursor configuration requires incremental ingestion, got %q", ingestionType)
+		}
+		seen := make(map[string]struct{}, len(edge.GetCursors()))
+		for _, cursor := range edge.GetCursors() {
+			resource := cursor.GetResource()
+			if resource == "" {
+				return fmt.Errorf("cursor resource is required")
+			}
+			if edge.GetResource() != "" && resource != edge.GetResource() {
+				return fmt.Errorf("cursor resource %q does not match edge resource %q", resource, edge.GetResource())
+			}
+			if cursor.GetField() == "" {
+				return fmt.Errorf("cursor field is required for resource %q", resource)
+			}
+			if cursor.GetLookbackSeconds() < 0 {
+				return fmt.Errorf("cursor lookback_seconds must be non-negative for resource %q", resource)
+			}
+			if _, duplicate := seen[resource]; duplicate {
+				return fmt.Errorf("duplicate cursor configuration for resource %q", resource)
+			}
+			seen[resource] = struct{}{}
+		}
+	}
+	return nil
 }
 
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
