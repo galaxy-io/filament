@@ -148,7 +148,7 @@ func (s *Source) incrementalCursor(ctx context.Context, table string) (pkColumn,
 	name := s.cursorColumns[table]
 	if name == "" {
 		for _, candidate := range cursorNamePriority {
-			if field, ok := byName[candidate]; ok && isTimestampType(field.Native) {
+			if field, ok := byName[candidate]; ok && isTimestampType(field.Native) && !field.Nullable {
 				name = field.Name
 				break
 			}
