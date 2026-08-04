@@ -241,7 +241,7 @@ const PipelineLayoutNavbar = ({
                 />
               )}
               <Button
-                label={!isPipelineRunnable(currentVersion) || hasActiveRun ? "Running..." : "Run"}
+                label={hasActiveRun ? "Running..." : "Run"}
                 icon={PlayIcon}
                 variant={ButtonVariant.PRIMARY}
                 size={ButtonSize.SMALL}
