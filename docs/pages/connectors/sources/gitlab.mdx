@@ -1,0 +1,35 @@
+---
+title: "GitLab"
+description: "Read projects, issues, and merge requests from a GitLab instance."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-gitlab-dark.svg"
+---
+
+GitLab is a manifest-driven source — `connectors/http/manifests/gitlab.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no GitLab-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A personal access token (PAT), project access token, or group access token
+(bearer auth). Every request is authenticated with the token in the
+`Authorization: Bearer` header.
+
+## Resources
+
+Three resources with parent-child fan-out from projects to issues and merge requests:
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `projects` | `/projects` | — (every project) |
+| `issues` | `/projects/{project_id}/issues` | `projects` |
+| `merge_requests` | `/projects/{project_id}/merge_requests` | `projects` |
+
+Each issue and merge request is scoped to its parent project. Pagination follows
+GitLab's `Link` response header, with a default page size of 20 unless
+overridden.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
+this manifest declares no `incremental:` block, so runs are full extracts.

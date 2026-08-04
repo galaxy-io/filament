@@ -1,0 +1,35 @@
+---
+title: "Bitbucket"
+description: "Read repositories, pull requests, and issues from Bitbucket Cloud."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-bitbucket-dark.svg"
+---
+
+Bitbucket is a manifest-driven source — `connectors/http/manifests/bitbucket.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Bitbucket-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A Bitbucket API token (bearer auth). The token is passed in the
+`Authorization: Bearer` header. Each workspace (organization or user account)
+requires its own token.
+
+## Resources
+
+Three resources with parent-child fan-out from repositories to pull requests and issues:
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `repositories` | `/user/repositories` | — (every accessible repo) |
+| `pull_requests` | `/repositories/{workspace}/{repo_slug}/pullrequests` | `repositories` |
+| `issues` | `/repositories/{workspace}/{repo_slug}/issues` | `repositories` |
+
+Each pull request and issue is scoped to its parent repository. Pagination follows
+Bitbucket's `Link` response header with `next` and `previous` links, and the
+response envelope wraps the records in a `values` array.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
+this manifest declares no `incremental:` block, so runs are full extracts.
