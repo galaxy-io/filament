@@ -24,17 +24,17 @@ enum Metric {
 
 // MetricDimension names a runs column usable for grouping and filtering.
 enum MetricDimension {
-  DIMENSION_UNSPECIFIED = 0;
-  DIMENSION_TENANT_ID = 1;
-  DIMENSION_PIPELINE_ID = 2;
-  DIMENSION_STATUS = 3;
+  METRIC_DIMENSION_UNSPECIFIED = 0;
+  METRIC_DIMENSION_TENANT_ID = 1;
+  METRIC_DIMENSION_PIPELINE_ID = 2;
+  METRIC_DIMENSION_STATUS = 3;
 }
 
 // MetricsGranularity is the bucket width for timeseries queries.
 enum MetricGranularity {
-  METRICS_GRANULARITY_UNSPECIFIED = 0;
-  METRICS_GRANULARITY_HOUR = 1;
-  METRICS_GRANULARITY_DAY = 2;
+  METRIC_GRANULARITY_UNSPECIFIED = 0;
+  METRIC_GRANULARITY_HOUR = 1;
+  METRIC_GRANULARITY_DAY = 2;
 }
 
 // MetricFilter narrows a query; values are dimension values as strings
@@ -50,7 +50,7 @@ message QueryTimeseriesRequest {
   repeated Metric metrics = 1;
   int64 since_ms = 2; // inclusive
   int64 until_ms = 3; // exclusive
-  MetricsGranularity granularity = 4;
+  MetricGranularity granularity = 4;
   // tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
   // match the viewer's local calendar day.
   int32 tz_offset_minutes = 5;

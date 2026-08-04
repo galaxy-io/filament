@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file metrics/v1/metrics.proto.
  */
 export const file_metrics_v1_metrics: GenFile = /*@__PURE__*/
-  fileDesc("ChhtZXRyaWNzL3YxL21ldHJpY3MucHJvdG8SCm1ldHJpY3MudjEiSAoMTWV0cmljRmlsdGVyEigKCWRpbWVuc2lvbhgBIAEoDjIVLm1ldHJpY3MudjEuRGltZW5zaW9uEg4KBnZhbHVlcxgCIAMoCSKFAgoWUXVlcnlUaW1lc2VyaWVzUmVxdWVzdBIjCgdtZXRyaWNzGAEgAygOMhIubWV0cmljcy52MS5NZXRyaWMSEAoIc2luY2VfbXMYAiABKAMSEAoIdW50aWxfbXMYAyABKAMSMwoLZ3JhbnVsYXJpdHkYBCABKA4yHi5tZXRyaWNzLnYxLk1ldHJpY3NHcmFudWxhcml0eRIZChF0el9vZmZzZXRfbWludXRlcxgFIAEoBRInCghncm91cF9ieRgGIAEoDjIVLm1ldHJpY3MudjEuRGltZW5zaW9uEikKB2ZpbHRlcnMYByADKAsyGC5tZXRyaWNzLnYxLk1ldHJpY0ZpbHRlciI6Cg9UaW1lc2VyaWVzUG9pbnQSFwoPYnVja2V0X3N0YXJ0X21zGAEgASgDEg4KBnZhbHVlcxgCIAMoASJGCgpUaW1lc2VyaWVzEgsKA2tleRgBIAEoCRIrCgZwb2ludHMYAiADKAsyGy5tZXRyaWNzLnYxLlRpbWVzZXJpZXNQb2ludCJBChdRdWVyeVRpbWVzZXJpZXNSZXNwb25zZRImCgZzZXJpZXMYASADKAsyFi5tZXRyaWNzLnYxLlRpbWVzZXJpZXMitAEKFVF1ZXJ5QWdncmVnYXRlUmVxdWVzdBIjCgdtZXRyaWNzGAEgAygOMhIubWV0cmljcy52MS5NZXRyaWMSEAoIc2luY2VfbXMYAiABKAMSEAoIdW50aWxfbXMYAyABKAMSJwoIZ3JvdXBfYnkYBCABKA4yFS5tZXRyaWNzLnYxLkRpbWVuc2lvbhIpCgdmaWx0ZXJzGAUgAygLMhgubWV0cmljcy52MS5NZXRyaWNGaWx0ZXIiKwoMQWdncmVnYXRlUm93EgsKA2tleRgBIAEoCRIOCgZ2YWx1ZXMYAiADKAEiQAoWUXVlcnlBZ2dyZWdhdGVSZXNwb25zZRImCgRyb3dzGAEgAygLMhgubWV0cmljcy52MS5BZ2dyZWdhdGVSb3cqfQoGTWV0cmljEhYKEk1FVFJJQ19VTlNQRUNJRklFRBAAEhQKEE1FVFJJQ19SVU5fQ09VTlQQARIWChJNRVRSSUNfUlVOX1JFQ09SRFMQAhIUChBNRVRSSUNfUlVOX0JZVEVTEAMSFwoTTUVUUklDX1JVTl9EVVJBVElPThAEKq0BCglEaW1lbnNpb24SGQoVRElNRU5TSU9OX1VOU1BFQ0lGSUVEEAASFwoTRElNRU5TSU9OX1RFTkFOVF9JRBABEhkKFURJTUVOU0lPTl9QSVBFTElORV9JRBACEhQKEERJTUVOU0lPTl9TVEFUVVMQAxIdChlESU1FTlNJT05fU09VUkNFX1BST1ZJREVSEAQSHAoYRElNRU5TSU9OX0lOR0VTVElPTl9UWVBFEAUqdAoSTWV0cmljc0dyYW51bGFyaXR5EiMKH01FVFJJQ1NfR1JBTlVMQVJJVFlfVU5TUEVDSUZJRUQQABIcChhNRVRSSUNTX0dSQU5VTEFSSVRZX0hPVVIQARIbChdNRVRSSUNTX0dSQU5VTEFSSVRZX0RBWRACMsUBCg5NZXRyaWNzU2VydmljZRJaCg9RdWVyeVRpbWVzZXJpZXMSIi5tZXRyaWNzLnYxLlF1ZXJ5VGltZXNlcmllc1JlcXVlc3QaIy5tZXRyaWNzLnYxLlF1ZXJ5VGltZXNlcmllc1Jlc3BvbnNlElcKDlF1ZXJ5QWdncmVnYXRlEiEubWV0cmljcy52MS5RdWVyeUFnZ3JlZ2F0ZVJlcXVlc3QaIi5tZXRyaWNzLnYxLlF1ZXJ5QWdncmVnYXRlUmVzcG9uc2ViBnByb3RvMw");
+  fileDesc("ChhtZXRyaWNzL3YxL21ldHJpY3MucHJvdG8SCm1ldHJpY3MudjEiTgoMTWV0cmljRmlsdGVyEi4KCWRpbWVuc2lvbhgBIAEoDjIbLm1ldHJpY3MudjEuTWV0cmljRGltZW5zaW9uEg4KBnZhbHVlcxgCIAMoCSKKAgoWUXVlcnlUaW1lc2VyaWVzUmVxdWVzdBIjCgdtZXRyaWNzGAEgAygOMhIubWV0cmljcy52MS5NZXRyaWMSEAoIc2luY2VfbXMYAiABKAMSEAoIdW50aWxfbXMYAyABKAMSMgoLZ3JhbnVsYXJpdHkYBCABKA4yHS5tZXRyaWNzLnYxLk1ldHJpY0dyYW51bGFyaXR5EhkKEXR6X29mZnNldF9taW51dGVzGAUgASgFEi0KCGdyb3VwX2J5GAYgASgOMhsubWV0cmljcy52MS5NZXRyaWNEaW1lbnNpb24SKQoHZmlsdGVycxgHIAMoCzIYLm1ldHJpY3MudjEuTWV0cmljRmlsdGVyIjoKD1RpbWVzZXJpZXNQb2ludBIXCg9idWNrZXRfc3RhcnRfbXMYASABKAMSDgoGdmFsdWVzGAIgAygBIkYKClRpbWVzZXJpZXMSCwoDa2V5GAEgASgJEisKBnBvaW50cxgCIAMoCzIbLm1ldHJpY3MudjEuVGltZXNlcmllc1BvaW50IkEKF1F1ZXJ5VGltZXNlcmllc1Jlc3BvbnNlEiYKBnNlcmllcxgBIAMoCzIWLm1ldHJpY3MudjEuVGltZXNlcmllcyK6AQoVUXVlcnlBZ2dyZWdhdGVSZXF1ZXN0EiMKB21ldHJpY3MYASADKA4yEi5tZXRyaWNzLnYxLk1ldHJpYxIQCghzaW5jZV9tcxgCIAEoAxIQCgh1bnRpbF9tcxgDIAEoAxItCghncm91cF9ieRgEIAEoDjIbLm1ldHJpY3MudjEuTWV0cmljRGltZW5zaW9uEikKB2ZpbHRlcnMYBSADKAsyGC5tZXRyaWNzLnYxLk1ldHJpY0ZpbHRlciIrCgxBZ2dyZWdhdGVSb3cSCwoDa2V5GAEgASgJEg4KBnZhbHVlcxgCIAMoASJAChZRdWVyeUFnZ3JlZ2F0ZVJlc3BvbnNlEiYKBHJvd3MYASADKAsyGC5tZXRyaWNzLnYxLkFnZ3JlZ2F0ZVJvdyp9CgZNZXRyaWMSFgoSTUVUUklDX1VOU1BFQ0lGSUVEEAASFAoQTUVUUklDX1JVTl9DT1VOVBABEhYKEk1FVFJJQ19SVU5fUkVDT1JEUxACEhQKEE1FVFJJQ19SVU5fQllURVMQAxIXChNNRVRSSUNfUlVOX0RVUkFUSU9OEAQqkgEKD01ldHJpY0RpbWVuc2lvbhIgChxNRVRSSUNfRElNRU5TSU9OX1VOU1BFQ0lGSUVEEAASHgoaTUVUUklDX0RJTUVOU0lPTl9URU5BTlRfSUQQARIgChxNRVRSSUNfRElNRU5TSU9OX1BJUEVMSU5FX0lEEAISGwoXTUVUUklDX0RJTUVOU0lPTl9TVEFUVVMQAypwChFNZXRyaWNHcmFudWxhcml0eRIiCh5NRVRSSUNfR1JBTlVMQVJJVFlfVU5TUEVDSUZJRUQQABIbChdNRVRSSUNfR1JBTlVMQVJJVFlfSE9VUhABEhoKFk1FVFJJQ19HUkFOVUxBUklUWV9EQVkQAjLFAQoOTWV0cmljc1NlcnZpY2USWgoPUXVlcnlUaW1lc2VyaWVzEiIubWV0cmljcy52MS5RdWVyeVRpbWVzZXJpZXNSZXF1ZXN0GiMubWV0cmljcy52MS5RdWVyeVRpbWVzZXJpZXNSZXNwb25zZRJXCg5RdWVyeUFnZ3JlZ2F0ZRIhLm1ldHJpY3MudjEuUXVlcnlBZ2dyZWdhdGVSZXF1ZXN0GiIubWV0cmljcy52MS5RdWVyeUFnZ3JlZ2F0ZVJlc3BvbnNlYgZwcm90bzM");
 
 /**
  * MetricFilter narrows a query; values are dimension values as strings
@@ -20,9 +20,9 @@ export const file_metrics_v1_metrics: GenFile = /*@__PURE__*/
  */
 export type MetricFilter = Message<"metrics.v1.MetricFilter"> & {
   /**
-   * @generated from field: metrics.v1.Dimension dimension = 1;
+   * @generated from field: metrics.v1.MetricDimension dimension = 1;
    */
-  dimension: Dimension;
+  dimension: MetricDimension;
 
   /**
    * @generated from field: repeated string values = 2;
@@ -64,9 +64,9 @@ export type QueryTimeseriesRequest = Message<"metrics.v1.QueryTimeseriesRequest"
   untilMs: bigint;
 
   /**
-   * @generated from field: metrics.v1.MetricsGranularity granularity = 4;
+   * @generated from field: metrics.v1.MetricGranularity granularity = 4;
    */
-  granularity: MetricsGranularity;
+  granularity: MetricGranularity;
 
   /**
    * tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
@@ -79,9 +79,9 @@ export type QueryTimeseriesRequest = Message<"metrics.v1.QueryTimeseriesRequest"
   /**
    * UNSPECIFIED = one total series, key ""
    *
-   * @generated from field: metrics.v1.Dimension group_by = 6;
+   * @generated from field: metrics.v1.MetricDimension group_by = 6;
    */
-  groupBy: Dimension;
+  groupBy: MetricDimension;
 
   /**
    * @generated from field: repeated metrics.v1.MetricFilter filters = 7;
@@ -187,9 +187,9 @@ export type QueryAggregateRequest = Message<"metrics.v1.QueryAggregateRequest"> 
   /**
    * UNSPECIFIED = single total row, key ""
    *
-   * @generated from field: metrics.v1.Dimension group_by = 4;
+   * @generated from field: metrics.v1.MetricDimension group_by = 4;
    */
-  groupBy: Dimension;
+  groupBy: MetricDimension;
 
   /**
    * @generated from field: repeated metrics.v1.MetricFilter filters = 5;
@@ -286,74 +286,64 @@ export const MetricSchema: GenEnum<Metric> = /*@__PURE__*/
   enumDesc(file_metrics_v1_metrics, 0);
 
 /**
- * Dimension names a runs column usable for grouping and filtering.
+ * MetricDimension names a runs column usable for grouping and filtering.
  *
- * @generated from enum metrics.v1.Dimension
+ * @generated from enum metrics.v1.MetricDimension
  */
-export enum Dimension {
+export enum MetricDimension {
   /**
-   * @generated from enum value: DIMENSION_UNSPECIFIED = 0;
+   * @generated from enum value: METRIC_DIMENSION_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: DIMENSION_TENANT_ID = 1;
+   * @generated from enum value: METRIC_DIMENSION_TENANT_ID = 1;
    */
   TENANT_ID = 1,
 
   /**
-   * @generated from enum value: DIMENSION_PIPELINE_ID = 2;
+   * @generated from enum value: METRIC_DIMENSION_PIPELINE_ID = 2;
    */
   PIPELINE_ID = 2,
 
   /**
-   * @generated from enum value: DIMENSION_STATUS = 3;
+   * @generated from enum value: METRIC_DIMENSION_STATUS = 3;
    */
   STATUS = 3,
-
-  /**
-   * @generated from enum value: DIMENSION_SOURCE_PROVIDER = 4;
-   */
-  SOURCE_PROVIDER = 4,
-
-  /**
-   * @generated from enum value: DIMENSION_INGESTION_TYPE = 5;
-   */
-  INGESTION_TYPE = 5,
 }
 
 /**
- * Describes the enum metrics.v1.Dimension.
+ * Describes the enum metrics.v1.MetricDimension.
  */
-export const DimensionSchema: GenEnum<Dimension> = /*@__PURE__*/
+export const MetricDimensionSchema: GenEnum<MetricDimension> = /*@__PURE__*/
   enumDesc(file_metrics_v1_metrics, 1);
 
 /**
  * MetricsGranularity is the bucket width for timeseries queries.
  *
- * @generated from enum metrics.v1.MetricsGranularity
+ * @generated from enum metrics.v1.MetricGranularity
  */
-export enum MetricsGranularity {
+export enum MetricGranularity {
   /**
-   * @generated from enum value: METRICS_GRANULARITY_UNSPECIFIED = 0;
+   * @generated from enum value: METRIC_GRANULARITY_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: METRICS_GRANULARITY_HOUR = 1;
+   * @generated from enum value: METRIC_GRANULARITY_HOUR = 1;
    */
   HOUR = 1,
 
   /**
-   * @generated from enum value: METRICS_GRANULARITY_DAY = 2;
+   * @generated from enum value: METRIC_GRANULARITY_DAY = 2;
    */
   DAY = 2,
 }
 
 /**
- * Describes the enum metrics.v1.MetricsGranularity.
+ * Describes the enum metrics.v1.MetricGranularity.
  */
-export const MetricsGranularitySchema: GenEnum<MetricsGranularity> = /*@__PURE__*/
+export const MetricGranularitySchema: GenEnum<MetricGranularity> = /*@__PURE__*/
   enumDesc(file_metrics_v1_metrics, 2);
 
 /**
