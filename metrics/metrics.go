@@ -139,6 +139,23 @@ func keyToProtoStatus(key string) string {
 	return strconv.Itoa(int(statusToProto(filament.RunStatus(n))))
 }
 
+// statusFilterValue is keyToProtoStatus's inverse: it converts one
+// DIMENSION_STATUS filter value from its wire encoding (an
+// ingestionv1.RunStatus ordinal, as the decimal string a client sends) to the
+// domain RunStatus ordinal, as the decimal string filament.MetricsFilter.Values
+// and the runs.status column both use.
+func statusFilterValue(v string) (string, error) {
+	n, err := strconv.ParseInt(v, 10, 32)
+	if err != nil {
+		return "", fmt.Errorf("metrics: status filter value %q is not a RunStatus number: %w", v, err)
+	}
+	status, err := statusFromProto(ingestionv1.RunStatus(n))
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(int(status)), nil
+}
+
 func toFilters(fs []*metricsv1.MetricFilter) ([]filament.MetricsFilter, error) {
 	out := make([]filament.MetricsFilter, 0, len(fs))
 	for _, f := range fs {
@@ -150,15 +167,11 @@ func toFilters(fs []*metricsv1.MetricFilter) ([]filament.MetricsFilter, error) {
 		if dim == filament.DimensionStatus {
 			translated := make([]string, len(values))
 			for i, v := range values {
-				n, err := strconv.ParseInt(v, 10, 32)
-				if err != nil {
-					return nil, fmt.Errorf("metrics: status filter value %q is not a RunStatus number: %w", v, err)
-				}
-				status, err := statusFromProto(ingestionv1.RunStatus(n))
+				sv, err := statusFilterValue(v)
 				if err != nil {
 					return nil, err
 				}
-				translated[i] = strconv.Itoa(int(status))
+				translated[i] = sv
 			}
 			values = translated
 		}

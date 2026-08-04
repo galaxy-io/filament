@@ -193,6 +193,22 @@ func (s *Store) QueryRunAggregate(ctx context.Context, q filament.RunAggregateQu
 	return out, nil
 }
 
+// groupKeys returns the ordered set of keys a covering filter requires the
+// response to contain (metrics.proto's Timeseries doc: "one series per
+// requested value ... in request-value order"), or nil when no filter covers
+// GroupBy, falling back to whatever keys are observed in the data.
+func groupKeys(q filament.RunTimeseriesQuery) []string {
+	if q.GroupBy == filament.DimensionUnspecified {
+		return nil
+	}
+	for _, f := range q.Filters {
+		if f.Dimension == q.GroupBy {
+			return f.Values
+		}
+	}
+	return nil
+}
+
 // QueryRunTimeseries returns one dense, zero-filled, ascending series per
 // GroupBy value (a single "" series when GroupBy is unset) bucketed at
 // q.Granularity over [q.Since, q.Until). FROM/TO are shifted into
@@ -200,7 +216,10 @@ func (s *Store) QueryRunAggregate(ctx context.Context, q filament.RunAggregateQu
 // generate_series's range lines up with the bucket expression's own
 // boundaries; the upper bound backs off one microsecond before truncating so
 // a since/until that lands exactly on a boundary doesn't pull in an extra,
-// out-of-range bucket (until is exclusive).
+// out-of-range bucket (until is exclusive). When a filter covers GroupBy, the
+// filter's values (not the data) determine which series exist and their
+// order, so a requested value with no matching runs still comes back
+// zero-filled rather than missing (see groupKeys).
 func (s *Store) QueryRunTimeseries(ctx context.Context, q filament.RunTimeseriesQuery) ([]filament.RunTimeseries, error) {
 	exprs, err := metricExprList(q.Metrics)
 	if err != nil {
@@ -229,10 +248,15 @@ func (s *Store) QueryRunTimeseries(ctx context.Context, q filament.RunTimeseries
 		aggCols[i] = fmt.Sprintf("agg.m%d", i)
 	}
 
+	var groupKeysExpr string
+	if keys := groupKeys(q); len(keys) > 0 {
+		groupKeysExpr = b.arg(keys) + "::text[]"
+	}
+
 	query, err := render("timeseries.sql.tmpl", struct {
-		KeyExpr, BucketExpr, Where, BucketFrom, BucketTo, Unit, AggSelectList, AggColList string
-		NoGroupBy                                                                         bool
-	}{key, bucketExpr, where, bucketFrom, bucketTo, unit, strings.Join(aggSelect, ", "), strings.Join(aggCols, ", "), groupCol == ""})
+		KeyExpr, BucketExpr, Where, BucketFrom, BucketTo, Unit, AggSelectList, AggColList, GroupKeysExpr string
+		NoGroupBy                                                                                        bool
+	}{key, bucketExpr, where, bucketFrom, bucketTo, unit, strings.Join(aggSelect, ", "), strings.Join(aggCols, ", "), groupKeysExpr, groupCol == ""})
 	if err != nil {
 		return nil, err
 	}

@@ -12,15 +12,21 @@ buckets AS (
   ) AS bucket
 ),
 groups AS (
-  SELECT DISTINCT key FROM filtered
-  {{if .NoGroupBy}}UNION SELECT ''{{end}}
+  {{if .GroupKeysExpr}}
+  SELECT key, ord FROM unnest({{.GroupKeysExpr}}) WITH ORDINALITY AS g(key, ord)
+  {{else}}
+  SELECT key, row_number() OVER (ORDER BY key) AS ord FROM (
+    SELECT DISTINCT key FROM filtered
+    {{if .NoGroupBy}}UNION SELECT ''{{end}}
+  ) d
+  {{end}}
 ),
 spine AS (
-  SELECT buckets.bucket, groups.key FROM buckets CROSS JOIN groups
+  SELECT buckets.bucket, groups.key, groups.ord FROM buckets CROSS JOIN groups
 ),
 agg AS (
   SELECT key, bucket, {{.AggSelectList}} FROM filtered GROUP BY key, bucket
 )
 SELECT spine.key, spine.bucket, {{.AggColList}}
 FROM spine LEFT JOIN agg ON agg.key = spine.key AND agg.bucket = spine.bucket
-ORDER BY spine.key, spine.bucket
+ORDER BY spine.ord, spine.bucket
