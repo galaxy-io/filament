@@ -15,7 +15,7 @@ defaults:
   response:
     error:
       path: status
-      when_present: error
+      when_present: true
       message_path: message
 connection:
   base_url: https://api.hubapi.com
