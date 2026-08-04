@@ -1,0 +1,236 @@
+version: 1
+name: hubspot
+config:
+  access_token:
+    type: secret
+    required: true
+    help: HubSpot access token from developer settings
+  region:
+    type: enum
+    enum: [us, eu]
+    default: us
+    help: HubSpot region (us or eu)
+defaults:
+  method: GET
+  response:
+    error:
+      path: status
+      when_present: error
+      message_path: message
+connection:
+  base_url: https://api.hubapi.com
+  auth:
+    bearer: config.access_token
+  headers:
+    Accept: application/json
+  rate_limit:
+    requests_per_second: 10
+    dynamic:
+      remaining_header: X-HS-RateLimit-Remaining
+      reset_header: X-HS-RateLimit-Reset
+      reset_format: unix_seconds
+      min_floor_rps: 0.5
+resources:
+  - name: contacts
+    path: /crm/objects/2026-03/contacts
+    query:
+      limit: "500"
+    properties:
+      - hs_created_at
+      - hs_last_modified_at
+    primary_key: [id]
+    fields:
+      id: string
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      properties: json
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.after
+          request: query._after
+          null_terminates: true
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedSince
+      inject_into: query
+      comparator: time
+
+  - name: companies
+    path: /crm/objects/2026-03/companies
+    query:
+      limit: "500"
+    properties:
+      - hs_created_at
+      - hs_last_modified_at
+    primary_key: [id]
+    fields:
+      id: string
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      properties: json
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.after
+          request: query._after
+          null_terminates: true
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedSince
+      inject_into: query
+      comparator: time
+
+  - name: deals
+    path: /crm/objects/2026-03/deals
+    query:
+      limit: "500"
+    properties:
+      - hs_created_at
+      - hs_last_modified_at
+    primary_key: [id]
+    fields:
+      id: string
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      properties: json
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.after
+          request: query._after
+          null_terminates: true
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedSince
+      inject_into: query
+      comparator: time
+
+  - name: tickets
+    path: /crm/objects/2026-03/tickets
+    query:
+      limit: "500"
+    properties:
+      - hs_created_at
+      - hs_last_modified_at
+    primary_key: [id]
+    fields:
+      id: string
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      properties: json
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.after
+          request: query._after
+          null_terminates: true
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedSince
+      inject_into: query
+      comparator: time
+
+  - name: products
+    path: /crm/objects/2026-03/products
+    query:
+      limit: "500"
+    properties:
+      - hs_created_at
+      - hs_last_modified_at
+    primary_key: [id]
+    fields:
+      id: string
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      properties: json
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.after
+          request: query._after
+          null_terminates: true
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedSince
+      inject_into: query
+      comparator: time
+
+  - name: line_items
+    path: /crm/objects/2026-03/line_items
+    query:
+      limit: "500"
+    properties:
+      - hs_created_at
+      - hs_last_modified_at
+    primary_key: [id]
+    fields:
+      id: string
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      properties: json
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.after
+          request: query._after
+          null_terminates: true
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedSince
+      inject_into: query
+      comparator: time
+
+  - name: owners
+    path: /crm/v3/owners
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      workspace: string
+      email: string
+      firstName: string?
+      lastName: string?
+      createdAt: timestamptz
+      updatedAt: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        cursor:
+          response: paging.next.after
+          request: query._after
+          null_terminates: true
+
+  - name: custom_objects
+    path: /crm/v3/schemas
+    method: GET
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      label: string
+      description: string?
+      created: timestamptz
+      updated: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination:
+        offset: { offset: body.offset, limit: body.limit, page_size: 100 }
+
+discovery:
+  mode: static
