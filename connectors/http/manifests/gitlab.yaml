@@ -1,0 +1,104 @@
+version: 1
+name: gitlab
+config:
+  token:
+    type: secret
+    required: true
+    help: GitLab personal access token, project access token, or group access token
+defaults:
+  method: GET
+  headers:
+    Accept: application/json
+  response:
+    records: $
+    pagination:
+      link: next
+connection:
+  base_url: https://gitlab.com/api/v4
+  auth:
+    bearer: config.token
+  timeout_seconds: 60
+resources:
+  - name: projects
+    path: /projects
+    query:
+      archived: "false"
+      order_by: id
+      sort: asc
+      with_statistics: "false"
+    primary_key: [id]
+    fields:
+      id: int64
+      project_id: int64
+      name: string
+      path: string
+      path_with_namespace: string
+      description: string?
+      visibility: string
+      last_activity_at: timestamptz?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      open_issues_count: string?
+      star_count: int64
+      forks_count: int64
+      avatar_url: string?
+      web_url: string
+      raw: { path: $, type: json, mode: remainder }
+  - name: issues
+    path: /projects/{project_id}/issues
+    params:
+      project_id: parent.project_id
+    query:
+      order_by: created_at
+      sort: asc
+    primary_key: [id]
+    fields:
+      id: int64
+      iid: int64
+      project_id: { path: parent.project_id, type: int64 }
+      title: string
+      description: string?
+      state: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      closed_at: timestamptz?
+      author: json?
+      assignees: json?
+      labels: json?
+      milestone: json?
+      subscription: json?
+      task_completion: json?
+      user_notes_count: int64
+      raw: { path: $, type: json, mode: remainder }
+    for_each: projects
+  - name: merge_requests
+    path: /projects/{project_id}/merge_requests
+    params:
+      project_id: parent.project_id
+    query:
+      order_by: created_at
+      sort: asc
+    primary_key: [id]
+    fields:
+      id: int64
+      iid: int64
+      project_id: { path: parent.project_id, type: int64 }
+      title: string
+      description: string?
+      state: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      merged_at: timestamptz?
+      closed_at: timestamptz?
+      author: json?
+      assignees: json?
+      reviewers: json?
+      labels: json?
+      source_branch: string
+      target_branch: string
+      merge_status: string
+      web_url: string
+      raw: { path: $, type: json, mode: remainder }
+    for_each: projects
+discovery:
+  mode: static
