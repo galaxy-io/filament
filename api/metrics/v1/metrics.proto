@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package metrics.v1;
+
+// MetricsService is a generic, read-only aggregation surface: two query
+// primitives (bucketed timeseries, windowed aggregate) parameterized by
+// metric and dimension enums. New metrics/dimensions are enum additions;
+// the RPC surface never changes.
+service MetricsService {
+  rpc QueryTimeseries(QueryTimeseriesRequest) returns (QueryTimeseriesResponse);
+  rpc QueryAggregate(QueryAggregateRequest) returns (QueryAggregateResponse);
+}
+
+// Metric is an aggregatable measure over runs. RUN_COUNT/RUN_RECORDS/RUN_BYTES
+// are sums; RUN_DURATION is the mean duration in milliseconds over terminal
+// runs (percentile variants can be added as new values later).
+enum Metric {
+  METRIC_UNSPECIFIED = 0;
+  METRIC_RUN_COUNT = 1;
+  METRIC_RUN_RECORDS = 2;
+  METRIC_RUN_BYTES = 3;
+  METRIC_RUN_DURATION = 4;
+}
+
+// Dimension names a runs column usable for grouping and filtering.
+enum Dimension {
+  DIMENSION_UNSPECIFIED = 0;
+  DIMENSION_TENANT_ID = 1;
+  DIMENSION_PIPELINE_ID = 2;
+  DIMENSION_STATUS = 3;
+  DIMENSION_SOURCE_PROVIDER = 4;
+  DIMENSION_INGESTION_TYPE = 5;
+}
+
+// MetricsGranularity is the bucket width for timeseries queries.
+enum MetricsGranularity {
+  METRICS_GRANULARITY_UNSPECIFIED = 0;
+  METRICS_GRANULARITY_HOUR = 1;
+  METRICS_GRANULARITY_DAY = 2;
+}
+
+// MetricFilter narrows a query; values are dimension values as strings
+// (a RunStatus number, a pipeline id, a provider name).
+message MetricFilter {
+  Dimension dimension = 1;
+  repeated string values = 2;
+}
+
+message QueryTimeseriesRequest {
+  // metrics are computed together per bucket; point values align with this
+  // order positionally.
+  repeated Metric metrics = 1;
+  int64 since_ms = 2; // inclusive
+  int64 until_ms = 3; // exclusive
+  MetricsGranularity granularity = 4;
+  // tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
+  // match the viewer's local calendar day.
+  int32 tz_offset_minutes = 5;
+  Dimension group_by = 6; // UNSPECIFIED = one total series, key ""
+  repeated MetricFilter filters = 7;
+}
+
+// TimeseriesPoint.values[i] is request.metrics[i] for this bucket.
+message TimeseriesPoint {
+  int64 bucket_start_ms = 1;
+  repeated double values = 2;
+}
+
+// Timeseries.key is the group_by dimension's value as a string
+// (e.g. "3" for a COMPLETED-status series). Points are dense: every bucket
+// in [since_ms, until_ms) is present, zero-filled, ascending; all series of
+// a response are index-aligned. When a filter covers the group_by dimension,
+// one series per requested value is returned in request-value order.
+message Timeseries {
+  string key = 1;
+  repeated TimeseriesPoint points = 2;
+}
+
+message QueryTimeseriesResponse {
+  repeated Timeseries series = 1;
+}
+
+message QueryAggregateRequest {
+  repeated Metric metrics = 1;
+  int64 since_ms = 2;
+  int64 until_ms = 3;
+  Dimension group_by = 4; // UNSPECIFIED = single total row, key ""
+  repeated MetricFilter filters = 5;
+}
+
+// AggregateRow.values[i] is request.metrics[i] for this group.
+message AggregateRow {
+  string key = 1;
+  repeated double values = 2;
+}
+
+message QueryAggregateResponse {
+  repeated AggregateRow rows = 1;
+}
