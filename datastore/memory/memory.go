@@ -83,6 +83,13 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if activeCheckpointRun(r) {
+		for id, existing := range s.runs {
+			if id != r.Run && activeCheckpointRun(existing) && sameCheckpointRoute(existing.Request, r.Request) {
+				return fmt.Errorf("checkpoint route %q already has active run %q", r.Request.CheckpointRoute, id)
+			}
+		}
+	}
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
 		s.putResourceLocked(rs)
@@ -96,6 +103,22 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		p.LastRunBytes = r.Bytes
 	}
 	return nil
+}
+
+func activeCheckpointRun(r filament.RunState) bool {
+	if r.Request.CheckpointRoute == "" {
+		return false
+	}
+	switch r.Status {
+	case filament.RunRequested, filament.RunRunning, filament.RunPaused, filament.RunPartial:
+		return true
+	default:
+		return false
+	}
+}
+
+func sameCheckpointRoute(a, b filament.RunRequest) bool {
+	return a.PipelineID == b.PipelineID && a.PipelineVersionID == b.PipelineVersionID && a.CheckpointRoute == b.CheckpointRoute
 }
 
 // LoadRun returns the run with its current resource states reattached.

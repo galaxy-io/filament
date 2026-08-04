@@ -366,6 +366,8 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 			Resources:          resources,
 			Selectors:          selectors,
 			IngestionType:      group.ingestionType,
+			CheckpointRoute:    key,
+			CursorConfigs:      group.cursorConfigs,
 			Options:            options,
 			ScheduleID:         scheduleID,
 		})
@@ -391,6 +393,7 @@ type routeGroup struct {
 	all           bool
 	resources     map[string]bool
 	selectors     map[string]bool
+	cursorConfigs map[string]filament.ResourceCursorConfig
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
@@ -417,9 +420,17 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				ingestionType: ingestionType,
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
+				cursorConfigs: map[string]filament.ResourceCursorConfig{},
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
+		}
+		for _, cursor := range edge.GetCursors() {
+			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
+			if previous, exists := group.cursorConfigs[cursor.GetResource()]; exists && previous != config {
+				return nil, fmt.Errorf("conflicting cursor configuration for resource %q", cursor.GetResource())
+			}
+			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		if edge.GetResource() == "" {
 			group.all = true
