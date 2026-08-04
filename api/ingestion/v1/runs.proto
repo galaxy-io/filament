@@ -107,6 +107,10 @@ message ListRunsRequest {
   repeated RunStatus status = 4;
   int32 limit = 5;
   int32 offset = 6;
+  // since_ms/until_ms window on started_at (inclusive/exclusive, epoch
+  // millis); 0 means unbounded. Runs that never started are excluded.
+  int64 since_ms = 7;
+  int64 until_ms = 8;
 }
 
 message ListRunsResponse {

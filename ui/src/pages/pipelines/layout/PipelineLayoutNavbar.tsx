@@ -7,9 +7,9 @@ import { ArrowUUpLeftIcon, CalendarIcon, FloppyDiskIcon, PlayIcon } from "@phosp
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, {
   type SelectInputOption,
-  SelectInputSize,
   SelectInputVariant,
 } from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -191,7 +191,7 @@ const PipelineLayoutNavbar = ({
             options={versionOptions}
             value={selectedVersionOption}
             onChange={handleVersionChange}
-            size={SelectInputSize.SMALL}
+            size={InputSize.SMALL}
             variant={SelectInputVariant.SECONDARY}
             dropdownWidth={200}
             isDisabled={hasUnsavedChanges}
