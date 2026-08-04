@@ -20,16 +20,17 @@ var ErrNotFound = filament.ErrNotFound
 
 // Store is an in-memory DataStore.
 type Store struct {
-	mu               sync.RWMutex
-	runs             map[filament.RunID]filament.RunState
-	resources        map[filament.RunID]map[string]filament.ResourceState // run → resource → state
-	checkpoints      map[ckey]filament.Checkpoint
-	seen             map[dkey]struct{} // dedup keys already applied
-	connections      map[string]filament.Connection
-	pipelines        map[string]*ingestionv1.Pipeline
-	pipelineVersions map[string]map[int64]*ingestionv1.PipelineVersion
-	schedules        map[filament.ScheduleID]filament.ScheduleState
-	scheduleClaims   map[filament.ScheduleID]time.Time
+	mu                  sync.RWMutex
+	runs                map[filament.RunID]filament.RunState
+	resources           map[filament.RunID]map[string]filament.ResourceState // run → resource → state
+	checkpoints         map[ckey]filament.Checkpoint
+	resourceCheckpoints map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState
+	seen                map[dkey]struct{} // dedup keys already applied
+	connections         map[string]filament.Connection
+	pipelines           map[string]*ingestionv1.Pipeline
+	pipelineVersions    map[string]map[int64]*ingestionv1.PipelineVersion
+	schedules           map[filament.ScheduleID]filament.ScheduleState
+	scheduleClaims      map[filament.ScheduleID]time.Time
 }
 
 type ckey struct {
@@ -46,15 +47,16 @@ type dkey struct {
 // New returns a ready-to-use in-memory store.
 func New() *Store {
 	return &Store{
-		runs:             map[filament.RunID]filament.RunState{},
-		resources:        map[filament.RunID]map[string]filament.ResourceState{},
-		checkpoints:      map[ckey]filament.Checkpoint{},
-		seen:             map[dkey]struct{}{},
-		connections:      map[string]filament.Connection{},
-		pipelines:        map[string]*ingestionv1.Pipeline{},
-		pipelineVersions: map[string]map[int64]*ingestionv1.PipelineVersion{},
-		schedules:        map[filament.ScheduleID]filament.ScheduleState{},
-		scheduleClaims:   map[filament.ScheduleID]time.Time{},
+		runs:                map[filament.RunID]filament.RunState{},
+		resources:           map[filament.RunID]map[string]filament.ResourceState{},
+		checkpoints:         map[ckey]filament.Checkpoint{},
+		resourceCheckpoints: map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState{},
+		seen:                map[dkey]struct{}{},
+		connections:         map[string]filament.Connection{},
+		pipelines:           map[string]*ingestionv1.Pipeline{},
+		pipelineVersions:    map[string]map[int64]*ingestionv1.PipelineVersion{},
+		schedules:           map[filament.ScheduleID]filament.ScheduleState{},
+		scheduleClaims:      map[filament.ScheduleID]time.Time{},
 	}
 }
 
@@ -189,6 +191,48 @@ func (s *Store) LoadCheckpoint(ctx context.Context, id filament.RunID, resource 
 		return nil, fmt.Errorf("load checkpoint %q/%q: %w", id, resource, ErrNotFound)
 	}
 	return cp, nil
+}
+
+// SaveResourceCheckpoint stores cross-run progress for one pipeline route and
+// resource. The checkpoint resource must agree with the key.
+func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.ResourceCheckpointState) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if state.Checkpoint == nil || state.Checkpoint.Resource() != state.Key.Resource {
+		return fmt.Errorf("save resource checkpoint: resource mismatch")
+	}
+	state.UpdatedAt = time.Now()
+	s.mu.Lock()
+	s.resourceCheckpoints[state.Key] = state
+	s.mu.Unlock()
+	return nil
+}
+
+// LoadResourceCheckpoint returns durable progress for one route/resource.
+func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) (filament.ResourceCheckpointState, error) {
+	if err := ctx.Err(); err != nil {
+		return filament.ResourceCheckpointState{}, err
+	}
+	s.mu.RLock()
+	state, ok := s.resourceCheckpoints[key]
+	s.mu.RUnlock()
+	if !ok {
+		return filament.ResourceCheckpointState{}, fmt.Errorf("load resource checkpoint %q/%q: %w", key.Route, key.Resource, ErrNotFound)
+	}
+	return state, nil
+}
+
+// DeleteResourceCheckpoint clears durable progress so the next run starts a
+// fresh backfill.
+func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	delete(s.resourceCheckpoints, key)
+	s.mu.Unlock()
+	return nil
 }
 
 // DedupSeen reports whether (tenant, run, seq) was already applied, marking it
