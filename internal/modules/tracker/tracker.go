@@ -65,7 +65,7 @@ func (m *Module) Name() string { return "tracker" }
 // tracker sees every fact and survives restarts (resuming where it left off).
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
-		{Pattern: events.AllPattern(), Durable: "tracker", Handler: m.onFact},
+		{Pattern: events.AllPattern(), Durable: "tracker", Replay: true, Handler: m.onFact},
 	}
 }
 
