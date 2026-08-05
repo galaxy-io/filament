@@ -1,8 +1,13 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
+import { useNavigate } from "@tanstack/react-router";
 
-import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable, {
+  ColumnAlign,
+  type ColumnDef,
+  type Row,
+} from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
@@ -27,6 +32,8 @@ interface ObservabilityRunsTableProps {
 }
 
 const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
+  const navigate = useNavigate();
+
   const input = useMemo(() => {
     const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
     return create(ListRunsRequestSchema, {
@@ -185,11 +192,21 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
 
   const runs = statuses.length ? (data?.runs ?? []) : [];
 
+  const handleRowClick = (row: Row<RunInfo>) => {
+    navigate({
+      to: "/pipelines/$id/history",
+      params: {
+        id: row.original.pipelineId,
+      },
+    });
+  };
+
   return (
     <InfiniteTable<RunInfo>
       columns={columns}
       data={runs}
       getRowId={(run) => run.runId}
+      onRowClick={handleRowClick}
       enableSorting
       isLoading={isLoading}
       contentWhenEmpty={

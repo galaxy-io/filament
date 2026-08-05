@@ -304,7 +304,7 @@ const ConnectionForm = ({
             onClick={onBack}
             icon={ArrowLeftIcon}
             label="Back"
-            variant={ButtonVariant.TERTIARY}
+            variant={ButtonVariant.SECONDARY}
           />
         ) : (
           <div />
