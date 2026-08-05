@@ -96,7 +96,7 @@ const MainLayoutNavbar = () => {
           <MainLayoutNavTab key={item.to} item={item} />
         ))}
       </NavTabsWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.LARGE}>
         <DocsButton path="/" />
         <GithubButton />
       </FlexWrapper>

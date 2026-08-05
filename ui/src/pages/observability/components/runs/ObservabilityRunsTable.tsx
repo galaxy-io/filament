@@ -9,45 +9,59 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { ListRunsRequestSchema, type RunInfo, type RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
+import type { ObservabilityTimeframe } from "@/pages/observability/types";
+import { createTimeframeWindow } from "@/pages/observability/utils";
 import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
-import { useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
-import { useSuspenseListRunsQuery } from "@/api/queries/runs";
+import { useListConnectionsQuery } from "@/api/queries/connections";
+import { useListPipelinesQuery } from "@/api/queries/pipelines";
+import { useListRunsQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
 
 interface ObservabilityRunsTableProps {
+  timeframe: ObservabilityTimeframe;
   statuses: RunStatus[];
 }
 
-const ObservabilityRunsTable = ({ statuses }: ObservabilityRunsTableProps) => {
-  const { data } = useSuspenseListRunsQuery({
-    input: create(ListRunsRequestSchema, {
+const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
+  const input = useMemo(() => {
+    const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
+    return create(ListRunsRequestSchema, {
       status: statuses,
+      sinceMs,
+      untilMs,
       limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
-    }),
-  });
+    });
+  }, [timeframe, statuses]);
 
-  const { data: pipelinesData } = useSuspenseListPipelinesQuery();
-  const { data: connectionsData } = useSuspenseListConnectionsQuery();
+  const { data, isLoading } = useListRunsQuery({ input });
+
+  const { data: pipelinesData } = useListPipelinesQuery();
+  const { data: connectionsData } = useListConnectionsQuery();
 
   const connectorsByConnectionId = useMemo(
     () =>
       new Map(
-        connectionsData.connections.map((connection) => [connection.id, connection.connector]),
+        (connectionsData?.connections ?? []).map((connection) => [
+          connection.id,
+          connection.connector,
+        ]),
       ),
-    [connectionsData.connections],
+    [connectionsData],
   );
 
   const pipelineNamesByPipelineId = useMemo(
     () =>
       new Map(
-        pipelinesData.pipelines.map((pipeline) => [pipeline.id, formatPipelineName(pipeline)]),
+        (pipelinesData?.pipelines ?? []).map((pipeline) => [
+          pipeline.id,
+          formatPipelineName(pipeline),
+        ]),
       ),
-    [pipelinesData.pipelines],
+    [pipelinesData],
   );
 
   const columns = useMemo<ColumnDef<RunInfo>[]>(
@@ -62,11 +76,22 @@ const ObservabilityRunsTable = ({ statuses }: ObservabilityRunsTableProps) => {
         ),
       },
       {
+        id: "runId",
+        header: "Run",
+        size: 180,
+        cellLoading: () => <TextShimmer width={64} height={18} />,
+        cell: ({ row }) => (
+          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace>
+            {row.original.runId}
+          </Text>
+        ),
+      },
+      {
         id: "pipeline",
         header: "Pipeline",
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isEllipsis>
+          <Text size={TextSize.BODY_SM} isEllipsis>
             {pipelineNamesByPipelineId.get(row.original.pipelineId) ?? row.original.pipelineId}
           </Text>
         ),
@@ -104,6 +129,8 @@ const ObservabilityRunsTable = ({ statuses }: ObservabilityRunsTableProps) => {
         id: "startedAt",
         header: "Started",
         size: 140,
+        accessorFn: (run) => Number(run.startedAt),
+        enableSorting: true,
         cellLoading: () => <TextShimmer width={100} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isEllipsis>
@@ -115,6 +142,9 @@ const ObservabilityRunsTable = ({ statuses }: ObservabilityRunsTableProps) => {
         id: "duration",
         header: "Duration",
         size: 100,
+        accessorFn: (run) =>
+          run.startedAt && run.endedAt ? Number(run.endedAt - run.startedAt) : -1,
+        enableSorting: true,
         cellLoading: () => <TextShimmer width={60} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isEllipsis>
@@ -126,6 +156,8 @@ const ObservabilityRunsTable = ({ statuses }: ObservabilityRunsTableProps) => {
         id: "records",
         header: "Records",
         size: 90,
+        accessorFn: (run) => Number(run.records),
+        enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
@@ -138,6 +170,8 @@ const ObservabilityRunsTable = ({ statuses }: ObservabilityRunsTableProps) => {
         header: "Volume",
         size: 100,
         align: ColumnAlign.RIGHT,
+        accessorFn: (run) => Number(run.bytes),
+        enableSorting: true,
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
@@ -149,13 +183,15 @@ const ObservabilityRunsTable = ({ statuses }: ObservabilityRunsTableProps) => {
     [pipelineNamesByPipelineId, connectorsByConnectionId],
   );
 
-  const runs = statuses.length ? data.runs : [];
+  const runs = statuses.length ? (data?.runs ?? []) : [];
 
   return (
     <InfiniteTable<RunInfo>
       columns={columns}
       data={runs}
       getRowId={(run) => run.runId}
+      enableSorting
+      isLoading={isLoading}
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }

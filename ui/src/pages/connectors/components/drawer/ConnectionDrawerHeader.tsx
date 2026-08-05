@@ -53,7 +53,6 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
               <Button
                 key="edit"
                 icon={PencilIcon}
-                label="Edit connection"
                 variant={ButtonVariant.SECONDARY}
                 size={ButtonSize.SMALL}
                 onClick={handleEdit}

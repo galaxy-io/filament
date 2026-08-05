@@ -46,9 +46,10 @@ export const OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION: PinnedOptions = {
   optionIds: OBSERVABILITY_RUN_STATUS_OPTIONS.map((option) => option.id),
 };
 
-export const OBSERVABILITY_RUNS_DEFAULT_STATUS_OPTIONS: SelectInputOption[] =
-  OBSERVABILITY_RUN_STATUS_OPTIONS.filter(
-    (option) => option.value === RunStatus.COMPLETED || option.value === RunStatus.FAILED,
-  );
+export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
+  RunStatus.COMPLETED,
+  RunStatus.FAILED,
+  RunStatus.RUNNING,
+];
 
 export const OBSERVABILITY_RUNS_TABLE_LIMIT = 50;

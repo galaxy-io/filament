@@ -12,7 +12,7 @@ import (
 // value) rather than touching query logic.
 var dimensionColumns = map[filament.MetricsDimension]string{
 	filament.DimensionTenantID:   "tenant_id",
-	filament.DimensionPipelineID: "pipeline_id",
+	filament.DimensionPipelineID: "(request->>'PipelineID')",
 	filament.DimensionStatus:     "status",
 }
 

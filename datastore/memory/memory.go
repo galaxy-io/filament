@@ -247,6 +247,9 @@ func matchRun(r filament.RunState, f filament.RunFilter) bool {
 	if !f.Since.IsZero() && r.StartedAt.Before(f.Since) {
 		return false
 	}
+	if !f.Until.IsZero() && (r.StartedAt.IsZero() || !r.StartedAt.Before(f.Until)) {
+		return false
+	}
 	if len(f.Status) > 0 && !slices.Contains(f.Status, r.Status) {
 		return false
 	}

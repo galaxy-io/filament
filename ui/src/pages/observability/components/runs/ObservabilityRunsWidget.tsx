@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
@@ -15,31 +16,34 @@ import BaseToolbar from "@/layouts/components/BaseToolbar";
 import {
   OBSERVABILITY_RUN_STATUS_OPTIONS,
   OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-  OBSERVABILITY_RUNS_DEFAULT_STATUS_OPTIONS,
+  OBSERVABILITY_RUNS_DEFAULT_STATUSES,
 } from "@/pages/observability/components/runs/constants";
 import ObservabilityRunsChart from "@/pages/observability/components/runs/ObservabilityRunsChart";
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
-import { useObservabilityTimeframe } from "@/pages/observability/providers/ObservabilityTimeframeProvider";
-
-interface ObservabilityRunsWidgetState {
-  selectedStatuses: SelectInputOption[];
-}
-
-const DEFAULT_STATE: ObservabilityRunsWidgetState = {
-  selectedStatuses: OBSERVABILITY_RUNS_DEFAULT_STATUS_OPTIONS,
-};
+import { ObservabilityTimeframe } from "@/pages/observability/types";
 
 const ObservabilityRunsWidget = () => {
-  const { timeframe } = useObservabilityTimeframe();
-  const [state, setState] = useState<ObservabilityRunsWidgetState>(DEFAULT_STATE);
+  const navigate = useNavigate();
+  const {
+    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
+    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  } = useSearch({ from: "/_main/observability" });
 
-  const selectedStatusValues = useMemo(
-    () => state.selectedStatuses.map((option) => Number(option.id) as RunStatus),
-    [state.selectedStatuses],
+  const statusValues = statuses as RunStatus[];
+
+  const selectedStatusOptions = useMemo(
+    () =>
+      OBSERVABILITY_RUN_STATUS_OPTIONS.filter((option) =>
+        statusValues.includes(option.value as RunStatus),
+      ),
+    [statusValues],
   );
 
-  const handleStatusChange = (selectedStatuses: SelectInputOption[]) => {
-    setState((prev) => ({ ...prev, selectedStatuses }));
+  const handleStatusChange = (selected: SelectInputOption[]) => {
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, statuses: selected.map((option) => option.value as number) }),
+    });
   };
 
   return (
@@ -54,7 +58,7 @@ const ObservabilityRunsWidget = () => {
           <MultiSelectInput
             key="status-selector"
             options={OBSERVABILITY_RUN_STATUS_OPTIONS}
-            value={state.selectedStatuses}
+            value={selectedStatusOptions}
             onChange={handleStatusChange}
             placeholder="Select statuses..."
             width={160}
@@ -68,9 +72,9 @@ const ObservabilityRunsWidget = () => {
         ]}
       />
       <HorizontalDivider />
-      <ObservabilityRunsChart timeframe={timeframe} statuses={selectedStatusValues} />
+      <ObservabilityRunsChart timeframe={timeframe} statuses={statusValues} />
       <HorizontalDivider />
-      <ObservabilityRunsTable statuses={selectedStatusValues} />
+      <ObservabilityRunsTable timeframe={timeframe} statuses={statusValues} />
     </Widget>
   );
 };
