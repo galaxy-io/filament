@@ -44,14 +44,15 @@ message ListConnectorsResponse {
 }
 
 message ValidateConfigRequest {
-  ConnectorKind kind = 1;
-  string connector = 2;
-  google.protobuf.Struct config = 3;
+  string tenant_id = 1;
+  ConnectorKind kind = 2;
+  string connector = 3;
+  google.protobuf.Struct config = 4;
   // live attempts a TestConnection probe if the connector supports it.
-  bool live = 4;
+  bool live = 5;
   // When set, secrets stored on this connection fill config fields the
-  // request leaves blank.
-  string connection_id = 5;
+  // request leaves blank. tenant_id must match the connection's tenant.
+  string connection_id = 6;
 }
 
 // ValidationError carries a field-keyed validation failure. An empty field means
@@ -67,11 +68,13 @@ message ValidateConfigResponse {
 }
 
 message DiscoverResourcesRequest {
+  string tenant_id = 1;
   // Source connector only; discovering a sink is not meaningful.
-  string connector = 1;
-  google.protobuf.Struct config = 2;
-  bool refresh = 3;
-  string connection_id = 4;
+  string connector = 2;
+  google.protobuf.Struct config = 3;
+  bool refresh = 4;
+  // tenant_id must match the connection's tenant.
+  string connection_id = 5;
 }
 
 // Resource mirrors pkg.Resource.
