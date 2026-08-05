@@ -97,6 +97,7 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 			StartedAt:  toTimestamptz(nullTime(r.StartedAt)),
 			Status:     int16(r.Status), //nolint:gosec // small enum
 			Bytes:      r.Bytes,
+			EndedAt:    toTimestamptz(r.FinishedAt),
 		})
 		if err != nil {
 			return fmt.Errorf("datastore/postgres: update pipeline run summary: %w", err)

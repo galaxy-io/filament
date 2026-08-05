@@ -1,9 +1,7 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { CircleIcon } from "@phosphor-icons/react";
 
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -69,7 +67,7 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
+const _EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
   width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
   height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
 
@@ -90,25 +88,6 @@ const ConnectorLogo = styled.img<{ $height: number }>`
   height: ${({ $height }) => $height}px;
   object-fit: contain;
 `;
-
-interface EmptyConnectorTileProps {
-  size?: ConnectorTileSize;
-}
-
-export const ConnectorTileEmpty = ({
-  size = ConnectorTileSize.MEDIUM,
-}: EmptyConnectorTileProps) => {
-  return (
-    <EmptyTileWrapper $size={size}>
-      <Icon
-        component={CircleIcon}
-        size={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size] / 2}
-        variant={IconVariant.ERROR}
-        weight={IconWeight.REGULAR}
-      />
-    </EmptyTileWrapper>
-  );
-};
 
 interface ConnectorTileProps {
   connector: string;

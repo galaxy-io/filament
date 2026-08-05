@@ -17,12 +17,14 @@ import CreateConnectionModal from "@/pages/connectors/components/create/CreateCo
 import ConnectionDrawer from "@/pages/connectors/components/drawer/ConnectionDrawer";
 import EditConnectionModal from "@/pages/connectors/components/edit/EditConnectionModal";
 import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
+import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
 
 export enum Flow {
   CREATE_CONNECTION = "CREATE_CONNECTION",
   EDIT_CONNECTION = "EDIT_CONNECTION",
+  CREATE_PIPELINE = "CREATE_PIPELINE",
 }
 
 const searchParams = z.object({
@@ -97,6 +99,9 @@ function RootComponent() {
         </Modal>
         <Modal open={flow === Flow.EDIT_CONNECTION && !!connection} onClose={handleCloseFlow}>
           {connection && <EditConnectionModal connection={connection} onClose={handleCloseFlow} />}
+        </Modal>
+        <Modal open={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow}>
+          <CreatePipelineModal onClose={handleCloseFlow} />
         </Modal>
       </OverlayProvider>
     </ToastProvider>

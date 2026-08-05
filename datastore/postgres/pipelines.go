@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/galaxy-io/filament"
@@ -91,7 +92,7 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: get pipeline: %w", err)
 	}
-	return pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt.Time, row.LastRunAt.Valid, row.LastRunStatus, row.LastRunBytes), nil
+	return pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt), nil
 }
 
 // LoadPipelineVersion returns a specific immutable pipeline graph version.
@@ -136,21 +137,24 @@ func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv
 	}
 	out := make([]*ingestionv1.Pipeline, len(rows))
 	for i, row := range rows {
-		out[i] = pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt.Time, row.LastRunAt.Valid, row.LastRunStatus, row.LastRunBytes)
+		out[i] = pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt)
 	}
 	return out, nil
 }
 
-func pipelineFromRow(id, tenant, name, description string, current, lastVersion int64, lastAt interface{ UnixMilli() int64 }, valid bool, status int16, bytes int64) *ingestionv1.Pipeline {
-	var at int64
-	if valid {
-		at = lastAt.UnixMilli()
+func pipelineFromRow(id, tenant, name, description string, current, lastVersion int64, lastAt pgtype.Timestamptz, status int16, bytes int64, lastEndedAt pgtype.Timestamptz) *ingestionv1.Pipeline {
+	var at, endedAt int64
+	if lastAt.Valid {
+		at = lastAt.Time.UnixMilli()
+	}
+	if lastEndedAt.Valid {
+		endedAt = lastEndedAt.Time.UnixMilli()
 	}
 	lastStatus := ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	if lastVersion != 0 {
 		lastStatus = runStatusToPipelineProto(status)
 	}
-	return &ingestionv1.Pipeline{Id: id, TenantId: tenant, Name: name, Description: description, CurrentVersionId: current, LastRunVersionId: lastVersion, LastRunAt: at, LastRunStatus: lastStatus, LastRunBytes: bytes}
+	return &ingestionv1.Pipeline{Id: id, TenantId: tenant, Name: name, Description: description, CurrentVersionId: current, LastRunVersionId: lastVersion, LastRunAt: at, LastRunStatus: lastStatus, LastRunBytes: bytes, LastRunEndedAt: endedAt}
 }
 
 func runStatusToPipelineProto(status int16) ingestionv1.RunStatus {

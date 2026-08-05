@@ -3,9 +3,19 @@ import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import {
   PipelineScheduleFrequency,
   type PipelineScheduleFrequencyOption,
+  type PipelineSettingsPageScheduleState,
 } from "@/pages/pipelines/settings/types";
 
 export const PIPELINE_SCHEDULE_DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export const PIPELINE_SCHEDULE_DEFAULT_STATE: PipelineSettingsPageScheduleState = {
+  isEnabled: false,
+  frequency: PipelineScheduleFrequency.DAILY,
+  days: [1],
+  dayOfMonth: 1,
+  hour: 9,
+  timezone: PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
+};
 
 export const PIPELINE_SCHEDULE_TIMEZONE_OPTIONS: SelectInputOption[] = Intl.supportedValuesOf(
   "timeZone",

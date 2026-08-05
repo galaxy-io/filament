@@ -92,6 +92,7 @@ type Pipeline struct {
 	LastRunAt        pgtype.Timestamptz
 	LastRunStatus    int16
 	LastRunBytes     int64
+	LastRunEndedAt   pgtype.Timestamptz
 }
 
 type PipelineVersion struct {

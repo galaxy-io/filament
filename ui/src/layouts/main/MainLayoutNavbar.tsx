@@ -107,10 +107,10 @@ const MainLayoutNavbar = () => {
       <FlexWrapper
         alignItems={AlignItems.CENTER}
         justifyContent={JustifyContent.END}
-        gap={FlexGap.LARGE}
+        gap={FlexGap.SMALL}
         width={200}
       >
-        <DocsButton path="/" />
+        <DocsButton label="Read to docs" />
         <GithubButton />
       </FlexWrapper>
     </NavbarWrapper>
