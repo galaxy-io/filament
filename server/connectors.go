@@ -12,8 +12,10 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-const connectorRPCTimeout = 5 * time.Second
-const resourceColumnsRPCTimeout = 30 * time.Second
+const (
+	connectorRPCTimeout       = 5 * time.Second
+	resourceColumnsRPCTimeout = 30 * time.Second
+)
 
 // ListConnectors returns the registered source and sink specs, optionally
 // filtered by kind.
