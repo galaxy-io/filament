@@ -714,13 +714,11 @@ func (x *DiscoverResourcesResponse) GetResources() []*Resource {
 }
 
 type GetResourceColumnsRequest struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Connector    string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config       *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	ConnectionId string                 `protobuf:"bytes,3,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
-	// resource is retained for compatibility; new clients should send resources.
-	Resource      string   `protobuf:"bytes,4,opt,name=resource,proto3" json:"resource,omitempty"`
-	Resources     []string `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Connector     string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,3,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Resources     []string               `protobuf:"bytes,4,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -772,13 +770,6 @@ func (x *GetResourceColumnsRequest) GetConfig() *structpb.Struct {
 func (x *GetResourceColumnsRequest) GetConnectionId() string {
 	if x != nil {
 		return x.ConnectionId
-	}
-	return ""
-}
-
-func (x *GetResourceColumnsRequest) GetResource() string {
-	if x != nil {
-		return x.Resource
 	}
 	return ""
 }
@@ -967,10 +958,8 @@ func (x *ResourceColumns) GetColumns() []*ResourceColumn {
 }
 
 type GetResourceColumnsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// columns is populated for a legacy single-resource request.
-	Columns       []*ResourceColumn  `protobuf:"bytes,1,rep,name=columns,proto3" json:"columns,omitempty"`
-	Resources     []*ResourceColumns `protobuf:"bytes,2,rep,name=resources,proto3" json:"resources,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resources     []*ResourceColumns     `protobuf:"bytes,1,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1003,13 +992,6 @@ func (x *GetResourceColumnsResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetResourceColumnsResponse.ProtoReflect.Descriptor instead.
 func (*GetResourceColumnsResponse) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *GetResourceColumnsResponse) GetColumns() []*ResourceColumn {
-	if x != nil {
-		return x.Columns
-	}
-	return nil
 }
 
 func (x *GetResourceColumnsResponse) GetResources() []*ResourceColumns {
@@ -1084,13 +1066,12 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
 	"\x19DiscoverResourcesResponse\x124\n" +
-	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xc9\x01\n" +
+	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xad\x01\n" +
 	"\x19GetResourceColumnsRequest\x12\x1c\n" +
 	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
-	"\rconnection_id\x18\x03 \x01(\tR\fconnectionId\x12\x1a\n" +
-	"\bresource\x18\x04 \x01(\tR\bresource\x12\x1c\n" +
-	"\tresources\x18\x05 \x03(\tR\tresources\"\x99\x03\n" +
+	"\rconnection_id\x18\x03 \x01(\tR\fconnectionId\x12\x1c\n" +
+	"\tresources\x18\x04 \x03(\tR\tresources\"\x99\x03\n" +
 	"\x0eResourceColumn\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\x12\x1f\n" +
@@ -1108,10 +1089,9 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\x11supports_lookback\x18\v \x01(\bR\x10supportsLookback\"e\n" +
 	"\x0fResourceColumns\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x126\n" +
-	"\acolumns\x18\x02 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\"\x91\x01\n" +
-	"\x1aGetResourceColumnsResponse\x126\n" +
-	"\acolumns\x18\x01 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\x12;\n" +
-	"\tresources\x18\x02 \x03(\v2\x1d.ingestion.v1.ResourceColumnsR\tresourcesB\xaf\x01\n" +
+	"\acolumns\x18\x02 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\"Y\n" +
+	"\x1aGetResourceColumnsResponse\x12;\n" +
+	"\tresources\x18\x01 \x03(\v2\x1d.ingestion.v1.ResourceColumnsR\tresourcesB\xaf\x01\n" +
 	"\x10com.ingestion.v1B\x0eProvidersProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -1167,13 +1147,12 @@ var file_ingestion_v1_providers_proto_depIdxs = []int32{
 	8,  // 13: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
 	20, // 14: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
 	11, // 15: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
-	11, // 16: ingestion.v1.GetResourceColumnsResponse.columns:type_name -> ingestion.v1.ResourceColumn
-	12, // 17: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	12, // 16: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_providers_proto_init() }

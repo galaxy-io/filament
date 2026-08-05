@@ -148,11 +148,6 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 	defer func() { _ = source.Teardown(ctx) }()
 
 	resources := append([]string(nil), req.Msg.GetResources()...)
-	legacy := false
-	if len(resources) == 0 && req.Msg.GetResource() != "" {
-		resources = []string{req.Msg.GetResource()}
-		legacy = true
-	}
 	if len(resources) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("at least one resource is required"))
 	}
@@ -178,9 +173,6 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 		}
 		out := cursorColumnsToProto(columns)
 		response.Resources = append(response.Resources, &ingestionv1.ResourceColumns{Resource: resource, Columns: out})
-		if legacy {
-			response.Columns = out
-		}
 	}
 	return connect.NewResponse(response), nil
 }

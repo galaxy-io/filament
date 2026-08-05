@@ -90,9 +90,7 @@ message GetResourceColumnsRequest {
   string connector = 1;
   google.protobuf.Struct config = 2;
   string connection_id = 3;
-  // resource is retained for compatibility; new clients should send resources.
-  string resource = 4;
-  repeated string resources = 5;
+  repeated string resources = 4;
 }
 
 message ResourceColumn {
@@ -115,7 +113,5 @@ message ResourceColumns {
 }
 
 message GetResourceColumnsResponse {
-  // columns is populated for a legacy single-resource request.
-  repeated ResourceColumn columns = 1;
-  repeated ResourceColumns resources = 2;
+  repeated ResourceColumns resources = 1;
 }
