@@ -4,7 +4,11 @@ import { styled } from "@linaria/react";
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import Field from "@/components/fields/Field";
-import { getPipelineScopedFields, isFieldVisible } from "@/components/fields/utils";
+import {
+  getFieldDefaults,
+  getPipelineScopedFields,
+  isFieldVisible,
+} from "@/components/fields/utils";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
@@ -37,9 +41,9 @@ const PipelineCanvasNodeConfigIsland = ({
   const spec = useConnectorSpec(connector, kind);
 
   const configValue = config ?? {};
-  const fields = getPipelineScopedFields(spec?.configSchema?.fields ?? []).filter((field) =>
-    isFieldVisible(field, configValue),
-  );
+  const scopedFields = getPipelineScopedFields(spec?.configSchema?.fields ?? []);
+  const displayValue = { ...getFieldDefaults(scopedFields), ...configValue };
+  const fields = scopedFields.filter((field) => isFieldVisible(field, displayValue));
 
   if (!isOpen) return null;
   if (fields.length === 0) return null;
@@ -51,7 +55,7 @@ const PipelineCanvasNodeConfigIsland = ({
           <Field
             key={field.name}
             field={field}
-            value={configValue[field.name] ?? null}
+            value={displayValue[field.name] ?? null}
             onChange={(value) => onChange({ ...configValue, [field.name]: value })}
             isDisabled={isReadOnly}
           />

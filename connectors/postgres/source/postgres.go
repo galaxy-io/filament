@@ -116,7 +116,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
-			{Name: "read_mode", Type: filament.FieldEnum, Enum: []filament.EnumOption{
+			{Name: "read_mode", Type: filament.FieldEnum, Default: "keyset", Enum: []filament.EnumOption{
 				{Value: "auto", Label: "Auto"},
 				{Value: "keyset", Label: "Keyset"},
 				{Value: "bitmap", Label: "Bitmap"},

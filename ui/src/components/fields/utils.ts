@@ -1,4 +1,5 @@
-import type { JsonValue } from "@bufbuild/protobuf";
+import { type JsonValue, toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 
 import { type ConfigField, FieldScope } from "@/gen/ingestion/v1/common_pb";
 
@@ -48,6 +49,14 @@ export function isFieldVisible(field: ConfigField, siblings: Record<string, Json
 
 export function isJsonObject(value: JsonValue): value is Record<string, JsonValue> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function getFieldDefaults(fields: ConfigField[]): Record<string, JsonValue> {
+  const defaults: Record<string, JsonValue> = {};
+  for (const field of fields) {
+    if (field.default) defaults[field.name] = toJson(ValueSchema, field.default);
+  }
+  return defaults;
 }
 
 export function getConnectionScopedFields(fields: ConfigField[]): ConfigField[] {
