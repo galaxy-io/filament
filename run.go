@@ -395,6 +395,7 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 		return SourcePolicy{
 			Mode:          ModeIncremental,
 			EmitsOps:      []Operation{OpInsert, OpUpdate},
+			Ordered:       true,
 			Checkpointing: CheckpointAfterBatch,
 		}
 	default:
