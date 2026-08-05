@@ -2,10 +2,12 @@ import { useState } from "react";
 
 import { styled } from "@linaria/react";
 import { CircleIcon } from "@phosphor-icons/react";
+import { match } from "ts-pattern";
 
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { GalaxyTheme } from "@galaxy-io/dls/theme";
+import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
@@ -129,9 +131,13 @@ const ConnectorTile = ({
   size = ConnectorTileSize.MEDIUM,
   onClick,
 }: ConnectorTileProps) => {
+  const { activeTheme } = useGalaxyTheme();
   const resolvedSpec = useConnectorSpec(connector);
   const catalogSpec = spec ?? resolvedSpec;
-  const logoURL = catalogSpec?.darkLogoUrl;
+  const logoURL = match(activeTheme)
+    .with(GalaxyTheme.DARK, () => catalogSpec?.darkLogoUrl)
+    .with(GalaxyTheme.LIGHT, () => catalogSpec?.lightLogoUrl)
+    .exhaustive();
   const [state, setState] = useState<ConnectorTileState>(DEFAULT_STATE);
   const showLogo = !!logoURL && state.failedLogoURL !== logoURL;
 

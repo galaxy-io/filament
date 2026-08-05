@@ -20,7 +20,7 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import { ValidateConfigRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import Field from "@/components/fields/Field";
-import { getConnectionScopedFields } from "@/components/fields/utils";
+import { getConnectionScopedFields, getFieldDefaults } from "@/components/fields/utils";
 
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
@@ -203,8 +203,10 @@ const ConnectionForm = ({
     [dispatch],
   );
 
+  const fieldDefaults = useMemo(() => getFieldDefaults(fields), [fields]);
+
   const getFieldValue = (fieldName: string): JsonValue => {
-    return state.config[fieldName] ?? null;
+    return state.config[fieldName] ?? fieldDefaults[fieldName] ?? null;
   };
 
   const renderBody = () => {
