@@ -20,6 +20,13 @@ type Subscription struct {
 	Pattern string // e.g. "ingestion.v1.run.*.*.requested"
 	Durable string // durable consumer name; "" = ephemeral
 	Replay  bool   // deliver the retained backlog on first creation (idempotent folds only)
+
+	// MaxInFlight caps unacked deliveries across every process bound to the
+	// durable (0 = transport default). 1 serializes the consumer: one message
+	// at a time, in stream order, no matter how many replicas subscribe —
+	// required by handlers that fold with read-modify-write.
+	MaxInFlight int
+
 	Handler Handler
 }
 
@@ -73,7 +80,7 @@ func (h *Host) Run(ctx context.Context, mods ...Runnable) error {
 	for _, m := range mods {
 		h.mods = append(h.mods, m)
 		for _, s := range m.Subscriptions() {
-			sub, err := h.bus.Subscribe(s.Pattern, eventbus.SubOpts{Durable: s.Durable, Replay: s.Replay})
+			sub, err := h.bus.Subscribe(s.Pattern, eventbus.SubOpts{Durable: s.Durable, Replay: s.Replay, MaxInFlight: s.MaxInFlight})
 			if err != nil {
 				return fmt.Errorf("subscribe %q for module %q: %w", s.Pattern, m.Name(), err)
 			}

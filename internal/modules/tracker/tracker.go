@@ -65,7 +65,10 @@ func (m *Module) Name() string { return "tracker" }
 // tracker sees every fact and survives restarts (resuming where it left off).
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
-		{Pattern: events.AllPattern(), Durable: "tracker", Replay: true, Handler: m.onFact},
+		// MaxInFlight 1 serializes folding across replicas: the fold is
+		// read-modify-write, so concurrent or out-of-order delivery loses
+		// updates (a stale save can clobber a folded terminal).
+		{Pattern: events.AllPattern(), Durable: "tracker", Replay: true, MaxInFlight: 1, Handler: m.onFact},
 	}
 }
 
