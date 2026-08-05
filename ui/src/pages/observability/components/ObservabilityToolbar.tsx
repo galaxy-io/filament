@@ -10,10 +10,7 @@ import BaseToolbar from "@/layouts/components/BaseToolbar";
 import ObservabilityTimeframeSwitcher from "@/pages/observability/components/ObservabilityTimeframeSwitcher";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
-import {
-  createQueryAggregateQueryKey,
-  createQueryTimeseriesQueryKey,
-} from "@/api/queries/metrics";
+import { createQueryAggregateQueryKey, createQueryTimeseriesQueryKey } from "@/api/queries/metrics";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 
 const ObservabilityToolbar = () => {
@@ -40,11 +37,7 @@ const ObservabilityToolbar = () => {
   return (
     <BaseToolbar
       leadingActions={[
-        <Text
-          key="title"
-          variant={TextVariant.PRIMARY}
-          weight={TextWeight.MEDIUM}
-        >
+        <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
           Observability
         </Text>,
       ]}

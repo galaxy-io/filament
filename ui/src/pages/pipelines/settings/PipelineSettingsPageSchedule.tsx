@@ -13,11 +13,9 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
-import SelectInput, {
-  type SelectInputOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
-import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import SwitcherInput from "@galaxy-io/dls/inputs/SwitcherInput";
+import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -77,10 +75,8 @@ const PipelineSettingsPageSchedule = ({
 }: PipelineSettingsPageScheduleProps) => {
   const { showToast } = useToast();
 
-  const { mutate: createSchedule, isPending: isCreating } =
-    useCreatePipelineScheduleMutation();
-  const { mutate: updateSchedule, isPending: isUpdating } =
-    useUpdatePipelineScheduleMutation();
+  const { mutate: createSchedule, isPending: isCreating } = useCreatePipelineScheduleMutation();
+  const { mutate: updateSchedule, isPending: isUpdating } = useUpdatePipelineScheduleMutation();
 
   const [state, setState] = useState<PipelineSettingsPageScheduleState>(() => ({
     ...DEFAULT_STATE,
@@ -117,9 +113,7 @@ const PipelineSettingsPageSchedule = ({
   };
 
   const handleTimezoneSearch = (term: string, options: SelectInputOption[]) => {
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(term.toLowerCase()),
-    );
+    return options.filter((option) => option.label.toLowerCase().includes(term.toLowerCase()));
   };
 
   const handleSave = () => {
@@ -194,25 +188,16 @@ const PipelineSettingsPageSchedule = ({
     state.days.includes(option.value as number),
   );
   const selectedHourOption =
-    PIPELINE_SCHEDULE_HOUR_OPTIONS.find(
-      (option) => option.value === state.hour,
-    ) ?? null;
+    PIPELINE_SCHEDULE_HOUR_OPTIONS.find((option) => option.value === state.hour) ?? null;
   const selectedDayOfMonthOption =
-    PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS.find(
-      (option) => option.value === state.dayOfMonth,
-    ) ?? null;
+    PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS.find((option) => option.value === state.dayOfMonth) ??
+    null;
   const selectedTimezoneOption =
-    PIPELINE_SCHEDULE_TIMEZONE_OPTIONS.find(
-      (option) => option.value === state.timezone,
-    ) ?? null;
+    PIPELINE_SCHEDULE_TIMEZONE_OPTIONS.find((option) => option.value === state.timezone) ?? null;
 
   return (
     <Accordion header="Schedule" icon={CalendarIcon} isOpenInitial>
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        gap={FlexGap.SMALL}
-        fillWidth
-      >
+      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
         <Widget noHover fillWidth>
           <FlexWrapper
             alignItems={AlignItems.CENTER}
@@ -220,28 +205,18 @@ const PipelineSettingsPageSchedule = ({
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Enabled</Text>
-            <ToggleInput
-              value={state.isEnabled}
-              onChange={handleEnabledChange}
-            />
+            <ToggleInput value={state.isEnabled} onChange={handleEnabledChange} />
           </FlexWrapper>
         </Widget>
         <Widget noHover fillWidth>
-          <FlexWrapper
-            direction={FlexDirection.COLUMN}
-            gap={FlexGap.LARGE}
-            fillWidth
-          >
+          <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
             <FlexWrapper
               alignItems={AlignItems.CENTER}
               justifyContent={JustifyContent.SPACE_BETWEEN}
               fillWidth
             >
               <Text variant={TextVariant.SECONDARY}>Frequency</Text>
-              <SwitcherInput
-                items={frequencyItems}
-                selectedId={state.frequency}
-              />
+              <SwitcherInput items={frequencyItems} selectedId={state.frequency} />
             </FlexWrapper>
             {state.frequency === PipelineScheduleFrequency.WEEKLY && (
               <FlexWrapper
