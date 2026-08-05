@@ -26,13 +26,16 @@ func (s *columnSource) Configure(context.Context, filament.Config) error {
 	s.counts.configured.Add(1)
 	return nil
 }
+
 func (s *columnSource) Extract(context.Context, filament.RecordSink, filament.ExtractOpts) error {
 	return nil
 }
+
 func (s *columnSource) Teardown(context.Context) error {
 	s.counts.tornDown.Add(1)
 	return nil
 }
+
 func (s *columnSource) CursorColumns(_ context.Context, resource string) ([]filament.CursorColumn, error) {
 	return []filament.CursorColumn{{
 		SchemaField: filament.SchemaField{Name: resource + "_updated_at"},
