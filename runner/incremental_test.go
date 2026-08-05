@@ -25,6 +25,7 @@ func (*incrementalTestSource) Teardown(context.Context) error { return nil }
 func (*incrementalTestSource) ExtractFrom(context.Context, filament.RecordSink, filament.ExtractOpts, map[string]filament.Checkpoint) error {
 	return nil
 }
+
 func (s *incrementalTestSource) PlanIncremental(_ context.Context, resources []string, prev map[string]filament.Checkpoint, cursors map[string]filament.ResourceCursorConfig) (map[string]filament.Checkpoint, error) {
 	s.previous, s.cursors = prev, cursors
 	out := make(map[string]filament.Checkpoint, len(resources))
