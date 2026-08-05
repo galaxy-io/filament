@@ -115,20 +115,22 @@ type ResourceState struct {
 }
 
 type Run struct {
-	RunID          string
-	TenantID       string
-	ScheduleID     pgtype.Text
-	Status         int16
-	Request        []byte
-	Records        int64
-	Bytes          int64
-	StartedAt      pgtype.Timestamptz
-	FinishedAt     pgtype.Timestamptz
-	Error          pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	SourceProvider pgtype.Text
-	IngestionType  pgtype.Text
+	RunID             string
+	TenantID          string
+	ScheduleID        pgtype.Text
+	Status            int16
+	Request           []byte
+	Records           int64
+	Bytes             int64
+	StartedAt         pgtype.Timestamptz
+	FinishedAt        pgtype.Timestamptz
+	Error             pgtype.Text
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	SourceProvider    pgtype.Text
+	IngestionType     pgtype.Text
+	PipelineID        pgtype.Text
+	PipelineVersionID pgtype.Int8
 }
 
 type Schedule struct {

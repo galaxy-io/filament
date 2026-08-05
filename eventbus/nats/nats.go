@@ -33,6 +33,7 @@ type Bus struct {
 	buffer  int
 	batch   int
 	ownConn bool
+	logf    func(format string, args ...any)
 
 	mu     sync.Mutex
 	subs   map[*subscription]struct{}
@@ -49,6 +50,7 @@ type config struct {
 	batch        int
 	requestWait  time.Duration
 	createStream bool
+	logf         func(format string, args ...any)
 }
 
 // Option configures a Bus.
@@ -87,6 +89,16 @@ func WithRequestWait(d time.Duration) Option {
 // WithCreateStream controls whether New creates the stream if it is missing.
 func WithCreateStream(ok bool) Option {
 	return func(c *config) { c.createStream = ok }
+}
+
+// WithLogf sets a log sink for subscription pump errors. Without it, fetch
+// failures are retried silently.
+func WithLogf(f func(format string, args ...any)) Option {
+	return func(c *config) {
+		if f != nil {
+			c.logf = f
+		}
+	}
 }
 
 // New connects to NATS, opens JetStream, and returns a ready event bus.
@@ -154,6 +166,10 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		return nil, fmt.Errorf("eventbus/nats: jetstream: %w", err)
 	}
 
+	logf := cfg.logf
+	if logf == nil {
+		logf = func(string, ...any) {}
+	}
 	b := &Bus{
 		nc:      nc,
 		js:      js,
@@ -162,6 +178,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		buffer:  cfg.buffer,
 		batch:   cfg.batch,
 		ownConn: ownConn,
+		logf:    logf,
 		subs:    make(map[*subscription]struct{}),
 	}
 	if cfg.createStream {
@@ -302,31 +319,38 @@ func (b *Bus) subscribe(ctx context.Context, pattern string, opts eventbus.SubOp
 	} else {
 		subOpts = append(subOpts, natsgo.AckWait(defaultAckWait))
 	}
-	if opts.FromSeq > 0 {
+	switch {
+	case opts.FromSeq > 0:
 		subOpts = append(subOpts, natsgo.StartSequence(opts.FromSeq))
-	} else {
+	case opts.Replay:
+		subOpts = append(subOpts, natsgo.DeliverAll())
+	default:
 		subOpts = append(subOpts, natsgo.DeliverNew())
 	}
 
-	nsub, err := b.js.PullSubscribe(route.Target, opts.Durable, subOpts...)
+	nsub, err := b.pullSubscribe(route.Target, opts.Durable, subOpts)
 	if err != nil {
 		return nil, fmt.Errorf("eventbus/nats: subscribe: %w", err)
 	}
 
 	s := &subscription{
-		bus:    b,
-		nsub:   nsub,
-		route:  route,
-		ch:     make(chan eventbus.Message, b.buffer),
-		done:   make(chan struct{}),
-		batch:  maxInFlight(opts.MaxInFlight, b.batch),
-		filter: route.ClientFilter,
+		bus:     b,
+		nsub:    nsub,
+		route:   route,
+		durable: opts.Durable,
+		subOpts: subOpts,
+		ch:      make(chan eventbus.Message, b.buffer),
+		done:    make(chan struct{}),
+		batch:   maxInFlight(opts.MaxInFlight, b.batch),
+		filter:  route.ClientFilter,
 	}
 
 	b.mu.Lock()
 	if b.closed.Load() {
 		b.mu.Unlock()
-		_ = nsub.Unsubscribe()
+		if opts.Durable == "" {
+			_ = nsub.Unsubscribe()
+		}
 		return nil, eventbus.ErrBusClosed
 	}
 	b.subs[s] = struct{}{}
@@ -335,6 +359,31 @@ func (b *Bus) subscribe(ctx context.Context, pattern string, opts eventbus.SubOp
 	s.wg.Add(1)
 	go s.pump()
 	return s, nil
+}
+
+// pullSubscribe binds the durable consumer, recovering from config drift: a
+// durable created by an older build (e.g. a different deliver policy) rejects
+// the bind, so the stale consumer is deleted and recreated with the current
+// options. Durable consumers here fold facts idempotently (dedup on Seq), so
+// the replay a recreate can trigger is safe; its ack state is lost either way.
+func (b *Bus) pullSubscribe(target, durable string, subOpts []natsgo.SubOpt) (*natsgo.Subscription, error) {
+	nsub, err := b.js.PullSubscribe(target, durable, subOpts...)
+	if err == nil || durable == "" || !isConfigMismatch(err) {
+		return nsub, err
+	}
+	if derr := b.js.DeleteConsumer(b.stream, durable); derr != nil {
+		return nil, fmt.Errorf("%w (delete for recreate: %v)", err, derr)
+	}
+	b.logf("eventbus/nats: recreating durable %q on %q: %v", durable, target, err)
+	return b.js.PullSubscribe(target, durable, subOpts...)
+}
+
+// isConfigMismatch reports whether err is the client rejecting a bind because
+// the existing consumer's config differs from the requested one. nats.go
+// returns these as plain formatted errors ("nats: configuration requests X to
+// be Y, but consumer's value is Z"), so string matching is the only handle.
+func isConfigMismatch(err error) bool {
+	return strings.Contains(err.Error(), "configuration requests")
 }
 
 // Close stops the bus and closes active subscriptions.
@@ -364,13 +413,17 @@ func (b *Bus) remove(s *subscription) {
 }
 
 type subscription struct {
-	bus    *Bus
-	nsub   *natsgo.Subscription
-	route  eventbus.Route
-	filter eventbus.Filter
-	ch     chan eventbus.Message
-	done   chan struct{}
-	batch  int
+	bus     *Bus
+	route   eventbus.Route
+	durable string
+	subOpts []natsgo.SubOpt
+	filter  eventbus.Filter
+	ch      chan eventbus.Message
+	done    chan struct{}
+	batch   int
+
+	mu   sync.Mutex
+	nsub *natsgo.Subscription
 
 	closeOnce sync.Once
 	wg        sync.WaitGroup
@@ -380,10 +433,15 @@ var _ eventbus.Subscription = (*subscription)(nil)
 
 func (s *subscription) C() <-chan eventbus.Message { return s.ch }
 
+// Close stops the pump. Ephemeral subscriptions unsubscribe; durable ones
+// deliberately do not — Unsubscribe deletes the durable consumer server-side,
+// which would strand every other process bound to it and lose its position.
 func (s *subscription) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
-		_ = s.nsub.Unsubscribe()
+		if s.durable == "" {
+			_ = s.sub().Unsubscribe()
+		}
 		s.bus.remove(s)
 		s.wg.Wait()
 		close(s.ch)
@@ -391,8 +449,29 @@ func (s *subscription) Close() error {
 	return nil
 }
 
+func (s *subscription) sub() *natsgo.Subscription {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.nsub
+}
+
+// resubscribe recreates the pull subscription after the server-side consumer
+// disappeared. A durable recreated this way resumes per its deliver policy
+// (DeliverAll replays and relies on the consumer's dedup; DeliverNew tails).
+func (s *subscription) resubscribe() error {
+	nsub, err := s.bus.pullSubscribe(s.route.Target, s.durable, s.subOpts)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.nsub = nsub
+	s.mu.Unlock()
+	return nil
+}
+
 func (s *subscription) pump() {
 	defer s.wg.Done()
+	var lastErr string
 	for {
 		select {
 		case <-s.done:
@@ -400,10 +479,22 @@ func (s *subscription) pump() {
 		default:
 		}
 
-		msgs, err := s.nsub.Fetch(s.batch, natsgo.MaxWait(defaultFetchWait))
+		msgs, err := s.sub().Fetch(s.batch, natsgo.MaxWait(defaultFetchWait))
 		if err != nil {
 			if errors.Is(err, natsgo.ErrTimeout) {
+				lastErr = ""
 				continue
+			}
+			if err.Error() != lastErr {
+				lastErr = err.Error()
+				s.bus.logf("eventbus/nats: fetch %q (durable %q): %v", s.route.Target, s.durable, err)
+			}
+			if s.durable != "" && (errors.Is(err, natsgo.ErrConsumerNotFound) || errors.Is(err, natsgo.ErrConsumerDeleted)) {
+				if rerr := s.resubscribe(); rerr == nil {
+					s.bus.logf("eventbus/nats: recreated durable %q on %q", s.durable, s.route.Target)
+					lastErr = ""
+					continue
+				}
 			}
 			select {
 			case <-s.done:

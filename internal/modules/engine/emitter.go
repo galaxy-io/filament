@@ -45,11 +45,26 @@ func newEmitter(ctx context.Context, bus eventbus.Bus, log filament.Logger, tena
 // lifecycle facts and pipeline facts never collide on (tenant, run, seq).
 func (e *emitter) next() uint64 { return e.seq.Add(1) }
 
+// terminalPublishWait bounds how long ending facts may publish after the run
+// context is cancelled, so shutdown cannot hang on a dead bus.
+const terminalPublishWait = 5 * time.Second
+
+// finish detaches the emitter from run cancellation so ending facts — resource
+// terminals and the run obituary — publish even while the host is shutting
+// down. Call once extraction has stopped (no concurrent pipeline publishes);
+// the returned cancel releases the grace timer.
+func (e *emitter) finish() context.CancelFunc {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(e.ctx), terminalPublishWait)
+	e.ctx = ctx
+	return cancel
+}
+
 // publish ships an already-stamped fact (the pipeline stamps its own) and tallies
 // run- and resource-level totals from batch writes. Publishing uses the run
-// context; a fact emitted after that context is cancelled (e.g. host shutdown) is
-// dropped. Safe to call concurrently — the pipeline's writer goroutine publishes
-// batch facts while the engine goroutine publishes lifecycle facts.
+// context, so mid-run facts stop when the run is cancelled; ending facts survive
+// cancellation because runOne detaches the emitter first (see finish). Safe to
+// call concurrently — the pipeline's writer goroutine publishes batch facts
+// while the engine goroutine publishes lifecycle facts.
 func (e *emitter) publish(f events.Fact) {
 	if d, ok := f.Data.(events.BatchWrittenEvent); ok {
 		e.mu.Lock()
