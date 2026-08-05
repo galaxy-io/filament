@@ -47,4 +47,5 @@ UPDATE pipelines SET
 WHERE pipeline_id = @pipeline_id AND (last_run_at IS NULL OR last_run_at <= @started_at);
 
 -- name: DeletePipeline :exec
-UPDATE pipelines SET is_deleted = true, updated_at = now() WHERE pipeline_id = @pipeline_id;
+UPDATE pipelines SET is_deleted = true, deleted_at = now(), updated_at = now()
+WHERE pipeline_id = @pipeline_id AND NOT is_deleted;

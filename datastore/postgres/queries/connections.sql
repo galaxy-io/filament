@@ -26,5 +26,6 @@ UPDATE connections
 SET
   name = name || '_deleted_' || extract(epoch from CURRENT_TIMESTAMP)::bigint::text,
   is_deleted = true,
+  deleted_at = CURRENT_TIMESTAMP,
   updated_at = CURRENT_TIMESTAMP
 WHERE connection_id = @connection_id AND NOT is_deleted;
