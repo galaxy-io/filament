@@ -17,7 +17,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -26,7 +26,7 @@ import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
 import { Flow } from "@/routes/__root";
@@ -68,7 +68,7 @@ const RowWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px;
+  padding: 6px 8px;
   flex-shrink: 0;
 
   border-radius: 4px;
@@ -217,9 +217,9 @@ const CreatePipelineModalConnectionsPane = ({
         {filteredConnections.map((connection) => (
           <RowWrapper key={connection.id} onClick={() => onConnectionClick(connection)}>
             <RowControlWrapper>{renderControl(connection)}</RowControlWrapper>
-            <ConnectorTile connector={connection.connector} size={ConnectorTileSize.SMALL} />
+            <ConnectorTile connector={connection.connector} />
             <RowName>
-              <Text size={TextSize.BODY_SM}>{connection.name}</Text>
+              <Text>{connection.name}</Text>
             </RowName>
           </RowWrapper>
         ))}
