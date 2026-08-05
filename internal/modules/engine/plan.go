@@ -12,7 +12,7 @@ func resolveIngestionPlan(ctx context.Context, src filament.Source, snk filament
 	sourcePolicy := filament.SourcePolicyForIngestion(ingestionType)
 	writePolicy := filament.WritePolicyForIngestion(ingestionType)
 
-	if err := validateSourcePolicy(src.Spec(), sourcePolicy); err != nil {
+	if err := validateSourcePolicy(src.Spec(), ingestionType, sourcePolicy); err != nil {
 		return filament.IngestionPlan{}, err
 	}
 	if err := validateSinkPolicy(snk, writePolicy); err != nil {
@@ -49,11 +49,14 @@ func resolveIngestionPlan(ctx context.Context, src filament.Source, snk filament
 	}, nil
 }
 
-func validateSourcePolicy(spec filament.ConnectorSpec, policy filament.SourcePolicy) error {
+func validateSourcePolicy(spec filament.ConnectorSpec, ingestionType filament.IngestionType, policy filament.SourcePolicy) error {
 	for _, candidate := range spec.SourcePolicies {
 		if candidate.Mode == policy.Mode && acceptsOperations(candidate.EmitsOps, policy.EmitsOps) && (!policy.Ordered || candidate.Ordered) {
 			return nil
 		}
+	}
+	if len(spec.SourcePolicies) > 0 {
+		return fmt.Errorf("source %q does not support ingestion type %q", spec.Name, ingestionType)
 	}
 	for _, mode := range spec.Modes {
 		if mode == policy.Mode {

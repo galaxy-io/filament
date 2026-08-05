@@ -30,24 +30,47 @@ func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec
 		}, nil
 	}
 	if isResumableRun(plan) {
-		planner, ok := src.(filament.ResumePlanner)
-		if !ok {
-			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
-		}
 		resumable, ok := src.(filament.Resumable)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support resumable extraction", spec.Source.Provider)
 		}
+		incremental := plan.SourcePolicy.Mode == filament.ModeIncremental
 		prev := make(map[string]filament.Checkpoint, len(spec.Resources))
 		for _, resource := range spec.Resources {
-			cp, err := m.ds.LoadCheckpoint(ctx, spec.Run, resource)
+			var cp filament.Checkpoint
+			var err error
+			if incremental {
+				key, valid := spec.ResourceCheckpointKey(resource)
+				if !valid {
+					return nil, fmt.Errorf("incremental resource %q requires a versioned pipeline route", resource)
+				}
+				var state filament.ResourceCheckpointState
+				state, err = m.ds.LoadResourceCheckpoint(ctx, key)
+				cp = state.Checkpoint
+			} else {
+				cp, err = m.ds.LoadCheckpoint(ctx, spec.Run, resource)
+			}
 			if err == nil {
 				prev[resource] = cp
 			} else if err != nil && !errors.Is(err, filament.ErrNotFound) {
 				return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 			}
 		}
-		resumePlan, err := planner.PlanResume(ctx, spec.Resources, prev)
+		var resumePlan map[string]filament.Checkpoint
+		var err error
+		if incremental {
+			planner, ok := src.(filament.IncrementalPlanner)
+			if !ok {
+				return nil, fmt.Errorf("source %q does not support incremental planning", spec.Source.Provider)
+			}
+			resumePlan, err = planner.PlanIncremental(ctx, spec.Resources, prev, spec.CursorConfigs)
+		} else {
+			planner, ok := src.(filament.ResumePlanner)
+			if !ok {
+				return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
+			}
+			resumePlan, err = planner.PlanResume(ctx, spec.Resources, prev)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("plan resume: %w", err)
 		}
@@ -55,8 +78,15 @@ func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec
 			if cp == nil {
 				continue
 			}
-			if err := m.ds.SaveCheckpoint(ctx, spec.Run, cp); err != nil {
-				return nil, fmt.Errorf("seed checkpoint %q: %w", cp.Resource(), err)
+			var saveErr error
+			if incremental {
+				key, _ := spec.ResourceCheckpointKey(cp.Resource())
+				saveErr = m.ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: spec.Run, Checkpoint: cp})
+			} else {
+				saveErr = m.ds.SaveCheckpoint(ctx, spec.Run, cp)
+			}
+			if saveErr != nil {
+				return nil, fmt.Errorf("seed checkpoint %q: %w", cp.Resource(), saveErr)
 			}
 		}
 		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
@@ -87,7 +117,7 @@ func (m *Module) loadChangeCheckpoints(ctx context.Context, spec filament.RunSpe
 }
 
 func isResumableRun(plan filament.IngestionPlan) bool {
-	return plan.Type == filament.IngestionSnapshotUpsert
+	return plan.SourcePolicy.Checkpointing != filament.CheckpointNone && !plan.RequiresCDC
 }
 
 // safeCall runs source extraction code, converting a panic into an error so a

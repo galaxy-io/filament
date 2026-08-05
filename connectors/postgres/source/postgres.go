@@ -68,12 +68,14 @@ const (
 // is created per run: Configure opens the pool, Extract pages the tables, Teardown
 // closes the pool.
 type Source struct {
-	pool       *pgxpool.Pool
-	schema     string
-	pageSize   int
-	shardPages int
-	readMode   string // "", "keyset" (key-ordered), "bitmap" (unordered sub-ranges), "auto" (probe)
-	encoding   string // "", "native" (typed column reads); "jsonb" (server-side to_jsonb)
+	pool            *pgxpool.Pool
+	schema          string
+	pageSize        int
+	shardPages      int
+	readMode        string // "", "keyset" (key-ordered), "bitmap" (unordered sub-ranges), "auto" (probe)
+	encoding        string // "", "native" (typed column reads); "jsonb" (server-side to_jsonb)
+	cursorColumns   map[string]string
+	cursorLookbacks map[string]int
 }
 
 // nativeEncoding reports whether rows read as native columns (the default);
@@ -90,9 +92,10 @@ var (
 	_ filament.Discoverable         = (*Source)(nil)
 	_ filament.LiveValidatable      = (*Source)(nil)
 	_ filament.SchemaProvider       = (*Source)(nil)
-	_ filament.CursorColumnProvider = (*Source)(nil)
 	_ filament.Resumable            = (*Source)(nil)
 	_ filament.ResumePlanner        = (*Source)(nil)
+	_ filament.IncrementalPlanner   = (*Source)(nil)
+	_ filament.CursorColumnProvider = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.
@@ -104,11 +107,12 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
 		Version:      "1",
-		Modes:        []filament.ReplicationMode{filament.ModeFull},
+		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,
 			filament.IngestionAppend,
+			filament.IngestionUpsert,
 		),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
