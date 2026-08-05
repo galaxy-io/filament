@@ -631,9 +631,48 @@ func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
 			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, want[i])
 		}
 	}
-}
+ }
 
-func TestStaticDiscoveryChildSelectionScansButDoesNotEmitParents(t *testing.T) {
+ func TestNewMondaySpecAndEmbeddedManifest(t *testing.T) {
+ 	ctx := context.Background()
+ 	src := NewMonday()
+ 	spec := src.Spec()
+ 	if spec.Name != "monday" || spec.DisplayName != "monday.com" {
+ 		t.Fatalf("spec identity = %q/%q, want monday/monday.com", spec.Name, spec.DisplayName)
+ 	}
+ 	if len(spec.Config.Fields) != 1 {
+ 		t.Fatalf("config fields = %#v, want api_token", spec.Config.Fields)
+ 	}
+ 	field := spec.Config.Fields[0]
+ 	if field.Name != "api_token" || field.Type != filament.FieldSecret || !field.Required {
+ 		t.Fatalf("api_token field = %#v, want required secret", field)
+ 	}
+ 	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+ 		t.Fatal("validate without API token succeeded")
+ 	}
+ 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+ 		"api_token": "test-api-token",
+ 	})); err != nil {
+ 		t.Fatalf("configure embedded Monday manifest: %v", err)
+ 	}
+ 	defer src.Teardown(ctx)
+
+ 	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+ 	if err != nil {
+ 		t.Fatalf("discover: %v", err)
+ 	}
+ 	want := []string{"boards", "users", "teams", "workspaces", "items"}
+ 	if len(discovered.Resources) != len(want) {
+ 		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
+ 	}
+ 	for i := range want {
+ 		if discovered.Resources[i].Name != want[i] {
+ 			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, want[i])
+ 		}
+ 	}
+ }
+
+ func TestStaticDiscoveryChildSelectionScansButDoesNotEmitParents(t *testing.T) {
 	ctx := context.Background()
 	var parentRequests, childRequests int
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -698,13 +737,72 @@ discovery:
 	}
 	if parentRequests != 1 || childRequests != 1 {
 		t.Fatalf("requests parent=%d child=%d, want 1 each", parentRequests, childRequests)
-	}
-	if len(sink.records) != 1 || sink.records[0].Resource != "children" {
-		t.Fatalf("emitted records = %#v, want only selected child", sink.records)
-	}
-}
+  }
+  if len(sink.records) != 1 || sink.records[0].Resource != "children" {
+ 		t.Fatalf("emitted records = %#v, want only selected child", sink.records)
+ 	}
+ }
 
-func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testing.T) {
+ func TestMondayUsesAPIKeyAsBearerToken(t *testing.T) {
+ 	ctx := context.Background()
+ 	var authorization string
+ 	var boardsRequested bool
+ 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		authorization = r.Header.Get("Authorization")
+ 		w.Header().Set("Content-Type", "application/json")
+ 		if r.URL.Path == "/graphql" {
+ 	boardsRequested = true
+ 		fmt.Fprint(w, `{"data":{"boards":{"nodes":[{"id":123,"name":"Test Board","description":null,"boardType":"public","state":"active","createdAt":"2024-01-01T00:00:00Z","updatedAt":"2024-01-01T00:00:00Z","url":"https://example.monday.com/boards/123","columns":[],"groups":[],"team":{"id":1},"boardKind":"public","items":[]}]}}}`)
+ 		return
+ 		}
+ 		http.NotFound(w, r)
+ 	}))
+ 	defer api.Close()
+
+ 	manifestData := []byte(strings.Replace(string(mondayManifest), "https://api.monday.com/v2", api.URL, 1))
+ 	src := NewManifest("monday", "monday.com", manifestData, filament.ConfigSchema{})
+ 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_token": "test-token"})); err != nil {
+ 		t.Fatalf("configure: %v", err)
+ 	}
+ 	defer src.Teardown(ctx)
+
+ 	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+ 	if err != nil {
+ 		t.Fatalf("discover: %v", err)
+ 	}
+ 	wantResources := []string{"boards", "users", "teams", "workspaces", "items"}
+ 	if len(discovered.Resources) != len(wantResources) {
+ 		t.Fatalf("resources = %#v, want %v", discovered.Resources, wantResources)
+ 	}
+ 	for i, name := range wantResources {
+ 		if discovered.Resources[i].Name != name || discovered.Resources[i].Selector != name {
+ 			t.Fatalf("resource[%d] = %#v, want %q", i, discovered.Resources[i], name)
+ 		}
+ 	}
+
+ 	var sink collectSink
+ 	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"boards"}}); err != nil {
+ 		t.Fatalf("extract boards: %v", err)
+ 	}
+ 	if authorization != "Bearer test-token" {
+ 		t.Fatalf("Authorization = %q, want Bearer test-token", authorization)
+ 	}
+ 	if !boardsRequested {
+ 		t.Fatalf("boards endpoint not requested")
+ 	}
+ 	if len(sink.records) != 1 {
+ 		t.Fatalf("records = %#v, want one board", sink.records)
+ 	}
+ 	var data map[string]any
+ 	if err := json.Unmarshal(sink.records[0].Data, &data); err != nil {
+ 		t.Fatalf("decode board: %v", err)
+ 	}
+ 	if fmt.Sprintf("%v", data["id"]) != "123" {
+ 		t.Fatalf("id = %#v, want 123", data["id"])
+ 	}
+ }
+
+ func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testing.T) {
 	ctx := context.Background()
 	var sawAuth bool
 	var afterValues []any
@@ -993,6 +1091,16 @@ discovery:
 `, baseURL)
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatalf("write notion manifest: %v", err)
+	}
+	return path
+}
+
+func writeMondayTestManifest(t *testing.T, baseURL string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "monday.yaml")
+	data := strings.Replace(string(mondayManifest), "https://api.monday.com/v2", baseURL, 1)
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatalf("write monday manifest: %v", err)
 	}
 	return path
 }

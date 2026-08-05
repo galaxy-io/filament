@@ -1,0 +1,176 @@
+version: 1
+name: monday
+config:
+  api_token:
+    type: secret
+    required: true
+    help: monday.com API token (from Settings > API > Developer Hub)
+connection:
+  base_url: https://api.monday.com/v2
+  auth:
+    bearer: config.api_token
+  headers:
+    Content-Type: application/json
+resources:
+  - name: boards
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      description: string?
+      board_type: { path: boardType, type: string }
+      state: string?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      url: string?
+      columns: json
+      groups: json
+      team_id: { path: team.id, type: int64 }
+      board_kind: { path: boardKind, type: string }
+      items: json
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Boards($first: Int!, $after: String) {
+            boards(first: $first, after: $after) {
+              nodes { id name description boardType state createdAt updatedAt url columns { id title type settings } groups { id title } team { id } boardKind items { id } }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        variables:
+          first: 100
+    response:
+      records: $.data.boards.nodes
+      pagination:
+        cursor:
+          response: data.boards.pageInfo.endCursor
+          request: body.variables.after
+          more: data.boards.pageInfo.hasNextPage
+          null_terminates: true
+  - name: users
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      email: string?
+      title: string?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      profile_photo_url: { path: profilePhotoUrl, type: string }
+      country_code: { path: countryCode, type: string }
+      is_admin: { path: isAdmin, type: bool }
+      is_pending: { path: isPending, type: bool }
+      team_ids: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Users {
+            users {
+              id name email title createdAt updatedAt profilePhotoUrl countryCode isAdmin isPending teamIds
+            }
+          }
+        variables: {}
+    response:
+      records: $.data.users
+      pagination: none
+  - name: teams
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      description: string?
+      picture: string?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      users: json
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Teams {
+            teams {
+              id name description picture createdAt updatedAt users { id name }
+            }
+          }
+        variables: {}
+    response:
+      records: $.data.teams
+      pagination: none
+  - name: workspaces
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      description: string?
+      is_private: { path: isPrivate, type: bool }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      teams: json
+      boards: json
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Workspaces {
+            workspaces {
+              id name description isPrivate createdAt updatedAt teams { id name } boards { id name }
+            }
+          }
+        variables: {}
+    response:
+      records: $.data.workspaces
+      pagination: none
+  - name: items
+    path: /graphql
+    method: POST
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      description: string?
+      board_id: { path: board.id, type: int64 }
+      group_id: { path: group.id, type: string }
+      position: float64?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      creator_id: { path: creator.id, type: int64 }
+      status: json?
+      priority: json?
+      columns: json
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Items($first: Int!, $after: String) {
+            items(first: $first, after: $after) {
+              nodes { id name description board { id } group { id } position createdAt updatedAt creator { id } status priority columns { id title type value } }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        variables:
+          first: 100
+    response:
+      records: $.data.items.nodes
+      pagination:
+        cursor:
+          response: data.items.pageInfo.endCursor
+          request: body.variables.after
+          more: data.items.pageInfo.hasNextPage
+          null_terminates: true
+discovery:
+  mode: static

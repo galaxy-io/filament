@@ -21,6 +21,9 @@ var githubManifest []byte
 //go:embed manifests/slack.yaml
 var slackManifest []byte
 
+//go:embed manifests/monday.yaml
+var mondayManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
@@ -44,6 +47,11 @@ func NewGitHub() *Source {
 // NewSlack returns a Source backed by the embedded Slack Web API manifest.
 func NewSlack() *Source {
 	return NewManifestWithMetadata("slack", "Slack", "Messaging and collaboration platform designed for teams to communicate and work together efficiently.", "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg", slackManifest, manifestOwnedConfig())
+}
+
+// NewMonday returns a Source backed by the embedded monday.com GraphQL API manifest.
+func NewMonday() *Source {
+	return NewManifestWithMetadata("monday", "monday.com", "Work management platform for teams to plan, track, and manage work.", "https://cdn.getgalaxy.io/sources/source-icon-monday-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-monday-light.svg", mondayManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }

@@ -1,0 +1,39 @@
+---
+title: "monday.com"
+description: "Work management platform for teams to plan, track, and manage work."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-monday-dark.svg"
+---
+
+`connectors/http` is a single source implementation driven by declarative
+YAML manifests. Onboarding a new integration is mostly a matter of writing a
+manifest, not writing a new connector — the bundled catalog (`catalog.go`) is a
+few lines per integration: an embedded manifest file plus a display name,
+description, and logo.
+
+## Auth
+
+Use a monday.com API token (from Settings > API > Developer Hub). The
+connector makes GraphQL requests to `https://api.monday.com/v2`.
+
+## Resources
+
+| Resource | Path | Pagination |
+|---|---|---|
+| `boards` | `/graphql` | Cursor pagination (`pageInfo.endCursor`, `pageInfo.hasNextPage`) |
+| `items` | `/graphql` | Cursor pagination (`pageInfo.endCursor`, `pageInfo.hasNextPage`) |
+| `users` | `/graphql` | No pagination (single request) |
+| `teams` | `/graphql` | No pagination (single request) |
+| `workspaces` | `/graphql` | No pagination (single request) |
+
+### monday.com GraphQL API
+
+monday.com uses a GraphQL API. Each resource is a separate query to `/graphql`.
+The connector extracts fields from the `data.{resource}.nodes` array for
+paginated resources, or `data.{resource}` directly for single-request resources.
+
+## Modes
+
+- **Full refresh** — extracts all records for all resources.
+- **Incremental** — available for `boards` and `items` via cursor tracking on
+  the `updated_at` field (not yet enabled; subject to monday.com API support).
+
