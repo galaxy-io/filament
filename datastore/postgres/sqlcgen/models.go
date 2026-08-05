@@ -71,6 +71,8 @@ type Connection struct {
 	Version      int64
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	IsDeleted    bool
+	DeletedAt    pgtype.Timestamptz
 }
 
 type DedupSeen struct {
@@ -92,6 +94,8 @@ type Pipeline struct {
 	LastRunAt        pgtype.Timestamptz
 	LastRunStatus    int16
 	LastRunBytes     int64
+	IsDeleted        bool
+	DeletedAt        pgtype.Timestamptz
 }
 
 type PipelineVersion struct {

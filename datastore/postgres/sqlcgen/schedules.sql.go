@@ -76,6 +76,15 @@ func (q *Queries) ClaimDue(ctx context.Context, arg ClaimDueParams) ([]*ClaimDue
 	return items, nil
 }
 
+const deletePipelineSchedules = `-- name: DeletePipelineSchedules :exec
+DELETE FROM schedules WHERE pipeline_id = $1
+`
+
+func (q *Queries) DeletePipelineSchedules(ctx context.Context, pipelineID string) error {
+	_, err := q.db.Exec(ctx, deletePipelineSchedules, pipelineID)
+	return err
+}
+
 const deleteSchedule = `-- name: DeleteSchedule :exec
 DELETE FROM schedules WHERE schedule_id = $1
 `

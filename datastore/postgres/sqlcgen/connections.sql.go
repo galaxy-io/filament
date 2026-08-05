@@ -38,7 +38,13 @@ func (q *Queries) CreateConnection(ctx context.Context, arg CreateConnectionPara
 }
 
 const deleteConnection = `-- name: DeleteConnection :exec
-DELETE FROM connections WHERE connection_id = $1
+UPDATE connections
+SET
+  name = name || '_deleted_' || extract(epoch from CURRENT_TIMESTAMP)::bigint::text,
+  is_deleted = true,
+  deleted_at = CURRENT_TIMESTAMP,
+  updated_at = CURRENT_TIMESTAMP
+WHERE connection_id = $1 AND NOT is_deleted
 `
 
 func (q *Queries) DeleteConnection(ctx context.Context, connectionID string) error {
@@ -48,7 +54,7 @@ func (q *Queries) DeleteConnection(ctx context.Context, connectionID string) err
 
 const getConnection = `-- name: GetConnection :one
 SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
-FROM connections WHERE connection_id = $1
+FROM connections WHERE connection_id = $1 AND NOT is_deleted
 `
 
 type GetConnectionRow struct {
@@ -81,7 +87,8 @@ func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetC
 const listConnections = `-- name: ListConnections :many
 SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
 FROM connections
-WHERE ($1::text = '' OR tenant_id = $1)
+WHERE NOT is_deleted
+  AND ($1::text = '' OR tenant_id = $1)
   AND ($2::connection_kind IS NULL OR kind = $2)
 ORDER BY connection_id
 `
@@ -135,7 +142,7 @@ const updateConnection = `-- name: UpdateConnection :one
 UPDATE connections
 SET name = $1, provider = $2, config = $3, secret_refs = $4,
     version = version + 1, updated_at = now()
-WHERE connection_id = $5 AND version = $6
+WHERE connection_id = $5 AND version = $6 AND NOT is_deleted
 RETURNING version
 `
 
