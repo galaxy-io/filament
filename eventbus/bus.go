@@ -63,4 +63,10 @@ type SubOpts struct {
 	FromSeq     uint64        // replay start (with Replayable)
 	AckWait     time.Duration // redelivery window before retry
 	MaxInFlight int           // max unacked messages (0 = transport default)
+
+	// Replay delivers the full retained backlog when the subscription is first
+	// created instead of only new messages. Only safe for consumers that fold
+	// facts idempotently (dedup on Seq); command consumers that execute work
+	// must not set it.
+	Replay bool
 }

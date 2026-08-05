@@ -1,0 +1,14 @@
+{{- if or .Values.server.autoscaling.enabled (gt (int .Values.server.replicas) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "filament.server.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.server.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "filament.server.selectorLabels" . | nindent 6 }}
+{{- end }}

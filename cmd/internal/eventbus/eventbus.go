@@ -4,6 +4,7 @@ package eventbus
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	bus "github.com/galaxy-io/filament/eventbus"
@@ -21,7 +22,7 @@ func FromEnv() (bus.Bus, error) {
 		if url == "" {
 			return nil, errors.New("NATS_URL is required")
 		}
-		opts := []natsbus.Option{}
+		opts := []natsbus.Option{natsbus.WithLogf(log.Printf)}
 		if stream := os.Getenv("NATS_STREAM"); stream != "" {
 			opts = append(opts, natsbus.WithStream(stream))
 		}
