@@ -11,6 +11,7 @@ import (
 	"time"
 
 	natsgo "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament/eventbus"
 )
@@ -22,18 +23,24 @@ const (
 	defaultAckWait     = 30 * time.Second
 	defaultFetchWait   = 250 * time.Millisecond
 	defaultRequestWait = 5 * time.Second
+
+	// ephemeralInactiveThreshold lets the server garbage-collect ephemeral
+	// consumers abandoned by a crashed process; live ones stay active by
+	// fetching and clean ones are deleted explicitly on Close.
+	ephemeralInactiveThreshold = 5 * time.Minute
 )
 
 // Bus is a NATS JetStream-backed eventbus.Bus.
 type Bus struct {
-	nc      *natsgo.Conn
-	js      natsgo.JetStreamContext
-	codec   eventbus.Codec
-	stream  string
-	buffer  int
-	batch   int
-	ownConn bool
-	logf    func(format string, args ...any)
+	nc          *natsgo.Conn
+	js          jetstream.JetStream
+	codec       eventbus.Codec
+	stream      string
+	buffer      int
+	batch       int
+	requestWait time.Duration
+	ownConn     bool
+	logf        func(format string, args ...any)
 
 	mu     sync.Mutex
 	subs   map[*subscription]struct{}
@@ -158,7 +165,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		}
 	}
 
-	js, err := nc.JetStream(natsgo.MaxWait(cfg.requestWait))
+	js, err := jetstream.New(nc, jetstream.WithDefaultTimeout(cfg.requestWait))
 	if err != nil {
 		if ownConn {
 			nc.Close()
@@ -171,18 +178,19 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		logf = func(string, ...any) {}
 	}
 	b := &Bus{
-		nc:      nc,
-		js:      js,
-		codec:   cfg.codec,
-		stream:  cfg.stream,
-		buffer:  cfg.buffer,
-		batch:   cfg.batch,
-		ownConn: ownConn,
-		logf:    logf,
-		subs:    make(map[*subscription]struct{}),
+		nc:          nc,
+		js:          js,
+		codec:       cfg.codec,
+		stream:      cfg.stream,
+		buffer:      cfg.buffer,
+		batch:       cfg.batch,
+		requestWait: cfg.requestWait,
+		ownConn:     ownConn,
+		logf:        logf,
+		subs:        make(map[*subscription]struct{}),
 	}
 	if cfg.createStream {
-		if err := b.ensureStream(cfg.subjects); err != nil {
+		if err := b.ensureStream(context.Background(), b.stream, cfg.subjects); err != nil {
 			if ownConn {
 				nc.Close()
 			}
@@ -222,39 +230,25 @@ func (b *Bus) EnsureStream(ctx context.Context, name string, subjects []string) 
 	if len(subjects) == 0 {
 		return fmt.Errorf("eventbus/nats: stream %q has no subjects", name)
 	}
-	if _, err := b.js.StreamInfo(name); err == nil {
-		return nil
-	} else if !errors.Is(err, natsgo.ErrStreamNotFound) {
-		return fmt.Errorf("eventbus/nats: stream info %q: %w", name, err)
-	}
-	if _, err := b.js.AddStream(&natsgo.StreamConfig{
-		Name:      name,
-		Subjects:  subjects,
-		Retention: natsgo.LimitsPolicy,
-		Storage:   natsgo.FileStorage,
-	}); err != nil {
-		return fmt.Errorf("eventbus/nats: add stream %q: %w", name, err)
-	}
-	return nil
+	return b.ensureStream(ctx, name, subjects)
 }
 
-func (b *Bus) ensureStream(subjects []string) error {
+func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string) error {
 	if len(subjects) == 0 {
 		subjects = []string{eventbus.TailWildcard}
 	}
-	if _, err := b.js.StreamInfo(b.stream); err == nil {
+	if _, err := b.js.Stream(ctx, name); err == nil {
 		return nil
-	} else if !errors.Is(err, natsgo.ErrStreamNotFound) {
-		return fmt.Errorf("eventbus/nats: stream info: %w", err)
+	} else if !errors.Is(err, jetstream.ErrStreamNotFound) {
+		return fmt.Errorf("eventbus/nats: stream info %q: %w", name, err)
 	}
-	_, err := b.js.AddStream(&natsgo.StreamConfig{
-		Name:      b.stream,
+	if _, err := b.js.CreateStream(ctx, jetstream.StreamConfig{
+		Name:      name,
 		Subjects:  subjects,
-		Retention: natsgo.LimitsPolicy,
-		Storage:   natsgo.FileStorage,
-	})
-	if err != nil {
-		return fmt.Errorf("eventbus/nats: add stream: %w", err)
+		Retention: jetstream.LimitsPolicy,
+		Storage:   jetstream.FileStorage,
+	}); err != nil {
+		return fmt.Errorf("eventbus/nats: add stream %q: %w", name, err)
 	}
 	return nil
 }
@@ -274,8 +268,7 @@ func (b *Bus) Publish(ctx context.Context, subject string, payload any) error {
 	if err != nil {
 		return fmt.Errorf("eventbus/nats: encode: %w", err)
 	}
-	_, err = b.js.PublishMsg(&natsgo.Msg{Subject: subject, Data: data}, natsgo.Context(ctx))
-	if err != nil {
+	if _, err := b.js.Publish(ctx, subject, data); err != nil {
 		return fmt.Errorf("eventbus/nats: publish: %w", err)
 	}
 	return nil
@@ -307,50 +300,49 @@ func (b *Bus) subscribe(ctx context.Context, pattern string, opts eventbus.SubOp
 		return nil, err
 	}
 
-	subOpts := []natsgo.SubOpt{
-		natsgo.BindStream(b.stream),
-		natsgo.AckExplicit(),
-		natsgo.ReplayInstant(),
-		natsgo.MaxAckPending(maxInFlight(opts.MaxInFlight, b.batch)),
-		natsgo.Context(ctx),
+	cfg := jetstream.ConsumerConfig{
+		Durable:       opts.Durable,
+		FilterSubject: route.Target,
+		AckPolicy:     jetstream.AckExplicitPolicy,
+		AckWait:       defaultAckWait,
+		MaxAckPending: maxInFlight(opts.MaxInFlight, b.batch),
 	}
 	if opts.AckWait > 0 {
-		subOpts = append(subOpts, natsgo.AckWait(opts.AckWait))
-	} else {
-		subOpts = append(subOpts, natsgo.AckWait(defaultAckWait))
+		cfg.AckWait = opts.AckWait
 	}
 	switch {
 	case opts.FromSeq > 0:
-		subOpts = append(subOpts, natsgo.StartSequence(opts.FromSeq))
+		cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
+		cfg.OptStartSeq = opts.FromSeq
 	case opts.Replay:
-		subOpts = append(subOpts, natsgo.DeliverAll())
+		cfg.DeliverPolicy = jetstream.DeliverAllPolicy
 	default:
-		subOpts = append(subOpts, natsgo.DeliverNew())
+		cfg.DeliverPolicy = jetstream.DeliverNewPolicy
+	}
+	if opts.Durable == "" {
+		cfg.InactiveThreshold = ephemeralInactiveThreshold
 	}
 
-	nsub, err := b.pullSubscribe(route.Target, opts.Durable, subOpts)
+	cons, err := b.ensureConsumer(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("eventbus/nats: subscribe: %w", err)
 	}
 
 	s := &subscription{
-		bus:     b,
-		nsub:    nsub,
-		route:   route,
-		durable: opts.Durable,
-		subOpts: subOpts,
-		ch:      make(chan eventbus.Message, b.buffer),
-		done:    make(chan struct{}),
-		batch:   maxInFlight(opts.MaxInFlight, b.batch),
-		filter:  route.ClientFilter,
+		bus:    b,
+		cons:   cons,
+		cfg:    cfg,
+		route:  route,
+		ch:     make(chan eventbus.Message, b.buffer),
+		done:   make(chan struct{}),
+		batch:  maxInFlight(opts.MaxInFlight, b.batch),
+		filter: route.ClientFilter,
 	}
 
 	b.mu.Lock()
 	if b.closed.Load() {
 		b.mu.Unlock()
-		if opts.Durable == "" {
-			_ = nsub.Unsubscribe()
-		}
+		s.deleteEphemeral()
 		return nil, eventbus.ErrBusClosed
 	}
 	b.subs[s] = struct{}{}
@@ -361,29 +353,16 @@ func (b *Bus) subscribe(ctx context.Context, pattern string, opts eventbus.SubOp
 	return s, nil
 }
 
-// pullSubscribe binds the durable consumer, recovering from config drift: a
-// durable created by an older build (e.g. a different deliver policy) rejects
-// the bind, so the stale consumer is deleted and recreated with the current
-// options. Durable consumers here fold facts idempotently (dedup on Seq), so
-// the replay a recreate can trigger is safe; its ack state is lost either way.
-func (b *Bus) pullSubscribe(target, durable string, subOpts []natsgo.SubOpt) (*natsgo.Subscription, error) {
-	nsub, err := b.js.PullSubscribe(target, durable, subOpts...)
-	if err == nil || durable == "" || !isConfigMismatch(err) {
-		return nsub, err
-	}
-	if derr := b.js.DeleteConsumer(b.stream, durable); derr != nil {
-		return nil, fmt.Errorf("%w (delete for recreate: %v)", err, derr)
-	}
-	b.logf("eventbus/nats: recreating durable %q on %q: %v", durable, target, err)
-	return b.js.PullSubscribe(target, durable, subOpts...)
+// ensureConsumer creates or binds the consumer. CreateOrUpdateConsumer
+// reconciles updatable fields in place; changing a non-updatable field (e.g.
+// deliver policy) errors at subscribe, and the fix is deleting the consumer
+// so the next boot recreates it.
+func (b *Bus) ensureConsumer(ctx context.Context, cfg jetstream.ConsumerConfig) (jetstream.Consumer, error) {
+	return b.js.CreateOrUpdateConsumer(ctx, b.stream, cfg)
 }
 
-// isConfigMismatch reports whether err is the client rejecting a bind because
-// the existing consumer's config differs from the requested one. nats.go
-// returns these as plain formatted errors ("nats: configuration requests X to
-// be Y, but consumer's value is Z"), so string matching is the only handle.
-func isConfigMismatch(err error) bool {
-	return strings.Contains(err.Error(), "configuration requests")
+func consumerGone(err error) bool {
+	return errors.Is(err, jetstream.ErrConsumerNotFound) || errors.Is(err, jetstream.ErrConsumerDeleted)
 }
 
 // Close stops the bus and closes active subscriptions.
@@ -413,17 +392,16 @@ func (b *Bus) remove(s *subscription) {
 }
 
 type subscription struct {
-	bus     *Bus
-	route   eventbus.Route
-	durable string
-	subOpts []natsgo.SubOpt
-	filter  eventbus.Filter
-	ch      chan eventbus.Message
-	done    chan struct{}
-	batch   int
+	bus    *Bus
+	cfg    jetstream.ConsumerConfig
+	route  eventbus.Route
+	filter eventbus.Filter
+	ch     chan eventbus.Message
+	done   chan struct{}
+	batch  int
 
 	mu   sync.Mutex
-	nsub *natsgo.Subscription
+	cons jetstream.Consumer
 
 	closeOnce sync.Once
 	wg        sync.WaitGroup
@@ -433,15 +411,13 @@ var _ eventbus.Subscription = (*subscription)(nil)
 
 func (s *subscription) C() <-chan eventbus.Message { return s.ch }
 
-// Close stops the pump. Ephemeral subscriptions unsubscribe; durable ones
-// deliberately do not — Unsubscribe deletes the durable consumer server-side,
-// which would strand every other process bound to it and lose its position.
+// Close stops the pump. Ephemeral consumers are deleted; durable ones
+// deliberately survive so other processes stay bound and the kept position
+// resumes on the next subscribe.
 func (s *subscription) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
-		if s.durable == "" {
-			_ = s.sub().Unsubscribe()
-		}
+		s.deleteEphemeral()
 		s.bus.remove(s)
 		s.wg.Wait()
 		close(s.ch)
@@ -449,22 +425,33 @@ func (s *subscription) Close() error {
 	return nil
 }
 
-func (s *subscription) sub() *natsgo.Subscription {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.nsub
+func (s *subscription) deleteEphemeral() {
+	if s.cfg.Durable != "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.bus.requestWait)
+	defer cancel()
+	_ = s.bus.js.DeleteConsumer(ctx, s.bus.stream, s.consumer().CachedInfo().Name)
 }
 
-// resubscribe recreates the pull subscription after the server-side consumer
-// disappeared. A durable recreated this way resumes per its deliver policy
-// (DeliverAll replays and relies on the consumer's dedup; DeliverNew tails).
-func (s *subscription) resubscribe() error {
-	nsub, err := s.bus.pullSubscribe(s.route.Target, s.durable, s.subOpts)
+func (s *subscription) consumer() jetstream.Consumer {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cons
+}
+
+// recreate rebuilds the server-side consumer after it disappeared. A durable
+// recreated this way resumes per its deliver policy (DeliverAll replays and
+// relies on the consumer's dedup; DeliverNew tails).
+func (s *subscription) recreate() error {
+	ctx, cancel := context.WithTimeout(context.Background(), s.bus.requestWait)
+	defer cancel()
+	cons, err := s.bus.ensureConsumer(ctx, s.cfg)
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
-	s.nsub = nsub
+	s.cons = cons
 	s.mu.Unlock()
 	return nil
 }
@@ -479,56 +466,57 @@ func (s *subscription) pump() {
 		default:
 		}
 
-		msgs, err := s.sub().Fetch(s.batch, natsgo.MaxWait(defaultFetchWait))
-		if err != nil {
-			if errors.Is(err, natsgo.ErrTimeout) {
+		batch, err := s.consumer().Fetch(s.batch, jetstream.FetchMaxWait(defaultFetchWait))
+		if err == nil {
+			for msg := range batch.Messages() {
+				if !s.route.Exact && !s.filter.MatchSubject(msg.Subject()) {
+					_ = msg.Ack()
+					continue
+				}
+				payload, derr := s.bus.codec.Decode(msg.Data())
+				if derr != nil {
+					_ = msg.Term()
+					continue
+				}
+				em := &message{msg: msg, subject: msg.Subject(), payload: payload}
+				if md, merr := msg.Metadata(); merr == nil {
+					em.seq = md.Sequence.Stream
+				}
+				select {
+				case s.ch <- em:
+				case <-s.done:
+					_ = msg.Nak()
+					return
+				}
+			}
+			err = batch.Error()
+			if err == nil {
 				lastErr = ""
 				continue
 			}
-			if err.Error() != lastErr {
-				lastErr = err.Error()
-				s.bus.logf("eventbus/nats: fetch %q (durable %q): %v", s.route.Target, s.durable, err)
-			}
-			if s.durable != "" && (errors.Is(err, natsgo.ErrConsumerNotFound) || errors.Is(err, natsgo.ErrConsumerDeleted)) {
-				if rerr := s.resubscribe(); rerr == nil {
-					s.bus.logf("eventbus/nats: recreated durable %q on %q", s.durable, s.route.Target)
-					lastErr = ""
-					continue
-				}
-			}
-			select {
-			case <-s.done:
-				return
-			case <-time.After(defaultFetchWait):
+		}
+
+		if err.Error() != lastErr {
+			lastErr = err.Error()
+			s.bus.logf("eventbus/nats: fetch %q (durable %q): %v", s.route.Target, s.cfg.Durable, err)
+		}
+		if s.cfg.Durable != "" && consumerGone(err) {
+			if rerr := s.recreate(); rerr == nil {
+				s.bus.logf("eventbus/nats: recreated durable %q on %q", s.cfg.Durable, s.route.Target)
+				lastErr = ""
 				continue
 			}
 		}
-		for _, msg := range msgs {
-			if !s.route.Exact && !s.filter.MatchSubject(msg.Subject) {
-				_ = msg.Ack()
-				continue
-			}
-			payload, err := s.bus.codec.Decode(msg.Data)
-			if err != nil {
-				_ = msg.Term()
-				continue
-			}
-			em := &message{msg: msg, subject: msg.Subject, payload: payload}
-			if md, err := msg.Metadata(); err == nil {
-				em.seq = md.Sequence.Stream
-			}
-			select {
-			case s.ch <- em:
-			case <-s.done:
-				_ = msg.Nak()
-				return
-			}
+		select {
+		case <-s.done:
+			return
+		case <-time.After(defaultFetchWait):
 		}
 	}
 }
 
 type message struct {
-	msg     *natsgo.Msg
+	msg     jetstream.Msg
 	subject string
 	payload any
 	seq     uint64

@@ -25,11 +25,10 @@ func (strCodec) Encode(payload any) ([]byte, error) {
 
 func (strCodec) Decode(data []byte) (any, error) { return string(data), nil }
 
-// TestDurableConsumerLifecycle proves the durable-consumer guarantees: Close
-// does not delete the server-side consumer, a rebind resumes from the kept
-// position, a consumer deleted out from under a live subscription is recreated
-// by the pump, and a config-drifted durable is recreated instead of wedging
-// the subscriber.
+// TestDurableConsumerLifecycle proves the three durable-consumer guarantees:
+// Close does not delete the server-side consumer, a rebind resumes from the
+// kept position, and a consumer deleted out from under a live subscription is
+// recreated by the pump.
 func TestDurableConsumerLifecycle(t *testing.T) {
 	nc := testcontainers.NATSContainer(t)
 	const stream = "EVENTBUS_IT"
@@ -116,17 +115,4 @@ func TestDurableConsumerLifecycle(t *testing.T) {
 		}
 	}
 	_ = sub2.Close()
-
-	// Deliver-policy drift, e.g. an upgrade that toggles Replay: binding the
-	// existing DeliverAll durable without Replay is a config mismatch, so the
-	// bus deletes and recreates the consumer instead of failing startup.
-	sub3, err := bus.Subscribe("it.v1.>", eventbus.SubOpts{Durable: "trk"})
-	if err != nil {
-		t.Fatalf("drift resubscribe: %v", err)
-	}
-	pub("m5")
-	if got := recv(sub3); got != "m5" {
-		t.Fatalf("drift: got %q, want m5", got)
-	}
-	_ = sub3.Close()
 }
