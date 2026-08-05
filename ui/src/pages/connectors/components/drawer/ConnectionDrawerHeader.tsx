@@ -49,17 +49,16 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
           <BaseHeader
             title={connection.name}
             description={connector?.displayName || connection.connector}
-            onClose={onClose}
             actions={[
               <Button
                 key="edit"
                 icon={PencilIcon}
-                label="Edit connection"
                 variant={ButtonVariant.SECONDARY}
                 size={ButtonSize.SMALL}
                 onClick={handleEdit}
               />,
             ]}
+            onClose={onClose}
           />
         </FlexWrapper>
       </FlexWrapper>

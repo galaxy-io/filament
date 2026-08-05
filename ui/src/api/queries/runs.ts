@@ -49,6 +49,17 @@ const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
     : false;
 };
 
+export const useListRunsQuery = ({ input }: { input?: ListRunsRequest } = {}) => {
+  return useQuery<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output
+  >(IngestionService.method.listRuns, input, {
+    refetchInterval: (query) => {
+      return getListRunsRefetchInterval(query.state.data?.runs);
+    },
+  });
+};
+
 export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } = {}) => {
   return useSuspenseQuery<
     typeof IngestionService.method.listRuns.input,

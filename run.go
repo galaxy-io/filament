@@ -113,6 +113,8 @@ type ResourceState struct {
 }
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
+// Since is inclusive and Until exclusive on StartedAt; either bound excludes
+// runs that never started.
 type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string
@@ -121,6 +123,7 @@ type RunFilter struct {
 	Status            []RunStatus
 	Schedule          ScheduleID
 	Since             time.Time
+	Until             time.Time
 	Limit             int
 	Offset            int
 	Cursor            string
