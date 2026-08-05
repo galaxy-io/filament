@@ -24,17 +24,17 @@ enum Metric {
 
 // MetricDimension names a runs column usable for grouping and filtering.
 enum MetricDimension {
-  DIMENSION_UNSPECIFIED = 0;
-  DIMENSION_TENANT_ID = 1;
-  DIMENSION_PIPELINE_ID = 2;
-  DIMENSION_STATUS = 3;
+  METRIC_DIMENSION_UNSPECIFIED = 0;
+  METRIC_DIMENSION_TENANT_ID = 1;
+  METRIC_DIMENSION_PIPELINE_ID = 2;
+  METRIC_DIMENSION_STATUS = 3;
 }
 
 // MetricsGranularity is the bucket width for timeseries queries.
 enum MetricGranularity {
-  METRICS_GRANULARITY_UNSPECIFIED = 0;
-  METRICS_GRANULARITY_HOUR = 1;
-  METRICS_GRANULARITY_DAY = 2;
+  METRIC_GRANULARITY_UNSPECIFIED = 0;
+  METRIC_GRANULARITY_HOUR = 1;
+  METRIC_GRANULARITY_DAY = 2;
 }
 
 // MetricFilter narrows a query; values are dimension values as strings
@@ -45,17 +45,20 @@ message MetricFilter {
 }
 
 message QueryTimeseriesRequest {
+  // tenant_id scopes the query; "" matches every tenant. Mirrors
+  // ListRunsRequest.tenant_id (ingestion.v1).
+  string tenant_id = 1;
   // metrics are computed together per bucket; point values align with this
   // order positionally.
-  repeated Metric metrics = 1;
-  int64 since_ms = 2; // inclusive
-  int64 until_ms = 3; // exclusive
-  MetricsGranularity granularity = 4;
+  repeated Metric metrics = 2;
+  int64 since_ms = 3; // inclusive
+  int64 until_ms = 4; // exclusive
+  MetricGranularity granularity = 5;
   // tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
   // match the viewer's local calendar day.
-  int32 tz_offset_minutes = 5;
-  MetricDimension group_by = 6; // UNSPECIFIED = one total series, key ""
-  repeated MetricFilter filters = 7;
+  int32 tz_offset_minutes = 6;
+  MetricDimension group_by = 7; // UNSPECIFIED = one total series, key ""
+  repeated MetricFilter filters = 8;
 }
 
 // TimeseriesPoint.values[i] is request.metrics[i] for this bucket.
@@ -79,11 +82,14 @@ message QueryTimeseriesResponse {
 }
 
 message QueryAggregateRequest {
-  repeated Metric metrics = 1;
-  int64 since_ms = 2;
-  int64 until_ms = 3;
-  MetricDimension group_by = 4; // UNSPECIFIED = single total row, key ""
-  repeated MetricFilter filters = 5;
+  // tenant_id scopes the query; "" matches every tenant. Mirrors
+  // ListRunsRequest.tenant_id (ingestion.v1).
+  string tenant_id = 1;
+  repeated Metric metrics = 2;
+  int64 since_ms = 3;
+  int64 until_ms = 4;
+  MetricDimension group_by = 5; // UNSPECIFIED = single total row, key ""
+  repeated MetricFilter filters = 6;
 }
 
 // AggregateRow.values[i] is request.metrics[i] for this group.

@@ -24,10 +24,7 @@ interface ConnectionDrawerHeaderProps {
   onClose: () => void;
 }
 
-const ConnectionDrawerHeader = ({
-  connection,
-  onClose,
-}: ConnectionDrawerHeaderProps) => {
+const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderProps) => {
   const navigate = useNavigate();
   const connector = useConnectorSpec(connection.connector, connection.kind);
 

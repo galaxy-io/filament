@@ -79,112 +79,106 @@ func (Metric) EnumDescriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{0}
 }
 
-// Dimension names a runs column usable for grouping and filtering.
-type Dimension int32
+// MetricDimension names a runs column usable for grouping and filtering.
+type MetricDimension int32
 
 const (
-	Dimension_DIMENSION_UNSPECIFIED     Dimension = 0
-	Dimension_DIMENSION_TENANT_ID       Dimension = 1
-	Dimension_DIMENSION_PIPELINE_ID     Dimension = 2
-	Dimension_DIMENSION_STATUS          Dimension = 3
-	Dimension_DIMENSION_SOURCE_PROVIDER Dimension = 4
-	Dimension_DIMENSION_INGESTION_TYPE  Dimension = 5
+	MetricDimension_METRIC_DIMENSION_UNSPECIFIED MetricDimension = 0
+	MetricDimension_METRIC_DIMENSION_TENANT_ID   MetricDimension = 1
+	MetricDimension_METRIC_DIMENSION_PIPELINE_ID MetricDimension = 2
+	MetricDimension_METRIC_DIMENSION_STATUS      MetricDimension = 3
 )
 
-// Enum value maps for Dimension.
+// Enum value maps for MetricDimension.
 var (
-	Dimension_name = map[int32]string{
-		0: "DIMENSION_UNSPECIFIED",
-		1: "DIMENSION_TENANT_ID",
-		2: "DIMENSION_PIPELINE_ID",
-		3: "DIMENSION_STATUS",
-		4: "DIMENSION_SOURCE_PROVIDER",
-		5: "DIMENSION_INGESTION_TYPE",
+	MetricDimension_name = map[int32]string{
+		0: "METRIC_DIMENSION_UNSPECIFIED",
+		1: "METRIC_DIMENSION_TENANT_ID",
+		2: "METRIC_DIMENSION_PIPELINE_ID",
+		3: "METRIC_DIMENSION_STATUS",
 	}
-	Dimension_value = map[string]int32{
-		"DIMENSION_UNSPECIFIED":     0,
-		"DIMENSION_TENANT_ID":       1,
-		"DIMENSION_PIPELINE_ID":     2,
-		"DIMENSION_STATUS":          3,
-		"DIMENSION_SOURCE_PROVIDER": 4,
-		"DIMENSION_INGESTION_TYPE":  5,
+	MetricDimension_value = map[string]int32{
+		"METRIC_DIMENSION_UNSPECIFIED": 0,
+		"METRIC_DIMENSION_TENANT_ID":   1,
+		"METRIC_DIMENSION_PIPELINE_ID": 2,
+		"METRIC_DIMENSION_STATUS":      3,
 	}
 )
 
-func (x Dimension) Enum() *Dimension {
-	p := new(Dimension)
+func (x MetricDimension) Enum() *MetricDimension {
+	p := new(MetricDimension)
 	*p = x
 	return p
 }
 
-func (x Dimension) String() string {
+func (x MetricDimension) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (Dimension) Descriptor() protoreflect.EnumDescriptor {
+func (MetricDimension) Descriptor() protoreflect.EnumDescriptor {
 	return file_metrics_v1_metrics_proto_enumTypes[1].Descriptor()
 }
 
-func (Dimension) Type() protoreflect.EnumType {
+func (MetricDimension) Type() protoreflect.EnumType {
 	return &file_metrics_v1_metrics_proto_enumTypes[1]
 }
 
-func (x Dimension) Number() protoreflect.EnumNumber {
+func (x MetricDimension) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use Dimension.Descriptor instead.
-func (Dimension) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use MetricDimension.Descriptor instead.
+func (MetricDimension) EnumDescriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{1}
 }
 
 // MetricsGranularity is the bucket width for timeseries queries.
-type MetricsGranularity int32
+type MetricGranularity int32
 
 const (
-	MetricsGranularity_METRICS_GRANULARITY_UNSPECIFIED MetricsGranularity = 0
-	MetricsGranularity_METRICS_GRANULARITY_HOUR        MetricsGranularity = 1
-	MetricsGranularity_METRICS_GRANULARITY_DAY         MetricsGranularity = 2
+	MetricGranularity_METRIC_GRANULARITY_UNSPECIFIED MetricGranularity = 0
+	MetricGranularity_METRIC_GRANULARITY_HOUR        MetricGranularity = 1
+	MetricGranularity_METRIC_GRANULARITY_DAY         MetricGranularity = 2
 )
 
-// Enum value maps for MetricsGranularity.
+// Enum value maps for MetricGranularity.
 var (
-	MetricsGranularity_name = map[int32]string{
-		0: "METRICS_GRANULARITY_UNSPECIFIED",
-		1: "METRICS_GRANULARITY_HOUR",
-		2: "METRICS_GRANULARITY_DAY",
+	MetricGranularity_name = map[int32]string{
+		0: "METRIC_GRANULARITY_UNSPECIFIED",
+		1: "METRIC_GRANULARITY_HOUR",
+		2: "METRIC_GRANULARITY_DAY",
 	}
-	MetricsGranularity_value = map[string]int32{
-		"METRICS_GRANULARITY_UNSPECIFIED": 0,
-		"METRICS_GRANULARITY_HOUR":        1,
-		"METRICS_GRANULARITY_DAY":         2,
+	MetricGranularity_value = map[string]int32{
+		"METRIC_GRANULARITY_UNSPECIFIED": 0,
+		"METRIC_GRANULARITY_HOUR":        1,
+		"METRIC_GRANULARITY_DAY":         2,
 	}
 )
 
-func (x MetricsGranularity) Enum() *MetricsGranularity {
-	p := new(MetricsGranularity)
+func (x MetricGranularity) Enum() *MetricGranularity {
+	p := new(MetricGranularity)
 	*p = x
 	return p
 }
 
-func (x MetricsGranularity) String() string {
+func (x MetricGranularity) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (MetricsGranularity) Descriptor() protoreflect.EnumDescriptor {
+func (MetricGranularity) Descriptor() protoreflect.EnumDescriptor {
 	return file_metrics_v1_metrics_proto_enumTypes[2].Descriptor()
 }
 
-func (MetricsGranularity) Type() protoreflect.EnumType {
+func (MetricGranularity) Type() protoreflect.EnumType {
 	return &file_metrics_v1_metrics_proto_enumTypes[2]
 }
 
-func (x MetricsGranularity) Number() protoreflect.EnumNumber {
+func (x MetricGranularity) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use MetricsGranularity.Descriptor instead.
-func (MetricsGranularity) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use MetricGranularity.Descriptor instead.
+func (MetricGranularity) EnumDescriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{2}
 }
 
@@ -192,7 +186,7 @@ func (MetricsGranularity) EnumDescriptor() ([]byte, []int) {
 // (a RunStatus number, a pipeline id, a provider name).
 type MetricFilter struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Dimension     Dimension              `protobuf:"varint,1,opt,name=dimension,proto3,enum=metrics.v1.Dimension" json:"dimension,omitempty"`
+	Dimension     MetricDimension        `protobuf:"varint,1,opt,name=dimension,proto3,enum=metrics.v1.MetricDimension" json:"dimension,omitempty"`
 	Values        []string               `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -228,11 +222,11 @@ func (*MetricFilter) Descriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *MetricFilter) GetDimension() Dimension {
+func (x *MetricFilter) GetDimension() MetricDimension {
 	if x != nil {
 		return x.Dimension
 	}
-	return Dimension_DIMENSION_UNSPECIFIED
+	return MetricDimension_METRIC_DIMENSION_UNSPECIFIED
 }
 
 func (x *MetricFilter) GetValues() []string {
@@ -244,17 +238,20 @@ func (x *MetricFilter) GetValues() []string {
 
 type QueryTimeseriesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// tenant_id scopes the query; "" matches every tenant. Mirrors
+	// ListRunsRequest.tenant_id (ingestion.v1).
+	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	// metrics are computed together per bucket; point values align with this
 	// order positionally.
-	Metrics     []Metric           `protobuf:"varint,1,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
-	SinceMs     int64              `protobuf:"varint,2,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"` // inclusive
-	UntilMs     int64              `protobuf:"varint,3,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"` // exclusive
-	Granularity MetricsGranularity `protobuf:"varint,4,opt,name=granularity,proto3,enum=metrics.v1.MetricsGranularity" json:"granularity,omitempty"`
+	Metrics     []Metric          `protobuf:"varint,2,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
+	SinceMs     int64             `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"` // inclusive
+	UntilMs     int64             `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"` // exclusive
+	Granularity MetricGranularity `protobuf:"varint,5,opt,name=granularity,proto3,enum=metrics.v1.MetricGranularity" json:"granularity,omitempty"`
 	// tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
 	// match the viewer's local calendar day.
-	TzOffsetMinutes int32           `protobuf:"varint,5,opt,name=tz_offset_minutes,json=tzOffsetMinutes,proto3" json:"tz_offset_minutes,omitempty"`
-	GroupBy         Dimension       `protobuf:"varint,6,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.Dimension" json:"group_by,omitempty"` // UNSPECIFIED = one total series, key ""
-	Filters         []*MetricFilter `protobuf:"bytes,7,rep,name=filters,proto3" json:"filters,omitempty"`
+	TzOffsetMinutes int32           `protobuf:"varint,6,opt,name=tz_offset_minutes,json=tzOffsetMinutes,proto3" json:"tz_offset_minutes,omitempty"`
+	GroupBy         MetricDimension `protobuf:"varint,7,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.MetricDimension" json:"group_by,omitempty"` // UNSPECIFIED = one total series, key ""
+	Filters         []*MetricFilter `protobuf:"bytes,8,rep,name=filters,proto3" json:"filters,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -289,6 +286,13 @@ func (*QueryTimeseriesRequest) Descriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{1}
 }
 
+func (x *QueryTimeseriesRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
 func (x *QueryTimeseriesRequest) GetMetrics() []Metric {
 	if x != nil {
 		return x.Metrics
@@ -310,11 +314,11 @@ func (x *QueryTimeseriesRequest) GetUntilMs() int64 {
 	return 0
 }
 
-func (x *QueryTimeseriesRequest) GetGranularity() MetricsGranularity {
+func (x *QueryTimeseriesRequest) GetGranularity() MetricGranularity {
 	if x != nil {
 		return x.Granularity
 	}
-	return MetricsGranularity_METRICS_GRANULARITY_UNSPECIFIED
+	return MetricGranularity_METRIC_GRANULARITY_UNSPECIFIED
 }
 
 func (x *QueryTimeseriesRequest) GetTzOffsetMinutes() int32 {
@@ -324,11 +328,11 @@ func (x *QueryTimeseriesRequest) GetTzOffsetMinutes() int32 {
 	return 0
 }
 
-func (x *QueryTimeseriesRequest) GetGroupBy() Dimension {
+func (x *QueryTimeseriesRequest) GetGroupBy() MetricDimension {
 	if x != nil {
 		return x.GroupBy
 	}
-	return Dimension_DIMENSION_UNSPECIFIED
+	return MetricDimension_METRIC_DIMENSION_UNSPECIFIED
 }
 
 func (x *QueryTimeseriesRequest) GetFilters() []*MetricFilter {
@@ -493,12 +497,15 @@ func (x *QueryTimeseriesResponse) GetSeries() []*Timeseries {
 }
 
 type QueryAggregateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metrics       []Metric               `protobuf:"varint,1,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
-	SinceMs       int64                  `protobuf:"varint,2,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
-	UntilMs       int64                  `protobuf:"varint,3,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
-	GroupBy       Dimension              `protobuf:"varint,4,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.Dimension" json:"group_by,omitempty"` // UNSPECIFIED = single total row, key ""
-	Filters       []*MetricFilter        `protobuf:"bytes,5,rep,name=filters,proto3" json:"filters,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// tenant_id scopes the query; "" matches every tenant. Mirrors
+	// ListRunsRequest.tenant_id (ingestion.v1).
+	TenantId      string          `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Metrics       []Metric        `protobuf:"varint,2,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
+	SinceMs       int64           `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
+	UntilMs       int64           `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
+	GroupBy       MetricDimension `protobuf:"varint,5,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.MetricDimension" json:"group_by,omitempty"` // UNSPECIFIED = single total row, key ""
+	Filters       []*MetricFilter `protobuf:"bytes,6,rep,name=filters,proto3" json:"filters,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -533,6 +540,13 @@ func (*QueryAggregateRequest) Descriptor() ([]byte, []int) {
 	return file_metrics_v1_metrics_proto_rawDescGZIP(), []int{5}
 }
 
+func (x *QueryAggregateRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
 func (x *QueryAggregateRequest) GetMetrics() []Metric {
 	if x != nil {
 		return x.Metrics
@@ -554,11 +568,11 @@ func (x *QueryAggregateRequest) GetUntilMs() int64 {
 	return 0
 }
 
-func (x *QueryAggregateRequest) GetGroupBy() Dimension {
+func (x *QueryAggregateRequest) GetGroupBy() MetricDimension {
 	if x != nil {
 		return x.GroupBy
 	}
-	return Dimension_DIMENSION_UNSPECIFIED
+	return MetricDimension_METRIC_DIMENSION_UNSPECIFIED
 }
 
 func (x *QueryAggregateRequest) GetFilters() []*MetricFilter {
@@ -670,18 +684,19 @@ var File_metrics_v1_metrics_proto protoreflect.FileDescriptor
 const file_metrics_v1_metrics_proto_rawDesc = "" +
 	"\n" +
 	"\x18metrics/v1/metrics.proto\x12\n" +
-	"metrics.v1\"[\n" +
-	"\fMetricFilter\x123\n" +
-	"\tdimension\x18\x01 \x01(\x0e2\x15.metrics.v1.DimensionR\tdimension\x12\x16\n" +
-	"\x06values\x18\x02 \x03(\tR\x06values\"\xd0\x02\n" +
-	"\x16QueryTimeseriesRequest\x12,\n" +
-	"\ametrics\x18\x01 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
-	"\bsince_ms\x18\x02 \x01(\x03R\asinceMs\x12\x19\n" +
-	"\buntil_ms\x18\x03 \x01(\x03R\auntilMs\x12@\n" +
-	"\vgranularity\x18\x04 \x01(\x0e2\x1e.metrics.v1.MetricsGranularityR\vgranularity\x12*\n" +
-	"\x11tz_offset_minutes\x18\x05 \x01(\x05R\x0ftzOffsetMinutes\x120\n" +
-	"\bgroup_by\x18\x06 \x01(\x0e2\x15.metrics.v1.DimensionR\agroupBy\x122\n" +
-	"\afilters\x18\a \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"Q\n" +
+	"metrics.v1\"a\n" +
+	"\fMetricFilter\x129\n" +
+	"\tdimension\x18\x01 \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\tdimension\x12\x16\n" +
+	"\x06values\x18\x02 \x03(\tR\x06values\"\xf2\x02\n" +
+	"\x16QueryTimeseriesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12,\n" +
+	"\ametrics\x18\x02 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
+	"\bsince_ms\x18\x03 \x01(\x03R\asinceMs\x12\x19\n" +
+	"\buntil_ms\x18\x04 \x01(\x03R\auntilMs\x12?\n" +
+	"\vgranularity\x18\x05 \x01(\x0e2\x1d.metrics.v1.MetricGranularityR\vgranularity\x12*\n" +
+	"\x11tz_offset_minutes\x18\x06 \x01(\x05R\x0ftzOffsetMinutes\x126\n" +
+	"\bgroup_by\x18\a \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\agroupBy\x122\n" +
+	"\afilters\x18\b \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"Q\n" +
 	"\x0fTimeseriesPoint\x12&\n" +
 	"\x0fbucket_start_ms\x18\x01 \x01(\x03R\rbucketStartMs\x12\x16\n" +
 	"\x06values\x18\x02 \x03(\x01R\x06values\"S\n" +
@@ -690,13 +705,14 @@ const file_metrics_v1_metrics_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
 	"\x06points\x18\x02 \x03(\v2\x1b.metrics.v1.TimeseriesPointR\x06points\"I\n" +
 	"\x17QueryTimeseriesResponse\x12.\n" +
-	"\x06series\x18\x01 \x03(\v2\x16.metrics.v1.TimeseriesR\x06series\"\xe1\x01\n" +
-	"\x15QueryAggregateRequest\x12,\n" +
-	"\ametrics\x18\x01 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
-	"\bsince_ms\x18\x02 \x01(\x03R\asinceMs\x12\x19\n" +
-	"\buntil_ms\x18\x03 \x01(\x03R\auntilMs\x120\n" +
-	"\bgroup_by\x18\x04 \x01(\x0e2\x15.metrics.v1.DimensionR\agroupBy\x122\n" +
-	"\afilters\x18\x05 \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"8\n" +
+	"\x06series\x18\x01 \x03(\v2\x16.metrics.v1.TimeseriesR\x06series\"\x84\x02\n" +
+	"\x15QueryAggregateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12,\n" +
+	"\ametrics\x18\x02 \x03(\x0e2\x12.metrics.v1.MetricR\ametrics\x12\x19\n" +
+	"\bsince_ms\x18\x03 \x01(\x03R\asinceMs\x12\x19\n" +
+	"\buntil_ms\x18\x04 \x01(\x03R\auntilMs\x126\n" +
+	"\bgroup_by\x18\x05 \x01(\x0e2\x1b.metrics.v1.MetricDimensionR\agroupBy\x122\n" +
+	"\afilters\x18\x06 \x03(\v2\x18.metrics.v1.MetricFilterR\afilters\"8\n" +
 	"\fAggregateRow\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
 	"\x06values\x18\x02 \x03(\x01R\x06values\"F\n" +
@@ -707,18 +723,16 @@ const file_metrics_v1_metrics_proto_rawDesc = "" +
 	"\x10METRIC_RUN_COUNT\x10\x01\x12\x16\n" +
 	"\x12METRIC_RUN_RECORDS\x10\x02\x12\x14\n" +
 	"\x10METRIC_RUN_BYTES\x10\x03\x12\x17\n" +
-	"\x13METRIC_RUN_DURATION\x10\x04*\xad\x01\n" +
-	"\tDimension\x12\x19\n" +
-	"\x15DIMENSION_UNSPECIFIED\x10\x00\x12\x17\n" +
-	"\x13DIMENSION_TENANT_ID\x10\x01\x12\x19\n" +
-	"\x15DIMENSION_PIPELINE_ID\x10\x02\x12\x14\n" +
-	"\x10DIMENSION_STATUS\x10\x03\x12\x1d\n" +
-	"\x19DIMENSION_SOURCE_PROVIDER\x10\x04\x12\x1c\n" +
-	"\x18DIMENSION_INGESTION_TYPE\x10\x05*t\n" +
-	"\x12MetricsGranularity\x12#\n" +
-	"\x1fMETRICS_GRANULARITY_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18METRICS_GRANULARITY_HOUR\x10\x01\x12\x1b\n" +
-	"\x17METRICS_GRANULARITY_DAY\x10\x022\xc5\x01\n" +
+	"\x13METRIC_RUN_DURATION\x10\x04*\x92\x01\n" +
+	"\x0fMetricDimension\x12 \n" +
+	"\x1cMETRIC_DIMENSION_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aMETRIC_DIMENSION_TENANT_ID\x10\x01\x12 \n" +
+	"\x1cMETRIC_DIMENSION_PIPELINE_ID\x10\x02\x12\x1b\n" +
+	"\x17METRIC_DIMENSION_STATUS\x10\x03*p\n" +
+	"\x11MetricGranularity\x12\"\n" +
+	"\x1eMETRIC_GRANULARITY_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17METRIC_GRANULARITY_HOUR\x10\x01\x12\x1a\n" +
+	"\x16METRIC_GRANULARITY_DAY\x10\x022\xc5\x01\n" +
 	"\x0eMetricsService\x12Z\n" +
 	"\x0fQueryTimeseries\x12\".metrics.v1.QueryTimeseriesRequest\x1a#.metrics.v1.QueryTimeseriesResponse\x12W\n" +
 	"\x0eQueryAggregate\x12!.metrics.v1.QueryAggregateRequest\x1a\".metrics.v1.QueryAggregateResponseB\x9f\x01\n" +
@@ -742,8 +756,8 @@ var file_metrics_v1_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_metrics_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_metrics_v1_metrics_proto_goTypes = []any{
 	(Metric)(0),                     // 0: metrics.v1.Metric
-	(Dimension)(0),                  // 1: metrics.v1.Dimension
-	(MetricsGranularity)(0),         // 2: metrics.v1.MetricsGranularity
+	(MetricDimension)(0),            // 1: metrics.v1.MetricDimension
+	(MetricGranularity)(0),          // 2: metrics.v1.MetricGranularity
 	(*MetricFilter)(nil),            // 3: metrics.v1.MetricFilter
 	(*QueryTimeseriesRequest)(nil),  // 4: metrics.v1.QueryTimeseriesRequest
 	(*TimeseriesPoint)(nil),         // 5: metrics.v1.TimeseriesPoint
@@ -754,15 +768,15 @@ var file_metrics_v1_metrics_proto_goTypes = []any{
 	(*QueryAggregateResponse)(nil),  // 10: metrics.v1.QueryAggregateResponse
 }
 var file_metrics_v1_metrics_proto_depIdxs = []int32{
-	1,  // 0: metrics.v1.MetricFilter.dimension:type_name -> metrics.v1.Dimension
+	1,  // 0: metrics.v1.MetricFilter.dimension:type_name -> metrics.v1.MetricDimension
 	0,  // 1: metrics.v1.QueryTimeseriesRequest.metrics:type_name -> metrics.v1.Metric
-	2,  // 2: metrics.v1.QueryTimeseriesRequest.granularity:type_name -> metrics.v1.MetricsGranularity
-	1,  // 3: metrics.v1.QueryTimeseriesRequest.group_by:type_name -> metrics.v1.Dimension
+	2,  // 2: metrics.v1.QueryTimeseriesRequest.granularity:type_name -> metrics.v1.MetricGranularity
+	1,  // 3: metrics.v1.QueryTimeseriesRequest.group_by:type_name -> metrics.v1.MetricDimension
 	3,  // 4: metrics.v1.QueryTimeseriesRequest.filters:type_name -> metrics.v1.MetricFilter
 	5,  // 5: metrics.v1.Timeseries.points:type_name -> metrics.v1.TimeseriesPoint
 	6,  // 6: metrics.v1.QueryTimeseriesResponse.series:type_name -> metrics.v1.Timeseries
 	0,  // 7: metrics.v1.QueryAggregateRequest.metrics:type_name -> metrics.v1.Metric
-	1,  // 8: metrics.v1.QueryAggregateRequest.group_by:type_name -> metrics.v1.Dimension
+	1,  // 8: metrics.v1.QueryAggregateRequest.group_by:type_name -> metrics.v1.MetricDimension
 	3,  // 9: metrics.v1.QueryAggregateRequest.filters:type_name -> metrics.v1.MetricFilter
 	9,  // 10: metrics.v1.QueryAggregateResponse.rows:type_name -> metrics.v1.AggregateRow
 	4,  // 11: metrics.v1.MetricsService.QueryTimeseries:input_type -> metrics.v1.QueryTimeseriesRequest
