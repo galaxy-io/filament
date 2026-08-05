@@ -10,13 +10,9 @@ import type {
   LineChartLineDatum,
 } from "@galaxy-io/dls/charts/types";
 import { LineChartCurve } from "@galaxy-io/dls/charts/types";
-import FlexWrapper, {
-  FlexDirection,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import SelectInput, {
-  type SelectInputOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -73,8 +69,7 @@ const ObservabilityTimeseriesWidget = ({
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;
 
   const selectedPivotOption =
-    METRIC_DIMENSION_PIVOT_OPTIONS.find((option) => option.value === pivot) ??
-    null;
+    METRIC_DIMENSION_PIVOT_OPTIONS.find((option) => option.value === pivot) ?? null;
 
   const handlePivotChange = (option: SelectInputOption) => {
     onPivotChange(option.value as ObservabilityPivotDimension);
@@ -101,8 +96,7 @@ const ObservabilityTimeseriesWidget = ({
   const { data: pipelinesData } = useListPipelinesQuery();
 
   const { series, lines } = useMemo(() => {
-    const { formatBucketLabel } =
-      OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
+    const { formatBucketLabel } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
     const timeseries = data?.series ?? [];
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
@@ -158,11 +152,7 @@ const ObservabilityTimeseriesWidget = ({
     <Widget fillWidth fillHeight noPadding>
       <BaseToolbar
         leadingActions={[
-          <Text
-            key="title"
-            variant={TextVariant.PRIMARY}
-            weight={TextWeight.MEDIUM}
-          >
+          <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
             {title}
           </Text>,
         ]}
@@ -179,12 +169,7 @@ const ObservabilityTimeseriesWidget = ({
         ]}
       />
       <HorizontalDivider />
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        padding={"16px 12px"}
-        height={240}
-        fillWidth
-      >
+      <FlexWrapper direction={FlexDirection.COLUMN} padding={"16px 12px"} height={240} fillWidth>
         <LineChart<string>
           series={series}
           lines={lines}
