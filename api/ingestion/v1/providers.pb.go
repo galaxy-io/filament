@@ -334,11 +334,15 @@ func (x *ListConnectorsResponse) GetConnectors() []*ConnectorSpec {
 
 type ValidateConfigRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
-	Kind      ConnectorKind          `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Connector string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config    *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
+	TenantId  string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind      ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Connector string                 `protobuf:"bytes,3,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config    *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
 	// live attempts a TestConnection probe if the connector supports it.
-	Live          bool `protobuf:"varint,4,opt,name=live,proto3" json:"live,omitempty"`
+	Live bool `protobuf:"varint,5,opt,name=live,proto3" json:"live,omitempty"`
+	// When set, secrets stored on this connection fill config fields the
+	// request leaves blank. tenant_id must match the connection's tenant.
+	ConnectionId  string `protobuf:"bytes,6,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -373,6 +377,13 @@ func (*ValidateConfigRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{4}
 }
 
+func (x *ValidateConfigRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
 func (x *ValidateConfigRequest) GetKind() ConnectorKind {
 	if x != nil {
 		return x.Kind
@@ -399,6 +410,13 @@ func (x *ValidateConfigRequest) GetLive() bool {
 		return x.Live
 	}
 	return false
+}
+
+func (x *ValidateConfigRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
 }
 
 // ValidationError carries a field-keyed validation failure. An empty field means
@@ -508,12 +526,14 @@ func (x *ValidateConfigResponse) GetErrors() []*ValidationError {
 }
 
 type DiscoverResourcesRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	// Source connector only; discovering a sink is not meaningful.
-	Connector     string           `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config        *structpb.Struct `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	Refresh       bool             `protobuf:"varint,3,opt,name=refresh,proto3" json:"refresh,omitempty"`
-	ConnectionId  string           `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Connector string           `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config    *structpb.Struct `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
+	Refresh   bool             `protobuf:"varint,4,opt,name=refresh,proto3" json:"refresh,omitempty"`
+	// tenant_id must match the connection's tenant.
+	ConnectionId  string `protobuf:"bytes,5,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -546,6 +566,13 @@ func (x *DiscoverResourcesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DiscoverResourcesRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverResourcesRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DiscoverResourcesRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *DiscoverResourcesRequest) GetConnector() string {
@@ -746,23 +773,26 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\x16ListConnectorsResponse\x12;\n" +
 	"\n" +
 	"connectors\x18\x01 \x03(\v2\x1b.ingestion.v1.ConnectorSpecR\n" +
-	"connectors\"\xab\x01\n" +
-	"\x15ValidateConfigRequest\x12/\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
-	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x12\n" +
-	"\x04live\x18\x04 \x01(\bR\x04live\"A\n" +
+	"connectors\"\xed\x01\n" +
+	"\x15ValidateConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
+	"\tconnector\x18\x03 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x12\n" +
+	"\x04live\x18\x05 \x01(\bR\x04live\x12#\n" +
+	"\rconnection_id\x18\x06 \x01(\tR\fconnectionId\"A\n" +
 	"\x0fValidationError\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"e\n" +
 	"\x16ValidateConfigResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x125\n" +
-	"\x06errors\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\"\xa8\x01\n" +
-	"\x18DiscoverResourcesRequest\x12\x1c\n" +
-	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x18\n" +
-	"\arefresh\x18\x03 \x01(\bR\arefresh\x12#\n" +
-	"\rconnection_id\x18\x04 \x01(\tR\fconnectionId\"\xc4\x02\n" +
+	"\x06errors\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\"\xc5\x01\n" +
+	"\x18DiscoverResourcesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1c\n" +
+	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x18\n" +
+	"\arefresh\x18\x04 \x01(\bR\arefresh\x12#\n" +
+	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\"\xc4\x02\n" +
 	"\bResource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +

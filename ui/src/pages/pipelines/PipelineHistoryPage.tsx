@@ -81,17 +81,6 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     ),
   },
   {
-    id: "duration",
-    header: "Duration",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
-    cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isEllipsis>
-        {formatDuration(row.original.startedAt, row.original.endedAt)}
-      </Text>
-    ),
-  },
-  {
     id: "version",
     header: "Version",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
@@ -99,6 +88,17 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM}>
         {row.original.pipelineVersionId ? `Version ${row.original.pipelineVersionId}` : "—"}
+      </Text>
+    ),
+  },
+  {
+    id: "duration",
+    header: "Duration",
+    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
+    cellLoading: () => <TextShimmer width={160} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} isEllipsis>
+        {formatDuration(row.original.startedAt, row.original.endedAt)}
       </Text>
     ),
   },

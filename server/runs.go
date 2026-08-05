@@ -13,16 +13,24 @@ import (
 	"github.com/galaxy-io/filament/events"
 )
 
-// ListRuns returns runs matching the request's tenant, pipeline, version, and statuses.
+// ListRuns returns runs matching the request's tenant, pipeline, version,
+// statuses, and started_at window.
 func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.ListRunsRequest]) (*connect.Response[ingestionv1.ListRunsResponse], error) {
-	states, err := a.store.ListRuns(ctx, filament.RunFilter{
+	filter := filament.RunFilter{
 		Tenant:            filament.TenantID(req.Msg.GetTenantId()),
 		PipelineID:        req.Msg.GetPipelineId(),
 		PipelineVersionID: req.Msg.PipelineVersionId,
 		Status:            runStatusesFromProto(req.Msg.GetStatus()),
 		Limit:             int(req.Msg.GetLimit()),
 		Offset:            int(req.Msg.GetOffset()),
-	})
+	}
+	if req.Msg.GetSinceMs() > 0 {
+		filter.Since = time.UnixMilli(req.Msg.GetSinceMs())
+	}
+	if req.Msg.GetUntilMs() > 0 {
+		filter.Until = time.UnixMilli(req.Msg.GetUntilMs())
+	}
+	states, err := a.store.ListRuns(ctx, filter)
 	if err != nil {
 		return nil, err
 	}

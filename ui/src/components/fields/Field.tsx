@@ -34,6 +34,7 @@ interface FieldProps {
   isDisabled?: boolean;
   path?: string;
   getError?: (path: string) => string | undefined;
+  hasStoredSecret?: boolean;
 }
 
 const Field = ({
@@ -43,6 +44,7 @@ const Field = ({
   isDisabled = false,
   path = field.name,
   getError,
+  hasStoredSecret,
 }: FieldProps) => {
   const label = useMemo(() => formatFieldName(field.name), [field.name]);
 
@@ -73,6 +75,7 @@ const Field = ({
                 isDisabled={isDisabled}
                 path={`${path}.${child.name}`}
                 getError={getError}
+                hasStoredSecret={hasStoredSecret}
               />
             ))}
         </FlexWrapper>
@@ -91,6 +94,7 @@ const Field = ({
       error={getError?.(path)}
       isDisabled={isDisabled}
       label={label}
+      hasStoredSecret={hasStoredSecret}
     />
   );
 };

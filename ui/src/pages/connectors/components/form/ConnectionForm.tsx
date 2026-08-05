@@ -3,7 +3,6 @@ import { useCallback, useMemo } from "react";
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -17,28 +16,24 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import { ValidateConfigRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import Field from "@/components/fields/Field";
 import { getConnectionScopedFields } from "@/components/fields/utils";
 
-import { CreateConnectionActionType } from "@/pages/connectors/components/create/configure/actions";
-import CreateConnectionConfigureHeader from "@/pages/connectors/components/create/configure/CreateConnectionConfigureHeader";
-import CreateConnectionConfigureProvider, {
-  useCreateConnectionContext,
-} from "@/pages/connectors/components/create/configure/CreateConnectionConfigureProvider";
-import CreateConnectionConfigureWrapper from "@/pages/connectors/components/create/configure/CreateConnectionConfigureWrapper";
-import { CreateConnectionPhase } from "@/pages/connectors/components/create/configure/types";
+import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
+import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
+import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
+import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
+import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
 import {
   createRequiredFieldsValidationErrorMap,
   getNameError,
   isNameValid,
-} from "@/pages/connectors/components/create/configure/validation";
-import { CreateConnectionModalStep } from "@/pages/connectors/components/create/types";
+} from "@/pages/connectors/components/form/validation";
+import { CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH } from "@/pages/connectors/constants";
 
-import { useCreateConnectionMutation } from "@/api/queries/connections";
 import { useValidateConfigMutation } from "@/api/queries/connectors";
 
 import { NOOP } from "@/constants";
@@ -62,23 +57,31 @@ const FooterWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.primary};
 `);
 
-interface CreateConnectionConfigureProps {
+interface ConnectionFormProps {
   connector: ConnectorSpec;
+  connectionId?: string;
+  title: string;
+  submitLabel: string;
+  submittingLabel: string;
+  onSubmit: () => void;
   onClose: () => void;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
-const CreateConnectionConfigureContent = ({
+const ConnectionForm = ({
   connector,
+  connectionId,
+  title,
+  submitLabel,
+  submittingLabel,
+  onSubmit,
   onClose,
   onBack,
-}: CreateConnectionConfigureProps) => {
-  const navigate = useNavigate();
-  const { state, dispatch } = useCreateConnectionContext();
+}: ConnectionFormProps) => {
+  const { state, dispatch } = useConnectionFormContext();
   const { showToast } = useToast();
 
   const { mutate: validateConfig } = useValidateConfigMutation();
-  const { mutate: createConnection } = useCreateConnectionMutation();
 
   const fields = useMemo(
     () => getConnectionScopedFields(connector.configSchema?.fields ?? []),
@@ -86,15 +89,15 @@ const CreateConnectionConfigureContent = ({
   );
 
   const isDisabled =
-    state.phase === CreateConnectionPhase.VALIDATING ||
-    state.phase === CreateConnectionPhase.CREATING;
+    state.phase === ConnectionFormPhase.VALIDATING ||
+    state.phase === ConnectionFormPhase.SUBMITTING;
 
-  const isValidating = state.phase === CreateConnectionPhase.VALIDATING;
-  const isCreating = state.phase === CreateConnectionPhase.CREATING;
+  const isValidating = state.phase === ConnectionFormPhase.VALIDATING;
+  const isSubmitting = state.phase === ConnectionFormPhase.SUBMITTING;
 
   const nameError = useMemo(
-    () => getNameError(state.request.name, state.shouldShowErrors),
-    [state.request.name, state.shouldShowErrors],
+    () => getNameError(state.name, state.shouldShowErrors),
+    [state.name, state.shouldShowErrors],
   );
 
   const errorMap = useMemo(
@@ -110,39 +113,40 @@ const CreateConnectionConfigureContent = ({
 
   const handleTestConnection = useCallback(() => {
     dispatch({
-      type: CreateConnectionActionType.SET_SHOULD_SHOW_ERRORS,
+      type: ConnectionFormActionType.SET_SHOULD_SHOW_ERRORS,
       payload: true,
     });
-    if (!isNameValid(state.request.name)) {
+    if (!isNameValid(state.name)) {
       dispatch({
-        type: CreateConnectionActionType.SET_PHASE,
-        payload: CreateConnectionPhase.ERROR,
+        type: ConnectionFormActionType.SET_PHASE,
+        payload: ConnectionFormPhase.ERROR,
       });
       return;
     }
 
     dispatch({
-      type: CreateConnectionActionType.SET_PHASE,
-      payload: CreateConnectionPhase.VALIDATING,
+      type: ConnectionFormActionType.SET_PHASE,
+      payload: ConnectionFormPhase.VALIDATING,
     });
     dispatch({
-      type: CreateConnectionActionType.SET_VALIDATION_ERRORS,
+      type: ConnectionFormActionType.SET_VALIDATION_ERRORS,
       payload: [],
     });
 
     validateConfig(
       create(ValidateConfigRequestSchema, {
-        kind: state.request.kind,
-        connector: state.request.connector,
-        config: state.request.config,
+        kind: connector.kind,
+        connector: connector.name,
+        config: state.config,
         live: true,
+        connectionId: connectionId ?? "",
       }),
       {
         onSuccess: (response) => {
           if (response.valid) {
             dispatch({
-              type: CreateConnectionActionType.SET_PHASE,
-              payload: CreateConnectionPhase.VALIDATED,
+              type: ConnectionFormActionType.SET_PHASE,
+              payload: ConnectionFormPhase.VALIDATED,
             });
             showToast({
               variant: ToastVariant.SUCCESS,
@@ -151,12 +155,12 @@ const CreateConnectionConfigureContent = ({
             });
           } else {
             dispatch({
-              type: CreateConnectionActionType.SET_VALIDATION_ERRORS,
+              type: ConnectionFormActionType.SET_VALIDATION_ERRORS,
               payload: response.errors,
             });
             dispatch({
-              type: CreateConnectionActionType.SET_PHASE,
-              payload: CreateConnectionPhase.ERROR,
+              type: ConnectionFormActionType.SET_PHASE,
+              payload: ConnectionFormPhase.ERROR,
             });
 
             showToast({
@@ -168,8 +172,8 @@ const CreateConnectionConfigureContent = ({
         },
         onError: (error) => {
           dispatch({
-            type: CreateConnectionActionType.SET_PHASE,
-            payload: CreateConnectionPhase.ERROR,
+            type: ConnectionFormActionType.SET_PHASE,
+            payload: ConnectionFormPhase.ERROR,
           });
           showToast({
             variant: ToastVariant.ERROR,
@@ -179,60 +183,12 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [state.request, validateConfig, dispatch, showToast]);
-
-  const handleCreateConnection = useCallback(() => {
-    const name = state.request.name?.trim();
-    if (!name) return;
-
-    dispatch({
-      type: CreateConnectionActionType.SET_PHASE,
-      payload: CreateConnectionPhase.CREATING,
-    });
-
-    createConnection(
-      create(CreateConnectionRequestSchema, {
-        ...state.request,
-        name,
-      }),
-      {
-        onSuccess: (response) => {
-          showToast({
-            variant: ToastVariant.SUCCESS,
-            header: "Connection created",
-            subheader: `${name} has been created successfully.`,
-          });
-
-          if (response.connection?.id) {
-            void navigate({
-              to: ".",
-              search: (prev) => ({
-                ...prev,
-                flow: undefined,
-                connectionId: response.connection?.id,
-              }),
-            });
-          }
-        },
-        onError: (error) => {
-          dispatch({
-            type: CreateConnectionActionType.SET_PHASE,
-            payload: CreateConnectionPhase.ERROR,
-          });
-          showToast({
-            variant: ToastVariant.ERROR,
-            header: "Creation failed",
-            subheader: getErrorMessage(error, "Creation failed"),
-          });
-        },
-      },
-    );
-  }, [state.request, createConnection, showToast, navigate, dispatch]);
+  }, [state.name, state.config, connector, connectionId, validateConfig, dispatch, showToast]);
 
   const handleNameChange = useCallback(
     (name: string) =>
       dispatch({
-        type: CreateConnectionActionType.SET_REQUEST_NAME,
+        type: ConnectionFormActionType.SET_NAME,
         payload: name,
       }),
     [dispatch],
@@ -241,21 +197,21 @@ const CreateConnectionConfigureContent = ({
   const handleFieldChange = useCallback(
     (fieldName: string, value: JsonValue) =>
       dispatch({
-        type: CreateConnectionActionType.SET_REQUEST_CONFIG_FIELD,
+        type: ConnectionFormActionType.SET_CONFIG_FIELD,
         payload: { field: fieldName, value },
       }),
     [dispatch],
   );
 
   const getFieldValue = (fieldName: string): JsonValue => {
-    return state.request.config?.[fieldName] ?? null;
+    return state.config[fieldName] ?? null;
   };
 
   const renderBody = () => {
     return (
       <>
         <TextInput
-          value={state.request.name}
+          value={state.name}
           onChange={handleNameChange}
           size={InputSize.LARGE}
           placeholder="Enter connection name..."
@@ -274,6 +230,7 @@ const CreateConnectionConfigureContent = ({
             onChange={(value) => handleFieldChange(field.name, value)}
             getError={getFieldError}
             isDisabled={isDisabled}
+            hasStoredSecret={!!connectionId}
           />
         ))}
       </>
@@ -282,7 +239,7 @@ const CreateConnectionConfigureContent = ({
 
   const renderFooter = () => {
     return match(state.phase)
-      .with(CreateConnectionPhase.IDLE, CreateConnectionPhase.ERROR, () => (
+      .with(ConnectionFormPhase.IDLE, ConnectionFormPhase.ERROR, () => (
         <Button
           size={ButtonSize.LARGE}
           label="Validate"
@@ -292,7 +249,7 @@ const CreateConnectionConfigureContent = ({
           isIconTrailing
         />
       ))
-      .with(CreateConnectionPhase.VALIDATING, () => (
+      .with(ConnectionFormPhase.VALIDATING, () => (
         <Button
           size={ButtonSize.LARGE}
           label="Testing..."
@@ -301,21 +258,21 @@ const CreateConnectionConfigureContent = ({
           isDisabled
         />
       ))
-      .with(CreateConnectionPhase.VALIDATED, () => (
+      .with(ConnectionFormPhase.VALIDATED, () => (
         <Button
           size={ButtonSize.LARGE}
-          label="Create"
+          label={submitLabel}
           icon={CheckIcon}
           variant={ButtonVariant.SUCCESS}
-          onClick={handleCreateConnection}
+          onClick={onSubmit}
         />
       ))
-      .with(CreateConnectionPhase.CREATING, () => (
+      .with(ConnectionFormPhase.SUBMITTING, () => (
         <Button
           size={ButtonSize.LARGE}
-          label="Creating..."
+          label={submittingLabel}
           onClick={NOOP}
-          isLoading={isCreating}
+          isLoading={isSubmitting}
           isDisabled
         />
       ))
@@ -323,9 +280,9 @@ const CreateConnectionConfigureContent = ({
   };
 
   return (
-    <CreateConnectionConfigureWrapper step={CreateConnectionModalStep.CONFIGURE}>
+    <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
       <FlexItem grow={0} shrink={0}>
-        <CreateConnectionConfigureHeader connector={connector} onClose={onClose} />
+        <ConnectionFormHeader connector={connector} title={title} onClose={onClose} />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
@@ -341,27 +298,21 @@ const CreateConnectionConfigureContent = ({
         <HorizontalDivider />
       </FlexItem>
       <FooterWrapper>
-        <Button
-          size={ButtonSize.LARGE}
-          onClick={onBack}
-          icon={ArrowLeftIcon}
-          label="Back"
-          variant={ButtonVariant.TERTIARY}
-        />
+        {onBack ? (
+          <Button
+            size={ButtonSize.LARGE}
+            onClick={onBack}
+            icon={ArrowLeftIcon}
+            label="Back"
+            variant={ButtonVariant.SECONDARY}
+          />
+        ) : (
+          <div />
+        )}
         {renderFooter()}
       </FooterWrapper>
-    </CreateConnectionConfigureWrapper>
+    </ConnectionFormWrapper>
   );
 };
 
-const CreateConnectionConfigure = ({
-  connector,
-  onClose,
-  onBack,
-}: CreateConnectionConfigureProps) => (
-  <CreateConnectionConfigureProvider connector={connector}>
-    <CreateConnectionConfigureContent connector={connector} onClose={onClose} onBack={onBack} />
-  </CreateConnectionConfigureProvider>
-);
-
-export default CreateConnectionConfigure;
+export default ConnectionForm;

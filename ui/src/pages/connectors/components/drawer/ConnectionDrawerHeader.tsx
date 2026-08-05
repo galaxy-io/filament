@@ -1,3 +1,7 @@
+import { PencilIcon } from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
+
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
@@ -13,13 +17,23 @@ import BaseHeader from "@/layouts/components/BaseHeader";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
+import { Flow } from "@/routes/__root";
+
 interface ConnectionDrawerHeaderProps {
   connection: Connection;
   onClose: () => void;
 }
 
 const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderProps) => {
+  const navigate = useNavigate();
   const connector = useConnectorSpec(connection.connector, connection.kind);
+
+  const handleEdit = () => {
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, flow: Flow.EDIT_CONNECTION }),
+    });
+  };
 
   return (
     <Wrapper padding="12px 16px">
@@ -35,6 +49,15 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
           <BaseHeader
             title={connection.name}
             description={connector?.displayName || connection.connector}
+            actions={[
+              <Button
+                key="edit"
+                icon={PencilIcon}
+                variant={ButtonVariant.SECONDARY}
+                size={ButtonSize.SMALL}
+                onClick={handleEdit}
+              />,
+            ]}
             onClose={onClose}
           />
         </FlexWrapper>

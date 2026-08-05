@@ -37,7 +37,21 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
 
-	cfg := filament.NewConfig(structMap(req.Msg.GetConfig()))
+	config := structMap(req.Msg.GetConfig())
+	if id := req.Msg.GetConnectionId(); id != "" {
+		conn, err := a.loadConnectionForTenant(ctx, id, req.Msg.GetTenantId())
+		if err != nil {
+			if errors.Is(err, filament.ErrNotFound) {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if err := a.resolveConnectionSecrets(ctx, conn, conn.Config); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		config = overlayConfig(conn.Config, config)
+	}
+	cfg := filament.NewConfig(config)
 	switch req.Msg.GetKind() {
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
 		source, err := a.sources.Resolve(req.Msg.GetConnector())
@@ -76,7 +90,7 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 	connector := req.Msg.GetConnector()
 	config := structMap(req.Msg.GetConfig())
 	if id := req.Msg.GetConnectionId(); id != "" {
-		conn, err := a.store.LoadConnection(ctx, id)
+		conn, err := a.loadConnectionForTenant(ctx, id, req.Msg.GetTenantId())
 		if err != nil {
 			if errors.Is(err, filament.ErrNotFound) {
 				return nil, connect.NewError(connect.CodeNotFound, err)
@@ -86,10 +100,10 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 		if connector == "" {
 			connector = conn.Connector
 		}
-		config = mergeConfig(conn.Config, config)
-		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
+		if err := a.resolveConnectionSecrets(ctx, conn, conn.Config); err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
+		config = overlayConfig(conn.Config, config)
 	}
 
 	source, err := a.sources.Resolve(connector)
