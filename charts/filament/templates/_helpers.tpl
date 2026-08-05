@@ -95,3 +95,22 @@ app.kubernetes.io/component: server
 {{- define "filament.server.serviceAccountName" -}}
 {{- .Values.server.serviceAccount.name | default (include "filament.server.fullname" .) -}}
 {{- end -}}
+
+
+{{- define "filament.metrics.fullname" -}}
+{{- printf "%s-metrics" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "filament.metrics.labels" -}}
+{{ include "filament.labels" . }}
+app.kubernetes.io/component: metrics
+{{- end -}}
+
+{{- define "filament.metrics.selectorLabels" -}}
+{{ include "filament.selectorLabels" . }}
+app.kubernetes.io/component: metrics
+{{- end -}}
+
+{{- define "filament.metrics.serviceAccountName" -}}
+{{- .Values.metrics.serviceAccount.name | default (include "filament.metrics.fullname" .) -}}
+{{- end -}}

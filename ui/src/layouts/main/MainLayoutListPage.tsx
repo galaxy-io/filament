@@ -47,7 +47,7 @@ const MainLayoutListPage = ({
             onChange={onSearchChange}
             placeholder="Search"
             leading={{ icon: MagnifyingGlassIcon }}
-            fillWidth
+            width={300}
           />,
         ]}
         trailingActions={actions}

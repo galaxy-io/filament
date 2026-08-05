@@ -21,7 +21,7 @@ const PendingLayout = ({ message }: PendingLayoutProps) => {
       justifyContent={JustifyContent.CENTER}
       gap={FlexGap.MEDIUM}
     >
-      <GalaxyLogomarkAnimation height={32} speed={2} />
+      <GalaxyLogomarkAnimation height={24} speed={3} />
       {message && (
         <Text size={TextSize.BODY_MD} variant={TextVariant.SECONDARY}>
           {message}

@@ -33,6 +33,7 @@ binaries: ui-dist
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/metrics -trimpath -ldflags="-s -w" -o ../../bin/filament/metrics .
 
 # build docker images
 images: binaries
@@ -40,6 +41,7 @@ images: binaries
     docker build -f cmd/control-plane/Dockerfile -t galaxy-io/filament/control-plane:latest .
     docker build -f cmd/worker/Dockerfile -t galaxy-io/filament/worker:latest .
     docker build -f cmd/standalone/Dockerfile -t galaxy-io/filament/standalone:latest .
+    docker build -f cmd/metrics/Dockerfile -t galaxy-io/filament/metrics:latest .
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)
 _each cmd:
@@ -106,6 +108,14 @@ control-plane:
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       GOWORK=off go run .
 
+# run the metrics service locally — reads the same runs table server/control-plane
+# migrate (defaults match docker-compose.yaml; env overrides)
+metrics: migrate
+    cd cmd/metrics && \
+      PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
+      SERVER_ADDR="${SERVER_ADDR:-:8082}" \
+      GOWORK=off go run .
+
 # run the web UI dev server (vite, proxies API to :8080)
 ui:
     cd ui && pnpm install && pnpm dev
@@ -133,6 +143,7 @@ dev:
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
     just control-plane &
     just server &
+    just metrics &
     until curl -sf http://localhost:8080/livez > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait

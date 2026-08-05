@@ -1,0 +1,54 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "filament.metrics.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.metrics.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.metrics.replicas }}
+  selector:
+    matchLabels:
+      {{- include "filament.metrics.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/metrics-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "filament.metrics.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "filament.metrics.serviceAccountName" . }}
+      {{- with .Values.metrics.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: metrics
+          image: {{ .Values.metrics.image.repository }}:{{ .Values.metrics.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.metrics.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.metrics.service.port }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          envFrom:
+            - configMapRef:
+                name: {{ include "filament.metrics.fullname" . }}
+            - secretRef:
+                name: {{ include "filament.secretName" . }}
+          resources:
+            {{- toYaml .Values.metrics.resources | nindent 12 }}
+{{- end }}

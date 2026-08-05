@@ -1,0 +1,4 @@
+SELECT {{.KeyExpr}} AS key, {{.MetricList}}
+FROM runs
+{{.Where}}
+{{if .GroupCol}}GROUP BY {{.GroupCol}}{{end}}

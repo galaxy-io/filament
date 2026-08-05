@@ -3,12 +3,12 @@ import { useMemo } from "react";
 import { styled } from "@linaria/react";
 import { ArrowsOutSimpleIcon, PulseIcon } from "@phosphor-icons/react";
 
-import Flashing from "@galaxy-io/dls/animations/Flashing";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Flash from "@galaxy-io/dls/transform/Flash";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
@@ -108,7 +108,7 @@ const PipelineCanvasTerminal = () => {
       <>
         {isStreaming && (
           <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
-            <Flashing>Listening...</Flashing>
+            <Flash>Listening...</Flash>
           </Text>
         )}
         {reversedEvents.map((event, index) => (
