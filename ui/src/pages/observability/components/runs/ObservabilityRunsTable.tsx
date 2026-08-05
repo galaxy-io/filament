@@ -162,7 +162,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "records",
         header: "Records",
-        size: 90,
+        size: 100,
         accessorFn: (run) => Number(run.records),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
