@@ -23,6 +23,7 @@ import (
 	// Curated connector set — self-register via init():
 	_ "github.com/galaxy-io/filament/connectors/mysql"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/iceberg"
 )
 
 func main() {

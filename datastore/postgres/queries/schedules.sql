@@ -29,6 +29,9 @@ FROM schedules WHERE pipeline_id = @pipeline_id;
 -- name: DeleteSchedule :exec
 DELETE FROM schedules WHERE schedule_id = @schedule_id;
 
+-- name: DeletePipelineSchedules :exec
+DELETE FROM schedules WHERE pipeline_id = @pipeline_id;
+
 -- name: ListSchedules :many
 SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at

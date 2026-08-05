@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -43,7 +44,7 @@ func newTestStore(t *testing.T) *postgres.Store {
 
 	// wipe between tests so each test starts from a clean slate against the
 	// same long-lived container/schema.
-	for _, table := range []string{"dedup_seen", "checkpoints", "resource_states", "runs", "schedules", "pipelines", "secrets"} {
+	for _, table := range []string{"dedup_seen", "checkpoints", "resource_states", "runs", "schedules", "pipelines", "connections", "secrets"} {
 		if _, err := pool.Exec(ctx, "DELETE FROM "+table); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
@@ -231,6 +232,99 @@ func TestStore_ScheduleClaimDue(t *testing.T) {
 	}
 	if _, err := store.LoadSchedule(ctx, "sched-1"); err == nil {
 		t.Fatal("expected ErrNotFound after DeleteSchedule")
+	}
+}
+
+// TestStore_ConnectionSoftDelete verifies a deleted connection disappears from
+// reads and frees its (tenant, kind, name) for a new connection.
+func TestStore_ConnectionSoftDelete(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	if err := store.EnsureTenant(ctx, "tenant-a", "Tenant A"); err != nil {
+		t.Fatalf("EnsureTenant: %v", err)
+	}
+
+	conn := filament.Connection{
+		ID: "conn-1", Tenant: "tenant-a", Kind: filament.ConnectorKindSource,
+		Name: "pg-main", Connector: "postgres",
+	}
+	if _, err := store.CreateConnection(ctx, conn); err != nil {
+		t.Fatalf("CreateConnection: %v", err)
+	}
+
+	if err := store.DeleteConnection(ctx, "conn-1"); err != nil {
+		t.Fatalf("DeleteConnection: %v", err)
+	}
+	if _, err := store.LoadConnection(ctx, "conn-1"); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+	listed, err := store.ListConnections(ctx, filament.ConnectionFilter{Tenant: "tenant-a"})
+	if err != nil {
+		t.Fatalf("ListConnections: %v", err)
+	}
+	if len(listed) != 0 {
+		t.Fatalf("expected deleted connection excluded from list, got %+v", listed)
+	}
+
+	// The partial unique index only covers live rows, so the name is reusable.
+	conn.ID = "conn-2"
+	if _, err := store.CreateConnection(ctx, conn); err != nil {
+		t.Fatalf("CreateConnection with reused name: %v", err)
+	}
+}
+
+// TestStore_PipelineSoftDelete verifies a deleted pipeline disappears from
+// reads, stops accepting versions, drops its schedule, and keeps version
+// history for run views.
+func TestStore_PipelineSoftDelete(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	if err := store.EnsureTenant(ctx, "tenant-a", "Tenant A"); err != nil {
+		t.Fatalf("EnsureTenant: %v", err)
+	}
+
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-del", TenantId: "tenant-a", Name: "doomed"}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{}); err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+	if err := store.SaveSchedule(ctx, filament.ScheduleState{
+		ID:        "sched-del",
+		Spec:      filament.ScheduleSpec{Tenant: "tenant-a", PipelineID: "pipe-del", Cron: "* * * * *"},
+		Enabled:   true,
+		CreatedAt: time.Now().Truncate(time.Microsecond),
+	}); err != nil {
+		t.Fatalf("SaveSchedule: %v", err)
+	}
+
+	if err := store.DeletePipeline(ctx, "pipe-del"); err != nil {
+		t.Fatalf("DeletePipeline: %v", err)
+	}
+	if _, err := store.LoadPipeline(ctx, "pipe-del"); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+	pipelines, err := store.ListPipelines(ctx, "tenant-a")
+	if err != nil {
+		t.Fatalf("ListPipelines: %v", err)
+	}
+	if len(pipelines) != 0 {
+		t.Fatalf("expected deleted pipeline excluded from list, got %+v", pipelines)
+	}
+	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{}); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound creating version on deleted pipeline, got %v", err)
+	}
+	if _, err := store.LoadPipelineSchedule(ctx, "pipe-del"); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected schedule removed with pipeline, got %v", err)
+	}
+
+	// History survives for run views.
+	versions, err := store.ListPipelineVersions(ctx, "pipe-del")
+	if err != nil {
+		t.Fatalf("ListPipelineVersions: %v", err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("expected version history kept, got %d versions", len(versions))
 	}
 }
 
