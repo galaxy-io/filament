@@ -7,6 +7,7 @@ import (
 	// the default registry from init().
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
+	_ "github.com/galaxy-io/filament/connectors/mysql"
 	_ "github.com/galaxy-io/filament/connectors/object"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
 	_ "github.com/galaxy-io/filament/connectors/sample"

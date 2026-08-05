@@ -814,8 +814,12 @@ type ListRunsRequest struct {
 	Status            []RunStatus            `protobuf:"varint,4,rep,packed,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
 	Limit             int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 	Offset            int32                  `protobuf:"varint,6,opt,name=offset,proto3" json:"offset,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// since_ms/until_ms window on started_at (inclusive/exclusive, epoch
+	// millis); 0 means unbounded. Runs that never started are excluded.
+	SinceMs       int64 `protobuf:"varint,7,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
+	UntilMs       int64 `protobuf:"varint,8,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListRunsRequest) Reset() {
@@ -886,6 +890,20 @@ func (x *ListRunsRequest) GetLimit() int32 {
 func (x *ListRunsRequest) GetOffset() int32 {
 	if x != nil {
 		return x.Offset
+	}
+	return 0
+}
+
+func (x *ListRunsRequest) GetSinceMs() int64 {
+	if x != nil {
+		return x.SinceMs
+	}
+	return 0
+}
+
+func (x *ListRunsRequest) GetUntilMs() int64 {
+	if x != nil {
+		return x.UntilMs
 	}
 	return 0
 }
@@ -1368,7 +1386,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\rGetRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"G\n" +
 	"\x0eGetRunResponse\x125\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xfb\x01\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xb1\x02\n" +
 	"\x0fListRunsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
@@ -1376,7 +1394,9 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x13pipeline_version_id\x18\x03 \x01(\x03H\x00R\x11pipelineVersionId\x88\x01\x01\x12/\n" +
 	"\x06status\x18\x04 \x03(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x06 \x01(\x05R\x06offsetB\x16\n" +
+	"\x06offset\x18\x06 \x01(\x05R\x06offset\x12\x19\n" +
+	"\bsince_ms\x18\a \x01(\x03R\asinceMs\x12\x19\n" +
+	"\buntil_ms\x18\b \x01(\x03R\auntilMsB\x16\n" +
 	"\x14_pipeline_version_id\"=\n" +
 	"\x10ListRunsResponse\x12)\n" +
 	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\"W\n" +

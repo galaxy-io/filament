@@ -69,6 +69,18 @@ export const useSuspenseListConnectionsQuery = ({
   >(IngestionService.method.listConnections, input);
 };
 
+export const createGetConnectionQueryKey = (
+  input?: GetConnectionRequest,
+  transport?: Transport,
+) => {
+  return createConnectQueryKey({
+    schema: IngestionService.method.getConnection,
+    input,
+    transport,
+    cardinality: "finite",
+  });
+};
+
 export const useGetConnectionQuery = ({
   input,
   options = {},
@@ -100,6 +112,30 @@ export const useCreateConnectionMutation = (
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
         queryKey: createListConnectionsQueryKey(),
+      });
+      return options.onSettled?.(...args);
+    },
+  });
+};
+
+export const useUpdateConnectionMutation = (
+  options: UseMutationOptions<
+    typeof IngestionService.method.updateConnection.input,
+    typeof IngestionService.method.updateConnection.output
+  > = {},
+) => {
+  const queryClient = useQueryClient();
+  return useMutation<
+    typeof IngestionService.method.updateConnection.input,
+    typeof IngestionService.method.updateConnection.output
+  >(IngestionService.method.updateConnection, {
+    ...options,
+    onSettled: (...args) => {
+      void queryClient.invalidateQueries({
+        queryKey: createListConnectionsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetConnectionQueryKey(),
       });
       return options.onSettled?.(...args);
     },

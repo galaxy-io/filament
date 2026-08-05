@@ -7,13 +7,11 @@ import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import CreateConnectionConfigureWrapper from "@/pages/connectors/components/create/configure/CreateConnectionConfigureWrapper";
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
 import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
-import {
-  CreateConnectionModalStep,
-  type CreateConnectionSelectorProps,
-} from "@/pages/connectors/components/create/types";
+import type { CreateConnectionSelectorProps } from "@/pages/connectors/components/create/types";
+import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
+import { CREATE_CONNECTION_MODAL_SELECTOR_WIDTH } from "@/pages/connectors/constants";
 
 interface CreateConnectionSelectorState {
   search: string;
@@ -36,7 +34,7 @@ const CreateConnectionSelector = ({
   }, []);
 
   return (
-    <CreateConnectionConfigureWrapper step={CreateConnectionModalStep.SELECT}>
+    <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_SELECTOR_WIDTH}>
       <FlexItem grow={0} shrink={0}>
         <CreateConnectionSelectorHeader
           search={state.search}
@@ -52,7 +50,7 @@ const CreateConnectionSelector = ({
         connectorKind={connectorKind ?? ConnectorKind.UNSPECIFIED}
         onConnectorSelect={onConnectorSelect}
       />
-    </CreateConnectionConfigureWrapper>
+    </ConnectionFormWrapper>
   );
 };
 

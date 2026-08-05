@@ -102,7 +102,7 @@ const BaseHeader = ({
         {onClose && (
           <Button
             icon={XIcon}
-            variant={ButtonVariant.TERTIARY}
+            variant={ButtonVariant.SECONDARY}
             size={ButtonSize.SMALL}
             onClick={onClose}
           />

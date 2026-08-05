@@ -119,6 +119,21 @@ helm upgrade --install filament . \
 | controlPlane.serviceAccount.annotations | object | `{}` | Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN. |
 | controlPlane.serviceAccount.name | string | `""` | Existing ServiceAccount name for the control plane. When set, the chart does not create one. |
 
+## Metrics parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| metrics.enabled | bool | `true` | Deploy the Filament metrics service. It answers run metrics queries by reading the same runs table server/control-plane persist to. |
+| metrics.image.pullPolicy | string | `"IfNotPresent"` | Metrics image pull policy. |
+| metrics.image.pullSecrets | list | `[]` | Image pull secrets for the metrics Deployment. |
+| metrics.image.repository | string | `"ghcr.io/galaxy-io/filament/metrics"` | Metrics image repository. |
+| metrics.image.tag | string | `""` (defaults to chart appVersion) | Metrics image tag. |
+| metrics.replicas | int | `1` | Number of metrics replicas. |
+| metrics.resources | object | `{}` (See [values.yaml]) | Metrics resource requests and limits. |
+| metrics.service.port | int | `8082` | Metrics service and container port. |
+| metrics.serviceAccount.annotations | object | `{}` | Annotations for the chart-created metrics ServiceAccount, e.g. an IRSA role ARN. |
+| metrics.serviceAccount.name | string | `""` | Existing ServiceAccount name for the metrics service. When set, the chart does not create one. |
+
 ## Persistence parameters
 
 | Key | Type | Default | Description |

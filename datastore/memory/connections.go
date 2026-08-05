@@ -37,7 +37,7 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 		return filament.Connection{}, fmt.Errorf("connection %q: %w", c.ID, filament.ErrNotFound)
 	}
 	if stored.Version != c.Version {
-		return filament.Connection{}, fmt.Errorf("connection %q version conflict", c.ID)
+		return filament.Connection{}, fmt.Errorf("connection %q version conflict: %w", c.ID, filament.ErrVersionConflict)
 	}
 	c.Version++
 	c = cloneConnection(c)
