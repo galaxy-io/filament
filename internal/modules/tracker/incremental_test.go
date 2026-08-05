@@ -9,7 +9,7 @@ import (
 	"github.com/galaxy-io/filament/datastore/memory"
 )
 
-func TestIncrementalCheckpointUsesDurableResourceState(t *testing.T) {
+func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
@@ -25,7 +25,13 @@ func TestIncrementalCheckpointUsesDurableResourceState(t *testing.T) {
 	if err := m.saveCheckpoint(ctx, "run-a", cp); err != nil {
 		t.Fatal(err)
 	}
+	m.cp[ckKey{run: "run-a", resource: "users"}] = cp
+	m.flushRun(ctx, "run-a", false)
 	key, _ := request.ResourceCheckpointKey("users")
+	if _, err := store.LoadResourceCheckpoint(ctx, key); err == nil {
+		t.Fatal("partial run persisted a tentative checkpoint")
+	}
+	m.flushRun(ctx, "run-a", true)
 	stored, err := store.LoadResourceCheckpoint(ctx, key)
 	if err != nil {
 		t.Fatal(err)

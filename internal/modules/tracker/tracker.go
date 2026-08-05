@@ -215,7 +215,7 @@ func (m *Module) terminal(ctx context.Context, env events.Envelope, status strin
 		return err
 	}
 	m.observeRun(env, status, labels)
-	m.flushRun(ctx, env.Run)
+	m.flushRun(ctx, env.Run, status == "completed")
 	return nil
 }
 
@@ -350,7 +350,7 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	m.since[key] = 0
 	m.mu.Unlock()
 	if cp != nil {
-		if err := m.saveCheckpoint(ctx, run, cp); err != nil {
+		if err := m.commitCheckpoint(ctx, run, cp); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
 				m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
@@ -359,9 +359,10 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	}
 }
 
-// flushRun persists every accumulated cursor for the run (called on terminal facts so
-// a resumable failure leaves the freshest possible cursors on disk).
-func (m *Module) flushRun(ctx context.Context, run filament.RunID) {
+// flushRun persists every accumulated cursor for the run. Incremental cursors
+// become durable only after a successful sink commit; other cursor modes retain
+// their existing attempt-local resume behavior.
+func (m *Module) flushRun(ctx context.Context, run filament.RunID, committed bool) {
 	m.mu.Lock()
 	pending := make(map[string]filament.Checkpoint)
 	for key, cp := range m.cp {
@@ -374,7 +375,7 @@ func (m *Module) flushRun(ctx context.Context, run filament.RunID) {
 	}
 	m.mu.Unlock()
 	for _, cp := range pending {
-		if err := m.saveCheckpoint(ctx, run, cp); err != nil {
+		if err := m.persistCheckpoint(ctx, run, cp, committed); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
 				m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
@@ -396,14 +397,25 @@ func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
 	return n
 }
 
-// saveCheckpoint routes incremental progress to the stable resource checkpoint
-// and keeps attempt-local snapshot/CDC progress under the run ID.
+// saveCheckpoint persists attempt-local progress. Incremental progress remains
+// tentative until the sink commits and commitCheckpoint promotes it.
 func (m *Module) saveCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
+	return m.persistCheckpoint(ctx, run, cp, false)
+}
+
+func (m *Module) commitCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
+	return m.persistCheckpoint(ctx, run, cp, true)
+}
+
+func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint, committed bool) error {
 	state, err := m.ds.LoadRun(ctx, run)
 	if err != nil {
 		return err
 	}
 	if filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode == filament.ModeIncremental {
+		if !committed {
+			return nil
+		}
 		if key, ok := state.Request.ResourceCheckpointKey(cp.Resource()); ok {
 			return m.ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: run, Checkpoint: cp})
 		}
