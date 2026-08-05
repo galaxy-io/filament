@@ -101,6 +101,10 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		p.LastRunAt = r.StartedAt.UnixMilli()
 		p.LastRunStatus = pipelineRunStatusToProto(r.Status)
 		p.LastRunBytes = r.Bytes
+		p.LastRunEndedAt = 0
+		if r.FinishedAt != nil {
+			p.LastRunEndedAt = r.FinishedAt.UnixMilli()
+		}
 	}
 	return nil
 }

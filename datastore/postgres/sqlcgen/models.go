@@ -96,6 +96,7 @@ type Pipeline struct {
 	LastRunBytes     int64
 	IsDeleted        bool
 	DeletedAt        pgtype.Timestamptz
+	LastRunEndedAt   pgtype.Timestamptz
 }
 
 type PipelineVersion struct {

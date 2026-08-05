@@ -1,12 +1,12 @@
-import { FlowArrowIcon, XIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import ConnectorTile, {
   ConnectorOverflowTile,
-  ConnectorTileEmpty,
   ConnectorTileSize,
 } from "@/pages/connectors/components/ConnectorTile";
 
@@ -66,24 +66,21 @@ const PipelineFlow = ({
     });
   };
 
-  return (
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-      {hasSource ? (
+  const renderSource = () => {
+    if (hasSource) {
+      return (
         <ConnectorTile
           connector={source.connector}
           onClick={(e) => handleConnectionClick(source.connectionId, e)}
           size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
         />
-      ) : (
-        <ConnectorTileEmpty />
-      )}
-      <Icon
-        component={isLinked ? FlowArrowIcon : XIcon}
-        variant={isLinked ? IconVariant.PRIMARY : IconVariant.ERROR}
-        size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
-        weight={IconWeight.REGULAR}
-      />
-      {hasSinks ? (
+      );
+    }
+  };
+
+  const renderSinks = () => {
+    if (hasSinks) {
+      return (
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
           {visibleSinks.map((sink, index) => (
             <ConnectorTile
@@ -96,9 +93,25 @@ const PipelineFlow = ({
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
         </FlexWrapper>
-      ) : (
-        <ConnectorTileEmpty />
+      );
+    }
+  };
+
+  return (
+    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+      {renderSource()}
+      {isLinked && (
+        <Icon
+          component={FlowArrowIcon}
+          variant={IconVariant.PRIMARY}
+          size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
+          weight={IconWeight.REGULAR}
+        />
       )}
+      {!isLinked && (
+        <Chip label="Invalid pipeline" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />
+      )}
+      {renderSinks()}
     </FlexWrapper>
   );
 };

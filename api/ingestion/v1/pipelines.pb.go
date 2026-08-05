@@ -392,6 +392,7 @@ type Pipeline struct {
 	LastRunAt        int64                  `protobuf:"varint,8,opt,name=last_run_at,json=lastRunAt,proto3" json:"last_run_at,omitempty"`
 	LastRunStatus    RunStatus              `protobuf:"varint,9,opt,name=last_run_status,json=lastRunStatus,proto3,enum=ingestion.v1.RunStatus" json:"last_run_status,omitempty"`
 	LastRunBytes     int64                  `protobuf:"varint,10,opt,name=last_run_bytes,json=lastRunBytes,proto3" json:"last_run_bytes,omitempty"`
+	LastRunEndedAt   int64                  `protobuf:"varint,11,opt,name=last_run_ended_at,json=lastRunEndedAt,proto3" json:"last_run_ended_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -485,6 +486,13 @@ func (x *Pipeline) GetLastRunStatus() RunStatus {
 func (x *Pipeline) GetLastRunBytes() int64 {
 	if x != nil {
 		return x.LastRunBytes
+	}
+	return 0
+}
+
+func (x *Pipeline) GetLastRunEndedAt() int64 {
+	if x != nil {
+		return x.LastRunEndedAt
 	}
 	return 0
 }
@@ -1890,7 +1898,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x05nodes\x18\x03 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
 	"\x05edges\x18\x04 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\xd1\x02\n" +
+	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\xfc\x02\n" +
 	"\bPipeline\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x12\n" +
@@ -1901,7 +1909,8 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\vlast_run_at\x18\b \x01(\x03R\tlastRunAt\x12?\n" +
 	"\x0flast_run_status\x18\t \x01(\x0e2\x17.ingestion.v1.RunStatusR\rlastRunStatus\x12$\n" +
 	"\x0elast_run_bytes\x18\n" +
-	" \x01(\x03R\flastRunBytes\"\xb6\x01\n" +
+	" \x01(\x03R\flastRunBytes\x12)\n" +
+	"\x11last_run_ended_at\x18\v \x01(\x03R\x0elastRunEndedAt\"\xb6\x01\n" +
 	"\x16PipelineScheduleConfig\x12\x12\n" +
 	"\x04cron\x18\x01 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x02 \x01(\tR\btimezone\x12\x18\n" +

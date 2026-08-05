@@ -20,7 +20,7 @@ RETURNING inserted.version, inserted.created_at;
 
 -- name: GetPipeline :one
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at
 FROM pipelines WHERE pipeline_id = @pipeline_id AND NOT is_deleted;
 
 -- name: GetPipelineVersion :one
@@ -34,7 +34,7 @@ WHERE pipeline_id = @pipeline_id ORDER BY version DESC;
 
 -- name: ListPipelines :many
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at
 FROM pipelines WHERE NOT is_deleted AND (@tenant_id::text = '' OR tenant_id = @tenant_id) ORDER BY pipeline_id;
 
 -- name: UpdatePipelineRunSummary :exec
@@ -43,6 +43,7 @@ UPDATE pipelines SET
   last_run_at = @started_at,
   last_run_status = @status,
   last_run_bytes = @bytes,
+  last_run_ended_at = @ended_at,
   updated_at = now()
 WHERE pipeline_id = @pipeline_id AND (last_run_at IS NULL OR last_run_at <= @started_at);
 

@@ -1,22 +1,19 @@
 import { useMemo, useState } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { BookOpenIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
-import { ToastVariant } from "@galaxy-io/dls/toast/ToastProvider";
-import { useToast } from "@galaxy-io/dls/toast/useToast";
-
-import { CreatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
 import PipelinesPageEmptyGraphic from "@/pages/pipelines/components/PipelinesPageEmptyGraphic";
 import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
 
-import { useCreatePipelineMutation, useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
+import { Flow } from "@/routes/__root";
+
+import { useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
 
 import { DOCUMENTATION_URL } from "@/constants";
 
@@ -34,14 +31,12 @@ const PipelinesPage = () => {
   const navigate = useNavigate();
 
   const [state, setState] = useState<PipelinesPageState>(DEFAULT_STATE);
-  const { showToast } = useToast();
 
   const handleSearchChange = (search: string) => {
     setState((prev) => ({ ...prev, search }));
   };
 
   const { data } = useSuspenseListPipelinesQuery();
-  const { mutate: createPipeline, isPending: isCreatingPipeline } = useCreatePipelineMutation();
 
   const visiblePipelines = useMemo(
     () => data.pipelines.filter((item) => isSearchMatch(state.search, item.name, item.id)),
@@ -49,22 +44,9 @@ const PipelinesPage = () => {
   );
 
   const handleNewPipeline = () => {
-    createPipeline(create(CreatePipelineRequestSchema, {}), {
-      onSuccess: (response) => {
-        if (response.pipeline?.id) {
-          navigate({
-            to: "/pipelines/$id",
-            params: { id: response.pipeline.id },
-          });
-        }
-      },
-      onError: (error) => {
-        showToast({
-          variant: ToastVariant.ERROR,
-          header: "Failed to create pipeline",
-          subheader: error.message,
-        });
-      },
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, flow: Flow.CREATE_PIPELINE }),
     });
   };
 
@@ -79,10 +61,9 @@ const PipelinesPage = () => {
           actions={
             <FlexWrapper gap={8}>
               <Button
-                label={isCreatingPipeline ? "Creating..." : "New pipeline"}
+                label="New pipeline"
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
-                isDisabled={isCreatingPipeline}
                 onClick={handleNewPipeline}
               />
               <Button
@@ -107,10 +88,9 @@ const PipelinesPage = () => {
       actions={[
         <Button
           key="new-pipeline"
-          label={isCreatingPipeline ? "Creating..." : "New pipeline"}
+          label="New pipeline"
           icon={PlusIcon}
           variant={ButtonVariant.PRIMARY}
-          isDisabled={isCreatingPipeline}
           onClick={handleNewPipeline}
         />,
       ]}

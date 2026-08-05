@@ -76,7 +76,7 @@ func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
 
 const getPipeline = `-- name: GetPipeline :one
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at
 FROM pipelines WHERE pipeline_id = $1 AND NOT is_deleted
 `
 
@@ -90,6 +90,7 @@ type GetPipelineRow struct {
 	LastRunAt        pgtype.Timestamptz
 	LastRunStatus    int16
 	LastRunBytes     int64
+	LastRunEndedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipelineRow, error) {
@@ -105,6 +106,7 @@ func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipel
 		&i.LastRunAt,
 		&i.LastRunStatus,
 		&i.LastRunBytes,
+		&i.LastRunEndedAt,
 	)
 	return &i, err
 }
@@ -166,7 +168,7 @@ func (q *Queries) ListPipelineVersions(ctx context.Context, pipelineID string) (
 
 const listPipelines = `-- name: ListPipelines :many
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at
 FROM pipelines WHERE NOT is_deleted AND ($1::text = '' OR tenant_id = $1) ORDER BY pipeline_id
 `
 
@@ -180,6 +182,7 @@ type ListPipelinesRow struct {
 	LastRunAt        pgtype.Timestamptz
 	LastRunStatus    int16
 	LastRunBytes     int64
+	LastRunEndedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPipelinesRow, error) {
@@ -201,6 +204,7 @@ func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPi
 			&i.LastRunAt,
 			&i.LastRunStatus,
 			&i.LastRunBytes,
+			&i.LastRunEndedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -237,8 +241,9 @@ UPDATE pipelines SET
   last_run_at = $2,
   last_run_status = $3,
   last_run_bytes = $4,
+  last_run_ended_at = $5,
   updated_at = now()
-WHERE pipeline_id = $5 AND (last_run_at IS NULL OR last_run_at <= $2)
+WHERE pipeline_id = $6 AND (last_run_at IS NULL OR last_run_at <= $2)
 `
 
 type UpdatePipelineRunSummaryParams struct {
@@ -246,6 +251,7 @@ type UpdatePipelineRunSummaryParams struct {
 	StartedAt  pgtype.Timestamptz
 	Status     int16
 	Bytes      int64
+	EndedAt    pgtype.Timestamptz
 	PipelineID string
 }
 
@@ -255,6 +261,7 @@ func (q *Queries) UpdatePipelineRunSummary(ctx context.Context, arg UpdatePipeli
 		arg.StartedAt,
 		arg.Status,
 		arg.Bytes,
+		arg.EndedAt,
 		arg.PipelineID,
 	)
 	return err

@@ -59,6 +59,7 @@ message Pipeline {
   int64 last_run_at = 8;
   RunStatus last_run_status = 9;
   int64 last_run_bytes = 10;
+  int64 last_run_ended_at = 11;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
