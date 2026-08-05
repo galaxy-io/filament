@@ -2,17 +2,17 @@ import { useState } from "react";
 
 import { styled } from "@linaria/react";
 import { CircleIcon } from "@phosphor-icons/react";
+import { match } from "ts-pattern";
 
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import { GalaxyTheme } from "@galaxy-io/dls/theme";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
-import { match } from "ts-pattern";
-import { GalaxyTheme } from "@galaxy-io/dls/theme";
 
 export enum ConnectorTileSize {
   SMALL = "SMALL",
@@ -32,19 +32,13 @@ const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.LARGE]: 6,
 };
 
-const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<
-  ConnectorTileSize,
-  number
-> = {
+const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.SMALL]: 16,
   [ConnectorTileSize.MEDIUM]: 18,
   [ConnectorTileSize.LARGE]: 21,
 };
 
-const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<
-  ConnectorTileSize,
-  TextSize
-> = {
+const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> = {
   [ConnectorTileSize.SMALL]: TextSize.CAPTION,
   [ConnectorTileSize.MEDIUM]: TextSize.BODY_MD,
   [ConnectorTileSize.LARGE]: TextSize.BODY_LG,
@@ -77,9 +71,7 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-const EmptyTileWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $size: ConnectorTileSize }>
->`
+const EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
   width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
   height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
 

@@ -4,7 +4,11 @@ import { styled } from "@linaria/react";
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import Field from "@/components/fields/Field";
-import { getFieldDefaults, getPipelineScopedFields, isFieldVisible } from "@/components/fields/utils";
+import {
+  getFieldDefaults,
+  getPipelineScopedFields,
+  isFieldVisible,
+} from "@/components/fields/utils";
 
 import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
