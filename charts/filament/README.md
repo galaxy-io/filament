@@ -130,7 +130,7 @@ helm upgrade --install filament . \
 | metrics.image.tag | string | `""` (defaults to chart appVersion) | Metrics image tag. |
 | metrics.replicas | int | `1` | Number of metrics replicas. |
 | metrics.resources | object | `{}` (See [values.yaml]) | Metrics resource requests and limits. |
-| metrics.service.port | int | `8081` | Metrics service and container port. |
+| metrics.service.port | int | `8082` | Metrics service and container port. |
 | metrics.serviceAccount.annotations | object | `{}` | Annotations for the chart-created metrics ServiceAccount, e.g. an IRSA role ARN. |
 | metrics.serviceAccount.name | string | `""` | Existing ServiceAccount name for the metrics service. When set, the chart does not create one. |
 

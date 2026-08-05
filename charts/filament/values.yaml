@@ -175,7 +175,7 @@ metrics:
 
   service:
     # -- Metrics service and container port.
-    port: 8081
+    port: 8082
 
   # -- Metrics resource requests and limits.
   # @default -- `{}` (See [values.yaml])
