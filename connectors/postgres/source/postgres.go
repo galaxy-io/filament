@@ -86,12 +86,13 @@ func New() *Source {
 }
 
 var (
-	_ filament.Source          = (*Source)(nil)
-	_ filament.Discoverable    = (*Source)(nil)
-	_ filament.LiveValidatable = (*Source)(nil)
-	_ filament.SchemaProvider  = (*Source)(nil)
-	_ filament.Resumable       = (*Source)(nil)
-	_ filament.ResumePlanner   = (*Source)(nil)
+	_ filament.Source               = (*Source)(nil)
+	_ filament.Discoverable         = (*Source)(nil)
+	_ filament.LiveValidatable      = (*Source)(nil)
+	_ filament.SchemaProvider       = (*Source)(nil)
+	_ filament.CursorColumnProvider = (*Source)(nil)
+	_ filament.Resumable            = (*Source)(nil)
+	_ filament.ResumePlanner        = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.

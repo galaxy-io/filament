@@ -740,6 +740,294 @@ func (x *DiscoverResourcesResponse) GetResources() []*Resource {
 	return nil
 }
 
+type GetResourceColumnsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Connector     string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,3,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Resources     []string               `protobuf:"bytes,4,rep,name=resources,proto3" json:"resources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetResourceColumnsRequest) Reset() {
+	*x = GetResourceColumnsRequest{}
+	mi := &file_ingestion_v1_providers_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetResourceColumnsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetResourceColumnsRequest) ProtoMessage() {}
+
+func (x *GetResourceColumnsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_providers_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetResourceColumnsRequest.ProtoReflect.Descriptor instead.
+func (*GetResourceColumnsRequest) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetResourceColumnsRequest) GetConnector() string {
+	if x != nil {
+		return x.Connector
+	}
+	return ""
+}
+
+func (x *GetResourceColumnsRequest) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *GetResourceColumnsRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *GetResourceColumnsRequest) GetResources() []string {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+type ResourceColumn struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	LogicalType        string                 `protobuf:"bytes,2,opt,name=logical_type,json=logicalType,proto3" json:"logical_type,omitempty"`
+	NativeType         string                 `protobuf:"bytes,3,opt,name=native_type,json=nativeType,proto3" json:"native_type,omitempty"`
+	Nullable           bool                   `protobuf:"varint,4,opt,name=nullable,proto3" json:"nullable,omitempty"`
+	PrimaryKey         bool                   `protobuf:"varint,5,opt,name=primary_key,json=primaryKey,proto3" json:"primary_key,omitempty"`
+	CursorEligible     bool                   `protobuf:"varint,6,opt,name=cursor_eligible,json=cursorEligible,proto3" json:"cursor_eligible,omitempty"`
+	CursorRecommended  bool                   `protobuf:"varint,7,opt,name=cursor_recommended,json=cursorRecommended,proto3" json:"cursor_recommended,omitempty"`
+	RecommendationRank int32                  `protobuf:"varint,8,opt,name=recommendation_rank,json=recommendationRank,proto3" json:"recommendation_rank,omitempty"`
+	Warning            string                 `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
+	Configurable       bool                   `protobuf:"varint,10,opt,name=configurable,proto3" json:"configurable,omitempty"`
+	SupportsLookback   bool                   `protobuf:"varint,11,opt,name=supports_lookback,json=supportsLookback,proto3" json:"supports_lookback,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ResourceColumn) Reset() {
+	*x = ResourceColumn{}
+	mi := &file_ingestion_v1_providers_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceColumn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceColumn) ProtoMessage() {}
+
+func (x *ResourceColumn) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_providers_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceColumn.ProtoReflect.Descriptor instead.
+func (*ResourceColumn) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ResourceColumn) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ResourceColumn) GetLogicalType() string {
+	if x != nil {
+		return x.LogicalType
+	}
+	return ""
+}
+
+func (x *ResourceColumn) GetNativeType() string {
+	if x != nil {
+		return x.NativeType
+	}
+	return ""
+}
+
+func (x *ResourceColumn) GetNullable() bool {
+	if x != nil {
+		return x.Nullable
+	}
+	return false
+}
+
+func (x *ResourceColumn) GetPrimaryKey() bool {
+	if x != nil {
+		return x.PrimaryKey
+	}
+	return false
+}
+
+func (x *ResourceColumn) GetCursorEligible() bool {
+	if x != nil {
+		return x.CursorEligible
+	}
+	return false
+}
+
+func (x *ResourceColumn) GetCursorRecommended() bool {
+	if x != nil {
+		return x.CursorRecommended
+	}
+	return false
+}
+
+func (x *ResourceColumn) GetRecommendationRank() int32 {
+	if x != nil {
+		return x.RecommendationRank
+	}
+	return 0
+}
+
+func (x *ResourceColumn) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
+func (x *ResourceColumn) GetConfigurable() bool {
+	if x != nil {
+		return x.Configurable
+	}
+	return false
+}
+
+func (x *ResourceColumn) GetSupportsLookback() bool {
+	if x != nil {
+		return x.SupportsLookback
+	}
+	return false
+}
+
+type ResourceColumns struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resource      string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	Columns       []*ResourceColumn      `protobuf:"bytes,2,rep,name=columns,proto3" json:"columns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourceColumns) Reset() {
+	*x = ResourceColumns{}
+	mi := &file_ingestion_v1_providers_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceColumns) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceColumns) ProtoMessage() {}
+
+func (x *ResourceColumns) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_providers_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceColumns.ProtoReflect.Descriptor instead.
+func (*ResourceColumns) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ResourceColumns) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *ResourceColumns) GetColumns() []*ResourceColumn {
+	if x != nil {
+		return x.Columns
+	}
+	return nil
+}
+
+type GetResourceColumnsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resources     []*ResourceColumns     `protobuf:"bytes,1,rep,name=resources,proto3" json:"resources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetResourceColumnsResponse) Reset() {
+	*x = GetResourceColumnsResponse{}
+	mi := &file_ingestion_v1_providers_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetResourceColumnsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetResourceColumnsResponse) ProtoMessage() {}
+
+func (x *GetResourceColumnsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_providers_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetResourceColumnsResponse.ProtoReflect.Descriptor instead.
+func (*GetResourceColumnsResponse) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetResourceColumnsResponse) GetResources() []*ResourceColumns {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
 var File_ingestion_v1_providers_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_providers_proto_rawDesc = "" +
@@ -808,7 +1096,32 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
 	"\x19DiscoverResourcesResponse\x124\n" +
-	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresourcesB\xaf\x01\n" +
+	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xad\x01\n" +
+	"\x19GetResourceColumnsRequest\x12\x1c\n" +
+	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
+	"\rconnection_id\x18\x03 \x01(\tR\fconnectionId\x12\x1c\n" +
+	"\tresources\x18\x04 \x03(\tR\tresources\"\x99\x03\n" +
+	"\x0eResourceColumn\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\x12\x1f\n" +
+	"\vnative_type\x18\x03 \x01(\tR\n" +
+	"nativeType\x12\x1a\n" +
+	"\bnullable\x18\x04 \x01(\bR\bnullable\x12\x1f\n" +
+	"\vprimary_key\x18\x05 \x01(\bR\n" +
+	"primaryKey\x12'\n" +
+	"\x0fcursor_eligible\x18\x06 \x01(\bR\x0ecursorEligible\x12-\n" +
+	"\x12cursor_recommended\x18\a \x01(\bR\x11cursorRecommended\x12/\n" +
+	"\x13recommendation_rank\x18\b \x01(\x05R\x12recommendationRank\x12\x18\n" +
+	"\awarning\x18\t \x01(\tR\awarning\x12\"\n" +
+	"\fconfigurable\x18\n" +
+	" \x01(\bR\fconfigurable\x12+\n" +
+	"\x11supports_lookback\x18\v \x01(\bR\x10supportsLookback\"e\n" +
+	"\x0fResourceColumns\x12\x1a\n" +
+	"\bresource\x18\x01 \x01(\tR\bresource\x126\n" +
+	"\acolumns\x18\x02 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\"Y\n" +
+	"\x1aGetResourceColumnsResponse\x12;\n" +
+	"\tresources\x18\x01 \x03(\v2\x1d.ingestion.v1.ResourceColumnsR\tresourcesB\xaf\x01\n" +
 	"\x10com.ingestion.v1B\x0eProvidersProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -823,46 +1136,53 @@ func file_ingestion_v1_providers_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_providers_proto_rawDescData
 }
 
-var file_ingestion_v1_providers_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_ingestion_v1_providers_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_ingestion_v1_providers_proto_goTypes = []any{
-	(*Capabilities)(nil),              // 0: ingestion.v1.Capabilities
-	(*ConnectorSpec)(nil),             // 1: ingestion.v1.ConnectorSpec
-	(*ListConnectorsRequest)(nil),     // 2: ingestion.v1.ListConnectorsRequest
-	(*ListConnectorsResponse)(nil),    // 3: ingestion.v1.ListConnectorsResponse
-	(*ValidateConfigRequest)(nil),     // 4: ingestion.v1.ValidateConfigRequest
-	(*ValidationError)(nil),           // 5: ingestion.v1.ValidationError
-	(*ValidateConfigResponse)(nil),    // 6: ingestion.v1.ValidateConfigResponse
-	(*DiscoverResourcesRequest)(nil),  // 7: ingestion.v1.DiscoverResourcesRequest
-	(*Resource)(nil),                  // 8: ingestion.v1.Resource
-	(*DiscoverResourcesResponse)(nil), // 9: ingestion.v1.DiscoverResourcesResponse
-	nil,                               // 10: ingestion.v1.Resource.MetadataEntry
-	(*WritePolicyCapability)(nil),     // 11: ingestion.v1.WritePolicyCapability
-	(*SourcePolicy)(nil),              // 12: ingestion.v1.SourcePolicy
-	(ConnectorKind)(0),                // 13: ingestion.v1.ConnectorKind
-	(ReplicationMode)(0),              // 14: ingestion.v1.ReplicationMode
-	(*ConfigSchema)(nil),              // 15: ingestion.v1.ConfigSchema
-	(*structpb.Struct)(nil),           // 16: google.protobuf.Struct
+	(*Capabilities)(nil),               // 0: ingestion.v1.Capabilities
+	(*ConnectorSpec)(nil),              // 1: ingestion.v1.ConnectorSpec
+	(*ListConnectorsRequest)(nil),      // 2: ingestion.v1.ListConnectorsRequest
+	(*ListConnectorsResponse)(nil),     // 3: ingestion.v1.ListConnectorsResponse
+	(*ValidateConfigRequest)(nil),      // 4: ingestion.v1.ValidateConfigRequest
+	(*ValidationError)(nil),            // 5: ingestion.v1.ValidationError
+	(*ValidateConfigResponse)(nil),     // 6: ingestion.v1.ValidateConfigResponse
+	(*DiscoverResourcesRequest)(nil),   // 7: ingestion.v1.DiscoverResourcesRequest
+	(*Resource)(nil),                   // 8: ingestion.v1.Resource
+	(*DiscoverResourcesResponse)(nil),  // 9: ingestion.v1.DiscoverResourcesResponse
+	(*GetResourceColumnsRequest)(nil),  // 10: ingestion.v1.GetResourceColumnsRequest
+	(*ResourceColumn)(nil),             // 11: ingestion.v1.ResourceColumn
+	(*ResourceColumns)(nil),            // 12: ingestion.v1.ResourceColumns
+	(*GetResourceColumnsResponse)(nil), // 13: ingestion.v1.GetResourceColumnsResponse
+	nil,                                // 14: ingestion.v1.Resource.MetadataEntry
+	(*WritePolicyCapability)(nil),      // 15: ingestion.v1.WritePolicyCapability
+	(*SourcePolicy)(nil),               // 16: ingestion.v1.SourcePolicy
+	(ConnectorKind)(0),                 // 17: ingestion.v1.ConnectorKind
+	(ReplicationMode)(0),               // 18: ingestion.v1.ReplicationMode
+	(*ConfigSchema)(nil),               // 19: ingestion.v1.ConfigSchema
+	(*structpb.Struct)(nil),            // 20: google.protobuf.Struct
 }
 var file_ingestion_v1_providers_proto_depIdxs = []int32{
-	11, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
-	12, // 1: ingestion.v1.Capabilities.source_policies:type_name -> ingestion.v1.SourcePolicy
-	13, // 2: ingestion.v1.ConnectorSpec.kind:type_name -> ingestion.v1.ConnectorKind
-	14, // 3: ingestion.v1.ConnectorSpec.modes:type_name -> ingestion.v1.ReplicationMode
-	15, // 4: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
+	15, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
+	16, // 1: ingestion.v1.Capabilities.source_policies:type_name -> ingestion.v1.SourcePolicy
+	17, // 2: ingestion.v1.ConnectorSpec.kind:type_name -> ingestion.v1.ConnectorKind
+	18, // 3: ingestion.v1.ConnectorSpec.modes:type_name -> ingestion.v1.ReplicationMode
+	19, // 4: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
 	0,  // 5: ingestion.v1.ConnectorSpec.capabilities:type_name -> ingestion.v1.Capabilities
-	13, // 6: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	17, // 6: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
 	1,  // 7: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
-	13, // 8: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	16, // 9: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
+	17, // 8: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	20, // 9: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
 	5,  // 10: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
-	16, // 11: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
-	10, // 12: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
+	20, // 11: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
+	14, // 12: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
 	8,  // 13: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	20, // 14: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
+	11, // 15: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
+	12, // 16: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_providers_proto_init() }
@@ -877,7 +1197,7 @@ func file_ingestion_v1_providers_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_providers_proto_rawDesc), len(file_ingestion_v1_providers_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
