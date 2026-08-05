@@ -170,8 +170,18 @@ metrics:
     # -- Annotations for the chart-created metrics ServiceAccount, e.g. an IRSA role ARN.
     annotations: {}
 
-  # -- Number of metrics replicas.
+  # -- Number of metrics replicas. Ignored when `metrics.autoscaling.enabled` is true.
   replicas: 1
+
+  autoscaling:
+    # -- Enable a HorizontalPodAutoscaler for the metrics service.
+    enabled: false
+    # -- Minimum metrics replicas when autoscaling is enabled.
+    minReplicas: 1
+    # -- Maximum metrics replicas when autoscaling is enabled.
+    maxReplicas: 10
+    # -- Target average CPU utilization percentage for metrics autoscaling.
+    targetCpu: 80
 
   service:
     # -- Metrics service and container port.
@@ -274,6 +284,24 @@ postgresql:
     # -- Password for the vendored PostgreSQL user. Must match `persistence.postgresql.dsn` when vendored PostgreSQL is enabled.
     # @default -- required when `postgresql.enabled=true`
     password: ""
+  primary:
+    # -- Resources for the vendored PostgreSQL primary. Overrides the upstream
+    # `nano` preset (192Mi memory limit), which risks OOM kills and unclean
+    # shutdowns under real load.
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    persistence:
+      # -- PVC size for the vendored PostgreSQL primary.
+      size: 8Gi
+  backup:
+    # -- Enable daily logical dumps (`pg_dumpall`) of the vendored PostgreSQL
+    # to a dedicated PVC. See `backup.cronjob.*` in the upstream chart for
+    # schedule and storage options.
+    enabled: false
 
 # Vendored NATS configuration.
 nats:
@@ -285,3 +313,18 @@ nats:
     jetstream:
       # -- Enable JetStream in the vendored NATS chart.
       enabled: true
+      fileStore:
+        pvc:
+          # -- PVC size for the vendored NATS JetStream file store.
+          size: 10Gi
+  container:
+    # -- Merged into the vendored NATS container spec. Sets resources so the
+    # pod is not BestEffort QoS (first evicted under node pressure); the
+    # upstream chart sets none.
+    merge:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 512Mi

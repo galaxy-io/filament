@@ -26,6 +26,9 @@ type DataStore interface {
 
 	SaveCheckpoint(ctx context.Context, id RunID, cp Checkpoint) error
 	LoadCheckpoint(ctx context.Context, id RunID, resource string) (Checkpoint, error)
+	SaveResourceCheckpoint(ctx context.Context, state ResourceCheckpointState) error
+	LoadResourceCheckpoint(ctx context.Context, key ResourceCheckpointKey) (ResourceCheckpointState, error)
+	DeleteResourceCheckpoint(ctx context.Context, key ResourceCheckpointKey) error
 
 	DedupSeen(ctx context.Context, tenant string, run RunID, seq uint64) (bool, error)
 
@@ -44,6 +47,25 @@ type DataStore interface {
 	ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string
+}
+
+// ResourceCheckpointKey identifies durable progress shared by runs of one
+// immutable pipeline route. Resource is deliberately part of the key so each
+// table advances independently.
+type ResourceCheckpointKey struct {
+	PipelineID        string
+	PipelineVersionID int64
+	Route             string
+	Resource          string
+}
+
+// ResourceCheckpointState is the durable cursor plus its most recent writer.
+// Connector-specific phases and cursor shapes remain opaque inside Checkpoint.
+type ResourceCheckpointState struct {
+	Key        ResourceCheckpointKey
+	Run        RunID
+	Checkpoint Checkpoint
+	UpdatedAt  time.Time
 }
 
 // ConnectorKind identifies which registry owns a reusable connection.

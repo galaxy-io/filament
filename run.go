@@ -8,16 +8,20 @@ import (
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Tenant        TenantID
-	Run           RunID
-	Source        Ref
-	Sink          Ref
-	Resources     []string
-	Selectors     []string
-	IngestionType IngestionType
-	Mode          ReplicationMode
-	Checkpoint    *CheckpointData
-	Options       RunOptions
+	Tenant            TenantID
+	Run               RunID
+	PipelineID        string
+	PipelineVersionID int64
+	CheckpointRoute   string
+	CursorConfigs     map[string]ResourceCursorConfig
+	Source            Ref
+	Sink              Ref
+	Resources         []string
+	Selectors         []string
+	IngestionType     IngestionType
+	Mode              ReplicationMode
+	Checkpoint        *CheckpointData
+	Options           RunOptions
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
@@ -34,8 +38,37 @@ type RunRequest struct {
 	Resources          []string
 	Selectors          []string
 	IngestionType      IngestionType
+	CheckpointRoute    string
+	CursorConfigs      map[string]ResourceCursorConfig
 	Options            RunOptions
 	ScheduleID         ScheduleID
+}
+
+// ResourceCursorConfig selects one resource's durable incremental field and
+// optional overlap window for late transactions.
+type ResourceCursorConfig struct {
+	Field           string
+	LookbackSeconds int64
+}
+
+// ResourceCheckpointKey returns the stable cross-run key for resource. False
+// means the request did not originate from a versioned pipeline route.
+func (r RunRequest) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
+	if r.PipelineID == "" || r.PipelineVersionID <= 0 || r.CheckpointRoute == "" || resource == "" {
+		return ResourceCheckpointKey{}, false
+	}
+	return ResourceCheckpointKey{
+		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
+		Route: r.CheckpointRoute, Resource: resource,
+	}, true
+}
+
+// ResourceCheckpointKey returns the stable cross-run key for resource.
+func (s RunSpec) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
+	return RunRequest{
+		PipelineID: s.PipelineID, PipelineVersionID: s.PipelineVersionID,
+		CheckpointRoute: s.CheckpointRoute,
+	}.ResourceCheckpointKey(resource)
 }
 
 // RunOptions tunes throughput knobs for a run; zero values defer to engine
@@ -365,6 +398,7 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 		return SourcePolicy{
 			Mode:          ModeIncremental,
 			EmitsOps:      []Operation{OpInsert, OpUpdate},
+			Ordered:       true,
 			Checkpointing: CheckpointAfterBatch,
 		}
 	default:

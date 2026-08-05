@@ -16,6 +16,7 @@ service IngestionService {
   // Ephemeral source/sink operations; no persisted state.
   rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);
   rpc DiscoverResources(DiscoverResourcesRequest) returns (DiscoverResourcesResponse);
+  rpc GetResourceColumns(GetResourceColumnsRequest) returns (GetResourceColumnsResponse);
 
   // Secrets; write-only values referenced by name from configs.
   rpc PutSecret(PutSecretRequest) returns (PutSecretResponse);

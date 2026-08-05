@@ -44,6 +44,31 @@ type ResumePlanner interface {
 	PlanResume(ctx context.Context, resources []string, prev map[string]Checkpoint) (map[string]Checkpoint, error)
 }
 
+// IncrementalPlanner builds a durable per-resource plan from the previous
+// cross-run watermark and versioned cursor configuration.
+type IncrementalPlanner interface {
+	PlanIncremental(ctx context.Context, resources []string, prev map[string]Checkpoint, cursors map[string]ResourceCursorConfig) (map[string]Checkpoint, error)
+}
+
+// CursorColumnProvider describes which resource columns can safely serve as
+// durable incremental cursors and which one the connector recommends.
+type CursorColumnProvider interface {
+	CursorColumns(ctx context.Context, resource string) ([]CursorColumn, error)
+}
+
+// CursorColumn is a schema field annotated with its incremental-cursor
+// capabilities. Rank is connector-specific; lower positive values are better.
+type CursorColumn struct {
+	SchemaField
+	PrimaryKey       bool
+	Eligible         bool
+	Recommended      bool
+	Rank             int
+	Configurable     bool
+	SupportsLookback bool
+	Warning          string
+}
+
 // Discoverable is the optional contract for browsing a source's available
 // resources.
 type Discoverable interface {

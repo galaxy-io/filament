@@ -55,6 +55,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
 	nodes, edges := req.Msg.GetNodes(), req.Msg.GetEdges()
+	if err := validateCursorConfigs(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	a.defaultSinkSchemas(ctx, nodes, edges)
 	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: nodes, Edges: edges})
 	if errors.Is(err, filament.ErrNotFound) {
@@ -64,6 +67,40 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
+}
+
+func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
+	for _, edge := range edges {
+		if len(edge.GetCursors()) == 0 {
+			continue
+		}
+		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
+		policy := filament.SourcePolicyForIngestion(ingestionType)
+		if policy.Mode != filament.ModeIncremental {
+			return fmt.Errorf("cursor configuration requires incremental ingestion, got %q", ingestionType)
+		}
+		seen := make(map[string]struct{}, len(edge.GetCursors()))
+		for _, cursor := range edge.GetCursors() {
+			resource := cursor.GetResource()
+			if resource == "" {
+				return fmt.Errorf("cursor resource is required")
+			}
+			if edge.GetResource() != "" && resource != edge.GetResource() {
+				return fmt.Errorf("cursor resource %q does not match edge resource %q", resource, edge.GetResource())
+			}
+			if cursor.GetField() == "" {
+				return fmt.Errorf("cursor field is required for resource %q", resource)
+			}
+			if cursor.GetLookbackSeconds() < 0 {
+				return fmt.Errorf("cursor lookback_seconds must be non-negative for resource %q", resource)
+			}
+			if _, duplicate := seen[resource]; duplicate {
+				return fmt.Errorf("duplicate cursor configuration for resource %q", resource)
+			}
+			seen[resource] = struct{}{}
+		}
+	}
+	return nil
 }
 
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
@@ -329,6 +366,8 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 			Resources:          resources,
 			Selectors:          selectors,
 			IngestionType:      group.ingestionType,
+			CheckpointRoute:    key,
+			CursorConfigs:      group.cursorConfigs,
 			Options:            options,
 			ScheduleID:         scheduleID,
 		})
@@ -354,6 +393,7 @@ type routeGroup struct {
 	all           bool
 	resources     map[string]bool
 	selectors     map[string]bool
+	cursorConfigs map[string]filament.ResourceCursorConfig
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
@@ -380,9 +420,17 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				ingestionType: ingestionType,
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
+				cursorConfigs: map[string]filament.ResourceCursorConfig{},
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
+		}
+		for _, cursor := range edge.GetCursors() {
+			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
+			if previous, exists := group.cursorConfigs[cursor.GetResource()]; exists && previous != config {
+				return nil, fmt.Errorf("conflicting cursor configuration for resource %q", cursor.GetResource())
+			}
+			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		if edge.GetResource() == "" {
 			group.all = true

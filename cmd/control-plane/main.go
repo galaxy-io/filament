@@ -79,7 +79,11 @@ func run(ctx context.Context) error {
 	}
 	healthSrv := &http.Server{Addr: healthAddr, Handler: healthMux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = healthSrv.ListenAndServe() }()
-	defer func() { _ = healthSrv.Close() }()
+	defer func() {
+		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = healthSrv.Shutdown(shutCtx)
+	}()
 	bus, err := eventbus.FromEnv()
 	if err != nil {
 		return err

@@ -86,3 +86,39 @@ func TestMergeShardDelta(t *testing.T) {
 		t.Fatalf("merge onto nil base = %v, want nil", got)
 	}
 }
+
+func TestMergeIncrementalDelta(t *testing.T) {
+	base := KeysetCheckpoint{
+		Mode: ModeIncremental, Cols: []string{"updated_at", "id"},
+		Types: []string{"timestamptz", "bigint"}, Shards: []KeysetShard{{}},
+	}.ToCheckpoint("users")
+	merged := MergeShardDelta(base, NewShardDelta("users", 0, []string{"2026-08-04T12:00:00Z", "42"}))
+	got, ok := ParseKeyset(merged)
+	if !ok || got.Mode != ModeIncremental {
+		t.Fatalf("incremental checkpoint = %#v", merged)
+	}
+	want := []string{"2026-08-04T12:00:00Z", "42"}
+	if !reflect.DeepEqual(got.Shards[0].Key, want) {
+		t.Fatalf("watermark = %v, want %v", got.Shards[0].Key, want)
+	}
+}
+
+func TestPromoteIncrementalBackfill(t *testing.T) {
+	backfill := AsIncrementalBackfill(
+		KeysetCheckpoint{Cols: []string{"id"}, Types: []string{"bigint"}, Shards: []KeysetShard{{Hi: []string{"500"}}, {Lo: []string{"500"}}}},
+		[]string{"updated_at", "id"}, []string{"timestamptz", "bigint"},
+		[]string{"2026-08-04T12:00:00Z", "42"}, 300,
+	).ToCheckpoint("users")
+	promoted, ok := PromoteIncrementalBackfill(backfill)
+	if !ok {
+		t.Fatal("backfill was not promoted")
+	}
+	got, ok := ParseKeyset(promoted)
+	if !ok || got.Mode != ModeIncremental || len(got.Shards) != 1 {
+		t.Fatalf("promoted checkpoint = %#v", promoted.Raw())
+	}
+	want := []string{"2026-08-04T12:00:00Z", "42"}
+	if !reflect.DeepEqual(got.Shards[0].Key, want) {
+		t.Fatalf("start watermark = %v, want %v", got.Shards[0].Key, want)
+	}
+}

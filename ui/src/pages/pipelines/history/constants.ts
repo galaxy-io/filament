@@ -31,9 +31,9 @@ export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, Beacon
   [RunStatus.RUNNING]: BeaconVariant.BLUE,
   [RunStatus.COMPLETED]: BeaconVariant.SUCCESS,
   [RunStatus.FAILED]: BeaconVariant.ERROR,
-  [RunStatus.CANCELED]: BeaconVariant.SECONDARY,
+  [RunStatus.CANCELED]: BeaconVariant.PURPLE,
   [RunStatus.PAUSED]: BeaconVariant.WARNING,
-  [RunStatus.PARTIAL]: BeaconVariant.WARNING,
+  [RunStatus.PARTIAL]: BeaconVariant.PINK,
 };
 
 export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVariant> = {
@@ -42,7 +42,7 @@ export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVari
   [RunStatus.RUNNING]: TextVariant.BLUE,
   [RunStatus.COMPLETED]: TextVariant.SUCCESS,
   [RunStatus.FAILED]: TextVariant.ERROR,
-  [RunStatus.CANCELED]: TextVariant.SECONDARY,
+  [RunStatus.CANCELED]: TextVariant.PURPLE,
   [RunStatus.PAUSED]: TextVariant.WARNING,
-  [RunStatus.PARTIAL]: TextVariant.WARNING,
+  [RunStatus.PARTIAL]: TextVariant.PINK,
 };

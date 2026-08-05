@@ -104,6 +104,16 @@ type PipelineVersion struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type ResourceCheckpoint struct {
+	PipelineID      string
+	PipelineVersion int64
+	RouteKey        string
+	ResourceName    string
+	Cursor          []byte
+	LastRunID       string
+	UpdatedAt       pgtype.Timestamptz
+}
+
 type ResourceState struct {
 	RunID        string
 	ResourceName string
