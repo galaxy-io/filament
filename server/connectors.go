@@ -12,7 +12,10 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-const connectorRPCTimeout = 5 * time.Second
+const (
+	connectorRPCTimeout       = 5 * time.Second
+	resourceColumnsRPCTimeout = 30 * time.Second
+)
 
 // ListConnectors returns the registered source and sink specs, optionally
 // filtered by kind.
@@ -125,4 +128,81 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 		return nil, err
 	}
 	return connect.NewResponse(resourcesToProto(result.Resources)), nil
+}
+
+// GetResourceColumns configures one source and returns schemas for every
+// requested resource, avoiding one connector pool per resource in the editor.
+func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[ingestionv1.GetResourceColumnsRequest]) (*connect.Response[ingestionv1.GetResourceColumnsResponse], error) {
+	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
+	defer cancel()
+
+	connector := req.Msg.GetConnector()
+	config := structMap(req.Msg.GetConfig())
+	if id := req.Msg.GetConnectionId(); id != "" {
+		conn, err := a.store.LoadConnection(ctx, id)
+		if err != nil {
+			if errors.Is(err, filament.ErrNotFound) {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if connector == "" {
+			connector = conn.Connector
+		}
+		config = mergeConfig(conn.Config, config)
+		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
+	source, err := a.sources.Resolve(connector)
+	if err != nil {
+		return nil, err
+	}
+	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
+		return nil, err
+	}
+	defer func() { _ = source.Teardown(ctx) }()
+
+	resources := append([]string(nil), req.Msg.GetResources()...)
+	if len(resources) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("at least one resource is required"))
+	}
+	cursorProvider, cursorOK := source.(filament.CursorColumnProvider)
+	schemaProvider, schemaOK := source.(filament.SchemaProvider)
+	if !cursorOK && !schemaOK {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not provide resource columns", connector))
+	}
+	response := &ingestionv1.GetResourceColumnsResponse{}
+	for _, resource := range resources {
+		var columns []filament.CursorColumn
+		if cursorOK {
+			columns, err = cursorProvider.CursorColumns(ctx, resource)
+		} else {
+			var schema filament.RecordSchema
+			schema, err = schemaProvider.Schema(ctx, resource)
+			for _, field := range schema.Fields {
+				columns = append(columns, filament.CursorColumn{SchemaField: field})
+			}
+		}
+		if err != nil {
+			return nil, fmt.Errorf("resource columns %q: %w", resource, err)
+		}
+		out := cursorColumnsToProto(columns)
+		response.Resources = append(response.Resources, &ingestionv1.ResourceColumns{Resource: resource, Columns: out})
+	}
+	return connect.NewResponse(response), nil
+}
+
+func cursorColumnsToProto(columns []filament.CursorColumn) []*ingestionv1.ResourceColumn {
+	out := make([]*ingestionv1.ResourceColumn, 0, len(columns))
+	for _, column := range columns {
+		out = append(out, &ingestionv1.ResourceColumn{
+			Name: column.Name, LogicalType: string(column.Logical), NativeType: column.Native,
+			Nullable: column.Nullable, PrimaryKey: column.PrimaryKey,
+			CursorEligible: column.Eligible, CursorRecommended: column.Recommended,
+			RecommendationRank: int32(column.Rank), Warning: column.Warning, //nolint:gosec // tiny rank
+			Configurable: column.Configurable, SupportsLookback: column.SupportsLookback,
+		})
+	}
+	return out
 }
