@@ -81,7 +81,8 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 	return out, nil
 }
 
-// DeleteConnection removes the connection with the given ID; deleting a missing ID is a no-op.
+// DeleteConnection soft-deletes the connection with the given ID; deleting a
+// missing ID is a no-op. The name is freed for reuse by the partial unique index.
 func (s *Store) DeleteConnection(ctx context.Context, id string) error {
 	if err := s.q.DeleteConnection(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete connection: %w", err)

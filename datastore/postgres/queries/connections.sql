@@ -6,19 +6,26 @@ VALUES (@connection_id, @tenant_id, @kind, @name, @provider, @config, @secret_re
 UPDATE connections
 SET name = @name, provider = @provider, config = @config, secret_refs = @secret_refs,
     version = version + 1, updated_at = now()
-WHERE connection_id = @connection_id AND version = @expected_version
+WHERE connection_id = @connection_id AND version = @expected_version AND NOT is_deleted
 RETURNING version;
 
 -- name: GetConnection :one
 SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
-FROM connections WHERE connection_id = @connection_id;
+FROM connections WHERE connection_id = @connection_id AND NOT is_deleted;
 
 -- name: ListConnections :many
 SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
 FROM connections
-WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
+WHERE NOT is_deleted
+  AND (@tenant_id::text = '' OR tenant_id = @tenant_id)
   AND (sqlc.narg('kind')::connection_kind IS NULL OR kind = sqlc.narg('kind'))
 ORDER BY connection_id;
 
 -- name: DeleteConnection :exec
-DELETE FROM connections WHERE connection_id = @connection_id;
+UPDATE connections
+SET
+  name = name || '_deleted_' || extract(epoch from CURRENT_TIMESTAMP)::bigint::text,
+  is_deleted = true,
+  deleted_at = CURRENT_TIMESTAMP,
+  updated_at = CURRENT_TIMESTAMP
+WHERE connection_id = @connection_id AND NOT is_deleted;

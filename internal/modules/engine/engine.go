@@ -93,15 +93,11 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 func specFromState(s filament.RunState) filament.RunSpec {
 	r := s.Request
 	return filament.RunSpec{
-		Tenant:        r.Tenant,
-		Run:           s.Run,
-		Source:        r.Source,
-		Sink:          r.Sink,
-		Resources:     r.Resources,
-		Selectors:     r.Selectors,
-		IngestionType: r.IngestionType.OrDefault(),
-		Mode:          filament.ModeFull,
-		Options:       r.Options,
+		Tenant: r.Tenant, Run: s.Run,
+		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
+		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
+		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
+		IngestionType: r.IngestionType.OrDefault(), Mode: filament.ModeFull, Options: r.Options,
 	}
 }
 

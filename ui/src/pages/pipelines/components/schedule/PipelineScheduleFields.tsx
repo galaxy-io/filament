@@ -24,7 +24,7 @@ import {
   type PipelineSettingsPageScheduleState,
 } from "@/pages/pipelines/settings/types";
 
-const PIPELINE_SCHEDULE_INPUT_WIDTH = 300;
+const PIPELINE_SCHEDULE_INPUT_WIDTH = 234;
 
 interface PipelineScheduleFieldsProps {
   state: PipelineSettingsPageScheduleState;

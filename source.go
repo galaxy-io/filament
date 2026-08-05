@@ -44,6 +44,12 @@ type ResumePlanner interface {
 	PlanResume(ctx context.Context, resources []string, prev map[string]Checkpoint) (map[string]Checkpoint, error)
 }
 
+// IncrementalPlanner builds a durable per-resource plan from the previous
+// cross-run watermark and versioned cursor configuration.
+type IncrementalPlanner interface {
+	PlanIncremental(ctx context.Context, resources []string, prev map[string]Checkpoint, cursors map[string]ResourceCursorConfig) (map[string]Checkpoint, error)
+}
+
 // CursorColumnProvider describes which resource columns can safely serve as
 // durable incremental cursors and which one the connector recommends.
 type CursorColumnProvider interface {

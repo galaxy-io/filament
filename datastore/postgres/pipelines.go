@@ -161,10 +161,23 @@ func runStatusToPipelineProto(status int16) ingestionv1.RunStatus {
 	return ingestionv1.RunStatus(int32(status) + 1)
 }
 
-// DeletePipeline removes a pipeline and its graph versions.
+// DeletePipeline soft-deletes a pipeline and removes its schedules so the
+// scheduler stops firing it. Versions and run history are kept.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
-	if err := s.q.DeletePipeline(ctx, id); err != nil {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("datastore/postgres: begin pipeline delete: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	if err := q.DeletePipeline(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline: %w", err)
+	}
+	if err := q.DeletePipelineSchedules(ctx, id); err != nil {
+		return fmt.Errorf("datastore/postgres: delete pipeline schedules: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("datastore/postgres: commit pipeline delete: %w", err)
 	}
 	return nil
 }

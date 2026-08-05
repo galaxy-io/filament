@@ -1,9 +1,11 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
+import { match } from "ts-pattern";
 
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { GalaxyTheme } from "@galaxy-io/dls/theme";
+import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
@@ -67,21 +69,6 @@ const TileWrapper = withTheme(styled.div<
   }
 `);
 
-const _EmptyTileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: ConnectorTileSize }>>`
-  width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
-  height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background-color: ${({ theme }) => theme.color.background.error};
-  border: 0.5px solid ${({ theme }) => theme.color.border.error};
-  border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
-
-  overflow: hidden;
-`);
-
 const ConnectorLogo = styled.img<{ $height: number }>`
   display: block;
   width: ${({ $height }) => $height}px;
@@ -108,9 +95,13 @@ const ConnectorTile = ({
   size = ConnectorTileSize.MEDIUM,
   onClick,
 }: ConnectorTileProps) => {
+  const { activeTheme } = useGalaxyTheme();
   const resolvedSpec = useConnectorSpec(connector);
   const catalogSpec = spec ?? resolvedSpec;
-  const logoURL = catalogSpec?.darkLogoUrl;
+  const logoURL = match(activeTheme)
+    .with(GalaxyTheme.DARK, () => catalogSpec?.darkLogoUrl)
+    .with(GalaxyTheme.LIGHT, () => catalogSpec?.lightLogoUrl)
+    .exhaustive();
   const [state, setState] = useState<ConnectorTileState>(DEFAULT_STATE);
   const showLogo = !!logoURL && state.failedLogoURL !== logoURL;
 

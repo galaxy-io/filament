@@ -27,6 +27,16 @@ message PipelineEdge {
   string to_node = 3;
   IngestionType ingestion_type = 4;
   string selector = 5;
+  // cursors contains durable-incremental overrides. An all-resource edge may
+  // configure several resources; a resource-specific edge may configure only
+  // its own resource. Omitted resources use connector auto-detection.
+  repeated ResourceCursorConfig cursors = 6;
+}
+
+message ResourceCursorConfig {
+  string resource = 1;
+  string field = 2;
+  int64 lookback_seconds = 3;
 }
 
 message PipelineVersion {

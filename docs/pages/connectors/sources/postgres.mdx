@@ -57,6 +57,28 @@ that matters.
 Supports `ModeFull` and `ModeIncremental` today; `ModeCDC` arrives via
 `ModeSlot`. See [Replication modes](/pages/guides/concepts/replication-modes).
 
+## Incremental cursor selection
+
+Incremental upserts use one watermark per table. Filament ranks conventional
+columns (`updated_at`, `modified_at`, `last_modified_at`, `last_updated_at`,
+`updated`, then `modified`) and the pipeline editor allows an override. Reads
+are ordered and checkpointed by `(cursor_column, primary_key...)`, so rows that
+share a timestamp are not skipped. The first run performs a bounded full
+baseline using the normal primary-key shards; later runs inherit the last
+acknowledged compound watermark. Filament captures that watermark before the
+backfill, so the next run safely replays changes committed while shards were
+running. A five-minute lookback rewinds timestamp cursors by default to absorb
+late commits and clock skew; the resulting duplicates are handled by upsert.
+
+Cursor overrides are limited to timestamp columns. For a non-conventional
+timestamp, Filament requires an explicit selection because the application must
+advance that value monotonically on every insert and update. Static IDs, random
+UUIDs, and arbitrary text columns are not valid update watermarks.
+
+Cursor fields must be `NOT NULL`; otherwise Filament cannot advance a reliable
+watermark. Hard deletes are not observable through an update watermark; use
+CDC, tombstones, or a soft-delete column when deletes must be replicated.
+
 <Info>
   This page covers the read-strategy routing, which is what makes this
   connector interesting. A full config reference (DSN, TLS, per-table

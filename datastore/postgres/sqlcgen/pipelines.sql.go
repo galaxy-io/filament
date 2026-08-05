@@ -35,7 +35,7 @@ func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) 
 
 const createPipelineVersion = `-- name: CreatePipelineVersion :one
 WITH next AS (
-  SELECT current_version_id + 1 AS version FROM pipelines p WHERE p.pipeline_id = $1 FOR UPDATE
+  SELECT current_version_id + 1 AS version FROM pipelines p WHERE p.pipeline_id = $1 AND NOT p.is_deleted FOR UPDATE
 ), inserted AS (
   INSERT INTO pipeline_versions (pipeline_id, version, nodes, edges)
   SELECT $1, version, $2, $3 FROM next
@@ -65,7 +65,8 @@ func (q *Queries) CreatePipelineVersion(ctx context.Context, arg CreatePipelineV
 }
 
 const deletePipeline = `-- name: DeletePipeline :exec
-DELETE FROM pipelines WHERE pipeline_id = $1
+UPDATE pipelines SET is_deleted = true, deleted_at = now(), updated_at = now()
+WHERE pipeline_id = $1 AND NOT is_deleted
 `
 
 func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
@@ -76,7 +77,7 @@ func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
 const getPipeline = `-- name: GetPipeline :one
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
        last_run_at, last_run_status, last_run_bytes, last_run_ended_at
-FROM pipelines WHERE pipeline_id = $1
+FROM pipelines WHERE pipeline_id = $1 AND NOT is_deleted
 `
 
 type GetPipelineRow struct {
@@ -168,7 +169,7 @@ func (q *Queries) ListPipelineVersions(ctx context.Context, pipelineID string) (
 const listPipelines = `-- name: ListPipelines :many
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
        last_run_at, last_run_status, last_run_bytes, last_run_ended_at
-FROM pipelines WHERE ($1::text = '' OR tenant_id = $1) ORDER BY pipeline_id
+FROM pipelines WHERE NOT is_deleted AND ($1::text = '' OR tenant_id = $1) ORDER BY pipeline_id
 `
 
 type ListPipelinesRow struct {
@@ -217,7 +218,7 @@ func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPi
 
 const updatePipeline = `-- name: UpdatePipeline :execrows
 UPDATE pipelines SET name = $1, description = $2, updated_at = now()
-WHERE pipeline_id = $3
+WHERE pipeline_id = $3 AND NOT is_deleted
 `
 
 type UpdatePipelineParams struct {

@@ -71,6 +71,8 @@ type Connection struct {
 	Version      int64
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	IsDeleted    bool
+	DeletedAt    pgtype.Timestamptz
 }
 
 type DedupSeen struct {
@@ -92,6 +94,8 @@ type Pipeline struct {
 	LastRunAt        pgtype.Timestamptz
 	LastRunStatus    int16
 	LastRunBytes     int64
+	IsDeleted        bool
+	DeletedAt        pgtype.Timestamptz
 	LastRunEndedAt   pgtype.Timestamptz
 }
 
@@ -101,6 +105,16 @@ type PipelineVersion struct {
 	Nodes      []byte
 	Edges      []byte
 	CreatedAt  pgtype.Timestamptz
+}
+
+type ResourceCheckpoint struct {
+	PipelineID      string
+	PipelineVersion int64
+	RouteKey        string
+	ResourceName    string
+	Cursor          []byte
+	LastRunID       string
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type ResourceState struct {
