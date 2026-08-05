@@ -123,12 +123,16 @@ helm upgrade --install filament . \
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| metrics.autoscaling.enabled | bool | `false` | Enable a HorizontalPodAutoscaler for the metrics service. |
+| metrics.autoscaling.maxReplicas | int | `10` | Maximum metrics replicas when autoscaling is enabled. |
+| metrics.autoscaling.minReplicas | int | `1` | Minimum metrics replicas when autoscaling is enabled. |
+| metrics.autoscaling.targetCpu | int | `80` | Target average CPU utilization percentage for metrics autoscaling. |
 | metrics.enabled | bool | `true` | Deploy the Filament metrics service. It answers run metrics queries by reading the same runs table server/control-plane persist to. |
 | metrics.image.pullPolicy | string | `"IfNotPresent"` | Metrics image pull policy. |
 | metrics.image.pullSecrets | list | `[]` | Image pull secrets for the metrics Deployment. |
 | metrics.image.repository | string | `"ghcr.io/galaxy-io/filament/metrics"` | Metrics image repository. |
 | metrics.image.tag | string | `""` (defaults to chart appVersion) | Metrics image tag. |
-| metrics.replicas | int | `1` | Number of metrics replicas. |
+| metrics.replicas | int | `1` | Number of metrics replicas. Ignored when `metrics.autoscaling.enabled` is true. |
 | metrics.resources | object | `{}` (See [values.yaml]) | Metrics resource requests and limits. |
 | metrics.service.port | int | `8082` | Metrics service and container port. |
 | metrics.serviceAccount.annotations | object | `{}` | Annotations for the chart-created metrics ServiceAccount, e.g. an IRSA role ARN. |
@@ -176,14 +180,19 @@ helm upgrade --install filament . \
 | postgresql.auth.enablePostgresUser | bool | `false` | Disable the default `postgres` superuser in the vendored PostgreSQL chart. |
 | postgresql.auth.password | string | required when `postgresql.enabled=true` | Password for the vendored PostgreSQL user. Must match `persistence.postgresql.dsn` when vendored PostgreSQL is enabled. |
 | postgresql.auth.username | string | `"filament"` | Username created by the vendored PostgreSQL chart. |
+| postgresql.backup.enabled | bool | `false` | Enable daily logical dumps (`pg_dumpall`) of the vendored PostgreSQL to a dedicated PVC. See `backup.cronjob.*` in the upstream chart for schedule and storage options. |
 | postgresql.enabled | bool | `false` | Enable the vendored Bitnami PostgreSQL chart for local or test clusters. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) for additional configuration. |
 | postgresql.fullnameOverride | string | `"filament-postgresql"` | Full name override for the vendored PostgreSQL release. |
+| postgresql.primary.persistence.size | string | `"8Gi"` | PVC size for the vendored PostgreSQL primary. |
+| postgresql.primary.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Resources for the vendored PostgreSQL primary. Overrides the upstream `nano` preset (192Mi memory limit), which risks OOM kills and unclean shutdowns under real load. |
 
 ## Vendored NATS parameters
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | nats.config.jetstream.enabled | bool | `true` | Enable JetStream in the vendored NATS chart. |
+| nats.config.jetstream.fileStore.pvc.size | string | `"10Gi"` | PVC size for the vendored NATS JetStream file store. |
+| nats.container.merge | object | `{"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}}` | Merged into the vendored NATS container spec. Sets resources so the pod is not BestEffort QoS (first evicted under node pressure); the upstream chart sets none. |
 | nats.enabled | bool | `false` | Enable the vendored NATS chart for local or test clusters. See the [NATS chart](https://artifacthub.io/packages/helm/nats/nats) for additional configuration. |
 | nats.fullnameOverride | string | `"filament-nats"` | Full name override for the vendored NATS release. |
 

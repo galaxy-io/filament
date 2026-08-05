@@ -7,7 +7,9 @@ metadata:
   labels:
     {{- include "filament.metrics.labels" . | nindent 4 }}
 spec:
+  {{- if not .Values.metrics.autoscaling.enabled }}
   replicas: {{ .Values.metrics.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "filament.metrics.selectorLabels" . | nindent 6 }}
@@ -32,18 +34,24 @@ spec:
             - name: http
               containerPort: {{ .Values.metrics.service.port }}
               protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
-            initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /livez
               port: http
-            initialDelaySeconds: 15
             periodSeconds: 20
+            timeoutSeconds: 5
           envFrom:
             - configMapRef:
                 name: {{ include "filament.metrics.fullname" . }}

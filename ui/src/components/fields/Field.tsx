@@ -14,7 +14,12 @@ import FieldSecret from "@/components/fields/FieldSecret";
 import FieldString from "@/components/fields/FieldString";
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponent } from "@/components/fields/types";
-import { formatFieldName, isFieldVisible, isJsonObject } from "@/components/fields/utils";
+import {
+  formatFieldName,
+  getFieldDefaults,
+  isFieldVisible,
+  isJsonObject,
+} from "@/components/fields/utils";
 
 const FIELD_TYPE_TO_FIELD_COMPONENT_MAP: Partial<Record<FieldType, FieldComponent>> = {
   [FieldType.STRING]: FieldString,
@@ -50,6 +55,7 @@ const Field = ({
 
   if (field.type === FieldType.OBJECT && field.fields.length > 0) {
     const objectValue = isJsonObject(value) ? value : {};
+    const displayValue = { ...getFieldDefaults(field.fields), ...objectValue };
     return (
       <FieldWrapper
         label={label}
@@ -60,12 +66,12 @@ const Field = ({
       >
         <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
           {field.fields
-            .filter((child) => isFieldVisible(child, objectValue))
+            .filter((child) => isFieldVisible(child, displayValue))
             .map((child) => (
               <Field
                 key={child.name}
                 field={child}
-                value={objectValue[child.name] ?? null}
+                value={displayValue[child.name] ?? null}
                 onChange={(childValue) =>
                   onChange({
                     ...objectValue,

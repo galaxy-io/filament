@@ -66,6 +66,8 @@ func run(ctx context.Context) error {
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
-		return srv.Close()
+		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return srv.Shutdown(shutCtx)
 	}
 }

@@ -9,6 +9,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
@@ -18,6 +19,11 @@ import (
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/runner"
 )
+
+// abortWait bounds sink cleanup after a failed run. Detached from run
+// cancellation so shutdown still cleans staged data, bounded so a dead sink
+// cannot stall it indefinitely.
+const abortWait = 30 * time.Second
 
 // Module is the extraction engine. One run.requested fact drives one extraction.
 type Module struct {
@@ -222,6 +228,11 @@ func (m *Module) runOne(ctx context.Context, spec filament.RunSpec) {
 
 	resources := resolveResources(spec.Resources, em.seenResources())
 
+	// The run is ending: detach fact publishing from run cancellation so the
+	// terminal facts survive host shutdown — the obituary must outlive the
+	// death, or the row strands in RunRunning forever.
+	defer em.finish()()
+
 	if runErr != nil {
 		if isResumableRun(plan) {
 			for _, res := range resources {
@@ -230,13 +241,18 @@ func (m *Module) runOne(ctx context.Context, spec filament.RunSpec) {
 			em.partial(runErr)
 			return
 		}
-		if err := snk.Abort(ctx); err != nil && m.log != nil {
-			m.log.Error("engine: sink abort", err, filament.Field{Key: "run", Value: string(spec.Run)})
-		}
 		for _, res := range resources {
 			emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 		}
 		em.fail(runErr)
+		// Abort after the obituary, on its own detached context: cleanup must
+		// not eat the terminal publish window, and a slow sink must not strand
+		// the row in RunRunning.
+		abortCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), abortWait)
+		defer cancel()
+		if err := snk.Abort(abortCtx); err != nil && m.log != nil {
+			m.log.Error("engine: sink abort", err, filament.Field{Key: "run", Value: string(spec.Run)})
+		}
 		return
 	}
 
