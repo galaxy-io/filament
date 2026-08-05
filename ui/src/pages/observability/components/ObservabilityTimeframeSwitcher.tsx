@@ -1,4 +1,4 @@
-import Switcher, { type SwitcherItem } from "@galaxy-io/dls/switcher/Switcher";
+import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
 
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
@@ -11,13 +11,13 @@ const ObservabilityTimeframeSwitcher = ({
   value,
   onChange,
 }: ObservabilityTimeframeSwitcherProps) => {
-  const items: SwitcherItem[] = Object.values(ObservabilityTimeframe).map((timeframe) => ({
+  const items: SwitcherInputItem[] = Object.values(ObservabilityTimeframe).map((timeframe) => ({
     id: timeframe,
     label: timeframe,
     onClick: () => onChange(timeframe),
   }));
 
-  return <Switcher items={items} selectedId={value} />;
+  return <SwitcherInput items={items} selectedId={value} />;
 };
 
 export default ObservabilityTimeframeSwitcher;
