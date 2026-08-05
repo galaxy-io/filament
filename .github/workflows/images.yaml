@@ -22,6 +22,8 @@ jobs:
             dockerfile: cmd/control-plane/Dockerfile
           - image: filament/worker
             dockerfile: cmd/worker/Dockerfile
+          - image: filament/metrics
+            dockerfile: cmd/metrics/Dockerfile
           - image: filament/standalone
             dockerfile: cmd/standalone/Dockerfile
             buildtags: "-tags embedui"
