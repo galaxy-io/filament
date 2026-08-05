@@ -15,6 +15,7 @@ import { Route as PipelinesIdRouteImport } from './routes/pipelines/$id'
 import { Route as MainSourcesRouteImport } from './routes/_main/sources'
 import { Route as MainSinksRouteImport } from './routes/_main/sinks'
 import { Route as MainPipelinesRouteImport } from './routes/_main/pipelines'
+import { Route as MainObservabilityRouteImport } from './routes/_main/observability'
 import { Route as PipelinesIdIndexRouteImport } from './routes/pipelines/$id/index'
 import { Route as PipelinesIdSettingsRouteImport } from './routes/pipelines/$id/settings'
 import { Route as PipelinesIdHistoryRouteImport } from './routes/pipelines/$id/history'
@@ -49,6 +50,11 @@ const MainPipelinesRoute = MainPipelinesRouteImport.update({
   path: '/pipelines',
   getParentRoute: () => MainRouteRoute,
 } as any)
+const MainObservabilityRoute = MainObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => MainRouteRoute,
+} as any)
 const PipelinesIdIndexRoute = PipelinesIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -72,6 +78,7 @@ const PipelinesIdCanvasRoute = PipelinesIdCanvasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MainIndexRoute
+  '/observability': typeof MainObservabilityRoute
   '/pipelines': typeof MainPipelinesRoute
   '/sinks': typeof MainSinksRoute
   '/sources': typeof MainSourcesRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/pipelines/$id/': typeof PipelinesIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/observability': typeof MainObservabilityRoute
   '/pipelines': typeof MainPipelinesRoute
   '/sinks': typeof MainSinksRoute
   '/sources': typeof MainSourcesRoute
@@ -94,6 +102,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_main': typeof MainRouteRouteWithChildren
+  '/_main/observability': typeof MainObservabilityRoute
   '/_main/pipelines': typeof MainPipelinesRoute
   '/_main/sinks': typeof MainSinksRoute
   '/_main/sources': typeof MainSourcesRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/observability'
     | '/pipelines'
     | '/sinks'
     | '/sources'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/pipelines/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/observability'
     | '/pipelines'
     | '/sinks'
     | '/sources'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_main'
+    | '/_main/observability'
     | '/_main/pipelines'
     | '/_main/sinks'
     | '/_main/sources'
@@ -189,6 +201,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainPipelinesRouteImport
       parentRoute: typeof MainRouteRoute
     }
+    '/_main/observability': {
+      id: '/_main/observability'
+      path: '/observability'
+      fullPath: '/observability'
+      preLoaderRoute: typeof MainObservabilityRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
     '/pipelines/$id/': {
       id: '/pipelines/$id/'
       path: '/'
@@ -221,6 +240,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface MainRouteRouteChildren {
+  MainObservabilityRoute: typeof MainObservabilityRoute
   MainPipelinesRoute: typeof MainPipelinesRoute
   MainSinksRoute: typeof MainSinksRoute
   MainSourcesRoute: typeof MainSourcesRoute
@@ -228,6 +248,7 @@ interface MainRouteRouteChildren {
 }
 
 const MainRouteRouteChildren: MainRouteRouteChildren = {
+  MainObservabilityRoute: MainObservabilityRoute,
   MainPipelinesRoute: MainPipelinesRoute,
   MainSinksRoute: MainSinksRoute,
   MainSourcesRoute: MainSourcesRoute,

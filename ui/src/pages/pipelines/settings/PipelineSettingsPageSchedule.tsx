@@ -11,13 +11,11 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
-import SelectInput, {
-  type SelectInputOption,
-  SelectInputSize,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SwitcherInput from "@galaxy-io/dls/inputs/SwitcherInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Switcher from "@galaxy-io/dls/switcher/Switcher";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -218,7 +216,7 @@ const PipelineSettingsPageSchedule = ({
               fillWidth
             >
               <Text variant={TextVariant.SECONDARY}>Frequency</Text>
-              <Switcher items={frequencyItems} selectedId={state.frequency} />
+              <SwitcherInput items={frequencyItems} selectedId={state.frequency} />
             </FlexWrapper>
             {state.frequency === PipelineScheduleFrequency.WEEKLY && (
               <FlexWrapper
@@ -231,7 +229,7 @@ const PipelineSettingsPageSchedule = ({
                   options={PIPELINE_SCHEDULE_DAY_OPTIONS}
                   value={selectedDayOptions}
                   onChange={handleDaysChange}
-                  size={SelectInputSize.LARGE}
+                  size={InputSize.LARGE}
                   width={PIPELINE_SCHEDULE_INPUT_WIDTH}
                   placeholder="Select days"
                 />
@@ -248,7 +246,7 @@ const PipelineSettingsPageSchedule = ({
                   options={PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS}
                   value={selectedDayOfMonthOption}
                   onChange={handleDayOfMonthChange}
-                  size={SelectInputSize.LARGE}
+                  size={InputSize.LARGE}
                   width={PIPELINE_SCHEDULE_INPUT_WIDTH}
                 />
               </FlexWrapper>
@@ -264,7 +262,7 @@ const PipelineSettingsPageSchedule = ({
                   options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
                   value={selectedHourOption}
                   onChange={handleHourChange}
-                  size={SelectInputSize.LARGE}
+                  size={InputSize.LARGE}
                   width={PIPELINE_SCHEDULE_INPUT_WIDTH}
                 />
               </FlexWrapper>
@@ -282,7 +280,7 @@ const PipelineSettingsPageSchedule = ({
                   onChange={handleTimezoneChange}
                   onSearch={handleTimezoneSearch}
                   debounceMs={100}
-                  size={SelectInputSize.LARGE}
+                  size={InputSize.LARGE}
                   width={PIPELINE_SCHEDULE_INPUT_WIDTH}
                 />
               </FlexWrapper>

@@ -1,7 +1,5 @@
-import SelectInput, {
-  type SelectInputOption,
-  SelectInputSize,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -31,7 +29,7 @@ const FieldEnum = ({
         placeholder={`Select ${label}...`}
         error={error}
         isDisabled={isDisabled}
-        size={SelectInputSize.LARGE}
+        size={InputSize.LARGE}
         fillWidth
       />
     </FieldWrapper>

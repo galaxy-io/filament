@@ -119,6 +119,17 @@ type PipelineScheduleStore interface {
 	CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.Pipeline, schedule *ScheduleState) (*ingestionv1.Pipeline, error)
 }
 
+// MetricsStore is an optional DataStore capability (see PipelineScheduleStore)
+// for run metrics queries, backing metrics.v1.MetricsService. Ping mirrors
+// DataStore's (readiness probes); a backend that needs cleanup on shutdown
+// additionally implements io.Closer (checked optionally, same as DataStore
+// backends — see cmd/server/main.go).
+type MetricsStore interface {
+	Ping(ctx context.Context) error
+	QueryRunTimeseries(ctx context.Context, q RunTimeseriesQuery) ([]RunTimeseries, error)
+	QueryRunAggregate(ctx context.Context, q RunAggregateQuery) ([]RunAggregateRow, error)
+}
+
 // Scheduler manages the lifecycle of recurring pipeline schedules.
 type Scheduler interface {
 	Register(ctx context.Context, spec ScheduleSpec) (ScheduleID, error)

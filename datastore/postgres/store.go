@@ -160,6 +160,9 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	if !f.Since.IsZero() {
 		q += " AND started_at >= " + arg(f.Since)
 	}
+	if !f.Until.IsZero() {
+		q += " AND started_at < " + arg(f.Until)
+	}
 	if len(f.Status) > 0 {
 		statuses := make([]int, len(f.Status))
 		for i, st := range f.Status {

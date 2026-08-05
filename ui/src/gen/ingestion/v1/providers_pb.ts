@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/providers.proto.
  */
 export const file_ingestion_v1_providers: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3ki3AIKDUNvbm5lY3RvclNwZWMSDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEg8KB3ZlcnNpb24YBCABKAkSLAoFbW9kZXMYBSADKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjEKDWNvbmZpZ19zY2hlbWEYBiABKAsyGi5pbmdlc3Rpb24udjEuQ29uZmlnU2NoZW1hEjAKDGNhcGFiaWxpdGllcxgHIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSEwoLZGVzY3JpcHRpb24YCCABKAkSFQoNZGFya19sb2dvX3VybBgJIAEoCRIWCg5saWdodF9sb2dvX3VybBgKIAEoCRIUCgxzY2hlbWFfZmllbGQYCyABKAkiQgoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJJChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKMAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIMCgRsaXZlGAQgASgIIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJ+ChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCBIVCg1jb25uZWN0aW9uX2lkGAQgASgJIuoBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhIKCnNlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSFgoOZXN0aW1hdGVkX3Jvd3MYBCABKAMSEAoIc2VsZWN0b3IYBSABKAkSFAoMZGlzcGxheV9uYW1lGAcgASgJEjYKCG1ldGFkYXRhGAsgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlIpMBChlHZXRSZXNvdXJjZUNvbHVtbnNSZXF1ZXN0EhEKCWNvbm5lY3RvchgBIAEoCRInCgZjb25maWcYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWNvbm5lY3Rpb25faWQYAyABKAkSEAoIcmVzb3VyY2UYBCABKAkSEQoJcmVzb3VyY2VzGAUgAygJIoQCCg5SZXNvdXJjZUNvbHVtbhIMCgRuYW1lGAEgASgJEhQKDGxvZ2ljYWxfdHlwZRgCIAEoCRITCgtuYXRpdmVfdHlwZRgDIAEoCRIQCghudWxsYWJsZRgEIAEoCBITCgtwcmltYXJ5X2tleRgFIAEoCBIXCg9jdXJzb3JfZWxpZ2libGUYBiABKAgSGgoSY3Vyc29yX3JlY29tbWVuZGVkGAcgASgIEhsKE3JlY29tbWVuZGF0aW9uX3JhbmsYCCABKAUSDwoHd2FybmluZxgJIAEoCRIUCgxjb25maWd1cmFibGUYCiABKAgSGQoRc3VwcG9ydHNfbG9va2JhY2sYCyABKAgiUgoPUmVzb3VyY2VDb2x1bW5zEhAKCHJlc291cmNlGAEgASgJEi0KB2NvbHVtbnMYAiADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW4ifQoaR2V0UmVzb3VyY2VDb2x1bW5zUmVzcG9uc2USLQoHY29sdW1ucxgBIAMoCzIcLmluZ2VzdGlvbi52MS5SZXNvdXJjZUNvbHVtbhIwCglyZXNvdXJjZXMYAiADKAsyHS5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5zYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEi8wEKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3ki3AIKDUNvbm5lY3RvclNwZWMSDAoEbmFtZRgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEg8KB3ZlcnNpb24YBCABKAkSLAoFbW9kZXMYBSADKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjEKDWNvbmZpZ19zY2hlbWEYBiABKAsyGi5pbmdlc3Rpb24udjEuQ29uZmlnU2NoZW1hEjAKDGNhcGFiaWxpdGllcxgHIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSEwoLZGVzY3JpcHRpb24YCCABKAkSFQoNZGFya19sb2dvX3VybBgJIAEoCRIWCg5saWdodF9sb2dvX3VybBgKIAEoCRIUCgxzY2hlbWFfZmllbGQYCyABKAkiQgoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJJChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyK2AQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSEQoJY29ubmVjdG9yGAMgASgJEicKBmNvbmZpZxgEIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDAoEbGl2ZRgFIAEoCBIVCg1jb25uZWN0aW9uX2lkGAYgASgJIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciKRAQoYRGlzY292ZXJSZXNvdXJjZXNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIPCgdyZWZyZXNoGAQgASgIEhUKDWNvbm5lY3Rpb25faWQYBSABKAki6gEKCFJlc291cmNlEgwKBG5hbWUYASABKAkSEgoKc2VsZWN0YWJsZRgCIAEoCBITCgtwcmltYXJ5X2tleRgDIAMoCRIWCg5lc3RpbWF0ZWRfcm93cxgEIAEoAxIQCghzZWxlY3RvchgFIAEoCRIUCgxkaXNwbGF5X25hbWUYByABKAkSNgoIbWV0YWRhdGEYCyADKAsyJC5pbmdlc3Rpb24udjEuUmVzb3VyY2UuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiRgoZRGlzY292ZXJSZXNvdXJjZXNSZXNwb25zZRIpCglyZXNvdXJjZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUmVzb3VyY2UigQEKGUdldFJlc291cmNlQ29sdW1uc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRIRCglyZXNvdXJjZXMYBCADKAkihAIKDlJlc291cmNlQ29sdW1uEgwKBG5hbWUYASABKAkSFAoMbG9naWNhbF90eXBlGAIgASgJEhMKC25hdGl2ZV90eXBlGAMgASgJEhAKCG51bGxhYmxlGAQgASgIEhMKC3ByaW1hcnlfa2V5GAUgASgIEhcKD2N1cnNvcl9lbGlnaWJsZRgGIAEoCBIaChJjdXJzb3JfcmVjb21tZW5kZWQYByABKAgSGwoTcmVjb21tZW5kYXRpb25fcmFuaxgIIAEoBRIPCgd3YXJuaW5nGAkgASgJEhQKDGNvbmZpZ3VyYWJsZRgKIAEoCBIZChFzdXBwb3J0c19sb29rYmFjaxgLIAEoCCJSCg9SZXNvdXJjZUNvbHVtbnMSEAoIcmVzb3VyY2UYASABKAkSLQoHY29sdW1ucxgCIAMoCzIcLmluZ2VzdGlvbi52MS5SZXNvdXJjZUNvbHVtbiJOChpHZXRSZXNvdXJjZUNvbHVtbnNSZXNwb25zZRIwCglyZXNvdXJjZXMYASADKAsyHS5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5zYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common]);
 
 /**
  * Capabilities flattens source and sink capabilities; fields not relevant to a
@@ -178,26 +178,39 @@ export const ListConnectorsResponseSchema: GenMessage<ListConnectorsResponse> = 
  */
 export type ValidateConfigRequest = Message<"ingestion.v1.ValidateConfigRequest"> & {
   /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
    */
   kind: ConnectorKind;
 
   /**
-   * @generated from field: string connector = 2;
+   * @generated from field: string connector = 3;
    */
   connector: string;
 
   /**
-   * @generated from field: google.protobuf.Struct config = 3;
+   * @generated from field: google.protobuf.Struct config = 4;
    */
   config?: JsonObject | undefined;
 
   /**
    * live attempts a TestConnection probe if the connector supports it.
    *
-   * @generated from field: bool live = 4;
+   * @generated from field: bool live = 5;
    */
   live: boolean;
+
+  /**
+   * When set, secrets stored on this connection fill config fields the
+   * request leaves blank. tenant_id must match the connection's tenant.
+   *
+   * @generated from field: string connection_id = 6;
+   */
+  connectionId: string;
 };
 
 /**
@@ -259,24 +272,31 @@ export const ValidateConfigResponseSchema: GenMessage<ValidateConfigResponse> = 
  */
 export type DiscoverResourcesRequest = Message<"ingestion.v1.DiscoverResourcesRequest"> & {
   /**
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
    * Source connector only; discovering a sink is not meaningful.
    *
-   * @generated from field: string connector = 1;
+   * @generated from field: string connector = 2;
    */
   connector: string;
 
   /**
-   * @generated from field: google.protobuf.Struct config = 2;
+   * @generated from field: google.protobuf.Struct config = 3;
    */
   config?: JsonObject | undefined;
 
   /**
-   * @generated from field: bool refresh = 3;
+   * @generated from field: bool refresh = 4;
    */
   refresh: boolean;
 
   /**
-   * @generated from field: string connection_id = 4;
+   * tenant_id must match the connection's tenant.
+   *
+   * @generated from field: string connection_id = 5;
    */
   connectionId: string;
 };
@@ -374,14 +394,7 @@ export type GetResourceColumnsRequest = Message<"ingestion.v1.GetResourceColumns
   connectionId: string;
 
   /**
-   * resource is retained for compatibility; new clients should send resources.
-   *
-   * @generated from field: string resource = 4;
-   */
-  resource: string;
-
-  /**
-   * @generated from field: repeated string resources = 5;
+   * @generated from field: repeated string resources = 4;
    */
   resources: string[];
 };
@@ -487,14 +500,7 @@ export const ResourceColumnsSchema: GenMessage<ResourceColumns> = /*@__PURE__*/
  */
 export type GetResourceColumnsResponse = Message<"ingestion.v1.GetResourceColumnsResponse"> & {
   /**
-   * columns is populated for a legacy single-resource request.
-   *
-   * @generated from field: repeated ingestion.v1.ResourceColumn columns = 1;
-   */
-  columns: ResourceColumn[];
-
-  /**
-   * @generated from field: repeated ingestion.v1.ResourceColumns resources = 2;
+   * @generated from field: repeated ingestion.v1.ResourceColumns resources = 1;
    */
   resources: ResourceColumns[];
 };
