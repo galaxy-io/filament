@@ -1,10 +1,13 @@
 package postgres
 
 // PostgreSQL change-data-capture uses a persistent logical replication slot and
-// the built-in pgoutput plugin. Each extraction is a bounded catch-up cycle: it
-// captures pg_current_wal_lsn(), replays committed changes from the oldest
-// resource checkpoint through that watermark, emits a stream marker for every
-// resource, and returns. The next engine cycle resumes from those markers.
+// the built-in pgoutput plugin. A resource without a stream checkpoint is first
+// read in full from a snapshot pinned by the slot; WAL is retained from the
+// snapshot's consistent point while that scan runs. Each extraction then becomes
+// a bounded catch-up cycle: it captures pg_current_wal_lsn(), replays committed
+// changes from the oldest resource checkpoint through that watermark, emits a
+// stream marker for every resource, and returns. The next engine cycle resumes
+// from those markers without taking another snapshot.
 
 import (
 	"context"
@@ -50,6 +53,11 @@ type pgCDCRun struct {
 	lastLSN   pglogrepl.LSN
 }
 
+type replicationSlotState struct {
+	start      pglogrepl.LSN
+	snapshotID string
+}
+
 // ExtractChanges replays pgoutput row changes for the selected tables. The
 // publication is created/expanded by default; set manage_publication=false when
 // database administration owns it instead. A slot is never dropped automatically:
@@ -82,11 +90,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, o
 	}
 	defer func() { _ = repl.Close(context.WithoutCancel(ctx)) }()
 
-	slotStart, err := s.ensureReplicationSlot(ctx, repl)
-	if err != nil {
-		return err
-	}
-	watermark, err := s.currentLSN(ctx)
+	slot, err := s.ensureReplicationSlot(ctx, repl)
 	if err != nil {
 		return err
 	}
@@ -95,9 +99,58 @@ func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, o
 		return err
 	}
 	if !haveCheckpoint {
-		start = slotStart
-	} else if start < slotStart {
-		return fmt.Errorf("postgres cdc: checkpoint %s is older than slot %q confirmed position %s; WAL was consumed by another client", start, s.slotName, slotStart)
+		start = slot.start
+	} else if start < slot.start {
+		return fmt.Errorf("postgres cdc: checkpoint %s is older than slot %q confirmed position %s; WAL was consumed by another client", start, s.slotName, slot.start)
+	}
+
+	// A missing per-resource checkpoint means this resource has never completed
+	// its bootstrap. Plan the scan before opening the pool-backed transaction so
+	// max_conns=1 remains usable. The slot is already retaining every concurrent
+	// change. A newly-created slot supplies the exact exported snapshot at its
+	// consistent point; an existing slot (for example after an interrupted first
+	// attempt) supplies the older replay position while a fresh snapshot is read.
+	bootstrapResources := resourcesWithoutCheckpoints(opts.Resources, opts.Checkpoints)
+	var bootstrapShards []shard
+	var bootstrapSnapshot *snapshot
+	if len(bootstrapResources) > 0 {
+		bootstrapShards, err = s.planShards(ctx, bootstrapResources, 1)
+		if err != nil {
+			return fmt.Errorf("postgres cdc: plan initial snapshot: %w", err)
+		}
+		if slot.snapshotID != "" {
+			bootstrapSnapshot, err = s.importSnapshot(ctx, slot.snapshotID)
+		} else {
+			bootstrapSnapshot, err = s.openSnapshot(ctx)
+		}
+		if err != nil {
+			return fmt.Errorf("postgres cdc: open initial snapshot: %w", err)
+		}
+		defer func() {
+			if bootstrapSnapshot != nil {
+				bootstrapSnapshot.close(context.WithoutCancel(ctx))
+			}
+		}()
+	}
+
+	// Complete the baseline before capturing its catch-up target. pg_current_wal_lsn
+	// is not constrained by transaction snapshot visibility, so querying it through
+	// the held snapshot transaction sees commits made while the scan ran without
+	// requiring a second pool connection. Those commits are retained by the slot
+	// and replayed in this same cycle.
+	var watermark pglogrepl.LSN
+	if bootstrapSnapshot != nil {
+		if err := s.extractInitialSnapshot(ctx, sink, bootstrapSnapshot.tx, bootstrapShards); err != nil {
+			return err
+		}
+		watermark, err = currentLSNFrom(ctx, bootstrapSnapshot.tx)
+		bootstrapSnapshot.close(context.WithoutCancel(ctx))
+		bootstrapSnapshot = nil
+	} else {
+		watermark, err = s.currentLSN(ctx)
+	}
+	if err != nil {
+		return err
 	}
 	if start > watermark {
 		return fmt.Errorf("postgres cdc: checkpoint %s is ahead of server watermark %s (timeline changed?)", start, watermark)
@@ -284,56 +337,108 @@ func (s *Source) replicationConn(ctx context.Context) (*pgconn.PgConn, error) {
 	return conn, nil
 }
 
-func (s *Source) ensureReplicationSlot(ctx context.Context, conn *pgconn.PgConn) (pglogrepl.LSN, error) {
+func (s *Source) ensureReplicationSlot(ctx context.Context, conn *pgconn.PgConn) (replicationSlotState, error) {
 	var plugin, database string
 	var confirmed, restart *string
 	var active bool
 	err := s.pool.QueryRow(ctx, `SELECT plugin, database, active, confirmed_flush_lsn::text, restart_lsn::text
 		FROM pg_replication_slots WHERE slot_name=$1`, s.slotName).Scan(&plugin, &database, &active, &confirmed, &restart)
 	if err != nil && err != pgx.ErrNoRows {
-		return 0, fmt.Errorf("postgres cdc: inspect slot %q: %w", s.slotName, err)
+		return replicationSlotState{}, fmt.Errorf("postgres cdc: inspect slot %q: %w", s.slotName, err)
 	}
 	if err == pgx.ErrNoRows {
-		created, err := pglogrepl.CreateReplicationSlot(ctx, conn, s.slotName, "pgoutput", pglogrepl.CreateReplicationSlotOptions{})
+		created, err := pglogrepl.CreateReplicationSlot(ctx, conn, s.slotName, "pgoutput", pglogrepl.CreateReplicationSlotOptions{SnapshotAction: "EXPORT_SNAPSHOT"})
 		if err != nil {
-			return 0, fmt.Errorf("postgres cdc: create slot %q: %w", s.slotName, err)
+			return replicationSlotState{}, fmt.Errorf("postgres cdc: create slot %q: %w", s.slotName, err)
 		}
 		lsn, err := pglogrepl.ParseLSN(created.ConsistentPoint)
 		if err != nil {
-			return 0, fmt.Errorf("postgres cdc: slot consistent point %q: %w", created.ConsistentPoint, err)
+			return replicationSlotState{}, fmt.Errorf("postgres cdc: slot consistent point %q: %w", created.ConsistentPoint, err)
 		}
-		return lsn, nil
+		return replicationSlotState{start: lsn, snapshotID: created.SnapshotName}, nil
 	}
 	if plugin != "pgoutput" {
-		return 0, fmt.Errorf("postgres cdc: slot %q uses plugin %q, want pgoutput", s.slotName, plugin)
+		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot %q uses plugin %q, want pgoutput", s.slotName, plugin)
 	}
 	var currentDB string
 	if err := s.pool.QueryRow(ctx, "SELECT current_database()").Scan(&currentDB); err != nil {
-		return 0, err
+		return replicationSlotState{}, err
 	}
 	if database != currentDB {
-		return 0, fmt.Errorf("postgres cdc: slot %q belongs to database %q, want %q", s.slotName, database, currentDB)
+		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot %q belongs to database %q, want %q", s.slotName, database, currentDB)
 	}
 	if active {
-		return 0, fmt.Errorf("postgres cdc: slot %q is already active; use a unique slot per pipeline", s.slotName)
+		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot %q is already active; use a unique slot per pipeline", s.slotName)
 	}
 	position := confirmed
 	if position == nil || *position == "" {
 		position = restart
 	}
 	if position == nil || *position == "" {
-		return 0, fmt.Errorf("postgres cdc: slot %q has no restart position", s.slotName)
+		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot %q has no restart position", s.slotName)
 	}
 	lsn, err := pglogrepl.ParseLSN(*position)
 	if err != nil {
-		return 0, fmt.Errorf("postgres cdc: slot position %q: %w", *position, err)
+		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot position %q: %w", *position, err)
 	}
-	return lsn, nil
+	return replicationSlotState{start: lsn}, nil
+}
+
+// importSnapshot opens a read-only transaction over the snapshot exported by
+// CREATE_REPLICATION_SLOT. The replication connection remains open until this
+// transaction is closed, as PostgreSQL requires for exported snapshots.
+func (s *Source) importSnapshot(ctx context.Context, id string) (*snapshot, error) {
+	conn, err := s.pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquire snapshot conn: %w", err)
+	}
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		conn.Release()
+		return nil, fmt.Errorf("begin snapshot tx: %w", err)
+	}
+	if _, err := tx.Exec(ctx, "SET TRANSACTION SNAPSHOT "+quoteLiteral(id)); err != nil {
+		_ = tx.Rollback(ctx)
+		conn.Release()
+		return nil, fmt.Errorf("import slot snapshot: %w", err)
+	}
+	return &snapshot{conn: conn, tx: tx, id: id}, nil
+}
+
+// extractInitialSnapshot emits every row for resources that do not yet have a
+// durable stream checkpoint. Snapshot rows are inserts, which the CDC merge
+// policy applies idempotently on retry. Limit deliberately does not apply: a
+// partial snapshot followed by an advanced LSN would permanently skip rows.
+func (s *Source) extractInitialSnapshot(ctx context.Context, sink filament.RecordSink, tx pgx.Tx, shards []shard) error {
+	for _, sh := range shards {
+		if err := s.extractShard(ctx, sink, tx, sh, 0); err != nil {
+			return fmt.Errorf("postgres cdc: initial snapshot %q: %w", sh.table, err)
+		}
+	}
+	return nil
+}
+
+func resourcesWithoutCheckpoints(resources []string, cps map[string]filament.Checkpoint) []string {
+	missing := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		if cps == nil || cps[resource] == nil {
+			missing = append(missing, resource)
+		}
+	}
+	return missing
 }
 
 func (s *Source) currentLSN(ctx context.Context) (pglogrepl.LSN, error) {
+	return currentLSNFrom(ctx, s.pool)
+}
+
+type rowQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func currentLSNFrom(ctx context.Context, q rowQuerier) (pglogrepl.LSN, error) {
 	var raw string
-	if err := s.pool.QueryRow(ctx, "SELECT pg_current_wal_lsn()::text").Scan(&raw); err != nil {
+	if err := q.QueryRow(ctx, "SELECT pg_current_wal_lsn()::text").Scan(&raw); err != nil {
 		return 0, fmt.Errorf("postgres cdc: current WAL position: %w", err)
 	}
 	lsn, err := pglogrepl.ParseLSN(raw)

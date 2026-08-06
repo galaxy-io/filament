@@ -55,9 +55,14 @@ that matters.
 ## Modes
 
 Supports `ModeFull`, `ModeIncremental`, and `ModeCDC`. CDC uses the built-in
-`pgoutput` plugin and bounded catch-up cycles, so it can run on a schedule:
-each successful run stores its WAL LSN on the stable pipeline route and the next
-run resumes there.
+`pgoutput` plugin and bounded catch-up cycles, so it can run on a schedule. When
+a selected table has no CDC checkpoint, Filament creates the replication slot
+first, reads the table in full through the slot's exported snapshot, and retains
+WAL from that snapshot's consistent point while the scan runs. It then replays
+through a watermark captured after the scan, including changes committed during
+the snapshot. After the sink commits, the run stores its WAL LSN on the stable
+pipeline route. Later scheduled runs skip the snapshot and resume from that
+per-resource LSN.
 
 CDC requires `wal_level=logical`, a primary key on every selected table, and a
 unique persistent `slot_name` per pipeline. By default the connector creates the
