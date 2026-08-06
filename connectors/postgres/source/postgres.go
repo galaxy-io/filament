@@ -63,8 +63,8 @@ const (
 	// cannot make one window pull an unbounded number of rows into memory.
 	maxWindowBlocks = 256
 
-	defaultPublication = "filament_cdc"
-	defaultSlotName    = "filament_cdc"
+	defaultPublication = "filament"
+	defaultSlotName    = "filament"
 )
 
 // Source reads tables from a PostgreSQL database as a full snapshot. One instance

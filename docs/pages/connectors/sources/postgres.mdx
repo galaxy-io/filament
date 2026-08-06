@@ -66,7 +66,7 @@ per-resource LSN.
 
 CDC requires `wal_level=logical`, a primary key on every selected table, and a
 unique persistent `slot_name` per pipeline. By default the connector creates the
-`filament_cdc` publication and adds selected tables; set
+`filament` publication and adds selected tables; set
 `manage_publication=false` when an administrator provisions it. Set `publication`
 and `slot_name` explicitly when more than one CDC pipeline reads the database.
 
