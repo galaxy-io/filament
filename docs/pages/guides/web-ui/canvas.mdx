@@ -1,0 +1,116 @@
+---
+title: "The Pipeline Canvas"
+description: "Wiring resources to sinks and saving the graph as a version."
+icon: "vector-square"
+---
+
+The canvas is the graph editor for a pipeline — nodes are connections, edges
+are the flow of a specific resource into a specific sink. Saving produces an
+immutable version, and the newest version is what runs.
+
+{/* SCREENSHOT: A wired canvas — one source node with Resources expanded, two
+    sink nodes, edges drawn from individual resource rows. 1440x900, light. */}
+<Frame caption="A wired pipeline — one source, two sinks, edges from individual resources">
+  <img src="/assets/images/ui/canvas-overview.png" alt="Pipeline canvas showing a source node connected to two sink nodes" />
+</Frame>
+
+## Adding nodes
+
+An empty canvas shows two dashed placeholders — **Select a source** and
+**Select a sink** — each with a connection picker inside it. Once you have
+nodes, the **+** button on the floating widget at the left opens the same
+picker.
+
+Two rules govern the graph:
+
+- **A pipeline has exactly one source.** Once a source node exists, source
+  entries in the picker are dimmed and unselectable.
+- **The first node of a kind auto-wires to everything of the opposite kind.**
+  Adding a source to a canvas that already has three sinks connects it to all
+  three. Adding a *second* sink does not auto-wire — you draw that edge.
+
+Any node can be removed with the trash icon on hover, or by selecting it and
+pressing `Delete`. Removing a node removes its edges.
+
+## Node anatomy
+
+A node is a header plus up to two collapsible islands.
+
+**Configuration** holds the connector's pipeline-scoped fields — the settings
+that belong to *this connection in this pipeline* rather than to the connection
+itself. If a connector declares no pipeline-scoped fields, the island does not
+render at all. Connection-scoped fields are edited elsewhere, in
+[Connections](/pages/guides/web-ui/connections).
+
+**Resources** appears on source nodes only, and is where a pipeline actually
+gets its shape. It lists what the source reports it can read — tables, streams,
+objects, depending on the connector — discovered live from the provider. Search
+narrows the list; connected resources render in full-strength text.
+
+{/* SCREENSHOT: Close crop of a source node, Resources island expanded with 6+
+    rows, two of them connected. 1440x900 viewport, light theme. */}
+<Frame caption="The Resources island — each row is its own connectable port">
+  <img src="/assets/images/ui/canvas-node-resources.png" alt="Source node with an expanded list of discoverable resources" />
+</Frame>
+
+<Tip>
+  Discovery is what the `Discoverable` interface exists for — see [Optional
+  interfaces](/pages/connectors/building-a-connector/optional-interfaces). A
+  connector that doesn't implement it has no Resources island, and its node
+  connects as a whole.
+</Tip>
+
+## Drawing edges
+
+**Each resource row is its own connection point.** Drag from a resource's
+handle to a sink's handle and that edge carries that one resource — which is
+how one source feeds different tables to different sinks in a single pipeline.
+Dragging from the node-level handle instead connects the source as a whole.
+
+Edges stay anchored when a resource scrolls out of view or its island is
+collapsed; they re-attach to the island's count badge rather than dangling.
+
+## Saving creates a version
+
+There is no separate publish step. **Save** writes a new immutable version of
+the graph, and the newest version is the one that runs.
+
+Until you save, the top bar shows **Unsaved changes** with an **Undo** that
+reloads the graph from the last saved version. Change detection compares the
+canonical form of the graph — node identity, connection, config, and every
+edge's resource and target — so moving a node around the canvas is not a
+change.
+
+## Reading older versions
+
+The version selector lists every version, newest marked **Latest**. Selecting
+an older one puts the canvas into read-only preview: no dragging, no editing,
+no deleting, and the activity terminal is hidden. A warning-colored border and
+a version chip mark the state, and **Back to latest** exits it.
+
+{/* SCREENSHOT: Canvas in version-preview mode — warning border, version chip
+    top-right, "Back to latest" button in the top bar. 1440x900, light. */}
+<Frame caption="Previewing an older version — read-only, with a warning border">
+  <img src="/assets/images/ui/canvas-versions.png" alt="Pipeline canvas in read-only version preview mode" />
+</Frame>
+
+<Info>
+  Preview is for reading, not reverting. To go back to an older shape, open it,
+  note the wiring, return to latest, and rebuild it — saving always appends a
+  new version rather than rewriting an old one.
+</Info>
+
+## Getting around
+
+Zoom controls and a minimap sit at the bottom left; **reset** re-stacks every
+node into its default position and fits them to the viewport, which is the fast
+way out of a canvas you have panned away from.
+
+The edit widget also switches interaction modes: **grab** (the default) pans on
+left-drag, **select** draws a selection rectangle instead.
+
+<Note>
+  Canvas state is held for as long as you stay in the pipeline, so switching to
+  History or Settings and back does not discard unsaved edits. Leaving the
+  pipeline entirely does.
+</Note>

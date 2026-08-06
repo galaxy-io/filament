@@ -37,7 +37,7 @@ const SearchSection = styled.div`
 const ResourceList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   padding: ${PIPELINE_CANVAS_NODE_PADDING}px ${PIPELINE_CANVAS_NODE_PADDING}px
     ${PIPELINE_CANVAS_NODE_PADDING}px 12px;
 `;

@@ -1,6 +1,28 @@
 import type { Theme } from "@galaxy-io/dls/theme/types";
 
-import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
+import { type IngestionType, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
+
+import {
+  INGESTION_TYPE_TO_REPLICATION_MODE_MAP,
+  PIPELINE_CANVAS_DEFAULT_EDGE_DATA,
+  PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
+} from "@/pages/pipelines/canvas/constants";
+import type {
+  CanvasEdge,
+  CanvasNode,
+  PipelineCanvasEdgeData,
+} from "@/pages/pipelines/canvas/types";
+
+export const getCanvasEdgeResource = (edge: CanvasEdge) =>
+  edge.sourceHandle && edge.sourceHandle !== PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID
+    ? edge.sourceHandle
+    : "";
+
+export const getPipelineCanvasEdgeData = (edge: CanvasEdge): PipelineCanvasEdgeData =>
+  edge.data ?? PIPELINE_CANVAS_DEFAULT_EDGE_DATA;
+
+export const isIncrementalIngestionType = (ingestionType: IngestionType): boolean =>
+  INGESTION_TYPE_TO_REPLICATION_MODE_MAP[ingestionType] === ReplicationMode.INCREMENTAL;
 
 export const mapEdgesToStyledEdges = (
   edges: CanvasEdge[],

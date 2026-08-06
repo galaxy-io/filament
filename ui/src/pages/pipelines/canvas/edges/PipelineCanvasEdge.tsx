@@ -1,8 +1,15 @@
 import { useSyncExternalStore } from "react";
 
-import { BaseEdge, type EdgeProps, getBezierPath, useInternalNode } from "@xyflow/react";
+import {
+  BaseEdge,
+  EdgeLabelRenderer,
+  type EdgeProps,
+  getBezierPath,
+  useInternalNode,
+} from "@xyflow/react";
 
 import { PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
+import PipelineCanvasEdgeLabel from "@/pages/pipelines/canvas/edges/PipelineCanvasEdgeLabel";
 import { PIPELINE_CANVAS_NODE_PADDING } from "@/pages/pipelines/canvas/nodes/constants";
 import {
   getPipelineCanvasNodeMeasurements,
@@ -23,6 +30,7 @@ const PipelineCanvasEdge = ({
   targetPosition,
   style,
   markerEnd,
+  selected,
 }: EdgeProps) => {
   const sourceNode = useInternalNode(source);
   const sourceMeasurements = useSyncExternalStore(subscribePipelineCanvasNodeMeasurements, () =>
@@ -66,7 +74,7 @@ const PipelineCanvasEdge = ({
     }
   }
 
-  const [path] = getBezierPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: anchorX,
     sourceY: anchorY,
     sourcePosition,
@@ -75,7 +83,19 @@ const PipelineCanvasEdge = ({
     targetPosition,
   });
 
-  return <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />;
+  return (
+    <>
+      <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />
+      <EdgeLabelRenderer>
+        <PipelineCanvasEdgeLabel
+          edgeId={id}
+          isSelected={Boolean(selected)}
+          labelX={labelX}
+          labelY={labelY}
+        />
+      </EdgeLabelRenderer>
+    </>
+  );
 };
 
 export default PipelineCanvasEdge;

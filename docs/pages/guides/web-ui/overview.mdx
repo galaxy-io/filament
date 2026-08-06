@@ -1,0 +1,95 @@
+---
+title: "Overview"
+description: "The built-in web app for connections, pipelines, and runs."
+icon: "browser"
+---
+
+The `server` component serves a React app alongside the API. It is the same
+`IngestionService` surface documented in [API
+reference](/pages/api-reference/service/introduction), driven from a browser —
+nothing in the UI is exclusive to it, and anything you do here you can do over
+ConnectRPC.
+
+## Reaching it
+
+In local development the UI runs on its own Vite server, which proxies the API
+so the app is same-origin in dev and prod alike:
+
+```sh
+just dev     # control plane, API server, metrics, and UI on port 5173
+```
+
+A deployed install has no separate UI process — `cmd/server` built with
+`-tags embedui` embeds the built bundle and serves it from the same origin as
+the API. See [Local development](/pages/guides/contributing/local-development)
+for running the components individually.
+
+## The four tabs
+
+| Tab | Path | What it covers |
+|---|---|---|
+| Observability | `/observability` | Records, volume, and run counts across every pipeline |
+| Pipelines | `/pipelines` | The pipeline list, and each pipeline's canvas, history, and settings |
+| Sources | `/sources` | Connections that read from an external system |
+| Sinks | `/sinks` | Connections that write to one |
+
+`/` redirects to Observability, so that is what you land on.
+
+{/* SCREENSHOT: Full app window on /observability, showing the navbar with all
+    four tabs and the active-tab underline. 1440x900, light theme. */}
+<Frame caption="The app shell — four tabs, with Observability as the landing page">
+  <img src="/assets/images/ui/nav.png" alt="Filament navbar showing the Observability, Pipelines, Sources, and Sinks tabs" />
+</Frame>
+
+## Dialogs live in the URL
+
+Every drawer and modal in the product is rendered at the router root and driven
+by search params rather than component state. That means each one has an
+address, and pasting that address into a new tab reopens it.
+
+| Search param | Opens |
+|---|---|
+| `?connectionId=<id>` | The connection drawer |
+| `?flow=CREATE_CONNECTION` | New connection — optionally `&connectorKind=` and `&connector=` |
+| `?flow=EDIT_CONNECTION` | The edit form, alongside `connectionId` |
+| `?flow=CREATE_PIPELINE` | Create a new pipeline |
+
+Closing a drawer strips `connectionId`; closing a flow strips `flow`,
+`connector`, and `connectorKind`. The observability filters and the canvas
+version selector work the same way, so a filtered dashboard or a specific
+pipeline version is a link you can send to someone.
+
+## Search, loading, and empty states
+
+Every search box in the product is a case-insensitive client-side filter over a
+list that has already been fetched — there is no server-side search. Lists
+distinguish "nothing exists yet" from "nothing matched": the first shows an
+illustrated empty state with a **New …** action and a **Documentation** button,
+the second shows a magnifier and `No … match your search`.
+
+Data is fetched by route loaders before render, so a cold page load shows a
+full-screen pending state rather than in-place skeletons. Shimmer placeholders
+appear only inside table cells and metric cards, where a row exists but its
+value is still resolving.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Connections" icon="link" href="/pages/guides/web-ui/connections">
+    Create a source or sink, validate it, and inspect what it stores.
+  </Card>
+  <Card title="Pipelines" icon="diagram-project" href="/pages/guides/web-ui/pipelines">
+    Build a pipeline, name it, and put it on a schedule.
+  </Card>
+  <Card title="The pipeline canvas" icon="vector-square" href="/pages/guides/web-ui/canvas">
+    Wire resources to sinks and save a version.
+  </Card>
+  <Card title="Runs & history" icon="clock-rotate-left" href="/pages/guides/web-ui/runs-and-history">
+    Trigger a run and watch events stream in.
+  </Card>
+</CardGroup>
+
+<Note>
+  The UI is light-themed only — there is no theme switcher, and no org or
+  tenant switcher.
+</Note>

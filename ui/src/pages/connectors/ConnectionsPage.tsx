@@ -1,17 +1,19 @@
 import { type ReactElement, useMemo, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { BookOpenIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+
+import DocsButton from "@/components/DocsButton";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
@@ -29,8 +31,6 @@ import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineCo
 import { Flow } from "@/routes/__root";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
-
-import { DOCUMENTATION_URL } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -101,10 +101,6 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
     });
   };
 
-  const handleReadTheDocs = () => {
-    window.open(DOCUMENTATION_URL, "_blank", "noopener,noreferrer");
-  };
-
   const renderContent = () => {
     if (!kindConnections.length) {
       const EmptyGraphic = CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP[kind];
@@ -120,13 +116,14 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
                 label={`New ${kindLabel}`}
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
+                size={ButtonSize.LARGE}
                 onClick={handleOpenCreateConnectorModal}
               />
-              <Button
-                label="Documentation"
-                icon={BookOpenIcon}
+              <DocsButton
+                label="Read the docs"
+                path={`/connectors/${kind}`}
                 variant={ButtonVariant.SECONDARY}
-                onClick={handleReadTheDocs}
+                size={ButtonSize.LARGE}
               />
             </FlexWrapper>
           }

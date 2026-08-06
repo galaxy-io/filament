@@ -17,6 +17,7 @@ const PORT_SIZE_IDLE = 5;
 const HandleSlot = styled.div`
   width: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
   height: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
+  flex-shrink: 0;
 
   display: flex;
   align-items: center;
@@ -40,6 +41,22 @@ const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?
     left: auto;
     transform: none;
 
+    width: ${PORT_SIZE_ACTIVE}px;
+    height: ${PORT_SIZE_ACTIVE}px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: transparent;
+    border: none;
+    border-radius: 50%;
+  }
+
+  &.react-flow__handle::before {
+    content: "";
+    box-sizing: border-box;
+
     width: ${({ $isConnected }) => ($isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE)}px;
     height: ${({ $isConnected }) => ($isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE)}px;
 
@@ -54,7 +71,7 @@ const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?
       height 100ms ease;
   }
 
-  &.react-flow__handle:hover {
+  &.react-flow__handle:hover::before {
     width: ${PORT_SIZE_ACTIVE}px;
     height: ${PORT_SIZE_ACTIVE}px;
   }

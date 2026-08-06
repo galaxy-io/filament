@@ -1,0 +1,99 @@
+---
+title: "Runs & History"
+description: "Triggering a run, watching it stream, and reading what happened."
+icon: "clock-rotate-left"
+---
+
+A run executes one version of a pipeline. You start one from the canvas and
+watch it live in the activity terminal; every run that has ever happened is on
+the history tab.
+
+## Starting a run
+
+**Run** sits in the pipeline's top bar. It is disabled unless the *saved*
+version has a source, at least one sink, and at least one edge — an unsaved
+graph is not runnable, no matter how complete it looks on screen.
+
+It is also disabled while a run is already active, when it reads **Running…**.
+Filament polls for active runs every few seconds, so a run someone else started
+disables the button for you too.
+
+## The activity terminal
+
+Starting a run opens the **Activity** panel at the bottom right. It streams
+events from the run as they happen, newest first, over the server-streaming
+`TailRun` RPC described in [Runs](/pages/api-reference/service/runs).
+
+Each line is a timestamp, an event type, and whatever fields that event carried
+— resource, record count, byte count, a destination URI, an error. Colour
+tracks meaning: failures in red, completion in green, replayed backlog in muted
+text.
+
+{/* SCREENSHOT: Canvas with the Activity terminal open mid-run, showing a mix
+    of extract/write events and the "Listening..." line. 1440x900, light. */}
+<Frame caption="The activity terminal during a run">
+  <img src="/assets/images/ui/run-activity-terminal.png" alt="Activity terminal streaming run events" />
+</Frame>
+
+The stream replays from the beginning of the run, so opening the terminal late
+still shows you everything. A flashing **Listening…** line at the top means the
+stream is attached and waiting. The panel collapses to a notch and reopens on
+click; it is hidden entirely while previewing an older version.
+
+<Note>
+  The terminal shows runs you started in this browser session. For runs
+  triggered by a schedule, by another user, or before you opened the page, use
+  the history tab.
+</Note>
+
+## History
+
+The history tab lists the most recent 50 runs with **Status**, **Started**,
+**Run** id, **Version**, **Duration**, **Records**, and **Volume**. While a run
+is active the table refreshes on its own.
+
+The **Version** column is what makes history worth reading — it tells you which
+graph produced which numbers, so a sudden change in volume can be traced to the
+version that caused it.
+
+| Status | Meaning |
+|---|---|
+| Requested | Accepted, waiting for the control plane to dispatch it |
+| Running | A worker is executing it |
+| Completed | Every resource finished and verified |
+| Partial | Some resources succeeded, others did not |
+| Failed | The run did not complete |
+| Paused | Suspended, resumable from its checkpoint |
+| Canceled | Stopped deliberately |
+
+A failed run carries its error message on an info icon next to the status; the
+text is selectable, so it can be copied into an issue.
+
+## Per-resource detail
+
+Expanding a row breaks the run down into what each resource actually did —
+which source resource went to which sink, and how many records and bytes moved
+on that path.
+
+{/* SCREENSHOT: History table with one row expanded, showing the nested
+    resource/sink/records/volume table. 1440x900, light theme. */}
+<Frame caption="An expanded run, broken down per resource">
+  <img src="/assets/images/ui/history-expanded-run.png" alt="Run history row expanded to show per-resource records and volume" />
+</Frame>
+
+This is where a **Partial** run becomes legible: the resources that moved data
+are listed alongside the ones that did not. Connector logos in these rows are
+clickable and open the connection drawer, which is the quickest path from "this
+resource failed" to "here is how that connection is configured".
+
+A run that never got far enough to record activity shows *The run did not
+record any resource activity* instead.
+
+## Resuming and integrity
+
+Runs checkpoint as they go, so an interrupted run resumes rather than
+restarting — and every batch is verified on both the read and write side. The
+mechanics are covered in [Integrity &
+checkpoints](/pages/guides/concepts/integrity-and-checkpoints), and which read
+strategy a source picks in [Replication
+modes](/pages/guides/concepts/replication-modes).

@@ -21,7 +21,7 @@ const root = createRoot(rootElement);
 root.render(
   <StrictMode>
     <TransportQueryClientProvider>
-      <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM}>
+      <GalaxyThemeProvider initialTheme={GalaxyTheme.DARK}>
         <App />
       </GalaxyThemeProvider>
     </TransportQueryClientProvider>

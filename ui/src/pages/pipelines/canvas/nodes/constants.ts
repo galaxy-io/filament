@@ -1,13 +1,13 @@
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-export const PIPELINE_CANVAS_NODE_WIDTH = 360;
+export const PIPELINE_CANVAS_NODE_WIDTH = 320;
 export const PIPELINE_CANVAS_NODE_PADDING = 8;
 export const PIPELINE_CANVAS_NODE_BORDER_RADIUS = 6;
 export const PIPELINE_CANVAS_NODE_GAP = 8;
 
 export const PIPELINE_CANVAS_NODE_PLACEHOLDER_SELECTOR_HEIGHT = 300;
 
-export const PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE = 24;
+export const PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE = 30;
 export const PIPELINE_CANVAS_NODE_ISLAND_BODY_MAX_HEIGHT = 300;
 
 export const CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP: Record<ConnectorKind, string> = {

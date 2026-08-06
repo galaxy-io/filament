@@ -9,7 +9,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import EmptyGraphic, { EmptyGraphicGhostTile } from "@/components/EmptyGraphic";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 
@@ -88,11 +88,7 @@ const ConnectionsPageSourcesEmptyGraphic = () => {
             <Slot key={slot} $isLive={false} $isFilled={!!spec}>
               {spec && (
                 <EmptyGraphicGhostTile>
-                  <ConnectorTile
-                    connector={spec.name}
-                    spec={spec}
-                    size={ConnectorTileSize.MEDIUM}
-                  />
+                  <ConnectorTile connector={spec.name} spec={spec} />
                 </EmptyGraphicGhostTile>
               )}
             </Slot>

@@ -1,0 +1,88 @@
+---
+title: "Observability"
+description: "Records, volume, and run counts across every pipeline."
+icon: "chart-line"
+---
+
+Observability is the default landing page and the only cross-pipeline view in
+the product. Where a pipeline's history tab answers *what did this pipeline
+do*, this answers *what is moving overall, and what is failing*. It reads from
+the metrics service rather than the ingestion API.
+
+{/* SCREENSHOT: /observability on the 24H timeframe with real data — metrics
+    strip, both timeseries charts, runs chart below. 1440x900, light theme. */}
+<Frame caption="The observability dashboard">
+  <img src="/assets/images/ui/observability-dashboard.png" alt="Observability dashboard showing metric cards and timeseries charts" />
+</Frame>
+
+## Timeframe
+
+**24H**, **7D**, and **30D** set the window for every widget on the page. The
+timeframe also sets bucket size — 24H buckets hourly, 7D and 30D bucket daily —
+so switching windows changes chart resolution, not just its extent.
+
+The refresh button re-fetches everything on demand; the metric cards also
+refresh on their own while the page is open.
+
+## Metric cards
+
+A total run count leads, followed by total records and total volume for the
+window, then per-status counts for **Completed**, **Failed**, and **Running**.
+The remaining statuses — Requested, Canceled, Paused, Partial — are collapsed
+into an **Other** card that breaks them out on hover, since in normal operation
+they are mostly zero.
+
+## Records and volume over time
+
+Two charts plot throughput across the window: **Records** counts rows,
+**Volume** counts bytes. Each has an independent **Pivot** control:
+
+| Pivot | Result |
+|---|---|
+| *(none)* | One filled area — total throughput |
+| Pipeline | One line per pipeline, resolved to pipeline names |
+| Status | One line per run status, using the same status colours as elsewhere |
+
+Pivoting by pipeline is how you find which pipeline is responsible for a spike.
+Pivoting by status separates work that completed from work that failed while
+still moving data — useful when total volume looks healthy but a partial run is
+hiding inside it.
+
+## Runs
+
+Below the charts, a stacked bar chart counts runs per bucket by status, over a
+table of individual runs.
+
+The status filter defaults to **Completed**, **Failed**, and **Running**, which
+keeps the ordinary operational picture in view; add the rest when you are
+looking for something specific. With no statuses selected both the chart and
+table render empty.
+
+The table lists status, run id, pipeline, connectors, start time, duration,
+records, and volume. Connector logos open the connection drawer, and clicking a
+row goes to that pipeline's [history
+tab](/pages/guides/web-ui/runs-and-history).
+
+{/* SCREENSHOT: The Runs widget — stacked bar chart with a mix of statuses,
+    status multi-select open or showing "3 statuses". 1440x900, light. */}
+<Frame caption="Runs by status, over the run table">
+  <img src="/assets/images/ui/observability-runs.png" alt="Stacked bar chart of runs by status above a table of individual runs" />
+</Frame>
+
+## Filters are shareable
+
+Timeframe, both pivots, and the status selection all live in the URL:
+
+```
+/observability?timeframe=7D&records=PIPELINE_ID&statuses=[4,5]
+```
+
+A dashboard scoped to a failure is a link you can paste into an incident
+thread. Unrecognized values fall back to defaults rather than erroring, so a
+stale link still loads.
+
+<Info>
+  These are aggregates from the metrics service, so a run that just finished
+  may take a moment to appear here even though it is already on the pipeline's
+  history tab.
+</Info>

@@ -70,6 +70,17 @@
             ]
           },
           {
+            "group": "Web UI",
+            "pages": [
+              "pages/guides/web-ui/overview",
+              "pages/guides/web-ui/connections",
+              "pages/guides/web-ui/pipelines",
+              "pages/guides/web-ui/canvas",
+              "pages/guides/web-ui/runs-and-history",
+              "pages/guides/web-ui/observability"
+            ]
+          },
+          {
             "group": "Concepts",
             "pages": [
               "pages/guides/concepts/architecture",

@@ -20,7 +20,7 @@ const CreatePipelineModalSchedule = ({
     <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
       <PipelineScheduleFields state={schedule} onChange={onScheduleChange} />
       {schedule.isEnabled && summary && (
-        <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
           {summary}
         </Text>
       )}

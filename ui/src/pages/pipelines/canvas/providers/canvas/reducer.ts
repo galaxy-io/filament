@@ -1,10 +1,16 @@
+import { create } from "@bufbuild/protobuf";
 import {
   addEdge as xyflowAddEdge,
   applyEdgeChanges as xyflowApplyEdgeChanges,
   applyNodeChanges as xyflowApplyNodeChanges,
 } from "@xyflow/react";
 
-import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
+import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
+
+import {
+  PIPELINE_CANVAS_DEFAULT_EDGE_DATA,
+  PIPELINE_CANVAS_EDGE_TYPE,
+} from "@/pages/pipelines/canvas/constants";
 import { canAddSourceNode, getAutoConnections } from "@/pages/pipelines/canvas/graph/rules";
 import {
   type AddNodeAction,
@@ -16,6 +22,8 @@ import {
   PipelineCanvasActionType,
   type RemoveNodeAction,
   type SetActiveModeAction,
+  type SetEdgeCursorAction,
+  type SetEdgeIngestionTypeAction,
   type SetInteractionModeAction,
   type SetNodeConfigAction,
   type SetNodesAction,
@@ -25,6 +33,11 @@ import {
   type PipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import {
+  getCanvasEdgeResource,
+  getPipelineCanvasEdgeData,
+  isIncrementalIngestionType,
+} from "@/pages/pipelines/canvas/utils";
 
 function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): PipelineCanvasState {
   return {
@@ -44,7 +57,14 @@ function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCan
 
   const edges = getAutoConnections(node, state.nodes).reduce(
     (nextEdges, connection) =>
-      xyflowAddEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, nextEdges),
+      xyflowAddEdge(
+        {
+          ...connection,
+          type: PIPELINE_CANVAS_EDGE_TYPE,
+          data: PIPELINE_CANVAS_DEFAULT_EDGE_DATA,
+        },
+        nextEdges,
+      ),
     state.edges,
   );
 
@@ -91,7 +111,14 @@ function applyEdgeChanges(
 function connect(state: PipelineCanvasState, action: ConnectAction): PipelineCanvasState {
   return {
     ...state,
-    edges: xyflowAddEdge({ ...action.payload, type: PIPELINE_CANVAS_EDGE_TYPE }, state.edges),
+    edges: xyflowAddEdge(
+      {
+        ...action.payload,
+        type: PIPELINE_CANVAS_EDGE_TYPE,
+        data: PIPELINE_CANVAS_DEFAULT_EDGE_DATA,
+      },
+      state.edges,
+    ),
   };
 }
 
@@ -129,6 +156,63 @@ function setNodeConfig(
   };
 }
 
+function setEdgeIngestionType(
+  state: PipelineCanvasState,
+  action: SetEdgeIngestionTypeAction,
+): PipelineCanvasState {
+  const { edgeId, ingestionType } = action.payload;
+
+  return {
+    ...state,
+    edges: state.edges.map((edge) => {
+      if (edge.id !== edgeId) return edge;
+      const data = getPipelineCanvasEdgeData(edge);
+      return {
+        ...edge,
+        data: {
+          ...data,
+          ingestionType,
+          cursors: isIncrementalIngestionType(ingestionType) ? data.cursors : [],
+        },
+      };
+    }),
+  };
+}
+
+function setEdgeCursor(
+  state: PipelineCanvasState,
+  action: SetEdgeCursorAction,
+): PipelineCanvasState {
+  const { edgeId, resource, field, lookbackSeconds } = action.payload;
+
+  return {
+    ...state,
+    edges: state.edges.map((edge) => {
+      if (edge.id !== edgeId) return edge;
+
+      const data = getPipelineCanvasEdgeData(edge);
+      if (!isIncrementalIngestionType(data.ingestionType)) return edge;
+
+      const edgeResource = getCanvasEdgeResource(edge);
+      if (edgeResource !== "" && edgeResource !== resource) return edge;
+
+      const remaining = data.cursors.filter((cursor) => cursor.resource !== resource);
+      const cursors = field
+        ? [
+            ...remaining,
+            create(ResourceCursorConfigSchema, {
+              resource,
+              field,
+              lookbackSeconds: BigInt(Math.max(0, Math.trunc(lookbackSeconds))),
+            }),
+          ]
+        : remaining;
+
+      return { ...edge, data: { ...data, cursors } };
+    }),
+  };
+}
+
 const pipelineCanvasReducer = (
   state: PipelineCanvasState,
   action: PipelineCanvasAction,
@@ -154,6 +238,10 @@ const pipelineCanvasReducer = (
       return setInteractionMode(state, action);
     case PipelineCanvasActionType.SET_NODE_CONFIG:
       return setNodeConfig(state, action);
+    case PipelineCanvasActionType.SET_EDGE_INGESTION_TYPE:
+      return setEdgeIngestionType(state, action);
+    case PipelineCanvasActionType.SET_EDGE_CURSOR:
+      return setEdgeCursor(state, action);
   }
 };
 

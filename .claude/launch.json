@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "ui", "dev"],
       "port": 5173
+    },
+    {
+      "name": "filament-docs",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "docs", "dev", "--port", "3333"],
+      "port": 3333
     }
   ]
 }

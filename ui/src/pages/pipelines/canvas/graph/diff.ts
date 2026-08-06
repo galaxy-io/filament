@@ -1,14 +1,23 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
+import type { PipelineVersion, ResourceCursorConfig } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP,
   PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP,
 } from "@/pages/pipelines/canvas/constants";
-import { getCanvasEdgeKey, getProtoEdgeKey } from "@/pages/pipelines/canvas/graph/serialize";
-import { type CanvasEdge, type CanvasNode, isConnectionNode } from "@/pages/pipelines/canvas/types";
+import {
+  getProtoEdgeKey,
+  mapCanvasEdgeToProtoEdge,
+  normalizeIngestionType,
+} from "@/pages/pipelines/canvas/graph/serialize";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  isConnectionNode,
+  type PipelineCanvasWireEdge,
+} from "@/pages/pipelines/canvas/types";
 
 export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
   (version?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&
@@ -26,6 +35,15 @@ const canonicalize = (value: JsonValue): JsonValue => {
   }
   return value;
 };
+
+const serializeEdgeCursors = (cursors: ResourceCursorConfig[]): string =>
+  cursors
+    .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
+    .sort()
+    .join(",");
+
+const serializeEdge = (edge: PipelineCanvasWireEdge): string =>
+  `${getProtoEdgeKey(edge)}|${normalizeIngestionType(edge.ingestionType)}|${edge.selector}|${serializeEdgeCursors(edge.cursors)}`;
 
 const serializeNodeConfig = (config: Record<string, JsonValue> | undefined): string =>
   config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
@@ -49,8 +67,8 @@ export const hasPipelineGraphChanges = (
     )
     .sort();
 
-  const canvasEdges = state.edges.map(getCanvasEdgeKey).sort();
-  const pipelineEdges = (version?.edges ?? []).map(getProtoEdgeKey).sort();
+  const canvasEdges = state.edges.map(mapCanvasEdgeToProtoEdge).map(serializeEdge).sort();
+  const pipelineEdges = (version?.edges ?? []).map(serializeEdge).sort();
 
   return (
     canvasNodes.join(",") !== pipelineNodes.join(",") ||

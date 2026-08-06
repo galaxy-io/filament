@@ -1,0 +1,147 @@
+---
+title: "Connections"
+description: "Creating, validating, and managing source and sink connections."
+icon: "link"
+---
+
+A connection is a configured instance of a connector — a set of credentials and
+settings pointing at one external system. **Sources** and **Sinks** are the same
+screen parameterized by kind, and both are backed by the `Connection` RPCs in
+[Connections](/pages/api-reference/service/connections).
+
+## Browsing connections
+
+Each card shows the connector logo, the connection name, a kind chip (**Source**
+or **Sink**), how many pipelines use it, and the connection's current version.
+Clicking a card opens its drawer. The pipeline count is computed in the browser
+by walking every pipeline's latest version, so it reflects real usage rather
+than a stored counter.
+
+{/* SCREENSHOT: /sources with 3+ connection cards, at least one showing a
+    non-zero pipeline count. 1440x900, light theme. */}
+<Frame caption="The Sources list">
+  <img src="/assets/images/ui/sources-list.png" alt="Sources list showing several source connection cards" />
+</Frame>
+
+## Creating a connection
+
+**New source** / **New sink** opens a two-step modal. The step is encoded in the
+URL, so a half-finished selection survives a refresh.
+
+<Steps>
+  <Step title="Pick a connector">
+    Titled **New connection**, with a searchable grid of every connector of the
+    relevant kind — filtered to sources or sinks when you entered from one of
+    those tabs. Search matches connector name, display name, and description.
+    Choosing one sets `?connector=` and advances.
+  </Step>
+  <Step title="Configure it">
+    A **Name**, then one control per connector field. The field types come from
+    the connector's own spec, so this form is generated — a new connector shows
+    up here automatically, as described in [Connectors
+    overview](/pages/connectors/overview/introduction).
+  </Step>
+</Steps>
+
+{/* SCREENSHOT: Step 1 of the New connection modal, connector grid visible,
+    search box empty. 1440x900, light theme. */}
+<Frame caption="Step one — choosing a connector">
+  <img src="/assets/images/ui/connection-select-provider.png" alt="New connection modal showing a grid of available connectors" />
+</Frame>
+
+Fields render according to their declared type:
+
+| Field type | Control |
+|---|---|
+| String, duration | Text input |
+| Int | Number input |
+| Bool | Toggle |
+| Enum | Select |
+| Secret | Password input — never echoed back once stored |
+| Object | Nested fields in an accordion, or a JSON editor for a leaf object |
+
+Fields can declare a `visible_when` condition, so selecting one option can
+reveal or hide others — an auth-method picker that swaps which credential
+fields appear, for example. Help text on a field renders as a tooltip on its
+label.
+
+## Only connection-scoped fields appear here
+
+Connector fields carry a scope. **Connection-scoped** fields — endpoints,
+credentials, TLS settings — belong to the connection and are what this form
+shows. **Pipeline-scoped** fields are configured per node on the canvas
+instead, because the same connection can behave differently in two pipelines.
+
+<Info>
+  If a connector's field seems to be missing from this form, it is probably
+  pipeline-scoped. See [The pipeline
+  canvas](/pages/guides/web-ui/canvas) for where those render.
+</Info>
+
+## Validate before you save
+
+The footer button is a state machine, and **there is no way to create a
+connection without testing it first**:
+
+| Button | Meaning |
+|---|---|
+| **Validate** | Starting state, and where a failed attempt returns to |
+| **Testing…** | A live connection attempt is in flight |
+| **Create** / **Save** | Validation passed — this is the only state that writes |
+| **Creating…** / **Saving…** | The write is in flight |
+
+**Validate** is not a schema check. It opens a real connection to the provider
+with the credentials you entered, so a wrong password or an unreachable host
+fails here rather than at the first run. Failures map back onto the individual
+fields that caused them.
+
+<Warning>
+  Editing any field after a successful validation resets the button to
+  **Validate**. This is deliberate — it prevents saving a configuration that
+  differs from the one that was actually tested.
+</Warning>
+
+{/* SCREENSHOT: Step 2, a Postgres connection form filled in, footer showing
+    the green Create button after a successful validation. 1440x900, light. */}
+<Frame caption="Step two — configured and validated, ready to create">
+  <img src="/assets/images/ui/connection-configure.png" alt="Connection configuration form with a validated state" />
+</Frame>
+
+On success the modal closes and the new connection's drawer opens immediately.
+
+## Inspecting a connection
+
+The drawer shows the connector, kind, and version, then three collapsible
+sections:
+
+- **Configuration** — the stored config as read-only JSON.
+- **Secrets** — the secret *references* only. Values are never returned by the
+  API; see [Secrets](/pages/api-reference/service/secrets).
+- **Pipelines** — every pipeline using this connection, each linking through to
+  it. Open by default.
+
+{/* SCREENSHOT: Connection drawer open over the Sources list, Configuration and
+    Pipelines sections expanded. 1440x900, light theme. */}
+<Frame caption="The connection drawer">
+  <img src="/assets/images/ui/connection-drawer.png" alt="Connection drawer showing configuration, secrets, and pipelines sections" />
+</Frame>
+
+## Editing and deleting
+
+The pencil in the drawer header reopens the same form seeded with current
+values. Secret inputs read `Leave blank to keep current value` — typing nothing
+preserves what is stored. The validate-then-save gate applies exactly as it
+does on create.
+
+Connections carry a version, and an update sends the version it was loaded
+with. If someone else changed the connection in the meantime the save is
+rejected with **Connection changed elsewhere** rather than silently overwriting
+their work; close the editor and reopen it to pick up the latest.
+
+Deletion lives in the drawer's danger zone and requires typing the connection's
+name exactly before the confirm button enables.
+
+<Note>
+  Deleting a connection that pipelines still reference will leave those
+  pipelines invalid. Check the drawer's **Pipelines** section first.
+</Note>

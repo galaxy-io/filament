@@ -4,13 +4,16 @@ import { type FitViewOptions, type HandleType, Position } from "@xyflow/react";
 
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, IngestionType, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
 
 import {
   PipelineCanvasEditMode,
   PipelineCanvasInteractionMode,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
-import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import {
+  type PipelineCanvasEdgeData,
+  PipelineCanvasNodeType,
+} from "@/pages/pipelines/canvas/types";
 
 export const PIPELINE_CANVAS_FIT_MIN_ZOOM = 0.5;
 export const PIPELINE_CANVAS_FIT_MAX_ZOOM = 1;
@@ -95,6 +98,22 @@ export const PIPELINE_CANVAS_NODE_TYPE_TO_COUNTERPART_TYPE_MAP: Record<
 };
 
 export const PIPELINE_CANVAS_EDGE_TYPE = "pipeline";
+
+export const PIPELINE_CANVAS_DEFAULT_EDGE_DATA: PipelineCanvasEdgeData = {
+  ingestionType: IngestionType.SNAPSHOT_REPLACE,
+  selector: "",
+  cursors: [],
+};
+
+export const INGESTION_TYPE_TO_REPLICATION_MODE_MAP: Record<IngestionType, ReplicationMode> = {
+  [IngestionType.UNSPECIFIED]: ReplicationMode.FULL,
+  [IngestionType.SNAPSHOT_REPLACE]: ReplicationMode.FULL,
+  [IngestionType.SNAPSHOT_UPSERT]: ReplicationMode.FULL,
+  [IngestionType.APPEND]: ReplicationMode.FULL,
+  [IngestionType.UPSERT]: ReplicationMode.INCREMENTAL,
+  [IngestionType.DELETE]: ReplicationMode.INCREMENTAL,
+  [IngestionType.CDC]: ReplicationMode.CDC,
+};
 
 export const PIPELINE_CANVAS_EDGE_Z_INDEX = 2000;
 export const PIPELINE_CANVAS_OVERLAY_Z_INDEX = 2001;

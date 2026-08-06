@@ -1,0 +1,119 @@
+---
+title: "Pipelines"
+description: "Creating pipelines, naming them, and putting them on a schedule."
+icon: "diagram-project"
+---
+
+A pipeline connects one source to one or more sinks. The pipeline itself owns
+its name, description, and schedule; the *graph* — which resources flow to
+which sinks — lives in versions, edited on [the
+canvas](/pages/guides/web-ui/canvas).
+
+## The pipeline list
+
+Columns cover **Name**, **Connectors**, **Status**, **Last run**, **Duration**,
+and **Volume**. The Connectors cell draws the actual shape of the pipeline —
+the source logo, an arrow, and up to three sink logos with a `+N` overflow.
+Clicking any logo opens that connection's drawer without leaving the list.
+
+Two states are worth recognizing:
+
+- **Invalid pipeline** replaces the arrow when a pipeline has no source, no
+  sinks, or no edges between them. It cannot run until you finish wiring it.
+- **Never run** appears in the status column for a pipeline that exists but has
+  no run history; duration and volume show `—`.
+
+{/* SCREENSHOT: /pipelines with 4+ rows — include one healthy pipeline, one
+    "Never run", and one "Invalid pipeline". 1440x900, light theme. */}
+<Frame caption="The pipeline list">
+  <img src="/assets/images/ui/pipelines-list.png" alt="Pipeline list showing connectors, status, and last run columns" />
+</Frame>
+
+## Creating a pipeline
+
+**New pipeline** opens a three-step modal. Completed steps stay clickable, so
+you can jump back without losing anything.
+
+<Steps>
+  <Step title="Choose your connections">
+    Sources on the left as radio buttons — exactly one — and sinks on the right
+    as checkboxes. Both panes have their own search. This step is optional; if
+    you select nothing the footer reads **Skip** and you get an empty canvas to
+    fill in later.
+
+    If you are missing a connection, **Create source** / **Create sink** jumps
+    straight into the [connection flow](/pages/guides/web-ui/connections) and
+    returns you here.
+  </Step>
+  <Step title="Configure your pipeline">
+    **Name** is required and pre-filled from your selection as
+    `source -> sink`. Editing it stops the auto-fill from overwriting you.
+    **Description** is optional.
+  </Step>
+  <Step title="Set your schedule">
+    Optional. Leaving it disabled creates a pipeline you run by hand.
+  </Step>
+</Steps>
+
+{/* SCREENSHOT: Step 1 of the create modal — a source selected on the left, two
+    sinks checked on the right, sidebar steps visible. 1440x900, light. */}
+<Frame caption="Choosing a source and its sinks">
+  <img src="/assets/images/ui/pipeline-create-connections.png" alt="Create pipeline modal with a source and two sinks selected" />
+</Frame>
+
+Creating with connections selected also writes a first version, auto-wiring the
+source to every sink you picked. You land on the canvas with a working graph
+rather than a blank one.
+
+<Info>
+  If the pipeline is created but its first version fails to save, the UI says
+  so — **Pipeline created without connections** — and still takes you to the
+  canvas, where you can wire it by hand.
+</Info>
+
+## Schedules
+
+Schedules are configured identically in the create modal and on the settings
+tab. The widgets compile down to a cron expression:
+
+| Frequency | Additional fields | Cron |
+|---|---|---|
+| Hourly | — | `0 * * * *` |
+| Daily | At, Timezone | `0 H * * *` |
+| Weekly | Run on, At, Timezone | `0 H * * d1,d2` |
+| Monthly | On the, At, Timezone | `0 H D * *` |
+
+Times are whole hours and the day-of-month options stop at the 28th, so a
+monthly schedule fires every month regardless of length. Timezone defaults to
+your browser's.
+
+A plain-language summary — *"Runs every Monday and Friday at 09:00
+America/New_York"* — renders next to the save button and is the quickest way to
+confirm you built what you meant. A weekly schedule with no days selected has
+no valid summary and cannot be saved.
+
+{/* SCREENSHOT: Settings tab, Schedule section expanded, Weekly selected with
+    two days and a timezone, summary line visible. 1440x900, light theme. */}
+<Frame caption="A weekly schedule, with its plain-language summary">
+  <img src="/assets/images/ui/pipeline-settings-schedule.png" alt="Pipeline schedule settings showing weekly frequency and a summary line" />
+</Frame>
+
+Once a schedule is enabled, the pipeline's top bar shows a **Next run** chip
+counting down to the next fire time.
+
+<Note>
+  A schedule stored by another client that these widgets can't represent — a
+  cron with minute precision, say — falls back to the defaults in the form
+  rather than being misrendered. Saving would overwrite it, so check the
+  summary before you do.
+</Note>
+
+## Settings
+
+The settings tab holds three sections. **General** edits name and description.
+**Schedule** is the field set above. **Danger zone** deletes the pipeline,
+gated behind typing its name exactly — the same confirmation pattern as
+connections.
+
+Deleting a pipeline removes its versions and run history. The connections it
+used are untouched.
