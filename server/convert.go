@@ -21,11 +21,15 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
-		Capabilities: &ingestionv1.Capabilities{
-			Discoverable:      spec.Resources.Discoverable,
-			PerResourceCursor: spec.Resources.PerResourceCursor,
-			SourcePolicies:    sourcePoliciesToProto(spec.SourcePolicies),
-		},
+		Capabilities: sourceCapabilitiesToProto(spec),
+	}
+}
+
+func sourceCapabilitiesToProto(spec filament.ConnectorSpec) *ingestionv1.Capabilities {
+	return &ingestionv1.Capabilities{
+		Discoverable:      spec.Resources.Discoverable,
+		PerResourceCursor: spec.Resources.PerResourceCursor,
+		SourcePolicies:    sourcePoliciesToProto(spec.SourcePolicies),
 	}
 }
 
@@ -40,12 +44,16 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		ConfigSchema: configSchemaToProto(spec.Config),
 		SchemaField:  spec.SchemaField,
-		Capabilities: &ingestionv1.Capabilities{
-			Transactional: spec.Capabilities.Transactional,
-			Upsertable:    spec.Capabilities.Upsertable,
-			Schematized:   spec.Capabilities.Schematized,
-			WritePolicies: writePolicyCapabilitiesToProto(spec.Capabilities.WritePolicies),
-		},
+		Capabilities: sinkCapabilitiesToProto(spec.Capabilities),
+	}
+}
+
+func sinkCapabilitiesToProto(caps filament.SinkCapabilities) *ingestionv1.Capabilities {
+	return &ingestionv1.Capabilities{
+		Transactional: caps.Transactional,
+		Upsertable:    caps.Upsertable,
+		Schematized:   caps.Schematized,
+		WritePolicies: writePolicyCapabilitiesToProto(caps.WritePolicies),
 	}
 }
 
@@ -138,6 +146,25 @@ func modeToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
 	default:
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED
+	}
+}
+
+func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
+	switch t.OrDefault() {
+	case filament.IngestionSnapshotReplace:
+		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_REPLACE
+	case filament.IngestionSnapshotUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT
+	case filament.IngestionAppend:
+		return ingestionv1.IngestionType_INGESTION_TYPE_APPEND
+	case filament.IngestionUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_UPSERT
+	case filament.IngestionDelete:
+		return ingestionv1.IngestionType_INGESTION_TYPE_DELETE
+	case filament.IngestionCDC:
+		return ingestionv1.IngestionType_INGESTION_TYPE_CDC
+	default:
+		return ingestionv1.IngestionType_INGESTION_TYPE_UNSPECIFIED
 	}
 }
 

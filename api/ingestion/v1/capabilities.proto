@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "ingestion/v1/common.proto";
+import "ingestion/v1/pipelines.proto";
+import "ingestion/v1/providers.proto";
+
+message GetConnectionCapabilitiesRequest {
+  string tenant_id = 1;
+  string id = 2;
+}
+
+// IngestionSupport is one ingestion type's verdict for a connection, with the
+// validator's reason when unsupported.
+message IngestionSupport {
+  IngestionType type = 1;
+  bool supported = 2;
+  string reason = 3;
+}
+
+message GetConnectionCapabilitiesResponse {
+  string connector = 1;
+  ConnectorKind kind = 2;
+  Capabilities capabilities = 3;
+  repeated IngestionSupport ingestion = 4;
+}
+
+// ValidatePipelineRequest carries the graph inline so unsaved canvas state
+// validates the same as a persisted version.
+message ValidatePipelineRequest {
+  string tenant_id = 1;
+  repeated PipelineNode nodes = 2;
+  repeated PipelineEdge edges = 3;
+}
+
+enum RequirementKind {
+  REQUIREMENT_KIND_UNSPECIFIED = 0;
+  REQUIREMENT_KIND_CURSOR_COLUMN = 1;
+  REQUIREMENT_KIND_PRIMARY_KEY = 2;
+}
+
+// CandidateValue is one value the user may pick to satisfy a requirement.
+message CandidateValue {
+  string value = 1;
+  bool recommended = 2;
+  int32 rank = 3;
+  string warning = 4;
+}
+
+// Requirement is configuration an edge still needs before it can run. An empty
+// resource applies to every resource the edge routes; empty candidates mean the
+// server could not enumerate choices.
+message Requirement {
+  RequirementKind kind = 1;
+  string resource = 2;
+  string message = 3;
+  repeated CandidateValue candidates = 4;
+}
+
+// EdgeValidation is one edge's verdict: the ingestion types the pair supports,
+// hard errors, and unmet requirements.
+message EdgeValidation {
+  string from_node = 1;
+  string to_node = 2;
+  string resource = 3;
+  repeated IngestionType supported_ingestion_types = 4;
+  repeated ValidationError errors = 5;
+  repeated Requirement requirements = 6;
+}
+
+message ValidatePipelineResponse {
+  bool valid = 1;
+  repeated EdgeValidation edges = 2;
+  // Graph-level failures: dangling node refs, unknown connections.
+  repeated ValidationError errors = 3;
+}
