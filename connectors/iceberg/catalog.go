@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	catalogProviderGeneric = "generic"
-	catalogProviderREST    = "rest"
-	catalogProviderPolaris = "polaris"
+	catalogProviderGeneric    = "generic"
+	catalogProviderREST       = "rest"
+	catalogProviderPolaris    = "polaris"
+	catalogProviderLakekeeper = "lakekeeper"
 )
 
 type catalogSetup struct {
@@ -32,6 +33,7 @@ var catalogProviders = []catalogProvider{
 	genericCatalogProvider,
 	restCatalogProvider,
 	polarisCatalogProvider,
+	lakekeeperCatalogProvider,
 }
 
 func catalogConfigField() filament.ConfigField {
