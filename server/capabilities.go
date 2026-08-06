@@ -84,9 +84,12 @@ func ingestionSupport(validate func(filament.IngestionType) error) []*ingestionv
 }
 
 // ValidatePipeline checks every edge of a graph: the ingestion types the
-// source/sink pair supports, whether the chosen type is among them, and what
-// per-resource configuration is still missing, with candidate values where
-// the source can enumerate them.
+// source/sink pair supports, whether the chosen type is among them, and the
+// per-table setup that type involves. Snapshot and append edges have nothing
+// to configure and skip source probing entirely; types that read a cursor or
+// write by key probe the live source for per-table menus, cursor candidates,
+// and primary keys. Only blocking requirements gate valid — an unset cursor
+// that auto-detection covers is advisory.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
@@ -97,7 +100,12 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 	}
 
 	resp := &ingestionv1.ValidatePipelineResponse{}
-	probes := &sourceProbes{server: a, sources: map[string]filament.Source{}, errs: map[string]error{}}
+	probes := &sourceProbes{
+		server:     a,
+		sources:    map[string]filament.Source{},
+		errs:       map[string]error{},
+		discovered: map[string][]filament.Resource{},
+	}
 	defer probes.teardown(ctx)
 
 	for _, edge := range req.Msg.GetEdges() {
@@ -108,8 +116,20 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 
 	resp.Valid = len(resp.Errors) == 0
 	for _, ev := range resp.Edges {
-		if len(ev.Errors) > 0 || len(ev.Requirements) > 0 {
+		if len(ev.Errors) > 0 {
 			resp.Valid = false
+		}
+		for _, requirement := range ev.Requirements {
+			if requirement.GetBlocking() {
+				resp.Valid = false
+			}
+		}
+		for _, resource := range ev.Resources {
+			for _, requirement := range resource.Requirements {
+				if requirement.GetBlocking() {
+					resp.Valid = false
+				}
+			}
 		}
 	}
 	return connect.NewResponse(resp), nil
@@ -156,8 +176,10 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 	srcSpec, snkSpec := source.Spec(), sink.Spec()
 
+	var menu []filament.IngestionType
 	for _, t := range ingestionTypes {
 		if filament.ValidateSourceIngestion(srcSpec, t) == nil && filament.ValidateSinkIngestion(snkSpec, t) == nil {
+			menu = append(menu, t)
 			ev.SupportedIngestionTypes = append(ev.SupportedIngestionTypes, ingestionTypeToProto(t))
 		}
 	}
@@ -173,7 +195,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		return nil
 	}
 
-	a.edgeRequirements(ctx, edge, from, *srcConn, chosen, probes, ev)
+	a.edgeRequirements(ctx, edge, from, *srcConn, chosen, menu, probes, ev)
 	return nil
 }
 
@@ -203,10 +225,11 @@ func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.Pipel
 	return &conn, nil
 }
 
-// edgeRequirements appends what the edge still needs for the chosen ingestion
-// type: a cursor column per routed resource for incremental reads, a primary
-// key per resource for keyed writes.
-func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+// edgeRequirements builds the per-table breakdown for a chosen type that
+// needs setup: which ingestion types each routed table can serve, its cursor
+// requirement (satisfied, auto-covered, or blocking), and its primary-key
+// requirement. Types that need neither a cursor nor keys return immediately.
+func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, menu []filament.IngestionType, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
 	needsCursor := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
 	needsPK := chosen.WriteCapability().RequiresPK
 	if !needsCursor && !needsPK {
@@ -227,80 +250,126 @@ func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.Pipelin
 	}
 
 	var resources []string
-	enumerated := false
 	if edge.GetResource() != "" {
-		resources, enumerated = []string{edge.GetResource()}, true
-	} else if discoverable, ok := src.(filament.Discoverable); ok {
-		result, err := discoverable.Discover(ctx, filament.DiscoverOpts{})
+		resources = []string{edge.GetResource()}
+	} else {
+		discovered, ok, err := probes.discover(ctx, from.GetId(), src)
 		if err != nil {
 			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
 			return
 		}
-		for _, resource := range result.Resources {
+		if !ok {
+			if needsCursor {
+				ev.Requirements = append(ev.Requirements, &ingestionv1.Requirement{
+					Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
+					Satisfied:       len(cursors) > 0,
+					CandidateStatus: ingestionv1.CandidateStatus_CANDIDATE_STATUS_UNAVAILABLE,
+					Message:         fmt.Sprintf("%s reads incrementally but the source cannot list resources, so per-resource cursors cannot be verified", chosen),
+				})
+			}
+			return
+		}
+		for _, resource := range discovered {
 			if resource.Selectable {
 				resources = append(resources, resource.Name)
 			}
 		}
-		enumerated = true
-	}
-
-	if !enumerated {
-		if needsCursor && len(cursors) == 0 {
-			ev.Requirements = append(ev.Requirements, &ingestionv1.Requirement{
-				Kind:    ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
-				Message: fmt.Sprintf("%s requires a cursor column for each routed resource", chosen),
-			})
-		}
-		return
 	}
 
 	for _, resource := range resources {
-		if needsCursor && !cursors[resource] {
-			ev.Requirements = append(ev.Requirements, cursorRequirement(ctx, src, chosen, resource))
+		rv := &ingestionv1.ResourceValidation{Resource: resource}
+		ev.Resources = append(ev.Resources, rv)
+
+		keys, err := filament.PrimaryKeyForResource(ctx, src, resource)
+		if err != nil {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+			continue
 		}
-		if needsPK {
-			keys, err := filament.PrimaryKeyForResource(ctx, src, resource)
-			if err != nil {
-				edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+		candidates, status := cursorCandidates(ctx, src, resource)
+		// When candidates are unknowable stay optimistic; runtime decides.
+		cursorable := cursors[resource] || len(candidates) > 0 ||
+			status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
+		for _, t := range menu {
+			if t.WriteCapability().RequiresPK && len(keys) == 0 {
 				continue
 			}
-			if len(keys) == 0 {
-				ev.Requirements = append(ev.Requirements, &ingestionv1.Requirement{
-					Kind:     ingestionv1.RequirementKind_REQUIREMENT_KIND_PRIMARY_KEY,
-					Resource: resource,
-					Message:  fmt.Sprintf("%s requires a primary key but none was discovered for resource %q", chosen, resource),
-				})
+			if filament.SourcePolicyForIngestion(t).Mode == filament.ModeIncremental && !cursorable {
+				continue
 			}
+			rv.SupportedIngestionTypes = append(rv.SupportedIngestionTypes, ingestionTypeToProto(t))
+		}
+		if needsCursor {
+			rv.Requirements = append(rv.Requirements, cursorRequirement(resource, chosen, candidates, status, cursors[resource]))
+		}
+		if needsPK && len(keys) == 0 {
+			rv.Requirements = append(rv.Requirements, &ingestionv1.Requirement{
+				Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_PRIMARY_KEY,
+				Resource:        resource,
+				Blocking:        true,
+				CandidateStatus: ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED,
+				Message:         fmt.Sprintf("%s requires a primary key but none was discovered for resource %q", chosen, resource),
+			})
 		}
 	}
 }
 
-// cursorRequirement builds the pick-a-cursor requirement for one resource,
-// with eligible columns as candidates when the source can enumerate them.
-func cursorRequirement(ctx context.Context, src filament.Source, chosen filament.IngestionType, resource string) *ingestionv1.Requirement {
-	requirement := &ingestionv1.Requirement{
-		Kind:     ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
-		Resource: resource,
-		Message:  fmt.Sprintf("%s requires a cursor column for resource %q", chosen, resource),
-	}
+// cursorCandidates enumerates a resource's eligible cursor columns, reporting
+// how an empty list should be read.
+func cursorCandidates(ctx context.Context, src filament.Source, resource string) ([]*ingestionv1.CandidateValue, ingestionv1.CandidateStatus) {
 	provider, ok := src.(filament.CursorColumnProvider)
 	if !ok {
-		return requirement
+		return nil, ingestionv1.CandidateStatus_CANDIDATE_STATUS_NOT_SUPPORTED
 	}
 	columns, err := provider.CursorColumns(ctx, resource)
 	if err != nil {
-		return requirement
+		return nil, ingestionv1.CandidateStatus_CANDIDATE_STATUS_UNAVAILABLE
 	}
+	var out []*ingestionv1.CandidateValue
 	for _, column := range columns {
 		if !column.Eligible {
 			continue
 		}
-		requirement.Candidates = append(requirement.Candidates, &ingestionv1.CandidateValue{
+		out = append(out, &ingestionv1.CandidateValue{
 			Value:       column.Name,
 			Recommended: column.Recommended,
 			Rank:        int32(column.Rank), //nolint:gosec // tiny rank
 			Warning:     column.Warning,
 		})
+	}
+	return out, ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
+}
+
+// cursorRequirement mirrors runtime cursor resolution: configured wins, an
+// auto-detectable (recommended) candidate keeps the run viable without
+// configuration, and only a resource with neither blocks.
+func cursorRequirement(resource string, chosen filament.IngestionType, candidates []*ingestionv1.CandidateValue, status ingestionv1.CandidateStatus, satisfied bool) *ingestionv1.Requirement {
+	requirement := &ingestionv1.Requirement{
+		Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
+		Resource:        resource,
+		Candidates:      candidates,
+		CandidateStatus: status,
+		Satisfied:       satisfied,
+	}
+	recommended := ""
+	for _, candidate := range candidates {
+		if candidate.GetRecommended() {
+			recommended = candidate.GetValue()
+			break
+		}
+	}
+	switch {
+	case satisfied:
+		requirement.Message = fmt.Sprintf("cursor column configured for resource %q", resource)
+	case status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED:
+		requirement.Message = fmt.Sprintf("%s reads incrementally but cursor candidates for resource %q could not be determined", chosen, resource)
+	case recommended != "":
+		requirement.Message = fmt.Sprintf("auto-detected cursor %q will be used for resource %q", recommended, resource)
+	case len(candidates) > 0:
+		requirement.Blocking = true
+		requirement.Message = fmt.Sprintf("%s requires a cursor column for resource %q", chosen, resource)
+	default:
+		requirement.Blocking = true
+		requirement.Message = fmt.Sprintf("resource %q has no usable cursor column; replicate it fully via a snapshot edge instead", resource)
 	}
 	return requirement
 }
@@ -314,11 +383,13 @@ func graphError(message string) *ingestionv1.ValidationError {
 }
 
 // sourceProbes lazily configures at most one live source per node for cursor
-// and primary-key inspection, torn down together after validation.
+// and primary-key inspection, memoizes discovery, and tears everything down
+// together after validation.
 type sourceProbes struct {
-	server  *Server
-	sources map[string]filament.Source
-	errs    map[string]error
+	server     *Server
+	sources    map[string]filament.Source
+	errs       map[string]error
+	discovered map[string][]filament.Resource
 }
 
 func (p *sourceProbes) get(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection) (filament.Source, error) {
@@ -336,6 +407,24 @@ func (p *sourceProbes) get(ctx context.Context, node *ingestionv1.PipelineNode, 
 	}
 	p.sources[id] = src
 	return src, nil
+}
+
+// discover lists a node's resources once; ok is false when the source does
+// not support discovery.
+func (p *sourceProbes) discover(ctx context.Context, nodeID string, src filament.Source) ([]filament.Resource, bool, error) {
+	discoverable, ok := src.(filament.Discoverable)
+	if !ok {
+		return nil, false, nil
+	}
+	if resources, ok := p.discovered[nodeID]; ok {
+		return resources, true, nil
+	}
+	result, err := discoverable.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		return nil, true, err
+	}
+	p.discovered[nodeID] = result.Resources
+	return result.Resources, true, nil
 }
 
 func (p *sourceProbes) configure(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection) (filament.Source, error) {
