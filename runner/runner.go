@@ -353,7 +353,15 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 func loadChangeCheckpoints(ctx context.Context, ds filament.DataStore, spec filament.RunSpec) (map[string]filament.Checkpoint, error) {
 	out := make(map[string]filament.Checkpoint, len(spec.Resources))
 	for _, resource := range spec.Resources {
-		cp, err := ds.LoadCheckpoint(ctx, spec.Run, resource)
+		var cp filament.Checkpoint
+		var err error
+		if key, ok := spec.ResourceCheckpointKey(resource); ok {
+			var state filament.ResourceCheckpointState
+			state, err = ds.LoadResourceCheckpoint(ctx, key)
+			cp = state.Checkpoint
+		} else {
+			cp, err = ds.LoadCheckpoint(ctx, spec.Run, resource)
+		}
 		if err == nil {
 			out[resource] = cp
 			continue
