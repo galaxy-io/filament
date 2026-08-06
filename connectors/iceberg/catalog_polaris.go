@@ -14,7 +14,7 @@ var polarisCatalogProvider = catalogProvider{
 		catalogStringField(catalogProviderPolaris, "uri", "Polaris Iceberg REST endpoint, typically ending in /api/catalog.", true),
 		catalogStringField(catalogProviderPolaris, "warehouse", "Name of the catalog registered in Polaris. This is not an object-storage path.", true),
 		restAuthField(catalogProviderPolaris),
-		catalogObjectField(catalogProviderPolaris, "properties", "Advanced REST, credential-vending, and storage properties passed directly to iceberg-go."),
+		catalogObjectField(catalogProviderPolaris, "Advanced REST, credential-vending, and storage properties passed directly to iceberg-go."),
 	},
 	build: buildPolarisCatalog,
 }

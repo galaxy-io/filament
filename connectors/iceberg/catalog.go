@@ -111,9 +111,9 @@ func catalogStringField(provider, name, help string, required bool) filament.Con
 	}
 }
 
-func catalogObjectField(provider, name, help string) filament.ConfigField {
+func catalogObjectField(provider, help string) filament.ConfigField {
 	return filament.ConfigField{
-		Name:        name,
+		Name:        "properties",
 		Type:        filament.FieldObject,
 		Help:        help,
 		VisibleWhen: providerCondition(provider),

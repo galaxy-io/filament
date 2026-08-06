@@ -14,7 +14,7 @@ var lakekeeperCatalogProvider = catalogProvider{
 		catalogStringField(catalogProviderLakekeeper, "uri", "Lakekeeper Iceberg REST endpoint, typically ending in /catalog.", true),
 		catalogStringField(catalogProviderLakekeeper, "warehouse", "Name of the warehouse registered in Lakekeeper.", true),
 		restAuthField(catalogProviderLakekeeper),
-		catalogObjectField(catalogProviderLakekeeper, "properties", "Advanced REST, credential-vending, and storage properties passed directly to iceberg-go."),
+		catalogObjectField(catalogProviderLakekeeper, "Advanced REST, credential-vending, and storage properties passed directly to iceberg-go."),
 	},
 	build: buildLakekeeperCatalog,
 }
