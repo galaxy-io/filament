@@ -18,6 +18,14 @@ sqlc:
 proto-lint:
     buf lint
 
+# format protobuf definitions
+proto-format:
+    buf format -w
+
+# check protobuf formatting without writing
+proto-format-check:
+    buf format -d --exit-code
+
 # verify generated protobuf files are up to date
 proto-check:
     buf generate
@@ -51,14 +59,14 @@ _each cmd:
 tidy: (_each "GOWORK=off go mod tidy")
     go work sync
 
-# apply gofumpt + goimports to every Go module (settings in .golangci.yaml), plus UI formatting
-format: (_each "GOWORK=off golangci-lint fmt ./...") ui-format
+# apply gofumpt + goimports to every Go module (settings in .golangci.yaml), plus UI and proto formatting
+format: (_each "GOWORK=off golangci-lint fmt ./...") ui-format proto-format
 
 # check Go formatting without writing (what CI runs)
 go-format-check: (_each "GOWORK=off golangci-lint fmt --diff ./...")
 
 # check formatting without writing
-format-check: go-format-check ui-format-check
+format-check: go-format-check ui-format-check proto-format-check
 
 # run linters and apply auto-fixes where possible
 lint: (_each "GOWORK=off golangci-lint run --fix ./...") ui-lint
@@ -142,9 +150,11 @@ dev:
     set -euo pipefail
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
     just control-plane &
-    just server &
     just metrics &
+    just server &
     until curl -sf http://localhost:8080/livez > /dev/null 2>&1; do sleep 0.2; done
+    until curl -sf http://localhost:8081/livez > /dev/null 2>&1; do sleep 0.2; done
+    until curl -sf http://localhost:8082/livez > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait
 
