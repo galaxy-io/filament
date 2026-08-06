@@ -26,7 +26,7 @@ const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeS
   const { removeNode, setNodeConfig } = usePipelineCanvasActions();
   const [state, setState] = useState<PipelineCanvasNodeSinkState>(DEFAULT_STATE);
 
-  const handleConfigure = useCallback(() => {
+  const handleConfigToggle = useCallback(() => {
     setState((prev) => ({ ...prev, isConfigOpen: !prev.isConfigOpen }));
   }, []);
 
@@ -38,15 +38,15 @@ const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeS
       isConnected={connections.length > 0}
       isSelected={selected}
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
-      onConfigure={handleConfigure}
     >
       <PipelineCanvasNodeConfigIsland
         connector={data.connector}
         kind={ConnectorKind.SINK}
         config={data.config}
         onChange={(config) => setNodeConfig(id, config)}
-        isOpen={state.isConfigOpen}
         isSelected={selected}
+        isOpen={state.isConfigOpen}
+        onToggle={handleConfigToggle}
       />
     </PipelineCanvasNode>
   );

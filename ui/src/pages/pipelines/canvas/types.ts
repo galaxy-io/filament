@@ -9,7 +9,7 @@ export enum PipelineCanvasNodeType {
   PLACEHOLDER = "PLACEHOLDER",
 }
 
-export interface PipelineCanvasNodeTableInfo {
+export interface PipelineCanvasNodeResourceInfo {
   name: string;
   isConnected: boolean;
 }

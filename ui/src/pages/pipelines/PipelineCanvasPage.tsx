@@ -20,6 +20,7 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
+  PIPELINE_CANVAS_EDGE_Z_INDEX,
   PIPELINE_CANVAS_FIT_VIEW_OPTIONS,
   PIPELINE_CANVAS_SNAP_GRID,
 } from "@/pages/pipelines/canvas/constants";
@@ -56,6 +57,10 @@ const PipelineCanvasPageWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabM
   flex: 1;
   min-width: 0;
   height: 100%;
+
+  .react-flow__edges {
+    z-index: ${PIPELINE_CANVAS_EDGE_Z_INDEX};
+  }
 
   .react-flow__selection {
     background: color-mix(

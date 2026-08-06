@@ -31,9 +31,9 @@ const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
 };
 
 const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
-  [ConnectorTileSize.SMALL]: 16,
-  [ConnectorTileSize.MEDIUM]: 18,
-  [ConnectorTileSize.LARGE]: 21,
+  [ConnectorTileSize.SMALL]: 14,
+  [ConnectorTileSize.MEDIUM]: 16,
+  [ConnectorTileSize.LARGE]: 24,
 };
 
 const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> = {

@@ -1,7 +1,7 @@
 import { type PropsWithChildren, useCallback } from "react";
 
 import { styled } from "@linaria/react";
-import { ArrowsClockwiseIcon, GearSixIcon, TrashIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -12,8 +12,6 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
-import { getPipelineScopedFields } from "@/components/fields/utils";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
@@ -76,28 +74,23 @@ interface PipelineCanvasNodeProps extends PropsWithChildren {
   connector: string;
   label: string;
   kind: ConnectorKind;
-  isConnected?: boolean;
-  isSelected?: boolean;
+  isConnected: boolean;
+  isSelected: boolean;
   onRefresh?: () => void;
   onDelete?: () => void;
-  onConfigure?: () => void;
 }
 
 const PipelineCanvasNode = ({
   connector,
   label,
   kind,
-  isConnected = false,
-  isSelected = false,
+  isConnected,
+  isSelected,
   onRefresh,
   onDelete,
-  onConfigure,
   children,
 }: PipelineCanvasNodeProps) => {
   const connectorSpec = useConnectorSpec(connector, kind);
-
-  const hasPipelineFields =
-    getPipelineScopedFields(connectorSpec?.configSchema?.fields ?? []).length > 0;
 
   const handleRefresh = useCallback(
     (event: React.MouseEvent) => {
@@ -124,11 +117,6 @@ const PipelineCanvasNode = ({
           size={ChipSize.SMALL}
         />
         <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
-          {onConfigure && hasPipelineFields && (
-            <ActionButton className="nodrag" onClick={onConfigure}>
-              <Icon component={GearSixIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
-          )}
           {onRefresh && (
             <ActionButton className="nodrag" onClick={handleRefresh}>
               <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />

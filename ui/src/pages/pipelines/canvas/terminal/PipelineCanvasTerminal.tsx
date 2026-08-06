@@ -41,7 +41,7 @@ const TerminalWrapper = styled.div`
 
 const HeaderBar = withTheme(styled.div<PropsWithTheme<{ $isOpen: boolean }>>`
   width: ${({ $isOpen }) => ($isOpen ? "100%" : `${PIPELINE_CANVAS_TERMINAL_NOTCH_WIDTH}px`)};
-  padding: 8px 12px;
+  padding: 8px 8px 8px 12px;
 
   background-color: ${({ theme }) => theme.color.background.primary};
   border: 0.5px solid ${({ theme }) => theme.color.border.primary};
@@ -133,7 +133,7 @@ const PipelineCanvasTerminal = () => {
                   <Button
                     key="expand"
                     icon={ArrowsOutSimpleIcon}
-                    variant={ButtonVariant.TERTIARY}
+                    variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     onClick={() => setActivityOpen(true)}
                   />,

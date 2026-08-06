@@ -1,6 +1,5 @@
 import type { Theme } from "@galaxy-io/dls/theme/types";
 
-import { PIPELINE_CANVAS_EDGE_Z_INDEX } from "@/pages/pipelines/canvas/constants";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 
 export const mapEdgesToStyledEdges = (
@@ -17,7 +16,6 @@ export const mapEdgesToStyledEdges = (
 
     return {
       ...edge,
-      zIndex: PIPELINE_CANVAS_EDGE_Z_INDEX,
       style: {
         stroke: isHighlighted ? theme.color.background.galaxy : theme.color.border.primary,
         strokeWidth: edge.selected ? 3 : 2,
