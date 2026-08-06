@@ -44,6 +44,36 @@ func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	}
 }
 
+func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	request := filament.RunRequest{
+		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink/cdc",
+		IngestionType: filament.IngestionCDC,
+	}
+	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
+		t.Fatal(err)
+	}
+	m := New()
+	m.ds = store
+	cp := checkpoint.NewStreamDelta("users", "0/16B6C50", 8)
+	m.cp[ckKey{run: "run-a", resource: "users"}] = cp
+	m.flushRun(ctx, "run-a", false)
+	key, _ := request.ResourceCheckpointKey("users")
+	if _, err := store.LoadResourceCheckpoint(ctx, key); err == nil {
+		t.Fatal("partial CDC run persisted a tentative checkpoint")
+	}
+	m.flushRun(ctx, "run-a", true)
+	stored, err := store.LoadResourceCheckpoint(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lsn, _, ok := checkpoint.ParseStream(stored.Checkpoint)
+	if !ok || lsn != "0/16B6C50" {
+		t.Fatalf("stored CDC checkpoint = %#v", stored.Checkpoint)
+	}
+}
+
 func TestCompletedBackfillPromotesInitialWatermark(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()

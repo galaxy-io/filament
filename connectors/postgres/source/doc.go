@@ -6,7 +6,7 @@
 //	pg_stats.correlation for the leading PK column
 //	  ↓ (between -1 and 1; 1 = rows are physically in key order; 0 = random)
 //
-//	Is this a CDC run with a logical slot available?  → ModeSlot     (not yet existing)
+//	Is this a CDC run with a logical slot available?  → ModeSlot
 //	Is the table declared append-only?                → ModeCtidAppendOnly (no xmin, just blocks)
 //	|correlation| >= 0.8?                             → ModeKeyset   (index scan already near-sequential)
 //	PK is mutable (rows can change their key)?        → ModeCtidXmin (physical blocks + repair pass)
@@ -51,8 +51,8 @@
 //     route here explicitly.)
 //
 //   - ModeSlot — a logical replication slot pins an LSN so updated/moved rows return via
-//     WAL replay. Correct for as-of-completion semantics and CDC. (Arrives with CDC; the
-//     router will prefer this when slot + CDC are both available.)
+//     WAL replay. Correct for as-of-completion semantics and CDC. The CDC extractor uses
+//     this tier through a persistent pgoutput logical replication slot.
 //
 // # Decision table
 //

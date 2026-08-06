@@ -362,9 +362,9 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	}
 }
 
-// flushRun persists every accumulated cursor for the run. Incremental cursors
-// become durable only after a successful sink commit; other cursor modes retain
-// their existing attempt-local resume behavior.
+// flushRun persists every accumulated cursor for the run. Incremental and CDC
+// cursors become durable only after a successful sink commit; other cursor modes
+// retain their existing attempt-local resume behavior.
 func (m *Module) flushRun(ctx context.Context, run filament.RunID, committed bool) {
 	m.mu.Lock()
 	pending := make(map[string]filament.Checkpoint)
@@ -400,8 +400,8 @@ func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
 	return n
 }
 
-// saveCheckpoint persists attempt-local progress. Incremental progress remains
-// tentative until the sink commits and commitCheckpoint promotes it.
+// saveCheckpoint persists attempt-local progress. Cross-run incremental and CDC
+// progress remains tentative until the sink commits and commitCheckpoint promotes it.
 func (m *Module) saveCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
 	return m.persistCheckpoint(ctx, run, cp, false)
 }
@@ -415,7 +415,8 @@ func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp f
 	if err != nil {
 		return err
 	}
-	if filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode == filament.ModeIncremental {
+	mode := filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode
+	if mode == filament.ModeIncremental || mode == filament.ModeCDC {
 		if !committed {
 			return nil
 		}
@@ -428,14 +429,16 @@ func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp f
 
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.
 func (m *Module) loadCheckpoint(ctx context.Context, run filament.RunID, resource string) filament.Checkpoint {
-	if state, err := m.ds.LoadRun(ctx, run); err == nil &&
-		filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode == filament.ModeIncremental {
-		if key, ok := state.Request.ResourceCheckpointKey(resource); ok {
-			stored, err := m.ds.LoadResourceCheckpoint(ctx, key)
-			if err == nil {
-				return stored.Checkpoint
+	if state, err := m.ds.LoadRun(ctx, run); err == nil {
+		mode := filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode
+		if mode == filament.ModeIncremental || mode == filament.ModeCDC {
+			if key, ok := state.Request.ResourceCheckpointKey(resource); ok {
+				stored, err := m.ds.LoadResourceCheckpoint(ctx, key)
+				if err == nil {
+					return stored.Checkpoint
+				}
+				return nil
 			}
-			return nil
 		}
 	}
 	cp, err := m.ds.LoadCheckpoint(ctx, run, resource)

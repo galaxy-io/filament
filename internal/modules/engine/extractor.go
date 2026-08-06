@@ -101,7 +101,15 @@ func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec
 func (m *Module) loadChangeCheckpoints(ctx context.Context, spec filament.RunSpec) (map[string]filament.Checkpoint, error) {
 	out := make(map[string]filament.Checkpoint, len(spec.Resources))
 	for _, resource := range spec.Resources {
-		cp, err := m.ds.LoadCheckpoint(ctx, spec.Run, resource)
+		var cp filament.Checkpoint
+		var err error
+		if key, ok := spec.ResourceCheckpointKey(resource); ok {
+			var state filament.ResourceCheckpointState
+			state, err = m.ds.LoadResourceCheckpoint(ctx, key)
+			cp = state.Checkpoint
+		} else {
+			cp, err = m.ds.LoadCheckpoint(ctx, spec.Run, resource)
+		}
 		if err == nil {
 			out[resource] = cp
 			continue
