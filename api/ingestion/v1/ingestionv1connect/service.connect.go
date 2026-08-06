@@ -66,6 +66,12 @@ const (
 	// IngestionServiceDeleteConnectionProcedure is the fully-qualified name of the IngestionService's
 	// DeleteConnection RPC.
 	IngestionServiceDeleteConnectionProcedure = "/ingestion.v1.IngestionService/DeleteConnection"
+	// IngestionServiceGetConnectionCapabilitiesProcedure is the fully-qualified name of the
+	// IngestionService's GetConnectionCapabilities RPC.
+	IngestionServiceGetConnectionCapabilitiesProcedure = "/ingestion.v1.IngestionService/GetConnectionCapabilities"
+	// IngestionServiceValidatePipelineProcedure is the fully-qualified name of the IngestionService's
+	// ValidatePipeline RPC.
+	IngestionServiceValidatePipelineProcedure = "/ingestion.v1.IngestionService/ValidatePipeline"
 	// IngestionServiceCreatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// CreatePipeline RPC.
 	IngestionServiceCreatePipelineProcedure = "/ingestion.v1.IngestionService/CreatePipeline"
@@ -138,6 +144,9 @@ type IngestionServiceClient interface {
 	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
 	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
+	// Capabilities; what a connection supports and whether a graph can run.
+	GetConnectionCapabilities(context.Context, *connect.Request[v1.GetConnectionCapabilitiesRequest]) (*connect.Response[v1.GetConnectionCapabilitiesResponse], error)
+	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -237,6 +246,18 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceDeleteConnectionProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
+			connect.WithClientOptions(opts...),
+		),
+		getConnectionCapabilities: connect.NewClient[v1.GetConnectionCapabilitiesRequest, v1.GetConnectionCapabilitiesResponse](
+			httpClient,
+			baseURL+IngestionServiceGetConnectionCapabilitiesProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetConnectionCapabilities")),
+			connect.WithClientOptions(opts...),
+		),
+		validatePipeline: connect.NewClient[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse](
+			httpClient,
+			baseURL+IngestionServiceValidatePipelineProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ValidatePipeline")),
 			connect.WithClientOptions(opts...),
 		),
 		createPipeline: connect.NewClient[v1.CreatePipelineRequest, v1.CreatePipelineResponse](
@@ -352,35 +373,37 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // ingestionServiceClient implements IngestionServiceClient.
 type ingestionServiceClient struct {
-	listConnectors         *connect.Client[v1.ListConnectorsRequest, v1.ListConnectorsResponse]
-	validateConfig         *connect.Client[v1.ValidateConfigRequest, v1.ValidateConfigResponse]
-	discoverResources      *connect.Client[v1.DiscoverResourcesRequest, v1.DiscoverResourcesResponse]
-	getResourceColumns     *connect.Client[v1.GetResourceColumnsRequest, v1.GetResourceColumnsResponse]
-	putSecret              *connect.Client[v1.PutSecretRequest, v1.PutSecretResponse]
-	deleteSecret           *connect.Client[v1.DeleteSecretRequest, v1.DeleteSecretResponse]
-	createConnection       *connect.Client[v1.CreateConnectionRequest, v1.CreateConnectionResponse]
-	updateConnection       *connect.Client[v1.UpdateConnectionRequest, v1.UpdateConnectionResponse]
-	getConnection          *connect.Client[v1.GetConnectionRequest, v1.GetConnectionResponse]
-	listConnections        *connect.Client[v1.ListConnectionsRequest, v1.ListConnectionsResponse]
-	deleteConnection       *connect.Client[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse]
-	createPipeline         *connect.Client[v1.CreatePipelineRequest, v1.CreatePipelineResponse]
-	createPipelineVersion  *connect.Client[v1.CreatePipelineVersionRequest, v1.CreatePipelineVersionResponse]
-	updatePipeline         *connect.Client[v1.UpdatePipelineRequest, v1.UpdatePipelineResponse]
-	getPipeline            *connect.Client[v1.GetPipelineRequest, v1.GetPipelineResponse]
-	getPipelineVersion     *connect.Client[v1.GetPipelineVersionRequest, v1.GetPipelineVersionResponse]
-	listPipelineVersions   *connect.Client[v1.ListPipelineVersionsRequest, v1.ListPipelineVersionsResponse]
-	listPipelines          *connect.Client[v1.ListPipelinesRequest, v1.ListPipelinesResponse]
-	deletePipeline         *connect.Client[v1.DeletePipelineRequest, v1.DeletePipelineResponse]
-	createPipelineSchedule *connect.Client[v1.CreatePipelineScheduleRequest, v1.CreatePipelineScheduleResponse]
-	updatePipelineSchedule *connect.Client[v1.UpdatePipelineScheduleRequest, v1.UpdatePipelineScheduleResponse]
-	deletePipelineSchedule *connect.Client[v1.DeletePipelineScheduleRequest, v1.DeletePipelineScheduleResponse]
-	pausePipelineSchedule  *connect.Client[v1.PausePipelineScheduleRequest, v1.PausePipelineScheduleResponse]
-	resumePipelineSchedule *connect.Client[v1.ResumePipelineScheduleRequest, v1.ResumePipelineScheduleResponse]
-	runPipeline            *connect.Client[v1.RunPipelineRequest, v1.RunPipelineResponse]
-	listRuns               *connect.Client[v1.ListRunsRequest, v1.ListRunsResponse]
-	getRun                 *connect.Client[v1.GetRunRequest, v1.GetRunResponse]
-	signalRun              *connect.Client[v1.SignalRunRequest, v1.SignalRunResponse]
-	tailRun                *connect.Client[v1.TailRunRequest, v1.TailRunResponse]
+	listConnectors            *connect.Client[v1.ListConnectorsRequest, v1.ListConnectorsResponse]
+	validateConfig            *connect.Client[v1.ValidateConfigRequest, v1.ValidateConfigResponse]
+	discoverResources         *connect.Client[v1.DiscoverResourcesRequest, v1.DiscoverResourcesResponse]
+	getResourceColumns        *connect.Client[v1.GetResourceColumnsRequest, v1.GetResourceColumnsResponse]
+	putSecret                 *connect.Client[v1.PutSecretRequest, v1.PutSecretResponse]
+	deleteSecret              *connect.Client[v1.DeleteSecretRequest, v1.DeleteSecretResponse]
+	createConnection          *connect.Client[v1.CreateConnectionRequest, v1.CreateConnectionResponse]
+	updateConnection          *connect.Client[v1.UpdateConnectionRequest, v1.UpdateConnectionResponse]
+	getConnection             *connect.Client[v1.GetConnectionRequest, v1.GetConnectionResponse]
+	listConnections           *connect.Client[v1.ListConnectionsRequest, v1.ListConnectionsResponse]
+	deleteConnection          *connect.Client[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse]
+	getConnectionCapabilities *connect.Client[v1.GetConnectionCapabilitiesRequest, v1.GetConnectionCapabilitiesResponse]
+	validatePipeline          *connect.Client[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse]
+	createPipeline            *connect.Client[v1.CreatePipelineRequest, v1.CreatePipelineResponse]
+	createPipelineVersion     *connect.Client[v1.CreatePipelineVersionRequest, v1.CreatePipelineVersionResponse]
+	updatePipeline            *connect.Client[v1.UpdatePipelineRequest, v1.UpdatePipelineResponse]
+	getPipeline               *connect.Client[v1.GetPipelineRequest, v1.GetPipelineResponse]
+	getPipelineVersion        *connect.Client[v1.GetPipelineVersionRequest, v1.GetPipelineVersionResponse]
+	listPipelineVersions      *connect.Client[v1.ListPipelineVersionsRequest, v1.ListPipelineVersionsResponse]
+	listPipelines             *connect.Client[v1.ListPipelinesRequest, v1.ListPipelinesResponse]
+	deletePipeline            *connect.Client[v1.DeletePipelineRequest, v1.DeletePipelineResponse]
+	createPipelineSchedule    *connect.Client[v1.CreatePipelineScheduleRequest, v1.CreatePipelineScheduleResponse]
+	updatePipelineSchedule    *connect.Client[v1.UpdatePipelineScheduleRequest, v1.UpdatePipelineScheduleResponse]
+	deletePipelineSchedule    *connect.Client[v1.DeletePipelineScheduleRequest, v1.DeletePipelineScheduleResponse]
+	pausePipelineSchedule     *connect.Client[v1.PausePipelineScheduleRequest, v1.PausePipelineScheduleResponse]
+	resumePipelineSchedule    *connect.Client[v1.ResumePipelineScheduleRequest, v1.ResumePipelineScheduleResponse]
+	runPipeline               *connect.Client[v1.RunPipelineRequest, v1.RunPipelineResponse]
+	listRuns                  *connect.Client[v1.ListRunsRequest, v1.ListRunsResponse]
+	getRun                    *connect.Client[v1.GetRunRequest, v1.GetRunResponse]
+	signalRun                 *connect.Client[v1.SignalRunRequest, v1.SignalRunResponse]
+	tailRun                   *connect.Client[v1.TailRunRequest, v1.TailRunResponse]
 }
 
 // ListConnectors calls ingestion.v1.IngestionService.ListConnectors.
@@ -436,6 +459,16 @@ func (c *ingestionServiceClient) ListConnections(ctx context.Context, req *conne
 // DeleteConnection calls ingestion.v1.IngestionService.DeleteConnection.
 func (c *ingestionServiceClient) DeleteConnection(ctx context.Context, req *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
 	return c.deleteConnection.CallUnary(ctx, req)
+}
+
+// GetConnectionCapabilities calls ingestion.v1.IngestionService.GetConnectionCapabilities.
+func (c *ingestionServiceClient) GetConnectionCapabilities(ctx context.Context, req *connect.Request[v1.GetConnectionCapabilitiesRequest]) (*connect.Response[v1.GetConnectionCapabilitiesResponse], error) {
+	return c.getConnectionCapabilities.CallUnary(ctx, req)
+}
+
+// ValidatePipeline calls ingestion.v1.IngestionService.ValidatePipeline.
+func (c *ingestionServiceClient) ValidatePipeline(ctx context.Context, req *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {
+	return c.validatePipeline.CallUnary(ctx, req)
 }
 
 // CreatePipeline calls ingestion.v1.IngestionService.CreatePipeline.
@@ -545,6 +578,9 @@ type IngestionServiceHandler interface {
 	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
 	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
+	// Capabilities; what a connection supports and whether a graph can run.
+	GetConnectionCapabilities(context.Context, *connect.Request[v1.GetConnectionCapabilitiesRequest]) (*connect.Response[v1.GetConnectionCapabilitiesResponse], error)
+	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -640,6 +676,18 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceDeleteConnectionProcedure,
 		svc.DeleteConnection,
 		connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceGetConnectionCapabilitiesHandler := connect.NewUnaryHandler(
+		IngestionServiceGetConnectionCapabilitiesProcedure,
+		svc.GetConnectionCapabilities,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetConnectionCapabilities")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceValidatePipelineHandler := connect.NewUnaryHandler(
+		IngestionServiceValidatePipelineProcedure,
+		svc.ValidatePipeline,
+		connect.WithSchema(ingestionServiceMethods.ByName("ValidatePipeline")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceCreatePipelineHandler := connect.NewUnaryHandler(
@@ -774,6 +822,10 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceListConnectionsHandler.ServeHTTP(w, r)
 		case IngestionServiceDeleteConnectionProcedure:
 			ingestionServiceDeleteConnectionHandler.ServeHTTP(w, r)
+		case IngestionServiceGetConnectionCapabilitiesProcedure:
+			ingestionServiceGetConnectionCapabilitiesHandler.ServeHTTP(w, r)
+		case IngestionServiceValidatePipelineProcedure:
+			ingestionServiceValidatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineProcedure:
 			ingestionServiceCreatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineVersionProcedure:
@@ -861,6 +913,14 @@ func (UnimplementedIngestionServiceHandler) ListConnections(context.Context, *co
 
 func (UnimplementedIngestionServiceHandler) DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.DeleteConnection is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetConnectionCapabilities(context.Context, *connect.Request[v1.GetConnectionCapabilitiesRequest]) (*connect.Response[v1.GetConnectionCapabilitiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetConnectionCapabilities is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ValidatePipeline is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error) {
