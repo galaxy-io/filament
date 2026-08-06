@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/capabilities.proto.
  */
 export const file_ingestion_v1_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiQQogR2V0Q29ubmVjdGlvbkNhcGFiaWxpdGllc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJImAKEEluZ2VzdGlvblN1cHBvcnQSKQoEdHlwZRgBIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhEKCXN1cHBvcnRlZBgCIAEoCBIOCgZyZWFzb24YAyABKAkixgEKIUdldENvbm5lY3Rpb25DYXBhYmlsaXRpZXNSZXNwb25zZRIRCgljb25uZWN0b3IYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEjAKDGNhcGFiaWxpdGllcxgDIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSMQoJaW5nZXN0aW9uGAQgAygLMh4uaW5nZXN0aW9uLnYxLkluZ2VzdGlvblN1cHBvcnQiggEKF1ZhbGlkYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgVub2RlcxgCIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYAyADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIlMKDkNhbmRpZGF0ZVZhbHVlEg0KBXZhbHVlGAEgASgJEhMKC3JlY29tbWVuZGVkGAIgASgIEgwKBHJhbmsYAyABKAUSDwoHd2FybmluZxgEIAEoCSKPAQoLUmVxdWlyZW1lbnQSKwoEa2luZBgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudEtpbmQSEAoIcmVzb3VyY2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIwCgpjYW5kaWRhdGVzGAQgAygLMhwuaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVZhbHVlIuYBCg5FZGdlVmFsaWRhdGlvbhIRCglmcm9tX25vZGUYASABKAkSDwoHdG9fbm9kZRgCIAEoCRIQCghyZXNvdXJjZRgDIAEoCRI+ChlzdXBwb3J0ZWRfaW5nZXN0aW9uX3R5cGVzGAQgAygOMhsuaW5nZXN0aW9uLnYxLkluZ2VzdGlvblR5cGUSLQoGZXJyb3JzGAUgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchIvCgxyZXF1aXJlbWVudHMYBiADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQihQEKGFZhbGlkYXRlUGlwZWxpbmVSZXNwb25zZRINCgV2YWxpZBgBIAEoCBIrCgVlZGdlcxgCIAMoCzIcLmluZ2VzdGlvbi52MS5FZGdlVmFsaWRhdGlvbhItCgZlcnJvcnMYAyADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yKnkKD1JlcXVpcmVtZW50S2luZBIgChxSRVFVSVJFTUVOVF9LSU5EX1VOU1BFQ0lGSUVEEAASIgoeUkVRVUlSRU1FTlRfS0lORF9DVVJTT1JfQ09MVU1OEAESIAocUkVRVUlSRU1FTlRfS0lORF9QUklNQVJZX0tFWRACYgZwcm90bzM", [file_ingestion_v1_common, file_ingestion_v1_pipelines, file_ingestion_v1_providers]);
+  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiQQogR2V0Q29ubmVjdGlvbkNhcGFiaWxpdGllc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJImAKEEluZ2VzdGlvblN1cHBvcnQSKQoEdHlwZRgBIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhEKCXN1cHBvcnRlZBgCIAEoCBIOCgZyZWFzb24YAyABKAkixgEKIUdldENvbm5lY3Rpb25DYXBhYmlsaXRpZXNSZXNwb25zZRIRCgljb25uZWN0b3IYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEjAKDGNhcGFiaWxpdGllcxgDIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSMQoJaW5nZXN0aW9uGAQgAygLMh4uaW5nZXN0aW9uLnYxLkluZ2VzdGlvblN1cHBvcnQiggEKF1ZhbGlkYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgVub2RlcxgCIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYAyADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIlMKDkNhbmRpZGF0ZVZhbHVlEg0KBXZhbHVlGAEgASgJEhMKC3JlY29tbWVuZGVkGAIgASgIEgwKBHJhbmsYAyABKAUSDwoHd2FybmluZxgEIAEoCSLtAQoLUmVxdWlyZW1lbnQSKwoEa2luZBgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudEtpbmQSEAoIcmVzb3VyY2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIwCgpjYW5kaWRhdGVzGAQgAygLMhwuaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVZhbHVlEhEKCXNhdGlzZmllZBgFIAEoCBIQCghibG9ja2luZxgGIAEoCBI3ChBjYW5kaWRhdGVfc3RhdHVzGAcgASgOMh0uaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVN0YXR1cyKXAQoSUmVzb3VyY2VWYWxpZGF0aW9uEhAKCHJlc291cmNlGAEgASgJEj4KGXN1cHBvcnRlZF9pbmdlc3Rpb25fdHlwZXMYAiADKA4yGy5pbmdlc3Rpb24udjEuSW5nZXN0aW9uVHlwZRIvCgxyZXF1aXJlbWVudHMYAyADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQimwIKDkVkZ2VWYWxpZGF0aW9uEhEKCWZyb21fbm9kZRgBIAEoCRIPCgd0b19ub2RlGAIgASgJEhAKCHJlc291cmNlGAMgASgJEj4KGXN1cHBvcnRlZF9pbmdlc3Rpb25fdHlwZXMYBCADKA4yGy5pbmdlc3Rpb24udjEuSW5nZXN0aW9uVHlwZRItCgZlcnJvcnMYBSADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yEi8KDHJlcXVpcmVtZW50cxgGIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudBIzCglyZXNvdXJjZXMYByADKAsyIC5pbmdlc3Rpb24udjEuUmVzb3VyY2VWYWxpZGF0aW9uIoUBChhWYWxpZGF0ZVBpcGVsaW5lUmVzcG9uc2USDQoFdmFsaWQYASABKAgSKwoFZWRnZXMYAiADKAsyHC5pbmdlc3Rpb24udjEuRWRnZVZhbGlkYXRpb24SLQoGZXJyb3JzGAMgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvcip5Cg9SZXF1aXJlbWVudEtpbmQSIAocUkVRVUlSRU1FTlRfS0lORF9VTlNQRUNJRklFRBAAEiIKHlJFUVVJUkVNRU5UX0tJTkRfQ1VSU09SX0NPTFVNThABEiAKHFJFUVVJUkVNRU5UX0tJTkRfUFJJTUFSWV9LRVkQAiqaAQoPQ2FuZGlkYXRlU3RhdHVzEiAKHENBTkRJREFURV9TVEFUVVNfVU5TUEVDSUZJRUQQABIfChtDQU5ESURBVEVfU1RBVFVTX0VOVU1FUkFURUQQARIiCh5DQU5ESURBVEVfU1RBVFVTX05PVF9TVVBQT1JURUQQAhIgChxDQU5ESURBVEVfU1RBVFVTX1VOQVZBSUxBQkxFEANiBnByb3RvMw", [file_ingestion_v1_common, file_ingestion_v1_pipelines, file_ingestion_v1_providers]);
 
 /**
  * @generated from message ingestion.v1.GetConnectionCapabilitiesRequest
@@ -167,9 +167,10 @@ export const CandidateValueSchema: GenMessage<CandidateValue> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_capabilities, 4);
 
 /**
- * Requirement is configuration an edge still needs before it can run. An empty
- * resource applies to every resource the edge routes; empty candidates mean the
- * server could not enumerate choices.
+ * Requirement is configuration the chosen ingestion type involves. It is
+ * emitted whether or not the value is set so a picker can render from it:
+ * satisfied means the value is configured, blocking means the run would fail
+ * as-is. Unsatisfied and non-blocking means auto-detection covers it.
  *
  * @generated from message ingestion.v1.Requirement
  */
@@ -193,6 +194,21 @@ export type Requirement = Message<"ingestion.v1.Requirement"> & {
    * @generated from field: repeated ingestion.v1.CandidateValue candidates = 4;
    */
   candidates: CandidateValue[];
+
+  /**
+   * @generated from field: bool satisfied = 5;
+   */
+  satisfied: boolean;
+
+  /**
+   * @generated from field: bool blocking = 6;
+   */
+  blocking: boolean;
+
+  /**
+   * @generated from field: ingestion.v1.CandidateStatus candidate_status = 7;
+   */
+  candidateStatus: CandidateStatus;
 };
 
 /**
@@ -203,8 +219,42 @@ export const RequirementSchema: GenMessage<Requirement> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_capabilities, 5);
 
 /**
- * EdgeValidation is one edge's verdict: the ingestion types the pair supports,
- * hard errors, and unmet requirements.
+ * ResourceValidation is one routed table's verdict under the edge: the
+ * ingestion types this table can actually serve given its primary key and
+ * cursor reality, plus requirements for the edge's chosen type. Populated
+ * when the chosen type needs per-table setup; snapshot and append edges
+ * have nothing to configure.
+ *
+ * @generated from message ingestion.v1.ResourceValidation
+ */
+export type ResourceValidation = Message<"ingestion.v1.ResourceValidation"> & {
+  /**
+   * @generated from field: string resource = 1;
+   */
+  resource: string;
+
+  /**
+   * @generated from field: repeated ingestion.v1.IngestionType supported_ingestion_types = 2;
+   */
+  supportedIngestionTypes: IngestionType[];
+
+  /**
+   * @generated from field: repeated ingestion.v1.Requirement requirements = 3;
+   */
+  requirements: Requirement[];
+};
+
+/**
+ * Describes the message ingestion.v1.ResourceValidation.
+ * Use `create(ResourceValidationSchema)` to create a new message.
+ */
+export const ResourceValidationSchema: GenMessage<ResourceValidation> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_capabilities, 6);
+
+/**
+ * EdgeValidation is one edge's verdict: the ingestion types the pair supports
+ * at the spec level, hard errors, edge-scoped requirements, and the per-table
+ * breakdown.
  *
  * @generated from message ingestion.v1.EdgeValidation
  */
@@ -238,6 +288,11 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
    * @generated from field: repeated ingestion.v1.Requirement requirements = 6;
    */
   requirements: Requirement[];
+
+  /**
+   * @generated from field: repeated ingestion.v1.ResourceValidation resources = 7;
+   */
+  resources: ResourceValidation[];
 };
 
 /**
@@ -245,7 +300,7 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
  * Use `create(EdgeValidationSchema)` to create a new message.
  */
 export const EdgeValidationSchema: GenMessage<EdgeValidation> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 6);
+  messageDesc(file_ingestion_v1_capabilities, 7);
 
 /**
  * @generated from message ingestion.v1.ValidatePipelineResponse
@@ -274,7 +329,7 @@ export type ValidatePipelineResponse = Message<"ingestion.v1.ValidatePipelineRes
  * Use `create(ValidatePipelineResponseSchema)` to create a new message.
  */
 export const ValidatePipelineResponseSchema: GenMessage<ValidatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 7);
+  messageDesc(file_ingestion_v1_capabilities, 8);
 
 /**
  * @generated from enum ingestion.v1.RequirementKind
@@ -301,4 +356,43 @@ export enum RequirementKind {
  */
 export const RequirementKindSchema: GenEnum<RequirementKind> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_capabilities, 0);
+
+/**
+ * CandidateStatus says how to read an empty candidates list.
+ *
+ * @generated from enum ingestion.v1.CandidateStatus
+ */
+export enum CandidateStatus {
+  /**
+   * @generated from enum value: CANDIDATE_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The list is authoritative; empty means nothing qualifies.
+   *
+   * @generated from enum value: CANDIDATE_STATUS_ENUMERATED = 1;
+   */
+  ENUMERATED = 1,
+
+  /**
+   * The connector cannot enumerate candidates.
+   *
+   * @generated from enum value: CANDIDATE_STATUS_NOT_SUPPORTED = 2;
+   */
+  NOT_SUPPORTED = 2,
+
+  /**
+   * Enumeration failed or the routed resources could not be listed.
+   *
+   * @generated from enum value: CANDIDATE_STATUS_UNAVAILABLE = 3;
+   */
+  UNAVAILABLE = 3,
+}
+
+/**
+ * Describes the enum ingestion.v1.CandidateStatus.
+ */
+export const CandidateStatusSchema: GenEnum<CandidateStatus> = /*@__PURE__*/
+  enumDesc(file_ingestion_v1_capabilities, 1);
 

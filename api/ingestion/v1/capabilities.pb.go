@@ -70,6 +70,62 @@ func (RequirementKind) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{0}
 }
 
+// CandidateStatus says how to read an empty candidates list.
+type CandidateStatus int32
+
+const (
+	CandidateStatus_CANDIDATE_STATUS_UNSPECIFIED CandidateStatus = 0
+	// The list is authoritative; empty means nothing qualifies.
+	CandidateStatus_CANDIDATE_STATUS_ENUMERATED CandidateStatus = 1
+	// The connector cannot enumerate candidates.
+	CandidateStatus_CANDIDATE_STATUS_NOT_SUPPORTED CandidateStatus = 2
+	// Enumeration failed or the routed resources could not be listed.
+	CandidateStatus_CANDIDATE_STATUS_UNAVAILABLE CandidateStatus = 3
+)
+
+// Enum value maps for CandidateStatus.
+var (
+	CandidateStatus_name = map[int32]string{
+		0: "CANDIDATE_STATUS_UNSPECIFIED",
+		1: "CANDIDATE_STATUS_ENUMERATED",
+		2: "CANDIDATE_STATUS_NOT_SUPPORTED",
+		3: "CANDIDATE_STATUS_UNAVAILABLE",
+	}
+	CandidateStatus_value = map[string]int32{
+		"CANDIDATE_STATUS_UNSPECIFIED":   0,
+		"CANDIDATE_STATUS_ENUMERATED":    1,
+		"CANDIDATE_STATUS_NOT_SUPPORTED": 2,
+		"CANDIDATE_STATUS_UNAVAILABLE":   3,
+	}
+)
+
+func (x CandidateStatus) Enum() *CandidateStatus {
+	p := new(CandidateStatus)
+	*p = x
+	return p
+}
+
+func (x CandidateStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CandidateStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_ingestion_v1_capabilities_proto_enumTypes[1].Descriptor()
+}
+
+func (CandidateStatus) Type() protoreflect.EnumType {
+	return &file_ingestion_v1_capabilities_proto_enumTypes[1]
+}
+
+func (x CandidateStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CandidateStatus.Descriptor instead.
+func (CandidateStatus) EnumDescriptor() ([]byte, []int) {
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{1}
+}
+
 type GetConnectionCapabilitiesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -383,17 +439,21 @@ func (x *CandidateValue) GetWarning() string {
 	return ""
 }
 
-// Requirement is configuration an edge still needs before it can run. An empty
-// resource applies to every resource the edge routes; empty candidates mean the
-// server could not enumerate choices.
+// Requirement is configuration the chosen ingestion type involves. It is
+// emitted whether or not the value is set so a picker can render from it:
+// satisfied means the value is configured, blocking means the run would fail
+// as-is. Unsatisfied and non-blocking means auto-detection covers it.
 type Requirement struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          RequirementKind        `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.RequirementKind" json:"kind,omitempty"`
-	Resource      string                 `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
-	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	Candidates    []*CandidateValue      `protobuf:"bytes,4,rep,name=candidates,proto3" json:"candidates,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Kind            RequirementKind        `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.RequirementKind" json:"kind,omitempty"`
+	Resource        string                 `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
+	Message         string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Candidates      []*CandidateValue      `protobuf:"bytes,4,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	Satisfied       bool                   `protobuf:"varint,5,opt,name=satisfied,proto3" json:"satisfied,omitempty"`
+	Blocking        bool                   `protobuf:"varint,6,opt,name=blocking,proto3" json:"blocking,omitempty"`
+	CandidateStatus CandidateStatus        `protobuf:"varint,7,opt,name=candidate_status,json=candidateStatus,proto3,enum=ingestion.v1.CandidateStatus" json:"candidate_status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Requirement) Reset() {
@@ -454,8 +514,95 @@ func (x *Requirement) GetCandidates() []*CandidateValue {
 	return nil
 }
 
-// EdgeValidation is one edge's verdict: the ingestion types the pair supports,
-// hard errors, and unmet requirements.
+func (x *Requirement) GetSatisfied() bool {
+	if x != nil {
+		return x.Satisfied
+	}
+	return false
+}
+
+func (x *Requirement) GetBlocking() bool {
+	if x != nil {
+		return x.Blocking
+	}
+	return false
+}
+
+func (x *Requirement) GetCandidateStatus() CandidateStatus {
+	if x != nil {
+		return x.CandidateStatus
+	}
+	return CandidateStatus_CANDIDATE_STATUS_UNSPECIFIED
+}
+
+// ResourceValidation is one routed table's verdict under the edge: the
+// ingestion types this table can actually serve given its primary key and
+// cursor reality, plus requirements for the edge's chosen type. Populated
+// when the chosen type needs per-table setup; snapshot and append edges
+// have nothing to configure.
+type ResourceValidation struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Resource                string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	SupportedIngestionTypes []IngestionType        `protobuf:"varint,2,rep,packed,name=supported_ingestion_types,json=supportedIngestionTypes,proto3,enum=ingestion.v1.IngestionType" json:"supported_ingestion_types,omitempty"`
+	Requirements            []*Requirement         `protobuf:"bytes,3,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *ResourceValidation) Reset() {
+	*x = ResourceValidation{}
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourceValidation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourceValidation) ProtoMessage() {}
+
+func (x *ResourceValidation) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourceValidation.ProtoReflect.Descriptor instead.
+func (*ResourceValidation) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ResourceValidation) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *ResourceValidation) GetSupportedIngestionTypes() []IngestionType {
+	if x != nil {
+		return x.SupportedIngestionTypes
+	}
+	return nil
+}
+
+func (x *ResourceValidation) GetRequirements() []*Requirement {
+	if x != nil {
+		return x.Requirements
+	}
+	return nil
+}
+
+// EdgeValidation is one edge's verdict: the ingestion types the pair supports
+// at the spec level, hard errors, edge-scoped requirements, and the per-table
+// breakdown.
 type EdgeValidation struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	FromNode                string                 `protobuf:"bytes,1,opt,name=from_node,json=fromNode,proto3" json:"from_node,omitempty"`
@@ -464,13 +611,14 @@ type EdgeValidation struct {
 	SupportedIngestionTypes []IngestionType        `protobuf:"varint,4,rep,packed,name=supported_ingestion_types,json=supportedIngestionTypes,proto3,enum=ingestion.v1.IngestionType" json:"supported_ingestion_types,omitempty"`
 	Errors                  []*ValidationError     `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
 	Requirements            []*Requirement         `protobuf:"bytes,6,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	Resources               []*ResourceValidation  `protobuf:"bytes,7,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
 
 func (x *EdgeValidation) Reset() {
 	*x = EdgeValidation{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[6]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -482,7 +630,7 @@ func (x *EdgeValidation) String() string {
 func (*EdgeValidation) ProtoMessage() {}
 
 func (x *EdgeValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[6]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -495,7 +643,7 @@ func (x *EdgeValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EdgeValidation.ProtoReflect.Descriptor instead.
 func (*EdgeValidation) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{6}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EdgeValidation) GetFromNode() string {
@@ -540,6 +688,13 @@ func (x *EdgeValidation) GetRequirements() []*Requirement {
 	return nil
 }
 
+func (x *EdgeValidation) GetResources() []*ResourceValidation {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
 type ValidatePipelineResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Valid bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
@@ -552,7 +707,7 @@ type ValidatePipelineResponse struct {
 
 func (x *ValidatePipelineResponse) Reset() {
 	*x = ValidatePipelineResponse{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[7]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -564,7 +719,7 @@ func (x *ValidatePipelineResponse) String() string {
 func (*ValidatePipelineResponse) ProtoMessage() {}
 
 func (x *ValidatePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[7]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -577,7 +732,7 @@ func (x *ValidatePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidatePipelineResponse.ProtoReflect.Descriptor instead.
 func (*ValidatePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{7}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ValidatePipelineResponse) GetValid() bool {
@@ -626,21 +781,29 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12 \n" +
 	"\vrecommended\x18\x02 \x01(\bR\vrecommended\x12\x12\n" +
 	"\x04rank\x18\x03 \x01(\x05R\x04rank\x12\x18\n" +
-	"\awarning\x18\x04 \x01(\tR\awarning\"\xb4\x01\n" +
+	"\awarning\x18\x04 \x01(\tR\awarning\"\xb8\x02\n" +
 	"\vRequirement\x121\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1d.ingestion.v1.RequirementKindR\x04kind\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12<\n" +
 	"\n" +
 	"candidates\x18\x04 \x03(\v2\x1c.ingestion.v1.CandidateValueR\n" +
-	"candidates\"\xb1\x02\n" +
+	"candidates\x12\x1c\n" +
+	"\tsatisfied\x18\x05 \x01(\bR\tsatisfied\x12\x1a\n" +
+	"\bblocking\x18\x06 \x01(\bR\bblocking\x12H\n" +
+	"\x10candidate_status\x18\a \x01(\x0e2\x1d.ingestion.v1.CandidateStatusR\x0fcandidateStatus\"\xc8\x01\n" +
+	"\x12ResourceValidation\x12\x1a\n" +
+	"\bresource\x18\x01 \x01(\tR\bresource\x12W\n" +
+	"\x19supported_ingestion_types\x18\x02 \x03(\x0e2\x1b.ingestion.v1.IngestionTypeR\x17supportedIngestionTypes\x12=\n" +
+	"\frequirements\x18\x03 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\"\xf1\x02\n" +
 	"\x0eEdgeValidation\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x17\n" +
 	"\ato_node\x18\x02 \x01(\tR\x06toNode\x12\x1a\n" +
 	"\bresource\x18\x03 \x01(\tR\bresource\x12W\n" +
 	"\x19supported_ingestion_types\x18\x04 \x03(\x0e2\x1b.ingestion.v1.IngestionTypeR\x17supportedIngestionTypes\x125\n" +
 	"\x06errors\x18\x05 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\x12=\n" +
-	"\frequirements\x18\x06 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\"\x9b\x01\n" +
+	"\frequirements\x18\x06 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12>\n" +
+	"\tresources\x18\a \x03(\v2 .ingestion.v1.ResourceValidationR\tresources\"\x9b\x01\n" +
 	"\x18ValidatePipelineResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x122\n" +
 	"\x05edges\x18\x02 \x03(\v2\x1c.ingestion.v1.EdgeValidationR\x05edges\x125\n" +
@@ -648,7 +811,12 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\x0fRequirementKind\x12 \n" +
 	"\x1cREQUIREMENT_KIND_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eREQUIREMENT_KIND_CURSOR_COLUMN\x10\x01\x12 \n" +
-	"\x1cREQUIREMENT_KIND_PRIMARY_KEY\x10\x02B\xb2\x01\n" +
+	"\x1cREQUIREMENT_KIND_PRIMARY_KEY\x10\x02*\x9a\x01\n" +
+	"\x0fCandidateStatus\x12 \n" +
+	"\x1cCANDIDATE_STATUS_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bCANDIDATE_STATUS_ENUMERATED\x10\x01\x12\"\n" +
+	"\x1eCANDIDATE_STATUS_NOT_SUPPORTED\x10\x02\x12 \n" +
+	"\x1cCANDIDATE_STATUS_UNAVAILABLE\x10\x03B\xb2\x01\n" +
 	"\x10com.ingestion.v1B\x11CapabilitiesProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -663,44 +831,50 @@ func file_ingestion_v1_capabilities_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_capabilities_proto_rawDescData
 }
 
-var file_ingestion_v1_capabilities_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_ingestion_v1_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_ingestion_v1_capabilities_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_ingestion_v1_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_ingestion_v1_capabilities_proto_goTypes = []any{
 	(RequirementKind)(0),                      // 0: ingestion.v1.RequirementKind
-	(*GetConnectionCapabilitiesRequest)(nil),  // 1: ingestion.v1.GetConnectionCapabilitiesRequest
-	(*IngestionSupport)(nil),                  // 2: ingestion.v1.IngestionSupport
-	(*GetConnectionCapabilitiesResponse)(nil), // 3: ingestion.v1.GetConnectionCapabilitiesResponse
-	(*ValidatePipelineRequest)(nil),           // 4: ingestion.v1.ValidatePipelineRequest
-	(*CandidateValue)(nil),                    // 5: ingestion.v1.CandidateValue
-	(*Requirement)(nil),                       // 6: ingestion.v1.Requirement
-	(*EdgeValidation)(nil),                    // 7: ingestion.v1.EdgeValidation
-	(*ValidatePipelineResponse)(nil),          // 8: ingestion.v1.ValidatePipelineResponse
-	(IngestionType)(0),                        // 9: ingestion.v1.IngestionType
-	(ConnectorKind)(0),                        // 10: ingestion.v1.ConnectorKind
-	(*Capabilities)(nil),                      // 11: ingestion.v1.Capabilities
-	(*PipelineNode)(nil),                      // 12: ingestion.v1.PipelineNode
-	(*PipelineEdge)(nil),                      // 13: ingestion.v1.PipelineEdge
-	(*ValidationError)(nil),                   // 14: ingestion.v1.ValidationError
+	(CandidateStatus)(0),                      // 1: ingestion.v1.CandidateStatus
+	(*GetConnectionCapabilitiesRequest)(nil),  // 2: ingestion.v1.GetConnectionCapabilitiesRequest
+	(*IngestionSupport)(nil),                  // 3: ingestion.v1.IngestionSupport
+	(*GetConnectionCapabilitiesResponse)(nil), // 4: ingestion.v1.GetConnectionCapabilitiesResponse
+	(*ValidatePipelineRequest)(nil),           // 5: ingestion.v1.ValidatePipelineRequest
+	(*CandidateValue)(nil),                    // 6: ingestion.v1.CandidateValue
+	(*Requirement)(nil),                       // 7: ingestion.v1.Requirement
+	(*ResourceValidation)(nil),                // 8: ingestion.v1.ResourceValidation
+	(*EdgeValidation)(nil),                    // 9: ingestion.v1.EdgeValidation
+	(*ValidatePipelineResponse)(nil),          // 10: ingestion.v1.ValidatePipelineResponse
+	(IngestionType)(0),                        // 11: ingestion.v1.IngestionType
+	(ConnectorKind)(0),                        // 12: ingestion.v1.ConnectorKind
+	(*Capabilities)(nil),                      // 13: ingestion.v1.Capabilities
+	(*PipelineNode)(nil),                      // 14: ingestion.v1.PipelineNode
+	(*PipelineEdge)(nil),                      // 15: ingestion.v1.PipelineEdge
+	(*ValidationError)(nil),                   // 16: ingestion.v1.ValidationError
 }
 var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
-	9,  // 0: ingestion.v1.IngestionSupport.type:type_name -> ingestion.v1.IngestionType
-	10, // 1: ingestion.v1.GetConnectionCapabilitiesResponse.kind:type_name -> ingestion.v1.ConnectorKind
-	11, // 2: ingestion.v1.GetConnectionCapabilitiesResponse.capabilities:type_name -> ingestion.v1.Capabilities
-	2,  // 3: ingestion.v1.GetConnectionCapabilitiesResponse.ingestion:type_name -> ingestion.v1.IngestionSupport
-	12, // 4: ingestion.v1.ValidatePipelineRequest.nodes:type_name -> ingestion.v1.PipelineNode
-	13, // 5: ingestion.v1.ValidatePipelineRequest.edges:type_name -> ingestion.v1.PipelineEdge
+	11, // 0: ingestion.v1.IngestionSupport.type:type_name -> ingestion.v1.IngestionType
+	12, // 1: ingestion.v1.GetConnectionCapabilitiesResponse.kind:type_name -> ingestion.v1.ConnectorKind
+	13, // 2: ingestion.v1.GetConnectionCapabilitiesResponse.capabilities:type_name -> ingestion.v1.Capabilities
+	3,  // 3: ingestion.v1.GetConnectionCapabilitiesResponse.ingestion:type_name -> ingestion.v1.IngestionSupport
+	14, // 4: ingestion.v1.ValidatePipelineRequest.nodes:type_name -> ingestion.v1.PipelineNode
+	15, // 5: ingestion.v1.ValidatePipelineRequest.edges:type_name -> ingestion.v1.PipelineEdge
 	0,  // 6: ingestion.v1.Requirement.kind:type_name -> ingestion.v1.RequirementKind
-	5,  // 7: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
-	9,  // 8: ingestion.v1.EdgeValidation.supported_ingestion_types:type_name -> ingestion.v1.IngestionType
-	14, // 9: ingestion.v1.EdgeValidation.errors:type_name -> ingestion.v1.ValidationError
-	6,  // 10: ingestion.v1.EdgeValidation.requirements:type_name -> ingestion.v1.Requirement
-	7,  // 11: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
-	14, // 12: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	6,  // 7: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
+	1,  // 8: ingestion.v1.Requirement.candidate_status:type_name -> ingestion.v1.CandidateStatus
+	11, // 9: ingestion.v1.ResourceValidation.supported_ingestion_types:type_name -> ingestion.v1.IngestionType
+	7,  // 10: ingestion.v1.ResourceValidation.requirements:type_name -> ingestion.v1.Requirement
+	11, // 11: ingestion.v1.EdgeValidation.supported_ingestion_types:type_name -> ingestion.v1.IngestionType
+	16, // 12: ingestion.v1.EdgeValidation.errors:type_name -> ingestion.v1.ValidationError
+	7,  // 13: ingestion.v1.EdgeValidation.requirements:type_name -> ingestion.v1.Requirement
+	8,  // 14: ingestion.v1.EdgeValidation.resources:type_name -> ingestion.v1.ResourceValidation
+	9,  // 15: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
+	16, // 16: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_capabilities_proto_init() }
@@ -716,8 +890,8 @@ func file_ingestion_v1_capabilities_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_capabilities_proto_rawDesc), len(file_ingestion_v1_capabilities_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   8,
+			NumEnums:      2,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
