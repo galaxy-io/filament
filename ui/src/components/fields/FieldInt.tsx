@@ -1,7 +1,7 @@
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import NumberInput from "@galaxy-io/dls/inputs/NumberInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 
 const FieldInt = ({
   field,

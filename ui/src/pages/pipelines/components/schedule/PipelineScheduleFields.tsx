@@ -90,30 +90,18 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
         </FlexWrapper>
       </Widget>
       <Widget noHover fillWidth>
-<<<<<<< Updated upstream:ui/src/pages/pipelines/components/schedule/PipelineScheduleFields.tsx
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
-=======
-        <FlexWrapper
-          direction={FlexDirection.COLUMN}
-          gap={FlexGap.MEDIUM}
-          fillWidth
-        >
->>>>>>> Stashed changes:ui/src/pages/pipelines/components/schedule/PipelineScheduleWidget.tsx
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
           <FlexWrapper
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Frequency</Text>
-<<<<<<< Updated upstream:ui/src/pages/pipelines/components/schedule/PipelineScheduleFields.tsx
-            <SwitcherInput items={frequencyItems} selectedId={state.frequency} />
-=======
             <SwitcherInput
               items={frequencyItems}
               size={InputSize.LARGE}
               selectedId={state.frequency}
             />
->>>>>>> Stashed changes:ui/src/pages/pipelines/components/schedule/PipelineScheduleWidget.tsx
           </FlexWrapper>
           {state.frequency === PipelineScheduleFrequency.WEEKLY && (
             <FlexWrapper

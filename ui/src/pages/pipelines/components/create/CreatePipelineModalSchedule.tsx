@@ -17,13 +17,8 @@ const CreatePipelineModalSchedule = ({
   const summary = formatPipelineScheduleSummary(schedule);
 
   return (
-<<<<<<< Updated upstream
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
-      <PipelineScheduleFields state={schedule} onChange={onScheduleChange} />
-=======
     <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-      <PipelineScheduleWidget state={schedule} onChange={onScheduleChange} />
->>>>>>> Stashed changes
+      <PipelineScheduleFields state={schedule} onChange={onScheduleChange} />
       {schedule.isEnabled && summary && (
         <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
           {summary}
