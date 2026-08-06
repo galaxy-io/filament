@@ -36,6 +36,7 @@ type Sink struct {
 type table struct {
 	qualified string
 	insertSQL string
+	deleteSQL string
 }
 
 const defaultSchema = "public"
@@ -71,6 +72,7 @@ func (t *Sink) Spec() filament.SinkSpec {
 				filament.IngestionAppend,
 				filament.IngestionSnapshotUpsert,
 				filament.IngestionUpsert,
+				filament.IngestionCDC,
 			),
 		},
 	}
@@ -91,7 +93,9 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		t.schema = v
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert || run.IngestionType == filament.IngestionUpsert
+	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert ||
+		run.IngestionType == filament.IngestionUpsert ||
+		run.IngestionType == filament.IngestionCDC
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
@@ -129,6 +133,11 @@ func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyO
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
 		return t.Write(ctx, b)
+	case filament.WriteMerge:
+		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
+			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
+		}
+		return t.writeMerge(ctx, b)
 	default:
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
@@ -193,8 +202,30 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 		insertSQL: fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM jsonb_to_recordset($1::jsonb) AS x(%s)%s",
 			qualified, strings.Join(idents, ", "), strings.Join(idents, ", "), strings.Join(recordset, ", "),
 			onConflict(upsert, schema)),
+		deleteSQL: deleteUsingSQL(qualified, schema),
 	}
 	return nil
+}
+
+// deleteUsingSQL expands a delete run's before images on primary-key columns
+// only, then deletes matching destination rows in one statement.
+func deleteUsingSQL(qualified string, schema filament.RecordSchema) string {
+	if len(schema.PrimaryKey) == 0 {
+		return ""
+	}
+	fields := make(map[string]filament.SchemaField, len(schema.Fields))
+	for _, field := range schema.Fields {
+		fields[field.Name] = field
+	}
+	recordset := make([]string, len(schema.PrimaryKey))
+	where := make([]string, len(schema.PrimaryKey))
+	for i, name := range schema.PrimaryKey {
+		id := pgx.Identifier{name}.Sanitize()
+		recordset[i] = id + " " + postgresColumnType(fields[name])
+		where[i] = "t." + id + " = x." + id
+	}
+	return fmt.Sprintf("DELETE FROM %s AS t USING jsonb_to_recordset($1::jsonb) AS x(%s) WHERE %s",
+		qualified, strings.Join(recordset, ", "), strings.Join(where, " AND "))
 }
 
 func postgresColumnType(f filament.SchemaField) string {
@@ -315,6 +346,73 @@ func (t *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 		Rows:     int(n),
 		WriteCRC: crc,
 	}, nil
+}
+
+// writeMerge applies CDC records in arrival order. Maximal delete/non-delete
+// runs become batched statements, and one database transaction makes the whole
+// Filament batch atomic before its WAL checkpoint can be committed.
+func (t *Sink) writeMerge(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
+	if t.pool == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
+	}
+	tbl := t.tables[b.Resource]
+	if tbl == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
+	}
+	tx, err := t.pool.Begin(ctx)
+	if err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: begin merge: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+
+	var nbytes int64
+	rows := 0
+	recs := b.Records
+	for len(recs) > 0 {
+		deleting := recs[0].Op == filament.OpDelete
+		n := 1
+		for n < len(recs) && (recs[n].Op == filament.OpDelete) == deleting {
+			n++
+		}
+		run := recs[:n]
+		recs = recs[n:]
+		buf, runBytes := frameJSONArray(run)
+		nbytes += runBytes
+		stmt := tbl.insertSQL
+		if deleting {
+			stmt = tbl.deleteSQL
+			if stmt == "" {
+				return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge delete on keyless resource %q", b.Resource)
+			}
+		}
+		if _, err := tx.Exec(ctx, stmt, string(buf)); err != nil {
+			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge %s seq %d: %w", b.Resource, b.Seq, err)
+		}
+		rows += len(run)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: commit merge %s seq %d: %w", b.Resource, b.Seq, err)
+	}
+	t.written.Add(int64(rows))
+	crc, _ := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{
+		URI: fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource), Bytes: nbytes,
+		Rows: rows, WriteCRC: crc,
+	}, nil
+}
+
+func frameJSONArray(recs []filament.Record) ([]byte, int64) {
+	var nbytes int64
+	buf := make([]byte, 0, batchBufHint(recs))
+	buf = append(buf, '[')
+	for i := range recs {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, recs[i].Data...)
+		nbytes += int64(len(recs[i].Data))
+	}
+	return append(buf, ']'), nbytes
 }
 
 // batchBufHint sizes the JSON-array scratch: the payload bytes plus separators and
