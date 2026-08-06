@@ -1,62 +1,76 @@
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-import { IngestionType, type ReplicationMode } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
+import type {
+  CandidateValue,
+  EdgeValidation,
+  Requirement,
+} from "@/gen/ingestion/v1/capabilities_pb";
+import { RequirementKind } from "@/gen/ingestion/v1/capabilities_pb";
+import type { IngestionType } from "@/gen/ingestion/v1/common_pb";
 
-import { INGESTION_TYPE_TO_REPLICATION_MODE_MAP } from "@/pages/pipelines/canvas/constants";
-import { INGESTION_TYPE_TO_LABEL_MAP } from "@/pages/pipelines/canvas/edges/constants";
+import {
+  INGESTION_TYPE_TO_LABEL_MAP,
+  PIPELINE_CANVAS_EDGE_ALL_INGESTION_TYPES,
+} from "@/pages/pipelines/canvas/edges/constants";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import { getPipelineCanvasEdgeData } from "@/pages/pipelines/canvas/utils";
 
-const UNRANKED_COLUMN_RANK = Number.MAX_SAFE_INTEGER;
+const UNRANKED_CANDIDATE_RANK = Number.MAX_SAFE_INTEGER;
 
-export const PIPELINE_CANVAS_INGESTION_TYPES = [
-  IngestionType.SNAPSHOT_REPLACE,
-  IngestionType.SNAPSHOT_UPSERT,
-  IngestionType.APPEND,
-  IngestionType.UPSERT,
-  IngestionType.CDC,
-];
+const getResourceValidation = (validation: EdgeValidation | undefined, resource: string) =>
+  validation?.resources.find((entry) => entry.resource === resource);
 
-const getSpecReplicationModes = (spec: ConnectorSpec | undefined): Set<ReplicationMode> =>
-  new Set((spec?.capabilities?.sourcePolicies ?? []).map((policy) => policy.mode));
-
+// The server answers per table where it can, per source/sink pair otherwise.
+// Before the first verdict lands every type is offered rather than none, so a
+// mid-debounce select is never empty.
 export const getIngestionTypeOptions = (
-  spec: ConnectorSpec | undefined,
+  validation: EdgeValidation | undefined,
+  resource: string,
   ingestionType: IngestionType,
 ): SelectInputOption[] => {
-  const modes = getSpecReplicationModes(spec);
+  const supported =
+    getResourceValidation(validation, resource)?.supportedIngestionTypes ??
+    validation?.supportedIngestionTypes;
 
-  return PIPELINE_CANVAS_INGESTION_TYPES.filter(
-    (candidate) =>
-      candidate === ingestionType ||
-      modes.size === 0 ||
-      modes.has(INGESTION_TYPE_TO_REPLICATION_MODE_MAP[candidate]),
-  ).map((candidate) => ({
+  const types = supported?.length
+    ? PIPELINE_CANVAS_EDGE_ALL_INGESTION_TYPES.filter(
+        (candidate) => supported.includes(candidate) || candidate === ingestionType,
+      )
+    : PIPELINE_CANVAS_EDGE_ALL_INGESTION_TYPES;
+
+  return types.map((candidate) => ({
     id: String(candidate),
     label: INGESTION_TYPE_TO_LABEL_MAP[candidate],
     value: candidate,
   }));
 };
 
-export const isColumnSelectable = (column: ResourceColumn): boolean =>
-  column.cursorEligible && column.configurable;
+export const getCursorRequirement = (
+  validation: EdgeValidation | undefined,
+  resource: string,
+): Requirement | undefined =>
+  getResourceValidation(validation, resource)?.requirements.find(
+    (requirement) => requirement.kind === RequirementKind.CURSOR_COLUMN,
+  );
 
-const getColumnRank = (column: ResourceColumn): number =>
-  column.recommendationRank || UNRANKED_COLUMN_RANK;
+export const getBlockingMessages = (validation: EdgeValidation | undefined): string[] => [
+  ...(validation?.errors ?? []).map((error) => error.message),
+  ...(validation?.requirements ?? [])
+    .filter((requirement) => requirement.blocking)
+    .map((requirement) => requirement.message),
+  ...(validation?.resources ?? []).flatMap((entry) =>
+    entry.requirements.filter((requirement) => requirement.blocking).map((r) => r.message),
+  ),
+];
 
-export const sortCursorColumns = (columns: ResourceColumn[]): ResourceColumn[] =>
-  [...columns].sort((a, b) => {
-    if (isColumnSelectable(a) !== isColumnSelectable(b)) return isColumnSelectable(a) ? -1 : 1;
-    if (a.cursorRecommended !== b.cursorRecommended) return a.cursorRecommended ? -1 : 1;
-    if (getColumnRank(a) !== getColumnRank(b)) return getColumnRank(a) - getColumnRank(b);
-    return a.name.localeCompare(b.name);
+export const sortCursorCandidates = (candidates: CandidateValue[]): CandidateValue[] =>
+  [...candidates].sort((a, b) => {
+    if (a.recommended !== b.recommended) return a.recommended ? -1 : 1;
+    const rankA = a.rank || UNRANKED_CANDIDATE_RANK;
+    const rankB = b.rank || UNRANKED_CANDIDATE_RANK;
+    if (rankA !== rankB) return rankA - rankB;
+    return a.value.localeCompare(b.value);
   });
-
-export const formatColumnType = (column: ResourceColumn): string => {
-  const type = column.nativeType || column.logicalType;
-  return column.nullable ? `${type} · nullable` : type;
-};
 
 export const getEdgeCursor = (edge: CanvasEdge, resource: string) =>
   getPipelineCanvasEdgeData(edge).cursors.find((cursor) => cursor.resource === resource) ?? null;

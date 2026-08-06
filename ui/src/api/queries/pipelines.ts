@@ -11,6 +11,10 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import type {
+  ValidatePipelineRequest,
+  ValidatePipelineResponse,
+} from "@/gen/ingestion/v1/capabilities_pb";
+import type {
   GetPipelineRequest,
   ListPipelinesRequest,
   ListPipelinesResponse,
@@ -135,6 +139,22 @@ export const useUpdatePipelineMutation = (
       return options.onSettled?.(...args);
     },
   });
+};
+
+export const useValidatePipelineQuery = ({
+  input,
+  options = {},
+}: {
+  input: ValidatePipelineRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.validatePipeline.output,
+    ValidatePipelineResponse
+  >;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.validatePipeline.input,
+    typeof IngestionService.method.validatePipeline.output
+  >(IngestionService.method.validatePipeline, input, options);
 };
 
 export const useDeletePipelineMutation = (

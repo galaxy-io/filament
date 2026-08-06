@@ -1,5 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 
+import {
+  type ValidatePipelineRequest,
+  ValidatePipelineRequestSchema,
+} from "@/gen/ingestion/v1/capabilities_pb";
 import { IngestionType } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
@@ -97,11 +101,12 @@ export const mapPipelineVersionToCanvasState = (
   return { nodes, edges };
 };
 
-export const mapCanvasStateToVersionRequest = (
+// buildPipelineGraph is the single wire shape both saving and validation use,
+// so a graph can never validate as something other than what would be saved.
+export const buildPipelineGraph = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
-  pipelineId: string,
   baseVersion: PipelineVersion | undefined,
-): CreatePipelineVersionRequest => {
+) => {
   const baseNodesById = new Map((baseVersion?.nodes ?? []).map((node) => [node.id, node]));
 
   const nodes = state.nodes.filter(isConnectionNode).map((node) => {
@@ -115,9 +120,26 @@ export const mapCanvasStateToVersionRequest = (
     };
   });
 
-  return create(CreatePipelineVersionRequestSchema, {
-    pipelineId,
-    nodes,
-    edges: state.edges.map(mapCanvasEdgeToProtoEdge),
-  });
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edges = state.edges
+    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+    .map(mapCanvasEdgeToProtoEdge);
+
+  return { nodes, edges };
 };
+
+export const mapCanvasStateToVersionRequest = (
+  state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
+  pipelineId: string,
+  baseVersion: PipelineVersion | undefined,
+): CreatePipelineVersionRequest =>
+  create(CreatePipelineVersionRequestSchema, {
+    pipelineId,
+    ...buildPipelineGraph(state, baseVersion),
+  });
+
+export const buildValidatePipelineRequest = (
+  state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
+  baseVersion: PipelineVersion | undefined,
+): ValidatePipelineRequest =>
+  create(ValidatePipelineRequestSchema, buildPipelineGraph(state, baseVersion));

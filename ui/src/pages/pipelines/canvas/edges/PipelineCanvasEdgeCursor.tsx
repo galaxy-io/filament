@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { CaretDownIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
@@ -11,14 +11,11 @@ import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import NumberInput from "@galaxy-io/dls/inputs/NumberInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { CandidateStatus, type Requirement } from "@/gen/ingestion/v1/capabilities_pb";
 import type { ResourceCursorConfig } from "@/gen/ingestion/v1/pipelines_pb";
-import type { ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
 
 import {
   PIPELINE_CANVAS_DEFAULT_LOOKBACK_SECONDS,
@@ -27,7 +24,7 @@ import {
   PIPELINE_CANVAS_EDGE_SELECT_WIDTH,
 } from "@/pages/pipelines/canvas/edges/constants";
 import PipelineCanvasEdgeCursorColumn from "@/pages/pipelines/canvas/edges/PipelineCanvasEdgeCursorColumn";
-import { sortCursorColumns } from "@/pages/pipelines/canvas/edges/utils";
+import { sortCursorCandidates } from "@/pages/pipelines/canvas/edges/utils";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -54,7 +51,7 @@ const PanelSection = styled.div`
   padding: 8px;
 `;
 
-const ColumnList = styled.div`
+const CandidateList = styled.div`
   max-height: ${PIPELINE_CANVAS_EDGE_COLUMN_LIST_MAX_HEIGHT}px;
   overflow-y: auto;
   padding: 4px;
@@ -70,8 +67,6 @@ const AutoRow = withTheme(styled.div<PropsWithTheme>`
   }
 `);
 
-const SHIMMER_COUNT = 5;
-
 interface PipelineCanvasEdgeCursorState {
   isOpen: boolean;
   search: string;
@@ -83,27 +78,26 @@ const DEFAULT_STATE: PipelineCanvasEdgeCursorState = {
 };
 
 interface PipelineCanvasEdgeCursorProps {
-  columns: ResourceColumn[];
+  requirement: Requirement | undefined;
   cursor: ResourceCursorConfig | null;
-  error: Error | null;
-  isLoading: boolean;
   isDisabled: boolean;
   onChange: (field: string, lookbackSeconds: number) => void;
 }
 
 const PipelineCanvasEdgeCursor = ({
-  columns,
+  requirement,
   cursor,
-  error,
-  isLoading,
   isDisabled,
   onChange,
 }: PipelineCanvasEdgeCursorProps) => {
   const [state, setState] = useState<PipelineCanvasEdgeCursorState>(DEFAULT_STATE);
 
-  const selectedColumn = columns.find((column) => column.name === cursor?.field) ?? null;
-  const matchedColumns = sortCursorColumns(columns).filter((column) =>
-    isSearchMatch(state.search, column.name),
+  const candidates = requirement?.candidates ?? [];
+  const hasCandidates = candidates.length > 0;
+  const isEnumerated = requirement?.candidateStatus === CandidateStatus.ENUMERATED;
+  const selectedCandidate = candidates.find((candidate) => candidate.value === cursor?.field);
+  const matchedCandidates = sortCursorCandidates(candidates).filter((candidate) =>
+    isSearchMatch(state.search, candidate.value),
   );
 
   const handleToggle = () => {
@@ -114,13 +108,13 @@ const PipelineCanvasEdgeCursor = ({
     setState(DEFAULT_STATE);
   };
 
+  const handleSearchChange = (search: string) => {
+    setState((prev) => ({ ...prev, search }));
+  };
+
   const handleSelect = (field: string) => {
     setState(DEFAULT_STATE);
     onChange(field, Number(cursor?.lookbackSeconds ?? 0));
-  };
-
-  const handleSearchChange = (search: string) => {
-    setState((prev) => ({ ...prev, search }));
   };
 
   const handleLookbackChange = (lookbackSeconds: number | undefined) => {
@@ -129,45 +123,41 @@ const PipelineCanvasEdgeCursor = ({
   };
 
   const renderBody = () => {
-    if (isLoading && columns.length === 0) {
+    if (isEnumerated && !hasCandidates) {
       return (
-        <ColumnList>
-          {Array.from({ length: SHIMMER_COUNT }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder rows with no identity
-            <TextShimmer key={index} height={16} width="100%" />
-          ))}
-        </ColumnList>
-      );
-    }
-
-    if (error) {
-      return (
-        <FlexWrapper padding={"20px 16px"} fillWidth>
-          <ErrorLayout
-            icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
-            message="Failed to load columns"
-            error={error}
-          />
-        </FlexWrapper>
+        <PanelSection>
+          <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
+            {requirement?.message}
+          </Text>
+        </PanelSection>
       );
     }
 
     return (
-      <ColumnList>
-        <AutoRow onClick={() => handleSelect("")}>
-          <Text size={TextSize.BODY_SM}>{PIPELINE_CANVAS_EDGE_AUTO_CURSOR_LABEL}</Text>
-          <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY}>
-            Let the connector detect a timestamp column at run time
-          </Text>
-        </AutoRow>
-        {matchedColumns.map((column) => (
-          <PipelineCanvasEdgeCursorColumn
-            key={column.name}
-            column={column}
-            onSelect={handleSelect}
-          />
-        ))}
-      </ColumnList>
+      <>
+        {!isEnumerated && requirement?.message && (
+          <PanelSection>
+            <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY}>
+              {requirement.message}
+            </Text>
+          </PanelSection>
+        )}
+        <CandidateList>
+          <AutoRow onClick={() => handleSelect("")}>
+            <Text size={TextSize.BODY_SM}>{PIPELINE_CANVAS_EDGE_AUTO_CURSOR_LABEL}</Text>
+            <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY}>
+              Let the connector detect a cursor column at run time
+            </Text>
+          </AutoRow>
+          {matchedCandidates.map((candidate) => (
+            <PipelineCanvasEdgeCursorColumn
+              key={candidate.value}
+              candidate={candidate}
+              onSelect={handleSelect}
+            />
+          ))}
+        </CandidateList>
+      </>
     );
   };
 
@@ -178,42 +168,40 @@ const PipelineCanvasEdgeCursor = ({
       onClose={handleClose}
       noPadding
       header={
-        <PanelSection>
-          <TextInput
-            placeholder="Search columns"
-            value={state.search}
-            onChange={handleSearchChange}
-            size={InputSize.SMALL}
-            fillWidth
-          />
-        </PanelSection>
+        hasCandidates ? (
+          <PanelSection>
+            <TextInput
+              placeholder="Search columns"
+              value={state.search}
+              onChange={handleSearchChange}
+              size={InputSize.SMALL}
+              fillWidth
+            />
+          </PanelSection>
+        ) : undefined
       }
       body={renderBody()}
       footer={
-        selectedColumn ? (
+        selectedCandidate ? (
           <PanelSection>
             <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL} fillWidth>
-              {selectedColumn.warning && (
+              {selectedCandidate.warning && (
                 <Text size={TextSize.CAPTION} variant={TextVariant.WARNING}>
-                  {selectedColumn.warning}
+                  {selectedCandidate.warning}
                 </Text>
               )}
-              {selectedColumn.supportsLookback && (
-                <>
-                  <HorizontalDivider />
-                  <NumberInput
-                    label="Lookback (seconds)"
-                    value={cursor?.lookbackSeconds ? Number(cursor.lookbackSeconds) : undefined}
-                    placeholder={String(PIPELINE_CANVAS_DEFAULT_LOOKBACK_SECONDS)}
-                    onChange={handleLookbackChange}
-                    size={InputSize.SMALL}
-                    min={0}
-                    step={1}
-                    isDisabled={isDisabled}
-                    fillWidth
-                  />
-                </>
-              )}
+              <HorizontalDivider />
+              <NumberInput
+                label="Lookback (seconds)"
+                value={cursor?.lookbackSeconds ? Number(cursor.lookbackSeconds) : undefined}
+                placeholder={String(PIPELINE_CANVAS_DEFAULT_LOOKBACK_SECONDS)}
+                onChange={handleLookbackChange}
+                size={InputSize.SMALL}
+                min={0}
+                step={1}
+                isDisabled={isDisabled}
+                fillWidth
+              />
             </FlexWrapper>
           </PanelSection>
         ) : undefined

@@ -4,13 +4,17 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   type EdgeProps,
-  getBezierPath,
+  getSmoothStepPath,
   useInternalNode,
 } from "@xyflow/react";
 
 import { PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
+import { PIPELINE_CANVAS_EDGE_STUB_LENGTH } from "@/pages/pipelines/canvas/edges/constants";
 import PipelineCanvasEdgeLabel from "@/pages/pipelines/canvas/edges/PipelineCanvasEdgeLabel";
-import { PIPELINE_CANVAS_NODE_PADDING } from "@/pages/pipelines/canvas/nodes/constants";
+import {
+  PIPELINE_CANVAS_NODE_BORDER_RADIUS,
+  PIPELINE_CANVAS_NODE_PADDING,
+} from "@/pages/pipelines/canvas/nodes/constants";
 import {
   getPipelineCanvasNodeMeasurements,
   subscribePipelineCanvasNodeMeasurements,
@@ -39,6 +43,7 @@ const PipelineCanvasEdge = ({
 
   let anchorX = sourceX;
   let anchorY = sourceY;
+  let isBadgeAnchored = false;
 
   const { positionAbsolute } = sourceNode?.internals ?? {};
   const { width, height } = sourceNode?.measured ?? {};
@@ -70,30 +75,42 @@ const PipelineCanvasEdge = ({
       if (!isRowVisible) {
         anchorX = positionAbsolute.x + sourceMeasurements.badgeAnchorX;
         anchorY = nodeTop + sourceMeasurements.badgeAnchorY;
+        isBadgeAnchored = true;
       }
     }
   }
 
-  const [path, labelX, labelY] = getBezierPath({
+  const [path] = getSmoothStepPath({
     sourceX: anchorX,
     sourceY: anchorY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: PIPELINE_CANVAS_NODE_BORDER_RADIUS,
+    offset: PIPELINE_CANVAS_EDGE_STUB_LENGTH,
+    stepPosition: 1,
   });
+
+  const bendX = targetX - PIPELINE_CANVAS_EDGE_STUB_LENGTH;
+  const hasStraightRun = anchorX + PIPELINE_CANVAS_EDGE_STUB_LENGTH < bendX;
+
+  const labelX = hasStraightRun ? (anchorX + bendX) / 2 : (anchorX + targetX) / 2;
+  const labelY = hasStraightRun ? anchorY : (anchorY + targetY) / 2;
 
   return (
     <>
       <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />
-      <EdgeLabelRenderer>
-        <PipelineCanvasEdgeLabel
-          edgeId={id}
-          isSelected={Boolean(selected)}
-          labelX={labelX}
-          labelY={labelY}
-        />
-      </EdgeLabelRenderer>
+      {!isBadgeAnchored && (
+        <EdgeLabelRenderer>
+          <PipelineCanvasEdgeLabel
+            edgeId={id}
+            isSelected={Boolean(selected)}
+            labelX={labelX}
+            labelY={labelY}
+          />
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 };

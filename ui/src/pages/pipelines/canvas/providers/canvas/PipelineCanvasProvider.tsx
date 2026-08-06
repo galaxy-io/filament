@@ -13,6 +13,7 @@ import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type { IngestionType } from "@/gen/ingestion/v1/common_pb";
 
+import { pokePipelineCanvasValidation } from "@/pages/pipelines/canvas/graph/validationClock";
 import {
   type PipelineCanvasAction,
   PipelineCanvasActionType,
@@ -57,14 +58,22 @@ export const usePipelineCanvasReadOnly = () => useContext(PipelineCanvasReadOnly
 export const usePipelineCanvasActions = () => {
   const dispatch = usePipelineCanvasDispatch();
 
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    // Only dispatches that change the wire graph restart the validation
+    // debounce; node drags and selection churn would otherwise poke it on
+    // every mousemove.
+    const dispatchAndValidate = (action: PipelineCanvasAction) => {
+      dispatch(action);
+      pokePipelineCanvasValidation();
+    };
+
+    return {
       loadGraph: (graph: PipelineCanvasGraph) =>
-        dispatch({ type: PipelineCanvasActionType.LOAD_GRAPH, payload: graph }),
+        dispatchAndValidate({ type: PipelineCanvasActionType.LOAD_GRAPH, payload: graph }),
       addNode: (node: CanvasNode) =>
-        dispatch({ type: PipelineCanvasActionType.ADD_NODE, payload: node }),
+        dispatchAndValidate({ type: PipelineCanvasActionType.ADD_NODE, payload: node }),
       removeNode: (nodeId: string) =>
-        dispatch({
+        dispatchAndValidate({
           type: PipelineCanvasActionType.REMOVE_NODE,
           payload: nodeId,
         }),
@@ -76,12 +85,12 @@ export const usePipelineCanvasActions = () => {
           payload: changes,
         }),
       applyEdgeChanges: (changes: EdgeChange<CanvasEdge>[]) =>
-        dispatch({
+        dispatchAndValidate({
           type: PipelineCanvasActionType.APPLY_EDGE_CHANGES,
           payload: changes,
         }),
       connect: (connection: Connection) =>
-        dispatch({
+        dispatchAndValidate({
           type: PipelineCanvasActionType.CONNECT,
           payload: connection,
         }),
@@ -96,23 +105,22 @@ export const usePipelineCanvasActions = () => {
           payload: mode,
         }),
       setNodeConfig: (nodeId: string, config: Record<string, JsonValue>) =>
-        dispatch({
+        dispatchAndValidate({
           type: PipelineCanvasActionType.SET_NODE_CONFIG,
           payload: { nodeId, config },
         }),
       setEdgeIngestionType: (edgeId: string, ingestionType: IngestionType) =>
-        dispatch({
+        dispatchAndValidate({
           type: PipelineCanvasActionType.SET_EDGE_INGESTION_TYPE,
           payload: { edgeId, ingestionType },
         }),
       setEdgeCursor: (edgeId: string, resource: string, field: string, lookbackSeconds: number) =>
-        dispatch({
+        dispatchAndValidate({
           type: PipelineCanvasActionType.SET_EDGE_CURSOR,
           payload: { edgeId, resource, field, lookbackSeconds },
         }),
-    }),
-    [dispatch],
-  );
+    };
+  }, [dispatch]);
 };
 
 interface PipelineCanvasProviderProps {

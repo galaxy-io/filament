@@ -4,7 +4,7 @@ import { type FitViewOptions, type HandleType, Position } from "@xyflow/react";
 
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
-import { ConnectorKind, IngestionType, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, IngestionType } from "@/gen/ingestion/v1/common_pb";
 
 import {
   PipelineCanvasEditMode,
@@ -105,15 +105,16 @@ export const PIPELINE_CANVAS_DEFAULT_EDGE_DATA: PipelineCanvasEdgeData = {
   cursors: [],
 };
 
-export const INGESTION_TYPE_TO_REPLICATION_MODE_MAP: Record<IngestionType, ReplicationMode> = {
-  [IngestionType.UNSPECIFIED]: ReplicationMode.FULL,
-  [IngestionType.SNAPSHOT_REPLACE]: ReplicationMode.FULL,
-  [IngestionType.SNAPSHOT_UPSERT]: ReplicationMode.FULL,
-  [IngestionType.APPEND]: ReplicationMode.FULL,
-  [IngestionType.UPSERT]: ReplicationMode.INCREMENTAL,
-  [IngestionType.DELETE]: ReplicationMode.INCREMENTAL,
-  [IngestionType.CDC]: ReplicationMode.CDC,
-};
+// The ingestion types whose source policy is ModeIncremental, and so carry a
+// per-resource cursor (filament run.go SourcePolicyForIngestion). The reducer
+// needs this synchronously to keep saves within validateCursorConfigs, so it
+// cannot wait on ValidatePipeline.
+export const CURSOR_BEARING_INGESTION_TYPES: ReadonlySet<IngestionType> = new Set([
+  IngestionType.UPSERT,
+  IngestionType.DELETE,
+]);
+
+export const PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS = 800;
 
 export const PIPELINE_CANVAS_EDGE_Z_INDEX = 2000;
 export const PIPELINE_CANVAS_OVERLAY_Z_INDEX = 2001;

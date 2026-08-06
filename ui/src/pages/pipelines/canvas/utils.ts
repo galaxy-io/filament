@@ -1,9 +1,9 @@
 import type { Theme } from "@galaxy-io/dls/theme/types";
 
-import { type IngestionType, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
+import type { IngestionType } from "@/gen/ingestion/v1/common_pb";
 
 import {
-  INGESTION_TYPE_TO_REPLICATION_MODE_MAP,
+  CURSOR_BEARING_INGESTION_TYPES,
   PIPELINE_CANVAS_DEFAULT_EDGE_DATA,
   PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
 } from "@/pages/pipelines/canvas/constants";
@@ -22,7 +22,7 @@ export const getPipelineCanvasEdgeData = (edge: CanvasEdge): PipelineCanvasEdgeD
   edge.data ?? PIPELINE_CANVAS_DEFAULT_EDGE_DATA;
 
 export const isIncrementalIngestionType = (ingestionType: IngestionType): boolean =>
-  INGESTION_TYPE_TO_REPLICATION_MODE_MAP[ingestionType] === ReplicationMode.INCREMENTAL;
+  CURSOR_BEARING_INGESTION_TYPES.has(ingestionType);
 
 export const mapEdgesToStyledEdges = (
   edges: CanvasEdge[],

@@ -1,5 +1,7 @@
 import { IngestionType } from "@/gen/ingestion/v1/common_pb";
 
+import { PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE } from "@/pages/pipelines/canvas/nodes/constants";
+
 export const INGESTION_TYPE_TO_LABEL_MAP: Record<IngestionType, string> = {
   [IngestionType.UNSPECIFIED]: "Snapshot + Replace",
   [IngestionType.SNAPSHOT_REPLACE]: "Snapshot + Replace",
@@ -10,23 +12,20 @@ export const INGESTION_TYPE_TO_LABEL_MAP: Record<IngestionType, string> = {
   [IngestionType.CDC]: "Change Data Capture",
 };
 
-export const INGESTION_TYPE_TO_DESCRIPTION_MAP: Record<IngestionType, string> = {
-  [IngestionType.UNSPECIFIED]:
-    "Reads the whole resource on every run and replaces the destination contents.",
-  [IngestionType.SNAPSHOT_REPLACE]:
-    "Reads the whole resource on every run and replaces the destination contents.",
-  [IngestionType.SNAPSHOT_UPSERT]:
-    "Reads the whole resource on every run and upserts rows by primary key.",
-  [IngestionType.APPEND]: "Appends newly read rows without touching existing ones.",
-  [IngestionType.UPSERT]:
-    "Reads only rows changed since the last run, tracked by a cursor column, and upserts them by primary key.",
-  [IngestionType.DELETE]:
-    "Reads only rows changed since the last run, tracked by a cursor column, and deletes them.",
-  [IngestionType.CDC]: "Streams inserts, updates, and deletes from the source's change log.",
-};
+// Display order for the ingestion select; which of these are actually offered
+// comes from ValidatePipeline.
+export const PIPELINE_CANVAS_EDGE_ALL_INGESTION_TYPES = [
+  IngestionType.SNAPSHOT_REPLACE,
+  IngestionType.SNAPSHOT_UPSERT,
+  IngestionType.APPEND,
+  IngestionType.UPSERT,
+  IngestionType.DELETE,
+  IngestionType.CDC,
+];
+
+export const PIPELINE_CANVAS_EDGE_STUB_LENGTH = PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE;
 
 export const PIPELINE_CANVAS_EDGE_SELECT_WIDTH = 180;
-export const PIPELINE_CANVAS_EDGE_TOOLTIP_MAX_WIDTH = 240;
 export const PIPELINE_CANVAS_EDGE_COLUMN_LIST_MAX_HEIGHT = 180;
 
 export const PIPELINE_CANVAS_DEFAULT_LOOKBACK_SECONDS = 300;

@@ -5,6 +5,7 @@ import {
   Background,
   BackgroundVariant,
   type Connection,
+  ConnectionLineType,
   type EdgeChange,
   MiniMap,
   type NodeChange,
@@ -157,6 +158,8 @@ const PipelineCanvasPage = () => {
         nodesDraggable={!isReadOnly}
         nodesConnectable={!isReadOnly}
         elementsSelectable={!isReadOnly}
+        connectionLineType={ConnectionLineType.SmoothStep}
+        elevateEdgesOnSelect
         selectionOnDrag={!isReadOnly && !isGrabMode}
         selectionMode={SelectionMode.Partial}
         panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}

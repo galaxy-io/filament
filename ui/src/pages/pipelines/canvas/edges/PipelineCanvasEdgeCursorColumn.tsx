@@ -1,83 +1,47 @@
 import { styled } from "@linaria/react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import type { ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
+import type { CandidateValue } from "@/gen/ingestion/v1/capabilities_pb";
 
-import { formatColumnType, isColumnSelectable } from "@/pages/pipelines/canvas/edges/utils";
-
-const ColumnRow = withTheme(styled.div<PropsWithTheme<{ $isSelectable: boolean }>>`
+const CandidateRow = withTheme(styled.div<PropsWithTheme>`
   padding: 6px 8px;
   border-radius: 4px;
-
-  cursor: ${({ $isSelectable }) => ($isSelectable ? "pointer" : "default")};
+  cursor: pointer;
 
   &:hover {
-    background-color: ${({ theme, $isSelectable }) =>
-      $isSelectable ? theme.color.background.secondary : "transparent"};
+    background-color: ${({ theme }) => theme.color.background.secondary};
   }
 `);
 
 interface PipelineCanvasEdgeCursorColumnProps {
-  column: ResourceColumn;
+  candidate: CandidateValue;
   onSelect: (field: string) => void;
 }
 
 const PipelineCanvasEdgeCursorColumn = ({
-  column,
+  candidate,
   onSelect,
-}: PipelineCanvasEdgeCursorColumnProps) => {
-  const isSelectable = isColumnSelectable(column);
-  const reason = column.warning || (isSelectable ? "" : "Not usable as a cursor");
-
-  return (
-    <ColumnRow
-      $isSelectable={isSelectable}
-      onClick={isSelectable ? () => onSelect(column.name) : undefined}
-    >
-      <FlexWrapper
-        alignItems={AlignItems.CENTER}
-        justifyContent={JustifyContent.SPACE_BETWEEN}
-        gap={FlexGap.SMALL}
-        fillWidth
-      >
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
-          <Text
-            size={TextSize.BODY_SM}
-            variant={isSelectable ? TextVariant.PRIMARY : TextVariant.TERTIARY}
-            isMonospace
-          >
-            {column.name}
-          </Text>
-          {column.primaryKey && (
-            <Chip label="PK" size={ChipSize.SMALL} variant={ChipVariant.TERTIARY} />
-          )}
-          {column.cursorRecommended && (
-            <Chip label="Recommended" size={ChipSize.SMALL} variant={ChipVariant.LIME} />
-          )}
-        </FlexWrapper>
-        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
-          {formatColumnType(column)}
-        </Text>
-      </FlexWrapper>
-      {reason && (
-        <Text
-          size={TextSize.CAPTION}
-          variant={isSelectable ? TextVariant.WARNING : TextVariant.TERTIARY}
-        >
-          {reason}
-        </Text>
+}: PipelineCanvasEdgeCursorColumnProps) => (
+  <CandidateRow onClick={() => onSelect(candidate.value)}>
+    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
+      <Text size={TextSize.BODY_SM} isMonospace>
+        {candidate.value}
+      </Text>
+      {candidate.recommended && (
+        <Chip label="Recommended" size={ChipSize.SMALL} variant={ChipVariant.LIME} />
       )}
-    </ColumnRow>
-  );
-};
+    </FlexWrapper>
+    {candidate.warning && (
+      <Text size={TextSize.CAPTION} variant={TextVariant.WARNING}>
+        {candidate.warning}
+      </Text>
+    )}
+  </CandidateRow>
+);
 
 export default PipelineCanvasEdgeCursorColumn;

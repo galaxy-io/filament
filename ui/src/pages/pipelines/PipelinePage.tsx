@@ -6,6 +6,7 @@ import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import PipelineCanvasRunProvider from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
+import PipelineCanvasValidationProvider from "@/pages/pipelines/canvas/providers/validation/PipelineCanvasValidationProvider";
 import PipelineLayout from "@/pages/pipelines/layout/PipelineLayout";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
@@ -47,19 +48,21 @@ const PipelinePage = () => {
       graph={mapPipelineVersionToCanvasState(previewed ?? version, connectionsData.connections)}
       isReadOnly={Boolean(previewed)}
     >
-      <PipelineCanvasRunProvider>
-        <PipelineLayout
-          pipeline={pipeline}
-          schedule={pipelineData.schedule}
-          currentVersion={version}
-          versions={versions}
-          connections={connectionsData.connections}
-          previewVersion={previewed?.version ?? null}
-          onPreviewVersionChange={handlePreviewVersionChange}
-        >
-          <Outlet />
-        </PipelineLayout>
-      </PipelineCanvasRunProvider>
+      <PipelineCanvasValidationProvider baseVersion={previewed ?? version}>
+        <PipelineCanvasRunProvider>
+          <PipelineLayout
+            pipeline={pipeline}
+            schedule={pipelineData.schedule}
+            currentVersion={version}
+            versions={versions}
+            connections={connectionsData.connections}
+            previewVersion={previewed?.version ?? null}
+            onPreviewVersionChange={handlePreviewVersionChange}
+          >
+            <Outlet />
+          </PipelineLayout>
+        </PipelineCanvasRunProvider>
+      </PipelineCanvasValidationProvider>
     </PipelineCanvasProvider>
   );
 };
