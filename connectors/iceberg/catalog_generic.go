@@ -14,7 +14,7 @@ var genericCatalogProvider = catalogProvider{
 		catalogStringField(catalogProviderGeneric, "type", "Catalog type registered with iceberg-go, such as sql, hive, or glue. Either type or URI is required.", false),
 		catalogStringField(catalogProviderGeneric, "uri", "Catalog connection URI. Its scheme may also identify the catalog type.", false),
 		catalogStringField(catalogProviderGeneric, "warehouse", "Warehouse identifier passed to the catalog. Depending on the implementation, this may be a logical name or storage location.", false),
-		catalogObjectField(catalogProviderGeneric, "properties", "Advanced catalog and storage properties passed directly to iceberg-go."),
+		catalogObjectField(catalogProviderGeneric, "Advanced catalog and storage properties passed directly to iceberg-go."),
 	},
 	build: buildGenericCatalog,
 }

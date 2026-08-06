@@ -18,6 +18,7 @@ fields are shown:
 | `generic` | Any iceberg-go-registered catalog type (`sql`, `hive`, `glue`, …) by name, or by URI scheme |
 | `rest` | A generic Iceberg REST catalog endpoint |
 | `polaris` | Apache Polaris specifically — same REST protocol as `rest`, but requires a `warehouse` (Polaris's catalog name, not a storage path) |
+| `lakekeeper` | Lakekeeper specifically — requires its `/catalog` REST endpoint and the name of a warehouse registered in Lakekeeper |
 
 ## Write modes
 

@@ -14,7 +14,7 @@ var restCatalogProvider = catalogProvider{
 		catalogStringField(catalogProviderREST, "uri", "Base URL of the Iceberg REST catalog, such as https://catalog.example.com/api/catalog.", true),
 		catalogStringField(catalogProviderREST, "warehouse", "Warehouse identifier sent to the REST catalog. This may be a logical catalog name, as with Apache Polaris, rather than a storage path.", false),
 		restAuthField(catalogProviderREST),
-		catalogObjectField(catalogProviderREST, "properties", "Advanced REST catalog and storage properties passed directly to iceberg-go."),
+		catalogObjectField(catalogProviderREST, "Advanced REST catalog and storage properties passed directly to iceberg-go."),
 	},
 	build: buildRESTCatalog,
 }
