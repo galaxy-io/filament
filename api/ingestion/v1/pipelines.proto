@@ -15,7 +15,7 @@ message PipelineNode {
   string id = 1;
   ConnectorKind kind = 2;
   string connection_id = 3;
-  google.protobuf.Struct config = 4;   // PIPELINE overlay only
+  google.protobuf.Struct config = 4; // PIPELINE overlay only
   map<string, string> secret_refs = 5; // PIPELINE overlay only
 }
 
