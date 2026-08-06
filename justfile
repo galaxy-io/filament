@@ -142,9 +142,11 @@ dev:
     set -euo pipefail
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
     just control-plane &
-    just server &
     just metrics &
+    just server &
     until curl -sf http://localhost:8080/livez > /dev/null 2>&1; do sleep 0.2; done
+    until curl -sf http://localhost:8081/livez > /dev/null 2>&1; do sleep 0.2; done
+    until curl -sf http://localhost:8082/livez > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait
 

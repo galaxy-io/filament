@@ -147,7 +147,7 @@ func (m *Module) runOne(ctx context.Context, spec filament.RunSpec) {
 		em.fail(fmt.Errorf("resolve sink %q: %w", spec.Sink.Provider, err))
 		return
 	}
-	plan, err := resolveIngestionPlan(ctx, src, snk, spec)
+	plan, err := filament.ResolveIngestionPlan(ctx, src, snk, spec)
 	if err != nil {
 		em.fail(err)
 		return
