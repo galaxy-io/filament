@@ -1,6 +1,6 @@
 ---
 title: "PostgreSQL"
-description: "Resumable full-snapshot and incremental reads from PostgreSQL."
+description: "Resumable full-snapshot, incremental, and CDC reads from PostgreSQL."
 icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
 ---
 
@@ -17,7 +17,7 @@ facts from the run config:
 
 | Condition | Mode | What it means |
 |---|---|---|
-| CDC run with a logical slot available | `ModeSlot` | Streams via WAL replay (arrives with CDC) |
+| CDC run with a logical slot available | `ModeSlot` | Streams committed row changes via WAL replay |
 | Table declared append-only | `ModeCtidAppendOnly` | Physical block reads, no xmin bookkeeping needed |
 | `\|correlation\| >= 0.8` | `ModeKeyset` | Heap is already near key order — walk the PK index in order |
 | Primary key is mutable | `ModeCtidXmin` | Physical block reads plus a reconciliation pass for moved rows |
@@ -54,8 +54,20 @@ that matters.
 
 ## Modes
 
-Supports `ModeFull` and `ModeIncremental` today; `ModeCDC` arrives via
-`ModeSlot`. See [Replication modes](/pages/guides/concepts/replication-modes).
+Supports `ModeFull`, `ModeIncremental`, and `ModeCDC`. CDC uses the built-in
+`pgoutput` plugin and bounded catch-up cycles, so it can run on a schedule:
+each successful run stores its WAL LSN on the stable pipeline route and the next
+run resumes there.
+
+CDC requires `wal_level=logical`, a primary key on every selected table, and a
+unique persistent `slot_name` per pipeline. By default the connector creates the
+`filament_cdc` publication and adds selected tables; set
+`manage_publication=false` when an administrator provisions it. Set `publication`
+and `slot_name` explicitly when more than one CDC pipeline reads the database.
+
+For tables with unchanged toasted columns, use `REPLICA IDENTITY FULL` so updates
+carry enough old-row data to construct a complete change record. See
+[Replication modes](/pages/guides/concepts/replication-modes).
 
 ## Incremental cursor selection
 
