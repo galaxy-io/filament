@@ -30,6 +30,7 @@ type pgConfig struct {
 	username string
 	password string
 	image    string
+	logical  bool
 }
 
 // WithDatabase sets the database name (default: "test").
@@ -45,6 +46,9 @@ func WithPassword(p string) PGOption { return func(c *pgConfig) { c.password = p
 // POSTGRES_IMAGE from docker/.env via Image().
 func WithImage(img string) PGOption { return func(c *pgConfig) { c.image = img } }
 
+// WithLogicalReplication starts PostgreSQL with wal_level=logical for CDC tests.
+func WithLogicalReplication() PGOption { return func(c *pgConfig) { c.logical = true } }
+
 // Postgres starts a Postgres container, opens a pool, and registers cleanup.
 // The pool is owned by PG — read it via Pool(); do not cache across Restore.
 func Postgres(t testing.TB, opts ...PGOption) *PG {
@@ -58,12 +62,18 @@ func Postgres(t testing.TB, opts ...PGOption) *PG {
 	}
 
 	ctx := context.Background()
-	ctr, err := postgres.Run(ctx, cfg.image,
+	containerOpts := []testcontainers.ContainerCustomizer{
 		postgres.WithDatabase(cfg.database),
 		postgres.WithUsername(cfg.username),
 		postgres.WithPassword(cfg.password),
 		postgres.BasicWaitStrategies(),
-	)
+	}
+	if cfg.logical {
+		containerOpts = append(containerOpts, testcontainers.WithCmd(
+			"postgres", "-c", "fsync=off", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10",
+		))
+	}
+	ctr, err := postgres.Run(ctx, cfg.image, containerOpts...)
 	if err != nil {
 		t.Fatalf("start postgres container: %v", err)
 	}

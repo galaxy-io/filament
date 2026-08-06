@@ -37,7 +37,7 @@ const (
 	// Catches arbitrary churn including PK moves.
 	ModeCtidXmin
 	// ModeSlot is the premium physical tier: a logical replication slot pins an LSN and moved
-	// rows return via WAL replay. (Arrives with CDC — not yet implemented.)
+	// rows return via WAL replay.
 	ModeSlot
 )
 

@@ -16,7 +16,7 @@ message Connection {
   ConnectorKind kind = 3;
   string name = 4;
   string connector = 5;
-  google.protobuf.Struct config = 6;       // CONNECTION-scoped fields only
+  google.protobuf.Struct config = 6; // CONNECTION-scoped fields only
   map<string, string> secret_refs = 7;
   int64 version = 8;
 }

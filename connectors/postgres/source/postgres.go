@@ -62,20 +62,27 @@ const (
 	// maxWindowBlocks caps a read window so a table of unexpectedly dense (tiny) rows
 	// cannot make one window pull an unbounded number of rows into memory.
 	maxWindowBlocks = 256
+
+	defaultPublication = "filament"
+	defaultSlotName    = "filament"
 )
 
 // Source reads tables from a PostgreSQL database as a full snapshot. One instance
 // is created per run: Configure opens the pool, Extract pages the tables, Teardown
 // closes the pool.
 type Source struct {
-	pool            *pgxpool.Pool
-	schema          string
-	pageSize        int
-	shardPages      int
-	readMode        string // "", "keyset" (key-ordered), "bitmap" (unordered sub-ranges), "auto" (probe)
-	encoding        string // "", "native" (typed column reads); "jsonb" (server-side to_jsonb)
-	cursorColumns   map[string]string
-	cursorLookbacks map[string]int
+	pool              *pgxpool.Pool
+	dsn               string
+	schema            string
+	pageSize          int
+	shardPages        int
+	readMode          string // "", "keyset" (key-ordered), "bitmap" (unordered sub-ranges), "auto" (probe)
+	encoding          string // "", "native" (typed column reads); "jsonb" (server-side to_jsonb)
+	cursorColumns     map[string]string
+	cursorLookbacks   map[string]int
+	publication       string
+	slotName          string
+	managePublication bool
 }
 
 // nativeEncoding reports whether rows read as native columns (the default);
@@ -84,7 +91,10 @@ func (s *Source) nativeEncoding() bool { return s.encoding != encodingJSONB }
 
 // New returns an unconfigured source.
 func New() *Source {
-	return &Source{schema: defaultSchema, pageSize: defaultPageSize, shardPages: defaultShardPages}
+	return &Source{
+		schema: defaultSchema, pageSize: defaultPageSize, shardPages: defaultShardPages,
+		publication: defaultPublication, slotName: defaultSlotName, managePublication: true,
+	}
 }
 
 var (
@@ -96,6 +106,7 @@ var (
 	_ filament.ResumePlanner        = (*Source)(nil)
 	_ filament.IncrementalPlanner   = (*Source)(nil)
 	_ filament.CursorColumnProvider = (*Source)(nil)
+	_ filament.ChangeSource         = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.
@@ -107,12 +118,13 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
 		Version:      "1",
-		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental},
+		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,
 			filament.IngestionAppend,
 			filament.IngestionUpsert,
+			filament.IngestionCDC,
 		),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
@@ -129,6 +141,9 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: encodingNative, Label: "Native"},
 				{Value: encodingJSONB, Label: "JSONB"},
 			}, Scope: filament.ScopePipeline, Help: "Row payload encoding"},
+			{Name: "publication", Type: filament.FieldString, Default: defaultPublication, Scope: filament.ScopePipeline, Help: "Logical replication publication used by CDC"},
+			{Name: "slot_name", Type: filament.FieldString, Default: defaultSlotName, Scope: filament.ScopePipeline, Help: "Persistent logical replication slot; use a unique slot per CDC pipeline"},
+			{Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopePipeline, Help: "Create the CDC publication and add selected tables when needed"},
 		}},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
@@ -138,6 +153,15 @@ func (s *Source) Spec() filament.ConnectorSpec {
 func (s *Source) Validate(cfg filament.Config) error {
 	if cfg.String("dsn") == "" {
 		return fmt.Errorf("postgres source: dsn is required")
+	}
+	for field, fallback := range map[string]string{"publication": defaultPublication, "slot_name": defaultSlotName} {
+		value := cfg.String(field)
+		if value == "" {
+			value = fallback
+		}
+		if !validReplicationName(value) {
+			return fmt.Errorf("postgres source: %s %q must be a lowercase PostgreSQL identifier", field, value)
+		}
 	}
 	return nil
 }
@@ -188,7 +212,17 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if v := cfg.String("encoding"); v != "" {
 		s.encoding = v
 	}
-	poolCfg, err := pgxpool.ParseConfig(cfg.Secret("dsn"))
+	if v := cfg.String("publication"); v != "" {
+		s.publication = v
+	}
+	if v := cfg.String("slot_name"); v != "" {
+		s.slotName = v
+	}
+	if cfg.Has("manage_publication") {
+		s.managePublication = cfg.Bool("manage_publication")
+	}
+	s.dsn = cfg.Secret("dsn")
+	poolCfg, err := pgxpool.ParseConfig(s.dsn)
 	if err != nil {
 		return fmt.Errorf("postgres source: parse dsn: %w", err)
 	}

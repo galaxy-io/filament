@@ -5,12 +5,35 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/datastore/memory"
 )
 
 type incrementalTestSource struct {
 	previous map[string]filament.Checkpoint
 	cursors  map[string]filament.ResourceCursorConfig
+}
+
+func TestScheduledCDCLoadsPipelineCheckpointAcrossRuns(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	spec := filament.RunSpec{
+		Run: "run-b", PipelineID: "pipe", PipelineVersionID: 2,
+		CheckpointRoute: "route/source/sink/cdc", Resources: []string{"users"},
+	}
+	key, _ := spec.ResourceCheckpointKey("users")
+	want := checkpoint.NewStreamDelta("users", "0/16B6C50", 41)
+	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: want}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := loadChangeCheckpoints(ctx, store, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lsn, seq, ok := checkpoint.ParseStream(got["users"])
+	if !ok || lsn != "0/16B6C50" || seq != 41 {
+		t.Fatalf("scheduled checkpoint = %#v", got["users"])
+	}
 }
 
 func (*incrementalTestSource) Spec() filament.ConnectorSpec {

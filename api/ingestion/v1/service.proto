@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "ingestion/v1/capabilities.proto";
 import "ingestion/v1/connections.proto";
 import "ingestion/v1/pipelines.proto";
 import "ingestion/v1/providers.proto";
@@ -28,6 +29,10 @@ service IngestionService {
   rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse);
   rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
   rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse);
+
+  // Capabilities; what a connection supports and whether a graph can run.
+  rpc GetConnectionCapabilities(GetConnectionCapabilitiesRequest) returns (GetConnectionCapabilitiesResponse);
+  rpc ValidatePipeline(ValidatePipelineRequest) returns (ValidatePipelineResponse);
 
   // Pipelines; the persisted node graph.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);

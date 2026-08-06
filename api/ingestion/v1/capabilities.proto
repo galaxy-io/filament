@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "ingestion/v1/common.proto";
+import "ingestion/v1/pipelines.proto";
+import "ingestion/v1/providers.proto";
+
+message GetConnectionCapabilitiesRequest {
+  string tenant_id = 1;
+  string id = 2;
+}
+
+// IngestionSupport is one ingestion type's verdict for a connection, with the
+// validator's reason when unsupported.
+message IngestionSupport {
+  IngestionType type = 1;
+  bool supported = 2;
+  string reason = 3;
+}
+
+message GetConnectionCapabilitiesResponse {
+  string connector = 1;
+  ConnectorKind kind = 2;
+  Capabilities capabilities = 3;
+  repeated IngestionSupport ingestion = 4;
+}
+
+// ValidatePipelineRequest carries the graph inline so unsaved canvas state
+// validates the same as a persisted version.
+message ValidatePipelineRequest {
+  string tenant_id = 1;
+  repeated PipelineNode nodes = 2;
+  repeated PipelineEdge edges = 3;
+}
+
+enum RequirementKind {
+  REQUIREMENT_KIND_UNSPECIFIED = 0;
+  REQUIREMENT_KIND_CURSOR_COLUMN = 1;
+  REQUIREMENT_KIND_PRIMARY_KEY = 2;
+}
+
+// CandidateStatus says how to read an empty candidates list.
+enum CandidateStatus {
+  CANDIDATE_STATUS_UNSPECIFIED = 0;
+  // The list is authoritative; empty means nothing qualifies.
+  CANDIDATE_STATUS_ENUMERATED = 1;
+  // The connector cannot enumerate candidates.
+  CANDIDATE_STATUS_NOT_SUPPORTED = 2;
+  // Enumeration failed or the routed resources could not be listed.
+  CANDIDATE_STATUS_UNAVAILABLE = 3;
+}
+
+// CandidateValue is one value the user may pick to satisfy a requirement.
+message CandidateValue {
+  string value = 1;
+  bool recommended = 2;
+  int32 rank = 3;
+  string warning = 4;
+}
+
+// Requirement is configuration the chosen ingestion type involves. It is
+// emitted whether or not the value is set so a picker can render from it:
+// satisfied means the value is configured, blocking means the run would fail
+// as-is. Unsatisfied and non-blocking means auto-detection covers it.
+message Requirement {
+  RequirementKind kind = 1;
+  string resource = 2;
+  string message = 3;
+  repeated CandidateValue candidates = 4;
+  bool satisfied = 5;
+  bool blocking = 6;
+  CandidateStatus candidate_status = 7;
+}
+
+// ResourceValidation is one routed table's verdict under the edge: the
+// ingestion types this table can actually serve given its primary key and
+// cursor reality, plus requirements for the edge's chosen type. Populated
+// when the chosen type needs per-table setup; snapshot and append edges
+// have nothing to configure.
+message ResourceValidation {
+  string resource = 1;
+  repeated IngestionType supported_ingestion_types = 2;
+  repeated Requirement requirements = 3;
+}
+
+// EdgeValidation is one edge's verdict: the ingestion types the pair supports
+// at the spec level, hard errors, edge-scoped requirements, and the per-table
+// breakdown.
+message EdgeValidation {
+  string from_node = 1;
+  string to_node = 2;
+  string resource = 3;
+  repeated IngestionType supported_ingestion_types = 4;
+  repeated ValidationError errors = 5;
+  repeated Requirement requirements = 6;
+  repeated ResourceValidation resources = 7;
+}
+
+message ValidatePipelineResponse {
+  bool valid = 1;
+  repeated EdgeValidation edges = 2;
+  // Graph-level failures: dangling node refs, unknown connections.
+  repeated ValidationError errors = 3;
+}
