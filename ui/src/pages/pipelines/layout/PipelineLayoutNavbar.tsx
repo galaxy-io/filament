@@ -35,6 +35,7 @@ import {
 import { usePipelineCanvasRunActions } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
+import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
@@ -42,7 +43,6 @@ import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useRunPipelineMutation, useSuspenseListRunsQuery } from "@/api/queries/runs";
 
-import PipelineScheduleChip from "../components/schedule/PipelineScheduleChip";
 import { getErrorMessage } from "@/utils/errors";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
