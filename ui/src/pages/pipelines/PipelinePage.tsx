@@ -37,7 +37,12 @@ const PipelinePage = () => {
     });
   };
 
-  if (!pipeline || pipeline.deletedAt) {
+  if (!pipeline) {
+    throw notFound();
+  }
+
+  // TODO: handle "Deleted pipeline" page
+  if (pipeline.deletedAt) {
     throw notFound();
   }
 

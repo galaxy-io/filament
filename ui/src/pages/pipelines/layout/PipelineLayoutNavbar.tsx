@@ -2,10 +2,9 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowUUpLeftIcon, CalendarIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
+import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, {
@@ -43,8 +42,8 @@ import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useRunPipelineMutation, useSuspenseListRunsQuery } from "@/api/queries/runs";
 
+import PipelineScheduleChip from "../components/schedule/PipelineScheduleChip";
 import { getErrorMessage } from "@/utils/errors";
-import { formatTimeUntil } from "@/utils/format";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -229,14 +228,7 @@ const PipelineLayoutNavbar = ({
             </>
           ) : (
             <>
-              {schedule?.config?.enabled && schedule.nextFireAt !== 0n && (
-                <Chip
-                  icon={CalendarIcon}
-                  label={`Next run ${formatTimeUntil(schedule.nextFireAt)}`}
-                  variant={ChipVariant.YELLOW}
-                  isPill
-                />
-              )}
+              <PipelineScheduleChip schedule={schedule} />
               <Button
                 label={hasActiveRun ? "Running..." : "Run"}
                 icon={PlayIcon}

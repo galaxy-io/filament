@@ -13,8 +13,6 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import PipelineName from "@/components/PipelineName";
-
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
@@ -28,6 +26,7 @@ import {
 import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
+import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
 import { formatBytes, formatDuration, formatTimeAgo } from "@/utils/format";
 
 const PipelinesTableWrapper = styled.div`
@@ -43,7 +42,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     accessorFn: (pipeline) => pipeline.name,
     enableSorting: true,
     cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => <PipelineName pipelineId={row.original.id} pipeline={row.original} />,
+    cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
   },
   {
     id: "connectors",
