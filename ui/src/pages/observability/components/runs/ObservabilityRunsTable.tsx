@@ -15,14 +15,12 @@ import { ListRunsRequestSchema, type RunInfo, type RunStatus } from "@/gen/inges
 
 import PipelineName from "@/components/PipelineName";
 
+import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
 import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
-import { OBSERVABILITY_CONNECTIONS_INPUT } from "@/pages/observability/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
-import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
-import { useListConnectionsQuery } from "@/api/queries/connections";
 import { useListRunsQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
@@ -46,21 +44,6 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
   );
 
   const { data, isLoading } = useListRunsQuery({ input });
-
-  const { data: connectionsData } = useListConnectionsQuery({
-    input: OBSERVABILITY_CONNECTIONS_INPUT,
-  });
-
-  const connectorsByConnectionId = useMemo(
-    () =>
-      new Map(
-        (connectionsData?.connections ?? []).map((connection) => [
-          connection.id,
-          connection.connector,
-        ]),
-      ),
-    [connectionsData],
-  );
 
   const columns = useMemo<ColumnDef<RunInfo>[]>(
     () => [
@@ -95,29 +78,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
         header: "Connectors",
         size: 140,
         cellLoading: () => <TextShimmer width={120} height={18} />,
-        cell: ({ row }) => (
-          <PipelineFlow
-            source={{
-              connectionId: row.original.sourceConnectionId,
-              connector:
-                connectorsByConnectionId.get(row.original.sourceConnectionId) ??
-                row.original.sourceConnectionId,
-            }}
-            sinks={
-              row.original.sinkConnectionId
-                ? [
-                    {
-                      connectionId: row.original.sinkConnectionId,
-                      connector:
-                        connectorsByConnectionId.get(row.original.sinkConnectionId) ??
-                        row.original.sinkConnectionId,
-                    },
-                  ]
-                : []
-            }
-            size={PipelineFlowSize.SMALL}
-          />
-        ),
+        cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
       },
       {
         id: "startedAt",
@@ -174,7 +135,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
         ),
       },
     ],
-    [connectorsByConnectionId],
+    [],
   );
 
   const runs = statuses.length ? (data?.runs ?? []) : [];

@@ -15,22 +15,32 @@ export interface PipelineFlowEndpoints {
   sinks: PipelineFlowConnection[];
 }
 
+export const mapConnectionIdToFlowConnection = (
+  connectionId: string,
+  connectionsById: Map<string, Connection>,
+): PipelineFlowConnection => {
+  const connection = connectionsById.get(connectionId);
+  return {
+    connectionId,
+    connector: connection?.connector ?? connectionId,
+    isDeleted: !!connection?.deletedAt,
+  };
+};
+
 export const mapVersionNodesToFlowEndpoints = (
   nodes: PipelineVersion["nodes"],
   connections: Connection[],
 ): PipelineFlowEndpoints => {
   const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));
-  const toFlowConnection = (connectionId: string): PipelineFlowConnection => ({
-    connectionId,
-    connector: connectionsById.get(connectionId)?.connector ?? connectionId,
-  });
 
   const sourceNode = nodes.find((node) => node.kind === ConnectorKind.SOURCE);
   return {
-    source: sourceNode ? toFlowConnection(sourceNode.connectionId) : undefined,
+    source: sourceNode
+      ? mapConnectionIdToFlowConnection(sourceNode.connectionId, connectionsById)
+      : undefined,
     sinks: nodes
       .filter((node) => node.kind === ConnectorKind.SINK)
-      .map((node) => toFlowConnection(node.connectionId)),
+      .map((node) => mapConnectionIdToFlowConnection(node.connectionId, connectionsById)),
   };
 };
 
