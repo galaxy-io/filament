@@ -1,9 +1,13 @@
+import { useMemo } from "react";
+
 import { MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
 
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
+
+export const formatBucketKey = (bucketStartMs: bigint) => bucketStartMs.toString();
 
 const formatHourBucketLabel = (bucketStartMs: bigint) =>
   `${new Date(Number(bucketStartMs)).getHours().toString().padStart(2, "0")}:00`;
@@ -40,10 +44,16 @@ export const OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP: Record<
   },
 };
 
-export const createTimeframeWindow = (
-  timeframe: ObservabilityTimeframe,
-): { sinceMs: bigint; untilMs: bigint } => {
+export const createTimeframeSince = (timeframe: ObservabilityTimeframe): bigint => {
   const { durationMs } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-  const untilMs = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
-  return { sinceMs: BigInt(untilMs - durationMs), untilMs: BigInt(untilMs) };
+  const nowMs = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
+  return BigInt(nowMs - durationMs);
 };
+
+export const useBucketLabelFormatter = (
+  timeframe: ObservabilityTimeframe,
+): ((key: string) => string) =>
+  useMemo(() => {
+    const { formatBucketLabel } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
+    return (key: string) => formatBucketLabel(BigInt(key));
+  }, [timeframe]);

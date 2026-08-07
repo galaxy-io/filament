@@ -16,7 +16,8 @@ import { OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP } from "@/pages/observability/com
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
-  createTimeframeWindow,
+  createTimeframeSince,
+  formatBucketKey,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
@@ -26,11 +27,9 @@ export const createRunCountTimeseriesInput = (
   statuses: RunStatus[],
 ): QueryTimeseriesRequest => {
   const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-  const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
   return create(QueryTimeseriesRequestSchema, {
     metrics: [Metric.RUN_COUNT],
-    sinceMs,
-    untilMs,
+    sinceMs: createTimeframeSince(timeframe),
     granularity,
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
     groupBy: MetricDimension.STATUS,
@@ -45,10 +44,9 @@ export const createRunCountTimeseriesInput = (
 
 export const mapTimeseriesToChartGroups = (
   series: Timeseries[],
-  formatBucketLabel: (bucketStartMs: bigint) => string,
 ): BarChartGroupDatum<ObservabilityRunMetric>[] =>
   (series[0]?.points ?? []).map((point, bucketIndex) => ({
-    label: formatBucketLabel(point.bucketStartMs),
+    label: formatBucketKey(point.bucketStartMs),
     bars: [
       {
         metric: "runs",

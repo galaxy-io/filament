@@ -293,7 +293,7 @@ func pipelineScheduleOverlapToProto(policy filament.OverlapPolicy) ingestionv1.P
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
-	pipelines, err := a.store.ListPipelines(ctx, req.Msg.GetTenantId())
+	pipelines, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: req.Msg.GetTenantId(), IncludeDeleted: req.Msg.GetIncludeDeleted()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -343,6 +343,9 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if pipeline.GetDeletedAt() != 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipeline.GetId()))
+	}
 	version, err := a.store.LoadPipelineVersion(ctx, pipeline.GetId(), pipeline.GetCurrentVersionId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline has no version: %w", err))
@@ -358,6 +361,9 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 			conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
 			if err != nil {
 				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
+			}
+			if conn.DeletedAt != 0 {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is deleted", node.GetConnectionId()))
 			}
 			connections[node.GetConnectionId()] = conn
 		}

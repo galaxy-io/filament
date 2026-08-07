@@ -14,9 +14,10 @@ export interface DangerZoneProps {
   title: string;
   description: string;
   onDelete: () => void;
+  isDisabled?: boolean;
 }
 
-const DangerZone = ({ title, description, onDelete }: DangerZoneProps) => {
+const DangerZone = ({ title, description, onDelete, isDisabled }: DangerZoneProps) => {
   return (
     <Widget header="Danger zone" variant={WidgetVariant.ERROR} fillWidth noHover>
       <FlexWrapper
@@ -30,7 +31,13 @@ const DangerZone = ({ title, description, onDelete }: DangerZoneProps) => {
             {description}
           </Text>
         </FlexWrapper>
-        <Button label="Delete" icon={TrashIcon} variant={ButtonVariant.ERROR} onClick={onDelete} />
+        <Button
+          label="Delete"
+          icon={TrashIcon}
+          variant={ButtonVariant.ERROR}
+          onClick={onDelete}
+          isDisabled={isDisabled}
+        />
       </FlexWrapper>
     </Widget>
   );

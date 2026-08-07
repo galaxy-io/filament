@@ -24,7 +24,7 @@ import {
   type PipelineSettingsPageScheduleState,
 } from "@/pages/pipelines/settings/types";
 
-const PIPELINE_SCHEDULE_INPUT_WIDTH = 234;
+const PIPELINE_SCHEDULE_INPUT_WIDTH = 264;
 
 interface PipelineScheduleFieldsProps {
   state: PipelineSettingsPageScheduleState;
@@ -78,7 +78,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
     PIPELINE_SCHEDULE_TIMEZONE_OPTIONS.find((option) => option.value === state.timezone) ?? null;
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
+    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
       <Widget noHover fillWidth>
         <FlexWrapper
           alignItems={AlignItems.CENTER}
@@ -90,14 +90,18 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
         </FlexWrapper>
       </Widget>
       <Widget noHover fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
           <FlexWrapper
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Frequency</Text>
-            <SwitcherInput items={frequencyItems} selectedId={state.frequency} />
+            <SwitcherInput
+              items={frequencyItems}
+              size={InputSize.LARGE}
+              selectedId={state.frequency}
+            />
           </FlexWrapper>
           {state.frequency === PipelineScheduleFrequency.WEEKLY && (
             <FlexWrapper

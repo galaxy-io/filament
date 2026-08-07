@@ -8,12 +8,13 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetPipelineVersionRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+
+import PipelineName from "@/components/PipelineName";
 
 import {
   PIPELINE_CARD_HEIGHT,
@@ -21,7 +22,6 @@ import {
 } from "@/pages/pipelines/components/card/constants";
 import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapVersionNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useListConnectionsQuery } from "@/api/queries/connections";
 import { useGetPipelineVersionQuery } from "@/api/queries/pipeline_versions";
@@ -90,11 +90,8 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           >
             <Beacon variant={BeaconVariant.SUCCESS} />
           </FlexWrapper>
-          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM}>
-            {formatPipelineName(pipeline)}
-          </Text>
+          <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />
         </FlexWrapper>
-
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
           <PipelineFlow
             source={source}

@@ -12,7 +12,7 @@ import SelectInput, {
   type SelectInputOption,
   SelectInputVariant,
 } from "@galaxy-io/dls/inputs/SelectInput";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -21,6 +21,8 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Pipeline, PipelineSchedule, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
+
+import PipelineName from "@/components/PipelineName";
 
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
 import {
@@ -37,12 +39,9 @@ import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
+import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
-import {
-  ACTIVE_RUN_STATUSES,
-  useRunPipelineMutation,
-  useSuspenseListRunsQuery,
-} from "@/api/queries/runs";
+import { useRunPipelineMutation, useSuspenseListRunsQuery } from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
 import { formatTimeUntil } from "@/utils/format";
@@ -180,9 +179,7 @@ const PipelineLayoutNavbar = ({
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM}>
-          {formatPipelineName(pipeline)}
-        </Text>
+        <PipelineName pipelineId={pipeline.id} />
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
@@ -224,7 +221,7 @@ const PipelineLayoutNavbar = ({
               <Button
                 label="Save"
                 icon={FloppyDiskIcon}
-                variant={ButtonVariant.PRIMARY_ALT}
+                variant={ButtonVariant.SUCCESS}
                 size={ButtonSize.SMALL}
                 isLoading={isSaving}
                 onClick={handleSave}

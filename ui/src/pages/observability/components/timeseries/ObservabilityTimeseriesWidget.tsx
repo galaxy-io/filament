@@ -30,10 +30,13 @@ import {
   METRIC_DIMENSION_PIVOT_OPTIONS,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
 } from "@/pages/observability/components/timeseries/constants";
+import { OBSERVABILITY_PIPELINES_INPUT } from "@/pages/observability/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
-  createTimeframeWindow,
+  createTimeframeSince,
+  formatBucketKey,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+  useBucketLabelFormatter,
 } from "@/pages/observability/utils";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
@@ -79,13 +82,13 @@ const ObservabilityTimeseriesWidget = ({
     onPivotChange(null);
   };
 
+  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+
   const input = useMemo(() => {
     const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-    const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
     return create(QueryTimeseriesRequestSchema, {
       metrics: [metric],
-      sinceMs,
-      untilMs,
+      sinceMs: createTimeframeSince(timeframe),
       granularity,
       tzOffsetMinutes: -new Date().getTimezoneOffset(),
       groupBy: pivotDimension,
@@ -93,15 +96,16 @@ const ObservabilityTimeseriesWidget = ({
   }, [timeframe, metric, pivotDimension]);
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });
-  const { data: pipelinesData } = useListPipelinesQuery();
+  const { data: pipelinesData } = useListPipelinesQuery({
+    input: OBSERVABILITY_PIPELINES_INPUT,
+  });
 
   const { series, lines } = useMemo(() => {
-    const { formatBucketLabel } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
     const timeseries = data?.series ?? [];
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
         pipeline.id,
-        formatPipelineName(pipeline),
+        formatPipelineName(pipeline, true),
       ]),
     );
 
@@ -141,12 +145,12 @@ const ObservabilityTimeseriesWidget = ({
         metric: keySeries.key || seriesLabel,
         showArea: pivotDimension === MetricDimension.UNSPECIFIED,
         points: keySeries.points.map((point) => ({
-          x: formatBucketLabel(point.bucketStartMs),
+          x: formatBucketKey(point.bucketStartMs),
           y: point.values[0],
         })),
       })),
     };
-  }, [data, pipelinesData, pivotDimension, timeframe, seriesLabel, color]);
+  }, [data, pipelinesData, pivotDimension, seriesLabel, color]);
 
   return (
     <Widget fillWidth fillHeight noPadding>
@@ -175,6 +179,7 @@ const ObservabilityTimeseriesWidget = ({
           lines={lines}
           curve={LineChartCurve.LINEAR}
           valueFormatter={valueFormatter}
+          labelFormatter={bucketLabelFormatter}
           isLoading={isLoading}
           fillWidth
           fillHeight

@@ -18,6 +18,18 @@ import (
 // shared sentinel regardless of which DataStore impl they hold.
 var ErrNotFound = filament.ErrNotFound
 
+// deletedNameTimestamp renders the delete time stamped onto a soft-deleted
+// pipeline or connection name, keeping the name unique if the row is ever
+// restored into a partial unique index. Fixed-width milliseconds, matching the
+// postgres to_char pattern in queries/{pipelines,connections}.sql —
+// time.RFC3339 has no fractional seconds and RFC3339Nano trims trailing zeros.
+const deletedNameTimestamp = "2006-01-02T15:04:05.000Z"
+
+// stampDeletedName appends the delete marker the postgres store writes in SQL.
+func stampDeletedName(name string, at time.Time) string {
+	return fmt.Sprintf("%s__deleted__%s", name, at.UTC().Format(deletedNameTimestamp))
+}
+
 // Store is an in-memory DataStore.
 type Store struct {
 	mu                  sync.RWMutex
@@ -27,7 +39,9 @@ type Store struct {
 	resourceCheckpoints map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState
 	seen                map[dkey]struct{} // dedup keys already applied
 	connections         map[string]filament.Connection
+	deletedConnections  map[string]filament.Connection
 	pipelines           map[string]*ingestionv1.Pipeline
+	deletedPipelines    map[string]*ingestionv1.Pipeline
 	pipelineVersions    map[string]map[int64]*ingestionv1.PipelineVersion
 	schedules           map[filament.ScheduleID]filament.ScheduleState
 	scheduleClaims      map[filament.ScheduleID]time.Time
@@ -53,7 +67,9 @@ func New() *Store {
 		resourceCheckpoints: map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState{},
 		seen:                map[dkey]struct{}{},
 		connections:         map[string]filament.Connection{},
+		deletedConnections:  map[string]filament.Connection{},
 		pipelines:           map[string]*ingestionv1.Pipeline{},
+		deletedPipelines:    map[string]*ingestionv1.Pipeline{},
 		pipelineVersions:    map[string]map[int64]*ingestionv1.PipelineVersion{},
 		schedules:           map[filament.ScheduleID]filament.ScheduleState{},
 		scheduleClaims:      map[filament.ScheduleID]time.Time{},

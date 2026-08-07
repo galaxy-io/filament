@@ -15,7 +15,9 @@ import { Metric } from "@/gen/metrics/v1/metrics_pb";
 import ObservabilityMetricsWidget from "@/pages/observability/components/metrics/ObservabilityMetricsWidget";
 import ObservabilityToolbar from "@/pages/observability/components/ObservabilityToolbar";
 import ObservabilityRunsWidget from "@/pages/observability/components/runs/ObservabilityRunsWidget";
+import ObservabilitySetupChecklist from "@/pages/observability/components/setup/ObservabilitySetupChecklist";
 import ObservabilityTimeseriesWidget from "@/pages/observability/components/timeseries/ObservabilityTimeseriesWidget";
+import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
 
 import type { ObservabilityPivotDimension } from "@/routes/_main/observability";
 
@@ -30,6 +32,7 @@ const OBSERVABILITY_BYTES_VALUE_FORMATTER = (value: number) =>
 const ObservabilityPage = () => {
   const navigate = useNavigate();
   const { records, volume } = useSearch({ from: "/_main/observability" });
+  const { isComplete } = useObservabilitySetup();
 
   const handleRecordsPivotChange = (pivot: ObservabilityPivotDimension | null) => {
     void navigate({ to: ".", search: (prev) => ({ ...prev, records: pivot ?? undefined }) });
@@ -38,6 +41,10 @@ const ObservabilityPage = () => {
   const handleVolumePivotChange = (pivot: ObservabilityPivotDimension | null) => {
     void navigate({ to: ".", search: (prev) => ({ ...prev, volume: pivot ?? undefined }) });
   };
+
+  if (!isComplete) {
+    return <ObservabilitySetupChecklist />;
+  }
 
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} fillWidth fillHeight>

@@ -134,7 +134,7 @@ const PipelineSettingsPageSchedule = ({
           justifyContent={JustifyContent.SPACE_BETWEEN}
           fillWidth
         >
-          <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
+          <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
             {state.isEnabled && summary}
           </Text>
           <Button

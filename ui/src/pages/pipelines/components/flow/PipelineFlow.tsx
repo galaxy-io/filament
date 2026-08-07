@@ -21,6 +21,7 @@ export enum PipelineFlowSize {
 export interface PipelineFlowConnection {
   connectionId: string;
   connector: string;
+  isDeleted?: boolean;
 }
 
 const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, ConnectorTileSize> = {
@@ -73,6 +74,7 @@ const PipelineFlow = ({
           connector={source.connector}
           onClick={(e) => handleConnectionClick(source.connectionId, e)}
           size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
+          isDeleted={source.isDeleted}
         />
       );
     }
@@ -89,6 +91,7 @@ const PipelineFlow = ({
               connector={sink.connector}
               size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
               onClick={(e) => handleConnectionClick(sink.connectionId, e)}
+              isDeleted={sink.isDeleted}
             />
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
@@ -97,20 +100,19 @@ const PipelineFlow = ({
     }
   };
 
+  if (!isLinked) {
+    return <Chip label="Invalid pipeline" variant={ChipVariant.WARNING} size={ChipSize.SMALL} />;
+  }
+
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
       {renderSource()}
-      {isLinked && (
-        <Icon
-          component={FlowArrowIcon}
-          variant={IconVariant.PRIMARY}
-          size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
-          weight={IconWeight.REGULAR}
-        />
-      )}
-      {!isLinked && (
-        <Chip label="Invalid pipeline" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />
-      )}
+      <Icon
+        component={FlowArrowIcon}
+        variant={IconVariant.PRIMARY}
+        size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
+        weight={IconWeight.REGULAR}
+      />
       {renderSinks()}
     </FlexWrapper>
   );

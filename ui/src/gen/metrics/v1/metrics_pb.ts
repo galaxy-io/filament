@@ -65,7 +65,7 @@ export type QueryTimeseriesRequest = Message<"metrics.v1.QueryTimeseriesRequest"
   sinceMs: bigint;
 
   /**
-   * exclusive
+   * exclusive; unset = now
    *
    * @generated from field: int64 until_ms = 4;
    */
@@ -191,11 +191,15 @@ export type QueryAggregateRequest = Message<"metrics.v1.QueryAggregateRequest"> 
   metrics: Metric[];
 
   /**
+   * inclusive
+   *
    * @generated from field: int64 since_ms = 3;
    */
   sinceMs: bigint;
 
   /**
+   * exclusive; unset = now
+   *
    * @generated from field: int64 until_ms = 4;
    */
   untilMs: bigint;
