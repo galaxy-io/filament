@@ -21,15 +21,15 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
-		Capabilities: sourceCapabilitiesToProto(spec),
+		Capabilities: sourceCapabilitiesToProto(spec, spec.SourcePolicies),
 	}
 }
 
-func sourceCapabilitiesToProto(spec filament.ConnectorSpec) *ingestionv1.Capabilities {
+func sourceCapabilitiesToProto(spec filament.ConnectorSpec, policies []filament.SourcePolicy) *ingestionv1.Capabilities {
 	return &ingestionv1.Capabilities{
 		Discoverable:      spec.Resources.Discoverable,
 		PerResourceCursor: spec.Resources.PerResourceCursor,
-		SourcePolicies:    sourcePoliciesToProto(spec.SourcePolicies),
+		SourcePolicies:    sourcePoliciesToProto(policies),
 	}
 }
 
@@ -130,7 +130,7 @@ func writePolicyCapabilitiesToProto(caps []filament.WritePolicyCapability) []*in
 
 // modesToProto reduces the engine's read mechanisms to the connection-level
 // replication modes a connector supports.
-func modesToProto(modes []filament.ReplicationMode) []ingestionv1.ReplicationMode {
+func modesToProto(modes []filament.ReadMode) []ingestionv1.ReplicationMode {
 	var standard, cdc bool
 	for _, mode := range modes {
 		if mode == filament.ModeCDC {
@@ -151,7 +151,7 @@ func modesToProto(modes []filament.ReplicationMode) []ingestionv1.ReplicationMod
 
 // modeToProto maps an engine read mechanism onto the per-table read lever;
 // CDC is a stream, not a per-table read, so it has no lever value.
-func modeToProto(mode filament.ReplicationMode) ingestionv1.ReadMode {
+func modeToProto(mode filament.ReadMode) ingestionv1.ReadMode {
 	switch mode {
 	case filament.ModeFull:
 		return ingestionv1.ReadMode_READ_MODE_FULL
@@ -162,7 +162,14 @@ func modeToProto(mode filament.ReplicationMode) ingestionv1.ReadMode {
 	}
 }
 
-func readModeFromProto(mode ingestionv1.ReadMode) filament.ReplicationMode {
+func replicationToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
+	if mode == filament.ReplicationCDC {
+		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
+	}
+	return ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD
+}
+
+func readModeFromProto(mode ingestionv1.ReadMode) filament.ReadMode {
 	if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
 		return filament.ModeIncremental
 	}

@@ -76,7 +76,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  s.darkLogoURL,
 		LightLogoURL: s.lightLogoURL,
 		Version:      "1",
-		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental},
+		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,

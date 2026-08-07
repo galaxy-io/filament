@@ -481,7 +481,7 @@ func (s *Sink) tableIdent(resource string) icetable.Identifier {
 	return catalog.ToIdentifier(append(parts, tableName(resource))...)
 }
 
-func resolveWriteMode(configured string, runMode filament.ReplicationMode) (writeMode, error) {
+func resolveWriteMode(configured string, runMode filament.ReadMode) (writeMode, error) {
 	mode := writeMode(strings.ToLower(strings.TrimSpace(configured)))
 	if mode == "" {
 		mode = writeModeAuto

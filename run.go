@@ -19,7 +19,7 @@ type RunSpec struct {
 	Resources         []string
 	Selectors         []string
 	IngestionType     IngestionType
-	Mode              ReplicationMode
+	Mode              ReadMode
 	Checkpoint        *CheckpointData
 	Options           RunOptions
 }
@@ -248,7 +248,7 @@ const (
 // full-refresh replace; an unset write on an incremental read defaults to
 // upsert. CDC connections never reach this: their edges are always
 // IngestionCDC.
-func IngestionFor(read ReplicationMode, write WriteMode) (IngestionType, error) {
+func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
 	if write == "" {
 		if read == ModeIncremental {
 			write = WriteUpsert
@@ -279,7 +279,19 @@ func IngestionFor(read ReplicationMode, write WriteMode) (IngestionType, error) 
 			return IngestionIncrementalDelete, nil
 		}
 	}
-	return "", fmt.Errorf("read mode %v cannot combine with write mode %q", read, write)
+	return "", fmt.Errorf("read mode %q cannot combine with write mode %q", read, write)
+}
+
+// String renders a read mode for messages and logs.
+func (m ReadMode) String() string {
+	switch m {
+	case ModeIncremental:
+		return "incremental"
+	case ModeCDC:
+		return "cdc"
+	default:
+		return "full"
+	}
 }
 
 // WriteAtomicity is the unit at which a sink's writes become visible.
@@ -363,7 +375,7 @@ func OperationName(op Operation) string {
 // SourcePolicy is the read-side contract an ingestion type implies: mode,
 // emitted operations, ordering, and checkpoint timing.
 type SourcePolicy struct {
-	Mode          ReplicationMode
+	Mode          ReadMode
 	EmitsOps      []Operation
 	Ordered       bool
 	Checkpointing CheckpointPolicy

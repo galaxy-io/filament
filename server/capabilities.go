@@ -11,21 +11,9 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-// ingestionTypes is the selectable menu validation walks, in display order.
-// CDC is deliberately absent: it is a property of the connection, never a
-// per-edge choice.
-var ingestionTypes = []filament.IngestionType{
-	filament.IngestionSnapshotReplace,
-	filament.IngestionSnapshotUpsert,
-	filament.IngestionSnapshotAppend,
-	filament.IngestionIncrementalAppend,
-	filament.IngestionIncrementalUpsert,
-	filament.IngestionIncrementalDelete,
-}
-
-// GetConnectionCapabilities reports what one connection's connector declares
-// and which ingestion types it can serve, with the validator's reason for
-// each type it cannot.
+// GetConnectionCapabilities reports one connection's levers: its replication
+// mode, the per-table read modes a source offers, or the write modes a sink
+// offers — all narrowed by the connection's stored config.
 func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Request[ingestionv1.GetConnectionCapabilitiesRequest]) (*connect.Response[ingestionv1.GetConnectionCapabilitiesResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
@@ -45,20 +33,14 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 			return nil, err
 		}
 		spec := source.Spec()
-		policies := filament.EffectiveSourcePolicies(source, filament.NewConfig(conn.Config))
-		replication := ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD
-		if filament.IsCDCReplication(policies) {
-			replication = ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
-		}
+		replication := filament.ReplicationOf(source, filament.NewConfig(conn.Config))
+		policies := policiesForReplication(spec.SourcePolicies, replication)
 		return connect.NewResponse(&ingestionv1.GetConnectionCapabilitiesResponse{
 			Connector:    spec.Name,
 			Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
-			Capabilities: sourceCapabilitiesToProto(spec),
-			Replication:  replication,
+			Capabilities: sourceCapabilitiesToProto(spec, policies),
+			Replication:  replicationToProto(replication),
 			ReadModes:    readModesForPolicies(policies),
-			Ingestion: ingestionSupport(func(t filament.IngestionType) error {
-				return validateSourceFor(spec, policies, t)
-			}),
 		}), nil
 	case filament.ConnectorKindSink:
 		sink, err := a.sinks.Resolve(conn.Connector)
@@ -70,27 +52,27 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 			Connector:    spec.Name,
 			Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 			Capabilities: sinkCapabilitiesToProto(spec.Capabilities),
-			WriteModes:   sinkWriteModes(spec),
-			Ingestion: ingestionSupport(func(t filament.IngestionType) error {
-				return filament.ValidateSinkIngestion(spec, t)
-			}),
+			WriteModes:   sinkWriteModes(spec.Capabilities),
 		}), nil
 	default:
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q has no connector kind", conn.ID))
 	}
 }
 
-// validateSourceFor validates against the connection's effective policies,
-// falling back to the static spec for sources that declare only modes.
-func validateSourceFor(spec filament.ConnectorSpec, policies []filament.SourcePolicy, t filament.IngestionType) error {
-	if len(policies) > 0 {
-		return filament.ValidateSourcePolicies(spec.Name, policies, t)
+// policiesForReplication filters a spec's declared policies down to the ones
+// the connection's replication mode can serve.
+func policiesForReplication(policies []filament.SourcePolicy, replication filament.ReplicationMode) []filament.SourcePolicy {
+	out := make([]filament.SourcePolicy, 0, len(policies))
+	for _, policy := range policies {
+		if (policy.Mode == filament.ModeCDC) == (replication == filament.ReplicationCDC) {
+			out = append(out, policy)
+		}
 	}
-	return filament.ValidateSourceIngestion(spec, t)
+	return out
 }
 
-// readModesForPolicies reduces an effective policy set to the per-table read
-// levers it offers; a CDC connection offers none.
+// readModesForPolicies reduces a policy set to the per-table read levers it
+// offers; a CDC connection's policies yield none.
 func readModesForPolicies(policies []filament.SourcePolicy) []ingestionv1.ReadMode {
 	var full, incremental bool
 	for _, policy := range policies {
@@ -112,28 +94,21 @@ func readModesForPolicies(policies []filament.SourcePolicy) []ingestionv1.ReadMo
 }
 
 // sinkWriteModes lists the write levers a sink offers. Append and replace are
-// universal; upsert needs the capability. append_dedupe joins once a sink
-// implements it.
-func sinkWriteModes(spec filament.SinkSpec) []ingestionv1.WriteMode {
+// universal; upsert needs the declared capability. append_dedupe joins once a
+// sink implements it.
+func sinkWriteModes(caps filament.SinkCapabilities) []ingestionv1.WriteMode {
 	out := []ingestionv1.WriteMode{
 		ingestionv1.WriteMode_WRITE_MODE_APPEND,
 		ingestionv1.WriteMode_WRITE_MODE_REPLACE,
 	}
-	if filament.ValidateSinkIngestion(spec, filament.IngestionSnapshotUpsert) == nil {
-		out = append(out, ingestionv1.WriteMode_WRITE_MODE_UPSERT)
-	}
-	return out
-}
-
-func ingestionSupport(validate func(filament.IngestionType) error) []*ingestionv1.IngestionSupport {
-	out := make([]*ingestionv1.IngestionSupport, 0, len(ingestionTypes))
-	for _, t := range ingestionTypes {
-		entry := &ingestionv1.IngestionSupport{Type: ingestionTypeToProto(t), Supported: true}
-		if err := validate(t); err != nil {
-			entry.Supported = false
-			entry.Reason = err.Error()
+	upsert := caps.Upsertable
+	for _, capability := range caps.WritePolicies {
+		if capability.Mode == filament.WriteUpsert {
+			upsert = true
 		}
-		out = append(out, entry)
+	}
+	if upsert {
+		out = append(out, ingestionv1.WriteMode_WRITE_MODE_UPSERT)
 	}
 	return out
 }
@@ -230,13 +205,14 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		return nil
 	}
 	srcSpec, snkSpec := source.Spec(), sink.Spec()
-	policies := filament.EffectiveSourcePolicies(source, filament.NewConfig(srcConn.Config))
-	ev.SupportedWriteModes = sinkWriteModes(snkSpec)
+	replication := filament.ReplicationOf(source, filament.NewConfig(srcConn.Config))
+	policies := policiesForReplication(srcSpec.SourcePolicies, replication)
+	ev.SupportedWriteModes = sinkWriteModes(snkSpec.Capabilities)
 
 	// A CDC connection implies the whole recipe; standard edges compile from
 	// the two levers.
 	var chosen filament.IngestionType
-	if filament.IsCDCReplication(policies) {
+	if replication == filament.ReplicationCDC {
 		chosen = filament.IngestionCDC
 	} else {
 		var err error
@@ -248,7 +224,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 	ev.IngestionType = ingestionTypeToProto(chosen)
 
-	if err := validateSourceFor(srcSpec, policies, chosen); err != nil {
+	if err := filament.ValidateSourceIngestion(srcSpec, chosen); err != nil {
 		edgeError(ev, "read_mode", err.Error())
 	}
 	if err := filament.ValidateSinkIngestion(snkSpec, chosen); err != nil {
@@ -258,7 +234,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		return nil
 	}
 
-	a.edgeRequirements(ctx, edge, from, *srcConn, chosen, policies, probes, ev)
+	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, readModesForPolicies(policies), probes, ev)
 	return nil
 }
 
@@ -288,12 +264,12 @@ func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.Pipel
 	return &conn, nil
 }
 
-// edgeRequirements builds the per-table breakdown: which read modes each
+// resourceBreakdown builds the per-table verdicts: which read modes each
 // routed table can serve, its cursor requirement (satisfied, auto-covered,
 // or blocking), and its primary-key requirement. The breakdown is always
 // computed so the FE can offer per-table levers before anything is chosen;
 // requirements only accompany chosen levers that involve setup.
-func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, policies []filament.SourcePolicy, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, readModes []ingestionv1.ReadMode, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
 	needsCursor := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
 	needsPK := chosen.WriteCapability().RequiresPK
 
@@ -325,7 +301,7 @@ func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.Pipelin
 					Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
 					Satisfied:       len(cursors) > 0,
 					CandidateStatus: ingestionv1.CandidateStatus_CANDIDATE_STATUS_UNAVAILABLE,
-					Message:         fmt.Sprintf("%s reads incrementally but the source cannot list resources, so per-resource cursors cannot be verified", chosen),
+					Message:         "incremental reads need a cursor column for each resource, but the source cannot list its resources",
 				})
 			}
 			return
@@ -350,14 +326,14 @@ func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.Pipelin
 		// When candidates are unknowable stay optimistic; runtime decides.
 		cursorable := cursors[resource] || len(candidates) > 0 ||
 			status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
-		for _, mode := range readModesForPolicies(policies) {
+		for _, mode := range readModes {
 			if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL && !cursorable {
 				continue
 			}
 			rv.SupportedReadModes = append(rv.SupportedReadModes, mode)
 		}
 		if needsCursor {
-			rv.Requirements = append(rv.Requirements, cursorRequirement(resource, chosen, candidates, status, cursors[resource]))
+			rv.Requirements = append(rv.Requirements, cursorRequirement(resource, candidates, status, cursors[resource]))
 		}
 		if needsPK && len(keys) == 0 {
 			rv.Requirements = append(rv.Requirements, &ingestionv1.Requirement{
@@ -365,7 +341,7 @@ func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.Pipelin
 				Resource:        resource,
 				Blocking:        true,
 				CandidateStatus: ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED,
-				Message:         fmt.Sprintf("%s requires a primary key but none was discovered for resource %q", chosen, resource),
+				Message:         fmt.Sprintf("writing by key requires a primary key, but none was discovered for resource %q", resource),
 			})
 		}
 	}
@@ -400,7 +376,7 @@ func cursorCandidates(ctx context.Context, src filament.Source, resource string)
 // cursorRequirement mirrors runtime cursor resolution: configured wins, an
 // auto-detectable (recommended) candidate keeps the run viable without
 // configuration, and only a resource with neither blocks.
-func cursorRequirement(resource string, chosen filament.IngestionType, candidates []*ingestionv1.CandidateValue, status ingestionv1.CandidateStatus, satisfied bool) *ingestionv1.Requirement {
+func cursorRequirement(resource string, candidates []*ingestionv1.CandidateValue, status ingestionv1.CandidateStatus, satisfied bool) *ingestionv1.Requirement {
 	requirement := &ingestionv1.Requirement{
 		Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
 		Resource:        resource,
@@ -419,15 +395,15 @@ func cursorRequirement(resource string, chosen filament.IngestionType, candidate
 	case satisfied:
 		requirement.Message = fmt.Sprintf("cursor column configured for resource %q", resource)
 	case status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED:
-		requirement.Message = fmt.Sprintf("%s reads incrementally but cursor candidates for resource %q could not be determined", chosen, resource)
+		requirement.Message = fmt.Sprintf("incremental reads need a cursor column, but candidates for resource %q could not be determined", resource)
 	case recommended != "":
 		requirement.Message = fmt.Sprintf("auto-detected cursor %q will be used for resource %q", recommended, resource)
 	case len(candidates) > 0:
 		requirement.Blocking = true
-		requirement.Message = fmt.Sprintf("%s requires a cursor column for resource %q", chosen, resource)
+		requirement.Message = fmt.Sprintf("incremental reads require a cursor column for resource %q", resource)
 	default:
 		requirement.Blocking = true
-		requirement.Message = fmt.Sprintf("resource %q has no usable cursor column; replicate it fully via a snapshot edge instead", resource)
+		requirement.Message = fmt.Sprintf("resource %q has no usable cursor column; use full replication for it instead", resource)
 	}
 	return requirement
 }

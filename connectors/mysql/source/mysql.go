@@ -95,7 +95,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
 		Version:      "1",
-		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeCDC},
+		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,
@@ -104,14 +104,26 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+			{Name: "replication", Type: filament.FieldEnum, Default: string(filament.ReplicationStandard), Enum: []filament.EnumOption{
+				{Value: string(filament.ReplicationStandard), Label: "Standard"},
+				{Value: string(filament.ReplicationCDC), Label: "Change Data Capture (CDC)"},
+			}, Scope: filament.ScopeConnection, Help: "Standard reads tables with queries; CDC streams changes from the binary log"},
 			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Database to read tables from (defaults to the DSN's database)"},
 			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "InnoDB pages per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
 			{Name: "server_id", Type: filament.FieldInt, Default: defaultServerID, Scope: filament.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
 		}},
-		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true},
 	}
+}
+
+// Replication reports the mode the connection's config selects.
+func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
+	if cfg.String("replication") == string(filament.ReplicationCDC) {
+		return filament.ReplicationCDC
+	}
+	return filament.ReplicationStandard
 }
 
 // Validate rejects a config missing the connection string or one whose DSN names no

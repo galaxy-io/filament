@@ -96,7 +96,7 @@ func (a *Server) deriveEdgeTypes(ctx context.Context, nodes []*ingestionv1.Pipel
 			if err != nil {
 				return err
 			}
-			isCDC = filament.IsCDCReplication(filament.EffectiveSourcePolicies(source, filament.NewConfig(conn.Config)))
+			isCDC = filament.ReplicationOf(source, filament.NewConfig(conn.Config)) == filament.ReplicationCDC
 			cdcByConnection[node.GetConnectionId()] = isCDC
 		}
 		if isCDC {

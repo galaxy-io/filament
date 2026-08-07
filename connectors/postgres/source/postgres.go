@@ -122,7 +122,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
 		Version:      "1",
-		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
+		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,
@@ -150,28 +150,28 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: encodingNative, Label: "Native"},
 				{Value: encodingJSONB, Label: "JSONB"},
 			}, Scope: filament.ScopePipeline, Help: "Row payload encoding"},
-			{Name: "publication", Type: filament.FieldString, Default: defaultPublication, Scope: filament.ScopePipeline, Help: "Logical replication publication used by CDC"},
+			{
+				Name: "publication", Type: filament.FieldString, Default: defaultPublication, Scope: filament.ScopeConnection,
+				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
+				Help:        "Logical replication publication used by CDC",
+			},
+			{
+				Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection,
+				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
+				Help:        "Create the CDC publication and add selected tables when needed",
+			},
 			{Name: "slot_name", Type: filament.FieldString, Default: defaultSlotName, Scope: filament.ScopePipeline, Help: "Persistent logical replication slot; use a unique slot per CDC pipeline"},
-			{Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopePipeline, Help: "Create the CDC publication and add selected tables when needed"},
 		}},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
 
-// PoliciesFor narrows the declared policies by the connection's replication
-// mode: a CDC connection offers only the change stream; a standard one offers
-// everything else.
-func (s *Source) PoliciesFor(cfg filament.Config) []filament.SourcePolicy {
+// Replication reports the mode the connection's config selects.
+func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
 	if cfg.String("replication") == replicationCDC {
-		return filament.SourcePolicies(filament.IngestionCDC)
+		return filament.ReplicationCDC
 	}
-	return filament.SourcePolicies(
-		filament.IngestionSnapshotReplace,
-		filament.IngestionSnapshotUpsert,
-		filament.IngestionSnapshotAppend,
-		filament.IngestionIncrementalAppend,
-		filament.IngestionIncrementalUpsert,
-	)
+	return filament.ReplicationStandard
 }
 
 // Validate rejects a config missing the connection string.
