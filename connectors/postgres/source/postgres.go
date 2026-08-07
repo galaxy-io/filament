@@ -124,9 +124,9 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		Version:      "1",
 		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
-			filament.IngestionSnapshotReplace,
-			filament.IngestionSnapshotUpsert,
-			filament.IngestionSnapshotAppend,
+			filament.IngestionFullReplace,
+			filament.IngestionFullUpsert,
+			filament.IngestionFullAppend,
 			filament.IngestionIncrementalAppend,
 			filament.IngestionIncrementalUpsert,
 			filament.IngestionCDC,

@@ -67,9 +67,9 @@ func (t *Sink) Spec() filament.SinkSpec {
 			Upsertable:         true,
 			PreferredBatchRows: 4096,
 			WritePolicies: filament.WriteCapabilities(
-				filament.IngestionSnapshotReplace,
-				filament.IngestionSnapshotAppend,
-				filament.IngestionSnapshotUpsert,
+				filament.IngestionFullReplace,
+				filament.IngestionFullAppend,
+				filament.IngestionFullUpsert,
 				filament.IngestionIncrementalUpsert,
 				filament.IngestionCDC,
 			),
@@ -101,7 +101,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		return fmt.Errorf("mysql sink: dsn has no database and \"database\" is unset")
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert ||
+	t.resumable = run.IngestionType == filament.IngestionFullUpsert ||
 		run.IngestionType == filament.IngestionIncrementalUpsert ||
 		run.IngestionType == filament.IngestionCDC // a change stream continues an existing table
 	t.written.Store(0)

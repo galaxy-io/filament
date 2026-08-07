@@ -115,7 +115,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 			FromNode:      "src",
 			ToNode:        "dst",
 			Resource:      r,
-			IngestionType: ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_REPLACE,
+			IngestionType: ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE,
 		})
 	}
 	created, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{

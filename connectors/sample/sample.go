@@ -36,7 +36,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DisplayName:    "Sample Generator",
 		Version:        "1",
 		Modes:          []filament.ReadMode{filament.ModeFull},
-		SourcePolicies: filament.SourcePolicies(filament.IngestionSnapshotReplace),
+		SourcePolicies: filament.SourcePolicies(filament.IngestionFullReplace),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "rows", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Rows to generate per resource"},
 		}},

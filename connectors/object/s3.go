@@ -113,8 +113,8 @@ func (s *Sink) Spec() filament.SinkSpec {
 		}},
 		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(
-			filament.IngestionSnapshotAppend,
-			filament.IngestionSnapshotReplace,
+			filament.IngestionFullAppend,
+			filament.IngestionFullReplace,
 		)},
 	}
 }

@@ -10,18 +10,17 @@ func TestIngestionFor(t *testing.T) {
 		want  IngestionType
 		fails bool
 	}{
-		{"defaults to full refresh", ModeFull, "", IngestionSnapshotReplace, false},
+		{"defaults to full refresh", ModeFull, "", IngestionFullReplace, false},
 		{"incremental defaults to upsert", ModeIncremental, "", IngestionIncrementalUpsert, false},
-		{"full replace", ModeFull, WriteReplace, IngestionSnapshotReplace, false},
-		{"full upsert", ModeFull, WriteUpsert, IngestionSnapshotUpsert, false},
-		{"full append", ModeFull, WriteAppend, IngestionSnapshotAppend, false},
+		{"full replace", ModeFull, WriteReplace, IngestionFullReplace, false},
+		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert, false},
+		{"full append", ModeFull, WriteAppend, IngestionFullAppend, false},
 		{"incremental append", ModeIncremental, WriteAppend, IngestionIncrementalAppend, false},
 		{"incremental upsert", ModeIncremental, WriteUpsert, IngestionIncrementalUpsert, false},
 		{"incremental delete", ModeIncremental, WriteDelete, IngestionIncrementalDelete, false},
 		{"incremental replace is incoherent", ModeIncremental, WriteReplace, "", true},
 		{"full delete is incoherent", ModeFull, WriteDelete, "", true},
 		{"merge is never a lever", ModeFull, WriteMerge, "", true},
-		{"dedupe not supported yet", ModeIncremental, WriteAppendDedupe, "", true},
 		{"cdc never compiles from levers", ModeCDC, WriteMerge, "", true},
 	}
 	for _, tt := range tests {
@@ -53,7 +52,7 @@ func TestValidateReplication(t *testing.T) {
 	if err := ValidateReplication(ReplicationStandard, IngestionCDC); err == nil {
 		t.Fatal("cdc on a standard connection must fail")
 	}
-	if err := ValidateReplication(ReplicationCDC, IngestionSnapshotReplace); err == nil {
+	if err := ValidateReplication(ReplicationCDC, IngestionFullReplace); err == nil {
 		t.Fatal("levers on a cdc connection must fail")
 	}
 }

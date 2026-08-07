@@ -177,19 +177,19 @@ type IngestionType string
 // The defined ingestion types, named {read}_{write}: what the source reads
 // crossed with how the sink lands it. CDC implies both sides.
 const (
-	IngestionSnapshotReplace   IngestionType = "snapshot_replace"
-	IngestionSnapshotUpsert    IngestionType = "snapshot_upsert"
-	IngestionSnapshotAppend    IngestionType = "snapshot_append"
+	IngestionFullReplace       IngestionType = "full_replace"
+	IngestionFullUpsert        IngestionType = "full_upsert"
+	IngestionFullAppend        IngestionType = "full_append"
 	IngestionIncrementalAppend IngestionType = "incremental_append"
 	IngestionIncrementalUpsert IngestionType = "incremental_upsert"
 	IngestionIncrementalDelete IngestionType = "incremental_delete"
 	IngestionCDC               IngestionType = "cdc"
 )
 
-// OrDefault substitutes IngestionSnapshotReplace for the empty type.
+// OrDefault substitutes IngestionFullReplace for the empty type.
 func (t IngestionType) OrDefault() IngestionType {
 	if t == "" {
-		return IngestionSnapshotReplace
+		return IngestionFullReplace
 	}
 	return t
 }
@@ -235,12 +235,11 @@ type WriteMode string
 
 // The defined write modes.
 const (
-	WriteAppend       WriteMode = "append"
-	WriteReplace      WriteMode = "replace"
-	WriteUpsert       WriteMode = "upsert"
-	WriteDelete       WriteMode = "delete"
-	WriteMerge        WriteMode = "merge"
-	WriteAppendDedupe WriteMode = "append_dedupe"
+	WriteAppend  WriteMode = "append"
+	WriteReplace WriteMode = "replace"
+	WriteUpsert  WriteMode = "upsert"
+	WriteDelete  WriteMode = "delete"
+	WriteMerge   WriteMode = "merge"
 )
 
 // IngestionFor compiles the two user levers — per-table read mode and sink
@@ -256,18 +255,15 @@ func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
 			write = WriteReplace
 		}
 	}
-	if write == WriteAppendDedupe {
-		return "", fmt.Errorf("write mode %q is not supported yet", write)
-	}
 	switch read {
 	case ModeFull:
 		switch write {
 		case WriteReplace:
-			return IngestionSnapshotReplace, nil
+			return IngestionFullReplace, nil
 		case WriteUpsert:
-			return IngestionSnapshotUpsert, nil
+			return IngestionFullUpsert, nil
 		case WriteAppend:
-			return IngestionSnapshotAppend, nil
+			return IngestionFullAppend, nil
 		}
 	case ModeIncremental:
 		switch write {
@@ -401,10 +397,10 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	checkpoint := CheckpointNone
 
 	switch t.OrDefault() {
-	case IngestionSnapshotReplace:
+	case IngestionFullReplace:
 		capability.Mode = WriteReplace
 		capability.Atomicity = AtomicityResource
-	case IngestionSnapshotUpsert:
+	case IngestionFullUpsert:
 		capability.Mode = WriteUpsert
 		capability.RequiresPK = true
 		checkpoint = CheckpointAfterBatch
@@ -413,7 +409,7 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpInsert, OpUpdate}
 		checkpoint = CheckpointAfterBatch
-	case IngestionSnapshotAppend:
+	case IngestionFullAppend:
 		capability.Mode = WriteAppend
 	case IngestionIncrementalAppend:
 		capability.Mode = WriteAppend
@@ -446,7 +442,7 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			Ordered:       true,
 			Checkpointing: CheckpointAfterCommit,
 		}
-	case IngestionSnapshotUpsert:
+	case IngestionFullUpsert:
 		return SourcePolicy{
 			Mode:          ModeFull,
 			EmitsOps:      []Operation{OpInsert},

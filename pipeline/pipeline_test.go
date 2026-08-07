@@ -131,7 +131,7 @@ func defaultWritePolicies(recs []filament.Record) map[string]filament.WritePolic
 		if _, ok := policies[rec.Resource]; ok {
 			continue
 		}
-		policy := filament.WritePolicyForIngestion(filament.IngestionSnapshotReplace)
+		policy := filament.WritePolicyForIngestion(filament.IngestionFullReplace)
 		policy.Resource = rec.Resource
 		policies[rec.Resource] = policy
 	}
@@ -245,7 +245,7 @@ func TestPipelineWriteErrorIsFatal(t *testing.T) {
 
 func TestPipelineDispatchesSinkApply(t *testing.T) {
 	sink := &fakeSink{}
-	policy := filament.WritePolicyForIngestion(filament.IngestionSnapshotUpsert)
+	policy := filament.WritePolicyForIngestion(filament.IngestionFullUpsert)
 	policy.Resource = "users"
 	_, err := runWithPolicies(t, sink, 2, []filament.Record{rec("users", "1", `{}`)}, map[string]filament.WritePolicy{"users": policy})
 	if err != nil {

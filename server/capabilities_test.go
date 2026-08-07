@@ -22,9 +22,9 @@ func (leverSource) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name: "leversource",
 		SourcePolicies: filament.SourcePolicies(
-			filament.IngestionSnapshotReplace,
-			filament.IngestionSnapshotUpsert,
-			filament.IngestionSnapshotAppend,
+			filament.IngestionFullReplace,
+			filament.IngestionFullUpsert,
+			filament.IngestionFullAppend,
 			filament.IngestionIncrementalAppend,
 			filament.IngestionIncrementalUpsert,
 			filament.IngestionCDC,
@@ -80,9 +80,9 @@ func (leverSink) Spec() filament.SinkSpec {
 		Capabilities: filament.SinkCapabilities{
 			Upsertable: true,
 			WritePolicies: filament.WriteCapabilities(
-				filament.IngestionSnapshotReplace,
-				filament.IngestionSnapshotUpsert,
-				filament.IngestionSnapshotAppend,
+				filament.IngestionFullReplace,
+				filament.IngestionFullUpsert,
+				filament.IngestionFullAppend,
 				filament.IngestionIncrementalAppend,
 				filament.IngestionIncrementalUpsert,
 				filament.IngestionCDC,
@@ -210,7 +210,7 @@ func TestValidatePipelineLevers(t *testing.T) {
 			t.Fatalf("valid = false: %v", resp)
 		}
 		ev := resp.GetEdges()[0]
-		if ev.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_REPLACE {
+		if ev.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE {
 			t.Fatalf("derived = %v", ev.GetIngestionType())
 		}
 		if got := byResource(ev, "orders").GetSupportedReadModes(); len(got) != 2 {
@@ -289,7 +289,7 @@ func TestDeriveEdgeTypes(t *testing.T) {
 	if err := api.deriveEdgeTypes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
-	if edge.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_REPLACE {
+	if edge.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE {
 		t.Fatalf("default derived = %v", edge.GetIngestionType())
 	}
 

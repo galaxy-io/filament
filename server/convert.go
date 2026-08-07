@@ -188,8 +188,6 @@ func writeModeFromProto(mode ingestionv1.WriteMode) filament.WriteMode {
 		return filament.WriteDelete
 	case ingestionv1.WriteMode_WRITE_MODE_MERGE:
 		return filament.WriteMerge
-	case ingestionv1.WriteMode_WRITE_MODE_APPEND_DEDUPE:
-		return filament.WriteAppendDedupe
 	default:
 		return ""
 	}
@@ -197,12 +195,12 @@ func writeModeFromProto(mode ingestionv1.WriteMode) filament.WriteMode {
 
 func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
 	switch t.OrDefault() {
-	case filament.IngestionSnapshotReplace:
-		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_REPLACE
-	case filament.IngestionSnapshotUpsert:
-		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT
-	case filament.IngestionSnapshotAppend:
-		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_APPEND
+	case filament.IngestionFullReplace:
+		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE
+	case filament.IngestionFullUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_UPSERT
+	case filament.IngestionFullAppend:
+		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_APPEND
 	case filament.IngestionIncrementalAppend:
 		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND
 	case filament.IngestionIncrementalUpsert:
@@ -218,10 +216,10 @@ func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
 
 func ingestionTypeFromProto(t ingestionv1.IngestionType) filament.IngestionType {
 	switch t {
-	case ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT:
-		return filament.IngestionSnapshotUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_APPEND:
-		return filament.IngestionSnapshotAppend
+	case ingestionv1.IngestionType_INGESTION_TYPE_FULL_UPSERT:
+		return filament.IngestionFullUpsert
+	case ingestionv1.IngestionType_INGESTION_TYPE_FULL_APPEND:
+		return filament.IngestionFullAppend
 	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND:
 		return filament.IngestionIncrementalAppend
 	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT:
@@ -231,7 +229,7 @@ func ingestionTypeFromProto(t ingestionv1.IngestionType) filament.IngestionType 
 	case ingestionv1.IngestionType_INGESTION_TYPE_CDC:
 		return filament.IngestionCDC
 	default:
-		return filament.IngestionSnapshotReplace
+		return filament.IngestionFullReplace
 	}
 }
 
