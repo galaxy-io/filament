@@ -17,18 +17,15 @@ import {
   type ListRunsRequest,
   type RunEvent,
   type RunInfo,
-  RunStatus,
+  type RunStatus,
   type TailRunRequest,
   TailRunRequestSchema,
   type TailRunResponse,
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-export const ACTIVE_RUN_STATUSES = new Set<RunStatus>([
-  RunStatus.REQUESTED,
-  RunStatus.RUNNING,
-  RunStatus.PAUSED,
-]);
+import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
 
 const LIST_RUNS_REFETCH_INTERVAL = 3 * 1000;
 const GET_RUN_REFETCH_INTERVAL = 2 * 1000;
@@ -139,6 +136,12 @@ export const useRunPipelineMutation = (
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListPipelinesQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetPipelineQueryKey(),
       });
       return options.onSettled?.(...args);
     },

@@ -113,6 +113,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
           title="Delete connection"
           description="This will permanently delete this connection."
           onDelete={handleOpen}
+          isDisabled={!!connection.deletedAt}
         />
       </FlexItem>
 

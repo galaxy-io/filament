@@ -158,6 +158,9 @@ export const useDeleteConnectionMutation = (
       void queryClient.invalidateQueries({
         queryKey: createListConnectionsQueryKey(),
       });
+      void queryClient.invalidateQueries({
+        queryKey: createGetConnectionQueryKey(),
+      });
       return options.onSettled?.(...args);
     },
   });

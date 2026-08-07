@@ -11,7 +11,7 @@ import {
   mapTimeseriesToChartGroups,
 } from "@/pages/observability/components/runs/utils";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/utils";
+import { useBucketLabelFormatter } from "@/pages/observability/utils";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
@@ -21,6 +21,8 @@ interface ObservabilityRunsChartProps {
 }
 
 const ObservabilityRunsChart = ({ timeframe, statuses }: ObservabilityRunsChartProps) => {
+  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+
   const input = useMemo(
     () => createRunCountTimeseriesInput(timeframe, statuses),
     [timeframe, statuses],
@@ -32,15 +34,15 @@ const ObservabilityRunsChart = ({ timeframe, statuses }: ObservabilityRunsChartP
     if (!statuses.length) {
       return [];
     }
-    const { formatBucketLabel } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-    return mapTimeseriesToChartGroups(data?.series ?? [], formatBucketLabel);
-  }, [data, statuses.length, timeframe]);
+    return mapTimeseriesToChartGroups(data?.series ?? []);
+  }, [data, statuses.length]);
 
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} padding={"24px 12px"} height={250} fillWidth>
       <BarChart
         series={OBSERVABILITY_RUNS_SERIES}
         groups={groups}
+        labelFormatter={bucketLabelFormatter}
         isLoading={isLoading}
         fillWidth
         fillHeight

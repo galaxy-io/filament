@@ -10,22 +10,22 @@ WHERE connection_id = @connection_id AND version = @expected_version AND NOT is_
 RETURNING version;
 
 -- name: GetConnection :one
-SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
-FROM connections WHERE connection_id = @connection_id AND NOT is_deleted;
+SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version, deleted_at
+FROM connections WHERE connection_id = @connection_id;
 
 -- name: ListConnections :many
-SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
+SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version, deleted_at
 FROM connections
-WHERE NOT is_deleted
-  AND (@tenant_id::text = '' OR tenant_id = @tenant_id)
+WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
   AND (sqlc.narg('kind')::connection_kind IS NULL OR kind = sqlc.narg('kind'))
+  AND (@include_deleted::boolean OR NOT is_deleted)
 ORDER BY connection_id;
 
 -- name: DeleteConnection :exec
 UPDATE connections
 SET
-  name = name || '_deleted_' || extract(epoch from CURRENT_TIMESTAMP)::bigint::text,
+  name = name || '__deleted__' || to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
   is_deleted = true,
-  deleted_at = CURRENT_TIMESTAMP,
-  updated_at = CURRENT_TIMESTAMP
+  deleted_at = now(),
+  updated_at = now()
 WHERE connection_id = @connection_id AND NOT is_deleted;

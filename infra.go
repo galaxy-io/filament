@@ -41,10 +41,12 @@ type DataStore interface {
 	CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
 	CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error)
 	UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
+	// LoadPipeline includes soft-deleted pipelines; check DeletedAt before
+	// mutating or running one.
 	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
 	LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
 	ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error)
-	ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error)
+	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string
 }
@@ -89,12 +91,21 @@ type Connection struct {
 	Config     map[string]any
 	SecretRefs map[string]string
 	Version    int64
+	// DeletedAt is unix milliseconds, zero when the connection is live.
+	DeletedAt int64
 }
 
 // ConnectionFilter narrows a connection listing by tenant and/or kind.
 type ConnectionFilter struct {
-	Tenant string
-	Kind   ConnectorKind
+	Tenant         string
+	Kind           ConnectorKind
+	IncludeDeleted bool
+}
+
+// PipelineFilter narrows a pipeline listing by tenant.
+type PipelineFilter struct {
+	Tenant         string
+	IncludeDeleted bool
 }
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.

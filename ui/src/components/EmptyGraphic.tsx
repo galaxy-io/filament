@@ -17,7 +17,7 @@ const EmptyGraphic = styled.div`
 
 export const EmptyGraphicGhostTile = styled.div`
   display: flex;
-  opacity: 0.25;
+  opacity: 0.3;
 `;
 
 export const EmptyGraphicGhostTileFallback = withTheme(styled.div<PropsWithTheme>`
@@ -32,7 +32,7 @@ export const EmptyGraphicGhostTileFallback = withTheme(styled.div<PropsWithTheme
 
 export const EmptyGraphicGhostBar = withTheme(styled.div<PropsWithTheme<{ $width: number }>>`
   width: ${({ $width }) => $width}px;
-  height: 8px;
+  height: 12px;
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 

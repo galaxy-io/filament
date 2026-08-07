@@ -13,15 +13,14 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
 import { ListRunsRequestSchema, type RunInfo, type RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
+import PipelineName from "@/components/PipelineName";
+
+import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
 import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import { createTimeframeWindow } from "@/pages/observability/utils";
-import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
+import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
-import { useListConnectionsQuery } from "@/api/queries/connections";
-import { useListPipelinesQuery } from "@/api/queries/pipelines";
 import { useListRunsQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
@@ -34,42 +33,17 @@ interface ObservabilityRunsTableProps {
 const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
   const navigate = useNavigate();
 
-  const input = useMemo(() => {
-    const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
-    return create(ListRunsRequestSchema, {
-      status: statuses,
-      sinceMs,
-      untilMs,
-      limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
-    });
-  }, [timeframe, statuses]);
+  const input = useMemo(
+    () =>
+      create(ListRunsRequestSchema, {
+        status: statuses,
+        sinceMs: createTimeframeSince(timeframe),
+        limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
+      }),
+    [timeframe, statuses],
+  );
 
   const { data, isLoading } = useListRunsQuery({ input });
-
-  const { data: pipelinesData } = useListPipelinesQuery();
-  const { data: connectionsData } = useListConnectionsQuery();
-
-  const connectorsByConnectionId = useMemo(
-    () =>
-      new Map(
-        (connectionsData?.connections ?? []).map((connection) => [
-          connection.id,
-          connection.connector,
-        ]),
-      ),
-    [connectionsData],
-  );
-
-  const pipelineNamesByPipelineId = useMemo(
-    () =>
-      new Map(
-        (pipelinesData?.pipelines ?? []).map((pipeline) => [
-          pipeline.id,
-          formatPipelineName(pipeline),
-        ]),
-      ),
-    [pipelinesData],
-  );
 
   const columns = useMemo<ColumnDef<RunInfo>[]>(
     () => [
@@ -97,45 +71,19 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
         id: "pipeline",
         header: "Pipeline",
         cellLoading: () => <TextShimmer width={120} height={14} />,
-        cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isEllipsis>
-            {pipelineNamesByPipelineId.get(row.original.pipelineId) ?? row.original.pipelineId}
-          </Text>
-        ),
+        cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
       },
       {
         id: "connectors",
         header: "Connectors",
         size: 140,
         cellLoading: () => <TextShimmer width={120} height={18} />,
-        cell: ({ row }) => (
-          <PipelineFlow
-            source={{
-              connectionId: row.original.sourceConnectionId,
-              connector:
-                connectorsByConnectionId.get(row.original.sourceConnectionId) ??
-                row.original.sourceConnectionId,
-            }}
-            sinks={
-              row.original.sinkConnectionId
-                ? [
-                    {
-                      connectionId: row.original.sinkConnectionId,
-                      connector:
-                        connectorsByConnectionId.get(row.original.sinkConnectionId) ??
-                        row.original.sinkConnectionId,
-                    },
-                  ]
-                : []
-            }
-            size={PipelineFlowSize.SMALL}
-          />
-        ),
+        cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
       },
       {
         id: "startedAt",
         header: "Started",
-        size: 140,
+        size: 160,
         accessorFn: (run) => Number(run.startedAt),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={100} height={14} />,
@@ -187,7 +135,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
         ),
       },
     ],
-    [pipelineNamesByPipelineId, connectorsByConnectionId],
+    [],
   );
 
   const runs = statuses.length ? (data?.runs ?? []) : [];

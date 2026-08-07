@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 
-import { BookOpenIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+
+import DocsButton from "@/components/DocsButton";
 
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
@@ -14,8 +16,6 @@ import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
 import { Flow } from "@/routes/__root";
 
 import { useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
-
-import { DOCUMENTATION_URL } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -50,10 +50,6 @@ const PipelinesPage = () => {
     });
   };
 
-  const handleReadTheDocs = () => {
-    window.open(DOCUMENTATION_URL, "_blank");
-  };
-
   const renderContent = () => {
     if (!data.pipelines.length) {
       return (
@@ -64,13 +60,14 @@ const PipelinesPage = () => {
                 label="New pipeline"
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
+                size={ButtonSize.LARGE}
                 onClick={handleNewPipeline}
               />
-              <Button
-                label="Documentation"
-                icon={BookOpenIcon}
+              <DocsButton
+                label="Read the docs"
+                path="/pipelines"
                 variant={ButtonVariant.SECONDARY}
-                onClick={handleReadTheDocs}
+                size={ButtonSize.LARGE}
               />
             </FlexWrapper>
           }

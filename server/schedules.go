@@ -145,6 +145,9 @@ func (a *Server) schedulePipeline(ctx context.Context, pipelineID string) (*inge
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if pipeline.GetDeletedAt() != 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipelineID))
+	}
 	return pipeline, nil
 }
 

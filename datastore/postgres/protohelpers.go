@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -72,7 +73,7 @@ func connectionKindFromDB(kind sqlcgen.ConnectionKind) filament.ConnectorKind {
 	return filament.ConnectorKindUnspecified
 }
 
-func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64) (filament.Connection, error) {
+func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64, deletedAt pgtype.Timestamptz) (filament.Connection, error) {
 	cfg := map[string]any{}
 	if len(configJSON) > 0 {
 		if err := json.Unmarshal(configJSON, &cfg); err != nil {
@@ -85,5 +86,5 @@ func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, pro
 			return filament.Connection{}, fmt.Errorf("datastore/postgres: unmarshal connection secret_refs: %w", err)
 		}
 	}
-	return filament.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: provider, Config: cfg, SecretRefs: refs, Version: version}, nil
+	return filament.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: provider, Config: cfg, SecretRefs: refs, Version: version, DeletedAt: timestampMillis(deletedAt)}, nil
 }

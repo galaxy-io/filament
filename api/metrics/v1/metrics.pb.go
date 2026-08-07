@@ -245,7 +245,7 @@ type QueryTimeseriesRequest struct {
 	// order positionally.
 	Metrics     []Metric          `protobuf:"varint,2,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
 	SinceMs     int64             `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"` // inclusive
-	UntilMs     int64             `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"` // exclusive
+	UntilMs     int64             `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"` // exclusive; unset = now
 	Granularity MetricGranularity `protobuf:"varint,5,opt,name=granularity,proto3,enum=metrics.v1.MetricGranularity" json:"granularity,omitempty"`
 	// tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
 	// match the viewer's local calendar day.
@@ -502,8 +502,8 @@ type QueryAggregateRequest struct {
 	// ListRunsRequest.tenant_id (ingestion.v1).
 	TenantId      string          `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Metrics       []Metric        `protobuf:"varint,2,rep,packed,name=metrics,proto3,enum=metrics.v1.Metric" json:"metrics,omitempty"`
-	SinceMs       int64           `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
-	UntilMs       int64           `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
+	SinceMs       int64           `protobuf:"varint,3,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`                                 // inclusive
+	UntilMs       int64           `protobuf:"varint,4,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`                                 // exclusive; unset = now
 	GroupBy       MetricDimension `protobuf:"varint,5,opt,name=group_by,json=groupBy,proto3,enum=metrics.v1.MetricDimension" json:"group_by,omitempty"` // UNSPECIFIED = single total row, key ""
 	Filters       []*MetricFilter `protobuf:"bytes,6,rep,name=filters,proto3" json:"filters,omitempty"`
 	unknownFields protoimpl.UnknownFields

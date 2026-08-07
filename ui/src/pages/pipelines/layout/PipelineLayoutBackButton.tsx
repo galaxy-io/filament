@@ -25,7 +25,7 @@ const PipelineLayoutBackButton = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate({ to: "/pipelines" });
+    navigate({ to: "/" });
   };
 
   return (

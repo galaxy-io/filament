@@ -19,6 +19,7 @@ message Connection {
   google.protobuf.Struct config = 6; // CONNECTION-scoped fields only
   map<string, string> secret_refs = 7;
   int64 version = 8;
+  int64 deleted_at = 9;
 }
 
 message CreateConnectionRequest {
@@ -55,6 +56,7 @@ message GetConnectionResponse {
 message ListConnectionsRequest {
   string tenant_id = 1;
   ConnectorKind kind = 2;
+  bool include_deleted = 3;
 }
 
 message ListConnectionsResponse {

@@ -60,6 +60,8 @@ message Pipeline {
   RunStatus last_run_status = 9;
   int64 last_run_bytes = 10;
   int64 last_run_ended_at = 11;
+  int64 created_at = 12;
+  int64 deleted_at = 13;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -186,6 +188,7 @@ message ListPipelineVersionsResponse {
 
 message ListPipelinesRequest {
   string tenant_id = 1;
+  bool include_deleted = 2;
 }
 
 message ListPipelinesResponse {
