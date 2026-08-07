@@ -15,8 +15,19 @@ import type {
   GetPipelineResponse,
   ListPipelinesRequest,
   ListPipelinesResponse,
+  Pipeline,
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
+
+import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+
+const LIST_PIPELINES_REFETCH_INTERVAL = 3 * 1000;
+
+const getListPipelinesRefetchInterval = (pipelines: Pipeline[] | undefined) => {
+  return pipelines?.some((pipeline) => ACTIVE_RUN_STATUSES.has(pipeline.lastRunStatus))
+    ? LIST_PIPELINES_REFETCH_INTERVAL
+    : false;
+};
 
 export const createListPipelinesQueryKey = (
   input?: ListPipelinesRequest,
@@ -55,14 +66,23 @@ export const useListPipelinesQuery = ({
   return useQuery<
     typeof IngestionService.method.listPipelines.input,
     typeof IngestionService.method.listPipelines.output
-  >(IngestionService.method.listPipelines, input, options);
+  >(IngestionService.method.listPipelines, input, {
+    refetchInterval: (query) => {
+      return getListPipelinesRefetchInterval(query.state.data?.pipelines);
+    },
+    ...options,
+  });
 };
 
 export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelinesRequest } = {}) => {
   return useSuspenseQuery<
     typeof IngestionService.method.listPipelines.input,
     typeof IngestionService.method.listPipelines.output
-  >(IngestionService.method.listPipelines, input);
+  >(IngestionService.method.listPipelines, input, {
+    refetchInterval: (query) => {
+      return getListPipelinesRefetchInterval(query.state.data?.pipelines);
+    },
+  });
 };
 
 export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?: Transport) => {
@@ -166,6 +186,9 @@ export const useDeletePipelineMutation = (
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
         queryKey: createListPipelinesQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetPipelineQueryKey(),
       });
       return options.onSettled?.(...args);
     },

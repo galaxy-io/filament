@@ -10,7 +10,9 @@ import BaseToolbar from "@/layouts/components/BaseToolbar";
 import ObservabilityTimeframeSwitcher from "@/pages/observability/components/ObservabilityTimeframeSwitcher";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
+import { createListConnectionsQueryKey } from "@/api/queries/connections";
 import { createQueryAggregateQueryKey, createQueryTimeseriesQueryKey } from "@/api/queries/metrics";
+import { createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 
 const ObservabilityToolbar = () => {
@@ -32,6 +34,12 @@ const ObservabilityToolbar = () => {
       queryKey: createQueryAggregateQueryKey(),
     });
     void queryClient.invalidateQueries({ queryKey: createListRunsQueryKey() });
+    void queryClient.invalidateQueries({
+      queryKey: createListConnectionsQueryKey(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: createListPipelinesQueryKey(),
+    });
   };
 
   return (
