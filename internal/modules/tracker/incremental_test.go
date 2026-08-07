@@ -14,7 +14,7 @@ func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	store := memory.New()
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink/upsert",
-		IngestionType: filament.IngestionUpsert,
+		IngestionType: filament.IngestionIncrementalUpsert,
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
@@ -79,7 +79,7 @@ func TestCompletedBackfillPromotesInitialWatermark(t *testing.T) {
 	store := memory.New()
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink/upsert",
-		IngestionType: filament.IngestionUpsert,
+		IngestionType: filament.IngestionIncrementalUpsert,
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)

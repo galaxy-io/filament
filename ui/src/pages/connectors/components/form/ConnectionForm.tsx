@@ -20,7 +20,11 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import { ValidateConfigRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import Field from "@/components/fields/Field";
-import { getConnectionScopedFields, getFieldDefaults } from "@/components/fields/utils";
+import {
+  getConnectionScopedFields,
+  getFieldDefaults,
+  isFieldVisible,
+} from "@/components/fields/utils";
 
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
@@ -210,6 +214,7 @@ const ConnectionForm = ({
   };
 
   const renderBody = () => {
+    const fieldValues = Object.fromEntries(fields.map((f) => [f.name, getFieldValue(f.name)]));
     return (
       <>
         <TextInput
@@ -224,17 +229,19 @@ const ConnectionForm = ({
           fillWidth
           autoFocus
         />
-        {fields.map((field) => (
-          <Field
-            key={field.name}
-            field={field}
-            value={getFieldValue(field.name)}
-            onChange={(value) => handleFieldChange(field.name, value)}
-            getError={getFieldError}
-            isDisabled={isDisabled}
-            hasStoredSecret={!!connectionId}
-          />
-        ))}
+        {fields
+          .filter((field) => isFieldVisible(field, fieldValues))
+          .map((field) => (
+            <Field
+              key={field.name}
+              field={field}
+              value={getFieldValue(field.name)}
+              onChange={(value) => handleFieldChange(field.name, value)}
+              getError={getFieldError}
+              isDisabled={isDisabled}
+              hasStoredSecret={!!connectionId}
+            />
+          ))}
       </>
     );
   };

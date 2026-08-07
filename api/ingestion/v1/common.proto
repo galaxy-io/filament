@@ -23,12 +23,21 @@ enum FieldType {
   FIELD_TYPE_OBJECT = 7;
 }
 
-// ReplicationMode mirrors pkg.ReplicationMode.
+// ReplicationMode is how a connection replicates, decided at source creation:
+// query-based reads (standard) or the change stream (CDC). Databases choose;
+// APIs are implicitly standard.
 enum ReplicationMode {
   REPLICATION_MODE_UNSPECIFIED = 0;
-  REPLICATION_MODE_FULL = 1;
-  REPLICATION_MODE_INCREMENTAL = 2;
-  REPLICATION_MODE_CDC = 3;
+  REPLICATION_MODE_STANDARD = 1;
+  REPLICATION_MODE_CDC = 2;
+}
+
+// ReadMode is the per-table read lever on standard connections: reread the
+// whole table each run, or only rows past a cursor column.
+enum ReadMode {
+  READ_MODE_UNSPECIFIED = 0;
+  READ_MODE_FULL = 1;
+  READ_MODE_INCREMENTAL = 2;
 }
 
 enum Operation {
@@ -38,16 +47,23 @@ enum Operation {
   OPERATION_DELETE = 3;
 }
 
+// IngestionType is named {read}_{write}: what the source reads crossed with
+// how the sink lands it. Derived by the server from read_mode, write_mode,
+// and the connection's replication mode — never set by clients.
 enum IngestionType {
   INGESTION_TYPE_UNSPECIFIED = 0;
-  INGESTION_TYPE_SNAPSHOT_REPLACE = 1;
-  INGESTION_TYPE_SNAPSHOT_UPSERT = 2;
-  INGESTION_TYPE_APPEND = 3;
-  INGESTION_TYPE_UPSERT = 4;
-  INGESTION_TYPE_DELETE = 5;
-  INGESTION_TYPE_CDC = 6;
+  INGESTION_TYPE_FULL_REPLACE = 1;
+  INGESTION_TYPE_FULL_UPSERT = 2;
+  INGESTION_TYPE_FULL_APPEND = 3;
+  INGESTION_TYPE_INCREMENTAL_APPEND = 4;
+  INGESTION_TYPE_INCREMENTAL_UPSERT = 5;
+  INGESTION_TYPE_INCREMENTAL_DELETE = 6;
+  INGESTION_TYPE_CDC = 7;
 }
 
+// WriteMode is the sink write lever: append keeps the history of every load;
+// replace, upsert, and append_dedupe manage current state. Delete and merge
+// are engine mechanisms, never offered as levers.
 enum WriteMode {
   WRITE_MODE_UNSPECIFIED = 0;
   WRITE_MODE_APPEND = 1;
@@ -119,7 +135,9 @@ message WritePolicyCapability {
 }
 
 message SourcePolicy {
-  ReplicationMode mode = 1;
+  // The engine read mechanism; CDC policies report READ_MODE_UNSPECIFIED
+  // since the stream is not a per-table read.
+  ReadMode mode = 1;
   repeated Operation emits_ops = 2;
   bool ordered = 3;
   CheckpointPolicy checkpointing = 4;

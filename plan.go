@@ -3,17 +3,20 @@ package filament
 import (
 	"context"
 	"fmt"
-	"slices"
 )
 
 // ResolveIngestionPlan validates a run's ingestion type against both connector
-// specs and binds per-resource write policies, discovering primary keys where
-// the policy requires them.
+// specs — the source's narrowed by its connection config — and binds
+// per-resource write policies, discovering primary keys where the policy
+// requires them.
 func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpec) (IngestionPlan, error) {
 	ingestionType := spec.IngestionType.OrDefault()
 	sourcePolicy := SourcePolicyForIngestion(ingestionType)
 	writePolicy := WritePolicyForIngestion(ingestionType)
 
+	if err := ValidateReplication(ReplicationOf(src, NewConfig(spec.Source.Config)), ingestionType); err != nil {
+		return IngestionPlan{}, err
+	}
 	if err := ValidateSourceIngestion(src.Spec(), ingestionType); err != nil {
 		return IngestionPlan{}, err
 	}
@@ -61,13 +64,20 @@ func ValidateSourceIngestion(spec ConnectorSpec, t IngestionType) error {
 			return nil
 		}
 	}
-	if len(spec.SourcePolicies) > 0 {
-		return fmt.Errorf("source %q does not support ingestion type %q", spec.Name, t)
+	return fmt.Errorf("source %q does not support ingestion type %q", spec.Name, t)
+}
+
+// ValidateReplication enforces the one rule tying edges to connections: CDC
+// runs happen on CDC connections, everything else on standard ones.
+func ValidateReplication(replication ReplicationMode, t IngestionType) error {
+	isCDC := t.OrDefault() == IngestionCDC
+	switch {
+	case isCDC && replication != ReplicationCDC:
+		return fmt.Errorf("CDC requires a connection created with CDC replication")
+	case !isCDC && replication == ReplicationCDC:
+		return fmt.Errorf("a CDC connection replicates from the change stream; edges carry no read or write levers")
 	}
-	if slices.Contains(spec.Modes, policy.Mode) {
-		return nil
-	}
-	return fmt.Errorf("source %q does not support replication mode %v required by ingestion policy", spec.Name, policy.Mode)
+	return nil
 }
 
 // ValidateSinkIngestion reports whether the sink spec can serve the write-side

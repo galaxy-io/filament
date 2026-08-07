@@ -68,10 +68,10 @@ func (t *Sink) Spec() filament.SinkSpec {
 			Schematized: true,
 			Upsertable:  true,
 			WritePolicies: filament.WriteCapabilities(
-				filament.IngestionSnapshotReplace,
-				filament.IngestionAppend,
-				filament.IngestionSnapshotUpsert,
-				filament.IngestionUpsert,
+				filament.IngestionFullReplace,
+				filament.IngestionFullAppend,
+				filament.IngestionFullUpsert,
+				filament.IngestionIncrementalUpsert,
 				filament.IngestionCDC,
 			),
 		},
@@ -93,8 +93,8 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		t.schema = v
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert ||
-		run.IngestionType == filament.IngestionUpsert ||
+	t.resumable = run.IngestionType == filament.IngestionFullUpsert ||
+		run.IngestionType == filament.IngestionIncrementalUpsert ||
 		run.IngestionType == filament.IngestionCDC
 	t.written.Store(0)
 	t.tables = map[string]*table{}

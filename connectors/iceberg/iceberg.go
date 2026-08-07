@@ -120,11 +120,11 @@ func (s *Sink) Spec() filament.SinkSpec {
 			Transactional: true,
 			Schematized:   true,
 			WritePolicies: filament.WriteCapabilities(
-				filament.IngestionSnapshotReplace,
-				filament.IngestionAppend,
-				filament.IngestionSnapshotUpsert,
-				filament.IngestionUpsert,
-				filament.IngestionDelete,
+				filament.IngestionFullReplace,
+				filament.IngestionFullAppend,
+				filament.IngestionFullUpsert,
+				filament.IngestionIncrementalUpsert,
+				filament.IngestionIncrementalDelete,
 				filament.IngestionCDC,
 			),
 		},
@@ -481,7 +481,7 @@ func (s *Sink) tableIdent(resource string) icetable.Identifier {
 	return catalog.ToIdentifier(append(parts, tableName(resource))...)
 }
 
-func resolveWriteMode(configured string, runMode filament.ReplicationMode) (writeMode, error) {
+func resolveWriteMode(configured string, runMode filament.ReadMode) (writeMode, error) {
 	mode := writeMode(strings.ToLower(strings.TrimSpace(configured)))
 	if mode == "" {
 		mode = writeModeAuto
