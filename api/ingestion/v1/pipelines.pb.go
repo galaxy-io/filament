@@ -393,6 +393,8 @@ type Pipeline struct {
 	LastRunStatus    RunStatus              `protobuf:"varint,9,opt,name=last_run_status,json=lastRunStatus,proto3,enum=ingestion.v1.RunStatus" json:"last_run_status,omitempty"`
 	LastRunBytes     int64                  `protobuf:"varint,10,opt,name=last_run_bytes,json=lastRunBytes,proto3" json:"last_run_bytes,omitempty"`
 	LastRunEndedAt   int64                  `protobuf:"varint,11,opt,name=last_run_ended_at,json=lastRunEndedAt,proto3" json:"last_run_ended_at,omitempty"`
+	CreatedAt        int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	DeletedAt        int64                  `protobuf:"varint,13,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -493,6 +495,20 @@ func (x *Pipeline) GetLastRunBytes() int64 {
 func (x *Pipeline) GetLastRunEndedAt() int64 {
 	if x != nil {
 		return x.LastRunEndedAt
+	}
+	return 0
+}
+
+func (x *Pipeline) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *Pipeline) GetDeletedAt() int64 {
+	if x != nil {
+		return x.DeletedAt
 	}
 	return 0
 }
@@ -1699,10 +1715,11 @@ func (x *ListPipelineVersionsResponse) GetVersions() []*PipelineVersion {
 }
 
 type ListPipelinesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IncludeDeleted bool                   `protobuf:"varint,2,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListPipelinesRequest) Reset() {
@@ -1740,6 +1757,13 @@ func (x *ListPipelinesRequest) GetTenantId() string {
 		return x.TenantId
 	}
 	return ""
+}
+
+func (x *ListPipelinesRequest) GetIncludeDeleted() bool {
+	if x != nil {
+		return x.IncludeDeleted
+	}
+	return false
 }
 
 type ListPipelinesResponse struct {
@@ -1898,7 +1922,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x05nodes\x18\x03 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
 	"\x05edges\x18\x04 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\xfc\x02\n" +
+	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\xba\x03\n" +
 	"\bPipeline\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x12\n" +
@@ -1910,7 +1934,11 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x0flast_run_status\x18\t \x01(\x0e2\x17.ingestion.v1.RunStatusR\rlastRunStatus\x12$\n" +
 	"\x0elast_run_bytes\x18\n" +
 	" \x01(\x03R\flastRunBytes\x12)\n" +
-	"\x11last_run_ended_at\x18\v \x01(\x03R\x0elastRunEndedAt\"\xb6\x01\n" +
+	"\x11last_run_ended_at\x18\v \x01(\x03R\x0elastRunEndedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"deleted_at\x18\r \x01(\x03R\tdeletedAt\"\xb6\x01\n" +
 	"\x16PipelineScheduleConfig\x12\x12\n" +
 	"\x04cron\x18\x01 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x02 \x01(\tR\btimezone\x12\x18\n" +
@@ -1986,9 +2014,10 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\"Y\n" +
 	"\x1cListPipelineVersionsResponse\x129\n" +
-	"\bversions\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\"3\n" +
+	"\bversions\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\"\\\n" +
 	"\x14ListPipelinesRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"M\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
+	"\x0finclude_deleted\x18\x02 \x01(\bR\x0eincludeDeleted\"M\n" +
 	"\x15ListPipelinesResponse\x124\n" +
 	"\tpipelines\x18\x01 \x03(\v2\x16.ingestion.v1.PipelineR\tpipelines\"'\n" +
 	"\x15DeletePipelineRequest\x12\x0e\n" +

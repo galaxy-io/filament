@@ -11,9 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createPipeline = `-- name: CreatePipeline :exec
+const createPipeline = `-- name: CreatePipeline :one
 INSERT INTO pipelines (pipeline_id, tenant_id, name, description, current_version_id, updated_at)
 VALUES ($1, $2, $3, $4, 0, now())
+RETURNING created_at
 `
 
 type CreatePipelineParams struct {
@@ -23,14 +24,16 @@ type CreatePipelineParams struct {
 	Description string
 }
 
-func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) error {
-	_, err := q.db.Exec(ctx, createPipeline,
+func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, createPipeline,
 		arg.PipelineID,
 		arg.TenantID,
 		arg.Name,
 		arg.Description,
 	)
-	return err
+	var created_at pgtype.Timestamptz
+	err := row.Scan(&created_at)
+	return created_at, err
 }
 
 const createPipelineVersion = `-- name: CreatePipelineVersion :one
@@ -76,7 +79,7 @@ func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
 
 const getPipeline = `-- name: GetPipeline :one
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes, last_run_ended_at
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at
 FROM pipelines WHERE pipeline_id = $1 AND NOT is_deleted
 `
 
@@ -91,6 +94,8 @@ type GetPipelineRow struct {
 	LastRunStatus    int16
 	LastRunBytes     int64
 	LastRunEndedAt   pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
 }
 
 func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipelineRow, error) {
@@ -107,6 +112,8 @@ func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipel
 		&i.LastRunStatus,
 		&i.LastRunBytes,
 		&i.LastRunEndedAt,
+		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return &i, err
 }
@@ -168,9 +175,17 @@ func (q *Queries) ListPipelineVersions(ctx context.Context, pipelineID string) (
 
 const listPipelines = `-- name: ListPipelines :many
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes, last_run_ended_at
-FROM pipelines WHERE NOT is_deleted AND ($1::text = '' OR tenant_id = $1) ORDER BY pipeline_id
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at
+FROM pipelines
+WHERE ($1::text = '' OR tenant_id = $1)
+  AND ($2::boolean OR NOT is_deleted)
+ORDER BY pipeline_id
 `
+
+type ListPipelinesParams struct {
+	TenantID       string
+	IncludeDeleted bool
+}
 
 type ListPipelinesRow struct {
 	PipelineID       string
@@ -183,10 +198,12 @@ type ListPipelinesRow struct {
 	LastRunStatus    int16
 	LastRunBytes     int64
 	LastRunEndedAt   pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
 }
 
-func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPipelinesRow, error) {
-	rows, err := q.db.Query(ctx, listPipelines, tenantID)
+func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([]*ListPipelinesRow, error) {
+	rows, err := q.db.Query(ctx, listPipelines, arg.TenantID, arg.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}
@@ -205,6 +222,8 @@ func (q *Queries) ListPipelines(ctx context.Context, tenantID string) ([]*ListPi
 			&i.LastRunStatus,
 			&i.LastRunBytes,
 			&i.LastRunEndedAt,
+			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}

@@ -434,11 +434,12 @@ func (x *GetConnectionResponse) GetConnection() *Connection {
 // ListConnections filters by tenant; kind UNSPECIFIED returns both sources and
 // sinks.
 type ListConnectionsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind           ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	IncludeDeleted bool                   `protobuf:"varint,3,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListConnectionsRequest) Reset() {
@@ -483,6 +484,13 @@ func (x *ListConnectionsRequest) GetKind() ConnectorKind {
 		return x.Kind
 	}
 	return ConnectorKind_CONNECTOR_KIND_UNSPECIFIED
+}
+
+func (x *ListConnectionsRequest) GetIncludeDeleted() bool {
+	if x != nil {
+		return x.IncludeDeleted
+	}
+	return false
 }
 
 type ListConnectionsResponse struct {
@@ -656,10 +664,11 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\x15GetConnectionResponse\x128\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
-	"connection\"f\n" +
+	"connection\"\x8f\x01\n" +
 	"\x16ListConnectionsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"U\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12'\n" +
+	"\x0finclude_deleted\x18\x03 \x01(\bR\x0eincludeDeleted\"U\n" +
 	"\x17ListConnectionsResponse\x12:\n" +
 	"\vconnections\x18\x01 \x03(\v2\x18.ingestion.v1.ConnectionR\vconnections\")\n" +
 	"\x17DeleteConnectionRequest\x12\x0e\n" +

@@ -17,11 +17,13 @@ import (
 
 // CreatePipeline stores a new pipeline.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
-	err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription()})
+	createdAt, err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription()})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
 	}
-	return cloneProto(p), nil
+	out := cloneProto(p)
+	out.CreatedAt = timestampMillis(createdAt)
+	return out, nil
 }
 
 // CreatePipelineWithSchedule stores a pipeline and optional schedule atomically.
@@ -32,12 +34,13 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
-	if err := q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
+	createdAt, err := q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
 		PipelineID:  p.GetId(),
 		TenantID:    p.GetTenantId(),
 		Name:        p.GetName(),
 		Description: p.GetDescription(),
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
 	}
 	if schedule != nil {
@@ -48,7 +51,9 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("datastore/postgres: commit pipeline creation: %w", err)
 	}
-	return cloneProto(p), nil
+	out := cloneProto(p)
+	out.CreatedAt = timestampMillis(createdAt)
+	return out, nil
 }
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
@@ -92,7 +97,10 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: get pipeline: %w", err)
 	}
-	return pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt), nil
+	out := pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt)
+	out.CreatedAt = timestampMillis(row.CreatedAt)
+	out.DeletedAt = timestampMillis(row.DeletedAt)
+	return out, nil
 }
 
 // LoadPipelineVersion returns a specific immutable pipeline graph version.
@@ -129,27 +137,30 @@ func (s *Store) ListPipelineVersions(ctx context.Context, pipelineID string) ([]
 	return out, nil
 }
 
-// ListPipelines returns pipelines, optionally filtered by tenant.
-func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
-	rows, err := s.q.ListPipelines(ctx, tenant)
+// ListPipelines returns pipelines matching the filter.
+func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([]*ingestionv1.Pipeline, error) {
+	rows, err := s.q.ListPipelines(ctx, sqlcgen.ListPipelinesParams{TenantID: f.Tenant, IncludeDeleted: f.IncludeDeleted})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list pipelines: %w", err)
 	}
 	out := make([]*ingestionv1.Pipeline, len(rows))
 	for i, row := range rows {
 		out[i] = pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt)
+		out[i].CreatedAt = timestampMillis(row.CreatedAt)
+		out[i].DeletedAt = timestampMillis(row.DeletedAt)
 	}
 	return out, nil
 }
 
+func timestampMillis(ts pgtype.Timestamptz) int64 {
+	if !ts.Valid {
+		return 0
+	}
+	return ts.Time.UnixMilli()
+}
+
 func pipelineFromRow(id, tenant, name, description string, current, lastVersion int64, lastAt pgtype.Timestamptz, status int16, bytes int64, lastEndedAt pgtype.Timestamptz) *ingestionv1.Pipeline {
-	var at, endedAt int64
-	if lastAt.Valid {
-		at = lastAt.Time.UnixMilli()
-	}
-	if lastEndedAt.Valid {
-		endedAt = lastEndedAt.Time.UnixMilli()
-	}
+	at, endedAt := timestampMillis(lastAt), timestampMillis(lastEndedAt)
 	lastStatus := ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	if lastVersion != 0 {
 		lastStatus = runStatusToPipelineProto(status)

@@ -87,15 +87,16 @@ func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetC
 const listConnections = `-- name: ListConnections :many
 SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
 FROM connections
-WHERE NOT is_deleted
-  AND ($1::text = '' OR tenant_id = $1)
+WHERE ($1::text = '' OR tenant_id = $1)
   AND ($2::connection_kind IS NULL OR kind = $2)
+  AND ($3::boolean OR NOT is_deleted)
 ORDER BY connection_id
 `
 
 type ListConnectionsParams struct {
-	TenantID string
-	Kind     NullConnectionKind
+	TenantID       string
+	Kind           NullConnectionKind
+	IncludeDeleted bool
 }
 
 type ListConnectionsRow struct {
@@ -110,7 +111,7 @@ type ListConnectionsRow struct {
 }
 
 func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams) ([]*ListConnectionsRow, error) {
-	rows, err := q.db.Query(ctx, listConnections, arg.TenantID, arg.Kind)
+	rows, err := q.db.Query(ctx, listConnections, arg.TenantID, arg.Kind, arg.IncludeDeleted)
 	if err != nil {
 		return nil, err
 	}

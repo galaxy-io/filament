@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import type {
   GetPipelineRequest,
+  GetPipelineResponse,
   ListPipelinesRequest,
   ListPipelinesResponse,
 } from "@/gen/ingestion/v1/pipelines_pb";
@@ -83,6 +84,19 @@ export const createGetPipelineQueryOptions = ({
   return createQueryOptions(IngestionService.method.getPipeline, input, {
     transport,
   });
+};
+
+export const useGetPipelineQuery = ({
+  input,
+  options = {},
+}: {
+  input: GetPipelineRequest;
+  options?: UseQueryOptions<typeof IngestionService.method.getPipeline.output, GetPipelineResponse>;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.getPipeline.input,
+    typeof IngestionService.method.getPipeline.output
+  >(IngestionService.method.getPipeline, input, options);
 };
 
 export const useSuspenseGetPipelineQuery = ({ input }: { input: GetPipelineRequest }) => {

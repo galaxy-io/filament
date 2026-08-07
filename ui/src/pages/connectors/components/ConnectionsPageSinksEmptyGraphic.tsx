@@ -14,7 +14,7 @@ import EmptyGraphic, {
   EmptyGraphicGhostTileFallback,
 } from "@/components/EmptyGraphic";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 
@@ -78,12 +78,11 @@ const GhostCardRow = styled.div`
 `;
 
 const GhostChip = withTheme(styled.div<PropsWithTheme>`
-  width: 34px;
-  height: 14px;
+  width: 32px;
+  height: 12px;
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
   border-radius: 4px;
 `);
 
@@ -107,11 +106,7 @@ const ConnectionsPageSinksEmptyGraphic = () => {
               <GhostCardRow>
                 {spec ? (
                   <EmptyGraphicGhostTile>
-                    <ConnectorTile
-                      connector={spec.name}
-                      spec={spec}
-                      size={ConnectorTileSize.SMALL}
-                    />
+                    <ConnectorTile connector={spec.name} spec={spec} />
                   </EmptyGraphicGhostTile>
                 ) : (
                   <EmptyGraphicGhostTileFallback />

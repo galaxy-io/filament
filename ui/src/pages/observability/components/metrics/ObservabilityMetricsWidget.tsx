@@ -25,7 +25,7 @@ import MetricGroup from "@/components/metrics/MetricGroup";
 
 import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
-import { createTimeframeWindow } from "@/pages/observability/utils";
+import { useSlidingTimeframeWindow } from "@/pages/observability/utils";
 import {
   PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
@@ -50,9 +50,10 @@ const ObservabilityMetricsWidget = () => {
     from: "/_main/observability",
   });
 
-  const { totalsInput, statusCountsInput } = useMemo(() => {
-    const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
-    return {
+  const { sinceMs, untilMs } = useSlidingTimeframeWindow(timeframe);
+
+  const { totalsInput, statusCountsInput } = useMemo(
+    () => ({
       totalsInput: create(QueryAggregateRequestSchema, {
         metrics: [Metric.RUN_COUNT, Metric.RUN_RECORDS, Metric.RUN_BYTES],
         sinceMs,
@@ -64,8 +65,9 @@ const ObservabilityMetricsWidget = () => {
         untilMs,
         groupBy: MetricDimension.STATUS,
       }),
-    };
-  }, [timeframe]);
+    }),
+    [sinceMs, untilMs],
+  );
 
   const { data: totalsData, isLoading: isTotalsLoading } = useQueryAggregateQuery({
     input: totalsInput,

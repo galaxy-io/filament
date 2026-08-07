@@ -44,7 +44,7 @@ type DataStore interface {
 	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
 	LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
 	ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error)
-	ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error)
+	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string
 }
@@ -93,8 +93,15 @@ type Connection struct {
 
 // ConnectionFilter narrows a connection listing by tenant and/or kind.
 type ConnectionFilter struct {
-	Tenant string
-	Kind   ConnectorKind
+	Tenant         string
+	Kind           ConnectorKind
+	IncludeDeleted bool
+}
+
+// PipelineFilter narrows a pipeline listing by tenant.
+type PipelineFilter struct {
+	Tenant         string
+	IncludeDeleted bool
 }
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.

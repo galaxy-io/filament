@@ -23,7 +23,9 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if _, ok := s.pipelines[p.GetId()]; ok {
 		return nil, fmt.Errorf("pipeline %q already exists", p.GetId())
 	}
+	delete(s.deletedPipelines, p.GetId())
 	next := clonePipeline(p)
+	next.CreatedAt = time.Now().UnixMilli()
 	s.pipelines[next.Id] = clonePipeline(next)
 	return next, nil
 }
@@ -38,7 +40,9 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 	if _, exists := s.pipelines[p.GetId()]; exists {
 		return nil, fmt.Errorf("create pipeline %q: already exists", p.GetId())
 	}
+	delete(s.deletedPipelines, p.GetId())
 	stored := clonePipeline(p)
+	stored.CreatedAt = time.Now().UnixMilli()
 	s.pipelines[p.GetId()] = stored
 	s.pipelineVersions[p.GetId()] = map[int64]*ingestionv1.PipelineVersion{}
 	if schedule != nil {
@@ -143,18 +147,24 @@ func (s *Store) ListPipelineVersions(ctx context.Context, pipelineID string) ([]
 	return out, nil
 }
 
-// ListPipelines returns pipelines, optionally filtered by tenant.
-func (s *Store) ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error) {
+// ListPipelines returns pipelines matching the filter.
+func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([]*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var out []*ingestionv1.Pipeline
-	for _, p := range s.pipelines {
-		if tenant == "" || p.GetTenantId() == tenant {
-			out = append(out, clonePipeline(p))
+	appendMatching := func(pipelines map[string]*ingestionv1.Pipeline) {
+		for _, p := range pipelines {
+			if f.Tenant == "" || p.GetTenantId() == f.Tenant {
+				out = append(out, clonePipeline(p))
+			}
 		}
+	}
+	appendMatching(s.pipelines)
+	if f.IncludeDeleted {
+		appendMatching(s.deletedPipelines)
 	}
 	slices.SortFunc(out, func(a, b *ingestionv1.Pipeline) int { return strings.Compare(a.GetId(), b.GetId()) })
 	return out, nil
@@ -168,7 +178,11 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.pipelineVersions, id)
-	delete(s.pipelines, id)
+	if p, exists := s.pipelines[id]; exists {
+		p.DeletedAt = time.Now().UnixMilli()
+		s.deletedPipelines[id] = p
+		delete(s.pipelines, id)
+	}
 	for scheduleID, schedule := range s.schedules {
 		if schedule.Spec.PipelineID == id {
 			delete(s.schedules, scheduleID)

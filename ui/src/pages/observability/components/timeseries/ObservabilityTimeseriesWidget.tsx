@@ -32,8 +32,10 @@ import {
 } from "@/pages/observability/components/timeseries/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
-  createTimeframeWindow,
+  formatBucketKey,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+  useBucketLabelFormatter,
+  useSlidingTimeframeWindow,
 } from "@/pages/observability/utils";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
@@ -79,9 +81,11 @@ const ObservabilityTimeseriesWidget = ({
     onPivotChange(null);
   };
 
+  const { sinceMs, untilMs } = useSlidingTimeframeWindow(timeframe);
+  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+
   const input = useMemo(() => {
     const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-    const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
     return create(QueryTimeseriesRequestSchema, {
       metrics: [metric],
       sinceMs,
@@ -90,13 +94,12 @@ const ObservabilityTimeseriesWidget = ({
       tzOffsetMinutes: -new Date().getTimezoneOffset(),
       groupBy: pivotDimension,
     });
-  }, [timeframe, metric, pivotDimension]);
+  }, [timeframe, metric, pivotDimension, sinceMs, untilMs]);
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });
   const { data: pipelinesData } = useListPipelinesQuery();
 
   const { series, lines } = useMemo(() => {
-    const { formatBucketLabel } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
     const timeseries = data?.series ?? [];
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
@@ -141,12 +144,12 @@ const ObservabilityTimeseriesWidget = ({
         metric: keySeries.key || seriesLabel,
         showArea: pivotDimension === MetricDimension.UNSPECIFIED,
         points: keySeries.points.map((point) => ({
-          x: formatBucketLabel(point.bucketStartMs),
+          x: formatBucketKey(point.bucketStartMs),
           y: point.values[0],
         })),
       })),
     };
-  }, [data, pipelinesData, pivotDimension, timeframe, seriesLabel, color]);
+  }, [data, pipelinesData, pivotDimension, seriesLabel, color]);
 
   return (
     <Widget fillWidth fillHeight noPadding>
@@ -175,6 +178,7 @@ const ObservabilityTimeseriesWidget = ({
           lines={lines}
           curve={LineChartCurve.LINEAR}
           valueFormatter={valueFormatter}
+          labelFormatter={bucketLabelFormatter}
           isLoading={isLoading}
           fillWidth
           fillHeight

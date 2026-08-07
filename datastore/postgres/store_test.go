@@ -266,6 +266,14 @@ func TestStore_ConnectionSoftDelete(t *testing.T) {
 		t.Fatalf("expected deleted connection excluded from list, got %+v", listed)
 	}
 
+	withDeleted, err := store.ListConnections(ctx, filament.ConnectionFilter{Tenant: "tenant-a", IncludeDeleted: true})
+	if err != nil {
+		t.Fatalf("ListConnections with IncludeDeleted: %v", err)
+	}
+	if len(withDeleted) != 1 {
+		t.Fatalf("expected deleted connection included, got %+v", withDeleted)
+	}
+
 	// The partial unique index only covers live rows, so the name is reusable.
 	conn.ID = "conn-2"
 	if _, err := store.CreateConnection(ctx, conn); err != nil {
@@ -283,8 +291,12 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 		t.Fatalf("EnsureTenant: %v", err)
 	}
 
-	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-del", TenantId: "tenant-a", Name: "doomed"}); err != nil {
+	created, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-del", TenantId: "tenant-a", Name: "doomed"})
+	if err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
+	}
+	if created.GetCreatedAt() == 0 {
+		t.Fatalf("expected created_at on the create response, got %+v", created)
 	}
 	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{}); err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
@@ -304,12 +316,23 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	if _, err := store.LoadPipeline(ctx, "pipe-del"); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound after delete, got %v", err)
 	}
-	pipelines, err := store.ListPipelines(ctx, "tenant-a")
+	pipelines, err := store.ListPipelines(ctx, filament.PipelineFilter{Tenant: "tenant-a"})
 	if err != nil {
 		t.Fatalf("ListPipelines: %v", err)
 	}
 	if len(pipelines) != 0 {
 		t.Fatalf("expected deleted pipeline excluded from list, got %+v", pipelines)
+	}
+
+	withDeleted, err := store.ListPipelines(ctx, filament.PipelineFilter{Tenant: "tenant-a", IncludeDeleted: true})
+	if err != nil {
+		t.Fatalf("ListPipelines with IncludeDeleted: %v", err)
+	}
+	if len(withDeleted) != 1 {
+		t.Fatalf("expected deleted pipeline included, got %+v", withDeleted)
+	}
+	if withDeleted[0].GetCreatedAt() == 0 || withDeleted[0].GetDeletedAt() == 0 {
+		t.Fatalf("expected created_at and deleted_at set, got %+v", withDeleted[0])
 	}
 	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{}); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound creating version on deleted pipeline, got %v", err)

@@ -16,7 +16,8 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
-  PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+  PIPELINES_TABLE_COLUMN_MAX_WIDTH_CONNECTORS,
+  PIPELINES_TABLE_COLUMN_MIN_WIDTH_CONNECTORS,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
@@ -50,7 +51,8 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   {
     id: "connectors",
     header: "Connectors",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+    minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_CONNECTORS,
+    maxSize: PIPELINES_TABLE_COLUMN_MAX_WIDTH_CONNECTORS,
     cellLoading: () => <TextShimmer width={120} height={18} />,
     cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
   },

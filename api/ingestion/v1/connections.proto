@@ -55,6 +55,7 @@ message GetConnectionResponse {
 message ListConnectionsRequest {
   string tenant_id = 1;
   ConnectorKind kind = 2;
+  bool include_deleted = 3;
 }
 
 message ListConnectionsResponse {

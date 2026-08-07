@@ -128,7 +128,7 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 
 // ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
-	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind())})
+	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind()), IncludeDeleted: req.Msg.GetIncludeDeleted()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -147,7 +147,7 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInternal, loadErr)
 	}
 
-	pipelines, err := a.store.ListPipelines(ctx, "")
+	pipelines, err := a.store.ListPipelines(ctx, filament.PipelineFilter{})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

@@ -25,6 +25,11 @@ const ObservabilityToolbar = () => {
   };
 
   const handleRefresh = () => {
+    void navigate({
+      to: ".",
+      replace: true,
+      search: (prev) => ({ ...prev, refreshedAt: Date.now() }),
+    });
     void queryClient.invalidateQueries({
       queryKey: createQueryTimeseriesQueryKey(),
     });

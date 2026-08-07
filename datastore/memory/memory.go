@@ -27,7 +27,9 @@ type Store struct {
 	resourceCheckpoints map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState
 	seen                map[dkey]struct{} // dedup keys already applied
 	connections         map[string]filament.Connection
+	deletedConnections  map[string]filament.Connection
 	pipelines           map[string]*ingestionv1.Pipeline
+	deletedPipelines    map[string]*ingestionv1.Pipeline
 	pipelineVersions    map[string]map[int64]*ingestionv1.PipelineVersion
 	schedules           map[filament.ScheduleID]filament.ScheduleState
 	scheduleClaims      map[filament.ScheduleID]time.Time
@@ -53,7 +55,9 @@ func New() *Store {
 		resourceCheckpoints: map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState{},
 		seen:                map[dkey]struct{}{},
 		connections:         map[string]filament.Connection{},
+		deletedConnections:  map[string]filament.Connection{},
 		pipelines:           map[string]*ingestionv1.Pipeline{},
+		deletedPipelines:    map[string]*ingestionv1.Pipeline{},
 		pipelineVersions:    map[string]map[int64]*ingestionv1.PipelineVersion{},
 		schedules:           map[filament.ScheduleID]filament.ScheduleState{},
 		scheduleClaims:      map[filament.ScheduleID]time.Time{},

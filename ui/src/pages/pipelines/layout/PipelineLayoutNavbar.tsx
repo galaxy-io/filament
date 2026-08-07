@@ -224,7 +224,7 @@ const PipelineLayoutNavbar = ({
               <Button
                 label="Save"
                 icon={FloppyDiskIcon}
-                variant={ButtonVariant.PRIMARY_ALT}
+                variant={ButtonVariant.SUCCESS}
                 size={ButtonSize.SMALL}
                 isLoading={isSaving}
                 onClick={handleSave}

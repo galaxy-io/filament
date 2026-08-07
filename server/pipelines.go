@@ -252,7 +252,7 @@ func pipelineScheduleOverlapToProto(policy filament.OverlapPolicy) ingestionv1.P
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
-	pipelines, err := a.store.ListPipelines(ctx, req.Msg.GetTenantId())
+	pipelines, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: req.Msg.GetTenantId(), IncludeDeleted: req.Msg.GetIncludeDeleted()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

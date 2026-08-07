@@ -66,7 +66,7 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 	if f.Kind != filament.ConnectorKindUnspecified {
 		kind = sqlcgen.NullConnectionKind{ConnectionKind: connectionKindToDB(f.Kind), Valid: true}
 	}
-	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{TenantID: f.Tenant, Kind: kind})
+	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{TenantID: f.Tenant, Kind: kind, IncludeDeleted: f.IncludeDeleted})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list connections: %w", err)
 	}

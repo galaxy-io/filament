@@ -16,9 +16,9 @@ FROM connections WHERE connection_id = @connection_id AND NOT is_deleted;
 -- name: ListConnections :many
 SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
 FROM connections
-WHERE NOT is_deleted
-  AND (@tenant_id::text = '' OR tenant_id = @tenant_id)
+WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
   AND (sqlc.narg('kind')::connection_kind IS NULL OR kind = sqlc.narg('kind'))
+  AND (@include_deleted::boolean OR NOT is_deleted)
 ORDER BY connection_id;
 
 -- name: DeleteConnection :exec
