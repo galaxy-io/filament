@@ -2,10 +2,9 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowUUpLeftIcon, CalendarIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
+import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, {
@@ -36,6 +35,7 @@ import {
 import { usePipelineCanvasRunActions } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
+import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
@@ -44,7 +44,6 @@ import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_version
 import { useRunPipelineMutation, useSuspenseListRunsQuery } from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
-import { formatTimeUntil } from "@/utils/format";
 
 const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -229,14 +228,7 @@ const PipelineLayoutNavbar = ({
             </>
           ) : (
             <>
-              {schedule?.config?.enabled && schedule.nextFireAt !== 0n && (
-                <Chip
-                  icon={CalendarIcon}
-                  label={`Next run ${formatTimeUntil(schedule.nextFireAt)}`}
-                  variant={ChipVariant.YELLOW}
-                  isPill
-                />
-              )}
+              <PipelineScheduleChip schedule={schedule} />
               <Button
                 label={hasActiveRun ? "Running..." : "Run"}
                 icon={PlayIcon}
