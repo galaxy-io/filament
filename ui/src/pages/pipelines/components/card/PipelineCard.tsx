@@ -98,6 +98,7 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
             sinks={sinks}
             hasEdges={hasEdges}
             size={PipelineFlowSize.SMALL}
+            isDeleted={!!pipeline.deletedAt}
           />
         </FlexWrapper>
       </CardWrapper>

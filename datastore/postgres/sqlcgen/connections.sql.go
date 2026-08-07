@@ -7,6 +7,8 @@ package sqlcgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createConnection = `-- name: CreateConnection :exec
@@ -40,10 +42,10 @@ func (q *Queries) CreateConnection(ctx context.Context, arg CreateConnectionPara
 const deleteConnection = `-- name: DeleteConnection :exec
 UPDATE connections
 SET
-  name = name || '_deleted_' || extract(epoch from CURRENT_TIMESTAMP)::bigint::text,
+  name = name || '__deleted__' || to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
   is_deleted = true,
-  deleted_at = CURRENT_TIMESTAMP,
-  updated_at = CURRENT_TIMESTAMP
+  deleted_at = now(),
+  updated_at = now()
 WHERE connection_id = $1 AND NOT is_deleted
 `
 
@@ -53,8 +55,8 @@ func (q *Queries) DeleteConnection(ctx context.Context, connectionID string) err
 }
 
 const getConnection = `-- name: GetConnection :one
-SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
-FROM connections WHERE connection_id = $1 AND NOT is_deleted
+SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version, deleted_at
+FROM connections WHERE connection_id = $1
 `
 
 type GetConnectionRow struct {
@@ -66,6 +68,7 @@ type GetConnectionRow struct {
 	Config       []byte
 	SecretRefs   []byte
 	Version      int64
+	DeletedAt    pgtype.Timestamptz
 }
 
 func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetConnectionRow, error) {
@@ -80,12 +83,13 @@ func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetC
 		&i.Config,
 		&i.SecretRefs,
 		&i.Version,
+		&i.DeletedAt,
 	)
 	return &i, err
 }
 
 const listConnections = `-- name: ListConnections :many
-SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version
+SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version, deleted_at
 FROM connections
 WHERE ($1::text = '' OR tenant_id = $1)
   AND ($2::connection_kind IS NULL OR kind = $2)
@@ -108,6 +112,7 @@ type ListConnectionsRow struct {
 	Config       []byte
 	SecretRefs   []byte
 	Version      int64
+	DeletedAt    pgtype.Timestamptz
 }
 
 func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams) ([]*ListConnectionsRow, error) {
@@ -128,6 +133,7 @@ func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams
 			&i.Config,
 			&i.SecretRefs,
 			&i.Version,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}

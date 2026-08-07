@@ -43,6 +43,7 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
             connector={connection.connector}
             spec={connector}
             size={ConnectorTileSize.LARGE}
+            isDeleted={!!connection.deletedAt}
           />
         </FlexItem>
         <FlexWrapper fillWidth minWidth={0} direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
@@ -56,6 +57,7 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
                 variant={ButtonVariant.SECONDARY}
                 size={ButtonSize.SMALL}
                 onClick={handleEdit}
+                isDisabled={!!connection.deletedAt}
               />,
             ]}
             onClose={onClose}

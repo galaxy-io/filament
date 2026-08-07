@@ -18,6 +18,18 @@ import (
 // shared sentinel regardless of which DataStore impl they hold.
 var ErrNotFound = filament.ErrNotFound
 
+// deletedNameTimestamp renders the delete time stamped onto a soft-deleted
+// pipeline or connection name, keeping the name unique if the row is ever
+// restored into a partial unique index. Fixed-width milliseconds, matching the
+// postgres to_char pattern in queries/{pipelines,connections}.sql —
+// time.RFC3339 has no fractional seconds and RFC3339Nano trims trailing zeros.
+const deletedNameTimestamp = "2006-01-02T15:04:05.000Z"
+
+// stampDeletedName appends the delete marker the postgres store writes in SQL.
+func stampDeletedName(name string, at time.Time) string {
+	return fmt.Sprintf("%s__deleted__%s", name, at.UTC().Format(deletedNameTimestamp))
+}
+
 // Store is an in-memory DataStore.
 type Store struct {
 	mu                  sync.RWMutex

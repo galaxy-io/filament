@@ -68,6 +68,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if stored.DeletedAt != 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is deleted", in.GetId()))
+	}
 	if stored.Version != in.GetVersion() {
 		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", in.GetId(), stored.Version, in.GetVersion()))
 	}

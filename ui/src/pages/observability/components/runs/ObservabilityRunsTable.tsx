@@ -16,6 +16,7 @@ import { ListRunsRequestSchema, type RunInfo, type RunStatus } from "@/gen/inges
 import PipelineName from "@/components/PipelineName";
 
 import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
+import { OBSERVABILITY_CONNECTIONS_INPUT } from "@/pages/observability/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
@@ -46,7 +47,9 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
 
   const { data, isLoading } = useListRunsQuery({ input });
 
-  const { data: connectionsData } = useListConnectionsQuery();
+  const { data: connectionsData } = useListConnectionsQuery({
+    input: OBSERVABILITY_CONNECTIONS_INPUT,
+  });
 
   const connectorsByConnectionId = useMemo(
     () =>
@@ -119,7 +122,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "startedAt",
         header: "Started",
-        size: 140,
+        size: 160,
         accessorFn: (run) => Number(run.startedAt),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={100} height={14} />,

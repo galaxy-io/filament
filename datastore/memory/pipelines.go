@@ -13,12 +13,6 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-// deletedNameTimestamp renders the delete time stamped onto a soft-deleted
-// pipeline's name. Fixed-width milliseconds, matching the postgres to_char
-// pattern in queries/pipelines.sql — time.RFC3339 has no fractional seconds and
-// RFC3339Nano trims trailing zeros.
-const deletedNameTimestamp = "2006-01-02T15:04:05.000Z"
-
 // CreatePipeline stores a new pipeline.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
@@ -192,7 +186,7 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if p, exists := s.pipelines[id]; exists {
 		now := time.Now()
 		p.DeletedAt = now.UnixMilli()
-		p.Name = fmt.Sprintf("%s__deleted__%s", p.Name, now.UTC().Format(deletedNameTimestamp))
+		p.Name = stampDeletedName(p.Name, now)
 		s.deletedPipelines[id] = p
 		delete(s.pipelines, id)
 	}

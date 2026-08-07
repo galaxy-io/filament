@@ -91,6 +91,8 @@ type Connection struct {
 	Config     map[string]any
 	SecretRefs map[string]string
 	Version    int64
+	// DeletedAt is unix milliseconds, zero when the connection is live.
+	DeletedAt int64
 }
 
 // ConnectionFilter narrows a connection listing by tenant and/or kind.

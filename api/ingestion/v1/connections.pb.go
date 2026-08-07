@@ -37,6 +37,7 @@ type Connection struct {
 	Config        *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"` // CONNECTION-scoped fields only
 	SecretRefs    map[string]string      `protobuf:"bytes,7,rep,name=secret_refs,json=secretRefs,proto3" json:"secret_refs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Version       int64                  `protobuf:"varint,8,opt,name=version,proto3" json:"version,omitempty"`
+	DeletedAt     int64                  `protobuf:"varint,9,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -123,6 +124,13 @@ func (x *Connection) GetSecretRefs() map[string]string {
 func (x *Connection) GetVersion() int64 {
 	if x != nil {
 		return x.Version
+	}
+	return 0
+}
+
+func (x *Connection) GetDeletedAt() int64 {
+	if x != nil {
+		return x.DeletedAt
 	}
 	return 0
 }
@@ -621,7 +629,7 @@ var File_ingestion_v1_connections_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\n" +
-	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\xf1\x02\n" +
+	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\x90\x03\n" +
 	"\n" +
 	"Connection\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
@@ -632,7 +640,9 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\x06config\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06config\x12I\n" +
 	"\vsecret_refs\x18\a \x03(\v2(.ingestion.v1.Connection.SecretRefsEntryR\n" +
 	"secretRefs\x12\x18\n" +
-	"\aversion\x18\b \x01(\x03R\aversion\x1a=\n" +
+	"\aversion\x18\b \x01(\x03R\aversion\x12\x1d\n" +
+	"\n" +
+	"deleted_at\x18\t \x01(\x03R\tdeletedAt\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x02\n" +

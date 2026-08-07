@@ -321,6 +321,9 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 			if err != nil {
 				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
 			}
+			if conn.DeletedAt != 0 {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is deleted", node.GetConnectionId()))
+			}
 			connections[node.GetConnectionId()] = conn
 		}
 	}

@@ -48,7 +48,9 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 	return c, nil
 }
 
-// LoadConnection returns the connection with the given ID, or ErrNotFound.
+// LoadConnection returns the connection with the given ID, including
+// soft-deleted ones so callers can still read a deleted connection's metadata.
+// DeletedAt tells them apart.
 func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connection, error) {
 	row, err := s.q.GetConnection(ctx, id)
 	if err != nil {
@@ -57,7 +59,7 @@ func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connect
 		}
 		return filament.Connection{}, fmt.Errorf("datastore/postgres: get connection: %w", err)
 	}
-	return connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version)
+	return connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version, row.DeletedAt)
 }
 
 // ListConnections returns connections matching the filter, sorted by ID.
@@ -72,7 +74,7 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 	}
 	out := make([]filament.Connection, len(rows))
 	for i, row := range rows {
-		c, err := connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version)
+		c, err := connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version, row.DeletedAt)
 		if err != nil {
 			return nil, err
 		}

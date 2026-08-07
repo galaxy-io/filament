@@ -65,3 +65,7 @@ export const formatBytes = (value: bigint): string => {
   }
   return `${unitIndex === 0 ? scaled : scaled.toFixed(1)} ${BYTE_UNITS[unitIndex]}`;
 };
+
+const DELETED_NAME_SUFFIX = /__deleted__\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+export const stripDeletedName = (name: string): string => name.replace(DELETED_NAME_SUFFIX, "");

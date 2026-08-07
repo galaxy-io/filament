@@ -43,7 +43,11 @@ const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> 
 };
 
 const TileWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $size: ConnectorTileSize; $isClickable: boolean }>
+  PropsWithTheme<{
+    $size: ConnectorTileSize;
+    $isClickable: boolean;
+    $isDeleted: boolean;
+  }>
 >`
   width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
   height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
@@ -53,10 +57,13 @@ const TileWrapper = withTheme(styled.div<
   justify-content: center;
   flex-shrink: 0;
 
-  background-color: ${({ theme }) => theme.color.background.secondary};
+  background-color: ${({ theme, $isDeleted }) =>
+    $isDeleted ? theme.color.background.error : theme.color.background.secondary};
 
   border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
-  border: 0.5px solid ${({ theme }) => theme.color.border.tertiary};
+  border: 0.5px solid
+    ${({ theme, $isDeleted }) =>
+      $isDeleted ? theme.color.border.error : theme.color.border.tertiary};
 
   overflow: hidden;
 
@@ -81,6 +88,7 @@ interface ConnectorTileProps {
   spec?: ConnectorSpec;
   size?: ConnectorTileSize;
   onClick?: (e: React.MouseEvent) => void;
+  isDeleted?: boolean;
 }
 
 interface ConnectorTileState {
@@ -94,6 +102,7 @@ const ConnectorTile = ({
   spec,
   size = ConnectorTileSize.MEDIUM,
   onClick,
+  isDeleted = false,
 }: ConnectorTileProps) => {
   const { activeTheme } = useGalaxyTheme();
   const resolvedSpec = useConnectorSpec(connector);
@@ -110,7 +119,7 @@ const ConnectorTile = ({
   };
 
   return (
-    <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick}>
+    <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick} $isDeleted={isDeleted}>
       {showLogo ? (
         <ConnectorLogo
           src={logoURL}
@@ -133,7 +142,7 @@ const ConnectorTile = ({
 
 export const ConnectorOverflowTile = ({ count }: { count: number }) => {
   return (
-    <TileWrapper $size={ConnectorTileSize.SMALL} $isClickable={false}>
+    <TileWrapper $size={ConnectorTileSize.SMALL} $isClickable={false} $isDeleted={false}>
       <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isMonospace>
         +{count}
       </Text>

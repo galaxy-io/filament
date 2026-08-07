@@ -5,8 +5,8 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { OBSERVABILITY_SETUP_STEP_ORDER } from "@/pages/observability/components/setup/constants";
 import { ObservabilitySetupStep } from "@/pages/observability/components/setup/types";
 import {
+  OBSERVABILITY_CONNECTIONS_INPUT,
   OBSERVABILITY_PIPELINES_INPUT,
-  OBSERVABILITY_SETUP_CONNECTIONS_INPUT,
 } from "@/pages/observability/constants";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
@@ -21,7 +21,7 @@ export interface ObservabilitySetup {
 
 export const useObservabilitySetup = (): ObservabilitySetup => {
   const { data: connectionsData } = useSuspenseListConnectionsQuery({
-    input: OBSERVABILITY_SETUP_CONNECTIONS_INPUT,
+    input: OBSERVABILITY_CONNECTIONS_INPUT,
   });
   const { data: pipelinesData } = useSuspenseListPipelinesQuery({
     input: OBSERVABILITY_PIPELINES_INPUT,

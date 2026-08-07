@@ -237,7 +237,8 @@ func TestStore_ScheduleClaimDue(t *testing.T) {
 }
 
 // TestStore_ConnectionSoftDelete verifies a deleted connection disappears from
-// reads and frees its (tenant, kind, name) for a new connection.
+// lists, stays loadable by id with its delete stamp, and frees its
+// (tenant, kind, name) for a new connection.
 func TestStore_ConnectionSoftDelete(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t)
@@ -256,8 +257,23 @@ func TestStore_ConnectionSoftDelete(t *testing.T) {
 	if err := store.DeleteConnection(ctx, "conn-1"); err != nil {
 		t.Fatalf("DeleteConnection: %v", err)
 	}
-	if _, err := store.LoadConnection(ctx, "conn-1"); !errors.Is(err, filament.ErrNotFound) {
-		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	loaded, err := store.LoadConnection(ctx, "conn-1")
+	if err != nil {
+		t.Fatalf("expected deleted connection to stay loadable, got %v", err)
+	}
+	if loaded.DeletedAt == 0 {
+		t.Fatalf("expected deleted_at set on the loaded connection, got %+v", loaded)
+	}
+	stamp, ok := strings.CutPrefix(loaded.Name, "pg-main__deleted__")
+	if !ok {
+		t.Fatalf("expected delete stamp on the name, got %q", loaded.Name)
+	}
+	stampedAt, err := time.Parse(time.RFC3339, stamp)
+	if err != nil {
+		t.Fatalf("delete stamp %q is not RFC3339: %v", stamp, err)
+	}
+	if stampedAt.UnixMilli() != loaded.DeletedAt {
+		t.Fatalf("delete stamp %d disagrees with deleted_at %d", stampedAt.UnixMilli(), loaded.DeletedAt)
 	}
 	listed, err := store.ListConnections(ctx, filament.ConnectionFilter{Tenant: "tenant-a"})
 	if err != nil {

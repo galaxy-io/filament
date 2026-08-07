@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/galaxy-io/filament"
 )
@@ -46,7 +47,9 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 	return cloneConnection(c), nil
 }
 
-// LoadConnection returns the connection with the given ID, or ErrNotFound.
+// LoadConnection returns the connection with the given ID, including
+// soft-deleted ones so callers can still read a deleted connection's metadata.
+// DeletedAt tells them apart.
 func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connection, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.Connection{}, err
@@ -54,6 +57,9 @@ func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connect
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	c, exists := s.connections[id]
+	if !exists {
+		c, exists = s.deletedConnections[id]
+	}
 	if !exists {
 		return filament.Connection{}, fmt.Errorf("connection %q: %w", id, filament.ErrNotFound)
 	}
@@ -87,7 +93,10 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 	return out, nil
 }
 
-// DeleteConnection soft-deletes the connection with the given ID; deleting a missing ID is a no-op.
+// DeleteConnection soft-deletes the connection with the given ID; deleting a
+// missing ID is a no-op. The name is stamped with the delete time to match the
+// postgres store, which mangles it so a restored row can't collide in the
+// partial unique index.
 func (s *Store) DeleteConnection(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -95,6 +104,9 @@ func (s *Store) DeleteConnection(ctx context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if c, exists := s.connections[id]; exists {
+		now := time.Now()
+		c.DeletedAt = now.UnixMilli()
+		c.Name = stampDeletedName(c.Name, now)
 		s.deletedConnections[id] = c
 		delete(s.connections, id)
 	}

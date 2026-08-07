@@ -18,11 +18,12 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { type Pipeline, UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { formatPipelineName, stripDeletedPipelineName } from "@/pages/pipelines/utils";
+import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
+import { stripDeletedName } from "@/utils/format";
 
 interface PipelineSettingsPageGeneralState {
   name: Pipeline["name"];
@@ -43,7 +44,7 @@ const PipelineSettingsPageGeneral = ({ pipeline }: PipelineSettingsPageGeneralPr
 
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();
 
-  const pipelineName = stripDeletedPipelineName(pipeline.name);
+  const pipelineName = stripDeletedName(pipeline.name);
 
   const [state, setState] = useState<PipelineSettingsPageGeneralState>(() => ({
     ...DEFAULT_STATE,
