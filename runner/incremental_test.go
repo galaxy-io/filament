@@ -66,7 +66,7 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	plan := filament.IngestionPlan{
-		Type:         filament.IngestionUpsert,
+		Type:         filament.IngestionIncrementalUpsert,
 		SourcePolicy: filament.SourcePolicy{Mode: filament.ModeIncremental, Checkpointing: filament.CheckpointAfterBatch},
 	}
 	base := filament.RunSpec{

@@ -19,7 +19,7 @@ type RunSpec struct {
 	Resources         []string
 	Selectors         []string
 	IngestionType     IngestionType
-	Mode              ReplicationMode
+	Mode              ReadMode
 	Checkpoint        *CheckpointData
 	Options           RunOptions
 }
@@ -174,20 +174,22 @@ type SyncSnapshot struct {
 // source's read policy and the sink's write policy.
 type IngestionType string
 
-// The defined ingestion types.
+// The defined ingestion types, named {read}_{write}: what the source reads
+// crossed with how the sink lands it. CDC implies both sides.
 const (
-	IngestionSnapshotReplace IngestionType = "snapshot_replace"
-	IngestionSnapshotUpsert  IngestionType = "snapshot_upsert"
-	IngestionAppend          IngestionType = "append"
-	IngestionUpsert          IngestionType = "upsert"
-	IngestionDelete          IngestionType = "delete"
-	IngestionCDC             IngestionType = "cdc"
+	IngestionFullReplace       IngestionType = "full_replace"
+	IngestionFullUpsert        IngestionType = "full_upsert"
+	IngestionFullAppend        IngestionType = "full_append"
+	IngestionIncrementalAppend IngestionType = "incremental_append"
+	IngestionIncrementalUpsert IngestionType = "incremental_upsert"
+	IngestionIncrementalDelete IngestionType = "incremental_delete"
+	IngestionCDC               IngestionType = "cdc"
 )
 
-// OrDefault substitutes IngestionSnapshotReplace for the empty type.
+// OrDefault substitutes IngestionFullReplace for the empty type.
 func (t IngestionType) OrDefault() IngestionType {
 	if t == "" {
-		return IngestionSnapshotReplace
+		return IngestionFullReplace
 	}
 	return t
 }
@@ -239,6 +241,54 @@ const (
 	WriteDelete  WriteMode = "delete"
 	WriteMerge   WriteMode = "merge"
 )
+
+// IngestionFor compiles the two user levers — per-table read mode and sink
+// write mode — into the internal ingestion type. Zero levers default to a
+// full-refresh replace; an unset write on an incremental read defaults to
+// upsert. CDC connections never reach this: their edges are always
+// IngestionCDC.
+func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
+	if write == "" {
+		if read == ModeIncremental {
+			write = WriteUpsert
+		} else {
+			write = WriteReplace
+		}
+	}
+	switch read {
+	case ModeFull:
+		switch write {
+		case WriteReplace:
+			return IngestionFullReplace, nil
+		case WriteUpsert:
+			return IngestionFullUpsert, nil
+		case WriteAppend:
+			return IngestionFullAppend, nil
+		}
+	case ModeIncremental:
+		switch write {
+		case WriteAppend:
+			return IngestionIncrementalAppend, nil
+		case WriteUpsert:
+			return IngestionIncrementalUpsert, nil
+		case WriteDelete:
+			return IngestionIncrementalDelete, nil
+		}
+	}
+	return "", fmt.Errorf("read mode %q cannot combine with write mode %q", read, write)
+}
+
+// String renders a read mode for messages and logs.
+func (m ReadMode) String() string {
+	switch m {
+	case ModeIncremental:
+		return "incremental"
+	case ModeCDC:
+		return "cdc"
+	default:
+		return "full"
+	}
+}
 
 // WriteAtomicity is the unit at which a sink's writes become visible.
 type WriteAtomicity string
@@ -321,7 +371,7 @@ func OperationName(op Operation) string {
 // SourcePolicy is the read-side contract an ingestion type implies: mode,
 // emitted operations, ordering, and checkpoint timing.
 type SourcePolicy struct {
-	Mode          ReplicationMode
+	Mode          ReadMode
 	EmitsOps      []Operation
 	Ordered       bool
 	Checkpointing CheckpointPolicy
@@ -347,21 +397,25 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	checkpoint := CheckpointNone
 
 	switch t.OrDefault() {
-	case IngestionSnapshotReplace:
+	case IngestionFullReplace:
 		capability.Mode = WriteReplace
 		capability.Atomicity = AtomicityResource
-	case IngestionSnapshotUpsert:
+	case IngestionFullUpsert:
 		capability.Mode = WriteUpsert
 		capability.RequiresPK = true
 		checkpoint = CheckpointAfterBatch
-	case IngestionUpsert:
+	case IngestionIncrementalUpsert:
 		capability.Mode = WriteUpsert
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpInsert, OpUpdate}
 		checkpoint = CheckpointAfterBatch
-	case IngestionAppend:
+	case IngestionFullAppend:
 		capability.Mode = WriteAppend
-	case IngestionDelete:
+	case IngestionIncrementalAppend:
+		capability.Mode = WriteAppend
+		capability.AcceptsOps = []Operation{OpInsert, OpUpdate}
+		checkpoint = CheckpointAfterBatch
+	case IngestionIncrementalDelete:
 		capability.Mode = WriteDelete
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpDelete}
@@ -388,13 +442,13 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			Ordered:       true,
 			Checkpointing: CheckpointAfterCommit,
 		}
-	case IngestionSnapshotUpsert:
+	case IngestionFullUpsert:
 		return SourcePolicy{
 			Mode:          ModeFull,
 			EmitsOps:      []Operation{OpInsert},
 			Checkpointing: CheckpointAfterBatch,
 		}
-	case IngestionUpsert, IngestionDelete:
+	case IngestionIncrementalAppend, IngestionIncrementalUpsert, IngestionIncrementalDelete:
 		return SourcePolicy{
 			Mode:          ModeIncremental,
 			EmitsOps:      []Operation{OpInsert, OpUpdate},

@@ -80,6 +80,30 @@ type RateLimited interface {
 	Limits() RatePolicy
 }
 
+// ReplicationMode is how a connection replicates, decided at source creation:
+// query-based reads or the change stream.
+type ReplicationMode string
+
+// The replication modes.
+const (
+	ReplicationStandard ReplicationMode = "standard"
+	ReplicationCDC      ReplicationMode = "cdc"
+)
+
+// ReplicationAware lets a source report which replication mode a connection
+// config selects. Sources without the contract are always standard.
+type ReplicationAware interface {
+	Replication(cfg Config) ReplicationMode
+}
+
+// ReplicationOf resolves a connection's replication mode from its source.
+func ReplicationOf(src Source, cfg Config) ReplicationMode {
+	if aware, ok := src.(ReplicationAware); ok {
+		return aware.Replication(cfg)
+	}
+	return ReplicationStandard
+}
+
 // LiveValidatable is the optional contract for probing connectivity with a
 // config before any run uses it.
 type LiveValidatable interface {
@@ -95,7 +119,7 @@ type ConnectorSpec struct {
 	DarkLogoURL    string
 	LightLogoURL   string
 	Version        string
-	Modes          []ReplicationMode
+	Modes          []ReadMode
 	SourcePolicies []SourcePolicy
 	Config         ConfigSchema
 	Resources      ResourceCapabilities
@@ -165,13 +189,13 @@ const (
 // rather than on the reusable connection.
 func (s FieldScope) IsPipeline() bool { return s == ScopePipeline }
 
-// ReplicationMode is how a source reads: full scan, incremental from a
+// ReadMode is how a source reads: full scan, incremental from a
 // cursor, or CDC.
-type ReplicationMode int
+type ReadMode int
 
 // The replication modes.
 const (
-	ModeFull ReplicationMode = iota
+	ModeFull ReadMode = iota
 	ModeIncremental
 	ModeCDC
 )
@@ -183,7 +207,7 @@ type ResourceCapabilities struct{ Discoverable, PerResourceCursor bool }
 type ExtractOpts struct {
 	Resources   []string
 	Selectors   []string
-	Mode        ReplicationMode
+	Mode        ReadMode
 	Limit       int // 0 = unbounded
 	Parallelism int
 }

@@ -4,7 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { ConnectorKind, IngestionType } from "./common_pb";
+import type { ConnectorKind, IngestionType, ReadMode, ReplicationMode, WriteMode } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
 import type { PipelineEdge, PipelineNode } from "./pipelines_pb";
 import { file_ingestion_v1_pipelines } from "./pipelines_pb";
@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/capabilities.proto.
  */
 export const file_ingestion_v1_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiQQogR2V0Q29ubmVjdGlvbkNhcGFiaWxpdGllc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJImAKEEluZ2VzdGlvblN1cHBvcnQSKQoEdHlwZRgBIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlEhEKCXN1cHBvcnRlZBgCIAEoCBIOCgZyZWFzb24YAyABKAkixgEKIUdldENvbm5lY3Rpb25DYXBhYmlsaXRpZXNSZXNwb25zZRIRCgljb25uZWN0b3IYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEjAKDGNhcGFiaWxpdGllcxgDIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSMQoJaW5nZXN0aW9uGAQgAygLMh4uaW5nZXN0aW9uLnYxLkluZ2VzdGlvblN1cHBvcnQiggEKF1ZhbGlkYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgVub2RlcxgCIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYAyADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIlMKDkNhbmRpZGF0ZVZhbHVlEg0KBXZhbHVlGAEgASgJEhMKC3JlY29tbWVuZGVkGAIgASgIEgwKBHJhbmsYAyABKAUSDwoHd2FybmluZxgEIAEoCSLtAQoLUmVxdWlyZW1lbnQSKwoEa2luZBgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudEtpbmQSEAoIcmVzb3VyY2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIwCgpjYW5kaWRhdGVzGAQgAygLMhwuaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVZhbHVlEhEKCXNhdGlzZmllZBgFIAEoCBIQCghibG9ja2luZxgGIAEoCBI3ChBjYW5kaWRhdGVfc3RhdHVzGAcgASgOMh0uaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVN0YXR1cyKXAQoSUmVzb3VyY2VWYWxpZGF0aW9uEhAKCHJlc291cmNlGAEgASgJEj4KGXN1cHBvcnRlZF9pbmdlc3Rpb25fdHlwZXMYAiADKA4yGy5pbmdlc3Rpb24udjEuSW5nZXN0aW9uVHlwZRIvCgxyZXF1aXJlbWVudHMYAyADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQimwIKDkVkZ2VWYWxpZGF0aW9uEhEKCWZyb21fbm9kZRgBIAEoCRIPCgd0b19ub2RlGAIgASgJEhAKCHJlc291cmNlGAMgASgJEj4KGXN1cHBvcnRlZF9pbmdlc3Rpb25fdHlwZXMYBCADKA4yGy5pbmdlc3Rpb24udjEuSW5nZXN0aW9uVHlwZRItCgZlcnJvcnMYBSADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yEi8KDHJlcXVpcmVtZW50cxgGIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudBIzCglyZXNvdXJjZXMYByADKAsyIC5pbmdlc3Rpb24udjEuUmVzb3VyY2VWYWxpZGF0aW9uIoUBChhWYWxpZGF0ZVBpcGVsaW5lUmVzcG9uc2USDQoFdmFsaWQYASABKAgSKwoFZWRnZXMYAiADKAsyHC5pbmdlc3Rpb24udjEuRWRnZVZhbGlkYXRpb24SLQoGZXJyb3JzGAMgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvcip5Cg9SZXF1aXJlbWVudEtpbmQSIAocUkVRVUlSRU1FTlRfS0lORF9VTlNQRUNJRklFRBAAEiIKHlJFUVVJUkVNRU5UX0tJTkRfQ1VSU09SX0NPTFVNThABEiAKHFJFUVVJUkVNRU5UX0tJTkRfUFJJTUFSWV9LRVkQAiqaAQoPQ2FuZGlkYXRlU3RhdHVzEiAKHENBTkRJREFURV9TVEFUVVNfVU5TUEVDSUZJRUQQABIfChtDQU5ESURBVEVfU1RBVFVTX0VOVU1FUkFURUQQARIiCh5DQU5ESURBVEVfU1RBVFVTX05PVF9TVVBQT1JURUQQAhIgChxDQU5ESURBVEVfU1RBVFVTX1VOQVZBSUxBQkxFEANiBnByb3RvMw", [file_ingestion_v1_common, file_ingestion_v1_pipelines, file_ingestion_v1_providers]);
+  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiQQogR2V0Q29ubmVjdGlvbkNhcGFiaWxpdGllc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJIqECCiFHZXRDb25uZWN0aW9uQ2FwYWJpbGl0aWVzUmVzcG9uc2USEQoJY29ubmVjdG9yGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIwCgxjYXBhYmlsaXRpZXMYAyABKAsyGi5pbmdlc3Rpb24udjEuQ2FwYWJpbGl0aWVzEjIKC3JlcGxpY2F0aW9uGAQgASgOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIqCgpyZWFkX21vZGVzGAUgAygOMhYuaW5nZXN0aW9uLnYxLlJlYWRNb2RlEiwKC3dyaXRlX21vZGVzGAYgAygOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZSKCAQoXVmFsaWRhdGVQaXBlbGluZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEikKBW5vZGVzGAIgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZRIpCgVlZGdlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZUVkZ2UiUwoOQ2FuZGlkYXRlVmFsdWUSDQoFdmFsdWUYASABKAkSEwoLcmVjb21tZW5kZWQYAiABKAgSDAoEcmFuaxgDIAEoBRIPCgd3YXJuaW5nGAQgASgJIu0BCgtSZXF1aXJlbWVudBIrCgRraW5kGAEgASgOMh0uaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50S2luZBIQCghyZXNvdXJjZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEjAKCmNhbmRpZGF0ZXMYBCADKAsyHC5pbmdlc3Rpb24udjEuQ2FuZGlkYXRlVmFsdWUSEQoJc2F0aXNmaWVkGAUgASgIEhAKCGJsb2NraW5nGAYgASgIEjcKEGNhbmRpZGF0ZV9zdGF0dXMYByABKA4yHS5pbmdlc3Rpb24udjEuQ2FuZGlkYXRlU3RhdHVzIo0BChJSZXNvdXJjZVZhbGlkYXRpb24SEAoIcmVzb3VyY2UYASABKAkSNAoUc3VwcG9ydGVkX3JlYWRfbW9kZXMYAiADKA4yFi5pbmdlc3Rpb24udjEuUmVhZE1vZGUSLwoMcmVxdWlyZW1lbnRzGAMgAygLMhkuaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50IsgCCg5FZGdlVmFsaWRhdGlvbhIRCglmcm9tX25vZGUYASABKAkSDwoHdG9fbm9kZRgCIAEoCRIQCghyZXNvdXJjZRgDIAEoCRI2ChVzdXBwb3J0ZWRfd3JpdGVfbW9kZXMYBCADKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlEi0KBmVycm9ycxgFIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISLwoMcmVxdWlyZW1lbnRzGAYgAygLMhkuaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50EjMKCXJlc291cmNlcxgHIAMoCzIgLmluZ2VzdGlvbi52MS5SZXNvdXJjZVZhbGlkYXRpb24SMwoOaW5nZXN0aW9uX3R5cGUYCCABKA4yGy5pbmdlc3Rpb24udjEuSW5nZXN0aW9uVHlwZSKFAQoYVmFsaWRhdGVQaXBlbGluZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEisKBWVkZ2VzGAIgAygLMhwuaW5nZXN0aW9uLnYxLkVkZ2VWYWxpZGF0aW9uEi0KBmVycm9ycxgDIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3IqeQoPUmVxdWlyZW1lbnRLaW5kEiAKHFJFUVVJUkVNRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIiCh5SRVFVSVJFTUVOVF9LSU5EX0NVUlNPUl9DT0xVTU4QARIgChxSRVFVSVJFTUVOVF9LSU5EX1BSSU1BUllfS0VZEAIqmgEKD0NhbmRpZGF0ZVN0YXR1cxIgChxDQU5ESURBVEVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHwobQ0FORElEQVRFX1NUQVRVU19FTlVNRVJBVEVEEAESIgoeQ0FORElEQVRFX1NUQVRVU19OT1RfU1VQUE9SVEVEEAISIAocQ0FORElEQVRFX1NUQVRVU19VTkFWQUlMQUJMRRADYgZwcm90bzM", [file_ingestion_v1_common, file_ingestion_v1_pipelines, file_ingestion_v1_providers]);
 
 /**
  * @generated from message ingestion.v1.GetConnectionCapabilitiesRequest
@@ -41,36 +41,6 @@ export const GetConnectionCapabilitiesRequestSchema: GenMessage<GetConnectionCap
   messageDesc(file_ingestion_v1_capabilities, 0);
 
 /**
- * IngestionSupport is one ingestion type's verdict for a connection, with the
- * validator's reason when unsupported.
- *
- * @generated from message ingestion.v1.IngestionSupport
- */
-export type IngestionSupport = Message<"ingestion.v1.IngestionSupport"> & {
-  /**
-   * @generated from field: ingestion.v1.IngestionType type = 1;
-   */
-  type: IngestionType;
-
-  /**
-   * @generated from field: bool supported = 2;
-   */
-  supported: boolean;
-
-  /**
-   * @generated from field: string reason = 3;
-   */
-  reason: string;
-};
-
-/**
- * Describes the message ingestion.v1.IngestionSupport.
- * Use `create(IngestionSupportSchema)` to create a new message.
- */
-export const IngestionSupportSchema: GenMessage<IngestionSupport> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 1);
-
-/**
  * @generated from message ingestion.v1.GetConnectionCapabilitiesResponse
  */
 export type GetConnectionCapabilitiesResponse = Message<"ingestion.v1.GetConnectionCapabilitiesResponse"> & {
@@ -85,14 +55,34 @@ export type GetConnectionCapabilitiesResponse = Message<"ingestion.v1.GetConnect
   kind: ConnectorKind;
 
   /**
+   * Flags and the connection's effective policies, narrowed by its config.
+   *
    * @generated from field: ingestion.v1.Capabilities capabilities = 3;
    */
   capabilities?: Capabilities | undefined;
 
   /**
-   * @generated from field: repeated ingestion.v1.IngestionSupport ingestion = 4;
+   * The connection's replication mode, resolved from its stored config.
+   * Sinks report UNSPECIFIED.
+   *
+   * @generated from field: ingestion.v1.ReplicationMode replication = 4;
    */
-  ingestion: IngestionSupport[];
+  replication: ReplicationMode;
+
+  /**
+   * Source: the per-table read levers this connection offers. Empty on a CDC
+   * connection — replication is understood, there is no read lever.
+   *
+   * @generated from field: repeated ingestion.v1.ReadMode read_modes = 5;
+   */
+  readModes: ReadMode[];
+
+  /**
+   * Sink: the write levers this sink offers.
+   *
+   * @generated from field: repeated ingestion.v1.WriteMode write_modes = 6;
+   */
+  writeModes: WriteMode[];
 };
 
 /**
@@ -100,7 +90,7 @@ export type GetConnectionCapabilitiesResponse = Message<"ingestion.v1.GetConnect
  * Use `create(GetConnectionCapabilitiesResponseSchema)` to create a new message.
  */
 export const GetConnectionCapabilitiesResponseSchema: GenMessage<GetConnectionCapabilitiesResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 2);
+  messageDesc(file_ingestion_v1_capabilities, 1);
 
 /**
  * ValidatePipelineRequest carries the graph inline so unsaved canvas state
@@ -130,7 +120,7 @@ export type ValidatePipelineRequest = Message<"ingestion.v1.ValidatePipelineRequ
  * Use `create(ValidatePipelineRequestSchema)` to create a new message.
  */
 export const ValidatePipelineRequestSchema: GenMessage<ValidatePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 3);
+  messageDesc(file_ingestion_v1_capabilities, 2);
 
 /**
  * CandidateValue is one value the user may pick to satisfy a requirement.
@@ -164,7 +154,7 @@ export type CandidateValue = Message<"ingestion.v1.CandidateValue"> & {
  * Use `create(CandidateValueSchema)` to create a new message.
  */
 export const CandidateValueSchema: GenMessage<CandidateValue> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 4);
+  messageDesc(file_ingestion_v1_capabilities, 3);
 
 /**
  * Requirement is configuration the chosen ingestion type involves. It is
@@ -216,14 +206,14 @@ export type Requirement = Message<"ingestion.v1.Requirement"> & {
  * Use `create(RequirementSchema)` to create a new message.
  */
 export const RequirementSchema: GenMessage<Requirement> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 5);
+  messageDesc(file_ingestion_v1_capabilities, 4);
 
 /**
- * ResourceValidation is one routed table's verdict under the edge: the
- * ingestion types this table can actually serve given its primary key and
- * cursor reality, plus requirements for the edge's chosen type. Populated
- * when the chosen type needs per-table setup; snapshot and append edges
- * have nothing to configure.
+ * ResourceValidation is one routed table's verdict under the edge: the read
+ * modes this table can actually serve given its cursor reality, plus
+ * requirements for the edge's chosen levers. Populated when the chosen levers
+ * need per-table setup; full-read append/replace edges have nothing to
+ * configure.
  *
  * @generated from message ingestion.v1.ResourceValidation
  */
@@ -234,9 +224,9 @@ export type ResourceValidation = Message<"ingestion.v1.ResourceValidation"> & {
   resource: string;
 
   /**
-   * @generated from field: repeated ingestion.v1.IngestionType supported_ingestion_types = 2;
+   * @generated from field: repeated ingestion.v1.ReadMode supported_read_modes = 2;
    */
-  supportedIngestionTypes: IngestionType[];
+  supportedReadModes: ReadMode[];
 
   /**
    * @generated from field: repeated ingestion.v1.Requirement requirements = 3;
@@ -249,12 +239,12 @@ export type ResourceValidation = Message<"ingestion.v1.ResourceValidation"> & {
  * Use `create(ResourceValidationSchema)` to create a new message.
  */
 export const ResourceValidationSchema: GenMessage<ResourceValidation> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 6);
+  messageDesc(file_ingestion_v1_capabilities, 5);
 
 /**
- * EdgeValidation is one edge's verdict: the ingestion types the pair supports
- * at the spec level, hard errors, edge-scoped requirements, and the per-table
- * breakdown.
+ * EdgeValidation is one edge's verdict: the write levers the sink offers, the
+ * ingestion type the server derived from the edge's levers, hard errors,
+ * edge-scoped requirements, and the per-table breakdown.
  *
  * @generated from message ingestion.v1.EdgeValidation
  */
@@ -275,9 +265,9 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
   resource: string;
 
   /**
-   * @generated from field: repeated ingestion.v1.IngestionType supported_ingestion_types = 4;
+   * @generated from field: repeated ingestion.v1.WriteMode supported_write_modes = 4;
    */
-  supportedIngestionTypes: IngestionType[];
+  supportedWriteModes: WriteMode[];
 
   /**
    * @generated from field: repeated ingestion.v1.ValidationError errors = 5;
@@ -293,6 +283,11 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
    * @generated from field: repeated ingestion.v1.ResourceValidation resources = 7;
    */
   resources: ResourceValidation[];
+
+  /**
+   * @generated from field: ingestion.v1.IngestionType ingestion_type = 8;
+   */
+  ingestionType: IngestionType;
 };
 
 /**
@@ -300,7 +295,7 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
  * Use `create(EdgeValidationSchema)` to create a new message.
  */
 export const EdgeValidationSchema: GenMessage<EdgeValidation> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 7);
+  messageDesc(file_ingestion_v1_capabilities, 6);
 
 /**
  * @generated from message ingestion.v1.ValidatePipelineResponse
@@ -329,7 +324,7 @@ export type ValidatePipelineResponse = Message<"ingestion.v1.ValidatePipelineRes
  * Use `create(ValidatePipelineResponseSchema)` to create a new message.
  */
 export const ValidatePipelineResponseSchema: GenMessage<ValidatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 8);
+  messageDesc(file_ingestion_v1_capabilities, 7);
 
 /**
  * @generated from enum ingestion.v1.RequirementKind

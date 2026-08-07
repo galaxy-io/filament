@@ -65,6 +65,10 @@ const (
 
 	defaultPublication = "filament"
 	defaultSlotName    = "filament"
+
+	// The replication config values: query-based reads or the WAL stream.
+	replicationStandard = "standard"
+	replicationCDC      = "cdc"
 )
 
 // Source reads tables from a PostgreSQL database as a full snapshot. One instance
@@ -118,16 +122,21 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
 		Version:      "1",
-		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
+		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
-			filament.IngestionSnapshotReplace,
-			filament.IngestionSnapshotUpsert,
-			filament.IngestionAppend,
-			filament.IngestionUpsert,
+			filament.IngestionFullReplace,
+			filament.IngestionFullUpsert,
+			filament.IngestionFullAppend,
+			filament.IngestionIncrementalAppend,
+			filament.IngestionIncrementalUpsert,
 			filament.IngestionCDC,
 		),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
+			{Name: "replication", Type: filament.FieldEnum, Default: replicationStandard, Enum: []filament.EnumOption{
+				{Value: replicationStandard, Label: "Standard"},
+				{Value: replicationCDC, Label: "Change Data Capture (CDC)"},
+			}, Scope: filament.ScopeConnection, Help: "Standard reads tables with queries; CDC streams changes from the write-ahead log"},
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Schema to read tables from"},
 			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
@@ -141,12 +150,28 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: encodingNative, Label: "Native"},
 				{Value: encodingJSONB, Label: "JSONB"},
 			}, Scope: filament.ScopePipeline, Help: "Row payload encoding"},
-			{Name: "publication", Type: filament.FieldString, Default: defaultPublication, Scope: filament.ScopePipeline, Help: "Logical replication publication used by CDC"},
+			{
+				Name: "publication", Type: filament.FieldString, Default: defaultPublication, Scope: filament.ScopeConnection,
+				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
+				Help:        "Logical replication publication used by CDC",
+			},
+			{
+				Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection,
+				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
+				Help:        "Create the CDC publication and add selected tables when needed",
+			},
 			{Name: "slot_name", Type: filament.FieldString, Default: defaultSlotName, Scope: filament.ScopePipeline, Help: "Persistent logical replication slot; use a unique slot per CDC pipeline"},
-			{Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopePipeline, Help: "Create the CDC publication and add selected tables when needed"},
 		}},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
+}
+
+// Replication reports the mode the connection's config selects.
+func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
+	if cfg.String("replication") == replicationCDC {
+		return filament.ReplicationCDC
+	}
+	return filament.ReplicationStandard
 }
 
 // Validate rejects a config missing the connection string.

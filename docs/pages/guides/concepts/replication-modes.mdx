@@ -1,26 +1,43 @@
 ---
 title: "Replication Modes"
-description: "Full, incremental, and CDC — how a source reads."
+description: "How connections, tables, and sinks decide the way data moves."
 icon: "arrows-rotate"
 ---
 
-A source reads data in one of three modes, declared as `ReplicationMode` in
-its `ConnectorSpec`:
+How data moves is decided by three choices made at two different times.
 
-| Mode | Constant | What it does |
-|---|---|---|
-| Full | `ModeFull` | Reads the entire resource from scratch every run |
-| Incremental | `ModeIncremental` | Reads only what changed since a cursor from the previous run |
-| CDC | `ModeCDC` | Streams ordered changes (inserts/updates/deletes) from a checkpoint, via the source's [`ChangeSource`](/pages/connectors/building-a-connector/optional-interfaces) contract |
+## Replication mode
 
-A connector advertises which modes it supports through `ConnectorSpec.Modes`
-— not every source implements all three. Incremental and CDC extraction
-build on the same checkpointing machinery described in [Integrity &
-checkpoints](/pages/guides/concepts/integrity-and-checkpoints).
+A connection replicates in one of two modes, chosen when the source connection
+is created. Standard connections read with queries. CDC connections stream
+changes from the database's log and need database side preparation, such as
+logical replication on PostgreSQL. APIs are always standard, so they show no
+choice at all.
 
-<Tip>
-  PostgreSQL is a good example of a source that picks its read strategy
-  dynamically even within a single mode — see [Postgres
-  source](/pages/connectors/sources/postgres) for how it chooses between keyset,
-  bitmap, and ctid-based scans.
-</Tip>
+Replication is a property of the connection. Pipelines built on a CDC
+connection never ask how to read. There are no cursors to pick and no per
+table options, because the change stream already carries every insert, update,
+and delete in order.
+
+## Read mode
+
+On a standard connection, each table chooses how it is read. Full rereads the
+whole table every run. Incremental reads only rows past a cursor column and
+needs one to exist. A table with a usable cursor column can go either way, and
+a recommended column is detected automatically when the user does not pick
+one. A table without one must be read in full.
+
+## Write mode
+
+Each sink declares how it can land records. Append keeps the history of every
+load. Replace and upsert keep the current state, with upsert available only on
+sinks that support merging by key and requiring a primary key on the table.
+
+## Derivation
+
+The server compiles these choices into an internal ingestion type stored on
+each pipeline edge. Users never select it. A per resource edge carries its own
+read and write mode, which is how one pipeline mixes fully replicated tables
+with incremental ones. Validation answers with the same vocabulary the user
+chose from, reporting per table which read modes are possible, which cursor
+columns qualify, and what would fail at run time.

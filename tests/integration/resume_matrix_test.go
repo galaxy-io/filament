@@ -200,7 +200,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 		Source:        filament.Ref{Provider: "postgres", Config: srcCfg},
 		Sink:          filament.Ref{Provider: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
 		Resources:     resources,
-		IngestionType: filament.IngestionSnapshotUpsert,
+		IngestionType: filament.IngestionFullUpsert,
 		Options:       mode.opts,
 	})
 	if err != nil {
