@@ -365,13 +365,12 @@ func (IngestionType) EnumDescriptor() ([]byte, []int) {
 type WriteMode int32
 
 const (
-	WriteMode_WRITE_MODE_UNSPECIFIED   WriteMode = 0
-	WriteMode_WRITE_MODE_APPEND        WriteMode = 1
-	WriteMode_WRITE_MODE_REPLACE       WriteMode = 2
-	WriteMode_WRITE_MODE_UPSERT        WriteMode = 3
-	WriteMode_WRITE_MODE_DELETE        WriteMode = 4
-	WriteMode_WRITE_MODE_MERGE         WriteMode = 5
-	WriteMode_WRITE_MODE_APPEND_DEDUPE WriteMode = 6
+	WriteMode_WRITE_MODE_UNSPECIFIED WriteMode = 0
+	WriteMode_WRITE_MODE_APPEND      WriteMode = 1
+	WriteMode_WRITE_MODE_REPLACE     WriteMode = 2
+	WriteMode_WRITE_MODE_UPSERT      WriteMode = 3
+	WriteMode_WRITE_MODE_DELETE      WriteMode = 4
+	WriteMode_WRITE_MODE_MERGE       WriteMode = 5
 )
 
 // Enum value maps for WriteMode.
@@ -383,16 +382,14 @@ var (
 		3: "WRITE_MODE_UPSERT",
 		4: "WRITE_MODE_DELETE",
 		5: "WRITE_MODE_MERGE",
-		6: "WRITE_MODE_APPEND_DEDUPE",
 	}
 	WriteMode_value = map[string]int32{
-		"WRITE_MODE_UNSPECIFIED":   0,
-		"WRITE_MODE_APPEND":        1,
-		"WRITE_MODE_REPLACE":       2,
-		"WRITE_MODE_UPSERT":        3,
-		"WRITE_MODE_DELETE":        4,
-		"WRITE_MODE_MERGE":         5,
-		"WRITE_MODE_APPEND_DEDUPE": 6,
+		"WRITE_MODE_UNSPECIFIED": 0,
+		"WRITE_MODE_APPEND":      1,
+		"WRITE_MODE_REPLACE":     2,
+		"WRITE_MODE_UPSERT":      3,
+		"WRITE_MODE_DELETE":      4,
+		"WRITE_MODE_MERGE":       5,
 	}
 )
 
@@ -1065,15 +1062,14 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"!INGESTION_TYPE_INCREMENTAL_APPEND\x10\x04\x12%\n" +
 	"!INGESTION_TYPE_INCREMENTAL_UPSERT\x10\x05\x12%\n" +
 	"!INGESTION_TYPE_INCREMENTAL_DELETE\x10\x06\x12\x16\n" +
-	"\x12INGESTION_TYPE_CDC\x10\a*\xb8\x01\n" +
+	"\x12INGESTION_TYPE_CDC\x10\a*\x9a\x01\n" +
 	"\tWriteMode\x12\x1a\n" +
 	"\x16WRITE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11WRITE_MODE_APPEND\x10\x01\x12\x16\n" +
 	"\x12WRITE_MODE_REPLACE\x10\x02\x12\x15\n" +
 	"\x11WRITE_MODE_UPSERT\x10\x03\x12\x15\n" +
 	"\x11WRITE_MODE_DELETE\x10\x04\x12\x14\n" +
-	"\x10WRITE_MODE_MERGE\x10\x05\x12\x1c\n" +
-	"\x18WRITE_MODE_APPEND_DEDUPE\x10\x06*\x83\x01\n" +
+	"\x10WRITE_MODE_MERGE\x10\x05*\x83\x01\n" +
 	"\x0eWriteAtomicity\x12\x1f\n" +
 	"\x1bWRITE_ATOMICITY_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15WRITE_ATOMICITY_BATCH\x10\x01\x12\x1c\n" +

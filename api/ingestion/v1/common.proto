@@ -71,7 +71,6 @@ enum WriteMode {
   WRITE_MODE_UPSERT = 3;
   WRITE_MODE_DELETE = 4;
   WRITE_MODE_MERGE = 5;
-  WRITE_MODE_APPEND_DEDUPE = 6;
 }
 
 enum WriteAtomicity {
