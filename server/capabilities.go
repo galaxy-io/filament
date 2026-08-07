@@ -11,14 +11,16 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-// ingestionTypes is the full menu validation walks, in display order.
+// ingestionTypes is the selectable menu validation walks, in display order.
+// CDC is deliberately absent: it is a property of the connection, never a
+// per-edge choice.
 var ingestionTypes = []filament.IngestionType{
 	filament.IngestionSnapshotReplace,
 	filament.IngestionSnapshotUpsert,
-	filament.IngestionAppend,
-	filament.IngestionUpsert,
-	filament.IngestionDelete,
-	filament.IngestionCDC,
+	filament.IngestionSnapshotAppend,
+	filament.IngestionIncrementalAppend,
+	filament.IngestionIncrementalUpsert,
+	filament.IngestionIncrementalDelete,
 }
 
 // GetConnectionCapabilities reports what one connection's connector declares
@@ -43,12 +45,19 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 			return nil, err
 		}
 		spec := source.Spec()
+		policies := filament.EffectiveSourcePolicies(source, filament.NewConfig(conn.Config))
+		replication := ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD
+		if filament.IsCDCReplication(policies) {
+			replication = ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
+		}
 		return connect.NewResponse(&ingestionv1.GetConnectionCapabilitiesResponse{
 			Connector:    spec.Name,
 			Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 			Capabilities: sourceCapabilitiesToProto(spec),
+			Replication:  replication,
+			ReadModes:    readModesForPolicies(policies),
 			Ingestion: ingestionSupport(func(t filament.IngestionType) error {
-				return filament.ValidateSourceIngestion(spec, t)
+				return validateSourceFor(spec, policies, t)
 			}),
 		}), nil
 	case filament.ConnectorKindSink:
@@ -61,6 +70,7 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 			Connector:    spec.Name,
 			Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 			Capabilities: sinkCapabilitiesToProto(spec.Capabilities),
+			WriteModes:   sinkWriteModes(spec),
 			Ingestion: ingestionSupport(func(t filament.IngestionType) error {
 				return filament.ValidateSinkIngestion(spec, t)
 			}),
@@ -68,6 +78,51 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 	default:
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q has no connector kind", conn.ID))
 	}
+}
+
+// validateSourceFor validates against the connection's effective policies,
+// falling back to the static spec for sources that declare only modes.
+func validateSourceFor(spec filament.ConnectorSpec, policies []filament.SourcePolicy, t filament.IngestionType) error {
+	if len(policies) > 0 {
+		return filament.ValidateSourcePolicies(spec.Name, policies, t)
+	}
+	return filament.ValidateSourceIngestion(spec, t)
+}
+
+// readModesForPolicies reduces an effective policy set to the per-table read
+// levers it offers; a CDC connection offers none.
+func readModesForPolicies(policies []filament.SourcePolicy) []ingestionv1.ReadMode {
+	var full, incremental bool
+	for _, policy := range policies {
+		switch policy.Mode {
+		case filament.ModeFull:
+			full = true
+		case filament.ModeIncremental:
+			incremental = true
+		}
+	}
+	var out []ingestionv1.ReadMode
+	if full {
+		out = append(out, ingestionv1.ReadMode_READ_MODE_FULL)
+	}
+	if incremental {
+		out = append(out, ingestionv1.ReadMode_READ_MODE_INCREMENTAL)
+	}
+	return out
+}
+
+// sinkWriteModes lists the write levers a sink offers. Append and replace are
+// universal; upsert needs the capability. append_dedupe joins once a sink
+// implements it.
+func sinkWriteModes(spec filament.SinkSpec) []ingestionv1.WriteMode {
+	out := []ingestionv1.WriteMode{
+		ingestionv1.WriteMode_WRITE_MODE_APPEND,
+		ingestionv1.WriteMode_WRITE_MODE_REPLACE,
+	}
+	if filament.ValidateSinkIngestion(spec, filament.IngestionSnapshotUpsert) == nil {
+		out = append(out, ingestionv1.WriteMode_WRITE_MODE_UPSERT)
+	}
+	return out
 }
 
 func ingestionSupport(validate func(filament.IngestionType) error) []*ingestionv1.IngestionSupport {
@@ -175,27 +230,35 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		return nil
 	}
 	srcSpec, snkSpec := source.Spec(), sink.Spec()
+	policies := filament.EffectiveSourcePolicies(source, filament.NewConfig(srcConn.Config))
+	ev.SupportedWriteModes = sinkWriteModes(snkSpec)
 
-	var menu []filament.IngestionType
-	for _, t := range ingestionTypes {
-		if filament.ValidateSourceIngestion(srcSpec, t) == nil && filament.ValidateSinkIngestion(snkSpec, t) == nil {
-			menu = append(menu, t)
-			ev.SupportedIngestionTypes = append(ev.SupportedIngestionTypes, ingestionTypeToProto(t))
+	// A CDC connection implies the whole recipe; standard edges compile from
+	// the two levers.
+	var chosen filament.IngestionType
+	if filament.IsCDCReplication(policies) {
+		chosen = filament.IngestionCDC
+	} else {
+		var err error
+		chosen, err = filament.IngestionFor(readModeFromProto(edge.GetReadMode()), writeModeFromProto(edge.GetWriteMode()))
+		if err != nil {
+			edgeError(ev, "read_mode", err.Error())
+			return nil
 		}
 	}
+	ev.IngestionType = ingestionTypeToProto(chosen)
 
-	chosen := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-	if err := filament.ValidateSourceIngestion(srcSpec, chosen); err != nil {
-		edgeError(ev, "ingestion_type", err.Error())
+	if err := validateSourceFor(srcSpec, policies, chosen); err != nil {
+		edgeError(ev, "read_mode", err.Error())
 	}
 	if err := filament.ValidateSinkIngestion(snkSpec, chosen); err != nil {
-		edgeError(ev, "ingestion_type", err.Error())
+		edgeError(ev, "write_mode", err.Error())
 	}
 	if len(ev.Errors) > 0 {
 		return nil
 	}
 
-	a.edgeRequirements(ctx, edge, from, *srcConn, chosen, menu, probes, ev)
+	a.edgeRequirements(ctx, edge, from, *srcConn, chosen, policies, probes, ev)
 	return nil
 }
 
@@ -225,16 +288,14 @@ func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.Pipel
 	return &conn, nil
 }
 
-// edgeRequirements builds the per-table breakdown for a chosen type that
-// needs setup: which ingestion types each routed table can serve, its cursor
-// requirement (satisfied, auto-covered, or blocking), and its primary-key
-// requirement. Types that need neither a cursor nor keys return immediately.
-func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, menu []filament.IngestionType, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+// edgeRequirements builds the per-table breakdown: which read modes each
+// routed table can serve, its cursor requirement (satisfied, auto-covered,
+// or blocking), and its primary-key requirement. The breakdown is always
+// computed so the FE can offer per-table levers before anything is chosen;
+// requirements only accompany chosen levers that involve setup.
+func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, policies []filament.SourcePolicy, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
 	needsCursor := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
 	needsPK := chosen.WriteCapability().RequiresPK
-	if !needsCursor && !needsPK {
-		return
-	}
 
 	cursors := map[string]bool{}
 	for _, cursor := range edge.GetCursors() {
@@ -289,14 +350,11 @@ func (a *Server) edgeRequirements(ctx context.Context, edge *ingestionv1.Pipelin
 		// When candidates are unknowable stay optimistic; runtime decides.
 		cursorable := cursors[resource] || len(candidates) > 0 ||
 			status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
-		for _, t := range menu {
-			if t.WriteCapability().RequiresPK && len(keys) == 0 {
+		for _, mode := range readModesForPolicies(policies) {
+			if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL && !cursorable {
 				continue
 			}
-			if filament.SourcePolicyForIngestion(t).Mode == filament.ModeIncremental && !cursorable {
-				continue
-			}
-			rv.SupportedIngestionTypes = append(rv.SupportedIngestionTypes, ingestionTypeToProto(t))
+			rv.SupportedReadModes = append(rv.SupportedReadModes, mode)
 		}
 		if needsCursor {
 			rv.Requirements = append(rv.Requirements, cursorRequirement(resource, chosen, candidates, status, cursors[resource]))

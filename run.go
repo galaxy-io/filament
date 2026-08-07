@@ -174,14 +174,16 @@ type SyncSnapshot struct {
 // source's read policy and the sink's write policy.
 type IngestionType string
 
-// The defined ingestion types.
+// The defined ingestion types, named {read}_{write}: what the source reads
+// crossed with how the sink lands it. CDC implies both sides.
 const (
-	IngestionSnapshotReplace IngestionType = "snapshot_replace"
-	IngestionSnapshotUpsert  IngestionType = "snapshot_upsert"
-	IngestionAppend          IngestionType = "append"
-	IngestionUpsert          IngestionType = "upsert"
-	IngestionDelete          IngestionType = "delete"
-	IngestionCDC             IngestionType = "cdc"
+	IngestionSnapshotReplace   IngestionType = "snapshot_replace"
+	IngestionSnapshotUpsert    IngestionType = "snapshot_upsert"
+	IngestionSnapshotAppend    IngestionType = "snapshot_append"
+	IngestionIncrementalAppend IngestionType = "incremental_append"
+	IngestionIncrementalUpsert IngestionType = "incremental_upsert"
+	IngestionIncrementalDelete IngestionType = "incremental_delete"
+	IngestionCDC               IngestionType = "cdc"
 )
 
 // OrDefault substitutes IngestionSnapshotReplace for the empty type.
@@ -233,12 +235,52 @@ type WriteMode string
 
 // The defined write modes.
 const (
-	WriteAppend  WriteMode = "append"
-	WriteReplace WriteMode = "replace"
-	WriteUpsert  WriteMode = "upsert"
-	WriteDelete  WriteMode = "delete"
-	WriteMerge   WriteMode = "merge"
+	WriteAppend       WriteMode = "append"
+	WriteReplace      WriteMode = "replace"
+	WriteUpsert       WriteMode = "upsert"
+	WriteDelete       WriteMode = "delete"
+	WriteMerge        WriteMode = "merge"
+	WriteAppendDedupe WriteMode = "append_dedupe"
 )
+
+// IngestionFor compiles the two user levers — per-table read mode and sink
+// write mode — into the internal ingestion type. Zero levers default to a
+// full-refresh replace; an unset write on an incremental read defaults to
+// upsert. CDC connections never reach this: their edges are always
+// IngestionCDC.
+func IngestionFor(read ReplicationMode, write WriteMode) (IngestionType, error) {
+	if write == "" {
+		if read == ModeIncremental {
+			write = WriteUpsert
+		} else {
+			write = WriteReplace
+		}
+	}
+	if write == WriteAppendDedupe {
+		return "", fmt.Errorf("write mode %q is not supported yet", write)
+	}
+	switch read {
+	case ModeFull:
+		switch write {
+		case WriteReplace:
+			return IngestionSnapshotReplace, nil
+		case WriteUpsert:
+			return IngestionSnapshotUpsert, nil
+		case WriteAppend:
+			return IngestionSnapshotAppend, nil
+		}
+	case ModeIncremental:
+		switch write {
+		case WriteAppend:
+			return IngestionIncrementalAppend, nil
+		case WriteUpsert:
+			return IngestionIncrementalUpsert, nil
+		case WriteDelete:
+			return IngestionIncrementalDelete, nil
+		}
+	}
+	return "", fmt.Errorf("read mode %v cannot combine with write mode %q", read, write)
+}
 
 // WriteAtomicity is the unit at which a sink's writes become visible.
 type WriteAtomicity string
@@ -354,14 +396,18 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 		capability.Mode = WriteUpsert
 		capability.RequiresPK = true
 		checkpoint = CheckpointAfterBatch
-	case IngestionUpsert:
+	case IngestionIncrementalUpsert:
 		capability.Mode = WriteUpsert
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpInsert, OpUpdate}
 		checkpoint = CheckpointAfterBatch
-	case IngestionAppend:
+	case IngestionSnapshotAppend:
 		capability.Mode = WriteAppend
-	case IngestionDelete:
+	case IngestionIncrementalAppend:
+		capability.Mode = WriteAppend
+		capability.AcceptsOps = []Operation{OpInsert, OpUpdate}
+		checkpoint = CheckpointAfterBatch
+	case IngestionIncrementalDelete:
 		capability.Mode = WriteDelete
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpDelete}
@@ -394,7 +440,7 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			EmitsOps:      []Operation{OpInsert},
 			Checkpointing: CheckpointAfterBatch,
 		}
-	case IngestionUpsert, IngestionDelete:
+	case IngestionIncrementalAppend, IngestionIncrementalUpsert, IngestionIncrementalDelete:
 		return SourcePolicy{
 			Mode:          ModeIncremental,
 			EmitsOps:      []Operation{OpInsert, OpUpdate},

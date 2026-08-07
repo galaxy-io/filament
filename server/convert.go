@@ -128,24 +128,63 @@ func writePolicyCapabilitiesToProto(caps []filament.WritePolicyCapability) []*in
 	return out
 }
 
+// modesToProto reduces the engine's read mechanisms to the connection-level
+// replication modes a connector supports.
 func modesToProto(modes []filament.ReplicationMode) []ingestionv1.ReplicationMode {
-	out := make([]ingestionv1.ReplicationMode, 0, len(modes))
+	var standard, cdc bool
 	for _, mode := range modes {
-		out = append(out, modeToProto(mode))
+		if mode == filament.ModeCDC {
+			cdc = true
+		} else {
+			standard = true
+		}
+	}
+	var out []ingestionv1.ReplicationMode
+	if standard {
+		out = append(out, ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD)
+	}
+	if cdc {
+		out = append(out, ingestionv1.ReplicationMode_REPLICATION_MODE_CDC)
 	}
 	return out
 }
 
-func modeToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
+// modeToProto maps an engine read mechanism onto the per-table read lever;
+// CDC is a stream, not a per-table read, so it has no lever value.
+func modeToProto(mode filament.ReplicationMode) ingestionv1.ReadMode {
 	switch mode {
 	case filament.ModeFull:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_FULL
+		return ingestionv1.ReadMode_READ_MODE_FULL
 	case filament.ModeIncremental:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_INCREMENTAL
-	case filament.ModeCDC:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
+		return ingestionv1.ReadMode_READ_MODE_INCREMENTAL
 	default:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED
+		return ingestionv1.ReadMode_READ_MODE_UNSPECIFIED
+	}
+}
+
+func readModeFromProto(mode ingestionv1.ReadMode) filament.ReplicationMode {
+	if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
+		return filament.ModeIncremental
+	}
+	return filament.ModeFull
+}
+
+func writeModeFromProto(mode ingestionv1.WriteMode) filament.WriteMode {
+	switch mode {
+	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
+		return filament.WriteAppend
+	case ingestionv1.WriteMode_WRITE_MODE_REPLACE:
+		return filament.WriteReplace
+	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
+		return filament.WriteUpsert
+	case ingestionv1.WriteMode_WRITE_MODE_DELETE:
+		return filament.WriteDelete
+	case ingestionv1.WriteMode_WRITE_MODE_MERGE:
+		return filament.WriteMerge
+	case ingestionv1.WriteMode_WRITE_MODE_APPEND_DEDUPE:
+		return filament.WriteAppendDedupe
+	default:
+		return ""
 	}
 }
 
@@ -155,12 +194,14 @@ func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
 		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_REPLACE
 	case filament.IngestionSnapshotUpsert:
 		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT
-	case filament.IngestionAppend:
-		return ingestionv1.IngestionType_INGESTION_TYPE_APPEND
-	case filament.IngestionUpsert:
-		return ingestionv1.IngestionType_INGESTION_TYPE_UPSERT
-	case filament.IngestionDelete:
-		return ingestionv1.IngestionType_INGESTION_TYPE_DELETE
+	case filament.IngestionSnapshotAppend:
+		return ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_APPEND
+	case filament.IngestionIncrementalAppend:
+		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND
+	case filament.IngestionIncrementalUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT
+	case filament.IngestionIncrementalDelete:
+		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE
 	case filament.IngestionCDC:
 		return ingestionv1.IngestionType_INGESTION_TYPE_CDC
 	default:
@@ -172,12 +213,14 @@ func ingestionTypeFromProto(t ingestionv1.IngestionType) filament.IngestionType 
 	switch t {
 	case ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT:
 		return filament.IngestionSnapshotUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_APPEND:
-		return filament.IngestionAppend
-	case ingestionv1.IngestionType_INGESTION_TYPE_UPSERT:
-		return filament.IngestionUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_DELETE:
-		return filament.IngestionDelete
+	case ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_APPEND:
+		return filament.IngestionSnapshotAppend
+	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND:
+		return filament.IngestionIncrementalAppend
+	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT:
+		return filament.IngestionIncrementalUpsert
+	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE:
+		return filament.IngestionIncrementalDelete
 	case ingestionv1.IngestionType_INGESTION_TYPE_CDC:
 		return filament.IngestionCDC
 	default:

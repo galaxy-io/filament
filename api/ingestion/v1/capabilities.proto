@@ -24,6 +24,14 @@ message GetConnectionCapabilitiesResponse {
   ConnectorKind kind = 2;
   Capabilities capabilities = 3;
   repeated IngestionSupport ingestion = 4;
+  // The connection's replication mode, resolved from its stored config.
+  // Sinks report UNSPECIFIED.
+  ReplicationMode replication = 5;
+  // Source: the per-table read levers this connection offers. Empty on a CDC
+  // connection — replication is understood, there is no read lever.
+  repeated ReadMode read_modes = 6;
+  // Sink: the write levers this sink offers.
+  repeated WriteMode write_modes = 7;
 }
 
 // ValidatePipelineRequest carries the graph inline so unsaved canvas state
@@ -73,28 +81,29 @@ message Requirement {
   CandidateStatus candidate_status = 7;
 }
 
-// ResourceValidation is one routed table's verdict under the edge: the
-// ingestion types this table can actually serve given its primary key and
-// cursor reality, plus requirements for the edge's chosen type. Populated
-// when the chosen type needs per-table setup; snapshot and append edges
-// have nothing to configure.
+// ResourceValidation is one routed table's verdict under the edge: the read
+// modes this table can actually serve given its cursor reality, plus
+// requirements for the edge's chosen levers. Populated when the chosen levers
+// need per-table setup; full-read append/replace edges have nothing to
+// configure.
 message ResourceValidation {
   string resource = 1;
-  repeated IngestionType supported_ingestion_types = 2;
+  repeated ReadMode supported_read_modes = 2;
   repeated Requirement requirements = 3;
 }
 
-// EdgeValidation is one edge's verdict: the ingestion types the pair supports
-// at the spec level, hard errors, edge-scoped requirements, and the per-table
-// breakdown.
+// EdgeValidation is one edge's verdict: the write levers the sink offers, the
+// ingestion type the server derived from the edge's levers, hard errors,
+// edge-scoped requirements, and the per-table breakdown.
 message EdgeValidation {
   string from_node = 1;
   string to_node = 2;
   string resource = 3;
-  repeated IngestionType supported_ingestion_types = 4;
+  repeated WriteMode supported_write_modes = 4;
   repeated ValidationError errors = 5;
   repeated Requirement requirements = 6;
   repeated ResourceValidation resources = 7;
+  IngestionType ingestion_type = 8;
 }
 
 message ValidatePipelineResponse {

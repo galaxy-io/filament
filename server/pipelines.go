@@ -58,6 +58,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validateCursorConfigs(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := a.deriveEdgeTypes(ctx, nodes, edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	a.defaultSinkSchemas(ctx, nodes, edges)
 	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: nodes, Edges: edges})
 	if errors.Is(err, filament.ErrNotFound) {
@@ -69,15 +72,53 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
 }
 
+// deriveEdgeTypes compiles every edge's read/write levers — or its source
+// connection's CDC replication — into the stored ingestion type. Clients
+// never set ingestion_type; it is derived here at save time.
+func (a *Server) deriveEdgeTypes(ctx context.Context, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
+	byID := make(map[string]*ingestionv1.PipelineNode, len(nodes))
+	for _, node := range nodes {
+		byID[node.GetId()] = node
+	}
+	cdcByConnection := map[string]bool{}
+	for _, edge := range edges {
+		node := byID[edge.GetFromNode()]
+		if node == nil {
+			return fmt.Errorf("edge %s -> %s references unknown node %q", edge.GetFromNode(), edge.GetToNode(), edge.GetFromNode())
+		}
+		isCDC, ok := cdcByConnection[node.GetConnectionId()]
+		if !ok {
+			conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
+			if err != nil {
+				return fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
+			}
+			source, err := a.sources.Resolve(conn.Connector)
+			if err != nil {
+				return err
+			}
+			isCDC = filament.IsCDCReplication(filament.EffectiveSourcePolicies(source, filament.NewConfig(conn.Config)))
+			cdcByConnection[node.GetConnectionId()] = isCDC
+		}
+		if isCDC {
+			edge.IngestionType = ingestionTypeToProto(filament.IngestionCDC)
+			continue
+		}
+		compiled, err := filament.IngestionFor(readModeFromProto(edge.GetReadMode()), writeModeFromProto(edge.GetWriteMode()))
+		if err != nil {
+			return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
+		}
+		edge.IngestionType = ingestionTypeToProto(compiled)
+	}
+	return nil
+}
+
 func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 	for _, edge := range edges {
 		if len(edge.GetCursors()) == 0 {
 			continue
 		}
-		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-		policy := filament.SourcePolicyForIngestion(ingestionType)
-		if policy.Mode != filament.ModeIncremental {
-			return fmt.Errorf("cursor configuration requires incremental ingestion, got %q", ingestionType)
+		if readModeFromProto(edge.GetReadMode()) != filament.ModeIncremental {
+			return fmt.Errorf("cursor configuration requires an incremental read mode")
 		}
 		seen := make(map[string]struct{}, len(edge.GetCursors()))
 		for _, cursor := range edge.GetCursors() {

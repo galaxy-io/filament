@@ -68,9 +68,9 @@ func (t *Sink) Spec() filament.SinkSpec {
 			PreferredBatchRows: 4096,
 			WritePolicies: filament.WriteCapabilities(
 				filament.IngestionSnapshotReplace,
-				filament.IngestionAppend,
+				filament.IngestionSnapshotAppend,
 				filament.IngestionSnapshotUpsert,
-				filament.IngestionUpsert,
+				filament.IngestionIncrementalUpsert,
 				filament.IngestionCDC,
 			),
 		},
@@ -102,7 +102,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	}
 	t.run = run.Run
 	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert ||
-		run.IngestionType == filament.IngestionUpsert ||
+		run.IngestionType == filament.IngestionIncrementalUpsert ||
 		run.IngestionType == filament.IngestionCDC // a change stream continues an existing table
 	t.written.Store(0)
 	t.tables = map[string]*table{}

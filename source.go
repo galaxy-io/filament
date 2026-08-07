@@ -80,6 +80,12 @@ type RateLimited interface {
 	Limits() RatePolicy
 }
 
+// PolicyNarrower lets a source narrow its declared policies by connection
+// config — e.g. a postgres connection created as standard or CDC.
+type PolicyNarrower interface {
+	PoliciesFor(cfg Config) []SourcePolicy
+}
+
 // LiveValidatable is the optional contract for probing connectivity with a
 // config before any run uses it.
 type LiveValidatable interface {

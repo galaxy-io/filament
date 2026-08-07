@@ -89,7 +89,7 @@ func BenchmarkNullSinkPipeline(b *testing.B) {
 }
 
 func appendPolicy(resource string) filament.WritePolicy {
-	policy := filament.WritePolicyForIngestion(filament.IngestionAppend)
+	policy := filament.WritePolicyForIngestion(filament.IngestionSnapshotAppend)
 	policy.Resource = resource
 	return policy
 }

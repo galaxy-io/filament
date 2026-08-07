@@ -7,14 +7,20 @@ import (
 )
 
 // ResolveIngestionPlan validates a run's ingestion type against both connector
-// specs and binds per-resource write policies, discovering primary keys where
-// the policy requires them.
+// specs — the source's narrowed by its connection config — and binds
+// per-resource write policies, discovering primary keys where the policy
+// requires them.
 func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpec) (IngestionPlan, error) {
 	ingestionType := spec.IngestionType.OrDefault()
 	sourcePolicy := SourcePolicyForIngestion(ingestionType)
 	writePolicy := WritePolicyForIngestion(ingestionType)
 
-	if err := ValidateSourceIngestion(src.Spec(), ingestionType); err != nil {
+	sourcePolicies := EffectiveSourcePolicies(src, NewConfig(spec.Source.Config))
+	if len(sourcePolicies) > 0 {
+		if err := ValidateSourcePolicies(src.Spec().Name, sourcePolicies, ingestionType); err != nil {
+			return IngestionPlan{}, err
+		}
+	} else if err := ValidateSourceIngestion(src.Spec(), ingestionType); err != nil {
 		return IngestionPlan{}, err
 	}
 	if err := ValidateSinkIngestion(snk.Spec(), ingestionType); err != nil {
@@ -54,20 +60,49 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 // ValidateSourceIngestion reports whether the source spec can serve the
 // read-side policy the ingestion type implies.
 func ValidateSourceIngestion(spec ConnectorSpec, t IngestionType) error {
+	if len(spec.SourcePolicies) > 0 {
+		return ValidateSourcePolicies(spec.Name, spec.SourcePolicies, t)
+	}
+	if slices.Contains(spec.Modes, SourcePolicyForIngestion(t.OrDefault()).Mode) {
+		return nil
+	}
+	return fmt.Errorf("source %q does not support replication mode %v required by ingestion policy", spec.Name, SourcePolicyForIngestion(t.OrDefault()).Mode)
+}
+
+// ValidateSourcePolicies reports whether an effective policy set can serve
+// the read-side policy the ingestion type implies.
+func ValidateSourcePolicies(name string, policies []SourcePolicy, t IngestionType) error {
 	t = t.OrDefault()
 	policy := SourcePolicyForIngestion(t)
-	for _, candidate := range spec.SourcePolicies {
+	for _, candidate := range policies {
 		if candidate.Mode == policy.Mode && acceptsOperations(candidate.EmitsOps, policy.EmitsOps) && (!policy.Ordered || candidate.Ordered) {
 			return nil
 		}
 	}
-	if len(spec.SourcePolicies) > 0 {
-		return fmt.Errorf("source %q does not support ingestion type %q", spec.Name, t)
+	return fmt.Errorf("source %q does not support ingestion type %q", name, t)
+}
+
+// EffectiveSourcePolicies resolves the policies a source offers under cfg;
+// sources without the PolicyNarrower contract keep their static spec.
+func EffectiveSourcePolicies(src Source, cfg Config) []SourcePolicy {
+	if narrower, ok := src.(PolicyNarrower); ok {
+		return narrower.PoliciesFor(cfg)
 	}
-	if slices.Contains(spec.Modes, policy.Mode) {
-		return nil
+	return src.Spec().SourcePolicies
+}
+
+// IsCDCReplication reports whether an effective policy set describes a CDC
+// connection: every declared policy reads the change stream.
+func IsCDCReplication(policies []SourcePolicy) bool {
+	if len(policies) == 0 {
+		return false
 	}
-	return fmt.Errorf("source %q does not support replication mode %v required by ingestion policy", spec.Name, policy.Mode)
+	for _, policy := range policies {
+		if policy.Mode != ModeCDC {
+			return false
+		}
+	}
+	return true
 }
 
 // ValidateSinkIngestion reports whether the sink spec can serve the write-side

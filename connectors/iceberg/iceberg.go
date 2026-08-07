@@ -121,10 +121,10 @@ func (s *Sink) Spec() filament.SinkSpec {
 			Schematized:   true,
 			WritePolicies: filament.WriteCapabilities(
 				filament.IngestionSnapshotReplace,
-				filament.IngestionAppend,
+				filament.IngestionSnapshotAppend,
 				filament.IngestionSnapshotUpsert,
-				filament.IngestionUpsert,
-				filament.IngestionDelete,
+				filament.IngestionIncrementalUpsert,
+				filament.IngestionIncrementalDelete,
 				filament.IngestionCDC,
 			),
 		},

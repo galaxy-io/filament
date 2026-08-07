@@ -65,6 +65,10 @@ const (
 
 	defaultPublication = "filament"
 	defaultSlotName    = "filament"
+
+	// The replication config values: query-based reads or the WAL stream.
+	replicationStandard = "standard"
+	replicationCDC      = "cdc"
 )
 
 // Source reads tables from a PostgreSQL database as a full snapshot. One instance
@@ -122,12 +126,17 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,
-			filament.IngestionAppend,
-			filament.IngestionUpsert,
+			filament.IngestionSnapshotAppend,
+			filament.IngestionIncrementalAppend,
+			filament.IngestionIncrementalUpsert,
 			filament.IngestionCDC,
 		),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
+			{Name: "replication", Type: filament.FieldEnum, Default: replicationStandard, Enum: []filament.EnumOption{
+				{Value: replicationStandard, Label: "Standard"},
+				{Value: replicationCDC, Label: "Change Data Capture (CDC)"},
+			}, Scope: filament.ScopeConnection, Help: "Standard reads tables with queries; CDC streams changes from the write-ahead log"},
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Schema to read tables from"},
 			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
@@ -147,6 +156,22 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		}},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
+}
+
+// PoliciesFor narrows the declared policies by the connection's replication
+// mode: a CDC connection offers only the change stream; a standard one offers
+// everything else.
+func (s *Source) PoliciesFor(cfg filament.Config) []filament.SourcePolicy {
+	if cfg.String("replication") == replicationCDC {
+		return filament.SourcePolicies(filament.IngestionCDC)
+	}
+	return filament.SourcePolicies(
+		filament.IngestionSnapshotReplace,
+		filament.IngestionSnapshotUpsert,
+		filament.IngestionSnapshotAppend,
+		filament.IngestionIncrementalAppend,
+		filament.IngestionIncrementalUpsert,
+	)
 }
 
 // Validate rejects a config missing the connection string.

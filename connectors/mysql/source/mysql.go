@@ -99,7 +99,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,
-			filament.IngestionAppend,
+			filament.IngestionSnapshotAppend,
 			filament.IngestionCDC,
 		),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{

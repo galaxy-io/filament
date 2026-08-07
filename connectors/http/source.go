@@ -80,7 +80,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionSnapshotReplace,
 			filament.IngestionSnapshotUpsert,
-			filament.IngestionAppend,
+			filament.IngestionSnapshotAppend,
 		),
 		Config:    config,
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
