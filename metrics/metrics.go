@@ -191,6 +191,13 @@ func toGranularity(g metricsv1.MetricGranularity) (filament.MetricsGranularity, 
 	}
 }
 
+func untilOrNow(untilMs int64) time.Time {
+	if untilMs == 0 {
+		return time.Now()
+	}
+	return time.UnixMilli(untilMs)
+}
+
 // QueryAggregate returns one row per group_by value (a single "" key when
 // group_by is unset) over [since_ms, until_ms).
 func (s *Server) QueryAggregate(ctx context.Context, req *connect.Request[metricsv1.QueryAggregateRequest]) (*connect.Response[metricsv1.QueryAggregateResponse], error) {
@@ -209,7 +216,7 @@ func (s *Server) QueryAggregate(ctx context.Context, req *connect.Request[metric
 		Tenant:  filament.TenantID(m.GetTenantId()),
 		Metrics: metrics,
 		Since:   time.UnixMilli(m.GetSinceMs()),
-		Until:   time.UnixMilli(m.GetUntilMs()),
+		Until:   untilOrNow(m.GetUntilMs()),
 		GroupBy: groupBy,
 		Filters: filters,
 	})
@@ -251,7 +258,7 @@ func (s *Server) QueryTimeseries(ctx context.Context, req *connect.Request[metri
 		Tenant:          filament.TenantID(m.GetTenantId()),
 		Metrics:         metrics,
 		Since:           time.UnixMilli(m.GetSinceMs()),
-		Until:           time.UnixMilli(m.GetUntilMs()),
+		Until:           untilOrNow(m.GetUntilMs()),
 		Granularity:     granularity,
 		TZOffsetMinutes: int(m.GetTzOffsetMinutes()),
 		GroupBy:         groupBy,

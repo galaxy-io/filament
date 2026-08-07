@@ -17,7 +17,7 @@ import PipelineName from "@/components/PipelineName";
 
 import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import { useSlidingTimeframeWindow } from "@/pages/observability/utils";
+import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
@@ -34,17 +34,14 @@ interface ObservabilityRunsTableProps {
 const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
   const navigate = useNavigate();
 
-  const { sinceMs, untilMs } = useSlidingTimeframeWindow(timeframe);
-
   const input = useMemo(
     () =>
       create(ListRunsRequestSchema, {
         status: statuses,
-        sinceMs,
-        untilMs,
+        sinceMs: createTimeframeSince(timeframe),
         limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
       }),
-    [statuses, sinceMs, untilMs],
+    [timeframe, statuses],
   );
 
   const { data, isLoading } = useListRunsQuery({ input });

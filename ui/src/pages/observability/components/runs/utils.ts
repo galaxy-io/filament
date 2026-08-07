@@ -15,19 +15,21 @@ import {
 import { OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP } from "@/pages/observability/components/runs/constants";
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import { formatBucketKey, OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/utils";
+import {
+  createTimeframeSince,
+  formatBucketKey,
+  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+} from "@/pages/observability/utils";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
 
 export const createRunCountTimeseriesInput = (
-  window: { sinceMs: bigint; untilMs: bigint },
   timeframe: ObservabilityTimeframe,
   statuses: RunStatus[],
 ): QueryTimeseriesRequest => {
   const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
   return create(QueryTimeseriesRequestSchema, {
     metrics: [Metric.RUN_COUNT],
-    sinceMs: window.sinceMs,
-    untilMs: window.untilMs,
+    sinceMs: createTimeframeSince(timeframe),
     granularity,
     tzOffsetMinutes: -new Date().getTimezoneOffset(),
     groupBy: MetricDimension.STATUS,

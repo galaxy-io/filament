@@ -41,11 +41,6 @@ const StepRow = styled.div<{ $opacity: number }>`
   &:hover {
     opacity: 1;
   }
-
-  @media (max-width: 560px) {
-    flex-wrap: wrap;
-    row-gap: 8px;
-  }
 `;
 
 const StepMarker = withTheme(styled.div<PropsWithTheme>`

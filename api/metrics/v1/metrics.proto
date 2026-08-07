@@ -52,7 +52,7 @@ message QueryTimeseriesRequest {
   // order positionally.
   repeated Metric metrics = 2;
   int64 since_ms = 3; // inclusive
-  int64 until_ms = 4; // exclusive
+  int64 until_ms = 4; // exclusive; unset = now
   MetricGranularity granularity = 5;
   // tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
   // match the viewer's local calendar day.
@@ -86,8 +86,8 @@ message QueryAggregateRequest {
   // ListRunsRequest.tenant_id (ingestion.v1).
   string tenant_id = 1;
   repeated Metric metrics = 2;
-  int64 since_ms = 3;
-  int64 until_ms = 4;
+  int64 since_ms = 3; // inclusive
+  int64 until_ms = 4; // exclusive; unset = now
   MetricDimension group_by = 5; // UNSPECIFIED = single total row, key ""
   repeated MetricFilter filters = 6;
 }

@@ -4,7 +4,9 @@ import { match } from "ts-pattern";
 
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
 import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/charts/ProgressBar";
+import ProgressBar, {
+  ProgressBarVariant,
+} from "@galaxy-io/dls/charts/ProgressBar";
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
@@ -32,8 +34,7 @@ import {
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
 
 import { Flow } from "@/routes/__root";
-
-const SETUP_PROGRESS_WIDTH = 120;
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 
 const SetupContent = styled.div`
   position: relative;
@@ -61,32 +62,17 @@ const SetupCard = withTheme(styled.div<PropsWithTheme>`
   overflow: hidden;
 `);
 
-const SetupCardHeader = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  padding: 8px 12px;
-
-  border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
-`);
-
-const SetupProgressWrapper = styled.div`
-  flex-shrink: 0;
-  width: ${SETUP_PROGRESS_WIDTH}px;
-`;
-
 const ObservabilitySetupChecklist = () => {
   const { theme } = useGalaxyTheme();
   const navigate = useNavigate();
-  const { completedSteps, activeStep, completedCount } = useObservabilitySetup();
+  const { completedSteps, activeStep, completedCount } =
+    useObservabilitySetup();
 
   const handleStepClick = (step: ObservabilitySetupStep) => {
     match(step)
       .with(ObservabilitySetupStep.SOURCE, () => {
         void navigate({
-          to: "/sources",
+          to: ".",
           search: {
             flow: Flow.CREATE_CONNECTION,
             connectorKind: ConnectorKind.SOURCE,
@@ -95,7 +81,7 @@ const ObservabilitySetupChecklist = () => {
       })
       .with(ObservabilitySetupStep.SINK, () => {
         void navigate({
-          to: "/sinks",
+          to: ".",
           search: {
             flow: Flow.CREATE_CONNECTION,
             connectorKind: ConnectorKind.SINK,
@@ -104,7 +90,7 @@ const ObservabilitySetupChecklist = () => {
       })
       .with(ObservabilitySetupStep.PIPELINE, () => {
         void navigate({
-          to: "/pipelines",
+          to: ".",
           search: { flow: Flow.CREATE_PIPELINE },
         });
       })
@@ -122,7 +108,10 @@ const ObservabilitySetupChecklist = () => {
   };
 
   return (
-    <DotGridBackground dotSize={2} backgroundColor={theme.color.background.primary}>
+    <DotGridBackground
+      dotSize={2}
+      backgroundColor={theme.color.background.primary}
+    >
       <SetupContent>
         <GalaxyLogomark height={18} />
         <FlexWrapper
@@ -132,22 +121,17 @@ const ObservabilitySetupChecklist = () => {
           fillWidth
         >
           <Text size={TextSize.HEADING_SM}>Set up your first pipeline</Text>
-          <Text variant={TextVariant.SECONDARY}>Three steps to complete your onboarding</Text>
+          <Text variant={TextVariant.SECONDARY}>
+            Three steps to complete your onboarding
+          </Text>
         </FlexWrapper>
         <SetupCard>
-          <SetupCardHeader>
+          <FlexWrapper padding={"12px 16px"}>
             <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
               {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
             </Text>
-            <SetupProgressWrapper>
-              <ProgressBar
-                percentage={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
-                variant={ProgressBarVariant.SUCCESS}
-                height={4}
-                noAnimation
-              />
-            </SetupProgressWrapper>
-          </SetupCardHeader>
+          </FlexWrapper>
+          <HorizontalDivider />
           {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
             <ObservabilitySetupChecklistStep
               key={step}
@@ -157,6 +141,12 @@ const ObservabilitySetupChecklist = () => {
             />
           ))}
         </SetupCard>
+        <ProgressBar
+          percentage={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
+          variant={ProgressBarVariant.SUCCESS}
+          height={4}
+          noAnimation
+        />
         <DocsButton
           label="Read the docs"
           path="/pipelines"

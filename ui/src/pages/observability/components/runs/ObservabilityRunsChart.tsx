@@ -11,7 +11,7 @@ import {
   mapTimeseriesToChartGroups,
 } from "@/pages/observability/components/runs/utils";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import { useBucketLabelFormatter, useSlidingTimeframeWindow } from "@/pages/observability/utils";
+import { useBucketLabelFormatter } from "@/pages/observability/utils";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
@@ -21,12 +21,11 @@ interface ObservabilityRunsChartProps {
 }
 
 const ObservabilityRunsChart = ({ timeframe, statuses }: ObservabilityRunsChartProps) => {
-  const timeframeWindow = useSlidingTimeframeWindow(timeframe);
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
 
   const input = useMemo(
-    () => createRunCountTimeseriesInput(timeframeWindow, timeframe, statuses),
-    [timeframeWindow, timeframe, statuses],
+    () => createRunCountTimeseriesInput(timeframe, statuses),
+    [timeframe, statuses],
   );
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });

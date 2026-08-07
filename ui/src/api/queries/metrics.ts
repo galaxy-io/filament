@@ -9,7 +9,7 @@ import {
   type QueryTimeseriesResponse,
 } from "@/gen/metrics/v1/metrics_pb";
 
-export const METRICS_REFETCH_INTERVAL = 30 * 1000;
+const METRICS_REFETCH_INTERVAL = 30 * 1000;
 
 export const createQueryTimeseriesQueryKey = (
   input?: QueryTimeseriesRequest,

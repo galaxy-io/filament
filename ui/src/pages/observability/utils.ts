@@ -1,17 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-
-import { useSearch } from "@tanstack/react-router";
+import { useMemo } from "react";
 
 import { MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
 
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
-import { METRICS_REFETCH_INTERVAL } from "@/api/queries/metrics";
-
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
-/** Unique per bucket, unlike the display label — safe to use as a chart category key. */
 export const formatBucketKey = (bucketStartMs: bigint) => bucketStartMs.toString();
 
 const formatHourBucketLabel = (bucketStartMs: bigint) =>
@@ -49,33 +44,10 @@ export const OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP: Record<
   },
 };
 
-export const createTimeframeWindow = (
-  timeframe: ObservabilityTimeframe,
-): { sinceMs: bigint; untilMs: bigint } => {
+export const createTimeframeSince = (timeframe: ObservabilityTimeframe): bigint => {
   const { durationMs } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-  const untilMs = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
-  return { sinceMs: BigInt(untilMs - durationMs), untilMs: BigInt(untilMs) };
-};
-
-/**
- * A trailing window that keeps advancing: recomputed on a timer matching the
- * metrics refetch interval, and immediately whenever the toolbar's Refresh
- * button bumps `refreshedAt`. Without this, the window is frozen at whatever
- * moment the caller last mounted or the timeframe last changed.
- */
-export const useSlidingTimeframeWindow = (
-  timeframe: ObservabilityTimeframe,
-): { sinceMs: bigint; untilMs: bigint } => {
-  const { refreshedAt } = useSearch({ from: "/_main/observability" });
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((value) => value + 1), METRICS_REFETCH_INTERVAL);
-    return () => clearInterval(interval);
-  }, []);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshedAt/tick intentionally force recomputation without being read in the body.
-  return useMemo(() => createTimeframeWindow(timeframe), [timeframe, refreshedAt, tick]);
+  const nowMs = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
+  return BigInt(nowMs - durationMs);
 };
 
 export const useBucketLabelFormatter = (

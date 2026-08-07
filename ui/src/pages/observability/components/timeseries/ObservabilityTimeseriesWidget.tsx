@@ -32,10 +32,10 @@ import {
 } from "@/pages/observability/components/timeseries/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
+  createTimeframeSince,
   formatBucketKey,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
   useBucketLabelFormatter,
-  useSlidingTimeframeWindow,
 } from "@/pages/observability/utils";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
@@ -81,20 +81,18 @@ const ObservabilityTimeseriesWidget = ({
     onPivotChange(null);
   };
 
-  const { sinceMs, untilMs } = useSlidingTimeframeWindow(timeframe);
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
 
   const input = useMemo(() => {
     const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
     return create(QueryTimeseriesRequestSchema, {
       metrics: [metric],
-      sinceMs,
-      untilMs,
+      sinceMs: createTimeframeSince(timeframe),
       granularity,
       tzOffsetMinutes: -new Date().getTimezoneOffset(),
       groupBy: pivotDimension,
     });
-  }, [timeframe, metric, pivotDimension, sinceMs, untilMs]);
+  }, [timeframe, metric, pivotDimension]);
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });
   const { data: pipelinesData } = useListPipelinesQuery();
