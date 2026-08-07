@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { notFound, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -37,8 +37,8 @@ const PipelinePage = () => {
     });
   };
 
-  if (!pipeline) {
-    throw new Error(`Pipeline ${id} not found`);
+  if (!pipeline || pipeline.deletedAt) {
+    throw notFound();
   }
 
   return (

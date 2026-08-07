@@ -97,20 +97,19 @@ const PipelineFlow = ({
     }
   };
 
+  if (!isLinked) {
+    return <Chip label="Invalid pipeline" variant={ChipVariant.WARNING} size={ChipSize.SMALL} />;
+  }
+
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
       {renderSource()}
-      {isLinked && (
-        <Icon
-          component={FlowArrowIcon}
-          variant={IconVariant.PRIMARY}
-          size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
-          weight={IconWeight.REGULAR}
-        />
-      )}
-      {!isLinked && (
-        <Chip label="Invalid pipeline" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />
-      )}
+      <Icon
+        component={FlowArrowIcon}
+        variant={IconVariant.PRIMARY}
+        size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
+        weight={IconWeight.REGULAR}
+      />
       {renderSinks()}
     </FlexWrapper>
   );

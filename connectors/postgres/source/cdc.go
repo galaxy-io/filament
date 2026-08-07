@@ -62,6 +62,8 @@ type replicationSlotState struct {
 // publication is created/expanded by default; set manage_publication=false when
 // database administration owns it instead. A slot is never dropped automatically:
 // its stable identity is what makes a later catch-up lossless.
+//
+//nolint:gocyclo // Complex replication protocol handling; refactor deferred.
 func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts) error {
 	if s.pool == nil || s.dsn == "" {
 		return fmt.Errorf("postgres source: extract changes before configure")

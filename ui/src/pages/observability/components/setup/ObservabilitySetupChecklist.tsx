@@ -4,14 +4,13 @@ import { match } from "ts-pattern";
 
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
 import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import ProgressBar, {
-  ProgressBarVariant,
-} from "@galaxy-io/dls/charts/ProgressBar";
+import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/charts/ProgressBar";
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
   FlexGap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -34,7 +33,6 @@ import {
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
 
 import { Flow } from "@/routes/__root";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 
 const SetupContent = styled.div`
   position: relative;
@@ -65,8 +63,7 @@ const SetupCard = withTheme(styled.div<PropsWithTheme>`
 const ObservabilitySetupChecklist = () => {
   const { theme } = useGalaxyTheme();
   const navigate = useNavigate();
-  const { completedSteps, activeStep, completedCount } =
-    useObservabilitySetup();
+  const { completedSteps, activeStep, completedCount } = useObservabilitySetup();
 
   const handleStepClick = (step: ObservabilitySetupStep) => {
     match(step)
@@ -108,10 +105,7 @@ const ObservabilitySetupChecklist = () => {
   };
 
   return (
-    <DotGridBackground
-      dotSize={2}
-      backgroundColor={theme.color.background.primary}
-    >
+    <DotGridBackground dotSize={2} backgroundColor={theme.color.background.primary}>
       <SetupContent>
         <GalaxyLogomark height={18} />
         <FlexWrapper
@@ -121,9 +115,7 @@ const ObservabilitySetupChecklist = () => {
           fillWidth
         >
           <Text size={TextSize.HEADING_SM}>Set up your first pipeline</Text>
-          <Text variant={TextVariant.SECONDARY}>
-            Three steps to complete your onboarding
-          </Text>
+          <Text variant={TextVariant.SECONDARY}>Three steps to complete your onboarding</Text>
         </FlexWrapper>
         <SetupCard>
           <FlexWrapper padding={"12px 16px"}>

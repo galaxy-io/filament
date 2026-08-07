@@ -22,7 +22,7 @@ RETURNING inserted.version, inserted.created_at;
 -- name: GetPipeline :one
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
        last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at
-FROM pipelines WHERE pipeline_id = @pipeline_id AND NOT is_deleted;
+FROM pipelines WHERE pipeline_id = @pipeline_id;
 
 -- name: GetPipelineVersion :one
 SELECT pipeline_id, version, nodes, edges, created_at FROM pipeline_versions
@@ -52,5 +52,9 @@ UPDATE pipelines SET
 WHERE pipeline_id = @pipeline_id AND (last_run_at IS NULL OR last_run_at <= @started_at);
 
 -- name: DeletePipeline :exec
-UPDATE pipelines SET is_deleted = true, deleted_at = now(), updated_at = now()
+UPDATE pipelines SET
+  is_deleted = true,
+  deleted_at = now(),
+  name = name || '__deleted__' || to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+  updated_at = now()
 WHERE pipeline_id = @pipeline_id AND NOT is_deleted;

@@ -18,7 +18,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { type Pipeline, UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { formatPipelineName } from "@/pages/pipelines/utils";
+import { formatPipelineName, stripDeletedPipelineName } from "@/pages/pipelines/utils";
 
 import { useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
@@ -43,9 +43,11 @@ const PipelineSettingsPageGeneral = ({ pipeline }: PipelineSettingsPageGeneralPr
 
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();
 
+  const pipelineName = stripDeletedPipelineName(pipeline.name);
+
   const [state, setState] = useState<PipelineSettingsPageGeneralState>(() => ({
     ...DEFAULT_STATE,
-    name: pipeline.name,
+    name: pipelineName,
     description: pipeline.description,
   }));
 
@@ -58,7 +60,7 @@ const PipelineSettingsPageGeneral = ({ pipeline }: PipelineSettingsPageGeneralPr
   };
 
   const hasChanges =
-    state.name.trim() !== pipeline.name || state.description.trim() !== pipeline.description;
+    state.name.trim() !== pipelineName || state.description.trim() !== pipeline.description;
 
   const canSave = hasChanges && state.name.trim().length > 0;
 

@@ -68,7 +68,11 @@ func (q *Queries) CreatePipelineVersion(ctx context.Context, arg CreatePipelineV
 }
 
 const deletePipeline = `-- name: DeletePipeline :exec
-UPDATE pipelines SET is_deleted = true, deleted_at = now(), updated_at = now()
+UPDATE pipelines SET
+  is_deleted = true,
+  deleted_at = now(),
+  name = name || '__deleted__' || to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+  updated_at = now()
 WHERE pipeline_id = $1 AND NOT is_deleted
 `
 
@@ -80,7 +84,7 @@ func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
 const getPipeline = `-- name: GetPipeline :one
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
        last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at
-FROM pipelines WHERE pipeline_id = $1 AND NOT is_deleted
+FROM pipelines WHERE pipeline_id = $1
 `
 
 type GetPipelineRow struct {

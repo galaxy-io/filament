@@ -302,6 +302,9 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if pipeline.GetDeletedAt() != 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipeline.GetId()))
+	}
 	version, err := a.store.LoadPipelineVersion(ctx, pipeline.GetId(), pipeline.GetCurrentVersionId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline has no version: %w", err))

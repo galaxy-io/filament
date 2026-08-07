@@ -41,6 +41,8 @@ type DataStore interface {
 	CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
 	CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error)
 	UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
+	// LoadPipeline includes soft-deleted pipelines; check DeletedAt before
+	// mutating or running one.
 	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
 	LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
 	ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error)

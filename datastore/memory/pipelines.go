@@ -13,6 +13,12 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
+// deletedNameTimestamp renders the delete time stamped onto a soft-deleted
+// pipeline's name. Fixed-width milliseconds, matching the postgres to_char
+// pattern in queries/pipelines.sql — time.RFC3339 has no fractional seconds and
+// RFC3339Nano trims trailing zeros.
+const deletedNameTimestamp = "2006-01-02T15:04:05.000Z"
+
 // CreatePipeline stores a new pipeline.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
@@ -96,7 +102,8 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return clonePipeline(stored), nil
 }
 
-// LoadPipeline returns a pipeline by ID.
+// LoadPipeline returns a pipeline by ID, including soft-deleted ones so callers
+// can still read a deleted pipeline's metadata. DeletedAt tells them apart.
 func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -104,6 +111,9 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	p, ok := s.pipelines[id]
+	if !ok {
+		p, ok = s.deletedPipelines[id]
+	}
 	if !ok {
 		return nil, fmt.Errorf("pipeline %q: %w", id, filament.ErrNotFound)
 	}
@@ -170,16 +180,19 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	return out, nil
 }
 
-// DeletePipeline removes a pipeline and all of its graph versions.
+// DeletePipeline soft-deletes a pipeline and removes its schedules so the
+// scheduler stops firing it. Versions are kept so it stays readable. The name
+// is stamped with the delete time to mark it in raw listings.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.pipelineVersions, id)
 	if p, exists := s.pipelines[id]; exists {
-		p.DeletedAt = time.Now().UnixMilli()
+		now := time.Now()
+		p.DeletedAt = now.UnixMilli()
+		p.Name = fmt.Sprintf("%s__deleted__%s", p.Name, now.UTC().Format(deletedNameTimestamp))
 		s.deletedPipelines[id] = p
 		delete(s.pipelines, id)
 	}

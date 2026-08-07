@@ -1,8 +1,14 @@
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
+const DELETED_NAME_SUFFIX = /__deleted__\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+export const stripDeletedPipelineName = (name: string): string =>
+  name.replace(DELETED_NAME_SUFFIX, "");
+
 export const formatPipelineName = (pipeline: Pipeline): string => {
-  if (pipeline.name) {
-    return pipeline.name.replace(/->/g, "→");
+  const name = stripDeletedPipelineName(pipeline.name);
+  if (name) {
+    return name.replace(/->/g, "→");
   }
   return pipeline.id;
 };

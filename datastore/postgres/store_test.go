@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -282,8 +283,8 @@ func TestStore_ConnectionSoftDelete(t *testing.T) {
 }
 
 // TestStore_PipelineSoftDelete verifies a deleted pipeline disappears from
-// reads, stops accepting versions, drops its schedule, and keeps version
-// history for run views.
+// lists, stays loadable by id, stops accepting versions, drops its schedule,
+// and keeps version history for run views.
 func TestStore_PipelineSoftDelete(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t)
@@ -313,8 +314,23 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	if err := store.DeletePipeline(ctx, "pipe-del"); err != nil {
 		t.Fatalf("DeletePipeline: %v", err)
 	}
-	if _, err := store.LoadPipeline(ctx, "pipe-del"); !errors.Is(err, filament.ErrNotFound) {
-		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	loaded, err := store.LoadPipeline(ctx, "pipe-del")
+	if err != nil {
+		t.Fatalf("expected deleted pipeline to stay loadable, got %v", err)
+	}
+	if loaded.GetDeletedAt() == 0 {
+		t.Fatalf("expected deleted_at set on the loaded pipeline, got %+v", loaded)
+	}
+	stamp, ok := strings.CutPrefix(loaded.GetName(), "doomed__deleted__")
+	if !ok {
+		t.Fatalf("expected delete stamp on the name, got %q", loaded.GetName())
+	}
+	stampedAt, err := time.Parse(time.RFC3339, stamp)
+	if err != nil {
+		t.Fatalf("delete stamp %q is not RFC3339: %v", stamp, err)
+	}
+	if stampedAt.UnixMilli() != loaded.GetDeletedAt() {
+		t.Fatalf("delete stamp %d disagrees with deleted_at %d", stampedAt.UnixMilli(), loaded.GetDeletedAt())
 	}
 	pipelines, err := store.ListPipelines(ctx, filament.PipelineFilter{Tenant: "tenant-a"})
 	if err != nil {

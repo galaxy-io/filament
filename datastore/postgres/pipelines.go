@@ -88,7 +88,8 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	return s.LoadPipeline(ctx, p.GetId())
 }
 
-// LoadPipeline returns a pipeline by ID.
+// LoadPipeline returns a pipeline by ID, including soft-deleted ones so callers
+// can still read a deleted pipeline's metadata. DeletedAt tells them apart.
 func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
 	row, err := s.q.GetPipeline(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
