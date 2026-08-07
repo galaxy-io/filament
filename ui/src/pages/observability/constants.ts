@@ -7,6 +7,6 @@ export const OBSERVABILITY_SETUP_CONNECTIONS_INPUT = create(ListConnectionsReque
   includeDeleted: true,
 });
 
-export const OBSERVABILITY_SETUP_PIPELINES_INPUT = create(ListPipelinesRequestSchema, {
+export const OBSERVABILITY_PIPELINES_INPUT = create(ListPipelinesRequestSchema, {
   includeDeleted: true,
 });

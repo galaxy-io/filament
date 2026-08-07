@@ -30,6 +30,7 @@ import {
   METRIC_DIMENSION_PIVOT_OPTIONS,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
 } from "@/pages/observability/components/timeseries/constants";
+import { OBSERVABILITY_PIPELINES_INPUT } from "@/pages/observability/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
   createTimeframeSince,
@@ -95,14 +96,16 @@ const ObservabilityTimeseriesWidget = ({
   }, [timeframe, metric, pivotDimension]);
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });
-  const { data: pipelinesData } = useListPipelinesQuery();
+  const { data: pipelinesData } = useListPipelinesQuery({
+    input: OBSERVABILITY_PIPELINES_INPUT,
+  });
 
   const { series, lines } = useMemo(() => {
     const timeseries = data?.series ?? [];
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
         pipeline.id,
-        formatPipelineName(pipeline),
+        formatPipelineName(pipeline, true),
       ]),
     );
 
