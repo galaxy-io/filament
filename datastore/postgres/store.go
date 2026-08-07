@@ -69,16 +69,18 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	q := s.q.WithTx(tx)
 
 	err = q.SaveRun(ctx, sqlcgen.SaveRunParams{
-		RunID:      string(r.Run),
-		TenantID:   string(r.Tenant),
-		ScheduleID: string(r.ScheduleID),
-		Status:     int16(r.Status), //nolint:gosec // small enum
-		Request:    req,
-		Records:    r.Records,
-		Bytes:      r.Bytes,
-		StartedAt:  toTimestamptz(nullTime(r.StartedAt)),
-		FinishedAt: toTimestamptz(r.FinishedAt),
-		Error:      r.Error,
+		RunID:           string(r.Run),
+		TenantID:        string(r.Tenant),
+		ScheduleID:      string(r.ScheduleID),
+		Status:          int16(r.Status), //nolint:gosec // small enum
+		Request:         req,
+		Records:         r.Records,
+		Bytes:           r.Bytes,
+		StartedAt:       toTimestamptz(nullTime(r.StartedAt)),
+		FinishedAt:      toTimestamptz(r.FinishedAt),
+		Error:           r.Error,
+		CpuSeconds:      r.CPUSeconds,
+		MemoryPeakBytes: r.MemoryPeakBytes,
 	})
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: save run: %w", err)
@@ -132,7 +134,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	}
 
 	r, err := runFromLoadRow(row.RunID, row.TenantID, row.ScheduleID, row.Status, row.Request,
-		row.Records, row.Bytes, row.StartedAt, row.FinishedAt, row.Error)
+		row.Records, row.Bytes, row.StartedAt, row.FinishedAt, row.Error, row.CpuSeconds, row.MemoryPeakBytes)
 	if err != nil {
 		return filament.RunState{}, err
 	}
@@ -147,7 +149,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 
 // ListRuns returns runs matching the filter, newest StartedAt first each with resource states attached.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
-	q := `SELECT run_id, tenant_id, coalesce(schedule_id, ''), status, request, records, bytes, started_at, finished_at, coalesce(error, '')
+	q := `SELECT run_id, tenant_id, coalesce(schedule_id, ''), status, request, records, bytes, started_at, finished_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes
 	      FROM runs WHERE 1=1`
 	args := []any{}
 	arg := func(v any) string {
@@ -206,11 +208,13 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 			records, bytes                    int64
 			started                           *time.Time
 			finished                          *time.Time
+			cpuSeconds                        float64
+			memoryPeakBytes                   int64
 		)
-		if err := rows.Scan(&runID, &tenant, &scheduleID, &status, &req, &records, &bytes, &started, &finished, &errMsg); err != nil {
+		if err := rows.Scan(&runID, &tenant, &scheduleID, &status, &req, &records, &bytes, &started, &finished, &errMsg, &cpuSeconds, &memoryPeakBytes); err != nil {
 			return nil, fmt.Errorf("datastore/postgres: scan run: %w", err)
 		}
-		r, err := runFromRaw(runID, tenant, scheduleID, status, req, records, bytes, started, finished, errMsg)
+		r, err := runFromRaw(runID, tenant, scheduleID, status, req, records, bytes, started, finished, errMsg, cpuSeconds, memoryPeakBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -231,11 +235,11 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	return out, nil
 }
 
-func runFromLoadRow(runID, tenant, scheduleID string, status int16, req []byte, records, bytes int64, started, finished pgtype.Timestamptz, errMsg string) (filament.RunState, error) {
-	return runFromRaw(runID, tenant, scheduleID, int(status), req, records, bytes, fromTimestamptz(started), fromTimestamptz(finished), errMsg)
+func runFromLoadRow(runID, tenant, scheduleID string, status int16, req []byte, records, bytes int64, started, finished pgtype.Timestamptz, errMsg string, cpuSeconds float64, memoryPeakBytes int64) (filament.RunState, error) {
+	return runFromRaw(runID, tenant, scheduleID, int(status), req, records, bytes, fromTimestamptz(started), fromTimestamptz(finished), errMsg, cpuSeconds, memoryPeakBytes)
 }
 
-func runFromRaw(runID, tenant, scheduleID string, status int, req []byte, records, bytes int64, started, finished *time.Time, errMsg string) (filament.RunState, error) {
+func runFromRaw(runID, tenant, scheduleID string, status int, req []byte, records, bytes int64, started, finished *time.Time, errMsg string, cpuSeconds float64, memoryPeakBytes int64) (filament.RunState, error) {
 	var r filament.RunState
 	r.Run = filament.RunID(runID)
 	r.Tenant = filament.TenantID(tenant)
@@ -244,6 +248,8 @@ func runFromRaw(runID, tenant, scheduleID string, status int, req []byte, record
 	r.Records = records
 	r.Bytes = bytes
 	r.Error = errMsg
+	r.CPUSeconds = cpuSeconds
+	r.MemoryPeakBytes = memoryPeakBytes
 	if started != nil {
 		r.StartedAt = *started
 	}

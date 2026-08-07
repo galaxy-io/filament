@@ -106,8 +106,8 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 }
 
 // apply folds one fact into persisted run/resource/checkpoint state. Facts not
-// listed here (heartbeats, page-fetched, batch-buffered, integrity-verified,
-// rate-limited, schedule-fired) carry no durable state change and are ignored.
+// listed here (page-fetched, batch-buffered, integrity-verified, rate-limited,
+// schedule-fired) carry no durable state change and are ignored.
 func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	env := f.Envelope
 	switch d := f.Data.(type) {
@@ -194,6 +194,14 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 			}
 		}
 		return nil
+
+	case events.HeartbeatEvent:
+		// Usage counters are cumulative (CPU) or high-water (memory), so max
+		// keeps the fold idempotent under redelivery and reordering.
+		return m.mutate(ctx, env, func(r *filament.RunState) {
+			r.CPUSeconds = max(r.CPUSeconds, d.CPUSeconds)
+			r.MemoryPeakBytes = max(r.MemoryPeakBytes, d.MemoryPeakBytes, d.MemoryBytes)
+		})
 
 	case events.CheckpointSavedEvent:
 		return m.applyCheckpoint(ctx, env, d.Checkpoint)
