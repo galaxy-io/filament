@@ -229,6 +229,8 @@ func pipelineRunStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
 		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
 	case filament.RunPartial:
 		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
+	case filament.RunScheduled:
+		return ingestionv1.RunStatus_RUN_STATUS_SCHEDULED
 	default:
 		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	}

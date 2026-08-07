@@ -100,6 +100,8 @@ func statusFromProto(v ingestionv1.RunStatus) (filament.RunStatus, error) {
 		return filament.RunPaused, nil
 	case ingestionv1.RunStatus_RUN_STATUS_PARTIAL:
 		return filament.RunPartial, nil
+	case ingestionv1.RunStatus_RUN_STATUS_SCHEDULED:
+		return filament.RunScheduled, nil
 	default:
 		return 0, fmt.Errorf("metrics: unsupported RunStatus %v", v)
 	}
@@ -121,6 +123,8 @@ func statusToProto(s filament.RunStatus) ingestionv1.RunStatus {
 		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
 	case filament.RunPartial:
 		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
+	case filament.RunScheduled:
+		return ingestionv1.RunStatus_RUN_STATUS_SCHEDULED
 	default:
 		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	}

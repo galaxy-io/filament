@@ -33,6 +33,7 @@ const (
 	RunStatus_RUN_STATUS_CANCELED    RunStatus = 5
 	RunStatus_RUN_STATUS_PAUSED      RunStatus = 6
 	RunStatus_RUN_STATUS_PARTIAL     RunStatus = 7
+	RunStatus_RUN_STATUS_SCHEDULED   RunStatus = 8
 )
 
 // Enum value maps for RunStatus.
@@ -46,6 +47,7 @@ var (
 		5: "RUN_STATUS_CANCELED",
 		6: "RUN_STATUS_PAUSED",
 		7: "RUN_STATUS_PARTIAL",
+		8: "RUN_STATUS_SCHEDULED",
 	}
 	RunStatus_value = map[string]int32{
 		"RUN_STATUS_UNSPECIFIED": 0,
@@ -56,6 +58,7 @@ var (
 		"RUN_STATUS_CANCELED":    5,
 		"RUN_STATUS_PAUSED":      6,
 		"RUN_STATUS_PARTIAL":     7,
+		"RUN_STATUS_SCHEDULED":   8,
 	}
 )
 
@@ -1425,7 +1428,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06fields\x18\a \x01(\v2\x1c.ingestion.v1.RunEventFieldsR\x06fields\x12\x16\n" +
 	"\x06replay\x18\b \x01(\bR\x06replay\"?\n" +
 	"\x0fTailRunResponse\x12,\n" +
-	"\x05event\x18\x01 \x01(\v2\x16.ingestion.v1.RunEventR\x05event*\xd2\x01\n" +
+	"\x05event\x18\x01 \x01(\v2\x16.ingestion.v1.RunEventR\x05event*\xec\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14RUN_STATUS_REQUESTED\x10\x01\x12\x16\n" +
@@ -1434,7 +1437,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x11RUN_STATUS_FAILED\x10\x04\x12\x17\n" +
 	"\x13RUN_STATUS_CANCELED\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_PAUSED\x10\x06\x12\x16\n" +
-	"\x12RUN_STATUS_PARTIAL\x10\a*X\n" +
+	"\x12RUN_STATUS_PARTIAL\x10\a\x12\x18\n" +
+	"\x14RUN_STATUS_SCHEDULED\x10\b*X\n" +
 	"\x06Signal\x12\x16\n" +
 	"\x12SIGNAL_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSIGNAL_PAUSE\x10\x01\x12\x11\n" +

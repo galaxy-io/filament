@@ -90,7 +90,9 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 			return err
 		}
 	}
-	if r.Request.PipelineID != "" {
+	// A pre-created scheduled run hasn't happened yet — it must not become the
+	// pipeline's last run.
+	if r.Request.PipelineID != "" && r.Status != filament.RunScheduled {
 		err = q.UpdatePipelineRunSummary(ctx, sqlcgen.UpdatePipelineRunSummaryParams{
 			PipelineID: r.Request.PipelineID,
 			Version:    r.Request.PipelineVersionID,
@@ -106,6 +108,15 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
+	}
+	return nil
+}
+
+// DeleteRun removes the run; resources, checkpoints, and dedup rows cascade.
+// Missing is a no-op.
+func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
+	if err := s.q.DeleteRun(ctx, string(id)); err != nil {
+		return fmt.Errorf("datastore/postgres: delete run: %w", err)
 	}
 	return nil
 }

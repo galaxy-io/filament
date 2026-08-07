@@ -20,6 +20,10 @@ type DataStore interface {
 	SaveRun(ctx context.Context, s RunState) error
 	LoadRun(ctx context.Context, id RunID) (RunState, error)
 	ListRuns(ctx context.Context, f RunFilter) ([]RunState, error)
+	// DeleteRun removes a run and its resources. Only the scheduler calls it, to
+	// reap pre-created RunScheduled rows; deleting a run that ever executed would
+	// discard history. Deleting a missing run is a no-op.
+	DeleteRun(ctx context.Context, id RunID) error
 
 	UpsertResource(ctx context.Context, rs ResourceState) error // enabled toggle + progress
 	ListResources(ctx context.Context, id RunID) ([]ResourceState, error)

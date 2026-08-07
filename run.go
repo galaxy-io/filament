@@ -121,6 +121,12 @@ const (
 	// Unlike RunFailed it is not terminal: re-emitting run.requested for the same
 	// RunID resumes it from the last checkpoint. Only resumable runs reach it.
 	RunPartial
+	// RunScheduled is a run pre-created for a schedule's next occurrence, before
+	// its fire time. It precedes RunRequested in lifecycle order but is declared
+	// last so persisted ordinals stay stable and the zero value stays RunRequested.
+	// Owned entirely by the control plane: the scheduler creates it and promotes
+	// it to RunRequested at fire; nothing downstream ever sees it.
+	RunScheduled
 )
 
 // RunResult is the terminal outcome of a run as reported by a RunHandle.

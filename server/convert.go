@@ -341,6 +341,8 @@ func runStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
 		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
 	case filament.RunPartial:
 		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
+	case filament.RunScheduled:
+		return ingestionv1.RunStatus_RUN_STATUS_SCHEDULED
 	default:
 		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	}
@@ -364,6 +366,8 @@ func runStatusesFromProto(statuses []ingestionv1.RunStatus) []filament.RunStatus
 			out = append(out, filament.RunPaused)
 		case ingestionv1.RunStatus_RUN_STATUS_PARTIAL:
 			out = append(out, filament.RunPartial)
+		case ingestionv1.RunStatus_RUN_STATUS_SCHEDULED:
+			out = append(out, filament.RunScheduled)
 		}
 	}
 	return out

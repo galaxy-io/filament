@@ -36,8 +36,14 @@ type Module struct {
 }
 
 // PipelineSubmitter compiles a pipeline schedule occurrence into concrete runs.
+// Submit fires an occurrence; Reconcile re-derives the schedule's pre-created
+// RunScheduled rows (and Drop reaps them) so upcoming work is visible before
+// the fire. Both sides derive the same occurrence token, so the runs Reconcile
+// creates are the ones Submit later promotes.
 type PipelineSubmitter interface {
 	SubmitScheduledPipeline(context.Context, string, filament.ScheduleID, string) ([]filament.RunID, error)
+	ReconcileScheduledRuns(context.Context, filament.ScheduleState) error
+	DropScheduledRuns(context.Context, filament.ScheduleID) error
 }
 
 // Option configures a Module.
@@ -120,6 +126,7 @@ func (m *Module) Register(ctx context.Context, spec filament.ScheduleSpec) (fila
 	if err := m.store.SaveSchedule(ctx, st); err != nil {
 		return "", err
 	}
+	m.reconcileScheduledRuns(ctx, st)
 	return id, nil
 }
 
@@ -139,7 +146,11 @@ func (m *Module) Update(ctx context.Context, id filament.ScheduleID, spec filame
 	st.Spec = spec
 	st.Enabled = spec.Enabled
 	st.NextFire = next
-	return m.store.SaveSchedule(ctx, st)
+	if err := m.store.SaveSchedule(ctx, st); err != nil {
+		return err
+	}
+	m.reconcileScheduledRuns(ctx, st)
+	return nil
 }
 
 // Get returns one schedule's state.
@@ -170,12 +181,20 @@ func (m *Module) Resume(ctx context.Context, id filament.ScheduleID) error {
 	st.Enabled = true
 	st.Spec.Enabled = true
 	st.NextFire = next
-	return m.store.SaveSchedule(ctx, st)
+	if err := m.store.SaveSchedule(ctx, st); err != nil {
+		return err
+	}
+	m.reconcileScheduledRuns(ctx, st)
+	return nil
 }
 
-// Delete removes a schedule.
+// Delete removes a schedule and reaps its pending pre-created runs.
 func (m *Module) Delete(ctx context.Context, id filament.ScheduleID) error {
-	return m.store.DeleteSchedule(ctx, id)
+	if err := m.store.DeleteSchedule(ctx, id); err != nil {
+		return err
+	}
+	m.dropScheduledRuns(ctx, id)
+	return nil
 }
 
 func (m *Module) setEnabled(ctx context.Context, id filament.ScheduleID, on bool) error {
@@ -188,7 +207,11 @@ func (m *Module) setEnabled(ctx context.Context, id filament.ScheduleID, on bool
 	if !on {
 		st.NextFire = nil
 	}
-	return m.store.SaveSchedule(ctx, st)
+	if err := m.store.SaveSchedule(ctx, st); err != nil {
+		return err
+	}
+	m.reconcileScheduledRuns(ctx, st)
+	return nil
 }
 
 // runDue claims schedules due at now and fires each, returning how many ran. A
@@ -207,7 +230,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 			if m.mx != nil {
 				m.mx.Counter("filament_schedule_overlap_skips_total").Inc()
 			}
-			m.advance(ctx, st, now)
+			m.reconcileScheduledRuns(ctx, m.advance(ctx, st, now))
 			continue
 		}
 		if m.pipelines == nil {
@@ -222,7 +245,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 			ctx,
 			st.Spec.PipelineID,
 			st.ID,
-			fmt.Sprintf("%s:%d", st.ID, occurrence.Unix()),
+			scheduledomain.OccurrenceToken(st.ID, occurrence),
 		)
 		var runID filament.RunID
 		if len(ids) > 0 {
@@ -249,6 +272,9 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 		if err := m.store.SaveSchedule(ctx, st); err != nil {
 			return fired, err
 		}
+		// Reaps any pre-created rows the fire's recompile no longer produced
+		// (routes edited away) and pre-creates the next occurrence's runs.
+		m.reconcileScheduledRuns(ctx, st)
 
 		_ = events.Emit(ctx, m.bus, events.ScheduleFired,
 			events.Envelope{Tenant: st.Spec.Tenant, Run: runID, At: now}, events.ScheduleFiredEvent{})
@@ -260,11 +286,35 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 	return fired, nil
 }
 
-// advance recomputes and persists a schedule's next fire without firing it.
-func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now time.Time) {
+// advance recomputes and persists a schedule's next fire without firing it,
+// returning the updated state.
+func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now time.Time) filament.ScheduleState {
 	if next, err := scheduledomain.NextFire(st.Spec, now); err == nil {
 		st.NextFire = next
 		_ = m.store.SaveSchedule(ctx, st)
+	}
+	return st
+}
+
+// reconcileScheduledRuns delegates the schedule's RunScheduled bookkeeping to
+// the submitter, which owns it. Failures are logged, not returned: the rows are
+// a visibility artifact and must never fail a lifecycle op.
+func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.ScheduleState) {
+	if m.pipelines == nil {
+		return
+	}
+	if err := m.pipelines.ReconcileScheduledRuns(ctx, st); err != nil && m.log != nil {
+		m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+	}
+}
+
+// dropScheduledRuns reaps the schedule's pending RunScheduled rows.
+func (m *Module) dropScheduledRuns(ctx context.Context, id filament.ScheduleID) {
+	if m.pipelines == nil {
+		return
+	}
+	if err := m.pipelines.DropScheduledRuns(ctx, id); err != nil && m.log != nil {
+		m.log.Error("scheduler: drop scheduled runs", err, filament.Field{Key: "schedule", Value: string(id)})
 	}
 }
 

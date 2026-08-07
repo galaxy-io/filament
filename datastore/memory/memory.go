@@ -112,6 +112,11 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	}
 	r.Resources = nil
 	s.runs[r.Run] = r
+	// A pre-created scheduled run hasn't happened yet — it must not become the
+	// pipeline's last run.
+	if r.Status == filament.RunScheduled {
+		return nil
+	}
 	if p := s.pipelines[r.Request.PipelineID]; p != nil && (p.LastRunAt == 0 || p.LastRunAt <= r.StartedAt.UnixMilli()) {
 		p.LastRunVersionId = r.Request.PipelineVersionID
 		p.LastRunAt = r.StartedAt.UnixMilli()
@@ -156,7 +161,26 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
-// ListRuns returns runs matching the filter, newest StartedAt first.
+// DeleteRun removes the run with its resources and checkpoints; missing is a no-op.
+func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.runs, id)
+	delete(s.resources, id)
+	for key := range s.checkpoints {
+		if key.run == id {
+			delete(s.checkpoints, key)
+		}
+	}
+	return nil
+}
+
+// ListRuns returns runs matching the filter, newest StartedAt first. A zero
+// StartedAt (a pre-created scheduled run) sorts before every started run,
+// mirroring postgres's started_at DESC NULLS FIRST.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -175,6 +199,9 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].StartedAt.Equal(out[j].StartedAt) {
 			return out[i].Run > out[j].Run
+		}
+		if out[i].StartedAt.IsZero() || out[j].StartedAt.IsZero() {
+			return out[i].StartedAt.IsZero()
 		}
 		return out[i].StartedAt.After(out[j].StartedAt)
 	})

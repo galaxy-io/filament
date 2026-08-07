@@ -13,6 +13,9 @@ ON CONFLICT (run_id) DO UPDATE SET
     error = EXCLUDED.error,
     updated_at = now();
 
+-- name: DeleteRun :exec
+DELETE FROM runs WHERE run_id = @run_id;
+
 -- name: LoadRun :one
 SELECT run_id, tenant_id, coalesce(schedule_id, '')::text AS schedule_id, status, request, records, bytes, started_at, finished_at, coalesce(error, '')::text AS error
 FROM runs WHERE run_id = @run_id;

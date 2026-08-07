@@ -12,6 +12,7 @@ enum RunStatus {
   RUN_STATUS_CANCELED = 5;
   RUN_STATUS_PAUSED = 6;
   RUN_STATUS_PARTIAL = 7;
+  RUN_STATUS_SCHEDULED = 8;
 }
 
 // Signal mirrors pkg.Signal.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 )
 
@@ -63,6 +64,14 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	}
 	a.defaultSinkSchemas(ctx, nodes, edges)
 	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: nodes, Edges: edges})
+	// A new version can change the routes a scheduled occurrence compiles into
+	// (or make the pipeline compilable for the first time) — refresh the
+	// schedule's pre-created rows to match.
+	if err == nil && a.schedules != nil {
+		if st, scheduleErr := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetPipelineId()); scheduleErr == nil {
+			a.reconcileScheduledRunsBestEffort(ctx, st)
+		}
+	}
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -305,6 +314,15 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 	if err := a.store.DeletePipeline(ctx, req.Msg.GetId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	// The schedule RPCs reject deleted pipelines, so this is the last chance to
+	// reap the schedule's pending pre-created runs.
+	if a.schedules != nil {
+		if st, err := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetId()); err == nil {
+			if err := a.DropScheduledRuns(ctx, st.ID); err != nil {
+				fmt.Printf("[ingestion-api] drop scheduled runs schedule=%s err=%v\n", st.ID, err)
+			}
+		}
+	}
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }
 
@@ -336,7 +354,91 @@ func (a *Server) SubmitScheduledPipeline(ctx context.Context, pipelineID string,
 }
 
 func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelineRequest, scheduleID filament.ScheduleID) ([]*ingestionv1.RunBinding, error) {
-	pipeline, err := a.store.LoadPipeline(ctx, req.GetPipelineId())
+	token := req.GetClientToken()
+	if token == "" {
+		token = uuid.NewString()
+	}
+	compiled, err := a.compilePipeline(ctx, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), scheduleID)
+	if err != nil {
+		return nil, err
+	}
+	var bindings []*ingestionv1.RunBinding
+	for _, c := range compiled {
+		run, err := a.orch.Submit(ctx, c.req)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", c.edge, c.req.Source.Provider, c.req.Sink.Provider, c.req.Resources, run)
+		bindings = append(bindings, &ingestionv1.RunBinding{Edge: c.edge, RunId: string(run)})
+	}
+	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", req.GetPipelineId(), len(bindings))
+	return bindings, nil
+}
+
+// ReconcileScheduledRuns drops the schedule's pending pre-created runs and,
+// when the schedule will fire again, pre-creates rows for that occurrence at
+// RunScheduled, one per route. It is the single owner of RunScheduled
+// bookkeeping: the schedule RPCs call it on every save, CreatePipelineVersion
+// refreshes routes through it, and the scheduler calls it around fires and
+// skips. The occurrence token yields the same run ids SubmitScheduledPipeline
+// derives at fire, which is what lets promotion find these rows.
+func (a *Server) ReconcileScheduledRuns(ctx context.Context, st filament.ScheduleState) error {
+	if err := a.DropScheduledRuns(ctx, st.ID); err != nil {
+		return err
+	}
+	if !st.Enabled || st.NextFire == nil {
+		return nil
+	}
+	token := scheduledomain.OccurrenceToken(st.ID, *st.NextFire)
+	compiled, err := a.compilePipeline(ctx, st.Spec.PipelineID, token, filament.RunOptions{}, st.ID)
+	if err != nil {
+		return err
+	}
+	for _, c := range compiled {
+		if _, err := runs.Schedule(ctx, a.store, c.req); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DropScheduledRuns deletes every pending RunScheduled row for the schedule.
+func (a *Server) DropScheduledRuns(ctx context.Context, id filament.ScheduleID) error {
+	pending, err := a.store.ListRuns(ctx, filament.RunFilter{
+		Schedule: id,
+		Status:   []filament.RunStatus{filament.RunScheduled},
+	})
+	if err != nil {
+		return err
+	}
+	for _, r := range pending {
+		if err := a.store.DeleteRun(ctx, r.Run); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// reconcileScheduledRunsBestEffort runs ReconcileScheduledRuns without failing
+// the caller: the rows are a visibility artifact, and a schedule on a pipeline
+// with no compilable version yet is expected to fail here until the first
+// version lands.
+func (a *Server) reconcileScheduledRunsBestEffort(ctx context.Context, st filament.ScheduleState) {
+	if err := a.ReconcileScheduledRuns(ctx, st); err != nil {
+		fmt.Printf("[ingestion-api] reconcile scheduled runs schedule=%s err=%v\n", st.ID, err)
+	}
+}
+
+// compiledRun is one route's ready-to-submit request, keyed by its canvas edge.
+type compiledRun struct {
+	edge string
+	req  filament.RunRequest
+}
+
+// compilePipeline loads the pipeline's current version and collapses its edges
+// into per-route run requests. token salts each route's idempotency key.
+func (a *Server) compilePipeline(ctx context.Context, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID) ([]compiledRun, error) {
+	pipeline, err := a.store.LoadPipeline(ctx, pipelineID)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -369,16 +471,11 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 		}
 	}
 
-	var bindings []*ingestionv1.RunBinding
-	token := req.GetClientToken()
-	if token == "" {
-		token = uuid.NewString()
-	}
 	groups, err := groupEdges(version.GetEdges(), nodes)
 	if err != nil {
 		return nil, err
 	}
-	options := runOptionsFromProto(req.GetOptions())
+	var compiled []compiledRun
 	for _, group := range groups {
 		key := group.key
 		var resources []string
@@ -401,7 +498,7 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 		if err != nil {
 			return nil, err
 		}
-		run, err := a.orch.Submit(ctx, filament.RunRequest{
+		compiled = append(compiled, compiledRun{edge: key, req: filament.RunRequest{
 			Tenant:             filament.TenantID(defaultTenant(pipeline.GetTenantId())),
 			PipelineID:         pipeline.GetId(),
 			PipelineVersionID:  version.GetVersion(),
@@ -417,15 +514,9 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 			CursorConfigs:      group.cursorConfigs,
 			Options:            options,
 			ScheduleID:         scheduleID,
-		})
-		if err != nil {
-			return nil, err
-		}
-		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", key, sourceRef.Provider, sinkRef.Provider, resources, run)
-		bindings = append(bindings, &ingestionv1.RunBinding{Edge: key, RunId: string(run)})
+		}})
 	}
-	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", pipeline.GetId(), len(bindings))
-	return bindings, nil
+	return compiled, nil
 }
 
 // routeGroup is the set of edges that share a source node, sink node, and

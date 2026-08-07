@@ -11,6 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteRun = `-- name: DeleteRun :exec
+DELETE FROM runs WHERE run_id = $1
+`
+
+func (q *Queries) DeleteRun(ctx context.Context, runID string) error {
+	_, err := q.db.Exec(ctx, deleteRun, runID)
+	return err
+}
+
 const loadRun = `-- name: LoadRun :one
 SELECT run_id, tenant_id, coalesce(schedule_id, '')::text AS schedule_id, status, request, records, bytes, started_at, finished_at, coalesce(error, '')::text AS error
 FROM runs WHERE run_id = $1
