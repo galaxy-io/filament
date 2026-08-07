@@ -543,8 +543,11 @@ type RunInfo struct {
 	EndedAt            int64                  `protobuf:"varint,10,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
 	SourceConnectionId string                 `protobuf:"bytes,11,opt,name=source_connection_id,json=sourceConnectionId,proto3" json:"source_connection_id,omitempty"`
 	SinkConnectionId   string                 `protobuf:"bytes,12,opt,name=sink_connection_id,json=sinkConnectionId,proto3" json:"sink_connection_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Worker pod usage folded from run.heartbeat facts.
+	CpuSeconds      float64 `protobuf:"fixed64,13,opt,name=cpu_seconds,json=cpuSeconds,proto3" json:"cpu_seconds,omitempty"`
+	MemoryPeakBytes int64   `protobuf:"varint,14,opt,name=memory_peak_bytes,json=memoryPeakBytes,proto3" json:"memory_peak_bytes,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -659,6 +662,20 @@ func (x *RunInfo) GetSinkConnectionId() string {
 		return x.SinkConnectionId
 	}
 	return ""
+}
+
+func (x *RunInfo) GetCpuSeconds() float64 {
+	if x != nil {
+		return x.CpuSeconds
+	}
+	return 0
+}
+
+func (x *RunInfo) GetMemoryPeakBytes() int64 {
+	if x != nil {
+		return x.MemoryPeakBytes
+	}
+	return 0
 }
 
 type RunSnapshot struct {
@@ -1365,7 +1382,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\x9f\x03\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\xec\x03\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
@@ -1381,7 +1398,10 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\bended_at\x18\n" +
 	" \x01(\x03R\aendedAt\x120\n" +
 	"\x14source_connection_id\x18\v \x01(\tR\x12sourceConnectionId\x12,\n" +
-	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\"\x8b\x01\n" +
+	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\x12\x1f\n" +
+	"\vcpu_seconds\x18\r \x01(\x01R\n" +
+	"cpuSeconds\x12*\n" +
+	"\x11memory_peak_bytes\x18\x0e \x01(\x03R\x0fmemoryPeakBytes\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +

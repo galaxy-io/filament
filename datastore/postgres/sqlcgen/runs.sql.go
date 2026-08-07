@@ -21,21 +21,23 @@ func (q *Queries) DeleteRun(ctx context.Context, runID string) error {
 }
 
 const loadRun = `-- name: LoadRun :one
-SELECT run_id, tenant_id, coalesce(schedule_id, '')::text AS schedule_id, status, request, records, bytes, started_at, finished_at, coalesce(error, '')::text AS error
+SELECT run_id, tenant_id, coalesce(schedule_id, '')::text AS schedule_id, status, request, records, bytes, started_at, finished_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
 FROM runs WHERE run_id = $1
 `
 
 type LoadRunRow struct {
-	RunID      string
-	TenantID   string
-	ScheduleID string
-	Status     int16
-	Request    []byte
-	Records    int64
-	Bytes      int64
-	StartedAt  pgtype.Timestamptz
-	FinishedAt pgtype.Timestamptz
-	Error      string
+	RunID           string
+	TenantID        string
+	ScheduleID      string
+	Status          int16
+	Request         []byte
+	Records         int64
+	Bytes           int64
+	StartedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+	Error           string
+	CpuSeconds      float64
+	MemoryPeakBytes int64
 }
 
 func (q *Queries) LoadRun(ctx context.Context, runID string) (*LoadRunRow, error) {
@@ -52,13 +54,15 @@ func (q *Queries) LoadRun(ctx context.Context, runID string) (*LoadRunRow, error
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.Error,
+		&i.CpuSeconds,
+		&i.MemoryPeakBytes,
 	)
 	return &i, err
 }
 
 const saveRun = `-- name: SaveRun :exec
-INSERT INTO runs (run_id, tenant_id, schedule_id, status, request, records, bytes, started_at, finished_at, error, updated_at)
-VALUES ($1, $2, nullif($3::text, ''), $4, $5, $6, $7, $8, $9, nullif($10::text, ''), now())
+INSERT INTO runs (run_id, tenant_id, schedule_id, status, request, records, bytes, started_at, finished_at, error, cpu_seconds, memory_peak_bytes, updated_at)
+VALUES ($1, $2, nullif($3::text, ''), $4, $5, $6, $7, $8, $9, nullif($10::text, ''), $11, $12, now())
 ON CONFLICT (run_id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     schedule_id = EXCLUDED.schedule_id,
@@ -69,20 +73,24 @@ ON CONFLICT (run_id) DO UPDATE SET
     started_at = EXCLUDED.started_at,
     finished_at = EXCLUDED.finished_at,
     error = EXCLUDED.error,
+    cpu_seconds = EXCLUDED.cpu_seconds,
+    memory_peak_bytes = EXCLUDED.memory_peak_bytes,
     updated_at = now()
 `
 
 type SaveRunParams struct {
-	RunID      string
-	TenantID   string
-	ScheduleID string
-	Status     int16
-	Request    []byte
-	Records    int64
-	Bytes      int64
-	StartedAt  pgtype.Timestamptz
-	FinishedAt pgtype.Timestamptz
-	Error      string
+	RunID           string
+	TenantID        string
+	ScheduleID      string
+	Status          int16
+	Request         []byte
+	Records         int64
+	Bytes           int64
+	StartedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+	Error           string
+	CpuSeconds      float64
+	MemoryPeakBytes int64
 }
 
 func (q *Queries) SaveRun(ctx context.Context, arg SaveRunParams) error {
@@ -97,6 +105,8 @@ func (q *Queries) SaveRun(ctx context.Context, arg SaveRunParams) error {
 		arg.StartedAt,
 		arg.FinishedAt,
 		arg.Error,
+		arg.CpuSeconds,
+		arg.MemoryPeakBytes,
 	)
 	return err
 }

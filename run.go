@@ -104,6 +104,10 @@ type RunState struct {
 	FinishedAt *time.Time
 	Error      string
 	ScheduleID ScheduleID
+	// Folded from run.heartbeat facts: cumulative worker CPU time and the
+	// peak working set observed over the run.
+	CPUSeconds      float64
+	MemoryPeakBytes int64
 }
 
 // RunStatus is the lifecycle state of a run or resource.

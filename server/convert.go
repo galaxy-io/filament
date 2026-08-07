@@ -410,6 +410,8 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		EndedAt:            endedAt,
 		SourceConnectionId: state.Request.SourceConnectionID,
 		SinkConnectionId:   state.Request.SinkConnectionID,
+		CpuSeconds:         state.CPUSeconds,
+		MemoryPeakBytes:    state.MemoryPeakBytes,
 	}
 }
 

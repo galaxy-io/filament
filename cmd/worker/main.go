@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
 	"github.com/galaxy-io/filament/registry"
@@ -71,6 +72,22 @@ func run(ctx context.Context) error {
 		return nil
 	}
 
+	mx, _, shutdown, err := otel.FromEnv(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+
+	hb := &heartbeat{
+		bus:      bus,
+		mx:       mx,
+		log:      slogLogger{l: logger},
+		tenant:   state.Tenant,
+		run:      state.Run,
+		pipeline: state.Request.PipelineID,
+	}
+	stopHeartbeat := hb.start(ctx, heartbeatInterval())
+
 	runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
 		DataStore: store,
@@ -79,5 +96,6 @@ func run(ctx context.Context) error {
 		Sources:   registry.DefaultSources,
 		Sinks:     registry.DefaultSinks,
 	}, runner.SpecFromState(state))
+	stopHeartbeat()
 	return nil
 }

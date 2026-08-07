@@ -85,6 +85,9 @@ message RunInfo {
   int64 ended_at = 10;
   string source_connection_id = 11;
   string sink_connection_id = 12;
+  // Worker pod usage folded from run.heartbeat facts.
+  double cpu_seconds = 13;
+  int64 memory_peak_bytes = 14;
 }
 
 message RunSnapshot {

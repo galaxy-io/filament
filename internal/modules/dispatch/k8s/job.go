@@ -34,6 +34,12 @@ func (m *Module) jobForSpec(spec filament.RunSpec) *batchv1.Job {
 	if m.cfg.AWSRegion != "" {
 		env = append(env, corev1.EnvVar{Name: "AWS_REGION", Value: m.cfg.AWSRegion})
 	}
+	if m.cfg.OTELEndpoint != "" {
+		env = append(env, corev1.EnvVar{Name: "OTEL_EXPORTER_OTLP_ENDPOINT", Value: m.cfg.OTELEndpoint})
+	}
+	if m.cfg.OTELProtocol != "" {
+		env = append(env, corev1.EnvVar{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: m.cfg.OTELProtocol})
+	}
 
 	restartPolicy := m.cfg.WorkerRestartPolicy
 	if restartPolicy == "" {

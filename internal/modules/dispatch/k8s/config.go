@@ -24,6 +24,8 @@ type Config struct {
 	EncryptionKeyID             string
 	SecretsPrefix               string
 	AWSRegion                   string
+	OTELEndpoint                string
+	OTELProtocol                string
 	Kubeconfig                  string
 	WorkerRestartPolicy         string
 	WorkerTerminationGraceSecs  *int64
@@ -47,6 +49,10 @@ func ConfigFromEnv() Config {
 		EncryptionKeyID:       os.Getenv("ENCRYPTION_KEY_ID"),
 		SecretsPrefix:         os.Getenv("SECRETS_PREFIX"),
 		AWSRegion:             os.Getenv("AWS_REGION"),
+		// Forwarded to worker Jobs so their heartbeat instruments export to the
+		// same collector as the control plane.
+		OTELEndpoint: os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+		OTELProtocol: os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"),
 		// envFrom'd whole into worker pods: carries PERSISTENCE_DSN, NATS_URL,
 		// and ENCRYPTION_KEY under keys named after the env vars they feed.
 		WorkerSecretName: os.Getenv("K8S_WORKER_SECRET_NAME"),
