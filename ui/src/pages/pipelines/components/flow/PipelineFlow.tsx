@@ -40,7 +40,6 @@ interface PipelineFlowProps {
   sinks?: PipelineFlowConnection[];
   size?: PipelineFlowSize;
   hasEdges?: boolean;
-  isDeleted?: boolean;
 }
 
 const PipelineFlow = ({
@@ -48,7 +47,6 @@ const PipelineFlow = ({
   sinks = [],
   size = PipelineFlowSize.MEDIUM,
   hasEdges = true,
-  isDeleted = false,
 }: PipelineFlowProps) => {
   const navigate = useNavigate();
 
@@ -75,7 +73,6 @@ const PipelineFlow = ({
           connector={source.connector}
           onClick={(e) => handleConnectionClick(source.connectionId, e)}
           size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
-          isDeleted={isDeleted}
         />
       );
     }
@@ -92,7 +89,6 @@ const PipelineFlow = ({
               connector={sink.connector}
               size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
               onClick={(e) => handleConnectionClick(sink.connectionId, e)}
-              isDeleted={isDeleted}
             />
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
