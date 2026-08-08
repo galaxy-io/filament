@@ -2,7 +2,7 @@ import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 
-import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
@@ -16,12 +16,16 @@ import DocsButton from "@/components/DocsButton";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
+import CreatePipelineModalSidebarSink from "@/pages/pipelines/components/create/CreatePipelineModalSidebarSink";
 import {
   CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
   CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP,
 } from "@/pages/pipelines/components/create/constants";
-import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
+import {
+  type CreatePipelineModalSinkRow,
+  CreatePipelineModalStep,
+} from "@/pages/pipelines/components/create/types";
 
 enum CreatePipelineModalStepStatus {
   COMPLETED = "COMPLETED",
@@ -73,7 +77,8 @@ const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
 
 const StepButton = styled.button<{ $isClickable: boolean }>`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  text-align: left;
   gap: 8px;
   padding: 0;
 
@@ -84,14 +89,24 @@ const StepButton = styled.button<{ $isClickable: boolean }>`
 
 interface CreatePipelineModalSidebarProps {
   step: CreatePipelineModalStep;
+  sinks: CreatePipelineModalSinkRow[];
+  activeSinkId: string;
+  selectedCountBySink: Record<string, number>;
+  blockingSinkIds: string[];
   isSubmitting: boolean;
   onStepClick: (step: CreatePipelineModalStep) => void;
+  onSinkClick: (sinkId: string) => void;
 }
 
 const CreatePipelineModalSidebar = ({
   step,
+  sinks,
+  activeSinkId,
+  selectedCountBySink,
+  blockingSinkIds,
   isSubmitting,
   onStepClick,
+  onSinkClick,
 }: CreatePipelineModalSidebarProps) => {
   const currentIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(step);
 
@@ -123,44 +138,68 @@ const CreatePipelineModalSidebar = ({
                 const status = getStepStatus(item);
                 const isClickable =
                   status === CreatePipelineModalStepStatus.COMPLETED && !isSubmitting;
+                const hasSinkRows =
+                  item === CreatePipelineModalStep.RESOURCES &&
+                  status !== CreatePipelineModalStepStatus.UPCOMING &&
+                  sinks.length > 0;
+
                 return (
-                  <StepButton
-                    key={item}
-                    $isClickable={isClickable}
-                    onClick={isClickable ? () => onStepClick(item) : undefined}
-                  >
-                    <Icon
-                      component={STEP_STATUS_TO_ICON_MAP[status]}
-                      weight={STEP_STATUS_TO_ICON_WEIGHT_MAP[status]}
-                      variant={STEP_STATUS_TO_ICON_VARIANT_MAP[status]}
-                    />
-                    <Text
-                      variant={STEP_STATUS_TO_TEXT_VARIANT_MAP[status]}
-                      weight={STEP_STATUS_TO_TEXT_WEIGHT_MAP[status]}
+                  <FlexWrapper key={item} direction={FlexDirection.COLUMN} gap={6} fillWidth>
+                    <StepButton
+                      $isClickable={isClickable}
+                      onClick={isClickable ? () => onStepClick(item) : undefined}
                     >
-                      {CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP[item]}
-                    </Text>
-                  </StepButton>
+                      <Icon
+                        component={STEP_STATUS_TO_ICON_MAP[status]}
+                        weight={STEP_STATUS_TO_ICON_WEIGHT_MAP[status]}
+                        variant={STEP_STATUS_TO_ICON_VARIANT_MAP[status]}
+                      />
+                      <Text
+                        variant={STEP_STATUS_TO_TEXT_VARIANT_MAP[status]}
+                        weight={STEP_STATUS_TO_TEXT_WEIGHT_MAP[status]}
+                      >
+                        {CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP[item]}
+                      </Text>
+                    </StepButton>
+                    {hasSinkRows && (
+                      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+                        {sinks.map((sink) => (
+                          <CreatePipelineModalSidebarSink
+                            key={sink.connection.id}
+                            sink={sink}
+                            isActive={
+                              sink.connection.id === activeSinkId &&
+                              status === CreatePipelineModalStepStatus.CURRENT
+                            }
+                            hasIssue={
+                              blockingSinkIds.includes(sink.connection.id) ||
+                              (selectedCountBySink[sink.connection.id] ?? 0) === 0
+                            }
+                            onClick={
+                              isSubmitting ? undefined : () => onSinkClick(sink.connection.id)
+                            }
+                          />
+                        ))}
+                      </FlexWrapper>
+                    )}
+                  </FlexWrapper>
                 );
               })}
             </FlexWrapper>
           </Widget>
         </FlexWrapper>
       </FlexWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} padding="12px" fillWidth>
-        <Widget variant={WidgetVariant.BASE} fillWidth>
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM}>
-            <Paragraph weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
-              Connect a source to one or more sinks, name your pipeline, and optionally set a
-              schedule so it runs on its own.
-            </Paragraph>
-            <DocsButton
-              label="Read the docs"
-              path="/pipelines/create"
-              variant={ButtonVariant.SECONDARY}
-            />
-          </FlexWrapper>
-        </Widget>
+      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} padding="16px" fillWidth>
+        <Paragraph weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
+          Connect a source to one or more sinks, pick the resources you want to ingest, name your
+          pipeline, and optionally set a schedule so it runs on its own.
+        </Paragraph>
+        <DocsButton
+          label="Read the docs"
+          path="/pipelines/create"
+          variant={ButtonVariant.SECONDARY}
+          size={ButtonSize.MEDIUM}
+        />
       </FlexWrapper>
     </SidebarWrapper>
   );

@@ -1,3 +1,5 @@
+import { styled } from "@linaria/react";
+
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
@@ -26,12 +28,19 @@ import {
 
 const PIPELINE_SCHEDULE_INPUT_WIDTH = 264;
 
+const SwitcherWrapper = styled.div<{ $isDisabled: boolean }>`
+  opacity: ${({ $isDisabled }) => ($isDisabled ? 0.5 : 1)};
+  pointer-events: ${({ $isDisabled }) => ($isDisabled ? "none" : "auto")};
+`;
+
 interface PipelineScheduleFieldsProps {
   state: PipelineSettingsPageScheduleState;
   onChange: (partial: Partial<PipelineSettingsPageScheduleState>) => void;
 }
 
 const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps) => {
+  const isDisabled = !state.isEnabled;
+
   const handleEnabledChange = (enabled: boolean) => {
     onChange({ isEnabled: enabled });
   };
@@ -97,11 +106,13 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Frequency</Text>
-            <SwitcherInput
-              items={frequencyItems}
-              size={InputSize.LARGE}
-              selectedId={state.frequency}
-            />
+            <SwitcherWrapper $isDisabled={isDisabled}>
+              <SwitcherInput
+                items={frequencyItems}
+                size={InputSize.LARGE}
+                selectedId={state.frequency}
+              />
+            </SwitcherWrapper>
           </FlexWrapper>
           {state.frequency === PipelineScheduleFrequency.WEEKLY && (
             <FlexWrapper
@@ -117,6 +128,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                 size={InputSize.LARGE}
                 width={PIPELINE_SCHEDULE_INPUT_WIDTH}
                 placeholder="Select days"
+                isDisabled={isDisabled}
               />
             </FlexWrapper>
           )}
@@ -133,6 +145,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                 onChange={handleDayOfMonthChange}
                 size={InputSize.LARGE}
                 width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                isDisabled={isDisabled}
               />
             </FlexWrapper>
           )}
@@ -149,6 +162,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                 onChange={handleHourChange}
                 size={InputSize.LARGE}
                 width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                isDisabled={isDisabled}
               />
             </FlexWrapper>
           )}
@@ -167,6 +181,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                 debounceMs={100}
                 size={InputSize.LARGE}
                 width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                isDisabled={isDisabled}
               />
             </FlexWrapper>
           )}

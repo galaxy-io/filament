@@ -16,7 +16,9 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
+import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
+import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Pipeline, PipelineSchedule, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
@@ -37,8 +39,9 @@ import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
-import { formatPipelineName } from "@/pages/pipelines/utils";
+import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
 
+import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useRunPipelineMutation, useSuspenseListRunsQuery } from "@/api/queries/runs";
@@ -95,6 +98,19 @@ const PipelineLayoutNavbar = ({
     }),
   });
   const hasActiveRun = activeRunsData.runs.length > 0;
+
+  const validateInput = useMemo(
+    () =>
+      create(ValidatePipelineRequestSchema, {
+        nodes: currentVersion?.nodes ?? [],
+        edges: currentVersion?.edges ?? [],
+      }),
+    [currentVersion],
+  );
+  const { data: validation, isPending: isValidating } = useValidatePipelineQuery({
+    input: validateInput,
+  });
+  const runErrors = useMemo(() => getPipelineValidationErrors(validation), [validation]);
 
   const hasChanges = useMemo(
     () => hasPipelineGraphChanges({ nodes: state.nodes, edges: state.edges }, currentVersion),
@@ -229,15 +245,23 @@ const PipelineLayoutNavbar = ({
           ) : (
             <>
               <PipelineScheduleChip schedule={schedule} />
-              <Button
-                label={hasActiveRun ? "Running..." : "Run"}
-                icon={PlayIcon}
-                variant={ButtonVariant.PRIMARY}
-                size={ButtonSize.SMALL}
-                isLoading={isRunning}
-                isDisabled={!isPipelineRunnable(currentVersion) || hasActiveRun}
-                onClick={handleRun}
-              />
+              <Tooltip
+                body={runErrors.join("\n")}
+                position={TooltipPosition.BOTTOM}
+                isDisabled={runErrors.length === 0}
+              >
+                <Button
+                  label={hasActiveRun ? "Running..." : "Run"}
+                  icon={PlayIcon}
+                  variant={ButtonVariant.PRIMARY}
+                  size={ButtonSize.SMALL}
+                  isLoading={isRunning || isValidating}
+                  isDisabled={
+                    !isPipelineRunnable(currentVersion) || runErrors.length > 0 || hasActiveRun
+                  }
+                  onClick={handleRun}
+                />
+              </Tooltip>
             </>
           ))}
       </FlexWrapper>
