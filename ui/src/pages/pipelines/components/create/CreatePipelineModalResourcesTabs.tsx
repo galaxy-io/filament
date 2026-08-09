@@ -29,10 +29,10 @@ const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>
 
   padding: 8px 10px;
 
-  border: none;
+  opacity: ${({ $isActive }) => ($isActive ? 1 : 0.6)};
+
   border-bottom: 2px solid
     ${({ theme, $isActive }) => ($isActive ? theme.color.background.primaryAlt : "transparent")};
-  background-color: transparent;
   cursor: pointer;
 `);
 
@@ -40,7 +40,7 @@ interface CreatePipelineModalResourcesTabsProps {
   sinks: CreatePipelineModalSinkRow[];
   activeSinkId: string;
   selectedCountBySink: Record<string, number>;
-  blockingSinkIds: string[];
+  issuesBySink: Record<string, string[]>;
   onSelect: (sinkId: string) => void;
 }
 
@@ -48,7 +48,7 @@ const CreatePipelineModalResourcesTabs = ({
   sinks,
   activeSinkId,
   selectedCountBySink,
-  blockingSinkIds,
+  issuesBySink,
   onSelect,
 }: CreatePipelineModalResourcesTabsProps) => {
   return (
@@ -56,7 +56,7 @@ const CreatePipelineModalResourcesTabs = ({
       {sinks.map((sink) => {
         const isActive = sink.connection.id === activeSinkId;
         const count = selectedCountBySink[sink.connection.id] ?? 0;
-        const hasIssue = blockingSinkIds.includes(sink.connection.id) || count === 0;
+        const issues = issuesBySink[sink.connection.id] ?? [];
 
         return (
           <TabButton
@@ -65,14 +65,14 @@ const CreatePipelineModalResourcesTabs = ({
             onClick={() => onSelect(sink.connection.id)}
           >
             <ConnectorTile connector={sink.connection.connector} />
-            <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
+            <FlexWrapper alignItems={AlignItems.CENTER} gap={12}>
               <Text
                 size={TextSize.BODY_SM}
-                variant={isActive ? TextVariant.PRIMARY : TextVariant.TERTIARY}
+                variant={TextVariant.PRIMARY}
               >
                 {sink.connection.name}
               </Text>
-              {hasIssue ? (
+              {issues.length ? (
                 <Icon
                   component={WarningIcon}
                   variant={IconVariant.ERROR}

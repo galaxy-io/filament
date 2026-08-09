@@ -242,17 +242,26 @@ export const buildSinkRows = ({
     };
   });
 
-export const getBlockingMessages = (
+export const getIssuesBySink = (
   rowsBySink: Record<string, CreatePipelineModalResourceRow[]>,
-): string[] => [
-  ...new Set(
-    Object.values(rowsBySink)
-      .flat()
-      .filter((row) => row.status?.isBlocking)
-      .map((row) => row.status?.message ?? "")
-      .filter(Boolean),
-  ),
-];
+): Record<string, string[]> =>
+  Object.fromEntries(
+    Object.entries(rowsBySink).map(([sinkId, rows]) => {
+      if (!rows.some((row) => row.isSelected)) return [sinkId, ["No resources selected"]];
+
+      return [
+        sinkId,
+        [
+          ...new Set(
+            rows
+              .filter((row) => row.status?.isBlocking)
+              .map((row) => row.status?.message ?? "")
+              .filter(Boolean),
+          ),
+        ],
+      ];
+    }),
+  );
 
 export const getSelectedCountBySink = (
   rowsBySink: Record<string, CreatePipelineModalResourceRow[]>,

@@ -117,9 +117,8 @@ const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
     replication,
     isCdc,
     blockingMessages,
-    blockingSinkIds,
+    issuesBySink,
     selectedCountBySink,
-    hasEmptySink,
     isLoading,
     discoverError,
   } = useCreatePipelineResources(state);
@@ -131,7 +130,7 @@ const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
   const isScheduleValid =
     !state.schedule.isEnabled || formatPipelineScheduleSummary(state.schedule) !== null;
   const isConnectionsValid = !!state.sourceConnection && state.sinkConnections.length > 0;
-  const isResourcesValid = (!!discoverError || !hasEmptySink) && !blockingMessages.length;
+  const isResourcesValid = !blockingMessages.length;
 
   const isNextDisabled = match(state.step)
     .with(CreatePipelineModalStep.CONNECTIONS, () => !isConnectionsValid)
@@ -145,9 +144,9 @@ const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
     : (sinks[0]?.connection.id ?? "");
 
   const stepIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(state.step);
-  const hint = blockingMessages.length
-    ? blockingMessages.join("\n")
-    : CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step];
+  const hints = blockingMessages.length
+    ? blockingMessages
+    : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
 
   const handleSourceSelect = (connection: Connection) => {
     setState((prev) => ({
@@ -331,7 +330,7 @@ const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
           sinks={sinks}
           activeSinkId={activeSinkId}
           selectedCountBySink={selectedCountBySink}
-          blockingSinkIds={blockingSinkIds}
+          issuesBySink={issuesBySink}
           isCdc={isCdc}
           isLoading={isLoading}
           discoverError={discoverError}
@@ -368,8 +367,7 @@ const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
         step={state.step}
         sinks={sinks}
         activeSinkId={activeSinkId}
-        selectedCountBySink={selectedCountBySink}
-        blockingSinkIds={blockingSinkIds}
+        issuesBySink={issuesBySink}
         isSubmitting={state.isSubmitting}
         onStepClick={handleStepClick}
         onSinkClick={handleSinkClick}
@@ -399,7 +397,7 @@ const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
           isLastStep={stepIndex === CREATE_PIPELINE_MODAL_STEP_ORDER.length - 1}
           isNextDisabled={isNextDisabled}
           isSubmitting={state.isSubmitting}
-          hint={isNextDisabled ? hint : undefined}
+          hints={isNextDisabled ? hints : undefined}
           onBack={handleBack}
           onNext={handleNext}
           onCreate={handleCreate}

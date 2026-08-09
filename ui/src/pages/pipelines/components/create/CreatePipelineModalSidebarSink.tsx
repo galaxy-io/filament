@@ -35,14 +35,14 @@ const SinkName = styled.div`
 interface CreatePipelineModalSidebarSinkProps {
   sink: CreatePipelineModalSinkRow;
   isActive: boolean;
-  hasIssue: boolean;
+  issues: string[];
   onClick?: () => void;
 }
 
 const CreatePipelineModalSidebarSink = ({
   sink,
   isActive,
-  hasIssue,
+  issues,
   onClick,
 }: CreatePipelineModalSidebarSinkProps) => {
   return (
@@ -58,7 +58,7 @@ const CreatePipelineModalSidebarSink = ({
           </Text>
         </SinkName>
       </FlexWrapper>
-      {hasIssue && (
+      {issues.length > 0 && (
         <Icon component={WarningIcon} variant={IconVariant.ERROR} weight={IconWeight.FILL} />
       )}
     </SinkButton>

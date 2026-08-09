@@ -34,7 +34,7 @@ interface CreatePipelineModalResourcesProps {
   sinks: CreatePipelineModalSinkRow[];
   activeSinkId: string;
   selectedCountBySink: Record<string, number>;
-  blockingSinkIds: string[];
+  issuesBySink: Record<string, string[]>;
   isCdc: boolean;
   isLoading: boolean;
   discoverError?: Error | null;
@@ -61,7 +61,7 @@ const CreatePipelineModalResources = ({
   sinks,
   activeSinkId,
   selectedCountBySink,
-  blockingSinkIds,
+  issuesBySink,
   isCdc,
   isLoading,
   discoverError,
@@ -103,7 +103,7 @@ const CreatePipelineModalResources = ({
             sinks={sinks}
             activeSinkId={activeSinkId}
             selectedCountBySink={selectedCountBySink}
-            blockingSinkIds={blockingSinkIds}
+            issuesBySink={issuesBySink}
             onSelect={onSinkSelect}
           />
           <HorizontalDivider />

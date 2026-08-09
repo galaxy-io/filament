@@ -13,7 +13,7 @@ import type { CreatePipelineModalState } from "@/pages/pipelines/components/crea
 import {
   buildResourceRowsBySink,
   buildSinkRows,
-  getBlockingMessages,
+  getIssuesBySink,
   getSelectedCountBySink,
   getSinkWriteModes,
 } from "@/pages/pipelines/components/create/utils";
@@ -97,29 +97,32 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     [state, rowsBySink, isCdc, writeModesBySink],
   );
 
-  const blockingMessages = useMemo(() => getBlockingMessages(rowsBySink), [rowsBySink]);
-  const blockingSinkIds = useMemo(
+  const isLoading = isLoadingCapabilities || isLoadingResources || isLoadingColumns;
+
+  const issuesBySink = useMemo(
+    () => (isLoading || discoverError ? {} : getIssuesBySink(rowsBySink)),
+    [rowsBySink, isLoading, discoverError],
+  );
+  const blockingMessages = useMemo(
     () =>
-      Object.entries(rowsBySink)
-        .filter(([, rows]) => rows.some((row) => row.status?.isBlocking))
-        .map(([sinkId]) => sinkId),
-    [rowsBySink],
+      sinks.flatMap((sink) =>
+        (issuesBySink[sink.connection.id] ?? []).map((message) =>
+          sinks.length > 1 ? `[Sink: ${sink.connection.name}] ${message}` : message,
+        ),
+      ),
+    [sinks, issuesBySink],
   );
   const selectedCountBySink = useMemo(() => getSelectedCountBySink(rowsBySink), [rowsBySink]);
-  const hasEmptySink = state.sinkConnections.some(
-    (sink) => (selectedCountBySink[sink.id] ?? 0) === 0,
-  );
 
   return {
     rowsBySink,
     sinks,
     replication,
     isCdc,
+    issuesBySink,
     blockingMessages,
-    blockingSinkIds,
     selectedCountBySink,
-    hasEmptySink,
-    isLoading: isLoadingCapabilities || isLoadingResources || isLoadingColumns,
+    isLoading,
     discoverError,
   };
 };

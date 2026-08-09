@@ -91,8 +91,7 @@ interface CreatePipelineModalSidebarProps {
   step: CreatePipelineModalStep;
   sinks: CreatePipelineModalSinkRow[];
   activeSinkId: string;
-  selectedCountBySink: Record<string, number>;
-  blockingSinkIds: string[];
+  issuesBySink: Record<string, string[]>;
   isSubmitting: boolean;
   onStepClick: (step: CreatePipelineModalStep) => void;
   onSinkClick: (sinkId: string) => void;
@@ -102,8 +101,7 @@ const CreatePipelineModalSidebar = ({
   step,
   sinks,
   activeSinkId,
-  selectedCountBySink,
-  blockingSinkIds,
+  issuesBySink,
   isSubmitting,
   onStepClick,
   onSinkClick,
@@ -171,10 +169,7 @@ const CreatePipelineModalSidebar = ({
                               sink.connection.id === activeSinkId &&
                               status === CreatePipelineModalStepStatus.CURRENT
                             }
-                            hasIssue={
-                              blockingSinkIds.includes(sink.connection.id) ||
-                              (selectedCountBySink[sink.connection.id] ?? 0) === 0
-                            }
+                            issues={issuesBySink[sink.connection.id] ?? []}
                             onClick={
                               isSubmitting ? undefined : () => onSinkClick(sink.connection.id)
                             }

@@ -1,7 +1,10 @@
 import { styled } from "@linaria/react";
-import { ArrowLeftIcon, ArrowRightIcon, PlusIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
+import BulletedList, { BulletedListSize } from "@galaxy-io/dls/lists/BulletedList";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
@@ -21,7 +24,7 @@ interface CreatePipelineModalFooterProps {
   isLastStep: boolean;
   isNextDisabled: boolean;
   isSubmitting: boolean;
-  hint?: string;
+  hints?: string[];
   onBack: () => void;
   onNext: () => void;
   onCreate: () => void;
@@ -32,7 +35,7 @@ const CreatePipelineModalFooter = ({
   isLastStep,
   isNextDisabled,
   isSubmitting,
-  hint,
+  hints = [],
   onBack,
   onNext,
   onCreate,
@@ -78,9 +81,22 @@ const CreatePipelineModalFooter = ({
         onClick={onBack}
         isDisabled={isSubmitting || !isBackVisible}
       />
-      <Tooltip body={hint ?? ""} position={TooltipPosition.TOP} isDisabled={!hint}>
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={12} grow={0} shrink={0}>
+        {hints.length > 0 && (
+          <Tooltip
+            body={<BulletedList items={hints} size={BulletedListSize.SMALL} />}
+            position={TooltipPosition.TOP}
+          >
+            <Chip
+              label="Invalid"
+              icon={WarningIcon}
+              variant={ChipVariant.ERROR}
+              size={ChipSize.LARGE}
+            />
+          </Tooltip>
+        )}
         {renderAction()}
-      </Tooltip>
+      </FlexWrapper>
     </FooterWrapper>
   );
 };
