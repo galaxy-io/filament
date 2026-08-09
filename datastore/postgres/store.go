@@ -159,11 +159,14 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	if f.Tenant != "" {
 		q += " AND tenant_id = " + arg(string(f.Tenant))
 	}
+	// pipeline_id / pipeline_version_id are the generated columns from
+	// 00012_runs_pipeline_columns.sql, indexed by runs_metrics_idx. Same values
+	// as the json paths they replace, without the per-row extraction.
 	if f.PipelineID != "" {
-		q += " AND request->>'PipelineID' = " + arg(f.PipelineID)
+		q += " AND pipeline_id = " + arg(f.PipelineID)
 	}
 	if f.PipelineVersionID != nil {
-		q += " AND (request->>'PipelineVersionID')::bigint = " + arg(*f.PipelineVersionID)
+		q += " AND pipeline_version_id = " + arg(*f.PipelineVersionID)
 	}
 	if f.Schedule != "" {
 		q += " AND schedule_id = " + arg(string(f.Schedule))

@@ -16,6 +16,7 @@ import (
 
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
@@ -37,6 +38,8 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	lg := logger.New()
+
 	store, err := persistence.FromEnv(ctx)
 	if err != nil {
 		return err
@@ -99,7 +102,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Metrics: metrics, Tracer: tracer},
+		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
 		tracker.New(),
 		dispatcher,
 	)
