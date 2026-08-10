@@ -9,6 +9,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -75,13 +76,24 @@ func decodeValue(field filament.SchemaField, raw json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return decimal.NewFromString(value)
-	case filament.LogicalString, filament.LogicalDate, filament.LogicalTime,
-		filament.LogicalTimestamp, filament.LogicalTimestampTZ, filament.LogicalUUID:
+	case filament.LogicalString, filament.LogicalDate, filament.LogicalTime, filament.LogicalUUID:
 		var value string
 		if err := json.Unmarshal(raw, &value); err != nil {
 			return nil, err
 		}
 		return value, nil
+	case filament.LogicalTimestamp:
+		value, err := stringValue(raw)
+		if err != nil {
+			return nil, err
+		}
+		return normalizeTimestamp(value)
+	case filament.LogicalTimestampTZ:
+		value, err := stringValue(raw)
+		if err != nil {
+			return nil, err
+		}
+		return parseTimestampTZ(value)
 	case filament.LogicalBytes:
 		var value string
 		if err := json.Unmarshal(raw, &value); err != nil {
@@ -95,6 +107,47 @@ func decodeValue(field filament.SchemaField, raw json.RawMessage) (any, error) {
 	default:
 		return string(bytes.TrimSpace(raw)), nil
 	}
+}
+
+func stringValue(raw json.RawMessage) (string, error) {
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+// normalizeTimestamp validates a timezone-free timestamp and converts its ISO
+// separator to the form clickhouse-go accepts. Keeping it as a string lets the
+// driver interpret the wall clock in the destination column's timezone.
+func normalizeTimestamp(value string) (string, error) {
+	const (
+		isoLayout        = "2006-01-02T15:04:05.999999999"
+		clickhouseLayout = "2006-01-02 15:04:05.999999999"
+	)
+	for _, layout := range []string{isoLayout, clickhouseLayout} {
+		if _, err := time.Parse(layout, value); err == nil {
+			return strings.Replace(value, "T", " ", 1), nil
+		}
+	}
+	return "", fmt.Errorf("invalid timestamp %q", value)
+}
+
+// parseTimestampTZ returns time.Time so clickhouse-go receives an instant
+// instead of trying to parse an RFC 3339 string with its narrower layout.
+func parseTimestampTZ(value string) (time.Time, error) {
+	layouts := []string{
+		time.RFC3339Nano,
+		"2006-01-02 15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05.999999999 -07:00",
+	}
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, value)
+		if err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid timestamp with timezone %q", value)
 }
 
 func scalarText(raw json.RawMessage) (string, error) {
