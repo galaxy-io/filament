@@ -16,22 +16,17 @@ import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils"
 
 interface CreatePipelineModalDeliverySectionProps {
   header: string;
-  subheader: string;
   children: React.ReactNode;
 }
 
 const CreatePipelineModalDeliverySection = ({
   header,
-  subheader,
   children,
 }: CreatePipelineModalDeliverySectionProps) => (
   <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
     <FlexWrapper direction={FlexDirection.COLUMN} gap={2} fillWidth>
       <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
         {header}
-      </Text>
-      <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-        {subheader}
       </Text>
     </FlexWrapper>
     {children}
@@ -49,7 +44,10 @@ const CreatePipelineModalDeliverySchedule = () => {
       <PipelineScheduleFields
         state={schedule}
         onChange={(partial) =>
-          dispatch({ type: CreatePipelineModalActionType.SET_SCHEDULE, payload: partial })
+          dispatch({
+            type: CreatePipelineModalActionType.SET_SCHEDULE,
+            payload: partial,
+          })
         }
       />
       {schedule.isEnabled && summary && (
@@ -68,10 +66,7 @@ const CreatePipelineModalDelivery = () => {
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
       {!isCdc && sinks.length > 0 && (
-        <CreatePipelineModalDeliverySection
-          header="Destinations"
-          subheader="How each destination lands the records it receives"
-        >
+        <CreatePipelineModalDeliverySection header="Destinations">
           <Widget noPadding noHover fillWidth>
             <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
               {sinks.map((sink, index) => (
@@ -92,10 +87,7 @@ const CreatePipelineModalDelivery = () => {
           </Widget>
         </CreatePipelineModalDeliverySection>
       )}
-      <CreatePipelineModalDeliverySection
-        header="Schedule"
-        subheader="When the pipeline runs on its own. Leave it off to run manually."
-      >
+      <CreatePipelineModalDeliverySection header="Schedule">
         <CreatePipelineModalDeliverySchedule />
       </CreatePipelineModalDeliverySection>
     </FlexWrapper>
