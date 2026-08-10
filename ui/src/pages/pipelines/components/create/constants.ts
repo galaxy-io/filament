@@ -56,15 +56,6 @@ export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
   [WriteMode.MERGE]: "Merge",
 };
 
-export const WRITE_MODE_TO_HELP_MAP: Record<WriteMode, string> = {
-  [WriteMode.UNSPECIFIED]: "",
-  [WriteMode.APPEND]: "Keeps the history of every load",
-  [WriteMode.REPLACE]: "Replaces the destination on each load",
-  [WriteMode.UPSERT]: "Merges by primary key to keep current state",
-  [WriteMode.DELETE]: "",
-  [WriteMode.MERGE]: "",
-};
-
 export const READ_MODE_TO_WRITE_MODES_MAP: Record<ReadMode, WriteMode[]> = {
   [ReadMode.UNSPECIFIED]: [WriteMode.REPLACE, WriteMode.APPEND, WriteMode.UPSERT],
   [ReadMode.FULL]: [WriteMode.REPLACE, WriteMode.APPEND, WriteMode.UPSERT],

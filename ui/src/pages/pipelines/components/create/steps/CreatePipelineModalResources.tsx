@@ -9,16 +9,11 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
-
 import ErrorLayout from "@/layouts/ErrorLayout";
 
-import CreatePipelineModalResourcesTable from "@/pages/pipelines/components/create/CreatePipelineModalResourcesTable";
-import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/create/CreatePipelineModalResourcesTabs";
-import type {
-  CreatePipelineModalResourceRow,
-  CreatePipelineModalSinkRow,
-} from "@/pages/pipelines/components/create/types";
+import { useCreatePipelineModalState } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
+import CreatePipelineModalResourcesTable from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTable";
+import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTabs";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -29,25 +24,6 @@ const ResourcesWrapper = styled.div`
   min-height: 0;
 `;
 
-interface CreatePipelineModalResourcesProps {
-  rows: CreatePipelineModalResourceRow[];
-  sinks: CreatePipelineModalSinkRow[];
-  activeSinkId: string;
-  selectedCountBySink: Record<string, number>;
-  issuesBySink: Record<string, string[]>;
-  isCdc: boolean;
-  isLoading: boolean;
-  discoverError?: Error | null;
-  onSinkSelect: (sinkId: string) => void;
-  onSelectionChange: (
-    sinkId: string,
-    visibleNames: string[],
-    selection: Record<string, boolean>,
-  ) => void;
-  onReadModeChange: (sinkId: string, resource: string, readMode: ReadMode) => void;
-  onCursorChange: (sinkId: string, resource: string, cursorField: string) => void;
-}
-
 interface CreatePipelineModalResourcesState {
   search: string;
 }
@@ -56,23 +32,13 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
   search: "",
 };
 
-const CreatePipelineModalResources = ({
-  rows,
-  sinks,
-  activeSinkId,
-  selectedCountBySink,
-  issuesBySink,
-  isCdc,
-  isLoading,
-  discoverError,
-  onSinkSelect,
-  onSelectionChange,
-  onReadModeChange,
-  onCursorChange,
-}: CreatePipelineModalResourcesProps) => {
+const CreatePipelineModalResources = () => {
+  const { rowsBySink, sinks, activeSinkId, isCdc, discoverError } = useCreatePipelineModalState();
+
   const [localState, setLocalState] =
     useState<CreatePipelineModalResourcesState>(DEFAULT_RESOURCES_STATE);
 
+  const rows = rowsBySink[activeSinkId] ?? [];
   const filteredRows = useMemo(
     () => rows.filter((row) => isSearchMatch(localState.search, row.displayName)),
     [rows, localState.search],
@@ -99,13 +65,7 @@ const CreatePipelineModalResources = ({
     <ResourcesWrapper>
       {sinks.length > 1 && (
         <>
-          <CreatePipelineModalResourcesTabs
-            sinks={sinks}
-            activeSinkId={activeSinkId}
-            selectedCountBySink={selectedCountBySink}
-            issuesBySink={issuesBySink}
-            onSelect={onSinkSelect}
-          />
+          <CreatePipelineModalResourcesTabs />
           <HorizontalDivider />
         </>
       )}
@@ -131,20 +91,7 @@ const CreatePipelineModalResources = ({
         )}
       </FlexWrapper>
       <HorizontalDivider />
-      <CreatePipelineModalResourcesTable
-        rows={filteredRows}
-        hasLevers={!isCdc}
-        isLoading={isLoading}
-        onSelectionChange={(visibleNames, selection) =>
-          onSelectionChange(activeSinkId, visibleNames, selection)
-        }
-        onReadModeChange={(resource, readMode) =>
-          onReadModeChange(activeSinkId, resource, readMode)
-        }
-        onCursorChange={(resource, cursorField) =>
-          onCursorChange(activeSinkId, resource, cursorField)
-        }
-      />
+      <CreatePipelineModalResourcesTable rows={filteredRows} />
     </ResourcesWrapper>
   );
 };

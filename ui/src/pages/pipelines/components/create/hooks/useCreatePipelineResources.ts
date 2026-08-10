@@ -9,14 +9,14 @@ import {
   GetResourceColumnsRequestSchema,
 } from "@/gen/ingestion/v1/providers_pb";
 
-import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
 import {
   buildResourceRowsBySink,
   buildSinkRows,
   getIssuesBySink,
   getSelectedCountBySink,
   getSinkWriteModes,
-} from "@/pages/pipelines/components/create/utils";
+} from "@/pages/pipelines/components/create/rows";
+import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
 
 import { useGetConnectionCapabilitiesQuery } from "@/api/queries/capabilities";
 import {
@@ -53,7 +53,11 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const resources = useMemo(() => discovered?.resources ?? [], [discovered?.resources]);
   const resourceNames = useMemo(() => resources.map((resource) => resource.name), [resources]);
 
-  const { data: columns, isLoading: isLoadingColumns } = useGetResourceColumnsQuery({
+  const {
+    data: columns,
+    isPending: isPendingColumns,
+    isError: isErrorColumns,
+  } = useGetResourceColumnsQuery({
     input: create(GetResourceColumnsRequestSchema, { connectionId, resources: resourceNames }),
     options: { ...PROBE_QUERY_OPTIONS, enabled: connectionId !== "" && resourceNames.length > 0 },
   });
@@ -79,25 +83,30 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     [state.sinkConnections, connectors?.connectors],
   );
 
+  const isLoading =
+    isLoadingCapabilities ||
+    isLoadingResources ||
+    (resourceNames.length > 0 && isPendingColumns && !isErrorColumns);
+
   const rowsBySink = useMemo(
     () =>
-      buildResourceRowsBySink({
-        state,
-        resources,
-        columns,
-        readModes: capabilities?.readModes ?? [],
-        isCdc,
-        writeModesBySink,
-      }),
-    [state, resources, columns, capabilities?.readModes, isCdc, writeModesBySink],
+      isLoading
+        ? {}
+        : buildResourceRowsBySink({
+            state,
+            resources,
+            columns,
+            readModes: capabilities?.readModes ?? [],
+            isCdc,
+            writeModesBySink,
+          }),
+    [isLoading, state, resources, columns, capabilities?.readModes, isCdc, writeModesBySink],
   );
 
   const sinks = useMemo(
     () => buildSinkRows({ state, rowsBySink, isCdc, writeModesBySink }),
     [state, rowsBySink, isCdc, writeModesBySink],
   );
-
-  const isLoading = isLoadingCapabilities || isLoadingResources || isLoadingColumns;
 
   const issuesBySink = useMemo(
     () => (isLoading || discoverError ? {} : getIssuesBySink(rowsBySink)),

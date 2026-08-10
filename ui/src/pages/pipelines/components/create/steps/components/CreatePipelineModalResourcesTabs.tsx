@@ -9,15 +9,18 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
+import {
+  useCreatePipelineModalActions,
+  useCreatePipelineModalState,
+} from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
 const TabsWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 
-  padding: 4px 8px 0;
+  padding: 0 8px;
   overflow-x: auto;
 `;
 
@@ -27,30 +30,21 @@ const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>
   gap: 8px;
   flex-shrink: 0;
 
-  padding: 8px 10px;
+  padding: 10px;
 
-  opacity: ${({ $isActive }) => ($isActive ? 1 : 0.6)};
+  opacity: ${({ $isActive }) => ($isActive ? 1 : 0.5)};
 
+  border: none;
   border-bottom: 2px solid
     ${({ theme, $isActive }) => ($isActive ? theme.color.background.primaryAlt : "transparent")};
+  background-color: transparent;
   cursor: pointer;
 `);
 
-interface CreatePipelineModalResourcesTabsProps {
-  sinks: CreatePipelineModalSinkRow[];
-  activeSinkId: string;
-  selectedCountBySink: Record<string, number>;
-  issuesBySink: Record<string, string[]>;
-  onSelect: (sinkId: string) => void;
-}
+const CreatePipelineModalResourcesTabs = () => {
+  const { sinks, activeSinkId, selectedCountBySink, issuesBySink } = useCreatePipelineModalState();
+  const { setActiveSink } = useCreatePipelineModalActions();
 
-const CreatePipelineModalResourcesTabs = ({
-  sinks,
-  activeSinkId,
-  selectedCountBySink,
-  issuesBySink,
-  onSelect,
-}: CreatePipelineModalResourcesTabsProps) => {
   return (
     <TabsWrapper>
       {sinks.map((sink) => {
@@ -62,14 +56,11 @@ const CreatePipelineModalResourcesTabs = ({
           <TabButton
             key={sink.connection.id}
             $isActive={isActive}
-            onClick={() => onSelect(sink.connection.id)}
+            onClick={() => setActiveSink(sink.connection.id)}
           >
             <ConnectorTile connector={sink.connection.connector} />
             <FlexWrapper alignItems={AlignItems.CENTER} gap={12}>
-              <Text
-                size={TextSize.BODY_SM}
-                variant={TextVariant.PRIMARY}
-              >
+              <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
                 {sink.connection.name}
               </Text>
               {issues.length ? (

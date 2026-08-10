@@ -1,4 +1,4 @@
-import type { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
 
@@ -49,3 +49,24 @@ export interface CreatePipelineModalSinkRow {
   writeMode: WriteMode;
   writeModeOptions: WriteMode[];
 }
+
+export interface CreatePipelineModalDerivedState {
+  rowsBySink: Record<string, CreatePipelineModalResourceRow[]>;
+  sinks: CreatePipelineModalSinkRow[];
+  replication: ReplicationMode;
+  isCdc: boolean;
+  issuesBySink: Record<string, string[]>;
+  selectedCountBySink: Record<string, number>;
+  isLoading: boolean;
+  discoverError?: Error | null;
+  effectiveName: string;
+  nameError?: string;
+  isNextDisabled: boolean;
+  hints: string[];
+  stepIndex: number;
+  isBackVisible: boolean;
+  isLastStep: boolean;
+}
+
+export type CreatePipelineModalContextValue = CreatePipelineModalState &
+  CreatePipelineModalDerivedState;

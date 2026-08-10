@@ -14,17 +14,19 @@ import InfiniteTable, {
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
-import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
-
 import EmptyLayout from "@/layouts/EmptyLayout";
 
-import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/CreatePipelineModalResourcesCursorCell";
-import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/CreatePipelineModalResourcesReadModeCell";
+import {
+  useCreatePipelineModalActions,
+  useCreatePipelineModalState,
+} from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
   CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT,
 } from "@/pages/pipelines/components/create/constants";
+import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
+import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const TableWrapper = styled.div`
@@ -43,7 +45,7 @@ const NAME_COLUMN: ColumnDef<CreatePipelineModalResourceRow> = {
   header: "Resource",
   accessorFn: (row) => row.displayName,
   enableSorting: true,
-  cellLoading: () => <TextShimmer width={180} height={14} />,
+  cellLoading: () => <TextShimmer width={180} height={16} />,
   cell: ({ row }) => (
     <NameWrapper>
       <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
@@ -55,21 +57,15 @@ const NAME_COLUMN: ColumnDef<CreatePipelineModalResourceRow> = {
 
 interface CreatePipelineModalResourcesTableProps {
   rows: CreatePipelineModalResourceRow[];
-  hasLevers: boolean;
-  isLoading: boolean;
-  onSelectionChange: (visibleNames: string[], selection: Record<string, boolean>) => void;
-  onReadModeChange: (resource: string, readMode: ReadMode) => void;
-  onCursorChange: (resource: string, cursorField: string) => void;
 }
 
-const CreatePipelineModalResourcesTable = ({
-  rows,
-  hasLevers,
-  isLoading,
-  onSelectionChange,
-  onReadModeChange,
-  onCursorChange,
-}: CreatePipelineModalResourcesTableProps) => {
+const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResourcesTableProps) => {
+  const { activeSinkId, isCdc, isLoading } = useCreatePipelineModalState();
+  const { setResourceSelection, setResourceReadMode, setResourceCursor } =
+    useCreatePipelineModalActions();
+
+  const hasLevers = !isCdc;
+
   const rowSelection = useMemo(
     () => Object.fromEntries(rows.map((row) => [row.name, row.isSelected])),
     [rows],
@@ -85,11 +81,11 @@ const CreatePipelineModalResourcesTable = ({
         header: "Read mode",
         size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
         pin: ColumnPin.RIGHT,
-        cellLoading: () => <TextShimmer width={120} height={24} />,
+        cellLoading: () => <TextShimmer width={120} height={16} />,
         cell: ({ row }) => (
           <CreatePipelineModalResourcesReadModeCell
             row={row.original}
-            onChange={onReadModeChange}
+            onChange={(resource, readMode) => setResourceReadMode(activeSinkId, resource, readMode)}
           />
         ),
       },
@@ -98,13 +94,18 @@ const CreatePipelineModalResourcesTable = ({
         header: "Cursor",
         size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
         pin: ColumnPin.RIGHT,
-        cellLoading: () => <TextShimmer width={140} height={24} />,
+        cellLoading: () => <TextShimmer width={140} height={16} />,
         cell: ({ row }) => (
-          <CreatePipelineModalResourcesCursorCell row={row.original} onChange={onCursorChange} />
+          <CreatePipelineModalResourcesCursorCell
+            row={row.original}
+            onChange={(resource, cursorField) =>
+              setResourceCursor(activeSinkId, resource, cursorField)
+            }
+          />
         ),
       },
     ];
-  }, [hasLevers, onReadModeChange, onCursorChange]);
+  }, [hasLevers, activeSinkId, setResourceReadMode, setResourceCursor]);
 
   return (
     <TableWrapper>
@@ -117,7 +118,8 @@ const CreatePipelineModalResourcesTable = ({
         loadingRowCount={CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT}
         rowSelection={rowSelection}
         onRowSelectionChange={(updater) =>
-          onSelectionChange(
+          setResourceSelection(
+            activeSinkId,
             rows.map((row) => row.name),
             typeof updater === "function" ? updater(rowSelection) : updater,
           )
