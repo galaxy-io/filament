@@ -45,7 +45,7 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
 		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
-		IngestionType: r.IngestionType.OrDefault(), Mode: filament.ModeFull, Options: r.Options,
+		IngestionTypes: r.IngestionTypes, Options: r.Options,
 	}
 }
 
@@ -61,7 +61,7 @@ func ShouldRun(state filament.RunState) bool {
 	case filament.RunRequested, filament.RunPartial:
 		return true
 	case filament.RunCompleted:
-		return state.Request.IngestionType.OrDefault() == filament.IngestionCDC
+		return filament.IsCDC(state.Request.IngestionTypes)
 	default:
 		return false
 	}
@@ -120,10 +120,9 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		em.fail(err)
 		return
 	}
-	spec.IngestionType = plan.Type
-	spec.Mode = plan.SourcePolicy.Mode
 	spec.WritePolicies = plan.WritePolicies
-	if plan.SourcePolicy.Ordered {
+	// Ordered reads (incremental cursors, CDC streams) cannot shard.
+	if incremental, _ := partitionCheckpointing(spec); plan.RequiresCDC || len(incremental) > 0 {
 		spec.Options.SnapshotParallelism = 1
 	}
 	if err := snk.Open(ctx, spec); err != nil {
@@ -177,7 +176,6 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 			return extractor(ctx, p.Records(), filament.ExtractOpts{
 				Resources:   spec.Resources,
 				Selectors:   spec.Selectors,
-				Mode:        spec.Mode,
 				Parallelism: spec.Options.SnapshotParallelism,
 			})
 		})
@@ -206,7 +204,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		for _, res := range resources {
 			emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
 		}
-		if isResumableRun(plan) {
+		if isResumableRun(spec, plan) {
 			em.partial(runErr)
 			return
 		}

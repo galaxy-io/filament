@@ -279,11 +279,12 @@ const (
 // ResourceCapabilities advertises what a source can do per resource.
 type ResourceCapabilities struct{ Discoverable, PerResourceCursor bool }
 
-// ExtractOpts scopes one extraction: which resources, in what mode, how fast.
+// ExtractOpts scopes one extraction: which resources, how fast. Read behavior
+// per resource is carried by the checkpoint plan handed to ExtractFrom, not by
+// a run-wide mode.
 type ExtractOpts struct {
 	Resources   []string
 	Selectors   []string
-	Mode        ReadMode
 	Limit       int // 0 = unbounded
 	Parallelism int
 }

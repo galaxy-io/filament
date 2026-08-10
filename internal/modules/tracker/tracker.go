@@ -422,7 +422,7 @@ func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp f
 	if err != nil {
 		return err
 	}
-	mode := filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode
+	mode := filament.SourcePolicyForIngestion(filament.TypeFor(state.Request.IngestionTypes, cp.Resource())).Mode
 	if mode == filament.ModeIncremental || mode == filament.ModeCDC {
 		if !committed {
 			return nil
@@ -437,7 +437,7 @@ func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp f
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.
 func (m *Module) loadCheckpoint(ctx context.Context, run filament.RunID, resource string) filament.Checkpoint {
 	if state, err := m.ds.LoadRun(ctx, run); err == nil {
-		mode := filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode
+		mode := filament.SourcePolicyForIngestion(filament.TypeFor(state.Request.IngestionTypes, resource)).Mode
 		if mode == filament.ModeIncremental || mode == filament.ModeCDC {
 			if key, ok := state.Request.ResourceCheckpointKey(resource); ok {
 				stored, err := m.ds.LoadResourceCheckpoint(ctx, key)
