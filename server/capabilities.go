@@ -95,17 +95,16 @@ func readModesForPolicies(policies []filament.SourcePolicy) []ingestionv1.ReadMo
 	return out
 }
 
-// readModeWriteCompatibilities crosses each offered read lever with the write
-// levers IngestionFor can compile it with, scoping the engine matrix to a
-// connection.
+// readModeWriteCompatibilities pairs each read mode the connection offers with
+// the write modes it can combine with. The matrix itself is global; only the
+// set of read modes it is filtered to comes from the connection.
 func readModeWriteCompatibilities(readModes []ingestionv1.ReadMode) []*ingestionv1.ReadModeWriteCompatibility {
 	out := make([]*ingestionv1.ReadModeWriteCompatibility, 0, len(readModes))
 	for _, readMode := range readModes {
-		var writeModes []ingestionv1.WriteMode
-		for _, writeMode := range filament.LeverWriteModes {
-			if _, err := filament.IngestionFor(readModeFromProto(readMode), writeMode); err == nil {
-				writeModes = append(writeModes, writeModeToProto(writeMode))
-			}
+		modes := filament.WriteModesFor(readModeFromProto(readMode))
+		writeModes := make([]ingestionv1.WriteMode, 0, len(modes))
+		for _, writeMode := range modes {
+			writeModes = append(writeModes, writeModeToProto(writeMode))
 		}
 		out = append(out, &ingestionv1.ReadModeWriteCompatibility{ReadMode: readMode, WriteModes: writeModes})
 	}
