@@ -20,6 +20,7 @@ import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import type { Pipeline, PipelineSchedule, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
@@ -94,7 +95,7 @@ const PipelineLayoutNavbar = ({
     input: create(ListRunsRequestSchema, {
       pipelineId: pipeline.id,
       status: [...ACTIVE_RUN_STATUSES],
-      limit: 1,
+      pagination: create(PaginationRequestSchema, { limit: 1 }),
     }),
   });
   const hasActiveRun = activeRunsData.runs.length > 0;

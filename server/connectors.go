@@ -31,7 +31,8 @@ func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestio
 			connectors = append(connectors, sinkSpecToProto(spec))
 		}
 	}
-	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: connectors}), nil
+	page, pagination := pageOf(connectors, req.Msg.GetPagination())
+	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: page, Pagination: pagination}), nil
 }
 
 // ValidateConfig checks a connector config against its schema, optionally

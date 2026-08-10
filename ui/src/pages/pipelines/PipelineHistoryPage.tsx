@@ -10,6 +10,7 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
@@ -133,7 +134,7 @@ const PipelineHistoryPage = () => {
   const { data } = useSuspenseListRunsQuery({
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
-      limit: PIPELINE_RUN_HISTORY_LIMIT,
+      pagination: create(PaginationRequestSchema, { limit: PIPELINE_RUN_HISTORY_LIMIT }),
     }),
   });
 

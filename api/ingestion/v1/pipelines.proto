@@ -4,6 +4,7 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
+import "ingestion/v1/pagination.proto";
 import "ingestion/v1/runs.proto";
 
 // PipelineNode is one source or sink on the canvas. connection_id references the
@@ -185,19 +186,23 @@ message GetPipelineVersionResponse {
 
 message ListPipelineVersionsRequest {
   string pipeline_id = 1;
+  PaginationRequest pagination = 2;
 }
 
 message ListPipelineVersionsResponse {
   repeated PipelineVersion versions = 1;
+  PaginationResponse pagination = 2;
 }
 
 message ListPipelinesRequest {
   string tenant_id = 1;
   bool include_deleted = 2;
+  PaginationRequest pagination = 3;
 }
 
 message ListPipelinesResponse {
   repeated Pipeline pipelines = 1;
+  PaginationResponse pagination = 2;
 }
 
 message DeletePipelineRequest {

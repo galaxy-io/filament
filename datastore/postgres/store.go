@@ -159,8 +159,8 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 // ListRuns returns runs matching the filter, newest StartedAt first, each with
 // resource states attached. Runs that have not started sort first: a pending
 // scheduled run and one still spinning up are both upcoming work.
-func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
-	q := `SELECT run_id, tenant_id, coalesce(schedule_id, ''), status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, finished_at, updated_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes
+func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
+	q := `SELECT run_id, tenant_id, coalesce(schedule_id, ''), status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, finished_at, updated_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes, count(*) OVER ()
 	      FROM runs WHERE 1=1`
 	args := []any{}
 	arg := func(v any) string {
@@ -208,12 +208,13 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("datastore/postgres: list runs: %w", err)
+		return nil, 0, fmt.Errorf("datastore/postgres: list runs: %w", err)
 	}
 	defer rows.Close()
 
 	var out []filament.RunState
 	var ids []filament.RunID
+	var total int
 	for rows.Next() {
 		var (
 			runID, tenant, scheduleID, errMsg string
@@ -226,28 +227,28 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		)
 		if err := rows.Scan(&runID, &tenant, &scheduleID, &status, &req, &records, &bytes,
 			&times.created, &times.scheduled, &times.requested, &times.started, &times.finished, &times.updated,
-			&errMsg, &cpuSeconds, &memoryPeakBytes); err != nil {
-			return nil, fmt.Errorf("datastore/postgres: scan run: %w", err)
+			&errMsg, &cpuSeconds, &memoryPeakBytes, &total); err != nil {
+			return nil, 0, fmt.Errorf("datastore/postgres: scan run: %w", err)
 		}
 		r, err := runFromRaw(runID, tenant, scheduleID, status, req, records, bytes, times, errMsg, cpuSeconds, memoryPeakBytes)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out = append(out, r)
 		ids = append(ids, r.Run)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("datastore/postgres: list runs: %w", err)
+		return nil, 0, fmt.Errorf("datastore/postgres: list runs: %w", err)
 	}
 
 	for i, id := range ids {
 		resources, err := s.ListResources(ctx, id)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out[i].Resources = resources
 	}
-	return out, nil
+	return out, total, nil
 }
 
 // runTimes groups a run row's lifecycle stamps so they travel as a named set

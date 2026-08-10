@@ -33,7 +33,7 @@ type Capabilities struct {
 	Schematized       bool                     `protobuf:"varint,5,opt,name=schematized,proto3" json:"schematized,omitempty"`
 	WritePolicies     []*WritePolicyCapability `protobuf:"bytes,6,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
 	SourcePolicies    []*SourcePolicy          `protobuf:"bytes,7,rep,name=source_policies,json=sourcePolicies,proto3" json:"source_policies,omitempty"`
-	// Sink: the write levers this sink offers.
+	// Sink: the write modes this sink offers.
 	WriteModes    []WriteMode `protobuf:"varint,8,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -255,7 +255,8 @@ func (x *ConnectorSpec) GetSchemaField() string {
 type ListConnectorsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Filter to one kind; UNSPECIFIED returns both sources and sinks.
-	Kind          ConnectorKind `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Kind          ConnectorKind      `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Pagination    *PaginationRequest `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -297,9 +298,17 @@ func (x *ListConnectorsRequest) GetKind() ConnectorKind {
 	return ConnectorKind_CONNECTOR_KIND_UNSPECIFIED
 }
 
+func (x *ListConnectorsRequest) GetPagination() *PaginationRequest {
+	if x != nil {
+		return x.Pagination
+	}
+	return nil
+}
+
 type ListConnectorsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Connectors    []*ConnectorSpec       `protobuf:"bytes,1,rep,name=connectors,proto3" json:"connectors,omitempty"`
+	Pagination    *PaginationResponse    `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -337,6 +346,13 @@ func (*ListConnectorsResponse) Descriptor() ([]byte, []int) {
 func (x *ListConnectorsResponse) GetConnectors() []*ConnectorSpec {
 	if x != nil {
 		return x.Connectors
+	}
+	return nil
+}
+
+func (x *ListConnectorsResponse) GetPagination() *PaginationResponse {
+	if x != nil {
+		return x.Pagination
 	}
 	return nil
 }
@@ -1041,7 +1057,7 @@ var File_ingestion_v1_providers_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\n" +
-	"\x1cingestion/v1/providers.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\x95\x03\n" +
+	"\x1cingestion/v1/providers.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\x95\x03\n" +
 	"\fCapabilities\x12\"\n" +
 	"\fdiscoverable\x18\x01 \x01(\bR\fdiscoverable\x12.\n" +
 	"\x13per_resource_cursor\x18\x02 \x01(\bR\x11perResourceCursor\x12$\n" +
@@ -1066,13 +1082,19 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\rdark_logo_url\x18\t \x01(\tR\vdarkLogoUrl\x12$\n" +
 	"\x0elight_logo_url\x18\n" +
 	" \x01(\tR\flightLogoUrl\x12!\n" +
-	"\fschema_field\x18\v \x01(\tR\vschemaField\"H\n" +
+	"\fschema_field\x18\v \x01(\tR\vschemaField\"\x89\x01\n" +
 	"\x15ListConnectorsRequest\x12/\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"U\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\"\x97\x01\n" +
 	"\x16ListConnectorsResponse\x12;\n" +
 	"\n" +
 	"connectors\x18\x01 \x03(\v2\x1b.ingestion.v1.ConnectorSpecR\n" +
-	"connectors\"\xed\x01\n" +
+	"connectors\x12@\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
+	"pagination\"\xed\x01\n" +
 	"\x15ValidateConfigRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
@@ -1170,7 +1192,9 @@ var file_ingestion_v1_providers_proto_goTypes = []any{
 	(ConnectorKind)(0),                 // 18: ingestion.v1.ConnectorKind
 	(ReplicationMode)(0),               // 19: ingestion.v1.ReplicationMode
 	(*ConfigSchema)(nil),               // 20: ingestion.v1.ConfigSchema
-	(*structpb.Struct)(nil),            // 21: google.protobuf.Struct
+	(*PaginationRequest)(nil),          // 21: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),         // 22: ingestion.v1.PaginationResponse
+	(*structpb.Struct)(nil),            // 23: google.protobuf.Struct
 }
 var file_ingestion_v1_providers_proto_depIdxs = []int32{
 	15, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
@@ -1181,21 +1205,23 @@ var file_ingestion_v1_providers_proto_depIdxs = []int32{
 	20, // 5: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
 	0,  // 6: ingestion.v1.ConnectorSpec.capabilities:type_name -> ingestion.v1.Capabilities
 	18, // 7: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	1,  // 8: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
-	18, // 9: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	21, // 10: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
-	5,  // 11: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
-	21, // 12: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
-	14, // 13: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
-	8,  // 14: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
-	21, // 15: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
-	11, // 16: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
-	12, // 17: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	21, // 8: ingestion.v1.ListConnectorsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	1,  // 9: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
+	22, // 10: ingestion.v1.ListConnectorsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	18, // 11: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	23, // 12: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
+	5,  // 13: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
+	23, // 14: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
+	14, // 15: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
+	8,  // 16: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
+	23, // 17: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
+	11, // 18: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
+	12, // 19: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_providers_proto_init() }
@@ -1204,6 +1230,7 @@ func file_ingestion_v1_providers_proto_init() {
 		return
 	}
 	file_ingestion_v1_common_proto_init()
+	file_ingestion_v1_pagination_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

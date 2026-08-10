@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "ingestion/v1/pagination.proto";
+
 // RunStatus mirrors pkg.RunStatus.
 enum RunStatus {
   RUN_STATUS_UNSPECIFIED = 0;
@@ -117,8 +119,7 @@ message ListRunsRequest {
   string pipeline_id = 2;
   optional int64 pipeline_version_id = 3;
   repeated RunStatus status = 4;
-  int32 limit = 5;
-  int32 offset = 6;
+  PaginationRequest pagination = 5;
   // since_ms/until_ms window on started_at (inclusive/exclusive, epoch
   // millis); 0 means unbounded. Runs that never started are excluded.
   int64 since_ms = 7;
@@ -127,6 +128,7 @@ message ListRunsRequest {
 
 message ListRunsResponse {
   repeated RunInfo runs = 1;
+  PaginationResponse pagination = 2;
 }
 
 message SignalRunRequest {

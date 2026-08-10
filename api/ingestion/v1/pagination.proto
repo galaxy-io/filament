@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+// PaginationRequest narrows a List response to one page. Absent means the
+// full result; limit <= 0 means unbounded and offset <= 0 means the start.
+message PaginationRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+// PaginationResponse reports how many items matched before the page was cut,
+// so clients can compute page counts.
+message PaginationResponse {
+  int32 total = 1;
+}

@@ -11,6 +11,7 @@ import InfiniteTable, {
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
+import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/PipelineName";
@@ -46,7 +47,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       create(ListRunsRequestSchema, {
         status: windowedStatuses,
         sinceMs: createTimeframeSince(timeframe),
-        limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
+        pagination: create(PaginationRequestSchema, { limit: OBSERVABILITY_RUNS_TABLE_LIMIT }),
       }),
     [timeframe, windowedStatuses],
   );
@@ -54,7 +55,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
     () =>
       create(ListRunsRequestSchema, {
         status: [RunStatus.SCHEDULED],
-        limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
+        pagination: create(PaginationRequestSchema, { limit: OBSERVABILITY_RUNS_TABLE_LIMIT }),
       }),
     [],
   );

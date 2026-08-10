@@ -93,7 +93,7 @@ func TestStore_RunLifecycle(t *testing.T) {
 		t.Fatal("expected ErrNotFound for missing run")
 	}
 
-	runs, err := store.ListRuns(ctx, filament.RunFilter{Tenant: "tenant-a"})
+	runs, _, err := store.ListRuns(ctx, filament.RunFilter{Tenant: "tenant-a"})
 	if err != nil {
 		t.Fatalf("ListRuns: %v", err)
 	}

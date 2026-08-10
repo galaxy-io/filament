@@ -41,9 +41,9 @@ export const GetConnectionCapabilitiesRequestSchema: GenMessage<GetConnectionCap
   messageDesc(file_ingestion_v1_capabilities, 0);
 
 /**
- * ReadModeWriteCompatibility is one read lever crossed with the write levers
+ * ReadModeWriteCompatibility is one read mode crossed with the write modes
  * it can compile with. Delete and merge are engine mechanisms, never offered
- * as levers.
+ * as read or write modes.
  *
  * @generated from message ingestion.v1.ReadModeWriteCompatibility
  */
@@ -96,22 +96,22 @@ export type GetConnectionCapabilitiesResponse = Message<"ingestion.v1.GetConnect
   replication: ReplicationMode;
 
   /**
-   * Source: the per-table read levers this connection offers. Empty on a CDC
-   * connection — replication is understood, there is no read lever.
+   * Source: the per-table read modes this connection offers. Empty on a CDC
+   * connection — replication is understood, there is no read mode.
    *
    * @generated from field: repeated ingestion.v1.ReadMode read_modes = 5;
    */
   readModes: ReadMode[];
 
   /**
-   * Sink: the write levers this sink offers.
+   * Sink: the write modes this sink offers.
    *
    * @generated from field: repeated ingestion.v1.WriteMode write_modes = 6;
    */
   writeModes: WriteMode[];
 
   /**
-   * Source: for each offered read lever, the write levers it combines with —
+   * Source: for each offered read mode, the write modes it combines with —
    * the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
    * connections.
    *

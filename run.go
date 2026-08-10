@@ -182,7 +182,6 @@ type RunFilter struct {
 	Until             time.Time
 	Limit             int
 	Offset            int
-	Cursor            string
 }
 
 // SyncSnapshot is a consistent read of a run and its resources at bus
