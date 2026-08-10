@@ -1,15 +1,8 @@
 import { Fragment } from "react";
 
-import FlexWrapper, {
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Text, {
-  TextSize,
-  TextVariant,
-  TextWeight,
-} from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import {
@@ -51,10 +44,7 @@ const CreatePipelineModalDelivery = () => {
               {sinks.map((sink, index) => (
                 <Fragment key={sink.connection.id}>
                   {index > 0 && <HorizontalDivider />}
-                  <CreatePipelineModalDeliverySink
-                    sink={sink}
-                    onChange={setSinkWriteMode}
-                  />
+                  <CreatePipelineModalDeliverySink sink={sink} onChange={setSinkWriteMode} />
                 </Fragment>
               ))}
             </FlexWrapper>
