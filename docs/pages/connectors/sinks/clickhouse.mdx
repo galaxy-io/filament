@@ -1,0 +1,77 @@
+---
+title: "ClickHouse"
+description: "Write typed analytical tables to ClickHouse."
+---
+
+`connectors/clickhouse/sink` writes each resource to its own typed ClickHouse
+table using the official Go driver's native batch interface. Both native TCP and
+HTTP(S), including ClickHouse Cloud, are accepted through the connection DSN.
+
+## Configuration
+
+| Field | Scope | Description |
+|---|---|---|
+| `dsn` | Connection | Secret ClickHouse DSN, such as `clickhouse://user:pass@host:9440/default?secure=true` |
+| `database` | Pipeline | Destination database; defaults from the normalized source connection name when omitted |
+
+## Local Docker Compose
+
+The repository's Compose stack includes a persistent ClickHouse instance:
+
+```sh
+docker compose up -d --wait clickhouse
+```
+
+Use `clickhouse://filament:filament@localhost:9000/filament` as the native DSN,
+or connect to the HTTP interface on `http://localhost:8123`. Data is retained in
+the `clickhouse-data` named volume across container restarts and `docker compose
+down`; delete that volume explicitly when you want to reset the local data.
+
+## Write policies
+
+Append loads use `MergeTree`. Snapshot replacement loads into a run-scoped
+staging table and promotes it on commit, so a failed snapshot never truncates the
+live destination. Replacing an existing table uses ClickHouse's `EXCHANGE TABLES`
+and therefore requires an `Atomic` database engine (the ClickHouse default).
+
+Snapshot-upsert and incremental-upsert loads use `ReplacingMergeTree` with the
+complete source primary key as the `ORDER BY` key. The version column depends on
+the resolved write policy:
+
+- Incremental upserts use the selected source cursor column, such as
+  `ReplacingMergeTree(updated_at)`. This orders competing rows by when the
+  source says they changed, even when runs overlap or arrive out of order.
+- Snapshot upserts and sources without row-level cursor metadata use
+  parameterless `ReplacingMergeTree()`. Retries of identical rows collapse, but
+  competing values are resolved by ClickHouse insertion and merge order rather
+  than a Filament-generated version.
+
+Filament does not add a synthetic version column. Cursor versioning currently
+requires a non-null timestamp cursor that is
+present on every row and advances on every insert and update. Tables created
+with one version strategy are not silently converted to the other; rebuild or
+migrate an existing table before changing its version strategy.
+
+ClickHouse resolves duplicate versions during background merges. Query with
+`FINAL` when a current-state result must include replacements immediately:
+
+```sql
+SELECT * FROM database.resource FINAL;
+```
+
+Upsert requires a discovered primary key. An existing destination must already
+use `ReplacingMergeTree` with the resolved version column and the same
+sorting-key columns; the sink rejects an incompatible table rather than silently
+changing its semantics.
+
+## Types
+
+Primitive numeric, decimal, date, timestamp, UUID, string, and binary fields map
+to typed ClickHouse columns. JSON, arrays, standalone time values, and unknown
+source-native types are stored losslessly as JSON/text in `String` columns until
+Filament's portable schema includes nested element type information.
+
+## Modes
+
+Supports `SnapshotReplace`, `Append`, `SnapshotUpsert`, and `Upsert`. Delete and
+CDC tombstone handling are not yet implemented.
