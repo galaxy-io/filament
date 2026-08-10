@@ -11,7 +11,7 @@ import {
   ConnectionSchema,
   UpdateConnectionRequestSchema,
 } from "@/gen/ingestion/v1/connections_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionForm from "@/pages/connectors/components/form/ConnectionForm";
@@ -19,9 +19,9 @@ import ConnectionFormProvider, {
   useConnectionFormContext,
 } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
-import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 import { useUpdateConnectionMutation } from "@/api/queries/connections";
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -107,7 +107,13 @@ const EditConnectionModalContent = ({
 };
 
 const EditConnectionModal = ({ connection, onClose }: EditConnectionModalProps) => {
-  const connector = useConnectorSpec(connection.connector, connection.kind);
+  const { data } = useGetConnectorQuery({
+    input: create(GetConnectorRequestSchema, {
+      connector: connection.connector,
+      kind: connection.kind,
+    }),
+  });
+  const connector = data?.connector;
 
   if (!connector) return null;
 

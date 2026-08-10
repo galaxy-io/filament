@@ -45,6 +45,7 @@ const PipelineHistoryRunInfoSinkColumn = ({
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} width={200}>
         <ConnectorTile
           connector={sinkConnection?.connection?.connector ?? ""}
+          kind={sinkConnection?.connection?.kind}
           size={ConnectorTileSize.SMALL}
           onClick={handleConnectorTileClick}
         />

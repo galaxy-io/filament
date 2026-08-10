@@ -106,7 +106,7 @@ const ConnectionsPageSinksEmptyGraphic = () => {
               <GhostCardRow>
                 {spec ? (
                   <EmptyGraphicGhostTile>
-                    <ConnectorTile connector={spec.name} spec={spec} />
+                    <ConnectorTile connector={spec.name} kind={spec.kind} />
                   </EmptyGraphicGhostTile>
                 ) : (
                   <EmptyGraphicGhostTileFallback />

@@ -14,12 +14,17 @@ service MetricsService {
 // Metric is an aggregatable measure over runs. RUN_COUNT/RUN_RECORDS/RUN_BYTES
 // are sums; RUN_DURATION is the mean duration in milliseconds over terminal
 // runs (percentile variants can be added as new values later).
+// RUN_MEMORY_USAGE is the mean peak working set in bytes and RUN_CPU_USAGE the
+// mean CPU seconds, both over runs that reported usage (a zero column means
+// "no usage reported", e.g. runs outside a cgroup, and is excluded).
 enum Metric {
   METRIC_UNSPECIFIED = 0;
   METRIC_RUN_COUNT = 1;
   METRIC_RUN_RECORDS = 2;
   METRIC_RUN_BYTES = 3;
   METRIC_RUN_DURATION = 4;
+  METRIC_RUN_MEMORY_USAGE = 5;
+  METRIC_RUN_CPU_USAGE = 6;
 }
 
 // MetricDimension names a runs column usable for grouping and filtering.

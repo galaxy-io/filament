@@ -1,23 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import ObservabilityPage from "@/pages/observability/ObservabilityPage";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
-
-const pivotDimension = z.union([
-  z.literal(MetricDimension.PIPELINE_ID),
-  z.literal(MetricDimension.STATUS),
-]);
-
-export type ObservabilityPivotDimension = z.infer<typeof pivotDimension>;
+import {
+  ObservabilityMetricView,
+  ObservabilityTimeframe,
+  ObservabilityUsageView,
+} from "@/pages/observability/types";
 
 const searchParams = z.object({
   timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
-  records: pivotDimension.optional().catch(undefined),
-  volume: pivotDimension.optional().catch(undefined),
-  statuses: z.array(z.number()).optional().catch(undefined),
+  metric: z.enum(ObservabilityMetricView).optional().catch(undefined),
+  pivot: z.enum(MetricDimension).optional().catch(undefined),
+  usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
+  usagePivot: z.enum(MetricDimension).optional().catch(undefined),
+  statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_main/observability")({

@@ -45,6 +45,15 @@ message ListConnectorsResponse {
   repeated ConnectorSpec connectors = 1;
 }
 
+message GetConnectorRequest {
+  string connector = 1;
+  ConnectorKind kind = 2;
+}
+
+message GetConnectorResponse {
+  ConnectorSpec connector = 1;
+}
+
 message ValidateConfigRequest {
   string tenant_id = 1;
   ConnectorKind kind = 2;

@@ -44,6 +44,10 @@ func toMetric(m metricsv1.Metric) (filament.Metric, error) {
 		return filament.MetricRunBytes, nil
 	case metricsv1.Metric_METRIC_RUN_DURATION:
 		return filament.MetricRunDuration, nil
+	case metricsv1.Metric_METRIC_RUN_MEMORY_USAGE:
+		return filament.MetricRunMemoryUsage, nil
+	case metricsv1.Metric_METRIC_RUN_CPU_USAGE:
+		return filament.MetricRunCPUUsage, nil
 	default:
 		return 0, fmt.Errorf("metrics: unsupported metric %v", m)
 	}

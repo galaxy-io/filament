@@ -8,6 +8,8 @@ import {
 import type {
   DiscoverResourcesRequest,
   DiscoverResourcesResponse,
+  GetConnectorRequest,
+  GetConnectorResponse,
   GetResourceColumnsRequest,
   GetResourceColumnsResponse,
   ListConnectorsRequest,
@@ -29,6 +31,22 @@ export const useListConnectorsQuery = ({
     typeof IngestionService.method.listConnectors.input,
     typeof IngestionService.method.listConnectors.output
   >(IngestionService.method.listConnectors, input, options);
+};
+
+export const useGetConnectorQuery = ({
+  input,
+  options = {},
+}: {
+  input: GetConnectorRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.getConnector.output,
+    GetConnectorResponse
+  >;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.getConnector.input,
+    typeof IngestionService.method.getConnector.output
+  >(IngestionService.method.getConnector, input, options);
 };
 
 export const useDiscoverResourcesQuery = ({
