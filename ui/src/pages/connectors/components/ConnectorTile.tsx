@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
@@ -8,9 +9,10 @@ import { GalaxyTheme } from "@galaxy-io/dls/theme";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
-import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 export enum ConnectorTileSize {
   SMALL = "SMALL",
@@ -85,7 +87,7 @@ const ConnectorLogo = styled.img<{ $height: number }>`
 
 interface ConnectorTileProps {
   connector: string;
-  spec?: ConnectorSpec;
+  kind?: ConnectorKind;
   size?: ConnectorTileSize;
   onClick?: (e: React.MouseEvent) => void;
   isDeleted?: boolean;
@@ -99,14 +101,17 @@ const DEFAULT_STATE: ConnectorTileState = {};
 
 const ConnectorTile = ({
   connector,
-  spec,
+  kind,
   size = ConnectorTileSize.MEDIUM,
   onClick,
   isDeleted = false,
 }: ConnectorTileProps) => {
   const { activeTheme } = useGalaxyTheme();
-  const resolvedSpec = useConnectorSpec(connector);
-  const catalogSpec = spec ?? resolvedSpec;
+  const { data } = useGetConnectorQuery({
+    input: create(GetConnectorRequestSchema, { connector, kind }),
+    options: { enabled: !!connector && !!kind },
+  });
+  const catalogSpec = data?.connector;
   const logoURL = match(activeTheme)
     .with(GalaxyTheme.DARK, () => catalogSpec?.darkLogoUrl)
     .with(GalaxyTheme.LIGHT, () => catalogSpec?.lightLogoUrl)

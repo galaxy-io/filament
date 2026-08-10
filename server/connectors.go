@@ -35,6 +35,28 @@ func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestio
 	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: page, Pagination: pagination}), nil
 }
 
+// GetConnector returns the spec for one registered connector.
+func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv1.GetConnectorRequest]) (*connect.Response[ingestionv1.GetConnectorResponse], error) {
+	var spec *ingestionv1.ConnectorSpec
+	switch req.Msg.GetKind() {
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
+		source, err := a.sources.Resolve(req.Msg.GetConnector())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		spec = sourceSpecToProto(source.Spec())
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
+		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		spec = sinkSpecToProto(sink.Spec())
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("connector kind is required"))
+	}
+	return connect.NewResponse(&ingestionv1.GetConnectorResponse{Connector: spec}), nil
+}
+
 // ValidateConfig checks a connector config against its schema, optionally
 // testing the live connection.
 func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingestionv1.ValidateConfigRequest]) (*connect.Response[ingestionv1.ValidateConfigResponse], error) {

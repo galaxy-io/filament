@@ -47,10 +47,18 @@ type Sink struct {
 	conn     connection
 	database string
 	run      filament.RunID
-	mode     filament.WriteMode
 	written  atomic.Int64
 	policies map[string]filament.WritePolicy
 	tables   map[string]*table
+}
+
+// modeFor returns the write mode governing one resource: its bound policy, or
+// the run-wide policy for runs with no explicit resource list.
+func (s *Sink) modeFor(resource string) filament.WriteMode {
+	if p, ok := s.policies[resource]; ok {
+		return p.Capability.Mode
+	}
+	return s.policies[""].Capability.Mode
 }
 
 type table struct {
@@ -138,7 +146,6 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 
 	s.conn = conn
 	s.run = run.Run
-	s.mode = run.IngestionType.OrDefault().WritePolicy().Capability.Mode
 	s.written.Store(0)
 	s.policies = run.WritePolicies
 	s.tables = map[string]*table{}
@@ -231,7 +238,8 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	if s.conn == nil {
 		return fmt.Errorf("clickhouse sink: ensure schema before open")
 	}
-	upsert := s.mode == filament.WriteUpsert
+	mode := s.modeFor(resource)
+	upsert := mode == filament.WriteUpsert
 	version := filament.VersionPolicy{}
 	if policy, ok := s.policies[resource]; ok {
 		version = policy.Version
@@ -243,7 +251,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	}
 	stage := ""
 	writeTable := resource
-	if s.mode == filament.WriteReplace {
+	if mode == filament.WriteReplace {
 		stage = stageTableName(s.run, resource)
 		writeTable = stage
 		if err := s.conn.Exec(ctx, "DROP TABLE IF EXISTS "+qualified(s.database, stage)); err != nil {
@@ -293,7 +301,7 @@ func (s *Sink) validateTable(ctx context.Context, resource string, schema filame
 		want = replacingMergeTreeEngine
 	}
 	if !matchesTableEngine(engine, want) {
-		return fmt.Errorf("clickhouse sink: table %q uses engine %s, need %s for write policy %q", resource, engine, want, s.mode)
+		return fmt.Errorf("clickhouse sink: table %q uses engine %s, need %s for write policy %q", resource, engine, want, s.modeFor(resource))
 	}
 	if !upsert {
 		return nil
@@ -336,8 +344,8 @@ func (s *Sink) validateTable(ctx context.Context, resource string, schema filame
 
 // Apply validates the requested write policy and inserts one typed batch.
 func (s *Sink) Apply(ctx context.Context, batch filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if opts.Policy.Capability.Mode != s.mode {
-		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: apply policy %q does not match opened run policy %q", opts.Policy.Capability.Mode, s.mode)
+	if want := s.modeFor(batch.Resource); opts.Policy.Capability.Mode != want {
+		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: apply policy %q does not match resource policy %q", opts.Policy.Capability.Mode, want)
 	}
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteAppend, filament.WriteReplace:

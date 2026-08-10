@@ -101,14 +101,12 @@ func (s *incrementalTestSource) PlanIncremental(_ context.Context, resources []s
 func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
-	plan := filament.IngestionPlan{
-		Type:         filament.IngestionIncrementalUpsert,
-		SourcePolicy: filament.SourcePolicy{Mode: filament.ModeIncremental, Checkpointing: filament.CheckpointAfterBatch},
-	}
+	plan := filament.IngestionPlan{}
 	base := filament.RunSpec{
-		Run: "run-a", PipelineID: "pipe", PipelineVersionID: 1, CheckpointRoute: "route/source/sink/upsert",
+		Run: "run-a", PipelineID: "pipe", PipelineVersionID: 1, CheckpointRoute: "route/source/sink",
 		Source: filament.Ref{Provider: "test"}, Resources: []string{"users"},
-		CursorConfigs: map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at", LookbackSeconds: 300}},
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
+		CursorConfigs:  map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at", LookbackSeconds: 300}},
 	}
 	first := &incrementalTestSource{}
 	if _, err := resolveExtractor(ctx, store, first, base, plan); err != nil {
@@ -140,8 +138,9 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 
 func TestResolveIngestionPlanCarriesCursorVersionToWritePolicy(t *testing.T) {
 	plan, err := filament.ResolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
-		Resources: []string{"users"}, IngestionType: filament.IngestionIncrementalUpsert,
-		CursorConfigs: map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at"}},
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
+		CursorConfigs:  map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -154,7 +153,8 @@ func TestResolveIngestionPlanCarriesCursorVersionToWritePolicy(t *testing.T) {
 
 func TestResolveIngestionPlanUsesInsertOrderForSnapshotUpsert(t *testing.T) {
 	plan, err := filament.ResolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
-		Resources: []string{"users"}, IngestionType: filament.IngestionFullUpsert,
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
 	})
 	if err != nil {
 		t.Fatal(err)

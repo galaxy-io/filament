@@ -2,6 +2,7 @@ package filament
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -18,11 +19,12 @@ type RunSpec struct {
 	Sink              Ref
 	Resources         []string
 	Selectors         []string
-	IngestionType     IngestionType
-	Mode              ReadMode
-	Checkpoint        *CheckpointData
-	Options           RunOptions
-	WritePolicies     map[string]WritePolicy
+	// IngestionTypes maps each resource to its ingestion type; the "" entry is
+	// the route default for resources not explicitly listed.
+	IngestionTypes map[string]IngestionType
+	Checkpoint     *CheckpointData
+	Options        RunOptions
+	WritePolicies  map[string]WritePolicy
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
@@ -38,11 +40,13 @@ type RunRequest struct {
 	SinkConnectionID   string
 	Resources          []string
 	Selectors          []string
-	IngestionType      IngestionType
-	CheckpointRoute    string
-	CursorConfigs      map[string]ResourceCursorConfig
-	Options            RunOptions
-	ScheduleID         ScheduleID
+	// IngestionTypes maps each resource to its ingestion type; the "" entry is
+	// the route default for resources not explicitly listed.
+	IngestionTypes  map[string]IngestionType
+	CheckpointRoute string
+	CursorConfigs   map[string]ResourceCursorConfig
+	Options         RunOptions
+	ScheduleID      ScheduleID
 	// ScheduledFor is the occurrence this request represents; zero when manual.
 	ScheduledFor time.Time
 }
@@ -64,6 +68,26 @@ func (r RunRequest) ResourceCheckpointKey(resource string) (ResourceCheckpointKe
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 		Route: r.CheckpointRoute, Resource: resource,
 	}, true
+}
+
+// TypeFor returns the ingestion type governing resource: its per-resource
+// entry when one exists, otherwise the route default ("" entry).
+func TypeFor(types map[string]IngestionType, resource string) IngestionType {
+	if t, ok := types[resource]; ok {
+		return t.OrDefault()
+	}
+	return types[""].OrDefault()
+}
+
+// IsCDC reports whether types replicates a change stream. CDC never mixes
+// with other types on one route, so any CDC entry means the whole run is CDC.
+func IsCDC(types map[string]IngestionType) bool {
+	for _, t := range types {
+		if t == IngestionCDC {
+			return true
+		}
+	}
+	return false
 }
 
 // ResourceCheckpointKey returns the stable cross-run key for resource.
@@ -406,12 +430,7 @@ func (c WritePolicyCapability) Accepts(op Operation) bool {
 	if len(c.AcceptsOps) == 0 {
 		return true
 	}
-	for _, candidate := range c.AcceptsOps {
-		if candidate == op {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.AcceptsOps, op)
 }
 
 // ValidateRecords rejects the first record whose operation the policy does
@@ -448,14 +467,11 @@ type SourcePolicy struct {
 	Checkpointing CheckpointPolicy
 }
 
-// IngestionPlan is the resolved policy set for a run: one source policy plus
-// per-resource write policies.
+// IngestionPlan is the resolved policy set for a run: per-resource write
+// policies, each bound from its resource's own ingestion type.
 type IngestionPlan struct {
-	Type          IngestionType
-	SourcePolicy  SourcePolicy
 	WritePolicies map[string]WritePolicy
 	RequiresCDC   bool
-	RequiresPK    bool
 }
 
 // WritePolicyForIngestion derives the canonical sink-side policy for an

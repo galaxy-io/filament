@@ -32,7 +32,11 @@ const CreatePipelineModalSidebarSink = ({
       onClick={onClick}
     >
       <FlexWrapper alignItems={AlignItems.CENTER} gap={8} minWidth={0} fillWidth>
-        <ConnectorTile connector={sink.connection.connector} size={ConnectorTileSize.SMALL} />
+        <ConnectorTile
+          connector={sink.connection.connector}
+          kind={sink.connection.kind}
+          size={ConnectorTileSize.SMALL}
+        />
         <FlexItem minWidth={0} overflow="hidden">
           <Text
             size={TextSize.BODY_SM}

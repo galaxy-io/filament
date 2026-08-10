@@ -37,6 +37,7 @@ const GithubButton = () => {
       onClick={handleGithub}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      isIconFilled
     />
   );
 };

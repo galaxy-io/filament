@@ -63,10 +63,10 @@ func TestStore_RunLifecycle(t *testing.T) {
 		Tenant: "tenant-a",
 		Status: filament.RunRequested,
 		Request: filament.RunRequest{
-			Tenant:        "tenant-a",
-			Source:        filament.Ref{Provider: "postgres", Config: map[string]any{"dsn": "ref:pg-dsn"}},
-			Sink:          filament.Ref{Provider: "stdout"},
-			IngestionType: filament.IngestionFullReplace,
+			Tenant:         "tenant-a",
+			Source:         filament.Ref{Provider: "postgres", Config: map[string]any{"dsn": "ref:pg-dsn"}},
+			Sink:           filament.Ref{Provider: "stdout"},
+			IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullReplace},
 		},
 		Resources: []filament.ResourceState{
 			{Resource: "orders", Enabled: true, Status: filament.RunRunning, Records: 10},

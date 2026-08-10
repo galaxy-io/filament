@@ -13,8 +13,8 @@ func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
-		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink/upsert",
-		IngestionType: filament.IngestionIncrementalUpsert,
+		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink",
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
@@ -48,8 +48,8 @@ func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
-		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink/cdc",
-		IngestionType: filament.IngestionCDC,
+		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink",
+		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDC},
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
@@ -78,8 +78,8 @@ func TestCompletedBackfillPromotesInitialWatermark(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
-		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink/upsert",
-		IngestionType: filament.IngestionIncrementalUpsert,
+		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink",
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
