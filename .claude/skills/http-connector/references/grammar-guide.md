@@ -141,7 +141,7 @@ Types: `string bool int16 int32 int64 float32 float64 decimal date time timestam
 
 ```yaml
 pagination: { link: next }                # Link response header, rel="next"
-pagination: { next_url: $.paging.next }   # full next-page URL in the response
+pagination: { next_url: paging.next }     # full next-page URL in the response (bare dot-path, no $.)
 pagination:
   cursor:
     response: response_metadata.next_cursor   # where the cursor appears in the response
