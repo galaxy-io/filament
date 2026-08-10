@@ -7,7 +7,6 @@ import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/container
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -33,7 +32,7 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
 };
 
 const CreatePipelineModalResources = () => {
-  const { rowsBySink, sinks, activeSinkId, isCdc, discoverError } = useCreatePipelineModalState();
+  const { rowsBySink, sinks, activeSinkId, discoverError } = useCreatePipelineModalState();
 
   const [localState, setLocalState] =
     useState<CreatePipelineModalResourcesState>(DEFAULT_RESOURCES_STATE);
@@ -83,12 +82,6 @@ const CreatePipelineModalResources = () => {
           leading={{ icon: MagnifyingGlassIcon }}
           fillWidth
         />
-        {isCdc && (
-          <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY}>
-            This connection replicates every insert, update and delete from the change stream. Read
-            and write modes are managed by the connection.
-          </Text>
-        )}
       </FlexWrapper>
       <HorizontalDivider />
       <CreatePipelineModalResourcesTable rows={filteredRows} />
