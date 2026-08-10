@@ -1,4 +1,4 @@
-package engine
+package runner
 
 import (
 	"context"
@@ -11,13 +11,17 @@ import (
 
 type extractorFunc func(context.Context, filament.RecordSink, filament.ExtractOpts) error
 
-func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec filament.RunSpec, plan filament.IngestionPlan) (extractorFunc, error) {
+// resolveExtractor picks how this run reads its source: a change stream for CDC,
+// a resumable read seeded from persisted cursors when the plan checkpoints, or a
+// plain full extract. Seeding those cursors is the one place a run writes durable
+// state itself; every other transition is folded from facts by the tracker.
+func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.Source, spec filament.RunSpec, plan filament.IngestionPlan) (extractorFunc, error) {
 	if plan.Type == filament.IngestionCDC {
 		changes, ok := src.(filament.ChangeSource)
 		if !ok {
 			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Provider)
 		}
-		checkpoints, err := m.loadChangeCheckpoints(ctx, spec)
+		checkpoints, err := loadChangeCheckpoints(ctx, ds, spec)
 		if err != nil {
 			return nil, err
 		}
@@ -45,14 +49,14 @@ func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec
 					return nil, fmt.Errorf("incremental resource %q requires a versioned pipeline route", resource)
 				}
 				var state filament.ResourceCheckpointState
-				state, err = m.ds.LoadResourceCheckpoint(ctx, key)
+				state, err = ds.LoadResourceCheckpoint(ctx, key)
 				cp = state.Checkpoint
 			} else {
-				cp, err = m.ds.LoadCheckpoint(ctx, spec.Run, resource)
+				cp, err = ds.LoadCheckpoint(ctx, spec.Run, resource)
 			}
 			if err == nil {
 				prev[resource] = cp
-			} else if err != nil && !errors.Is(err, filament.ErrNotFound) {
+			} else if !errors.Is(err, filament.ErrNotFound) {
 				return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 			}
 		}
@@ -81,9 +85,9 @@ func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec
 			var saveErr error
 			if incremental {
 				key, _ := spec.ResourceCheckpointKey(cp.Resource())
-				saveErr = m.ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: spec.Run, Checkpoint: cp})
+				saveErr = ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: spec.Run, Checkpoint: cp})
 			} else {
-				saveErr = m.ds.SaveCheckpoint(ctx, spec.Run, cp)
+				saveErr = ds.SaveCheckpoint(ctx, spec.Run, cp)
 			}
 			if saveErr != nil {
 				return nil, fmt.Errorf("seed checkpoint %q: %w", cp.Resource(), saveErr)
@@ -98,17 +102,17 @@ func (m *Module) resolveExtractor(ctx context.Context, src filament.Source, spec
 	}, nil
 }
 
-func (m *Module) loadChangeCheckpoints(ctx context.Context, spec filament.RunSpec) (map[string]filament.Checkpoint, error) {
+func loadChangeCheckpoints(ctx context.Context, ds filament.DataStore, spec filament.RunSpec) (map[string]filament.Checkpoint, error) {
 	out := make(map[string]filament.Checkpoint, len(spec.Resources))
 	for _, resource := range spec.Resources {
 		var cp filament.Checkpoint
 		var err error
 		if key, ok := spec.ResourceCheckpointKey(resource); ok {
 			var state filament.ResourceCheckpointState
-			state, err = m.ds.LoadResourceCheckpoint(ctx, key)
+			state, err = ds.LoadResourceCheckpoint(ctx, key)
 			cp = state.Checkpoint
 		} else {
-			cp, err = m.ds.LoadCheckpoint(ctx, spec.Run, resource)
+			cp, err = ds.LoadCheckpoint(ctx, spec.Run, resource)
 		}
 		if err == nil {
 			out[resource] = cp
@@ -129,7 +133,7 @@ func isResumableRun(plan filament.IngestionPlan) bool {
 }
 
 // safeCall runs source extraction code, converting a panic into an error so a
-// misbehaving connector fails its run rather than crashing the engine's pump.
+// misbehaving connector fails its run rather than crashing the caller's pump.
 func safeCall(fn func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {

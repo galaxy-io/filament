@@ -66,11 +66,11 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if state.Status != filament.RunRequested && state.Status != filament.RunPartial {
-		return nil
+	if !runner.ShouldRun(state) {
+		return nil // already running or finished — nothing for this Job to do
 	}
 
-	mx, _, shutdown, err := otel.FromEnv(ctx)
+	mx, tracer, shutdown, err := otel.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
@@ -93,6 +93,7 @@ func run(ctx context.Context) error {
 		Secrets:   secrets,
 		Sources:   registry.DefaultSources,
 		Sinks:     registry.DefaultSinks,
+		Tracer:    tracer,
 	}, runner.SpecFromState(state))
 	stopHeartbeat()
 	return nil
