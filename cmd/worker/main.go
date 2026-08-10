@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"os"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
@@ -28,9 +28,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	// Default logger too, so library logs (e.g. iceberg-go) come out as JSON.
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
+	lg := logger.New()
 
 	runID := filament.RunID(os.Getenv("RUN_ID"))
 	if runID == "" {
@@ -81,7 +79,7 @@ func run(ctx context.Context) error {
 	hb := &heartbeat{
 		bus:      bus,
 		mx:       mx,
-		log:      slogLogger{l: logger},
+		log:      lg,
 		tenant:   state.Tenant,
 		run:      state.Run,
 		pipeline: state.Request.PipelineID,
@@ -91,7 +89,7 @@ func run(ctx context.Context) error {
 	runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
 		DataStore: store,
-		Log:       slogLogger{l: logger},
+		Log:       lg,
 		Secrets:   secrets,
 		Sources:   registry.DefaultSources,
 		Sinks:     registry.DefaultSinks,
