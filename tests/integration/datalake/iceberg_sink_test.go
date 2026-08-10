@@ -21,9 +21,16 @@ import (
 	"github.com/galaxy-io/filament/tests/testcontainers/seed/tpch"
 
 	"github.com/galaxy-io/filament"
-	icesink "github.com/galaxy-io/filament/connectors/iceberg"
-	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
-	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/eventbus/inproc"
+	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/runner"
+
+	// Registered via init() so the registries can resolve them by name.
+	_ "github.com/galaxy-io/filament/connectors/iceberg"
+	_ "github.com/galaxy-io/filament/connectors/postgres"
 )
 
 // resources is the subset of TPC-H tables this test moves end-to-end. It mixes
@@ -118,60 +125,80 @@ func joinComma(s []string) string {
 	return out
 }
 
-// runPipeline mirrors the engine's lifecycle for one run: open the sink, ensure
-// each resource's schema (the engine's ensureSchemas step), drive extraction
-// through the pipeline, then commit (which promotes the staged buffers to the
-// warehouse).
+// runPipeline drives the run through runner.RunOne, the same sequence the engine
+// module and the worker binary both execute.
+//
+// It deliberately does not hand-roll the steps. An earlier version resolved the
+// connectors itself, called EnsureSchema in a loop, and built the pipeline
+// directly — and silently fell behind RunOne twice: once when the iceberg
+// catalog key was renamed, and once when write policies became a required part
+// of pipeline.Config. Going through the real entry point means the test cannot
+// drift from what production does.
 func runPipeline(t *testing.T, ctx context.Context, pg *testcontainers.PG, dl *testcontainers.DataLake) {
 	t.Helper()
 
-	src := pgsource.New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn":    pg.DSN(),
-		"schema": "public",
-	})); err != nil {
-		t.Fatalf("configure source: %v", err)
+	bus := inproc.New()
+	facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
 	}
-	defer func() { _ = src.Teardown(ctx) }()
+	defer func() { _ = facts.Close() }()
 
-	snk := icesink.New()
-	spec := filament.RunSpec{
+	// Collect concurrently: RunOne publishes as it goes, and the terminal fact is
+	// the only report of success or failure.
+	type outcome struct {
+		name string
+		err  string
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		for msg := range facts.C() {
+			f, decodeErr := events.Decode(msg)
+			_ = msg.Ack()
+			if decodeErr != nil {
+				continue
+			}
+			switch d := f.Data.(type) {
+			case events.RunCompletedEvent:
+				done <- outcome{name: f.Name}
+				return
+			case events.RunFailedEvent:
+				done <- outcome{name: f.Name, err: d.Error}
+				return
+			case events.RunPartialEvent:
+				done <- outcome{name: f.Name, err: d.Error}
+				return
+			}
+		}
+	}()
+
+	runner.RunOne(ctx, runner.Deps{
+		Bus:       bus,
+		DataStore: memory.New(),
+		Sources:   registry.DefaultSources,
+		Sinks:     registry.DefaultSinks,
+	}, filament.RunSpec{
 		Tenant:    "t0",
 		Run:       "run1",
 		Resources: resources,
+		Source: filament.Ref{
+			Provider: "postgres",
+			Config:   map[string]any{"dsn": pg.DSN(), "schema": "public"},
+		},
 		Sink: filament.Ref{
 			Provider: "iceberg",
 			Config:   sinkConfig(t, ctx, dl),
 		},
-	}
-	if err := snk.Open(ctx, spec); err != nil {
-		t.Fatalf("open sink: %v", err)
-	}
+		Options: filament.RunOptions{SnapshotParallelism: 1},
+	})
 
-	// EnsureSchema for each resource — the source is a SchemaProvider, the sink is
-	// Schematized. This is what engine.ensureSchemas does before extraction.
-	for _, res := range resources {
-		schema, err := src.Schema(ctx, res)
-		if err != nil {
-			t.Fatalf("schema %s: %v", res, err)
+	select {
+	case got := <-done:
+		if got.err != "" {
+			t.Fatalf("run ended %s: %s", got.name, got.err)
 		}
-		if err := snk.EnsureSchema(ctx, res, schema); err != nil {
-			t.Fatalf("ensure schema %s: %v", res, err)
-		}
-	}
-
-	p := pipeline.New(pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: snk})
-	p.Start(ctx)
-	go func() {
-		_ = src.Extract(ctx, p.Records(), filament.ExtractOpts{Resources: resources, Parallelism: 1})
-		p.CloseIngest()
-	}()
-	if err := p.Wait(); err != nil {
-		_ = snk.Abort(ctx)
-		t.Fatalf("pipeline: %v", err)
-	}
-	if err := snk.Commit(ctx); err != nil {
-		t.Fatalf("commit sink: %v", err)
+	case <-time.After(30 * time.Second):
+		t.Fatal("no terminal fact within 30s")
 	}
 }
 
@@ -234,13 +261,19 @@ func sinkConfig(t *testing.T, ctx context.Context, dl *testcontainers.DataLake) 
 		"warehouse": "s3://" + dl.Bucket + "/",
 		"namespace": namespace,
 		"catalog": map[string]any{
-			"type":                        "rest",
-			"uri":                         fmt.Sprintf("http://%s:%s", restHost, restPort.Port()),
-			"s3.endpoint":                 "http://" + minioEndpoint,
-			"s3.access-key-id":            dl.MinIO.Username,
-			"s3.secret-access-key":        dl.MinIO.Password,
-			"s3.region":                   "us-east-1",
-			"s3.force-virtual-addressing": "false", // MinIO needs path-style addressing
+			"provider": "rest",
+			"uri":      fmt.Sprintf("http://%s:%s", restHost, restPort.Port()),
+			// Storage settings must be nested: buildRESTCatalog lifts only uri and
+			// warehouse from the catalog object and copies everything else from
+			// properties. Flat s3.* keys are silently dropped, which surfaces much
+			// later as a 301 from MinIO on the first PutObject.
+			"properties": map[string]any{
+				"s3.endpoint":                 "http://" + minioEndpoint,
+				"s3.access-key-id":            dl.MinIO.Username,
+				"s3.secret-access-key":        dl.MinIO.Password,
+				"s3.region":                   "us-east-1",
+				"s3.force-virtual-addressing": "false", // MinIO needs path-style addressing
+			},
 		},
 	}
 }
