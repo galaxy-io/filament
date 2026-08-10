@@ -16,8 +16,9 @@ import DocsButton from "@/components/DocsButton";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalActions,
+  useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalSidebarSink from "@/pages/pipelines/components/create/components/CreatePipelineModalSidebarSink";
@@ -89,15 +90,14 @@ const StepButton = styled.button<{ $isClickable: boolean }>`
 `;
 
 const CreatePipelineModalSidebar = () => {
-  const { step, sinks, activeSinkId, issuesBySink, isSubmitting } = useCreatePipelineModalState();
-  const { goToStep, openSinkResources } = useCreatePipelineModalActions();
-
-  const currentIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(step);
+  const { stepIndex, sinks, activeSinkId, issuesBySink, isSubmitting } =
+    useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
 
   const getStepStatus = (item: CreatePipelineModalStep): CreatePipelineModalStepStatus => {
     const itemIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(item);
-    if (itemIndex < currentIndex) return CreatePipelineModalStepStatus.COMPLETED;
-    if (itemIndex === currentIndex) return CreatePipelineModalStepStatus.CURRENT;
+    if (itemIndex < stepIndex) return CreatePipelineModalStepStatus.COMPLETED;
+    if (itemIndex === stepIndex) return CreatePipelineModalStepStatus.CURRENT;
     return CreatePipelineModalStepStatus.UPCOMING;
   };
 
@@ -131,7 +131,15 @@ const CreatePipelineModalSidebar = () => {
                   <FlexWrapper key={item} direction={FlexDirection.COLUMN} gap={6} fillWidth>
                     <StepButton
                       $isClickable={isClickable}
-                      onClick={isClickable ? () => goToStep(item) : undefined}
+                      onClick={
+                        isClickable
+                          ? () =>
+                              dispatch({
+                                type: CreatePipelineModalActionType.GO_TO_STEP,
+                                payload: item,
+                              })
+                          : undefined
+                      }
                     >
                       <Icon
                         component={STEP_STATUS_TO_ICON_MAP[status]}
@@ -157,7 +165,13 @@ const CreatePipelineModalSidebar = () => {
                             }
                             issues={issuesBySink[sink.connection.id] ?? []}
                             onClick={
-                              isSubmitting ? undefined : () => openSinkResources(sink.connection.id)
+                              isSubmitting
+                                ? undefined
+                                : () =>
+                                    dispatch({
+                                      type: CreatePipelineModalActionType.OPEN_SINK_RESOURCES,
+                                      payload: sink.connection.id,
+                                    })
                             }
                           />
                         ))}

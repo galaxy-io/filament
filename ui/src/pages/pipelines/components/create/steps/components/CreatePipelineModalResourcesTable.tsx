@@ -16,8 +16,9 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalActions,
+  useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -61,8 +62,7 @@ interface CreatePipelineModalResourcesTableProps {
 
 const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResourcesTableProps) => {
   const { activeSinkId, isCdc, isLoading } = useCreatePipelineModalState();
-  const { setResourceSelection, setResourceReadMode, setResourceCursor } =
-    useCreatePipelineModalActions();
+  const dispatch = useCreatePipelineModalDispatch();
 
   const hasLevers = !isCdc;
 
@@ -85,7 +85,12 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
         cell: ({ row }) => (
           <CreatePipelineModalResourcesReadModeCell
             row={row.original}
-            onChange={(resource, readMode) => setResourceReadMode(activeSinkId, resource, readMode)}
+            onChange={(resource, readMode) =>
+              dispatch({
+                type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
+                payload: { sinkId: activeSinkId, resource, readMode },
+              })
+            }
           />
         ),
       },
@@ -99,13 +104,16 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
           <CreatePipelineModalResourcesCursorCell
             row={row.original}
             onChange={(resource, cursorField) =>
-              setResourceCursor(activeSinkId, resource, cursorField)
+              dispatch({
+                type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR,
+                payload: { sinkId: activeSinkId, resource, cursorField },
+              })
             }
           />
         ),
       },
     ];
-  }, [hasLevers, activeSinkId, setResourceReadMode, setResourceCursor]);
+  }, [hasLevers, activeSinkId, dispatch]);
 
   return (
     <TableWrapper>
@@ -118,11 +126,14 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
         loadingRowCount={CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT}
         rowSelection={rowSelection}
         onRowSelectionChange={(updater) =>
-          setResourceSelection(
-            activeSinkId,
-            rows.map((row) => row.name),
-            typeof updater === "function" ? updater(rowSelection) : updater,
-          )
+          dispatch({
+            type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION,
+            payload: {
+              sinkId: activeSinkId,
+              visibleNames: rows.map((row) => row.name),
+              selection: typeof updater === "function" ? updater(rowSelection) : updater,
+            },
+          })
         }
         enableRowSelection={(row: Row<CreatePipelineModalResourceRow>) => row.original.isSelectable}
         getRowSelectAriaLabel={(row: Row<CreatePipelineModalResourceRow>) => row.original.name}

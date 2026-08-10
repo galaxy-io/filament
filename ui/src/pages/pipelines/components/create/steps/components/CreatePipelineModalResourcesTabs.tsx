@@ -9,8 +9,9 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalActions,
+  useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
@@ -43,7 +44,7 @@ const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>
 
 const CreatePipelineModalResourcesTabs = () => {
   const { sinks, activeSinkId, selectedCountBySink, issuesBySink } = useCreatePipelineModalState();
-  const { setActiveSink } = useCreatePipelineModalActions();
+  const dispatch = useCreatePipelineModalDispatch();
 
   return (
     <TabsWrapper>
@@ -56,7 +57,12 @@ const CreatePipelineModalResourcesTabs = () => {
           <TabButton
             key={sink.connection.id}
             $isActive={isActive}
-            onClick={() => setActiveSink(sink.connection.id)}
+            onClick={() =>
+              dispatch({
+                type: CreatePipelineModalActionType.SET_ACTIVE_SINK,
+                payload: sink.connection.id,
+              })
+            }
           >
             <ConnectorTile connector={sink.connection.connector} />
             <FlexWrapper alignItems={AlignItems.CENTER} gap={12}>

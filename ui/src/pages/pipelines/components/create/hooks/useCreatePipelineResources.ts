@@ -128,15 +128,6 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     () => (isLoading || discoverError ? {} : getIssuesBySink(rowsBySink)),
     [rowsBySink, isLoading, discoverError],
   );
-  const blockingMessages = useMemo(
-    () =>
-      sinks.flatMap((sink) =>
-        (issuesBySink[sink.connection.id] ?? []).map((message) =>
-          sinks.length > 1 ? `[Sink: ${sink.connection.name}] ${message}` : message,
-        ),
-      ),
-    [sinks, issuesBySink],
-  );
   const selectedCountBySink = useMemo(() => getSelectedCountBySink(rowsBySink), [rowsBySink]);
 
   return {
@@ -145,7 +136,6 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     replication,
     isCdc,
     issuesBySink,
-    blockingMessages,
     selectedCountBySink,
     isLoading,
     discoverError,

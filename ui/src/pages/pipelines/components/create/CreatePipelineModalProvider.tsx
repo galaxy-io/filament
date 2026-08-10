@@ -9,14 +9,8 @@ import {
 
 import { match } from "ts-pattern";
 
-import type { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-
 import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
-import {
-  type CreatePipelineModalAction,
-  CreatePipelineModalActionType,
-} from "@/pages/pipelines/components/create/actions";
+import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
 import {
   CREATE_PIPELINE_MODAL_STEP_ORDER,
   CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP,
@@ -30,7 +24,6 @@ import {
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
 const DEFAULT_STATE: CreatePipelineModalState = {
@@ -64,7 +57,7 @@ export const useCreatePipelineModalState = () => {
   return state;
 };
 
-const useCreatePipelineModalDispatch = () => {
+export const useCreatePipelineModalDispatch = () => {
   const dispatch = useContext(CreatePipelineModalDispatchContext);
   if (!dispatch) {
     throw new Error(
@@ -72,60 +65,6 @@ const useCreatePipelineModalDispatch = () => {
     );
   }
   return dispatch;
-};
-
-export const useCreatePipelineModalActions = () => {
-  const dispatch = useCreatePipelineModalDispatch();
-
-  return useMemo(
-    () => ({
-      selectSource: (connection: Connection) =>
-        dispatch({ type: CreatePipelineModalActionType.SELECT_SOURCE, payload: connection }),
-      toggleSink: (connection: Connection) =>
-        dispatch({ type: CreatePipelineModalActionType.TOGGLE_SINK, payload: connection }),
-      setActiveSink: (sinkId: string) =>
-        dispatch({ type: CreatePipelineModalActionType.SET_ACTIVE_SINK, payload: sinkId }),
-      openSinkResources: (sinkId: string) =>
-        dispatch({ type: CreatePipelineModalActionType.OPEN_SINK_RESOURCES, payload: sinkId }),
-      setResourceSelection: (
-        sinkId: string,
-        visibleNames: string[],
-        selection: Record<string, boolean>,
-      ) =>
-        dispatch({
-          type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION,
-          payload: { sinkId, visibleNames, selection },
-        }),
-      setResourceReadMode: (sinkId: string, resource: string, readMode: ReadMode) =>
-        dispatch({
-          type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
-          payload: { sinkId, resource, readMode },
-        }),
-      setResourceCursor: (sinkId: string, resource: string, cursorField: string) =>
-        dispatch({
-          type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR,
-          payload: { sinkId, resource, cursorField },
-        }),
-      setSinkWriteMode: (sinkId: string, writeMode: WriteMode) =>
-        dispatch({
-          type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE,
-          payload: { sinkId, writeMode },
-        }),
-      setName: (name: string) =>
-        dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload: name }),
-      setDescription: (description: string) =>
-        dispatch({ type: CreatePipelineModalActionType.SET_DESCRIPTION, payload: description }),
-      setSchedule: (schedule: Partial<PipelineSettingsPageScheduleState>) =>
-        dispatch({ type: CreatePipelineModalActionType.SET_SCHEDULE, payload: schedule }),
-      goToStep: (step: CreatePipelineModalStep) =>
-        dispatch({ type: CreatePipelineModalActionType.GO_TO_STEP, payload: step }),
-      goBack: () => dispatch({ type: CreatePipelineModalActionType.GO_BACK }),
-      goNext: () => dispatch({ type: CreatePipelineModalActionType.GO_NEXT }),
-      setSubmitting: (isSubmitting: boolean) =>
-        dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: isSubmitting }),
-    }),
-    [dispatch],
-  );
 };
 
 const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
@@ -136,7 +75,6 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     sinks,
     replication,
     isCdc,
-    blockingMessages,
     issuesBySink,
     selectedCountBySink,
     isLoading,
@@ -144,6 +82,12 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
   } = useCreatePipelineResources(state);
 
   const value = useMemo<CreatePipelineModalContextValue>(() => {
+    const blockingMessages = sinks.flatMap((sink) =>
+      (issuesBySink[sink.connection.id] ?? []).map((message) =>
+        sinks.length > 1 ? `[Sink: ${sink.connection.name}] ${message}` : message,
+      ),
+    );
+
     const effectiveName = state.isNameTouched
       ? state.name
       : getDefaultPipelineName(state.sourceConnection, state.sinkConnections);
@@ -194,7 +138,6 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     sinks,
     replication,
     isCdc,
-    blockingMessages,
     issuesBySink,
     selectedCountBySink,
     isLoading,

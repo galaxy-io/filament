@@ -12,8 +12,9 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalActions,
+  useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -41,7 +42,7 @@ const CreatePipelineModalFooter = () => {
   const { showToast } = useToast();
 
   const state = useCreatePipelineModalState();
-  const { goBack, goNext, setSubmitting } = useCreatePipelineModalActions();
+  const dispatch = useCreatePipelineModalDispatch();
 
   const { mutate: createPipeline } = useCreatePipelineMutation();
   const { mutate: createPipelineVersion } = useCreatePipelineVersionMutation();
@@ -53,13 +54,13 @@ const CreatePipelineModalFooter = () => {
   };
 
   const handleCreate = () => {
-    setSubmitting(true);
+    dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: true });
 
     createPipeline(mapCreatePipelineStateToRequest(state, state.effectiveName), {
       onSuccess: (response) => {
         const pipelineId = response.pipeline?.id;
         if (!pipelineId) {
-          setSubmitting(false);
+          dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: false });
           return;
         }
 
@@ -91,7 +92,7 @@ const CreatePipelineModalFooter = () => {
         });
       },
       onError: (error) => {
-        setSubmitting(false);
+        dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: false });
         showToast({
           variant: ToastVariant.ERROR,
           header: "Failed to create pipeline",
@@ -125,7 +126,7 @@ const CreatePipelineModalFooter = () => {
         size={ButtonSize.LARGE}
         label="Next"
         icon={ArrowRightIcon}
-        onClick={goNext}
+        onClick={() => dispatch({ type: CreatePipelineModalActionType.GO_NEXT })}
         isDisabled={isNextDisabled}
         isIconTrailing
       />
@@ -139,7 +140,7 @@ const CreatePipelineModalFooter = () => {
         label="Back"
         icon={ArrowLeftIcon}
         variant={ButtonVariant.SECONDARY}
-        onClick={goBack}
+        onClick={() => dispatch({ type: CreatePipelineModalActionType.GO_BACK })}
         isDisabled={isSubmitting || !isBackVisible}
       />
       <FlexWrapper alignItems={AlignItems.CENTER} gap={12} grow={0} shrink={0}>
