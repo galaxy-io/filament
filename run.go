@@ -257,6 +257,11 @@ const (
 // full-refresh replace; an unset write on an incremental read defaults to
 // upsert. CDC connections never reach this: their edges are always
 // IngestionCDC.
+//
+// Delete and merge are engine mechanisms rather than levers: they are derived
+// from the source's operations, never chosen. IngestionFor still compiles
+// delete so internal callers can name the type; WriteModesFor is what decides
+// what a user may pick.
 func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
 	if write == "" {
 		if read == ModeIncremental {
@@ -286,6 +291,19 @@ func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
 		}
 	}
 	return "", fmt.Errorf("read mode %q cannot combine with write mode %q", read, write)
+}
+
+// WriteModesFor returns the write modes a user may pair with read, in menu
+// order — the inverse of IngestionFor, and the one place that decides what a
+// write lever offers. CDC reads have no lever and yield none.
+func WriteModesFor(read ReadMode) []WriteMode {
+	switch read {
+	case ModeFull:
+		return []WriteMode{WriteAppend, WriteReplace, WriteUpsert}
+	case ModeIncremental:
+		return []WriteMode{WriteAppend, WriteUpsert}
+	}
+	return nil
 }
 
 // String renders a read mode for messages and logs.

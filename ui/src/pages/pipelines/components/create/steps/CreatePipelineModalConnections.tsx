@@ -7,12 +7,14 @@ import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import VerticalDivider from "@galaxy-io/dls/dividers/VerticalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
@@ -28,6 +30,11 @@ import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
+import {
+  useCreatePipelineModalDispatch,
+  useCreatePipelineModalState,
+} from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
 import { Flow } from "@/routes/__root";
 
@@ -36,33 +43,6 @@ import { useListConnectionsQuery } from "@/api/queries/connections";
 import { NOOP } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
-
-const SplitWrapper = styled.div`
-  display: flex;
-  flex: 1;
-  min-height: 0;
-`;
-
-const PaneWrapper = withTheme(styled.div<PropsWithTheme<{ $hasDivider?: boolean }>>`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-
-  border-right: ${({ theme, $hasDivider }) =>
-    $hasDivider ? `0.5px solid ${theme.color.border.primary}` : "none"};
-`);
-
-const PaneListWrapper = styled.div`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px;
-
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
 
 const RowWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -84,13 +64,6 @@ const RowControlWrapper = styled.div`
   align-items: center;
   flex-shrink: 0;
   pointer-events: none;
-`;
-
-const RowName = styled.div`
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 `;
 
 const CreatePipelineModalConnectionsEmpty = ({
@@ -140,7 +113,6 @@ const CreatePipelineModalConnectionsEmpty = ({
 
 interface CreatePipelineModalConnectionsPaneProps {
   kind: ConnectorKind;
-  hasDivider?: boolean;
   renderControl: (connection: Connection) => React.ReactNode;
   onConnectionClick: (connection: Connection) => void;
 }
@@ -155,7 +127,6 @@ const DEFAULT_PANE_STATE: CreatePipelineModalConnectionsPaneState = {
 
 const CreatePipelineModalConnectionsPane = ({
   kind,
-  hasDivider = false,
   renderControl,
   onConnectionClick,
 }: CreatePipelineModalConnectionsPaneProps) => {
@@ -213,22 +184,37 @@ const CreatePipelineModalConnectionsPane = ({
     }
 
     return (
-      <PaneListWrapper>
+      <FlexWrapper
+        direction={FlexDirection.COLUMN}
+        alignItems={AlignItems.STRETCH}
+        gap={2}
+        padding={"8px"}
+        grow={1}
+        basis={0}
+        minHeight={0}
+        overflow="auto"
+      >
         {filteredConnections.map((connection) => (
           <RowWrapper key={connection.id} onClick={() => onConnectionClick(connection)}>
             <RowControlWrapper>{renderControl(connection)}</RowControlWrapper>
             <ConnectorTile connector={connection.connector} />
-            <RowName>
-              <Text>{connection.name}</Text>
-            </RowName>
+            <FlexItem minWidth={0} overflow="hidden">
+              <Text isEllipsis>{connection.name}</Text>
+            </FlexItem>
           </RowWrapper>
         ))}
-      </PaneListWrapper>
+      </FlexWrapper>
     );
   };
 
   return (
-    <PaneWrapper $hasDivider={hasDivider}>
+    <FlexWrapper
+      direction={FlexDirection.COLUMN}
+      alignItems={AlignItems.STRETCH}
+      grow={1}
+      basis={0}
+      minWidth={0}
+    >
       <FlexWrapper direction={FlexDirection.COLUMN} gap={8} padding={"8px"} fillWidth>
         <TextInput
           value={state.search}
@@ -240,33 +226,26 @@ const CreatePipelineModalConnectionsPane = ({
       </FlexWrapper>
       <HorizontalDivider />
       {renderList()}
-    </PaneWrapper>
+    </FlexWrapper>
   );
 };
 
-interface CreatePipelineModalConnectionsProps {
-  sourceConnection: Connection | null;
-  sinkConnections: Connection[];
-  onSourceSelect: (connection: Connection) => void;
-  onSinkToggle: (connection: Connection) => void;
-}
+const CreatePipelineModalConnections = () => {
+  const { sourceConnection, sinkConnections } = useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
 
-const CreatePipelineModalConnections = ({
-  sourceConnection,
-  sinkConnections,
-  onSourceSelect,
-  onSinkToggle,
-}: CreatePipelineModalConnectionsProps) => {
   return (
-    <SplitWrapper>
+    <FlexWrapper alignItems={AlignItems.STRETCH} grow={1} basis={0} minHeight={0}>
       <CreatePipelineModalConnectionsPane
         kind={ConnectorKind.SOURCE}
-        hasDivider
         renderControl={(connection) => (
           <RadioInput isSelected={sourceConnection?.id === connection.id} onChange={NOOP} />
         )}
-        onConnectionClick={onSourceSelect}
+        onConnectionClick={(connection) =>
+          dispatch({ type: CreatePipelineModalActionType.SELECT_SOURCE, payload: connection })
+        }
       />
+      <VerticalDivider />
       <CreatePipelineModalConnectionsPane
         kind={ConnectorKind.SINK}
         renderControl={(connection) => (
@@ -276,9 +255,11 @@ const CreatePipelineModalConnections = ({
             ariaLabel={connection.name}
           />
         )}
-        onConnectionClick={onSinkToggle}
+        onConnectionClick={(connection) =>
+          dispatch({ type: CreatePipelineModalActionType.TOGGLE_SINK, payload: connection })
+        }
       />
-    </SplitWrapper>
+    </FlexWrapper>
   );
 };
 

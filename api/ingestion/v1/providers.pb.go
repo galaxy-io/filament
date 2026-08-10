@@ -33,8 +33,10 @@ type Capabilities struct {
 	Schematized       bool                     `protobuf:"varint,5,opt,name=schematized,proto3" json:"schematized,omitempty"`
 	WritePolicies     []*WritePolicyCapability `protobuf:"bytes,6,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
 	SourcePolicies    []*SourcePolicy          `protobuf:"bytes,7,rep,name=source_policies,json=sourcePolicies,proto3" json:"source_policies,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Sink: the write levers this sink offers.
+	WriteModes    []WriteMode `protobuf:"varint,8,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Capabilities) Reset() {
@@ -112,6 +114,13 @@ func (x *Capabilities) GetWritePolicies() []*WritePolicyCapability {
 func (x *Capabilities) GetSourcePolicies() []*SourcePolicy {
 	if x != nil {
 		return x.SourcePolicies
+	}
+	return nil
+}
+
+func (x *Capabilities) GetWriteModes() []WriteMode {
+	if x != nil {
+		return x.WriteModes
 	}
 	return nil
 }
@@ -1032,7 +1041,7 @@ var File_ingestion_v1_providers_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\n" +
-	"\x1cingestion/v1/providers.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\xdb\x02\n" +
+	"\x1cingestion/v1/providers.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\x95\x03\n" +
 	"\fCapabilities\x12\"\n" +
 	"\fdiscoverable\x18\x01 \x01(\bR\fdiscoverable\x12.\n" +
 	"\x13per_resource_cursor\x18\x02 \x01(\bR\x11perResourceCursor\x12$\n" +
@@ -1042,7 +1051,9 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"upsertable\x12 \n" +
 	"\vschematized\x18\x05 \x01(\bR\vschematized\x12J\n" +
 	"\x0ewrite_policies\x18\x06 \x03(\v2#.ingestion.v1.WritePolicyCapabilityR\rwritePolicies\x12C\n" +
-	"\x0fsource_policies\x18\a \x03(\v2\x1a.ingestion.v1.SourcePolicyR\x0esourcePolicies\"\xd6\x03\n" +
+	"\x0fsource_policies\x18\a \x03(\v2\x1a.ingestion.v1.SourcePolicyR\x0esourcePolicies\x128\n" +
+	"\vwrite_modes\x18\b \x03(\x0e2\x17.ingestion.v1.WriteModeR\n" +
+	"writeModes\"\xd6\x03\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -1155,34 +1166,36 @@ var file_ingestion_v1_providers_proto_goTypes = []any{
 	nil,                                // 14: ingestion.v1.Resource.MetadataEntry
 	(*WritePolicyCapability)(nil),      // 15: ingestion.v1.WritePolicyCapability
 	(*SourcePolicy)(nil),               // 16: ingestion.v1.SourcePolicy
-	(ConnectorKind)(0),                 // 17: ingestion.v1.ConnectorKind
-	(ReplicationMode)(0),               // 18: ingestion.v1.ReplicationMode
-	(*ConfigSchema)(nil),               // 19: ingestion.v1.ConfigSchema
-	(*structpb.Struct)(nil),            // 20: google.protobuf.Struct
+	(WriteMode)(0),                     // 17: ingestion.v1.WriteMode
+	(ConnectorKind)(0),                 // 18: ingestion.v1.ConnectorKind
+	(ReplicationMode)(0),               // 19: ingestion.v1.ReplicationMode
+	(*ConfigSchema)(nil),               // 20: ingestion.v1.ConfigSchema
+	(*structpb.Struct)(nil),            // 21: google.protobuf.Struct
 }
 var file_ingestion_v1_providers_proto_depIdxs = []int32{
 	15, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
 	16, // 1: ingestion.v1.Capabilities.source_policies:type_name -> ingestion.v1.SourcePolicy
-	17, // 2: ingestion.v1.ConnectorSpec.kind:type_name -> ingestion.v1.ConnectorKind
-	18, // 3: ingestion.v1.ConnectorSpec.modes:type_name -> ingestion.v1.ReplicationMode
-	19, // 4: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
-	0,  // 5: ingestion.v1.ConnectorSpec.capabilities:type_name -> ingestion.v1.Capabilities
-	17, // 6: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	1,  // 7: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
-	17, // 8: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	20, // 9: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
-	5,  // 10: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
-	20, // 11: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
-	14, // 12: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
-	8,  // 13: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
-	20, // 14: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
-	11, // 15: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
-	12, // 16: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	17, // 2: ingestion.v1.Capabilities.write_modes:type_name -> ingestion.v1.WriteMode
+	18, // 3: ingestion.v1.ConnectorSpec.kind:type_name -> ingestion.v1.ConnectorKind
+	19, // 4: ingestion.v1.ConnectorSpec.modes:type_name -> ingestion.v1.ReplicationMode
+	20, // 5: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
+	0,  // 6: ingestion.v1.ConnectorSpec.capabilities:type_name -> ingestion.v1.Capabilities
+	18, // 7: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	1,  // 8: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
+	18, // 9: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	21, // 10: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
+	5,  // 11: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
+	21, // 12: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
+	14, // 13: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
+	8,  // 14: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
+	21, // 15: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
+	11, // 16: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
+	12, // 17: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_providers_proto_init() }
