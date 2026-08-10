@@ -1,5 +1,3 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import { DashboardProvider } from "@galaxy-io/dls/charts/DashboardProvider";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
@@ -9,8 +7,6 @@ import FlexWrapper, {
   FlexWrap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-
-import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import ObservabilityMetricsWidget from "@/pages/observability/components/metrics/ObservabilityMetricsWidget";
 import ObservabilityToolbar from "@/pages/observability/components/ObservabilityToolbar";
@@ -25,44 +21,7 @@ import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabil
 import { ObservabilityMetricView, ObservabilityUsageView } from "@/pages/observability/types";
 
 const ObservabilityPage = () => {
-  const navigate = useNavigate();
-  const {
-    metric = ObservabilityMetricView.RECORDS,
-    pivot,
-    usage = ObservabilityUsageView.CPU,
-    usagePivot,
-  } = useSearch({
-    from: "/_main/observability",
-  });
   const { isComplete } = useObservabilitySetup();
-
-  const handleMetricViewChange = (view: ObservabilityMetricView) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, metric: view }),
-    });
-  };
-
-  const handlePivotChange = (nextPivot: MetricDimension | undefined) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, pivot: nextPivot }),
-    });
-  };
-
-  const handleUsageViewChange = (view: ObservabilityUsageView) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, usage: view }),
-    });
-  };
-
-  const handleUsagePivotChange = (nextPivot: MetricDimension | undefined) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, usagePivot: nextPivot }),
-    });
-  };
 
   if (!isComplete) {
     return <ObservabilitySetupChecklist />;
@@ -93,19 +52,17 @@ const ObservabilityPage = () => {
             <FlexItem grow={1} basis="400px" minWidth={0}>
               <ObservabilityTimeseriesWidget
                 views={OBSERVABILITY_METRIC_VIEW_TO_CONFIG_MAP}
-                view={metric}
-                onViewChange={handleMetricViewChange}
-                pivot={pivot}
-                onPivotChange={handlePivotChange}
+                defaultView={ObservabilityMetricView.RECORDS}
+                viewSearchKey="metric"
+                pivotSearchKey="pivot"
               />
             </FlexItem>
             <FlexItem grow={1} basis="400px" minWidth={0}>
               <ObservabilityTimeseriesWidget
                 views={OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP}
-                view={usage}
-                onViewChange={handleUsageViewChange}
-                pivot={usagePivot}
-                onPivotChange={handleUsagePivotChange}
+                defaultView={ObservabilityUsageView.CPU}
+                viewSearchKey="usage"
+                pivotSearchKey="usagePivot"
               />
             </FlexItem>
           </FlexWrapper>

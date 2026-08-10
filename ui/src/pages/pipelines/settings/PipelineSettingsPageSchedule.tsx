@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { CalendarIcon } from "@phosphor-icons/react";
+import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Button from "@galaxy-io/dls/buttons/Button";
@@ -17,7 +18,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import {
   CreatePipelineScheduleRequestSchema,
-  type PipelineSchedule,
+  GetPipelineRequestSchema,
   UpdatePipelineScheduleRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -31,6 +32,7 @@ import {
   mapPipelineScheduleStateToCron,
 } from "@/pages/pipelines/settings/utils";
 
+import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import {
   useCreatePipelineScheduleMutation,
   useUpdatePipelineScheduleMutation,
@@ -38,16 +40,14 @@ import {
 
 import { getErrorMessage } from "@/utils/errors";
 
-interface PipelineSettingsPageScheduleProps {
-  pipelineId: string;
-  schedule?: PipelineSchedule;
-}
-
-const PipelineSettingsPageSchedule = ({
-  pipelineId,
-  schedule,
-}: PipelineSettingsPageScheduleProps) => {
+const PipelineSettingsPageSchedule = () => {
   const { showToast } = useToast();
+  const { id: pipelineId } = useParams({ from: "/pipelines/$id" });
+
+  const { data } = useSuspenseGetPipelineQuery({
+    input: create(GetPipelineRequestSchema, { id: pipelineId }),
+  });
+  const schedule = data.schedule;
 
   const { mutate: createSchedule, isPending: isCreating } = useCreatePipelineScheduleMutation();
   const { mutate: updateSchedule, isPending: isUpdating } = useUpdatePipelineScheduleMutation();

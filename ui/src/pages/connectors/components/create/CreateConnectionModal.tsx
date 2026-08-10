@@ -1,27 +1,19 @@
 import { useCallback } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import CreateConnectionConfigure from "@/pages/connectors/components/create/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
-
-import { useGetConnectorQuery } from "@/api/queries/connectors";
+import { CONNECTOR_KIND_TO_PARAM_MAP } from "@/pages/connectors/constants";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
   const { connector, connectorKind } = useSearch({
     from: "__root__",
   });
-
-  const { data } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, { connector, kind: connectorKind }),
-    options: { enabled: !!connector && !!connectorKind },
-  });
-  const selectedConnector = data?.connector;
 
   const handleConnectorSelect = useCallback(
     (connector: ConnectorSpec) => {
@@ -30,7 +22,7 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
         search: (prev) => ({
           ...prev,
           connector: connector.name,
-          connectorKind: connector.kind,
+          connectorKind: CONNECTOR_KIND_TO_PARAM_MAP[connector.kind],
         }),
       });
     },
@@ -47,14 +39,8 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
     });
   }, [navigate]);
 
-  if (selectedConnector) {
-    return (
-      <CreateConnectionConfigure
-        connector={selectedConnector}
-        onClose={onClose}
-        onBack={handleBack}
-      />
-    );
+  if (connector && connectorKind) {
+    return <CreateConnectionConfigure onClose={onClose} onBack={handleBack} />;
   }
 
   return <CreateConnectionSelector onClose={onClose} onConnectorSelect={handleConnectorSelect} />;

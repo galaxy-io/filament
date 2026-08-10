@@ -6,25 +6,32 @@ import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/Flex
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { GetRunRequestSchema, type RunResourceState } from "@/gen/ingestion/v1/runs_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import type { RunResourceStateColumn } from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
+import { useGetRunQuery } from "@/api/queries/runs";
 
 interface PipelineHistoryRunInfoResourceColumnProps {
-  runResource: RunResourceStateColumn;
+  runId: string;
+  runResource: RunResourceState;
 }
 
 const PipelineHistoryRunInfoResourceColumn = ({
+  runId,
   runResource,
 }: PipelineHistoryRunInfoResourceColumnProps) => {
   const navigate = useNavigate();
 
+  const { data: runData } = useGetRunQuery({
+    input: create(GetRunRequestSchema, { runId }),
+  });
+  const sourceConnectionId = runData?.snapshot?.run?.sourceConnectionId ?? "";
+
   const { data: sourceConnection } = useGetConnectionQuery({
-    input: create(GetConnectionRequestSchema, {
-      id: runResource.sourceConnectionId,
-    }),
+    input: create(GetConnectionRequestSchema, { id: sourceConnectionId }),
+    options: { enabled: !!sourceConnectionId },
   });
 
   const handleConnectorTileClick = (e: React.MouseEvent) => {

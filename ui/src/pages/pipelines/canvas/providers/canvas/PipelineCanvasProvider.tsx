@@ -117,7 +117,8 @@ const PipelineCanvasProvider = ({
 }: PropsWithChildren<PipelineCanvasProviderProps>) => {
   const [state, dispatch] = useReducer(
     pipelineCanvasReducer,
-    createInitialPipelineCanvasState(graph),
+    graph,
+    createInitialPipelineCanvasState,
   );
 
   const [previousGraphKey, setPreviousGraphKey] = useState(graphKey);

@@ -42,6 +42,7 @@ const PipelineCanvasNodeConfigIsland = ({
   const isReadOnly = usePipelineCanvasReadOnly();
   const { data } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector, kind }),
+    options: { enabled: !!connector && !!kind },
   });
   const spec = data?.connector;
 

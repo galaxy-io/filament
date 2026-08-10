@@ -15,6 +15,18 @@ export const CONNECTOR_KIND_TO_LABEL_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.SINK]: "Sink",
 };
 
+export type ConnectorKindParam = "SOURCE" | "SINK";
+
+export const CONNECTOR_KIND_TO_PARAM_MAP: Partial<Record<ConnectorKind, ConnectorKindParam>> = {
+  [ConnectorKind.SOURCE]: "SOURCE",
+  [ConnectorKind.SINK]: "SINK",
+};
+
+export const CONNECTOR_KIND_PARAM_TO_KIND_MAP: Record<ConnectorKindParam, ConnectorKind> = {
+  SOURCE: ConnectorKind.SOURCE,
+  SINK: ConnectorKind.SINK,
+};
+
 export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.UNSPECIFIED]: "All connector types",
   [ConnectorKind.SOURCE]: "Ingest data from external systems",

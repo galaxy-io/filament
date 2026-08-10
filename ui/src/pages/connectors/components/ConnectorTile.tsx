@@ -107,7 +107,7 @@ const ConnectorTile = ({
   isDeleted = false,
 }: ConnectorTileProps) => {
   const { activeTheme } = useGalaxyTheme();
-  const { data } = useGetConnectorQuery({
+  const { data, isLoading } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector, kind }),
     options: { enabled: !!connector && !!kind },
   });
@@ -132,7 +132,7 @@ const ConnectorTile = ({
           $height={CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP[size]}
           onError={handleLogoError}
         />
-      ) : (
+      ) : isLoading ? null : (
         <Text
           size={CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP[size]}
           variant={TextVariant.SECONDARY}

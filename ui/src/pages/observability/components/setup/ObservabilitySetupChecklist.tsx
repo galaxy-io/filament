@@ -16,8 +16,6 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
 import DocsButton from "@/components/DocsButton";
 
 import {
@@ -70,19 +68,23 @@ const ObservabilitySetupChecklist = () => {
       .with(ObservabilitySetupStep.SOURCE, () => {
         void navigate({
           to: ".",
-          search: {
+          search: (prev) => ({
+            ...prev,
+            connectionId: undefined,
             flow: Flow.CREATE_CONNECTION,
-            connectorKind: ConnectorKind.SOURCE,
-          },
+            connectorKind: "SOURCE",
+          }),
         });
       })
       .with(ObservabilitySetupStep.SINK, () => {
         void navigate({
           to: ".",
-          search: {
+          search: (prev) => ({
+            ...prev,
+            connectionId: undefined,
             flow: Flow.CREATE_CONNECTION,
-            connectorKind: ConnectorKind.SINK,
-          },
+            connectorKind: "SINK",
+          }),
         });
       })
       .with(ObservabilitySetupStep.PIPELINE, () => {
@@ -94,7 +96,7 @@ const ObservabilitySetupChecklist = () => {
         }
         void navigate({
           to: ".",
-          search: { flow: Flow.CREATE_PIPELINE },
+          search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
         });
       })
       .exhaustive();

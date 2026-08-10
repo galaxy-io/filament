@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
@@ -20,16 +19,20 @@ import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text from "@galaxy-io/dls/text/Text";
+import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import {
+  CONNECTOR_KIND_TO_LABEL_MAP,
+  CONNECTOR_KIND_TO_PARAM_MAP,
+} from "@/pages/connectors/constants";
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
@@ -43,6 +46,8 @@ import { useListConnectionsQuery } from "@/api/queries/connections";
 import { NOOP } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
+
+const CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT = 4;
 
 const RowWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -80,7 +85,12 @@ const CreatePipelineModalConnectionsEmpty = ({
   const handleCreateConnection = () => {
     void navigate({
       to: ".",
-      search: { flow: Flow.CREATE_CONNECTION, connectorKind },
+      search: (prev) => ({
+        ...prev,
+        connectionId: undefined,
+        flow: Flow.CREATE_CONNECTION,
+        connectorKind: CONNECTOR_KIND_TO_PARAM_MAP[connectorKind],
+      }),
     });
   };
 
@@ -111,10 +121,49 @@ const CreatePipelineModalConnectionsEmpty = ({
   );
 };
 
+const CreatePipelineModalConnectionRow = ({
+  connection,
+  kind,
+}: {
+  connection: Connection;
+  kind: ConnectorKind;
+}) => {
+  const { sourceConnection, sinkConnections } = useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
+
+  const isSource = kind === ConnectorKind.SOURCE;
+
+  const handleClick = () => {
+    dispatch(
+      isSource
+        ? { type: CreatePipelineModalActionType.SELECT_SOURCE, payload: connection }
+        : { type: CreatePipelineModalActionType.TOGGLE_SINK, payload: connection },
+    );
+  };
+
+  return (
+    <RowWrapper onClick={handleClick}>
+      <RowControlWrapper>
+        {isSource ? (
+          <RadioInput isSelected={sourceConnection?.id === connection.id} onChange={NOOP} />
+        ) : (
+          <CheckboxInput
+            isChecked={sinkConnections.some((sink) => sink.id === connection.id)}
+            onChange={NOOP}
+            ariaLabel={connection.name}
+          />
+        )}
+      </RowControlWrapper>
+      <ConnectorTile connector={connection.connector} kind={connection.kind} />
+      <FlexItem minWidth={0} overflow="hidden">
+        <Text isEllipsis>{connection.name}</Text>
+      </FlexItem>
+    </RowWrapper>
+  );
+};
+
 interface CreatePipelineModalConnectionsPaneProps {
   kind: ConnectorKind;
-  renderControl: (connection: Connection) => React.ReactNode;
-  onConnectionClick: (connection: Connection) => void;
 }
 
 interface CreatePipelineModalConnectionsPaneState {
@@ -125,22 +174,18 @@ const DEFAULT_PANE_STATE: CreatePipelineModalConnectionsPaneState = {
   search: "",
 };
 
-const CreatePipelineModalConnectionsPane = ({
-  kind,
-  renderControl,
-  onConnectionClick,
-}: CreatePipelineModalConnectionsPaneProps) => {
+const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnectionsPaneProps) => {
   const [state, setState] = useState<CreatePipelineModalConnectionsPaneState>(DEFAULT_PANE_STATE);
 
   const handleSearchChange = (search: string) => {
     setState((prev) => ({ ...prev, search }));
   };
 
-  const { data, isLoading, isError } = useListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, { kind }),
-  });
+  const { data, isLoading, isError } = useListConnectionsQuery();
 
-  const kindConnections = data?.connections ?? [];
+  const kindConnections = (data?.connections ?? []).filter(
+    (connection) => connection.kind === kind,
+  );
   const filteredConnections = kindConnections.filter((connection) =>
     isSearchMatch(state.search, connection.name),
   );
@@ -148,10 +193,24 @@ const CreatePipelineModalConnectionsPane = ({
   const renderList = () => {
     if (isLoading) {
       return (
-        <CreatePipelineModalConnectionsEmpty
-          message="Loading connections..."
-          connectorKind={kind}
-        />
+        <FlexWrapper
+          direction={FlexDirection.COLUMN}
+          alignItems={AlignItems.STRETCH}
+          gap={2}
+          padding={"8px"}
+          grow={1}
+          basis={0}
+          minHeight={0}
+        >
+          {Array.from({ length: CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT }, (_, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
+            <RowWrapper key={index}>
+              <TextShimmer height={16} width={16} />
+              <TextShimmer height={24} width={24} />
+              <TextShimmer height={16} width={140} />
+            </RowWrapper>
+          ))}
+        </FlexWrapper>
       );
     }
 
@@ -195,13 +254,11 @@ const CreatePipelineModalConnectionsPane = ({
         overflow="auto"
       >
         {filteredConnections.map((connection) => (
-          <RowWrapper key={connection.id} onClick={() => onConnectionClick(connection)}>
-            <RowControlWrapper>{renderControl(connection)}</RowControlWrapper>
-            <ConnectorTile connector={connection.connector} kind={connection.kind} />
-            <FlexItem minWidth={0} overflow="hidden">
-              <Text isEllipsis>{connection.name}</Text>
-            </FlexItem>
-          </RowWrapper>
+          <CreatePipelineModalConnectionRow
+            key={connection.id}
+            connection={connection}
+            kind={kind}
+          />
         ))}
       </FlexWrapper>
     );
@@ -231,34 +288,11 @@ const CreatePipelineModalConnectionsPane = ({
 };
 
 const CreatePipelineModalConnections = () => {
-  const { sourceConnection, sinkConnections } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
-
   return (
     <FlexWrapper alignItems={AlignItems.STRETCH} grow={1} basis={0} minHeight={0}>
-      <CreatePipelineModalConnectionsPane
-        kind={ConnectorKind.SOURCE}
-        renderControl={(connection) => (
-          <RadioInput isSelected={sourceConnection?.id === connection.id} onChange={NOOP} />
-        )}
-        onConnectionClick={(connection) =>
-          dispatch({ type: CreatePipelineModalActionType.SELECT_SOURCE, payload: connection })
-        }
-      />
+      <CreatePipelineModalConnectionsPane kind={ConnectorKind.SOURCE} />
       <VerticalDivider />
-      <CreatePipelineModalConnectionsPane
-        kind={ConnectorKind.SINK}
-        renderControl={(connection) => (
-          <CheckboxInput
-            isChecked={sinkConnections.some((sink) => sink.id === connection.id)}
-            onChange={NOOP}
-            ariaLabel={connection.name}
-          />
-        )}
-        onConnectionClick={(connection) =>
-          dispatch({ type: CreatePipelineModalActionType.TOGGLE_SINK, payload: connection })
-        }
-      />
+      <CreatePipelineModalConnectionsPane kind={ConnectorKind.SINK} />
     </FlexWrapper>
   );
 };

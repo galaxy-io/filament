@@ -15,8 +15,6 @@ export interface PipelineCanvasNodeTableInfo {
 }
 
 export type PipelineCanvasConnectionNodeData = {
-  label: string;
-  connector: string;
   connectionId: string;
   config?: Record<string, JsonValue>;
 };

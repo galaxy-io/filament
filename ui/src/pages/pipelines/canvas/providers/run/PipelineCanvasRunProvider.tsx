@@ -7,8 +7,6 @@ import {
   useReducer,
 } from "react";
 
-import type { RunBinding } from "@/gen/ingestion/v1/runs_pb";
-
 import {
   type PipelineCanvasRunAction,
   PipelineCanvasRunActionType,
@@ -17,7 +15,6 @@ import pipelineCanvasRunReducer from "@/pages/pipelines/canvas/providers/run/red
 import type { PipelineCanvasRunState } from "@/pages/pipelines/canvas/providers/run/types";
 
 const DEFAULT_STATE: PipelineCanvasRunState = {
-  runBindings: [],
   isActivityOpen: false,
 };
 
@@ -50,8 +47,6 @@ export const usePipelineCanvasRunActions = () => {
 
   return useMemo(
     () => ({
-      startRun: (runBindings: RunBinding[]) =>
-        dispatch({ type: PipelineCanvasRunActionType.START_RUN, payload: runBindings }),
       setActivityOpen: (isActivityOpen: boolean) =>
         dispatch({
           type: PipelineCanvasRunActionType.SET_ACTIVITY_OPEN,

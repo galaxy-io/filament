@@ -7,6 +7,11 @@ import SelectInput, {
 
 import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
+import {
+  useCreatePipelineModalDispatch,
+  useCreatePipelineModalState,
+} from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { READ_MODE_TO_LABEL_MAP } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
@@ -17,13 +22,14 @@ const CellWrapper = styled.div`
 
 interface CreatePipelineModalResourcesReadModeCellProps {
   row: CreatePipelineModalResourceRow;
-  onChange: (resource: string, readMode: ReadMode) => void;
 }
 
 const CreatePipelineModalResourcesReadModeCell = ({
   row,
-  onChange,
 }: CreatePipelineModalResourcesReadModeCellProps) => {
+  const { activeSinkId } = useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
+
   const options: SelectInputOption[] = row.readModeOptions.map((mode) => ({
     id: String(mode),
     label: READ_MODE_TO_LABEL_MAP[mode],
@@ -37,7 +43,16 @@ const CreatePipelineModalResourcesReadModeCell = ({
       <SelectInput
         options={options}
         value={selectedOption}
-        onChange={(option) => onChange(row.name, option.value as ReadMode)}
+        onChange={(option) =>
+          dispatch({
+            type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
+            payload: {
+              sinkId: activeSinkId,
+              resource: row.name,
+              readMode: option.value as ReadMode,
+            },
+          })
+        }
         variant={SelectInputVariant.SECONDARY}
         dropdownWidth={220}
         isDisabled={!row.isSelected}

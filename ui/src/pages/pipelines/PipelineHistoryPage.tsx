@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
@@ -129,6 +129,8 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
 
 const PipelineHistoryPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
+  const navigate = useNavigate();
+  const { runId } = useSearch({ from: "/pipelines/$id/history" });
 
   const { data } = useSuspenseListRunsQuery({
     input: create(ListRunsRequestSchema, {
@@ -136,6 +138,14 @@ const PipelineHistoryPage = () => {
       limit: PIPELINE_RUN_HISTORY_LIMIT,
     }),
   });
+
+  const handleExpandedChange = (expandedRowIds: string[]) => {
+    void navigate({
+      to: ".",
+      replace: true,
+      search: (prev) => ({ ...prev, runId: expandedRowIds[expandedRowIds.length - 1] }),
+    });
+  };
 
   return (
     <PageWrapper>
@@ -153,6 +163,9 @@ const PipelineHistoryPage = () => {
           contentWhenEmpty={
             <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
           }
+          expandedRowIds={runId ? [runId] : []}
+          onExpandedChange={handleExpandedChange}
+          enableMultiRowExpansion={false}
           onRowExpand={(row) => {
             return <PipelineHistoryRunInfo runId={row.original.runId} />;
           }}

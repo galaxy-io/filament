@@ -4,7 +4,7 @@ import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import DocsButton from "@/components/DocsButton";
 
@@ -15,24 +15,29 @@ import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
 interface ConnectionFormHeaderProps {
-  connector: ConnectorSpec;
+  connectorName: string;
+  connectorKind: ConnectorKind;
   title: string;
   onClose: () => void;
 }
 
-const createDocsPath = (connector: ConnectorSpec) => {
-  const connectorKind = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connector.kind]);
-  const connectorName = connector.name.toLowerCase();
-  return `/pages/connectors/${connectorKind}/${connectorName}`;
+const createDocsPath = (connectorName: string, connectorKind: ConnectorKind) => {
+  const kindSegment = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind]);
+  return `/pages/connectors/${kindSegment}/${connectorName.toLowerCase()}`;
 };
 
-const ConnectionFormHeader = ({ connector, title, onClose }: ConnectionFormHeaderProps) => {
+const ConnectionFormHeader = ({
+  connectorName,
+  connectorKind,
+  title,
+  onClose,
+}: ConnectionFormHeaderProps) => {
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
       <FlexItem shrink={0}>
         <ConnectorTile
-          connector={connector.name}
-          kind={connector.kind}
+          connector={connectorName}
+          kind={connectorKind}
           size={ConnectorTileSize.LARGE}
         />
       </FlexItem>
@@ -41,10 +46,12 @@ const ConnectionFormHeader = ({ connector, title, onClose }: ConnectionFormHeade
           <BaseHeader
             size={BaseHeaderSize.LARGE}
             title={title}
-            actions={[<DocsButton key="docs" path={createDocsPath(connector)} />]}
+            actions={[
+              <DocsButton key="docs" path={createDocsPath(connectorName, connectorKind)} />,
+            ]}
             onClose={onClose}
           />
-          <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+          <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
         </FlexWrapper>
       </FlexItem>
     </FlexWrapper>

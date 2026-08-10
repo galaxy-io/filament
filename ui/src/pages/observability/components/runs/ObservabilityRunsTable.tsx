@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import InfiniteTable, {
   ColumnAlign,
@@ -16,8 +16,11 @@ import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/
 import PipelineName from "@/components/PipelineName";
 
 import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
-import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
-import type { ObservabilityTimeframe } from "@/pages/observability/types";
+import {
+  OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_TABLE_LIMIT,
+} from "@/pages/observability/components/runs/constants";
+import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
@@ -31,16 +34,13 @@ import {
   formatTimestamp,
 } from "@/utils/format";
 
-interface ObservabilityRunsTableProps {
-  timeframe: ObservabilityTimeframe;
-  statuses: RunStatus[];
-}
-
-const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
+const ObservabilityRunsTable = () => {
   const navigate = useNavigate();
+  const {
+    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
+    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  } = useSearch({ from: "/_main/observability" });
 
-  // Scheduled runs are upcoming — they have no started_at, so the timeframe
-  // window can't apply to them. They're fetched unwindowed and pinned first.
   const includeScheduled = statuses.includes(RunStatus.SCHEDULED);
   const windowedStatuses = useMemo(
     () => statuses.filter((status) => status !== RunStatus.SCHEDULED),
@@ -195,8 +195,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
 
   const scheduledRuns = includeScheduled ? (scheduledData?.runs ?? []) : [];
   const windowedRuns = windowedStatuses.length ? (data?.runs ?? []) : [];
-  // A just-promoted run can sit in the stale scheduled cache and the fresh
-  // windowed result at once — the windowed row is the current truth.
+
   const windowedIds = new Set(windowedRuns.map((run) => run.runId));
   const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.runId)), ...windowedRuns];
 
@@ -206,6 +205,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       params: {
         id: row.original.pipelineId,
       },
+      search: { runId: row.original.runId },
     });
   };
 
@@ -220,7 +220,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }
-      maxHeight={640}
+      maxHeight={450}
       fillWidth
       noLastRowPadding
       noLastRowBorder

@@ -5,25 +5,28 @@ import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/Flex
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { GetRunRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import type { RunResourceStateColumn } from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
+import { useGetRunQuery } from "@/api/queries/runs";
 
 interface PipelineHistoryRunInfoSinkColumnProps {
-  runResource: RunResourceStateColumn;
+  runId: string;
 }
 
-const PipelineHistoryRunInfoSinkColumn = ({
-  runResource,
-}: PipelineHistoryRunInfoSinkColumnProps) => {
+const PipelineHistoryRunInfoSinkColumn = ({ runId }: PipelineHistoryRunInfoSinkColumnProps) => {
   const navigate = useNavigate();
 
+  const { data: runData } = useGetRunQuery({
+    input: create(GetRunRequestSchema, { runId }),
+  });
+  const sinkConnectionId = runData?.snapshot?.run?.sinkConnectionId ?? "";
+
   const { data: sinkConnection } = useGetConnectionQuery({
-    input: create(GetConnectionRequestSchema, {
-      id: runResource.sinkConnectionId,
-    }),
+    input: create(GetConnectionRequestSchema, { id: sinkConnectionId }),
+    options: { enabled: !!sinkConnectionId },
   });
 
   const handleConnectorTileClick = (e: React.MouseEvent) => {

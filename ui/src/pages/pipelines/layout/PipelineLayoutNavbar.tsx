@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
+import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -19,8 +20,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline, PipelineSchedule, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
+import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/PipelineName";
@@ -38,12 +38,15 @@ import { usePipelineCanvasRunActions } from "@/pages/pipelines/canvas/providers/
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
+import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
 import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
+import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
+import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useRunPipelineMutation, useSuspenseListRunsQuery } from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
@@ -63,38 +66,32 @@ const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-interface PipelineLayoutNavbarProps {
-  pipeline: Pipeline;
-  schedule?: PipelineSchedule;
-  currentVersion?: PipelineVersion;
-  versions: PipelineVersion[];
-  connections: Connection[];
-  previewVersion: bigint | null;
-  onPreviewVersionChange: (version: bigint | null) => void;
-}
-
-const PipelineLayoutNavbar = ({
-  pipeline,
-  schedule,
-  currentVersion,
-  versions,
-  connections,
-  previewVersion,
-  onPreviewVersionChange,
-}: PipelineLayoutNavbarProps) => {
+const PipelineLayoutNavbar = () => {
   const { showToast } = useToast();
+  const navigate = useNavigate();
+  const { id } = useParams({ from: "/pipelines/$id" });
+
+  const { data: pipelineData } = useSuspenseGetPipelineQuery({
+    input: create(GetPipelineRequestSchema, { id }),
+  });
+  const { data: connectionsData } = useSuspenseListConnectionsQuery();
+  const previewed = usePipelinePreviewVersion();
+
+  const pipeline = pipelineData.pipeline;
+  const currentVersion = pipelineData.currentVersion;
+  const versions = pipelineData.versions;
+  const previewVersion = previewed?.version ?? null;
 
   const state = usePipelineCanvasState();
   const { loadGraph } = usePipelineCanvasActions();
-  const { startRun } = usePipelineCanvasRunActions();
+  const { setActivityOpen } = usePipelineCanvasRunActions();
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const { data: activeRunsData } = useSuspenseListRunsQuery({
     input: create(ListRunsRequestSchema, {
-      pipelineId: pipeline.id,
+      pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
-      limit: 1,
     }),
   });
   const hasActiveRun = activeRunsData.runs.length > 0;
@@ -117,12 +114,56 @@ const PipelineLayoutNavbar = ({
     [state.nodes, state.edges, currentVersion],
   );
 
+  const { source, sinks } = useMemo(
+    () => mapCanvasNodesToFlowEndpoints(state.nodes, connectionsData.connections),
+    [state.nodes, connectionsData.connections],
+  );
+  const hasEdges = state.edges.length > 0;
+
+  const latestVersion = versions[0]?.version;
+  const versionOptions = useMemo<SelectInputOption[]>(
+    () =>
+      versions.map((version) => ({
+        id: version.version.toString(),
+        label:
+          version.version === latestVersion
+            ? `Version ${version.version} - Latest`
+            : `Version ${version.version}`,
+        value: version.version,
+      })),
+    [versions, latestVersion],
+  );
+
+  if (!pipeline) return null;
+
+  const isPreview = previewVersion !== null;
+  const hasUnsavedChanges = !isPreview && hasChanges;
+
+  const selectedVersionOption =
+    versionOptions.find((option) => option.value === (previewVersion ?? latestVersion)) ?? null;
+
+  const handlePreviewVersionChange = (nextVersion: bigint | null) => {
+    void navigate({
+      to: "/pipelines/$id/canvas",
+      params: { id },
+      search: (prev) => ({
+        ...prev,
+        version: nextVersion === null ? undefined : Number(nextVersion),
+      }),
+    });
+  };
+
+  const handleVersionChange = (option: SelectInputOption) => {
+    const version = option.value as bigint;
+    handlePreviewVersionChange(version === latestVersion ? null : version);
+  };
+
   const handleUndo = () => {
-    loadGraph(mapPipelineVersionToCanvasState(currentVersion, connections));
+    loadGraph(mapPipelineVersionToCanvasState(currentVersion));
   };
 
   const handleSave = () => {
-    createPipelineVersion(mapCanvasStateToVersionRequest(state, pipeline.id, currentVersion), {
+    createPipelineVersion(mapCanvasStateToVersionRequest(state, id, currentVersion), {
       onSuccess: () => {
         showToast({
           header: "Pipeline saved",
@@ -140,40 +181,10 @@ const PipelineLayoutNavbar = ({
     });
   };
 
-  const { source, sinks } = useMemo(
-    () => mapCanvasNodesToFlowEndpoints(state.nodes),
-    [state.nodes],
-  );
-  const hasEdges = state.edges.length > 0;
-
-  const isPreview = previewVersion !== null;
-  const hasUnsavedChanges = !isPreview && hasChanges;
-
-  const latestVersion = versions[0]?.version;
-  const versionOptions = useMemo<SelectInputOption[]>(
-    () =>
-      versions.map((version) => ({
-        id: version.version.toString(),
-        label:
-          version.version === latestVersion
-            ? `Version ${version.version} - Latest`
-            : `Version ${version.version}`,
-        value: version.version,
-      })),
-    [versions, latestVersion],
-  );
-  const selectedVersionOption =
-    versionOptions.find((option) => option.value === (previewVersion ?? latestVersion)) ?? null;
-
-  const handleVersionChange = (option: SelectInputOption) => {
-    const version = option.value as bigint;
-    onPreviewVersionChange(version === latestVersion ? null : version);
-  };
-
   const handleRun = () => {
-    runPipeline(create(RunPipelineRequestSchema, { pipelineId: pipeline.id }), {
-      onSuccess: (response) => {
-        startRun(response.runs);
+    runPipeline(create(RunPipelineRequestSchema, { pipelineId: id }), {
+      onSuccess: () => {
+        setActivityOpen(true);
         showToast({
           header: "Run started",
           subheader: `${formatPipelineName(pipeline)} is now running.`,
@@ -194,7 +205,7 @@ const PipelineLayoutNavbar = ({
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        <PipelineName pipelineId={pipeline.id} />
+        <PipelineName pipelineId={id} />
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
@@ -215,7 +226,7 @@ const PipelineLayoutNavbar = ({
             icon={ArrowUUpLeftIcon}
             variant={ButtonVariant.TERTIARY}
             size={ButtonSize.SMALL}
-            onClick={() => onPreviewVersionChange(null)}
+            onClick={() => handlePreviewVersionChange(null)}
           />
         )}
         {!isPreview && hasUnsavedChanges && (
@@ -244,7 +255,7 @@ const PipelineLayoutNavbar = ({
             </>
           ) : (
             <>
-              <PipelineScheduleChip schedule={schedule} />
+              <PipelineScheduleChip pipelineId={id} />
               <Tooltip
                 body={runErrors.join("\n")}
                 position={TooltipPosition.BOTTOM}
