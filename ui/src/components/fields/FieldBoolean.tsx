@@ -1,4 +1,5 @@
-import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
+import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -13,11 +14,14 @@ const FieldBoolean = ({
 }: FieldComponentProps) => {
   return (
     <FieldWrapper label={label} help={field.help} isRequired={field.required} error={error}>
-      <ToggleInput
-        value={(value as boolean) ?? false}
-        onChange={(v) => onChange(v)}
-        isDisabled={isDisabled}
-      />
+      <Widget fillWidth>
+        <CheckboxInput
+          label={field.help}
+          isChecked={(value as boolean) ?? false}
+          onChange={(v) => onChange(v)}
+          isDisabled={isDisabled}
+        />
+      </Widget>
     </FieldWrapper>
   );
 };

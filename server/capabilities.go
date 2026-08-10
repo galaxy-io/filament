@@ -35,12 +35,14 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 		spec := source.Spec()
 		replication := filament.ReplicationOf(source, filament.NewConfig(conn.Config))
 		policies := policiesForReplication(spec.SourcePolicies, replication)
+		readModes := readModesForPolicies(policies)
 		return connect.NewResponse(&ingestionv1.GetConnectionCapabilitiesResponse{
-			Connector:    spec.Name,
-			Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
-			Capabilities: sourceCapabilitiesToProto(spec, policies),
-			Replication:  replicationToProto(replication),
-			ReadModes:    readModesForPolicies(policies),
+			Connector:                    spec.Name,
+			Kind:                         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+			Capabilities:                 sourceCapabilitiesToProto(spec, policies),
+			Replication:                  replicationToProto(replication),
+			ReadModes:                    readModes,
+			ReadModeWriteCompatibilities: readModeWriteCompatibilities(readModes),
 		}), nil
 	case filament.ConnectorKindSink:
 		sink, err := a.sinks.Resolve(conn.Connector)
@@ -89,6 +91,22 @@ func readModesForPolicies(policies []filament.SourcePolicy) []ingestionv1.ReadMo
 	}
 	if incremental {
 		out = append(out, ingestionv1.ReadMode_READ_MODE_INCREMENTAL)
+	}
+	return out
+}
+
+// readModeWriteCompatibilities pairs each read mode the connection offers with
+// the write modes it can combine with. The matrix itself is global; only the
+// set of read modes it is filtered to comes from the connection.
+func readModeWriteCompatibilities(readModes []ingestionv1.ReadMode) []*ingestionv1.ReadModeWriteCompatibility {
+	out := make([]*ingestionv1.ReadModeWriteCompatibility, 0, len(readModes))
+	for _, readMode := range readModes {
+		modes := filament.WriteModesFor(readModeFromProto(readMode))
+		writeModes := make([]ingestionv1.WriteMode, 0, len(modes))
+		for _, writeMode := range modes {
+			writeModes = append(writeModes, writeModeToProto(writeMode))
+		}
+		out = append(out, &ingestionv1.ReadModeWriteCompatibility{ReadMode: readMode, WriteModes: writeModes})
 	}
 	return out
 }
