@@ -3,26 +3,23 @@ import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
-interface CreatePipelineModalDetailsProps {
-  name: string;
-  nameError?: string;
-  description: string;
-  onNameChange: (name: string) => void;
-  onDescriptionChange: (description: string) => void;
-}
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
+import {
+  useCreatePipelineModalDispatch,
+  useCreatePipelineModalState,
+} from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
-const CreatePipelineModalDetails = ({
-  name,
-  nameError,
-  description,
-  onNameChange,
-  onDescriptionChange,
-}: CreatePipelineModalDetailsProps) => {
+const CreatePipelineModalDetails = () => {
+  const { effectiveName, nameError, description } = useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
+
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth fillHeight>
       <TextInput
-        value={name}
-        onChange={onNameChange}
+        value={effectiveName}
+        onChange={(name) =>
+          dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload: name })
+        }
         size={InputSize.LARGE}
         placeholder="Enter pipeline name..."
         label="Name"
@@ -33,7 +30,12 @@ const CreatePipelineModalDetails = ({
       />
       <TextAreaInput
         value={description}
-        onChange={onDescriptionChange}
+        onChange={(nextDescription) =>
+          dispatch({
+            type: CreatePipelineModalActionType.SET_DESCRIPTION,
+            payload: nextDescription,
+          })
+        }
         size={TextAreaSize.LARGE}
         placeholder="Enter an optional description..."
         label="Description"

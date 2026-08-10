@@ -86,6 +86,12 @@ const ObservabilitySetupChecklist = () => {
         });
       })
       .with(ObservabilitySetupStep.PIPELINE, () => {
+        if (
+          !completedSteps.has(ObservabilitySetupStep.SOURCE) ||
+          !completedSteps.has(ObservabilitySetupStep.SINK)
+        ) {
+          return;
+        }
         void navigate({
           to: ".",
           search: { flow: Flow.CREATE_PIPELINE },

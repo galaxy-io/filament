@@ -8,6 +8,8 @@ import {
 import type {
   DiscoverResourcesRequest,
   DiscoverResourcesResponse,
+  GetResourceColumnsRequest,
+  GetResourceColumnsResponse,
   ListConnectorsRequest,
   ListConnectorsResponse,
 } from "@/gen/ingestion/v1/providers_pb";
@@ -43,6 +45,22 @@ export const useDiscoverResourcesQuery = ({
     typeof IngestionService.method.discoverResources.input,
     typeof IngestionService.method.discoverResources.output
   >(IngestionService.method.discoverResources, input, options);
+};
+
+export const useGetResourceColumnsQuery = ({
+  input,
+  options = {},
+}: {
+  input: GetResourceColumnsRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.getResourceColumns.output,
+    GetResourceColumnsResponse
+  >;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.getResourceColumns.input,
+    typeof IngestionService.method.getResourceColumns.output
+  >(IngestionService.method.getResourceColumns, input, options);
 };
 
 export const useValidateConfigMutation = (
