@@ -152,11 +152,6 @@ const ConnectionForm = ({
               type: ConnectionFormActionType.SET_PHASE,
               payload: ConnectionFormPhase.VALIDATED,
             });
-            showToast({
-              variant: ToastVariant.SUCCESS,
-              header: "Connection validated",
-              subheader: "Your connection settings are valid.",
-            });
           } else {
             dispatch({
               type: ConnectionFormActionType.SET_VALIDATION_ERRORS,
@@ -166,7 +161,6 @@ const ConnectionForm = ({
               type: ConnectionFormActionType.SET_PHASE,
               payload: ConnectionFormPhase.ERROR,
             });
-
             showToast({
               variant: ToastVariant.ERROR,
               header: "Validation failed",

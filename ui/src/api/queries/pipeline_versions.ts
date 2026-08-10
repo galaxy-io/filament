@@ -1,3 +1,4 @@
+import { create } from "@bufbuild/protobuf";
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
@@ -9,9 +10,11 @@ import {
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type {
-  GetPipelineVersionRequest,
-  GetPipelineVersionResponse,
+import {
+  GetPipelineRequestSchema,
+  type GetPipelineVersionRequest,
+  GetPipelineVersionRequestSchema,
+  type GetPipelineVersionResponse,
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
@@ -70,14 +73,17 @@ export const useCreatePipelineVersionMutation = (
   >(IngestionService.method.createPipelineVersion, {
     ...options,
     onSettled: (...args) => {
+      const [, , variables] = args;
+      void queryClient.invalidateQueries({ queryKey: createListPipelinesQueryKey() });
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createGetPipelineQueryKey(
+          create(GetPipelineRequestSchema, { id: variables.pipelineId }),
+        ),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetPipelineQueryKey(),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: createGetPipelineVersionQueryKey(),
+        queryKey: createGetPipelineVersionQueryKey(
+          create(GetPipelineVersionRequestSchema, { pipelineId: variables.pipelineId }),
+        ),
       });
       return options.onSettled?.(...args);
     },

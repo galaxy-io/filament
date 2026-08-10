@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ArrowLeftIcon, ImageBrokenIcon } from "@phosphor-icons/react";
+import { CancelledError } from "@tanstack/react-query";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import z from "zod";
 
@@ -55,6 +56,9 @@ export const Route = createFileRoute("/pipelines/$id")({
         queryClient.ensureQueryData(createListConnectionsQueryOptions({ transport })),
       ]);
     } catch (error) {
+      if (error instanceof CancelledError) {
+        return;
+      }
       if (error instanceof ConnectError && error.code === Code.NotFound) {
         throw notFound();
       }
