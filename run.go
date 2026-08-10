@@ -242,6 +242,10 @@ const (
 	WriteMerge   WriteMode = "merge"
 )
 
+// LeverWriteModes are the write modes offered as user levers; delete and
+// merge are engine mechanisms, never offered as levers.
+var LeverWriteModes = []WriteMode{WriteAppend, WriteReplace, WriteUpsert}
+
 // IngestionFor compiles the two user levers — per-table read mode and sink
 // write mode — into the internal ingestion type. Zero levers default to a
 // full-refresh replace; an unset write on an incremental read defaults to

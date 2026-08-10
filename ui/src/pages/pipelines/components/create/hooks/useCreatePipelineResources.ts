@@ -3,7 +3,12 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import { GetConnectionCapabilitiesRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import { ConnectorKind, ReplicationMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
+import {
+  ConnectorKind,
+  type ReadMode,
+  ReplicationMode,
+  type WriteMode,
+} from "@/gen/ingestion/v1/common_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
@@ -67,6 +72,17 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const replication = capabilities?.replication ?? ReplicationMode.UNSPECIFIED;
   const isCdc = replication === ReplicationMode.CDC;
 
+  const writeModesByReadMode = useMemo<Partial<Record<ReadMode, WriteMode[]>>>(
+    () =>
+      Object.fromEntries(
+        (capabilities?.leverCompatibilities ?? []).map((entry) => [
+          entry.readMode,
+          entry.writeModes,
+        ]),
+      ),
+    [capabilities?.leverCompatibilities],
+  );
+
   const writeModesBySink = useMemo<Record<string, WriteMode[]>>(
     () =>
       Object.fromEntries(
@@ -104,8 +120,8 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   );
 
   const sinks = useMemo(
-    () => buildSinkRows({ state, rowsBySink, isCdc, writeModesBySink }),
-    [state, rowsBySink, isCdc, writeModesBySink],
+    () => buildSinkRows({ state, rowsBySink, isCdc, writeModesBySink, writeModesByReadMode }),
+    [state, rowsBySink, isCdc, writeModesBySink, writeModesByReadMode],
   );
 
   const issuesBySink = useMemo(

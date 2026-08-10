@@ -54,6 +54,7 @@ func sinkCapabilitiesToProto(caps filament.SinkCapabilities) *ingestionv1.Capabi
 		Upsertable:    caps.Upsertable,
 		Schematized:   caps.Schematized,
 		WritePolicies: writePolicyCapabilitiesToProto(caps.WritePolicies),
+		WriteModes:    sinkWriteModes(caps),
 	}
 }
 

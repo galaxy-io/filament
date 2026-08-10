@@ -155,6 +155,24 @@ func TestGetConnectionCapabilitiesLevers(t *testing.T) {
 	if got := len(standard.GetCapabilities().GetSourcePolicies()); got != 5 {
 		t.Fatalf("standard policies = %d, want 5 (cdc filtered)", got)
 	}
+	compat := standard.GetLeverCompatibilities()
+	if len(compat) != 2 {
+		t.Fatalf("standard lever compatibilities = %v", compat)
+	}
+	if compat[0].GetReadMode() != ingestionv1.ReadMode_READ_MODE_FULL || len(compat[0].GetWriteModes()) != 3 {
+		t.Fatalf("full compatibility = %v", compat[0])
+	}
+	incremental := compat[1]
+	if incremental.GetReadMode() != ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
+		t.Fatalf("incremental compatibility = %v", incremental)
+	}
+	wantIncremental := []ingestionv1.WriteMode{
+		ingestionv1.WriteMode_WRITE_MODE_APPEND,
+		ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+	}
+	if got := incremental.GetWriteModes(); len(got) != len(wantIncremental) || got[0] != wantIncremental[0] || got[1] != wantIncremental[1] {
+		t.Fatalf("incremental write modes = %v", got)
+	}
 
 	cdc := get(ids["cdc"])
 	if cdc.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
@@ -166,6 +184,9 @@ func TestGetConnectionCapabilitiesLevers(t *testing.T) {
 	if got := len(cdc.GetCapabilities().GetSourcePolicies()); got != 1 {
 		t.Fatalf("cdc policies = %d, want 1", got)
 	}
+	if got := cdc.GetLeverCompatibilities(); len(got) != 0 {
+		t.Fatalf("cdc lever compatibilities = %v, want none", got)
+	}
 
 	sink := get(ids["sink"])
 	want := []ingestionv1.WriteMode{
@@ -175,6 +196,12 @@ func TestGetConnectionCapabilitiesLevers(t *testing.T) {
 	}
 	if got := sink.GetWriteModes(); len(got) != len(want) || got[0] != want[0] || got[2] != want[2] {
 		t.Fatalf("sink write modes = %v", got)
+	}
+	if got := sink.GetLeverCompatibilities(); len(got) != 0 {
+		t.Fatalf("sink lever compatibilities = %v, want none", got)
+	}
+	if got := sink.GetCapabilities().GetWriteModes(); len(got) != len(want) || got[0] != want[0] || got[2] != want[2] {
+		t.Fatalf("sink capabilities write modes = %v", got)
 	}
 }
 

@@ -11,7 +11,6 @@ import {
   CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE,
   CREATE_PIPELINE_MODAL_FALLBACK_READ_MODES,
   CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES,
-  READ_MODE_TO_WRITE_MODES_MAP,
 } from "@/pages/pipelines/components/create/constants";
 import type {
   CreatePipelineModalResourceRow,
@@ -27,22 +26,20 @@ export const getDefaultPipelineName = (source: Connection | null, sinks: Connect
   return sinkNames;
 };
 
-export const getSinkWriteModes = (spec: ConnectorSpec | undefined): WriteMode[] => {
-  if (!spec?.capabilities) return CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES;
-  const isUpsertable =
-    spec.capabilities.upsertable ||
-    spec.capabilities.writePolicies.some((policy) => policy.mode === WriteMode.UPSERT);
-  return isUpsertable
-    ? [...CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES, WriteMode.UPSERT]
+export const getSinkWriteModes = (spec: ConnectorSpec | undefined): WriteMode[] =>
+  spec?.capabilities?.writeModes?.length
+    ? spec.capabilities.writeModes
     : CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES;
-};
 
-const getCompatibleWriteModes = (readModes: ReadMode[]): WriteMode[] =>
+const getCompatibleWriteModes = (
+  readModes: ReadMode[],
+  writeModesByReadMode: Partial<Record<ReadMode, WriteMode[]>>,
+): WriteMode[] =>
   readModes.length
     ? readModes
-        .map((readMode) => READ_MODE_TO_WRITE_MODES_MAP[readMode])
+        .map((readMode) => writeModesByReadMode[readMode] ?? [])
         .reduce((left, right) => left.filter((mode) => right.includes(mode)))
-    : READ_MODE_TO_WRITE_MODES_MAP[ReadMode.UNSPECIFIED];
+    : [...new Set(Object.values(writeModesByReadMode).flatMap((writeModes) => writeModes ?? []))];
 
 const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
   columns
@@ -205,16 +202,18 @@ export const buildSinkRows = ({
   rowsBySink,
   isCdc,
   writeModesBySink,
+  writeModesByReadMode,
 }: {
   state: CreatePipelineModalState;
   rowsBySink: Record<string, CreatePipelineModalResourceRow[]>;
   isCdc: boolean;
   writeModesBySink: Record<string, WriteMode[]>;
+  writeModesByReadMode: Partial<Record<ReadMode, WriteMode[]>>;
 }): CreatePipelineModalSinkRow[] =>
   state.sinkConnections.map((connection) => {
     const rows = rowsBySink[connection.id] ?? [];
     const readModes = [...new Set(rows.filter((row) => row.isSelected).map((row) => row.readMode))];
-    const compatible = getCompatibleWriteModes(readModes);
+    const compatible = getCompatibleWriteModes(readModes, writeModesByReadMode);
     const supported = writeModesBySink[connection.id] ?? CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES;
     const narrowed = supported.filter((mode) => compatible.includes(mode));
     const writeModeOptions = narrowed.length ? narrowed : supported;

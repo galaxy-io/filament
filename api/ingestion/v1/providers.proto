@@ -15,6 +15,8 @@ message Capabilities {
   bool schematized = 5;
   repeated WritePolicyCapability write_policies = 6;
   repeated SourcePolicy source_policies = 7;
+  // Sink: the write levers this sink offers.
+  repeated WriteMode write_modes = 8;
 }
 
 // ConnectorSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.

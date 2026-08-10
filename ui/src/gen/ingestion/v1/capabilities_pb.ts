@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/capabilities.proto.
  */
 export const file_ingestion_v1_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiQQogR2V0Q29ubmVjdGlvbkNhcGFiaWxpdGllc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJIqECCiFHZXRDb25uZWN0aW9uQ2FwYWJpbGl0aWVzUmVzcG9uc2USEQoJY29ubmVjdG9yGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIwCgxjYXBhYmlsaXRpZXMYAyABKAsyGi5pbmdlc3Rpb24udjEuQ2FwYWJpbGl0aWVzEjIKC3JlcGxpY2F0aW9uGAQgASgOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIqCgpyZWFkX21vZGVzGAUgAygOMhYuaW5nZXN0aW9uLnYxLlJlYWRNb2RlEiwKC3dyaXRlX21vZGVzGAYgAygOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZSKCAQoXVmFsaWRhdGVQaXBlbGluZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEikKBW5vZGVzGAIgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZRIpCgVlZGdlcxgDIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZUVkZ2UiUwoOQ2FuZGlkYXRlVmFsdWUSDQoFdmFsdWUYASABKAkSEwoLcmVjb21tZW5kZWQYAiABKAgSDAoEcmFuaxgDIAEoBRIPCgd3YXJuaW5nGAQgASgJIu0BCgtSZXF1aXJlbWVudBIrCgRraW5kGAEgASgOMh0uaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50S2luZBIQCghyZXNvdXJjZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEjAKCmNhbmRpZGF0ZXMYBCADKAsyHC5pbmdlc3Rpb24udjEuQ2FuZGlkYXRlVmFsdWUSEQoJc2F0aXNmaWVkGAUgASgIEhAKCGJsb2NraW5nGAYgASgIEjcKEGNhbmRpZGF0ZV9zdGF0dXMYByABKA4yHS5pbmdlc3Rpb24udjEuQ2FuZGlkYXRlU3RhdHVzIo0BChJSZXNvdXJjZVZhbGlkYXRpb24SEAoIcmVzb3VyY2UYASABKAkSNAoUc3VwcG9ydGVkX3JlYWRfbW9kZXMYAiADKA4yFi5pbmdlc3Rpb24udjEuUmVhZE1vZGUSLwoMcmVxdWlyZW1lbnRzGAMgAygLMhkuaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50IsgCCg5FZGdlVmFsaWRhdGlvbhIRCglmcm9tX25vZGUYASABKAkSDwoHdG9fbm9kZRgCIAEoCRIQCghyZXNvdXJjZRgDIAEoCRI2ChVzdXBwb3J0ZWRfd3JpdGVfbW9kZXMYBCADKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlEi0KBmVycm9ycxgFIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISLwoMcmVxdWlyZW1lbnRzGAYgAygLMhkuaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50EjMKCXJlc291cmNlcxgHIAMoCzIgLmluZ2VzdGlvbi52MS5SZXNvdXJjZVZhbGlkYXRpb24SMwoOaW5nZXN0aW9uX3R5cGUYCCABKA4yGy5pbmdlc3Rpb24udjEuSW5nZXN0aW9uVHlwZSKFAQoYVmFsaWRhdGVQaXBlbGluZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEisKBWVkZ2VzGAIgAygLMhwuaW5nZXN0aW9uLnYxLkVkZ2VWYWxpZGF0aW9uEi0KBmVycm9ycxgDIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3IqeQoPUmVxdWlyZW1lbnRLaW5kEiAKHFJFUVVJUkVNRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIiCh5SRVFVSVJFTUVOVF9LSU5EX0NVUlNPUl9DT0xVTU4QARIgChxSRVFVSVJFTUVOVF9LSU5EX1BSSU1BUllfS0VZEAIqmgEKD0NhbmRpZGF0ZVN0YXR1cxIgChxDQU5ESURBVEVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHwobQ0FORElEQVRFX1NUQVRVU19FTlVNRVJBVEVEEAESIgoeQ0FORElEQVRFX1NUQVRVU19OT1RfU1VQUE9SVEVEEAISIAocQ0FORElEQVRFX1NUQVRVU19VTkFWQUlMQUJMRRADYgZwcm90bzM", [file_ingestion_v1_common, file_ingestion_v1_pipelines, file_ingestion_v1_providers]);
+  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiQQogR2V0Q29ubmVjdGlvbkNhcGFiaWxpdGllc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJIm0KEkxldmVyQ29tcGF0aWJpbGl0eRIpCglyZWFkX21vZGUYASABKA4yFi5pbmdlc3Rpb24udjEuUmVhZE1vZGUSLAoLd3JpdGVfbW9kZXMYAiADKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlIuICCiFHZXRDb25uZWN0aW9uQ2FwYWJpbGl0aWVzUmVzcG9uc2USEQoJY29ubmVjdG9yGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIwCgxjYXBhYmlsaXRpZXMYAyABKAsyGi5pbmdlc3Rpb24udjEuQ2FwYWJpbGl0aWVzEjIKC3JlcGxpY2F0aW9uGAQgASgOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIqCgpyZWFkX21vZGVzGAUgAygOMhYuaW5nZXN0aW9uLnYxLlJlYWRNb2RlEiwKC3dyaXRlX21vZGVzGAYgAygOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRI/ChVsZXZlcl9jb21wYXRpYmlsaXRpZXMYByADKAsyIC5pbmdlc3Rpb24udjEuTGV2ZXJDb21wYXRpYmlsaXR5IoIBChdWYWxpZGF0ZVBpcGVsaW5lUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoFbm9kZXMYAiADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVOb2RlEikKBWVkZ2VzGAMgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lRWRnZSJTCg5DYW5kaWRhdGVWYWx1ZRINCgV2YWx1ZRgBIAEoCRITCgtyZWNvbW1lbmRlZBgCIAEoCBIMCgRyYW5rGAMgASgFEg8KB3dhcm5pbmcYBCABKAki7QEKC1JlcXVpcmVtZW50EisKBGtpbmQYASABKA4yHS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnRLaW5kEhAKCHJlc291cmNlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSMAoKY2FuZGlkYXRlcxgEIAMoCzIcLmluZ2VzdGlvbi52MS5DYW5kaWRhdGVWYWx1ZRIRCglzYXRpc2ZpZWQYBSABKAgSEAoIYmxvY2tpbmcYBiABKAgSNwoQY2FuZGlkYXRlX3N0YXR1cxgHIAEoDjIdLmluZ2VzdGlvbi52MS5DYW5kaWRhdGVTdGF0dXMijQEKElJlc291cmNlVmFsaWRhdGlvbhIQCghyZXNvdXJjZRgBIAEoCRI0ChRzdXBwb3J0ZWRfcmVhZF9tb2RlcxgCIAMoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIvCgxyZXF1aXJlbWVudHMYAyADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQiyAIKDkVkZ2VWYWxpZGF0aW9uEhEKCWZyb21fbm9kZRgBIAEoCRIPCgd0b19ub2RlGAIgASgJEhAKCHJlc291cmNlGAMgASgJEjYKFXN1cHBvcnRlZF93cml0ZV9tb2RlcxgEIAMoDjIXLmluZ2VzdGlvbi52MS5Xcml0ZU1vZGUSLQoGZXJyb3JzGAUgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchIvCgxyZXF1aXJlbWVudHMYBiADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQSMwoJcmVzb3VyY2VzGAcgAygLMiAuaW5nZXN0aW9uLnYxLlJlc291cmNlVmFsaWRhdGlvbhIzCg5pbmdlc3Rpb25fdHlwZRgIIAEoDjIbLmluZ2VzdGlvbi52MS5Jbmdlc3Rpb25UeXBlIoUBChhWYWxpZGF0ZVBpcGVsaW5lUmVzcG9uc2USDQoFdmFsaWQYASABKAgSKwoFZWRnZXMYAiADKAsyHC5pbmdlc3Rpb24udjEuRWRnZVZhbGlkYXRpb24SLQoGZXJyb3JzGAMgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvcip5Cg9SZXF1aXJlbWVudEtpbmQSIAocUkVRVUlSRU1FTlRfS0lORF9VTlNQRUNJRklFRBAAEiIKHlJFUVVJUkVNRU5UX0tJTkRfQ1VSU09SX0NPTFVNThABEiAKHFJFUVVJUkVNRU5UX0tJTkRfUFJJTUFSWV9LRVkQAiqaAQoPQ2FuZGlkYXRlU3RhdHVzEiAKHENBTkRJREFURV9TVEFUVVNfVU5TUEVDSUZJRUQQABIfChtDQU5ESURBVEVfU1RBVFVTX0VOVU1FUkFURUQQARIiCh5DQU5ESURBVEVfU1RBVFVTX05PVF9TVVBQT1JURUQQAhIgChxDQU5ESURBVEVfU1RBVFVTX1VOQVZBSUxBQkxFEANiBnByb3RvMw", [file_ingestion_v1_common, file_ingestion_v1_pipelines, file_ingestion_v1_providers]);
 
 /**
  * @generated from message ingestion.v1.GetConnectionCapabilitiesRequest
@@ -39,6 +39,32 @@ export type GetConnectionCapabilitiesRequest = Message<"ingestion.v1.GetConnecti
  */
 export const GetConnectionCapabilitiesRequestSchema: GenMessage<GetConnectionCapabilitiesRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_capabilities, 0);
+
+/**
+ * LeverCompatibility is one read lever crossed with the write levers it can
+ * compile with. Delete and merge are engine mechanisms, never offered as
+ * levers.
+ *
+ * @generated from message ingestion.v1.LeverCompatibility
+ */
+export type LeverCompatibility = Message<"ingestion.v1.LeverCompatibility"> & {
+  /**
+   * @generated from field: ingestion.v1.ReadMode read_mode = 1;
+   */
+  readMode: ReadMode;
+
+  /**
+   * @generated from field: repeated ingestion.v1.WriteMode write_modes = 2;
+   */
+  writeModes: WriteMode[];
+};
+
+/**
+ * Describes the message ingestion.v1.LeverCompatibility.
+ * Use `create(LeverCompatibilitySchema)` to create a new message.
+ */
+export const LeverCompatibilitySchema: GenMessage<LeverCompatibility> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_capabilities, 1);
 
 /**
  * @generated from message ingestion.v1.GetConnectionCapabilitiesResponse
@@ -83,6 +109,15 @@ export type GetConnectionCapabilitiesResponse = Message<"ingestion.v1.GetConnect
    * @generated from field: repeated ingestion.v1.WriteMode write_modes = 6;
    */
   writeModes: WriteMode[];
+
+  /**
+   * Source: for each offered read lever, the write levers it combines with —
+   * the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
+   * connections.
+   *
+   * @generated from field: repeated ingestion.v1.LeverCompatibility lever_compatibilities = 7;
+   */
+  leverCompatibilities: LeverCompatibility[];
 };
 
 /**
@@ -90,7 +125,7 @@ export type GetConnectionCapabilitiesResponse = Message<"ingestion.v1.GetConnect
  * Use `create(GetConnectionCapabilitiesResponseSchema)` to create a new message.
  */
 export const GetConnectionCapabilitiesResponseSchema: GenMessage<GetConnectionCapabilitiesResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 1);
+  messageDesc(file_ingestion_v1_capabilities, 2);
 
 /**
  * ValidatePipelineRequest carries the graph inline so unsaved canvas state
@@ -120,7 +155,7 @@ export type ValidatePipelineRequest = Message<"ingestion.v1.ValidatePipelineRequ
  * Use `create(ValidatePipelineRequestSchema)` to create a new message.
  */
 export const ValidatePipelineRequestSchema: GenMessage<ValidatePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 2);
+  messageDesc(file_ingestion_v1_capabilities, 3);
 
 /**
  * CandidateValue is one value the user may pick to satisfy a requirement.
@@ -154,7 +189,7 @@ export type CandidateValue = Message<"ingestion.v1.CandidateValue"> & {
  * Use `create(CandidateValueSchema)` to create a new message.
  */
 export const CandidateValueSchema: GenMessage<CandidateValue> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 3);
+  messageDesc(file_ingestion_v1_capabilities, 4);
 
 /**
  * Requirement is configuration the chosen ingestion type involves. It is
@@ -206,7 +241,7 @@ export type Requirement = Message<"ingestion.v1.Requirement"> & {
  * Use `create(RequirementSchema)` to create a new message.
  */
 export const RequirementSchema: GenMessage<Requirement> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 4);
+  messageDesc(file_ingestion_v1_capabilities, 5);
 
 /**
  * ResourceValidation is one routed table's verdict under the edge: the read
@@ -239,7 +274,7 @@ export type ResourceValidation = Message<"ingestion.v1.ResourceValidation"> & {
  * Use `create(ResourceValidationSchema)` to create a new message.
  */
 export const ResourceValidationSchema: GenMessage<ResourceValidation> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 5);
+  messageDesc(file_ingestion_v1_capabilities, 6);
 
 /**
  * EdgeValidation is one edge's verdict: the write levers the sink offers, the
@@ -295,7 +330,7 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
  * Use `create(EdgeValidationSchema)` to create a new message.
  */
 export const EdgeValidationSchema: GenMessage<EdgeValidation> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 6);
+  messageDesc(file_ingestion_v1_capabilities, 7);
 
 /**
  * @generated from message ingestion.v1.ValidatePipelineResponse
@@ -324,7 +359,7 @@ export type ValidatePipelineResponse = Message<"ingestion.v1.ValidatePipelineRes
  * Use `create(ValidatePipelineResponseSchema)` to create a new message.
  */
 export const ValidatePipelineResponseSchema: GenMessage<ValidatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 7);
+  messageDesc(file_ingestion_v1_capabilities, 8);
 
 /**
  * @generated from enum ingestion.v1.RequirementKind

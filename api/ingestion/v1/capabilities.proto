@@ -11,6 +11,14 @@ message GetConnectionCapabilitiesRequest {
   string id = 2;
 }
 
+// LeverCompatibility is one read lever crossed with the write levers it can
+// compile with. Delete and merge are engine mechanisms, never offered as
+// levers.
+message LeverCompatibility {
+  ReadMode read_mode = 1;
+  repeated WriteMode write_modes = 2;
+}
+
 message GetConnectionCapabilitiesResponse {
   string connector = 1;
   ConnectorKind kind = 2;
@@ -24,6 +32,10 @@ message GetConnectionCapabilitiesResponse {
   repeated ReadMode read_modes = 5;
   // Sink: the write levers this sink offers.
   repeated WriteMode write_modes = 6;
+  // Source: for each offered read lever, the write levers it combines with —
+  // the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
+  // connections.
+  repeated LeverCompatibility lever_compatibilities = 7;
 }
 
 // ValidatePipelineRequest carries the graph inline so unsaved canvas state

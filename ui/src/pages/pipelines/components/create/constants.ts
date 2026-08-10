@@ -56,12 +56,6 @@ export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
   [WriteMode.MERGE]: "Merge",
 };
 
-export const READ_MODE_TO_WRITE_MODES_MAP: Record<ReadMode, WriteMode[]> = {
-  [ReadMode.UNSPECIFIED]: [WriteMode.REPLACE, WriteMode.APPEND, WriteMode.UPSERT],
-  [ReadMode.FULL]: [WriteMode.REPLACE, WriteMode.APPEND, WriteMode.UPSERT],
-  [ReadMode.INCREMENTAL]: [WriteMode.APPEND, WriteMode.UPSERT],
-};
-
 export const CREATE_PIPELINE_MODAL_FALLBACK_READ_MODES = [ReadMode.FULL];
 export const CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES = [WriteMode.APPEND, WriteMode.REPLACE];
 
