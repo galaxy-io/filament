@@ -512,7 +512,7 @@ func (a *Server) compilePipeline(ctx context.Context, pipelineID, token string, 
 			SinkConnectionID:   group.sink.GetConnectionId(),
 			Resources:          resources,
 			Selectors:          selectors,
-			IngestionType:      group.ingestionType,
+			IngestionTypes:     group.ingestionTypes,
 			CheckpointRoute:    key,
 			CursorConfigs:      group.cursorConfigs,
 			Options:            options,
@@ -522,19 +522,20 @@ func (a *Server) compilePipeline(ctx context.Context, pipelineID, token string, 
 	return compiled, nil
 }
 
-// routeGroup is the set of edges that share a source node, sink node, and
-// ingestion type, and so collapse into a single run.
+// routeGroup is the set of edges that share a source node and sink node, and
+// so collapse into a single run. Each edge's ingestion type lands per resource
+// in ingestionTypes, keyed "" for a resource-less wildcard edge.
 type routeGroup struct {
-	key           string
-	source        *ingestionv1.PipelineNode
-	sink          *ingestionv1.PipelineNode
-	from          string
-	to            string
-	ingestionType filament.IngestionType
-	all           bool
-	resources     map[string]bool
-	selectors     map[string]bool
-	cursorConfigs map[string]filament.ResourceCursorConfig
+	key            string
+	source         *ingestionv1.PipelineNode
+	sink           *ingestionv1.PipelineNode
+	from           string
+	to             string
+	ingestionTypes filament.IngestionTypes
+	all            bool
+	resources      map[string]bool
+	selectors      map[string]bool
+	cursorConfigs  map[string]filament.ResourceCursorConfig
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
@@ -548,20 +549,19 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		if source == nil || sink == nil {
 			return nil, fmt.Errorf("edge references missing node")
 		}
-		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-		key := fmt.Sprintf("route/%s/%s/%s", edge.GetFromNode(), edge.GetToNode(), ingestionType)
+		key := fmt.Sprintf("route/%s/%s", edge.GetFromNode(), edge.GetToNode())
 		group := byKey[key]
 		if group == nil {
 			group = &routeGroup{
-				key:           key,
-				source:        source,
-				sink:          sink,
-				from:          edge.GetFromNode(),
-				to:            edge.GetToNode(),
-				ingestionType: ingestionType,
-				resources:     map[string]bool{},
-				selectors:     map[string]bool{},
-				cursorConfigs: map[string]filament.ResourceCursorConfig{},
+				key:            key,
+				source:         source,
+				sink:           sink,
+				from:           edge.GetFromNode(),
+				to:             edge.GetToNode(),
+				ingestionTypes: filament.IngestionTypes{},
+				resources:      map[string]bool{},
+				selectors:      map[string]bool{},
+				cursorConfigs:  map[string]filament.ResourceCursorConfig{},
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
@@ -573,11 +573,16 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			}
 			group.cursorConfigs[cursor.GetResource()] = config
 		}
-		if edge.GetResource() == "" {
+		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
+		resource := edge.GetResource()
+		if previous, exists := group.ingestionTypes[resource]; exists && previous != ingestionType {
+			return nil, fmt.Errorf("conflicting ingestion type for resource %q", resource)
+		}
+		group.ingestionTypes[resource] = ingestionType
+		if resource == "" {
 			group.all = true
 			continue
 		}
-		resource := edge.GetResource()
 		group.resources[resource] = true
 		if selector := edge.GetSelector(); selector != "" {
 			group.selectors[selector] = true

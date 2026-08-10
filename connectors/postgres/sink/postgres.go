@@ -19,12 +19,12 @@ import (
 // server-side via jsonb_to_recordset. It implements filament.Schematized; the engine only
 // runs schema discovery for sinks that do.
 type Sink struct {
-	pool      *pgxpool.Pool
-	run       filament.RunID
-	schema    string
-	dsn       string
-	resumable bool
-	written   atomic.Int64
+	pool    *pgxpool.Pool
+	run     filament.RunID
+	schema  string
+	dsn     string
+	types   filament.IngestionTypes
+	written atomic.Int64
 
 	// tables is populated entirely during the engine's pre-extract EnsureSchema pass
 	// (sequential), then only read by concurrent Write calls — no lock needed.
@@ -93,9 +93,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		t.schema = v
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == filament.IngestionFullUpsert ||
-		run.IngestionType == filament.IngestionIncrementalUpsert ||
-		run.IngestionType == filament.IngestionCDC
+	t.types = run.IngestionTypes
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
@@ -181,10 +179,10 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	if _, err := t.pool.Exec(ctx, ddl); err != nil {
 		return fmt.Errorf("create %s: %w", qualified, err)
 	}
-	// A resumable run upserts by key and must preserve any partial load from a prior
-	// attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot dedup:
-	// a non-resumable run, or a keyless table that re-reads whole on resume).
-	upsert := t.resumable && len(schema.PrimaryKey) > 0
+	// A resumable resource upserts by key and must preserve any partial load from a
+	// prior attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot
+	// dedup: a non-resumable resource, or a keyless table that re-reads whole on resume).
+	upsert := t.resumableFor(resource) && len(schema.PrimaryKey) > 0
 	if !upsert {
 		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
 		if _, err := t.pool.Exec(ctx, "TRUNCATE "+qualified); err != nil {
@@ -439,17 +437,28 @@ func (t *Sink) Abort(ctx context.Context) error {
 	if t.pool == nil {
 		return nil
 	}
-	// A resumable run keeps its partial load so a later resume can finish it — don't
-	// truncate. (The engine also skips Abort on a resumable failure; this guards any
-	// other Abort path.)
-	if t.resumable {
-		return nil
-	}
+	// A resumable resource keeps its partial load so a later resume can finish it —
+	// don't truncate. (The engine also skips Abort on a resumable failure; this
+	// guards any other Abort path.)
 	cleanup := context.WithoutCancel(ctx)
-	for _, tbl := range t.tables {
+	for resource, tbl := range t.tables {
+		if t.resumableFor(resource) {
+			continue
+		}
 		_, _ = t.pool.Exec(cleanup, "TRUNCATE "+tbl.qualified)
 	}
 	return nil
+}
+
+// resumableFor reports whether resource's ingestion type upserts by key, so a
+// partial load survives across attempts instead of being truncated.
+func (t *Sink) resumableFor(resource string) bool {
+	switch t.types.For(resource) {
+	case filament.IngestionFullUpsert, filament.IngestionIncrementalUpsert, filament.IngestionCDC:
+		return true
+	default:
+		return false
+	}
 }
 
 func (t *Sink) release() {

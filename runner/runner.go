@@ -45,7 +45,7 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
 		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
-		IngestionType: r.IngestionType.OrDefault(), Mode: filament.ModeFull, Options: r.Options,
+		IngestionTypes: r.IngestionTypes, Options: r.Options,
 	}
 }
 
@@ -61,7 +61,7 @@ func ShouldRun(state filament.RunState) bool {
 	case filament.RunRequested, filament.RunPartial:
 		return true
 	case filament.RunCompleted:
-		return state.Request.IngestionType.OrDefault() == filament.IngestionCDC
+		return state.Request.IngestionTypes.RequiresCDC()
 	default:
 		return false
 	}
@@ -120,11 +120,6 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		em.fail(err)
 		return
 	}
-	spec.IngestionType = plan.Type
-	spec.Mode = plan.SourcePolicy.Mode
-	if plan.SourcePolicy.Ordered {
-		spec.Options.SnapshotParallelism = 1
-	}
 	if err := snk.Open(ctx, spec); err != nil {
 		em.fail(fmt.Errorf("open sink %q: %w", spec.Sink.Provider, err))
 		return
@@ -170,13 +165,12 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	// Extract on its own goroutine so the writer can apply backpressure through
 	// the inlet. CloseIngest after Extract returns drains the batcher; Wait then
 	// blocks until the writer finishes. A panicking source is contained here.
+	// Resources and read mode are set per partition by the extractor itself.
 	extractErrCh := make(chan error, 1)
 	go func() {
 		extractErrCh <- safeCall(func() error {
 			return extractor(ctx, p.Records(), filament.ExtractOpts{
-				Resources:   spec.Resources,
 				Selectors:   spec.Selectors,
-				Mode:        spec.Mode,
 				Parallelism: spec.Options.SnapshotParallelism,
 			})
 		})

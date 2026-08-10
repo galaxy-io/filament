@@ -51,7 +51,8 @@ type Sink struct {
 	tableLocationRoot  string
 	namespace          string
 	stageBufLimitBytes int64
-	writeMode          writeMode
+	writeMode          writeMode // configured mode; writeModeAuto resolves per resource
+	types              filament.IngestionTypes
 	run                filament.RunID
 
 	cat catalog.Catalog
@@ -147,10 +148,11 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
 		s.stageBufLimitBytes = int64(mb) << 20
 	}
-	mode, err := resolveWriteMode(cfg.String("write_mode"), run.Mode)
+	mode, err := resolveWriteMode(cfg.String("write_mode"))
 	if err != nil {
 		return err
 	}
+	s.types = run.IngestionTypes
 
 	setup, err := buildCatalogSetup(cfg)
 	if err != nil {
@@ -348,7 +350,8 @@ func (s *Sink) Promote(ctx context.Context, id filament.StageID) error {
 func (s *Sink) Commit(ctx context.Context) error {
 	s.mu.Lock()
 	st := s.stages[s.curStage]
-	if st == nil && s.writeMode == writeModeReplace && len(s.tables) > 0 {
+	anyReplace := s.anyReplaceLocked()
+	if st == nil && anyReplace {
 		st = newStage(filament.StageID(uuid.NewString()))
 		s.stages[st.id] = st
 		s.curStage = st.id
@@ -357,12 +360,24 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if st == nil {
 		return nil
 	}
-	if s.writeMode == writeModeReplace {
+	if anyReplace {
 		st.mu.Lock()
 		st.includeAllResources = true
 		st.mu.Unlock()
 	}
 	return s.promoteStage(ctx, st)
+}
+
+// anyReplaceLocked reports whether any ensured table resolves to a replace
+// write, which must land even when the run produced no records for it.
+// Callers hold s.mu.
+func (s *Sink) anyReplaceLocked() bool {
+	for resource := range s.tables {
+		if s.modeFor(resource) == writeModeReplace {
+			return true
+		}
+	}
+	return false
 }
 
 // Abort discards all buffers and removes any temp files.
@@ -397,7 +412,7 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 		}
 		s.mu.Lock()
 		it := s.tables[resource]
-		mode := s.writeMode
+		mode := s.modeFor(resource)
 		limit := s.stageBufLimitBytes
 		s.mu.Unlock()
 		if it == nil {
@@ -481,20 +496,28 @@ func (s *Sink) tableIdent(resource string) icetable.Identifier {
 	return catalog.ToIdentifier(append(parts, tableName(resource))...)
 }
 
-func resolveWriteMode(configured string, runMode filament.ReadMode) (writeMode, error) {
+func resolveWriteMode(configured string) (writeMode, error) {
 	mode := writeMode(strings.ToLower(strings.TrimSpace(configured)))
 	if mode == "" {
 		mode = writeModeAuto
 	}
 	switch mode {
-	case writeModeAuto:
-		if runMode == filament.ModeFull {
-			return writeModeReplace, nil
-		}
-		return writeModeAppend, nil
-	case writeModeAppend, writeModeReplace, writeModeUpsert, writeModeDelete, writeModeMerge:
+	case writeModeAuto, writeModeAppend, writeModeReplace, writeModeUpsert, writeModeDelete, writeModeMerge:
 		return mode, nil
 	default:
 		return "", fmt.Errorf("iceberg sink: invalid write_mode %q (want auto, append, replace, upsert, delete, or merge)", configured)
 	}
+}
+
+// modeFor resolves one resource's write mode: an explicit write_mode wins;
+// auto follows the resource's read side — a full read replaces, anything
+// incremental appends.
+func (s *Sink) modeFor(resource string) writeMode {
+	if s.writeMode != writeModeAuto {
+		return s.writeMode
+	}
+	if filament.SourcePolicyForIngestion(s.types.For(resource)).Mode == filament.ModeFull {
+		return writeModeReplace
+	}
+	return writeModeAppend
 }

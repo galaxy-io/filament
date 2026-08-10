@@ -5,52 +5,58 @@ import (
 	"fmt"
 )
 
-// ResolveIngestionPlan validates a run's ingestion type against both connector
-// specs — the source's narrowed by its connection config — and binds
-// per-resource write policies, discovering primary keys where the policy
-// requires them.
+// ResolveIngestionPlan validates each resource's ingestion type against both
+// connector specs — the source's narrowed by its connection config — and binds
+// per-resource source and write policies, discovering primary keys where the
+// write policy requires them.
 func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpec) (IngestionPlan, error) {
-	ingestionType := spec.IngestionType.OrDefault()
-	sourcePolicy := SourcePolicyForIngestion(ingestionType)
-	writePolicy := WritePolicyForIngestion(ingestionType)
-
-	if err := ValidateReplication(ReplicationOf(src, NewConfig(spec.Source.Config)), ingestionType); err != nil {
-		return IngestionPlan{}, err
-	}
-	if err := ValidateSourceIngestion(src.Spec(), ingestionType); err != nil {
-		return IngestionPlan{}, err
-	}
-	if err := ValidateSinkIngestion(snk.Spec(), ingestionType); err != nil {
-		return IngestionPlan{}, err
+	resources := spec.Resources
+	if len(resources) == 0 {
+		resources = []string{""}
 	}
 
-	policies := map[string]WritePolicy{}
-	if len(spec.Resources) == 0 {
-		policies[""] = writePolicy
-	} else {
-		for _, resource := range spec.Resources {
-			policy := writePolicy
-			policy.Resource = resource
-			if policy.Capability.RequiresPK {
-				keys, err := PrimaryKeyForResource(ctx, src, resource)
-				if err != nil {
-					return IngestionPlan{}, err
-				}
-				if len(keys) == 0 {
-					return IngestionPlan{}, fmt.Errorf("%s requested for resource %q but no primary key was discovered", ingestionType, resource)
-				}
-				policy.Keys = keys
+	replication := ReplicationOf(src, NewConfig(spec.Source.Config))
+	validated := map[IngestionType]bool{}
+	sourcePolicies := make(map[string]SourcePolicy, len(resources))
+	writePolicies := make(map[string]WritePolicy, len(resources))
+	requiresCDC := false
+
+	for _, resource := range resources {
+		ingestionType := spec.IngestionTypes.For(resource)
+		if !validated[ingestionType] {
+			if err := ValidateReplication(replication, ingestionType); err != nil {
+				return IngestionPlan{}, err
 			}
-			policies[resource] = policy
+			if err := ValidateSourceIngestion(src.Spec(), ingestionType); err != nil {
+				return IngestionPlan{}, err
+			}
+			if err := ValidateSinkIngestion(snk.Spec(), ingestionType); err != nil {
+				return IngestionPlan{}, err
+			}
+			validated[ingestionType] = true
 		}
+		requiresCDC = requiresCDC || ingestionType == IngestionCDC
+
+		sourcePolicies[resource] = SourcePolicyForIngestion(ingestionType)
+		policy := WritePolicyForIngestion(ingestionType)
+		policy.Resource = resource
+		if resource != "" && policy.Capability.RequiresPK {
+			keys, err := PrimaryKeyForResource(ctx, src, resource)
+			if err != nil {
+				return IngestionPlan{}, err
+			}
+			if len(keys) == 0 {
+				return IngestionPlan{}, fmt.Errorf("%s requested for resource %q but no primary key was discovered", ingestionType, resource)
+			}
+			policy.Keys = keys
+		}
+		writePolicies[resource] = policy
 	}
 
 	return IngestionPlan{
-		Type:          ingestionType,
-		SourcePolicy:  sourcePolicy,
-		WritePolicies: policies,
-		RequiresCDC:   ingestionType == IngestionCDC,
-		RequiresPK:    writePolicy.Capability.RequiresPK,
+		SourcePolicies: sourcePolicies,
+		WritePolicies:  writePolicies,
+		RequiresCDC:    requiresCDC,
 	}, nil
 }
 

@@ -18,8 +18,7 @@ type RunSpec struct {
 	Sink              Ref
 	Resources         []string
 	Selectors         []string
-	IngestionType     IngestionType
-	Mode              ReadMode
+	IngestionTypes    IngestionTypes
 	Checkpoint        *CheckpointData
 	Options           RunOptions
 }
@@ -37,7 +36,7 @@ type RunRequest struct {
 	SinkConnectionID   string
 	Resources          []string
 	Selectors          []string
-	IngestionType      IngestionType
+	IngestionTypes     IngestionTypes
 	CheckpointRoute    string
 	CursorConfigs      map[string]ResourceCursorConfig
 	Options            RunOptions
@@ -192,9 +191,34 @@ type SyncSnapshot struct {
 	AtSeq     uint64
 }
 
-// IngestionType names how a run moves data end to end; it determines both the
-// source's read policy and the sink's write policy.
+// IngestionType names how a resource moves data end to end; it determines both
+// the source's read policy and the sink's write policy.
 type IngestionType string
+
+// IngestionTypes maps resource to ingestion type. The "" key is the wildcard
+// covering every resource without an explicit entry, matching the edge
+// convention where a resource-less edge covers everything.
+type IngestionTypes map[string]IngestionType
+
+// For returns resource's ingestion type, falling back to the wildcard entry,
+// then the default.
+func (m IngestionTypes) For(resource string) IngestionType {
+	if t, ok := m[resource]; ok {
+		return t.OrDefault()
+	}
+	return m[""].OrDefault()
+}
+
+// RequiresCDC reports whether any resource replicates a change stream. CDC
+// connections make every edge CDC, so any entry means all of them.
+func (m IngestionTypes) RequiresCDC() bool {
+	for _, t := range m {
+		if t == IngestionCDC {
+			return true
+		}
+	}
+	return false
+}
 
 // The defined ingestion types, named {read}_{write}: what the source reads
 // crossed with how the sink lands it. CDC implies both sides.
@@ -417,14 +441,12 @@ type SourcePolicy struct {
 	Checkpointing CheckpointPolicy
 }
 
-// IngestionPlan is the resolved policy set for a run: one source policy plus
-// per-resource write policies.
+// IngestionPlan is the resolved policy set for a run: per-resource source and
+// write policies. Both maps use "" as the wildcard resource.
 type IngestionPlan struct {
-	Type          IngestionType
-	SourcePolicy  SourcePolicy
-	WritePolicies map[string]WritePolicy
-	RequiresCDC   bool
-	RequiresPK    bool
+	SourcePolicies map[string]SourcePolicy
+	WritePolicies  map[string]WritePolicy
+	RequiresCDC    bool
 }
 
 // WritePolicyForIngestion derives the canonical sink-side policy for an

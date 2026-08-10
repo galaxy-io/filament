@@ -66,8 +66,9 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	plan := filament.IngestionPlan{
-		Type:         filament.IngestionIncrementalUpsert,
-		SourcePolicy: filament.SourcePolicy{Mode: filament.ModeIncremental, Checkpointing: filament.CheckpointAfterBatch},
+		SourcePolicies: map[string]filament.SourcePolicy{
+			"users": {Mode: filament.ModeIncremental, Checkpointing: filament.CheckpointAfterBatch},
+		},
 	}
 	base := filament.RunSpec{
 		Run: "run-a", PipelineID: "pipe", PipelineVersionID: 1, CheckpointRoute: "route/source/sink/upsert",
