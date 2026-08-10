@@ -41,6 +41,13 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 				}
 				policy.Keys = keys
 			}
+			version, err := ResolveWriteVersionPolicy(
+				ctx, src, resource, spec.CursorConfigs[resource], sourcePolicy.Mode, policy.Capability.Mode,
+			)
+			if err != nil {
+				return IngestionPlan{}, err
+			}
+			policy.Version = version
 			policies[resource] = policy
 		}
 	}

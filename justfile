@@ -81,9 +81,11 @@ lint-check: go-lint-check ui-lint-check
 test:
     for dir in $(find . -name go.mod -not -path "./tests/*" -exec dirname {} \;); do (cd "$dir" && GOWORK=off go test ./...) || exit 1; done
 
-# run the integration/e2e suite (requires docker)
+# run the integration/e2e suite (requires docker + tests/docker/.env)
+# Every suite file is //go:build integration, so without the tag this matches
+# no packages and exits 0 — passing while testing nothing.
 test-integration:
-    cd tests && GOWORK=off go test ./...
+    cd tests && GOWORK=off go test -tags integration ./...
 
 # start local infra (postgres + nats), gated on health
 infra:
@@ -117,8 +119,7 @@ control-plane:
       GOWORK=off go run .
 
 # run the metrics service locally — reads the same runs table server/control-plane
-# migrate (defaults match docker-compose.yaml; env overrides)
-metrics: migrate
+metrics:
     cd cmd/metrics && \
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
       SERVER_ADDR="${SERVER_ADDR:-:8082}" \

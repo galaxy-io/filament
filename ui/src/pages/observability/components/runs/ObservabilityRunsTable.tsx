@@ -11,7 +11,7 @@ import InfiniteTable, {
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
-import { ListRunsRequestSchema, type RunInfo, type RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/PipelineName";
 
@@ -33,17 +33,40 @@ interface ObservabilityRunsTableProps {
 const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
   const navigate = useNavigate();
 
+  // Scheduled runs are upcoming — they have no started_at, so the timeframe
+  // window can't apply to them. They're fetched unwindowed and pinned first.
+  const includeScheduled = statuses.includes(RunStatus.SCHEDULED);
+  const windowedStatuses = useMemo(
+    () => statuses.filter((status) => status !== RunStatus.SCHEDULED),
+    [statuses],
+  );
+
   const input = useMemo(
     () =>
       create(ListRunsRequestSchema, {
-        status: statuses,
+        status: windowedStatuses,
         sinceMs: createTimeframeSince(timeframe),
         limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
       }),
-    [timeframe, statuses],
+    [timeframe, windowedStatuses],
+  );
+  const scheduledInput = useMemo(
+    () =>
+      create(ListRunsRequestSchema, {
+        status: [RunStatus.SCHEDULED],
+        limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
+      }),
+    [],
   );
 
-  const { data, isLoading } = useListRunsQuery({ input });
+  const { data, isLoading } = useListRunsQuery({
+    input,
+    options: { enabled: windowedStatuses.length > 0 },
+  });
+  const { data: scheduledData, isLoading: isLoadingScheduled } = useListRunsQuery({
+    input: scheduledInput,
+    options: { enabled: includeScheduled },
+  });
 
   const columns = useMemo<ColumnDef<RunInfo>[]>(
     () => [
@@ -138,7 +161,12 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
     [],
   );
 
-  const runs = statuses.length ? (data?.runs ?? []) : [];
+  const scheduledRuns = includeScheduled ? (scheduledData?.runs ?? []) : [];
+  const windowedRuns = windowedStatuses.length ? (data?.runs ?? []) : [];
+  // A just-promoted run can sit in the stale scheduled cache and the fresh
+  // windowed result at once — the windowed row is the current truth.
+  const windowedIds = new Set(windowedRuns.map((run) => run.runId));
+  const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.runId)), ...windowedRuns];
 
   const handleRowClick = (row: Row<RunInfo>) => {
     navigate({
@@ -156,7 +184,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       getRowId={(run) => run.runId}
       onRowClick={handleRowClick}
       enableSorting
-      isLoading={isLoading}
+      isLoading={isLoading || (includeScheduled && isLoadingScheduled)}
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }

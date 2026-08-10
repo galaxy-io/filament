@@ -10,9 +10,15 @@ import (
 // source of truth for every dimension this store supports. Add a new
 // dimension here (plus the matching proto and filament.MetricsDimension enum
 // value) rather than touching query logic.
+//
+// Every entry must be a real column, never a JSON path. pipeline_id is the
+// generated column 00012_runs_pipeline_columns.sql added for exactly these
+// queries; runs_metrics_idx covers (tenant_id, pipeline_id, …). A json path
+// yields the same values but only as a post-scan filter — the planner can
+// then use the index for tenant_id alone and re-extracts the path per row.
 var dimensionColumns = map[filament.MetricsDimension]string{
 	filament.DimensionTenantID:   "tenant_id",
-	filament.DimensionPipelineID: "(request->>'PipelineID')",
+	filament.DimensionPipelineID: "pipeline_id",
 	filament.DimensionStatus:     "status",
 }
 

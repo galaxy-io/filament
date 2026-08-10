@@ -35,3 +35,11 @@ func NextFire(spec filament.ScheduleSpec, after time.Time) (*time.Time, error) {
 	}
 	return &next, nil
 }
+
+// OccurrenceToken is the idempotency salt for one schedule occurrence.
+// Pre-creating and firing an occurrence derive the same token, so both
+// converge on the same run ids — which is what lets a fire promote the
+// pre-created RunScheduled rows.
+func OccurrenceToken(id filament.ScheduleID, occurrence time.Time) string {
+	return fmt.Sprintf("%s:%d", id, occurrence.Unix())
+}

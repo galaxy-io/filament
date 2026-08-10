@@ -17,6 +17,7 @@ export const OBSERVABILITY_RUN_STATUSES = [
   RunStatus.FAILED,
   RunStatus.RUNNING,
   RunStatus.REQUESTED,
+  RunStatus.SCHEDULED,
   RunStatus.CANCELED,
   RunStatus.PAUSED,
   RunStatus.PARTIAL,
@@ -27,6 +28,7 @@ export const OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP: Partial<Record<RunStatus, Ch
   [RunStatus.FAILED]: ChartPalette.RED,
   [RunStatus.RUNNING]: ChartPalette.BLUE,
   [RunStatus.REQUESTED]: ChartPalette.YELLOW,
+  [RunStatus.SCHEDULED]: ChartPalette.LIME,
   [RunStatus.CANCELED]: ChartPalette.PURPLE,
   [RunStatus.PAUSED]: ChartPalette.ORANGE,
   [RunStatus.PARTIAL]: ChartPalette.TEAL,
@@ -50,6 +52,7 @@ export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
   RunStatus.COMPLETED,
   RunStatus.FAILED,
   RunStatus.RUNNING,
+  RunStatus.SCHEDULED,
 ];
 
 export const OBSERVABILITY_RUNS_TABLE_LIMIT = 50;

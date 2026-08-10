@@ -37,7 +37,13 @@ func TestScheduledCDCLoadsPipelineCheckpointAcrossRuns(t *testing.T) {
 }
 
 func (*incrementalTestSource) Spec() filament.ConnectorSpec {
-	return filament.ConnectorSpec{Name: "test", Modes: []filament.ReadMode{filament.ModeFull, filament.ModeIncremental}}
+	return filament.ConnectorSpec{
+		Name: "test",
+		SourcePolicies: filament.SourcePolicies(
+			filament.IngestionFullUpsert,
+			filament.IngestionIncrementalUpsert,
+		),
+	}
 }
 func (*incrementalTestSource) Validate(filament.Config) error                   { return nil }
 func (*incrementalTestSource) Configure(context.Context, filament.Config) error { return nil }
@@ -133,7 +139,7 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 }
 
 func TestResolveIngestionPlanCarriesCursorVersionToWritePolicy(t *testing.T) {
-	plan, err := resolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
+	plan, err := filament.ResolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
 		Resources: []string{"users"}, IngestionType: filament.IngestionIncrementalUpsert,
 		CursorConfigs: map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at"}},
 	})
@@ -147,7 +153,7 @@ func TestResolveIngestionPlanCarriesCursorVersionToWritePolicy(t *testing.T) {
 }
 
 func TestResolveIngestionPlanUsesInsertOrderForSnapshotUpsert(t *testing.T) {
-	plan, err := resolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
+	plan, err := filament.ResolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
 		Resources: []string{"users"}, IngestionType: filament.IngestionFullUpsert,
 	})
 	if err != nil {

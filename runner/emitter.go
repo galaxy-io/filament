@@ -1,4 +1,4 @@
-package engine
+package runner
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func newEmitter(ctx context.Context, bus eventbus.Bus, log filament.Logger, tena
 	return &emitter{ctx: ctx, bus: bus, log: log, tenant: tenant, run: run, res: map[string]*tally{}}
 }
 
-// next returns the run's next fact sequence. Shared with the pipeline so engine
+// next returns the run's next fact sequence. Shared with the pipeline so run
 // lifecycle facts and pipeline facts never collide on (tenant, run, seq).
 func (e *emitter) next() uint64 { return e.seq.Add(1) }
 
@@ -62,9 +62,9 @@ func (e *emitter) finish() context.CancelFunc {
 // publish ships an already-stamped fact (the pipeline stamps its own) and tallies
 // run- and resource-level totals from batch writes. Publishing uses the run
 // context, so mid-run facts stop when the run is cancelled; ending facts survive
-// cancellation because runOne detaches the emitter first (see finish). Safe to
+// cancellation because RunOne detaches the emitter first (see finish). Safe to
 // call concurrently — the pipeline's writer goroutine publishes batch facts
-// while the engine goroutine publishes lifecycle facts.
+// while the run goroutine publishes lifecycle facts.
 func (e *emitter) publish(f events.Fact) {
 	if d, ok := f.Data.(events.BatchWrittenEvent); ok {
 		e.mu.Lock()
@@ -79,12 +79,49 @@ func (e *emitter) publish(f events.Fact) {
 		t.bytes += d.Bytes
 		e.mu.Unlock()
 	}
+	if e.log != nil {
+		records, bytes, errMsg := factProgress(f)
+		fields := []filament.Field{
+			{Key: "run", Value: string(f.Run)},
+			{Key: "resource", Value: f.Resource},
+			{Key: "records", Value: records},
+			{Key: "bytes", Value: bytes},
+		}
+		if errMsg != "" {
+			fields = append(fields, filament.Field{Key: "error", Value: errMsg})
+		}
+		// Debug, not Info: a large run emits one batch.written per chunk, which
+		// at Info drowns the worker's log.
+		e.log.Debug(f.Name, fields...)
+	}
 	if err := events.Publish(e.ctx, e.bus, f); err != nil && e.log != nil {
-		e.log.Error("engine: publish fact", err, filament.Field{Key: "type", Value: f.Name})
+		e.log.Error("runner: publish fact", err, filament.Field{Key: "type", Value: f.Name})
 	}
 }
 
-// emit stamps and publishes an engine-originated fact for a run or resource.
+// factProgress flattens a typed payload's progress counters and error for logging.
+func factProgress(f events.Fact) (records, bytes int64, errMsg string) {
+	switch d := f.Data.(type) {
+	case events.BatchBufferedEvent:
+		return d.Records, d.Bytes, ""
+	case events.BatchWrittenEvent:
+		return d.Records, d.Bytes, ""
+	case events.ResourceCompletedEvent:
+		return d.Records, d.Bytes, ""
+	case events.RunCompletedEvent:
+		return d.Records, d.Bytes, ""
+	case events.ResourceFailedEvent:
+		return 0, 0, d.Error
+	case events.RunFailedEvent:
+		return 0, 0, d.Error
+	case events.RunPartialEvent:
+		return 0, 0, d.Error
+	default:
+		return 0, 0, ""
+	}
+}
+
+// emit stamps and publishes a run-originated fact for a run or resource.
 // (A free function: Go methods cannot take type parameters.)
 func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 	e.publish(events.NewFact(t, events.Envelope{
@@ -102,7 +139,7 @@ func (e *emitter) fail(err error) {
 		e.span.SetError(err)
 	}
 	if e.log != nil {
-		e.log.Error("engine: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
+		e.log.Error("runner: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
 	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error()})
 }
@@ -112,7 +149,7 @@ func (e *emitter) partial(err error) {
 		e.span.SetError(err)
 	}
 	if e.log != nil {
-		e.log.Error("engine: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
+		e.log.Error("runner: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
 	emit(e, events.RunPartial, "", events.RunPartialEvent{Error: err.Error()})
 }

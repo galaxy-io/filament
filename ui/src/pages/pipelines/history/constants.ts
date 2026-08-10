@@ -23,6 +23,7 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.CANCELED]: "Canceled",
   [RunStatus.PAUSED]: "Paused",
   [RunStatus.PARTIAL]: "Partial",
+  [RunStatus.SCHEDULED]: "Scheduled",
 };
 
 export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> = {
@@ -34,6 +35,7 @@ export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, Beacon
   [RunStatus.CANCELED]: BeaconVariant.PURPLE,
   [RunStatus.PAUSED]: BeaconVariant.WARNING,
   [RunStatus.PARTIAL]: BeaconVariant.PINK,
+  [RunStatus.SCHEDULED]: BeaconVariant.LIME,
 };
 
 export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVariant> = {
@@ -45,4 +47,5 @@ export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVari
   [RunStatus.CANCELED]: TextVariant.PURPLE,
   [RunStatus.PAUSED]: TextVariant.WARNING,
   [RunStatus.PARTIAL]: TextVariant.PINK,
+  [RunStatus.SCHEDULED]: TextVariant.LIME,
 };

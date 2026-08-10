@@ -58,7 +58,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 
 	bus, err := natsbus.New(nats.URL, events.Codec,
 		natsbus.WithStream("INGESTION_E2E"),
-		natsbus.WithSubjects("filament.v1.>"),
+		natsbus.WithSubjects("ingestion.v1.>"),
 	)
 	if err != nil {
 		t.Fatalf("nats bus: %v", err)
@@ -101,8 +101,8 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 				"namespace":  "tpch_e2e",
 				"write_mode": "replace",
 				"catalog": map[string]any{
-					"type": "rest",
-					"uri":  restURI,
+					"provider": "rest",
+					"uri":      restURI,
 				},
 			},
 		},
