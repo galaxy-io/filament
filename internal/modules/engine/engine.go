@@ -154,6 +154,7 @@ func (m *Module) runOne(ctx context.Context, spec filament.RunSpec) {
 	}
 	spec.IngestionType = plan.Type
 	spec.Mode = plan.SourcePolicy.Mode
+	spec.WritePolicies = plan.WritePolicies
 	if plan.SourcePolicy.Ordered {
 		spec.Options.SnapshotParallelism = 1
 	}

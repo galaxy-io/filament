@@ -117,6 +117,34 @@ func ResolveCursorVersionPolicy(ctx context.Context, src Source, resource string
 	}, nil
 }
 
+// ResolveWriteVersionPolicy binds the version strategy for one source-to-sink
+// resource. Non-upsert writes do not need a version; snapshot upserts and
+// incremental sources without cursor metadata use insertion order.
+func ResolveWriteVersionPolicy(
+	ctx context.Context,
+	src Source,
+	resource string,
+	config ResourceCursorConfig,
+	sourceMode ReplicationMode,
+	writeMode WriteMode,
+) (VersionPolicy, error) {
+	if writeMode != WriteUpsert {
+		return VersionPolicy{}, nil
+	}
+	fallback := VersionPolicy{Strategy: VersionInsertOrder}
+	if sourceMode != ModeIncremental {
+		return fallback, nil
+	}
+	version, err := ResolveCursorVersionPolicy(ctx, src, resource, config)
+	if err != nil {
+		return VersionPolicy{}, err
+	}
+	if version.Strategy == "" {
+		return fallback, nil
+	}
+	return version, nil
+}
+
 // Discoverable is the optional contract for browsing a source's available
 // resources.
 type Discoverable interface {
