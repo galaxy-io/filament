@@ -119,8 +119,7 @@ control-plane:
       GOWORK=off go run .
 
 # run the metrics service locally — reads the same runs table server/control-plane
-# migrate (defaults match docker-compose.yaml; env overrides)
-metrics: migrate
+metrics:
     cd cmd/metrics && \
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
       SERVER_ADDR="${SERVER_ADDR:-:8082}" \
