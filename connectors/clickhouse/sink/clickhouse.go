@@ -80,10 +80,10 @@ func (s *Sink) Spec() filament.SinkSpec {
 			Upsertable:         true,
 			PreferredBatchRows: 10_000,
 			WritePolicies: filament.WriteCapabilities(
-				filament.IngestionSnapshotReplace,
-				filament.IngestionAppend,
-				filament.IngestionSnapshotUpsert,
-				filament.IngestionUpsert,
+				filament.IngestionFullReplace,
+				filament.IngestionFullAppend,
+				filament.IngestionFullUpsert,
+				filament.IngestionIncrementalUpsert,
 			),
 		},
 	}

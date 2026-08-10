@@ -125,7 +125,7 @@ func ResolveWriteVersionPolicy(
 	src Source,
 	resource string,
 	config ResourceCursorConfig,
-	sourceMode ReplicationMode,
+	sourceMode ReadMode,
 	writeMode WriteMode,
 ) (VersionPolicy, error) {
 	if writeMode != WriteUpsert {
