@@ -1,6 +1,10 @@
 package filament
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"strings"
+)
 
 // Source is the connector contract for reading data: describe itself,
 // validate and take config, extract into a RecordSink, and tear down.
@@ -67,6 +71,50 @@ type CursorColumn struct {
 	Configurable     bool
 	SupportsLookback bool
 	Warning          string
+}
+
+// ResolveCursorVersionPolicy binds a resource's configured or recommended
+// incremental cursor into the generic version contract used by sinks. A zero
+// policy means the source does not expose cursor metadata and callers should
+// retain their insertion-order fallback.
+func ResolveCursorVersionPolicy(ctx context.Context, src Source, resource string, config ResourceCursorConfig) (VersionPolicy, error) {
+	provider, ok := src.(CursorColumnProvider)
+	if !ok {
+		return VersionPolicy{}, nil
+	}
+	columns, err := provider.CursorColumns(ctx, resource)
+	if err != nil {
+		return VersionPolicy{}, fmt.Errorf("cursor columns for %q: %w", resource, err)
+	}
+	var selected *CursorColumn
+	for i := range columns {
+		candidate := &columns[i]
+		if config.Field != "" {
+			if strings.EqualFold(candidate.Name, config.Field) {
+				selected = candidate
+				break
+			}
+			continue
+		}
+		if selected == nil && candidate.Recommended {
+			selected = candidate
+		}
+	}
+	if selected == nil {
+		if config.Field != "" {
+			return VersionPolicy{}, fmt.Errorf("incremental %q cursor column %q does not exist", resource, config.Field)
+		}
+		return VersionPolicy{}, fmt.Errorf("incremental %q has no recommended cursor column; configure the pipeline resource cursor", resource)
+	}
+	if !selected.Eligible {
+		return VersionPolicy{}, fmt.Errorf("incremental %q cursor column %q is not eligible for durable versioning", resource, selected.Name)
+	}
+	return VersionPolicy{
+		Strategy: VersionCursor,
+		Field:    selected.Name,
+		Logical:  selected.Logical,
+		Native:   selected.Native,
+	}, nil
 }
 
 // Discoverable is the optional contract for browsing a source's available

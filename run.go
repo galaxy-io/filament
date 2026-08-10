@@ -22,6 +22,7 @@ type RunSpec struct {
 	Mode              ReadMode
 	Checkpoint        *CheckpointData
 	Options           RunOptions
+	WritePolicies     map[string]WritePolicy
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
@@ -320,12 +321,43 @@ type WritePolicyCapability struct {
 	Atomicity     WriteAtomicity
 }
 
+// VersionStrategy selects the ordering value an insert-based upsert sink uses
+// when several records share the same primary key.
+type VersionStrategy string
+
+const (
+	// VersionInsertOrder leaves conflict ordering to the sink's insertion and
+	// merge semantics. It is the fallback when no row-level cursor is available.
+	VersionInsertOrder VersionStrategy = "insert_order"
+	// VersionCursor orders rows by the source field used for incremental reads.
+	// The field must be present, non-null, and advance on every source update.
+	VersionCursor VersionStrategy = "cursor"
+)
+
+// VersionPolicy tells a sink how to resolve competing values for one primary
+// key. Field and its types are populated for VersionCursor; they are empty for
+// VersionInsertOrder.
+type VersionPolicy struct {
+	Strategy VersionStrategy
+	Field    string
+	Logical  LogicalType
+	Native   string
+}
+
+// Eventually we might want to track a deleted-at tombstone alongside the
+// version cursor, but the engine and API do not support tombstones yet.
+//
+// type TombstonePolicy struct {
+// 	Field string // e.g. deleted_at; non-null means deleted
+// }
+
 // WritePolicy binds a capability to one resource's keys and checkpoint timing
 // — the per-resource contract handed to a sink via ApplyOptions.
 type WritePolicy struct {
 	Capability WritePolicyCapability
 	Resource   string
 	Keys       []string
+	Version    VersionPolicy
 	Checkpoint CheckpointPolicy
 }
 
@@ -428,7 +460,11 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 		checkpoint = CheckpointAfterCommit
 	}
 
-	return WritePolicy{Capability: capability, Checkpoint: checkpoint}
+	policy := WritePolicy{Capability: capability, Checkpoint: checkpoint}
+	if capability.Mode == WriteUpsert {
+		policy.Version.Strategy = VersionInsertOrder
+	}
+	return policy
 }
 
 // SourcePolicyForIngestion derives the canonical read-side policy for an
