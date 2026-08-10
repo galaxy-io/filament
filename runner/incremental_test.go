@@ -54,12 +54,14 @@ func (*incrementalTestSource) Schema(context.Context, string) (filament.RecordSc
 		PrimaryKey: []string{"id"},
 	}, nil
 }
+
 func (*incrementalTestSource) CursorColumns(context.Context, string) ([]filament.CursorColumn, error) {
 	return []filament.CursorColumn{{
 		SchemaField: filament.SchemaField{Name: "updated_at", Logical: filament.LogicalTimestampTZ, Native: "timestamptz"},
 		Eligible:    true, Recommended: true,
 	}}, nil
 }
+
 func (*incrementalTestSource) ExtractFrom(context.Context, filament.RecordSink, filament.ExtractOpts, map[string]filament.Checkpoint) error {
 	return nil
 }
