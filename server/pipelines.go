@@ -475,7 +475,7 @@ func (a *Server) compilePipeline(ctx context.Context, pipelineID, token string, 
 	if err != nil {
 		return nil, err
 	}
-	var compiled []compiledRun
+	compiled := make([]compiledRun, 0, len(groups))
 	for _, group := range groups {
 		key := group.key
 		var resources []string
