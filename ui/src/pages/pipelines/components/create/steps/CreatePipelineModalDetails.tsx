@@ -3,20 +3,23 @@ import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalActions,
+  useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
 const CreatePipelineModalDetails = () => {
   const { effectiveName, nameError, description } = useCreatePipelineModalState();
-  const { setName, setDescription } = useCreatePipelineModalActions();
+  const dispatch = useCreatePipelineModalDispatch();
 
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth fillHeight>
       <TextInput
         value={effectiveName}
-        onChange={setName}
+        onChange={(name) =>
+          dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload: name })
+        }
         size={InputSize.LARGE}
         placeholder="Enter pipeline name..."
         label="Name"
@@ -27,7 +30,12 @@ const CreatePipelineModalDetails = () => {
       />
       <TextAreaInput
         value={description}
-        onChange={setDescription}
+        onChange={(nextDescription) =>
+          dispatch({
+            type: CreatePipelineModalActionType.SET_DESCRIPTION,
+            payload: nextDescription,
+          })
+        }
         size={TextAreaSize.LARGE}
         placeholder="Enter an optional description..."
         label="Description"

@@ -37,10 +37,10 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 		policies := policiesForReplication(spec.SourcePolicies, replication)
 		readModes := readModesForPolicies(policies)
 		return connect.NewResponse(&ingestionv1.GetConnectionCapabilitiesResponse{
-			Connector:            spec.Name,
-			Kind:                 ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
-			Capabilities:         sourceCapabilitiesToProto(spec, policies),
-			Replication:          replicationToProto(replication),
+			Connector:                    spec.Name,
+			Kind:                         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+			Capabilities:                 sourceCapabilitiesToProto(spec, policies),
+			Replication:                  replicationToProto(replication),
 			ReadModes:                    readModes,
 			ReadModeWriteCompatibilities: readModeWriteCompatibilities(readModes),
 		}), nil

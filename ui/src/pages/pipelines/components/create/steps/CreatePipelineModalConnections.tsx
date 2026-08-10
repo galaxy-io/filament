@@ -30,8 +30,9 @@ import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalActions,
+  useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
@@ -231,7 +232,7 @@ const CreatePipelineModalConnectionsPane = ({
 
 const CreatePipelineModalConnections = () => {
   const { sourceConnection, sinkConnections } = useCreatePipelineModalState();
-  const { selectSource, toggleSink } = useCreatePipelineModalActions();
+  const dispatch = useCreatePipelineModalDispatch();
 
   return (
     <FlexWrapper alignItems={AlignItems.STRETCH} grow={1} basis={0} minHeight={0}>
@@ -240,7 +241,9 @@ const CreatePipelineModalConnections = () => {
         renderControl={(connection) => (
           <RadioInput isSelected={sourceConnection?.id === connection.id} onChange={NOOP} />
         )}
-        onConnectionClick={selectSource}
+        onConnectionClick={(connection) =>
+          dispatch({ type: CreatePipelineModalActionType.SELECT_SOURCE, payload: connection })
+        }
       />
       <VerticalDivider />
       <CreatePipelineModalConnectionsPane
@@ -252,7 +255,9 @@ const CreatePipelineModalConnections = () => {
             ariaLabel={connection.name}
           />
         )}
-        onConnectionClick={toggleSink}
+        onConnectionClick={(connection) =>
+          dispatch({ type: CreatePipelineModalActionType.TOGGLE_SINK, payload: connection })
+        }
       />
     </FlexWrapper>
   );
