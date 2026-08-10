@@ -1,13 +1,15 @@
 import { useCallback } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 import CreateConnectionConfigure from "@/pages/connectors/components/create/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
-import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
@@ -15,7 +17,11 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
     from: "__root__",
   });
 
-  const selectedConnector = useConnectorSpec(connector ?? "", connectorKind);
+  const { data } = useGetConnectorQuery({
+    input: create(GetConnectorRequestSchema, { connector, kind: connectorKind }),
+    options: { enabled: !!connector && !!connectorKind },
+  });
+  const selectedConnector = data?.connector;
 
   const handleConnectorSelect = useCallback(
     (connector: ConnectorSpec) => {

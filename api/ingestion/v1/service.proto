@@ -13,6 +13,7 @@ import "ingestion/v1/secrets.proto";
 service IngestionService {
   // Catalog of registered source/sink connectors and their config schemas.
   rpc ListConnectors(ListConnectorsRequest) returns (ListConnectorsResponse);
+  rpc GetConnector(GetConnectorRequest) returns (GetConnectorResponse);
 
   // Ephemeral source/sink operations; no persisted state.
   rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);

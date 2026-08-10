@@ -30,7 +30,7 @@ const ConnectionFormHeader = ({ connector, title, onClose }: ConnectionFormHeade
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
       <FlexItem shrink={0}>
-        <ConnectorTile connector={connector.name} spec={connector} size={ConnectorTileSize.LARGE} />
+        <ConnectorTile connector={connector.name} kind={connector.kind} size={ConnectorTileSize.LARGE} />
       </FlexItem>
       <FlexItem grow={1} minWidth={0}>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>

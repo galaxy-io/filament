@@ -3,3 +3,8 @@ export enum ObservabilityTimeframe {
   SEVEN_DAYS = "7D",
   THIRTY_DAYS = "30D",
 }
+
+export enum ObservabilityMetricView {
+  RECORDS = "RECORDS",
+  VOLUME = "VOLUME",
+}

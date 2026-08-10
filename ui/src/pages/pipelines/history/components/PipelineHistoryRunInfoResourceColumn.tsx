@@ -46,6 +46,7 @@ const PipelineHistoryRunInfoResourceColumn = ({
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} width={200}>
         <ConnectorTile
           connector={sourceConnection?.connection?.connector ?? ""}
+          kind={sourceConnection?.connection?.kind}
           size={ConnectorTileSize.SMALL}
           onClick={handleConnectorTileClick}
         />

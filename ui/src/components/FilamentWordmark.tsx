@@ -1,6 +1,6 @@
 import { match } from "ts-pattern";
 
-import { GalaxyTheme } from "@galaxy-io/dls/theme/constants";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
 import { useGalaxyTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 
 import SvgFilamentLogoDark from "@/assets/components/FilamentLogoDark";

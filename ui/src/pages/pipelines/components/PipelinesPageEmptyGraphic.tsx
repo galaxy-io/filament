@@ -108,7 +108,7 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
               <GhostRow key={row.nameWidth}>
                 <GhostFlowWrapper>
                   {sourceSpec ? (
-                    <ConnectorTile connector={sourceSpec.name} spec={sourceSpec} />
+                    <ConnectorTile connector={sourceSpec.name} kind={sourceSpec.kind} />
                   ) : (
                     <EmptyGraphicGhostTileFallback />
                   )}
@@ -125,7 +125,7 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
                         : undefined;
 
                       return sinkSpec ? (
-                        <ConnectorTile key={offset} connector={sinkSpec.name} spec={sinkSpec} />
+                        <ConnectorTile key={offset} connector={sinkSpec.name} kind={sinkSpec.kind} />
                       ) : (
                         <EmptyGraphicGhostTileFallback key={offset} />
                       );

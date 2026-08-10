@@ -4,34 +4,27 @@ import { create } from "@bufbuild/protobuf";
 import { useSearch } from "@tanstack/react-router";
 
 import LineChart from "@galaxy-io/dls/charts/LineChart";
-import type {
-  ChartPalette,
-  ChartValueFormatter,
-  LineChartLineDatum,
-} from "@galaxy-io/dls/charts/types";
+import type { LineChartLineDatum } from "@galaxy-io/dls/charts/types";
 import { LineChartCurve } from "@galaxy-io/dls/charts/types";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
-import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
-import {
-  type Metric,
-  MetricDimension,
-  QueryTimeseriesRequestSchema,
-} from "@/gen/metrics/v1/metrics_pb";
+import { MetricDimension, QueryTimeseriesRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
 import { OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP } from "@/pages/observability/components/runs/constants";
 import {
   METRIC_DIMENSION_PIVOT_OPTIONS,
+  OBSERVABILITY_METRIC_VIEW_TO_CONFIG_MAP,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
 } from "@/pages/observability/components/timeseries/constants";
+import ObservabilityMetricViewSwitcher from "@/pages/observability/components/timeseries/ObservabilityMetricViewSwitcher";
 import { OBSERVABILITY_PIPELINES_INPUT } from "@/pages/observability/constants";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
+import { type ObservabilityMetricView, ObservabilityTimeframe } from "@/pages/observability/types";
 import {
   createTimeframeSince,
   formatBucketKey,
@@ -41,33 +34,29 @@ import {
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
-import type { ObservabilityPivotDimension } from "@/routes/_main/observability";
-
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
+import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 
 interface ObservabilityTimeseriesWidgetProps {
-  title: string;
-  seriesLabel: string;
-  metric: Metric;
-  color: ChartPalette;
-  pivot: ObservabilityPivotDimension | undefined;
-  onPivotChange: (pivot: ObservabilityPivotDimension | null) => void;
-  valueFormatter?: ChartValueFormatter;
+  view: ObservabilityMetricView;
+  onViewChange: (view: ObservabilityMetricView) => void;
+  pivot: MetricDimension | undefined;
+  onPivotChange: (pivot: MetricDimension | undefined) => void;
 }
 
 const ObservabilityTimeseriesWidget = ({
-  title,
-  seriesLabel,
-  metric,
-  color,
+  view,
+  onViewChange,
   pivot,
   onPivotChange,
-  valueFormatter,
 }: ObservabilityTimeseriesWidgetProps) => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
     from: "/_main/observability",
   });
+
+  const { seriesLabel, metric, color, valueFormatter } =
+    OBSERVABILITY_METRIC_VIEW_TO_CONFIG_MAP[view];
 
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;
 
@@ -75,11 +64,11 @@ const ObservabilityTimeseriesWidget = ({
     METRIC_DIMENSION_PIVOT_OPTIONS.find((option) => option.value === pivot) ?? null;
 
   const handlePivotChange = (option: SelectInputOption) => {
-    onPivotChange(option.value as ObservabilityPivotDimension);
+    onPivotChange(option.value as MetricDimension);
   };
 
   const handlePivotReset = () => {
-    onPivotChange(null);
+    onPivotChange(undefined);
   };
 
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
@@ -156,11 +145,16 @@ const ObservabilityTimeseriesWidget = ({
     <Widget fillWidth fillHeight noPadding>
       <BaseToolbar
         leadingActions={[
-          <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
-            {title}
+          <Text key="title" weight={TextWeight.MEDIUM}>
+            {seriesLabel}
           </Text>,
         ]}
         trailingActions={[
+          <ObservabilityMetricViewSwitcher
+            key="metric-view-switcher"
+            value={view}
+            onChange={onViewChange}
+          />,
           <SelectInput
             key="pivot-selector"
             options={METRIC_DIMENSION_PIVOT_OPTIONS}
@@ -168,7 +162,7 @@ const ObservabilityTimeseriesWidget = ({
             onChange={handlePivotChange}
             onReset={handlePivotReset}
             placeholder="Pivot"
-            width={140}
+            width={150}
           />,
         ]}
       />

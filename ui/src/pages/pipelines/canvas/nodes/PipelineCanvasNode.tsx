@@ -1,5 +1,6 @@
 import { type PropsWithChildren, useCallback } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, GearSixIcon, TrashIcon } from "@phosphor-icons/react";
 
@@ -12,12 +13,14 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { getPipelineScopedFields } from "@/components/fields/utils";
 
+import { useGetConnectorQuery } from "@/api/queries/connectors";
+
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
-import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 import {
   CONNECTOR_KIND_TO_CHIP_VARIANT_MAP,
   CONNECTOR_KIND_TO_HANDLE_ID_MAP,
@@ -94,7 +97,10 @@ const PipelineCanvasNode = ({
   onConfigure,
   children,
 }: PipelineCanvasNodeProps) => {
-  const connectorSpec = useConnectorSpec(connector, kind);
+  const { data } = useGetConnectorQuery({
+    input: create(GetConnectorRequestSchema, { connector, kind }),
+  });
+  const connectorSpec = data?.connector;
 
   const hasPipelineFields =
     getPipelineScopedFields(connectorSpec?.configSchema?.fields ?? []).length > 0;
@@ -152,7 +158,7 @@ const PipelineCanvasNode = ({
         )}
         <FlexItem grow={1} shrink={0}>
           <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
-            <ConnectorTile connector={connector} spec={connectorSpec} />
+            <ConnectorTile connector={connector} kind={kind} />
             <Text size={TextSize.BODY_SM}>{label}</Text>
           </FlexWrapper>
         </FlexItem>

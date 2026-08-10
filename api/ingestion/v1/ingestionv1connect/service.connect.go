@@ -36,6 +36,9 @@ const (
 	// IngestionServiceListConnectorsProcedure is the fully-qualified name of the IngestionService's
 	// ListConnectors RPC.
 	IngestionServiceListConnectorsProcedure = "/ingestion.v1.IngestionService/ListConnectors"
+	// IngestionServiceGetConnectorProcedure is the fully-qualified name of the IngestionService's
+	// GetConnector RPC.
+	IngestionServiceGetConnectorProcedure = "/ingestion.v1.IngestionService/GetConnector"
 	// IngestionServiceValidateConfigProcedure is the fully-qualified name of the IngestionService's
 	// ValidateConfig RPC.
 	IngestionServiceValidateConfigProcedure = "/ingestion.v1.IngestionService/ValidateConfig"
@@ -131,6 +134,7 @@ const (
 type IngestionServiceClient interface {
 	// Catalog of registered source/sink connectors and their config schemas.
 	ListConnectors(context.Context, *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error)
+	GetConnector(context.Context, *connect.Request[v1.GetConnectorRequest]) (*connect.Response[v1.GetConnectorResponse], error)
 	// Ephemeral source/sink operations; no persisted state.
 	ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error)
 	DiscoverResources(context.Context, *connect.Request[v1.DiscoverResourcesRequest]) (*connect.Response[v1.DiscoverResourcesResponse], error)
@@ -186,6 +190,12 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceListConnectorsProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("ListConnectors")),
+			connect.WithClientOptions(opts...),
+		),
+		getConnector: connect.NewClient[v1.GetConnectorRequest, v1.GetConnectorResponse](
+			httpClient,
+			baseURL+IngestionServiceGetConnectorProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetConnector")),
 			connect.WithClientOptions(opts...),
 		),
 		validateConfig: connect.NewClient[v1.ValidateConfigRequest, v1.ValidateConfigResponse](
@@ -374,6 +384,7 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 // ingestionServiceClient implements IngestionServiceClient.
 type ingestionServiceClient struct {
 	listConnectors            *connect.Client[v1.ListConnectorsRequest, v1.ListConnectorsResponse]
+	getConnector              *connect.Client[v1.GetConnectorRequest, v1.GetConnectorResponse]
 	validateConfig            *connect.Client[v1.ValidateConfigRequest, v1.ValidateConfigResponse]
 	discoverResources         *connect.Client[v1.DiscoverResourcesRequest, v1.DiscoverResourcesResponse]
 	getResourceColumns        *connect.Client[v1.GetResourceColumnsRequest, v1.GetResourceColumnsResponse]
@@ -409,6 +420,11 @@ type ingestionServiceClient struct {
 // ListConnectors calls ingestion.v1.IngestionService.ListConnectors.
 func (c *ingestionServiceClient) ListConnectors(ctx context.Context, req *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error) {
 	return c.listConnectors.CallUnary(ctx, req)
+}
+
+// GetConnector calls ingestion.v1.IngestionService.GetConnector.
+func (c *ingestionServiceClient) GetConnector(ctx context.Context, req *connect.Request[v1.GetConnectorRequest]) (*connect.Response[v1.GetConnectorResponse], error) {
+	return c.getConnector.CallUnary(ctx, req)
 }
 
 // ValidateConfig calls ingestion.v1.IngestionService.ValidateConfig.
@@ -565,6 +581,7 @@ func (c *ingestionServiceClient) TailRun(ctx context.Context, req *connect.Reque
 type IngestionServiceHandler interface {
 	// Catalog of registered source/sink connectors and their config schemas.
 	ListConnectors(context.Context, *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error)
+	GetConnector(context.Context, *connect.Request[v1.GetConnectorRequest]) (*connect.Response[v1.GetConnectorResponse], error)
 	// Ephemeral source/sink operations; no persisted state.
 	ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error)
 	DiscoverResources(context.Context, *connect.Request[v1.DiscoverResourcesRequest]) (*connect.Response[v1.DiscoverResourcesResponse], error)
@@ -616,6 +633,12 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceListConnectorsProcedure,
 		svc.ListConnectors,
 		connect.WithSchema(ingestionServiceMethods.ByName("ListConnectors")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceGetConnectorHandler := connect.NewUnaryHandler(
+		IngestionServiceGetConnectorProcedure,
+		svc.GetConnector,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetConnector")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceValidateConfigHandler := connect.NewUnaryHandler(
@@ -802,6 +825,8 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case IngestionServiceListConnectorsProcedure:
 			ingestionServiceListConnectorsHandler.ServeHTTP(w, r)
+		case IngestionServiceGetConnectorProcedure:
+			ingestionServiceGetConnectorHandler.ServeHTTP(w, r)
 		case IngestionServiceValidateConfigProcedure:
 			ingestionServiceValidateConfigHandler.ServeHTTP(w, r)
 		case IngestionServiceDiscoverResourcesProcedure:
@@ -873,6 +898,10 @@ type UnimplementedIngestionServiceHandler struct{}
 
 func (UnimplementedIngestionServiceHandler) ListConnectors(context.Context, *connect.Request[v1.ListConnectorsRequest]) (*connect.Response[v1.ListConnectorsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListConnectors is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetConnector(context.Context, *connect.Request[v1.GetConnectorRequest]) (*connect.Response[v1.GetConnectorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetConnector is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error) {
