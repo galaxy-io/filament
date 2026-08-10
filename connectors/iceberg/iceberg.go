@@ -147,7 +147,8 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
 		s.stageBufLimitBytes = int64(mb) << 20
 	}
-	mode, err := resolveWriteMode(cfg.String("write_mode"), run.Mode)
+	mode, err := resolveWriteMode(cfg.String("write_mode"),
+		filament.SourcePolicyForIngestion(filament.TypeFor(run.IngestionTypes, "")).Mode)
 	if err != nil {
 		return err
 	}

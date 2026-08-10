@@ -307,7 +307,9 @@ func TestMatchesTableEngineSupportsClickHouseCloud(t *testing.T) {
 
 func TestApplyRejectsPolicyDifferentFromOpenedMode(t *testing.T) {
 	sink := New()
-	sink.mode = filament.WriteAppend
+	sink.policies = map[string]filament.WritePolicy{
+		"": {Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend}},
+	}
 	_, err := sink.Apply(context.Background(), filament.Batch{}, filament.ApplyOptions{
 		Policy: filament.WritePolicy{Capability: filament.WritePolicyCapability{Mode: filament.WriteUpsert}},
 	})
