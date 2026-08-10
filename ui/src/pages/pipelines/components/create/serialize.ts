@@ -8,7 +8,11 @@ import {
   type CreatePipelineVersionRequest,
   CreatePipelineVersionRequestSchema,
   type PipelineEdge,
+  PipelineEdgeSchema,
   type PipelineNode,
+  PipelineNodeSchema,
+  type ResourceCursorConfig,
+  ResourceCursorConfigSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type {
@@ -24,33 +28,35 @@ const buildNodes = (
 ): PipelineNode[] => {
   if (!sourceConnection) return [];
   return [
-    {
+    create(PipelineNodeSchema, {
       id: sourceConnection.id,
       kind: ConnectorKind.SOURCE,
       connectionId: sourceConnection.id,
-      secretRefs: {},
-    },
-    ...sinks.map((sink) => ({
-      id: sink.connection.id,
-      kind: ConnectorKind.SINK,
-      connectionId: sink.connection.id,
-      secretRefs: {},
-    })),
-  ] as PipelineNode[];
+    }),
+    ...sinks.map((sink) =>
+      create(PipelineNodeSchema, {
+        id: sink.connection.id,
+        kind: ConnectorKind.SINK,
+        connectionId: sink.connection.id,
+      }),
+    ),
+  ];
 };
 
 const buildCursors = (
   rows: CreatePipelineModalResourceRow[],
   readMode: ReadMode,
-): PipelineEdge["cursors"] => {
+): ResourceCursorConfig[] => {
   if (readMode !== ReadMode.INCREMENTAL) return [];
   return rows
     .filter((row) => !!row.cursorField)
-    .map((row) => ({
-      resource: row.name,
-      field: row.cursorField,
-      lookbackSeconds: 0n,
-    })) as PipelineEdge["cursors"];
+    .map((row) =>
+      create(ResourceCursorConfigSchema, {
+        resource: row.name,
+        field: row.cursorField,
+        lookbackSeconds: 0n,
+      }),
+    );
 };
 
 const buildSinkEdges = ({
@@ -76,29 +82,27 @@ const buildSinkEdges = ({
   if (isCollapsible) {
     const readMode = readModes[0] ?? (isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL);
     return [
-      {
+      create(PipelineEdgeSchema, {
         fromNode: sourceId,
         resource: "",
         toNode: sink.connection.id,
         readMode,
         writeMode: sink.writeMode,
         cursors: isCdc ? [] : buildCursors(selected, readMode),
-        selector: "",
-      } as PipelineEdge,
+      }),
     ];
   }
 
   return selected.map((row) => {
     const readMode = isCdc ? ReadMode.UNSPECIFIED : row.readMode;
-    return {
+    return create(PipelineEdgeSchema, {
       fromNode: sourceId,
       resource: row.name,
       toNode: sink.connection.id,
       readMode,
       writeMode: sink.writeMode,
       cursors: isCdc ? [] : buildCursors([row], readMode),
-      selector: "",
-    } as PipelineEdge;
+    });
   });
 };
 

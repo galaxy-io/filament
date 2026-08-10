@@ -75,12 +75,12 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const writeModesByReadMode = useMemo<Partial<Record<ReadMode, WriteMode[]>>>(
     () =>
       Object.fromEntries(
-        (capabilities?.leverCompatibilities ?? []).map((entry) => [
+        (capabilities?.readModeWriteCompatibilities ?? []).map((entry) => [
           entry.readMode,
           entry.writeModes,
         ]),
       ),
-    [capabilities?.leverCompatibilities],
+    [capabilities?.readModeWriteCompatibilities],
   );
 
   const writeModesBySink = useMemo<Record<string, WriteMode[]>>(

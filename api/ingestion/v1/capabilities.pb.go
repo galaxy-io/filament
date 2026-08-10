@@ -178,10 +178,10 @@ func (x *GetConnectionCapabilitiesRequest) GetId() string {
 	return ""
 }
 
-// LeverCompatibility is one read lever crossed with the write levers it can
-// compile with. Delete and merge are engine mechanisms, never offered as
-// levers.
-type LeverCompatibility struct {
+// ReadModeWriteCompatibility is one read lever crossed with the write levers
+// it can compile with. Delete and merge are engine mechanisms, never offered
+// as levers.
+type ReadModeWriteCompatibility struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ReadMode      ReadMode               `protobuf:"varint,1,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
 	WriteModes    []WriteMode            `protobuf:"varint,2,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
@@ -189,20 +189,20 @@ type LeverCompatibility struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *LeverCompatibility) Reset() {
-	*x = LeverCompatibility{}
+func (x *ReadModeWriteCompatibility) Reset() {
+	*x = ReadModeWriteCompatibility{}
 	mi := &file_ingestion_v1_capabilities_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LeverCompatibility) String() string {
+func (x *ReadModeWriteCompatibility) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LeverCompatibility) ProtoMessage() {}
+func (*ReadModeWriteCompatibility) ProtoMessage() {}
 
-func (x *LeverCompatibility) ProtoReflect() protoreflect.Message {
+func (x *ReadModeWriteCompatibility) ProtoReflect() protoreflect.Message {
 	mi := &file_ingestion_v1_capabilities_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -214,19 +214,19 @@ func (x *LeverCompatibility) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LeverCompatibility.ProtoReflect.Descriptor instead.
-func (*LeverCompatibility) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReadModeWriteCompatibility.ProtoReflect.Descriptor instead.
+func (*ReadModeWriteCompatibility) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *LeverCompatibility) GetReadMode() ReadMode {
+func (x *ReadModeWriteCompatibility) GetReadMode() ReadMode {
 	if x != nil {
 		return x.ReadMode
 	}
 	return ReadMode_READ_MODE_UNSPECIFIED
 }
 
-func (x *LeverCompatibility) GetWriteModes() []WriteMode {
+func (x *ReadModeWriteCompatibility) GetWriteModes() []WriteMode {
 	if x != nil {
 		return x.WriteModes
 	}
@@ -250,9 +250,9 @@ type GetConnectionCapabilitiesResponse struct {
 	// Source: for each offered read lever, the write levers it combines with —
 	// the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
 	// connections.
-	LeverCompatibilities []*LeverCompatibility `protobuf:"bytes,7,rep,name=lever_compatibilities,json=leverCompatibilities,proto3" json:"lever_compatibilities,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	ReadModeWriteCompatibilities []*ReadModeWriteCompatibility `protobuf:"bytes,7,rep,name=read_mode_write_compatibilities,json=readModeWriteCompatibilities,proto3" json:"read_mode_write_compatibilities,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *GetConnectionCapabilitiesResponse) Reset() {
@@ -327,9 +327,9 @@ func (x *GetConnectionCapabilitiesResponse) GetWriteModes() []WriteMode {
 	return nil
 }
 
-func (x *GetConnectionCapabilitiesResponse) GetLeverCompatibilities() []*LeverCompatibility {
+func (x *GetConnectionCapabilitiesResponse) GetReadModeWriteCompatibilities() []*ReadModeWriteCompatibility {
 	if x != nil {
-		return x.LeverCompatibilities
+		return x.ReadModeWriteCompatibilities
 	}
 	return nil
 }
@@ -797,11 +797,11 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x1cingestion/v1/providers.proto\"O\n" +
 	" GetConnectionCapabilitiesRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"\x83\x01\n" +
-	"\x12LeverCompatibility\x123\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\x8b\x01\n" +
+	"\x1aReadModeWriteCompatibility\x123\n" +
 	"\tread_mode\x18\x01 \x01(\x0e2\x16.ingestion.v1.ReadModeR\breadMode\x128\n" +
 	"\vwrite_modes\x18\x02 \x03(\x0e2\x17.ingestion.v1.WriteModeR\n" +
-	"writeModes\"\xbb\x03\n" +
+	"writeModes\"\xd5\x03\n" +
 	"!GetConnectionCapabilitiesResponse\x12\x1c\n" +
 	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12>\n" +
@@ -810,8 +810,8 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\n" +
 	"read_modes\x18\x05 \x03(\x0e2\x16.ingestion.v1.ReadModeR\treadModes\x128\n" +
 	"\vwrite_modes\x18\x06 \x03(\x0e2\x17.ingestion.v1.WriteModeR\n" +
-	"writeModes\x12U\n" +
-	"\x15lever_compatibilities\x18\a \x03(\v2 .ingestion.v1.LeverCompatibilityR\x14leverCompatibilities\"\x9a\x01\n" +
+	"writeModes\x12o\n" +
+	"\x1fread_mode_write_compatibilities\x18\a \x03(\v2(.ingestion.v1.ReadModeWriteCompatibilityR\x1creadModeWriteCompatibilities\"\x9a\x01\n" +
 	"\x17ValidatePipelineRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
 	"\x05nodes\x18\x02 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
@@ -877,7 +877,7 @@ var file_ingestion_v1_capabilities_proto_goTypes = []any{
 	(RequirementKind)(0),                      // 0: ingestion.v1.RequirementKind
 	(CandidateStatus)(0),                      // 1: ingestion.v1.CandidateStatus
 	(*GetConnectionCapabilitiesRequest)(nil),  // 2: ingestion.v1.GetConnectionCapabilitiesRequest
-	(*LeverCompatibility)(nil),                // 3: ingestion.v1.LeverCompatibility
+	(*ReadModeWriteCompatibility)(nil),        // 3: ingestion.v1.ReadModeWriteCompatibility
 	(*GetConnectionCapabilitiesResponse)(nil), // 4: ingestion.v1.GetConnectionCapabilitiesResponse
 	(*ValidatePipelineRequest)(nil),           // 5: ingestion.v1.ValidatePipelineRequest
 	(*CandidateValue)(nil),                    // 6: ingestion.v1.CandidateValue
@@ -896,14 +896,14 @@ var file_ingestion_v1_capabilities_proto_goTypes = []any{
 	(IngestionType)(0),                        // 19: ingestion.v1.IngestionType
 }
 var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
-	11, // 0: ingestion.v1.LeverCompatibility.read_mode:type_name -> ingestion.v1.ReadMode
-	12, // 1: ingestion.v1.LeverCompatibility.write_modes:type_name -> ingestion.v1.WriteMode
+	11, // 0: ingestion.v1.ReadModeWriteCompatibility.read_mode:type_name -> ingestion.v1.ReadMode
+	12, // 1: ingestion.v1.ReadModeWriteCompatibility.write_modes:type_name -> ingestion.v1.WriteMode
 	13, // 2: ingestion.v1.GetConnectionCapabilitiesResponse.kind:type_name -> ingestion.v1.ConnectorKind
 	14, // 3: ingestion.v1.GetConnectionCapabilitiesResponse.capabilities:type_name -> ingestion.v1.Capabilities
 	15, // 4: ingestion.v1.GetConnectionCapabilitiesResponse.replication:type_name -> ingestion.v1.ReplicationMode
 	11, // 5: ingestion.v1.GetConnectionCapabilitiesResponse.read_modes:type_name -> ingestion.v1.ReadMode
 	12, // 6: ingestion.v1.GetConnectionCapabilitiesResponse.write_modes:type_name -> ingestion.v1.WriteMode
-	3,  // 7: ingestion.v1.GetConnectionCapabilitiesResponse.lever_compatibilities:type_name -> ingestion.v1.LeverCompatibility
+	3,  // 7: ingestion.v1.GetConnectionCapabilitiesResponse.read_mode_write_compatibilities:type_name -> ingestion.v1.ReadModeWriteCompatibility
 	16, // 8: ingestion.v1.ValidatePipelineRequest.nodes:type_name -> ingestion.v1.PipelineNode
 	17, // 9: ingestion.v1.ValidatePipelineRequest.edges:type_name -> ingestion.v1.PipelineEdge
 	0,  // 10: ingestion.v1.Requirement.kind:type_name -> ingestion.v1.RequirementKind

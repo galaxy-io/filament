@@ -41,8 +41,8 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 			Kind:                 ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 			Capabilities:         sourceCapabilitiesToProto(spec, policies),
 			Replication:          replicationToProto(replication),
-			ReadModes:            readModes,
-			LeverCompatibilities: leverCompatibilities(readModes),
+			ReadModes:                    readModes,
+			ReadModeWriteCompatibilities: readModeWriteCompatibilities(readModes),
 		}), nil
 	case filament.ConnectorKindSink:
 		sink, err := a.sinks.Resolve(conn.Connector)
@@ -95,10 +95,11 @@ func readModesForPolicies(policies []filament.SourcePolicy) []ingestionv1.ReadMo
 	return out
 }
 
-// leverCompatibilities crosses each offered read lever with the write levers
-// IngestionFor can compile it with, scoping the engine matrix to a connection.
-func leverCompatibilities(readModes []ingestionv1.ReadMode) []*ingestionv1.LeverCompatibility {
-	out := make([]*ingestionv1.LeverCompatibility, 0, len(readModes))
+// readModeWriteCompatibilities crosses each offered read lever with the write
+// levers IngestionFor can compile it with, scoping the engine matrix to a
+// connection.
+func readModeWriteCompatibilities(readModes []ingestionv1.ReadMode) []*ingestionv1.ReadModeWriteCompatibility {
+	out := make([]*ingestionv1.ReadModeWriteCompatibility, 0, len(readModes))
 	for _, readMode := range readModes {
 		var writeModes []ingestionv1.WriteMode
 		for _, writeMode := range filament.LeverWriteModes {
@@ -106,7 +107,7 @@ func leverCompatibilities(readModes []ingestionv1.ReadMode) []*ingestionv1.Lever
 				writeModes = append(writeModes, writeModeToProto(writeMode))
 			}
 		}
-		out = append(out, &ingestionv1.LeverCompatibility{ReadMode: readMode, WriteModes: writeModes})
+		out = append(out, &ingestionv1.ReadModeWriteCompatibility{ReadMode: readMode, WriteModes: writeModes})
 	}
 	return out
 }
