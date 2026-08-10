@@ -111,6 +111,7 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		s.putResourceLocked(rs)
 	}
 	r.Resources = nil
+	r = mergeRunTimes(s.runs[r.Run], r)
 	s.runs[r.Run] = r
 	// A pre-created scheduled run hasn't happened yet — it must not become the
 	// pipeline's last run.
@@ -128,6 +129,33 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		}
 	}
 	return nil
+}
+
+// mergeRunTimes applies the same first-write-wins rule postgres gets from
+// coalesce(runs.col, EXCLUDED.col): a stamp already on the row survives a later
+// save from a writer that does not own it. CreatedAt is stamped on insert and
+// never moves; UpdatedAt is refreshed on every write.
+func mergeRunTimes(prev, next filament.RunState) filament.RunState {
+	now := time.Now()
+	next.CreatedAt = prev.CreatedAt
+	if next.CreatedAt.IsZero() {
+		next.CreatedAt = now
+	}
+	next.ScheduledAt = firstSet(prev.ScheduledAt, next.ScheduledAt)
+	next.RequestedAt = firstSet(prev.RequestedAt, next.RequestedAt)
+	next.StartedAt = firstSet(prev.StartedAt, next.StartedAt)
+	if prev.FinishedAt != nil {
+		next.FinishedAt = prev.FinishedAt
+	}
+	next.UpdatedAt = now
+	return next
+}
+
+func firstSet(prev, next time.Time) time.Time {
+	if !prev.IsZero() {
+		return prev
+	}
+	return next
 }
 
 func activeCheckpointRun(r filament.RunState) bool {
@@ -178,9 +206,9 @@ func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 	return nil
 }
 
-// ListRuns returns runs matching the filter, newest StartedAt first. A zero
-// StartedAt (a pre-created scheduled run) sorts before every started run,
-// mirroring postgres's started_at DESC NULLS FIRST.
+// ListRuns returns runs matching the filter, newest StartedAt first. A run that
+// has not started sorts before every started run, mirroring postgres's
+// started_at DESC NULLS FIRST: pending work belongs at the top.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

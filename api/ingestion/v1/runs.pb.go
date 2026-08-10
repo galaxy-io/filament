@@ -546,8 +546,16 @@ type RunInfo struct {
 	// Worker pod usage folded from run.heartbeat facts.
 	CpuSeconds      float64 `protobuf:"fixed64,13,opt,name=cpu_seconds,json=cpuSeconds,proto3" json:"cpu_seconds,omitempty"`
 	MemoryPeakBytes int64   `protobuf:"varint,14,opt,name=memory_peak_bytes,json=memoryPeakBytes,proto3" json:"memory_peak_bytes,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Lifecycle stamps in epoch millis; 0 means unset. created_at is row birth,
+	// scheduled_at the intended fire time (scheduled runs only), requested_at
+	// when the run was queued for dispatch. started_at/ended_at above are the
+	// worker's own start and finish.
+	CreatedAt     int64 `protobuf:"varint,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ScheduledAt   int64 `protobuf:"varint,16,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
+	RequestedAt   int64 `protobuf:"varint,17,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	UpdatedAt     int64 `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -674,6 +682,34 @@ func (x *RunInfo) GetCpuSeconds() float64 {
 func (x *RunInfo) GetMemoryPeakBytes() int64 {
 	if x != nil {
 		return x.MemoryPeakBytes
+	}
+	return 0
+}
+
+func (x *RunInfo) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetScheduledAt() int64 {
+	if x != nil {
+		return x.ScheduledAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetRequestedAt() int64 {
+	if x != nil {
+		return x.RequestedAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
 	}
 	return 0
 }
@@ -1382,7 +1418,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\xec\x03\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\xf0\x04\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
@@ -1401,7 +1437,13 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\x12\x1f\n" +
 	"\vcpu_seconds\x18\r \x01(\x01R\n" +
 	"cpuSeconds\x12*\n" +
-	"\x11memory_peak_bytes\x18\x0e \x01(\x03R\x0fmemoryPeakBytes\"\x8b\x01\n" +
+	"\x11memory_peak_bytes\x18\x0e \x01(\x03R\x0fmemoryPeakBytes\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x0f \x01(\x03R\tcreatedAt\x12!\n" +
+	"\fscheduled_at\x18\x10 \x01(\x03R\vscheduledAt\x12!\n" +
+	"\frequested_at\x18\x11 \x01(\x03R\vrequestedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +

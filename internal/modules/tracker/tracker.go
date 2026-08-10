@@ -114,9 +114,8 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	case events.RunStartedEvent:
 		return m.mutate(ctx, env, func(r *filament.RunState) {
 			r.Status = filament.RunRunning
-			if r.StartedAt.IsZero() {
-				r.StartedAt = env.At
-			}
+			// The store keeps the first stamp, so a redelivered fact cannot move it.
+			r.StartedAt = env.At
 		})
 
 	case events.RunCompletedEvent:

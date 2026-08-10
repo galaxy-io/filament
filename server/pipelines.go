@@ -395,6 +395,9 @@ func (a *Server) ReconcileScheduledRuns(ctx context.Context, st filament.Schedul
 		return err
 	}
 	for _, c := range compiled {
+		// The fire path recompiles without a fire time, so this pre-create is
+		// where scheduled_at comes from; promotion preserves it.
+		c.req.ScheduledFor = *st.NextFire
 		if _, err := runs.Schedule(ctx, a.store, c.req); err != nil {
 			return err
 		}

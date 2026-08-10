@@ -88,6 +88,14 @@ message RunInfo {
   // Worker pod usage folded from run.heartbeat facts.
   double cpu_seconds = 13;
   int64 memory_peak_bytes = 14;
+  // Lifecycle stamps in epoch millis; 0 means unset. created_at is row birth,
+  // scheduled_at the intended fire time (scheduled runs only), requested_at
+  // when the run was queued for dispatch. started_at/ended_at above are the
+  // worker's own start and finish.
+  int64 created_at = 15;
+  int64 scheduled_at = 16;
+  int64 requested_at = 17;
+  int64 updated_at = 18;
 }
 
 message RunSnapshot {
