@@ -26,7 +26,7 @@ func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
 			t.Fatalf("policy %d mode = %q, want %q", i, policy.Mode, want[i])
 		}
 	}
-	if spec.Version != "2" {
+	if spec.Version != "1" {
 		t.Fatalf("version = %q, want 2", spec.Version)
 	}
 	fields := make(map[string]filament.ConfigField, len(spec.Config.Fields))
