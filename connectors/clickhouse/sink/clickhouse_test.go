@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	ch "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/shopspring/decimal"
 
 	"github.com/galaxy-io/filament"
@@ -24,6 +25,85 @@ func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
 		if policy.Mode != want[i] {
 			t.Fatalf("policy %d mode = %q, want %q", i, policy.Mode, want[i])
 		}
+	}
+	if spec.Version != "2" {
+		t.Fatalf("version = %q, want 2", spec.Version)
+	}
+	fields := make(map[string]filament.ConfigField, len(spec.Config.Fields))
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if _, ok := fields["dsn"]; ok {
+		t.Fatal("spec still exposes removed dsn field")
+	}
+	if !fields["host"].Required || fields["password"].Type != filament.FieldSecret || !fields["password"].Required {
+		t.Fatalf("unexpected connection fields: %+v", fields)
+	}
+}
+
+func TestConnectionOptionsFromFields(t *testing.T) {
+	opts, err := connectionOptions(filament.NewConfig(map[string]any{
+		"host": "https://service.example.clickhouse.cloud", "port": 9440,
+		"username": "loader", "password": "secret",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.Addr; len(got) != 1 || got[0] != "service.example.clickhouse.cloud:9440" {
+		t.Fatalf("address = %v", got)
+	}
+	if opts.Protocol.String() != protocolNative || opts.TLS == nil {
+		t.Fatalf("protocol = %s, TLS = %#v", opts.Protocol, opts.TLS)
+	}
+	if opts.Compression == nil || opts.Compression.Method != ch.CompressionLZ4 {
+		t.Fatalf("native compression = %#v, want LZ4", opts.Compression)
+	}
+	if opts.Auth.Database != defaultDatabase || opts.Auth.Username != "loader" || opts.Auth.Password != "secret" {
+		t.Fatalf("auth = %+v", opts.Auth)
+	}
+}
+
+func TestConnectionOptionsSupportsPlainHTTP(t *testing.T) {
+	opts, err := connectionOptions(filament.NewConfig(map[string]any{
+		"host": "::1", "port": 8123, "protocol": protocolHTTP, "secure": false, "password": "local-secret",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opts.Addr[0]; got != "[::1]:8123" {
+		t.Fatalf("address = %q", got)
+	}
+	if opts.Protocol.String() != protocolHTTP || opts.TLS != nil {
+		t.Fatalf("protocol = %s, TLS = %#v", opts.Protocol, opts.TLS)
+	}
+	if opts.Compression != nil {
+		t.Fatalf("HTTP compression = %#v, want disabled", opts.Compression)
+	}
+	if opts.Auth.Username != defaultUsername {
+		t.Fatalf("username = %q", opts.Auth.Username)
+	}
+}
+
+func TestConnectionOptionsRejectsInvalidConfig(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  map[string]any
+		want string
+	}{
+		{name: "missing host", cfg: map[string]any{}, want: "host is required"},
+		{name: "invalid port", cfg: map[string]any{"host": "localhost", "port": 70000}, want: "port must be"},
+		{name: "invalid protocol", cfg: map[string]any{"host": "localhost", "protocol": "postgres"}, want: "unsupported protocol"},
+		{name: "port in host", cfg: map[string]any{"host": "https://localhost:8443"}, want: "use the port field"},
+		{name: "path in host", cfg: map[string]any{"host": "https://localhost/query"}, want: "must not contain"},
+		{name: "missing password", cfg: map[string]any{"host": "localhost"}, want: "password is required"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := connectionOptions(filament.NewConfig(tt.cfg))
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want %q", err, tt.want)
+			}
+		})
 	}
 }
 
@@ -194,12 +274,33 @@ func TestMatchesReplacingVersion(t *testing.T) {
 		{engine: "ReplacingMergeTree() ORDER BY id", want: true},
 		{engine: "ReplacingMergeTree ORDER BY id", want: true},
 		{engine: "ReplacingMergeTree(`updated_at`) ORDER BY id", field: "updated_at", want: true},
+		{engine: "SharedReplacingMergeTree(`updated_at`) ORDER BY id", field: "updated_at", want: true},
 		{engine: "ReplacingMergeTree(`updated_at`) ORDER BY id", want: false},
 		{engine: "ReplacingMergeTree() ORDER BY id", field: "updated_at", want: false},
 	}
 	for _, tt := range tests {
 		if got := matchesReplacingVersion(tt.engine, tt.field); got != tt.want {
 			t.Errorf("matchesReplacingVersion(%q, %q) = %v, want %v", tt.engine, tt.field, got, tt.want)
+		}
+	}
+}
+
+func TestMatchesTableEngineSupportsClickHouseCloud(t *testing.T) {
+	tests := []struct {
+		got  string
+		want string
+		ok   bool
+	}{
+		{got: "MergeTree", want: mergeTreeEngine, ok: true},
+		{got: "SharedMergeTree", want: mergeTreeEngine, ok: true},
+		{got: "ReplacingMergeTree", want: replacingMergeTreeEngine, ok: true},
+		{got: "SharedReplacingMergeTree", want: replacingMergeTreeEngine, ok: true},
+		{got: "SharedMergeTree", want: replacingMergeTreeEngine, ok: false},
+		{got: "ReplicatedMergeTree", want: mergeTreeEngine, ok: false},
+	}
+	for _, tt := range tests {
+		if got := matchesTableEngine(tt.got, tt.want); got != tt.ok {
+			t.Errorf("matchesTableEngine(%q, %q) = %v, want %v", tt.got, tt.want, got, tt.ok)
 		}
 	}
 }

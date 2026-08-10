@@ -4,9 +4,13 @@ package clickhouse
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
+	"net"
+	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -18,8 +22,13 @@ import (
 
 const (
 	defaultDatabase          = "default"
+	defaultPort              = 9440
+	defaultUsername          = "default"
 	mergeTreeEngine          = "MergeTree"
 	replacingMergeTreeEngine = "ReplacingMergeTree"
+	sharedEnginePrefix       = "Shared"
+	protocolNative           = "native"
+	protocolHTTP             = "http"
 )
 
 type connection interface {
@@ -71,7 +80,12 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Description:  "Column-oriented analytics database with typed batch loading and primary-key upserts.",
 		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "ClickHouse DSN (clickhouse:// for native TCP, http:// or https:// for HTTP)"},
+			{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "ClickHouse server hostname; copied http:// or https:// endpoints are also accepted"},
+			{Name: "port", Type: filament.FieldInt, Default: defaultPort, Scope: filament.ScopeConnection, Help: "ClickHouse server port (9440 for secure native connections)"},
+			{Name: "protocol", Type: filament.FieldEnum, Default: protocolNative, Enum: []filament.EnumOption{{Value: protocolNative, Label: "Native"}, {Value: protocolHTTP, Label: "HTTP"}}, Scope: filament.ScopeConnection, Help: "ClickHouse wire protocol"},
+			{Name: "username", Type: filament.FieldString, Default: defaultUsername, Scope: filament.ScopeConnection, Help: "ClickHouse username"},
+			{Name: "password", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "ClickHouse password"},
+			{Name: "secure", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection, Help: "Connect with TLS (required by ClickHouse Cloud)"},
 			{Name: "database", Type: filament.FieldString, Default: defaultDatabase, Scope: filament.ScopePipeline, Help: "Destination database. Empty defaults to the normalized source connection name."},
 		}},
 		SchemaField: "database",
@@ -95,18 +109,11 @@ func (s *Sink) Name() string { return "clickhouse" }
 // Open connects to ClickHouse and prepares per-run state.
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
-	dsn := cfg.Secret("dsn")
-	if dsn == "" {
-		return fmt.Errorf("clickhouse sink: dsn is required")
-	}
-	opts, err := ch.ParseDSN(dsn)
+	opts, err := connectionOptions(cfg)
 	if err != nil {
-		return fmt.Errorf("clickhouse sink: parse dsn: %w", err)
+		return fmt.Errorf("clickhouse sink: connection config: %w", err)
 	}
 	s.database = cfg.String("database")
-	if s.database == "" {
-		s.database = opts.Auth.Database
-	}
 	if s.database == "" {
 		s.database = defaultDatabase
 	}
@@ -116,16 +123,13 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if n := run.Options.SnapshotParallelism; n > 0 {
 		opts.MaxOpenConns = max(opts.MaxOpenConns, n)
 	}
-	if opts.Compression == nil {
-		opts.Compression = &ch.Compression{Method: ch.CompressionLZ4}
-	}
 	conn, err := ch.Open(opts)
 	if err != nil {
 		return fmt.Errorf("clickhouse sink: open: %w", err)
 	}
 	if err := conn.Ping(ctx); err != nil {
 		_ = conn.Close()
-		return fmt.Errorf("clickhouse sink: ping: %w", err)
+		return fmt.Errorf("clickhouse sink: ping over %s to %s: %w", opts.Protocol, opts.Addr[0], err)
 	}
 	if err := conn.Exec(ctx, "CREATE DATABASE IF NOT EXISTS "+quoteIdent(s.database)); err != nil {
 		_ = conn.Close()
@@ -139,6 +143,87 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	s.policies = run.WritePolicies
 	s.tables = map[string]*table{}
 	return nil
+}
+
+func connectionOptions(cfg filament.Config) (*ch.Options, error) {
+	host, err := normalizeHost(cfg.String("host"))
+	if err != nil {
+		return nil, err
+	}
+	port := cfg.Int("port")
+	if port == 0 {
+		port = defaultPort
+	}
+	if port < 1 || port > 65535 {
+		return nil, fmt.Errorf("port must be between 1 and 65535")
+	}
+
+	protocol := cfg.String("protocol")
+	if protocol == "" {
+		protocol = protocolNative
+	}
+	var driverProtocol ch.Protocol
+	switch protocol {
+	case protocolNative:
+		driverProtocol = ch.Native
+	case protocolHTTP:
+		driverProtocol = ch.HTTP
+	default:
+		return nil, fmt.Errorf("unsupported protocol %q", protocol)
+	}
+
+	username := cfg.String("username")
+	if username == "" {
+		username = defaultUsername
+	}
+	password := cfg.Secret("password")
+	if password == "" {
+		return nil, fmt.Errorf("password is required (the configured secret may not have been resolved)")
+	}
+	opts := &ch.Options{
+		Addr:     []string{net.JoinHostPort(host, strconv.Itoa(port))},
+		Protocol: driverProtocol,
+		Auth: ch.Auth{
+			Database: defaultDatabase,
+			Username: username,
+			Password: password,
+		},
+	}
+	if driverProtocol == ch.Native {
+		opts.Compression = &ch.Compression{Method: ch.CompressionLZ4}
+	}
+	secure := !cfg.Has("secure") || cfg.Bool("secure")
+	if secure {
+		opts.TLS = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+	return opts, nil
+}
+
+func normalizeHost(raw string) (string, error) {
+	host := strings.TrimSpace(raw)
+	if host == "" {
+		return "", fmt.Errorf("host is required")
+	}
+	if strings.Contains(host, "://") {
+		endpoint, err := url.Parse(host)
+		if err != nil {
+			return "", fmt.Errorf("invalid host endpoint: %w", err)
+		}
+		if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
+			return "", fmt.Errorf("host endpoint scheme must be http or https")
+		}
+		if endpoint.User != nil || (endpoint.Path != "" && endpoint.Path != "/") || endpoint.RawQuery != "" || endpoint.Fragment != "" {
+			return "", fmt.Errorf("host endpoint must not contain credentials, a path, query parameters, or a fragment")
+		}
+		if endpoint.Port() != "" {
+			return "", fmt.Errorf("host endpoint must not contain a port; use the port field")
+		}
+		host = endpoint.Hostname()
+		if host == "" {
+			return "", fmt.Errorf("host endpoint has no hostname")
+		}
+	}
+	return strings.Trim(host, "[]"), nil
 }
 
 // EnsureSchema creates or evolves one resource table before records arrive.
@@ -207,7 +292,7 @@ func (s *Sink) validateTable(ctx context.Context, resource string, schema filame
 	if upsert {
 		want = replacingMergeTreeEngine
 	}
-	if engine != want {
+	if !matchesTableEngine(engine, want) {
 		return fmt.Errorf("clickhouse sink: table %q uses engine %s, need %s for write policy %q", resource, engine, want, s.mode)
 	}
 	if !upsert {
@@ -310,6 +395,7 @@ func (s *Sink) write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 
 func matchesReplacingVersion(engineFull, field string) bool {
 	compact := strings.NewReplacer(" ", "", "`", "").Replace(engineFull)
+	compact = strings.TrimPrefix(compact, sharedEnginePrefix)
 	rest, ok := strings.CutPrefix(compact, replacingMergeTreeEngine)
 	if !ok {
 		return false
@@ -321,6 +407,10 @@ func matchesReplacingVersion(engineFull, field string) bool {
 	// any non-empty argument so cursor-versioned tables cannot be mistaken for
 	// insertion-order tables.
 	return !strings.HasPrefix(rest, "(") || strings.HasPrefix(rest, "()")
+}
+
+func matchesTableEngine(got, want string) bool {
+	return got == want || got == sharedEnginePrefix+want
 }
 
 // Commit promotes any snapshot-replacement stages and closes the connection.
