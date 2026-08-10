@@ -21,6 +21,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
@@ -52,6 +53,8 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if migrateOnly {
 		return persistence.MigrateFromEnv(ctx)
 	}
+
+	lg := logger.New()
 
 	store, err := persistence.FromEnv(ctx)
 	if err != nil {
@@ -134,7 +137,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	scheduler := schedulermodule.New(scheduleStore, schedulermodule.WithPipelineSubmitter(api))
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Metrics: metrics, Tracer: tracer},
+		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
 		orch,
 		scheduler,
 	)

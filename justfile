@@ -81,9 +81,11 @@ lint-check: go-lint-check ui-lint-check
 test:
     for dir in $(find . -name go.mod -not -path "./tests/*" -exec dirname {} \;); do (cd "$dir" && GOWORK=off go test ./...) || exit 1; done
 
-# run the integration/e2e suite (requires docker)
+# run the integration/e2e suite (requires docker + tests/docker/.env)
+# Every suite file is //go:build integration, so without the tag this matches
+# no packages and exits 0 — passing while testing nothing.
 test-integration:
-    cd tests && GOWORK=off go test ./...
+    cd tests && GOWORK=off go test -tags integration ./...
 
 # start local infra (postgres + nats), gated on health
 infra:
