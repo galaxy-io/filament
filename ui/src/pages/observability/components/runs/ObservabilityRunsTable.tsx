@@ -220,8 +220,10 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }
-      height={300}
+      maxHeight={640}
       fillWidth
+      noLastRowPadding
+      noLastRowBorder
     />
   );
 };
