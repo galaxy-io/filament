@@ -49,7 +49,7 @@ const CreatePipelineModalDeliverySink = ({
       fillWidth
     >
       <FlexWrapper alignItems={AlignItems.CENTER} gap={10}>
-        <ConnectorTile connector={sink.connection.connector} />
+        <ConnectorTile connector={sink.connection.connector} kind={sink.connection.kind} />
         <SinkNameWrapper>
           <Text isEllipsis>{sink.connection.name}</Text>
         </SinkNameWrapper>

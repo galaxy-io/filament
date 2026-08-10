@@ -43,6 +43,38 @@ func (s *columnSource) CursorColumns(_ context.Context, resource string) ([]fila
 	}}, nil
 }
 
+func TestGetConnector(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("columns", func() filament.Source { return &columnSource{counts: &columnSourceCounts{}} })
+	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+
+	response, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
+		Connector: "columns",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetConnector().GetName(); got != "columns" {
+		t.Fatalf("connector name = %q, want %q", got, "columns")
+	}
+
+	_, err = api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
+		Connector: "missing",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unknown connector error = %v, want not found", err)
+	}
+
+	_, err = api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
+		Connector: "columns",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unspecified kind error = %v, want invalid argument", err)
+	}
+}
+
 func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 	counts := &columnSourceCounts{}
 	sources := registry.NewSources()

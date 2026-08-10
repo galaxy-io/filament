@@ -24,14 +24,19 @@ const (
 // Metric is an aggregatable measure over runs. RUN_COUNT/RUN_RECORDS/RUN_BYTES
 // are sums; RUN_DURATION is the mean duration in milliseconds over terminal
 // runs (percentile variants can be added as new values later).
+// RUN_MEMORY_USAGE is the mean peak working set in bytes and RUN_CPU_USAGE the
+// mean CPU seconds, both over runs that reported usage (a zero column means
+// "no usage reported", e.g. runs outside a cgroup, and is excluded).
 type Metric int32
 
 const (
-	Metric_METRIC_UNSPECIFIED  Metric = 0
-	Metric_METRIC_RUN_COUNT    Metric = 1
-	Metric_METRIC_RUN_RECORDS  Metric = 2
-	Metric_METRIC_RUN_BYTES    Metric = 3
-	Metric_METRIC_RUN_DURATION Metric = 4
+	Metric_METRIC_UNSPECIFIED      Metric = 0
+	Metric_METRIC_RUN_COUNT        Metric = 1
+	Metric_METRIC_RUN_RECORDS      Metric = 2
+	Metric_METRIC_RUN_BYTES        Metric = 3
+	Metric_METRIC_RUN_DURATION     Metric = 4
+	Metric_METRIC_RUN_MEMORY_USAGE Metric = 5
+	Metric_METRIC_RUN_CPU_USAGE    Metric = 6
 )
 
 // Enum value maps for Metric.
@@ -42,13 +47,17 @@ var (
 		2: "METRIC_RUN_RECORDS",
 		3: "METRIC_RUN_BYTES",
 		4: "METRIC_RUN_DURATION",
+		5: "METRIC_RUN_MEMORY_USAGE",
+		6: "METRIC_RUN_CPU_USAGE",
 	}
 	Metric_value = map[string]int32{
-		"METRIC_UNSPECIFIED":  0,
-		"METRIC_RUN_COUNT":    1,
-		"METRIC_RUN_RECORDS":  2,
-		"METRIC_RUN_BYTES":    3,
-		"METRIC_RUN_DURATION": 4,
+		"METRIC_UNSPECIFIED":      0,
+		"METRIC_RUN_COUNT":        1,
+		"METRIC_RUN_RECORDS":      2,
+		"METRIC_RUN_BYTES":        3,
+		"METRIC_RUN_DURATION":     4,
+		"METRIC_RUN_MEMORY_USAGE": 5,
+		"METRIC_RUN_CPU_USAGE":    6,
 	}
 )
 
@@ -717,13 +726,15 @@ const file_metrics_v1_metrics_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
 	"\x06values\x18\x02 \x03(\x01R\x06values\"F\n" +
 	"\x16QueryAggregateResponse\x12,\n" +
-	"\x04rows\x18\x01 \x03(\v2\x18.metrics.v1.AggregateRowR\x04rows*}\n" +
+	"\x04rows\x18\x01 \x03(\v2\x18.metrics.v1.AggregateRowR\x04rows*\xb4\x01\n" +
 	"\x06Metric\x12\x16\n" +
 	"\x12METRIC_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10METRIC_RUN_COUNT\x10\x01\x12\x16\n" +
 	"\x12METRIC_RUN_RECORDS\x10\x02\x12\x14\n" +
 	"\x10METRIC_RUN_BYTES\x10\x03\x12\x17\n" +
-	"\x13METRIC_RUN_DURATION\x10\x04*\x92\x01\n" +
+	"\x13METRIC_RUN_DURATION\x10\x04\x12\x1b\n" +
+	"\x17METRIC_RUN_MEMORY_USAGE\x10\x05\x12\x18\n" +
+	"\x14METRIC_RUN_CPU_USAGE\x10\x06*\x92\x01\n" +
 	"\x0fMetricDimension\x12 \n" +
 	"\x1cMETRIC_DIMENSION_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aMETRIC_DIMENSION_TENANT_ID\x10\x01\x12 \n" +

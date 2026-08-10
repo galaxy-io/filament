@@ -54,7 +54,7 @@ const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCa
         <FlexWrapper fillWidth justifyContent={JustifyContent.SPACE_BETWEEN}>
           <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
             <FlexItem shrink={0}>
-              <ConnectorTile connector={connection.connector} />
+              <ConnectorTile connector={connection.connector} kind={connection.kind} />
             </FlexItem>
             <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
               {connection.name}

@@ -5,6 +5,8 @@ import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
 import ConnectorTile, {
   ConnectorOverflowTile,
   ConnectorTileSize,
@@ -72,6 +74,7 @@ const PipelineFlow = ({
       return (
         <ConnectorTile
           connector={source.connector}
+          kind={ConnectorKind.SOURCE}
           onClick={(e) => handleConnectionClick(source.connectionId, e)}
           size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
           isDeleted={source.isDeleted}
@@ -89,6 +92,7 @@ const PipelineFlow = ({
               // biome-ignore lint/suspicious/noArrayIndexKey: two sink nodes can share a connection
               key={`${sink.connectionId}-${index}`}
               connector={sink.connector}
+              kind={ConnectorKind.SINK}
               size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
               onClick={(e) => handleConnectionClick(sink.connectionId, e)}
               isDeleted={sink.isDeleted}

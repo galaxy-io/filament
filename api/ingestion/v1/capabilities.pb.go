@@ -178,9 +178,9 @@ func (x *GetConnectionCapabilitiesRequest) GetId() string {
 	return ""
 }
 
-// ReadModeWriteCompatibility is one read lever crossed with the write levers
+// ReadModeWriteCompatibility is one read mode crossed with the write modes
 // it can compile with. Delete and merge are engine mechanisms, never offered
-// as levers.
+// as read or write modes.
 type ReadModeWriteCompatibility struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ReadMode      ReadMode               `protobuf:"varint,1,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
@@ -242,12 +242,12 @@ type GetConnectionCapabilitiesResponse struct {
 	// The connection's replication mode, resolved from its stored config.
 	// Sinks report UNSPECIFIED.
 	Replication ReplicationMode `protobuf:"varint,4,opt,name=replication,proto3,enum=ingestion.v1.ReplicationMode" json:"replication,omitempty"`
-	// Source: the per-table read levers this connection offers. Empty on a CDC
-	// connection — replication is understood, there is no read lever.
+	// Source: the per-table read modes this connection offers. Empty on a CDC
+	// connection — replication is understood, there is no read mode.
 	ReadModes []ReadMode `protobuf:"varint,5,rep,packed,name=read_modes,json=readModes,proto3,enum=ingestion.v1.ReadMode" json:"read_modes,omitempty"`
-	// Sink: the write levers this sink offers.
+	// Sink: the write modes this sink offers.
 	WriteModes []WriteMode `protobuf:"varint,6,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
-	// Source: for each offered read lever, the write levers it combines with —
+	// Source: for each offered read mode, the write modes it combines with —
 	// the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
 	// connections.
 	ReadModeWriteCompatibilities []*ReadModeWriteCompatibility `protobuf:"bytes,7,rep,name=read_mode_write_compatibilities,json=readModeWriteCompatibilities,proto3" json:"read_mode_write_compatibilities,omitempty"`

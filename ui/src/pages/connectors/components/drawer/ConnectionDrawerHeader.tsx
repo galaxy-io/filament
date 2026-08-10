@@ -1,3 +1,4 @@
+import { create } from "@bufbuild/protobuf";
 import { PencilIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -11,13 +12,15 @@ import FlexWrapper, {
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
 
 import { Flow } from "@/routes/__root";
+
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 interface ConnectionDrawerHeaderProps {
   connection: Connection;
@@ -26,7 +29,13 @@ interface ConnectionDrawerHeaderProps {
 
 const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderProps) => {
   const navigate = useNavigate();
-  const connector = useConnectorSpec(connection.connector, connection.kind);
+  const { data } = useGetConnectorQuery({
+    input: create(GetConnectorRequestSchema, {
+      connector: connection.connector,
+      kind: connection.kind,
+    }),
+  });
+  const connector = data?.connector;
 
   const handleEdit = () => {
     void navigate({
@@ -41,7 +50,7 @@ const ConnectionDrawerHeader = ({ connection, onClose }: ConnectionDrawerHeaderP
         <FlexItem shrink={0}>
           <ConnectorTile
             connector={connection.connector}
-            spec={connector}
+            kind={connection.kind}
             size={ConnectorTileSize.LARGE}
             isDeleted={!!connection.deletedAt}
           />

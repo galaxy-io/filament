@@ -197,7 +197,7 @@ const CreatePipelineModalConnectionsPane = ({
         {filteredConnections.map((connection) => (
           <RowWrapper key={connection.id} onClick={() => onConnectionClick(connection)}>
             <RowControlWrapper>{renderControl(connection)}</RowControlWrapper>
-            <ConnectorTile connector={connection.connector} />
+            <ConnectorTile connector={connection.connector} kind={connection.kind} />
             <FlexItem minWidth={0} overflow="hidden">
               <Text isEllipsis>{connection.name}</Text>
             </FlexItem>

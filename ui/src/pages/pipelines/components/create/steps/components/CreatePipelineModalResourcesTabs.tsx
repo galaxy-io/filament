@@ -64,7 +64,7 @@ const CreatePipelineModalResourcesTabs = () => {
               })
             }
           >
-            <ConnectorTile connector={sink.connection.connector} />
+            <ConnectorTile connector={sink.connection.connector} kind={sink.connection.kind} />
             <FlexWrapper alignItems={AlignItems.CENTER} gap={12}>
               <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
                 {sink.connection.name}
