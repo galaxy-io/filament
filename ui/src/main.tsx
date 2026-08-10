@@ -8,8 +8,8 @@ import App from "@/App";
 import "@galaxy-io/dls/styles.css";
 import "@/style.css";
 
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
 import { GalaxyThemeProvider } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
 
 import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
 

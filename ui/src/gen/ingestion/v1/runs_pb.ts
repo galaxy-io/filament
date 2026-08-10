@@ -407,8 +407,8 @@ export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
   offset: number;
 
   /**
-   * since_ms/until_ms window on created_at (inclusive/exclusive, epoch
-   * millis); 0 means unbounded.
+   * since_ms/until_ms window on started_at (inclusive/exclusive, epoch
+   * millis); 0 means unbounded. Runs that never started are excluded.
    *
    * @generated from field: int64 since_ms = 7;
    */

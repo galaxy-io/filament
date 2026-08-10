@@ -5,11 +5,11 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
-
 import CreateConnectionConfigure from "@/pages/connectors/components/create/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
+
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();

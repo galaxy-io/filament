@@ -11,10 +11,10 @@ import {
   isFieldVisible,
 } from "@/components/fields/utils";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
-
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
 import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 const FieldList = styled.div`
   display: flex;

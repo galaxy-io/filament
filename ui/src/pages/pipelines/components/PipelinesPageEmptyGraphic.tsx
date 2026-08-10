@@ -125,7 +125,11 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
                         : undefined;
 
                       return sinkSpec ? (
-                        <ConnectorTile key={offset} connector={sinkSpec.name} kind={sinkSpec.kind} />
+                        <ConnectorTile
+                          key={offset}
+                          connector={sinkSpec.name}
+                          kind={sinkSpec.kind}
+                        />
                       ) : (
                         <EmptyGraphicGhostTileFallback key={offset} />
                       );

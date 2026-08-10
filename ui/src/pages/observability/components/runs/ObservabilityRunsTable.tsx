@@ -23,7 +23,13 @@ import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryR
 
 import { useListRunsQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
+import {
+  formatBytes,
+  formatCount,
+  formatDuration,
+  formatSeconds,
+  formatTimestamp,
+} from "@/utils/format";
 
 interface ObservabilityRunsTableProps {
   timeframe: ObservabilityTimeframe;
@@ -147,13 +153,39 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
         id: "volume",
         header: "Volume",
         size: 100,
-        align: ColumnAlign.RIGHT,
         accessorFn: (run) => Number(run.bytes),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
             {formatBytes(row.original.bytes)}
+          </Text>
+        ),
+      },
+      {
+        id: "cpu",
+        header: "CPU",
+        size: 100,
+        accessorFn: (run) => run.cpuSeconds,
+        enableSorting: true,
+        cellLoading: () => <TextShimmer width={48} height={14} />,
+        cell: ({ row }) => (
+          <Text size={TextSize.BODY_SM} isMonospace>
+            {row.original.cpuSeconds ? formatSeconds(row.original.cpuSeconds) : "—"}
+          </Text>
+        ),
+      },
+      {
+        id: "memory",
+        header: "Memory",
+        size: 100,
+        align: ColumnAlign.RIGHT,
+        accessorFn: (run) => Number(run.memoryPeakBytes),
+        enableSorting: true,
+        cellLoading: () => <TextShimmer width={52} height={14} />,
+        cell: ({ row }) => (
+          <Text size={TextSize.BODY_SM} isMonospace>
+            {row.original.memoryPeakBytes ? formatBytes(row.original.memoryPeakBytes) : "—"}
           </Text>
         ),
       },
@@ -188,8 +220,8 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }
-      fillWidth
       height={300}
+      fillWidth
     />
   );
 };

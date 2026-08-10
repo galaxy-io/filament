@@ -3,8 +3,10 @@ package filament
 import "time"
 
 // Metric is an aggregatable measure over runs. RunCount/RunRecords/RunBytes
-// are sums; RunDuration is the mean duration over terminal runs. Mirrors
-// metrics.v1.Metric (api/metrics/v1/metrics.proto).
+// are sums; RunDuration is the mean duration over terminal runs;
+// RunMemoryUsage/RunCPUUsage are the mean peak working-set bytes / CPU seconds
+// over runs that reported usage. Mirrors metrics.v1.Metric
+// (api/metrics/v1/metrics.proto).
 type Metric int
 
 // Metric values, mirroring metrics.v1.Metric's real (non-UNSPECIFIED) entries.
@@ -13,6 +15,8 @@ const (
 	MetricRunRecords
 	MetricRunBytes
 	MetricRunDuration
+	MetricRunMemoryUsage
+	MetricRunCPUUsage
 )
 
 // MetricsDimension names a runs column usable for grouping and filtering.

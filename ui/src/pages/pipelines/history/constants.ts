@@ -28,24 +28,24 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
 
 export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> = {
   [RunStatus.UNSPECIFIED]: BeaconVariant.SECONDARY,
-  [RunStatus.REQUESTED]: BeaconVariant.YELLOW,
+  [RunStatus.REQUESTED]: BeaconVariant.LIME,
   [RunStatus.RUNNING]: BeaconVariant.BLUE,
   [RunStatus.COMPLETED]: BeaconVariant.SUCCESS,
   [RunStatus.FAILED]: BeaconVariant.ERROR,
   [RunStatus.CANCELED]: BeaconVariant.PURPLE,
   [RunStatus.PAUSED]: BeaconVariant.WARNING,
   [RunStatus.PARTIAL]: BeaconVariant.PINK,
-  [RunStatus.SCHEDULED]: BeaconVariant.LIME,
+  [RunStatus.SCHEDULED]: BeaconVariant.YELLOW,
 };
 
 export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVariant> = {
   [RunStatus.UNSPECIFIED]: TextVariant.SECONDARY,
-  [RunStatus.REQUESTED]: TextVariant.YELLOW,
+  [RunStatus.REQUESTED]: TextVariant.LIME,
   [RunStatus.RUNNING]: TextVariant.BLUE,
   [RunStatus.COMPLETED]: TextVariant.SUCCESS,
   [RunStatus.FAILED]: TextVariant.ERROR,
   [RunStatus.CANCELED]: TextVariant.PURPLE,
   [RunStatus.PAUSED]: TextVariant.WARNING,
   [RunStatus.PARTIAL]: TextVariant.PINK,
-  [RunStatus.SCHEDULED]: TextVariant.LIME,
+  [RunStatus.SCHEDULED]: TextVariant.YELLOW,
 };

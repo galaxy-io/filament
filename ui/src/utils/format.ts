@@ -54,6 +54,13 @@ export const formatDuration = (startMillis: bigint, endMillis: bigint): string =
   return `${minutes}m ${Math.round(seconds % 60)}s`;
 };
 
+export const formatSeconds = (seconds: number): string => {
+  if (seconds < 1) return `${Math.round(seconds * 1_000)}ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${Math.round(seconds % 60)}s`;
+};
+
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
 
 export const formatBytes = (value: bigint): string => {

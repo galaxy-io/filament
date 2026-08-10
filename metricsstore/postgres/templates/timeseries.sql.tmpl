@@ -1,5 +1,5 @@
 WITH filtered AS (
-  SELECT {{.KeyExpr}} AS key, {{.BucketExpr}} AS bucket, records, bytes, started_at, finished_at
+  SELECT {{.KeyExpr}} AS key, {{.BucketExpr}} AS bucket, records, bytes, started_at, finished_at, memory_peak_bytes, cpu_seconds
   FROM runs
   {{.Where}}
 ),

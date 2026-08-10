@@ -18,9 +18,9 @@ import BaseHeader from "@/layouts/components/BaseHeader";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
-
 import { Flow } from "@/routes/__root";
+
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 interface ConnectionDrawerHeaderProps {
   connection: Connection;

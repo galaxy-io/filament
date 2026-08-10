@@ -27,11 +27,20 @@ var dimensionColumns = map[filament.MetricsDimension]string{
 // averages extract(epoch from (finished_at - started_at)); Postgres's avg()
 // ignores NULLs, and finished_at is only set on terminal runs, so this is
 // naturally "mean duration over terminal runs" with no extra filtering.
+// The usage columns are NOT NULL DEFAULT 0 and zero means "no usage
+// reported" (00017_run_usage.sql; runs outside a cgroup never heartbeat), so
+// nullif routes those rows through the same avg()-ignores-NULLs path.
+//
+// Columns referenced here must also appear in the filtered CTE's select list
+// in templates/timeseries.sql.tmpl — the aggregate template selects straight
+// from runs, so an omission fails only on the timeseries path, at query time.
 var metricExprs = map[filament.Metric]string{
-	filament.MetricRunCount:    "count(*)",
-	filament.MetricRunRecords:  "coalesce(sum(records), 0)",
-	filament.MetricRunBytes:    "coalesce(sum(bytes), 0)",
-	filament.MetricRunDuration: "avg(extract(epoch from (finished_at - started_at)) * 1000)",
+	filament.MetricRunCount:       "count(*)",
+	filament.MetricRunRecords:     "coalesce(sum(records), 0)",
+	filament.MetricRunBytes:       "coalesce(sum(bytes), 0)",
+	filament.MetricRunDuration:    "avg(extract(epoch from (finished_at - started_at)) * 1000)",
+	filament.MetricRunMemoryUsage: "avg(nullif(memory_peak_bytes, 0))",
+	filament.MetricRunCPUUsage:    "avg(nullif(cpu_seconds, 0))",
 }
 
 func dimensionColumn(d filament.MetricsDimension) (string, bool) {

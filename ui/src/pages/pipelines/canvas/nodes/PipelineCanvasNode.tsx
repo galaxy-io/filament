@@ -17,8 +17,6 @@ import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { getPipelineScopedFields } from "@/components/fields/utils";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
-
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import {
@@ -32,6 +30,8 @@ import {
 } from "@/pages/pipelines/canvas/nodes/constants";
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
+
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 const NodeContainer = withTheme(styled.div<
   PropsWithTheme<{ $isSelected?: boolean; $width: number }>

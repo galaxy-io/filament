@@ -8,3 +8,8 @@ export enum ObservabilityMetricView {
   RECORDS = "RECORDS",
   VOLUME = "VOLUME",
 }
+
+export enum ObservabilityUsageView {
+  CPU = "CPU",
+  MEMORY = "MEMORY",
+}
