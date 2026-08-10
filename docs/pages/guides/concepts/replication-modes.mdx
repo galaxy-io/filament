@@ -19,6 +19,27 @@ connection never ask how to read. There are no cursors to pick and no per
 table options, because the change stream already carries every insert, update,
 and delete in order.
 
+## Incremental write versions
+
+For an incremental upsert, Filament resolves the selected read cursor into a
+per-resource `VersionPolicy` on the sink's `WritePolicy`. Sinks with
+insert-based upsert semantics can use that source field to order competing
+values for the same primary key. This is distinct from the durable checkpoint:
+the checkpoint says where the next read resumes, while the version policy says
+which already-written row is newer.
+
+Snapshot upserts and sources that do not expose a safe row-level cursor use the
+sink's insertion-order conflict semantics; Filament does not synthesize a
+run-level version. A cursor is eligible for versioning only when it is present,
+non-null, and advances whenever the source row changes.
+
+<Tip>
+  PostgreSQL is a good example of a source that picks its read strategy
+  dynamically even within a single mode — see [Postgres
+  source](/pages/connectors/sources/postgres) for how it chooses between keyset,
+  bitmap, and ctid-based scans.
+</Tip>
+
 ## Read mode
 
 On a standard connection, each table chooses how it is read. Full rereads the

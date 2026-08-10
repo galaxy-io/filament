@@ -37,7 +37,13 @@ func TestScheduledCDCLoadsPipelineCheckpointAcrossRuns(t *testing.T) {
 }
 
 func (*incrementalTestSource) Spec() filament.ConnectorSpec {
-	return filament.ConnectorSpec{Name: "test"}
+	return filament.ConnectorSpec{
+		Name: "test",
+		SourcePolicies: filament.SourcePolicies(
+			filament.IngestionFullUpsert,
+			filament.IngestionIncrementalUpsert,
+		),
+	}
 }
 func (*incrementalTestSource) Validate(filament.Config) error                   { return nil }
 func (*incrementalTestSource) Configure(context.Context, filament.Config) error { return nil }
@@ -45,9 +51,39 @@ func (*incrementalTestSource) Extract(context.Context, filament.RecordSink, fila
 	return nil
 }
 func (*incrementalTestSource) Teardown(context.Context) error { return nil }
+func (*incrementalTestSource) Schema(context.Context, string) (filament.RecordSchema, error) {
+	return filament.RecordSchema{
+		Fields: []filament.SchemaField{
+			{Name: "id", Logical: filament.LogicalInt64},
+			{Name: "updated_at", Logical: filament.LogicalTimestampTZ, Native: "timestamptz"},
+		},
+		PrimaryKey: []string{"id"},
+	}, nil
+}
+
+func (*incrementalTestSource) CursorColumns(context.Context, string) ([]filament.CursorColumn, error) {
+	return []filament.CursorColumn{{
+		SchemaField: filament.SchemaField{Name: "updated_at", Logical: filament.LogicalTimestampTZ, Native: "timestamptz"},
+		Eligible:    true, Recommended: true,
+	}}, nil
+}
+
 func (*incrementalTestSource) ExtractFrom(context.Context, filament.RecordSink, filament.ExtractOpts, map[string]filament.Checkpoint) error {
 	return nil
 }
+
+type incrementalTestSink struct{}
+
+func (*incrementalTestSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Name: "test-sink", Capabilities: filament.SinkCapabilities{Upsertable: true}}
+}
+func (*incrementalTestSink) Open(context.Context, filament.RunSpec) error { return nil }
+func (*incrementalTestSink) Apply(context.Context, filament.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
+	return filament.WriteReceipt{}, nil
+}
+func (*incrementalTestSink) Commit(context.Context) error { return nil }
+func (*incrementalTestSink) Abort(context.Context) error  { return nil }
+func (*incrementalTestSink) Name() string                 { return "test-sink" }
 
 func (s *incrementalTestSource) PlanIncremental(_ context.Context, resources []string, prev map[string]filament.Checkpoint, cursors map[string]filament.ResourceCursorConfig) (map[string]filament.Checkpoint, error) {
 	s.previous, s.cursors = prev, cursors
@@ -99,5 +135,31 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	}
 	if second.cursors["users"].Field != "updated_at" {
 		t.Fatalf("cursor config = %#v", second.cursors)
+	}
+}
+
+func TestResolveIngestionPlanCarriesCursorVersionToWritePolicy(t *testing.T) {
+	plan, err := filament.ResolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
+		Resources: []string{"users"}, IngestionType: filament.IngestionIncrementalUpsert,
+		CursorConfigs: map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := plan.WritePolicies["users"]
+	if policy.Version.Strategy != filament.VersionCursor || policy.Version.Field != "updated_at" {
+		t.Fatalf("version policy = %#v", policy.Version)
+	}
+}
+
+func TestResolveIngestionPlanUsesInsertOrderForSnapshotUpsert(t *testing.T) {
+	plan, err := filament.ResolveIngestionPlan(context.Background(), &incrementalTestSource{}, &incrementalTestSink{}, filament.RunSpec{
+		Resources: []string{"users"}, IngestionType: filament.IngestionFullUpsert,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := plan.WritePolicies["users"].Version.Strategy; got != filament.VersionInsertOrder {
+		t.Fatalf("version strategy = %q, want %q", got, filament.VersionInsertOrder)
 	}
 }

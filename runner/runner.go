@@ -122,6 +122,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	}
 	spec.IngestionType = plan.Type
 	spec.Mode = plan.SourcePolicy.Mode
+	spec.WritePolicies = plan.WritePolicies
 	if plan.SourcePolicy.Ordered {
 		spec.Options.SnapshotParallelism = 1
 	}
