@@ -42,6 +42,8 @@ type RunRequest struct {
 	CursorConfigs      map[string]ResourceCursorConfig
 	Options            RunOptions
 	ScheduleID         ScheduleID
+	// ScheduledFor is the occurrence this request represents; zero when manual.
+	ScheduledFor time.Time
 }
 
 // ResourceCursorConfig selects one resource's durable incremental field and
@@ -93,17 +95,31 @@ const DefaultCheckpointEvery = 25
 // RunState is the persisted record of a run: its request, per-resource
 // progress, and terminal outcome.
 type RunState struct {
-	Run        RunID
-	Tenant     TenantID
-	Status     RunStatus
-	Request    RunRequest
-	Resources  []ResourceState
-	Records    int64
-	Bytes      int64
-	StartedAt  time.Time
-	FinishedAt *time.Time
+	Run       RunID
+	Tenant    TenantID
+	Status    RunStatus
+	Request   RunRequest
+	Resources []ResourceState
+	Records   int64
+	Bytes     int64
+
+	// Lifecycle stamps, first-write-wins in the store. Created on insert,
+	// scheduled at the occurrence's fire time, requested when run.requested is
+	// emitted, started and finished folded from the run's own facts. Zero is
+	// unset.
+	CreatedAt   time.Time
+	ScheduledAt time.Time
+	RequestedAt time.Time
+	StartedAt   time.Time
+	FinishedAt  *time.Time
+	UpdatedAt   time.Time
+
 	Error      string
 	ScheduleID ScheduleID
+	// Folded from run.heartbeat facts: cumulative worker CPU time and the
+	// peak working set observed over the run.
+	CPUSeconds      float64
+	MemoryPeakBytes int64
 }
 
 // RunStatus is the lifecycle state of a run or resource.
@@ -121,6 +137,12 @@ const (
 	// Unlike RunFailed it is not terminal: re-emitting run.requested for the same
 	// RunID resumes it from the last checkpoint. Only resumable runs reach it.
 	RunPartial
+	// RunScheduled is a run pre-created for a schedule's next occurrence, before
+	// its fire time. It precedes RunRequested in lifecycle order but is declared
+	// last so persisted ordinals stay stable and the zero value stays RunRequested.
+	// Owned entirely by the control plane: the scheduler creates it and promotes
+	// it to RunRequested at fire; nothing downstream ever sees it.
+	RunScheduled
 )
 
 // RunResult is the terminal outcome of a run as reported by a RunHandle.
@@ -146,8 +168,8 @@ type ResourceState struct {
 }
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
-// Since is inclusive and Until exclusive on StartedAt; either bound excludes
-// runs that never started.
+// Since is inclusive and Until exclusive on StartedAt — a window asks which
+// runs ran in it, so runs that never started fall outside either bound.
 type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string

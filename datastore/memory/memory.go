@@ -111,7 +111,13 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		s.putResourceLocked(rs)
 	}
 	r.Resources = nil
+	r = mergeRunTimes(s.runs[r.Run], r)
 	s.runs[r.Run] = r
+	// A pre-created scheduled run hasn't happened yet — it must not become the
+	// pipeline's last run.
+	if r.Status == filament.RunScheduled {
+		return nil
+	}
 	if p := s.pipelines[r.Request.PipelineID]; p != nil && (p.LastRunAt == 0 || p.LastRunAt <= r.StartedAt.UnixMilli()) {
 		p.LastRunVersionId = r.Request.PipelineVersionID
 		p.LastRunAt = r.StartedAt.UnixMilli()
@@ -123,6 +129,33 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		}
 	}
 	return nil
+}
+
+// mergeRunTimes applies the same first-write-wins rule postgres gets from
+// coalesce(runs.col, EXCLUDED.col): a stamp already on the row survives a later
+// save from a writer that does not own it. CreatedAt is stamped on insert and
+// never moves; UpdatedAt is refreshed on every write.
+func mergeRunTimes(prev, next filament.RunState) filament.RunState {
+	now := time.Now()
+	next.CreatedAt = prev.CreatedAt
+	if next.CreatedAt.IsZero() {
+		next.CreatedAt = now
+	}
+	next.ScheduledAt = firstSet(prev.ScheduledAt, next.ScheduledAt)
+	next.RequestedAt = firstSet(prev.RequestedAt, next.RequestedAt)
+	next.StartedAt = firstSet(prev.StartedAt, next.StartedAt)
+	if prev.FinishedAt != nil {
+		next.FinishedAt = prev.FinishedAt
+	}
+	next.UpdatedAt = now
+	return next
+}
+
+func firstSet(prev, next time.Time) time.Time {
+	if !prev.IsZero() {
+		return prev
+	}
+	return next
 }
 
 func activeCheckpointRun(r filament.RunState) bool {
@@ -156,7 +189,26 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
-// ListRuns returns runs matching the filter, newest StartedAt first.
+// DeleteRun removes the run with its resources and checkpoints; missing is a no-op.
+func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.runs, id)
+	delete(s.resources, id)
+	for key := range s.checkpoints {
+		if key.run == id {
+			delete(s.checkpoints, key)
+		}
+	}
+	return nil
+}
+
+// ListRuns returns runs matching the filter, newest StartedAt first. A run that
+// has not started sorts before every started run, mirroring postgres's
+// started_at DESC NULLS FIRST: pending work belongs at the top.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -175,6 +227,9 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].StartedAt.Equal(out[j].StartedAt) {
 			return out[i].Run > out[j].Run
+		}
+		if out[i].StartedAt.IsZero() || out[j].StartedAt.IsZero() {
+			return out[i].StartedAt.IsZero()
 		}
 		return out[i].StartedAt.After(out[j].StartedAt)
 	})

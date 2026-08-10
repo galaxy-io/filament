@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -342,6 +343,8 @@ func runStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
 		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
 	case filament.RunPartial:
 		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
+	case filament.RunScheduled:
+		return ingestionv1.RunStatus_RUN_STATUS_SCHEDULED
 	default:
 		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	}
@@ -365,6 +368,8 @@ func runStatusesFromProto(statuses []ingestionv1.RunStatus) []filament.RunStatus
 			out = append(out, filament.RunPaused)
 		case ingestionv1.RunStatus_RUN_STATUS_PARTIAL:
 			out = append(out, filament.RunPartial)
+		case ingestionv1.RunStatus_RUN_STATUS_SCHEDULED:
+			out = append(out, filament.RunScheduled)
 		}
 	}
 	return out
@@ -386,11 +391,16 @@ func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResour
 	return &ingestionv1.DiscoverResourcesResponse{Resources: out}
 }
 
-func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
-	var startedAt, endedAt int64
-	if !state.StartedAt.IsZero() {
-		startedAt = state.StartedAt.UnixMilli()
+// epochMillis renders a stamp for the wire, where 0 means unset.
+func epochMillis(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
 	}
+	return t.UnixMilli()
+}
+
+func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
+	var endedAt int64
 	if state.FinishedAt != nil {
 		endedAt = state.FinishedAt.UnixMilli()
 	}
@@ -403,10 +413,16 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		Records:            state.Records,
 		Bytes:              state.Bytes,
 		Error:              state.Error,
-		StartedAt:          startedAt,
+		StartedAt:          epochMillis(state.StartedAt),
 		EndedAt:            endedAt,
 		SourceConnectionId: state.Request.SourceConnectionID,
 		SinkConnectionId:   state.Request.SinkConnectionID,
+		CpuSeconds:         state.CPUSeconds,
+		MemoryPeakBytes:    state.MemoryPeakBytes,
+		CreatedAt:          epochMillis(state.CreatedAt),
+		ScheduledAt:        epochMillis(state.ScheduledAt),
+		RequestedAt:        epochMillis(state.RequestedAt),
+		UpdatedAt:          epochMillis(state.UpdatedAt),
 	}
 }
 

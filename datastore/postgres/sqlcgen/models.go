@@ -146,6 +146,10 @@ type Run struct {
 	IngestionType     pgtype.Text
 	PipelineID        pgtype.Text
 	PipelineVersionID pgtype.Int8
+	CpuSeconds        float64
+	MemoryPeakBytes   int64
+	ScheduledAt       pgtype.Timestamptz
+	RequestedAt       pgtype.Timestamptz
 }
 
 type Schedule struct {

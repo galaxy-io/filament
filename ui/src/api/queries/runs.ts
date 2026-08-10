@@ -15,9 +15,10 @@ import {
   type GetRunRequest,
   type GetRunResponse,
   type ListRunsRequest,
+  type ListRunsResponse,
   type RunEvent,
   type RunInfo,
-  type RunStatus,
+  RunStatus,
   type TailRunRequest,
   TailRunRequestSchema,
   type TailRunResponse,
@@ -40,13 +41,23 @@ export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Tran
   });
 };
 
+// Scheduled counts as live for polling — it transitions without user action
+// when the cron fires — but stays out of ACTIVE_RUN_STATUSES, which the
+// canvas navbar uses to gate the Run button.
+const isLiveRunStatus = (status: RunStatus) =>
+  ACTIVE_RUN_STATUSES.has(status) || status === RunStatus.SCHEDULED;
+
 const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
-  return runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status))
-    ? LIST_RUNS_REFETCH_INTERVAL
-    : false;
+  return runs?.some((run) => isLiveRunStatus(run.status)) ? LIST_RUNS_REFETCH_INTERVAL : false;
 };
 
-export const useListRunsQuery = ({ input }: { input?: ListRunsRequest } = {}) => {
+export const useListRunsQuery = ({
+  input,
+  options = {},
+}: {
+  input?: ListRunsRequest;
+  options?: UseQueryOptions<typeof IngestionService.method.listRuns.output, ListRunsResponse>;
+} = {}) => {
   return useQuery<
     typeof IngestionService.method.listRuns.input,
     typeof IngestionService.method.listRuns.output
@@ -54,6 +65,7 @@ export const useListRunsQuery = ({ input }: { input?: ListRunsRequest } = {}) =>
     refetchInterval: (query) => {
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
+    ...options,
   });
 };
 
@@ -69,7 +81,7 @@ export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } 
 };
 
 const getGetRunRefetchInterval = (status: RunStatus | undefined) => {
-  return status !== undefined && ACTIVE_RUN_STATUSES.has(status) ? GET_RUN_REFETCH_INTERVAL : false;
+  return status !== undefined && isLiveRunStatus(status) ? GET_RUN_REFETCH_INTERVAL : false;
 };
 
 export const useGetRunQuery = ({

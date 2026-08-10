@@ -33,6 +33,7 @@ const (
 	RunStatus_RUN_STATUS_CANCELED    RunStatus = 5
 	RunStatus_RUN_STATUS_PAUSED      RunStatus = 6
 	RunStatus_RUN_STATUS_PARTIAL     RunStatus = 7
+	RunStatus_RUN_STATUS_SCHEDULED   RunStatus = 8
 )
 
 // Enum value maps for RunStatus.
@@ -46,6 +47,7 @@ var (
 		5: "RUN_STATUS_CANCELED",
 		6: "RUN_STATUS_PAUSED",
 		7: "RUN_STATUS_PARTIAL",
+		8: "RUN_STATUS_SCHEDULED",
 	}
 	RunStatus_value = map[string]int32{
 		"RUN_STATUS_UNSPECIFIED": 0,
@@ -56,6 +58,7 @@ var (
 		"RUN_STATUS_CANCELED":    5,
 		"RUN_STATUS_PAUSED":      6,
 		"RUN_STATUS_PARTIAL":     7,
+		"RUN_STATUS_SCHEDULED":   8,
 	}
 )
 
@@ -540,8 +543,19 @@ type RunInfo struct {
 	EndedAt            int64                  `protobuf:"varint,10,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
 	SourceConnectionId string                 `protobuf:"bytes,11,opt,name=source_connection_id,json=sourceConnectionId,proto3" json:"source_connection_id,omitempty"`
 	SinkConnectionId   string                 `protobuf:"bytes,12,opt,name=sink_connection_id,json=sinkConnectionId,proto3" json:"sink_connection_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Worker pod usage folded from run.heartbeat facts.
+	CpuSeconds      float64 `protobuf:"fixed64,13,opt,name=cpu_seconds,json=cpuSeconds,proto3" json:"cpu_seconds,omitempty"`
+	MemoryPeakBytes int64   `protobuf:"varint,14,opt,name=memory_peak_bytes,json=memoryPeakBytes,proto3" json:"memory_peak_bytes,omitempty"`
+	// Lifecycle stamps in epoch millis; 0 means unset. created_at is row birth,
+	// scheduled_at the intended fire time (scheduled runs only), requested_at
+	// when the run was queued for dispatch. started_at/ended_at above are the
+	// worker's own start and finish.
+	CreatedAt     int64 `protobuf:"varint,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ScheduledAt   int64 `protobuf:"varint,16,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
+	RequestedAt   int64 `protobuf:"varint,17,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	UpdatedAt     int64 `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -656,6 +670,48 @@ func (x *RunInfo) GetSinkConnectionId() string {
 		return x.SinkConnectionId
 	}
 	return ""
+}
+
+func (x *RunInfo) GetCpuSeconds() float64 {
+	if x != nil {
+		return x.CpuSeconds
+	}
+	return 0
+}
+
+func (x *RunInfo) GetMemoryPeakBytes() int64 {
+	if x != nil {
+		return x.MemoryPeakBytes
+	}
+	return 0
+}
+
+func (x *RunInfo) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetScheduledAt() int64 {
+	if x != nil {
+		return x.ScheduledAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetRequestedAt() int64 {
+	if x != nil {
+		return x.RequestedAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
 }
 
 type RunSnapshot struct {
@@ -1362,7 +1418,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\x9f\x03\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\xf0\x04\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
@@ -1378,7 +1434,16 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\bended_at\x18\n" +
 	" \x01(\x03R\aendedAt\x120\n" +
 	"\x14source_connection_id\x18\v \x01(\tR\x12sourceConnectionId\x12,\n" +
-	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\"\x8b\x01\n" +
+	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\x12\x1f\n" +
+	"\vcpu_seconds\x18\r \x01(\x01R\n" +
+	"cpuSeconds\x12*\n" +
+	"\x11memory_peak_bytes\x18\x0e \x01(\x03R\x0fmemoryPeakBytes\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x0f \x01(\x03R\tcreatedAt\x12!\n" +
+	"\fscheduled_at\x18\x10 \x01(\x03R\vscheduledAt\x12!\n" +
+	"\frequested_at\x18\x11 \x01(\x03R\vrequestedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +
@@ -1425,7 +1490,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06fields\x18\a \x01(\v2\x1c.ingestion.v1.RunEventFieldsR\x06fields\x12\x16\n" +
 	"\x06replay\x18\b \x01(\bR\x06replay\"?\n" +
 	"\x0fTailRunResponse\x12,\n" +
-	"\x05event\x18\x01 \x01(\v2\x16.ingestion.v1.RunEventR\x05event*\xd2\x01\n" +
+	"\x05event\x18\x01 \x01(\v2\x16.ingestion.v1.RunEventR\x05event*\xec\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14RUN_STATUS_REQUESTED\x10\x01\x12\x16\n" +
@@ -1434,7 +1499,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x11RUN_STATUS_FAILED\x10\x04\x12\x17\n" +
 	"\x13RUN_STATUS_CANCELED\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_PAUSED\x10\x06\x12\x16\n" +
-	"\x12RUN_STATUS_PARTIAL\x10\a*X\n" +
+	"\x12RUN_STATUS_PARTIAL\x10\a\x12\x18\n" +
+	"\x14RUN_STATUS_SCHEDULED\x10\b*X\n" +
 	"\x06Signal\x12\x16\n" +
 	"\x12SIGNAL_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSIGNAL_PAUSE\x10\x01\x12\x11\n" +
