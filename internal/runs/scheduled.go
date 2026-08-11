@@ -40,7 +40,7 @@ func ReconcileScheduled(ctx context.Context, ds filament.DataStore, c *compile.C
 
 // DropScheduled deletes every pending RunScheduled row for the schedule.
 func DropScheduled(ctx context.Context, ds filament.DataStore, id filament.ScheduleID) error {
-	pending, err := ds.ListRuns(ctx, filament.RunFilter{
+	pending, _, err := ds.ListRuns(ctx, filament.RunFilter{
 		Schedule: id,
 		Status:   []filament.RunStatus{filament.RunScheduled},
 	})

@@ -4,6 +4,7 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
+import "ingestion/v1/pagination.proto";
 
 // Capabilities flattens source and sink capabilities; fields not relevant to a
 // given kind stay false.
@@ -39,10 +40,12 @@ message ConnectorSpec {
 message ListConnectorsRequest {
   // Filter to one kind; UNSPECIFIED returns both sources and sinks.
   ConnectorKind kind = 1;
+  PaginationRequest pagination = 2;
 }
 
 message ListConnectorsResponse {
   repeated ConnectorSpec connectors = 1;
+  PaginationResponse pagination = 2;
 }
 
 message GetConnectorRequest {

@@ -20,6 +20,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
+import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
@@ -95,6 +96,7 @@ const PipelineLayoutNavbar = () => {
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
+      pagination: create(PaginationRequestSchema, { total: 1 }),
     }),
   });
   const hasActiveRun = activeRunsData.runs.length > 0;

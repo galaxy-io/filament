@@ -868,8 +868,7 @@ type ListRunsRequest struct {
 	PipelineId        string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	PipelineVersionId *int64                 `protobuf:"varint,3,opt,name=pipeline_version_id,json=pipelineVersionId,proto3,oneof" json:"pipeline_version_id,omitempty"`
 	Status            []RunStatus            `protobuf:"varint,4,rep,packed,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
-	Limit             int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset            int32                  `protobuf:"varint,6,opt,name=offset,proto3" json:"offset,omitempty"`
+	Pagination        *PaginationRequest     `protobuf:"bytes,5,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	// since_ms/until_ms window on started_at (inclusive/exclusive, epoch
 	// millis); 0 means unbounded. Runs that never started are excluded.
 	SinceMs       int64 `protobuf:"varint,7,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
@@ -936,18 +935,11 @@ func (x *ListRunsRequest) GetStatus() []RunStatus {
 	return nil
 }
 
-func (x *ListRunsRequest) GetLimit() int32 {
+func (x *ListRunsRequest) GetPagination() *PaginationRequest {
 	if x != nil {
-		return x.Limit
+		return x.Pagination
 	}
-	return 0
-}
-
-func (x *ListRunsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 func (x *ListRunsRequest) GetSinceMs() int64 {
@@ -967,6 +959,7 @@ func (x *ListRunsRequest) GetUntilMs() int64 {
 type ListRunsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Runs          []*RunInfo             `protobuf:"bytes,1,rep,name=runs,proto3" json:"runs,omitempty"`
+	Pagination    *PaginationResponse    `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1004,6 +997,13 @@ func (*ListRunsResponse) Descriptor() ([]byte, []int) {
 func (x *ListRunsResponse) GetRuns() []*RunInfo {
 	if x != nil {
 		return x.Runs
+	}
+	return nil
+}
+
+func (x *ListRunsResponse) GetPagination() *PaginationResponse {
+	if x != nil {
+		return x.Pagination
 	}
 	return nil
 }
@@ -1386,7 +1386,7 @@ var File_ingestion_v1_runs_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\"R\n" +
+	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1dingestion/v1/pagination.proto\"R\n" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
@@ -1451,20 +1451,24 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\rGetRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"G\n" +
 	"\x0eGetRunResponse\x125\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xb1\x02\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xc4\x02\n" +
 	"\x0fListRunsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x123\n" +
 	"\x13pipeline_version_id\x18\x03 \x01(\x03H\x00R\x11pipelineVersionId\x88\x01\x01\x12/\n" +
-	"\x06status\x18\x04 \x03(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x14\n" +
-	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x06 \x01(\x05R\x06offset\x12\x19\n" +
+	"\x06status\x18\x04 \x03(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12?\n" +
+	"\n" +
+	"pagination\x18\x05 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\x12\x19\n" +
 	"\bsince_ms\x18\a \x01(\x03R\asinceMs\x12\x19\n" +
 	"\buntil_ms\x18\b \x01(\x03R\auntilMsB\x16\n" +
-	"\x14_pipeline_version_id\"=\n" +
+	"\x14_pipeline_version_id\"\x7f\n" +
 	"\x10ListRunsResponse\x12)\n" +
-	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\"W\n" +
+	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\x12@\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
+	"pagination\"W\n" +
 	"\x10SignalRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12,\n" +
 	"\x06signal\x18\x02 \x01(\x0e2\x14.ingestion.v1.SignalR\x06signal\"\x13\n" +
@@ -1543,6 +1547,8 @@ var file_ingestion_v1_runs_proto_goTypes = []any{
 	(*RunEventFields)(nil),      // 17: ingestion.v1.RunEventFields
 	(*RunEvent)(nil),            // 18: ingestion.v1.RunEvent
 	(*TailRunResponse)(nil),     // 19: ingestion.v1.TailRunResponse
+	(*PaginationRequest)(nil),   // 20: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),  // 21: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	2,  // 0: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
@@ -1554,15 +1560,17 @@ var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	7,  // 6: ingestion.v1.RunSnapshot.resources:type_name -> ingestion.v1.RunResourceState
 	9,  // 7: ingestion.v1.GetRunResponse.snapshot:type_name -> ingestion.v1.RunSnapshot
 	0,  // 8: ingestion.v1.ListRunsRequest.status:type_name -> ingestion.v1.RunStatus
-	8,  // 9: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
-	1,  // 10: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.Signal
-	17, // 11: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
-	18, // 12: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	20, // 9: ingestion.v1.ListRunsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	8,  // 10: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
+	21, // 11: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	1,  // 12: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.Signal
+	17, // 13: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
+	18, // 14: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_runs_proto_init() }
@@ -1570,6 +1578,7 @@ func file_ingestion_v1_runs_proto_init() {
 	if File_ingestion_v1_runs_proto != nil {
 		return
 	}
+	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_runs_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

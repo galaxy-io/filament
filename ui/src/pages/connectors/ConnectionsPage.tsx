@@ -1,6 +1,5 @@
 import { type ReactElement, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
@@ -11,9 +10,10 @@ import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import DocsButton from "@/components/DocsButton";
+import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
@@ -30,7 +30,7 @@ import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineCo
 
 import { Flow } from "@/routes/__root";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
+import { useSuspenseListConnectionsInfiniteQuery } from "@/api/queries/connections";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -65,10 +65,12 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
     });
   };
 
-  const { data } = useSuspenseListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, { kind }),
-  });
-  const kindConnections = data.connections;
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useSuspenseListConnectionsInfiniteQuery({ input: { kind } });
+  const kindConnections = useMemo(
+    () => data.pages.flatMap((page) => page.connections),
+    [data.pages],
+  );
 
   const { connectionIdsByPipelineId } = usePipelineConnectionMap();
   const pipelineCountsByConnectionId = useMemo(() => {
@@ -133,19 +135,26 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
     }
 
     return (
-      <GridWrapper
-        columns={`repeat(auto-fill, minmax(${CONNECTOR_GRID_MIN_COLUMN_WIDTH}px, 1fr))`}
-        gap={12}
-      >
-        {filteredConnections.map((connection) => (
-          <ConnectionCard
-            key={connection.id}
-            connection={connection}
-            pipelineCount={pipelineCountsByConnectionId.get(connection.id) ?? 0}
-            onClick={() => handleConnectionClick(connection.id)}
-          />
-        ))}
-      </GridWrapper>
+      <>
+        <GridWrapper
+          columns={`repeat(auto-fill, minmax(${CONNECTOR_GRID_MIN_COLUMN_WIDTH}px, 1fr))`}
+          gap={12}
+        >
+          {filteredConnections.map((connection) => (
+            <ConnectionCard
+              key={connection.id}
+              connection={connection}
+              pipelineCount={pipelineCountsByConnectionId.get(connection.id) ?? 0}
+              onClick={() => handleConnectionClick(connection.id)}
+            />
+          ))}
+        </GridWrapper>
+        <InfiniteScrollSentinel
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+        />
+      </>
     );
   };
 

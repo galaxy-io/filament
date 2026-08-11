@@ -8,6 +8,8 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 
+import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
+
 import ObservabilityMetricsWidget from "@/pages/observability/components/metrics/ObservabilityMetricsWidget";
 import ObservabilityToolbar from "@/pages/observability/components/ObservabilityToolbar";
 import ObservabilityRunsWidget from "@/pages/observability/components/runs/ObservabilityRunsWidget";
@@ -63,6 +65,7 @@ const ObservabilityPage = () => {
               <ObservabilityTimeseriesWidget
                 views={OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP}
                 defaultView={ObservabilityUsageView.CPU}
+                defaultPivot={MetricDimension.PIPELINE_ID}
                 viewSearchKey="usage"
                 pivotSearchKey="usagePivot"
               />
