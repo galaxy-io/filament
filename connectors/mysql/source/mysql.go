@@ -149,7 +149,14 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	db, err := sql.Open("mysql", cfg.Secret("dsn"))
+	mc, err := mysql.ParseDSN(cfg.Secret("dsn"))
+	if err != nil {
+		return fmt.Errorf("mysql source: parse dsn: %w", err)
+	}
+	if database := cfg.String("database"); database != "" {
+		mc.DBName = database
+	}
+	db, err := sql.Open("mysql", mc.FormatDSN())
 	if err != nil {
 		return fmt.Errorf("mysql source: open: %w", err)
 	}
