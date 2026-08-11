@@ -34,7 +34,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/metrics.v1.MetricsService": {
-        target: "http://localhost:8082",
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
     },

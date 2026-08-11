@@ -48,6 +48,7 @@ import (
 type Config struct {
 	Bus     eventbus.Bus
 	Store   filament.DataStore
+	Metrics filament.MetricsStore
 	Secrets filament.Secrets
 	Sources filament.SourceRegistry
 	Sinks   filament.SinkRegistry
@@ -62,6 +63,10 @@ func WithBus(b eventbus.Bus) Option { return func(c *Config) { c.Bus = b } }
 
 // WithDataStore sets the run/checkpoint store (default: memory.New()).
 func WithDataStore(s filament.DataStore) Option { return func(c *Config) { c.Store = s } }
+
+// WithMetricsStore sets the run metrics query backend (default: none —
+// MetricsService answers Unimplemented).
+func WithMetricsStore(ms filament.MetricsStore) Option { return func(c *Config) { c.Metrics = ms } }
 
 // WithSources overrides the source registry (default: registry.DefaultSources).
 func WithSources(s filament.SourceRegistry) Option { return func(c *Config) { c.Sources = s } }
@@ -98,7 +103,8 @@ func Run(ctx context.Context, opts ...Option) error {
 	cfg := newConfig(opts...)
 
 	orch := orchestrator.New()
-	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus, server.WithSecrets(cfg.Secrets))
+	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus,
+		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics))
 	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
 	if !ok {
 		return fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
