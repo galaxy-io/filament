@@ -123,20 +123,6 @@ helm upgrade --install filament . \
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| metrics.autoscaling.enabled | bool | `false` | Enable a HorizontalPodAutoscaler for the metrics service. |
-| metrics.autoscaling.maxReplicas | int | `10` | Maximum metrics replicas when autoscaling is enabled. |
-| metrics.autoscaling.minReplicas | int | `1` | Minimum metrics replicas when autoscaling is enabled. |
-| metrics.autoscaling.targetCpu | int | `80` | Target average CPU utilization percentage for metrics autoscaling. |
-| metrics.enabled | bool | `true` | Deploy the Filament metrics service. It answers run metrics queries by reading the same runs table server/control-plane persist to. |
-| metrics.image.pullPolicy | string | `"IfNotPresent"` | Metrics image pull policy. |
-| metrics.image.pullSecrets | list | `[]` | Image pull secrets for the metrics Deployment. |
-| metrics.image.repository | string | `"ghcr.io/galaxy-io/filament/metrics"` | Metrics image repository. |
-| metrics.image.tag | string | `""` (defaults to chart appVersion) | Metrics image tag. |
-| metrics.replicas | int | `1` | Number of metrics replicas. Ignored when `metrics.autoscaling.enabled` is true. |
-| metrics.resources | object | `{}` (See [values.yaml]) | Metrics resource requests and limits. |
-| metrics.service.port | int | `8082` | Metrics service and container port. |
-| metrics.serviceAccount.annotations | object | `{}` | Annotations for the chart-created metrics ServiceAccount, e.g. an IRSA role ARN. |
-| metrics.serviceAccount.name | string | `""` | Existing ServiceAccount name for the metrics service. When set, the chart does not create one. |
 
 ## Persistence parameters
 

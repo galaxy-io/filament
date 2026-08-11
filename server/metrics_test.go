@@ -1,4 +1,4 @@
-package metrics
+package server
 
 import (
 	"strconv"
@@ -8,25 +8,21 @@ import (
 )
 
 // TestStatusMappingCoversEveryProtoValue guards the DIMENSION_STATUS mapping
-// against a new run status landing on UNSPECIFIED. The two enums are mapped
-// here and again in server/convert.go, so adding a status means editing both;
-// miss this one and a grouped metrics response silently buckets that status as
-// UNSPECIFIED — no compile error, no other test failure.
-//
-// Driven by the generated RunStatus_name rather than a hand-written list, so a
-// new proto value fails this test the moment it is generated.
+// against a new run status landing on UNSPECIFIED. Driven by the generated
+// RunStatus_name rather than a hand-written list, so a new proto value fails
+// this test the moment it is generated.
 func TestStatusMappingCoversEveryProtoValue(t *testing.T) {
 	for value := range ingestionv1.RunStatus_name {
 		proto := ingestionv1.RunStatus(value)
 		if proto == ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED {
 			continue
 		}
-		domain, err := statusFromProto(proto)
+		domain, err := runStatusFromProto(proto)
 		if err != nil {
-			t.Errorf("statusFromProto(%v): %v", proto, err)
+			t.Errorf("runStatusFromProto(%v): %v", proto, err)
 			continue
 		}
-		if got := statusToProto(domain); got != proto {
+		if got := runStatusToProto(domain); got != proto {
 			t.Errorf("round trip %v -> %v -> %v, want %v", proto, domain, got, proto)
 		}
 	}

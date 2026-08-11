@@ -22,6 +22,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
+	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
@@ -128,8 +129,13 @@ func run(ctx context.Context, migrateOnly bool) error {
 		}
 	}()
 
+	metricStore, err := metricsstore.FromEnv(ctx, store)
+	if err != nil {
+		return err
+	}
 	orch := orchestrator.New()
-	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, server.WithSecrets(secrets))
+	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus,
+		server.WithSecrets(secrets), server.WithMetricsStore(metricStore))
 	mods, err := module.MountAll(ctx,
 		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
 		orch,

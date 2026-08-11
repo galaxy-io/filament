@@ -1,4 +1,4 @@
-// Package postgres implements filament.MetricsStore over the same
+// Package metrics implements filament.MetricsStore over the same
 // Postgres runs table datastore/postgres.Store persists to. It's a separate
 // package/type — not a method set on Store itself — sharing the pool rather
 // than growing the core datastore with dashboard-query-specific SQL.
@@ -11,7 +11,7 @@
 // datastore/postgres/migrate.go) rendered with pre-built, already-safe SQL
 // fragments (registry.go's column/expression names, and $N placeholders from
 // queryBuilder) — never raw values, which stay bound as query args.
-package postgres
+package metrics
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func (s *Store) Close() error {
 
 func metricExprList(ms []filament.Metric) ([]string, error) {
 	if len(ms) == 0 {
-		return nil, fmt.Errorf("metricsstore/postgres: at least one metric is required")
+		return nil, fmt.Errorf("metrics: at least one metric is required")
 	}
 	exprs := make([]string, len(ms))
 	for i, m := range ms {
@@ -75,7 +75,7 @@ func granularityUnit(g filament.MetricsGranularity) (string, error) {
 	case filament.GranularityDay:
 		return "day", nil
 	default:
-		return "", fmt.Errorf("metricsstore/postgres: granularity must be set")
+		return "", fmt.Errorf("metrics: granularity must be set")
 	}
 }
 
@@ -111,7 +111,7 @@ func (b *queryBuilder) whereClause(tenant filament.TenantID, since, until time.T
 			if f.Dimension == filament.DimensionStatus {
 				n, err := strconv.Atoi(v)
 				if err != nil {
-					return "", fmt.Errorf("metricsstore/postgres: status filter value %q is not a RunStatus number: %w", v, err)
+					return "", fmt.Errorf("metrics: status filter value %q is not a RunStatus number: %w", v, err)
 				}
 				placeholders[i] = b.arg(n)
 			} else {
@@ -137,7 +137,7 @@ func keyExpr(dim filament.MetricsDimension) (expr, col string) {
 func render(name string, data any) (string, error) {
 	var b strings.Builder
 	if err := templates.ExecuteTemplate(&b, name, data); err != nil {
-		return "", fmt.Errorf("metricsstore/postgres: render %s: %w", name, err)
+		return "", fmt.Errorf("metrics: render %s: %w", name, err)
 	}
 	return b.String(), nil
 }
@@ -192,7 +192,7 @@ func (s *Store) QueryRunAggregate(ctx context.Context, q filament.RunAggregateQu
 
 	rows, err := s.pool.Query(ctx, query, b.args...)
 	if err != nil {
-		return nil, fmt.Errorf("metricsstore/postgres: query run aggregate: %w", err)
+		return nil, fmt.Errorf("metrics: query run aggregate: %w", err)
 	}
 	defer rows.Close()
 
@@ -205,12 +205,12 @@ func (s *Store) QueryRunAggregate(ctx context.Context, q filament.RunAggregateQu
 		nullable := make([]*float64, len(q.Metrics))
 		scanArgs := append([]any{&rowKey}, valuePtrs(nullable)...)
 		if err := rows.Scan(scanArgs...); err != nil {
-			return nil, fmt.Errorf("metricsstore/postgres: scan run aggregate row: %w", err)
+			return nil, fmt.Errorf("metrics: scan run aggregate row: %w", err)
 		}
 		out = append(out, filament.RunAggregateRow{Key: rowKey, Values: valuesOrZero(nullable)})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("metricsstore/postgres: run aggregate rows: %w", err)
+		return nil, fmt.Errorf("metrics: run aggregate rows: %w", err)
 	}
 	return out, nil
 }
@@ -306,7 +306,7 @@ func (s *Store) QueryRunTimeseries(ctx context.Context, q filament.RunTimeseries
 
 	rows, err := s.pool.Query(ctx, query, b.args...)
 	if err != nil {
-		return nil, fmt.Errorf("metricsstore/postgres: query run timeseries: %w", err)
+		return nil, fmt.Errorf("metrics: query run timeseries: %w", err)
 	}
 	defer rows.Close()
 
@@ -326,7 +326,7 @@ func scanTimeseries(rows pgx.Rows, numMetrics int) ([]filament.RunTimeseries, er
 		values := make([]*float64, numMetrics)
 		scanArgs := append([]any{&rowKey, &bucket}, valuePtrs(values)...)
 		if err := rows.Scan(scanArgs...); err != nil {
-			return nil, fmt.Errorf("metricsstore/postgres: scan run timeseries row: %w", err)
+			return nil, fmt.Errorf("metrics: scan run timeseries row: %w", err)
 		}
 		ts, ok := series[rowKey]
 		if !ok {
@@ -337,7 +337,7 @@ func scanTimeseries(rows pgx.Rows, numMetrics int) ([]filament.RunTimeseries, er
 		ts.Points = append(ts.Points, filament.TimeseriesPoint{BucketStart: bucket, Values: valuesOrZero(values)})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("metricsstore/postgres: run timeseries rows: %w", err)
+		return nil, fmt.Errorf("metrics: run timeseries rows: %w", err)
 	}
 
 	out := make([]filament.RunTimeseries, 0, len(order))

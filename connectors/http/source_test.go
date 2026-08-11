@@ -67,6 +67,58 @@ func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 	}
 }
 
+func TestSourceTestConnectionMakesOneAuthenticatedRequest(t *testing.T) {
+	var calls int
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != http.MethodGet || r.URL.Path != "/probe" {
+			t.Errorf("request = %s %s, want GET /probe", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if r.Header.Get("Authorization") != "Bearer good-token" {
+			fmt.Fprint(w, `{"error":"invalid token"}`)
+			return
+		}
+		fmt.Fprint(w, `{"items":[]}`)
+	}))
+	defer api.Close()
+
+	data := []byte(fmt.Sprintf(`
+version: 1
+name: probe
+config:
+  token: {type: secret, required: true}
+connection:
+  base_url: %s
+  auth:
+    bearer: config.token
+resources:
+  - name: probe
+    path: /probe
+    response:
+      records: $.items
+      error:
+        path: error
+        when_present: true
+`, api.URL))
+	src := NewManifest("probe", "Probe", data, filament.ConfigSchema{})
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"token": "good-token",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("requests = %d, want exactly 1", calls)
+	}
+
+	err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"token": "bad-token",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "invalid token") {
+		t.Fatalf("bad credentials error = %v, want wrapped API error", err)
+	}
+}
+
 func TestSourcePlanResumeExpandsManifestResources(t *testing.T) {
 	ctx := context.Background()
 	api := httptest.NewServer(http.NotFoundHandler())

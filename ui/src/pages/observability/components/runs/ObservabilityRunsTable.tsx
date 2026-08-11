@@ -20,6 +20,8 @@ import PipelineName from "@/components/PipelineName";
 import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
 import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
@@ -101,6 +103,7 @@ const ObservabilityRunsTable = () => {
         id: "runId",
         header: "Run",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
+        pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace>
@@ -111,6 +114,8 @@ const ObservabilityRunsTable = () => {
       {
         id: "pipeline",
         header: "Pipeline",
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
+        maxSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
         pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,

@@ -181,7 +181,7 @@ func ReplicationOf(src Source, cfg Config) ReplicationMode {
 }
 
 // LiveValidatable is the optional contract for probing connectivity with a
-// config before any run uses it.
+// config before any run uses it. Both sources and sinks may implement it.
 type LiveValidatable interface {
 	TestConnection(ctx context.Context, cfg Config) error
 }

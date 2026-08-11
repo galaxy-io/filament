@@ -23,15 +23,6 @@ spec:
     - host: {{ . | quote }}
       http:
         paths:
-          {{- if $.Values.metrics.enabled }}
-          - path: /metrics.v1.MetricsService
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "filament.metrics.fullname" $ }}
-                port:
-                  name: http
-          {{- end }}
           - path: {{ $.Values.server.ingress.path }}
             pathType: {{ $.Values.server.ingress.pathType }}
             backend:
