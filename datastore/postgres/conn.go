@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver, used only for migrations
@@ -27,7 +26,8 @@ func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("datastore/postgres: pool: %w", err)
 	}
 	if err := pool.Ping(ctx); err != nil {
-		log.Printf("datastore/postgres: database not ready: %v", err)
+		pool.Close()
+		return nil, fmt.Errorf("datastore/postgres: ping: %w", err)
 	}
 	return pool, nil
 }
