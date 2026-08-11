@@ -10,24 +10,26 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/pagination.proto.
  */
 export const file_ingestion_v1_pagination: GenFile = /*@__PURE__*/
-  fileDesc("Ch1pbmdlc3Rpb24vdjEvcGFnaW5hdGlvbi5wcm90bxIMaW5nZXN0aW9uLnYxIjIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSIjChJQYWdpbmF0aW9uUmVzcG9uc2USDQoFdG90YWwYASABKAViBnByb3RvMw");
+  fileDesc("Ch1pbmdlc3Rpb24vdjEvcGFnaW5hdGlvbi5wcm90bxIMaW5nZXN0aW9uLnYxIkIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBXRvdGFsGAEgASgFEhMKBmN1cnNvchgCIAEoCUgAiAEBQgkKB19jdXJzb3IifwoSUGFnaW5hdGlvblJlc3BvbnNlEg0KBXRvdGFsGAEgASgFEhwKD3ByZXZpb3VzX2N1cnNvchgCIAEoCUgAiAEBEhgKC25leHRfY3Vyc29yGAMgASgJSAGIAQFCEgoQX3ByZXZpb3VzX2N1cnNvckIOCgxfbmV4dF9jdXJzb3JiBnByb3RvMw");
 
 /**
  * PaginationRequest narrows a List response to one page. Absent means the
- * full result; limit <= 0 means unbounded and offset <= 0 means the start.
+ * full result. total is the page size, defaulted and capped server-side;
+ * cursor is an opaque token from a prior response, absent meaning the first
+ * page.
  *
  * @generated from message ingestion.v1.PaginationRequest
  */
 export type PaginationRequest = Message<"ingestion.v1.PaginationRequest"> & {
   /**
-   * @generated from field: int32 limit = 1;
+   * @generated from field: int32 total = 1;
    */
-  limit: number;
+  total: number;
 
   /**
-   * @generated from field: int32 offset = 2;
+   * @generated from field: optional string cursor = 2;
    */
-  offset: number;
+  cursor?: string | undefined;
 };
 
 /**
@@ -39,7 +41,8 @@ export const PaginationRequestSchema: GenMessage<PaginationRequest> = /*@__PURE_
 
 /**
  * PaginationResponse reports how many items matched before the page was cut,
- * so clients can compute page counts.
+ * plus opaque cursors for the adjacent pages. Absent cursors mean no page in
+ * that direction.
  *
  * @generated from message ingestion.v1.PaginationResponse
  */
@@ -48,6 +51,16 @@ export type PaginationResponse = Message<"ingestion.v1.PaginationResponse"> & {
    * @generated from field: int32 total = 1;
    */
   total: number;
+
+  /**
+   * @generated from field: optional string previous_cursor = 2;
+   */
+  previousCursor?: string | undefined;
+
+  /**
+   * @generated from field: optional string next_cursor = 3;
+   */
+  nextCursor?: string | undefined;
 };
 
 /**
