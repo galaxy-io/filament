@@ -114,6 +114,7 @@ jobs:
           helm template filament charts/filament > /dev/null
           helm template filament charts/filament --set existingSecret=byo > /dev/null
           helm template filament charts/filament --set controlPlane.autoscaling.enabled=true --set server.autoscaling.enabled=true > /dev/null
+          helm template filament charts/filament --set server.ingress.enabled=true --set "server.ingress.hosts[0]=filament.example.com" > /dev/null
 
   lint-ok:
     needs: [go, ui, chart]
