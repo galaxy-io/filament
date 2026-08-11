@@ -62,9 +62,9 @@ const PipelineSettingsPage = () => {
           minWidth={400}
           maxWidth={600}
         >
-          <PipelineSettingsPageGeneral pipeline={data.pipeline} />
-          <PipelineSettingsPageSchedule pipelineId={data.pipeline.id} schedule={data.schedule} />
-          <PipelineSettingsPageDanger pipeline={data.pipeline} />
+          <PipelineSettingsPageGeneral />
+          <PipelineSettingsPageSchedule />
+          <PipelineSettingsPageDanger />
         </FlexWrapper>
       </ScrollWrapper>
     </PageWrapper>

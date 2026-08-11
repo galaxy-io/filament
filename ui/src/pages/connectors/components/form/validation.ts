@@ -2,7 +2,7 @@ import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
 export function createRequiredFieldsValidationErrorMap(
   errors: ValidationError[],
-): Map<string, string> {
+): Map<ValidationError["field"], ValidationError["message"]> {
   return new Map(errors.map((e) => [e.field, e.message]));
 }
 

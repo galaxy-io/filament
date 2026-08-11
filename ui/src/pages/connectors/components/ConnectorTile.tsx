@@ -10,7 +10,7 @@ import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { useGetConnectorQuery } from "@/api/queries/connectors";
 
@@ -86,7 +86,7 @@ const ConnectorLogo = styled.img<{ $height: number }>`
 `;
 
 interface ConnectorTileProps {
-  connector: string;
+  connector: ConnectorSpec["name"];
   kind?: ConnectorKind;
   size?: ConnectorTileSize;
   onClick?: (e: React.MouseEvent) => void;
@@ -107,7 +107,7 @@ const ConnectorTile = ({
   isDeleted = false,
 }: ConnectorTileProps) => {
   const { activeTheme } = useGalaxyTheme();
-  const { data } = useGetConnectorQuery({
+  const { data, isLoading } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector, kind }),
     options: { enabled: !!connector && !!kind },
   });
@@ -132,7 +132,7 @@ const ConnectorTile = ({
           $height={CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP[size]}
           onError={handleLogoError}
         />
-      ) : (
+      ) : isLoading ? null : (
         <Text
           size={CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP[size]}
           variant={TextVariant.SECONDARY}

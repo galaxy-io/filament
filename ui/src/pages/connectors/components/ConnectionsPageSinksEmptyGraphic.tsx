@@ -23,6 +23,8 @@ interface SinkEmptyCard {
   metaWidth: number;
 }
 
+const SINKS_EMPTY_CARD_HEIGHT = 92;
+
 const SINK_EMPTY_CARDS: SinkEmptyCard[] = [
   { nameWidth: 72, metaWidth: 56 },
   { nameWidth: 56, metaWidth: 44 },
@@ -43,7 +45,7 @@ const CardsWrapper = styled.div`
 `;
 
 const GhostCard = withTheme(styled.div<PropsWithTheme>`
-  height: 92px;
+  height: ${SINKS_EMPTY_CARD_HEIGHT}px;
   min-width: 0;
 
   display: flex;
@@ -58,7 +60,7 @@ const GhostCard = withTheme(styled.div<PropsWithTheme>`
 `);
 
 const LiveCard = withTheme(styled.div<PropsWithTheme>`
-  height: 92px;
+  height: ${SINKS_EMPTY_CARD_HEIGHT}px;
   min-width: 0;
 
   display: flex;
