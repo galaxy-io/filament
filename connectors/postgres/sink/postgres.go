@@ -57,8 +57,9 @@ const defaultSchema = "public"
 func New() *Sink { return &Sink{schema: defaultSchema} }
 
 var (
-	_ filament.Sink        = (*Sink)(nil)
-	_ filament.Schematized = (*Sink)(nil)
+	_ filament.Sink            = (*Sink)(nil)
+	_ filament.LiveValidatable = (*Sink)(nil)
+	_ filament.Schematized     = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
@@ -92,6 +93,28 @@ func (t *Sink) Spec() filament.SinkSpec {
 
 // Name identifies this sink implementation.
 func (t *Sink) Name() string { return "postgres" }
+
+// TestConnection opens a short-lived pool and verifies the configured
+// credentials without creating the destination schema.
+func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
+	dsn := cfg.Secret("dsn")
+	if dsn == "" {
+		return fmt.Errorf("postgres sink: dsn is required")
+	}
+	poolCfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return fmt.Errorf("postgres sink: parse dsn: %w", err)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		return fmt.Errorf("postgres sink: open pool: %w", err)
+	}
+	defer pool.Close()
+	if err := pool.Ping(ctx); err != nil {
+		return fmt.Errorf("postgres sink: ping: %w", err)
+	}
+	return nil
+}
 
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
 // does no DDL — tables are created per resource by EnsureSchema before extraction.

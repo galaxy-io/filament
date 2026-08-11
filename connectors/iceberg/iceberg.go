@@ -87,9 +87,10 @@ func New() *Sink {
 }
 
 var (
-	_ filament.Sink          = (*Sink)(nil)
-	_ filament.Transactional = (*Sink)(nil)
-	_ filament.Schematized   = (*Sink)(nil)
+	_ filament.Sink            = (*Sink)(nil)
+	_ filament.LiveValidatable = (*Sink)(nil)
+	_ filament.Transactional   = (*Sink)(nil)
+	_ filament.Schematized     = (*Sink)(nil)
 )
 
 // Spec reports the sink's capabilities and configuration surface.
@@ -133,6 +134,24 @@ func (s *Sink) Spec() filament.SinkSpec {
 
 // Name identifies this sink implementation.
 func (s *Sink) Name() string { return "iceberg" }
+
+// TestConnection loads the configured catalog and performs a read-only
+// namespace listing. This exercises catalog authentication without creating
+// a namespace or table.
+func (s *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
+	setup, err := buildCatalogSetup(cfg)
+	if err != nil {
+		return fmt.Errorf("iceberg sink: %w", err)
+	}
+	cat, err := catalog.Load(ctx, "iceberg-validation", setup.Properties)
+	if err != nil {
+		return fmt.Errorf("iceberg sink: open catalog: %w", err)
+	}
+	if _, err := cat.ListNamespaces(ctx, nil); err != nil {
+		return fmt.Errorf("iceberg sink: list namespaces: %w", err)
+	}
+	return nil
+}
 
 // Open connects to the catalog and prepares per-resource tables for the run.
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {

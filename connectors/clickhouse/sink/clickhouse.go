@@ -74,8 +74,9 @@ type table struct {
 func New() *Sink { return &Sink{} }
 
 var (
-	_ filament.Sink        = (*Sink)(nil)
-	_ filament.Schematized = (*Sink)(nil)
+	_ filament.Sink            = (*Sink)(nil)
+	_ filament.LiveValidatable = (*Sink)(nil)
+	_ filament.Schematized     = (*Sink)(nil)
 )
 
 // Spec describes the sink's configuration and supported write policies.
@@ -113,6 +114,25 @@ func (s *Sink) Spec() filament.SinkSpec {
 
 // Name identifies this sink implementation.
 func (s *Sink) Name() string { return "clickhouse" }
+
+// TestConnection pings ClickHouse through a short-lived connection without
+// creating the configured destination database.
+func (s *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
+	opts, err := connectionOptions(cfg)
+	if err != nil {
+		return fmt.Errorf("clickhouse sink: connection config: %w", err)
+	}
+	opts.Auth.Database = defaultDatabase
+	conn, err := ch.Open(opts)
+	if err != nil {
+		return fmt.Errorf("clickhouse sink: open: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+	if err := conn.Ping(ctx); err != nil {
+		return fmt.Errorf("clickhouse sink: ping over %s to %s: %w", opts.Protocol, opts.Addr[0], err)
+	}
+	return nil
+}
 
 // Open connects to ClickHouse and prepares per-run state.
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {

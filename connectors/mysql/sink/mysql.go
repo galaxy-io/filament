@@ -55,8 +55,9 @@ func (t *Sink) resumableFor(resource string) bool {
 func New() *Sink { return &Sink{} }
 
 var (
-	_ filament.Sink        = (*Sink)(nil)
-	_ filament.Schematized = (*Sink)(nil)
+	_ filament.Sink            = (*Sink)(nil)
+	_ filament.LiveValidatable = (*Sink)(nil)
+	_ filament.Schematized     = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
@@ -91,6 +92,30 @@ func (t *Sink) Spec() filament.SinkSpec {
 
 // Name identifies this sink implementation.
 func (t *Sink) Name() string { return "mysql" }
+
+// TestConnection pings MySQL through a short-lived pool. It intentionally
+// clears the database name so validating a new destination does not require
+// that Open's CREATE DATABASE step has already run.
+func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
+	dsn := cfg.Secret("dsn")
+	if dsn == "" {
+		return fmt.Errorf("mysql sink: dsn is required")
+	}
+	mc, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		return fmt.Errorf("mysql sink: parse dsn: %w", err)
+	}
+	mc.DBName = ""
+	db, err := sql.Open("mysql", mc.FormatDSN())
+	if err != nil {
+		return fmt.Errorf("mysql sink: open: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("mysql sink: ping: %w", err)
+	}
+	return nil
+}
 
 // Open reads dsn/database and opens a pool sized for the run's write parallelism. It
 // does no DDL beyond CREATE DATABASE — tables are created per resource by
