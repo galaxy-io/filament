@@ -70,19 +70,23 @@ const ObservabilitySetupChecklist = () => {
       .with(ObservabilitySetupStep.SOURCE, () => {
         void navigate({
           to: ".",
-          search: {
+          search: (prev) => ({
+            ...prev,
+            connectionId: undefined,
             flow: Flow.CREATE_CONNECTION,
             connectorKind: ConnectorKind.SOURCE,
-          },
+          }),
         });
       })
       .with(ObservabilitySetupStep.SINK, () => {
         void navigate({
           to: ".",
-          search: {
+          search: (prev) => ({
+            ...prev,
+            connectionId: undefined,
             flow: Flow.CREATE_CONNECTION,
             connectorKind: ConnectorKind.SINK,
-          },
+          }),
         });
       })
       .with(ObservabilitySetupStep.PIPELINE, () => {
@@ -94,7 +98,7 @@ const ObservabilitySetupChecklist = () => {
         }
         void navigate({
           to: ".",
-          search: { flow: Flow.CREATE_PIPELINE },
+          search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
         });
       })
       .exhaustive();

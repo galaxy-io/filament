@@ -8,8 +8,9 @@ import {
   useState,
 } from "react";
 
-import type { JsonValue } from "@bufbuild/protobuf";
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
+
+import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   type PipelineCanvasAction,
@@ -61,7 +62,7 @@ export const usePipelineCanvasActions = () => {
         dispatch({ type: PipelineCanvasActionType.LOAD_GRAPH, payload: graph }),
       addNode: (node: CanvasNode) =>
         dispatch({ type: PipelineCanvasActionType.ADD_NODE, payload: node }),
-      removeNode: (nodeId: string) =>
+      removeNode: (nodeId: PipelineNode["id"]) =>
         dispatch({
           type: PipelineCanvasActionType.REMOVE_NODE,
           payload: nodeId,
@@ -93,7 +94,7 @@ export const usePipelineCanvasActions = () => {
           type: PipelineCanvasActionType.SET_INTERACTION_MODE,
           payload: mode,
         }),
-      setNodeConfig: (nodeId: string, config: Record<string, JsonValue>) =>
+      setNodeConfig: (nodeId: PipelineNode["id"], config: NonNullable<PipelineNode["config"]>) =>
         dispatch({
           type: PipelineCanvasActionType.SET_NODE_CONFIG,
           payload: { nodeId, config },
@@ -117,7 +118,8 @@ const PipelineCanvasProvider = ({
 }: PropsWithChildren<PipelineCanvasProviderProps>) => {
   const [state, dispatch] = useReducer(
     pipelineCanvasReducer,
-    createInitialPipelineCanvasState(graph),
+    graph,
+    createInitialPipelineCanvasState,
   );
 
   const [previousGraphKey, setPreviousGraphKey] = useState(graphKey);

@@ -4,6 +4,8 @@
  * underscore, trimmed edges, leading digit prefixed, capped at 63 characters.
  * Presentation-only; the server computes the authoritative value on save.
  */
+const MAX_IDENTIFIER_LENGTH = 63;
+
 export function normalizeIdentifier(name: string): string {
   let out = "";
   let pending = false;
@@ -18,5 +20,7 @@ export function normalizeIdentifier(name: string): string {
   }
   if (out === "") return "";
   if (/[0-9]/.test(out[0] ?? "")) out = `_${out}`;
-  return out.length > 63 ? out.slice(0, 63).replace(/_+$/, "") : out;
+  return out.length > MAX_IDENTIFIER_LENGTH
+    ? out.slice(0, MAX_IDENTIFIER_LENGTH).replace(/_+$/, "")
+    : out;
 }

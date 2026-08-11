@@ -4,7 +4,11 @@ import { create } from "@bufbuild/protobuf";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 
-import { GetPipelineVersionRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  GetPipelineVersionRequestSchema,
+  type Pipeline,
+  type PipelineNode,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
 import { createGetPipelineVersionQueryOptions } from "@/api/queries/pipeline_versions";
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
@@ -27,7 +31,7 @@ export const usePipelineConnectionMap = () => {
   });
 
   const connectionIdsByPipelineId = useMemo(() => {
-    const map = new Map<string, Set<string>>();
+    const map = new Map<Pipeline["id"], Set<PipelineNode["connectionId"]>>();
     pipelines.forEach((pipeline, index) => {
       map.set(
         pipeline.id,

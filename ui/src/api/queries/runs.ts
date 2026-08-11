@@ -106,7 +106,7 @@ export const createTailRunQueryKey = (input?: TailRunRequest) => {
   return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
 };
 
-export const useTailRunsStream = (runIds: string[]) => {
+export const useTailRunsStream = (runIds: RunInfo["runId"][]) => {
   const transport = useTransport();
   const results = useQueries({
     queries: runIds.map((runId) => {

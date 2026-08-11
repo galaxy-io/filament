@@ -3,9 +3,12 @@ import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { Metric, MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
-import { ObservabilityMetricView, ObservabilityUsageView } from "@/pages/observability/types";
+import { ObservabilityThroughputView, ObservabilityUsageView } from "@/pages/observability/types";
 
 import { formatBytes, formatCount, formatSeconds } from "@/utils/format";
+
+export const OBSERVABILITY_TIMESERIES_CHART_HEIGHT = 240;
+export const OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH = 150;
 
 export const METRIC_DIMENSION_PIVOT_OPTIONS: SelectInputOption[] = [
   {
@@ -38,18 +41,18 @@ export interface ObservabilityChartView {
   valueFormatter: ChartValueFormatter;
 }
 
-export const OBSERVABILITY_METRIC_VIEW_TO_CONFIG_MAP: Record<
-  ObservabilityMetricView,
+export const OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP: Record<
+  ObservabilityThroughputView,
   ObservabilityChartView
 > = {
-  [ObservabilityMetricView.RECORDS]: {
+  [ObservabilityThroughputView.RECORDS]: {
     label: "Records",
     seriesLabel: "Records",
     metric: Metric.RUN_RECORDS,
     color: ChartPalette.PURPLE,
     valueFormatter: (value) => formatCount(BigInt(Math.round(value))),
   },
-  [ObservabilityMetricView.VOLUME]: {
+  [ObservabilityThroughputView.VOLUME]: {
     label: "Volume",
     seriesLabel: "Bytes",
     metric: Metric.RUN_BYTES,

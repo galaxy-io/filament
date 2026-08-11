@@ -18,6 +18,9 @@ import type {
 } from "@/gen/ingestion/v1/connections_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
+import { createGetConnectionCapabilitiesQueryKey } from "@/api/queries/capabilities";
+import { createDiscoverResourcesQueryKey } from "@/api/queries/connectors";
+
 export const createListConnectionsQueryKey = (
   input?: ListConnectionsRequest,
   transport?: Transport,
@@ -136,6 +139,12 @@ export const useUpdateConnectionMutation = (
       });
       void queryClient.invalidateQueries({
         queryKey: createGetConnectionQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createDiscoverResourcesQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetConnectionCapabilitiesQueryKey(),
       });
       return options.onSettled?.(...args);
     },

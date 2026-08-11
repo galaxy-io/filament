@@ -12,6 +12,8 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
@@ -49,7 +51,7 @@ const CreatePipelineModalFooter = () => {
 
   const { isBackVisible, isLastStep, isNextDisabled, isSubmitting, hints } = state;
 
-  const handleNavigateToCanvas = (pipelineId: string) => {
+  const handleNavigateToCanvas = (pipelineId: Pipeline["id"]) => {
     void navigate({ to: "/pipelines/$id/canvas", params: { id: pipelineId } });
   };
 

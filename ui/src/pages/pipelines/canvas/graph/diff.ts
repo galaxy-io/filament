@@ -1,7 +1,7 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
+import type { PipelineNode, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP,
@@ -27,7 +27,7 @@ const canonicalize = (value: JsonValue): JsonValue => {
   return value;
 };
 
-const serializeNodeConfig = (config: Record<string, JsonValue> | undefined): string =>
+const serializeNodeConfig = (config: PipelineNode["config"]): string =>
   config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
 
 export const hasPipelineGraphChanges = (

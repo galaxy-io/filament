@@ -2,7 +2,10 @@ import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/Selec
 
 import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
-import { METRIC_DIMENSION_PIVOT_OPTIONS } from "@/pages/observability/components/timeseries/constants";
+import {
+  METRIC_DIMENSION_PIVOT_OPTIONS,
+  OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH,
+} from "@/pages/observability/components/timeseries/constants";
 
 interface ObservabilityPivotSelectProps {
   value: MetricDimension | undefined;
@@ -28,7 +31,7 @@ const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectP
       onChange={handleChange}
       onReset={handleReset}
       placeholder="Pivot"
-      width={150}
+      width={OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH}
     />
   );
 };

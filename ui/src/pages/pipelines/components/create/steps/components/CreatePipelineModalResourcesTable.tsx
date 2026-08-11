@@ -56,6 +56,28 @@ const NAME_COLUMN: ColumnDef<CreatePipelineModalResourceRow> = {
   ),
 };
 
+const RESOURCE_COLUMNS_BASE: ColumnDef<CreatePipelineModalResourceRow>[] = [NAME_COLUMN];
+
+const RESOURCE_COLUMNS_WITH_LEVERS: ColumnDef<CreatePipelineModalResourceRow>[] = [
+  NAME_COLUMN,
+  {
+    id: "readMode",
+    header: "Read mode",
+    size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
+    pin: ColumnPin.RIGHT,
+    cellLoading: () => <TextShimmer width={120} height={16} />,
+    cell: ({ row }) => <CreatePipelineModalResourcesReadModeCell row={row.original} />,
+  },
+  {
+    id: "cursor",
+    header: "Cursor",
+    size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
+    pin: ColumnPin.RIGHT,
+    cellLoading: () => <TextShimmer width={140} height={16} />,
+    cell: ({ row }) => <CreatePipelineModalResourcesCursorCell row={row.original} />,
+  },
+];
+
 interface CreatePipelineModalResourcesTableProps {
   rows: CreatePipelineModalResourceRow[];
 }
@@ -71,49 +93,7 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
     [rows],
   );
 
-  const columns = useMemo<ColumnDef<CreatePipelineModalResourceRow>[]>(() => {
-    if (!hasLevers) return [NAME_COLUMN];
-
-    return [
-      NAME_COLUMN,
-      {
-        id: "readMode",
-        header: "Read mode",
-        size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
-        pin: ColumnPin.RIGHT,
-        cellLoading: () => <TextShimmer width={120} height={16} />,
-        cell: ({ row }) => (
-          <CreatePipelineModalResourcesReadModeCell
-            row={row.original}
-            onChange={(resource, readMode) =>
-              dispatch({
-                type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
-                payload: { sinkId: activeSinkId, resource, readMode },
-              })
-            }
-          />
-        ),
-      },
-      {
-        id: "cursor",
-        header: "Cursor",
-        size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
-        pin: ColumnPin.RIGHT,
-        cellLoading: () => <TextShimmer width={140} height={16} />,
-        cell: ({ row }) => (
-          <CreatePipelineModalResourcesCursorCell
-            row={row.original}
-            onChange={(resource, cursorField) =>
-              dispatch({
-                type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR,
-                payload: { sinkId: activeSinkId, resource, cursorField },
-              })
-            }
-          />
-        ),
-      },
-    ];
-  }, [hasLevers, activeSinkId, dispatch]);
+  const columns = hasLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
 
   return (
     <TableWrapper>

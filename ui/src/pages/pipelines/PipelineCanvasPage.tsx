@@ -6,8 +6,10 @@ import {
   BackgroundVariant,
   type Connection,
   type EdgeChange,
+  type EdgeTypes,
   MiniMap,
   type NodeChange,
+  type NodeTypes,
   ReactFlow,
   SelectionMode,
 } from "@xyflow/react";
@@ -41,13 +43,19 @@ import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 import { mapEdgesToStyledEdges } from "@/pages/pipelines/canvas/utils";
 
-const PIPELINE_CANVAS_NODE_TYPE_TO_COMPONENT_MAP = {
+const PIPELINE_CANVAS_NODE_TYPE_TO_COMPONENT_MAP: Record<
+  PipelineCanvasNodeType,
+  NodeTypes[string]
+> = {
   [PipelineCanvasNodeType.SOURCE]: PipelineCanvasNodeSource,
   [PipelineCanvasNodeType.SINK]: PipelineCanvasNodeSink,
   [PipelineCanvasNodeType.PLACEHOLDER]: PipelineCanvasNodePlaceholder,
 };
 
-const PIPELINE_EDGE_TYPE_TO_COMPONENT_MAP = {
+const PIPELINE_EDGE_TYPE_TO_COMPONENT_MAP: Record<
+  typeof PIPELINE_CANVAS_EDGE_TYPE,
+  EdgeTypes[string]
+> = {
   [PIPELINE_CANVAS_EDGE_TYPE]: PipelineCanvasEdge,
 };
 
@@ -165,7 +173,7 @@ const PipelineCanvasPage = () => {
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={20}
+          gap={PIPELINE_CANVAS_SNAP_GRID[0]}
           size={1}
           color={theme.color.border.primary}
           bgColor={theme.color.background.base}
