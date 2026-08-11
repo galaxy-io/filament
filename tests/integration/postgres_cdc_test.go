@@ -179,7 +179,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	// Exercise the PostgreSQL sink's ordered merge path with the decoded stream.
 	dst := pgsink.New()
 	if err := dst.Open(ctx, filament.RunSpec{
-		Run: "cdc-sink", IngestionType: filament.IngestionCDC,
+		Run: "cdc-sink", IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDC},
 		Sink: filament.Ref{Config: map[string]any{"dsn": pg.DSN(), "schema": "cdc_dst"}},
 	}); err != nil {
 		t.Fatal(err)
