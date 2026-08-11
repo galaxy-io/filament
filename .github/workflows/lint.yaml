@@ -63,10 +63,10 @@ jobs:
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
       - name: Lint
-        run: just go-lint-check
+        run: just go-lint check
 
       - name: Format
-        run: just go-format-check
+        run: just go-format check
 
   ui:
     needs: changes
@@ -91,10 +91,10 @@ jobs:
         run: cd ui && pnpm install
 
       - name: Lint
-        run: just ui-lint-check
+        run: just ui-lint check
 
       - name: Format
-        run: just ui-format-check
+        run: just ui-format check
 
       - name: Build
         run: cd ui && pnpm build
