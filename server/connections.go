@@ -13,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
 )
 
 // CreateConnection separates schema-declared secret fields from ordinary
@@ -24,7 +25,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	cfg := structMap(req.Msg.GetConfig())
-	if err := validateConnectionConfig(schema, cfg); err != nil {
+	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
@@ -85,7 +86,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	cfg := structMap(in.GetConfig())
-	if err := validateConnectionConfig(schema, cfg); err != nil {
+	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	refs := cloneStrings(in.GetSecretRefs())

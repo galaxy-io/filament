@@ -145,18 +145,6 @@ type MetricsStore interface {
 	QueryRunAggregate(ctx context.Context, q RunAggregateQuery) ([]RunAggregateRow, error)
 }
 
-// Scheduler manages the lifecycle of recurring pipeline schedules.
-type Scheduler interface {
-	Register(ctx context.Context, spec ScheduleSpec) (ScheduleID, error)
-	Update(ctx context.Context, id ScheduleID, spec ScheduleSpec) error
-	Pause(ctx context.Context, id ScheduleID) error
-	Resume(ctx context.Context, id ScheduleID) error
-	Delete(ctx context.Context, id ScheduleID) error
-	Get(ctx context.Context, id ScheduleID) (ScheduleState, error)
-	List(ctx context.Context, f ScheduleFilter) ([]ScheduleState, error)
-	Name() string
-}
-
 // ScheduleSpec defines when a pipeline runs and whether occurrences may overlap.
 type ScheduleSpec struct {
 	Tenant     TenantID

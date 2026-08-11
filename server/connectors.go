@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
 )
 
 const (
@@ -171,7 +172,7 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 		if connector == "" {
 			connector = conn.Connector
 		}
-		config = mergeConfig(conn.Config, config)
+		config = compile.MergeConfig(conn.Config, config)
 		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 )
 
@@ -81,7 +82,7 @@ func (a *Server) DeletePipelineSchedule(ctx context.Context, req *connect.Reques
 	if err := a.schedules.DeleteSchedule(ctx, state.ID); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if err := a.DropScheduledRuns(ctx, state.ID); err != nil {
+	if err := runs.DropScheduled(ctx, a.store, state.ID); err != nil {
 		fmt.Printf("[ingestion-api] drop scheduled runs schedule=%s err=%v\n", state.ID, err)
 	}
 	return connect.NewResponse(&ingestionv1.DeletePipelineScheduleResponse{}), nil
