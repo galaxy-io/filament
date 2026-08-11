@@ -133,7 +133,8 @@ func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 	}, data))
 }
 
-// fail publishes the terminal run.failed fact carrying the error message.
+// fail publishes the terminal run.failed fact carrying the error message. It
+// detaches first so the obituary survives a cancelled run context.
 func (e *emitter) fail(err error) {
 	if e.span != nil {
 		e.span.SetError(err)
@@ -141,6 +142,7 @@ func (e *emitter) fail(err error) {
 	if e.log != nil {
 		e.log.Error("runner: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
+	defer e.finish()()
 	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error()})
 }
 
@@ -151,6 +153,7 @@ func (e *emitter) partial(err error) {
 	if e.log != nil {
 		e.log.Error("runner: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
+	defer e.finish()()
 	emit(e, events.RunPartial, "", events.RunPartialEvent{Error: err.Error()})
 }
 
