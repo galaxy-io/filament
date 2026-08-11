@@ -56,7 +56,13 @@ function RootComponent() {
     void navigate({
       to: ".",
       search: (prev) => {
-        const { connectionId: _, flow: prevFlow, ...rest } = prev;
+        const {
+          connectionId: _,
+          connector: __,
+          connectorKind: ___,
+          flow: prevFlow,
+          ...rest
+        } = prev;
         return prevFlow === Flow.EDIT_CONNECTION ? rest : { ...rest, flow: prevFlow };
       },
     });
