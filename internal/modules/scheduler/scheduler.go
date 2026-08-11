@@ -1,22 +1,24 @@
-// Package scheduler is the cron registry + intake module — the control plane that
-// fires runs on a schedule. It owns schedule lifecycle (register/update/pause/
-// resume/delete) over a filament.ScheduleStore, computes the next fire time with the
-// dependency-free cron parser, and on each tick claims due schedules and compiles
-// their pipelines into runs. It declares no bus subscriptions; its driver is a timer, started
-// explicitly by the composition root via Start.
+// Package scheduler is the cron firing module: on each tick it claims due
+// schedules, compiles their pipelines into runs, and submits them. Schedule
+// lifecycle (create/update/pause/resume/delete) is owned by the API over a
+// filament.ScheduleStore; this module only reads schedules, fires them, and
+// maintains their pre-created RunScheduled rows. It declares no bus
+// subscriptions; its driver is a timer, started explicitly by the composition
+// root via Start.
 package scheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/internal/compile"
+	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 	"github.com/galaxy-io/filament/module"
 )
@@ -24,26 +26,16 @@ import (
 // defaultInterval is how often the timer claims due schedules.
 const defaultInterval = time.Second
 
-// Module is the schedule registry and run-firing timer.
+// Module is the run-firing timer over a ScheduleStore.
 type Module struct {
-	store     filament.ScheduleStore
-	bus       eventbus.Bus
-	ds        filament.DataStore
-	log       filament.Logger
-	mx        filament.Metrics
-	interval  time.Duration
-	pipelines PipelineSubmitter
-}
-
-// PipelineSubmitter compiles a pipeline schedule occurrence into concrete runs.
-// Submit fires an occurrence; Reconcile re-derives the schedule's pre-created
-// RunScheduled rows (and Drop reaps them) so upcoming work is visible before
-// the fire. Both sides derive the same occurrence token, so the runs Reconcile
-// creates are the ones Submit later promotes.
-type PipelineSubmitter interface {
-	SubmitScheduledPipeline(context.Context, string, filament.ScheduleID, string) ([]filament.RunID, error)
-	ReconcileScheduledRuns(context.Context, filament.ScheduleState) error
-	DropScheduledRuns(context.Context, filament.ScheduleID) error
+	store         filament.ScheduleStore
+	bus           eventbus.Bus
+	ds            filament.DataStore
+	log           filament.Logger
+	mx            filament.Metrics
+	interval      time.Duration
+	defaultTenant string
+	compiler      *compile.Compiler
 }
 
 // Option configures a Module.
@@ -52,13 +44,15 @@ type Option func(*Module)
 // WithInterval sets the claim cadence of the timer started by Start (default 1s).
 func WithInterval(d time.Duration) Option { return func(m *Module) { m.interval = d } }
 
-// WithPipelineSubmitter enables pipeline-linked schedules.
-func WithPipelineSubmitter(p PipelineSubmitter) Option { return func(m *Module) { m.pipelines = p } }
+// WithDefaultTenant sets the tenant compiled runs fall back to when the
+// pipeline row carries none (default "t1", matching the API's fallback).
+func WithDefaultTenant(tenant string) Option { return func(m *Module) { m.defaultTenant = tenant } }
 
-// New returns an unmounted scheduler over the given ScheduleStore. Bus/DataStore
-// are injected by Mount; the timer is launched by Start.
+// New returns an unmounted scheduler over the given ScheduleStore. The bus,
+// data store, and compiler inputs are injected by Mount; the timer is launched
+// by Start.
 func New(store filament.ScheduleStore, opts ...Option) *Module {
-	m := &Module{store: store, interval: defaultInterval}
+	m := &Module{store: store, interval: defaultInterval, defaultTenant: "t1"}
 	for _, o := range opts {
 		o(m)
 	}
@@ -79,6 +73,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.ds = d.DataStore
 	m.log = d.Log
 	m.mx = d.Metrics
+	m.compiler = &compile.Compiler{Store: d.DataStore, Sources: d.Sources, Sinks: d.Sinks, DefaultTenant: m.defaultTenant}
 	return nil
 }
 
@@ -105,152 +100,45 @@ func (m *Module) Start(ctx context.Context) {
 	}()
 }
 
-// Register validates the spec's cron, computes the first fire time, and persists
-// the schedule, returning its id.
-func (m *Module) Register(ctx context.Context, spec filament.ScheduleSpec) (filament.ScheduleID, error) {
-	next, err := scheduledomain.NextFire(spec, time.Now())
-	if err != nil {
-		return "", err
-	}
-	if !spec.Enabled {
-		next = nil
-	}
-	id := newScheduleID()
-	st := filament.ScheduleState{
-		ID:        id,
-		Spec:      spec,
-		Enabled:   spec.Enabled,
-		NextFire:  next,
-		CreatedAt: time.Now(),
-	}
-	if err := m.store.SaveSchedule(ctx, st); err != nil {
-		return "", err
-	}
-	m.reconcileScheduledRuns(ctx, st)
-	return id, nil
-}
-
-// Update replaces a schedule's spec and recomputes its next fire time.
-func (m *Module) Update(ctx context.Context, id filament.ScheduleID, spec filament.ScheduleSpec) error {
-	st, err := m.store.LoadSchedule(ctx, id)
-	if err != nil {
-		return err
-	}
-	next, err := scheduledomain.NextFire(spec, time.Now())
-	if err != nil {
-		return err
-	}
-	if !spec.Enabled {
-		next = nil
-	}
-	st.Spec = spec
-	st.Enabled = spec.Enabled
-	st.NextFire = next
-	if err := m.store.SaveSchedule(ctx, st); err != nil {
-		return err
-	}
-	m.reconcileScheduledRuns(ctx, st)
-	return nil
-}
-
-// Get returns one schedule's state.
-func (m *Module) Get(ctx context.Context, id filament.ScheduleID) (filament.ScheduleState, error) {
-	return m.store.LoadSchedule(ctx, id)
-}
-
-// List returns schedules matching the filter.
-func (m *Module) List(ctx context.Context, f filament.ScheduleFilter) ([]filament.ScheduleState, error) {
-	return m.store.ListSchedules(ctx, f)
-}
-
-// Pause disables a schedule so the timer stops claiming it.
-func (m *Module) Pause(ctx context.Context, id filament.ScheduleID) error {
-	return m.setEnabled(ctx, id, false)
-}
-
-// Resume re-enables a schedule, recomputing its next fire from now.
-func (m *Module) Resume(ctx context.Context, id filament.ScheduleID) error {
-	st, err := m.store.LoadSchedule(ctx, id)
-	if err != nil {
-		return err
-	}
-	next, err := scheduledomain.NextFire(st.Spec, time.Now())
-	if err != nil {
-		return err
-	}
-	st.Enabled = true
-	st.Spec.Enabled = true
-	st.NextFire = next
-	if err := m.store.SaveSchedule(ctx, st); err != nil {
-		return err
-	}
-	m.reconcileScheduledRuns(ctx, st)
-	return nil
-}
-
-// Delete removes a schedule and reaps its pending pre-created runs.
-func (m *Module) Delete(ctx context.Context, id filament.ScheduleID) error {
-	if err := m.store.DeleteSchedule(ctx, id); err != nil {
-		return err
-	}
-	m.dropScheduledRuns(ctx, id)
-	return nil
-}
-
-func (m *Module) setEnabled(ctx context.Context, id filament.ScheduleID, on bool) error {
-	st, err := m.store.LoadSchedule(ctx, id)
-	if err != nil {
-		return err
-	}
-	st.Enabled = on
-	st.Spec.Enabled = on
-	if !on {
-		st.NextFire = nil
-	}
-	if err := m.store.SaveSchedule(ctx, st); err != nil {
-		return err
-	}
-	m.reconcileScheduledRuns(ctx, st)
-	return nil
-}
-
-// runDue claims schedules due at now and fires each, returning how many ran. A
-// schedule whose previous run is still active is skipped under OverlapSkip but
-// still advances its next fire, so it is not re-claimed every tick. Firing a run
-// advances the schedule and emits a schedule.fired fact. Returned only on a
-// claim/store error; a single run's failure is logged and the loop continues.
+// runDue claims schedules due at now and fires each, returning how many ran.
+// A schedule whose previous run is still active is skipped under OverlapSkip
+// but still advances its next fire, so it is not re-claimed every tick. Firing
+// advances the schedule and emits a schedule.fired fact. One schedule's
+// failure releases its claim and moves on to the rest of the batch; the
+// failures come back joined so the tick can count and log them.
 func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 	due, err := m.store.ClaimDue(ctx, now, 0)
 	if err != nil {
 		return 0, err
 	}
 	fired := 0
+	var errs []error
 	for _, st := range due {
-		if st.Spec.Overlap == filament.OverlapSkip && m.hasActiveRuns(ctx, st.ID) {
-			if m.mx != nil {
-				m.mx.Counter("filament_schedule_overlap_skips_total").Inc()
+		if st.Spec.Overlap == filament.OverlapSkip {
+			active, err := m.hasActiveRuns(ctx, st.ID)
+			if err != nil {
+				// Can't prove the last occurrence finished — hold the fire and
+				// release the claim so the next tick retries, rather than risk
+				// an overlapping run.
+				errs = append(errs, fmt.Errorf("overlap check %q: %w", st.ID, err))
+				if err := m.store.ReleaseScheduleClaim(ctx, st.ID); err != nil {
+					errs = append(errs, fmt.Errorf("release claim %q: %w", st.ID, err))
+				}
+				continue
 			}
-			m.reconcileScheduledRuns(ctx, m.advance(ctx, st, now))
-			continue
-		}
-		if m.pipelines == nil {
-			_ = m.store.ReleaseScheduleClaim(ctx, st.ID)
-			return fired, fmt.Errorf("scheduler: pipeline submitter is not configured")
+			if active {
+				if m.mx != nil {
+					m.mx.Counter("filament_schedule_overlap_skips_total").Inc()
+				}
+				m.reconcileScheduledRuns(ctx, m.advance(ctx, st, now))
+				continue
+			}
 		}
 		occurrence := now
 		if st.NextFire != nil {
 			occurrence = *st.NextFire
 		}
-		ids, err := m.pipelines.SubmitScheduledPipeline(
-			ctx,
-			st.Spec.PipelineID,
-			st.ID,
-			scheduledomain.OccurrenceToken(st.ID, occurrence),
-		)
-		var runID filament.RunID
-		if len(ids) > 0 {
-			runID = ids[0]
-		}
+		runID, err := m.fire(ctx, st, occurrence)
 		if err != nil {
 			if m.mx != nil {
 				m.mx.Counter("filament_schedule_submit_failures_total").Inc()
@@ -258,8 +146,8 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 			if m.log != nil {
 				m.log.Error("scheduler: submit", err, filament.Field{Key: "schedule", Value: string(st.ID)})
 			}
-			if releaseErr := m.store.ReleaseScheduleClaim(ctx, st.ID); releaseErr != nil {
-				return fired, releaseErr
+			if err := m.store.ReleaseScheduleClaim(ctx, st.ID); err != nil {
+				errs = append(errs, fmt.Errorf("release claim %q: %w", st.ID, err))
 			}
 			continue
 		}
@@ -270,20 +158,46 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 			st.NextFire = next
 		}
 		if err := m.store.SaveSchedule(ctx, st); err != nil {
-			return fired, err
+			// The fire happened; a stale NextFire is only re-claimed after the
+			// lease expires, and the occurrence token dedupes a double fire.
+			errs = append(errs, fmt.Errorf("advance %q: %w", st.ID, err))
+			continue
 		}
 		// Reaps any pre-created rows the fire's recompile no longer produced
 		// (routes edited away) and pre-creates the next occurrence's runs.
 		m.reconcileScheduledRuns(ctx, st)
 
-		_ = events.Emit(ctx, m.bus, events.ScheduleFired,
-			events.Envelope{Tenant: st.Spec.Tenant, Run: runID, At: now}, events.ScheduleFiredEvent{})
+		if err := events.Emit(ctx, m.bus, events.ScheduleFired,
+			events.Envelope{Tenant: st.Spec.Tenant, Run: runID, At: now}, events.ScheduleFiredEvent{}); err != nil && m.log != nil {
+			m.log.Error("scheduler: emit schedule.fired", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+		}
 		if m.mx != nil {
 			m.mx.Counter("filament_schedule_fires_total").Inc()
 		}
 		fired++
 	}
-	return fired, nil
+	return fired, errors.Join(errs...)
+}
+
+// fire compiles the schedule's pipeline for one claimed occurrence and submits
+// one run per route, returning the first run id for the schedule.fired fact.
+// The occurrence token makes each cron tick idempotent.
+func (m *Module) fire(ctx context.Context, st filament.ScheduleState, occurrence time.Time) (filament.RunID, error) {
+	compiled, err := m.compiler.Compile(ctx, st.Spec.PipelineID, scheduledomain.OccurrenceToken(st.ID, occurrence), filament.RunOptions{}, st.ID)
+	if err != nil {
+		return "", err
+	}
+	var first filament.RunID
+	for _, c := range compiled {
+		id, err := runs.Submit(ctx, m.bus, m.ds, c.Req)
+		if err != nil {
+			return first, err
+		}
+		if first == "" {
+			first = id
+		}
+	}
+	return first, nil
 }
 
 // advance recomputes and persists a schedule's next fire without firing it,
@@ -291,35 +205,24 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now time.Time) filament.ScheduleState {
 	if next, err := scheduledomain.NextFire(st.Spec, now); err == nil {
 		st.NextFire = next
-		_ = m.store.SaveSchedule(ctx, st)
+		if err := m.store.SaveSchedule(ctx, st); err != nil && m.log != nil {
+			m.log.Error("scheduler: advance", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+		}
 	}
 	return st
 }
 
-// reconcileScheduledRuns delegates the schedule's RunScheduled bookkeeping to
-// the submitter, which owns it. Failures are logged, not returned: the rows are
-// a visibility artifact and must never fail a lifecycle op.
+// reconcileScheduledRuns refreshes the schedule's RunScheduled bookkeeping.
+// Failures are logged, not returned: the rows are a visibility artifact and
+// must never fail a fire.
 func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.ScheduleState) {
-	if m.pipelines == nil {
-		return
-	}
-	if err := m.pipelines.ReconcileScheduledRuns(ctx, st); err != nil && m.log != nil {
+	if err := runs.ReconcileScheduled(ctx, m.ds, m.compiler, st); err != nil && m.log != nil {
 		m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
 	}
 }
 
-// dropScheduledRuns reaps the schedule's pending RunScheduled rows.
-func (m *Module) dropScheduledRuns(ctx context.Context, id filament.ScheduleID) {
-	if m.pipelines == nil {
-		return
-	}
-	if err := m.pipelines.DropScheduledRuns(ctx, id); err != nil && m.log != nil {
-		m.log.Error("scheduler: drop scheduled runs", err, filament.Field{Key: "schedule", Value: string(id)})
-	}
-}
-
 // hasActiveRuns checks every route run produced by prior occurrences.
-func (m *Module) hasActiveRuns(ctx context.Context, scheduleID filament.ScheduleID) bool {
+func (m *Module) hasActiveRuns(ctx context.Context, scheduleID filament.ScheduleID) (bool, error) {
 	active, _, err := m.ds.ListRuns(ctx, filament.RunFilter{
 		Schedule: scheduleID,
 		Status: []filament.RunStatus{
@@ -329,9 +232,8 @@ func (m *Module) hasActiveRuns(ctx context.Context, scheduleID filament.Schedule
 		},
 		Limit: 1,
 	})
-	return err == nil && len(active) > 0
-}
-
-func newScheduleID() filament.ScheduleID {
-	return filament.ScheduleID(uuid.NewString())
+	if err != nil {
+		return false, err
+	}
+	return len(active) > 0, nil
 }

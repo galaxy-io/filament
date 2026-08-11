@@ -28,7 +28,6 @@ import (
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
-	schedulermodule "github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
@@ -131,15 +130,9 @@ func run(ctx context.Context, migrateOnly bool) error {
 
 	orch := orchestrator.New()
 	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, server.WithSecrets(secrets))
-	scheduleStore, ok := store.(filament.ScheduleStore)
-	if !ok {
-		return fmt.Errorf("datastore %q does not support schedules", store.Name())
-	}
-	scheduler := schedulermodule.New(scheduleStore, schedulermodule.WithPipelineSubmitter(api))
 	mods, err := module.MountAll(ctx,
 		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
 		orch,
-		scheduler,
 	)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
@@ -154,7 +147,6 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run host: %w", err)
 	}
-	scheduler.Start(ctx)
 
 	api.Mount(mux)
 	mux.Handle("/", ui.Handler())
