@@ -33,6 +33,9 @@ var posthogManifest []byte
 //go:embed manifests/stripe.yaml
 var stripeManifest []byte
 
+//go:embed manifests/chargebee.yaml
+var chargebeeManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
@@ -76,6 +79,11 @@ func NewPostHog() *Source {
 // NewSquare returns a Source backed by the embedded Square REST API manifest.
 func NewSquare() *Source {
 	return NewManifestWithMetadata("square", "Square", "Commerce platform covering in-person and online payments, refunds, orders, customers, and product catalog across seller locations.", "https://cdn.getgalaxy.io/sources/source-icon-square-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-square-light.svg", squareManifest, manifestOwnedConfig())
+}
+
+// NewChargebee returns a Source backed by the embedded Chargebee REST API manifest.
+func NewChargebee() *Source {
+	return NewManifestWithMetadata("chargebee", "Chargebee", "Subscription billing and revenue management platform covering customers, subscriptions, invoices, credit notes, payments, and product catalog.", "https://cdn.getgalaxy.io/sources/source-icon-chargebee-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-chargebee-light.svg", chargebeeManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }

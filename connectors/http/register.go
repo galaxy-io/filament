@@ -22,4 +22,5 @@ func init() {
 	registry.RegisterSource("square", func() filament.Source { return NewSquare() })
 	registry.RegisterSource("stripe", func() filament.Source { return NewStripe() })
 	registry.RegisterSource("posthog", func() filament.Source { return NewPostHog() })
+	registry.RegisterSource("chargebee", func() filament.Source { return NewChargebee() })
 }

@@ -1,0 +1,154 @@
+---
+title: "Chargebee"
+description: "Read customers, subscriptions, invoices, credit notes, transactions, and the product catalog from a Chargebee site."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-chargebee-dark.svg"
+---
+
+Chargebee is a manifest-driven source — `connectors/http/manifests/chargebee.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Chargebee-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+Two settings: the **site** name and an **API key**.
+
+`site` is the subdomain of your Chargebee URL — `acme-test` for
+`https://acme-test.chargebee.com`, not the full URL. Chargebee has no shared
+host, so the site is what the base URL is built from:
+`https://{{ config.site }}.chargebee.com/api/v2`, rendered once at configure
+time. It is a plain string rather than a secret, since it ends up in every
+request URL.
+
+The API key comes from **Settings › Configure Chargebee › API Keys** and is sent
+as the HTTP basic username with no password — the trailing colon in
+`curl -u {site_api_key}:`. A read-only key is enough for extraction.
+
+## Resources
+
+Eleven resources, all statically discovered.
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `customers` | `/customers` | — |
+| `subscriptions` | `/subscriptions` | — |
+| `invoices` | `/invoices` | — |
+| `credit_notes` | `/credit_notes` | — |
+| `transactions` | `/transactions` | — |
+| `payment_sources` | `/payment_sources` | — |
+| `items` | `/items` | — |
+| `item_prices` | `/item_prices` | — |
+| `item_families` | `/item_families` | — |
+| `coupons` | `/coupons` | — |
+| `events` | `/events` | — |
+
+### The typed-wrapper envelope
+
+Every list endpoint returns `{list: [...], next_offset: "..."}`, but the entries
+inside `list` are **not** bare objects — each is wrapped in a key naming its
+type, and carries related objects alongside:
+
+```json
+{"list": [{"subscription": {"id": "sub_1", ...},
+           "customer":     {"id": "cus_1", ...},
+           "card":         {"last4": "4242", ...}}],
+ "next_offset": "[\"1612890918000\",\"230000000081\"]"}
+```
+
+So every column in the manifest carries the wrapper in its path
+(`path: subscription.status`) even though the column itself is flat (`status`).
+The sibling objects are not mapped as columns — the `raw` remainder column keeps
+them in full, so a `subscriptions` row still carries the embedded customer and
+card.
+
+This is also why the manifest declares no `field_sets:`. A field set carries
+fixed paths, and `customer.updated_at` and `invoice.updated_at` are different
+paths for what is otherwise the same column.
+
+### Pagination
+
+`next_offset` is an opaque keyset token — a JSON-encoded array such as
+`["1612890918000","230000000081"]` — echoed back verbatim as the `offset`
+parameter. It must never be parsed or incremented, and its **absence** is the
+only terminator; there is no `has_more` flag. Despite the parameter name this is
+cursor pagination, not numeric offset pagination.
+
+Every request carries `limit=100`, Chargebee's maximum. The default is 10, so
+omitting it would decuple the request count.
+
+### Timestamps
+
+Every Chargebee timestamp is a Unix epoch integer in **seconds**, not RFC 3339,
+so timestamp columns are typed `int64` rather than `timestamptz` — the raw value
+survives instead of failing the sinks' timestamp coercion. `resource_version` is
+the same clock in milliseconds.
+
+`invoices`, `credit_notes`, `transactions`, `items` and `item_families` have no
+`created_at` at all; `date` is the closest equivalent on the first three.
+
+### Rate limiting
+
+A static 2 requests/second shared across all concurrently extracting resources.
+Chargebee allows 150 requests/minute on the Starter tier and on **every** test
+site, rising to 1000/min on Performance and 3500/min on Enterprise; the limiter
+is sized for the floor rather than for whichever tier a given site happens to
+have. There are no `RateLimit-*` response headers to drive a dynamic limiter —
+Chargebee sends only `Retry-After` on a `429`, which the engine already honours.
+
+<Warning>
+  **Product Catalog version.** A Chargebee site runs either Product Catalog 1.0
+  or 2.0, and the endpoints belonging to the other version return an error
+  rather than an empty list.
+
+  `items`, `item_prices` and `item_families` are **PC 2.0 only**. On a PC 1.0
+  site, deselect those three when configuring the pipeline; the eight billing
+  resources are unaffected. The PC 1.0 `/plans` and `/addons` endpoints are not
+  covered — shipping both catalogs would guarantee every site had broken
+  resources, since a manifest cannot gate a resource on a config value.
+</Warning>
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+
+All eleven resources declare an `incremental:` block. Ten watermark on
+`updated_at` and inject it as `updated_at[after]`; `events` is immutable and
+watermarks on `occurred_at` as `occurred_at[after]`. All use a `numeric`
+comparator, since Chargebee timestamps are epoch integers rather than RFC 3339
+strings, and each carries its own `checkpoint_key` — the key defaults to the
+cursor field name, and eleven resources cursoring on `updated_at` would
+otherwise collide and fail manifest validation.
+
+Because `updated_at` genuinely tracks modifications, incremental runs here *do*
+pick up state changes — an invoice moving from `payment_due` to `paid`, a
+subscription cancelling — unlike a created-time watermark.
+
+<Note>
+  **Incremental requires `full_upsert` ingestion.** Under `full_replace` or
+  `full_append` the watermark is never seeded from the previous run, so every
+  run is a full pull regardless of the `incremental:` block. The resources all
+  declare a primary key, which `full_upsert` requires.
+</Note>
+
+Chargebee's `updated_at[after]` is **exclusive**, and the API offers no
+inclusive timestamp operator — only `after`, `before`, `on`, `between` and
+`is_present`. The connector holds the injected watermark fixed for the duration
+of a run so that a cursor walk cannot narrow its own filter out from under the
+keyset offset; see `Tracker.start` in
+`connectors/http/incremental/watermark.go`. The practical consequence is that a
+record modified at exactly the stored watermark second is re-read on the next
+run rather than skipped, which `full_upsert` absorbs.
+
+<Note>
+  The `raw` remainder column preserves each object's full payload, which for
+  `payment_sources` includes `vault_token`, and for `transactions` the gateway
+  reference ids. Card numbers are already masked by Chargebee and the API never
+  returns a full one — but treat the landing tables with the same care as the
+  source site.
+</Note>
+
+Not extracted: `/quotes`, `/orders`, `/gifts`, `/unbilled_charges`,
+`/virtual_bank_accounts` and `/promotional_credits`, each gated on a feature a
+site may not have enabled; and `/comments`, `/hosted_pages` and
+`/site_migration_details`, which are operational surfaces rather than
+system-of-record data.

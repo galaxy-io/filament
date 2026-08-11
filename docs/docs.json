@@ -109,6 +109,7 @@
               "pages/connectors/sources/postgres",
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/attio",
+              "pages/connectors/sources/chargebee",
               "pages/connectors/sources/github",
               "pages/connectors/sources/linear",
               "pages/connectors/sources/notion",

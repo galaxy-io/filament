@@ -460,6 +460,12 @@ func TestEmbeddedCatalogMetadata(t *testing.T) {
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg",
 		},
+		{
+			name: "chargebee", source: NewChargebee(),
+			description: "Subscription billing and revenue management platform covering customers, subscriptions, invoices, credit notes, payments, and product catalog.",
+			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-chargebee-dark.svg",
+			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-chargebee-light.svg",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -2446,5 +2452,350 @@ func TestSquareOrdersIncrementalNestsWatermarkDeepInBody(t *testing.T) {
 	}
 	if len(body.LocationIDs) != 1 || body.LocationIDs[0] != "L1" {
 		t.Fatalf("location_ids = %v, want the captured parent location", body.LocationIDs)
+	}
+}
+
+// chargebeeTestManifest retargets the site-scoped base URL at a stub and lifts
+// the 2 rps limiter so the pagination tests don't sleep between pages.
+func chargebeeTestManifest(t *testing.T, baseURL string) []byte {
+	t.Helper()
+	const (
+		host      = "https://{{ config.site }}.chargebee.com/api/v2"
+		throttled = "requests_per_second: 2"
+	)
+	out := string(chargebeeManifest)
+	for _, fragment := range []string{host, throttled} {
+		if !strings.Contains(out, fragment) {
+			t.Fatalf("manifest no longer contains %q — update the test helper", fragment)
+		}
+	}
+	out = strings.Replace(out, host, baseURL, 1)
+	return []byte(strings.Replace(out, throttled, "requests_per_second: 1000", 1))
+}
+
+func TestNewChargebeeSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewChargebee()
+	spec := src.Spec()
+	if spec.Name != "chargebee" || spec.DisplayName != "Chargebee" {
+		t.Fatalf("spec identity = %q/%q, want chargebee/Chargebee", spec.Name, spec.DisplayName)
+	}
+	if len(spec.Config.Fields) != 2 {
+		t.Fatalf("config fields = %#v, want site and api_key", spec.Config.Fields)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	// site is a plain string, not a secret: it is the public subdomain and ends
+	// up in every request URL.
+	if fields["site"].Type != filament.FieldString || !fields["site"].Required {
+		t.Fatalf("site field = %#v, want required string", fields["site"])
+	}
+	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
+		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without site or API key succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"site":    "acme-test",
+		"api_key": "cb-key",
+	})); err != nil {
+		t.Fatalf("configure embedded Chargebee manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	// No plans or addons: those are Product Catalog 1.0 and error on a PC 2.0
+	// site, just as the item_* trio errors on a PC 1.0 one.
+	want := []string{
+		"customers", "subscriptions", "invoices", "credit_notes", "transactions",
+		"payment_sources", "items", "item_prices", "item_families", "coupons", "events",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
+	}
+	for i := range want {
+		if discovered.Resources[i].Name != want[i] {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, want[i])
+		}
+	}
+}
+
+// Chargebee's API is site-scoped, so the host itself comes from config and the
+// manifest carries a template where every other connector carries a literal.
+// Two halves: a missing site fails at Configure rather than resolving to a
+// half-formed host at request time, and a supplied one actually reaches the
+// host that requests go to.
+func TestChargebeeSiteScopesTheHost(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("missing site", func(t *testing.T) {
+		src := NewChargebee()
+		err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "cb-key"}))
+		if err == nil {
+			defer src.Teardown(ctx)
+			t.Fatal("configure without site succeeded")
+		}
+		if !strings.Contains(err.Error(), "site") {
+			t.Fatalf("configure error = %v, want it to name the missing site", err)
+		}
+	})
+
+	t.Run("site reaches the host", func(t *testing.T) {
+		var gotHost string
+		api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotHost = r.Host
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"list":[]}`)
+		}))
+		defer api.Close()
+
+		// Collapse the template to just the host so an httptest address can
+		// stand in for a real <site>.chargebee.com, while still rendering the
+		// same config.site reference the shipped manifest uses.
+		manifestData := []byte(strings.Replace(
+			string(chargebeeTestManifest(t, "https://{{ config.site }}.chargebee.com/api/v2")),
+			"https://{{ config.site }}.chargebee.com/api/v2", "http://{{ config.site }}", 1))
+		src := NewManifest("chargebee", "Chargebee", manifestData, filament.ConfigSchema{})
+		site := strings.TrimPrefix(api.URL, "http://")
+		if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+			"site":    site,
+			"api_key": "cb-key",
+		})); err != nil {
+			t.Fatalf("configure: %v", err)
+		}
+		defer src.Teardown(ctx)
+
+		var sink collectSink
+		if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"customers"}, Parallelism: 1}); err != nil {
+			t.Fatalf("extract customers: %v", err)
+		}
+		if gotHost != site {
+			t.Fatalf("request host = %q, want the host built from config.site %q", gotHost, site)
+		}
+	})
+}
+
+// Chargebee takes the API key as the HTTP basic username with an empty
+// password — the trailing colon in `curl -u {site_api_key}:`.
+func TestChargebeeUsesAPIKeyAsBasicUsername(t *testing.T) {
+	ctx := context.Background()
+	var gotUser, gotPass string
+	var gotOK bool
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/customers" {
+			http.NotFound(w, r)
+			return
+		}
+		gotUser, gotPass, gotOK = r.BasicAuth()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"list":[{"customer":{"id":"cus_1","object":"customer","email":"a@b.com",
+			"deleted":false,"created_at":1517505731,"updated_at":1517505731}}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("chargebee", "Chargebee", chargebeeTestManifest(t, api.URL), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"site":    "acme-test",
+		"api_key": "cb-key",
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"customers"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract customers: %v", err)
+	}
+	if !gotOK || gotUser != "cb-key" || gotPass != "" {
+		t.Fatalf("basic auth = %q/%q (ok=%v), want the API key as username with no password", gotUser, gotPass, gotOK)
+	}
+}
+
+// next_offset is an opaque keyset token — a JSON-encoded array, quotes and
+// brackets included — echoed back verbatim as `offset`. It must survive the
+// round trip unparsed, and its absence is the only terminator: there is no
+// has_more flag to fall back on.
+func TestChargebeeWalksNextOffsetCursor(t *testing.T) {
+	ctx := context.Background()
+	const nextOffset = `["1612890918000","230000000081"]`
+	var offsets []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/subscriptions" {
+			http.NotFound(w, r)
+			return
+		}
+		offsets = append(offsets, r.URL.Query().Get("offset"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("offset") == "" {
+			fmt.Fprintf(w, `{"list":[{"subscription":{"id":"sub_1","object":"subscription",
+				"customer_id":"cus_1","status":"active","currency_code":"USD","mrr":1000,
+				"deleted":false,"created_at":1612890920,"updated_at":1612890920}}],"next_offset":%q}`, nextOffset)
+			return
+		}
+		// Final page: no next_offset, so the walk stops here.
+		fmt.Fprint(w, `{"list":[{"subscription":{"id":"sub_2","object":"subscription",
+			"customer_id":"cus_2","status":"cancelled","currency_code":"USD","mrr":0,
+			"deleted":false,"created_at":1612890930,"updated_at":1612890940}}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("chargebee", "Chargebee", chargebeeTestManifest(t, api.URL), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"site":    "acme-test",
+		"api_key": "cb-key",
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"subscriptions"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract subscriptions: %v", err)
+	}
+
+	if len(offsets) != 2 {
+		t.Fatalf("requests = %d, want both pages walked", len(offsets))
+	}
+	if offsets[0] != "" {
+		t.Fatalf("page one offset = %q, want it absent", offsets[0])
+	}
+	if offsets[1] != nextOffset {
+		t.Fatalf("page two offset = %q, want the token echoed back verbatim as %q", offsets[1], nextOffset)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one subscription per page", len(sink.records))
+	}
+}
+
+// Every entry in `list` is wrapped in a typed key naming the resource, so a
+// column's path carries that prefix. This pins the projection through the
+// wrapper and confirms the remainder keeps the sibling objects Chargebee
+// bundles alongside — a /customers page also carries `card`.
+func TestChargebeeProjectsTypedListEntries(t *testing.T) {
+	ctx := context.Background()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/customers" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"list":[{"customer":{"id":"cus_1","object":"customer",
+			"first_name":"John","last_name":"Doe","email":"john@test.com","company":"Acme",
+			"auto_collection":"on","net_term_days":0,"promotional_credits":0,
+			"preferred_currency_code":"USD","deleted":false,"resource_version":1517505731000,
+			"created_at":1517505731,"updated_at":1517505731},
+			"card":{"object":"card","last4":"4242","brand":"visa"}}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("chargebee", "Chargebee", chargebeeTestManifest(t, api.URL), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"site":    "acme-test",
+		"api_key": "cb-key",
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"customers"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract customers: %v", err)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want one customer", len(sink.records))
+	}
+	var data map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &data); err != nil {
+		t.Fatalf("unmarshal record: %v", err)
+	}
+	// Columns are flat, resolved through the customer.* wrapper.
+	if data["id"] != "cus_1" || data["email"] != "john@test.com" || data["company"] != "Acme" {
+		t.Fatalf("record = %#v, want columns projected through the customer wrapper", data)
+	}
+	// Epoch seconds stay integers rather than being coerced to a timestamp type.
+	if data["created_at"] != float64(1517505731) {
+		t.Fatalf("created_at = %#v, want the raw epoch integer", data["created_at"])
+	}
+	raw, ok := data["raw"].(map[string]any)
+	if !ok {
+		t.Fatalf("raw = %#v, want the remainder object", data["raw"])
+	}
+	if _, ok := raw["card"]; !ok {
+		t.Fatalf("raw = %#v, want the sibling card object preserved", raw)
+	}
+}
+
+// Regression test for the watermark freeze in incremental/watermark.go.
+// Observe advances the watermark as page one streams, and unlike the next_url
+// strategies (see TestPostHogIncrementalLeavesServerNextURLUntouched) a cursor
+// resource rebuilds its URL from the manifest every page, so it re-injects the
+// start param each time. Injecting the advancing value would narrow the range
+// under the keyset offset, and because Chargebee's `updated_at[after]` is
+// exclusive — it has no inclusive timestamp operator — rows tied on the
+// boundary second would be dropped rather than merely re-read. Every page of a
+// run must carry the floor the run started with.
+func TestChargebeeIncrementalFreezesWatermarkAcrossPages(t *testing.T) {
+	ctx := context.Background()
+	const nextOffset = `["1612890918000","230000000081"]`
+	var afters []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/customers" {
+			http.NotFound(w, r)
+			return
+		}
+		afters = append(afters, r.URL.Query().Get("updated_at[after]"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("offset") == "" {
+			// Page one's records jump the running watermark to 5000.
+			fmt.Fprintf(w, `{"list":[{"customer":{"id":"cus_1","object":"customer",
+				"email":"a@test.com","deleted":false,"created_at":900,"updated_at":5000}}],
+				"next_offset":%q}`, nextOffset)
+			return
+		}
+		fmt.Fprint(w, `{"list":[{"customer":{"id":"cus_2","object":"customer",
+			"email":"b@test.com","deleted":false,"created_at":950,"updated_at":6000}}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("chargebee", "Chargebee", chargebeeTestManifest(t, api.URL), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"site":    "acme-test",
+		"api_key": "cb-key",
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	prev := map[string]filament.Checkpoint{
+		"customers": checkpoint.KeysetCheckpoint{
+			Cols:   []string{"cursor", "customers_updated_at"},
+			Types:  []string{"string", "string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"", "1000"}}},
+		}.ToCheckpoint("customers"),
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"customers"}, Parallelism: 1}, prev); err != nil {
+		t.Fatalf("extract from: %v", err)
+	}
+
+	if len(afters) != 2 {
+		t.Fatalf("requests = %d, want both pages walked", len(afters))
+	}
+	if afters[0] != "1000" || afters[1] != "1000" {
+		t.Fatalf("updated_at[after] = %v, want the stored watermark held fixed across both pages", afters)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one customer per page", len(sink.records))
+	}
+	// The committed watermark still tracks the running maximum — only the
+	// injected floor is frozen.
+	if got, want := sink.records[1].Key, []string{"", "6000"}; len(got) != len(want) || got[1] != want[1] {
+		t.Fatalf("record key = %v, want the advanced watermark %v", got, want)
 	}
 }

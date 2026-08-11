@@ -1,9 +1,11 @@
 // Package incremental implements watermark-based incremental extraction.
 //
-// A Tracker observes records as they flow through the pipeline, tracks the
-// maximum value of a declared cursor field (e.g. `updated_at`), and injects
-// that value into the next run's initial request via query, body, or header.
-// The last observed value persists to the PipelineCheckpoint between runs.
+// A Tracker observes records as they flow through the pipeline and tracks the
+// maximum value of a declared cursor field (e.g. `updated_at`). The value it
+// injects via query, body, or header is the watermark the run started with,
+// held fixed for every request of that run; the running maximum is what
+// persists to the PipelineCheckpoint and seeds the next run. See Tracker.start
+// for why the injected floor must not track the running maximum.
 //
 // # Comparator
 //
@@ -51,6 +53,18 @@ import (
 type Tracker struct {
 	spec     manifest.IncrementalSpec
 	resource string
+
+	// start is the watermark the run began with, and the floor every request in
+	// the run filters on. Deliberately not wm.Current(): Observe advances the
+	// live watermark as each page streams, so injecting the current value would
+	// narrow the range page over page. Against a keyset cursor that silently
+	// drops rows — the paginator resumes after page N's last record while the
+	// filter has moved past records tied on the cursor value that were still
+	// queued behind it. APIs with an inclusive start operator only re-read the
+	// boundary, but an exclusive one (Chargebee's `updated_at[after]`) loses it.
+	// paginate.go guards the next_url and Link strategies separately, by leaving
+	// the server's own continuation query alone.
+	start string
 
 	wm     *atomicwatermark.Watermark
 	logger *slog.Logger
@@ -100,6 +114,7 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	t := &Tracker{
 		spec:     spec,
 		resource: resource,
+		start:    start,
 		wm:       wm,
 	}
 	for _, opt := range opts {
@@ -157,9 +172,9 @@ func (t *Tracker) CheckpointKey() string { return t.checkpointKey() }
 func CheckpointKey(spec manifest.IncrementalSpec) string { return checkpointKey(spec) }
 
 // Scope returns a {start_param: effective_value} pair suitable for merging
-// into a template scope's State map. The effective value is the current
-// watermark minus OverlapSeconds (time comparator only). Returns nil when no
-// watermark is set yet.
+// into a template scope's State map. The effective value is the run's starting
+// watermark minus OverlapSeconds (time comparator only) — stable across the
+// run, matching what Apply injects. Returns nil when no watermark is set yet.
 func (t *Tracker) Scope() map[string]string {
 	v := t.effective()
 	if v == "" {
@@ -168,10 +183,10 @@ func (t *Tracker) Scope() map[string]string {
 	return map[string]string{t.spec.StartParam: v}
 }
 
-// effective returns the watermark value to inject — current minus overlap
-// for the time comparator, current as-is otherwise.
+// effective returns the watermark value to inject — the run's starting
+// watermark (see Tracker.start), minus overlap for the time comparator.
 func (t *Tracker) effective() string {
-	v := t.Current()
+	v := t.start
 	if v == "" || t.spec.OverlapSeconds == 0 || t.spec.Comparator != "time" {
 		return v
 	}

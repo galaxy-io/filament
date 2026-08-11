@@ -1,0 +1,553 @@
+version: 1
+name: chargebee
+config:
+  site:
+    type: string
+    required: true
+    help: Chargebee site name — the subdomain in https://<site>.chargebee.com, e.g. acme-test. Not the full URL.
+  api_key:
+    type: secret
+    required: true
+    help: API key from Settings > Configure Chargebee > API Keys. A read-only key is enough for extraction.
+# Deliberately absent: the Product Catalog 1.0 endpoints /plans and /addons. A
+# site runs either PC 1.0 or PC 2.0, and the endpoints of the other version
+# error rather than returning an empty list, so shipping both guarantees every
+# site has broken resources. This manifest covers PC 2.0 (items, item_prices,
+# item_families); a PC 1.0 site deselects those three and loses only catalog
+# metadata, not billing records.
+#
+# Also absent: /quotes, /orders, /gifts, /unbilled_charges, /virtual_bank_accounts
+# and /promotional_credits — each is gated on a feature the site may not have
+# enabled. And /comments, /hosted_pages, /site_migration_details, which are
+# operational surfaces rather than system-of-record data.
+defaults:
+  method: GET
+  query:
+    # Chargebee's page size defaults to 10 and caps at 100 on every list
+    # endpoint, so it lives here rather than per resource.
+    limit: "100"
+  response:
+    # Every v2 list endpoint returns {list: [...], next_offset: "..."}.
+    # next_offset is an opaque keyset token — a JSON-encoded array such as
+    # ["1612890918000","230000000081"] — echoed back verbatim as `offset`. It
+    # is absent on the final page, which terminates the walk; there is no
+    # has_more flag to read, and the value must never be parsed or incremented.
+    #
+    # This is a cursor, not the grammar's `offset:` strategy: that one computes
+    # numeric offsets, which Chargebee would reject.
+    records: $.list
+    pagination:
+      cursor:
+        response: next_offset
+        request: query.offset
+# No field_sets. Every entry in `list` is wrapped in a typed key naming the
+# resource — a /customers page is [{"customer": {...}, "card": {...}}], and a
+# /subscriptions page is [{"subscription": {...}, "customer": {...}, ...}] —
+# so a field's JSON path is prefixed with that wrapper and differs per
+# resource. Field sets carry fixed paths and cannot express that.
+#
+# For the same reason every field below uses the expanded {path, type} form.
+# The `name: type` shorthand sets path = name, which would look for a
+# top-level `email` on the wrapper object and always miss. Sibling wrappers
+# (`card`, and the `customer` echoed onto a subscription) are not mapped as
+# columns; the `raw` remainder preserves them in full.
+#
+# Timestamp typing rule: every Chargebee timestamp is a Unix epoch integer in
+# seconds, not RFC 3339. They are typed int64 rather than timestamptz so the
+# raw value survives instead of failing the sinks' timestamp coercion.
+# resource_version is the same clock in milliseconds.
+#
+# Nullability rule: a missing path on a non-nullable field aborts the whole
+# extraction, while a nullable one yields NULL. Chargebee's payloads vary by
+# enabled features, gateway, product catalog version and site age — even
+# `updated_at` is absent on resources untouched since 2016 — so only `id` is
+# non-nullable.
+connection:
+  base_url: "https://{{ config.site }}.chargebee.com/api/v2"
+  auth:
+    # Chargebee takes the API key as the HTTP basic username with no password —
+    # the trailing colon in `curl -u {site_api_key}:`. password is omitted
+    # rather than set empty; the basic strategy treats an absent password as "".
+    basic:
+      username: config.api_key
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  # 150 requests/minute on the Starter tier and on every test site — 2.5 rps —
+  # rising to 1000/min on Performance and 3500/min on Enterprise. One limiter is
+  # shared across all concurrently extracting resources, so hold below the
+  # floor tier rather than the tier this particular site happens to have.
+  #
+  # No `dynamic:` block — Chargebee publishes no RateLimit-* response headers.
+  # It does send Retry-After on a 429, which the engine already honours.
+  rate_limit:
+    requests_per_second: 2
+resources:
+  # First top-level resource, so it doubles as the TestConnection probe:
+  # available on every site regardless of product catalog version, and needing
+  # no parent scope.
+  - name: customers
+    path: /customers
+    primary_key: [id]
+    fields:
+      id: { path: customer.id, type: string }
+      first_name: { path: customer.first_name, type: string, nullable: true }
+      last_name: { path: customer.last_name, type: string, nullable: true }
+      email: { path: customer.email, type: string, nullable: true }
+      phone: { path: customer.phone, type: string, nullable: true }
+      company: { path: customer.company, type: string, nullable: true }
+      auto_collection: { path: customer.auto_collection, type: string, nullable: true }
+      net_term_days: { path: customer.net_term_days, type: int64, nullable: true }
+      allow_direct_debit: { path: customer.allow_direct_debit, type: bool, nullable: true }
+      taxability: { path: customer.taxability, type: string, nullable: true }
+      card_status: { path: customer.card_status, type: string, nullable: true }
+      preferred_currency_code: { path: customer.preferred_currency_code, type: string, nullable: true }
+      # Balances are minor units (cents), like every other Chargebee amount.
+      promotional_credits: { path: customer.promotional_credits, type: int64, nullable: true }
+      unbilled_charges: { path: customer.unbilled_charges, type: int64, nullable: true }
+      refundable_credits: { path: customer.refundable_credits, type: int64, nullable: true }
+      excess_payments: { path: customer.excess_payments, type: int64, nullable: true }
+      billing_address: { path: customer.billing_address, type: json, nullable: true }
+      locale: { path: customer.locale, type: string, nullable: true }
+      channel: { path: customer.channel, type: string, nullable: true }
+      fraud_flag: { path: customer.fraud_flag, type: string, nullable: true }
+      pii_cleared: { path: customer.pii_cleared, type: string, nullable: true }
+      primary_payment_source_id: { path: customer.primary_payment_source_id, type: string, nullable: true }
+      business_entity_id: { path: customer.business_entity_id, type: string, nullable: true }
+      deleted: { path: customer.deleted, type: bool, nullable: true }
+      resource_version: { path: customer.resource_version, type: int64, nullable: true }
+      created_at: { path: customer.created_at, type: int64, nullable: true }
+      updated_at: { path: customer.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      # cursor_field is a JSON path into the raw list entry, not a column name,
+      # so it carries the wrapper prefix even though the column is `updated_at`.
+      cursor_field: customer.updated_at
+      # Reaches the wire percent-encoded as updated_at%5Bafter%5D, which
+      # Chargebee accepts. `after` is exclusive; Chargebee has no inclusive
+      # timestamp operator, which is why the tracker holds the injected floor
+      # fixed for the whole run (see connectors/http/incremental/watermark.go).
+      start_param: updated_at[after]
+      inject_into: query
+      # Epoch seconds arrive as a JSON number. `time` would fail to parse every
+      # row and `lex` would order 999999999 above 1000000000.
+      comparator: numeric
+      # Every resource here cursors on a field named updated_at, and the
+      # checkpoint key defaults to the cursor field — so each needs an explicit
+      # unique key or the manifest fails to load on a collision.
+      checkpoint_key: customers_updated_at
+
+  - name: subscriptions
+    path: /subscriptions
+    primary_key: [id]
+    fields:
+      id: { path: subscription.id, type: string }
+      customer_id: { path: subscription.customer_id, type: string, nullable: true }
+      status: { path: subscription.status, type: string, nullable: true }
+      currency_code: { path: subscription.currency_code, type: string, nullable: true }
+      billing_period: { path: subscription.billing_period, type: int64, nullable: true }
+      billing_period_unit: { path: subscription.billing_period_unit, type: string, nullable: true }
+      started_at: { path: subscription.started_at, type: int64, nullable: true }
+      activated_at: { path: subscription.activated_at, type: int64, nullable: true }
+      current_term_start: { path: subscription.current_term_start, type: int64, nullable: true }
+      current_term_end: { path: subscription.current_term_end, type: int64, nullable: true }
+      next_billing_at: { path: subscription.next_billing_at, type: int64, nullable: true }
+      cancelled_at: { path: subscription.cancelled_at, type: int64, nullable: true }
+      due_since: { path: subscription.due_since, type: int64, nullable: true }
+      total_dues: { path: subscription.total_dues, type: int64, nullable: true }
+      mrr: { path: subscription.mrr, type: int64, nullable: true }
+      due_invoices_count: { path: subscription.due_invoices_count, type: int64, nullable: true }
+      remaining_billing_cycles: { path: subscription.remaining_billing_cycles, type: int64, nullable: true }
+      has_scheduled_changes: { path: subscription.has_scheduled_changes, type: bool, nullable: true }
+      # The line items — item_price_id, quantity, unit_price — that define what
+      # the subscription actually bills for. Kept as json: /subscription_items
+      # is PC 1.0 only and there is no PC 2.0 list endpoint to fan out to.
+      subscription_items: { path: subscription.subscription_items, type: json, nullable: true }
+      business_entity_id: { path: subscription.business_entity_id, type: string, nullable: true }
+      channel: { path: subscription.channel, type: string, nullable: true }
+      deleted: { path: subscription.deleted, type: bool, nullable: true }
+      resource_version: { path: subscription.resource_version, type: int64, nullable: true }
+      created_at: { path: subscription.created_at, type: int64, nullable: true }
+      updated_at: { path: subscription.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: subscription.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: subscriptions_updated_at
+
+  - name: invoices
+    # No created_at on this resource — `date` is the invoice date and the
+    # closest equivalent. updated_at still drives incremental.
+    path: /invoices
+    primary_key: [id]
+    fields:
+      id: { path: invoice.id, type: string }
+      customer_id: { path: invoice.customer_id, type: string, nullable: true }
+      subscription_id: { path: invoice.subscription_id, type: string, nullable: true }
+      status: { path: invoice.status, type: string, nullable: true }
+      recurring: { path: invoice.recurring, type: bool, nullable: true }
+      price_type: { path: invoice.price_type, type: string, nullable: true }
+      currency_code: { path: invoice.currency_code, type: string, nullable: true }
+      base_currency_code: { path: invoice.base_currency_code, type: string, nullable: true }
+      exchange_rate: { path: invoice.exchange_rate, type: float64, nullable: true }
+      date: { path: invoice.date, type: int64, nullable: true }
+      due_date: { path: invoice.due_date, type: int64, nullable: true }
+      paid_at: { path: invoice.paid_at, type: int64, nullable: true }
+      net_term_days: { path: invoice.net_term_days, type: int64, nullable: true }
+      sub_total: { path: invoice.sub_total, type: int64, nullable: true }
+      tax: { path: invoice.tax, type: int64, nullable: true }
+      total: { path: invoice.total, type: int64, nullable: true }
+      amount_due: { path: invoice.amount_due, type: int64, nullable: true }
+      amount_paid: { path: invoice.amount_paid, type: int64, nullable: true }
+      amount_adjusted: { path: invoice.amount_adjusted, type: int64, nullable: true }
+      amount_to_collect: { path: invoice.amount_to_collect, type: int64, nullable: true }
+      credits_applied: { path: invoice.credits_applied, type: int64, nullable: true }
+      write_off_amount: { path: invoice.write_off_amount, type: int64, nullable: true }
+      round_off_amount: { path: invoice.round_off_amount, type: int64, nullable: true }
+      new_sales_amount: { path: invoice.new_sales_amount, type: int64, nullable: true }
+      dunning_status: { path: invoice.dunning_status, type: string, nullable: true }
+      next_retry_at: { path: invoice.next_retry_at, type: int64, nullable: true }
+      voided_at: { path: invoice.voided_at, type: int64, nullable: true }
+      generated_at: { path: invoice.generated_at, type: int64, nullable: true }
+      expected_payment_date: { path: invoice.expected_payment_date, type: int64, nullable: true }
+      first_invoice: { path: invoice.first_invoice, type: bool, nullable: true }
+      has_advance_charges: { path: invoice.has_advance_charges, type: bool, nullable: true }
+      term_finalized: { path: invoice.term_finalized, type: bool, nullable: true }
+      is_gifted: { path: invoice.is_gifted, type: bool, nullable: true }
+      # Line detail truncates at 100 with its own line_items_next_offset. There
+      # is no standalone list endpoint to fan out to, so an invoice with more
+      # than 100 lines needs a per-invoice /invoices/{id} fetch that this
+      # manifest does not make.
+      line_items: { path: invoice.line_items, type: json, nullable: true }
+      line_items_next_offset: { path: invoice.line_items_next_offset, type: string, nullable: true }
+      linked_payments: { path: invoice.linked_payments, type: json, nullable: true }
+      applied_credits: { path: invoice.applied_credits, type: json, nullable: true }
+      taxes: { path: invoice.taxes, type: json, nullable: true }
+      discounts: { path: invoice.discounts, type: json, nullable: true }
+      billing_address: { path: invoice.billing_address, type: json, nullable: true }
+      business_entity_id: { path: invoice.business_entity_id, type: string, nullable: true }
+      channel: { path: invoice.channel, type: string, nullable: true }
+      deleted: { path: invoice.deleted, type: bool, nullable: true }
+      resource_version: { path: invoice.resource_version, type: int64, nullable: true }
+      updated_at: { path: invoice.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: invoice.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: invoices_updated_at
+
+  - name: credit_notes
+    # No created_at — `date` is the issue date.
+    path: /credit_notes
+    primary_key: [id]
+    fields:
+      id: { path: credit_note.id, type: string }
+      customer_id: { path: credit_note.customer_id, type: string, nullable: true }
+      subscription_id: { path: credit_note.subscription_id, type: string, nullable: true }
+      reference_invoice_id: { path: credit_note.reference_invoice_id, type: string, nullable: true }
+      type: { path: credit_note.type, type: string, nullable: true }
+      reason_code: { path: credit_note.reason_code, type: string, nullable: true }
+      create_reason_code: { path: credit_note.create_reason_code, type: string, nullable: true }
+      status: { path: credit_note.status, type: string, nullable: true }
+      date: { path: credit_note.date, type: int64, nullable: true }
+      currency_code: { path: credit_note.currency_code, type: string, nullable: true }
+      price_type: { path: credit_note.price_type, type: string, nullable: true }
+      sub_total: { path: credit_note.sub_total, type: int64, nullable: true }
+      total: { path: credit_note.total, type: int64, nullable: true }
+      amount_allocated: { path: credit_note.amount_allocated, type: int64, nullable: true }
+      amount_refunded: { path: credit_note.amount_refunded, type: int64, nullable: true }
+      amount_available: { path: credit_note.amount_available, type: int64, nullable: true }
+      vat_number: { path: credit_note.vat_number, type: string, nullable: true }
+      line_items: { path: credit_note.line_items, type: json, nullable: true }
+      allocations: { path: credit_note.allocations, type: json, nullable: true }
+      linked_refunds: { path: credit_note.linked_refunds, type: json, nullable: true }
+      taxes: { path: credit_note.taxes, type: json, nullable: true }
+      discounts: { path: credit_note.discounts, type: json, nullable: true }
+      channel: { path: credit_note.channel, type: string, nullable: true }
+      deleted: { path: credit_note.deleted, type: bool, nullable: true }
+      resource_version: { path: credit_note.resource_version, type: int64, nullable: true }
+      updated_at: { path: credit_note.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: credit_note.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: credit_notes_updated_at
+
+  - name: transactions
+    # The money-movement ledger: payments, refunds and authorizations, with the
+    # gateway identifiers the invoice and credit note objects don't carry.
+    # No created_at — `date` is when the transaction occurred.
+    path: /transactions
+    primary_key: [id]
+    fields:
+      id: { path: transaction.id, type: string }
+      customer_id: { path: transaction.customer_id, type: string, nullable: true }
+      subscription_id: { path: transaction.subscription_id, type: string, nullable: true }
+      payment_source_id: { path: transaction.payment_source_id, type: string, nullable: true }
+      gateway: { path: transaction.gateway, type: string, nullable: true }
+      gateway_account_id: { path: transaction.gateway_account_id, type: string, nullable: true }
+      type: { path: transaction.type, type: string, nullable: true }
+      status: { path: transaction.status, type: string, nullable: true }
+      date: { path: transaction.date, type: int64, nullable: true }
+      settled_at: { path: transaction.settled_at, type: int64, nullable: true }
+      voided_at: { path: transaction.voided_at, type: int64, nullable: true }
+      amount: { path: transaction.amount, type: int64, nullable: true }
+      amount_capturable: { path: transaction.amount_capturable, type: int64, nullable: true }
+      amount_unused: { path: transaction.amount_unused, type: int64, nullable: true }
+      currency_code: { path: transaction.currency_code, type: string, nullable: true }
+      exchange_rate: { path: transaction.exchange_rate, type: float64, nullable: true }
+      id_at_gateway: { path: transaction.id_at_gateway, type: string, nullable: true }
+      # Already masked by Chargebee (************4242); the full number is never
+      # returned by the API.
+      masked_card_number: { path: transaction.masked_card_number, type: string, nullable: true }
+      payment_method: { path: transaction.payment_method, type: string, nullable: true }
+      reference_number: { path: transaction.reference_number, type: string, nullable: true }
+      initiator_type: { path: transaction.initiator_type, type: string, nullable: true }
+      three_d_secure: { path: transaction.three_d_secure, type: bool, nullable: true }
+      fraud_flag: { path: transaction.fraud_flag, type: string, nullable: true }
+      fraud_reason: { path: transaction.fraud_reason, type: string, nullable: true }
+      authorization_reason: { path: transaction.authorization_reason, type: string, nullable: true }
+      linked_invoices: { path: transaction.linked_invoices, type: json, nullable: true }
+      linked_credit_notes: { path: transaction.linked_credit_notes, type: json, nullable: true }
+      linked_refunds: { path: transaction.linked_refunds, type: json, nullable: true }
+      linked_payments: { path: transaction.linked_payments, type: json, nullable: true }
+      deleted: { path: transaction.deleted, type: bool, nullable: true }
+      resource_version: { path: transaction.resource_version, type: int64, nullable: true }
+      updated_at: { path: transaction.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: transaction.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: transactions_updated_at
+
+  - name: payment_sources
+    # The stored payment instruments. `vault_token` is deliberately not mapped
+    # as a column, but the raw remainder preserves it — treat the landing
+    # tables as sensitive, same as the source.
+    path: /payment_sources
+    primary_key: [id]
+    fields:
+      id: { path: payment_source.id, type: string }
+      customer_id: { path: payment_source.customer_id, type: string, nullable: true }
+      type: { path: payment_source.type, type: string, nullable: true }
+      status: { path: payment_source.status, type: string, nullable: true }
+      gateway: { path: payment_source.gateway, type: string, nullable: true }
+      gateway_account_id: { path: payment_source.gateway_account_id, type: string, nullable: true }
+      reference_id: { path: payment_source.reference_id, type: string, nullable: true }
+      issuing_country: { path: payment_source.issuing_country, type: string, nullable: true }
+      ip_address: { path: payment_source.ip_address, type: string, nullable: true }
+      # Brand, last4, expiry and funding type — never a full card number.
+      card: { path: payment_source.card, type: json, nullable: true }
+      bank_account: { path: payment_source.bank_account, type: json, nullable: true }
+      billing_address: { path: payment_source.billing_address, type: json, nullable: true }
+      mandates: { path: payment_source.mandates, type: json, nullable: true }
+      business_entity_id: { path: payment_source.business_entity_id, type: string, nullable: true }
+      deleted: { path: payment_source.deleted, type: bool, nullable: true }
+      resource_version: { path: payment_source.resource_version, type: int64, nullable: true }
+      created_at: { path: payment_source.created_at, type: int64, nullable: true }
+      updated_at: { path: payment_source.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: payment_source.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: payment_sources_updated_at
+
+  - name: items
+    # Product Catalog 2.0 only. On a PC 1.0 site this endpoint errors rather
+    # than returning an empty list, so deselect it there along with item_prices
+    # and item_families.
+    # No created_at on this resource.
+    path: /items
+    primary_key: [id]
+    fields:
+      id: { path: item.id, type: string }
+      name: { path: item.name, type: string, nullable: true }
+      external_name: { path: item.external_name, type: string, nullable: true }
+      description: { path: item.description, type: string, nullable: true }
+      type: { path: item.type, type: string, nullable: true }
+      item_family_id: { path: item.item_family_id, type: string, nullable: true }
+      status: { path: item.status, type: string, nullable: true }
+      is_giftable: { path: item.is_giftable, type: bool, nullable: true }
+      is_shippable: { path: item.is_shippable, type: bool, nullable: true }
+      metered: { path: item.metered, type: bool, nullable: true }
+      enabled_for_checkout: { path: item.enabled_for_checkout, type: bool, nullable: true }
+      enabled_in_portal: { path: item.enabled_in_portal, type: bool, nullable: true }
+      included_in_mrr: { path: item.included_in_mrr, type: bool, nullable: true }
+      item_applicability: { path: item.item_applicability, type: string, nullable: true }
+      unit: { path: item.unit, type: string, nullable: true }
+      usage_calculation: { path: item.usage_calculation, type: string, nullable: true }
+      is_percentage_pricing: { path: item.is_percentage_pricing, type: bool, nullable: true }
+      redirect_url: { path: item.redirect_url, type: string, nullable: true }
+      archived_at: { path: item.archived_at, type: int64, nullable: true }
+      applicable_items: { path: item.applicable_items, type: json, nullable: true }
+      bundle_items: { path: item.bundle_items, type: json, nullable: true }
+      metadata: { path: item.metadata, type: json, nullable: true }
+      business_entity_id: { path: item.business_entity_id, type: string, nullable: true }
+      channel: { path: item.channel, type: string, nullable: true }
+      deleted: { path: item.deleted, type: bool, nullable: true }
+      resource_version: { path: item.resource_version, type: int64, nullable: true }
+      updated_at: { path: item.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: item.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: items_updated_at
+
+  - name: item_prices
+    # Product Catalog 2.0 only. The price points an item bills at — one row per
+    # currency and billing frequency.
+    path: /item_prices
+    primary_key: [id]
+    fields:
+      id: { path: item_price.id, type: string }
+      name: { path: item_price.name, type: string, nullable: true }
+      external_name: { path: item_price.external_name, type: string, nullable: true }
+      description: { path: item_price.description, type: string, nullable: true }
+      item_id: { path: item_price.item_id, type: string, nullable: true }
+      item_family_id: { path: item_price.item_family_id, type: string, nullable: true }
+      item_type: { path: item_price.item_type, type: string, nullable: true }
+      status: { path: item_price.status, type: string, nullable: true }
+      pricing_model: { path: item_price.pricing_model, type: string, nullable: true }
+      price: { path: item_price.price, type: int64, nullable: true }
+      # Chargebee sends the decimal variants as strings to preserve precision
+      # beyond the integer minor-unit amount.
+      price_in_decimal: { path: item_price.price_in_decimal, type: string, nullable: true }
+      currency_code: { path: item_price.currency_code, type: string, nullable: true }
+      period: { path: item_price.period, type: int64, nullable: true }
+      period_unit: { path: item_price.period_unit, type: string, nullable: true }
+      trial_period: { path: item_price.trial_period, type: int64, nullable: true }
+      trial_period_unit: { path: item_price.trial_period_unit, type: string, nullable: true }
+      trial_end_action: { path: item_price.trial_end_action, type: string, nullable: true }
+      billing_cycles: { path: item_price.billing_cycles, type: int64, nullable: true }
+      free_quantity: { path: item_price.free_quantity, type: int64, nullable: true }
+      free_quantity_in_decimal: { path: item_price.free_quantity_in_decimal, type: string, nullable: true }
+      shipping_period: { path: item_price.shipping_period, type: int64, nullable: true }
+      shipping_period_unit: { path: item_price.shipping_period_unit, type: string, nullable: true }
+      price_variant_id: { path: item_price.price_variant_id, type: string, nullable: true }
+      proration_type: { path: item_price.proration_type, type: string, nullable: true }
+      usage_accumulation_reset_frequency: { path: item_price.usage_accumulation_reset_frequency, type: string, nullable: true }
+      is_taxable: { path: item_price.is_taxable, type: bool, nullable: true }
+      invoice_notes: { path: item_price.invoice_notes, type: string, nullable: true }
+      archived_at: { path: item_price.archived_at, type: int64, nullable: true }
+      # Volume and tiered pricing bands; empty for flat_fee and per_unit.
+      tiers: { path: item_price.tiers, type: json, nullable: true }
+      tax_detail: { path: item_price.tax_detail, type: json, nullable: true }
+      accounting_detail: { path: item_price.accounting_detail, type: json, nullable: true }
+      metadata: { path: item_price.metadata, type: json, nullable: true }
+      business_entity_id: { path: item_price.business_entity_id, type: string, nullable: true }
+      channel: { path: item_price.channel, type: string, nullable: true }
+      deleted: { path: item_price.deleted, type: bool, nullable: true }
+      resource_version: { path: item_price.resource_version, type: int64, nullable: true }
+      created_at: { path: item_price.created_at, type: int64, nullable: true }
+      updated_at: { path: item_price.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: item_price.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: item_prices_updated_at
+
+  - name: item_families
+    # Product Catalog 2.0 only. Groups items belonging to one business vertical.
+    # No created_at on this resource.
+    path: /item_families
+    primary_key: [id]
+    fields:
+      id: { path: item_family.id, type: string }
+      name: { path: item_family.name, type: string, nullable: true }
+      description: { path: item_family.description, type: string, nullable: true }
+      status: { path: item_family.status, type: string, nullable: true }
+      business_entity_id: { path: item_family.business_entity_id, type: string, nullable: true }
+      channel: { path: item_family.channel, type: string, nullable: true }
+      deleted: { path: item_family.deleted, type: bool, nullable: true }
+      resource_version: { path: item_family.resource_version, type: int64, nullable: true }
+      updated_at: { path: item_family.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: item_family.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: item_families_updated_at
+
+  - name: coupons
+    path: /coupons
+    primary_key: [id]
+    fields:
+      id: { path: coupon.id, type: string }
+      name: { path: coupon.name, type: string, nullable: true }
+      invoice_name: { path: coupon.invoice_name, type: string, nullable: true }
+      discount_type: { path: coupon.discount_type, type: string, nullable: true }
+      # A percentage, not minor units — 10 means 10%.
+      discount_percentage: { path: coupon.discount_percentage, type: float64, nullable: true }
+      discount_amount: { path: coupon.discount_amount, type: int64, nullable: true }
+      discount_quantity: { path: coupon.discount_quantity, type: int64, nullable: true }
+      currency_code: { path: coupon.currency_code, type: string, nullable: true }
+      duration_type: { path: coupon.duration_type, type: string, nullable: true }
+      valid_from: { path: coupon.valid_from, type: int64, nullable: true }
+      valid_till: { path: coupon.valid_till, type: int64, nullable: true }
+      max_redemptions: { path: coupon.max_redemptions, type: int64, nullable: true }
+      redemptions: { path: coupon.redemptions, type: int64, nullable: true }
+      status: { path: coupon.status, type: string, nullable: true }
+      apply_on: { path: coupon.apply_on, type: string, nullable: true }
+      apply_discount_on: { path: coupon.apply_discount_on, type: string, nullable: true }
+      period: { path: coupon.period, type: int64, nullable: true }
+      period_unit: { path: coupon.period_unit, type: string, nullable: true }
+      archived_at: { path: coupon.archived_at, type: int64, nullable: true }
+      invoice_notes: { path: coupon.invoice_notes, type: string, nullable: true }
+      item_constraints: { path: coupon.item_constraints, type: json, nullable: true }
+      coupon_constraints: { path: coupon.coupon_constraints, type: json, nullable: true }
+      meta_data: { path: coupon.meta_data, type: json, nullable: true }
+      deleted: { path: coupon.deleted, type: bool, nullable: true }
+      resource_version: { path: coupon.resource_version, type: int64, nullable: true }
+      created_at: { path: coupon.created_at, type: int64, nullable: true }
+      updated_at: { path: coupon.updated_at, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: coupon.updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: coupons_updated_at
+
+  - name: events
+    # The account audit feed, and the only immutable resource here: an event is
+    # never updated, so it cursors on occurred_at rather than updated_at.
+    # `content` is rendered at the API version current when the event was
+    # created, so its shape varies across old rows.
+    path: /events
+    primary_key: [id]
+    fields:
+      id: { path: event.id, type: string }
+      occurred_at: { path: event.occurred_at, type: int64, nullable: true }
+      event_type: { path: event.event_type, type: string, nullable: true }
+      source: { path: event.source, type: string, nullable: true }
+      user: { path: event.user, type: string, nullable: true }
+      origin_user: { path: event.origin_user, type: string, nullable: true }
+      api_version: { path: event.api_version, type: string, nullable: true }
+      webhook_status: { path: event.webhook_status, type: string, nullable: true }
+      # The full resource snapshot as of the event, e.g. {subscription, customer}.
+      content: { path: event.content, type: json, nullable: true }
+      webhooks: { path: event.webhooks, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: event.occurred_at
+      start_param: occurred_at[after]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: events_occurred_at
+discovery:
+  mode: static
