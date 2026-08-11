@@ -11,6 +11,72 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createRun = `-- name: CreateRun :execrows
+INSERT INTO runs (run_id, tenant_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, finished_at, error, cpu_seconds, memory_peak_bytes, updated_at)
+VALUES ($1, $2, nullif($3::text, ''), $4, $5, $6, $7, $8, $9, $10, $11, nullif($12::text, ''), $13, $14, now())
+ON CONFLICT (run_id) DO UPDATE SET
+    tenant_id = EXCLUDED.tenant_id,
+    schedule_id = EXCLUDED.schedule_id,
+    status = EXCLUDED.status,
+    request = EXCLUDED.request,
+    records = EXCLUDED.records,
+    bytes = EXCLUDED.bytes,
+    scheduled_at = coalesce(runs.scheduled_at, EXCLUDED.scheduled_at),
+    requested_at = coalesce(runs.requested_at, EXCLUDED.requested_at),
+    started_at = coalesce(runs.started_at, EXCLUDED.started_at),
+    finished_at = coalesce(runs.finished_at, EXCLUDED.finished_at),
+    error = EXCLUDED.error,
+    cpu_seconds = EXCLUDED.cpu_seconds,
+    memory_peak_bytes = EXCLUDED.memory_peak_bytes,
+    updated_at = now()
+WHERE runs.status = $15
+`
+
+type CreateRunParams struct {
+	RunID           string
+	TenantID        string
+	ScheduleID      string
+	Status          int16
+	Request         []byte
+	Records         int64
+	Bytes           int64
+	ScheduledAt     pgtype.Timestamptz
+	RequestedAt     pgtype.Timestamptz
+	StartedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+	Error           string
+	CpuSeconds      float64
+	MemoryPeakBytes int64
+	FromStatus      int16
+}
+
+// CreateRun inserts a run or promotes a pre-created scheduled row. The update
+// arm only fires while the existing row is still at @from_status, so a racing
+// intake cannot roll a live run back; 0 rows reports the conflict.
+func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, createRun,
+		arg.RunID,
+		arg.TenantID,
+		arg.ScheduleID,
+		arg.Status,
+		arg.Request,
+		arg.Records,
+		arg.Bytes,
+		arg.ScheduledAt,
+		arg.RequestedAt,
+		arg.StartedAt,
+		arg.FinishedAt,
+		arg.Error,
+		arg.CpuSeconds,
+		arg.MemoryPeakBytes,
+		arg.FromStatus,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteRun = `-- name: DeleteRun :exec
 DELETE FROM runs WHERE run_id = $1
 `

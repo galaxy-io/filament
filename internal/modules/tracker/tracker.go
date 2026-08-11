@@ -226,7 +226,31 @@ func (m *Module) terminal(ctx context.Context, env events.Envelope, status strin
 	}
 	m.observeRun(env, status, labels)
 	m.flushRun(ctx, env.Run, status == "completed")
+	m.evictRun(env.Run)
 	return nil
+}
+
+// evictRun drops the run's accumulator entries once it is terminal, so the
+// maps don't grow with every run the process ever tracked.
+func (m *Module) evictRun(run filament.RunID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for key := range m.cp {
+		if key.run == run {
+			delete(m.cp, key)
+		}
+	}
+	for key := range m.since {
+		if key.run == run {
+			delete(m.since, key)
+		}
+	}
+	for key := range m.bm {
+		if key.run == run {
+			delete(m.bm, key)
+		}
+	}
+	delete(m.every, run)
 }
 
 // applyCheckpoint persists a cursor fact's checkpoint and pins it on the resource.
