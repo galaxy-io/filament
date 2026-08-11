@@ -1,11 +1,14 @@
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createInfiniteQueryOptions,
   createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
+  useInfiniteQuery,
   useMutation,
   useQuery,
+  useSuspenseInfiniteQuery,
   useSuspenseQuery,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +23,12 @@ import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { createGetConnectionCapabilitiesQueryKey } from "@/api/queries/capabilities";
 import { createDiscoverResourcesQueryKey } from "@/api/queries/connectors";
+import {
+  getNextPageParam,
+  INITIAL_PAGE_PARAM,
+  type InfiniteQueryInput,
+  type UseInfiniteQueryOptions,
+} from "@/api/utils";
 
 export const createListConnectionsQueryKey = (
   input?: ListConnectionsRequest,
@@ -29,7 +38,7 @@ export const createListConnectionsQueryKey = (
     schema: IngestionService.method.listConnections,
     input,
     transport,
-    cardinality: "finite",
+    cardinality: undefined,
   });
 };
 
@@ -70,6 +79,58 @@ export const useSuspenseListConnectionsQuery = ({
     typeof IngestionService.method.listConnections.input,
     typeof IngestionService.method.listConnections.output
   >(IngestionService.method.listConnections, input);
+};
+
+export const createListConnectionsInfiniteQueryOptions = ({
+  input,
+  transport,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listConnections.input>;
+  transport: Transport;
+}) => {
+  return createInfiniteQueryOptions(
+    IngestionService.method.listConnections,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    { transport, pageParamKey: "pagination", getNextPageParam },
+  );
+};
+
+export const useListConnectionsInfiniteQuery = ({
+  input,
+  options = {},
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listConnections.input>;
+  options?: UseInfiniteQueryOptions<
+    typeof IngestionService.method.listConnections.input,
+    typeof IngestionService.method.listConnections.output,
+    "pagination"
+  >;
+} = {}) => {
+  return useInfiniteQuery<
+    typeof IngestionService.method.listConnections.input,
+    typeof IngestionService.method.listConnections.output,
+    "pagination"
+  >(
+    IngestionService.method.listConnections,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    { pageParamKey: "pagination", getNextPageParam, ...options },
+  );
+};
+
+export const useSuspenseListConnectionsInfiniteQuery = ({
+  input,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listConnections.input>;
+} = {}) => {
+  return useSuspenseInfiniteQuery<
+    typeof IngestionService.method.listConnections.input,
+    typeof IngestionService.method.listConnections.output,
+    "pagination"
+  >(
+    IngestionService.method.listConnections,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    { pageParamKey: "pagination", getNextPageParam },
+  );
 };
 
 export const createGetConnectionQueryKey = (

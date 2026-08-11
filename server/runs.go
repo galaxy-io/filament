@@ -21,8 +21,14 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 		PipelineID:        req.Msg.GetPipelineId(),
 		PipelineVersionID: req.Msg.PipelineVersionId,
 		Status:            runStatusesFromProto(req.Msg.GetStatus()),
-		Limit:             int(req.Msg.GetLimit()),
-		Offset:            int(req.Msg.GetOffset()),
+	}
+	if p := req.Msg.GetPagination(); p != nil {
+		offset, err := decodeCursor(p.GetCursor())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		filter.Limit = int(pageSizeOf(p.GetTotal()))
+		filter.Offset = int(offset)
 	}
 	if req.Msg.GetSinceMs() > 0 {
 		filter.Since = time.UnixMilli(req.Msg.GetSinceMs())
@@ -30,7 +36,7 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 	if req.Msg.GetUntilMs() > 0 {
 		filter.Until = time.UnixMilli(req.Msg.GetUntilMs())
 	}
-	states, err := a.store.ListRuns(ctx, filter)
+	states, total, err := a.store.ListRuns(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +44,14 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 	for _, state := range states {
 		runs = append(runs, runInfoToProto(state))
 	}
-	return connect.NewResponse(&ingestionv1.ListRunsResponse{Runs: runs}), nil
+	pagination := &ingestionv1.PaginationResponse{Total: int32(total)} //nolint:gosec // row counts fit int32
+	if req.Msg.GetPagination() != nil {
+		pagination = paginationResponse(int32(filter.Offset), int32(filter.Limit), int32(total)) //nolint:gosec // filter and row counts fit int32
+	}
+	return connect.NewResponse(&ingestionv1.ListRunsResponse{
+		Runs:       runs,
+		Pagination: pagination,
+	}), nil
 }
 
 // GetRun returns the run's state and per-resource progress.

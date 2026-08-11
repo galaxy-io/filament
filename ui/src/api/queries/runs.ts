@@ -4,8 +4,10 @@ import {
   createConnectQueryKey,
   type UseMutationOptions,
   type UseQueryOptions,
+  useInfiniteQuery,
   useMutation,
   useQuery,
+  useSuspenseInfiniteQuery,
   useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
@@ -27,6 +29,12 @@ import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
+import {
+  getNextPageParam,
+  INITIAL_PAGE_PARAM,
+  type InfiniteQueryInput,
+  type UseInfiniteQueryOptions,
+} from "@/api/utils";
 
 const LIST_RUNS_REFETCH_INTERVAL = 3 * 1000;
 const GET_RUN_REFETCH_INTERVAL = 2 * 1000;
@@ -37,7 +45,7 @@ export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Tran
     schema: IngestionService.method.listRuns,
     input,
     transport,
-    cardinality: "finite",
+    cardinality: undefined,
   });
 };
 
@@ -78,6 +86,57 @@ export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } 
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
   });
+};
+
+export const useListRunsInfiniteQuery = ({
+  input,
+  options = {},
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
+  options?: UseInfiniteQueryOptions<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output,
+    "pagination"
+  >;
+} = {}) => {
+  return useInfiniteQuery<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output,
+    "pagination"
+  >(
+    IngestionService.method.listRuns,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    {
+      pageParamKey: "pagination",
+      getNextPageParam,
+      refetchInterval: (query) => {
+        return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
+      },
+      ...options,
+    },
+  );
+};
+
+export const useSuspenseListRunsInfiniteQuery = ({
+  input,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
+} = {}) => {
+  return useSuspenseInfiniteQuery<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output,
+    "pagination"
+  >(
+    IngestionService.method.listRuns,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    {
+      pageParamKey: "pagination",
+      getNextPageParam,
+      refetchInterval: (query) => {
+        return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
+      },
+    },
+  );
 };
 
 const getGetRunRefetchInterval = (status: RunStatus | undefined) => {

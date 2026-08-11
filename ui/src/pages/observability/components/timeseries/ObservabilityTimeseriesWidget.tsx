@@ -1,11 +1,12 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
+import { LineChartCurve } from "@galaxy-io/dls/charts/types";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
-import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
+import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
@@ -16,6 +17,7 @@ import ObservabilityTimeseriesChart from "@/pages/observability/components/times
 interface ObservabilityTimeseriesWidgetProps<View extends string> {
   views: Record<View, ObservabilityChartView>;
   defaultView: View;
+  defaultPivot?: MetricDimension;
   viewSearchKey: "throughput" | "usage";
   pivotSearchKey: "throughputPivot" | "usagePivot";
 }
@@ -23,6 +25,7 @@ interface ObservabilityTimeseriesWidgetProps<View extends string> {
 const ObservabilityTimeseriesWidget = <View extends string>({
   views,
   defaultView,
+  defaultPivot,
   viewSearchKey,
   pivotSearchKey,
 }: ObservabilityTimeseriesWidgetProps<View>) => {
@@ -30,7 +33,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
   const search = useSearch({ from: "/_main/observability" });
 
   const view = (search[viewSearchKey] as View | undefined) ?? defaultView;
-  const pivot = search[pivotSearchKey];
+  const pivot = search[pivotSearchKey] ?? defaultPivot;
 
   const { label, seriesLabel, metric, color, valueFormatter } = views[view];
 
@@ -44,7 +47,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
   const handlePivotChange = (nextPivot: MetricDimension | undefined) => {
     void navigate({
       to: ".",
-      search: (prev) => ({ ...prev, [pivotSearchKey]: nextPivot }),
+      search: (prev) => ({ ...prev, [pivotSearchKey]: nextPivot ?? MetricDimension.UNSPECIFIED }),
     });
   };
 
@@ -79,6 +82,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
         metric={metric}
         color={color}
         pivot={pivot}
+        curve={LineChartCurve.LINEAR}
         valueFormatter={valueFormatter}
       />
     </Widget>

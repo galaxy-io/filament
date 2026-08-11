@@ -4,6 +4,7 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
+import "ingestion/v1/pagination.proto";
 
 // Connection is a reusable, tenant-scoped source or sink. It holds the
 // connection-scoped config (host/bucket/credentials) shared by every pipeline
@@ -57,10 +58,12 @@ message ListConnectionsRequest {
   string tenant_id = 1;
   ConnectorKind kind = 2;
   bool include_deleted = 3;
+  PaginationRequest pagination = 4;
 }
 
 message ListConnectionsResponse {
   repeated Connection connections = 1;
+  PaginationResponse pagination = 2;
 }
 
 message DeleteConnectionRequest {

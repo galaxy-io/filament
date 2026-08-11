@@ -209,9 +209,9 @@ func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 // ListRuns returns runs matching the filter, newest StartedAt first. A run that
 // has not started sorts before every started run, mirroring postgres's
 // started_at DESC NULLS FIRST: pending work belongs at the top.
-func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
+func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	s.mu.RLock()
 	var out []filament.RunState
@@ -233,16 +233,17 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		}
 		return out[i].StartedAt.After(out[j].StartedAt)
 	})
+	total := len(out)
 	if f.Offset > 0 {
 		if f.Offset >= len(out) {
-			return nil, nil
+			return nil, total, nil
 		}
 		out = out[f.Offset:]
 	}
 	if f.Limit > 0 && len(out) > f.Limit {
 		out = out[:f.Limit]
 	}
-	return out, nil
+	return out, total, nil
 }
 
 // UpsertResource records (or replaces) a resource's state under its run.

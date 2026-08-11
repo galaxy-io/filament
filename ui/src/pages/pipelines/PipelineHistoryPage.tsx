@@ -1,4 +1,3 @@
-import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
@@ -10,7 +9,7 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
+import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
@@ -22,12 +21,11 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
-  PIPELINE_RUN_HISTORY_LIMIT,
 } from "@/pages/pipelines/history/constants";
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
-import { useSuspenseListRunsQuery } from "@/api/queries/runs";
+import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
 
@@ -132,12 +130,13 @@ const PipelineHistoryPage = () => {
   const navigate = useNavigate();
   const { runId } = useSearch({ from: "/pipelines/$id/history" });
 
-  const { data } = useSuspenseListRunsQuery({
-    input: create(ListRunsRequestSchema, {
-      pipelineId: id,
-      limit: PIPELINE_RUN_HISTORY_LIMIT,
-    }),
-  });
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useSuspenseListRunsInfiniteQuery(
+    {
+      input: { pipelineId: id },
+    },
+  );
+
+  const runs = data.pages.flatMap((page) => page.runs);
 
   const handleExpandedChange = (expandedRowIds: string[]) => {
     void navigate({
@@ -158,7 +157,7 @@ const PipelineHistoryPage = () => {
       <RunTableWrapper>
         <InfiniteTable<RunInfo>
           columns={RUN_TABLE_COLUMNS}
-          data={data.runs}
+          data={runs}
           getRowId={(run) => run.runId}
           contentWhenEmpty={
             <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
@@ -169,6 +168,9 @@ const PipelineHistoryPage = () => {
           onRowExpand={(row) => {
             return <PipelineHistoryRunInfo runId={row.original.runId} />;
           }}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
           fillWidth
           fillHeight
         />

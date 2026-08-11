@@ -446,6 +446,7 @@ type ListConnectionsRequest struct {
 	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Kind           ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
 	IncludeDeleted bool                   `protobuf:"varint,3,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
+	Pagination     *PaginationRequest     `protobuf:"bytes,4,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -501,9 +502,17 @@ func (x *ListConnectionsRequest) GetIncludeDeleted() bool {
 	return false
 }
 
+func (x *ListConnectionsRequest) GetPagination() *PaginationRequest {
+	if x != nil {
+		return x.Pagination
+	}
+	return nil
+}
+
 type ListConnectionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Connections   []*Connection          `protobuf:"bytes,1,rep,name=connections,proto3" json:"connections,omitempty"`
+	Pagination    *PaginationResponse    `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -541,6 +550,13 @@ func (*ListConnectionsResponse) Descriptor() ([]byte, []int) {
 func (x *ListConnectionsResponse) GetConnections() []*Connection {
 	if x != nil {
 		return x.Connections
+	}
+	return nil
+}
+
+func (x *ListConnectionsResponse) GetPagination() *PaginationResponse {
+	if x != nil {
+		return x.Pagination
 	}
 	return nil
 }
@@ -629,7 +645,7 @@ var File_ingestion_v1_connections_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\n" +
-	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\x90\x03\n" +
+	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\x90\x03\n" +
 	"\n" +
 	"Connection\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
@@ -674,13 +690,19 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\x15GetConnectionResponse\x128\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
-	"connection\"\x8f\x01\n" +
+	"connection\"\xd0\x01\n" +
 	"\x16ListConnectionsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12'\n" +
-	"\x0finclude_deleted\x18\x03 \x01(\bR\x0eincludeDeleted\"U\n" +
+	"\x0finclude_deleted\x18\x03 \x01(\bR\x0eincludeDeleted\x12?\n" +
+	"\n" +
+	"pagination\x18\x04 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\"\x97\x01\n" +
 	"\x17ListConnectionsResponse\x12:\n" +
-	"\vconnections\x18\x01 \x03(\v2\x18.ingestion.v1.ConnectionR\vconnections\")\n" +
+	"\vconnections\x18\x01 \x03(\v2\x18.ingestion.v1.ConnectionR\vconnections\x12@\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
+	"pagination\")\n" +
 	"\x17DeleteConnectionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x1a\n" +
 	"\x18DeleteConnectionResponseB\xb1\x01\n" +
@@ -715,6 +737,8 @@ var file_ingestion_v1_connections_proto_goTypes = []any{
 	nil,                              // 12: ingestion.v1.CreateConnectionRequest.SecretRefsEntry
 	(ConnectorKind)(0),               // 13: ingestion.v1.ConnectorKind
 	(*structpb.Struct)(nil),          // 14: google.protobuf.Struct
+	(*PaginationRequest)(nil),        // 15: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),       // 16: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_connections_proto_depIdxs = []int32{
 	13, // 0: ingestion.v1.Connection.kind:type_name -> ingestion.v1.ConnectorKind
@@ -728,12 +752,14 @@ var file_ingestion_v1_connections_proto_depIdxs = []int32{
 	0,  // 8: ingestion.v1.UpdateConnectionResponse.connection:type_name -> ingestion.v1.Connection
 	0,  // 9: ingestion.v1.GetConnectionResponse.connection:type_name -> ingestion.v1.Connection
 	13, // 10: ingestion.v1.ListConnectionsRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	0,  // 11: ingestion.v1.ListConnectionsResponse.connections:type_name -> ingestion.v1.Connection
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	15, // 11: ingestion.v1.ListConnectionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	0,  // 12: ingestion.v1.ListConnectionsResponse.connections:type_name -> ingestion.v1.Connection
+	16, // 13: ingestion.v1.ListConnectionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_connections_proto_init() }
@@ -742,6 +768,7 @@ func file_ingestion_v1_connections_proto_init() {
 		return
 	}
 	file_ingestion_v1_common_proto_init()
+	file_ingestion_v1_pagination_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

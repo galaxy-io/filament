@@ -15,7 +15,7 @@ import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
 
 import { Flow } from "@/routes/__root";
 
-import { useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
+import { useSuspenseListPipelinesInfiniteQuery } from "@/api/queries/pipelines";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -23,11 +23,14 @@ const PipelinesPage = () => {
   const navigate = useNavigate();
   const { q = "" } = useSearch({ from: "/_main/pipelines" });
 
-  const { data } = useSuspenseListPipelinesQuery();
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useSuspenseListPipelinesInfiniteQuery();
+
+  const pipelines = useMemo(() => data.pages.flatMap((page) => page.pipelines), [data.pages]);
 
   const visiblePipelines = useMemo(
-    () => data.pipelines.filter((item) => isSearchMatch(q, item.name, item.id)),
-    [data.pipelines, q],
+    () => pipelines.filter((item) => isSearchMatch(q, item.name, item.id)),
+    [pipelines, q],
   );
 
   const handleNewPipeline = () => {
@@ -38,7 +41,7 @@ const PipelinesPage = () => {
   };
 
   const renderContent = () => {
-    if (!data.pipelines.length) {
+    if (!pipelines.length) {
       return (
         <PipelinesPageEmptyGraphic
           actions={
@@ -62,7 +65,14 @@ const PipelinesPage = () => {
       );
     }
 
-    return <PipelinesTable pipelines={visiblePipelines} />;
+    return (
+      <PipelinesTable
+        pipelines={visiblePipelines}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={fetchNextPage}
+      />
+    );
   };
 
   return (
