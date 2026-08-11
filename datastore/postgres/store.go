@@ -116,6 +116,72 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	return nil
 }
 
+// CreateRun inserts the run or promotes a pre-created RunScheduled row; a row
+// that has progressed past RunScheduled is left untouched.
+func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
+	req, err := json.Marshal(r.Request)
+	if err != nil {
+		return fmt.Errorf("datastore/postgres: marshal request: %w", err)
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("datastore/postgres: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+
+	rows, err := q.CreateRun(ctx, sqlcgen.CreateRunParams{
+		RunID:           string(r.Run),
+		TenantID:        string(r.Tenant),
+		ScheduleID:      string(r.ScheduleID),
+		Status:          int16(r.Status), //nolint:gosec // small enum
+		Request:         req,
+		Records:         r.Records,
+		Bytes:           r.Bytes,
+		ScheduledAt:     toTimestamptz(nullTime(r.ScheduledAt)),
+		RequestedAt:     toTimestamptz(nullTime(r.RequestedAt)),
+		StartedAt:       toTimestamptz(nullTime(r.StartedAt)),
+		FinishedAt:      toTimestamptz(r.FinishedAt),
+		Error:           r.Error,
+		CpuSeconds:      r.CPUSeconds,
+		MemoryPeakBytes: r.MemoryPeakBytes,
+		FromStatus:      int16(filament.RunScheduled), //nolint:gosec // small enum
+	})
+	if err != nil {
+		return fmt.Errorf("datastore/postgres: create run: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("create run %q: %w", r.Run, filament.ErrVersionConflict)
+	}
+
+	for _, rs := range r.Resources {
+		rs.Run = r.Run
+		if err := upsertResource(ctx, q, rs); err != nil {
+			return err
+		}
+	}
+	// A pre-created scheduled run hasn't happened yet — it must not become the
+	// pipeline's last run.
+	if r.Request.PipelineID != "" && r.Status != filament.RunScheduled {
+		err = q.UpdatePipelineRunSummary(ctx, sqlcgen.UpdatePipelineRunSummaryParams{
+			PipelineID: r.Request.PipelineID,
+			Version:    r.Request.PipelineVersionID,
+			StartedAt:  toTimestamptz(nullTime(r.StartedAt)),
+			Status:     int16(r.Status), //nolint:gosec // small enum
+			Bytes:      r.Bytes,
+			EndedAt:    toTimestamptz(r.FinishedAt),
+		})
+		if err != nil {
+			return fmt.Errorf("datastore/postgres: update pipeline run summary: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("datastore/postgres: commit: %w", err)
+	}
+	return nil
+}
+
 // DeleteRun removes the run; resources, checkpoints, and dedup rows cascade.
 // Missing is a no-op.
 func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
