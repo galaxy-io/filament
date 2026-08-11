@@ -18,11 +18,16 @@ type DataStore interface {
 	EnsureTenant(ctx context.Context, id TenantID, name string) error
 
 	SaveRun(ctx context.Context, s RunState) error
+	// CreateRun persists a new run row or promotes a pre-created RunScheduled
+	// row. A row that has progressed past RunScheduled is left untouched and
+	// ErrVersionConflict returned, so a racing intake cannot roll a live run
+	// back to an earlier status.
+	CreateRun(ctx context.Context, s RunState) error
 	LoadRun(ctx context.Context, id RunID) (RunState, error)
 	ListRuns(ctx context.Context, f RunFilter) ([]RunState, error)
-	// DeleteRun removes a run and its resources. Only the scheduler calls it, to
-	// reap pre-created RunScheduled rows; deleting a run that ever executed would
-	// discard history. Deleting a missing run is a no-op.
+	// DeleteRun removes a run and its resources. Only run intake calls it, to
+	// reap pre-created RunScheduled rows and undispatched saves; deleting a run
+	// that ever executed would discard history. Deleting a missing run is a no-op.
 	DeleteRun(ctx context.Context, id RunID) error
 
 	UpsertResource(ctx context.Context, rs ResourceState) error // enabled toggle + progress

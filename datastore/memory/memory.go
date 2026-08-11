@@ -99,6 +99,24 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveRunLocked(r)
+}
+
+// CreateRun inserts the run or promotes a pre-created RunScheduled row; a row
+// that has progressed past RunScheduled is left untouched.
+func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if existing, ok := s.runs[r.Run]; ok && existing.Status != filament.RunScheduled {
+		return fmt.Errorf("create run %q: %w", r.Run, filament.ErrVersionConflict)
+	}
+	return s.saveRunLocked(r)
+}
+
+func (s *Store) saveRunLocked(r filament.RunState) error {
 	if activeCheckpointRun(r) {
 		for id, existing := range s.runs {
 			if id != r.Run && activeCheckpointRun(existing) && sameCheckpointRoute(existing.Request, r.Request) {
