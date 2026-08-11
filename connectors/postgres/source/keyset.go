@@ -162,41 +162,28 @@ func dedupeOrdered(vals []string) []string {
 	return out
 }
 
-// ExtractFrom reads each resource from its checkpoint. Keyed resources read via keyset
-// shards (concurrently, under one exported snapshot, like Extract); a resource with no
-// keyset plan (no primary key) falls back to the ctid reader and is read whole.
+// ExtractFrom reads each resource from its checkpoint; the checkpoint plan's
+// mode decides how. Incremental plans read by cursor, everything else reads
+// via keyset shards (concurrently, under one exported snapshot, like Extract);
+// a resource with no keyset plan (no primary key, or a checkpoint-free full
+// read) falls back to the ctid reader and is read whole.
 func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
-	if opts.Mode == filament.ModeIncremental {
-		var incremental, backfill []string
-		for _, table := range opts.Resources {
-			plan, ok := checkpoint.ParseKeyset(prev[table])
-			if !ok {
-				return fmt.Errorf("incremental %q has no valid checkpoint plan", table)
-			}
-			switch plan.Mode {
-			case checkpoint.ModeIncremental:
-				incremental = append(incremental, table)
-			case checkpoint.ModeIncrementalBackfill:
-				backfill = append(backfill, table)
-			default:
-				return fmt.Errorf("incremental %q has checkpoint mode %q", table, plan.Mode)
-			}
+	var incremental, rest []string
+	for _, table := range opts.Resources {
+		if plan, ok := checkpoint.ParseKeyset(prev[table]); ok && plan.Mode == checkpoint.ModeIncremental {
+			incremental = append(incremental, table)
+		} else {
+			rest = append(rest, table)
 		}
-		if len(incremental) > 0 {
-			incrementalOpts := opts
-			incrementalOpts.Resources = incremental
-			if err := s.extractIncremental(ctx, sink, incrementalOpts, prev); err != nil {
-				return err
-			}
-		}
-		if len(backfill) == 0 {
-			return nil
-		}
-		backfillOpts := opts
-		backfillOpts.Mode = filament.ModeFull
-		backfillOpts.Resources = backfill
-		return s.ExtractFrom(ctx, sink, backfillOpts, prev)
 	}
+	if len(incremental) > 0 {
+		incrementalOpts := opts
+		incrementalOpts.Resources = incremental
+		if err := s.extractIncremental(ctx, sink, incrementalOpts, prev); err != nil {
+			return err
+		}
+	}
+	opts.Resources = rest
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		ks, ok := checkpoint.ParseKeyset(prev[table])

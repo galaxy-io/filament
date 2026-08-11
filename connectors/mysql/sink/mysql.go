@@ -19,11 +19,11 @@ import (
 // jsonb_to_recordset. It implements filament.Schematized; the engine only runs
 // schema discovery for sinks that do.
 type Sink struct {
-	db        *sql.DB
-	run       filament.RunID
-	database  string
-	resumable bool
-	written   atomic.Int64
+	db       *sql.DB
+	run      filament.RunID
+	database string
+	policies map[string]filament.WritePolicy
+	written  atomic.Int64
 
 	// tables is populated entirely during the engine's pre-extract EnsureSchema pass
 	// (sequential), then only read by concurrent Write calls — no lock needed.
@@ -32,11 +32,23 @@ type Sink struct {
 
 // table is one resource's ensured destination: the quoted table identifier and the
 // prebuilt INSERT … SELECT … FROM JSON_TABLE statement, plus the JSON_TABLE-join
-// DELETE used by merge (CDC) writes on a keyed table.
+// DELETE used by merge (CDC) writes on a keyed table. resumable marks a table
+// whose writes are idempotent by key, so a resume must preserve its rows.
 type table struct {
 	qualified string
 	insertSQL string
 	deleteSQL string // empty for a keyless table
+	resumable bool
+}
+
+// resumableFor reports whether one resource's writes are idempotent by key —
+// an upsert or CDC merge under its bound write policy.
+func (t *Sink) resumableFor(resource string) bool {
+	p, ok := t.policies[resource]
+	if !ok {
+		p = t.policies[""]
+	}
+	return p.Capability.Mode == filament.WriteUpsert || p.Capability.Mode == filament.WriteMerge
 }
 
 // New returns an unconfigured sink. Open wires it to the database.
@@ -101,9 +113,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		return fmt.Errorf("mysql sink: dsn has no database and \"database\" is unset")
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == filament.IngestionFullUpsert ||
-		run.IngestionType == filament.IngestionIncrementalUpsert ||
-		run.IngestionType == filament.IngestionCDC // a change stream continues an existing table
+	t.policies = run.WritePolicies
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
@@ -196,10 +206,11 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	if _, err := t.db.ExecContext(ctx, ddl); err != nil {
 		return fmt.Errorf("create %s: %w", qualified, err)
 	}
-	// A resumable run upserts by key and must preserve any partial load from a prior
+	// A resumable table upserts by key and must preserve any partial load from a prior
 	// attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot dedup:
-	// a non-resumable run, or a keyless table that re-reads whole on resume).
-	upsert := t.resumable && len(schema.PrimaryKey) > 0
+	// a non-resumable table, or a keyless table that re-reads whole on resume).
+	resumable := t.resumableFor(resource)
+	upsert := resumable && len(schema.PrimaryKey) > 0
 	if !upsert {
 		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
 		if _, err := t.db.ExecContext(ctx, "TRUNCATE "+qualified); err != nil {
@@ -231,6 +242,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 			qualified, strings.Join(idents, ", "), strings.Join(idents, ", "), strings.Join(selects, ", "), strings.Join(jtCols, ", "),
 			onDuplicate(upsert, schema)),
 		deleteSQL: deleteJoinSQL(qualified, schema),
+		resumable: resumable,
 	}
 	return nil
 }
@@ -554,14 +566,14 @@ func (t *Sink) Abort(ctx context.Context) error {
 	if t.db == nil {
 		return nil
 	}
-	// A resumable run keeps its partial load so a later resume can finish it — don't
+	// A resumable table keeps its partial load so a later resume can finish it — don't
 	// truncate. (The engine also skips Abort on a resumable failure; this guards any
 	// other Abort path.)
-	if t.resumable {
-		return nil
-	}
 	cleanup := context.WithoutCancel(ctx)
 	for _, tbl := range t.tables {
+		if tbl.resumable {
+			continue
+		}
 		_, _ = t.db.ExecContext(cleanup, "TRUNCATE "+tbl.qualified)
 	}
 	return nil

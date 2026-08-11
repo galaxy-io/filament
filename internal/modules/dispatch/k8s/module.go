@@ -108,14 +108,13 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 func specFromState(s filament.RunState) filament.RunSpec {
 	r := s.Request
 	return filament.RunSpec{
-		Tenant:        r.Tenant,
-		Run:           s.Run,
-		Source:        r.Source,
-		Sink:          r.Sink,
-		Resources:     r.Resources,
-		Selectors:     r.Selectors,
-		IngestionType: r.IngestionType.OrDefault(),
-		Mode:          filament.ModeFull,
-		Options:       r.Options,
+		Tenant:         r.Tenant,
+		Run:            s.Run,
+		Source:         r.Source,
+		Sink:           r.Sink,
+		Resources:      r.Resources,
+		Selectors:      r.Selectors,
+		IngestionTypes: r.IngestionTypes,
+		Options:        r.Options,
 	}
 }
