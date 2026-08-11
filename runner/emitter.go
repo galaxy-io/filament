@@ -90,9 +90,14 @@ func (e *emitter) publish(f events.Fact) {
 		if errMsg != "" {
 			fields = append(fields, filament.Field{Key: "error", Value: errMsg})
 		}
-		// Debug, not Info: a large run emits one batch.written per chunk, which
-		// at Info drowns the worker's log.
-		e.log.Debug(f.Name, fields...)
+		switch f.Data.(type) {
+		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent:
+			// Debug, not Info: a large run emits one of these per chunk, which
+			// at Info drowns the worker's log.
+			e.log.Debug(f.Name, fields...)
+		default:
+			e.log.Info(f.Name, fields...)
+		}
 	}
 	if err := events.Publish(e.ctx, e.bus, f); err != nil && e.log != nil {
 		e.log.Error("runner: publish fact", err, filament.Field{Key: "type", Value: f.Name})
@@ -133,8 +138,36 @@ func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 	}, data))
 }
 
-// fail publishes the terminal run.failed fact carrying the error message. It
-// detaches first so the obituary survives a cancelled run context.
+// failed publishes the run's failure terminals — per-resource obituaries, then
+// run.partial (resumable) or run.failed — on a context detached from run
+// cancellation, so the obituary outlives the death and the row never strands
+// in RunRunning. The emitter owns the detach: callers never sequence it.
+func (e *emitter) failed(err error, resources []string, resumable bool) {
+	defer e.finish()()
+	for _, res := range resources {
+		emit(e, events.ResourceFailed, res, events.ResourceFailedEvent{Error: err.Error()})
+	}
+	if resumable {
+		e.partial(err)
+		return
+	}
+	e.fail(err)
+}
+
+// completed publishes the run's success terminals — per-resource completions
+// with their tallies, then run.completed with the run totals — detached from
+// run cancellation. Call only after the sink commit has returned, so commit
+// time is charged to the run rather than the terminal-publish window.
+func (e *emitter) completed(resources []string) {
+	defer e.finish()()
+	for _, res := range resources {
+		records, bytes := e.resourceTally(res)
+		emit(e, events.ResourceCompleted, res, events.ResourceCompletedEvent{Records: records, Bytes: bytes})
+	}
+	records, bytes := e.runTotals()
+	emit(e, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes})
+}
+
 func (e *emitter) fail(err error) {
 	if e.span != nil {
 		e.span.SetError(err)
@@ -142,7 +175,6 @@ func (e *emitter) fail(err error) {
 	if e.log != nil {
 		e.log.Error("runner: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
-	defer e.finish()()
 	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error()})
 }
 
@@ -153,7 +185,6 @@ func (e *emitter) partial(err error) {
 	if e.log != nil {
 		e.log.Error("runner: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
 	}
-	defer e.finish()()
 	emit(e, events.RunPartial, "", events.RunPartialEvent{Error: err.Error()})
 }
 

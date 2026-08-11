@@ -20,7 +20,20 @@ const commitRowsPerChunk = 8192
 
 // writeBuffer streams a resource buffer into the Iceberg table in one
 // transaction, parsing the buffer in bounded chunks rather than all at once.
+// It reloads the table from the catalog first: a credential-vending catalog
+// issues storage tokens with a TTL at load time, and a buffered run can
+// outlive them by commit.
 func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mode writeMode) error {
+	s.mu.Lock()
+	cat := s.cat
+	s.mu.Unlock()
+	tbl, err := cat.LoadTable(ctx, it.tbl.Identifier())
+	if err != nil {
+		return fmt.Errorf("reload table: %w", err)
+	}
+	it.tbl = tbl
+	it.schema = tbl.Schema()
+
 	switch mode {
 	case writeModeUpsert, writeModeDelete, writeModeMerge:
 		return s.writeMutationBuffer(ctx, it, rb, mode)

@@ -89,35 +89,35 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	emit(em, events.RunStarted, "", events.RunStartedEvent{})
 
 	if err := ResolveConfigRefs(ctx, deps.Secrets, &spec); err != nil {
-		em.fail(err)
+		em.failed(err, nil, false)
 		return
 	}
 
 	src, err := deps.Sources.Resolve(spec.Source.Provider)
 	if err != nil {
-		em.fail(fmt.Errorf("resolve source %q: %w", spec.Source.Provider, err))
+		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Provider, err), nil, false)
 		return
 	}
 	if err := src.Configure(ctx, filament.NewConfig(spec.Source.Config)); err != nil {
-		em.fail(fmt.Errorf("configure source %q: %w", spec.Source.Provider, err))
+		em.failed(fmt.Errorf("configure source %q: %w", spec.Source.Provider, err), nil, false)
 		return
 	}
 	defer func() { _ = src.Teardown(ctx) }()
 	plannedResources, err := PlanResources(ctx, src, spec.Resources, spec.Selectors)
 	if err != nil {
-		em.fail(fmt.Errorf("plan resources: %w", err))
+		em.failed(fmt.Errorf("plan resources: %w", err), nil, false)
 		return
 	}
 	spec.Resources = plannedResources
 
 	snk, err := deps.Sinks.Resolve(spec.Sink.Provider)
 	if err != nil {
-		em.fail(fmt.Errorf("resolve sink %q: %w", spec.Sink.Provider, err))
+		em.failed(fmt.Errorf("resolve sink %q: %w", spec.Sink.Provider, err), nil, false)
 		return
 	}
 	plan, err := filament.ResolveIngestionPlan(ctx, src, snk, spec)
 	if err != nil {
-		em.fail(err)
+		em.failed(err, nil, false)
 		return
 	}
 	spec.WritePolicies = plan.WritePolicies
@@ -128,7 +128,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		spec.Options.SnapshotParallelism = 1
 	}
 	if err := snk.Open(ctx, spec); err != nil {
-		em.fail(fmt.Errorf("open sink %q: %w", spec.Sink.Provider, err))
+		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Provider, err), nil, false)
 		return
 	}
 
@@ -139,7 +139,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		if aerr := snk.Abort(ctx); aerr != nil && deps.Log != nil {
 			deps.Log.Error("runner: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
-		em.fail(fmt.Errorf("ensure schema: %w", err))
+		em.failed(fmt.Errorf("ensure schema: %w", err), nil, false)
 		return
 	}
 
@@ -153,7 +153,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		if aerr := snk.Abort(ctx); aerr != nil && deps.Log != nil {
 			deps.Log.Error("runner: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
-		em.fail(err)
+		em.failed(err, nil, false)
 		return
 	}
 
@@ -197,20 +197,12 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 
 	resources := resolveResources(spec.Resources, em.seenResources())
 
-	// The run is ending: detach fact publishing from run cancellation so the
-	// terminal facts survive host shutdown — the obituary must outlive the
-	// death, or the row strands in RunRunning forever.
-	defer em.finish()()
-
 	if runErr != nil {
-		for _, res := range resources {
-			emit(em, events.ResourceFailed, res, events.ResourceFailedEvent{Error: runErr.Error()})
-		}
-		if isResumableRun(spec, plan) {
-			em.partial(runErr)
+		resumable := isResumableRun(spec, plan)
+		em.failed(runErr, resources, resumable)
+		if resumable {
 			return
 		}
-		em.fail(runErr)
 		// Abort after the obituary, on its own detached context: cleanup must
 		// not eat the terminal publish window, and a slow sink must not strand
 		// the row in RunRunning.
@@ -223,7 +215,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	}
 
 	if err := snk.Commit(ctx); err != nil {
-		em.fail(fmt.Errorf("commit sink %q: %w", spec.Sink.Provider, err))
+		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Provider, err), nil, false)
 		abortCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), abortWait)
 		defer cancel()
 		if aerr := snk.Abort(abortCtx); aerr != nil && deps.Log != nil {
@@ -231,10 +223,5 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		}
 		return
 	}
-	for _, res := range resources {
-		records, bytes := em.resourceTally(res)
-		emit(em, events.ResourceCompleted, res, events.ResourceCompletedEvent{Records: records, Bytes: bytes})
-	}
-	records, bytes := em.runTotals()
-	emit(em, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes})
+	em.completed(resources)
 }
