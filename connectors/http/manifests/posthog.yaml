@@ -1,0 +1,378 @@
+version: 1
+name: posthog
+
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Personal API key from Settings > Personal API keys, with read scopes for the resources you sync.
+  project_id:
+    type: string
+    required: true
+    help: Project ID from Settings > Project > Project ID — the digits after /project/ in the app URL.
+  host:
+    type: string
+    default: https://us.posthog.com
+    help: PostHog host — https://us.posthog.com (US Cloud), https://eu.posthog.com (EU Cloud), or a self-hosted origin. Not the us.i.posthog.com ingestion host, which does not serve /api.
+
+connection:
+  # Rendered once at Configure from config.host so US Cloud, EU Cloud and
+  # self-hosted instances share one manifest.
+  base_url: "{{ config.host }}"
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+  # Person and session-recording pages carry large embedded property blobs.
+  timeout_seconds: 120
+  # PostHog enforces a per-minute and a per-hour ceiling per endpoint class.
+  # The binding one is the analytics hourly bucket — 1200/hour shared by
+  # persons, events, insights and session_recordings — i.e. 0.333 rps
+  # sustained. One limiter serves the whole run, so the tightest ceiling
+  # governs; 0.3 rps is 1080/hour, leaving headroom for the connection probe
+  # and retries, and never approaches the 240/min burst ceiling.
+  #
+  # Sizing against the hourly rather than the per-minute limit is deliberate:
+  # draining an hourly bucket is a run failure, not a slowdown. Retry sleeps
+  # are capped at maxRetryBackoff (60s) even when Retry-After says 3600, and
+  # give up after maxRetries (10), so an hour-long window cannot be waited out.
+  #
+  # No `dynamic:` block — PostHog documents no X-RateLimit-* response headers.
+  # It does send Retry-After on 429, which the engine already honours.
+  rate_limit:
+    requests_per_second: 0.3
+
+defaults:
+  method: GET
+  query:
+    limit: "100"
+  # Every list endpoint is DRF-paginated. The events endpoint omits `count`
+  # and `previous` but still carries `next` + `results`, so one envelope
+  # covers all eleven resources. `next` is an absolute URL echoing back limit,
+  # offset and every filter, so the manifest never computes an offset itself.
+  # Preferred over `offset:` because the events endpoint marks its `offset`
+  # param deprecated and fails above 100000.
+  response:
+    records: $.results
+    pagination:
+      next_url: next
+
+field_sets:
+  # created_by is a UserBasic object on the eight CRUD resources. The two
+  # promoted scalars are what anyone groups by; the object is kept whole so
+  # uuid, names and role survive. Promoting through a nullable path is safe —
+  # descending into a null intermediate yields a path error, which a nullable
+  # field absorbs.
+  authorship:
+    created_at: timestamptz?
+    created_by_id: { path: created_by.id, type: int64, nullable: true }
+    created_by_email: { path: created_by.email, type: string, nullable: true }
+    created_by: json?
+
+# Every path keeps its trailing slash — Django's APPEND_SLASH would otherwise
+# answer each request with a 301.
+#
+# Enum-valued columns are typed `string`, never `int`, even where PostHog's
+# underlying choice is an integer (restriction_level). The asymmetry is
+# decisive: a JSON number coerces cleanly into a string column, but a string
+# under an int64 column fails ParseInt — and that is not a path error, so
+# `nullable` does not absorb it and the whole run aborts.
+resources:
+  # First resource declared, so it doubles as the TestConnection probe: a bad
+  # key or a wrong project_id fails here rather than mid-run.
+  - name: persons
+    path: /api/projects/{project_id}/persons/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    fields:
+      # Typed string, not int64, even though the response schema claims
+      # `integer`: PostHog's own retrieve endpoint documents this identifier as
+      # "Accepts both numeric ID and UUID", and live instances return the UUID.
+      # A JSON number coerces into a string column cleanly, so string is the
+      # only type that holds both shapes — int64 aborts the run on a UUID.
+      id: string
+      uuid: uuid
+      name: string?
+      distinct_ids: json?
+      properties: json?
+      created_at: timestamptz?
+      last_seen_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    # No incremental: the persons list filters on distinct_id, email,
+    # properties and search only. There is no updated-since parameter, so
+    # every run is a full snapshot.
+
+  - name: events
+    path: /api/projects/{project_id}/events/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    fields:
+      id: string
+      event: string
+      timestamp: timestamptz
+      distinct_id: string
+      person: json?
+      properties: json?
+      elements: json?
+      elements_chain: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: timestamp
+      start_param: after
+      inject_into: query
+      checkpoint_key: events_timestamp
+      comparator: time
+      # Event timestamps are client-supplied: buffered mobile SDKs persist
+      # events well behind wall clock, so a watermark set from the last run's
+      # max would skip them. The primary key dedupes the re-read.
+      overlap_seconds: 3600
+
+  - name: cohorts
+    path: /api/projects/{project_id}/cohorts/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: int64
+      name: string?
+      description: string?
+      deleted: bool?
+      is_static: bool?
+      is_calculating: bool?
+      cohort_type: string?
+      version: int64?
+      pending_version: int64?
+      count: int64?
+      last_calculation: timestamptz?
+      errors_calculating: int64?
+      last_error_message: string?
+      filters: json?
+      experiment_set: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: feature_flags
+    path: /api/projects/{project_id}/feature_flags/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: int64
+      key: string
+      name: string?
+      active: bool?
+      archived: bool?
+      deleted: bool?
+      status: string?
+      evaluation_runtime: string?
+      version: int64?
+      ensure_experience_continuity: bool?
+      has_encrypted_payloads: bool?
+      is_remote_configuration: bool?
+      user_access_level: string?
+      last_called_at: timestamptz?
+      updated_at: timestamptz?
+      last_modified_by: json?
+      tags: json?
+      filters: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: experiments
+    path: /api/projects/{project_id}/experiments/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: int64
+      name: string?
+      description: string?
+      type: string?
+      status: string?
+      conclusion: string?
+      conclusion_comment: string?
+      feature_flag_key: string?
+      # Join key to feature_flags.id, lifted out of the embedded object.
+      feature_flag_id: { path: feature_flag.id, type: int64, nullable: true }
+      feature_flag: json?
+      holdout: json?
+      exposure_cohort: int64?
+      parameters: json?
+      start_date: timestamptz?
+      end_date: timestamptz?
+      updated_at: timestamptz?
+      archived: bool?
+      deleted: bool?
+      is_legacy: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: insights
+    path: /api/projects/{project_id}/insights/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: int64
+      short_id: string
+      name: string?
+      derived_name: string?
+      description: string?
+      favorited: bool?
+      is_sample: bool?
+      deleted: bool?
+      order: int64?
+      query: json?
+      dashboards: json?
+      last_refresh: timestamptz?
+      last_viewed_at: timestamptz?
+      # Non-nullable by design: this is the incremental contract. A null here
+      # would silently stall the watermark, so fail loudly instead.
+      last_modified_at: timestamptz
+      last_modified_by: json?
+      updated_at: timestamptz?
+      user_access_level: string?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: last_modified_at
+      start_param: date_from
+      inject_into: query
+      checkpoint_key: insights_last_modified_at
+      comparator: time
+      # last_modified_at is server-set, so only clock skew needs covering.
+      overlap_seconds: 300
+
+  - name: dashboards
+    path: /api/projects/{project_id}/dashboards/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: int64
+      name: string?
+      description: string?
+      pinned: bool?
+      is_shared: bool?
+      deleted: bool?
+      creation_mode: string?
+      restriction_level: string?
+      folder: string?
+      last_accessed_at: timestamptz?
+      last_viewed_at: timestamptz?
+      last_refresh: timestamptz?
+      user_access_level: string?
+      team_id: int64?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: actions
+    path: /api/projects/{project_id}/actions/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: int64
+      name: string?
+      description: string?
+      deleted: bool?
+      post_to_slack: bool?
+      slack_message_format: string?
+      is_action: bool?
+      is_calculating: bool?
+      last_calculated_at: timestamptz?
+      pinned_at: timestamptz?
+      creation_context: string?
+      bytecode_error: string?
+      team_id: int64?
+      steps: json?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: annotations
+    path: /api/projects/{project_id}/annotations/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: int64
+      content: string?
+      date_marker: timestamptz?
+      scope: string?
+      creation_type: string?
+      emoji: string?
+      deleted: bool?
+      updated_at: timestamptz?
+      dashboard_id: int64?
+      dashboard_name: string?
+      # dashboard_item is PostHog's legacy name for the insight foreign key.
+      dashboard_item: int64?
+      insight_short_id: string?
+      insight_name: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: surveys
+    path: /api/projects/{project_id}/surveys/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: uuid
+      name: string?
+      description: string?
+      type: string?
+      schedule: string?
+      archived: bool?
+      base_language: string?
+      start_date: timestamptz?
+      end_date: timestamptz?
+      linked_flag_id: int64?
+      responses_limit: int64?
+      iteration_count: int64?
+      current_iteration: int64?
+      enable_partial_responses: bool?
+      linked_flag: json?
+      targeting_flag: json?
+      questions: json?
+      conditions: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: session_recordings
+    path: /api/projects/{project_id}/session_recordings/
+    params:
+      project_id: config.project_id
+    primary_key: [id]
+    fields:
+      id: string
+      distinct_id: string?
+      # Join key to persons.id — string for the same reason, since it is the
+      # same identifier and may arrive as either a number or a UUID.
+      person_id: { path: person.id, type: string, nullable: true }
+      person: json?
+      viewed: bool?
+      ongoing: bool?
+      recording_duration: int64?
+      active_seconds: int64?
+      inactive_seconds: int64?
+      activity_score: float64?
+      click_count: int64?
+      keypress_count: int64?
+      mouse_activity_count: int64?
+      console_log_count: int64?
+      console_error_count: int64?
+      start_time: timestamptz?
+      end_time: timestamptz?
+      start_url: string?
+      snapshot_source: string?
+      viewers: json?
+      raw: { path: $, type: json, mode: remainder }
+
+discovery:
+  mode: static

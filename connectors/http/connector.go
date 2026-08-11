@@ -152,8 +152,18 @@ func (c *Connector) Configure(ctx context.Context) error {
 		return fmt.Errorf("build auth: %w", err)
 	}
 
+	// Rendered once here rather than per request: the host is fixed for the
+	// life of a configured connector. Lets a manifest select a regional host
+	// from config (`base_url: "{{ config.host }}"`) instead of pinning one
+	// cloud. Literal base URLs pass through untouched — Render short-circuits
+	// when there is no template.
+	baseURL, err := template.Render(m.Connection.BaseURL, template.Scope{Config: c.creds})
+	if err != nil {
+		return fmt.Errorf("render base_url: %w", err)
+	}
+
 	c.builder = &request.Builder{
-		BaseURL:           m.Connection.BaseURL,
+		BaseURL:           baseURL,
 		ConnectionHeaders: m.Connection.Headers,
 		Auth:              authn,
 	}

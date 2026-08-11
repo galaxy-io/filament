@@ -1832,3 +1832,296 @@ func TestStripeTestConnectionProbesCustomers(t *testing.T) {
 		t.Fatalf("probe requests = %v, want exactly one GET /v1/customers", paths)
 	}
 }
+
+// The shipped manifest paces at 0.3 req/s to stay under PostHog's 1200/hour
+// analytics ceiling, which would add ~3.3s of real sleep to every multi-page
+// test. Pagination is what these tests exercise, not throttling, so they lift
+// the ceiling the same way other connectors swap in a test base URL. A missed
+// replacement only makes the test slow, never wrong.
+func unthrottledPostHogManifest(t *testing.T) []byte {
+	t.Helper()
+	const throttled = "requests_per_second: 0.3"
+	if !strings.Contains(string(posthogManifest), throttled) {
+		t.Fatalf("manifest no longer contains %q — update the test helper", throttled)
+	}
+	return []byte(strings.Replace(string(posthogManifest), throttled, "requests_per_second: 1000", 1))
+}
+
+func TestNewPostHogSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewPostHog()
+	spec := src.Spec()
+	if spec.Name != "posthog" || spec.DisplayName != "PostHog" {
+		t.Fatalf("spec identity = %q/%q, want posthog/PostHog", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 3 {
+		t.Fatalf("config fields = %#v, want api_key, project_id and host", spec.Config.Fields)
+	}
+	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
+		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])
+	}
+	if fields["project_id"].Type != filament.FieldString || !fields["project_id"].Required {
+		t.Fatalf("project_id field = %#v, want required string", fields["project_id"])
+	}
+	// host carries a default so US Cloud works with no input; EU Cloud and
+	// self-hosted override it.
+	if fields["host"].Type != filament.FieldString || fields["host"].Required {
+		t.Fatalf("host field = %#v, want optional string", fields["host"])
+	}
+	if fields["host"].Default != "https://us.posthog.com" {
+		t.Fatalf("host default = %#v, want the US Cloud host", fields["host"].Default)
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{"api_key": "phx_test_123"})); err == nil {
+		t.Fatal("validate without project_id succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+	})); err != nil {
+		t.Fatalf("configure embedded PostHog manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	want := []string{
+		"persons", "events", "cohorts", "feature_flags", "experiments",
+		"insights", "dashboards", "actions", "annotations", "surveys",
+		"session_recordings",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+// PostHog is the first manifest whose base_url is templated rather than
+// literal, so the host arrives through config instead of a string swap. Every
+// path is scoped to one project id, and DRF hands back an absolute next-page
+// URL that the engine follows as given.
+func TestPostHogPaginatesViaNextURLAndScopesToProject(t *testing.T) {
+	ctx := context.Background()
+	var authorization string
+	var paths, limits, offsets []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/projects/12345/persons/" {
+			http.NotFound(w, r)
+			return
+		}
+		authorization = r.Header.Get("Authorization")
+		paths = append(paths, r.URL.Path)
+		limits = append(limits, r.URL.Query().Get("limit"))
+		offsets = append(offsets, r.URL.Query().Get("offset"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("offset") == "" {
+			// PostHog documents this id as "Accepts both numeric ID and UUID",
+			// and live instances return the UUID even though the response
+			// schema claims integer — so both shapes have to survive.
+			fmt.Fprintf(w, `{"count":3,"previous":null,"next":%q,"results":[
+				{"id":"0516dfdf-d689-58aa-842d-6c88fd4c2423","uuid":"095be615-a8ad-4c33-8e9c-c7612fbf6c9f","name":"ada@example.com",
+				 "distinct_ids":["ada"],"properties":{"plan":"pro"},
+				 "created_at":"2026-01-02T03:04:05Z","last_seen_at":"2026-02-02T03:04:05Z"},
+				{"id":2,"uuid":"18f0a1c4-31d6-4f7c-9a3f-2b1a0c5d6e7f","name":null,
+				 "distinct_ids":["grace"],"properties":{},
+				 "created_at":"2026-01-03T03:04:05Z","last_seen_at":null}]}`,
+				"http://"+r.Host+"/api/projects/12345/persons/?limit=100&offset=100")
+			return
+		}
+		fmt.Fprint(w, `{"count":3,"previous":null,"next":null,"results":[
+			{"id":"2c1d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f","uuid":"2c1d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f","name":"linus@example.com",
+			 "distinct_ids":["linus"],"properties":null,
+			 "created_at":"2026-01-04T03:04:05Z","last_seen_at":"2026-02-04T03:04:05Z"}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("posthog", "PostHog", unthrottledPostHogManifest(t), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+		"host":       api.URL,
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"persons"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract persons: %v", err)
+	}
+
+	if authorization != "Bearer phx_test_123" {
+		t.Fatalf("Authorization = %q, want the personal API key as a bearer token", authorization)
+	}
+	if len(paths) != 2 {
+		t.Fatalf("requests = %v, want the first page and the server's next page", paths)
+	}
+	if limits[0] != "100" {
+		t.Fatalf("limit = %q, want 100 on the first request", limits[0])
+	}
+	// Page two comes from the server's absolute next URL, so its offset is
+	// PostHog's, never one the manifest computed.
+	if offsets[0] != "" || offsets[1] != "100" {
+		t.Fatalf("offsets = %v, want the second request to carry the server's offset", offsets)
+	}
+	if len(sink.records) != 3 {
+		t.Fatalf("records = %d, want all three persons across both pages", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode person: %v", err)
+	}
+	if first["id"] != "0516dfdf-d689-58aa-842d-6c88fd4c2423" || first["uuid"] != "095be615-a8ad-4c33-8e9c-c7612fbf6c9f" {
+		t.Fatalf("person projection = %#v", first)
+	}
+	// The second person carries a numeric id. Typing the column int64 would
+	// abort on the UUID above; string has to hold both, coercing the number.
+	var second map[string]any
+	if err := json.Unmarshal(sink.records[1].Data, &second); err != nil {
+		t.Fatalf("decode person: %v", err)
+	}
+	if second["id"] != "2" {
+		t.Fatalf("numeric person id = %#v, want it coerced into the string column", second["id"])
+	}
+	// distinct_ids and properties stay json rather than being flattened.
+	if _, ok := first["distinct_ids"].([]any); !ok {
+		t.Fatalf("distinct_ids = %#v, want a json array", first["distinct_ids"])
+	}
+}
+
+func TestPostHogEventsIncrementalInjectsAfterMinusOverlap(t *testing.T) {
+	ctx := context.Background()
+	var gotAfter string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/projects/12345/events/" {
+			http.NotFound(w, r)
+			return
+		}
+		gotAfter = r.URL.Query().Get("after")
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"next":null,"results":[
+			{"id":"01890a5d-0000-0000-0000-000000000001","event":"$pageview","distinct_id":"ada",
+			 "timestamp":"2026-08-01T15:00:00Z","properties":{"$browser":"Chrome"},
+			 "person":null,"elements":[],"elements_chain":""}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("posthog", "PostHog", posthogManifest, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+		"host":       api.URL,
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	plan, err := src.PlanResume(ctx, []string{"events"}, nil)
+	if err != nil {
+		t.Fatalf("plan resume: %v", err)
+	}
+	ks, ok := checkpoint.ParseKeyset(plan["events"])
+	if !ok {
+		t.Fatal("plan did not parse as keyset")
+	}
+	// events and insights each declare their own checkpoint key; the
+	// cursor_field fallback would not collide here, but naming them keeps the
+	// stored key stable if either cursor field is ever renamed.
+	if got, want := ks.Cols, []string{"cursor", "events_timestamp"}; len(got) != len(want) || got[1] != want[1] {
+		t.Fatalf("checkpoint cols = %v, want %v", got, want)
+	}
+
+	prev := map[string]filament.Checkpoint{
+		"events": checkpoint.KeysetCheckpoint{
+			Cols:   []string{"cursor", "events_timestamp"},
+			Types:  []string{"string", "string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"", "2026-08-01T12:00:00Z"}}},
+		}.ToCheckpoint("events"),
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"events"}, Parallelism: 1}, prev); err != nil {
+		t.Fatalf("extract from: %v", err)
+	}
+
+	// overlap_seconds: 3600 rewinds the stored watermark an hour, because
+	// buffered SDKs deliver events well behind their own timestamps.
+	if gotAfter != "2026-08-01T11:00:00Z" {
+		t.Fatalf("after = %q, want the stored watermark rewound by the overlap window", gotAfter)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want the single event past the watermark", len(sink.records))
+	}
+}
+
+// Regression test. The watermark advances per record as a page streams, so
+// re-applying it to a server-issued next URL would narrow the range out from
+// under PostHog's own bounds: on a newest-first feed page two would come back
+// empty and the run would commit the newest timestamp having skipped the tail.
+// Pages after the first must carry the server's query untouched.
+func TestPostHogIncrementalLeavesServerNextURLUntouched(t *testing.T) {
+	ctx := context.Background()
+	var afters, befores []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/projects/12345/events/" {
+			http.NotFound(w, r)
+			return
+		}
+		afters = append(afters, r.URL.Query().Get("after"))
+		befores = append(befores, r.URL.Query().Get("before"))
+		w.Header().Set("Content-Type", "application/json")
+		// Newest first, as PostHog orders events by -timestamp, and the next
+		// URL narrows with `before` rather than an offset.
+		if r.URL.Query().Get("before") == "" {
+			fmt.Fprintf(w, `{"next":%q,"results":[
+				{"id":"evt_1","event":"$pageview","distinct_id":"ada",
+				 "timestamp":"2026-08-01T15:00:00Z","properties":{},"person":null,
+				 "elements":[],"elements_chain":""}]}`,
+				"http://"+r.Host+"/api/projects/12345/events/?limit=100&before=2026-08-01T15%3A00%3A00Z")
+			return
+		}
+		fmt.Fprint(w, `{"next":null,"results":[
+			{"id":"evt_0","event":"$pageview","distinct_id":"grace",
+			 "timestamp":"2026-07-20T09:00:00Z","properties":{},"person":null,
+			 "elements":[],"elements_chain":""}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("posthog", "PostHog", unthrottledPostHogManifest(t), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+		"host":       api.URL,
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"events"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract events: %v", err)
+	}
+
+	if len(afters) != 2 {
+		t.Fatalf("requests = %d, want both pages walked", len(afters))
+	}
+	// Page one had no stored watermark, and page two must not inherit the one
+	// page one's own records just produced.
+	if afters[0] != "" || afters[1] != "" {
+		t.Fatalf("after = %v, want no watermark injected on either page", afters)
+	}
+	if befores[1] == "" {
+		t.Fatalf("before = %v, want the server's own bound preserved on page two", befores)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want both pages of events", len(sink.records))
+	}
+}
