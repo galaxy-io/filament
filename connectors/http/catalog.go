@@ -24,6 +24,9 @@ var slackManifest []byte
 //go:embed manifests/resend.yaml
 var resendManifest []byte
 
+//go:embed manifests/square.yaml
+var squareManifest []byte
+
 //go:embed manifests/posthog.yaml
 var posthogManifest []byte
 
@@ -68,6 +71,11 @@ func NewStripe() *Source {
 // NewPostHog returns a Source backed by the embedded PostHog REST API manifest.
 func NewPostHog() *Source {
 	return NewManifestWithMetadata("posthog", "PostHog", "Product analytics platform covering people, events, cohorts, feature flags, experiments, and session replay.", "https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-posthog-light.svg", posthogManifest, manifestOwnedConfig())
+}
+
+// NewSquare returns a Source backed by the embedded Square REST API manifest.
+func NewSquare() *Source {
+	return NewManifestWithMetadata("square", "Square", "Commerce platform covering in-person and online payments, refunds, orders, customers, and product catalog across seller locations.", "https://cdn.getgalaxy.io/sources/source-icon-square-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-square-light.svg", squareManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }

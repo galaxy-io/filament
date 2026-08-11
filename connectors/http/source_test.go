@@ -2125,3 +2125,326 @@ func TestPostHogIncrementalLeavesServerNextURLUntouched(t *testing.T) {
 		t.Fatalf("records = %d, want both pages of events", len(sink.records))
 	}
 }
+
+func TestNewSquareSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewSquare()
+	spec := src.Spec()
+	if spec.Name != "square" || spec.DisplayName != "Square" {
+		t.Fatalf("spec identity = %q/%q, want square/Square", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 2 {
+		t.Fatalf("config fields = %#v, want the access token plus start_time", spec.Config.Fields)
+	}
+	if fields["access_token"].Type != filament.FieldSecret || !fields["access_token"].Required {
+		t.Fatalf("access_token field = %#v, want required secret", fields["access_token"])
+	}
+	// start_time exists so begin_time can be pushed back past Square's silent
+	// one-year default on payments and refunds; it must not be mandatory.
+	if fields["start_time"].Required {
+		t.Fatalf("start_time field = %#v, want optional", fields["start_time"])
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without an access token succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"access_token": "EAAA-test"})); err != nil {
+		t.Fatalf("configure embedded Square manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	// locations must stay first: TestConnection probes the first top-level
+	// resource, and locations is the only one that is unpaginated, parameterless
+	// and present on every Square account.
+	want := []string{"locations", "payments", "refunds", "orders", "customers", "catalog_objects", "team_members"}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+// Omitting location_id on GET /v2/payments returns only the seller's main
+// location, so payments has to fan out over locations. The cursor is a query
+// parameter on the GET endpoints.
+func TestSquarePaginatesPaymentsPerLocationInQuery(t *testing.T) {
+	ctx := context.Background()
+	var authorization, squareVersion string
+	var paymentScopes []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = r.Header.Get("Authorization")
+		squareVersion = r.Header.Get("Square-Version")
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/locations":
+			fmt.Fprint(w, `{"locations":[
+				{"id":"L1","name":"Main","status":"ACTIVE","currency":"USD","created_at":"2024-01-01T00:00:00Z"},
+				{"id":"L2","name":"Second","status":"ACTIVE","currency":"USD","created_at":"2024-01-02T00:00:00Z"}]}`)
+		case "/v2/payments":
+			q := r.URL.Query()
+			paymentScopes = append(paymentScopes, q.Get("location_id")+"|"+q.Get("cursor")+"|"+q.Get("limit")+"|"+q.Get("begin_time")+"|"+q.Get("sort_field"))
+			if q.Get("cursor") == "" {
+				fmt.Fprintf(w, `{"payments":[{"id":"pay_%s_1","status":"COMPLETED","location_id":%q,
+					"created_at":"2026-04-01T10:00:00Z","updated_at":"2026-04-01T10:05:00Z",
+					"amount_money":{"amount":2500,"currency":"USD"},"total_money":{"amount":2750,"currency":"USD"},
+					"tip_money":{"amount":250,"currency":"USD"}}],"cursor":"page-2"}`, q.Get("location_id"), q.Get("location_id"))
+				return
+			}
+			fmt.Fprintf(w, `{"payments":[{"id":"pay_%s_2","status":"COMPLETED","location_id":%q,
+				"created_at":"2026-04-02T10:00:00Z","updated_at":"2026-04-02T10:05:00Z",
+				"amount_money":{"amount":100,"currency":"USD"}}]}`, q.Get("location_id"), q.Get("location_id"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(squareManifest), "https://connect.squareup.com", api.URL, 1))
+	src := NewManifest("square", "Square", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"access_token": "EAAA-test"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"payments"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract payments: %v", err)
+	}
+
+	if authorization != "Bearer EAAA-test" {
+		t.Fatalf("Authorization = %q, want the access token as a bearer token", authorization)
+	}
+	if squareVersion != "2026-07-15" {
+		t.Fatalf("Square-Version = %q, want the pinned API version", squareVersion)
+	}
+	// Two locations x two pages, each carrying the backfill floor and the
+	// UPDATED_AT sort that keeps the incremental read forward-ordered.
+	gotScopes := map[string]bool{}
+	for _, scope := range paymentScopes {
+		gotScopes[scope] = true
+	}
+	if len(paymentScopes) != 4 {
+		t.Fatalf("payment requests = %v, want two pages for each of two locations", paymentScopes)
+	}
+	for _, want := range []string{
+		"L1||100|2009-01-01T00:00:00Z|UPDATED_AT",
+		"L1|page-2|100|2009-01-01T00:00:00Z|UPDATED_AT",
+		"L2||100|2009-01-01T00:00:00Z|UPDATED_AT",
+		"L2|page-2|100|2009-01-01T00:00:00Z|UPDATED_AT",
+	} {
+		if !gotScopes[want] {
+			t.Fatalf("payment requests = %v, missing %q", paymentScopes, want)
+		}
+	}
+	if len(sink.records) != 4 {
+		t.Fatalf("records = %d, want both pages for both locations", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode payment: %v", err)
+	}
+	// Money is flattened to int64 minor units plus its currency, never a float.
+	if first["amount"] != float64(2500) || first["currency"] != "USD" || first["tip_amount"] != float64(250) {
+		t.Fatalf("money projection = %#v", first)
+	}
+	if _, ok := first["raw"].(map[string]any); !ok {
+		t.Fatalf("raw remainder = %#v, want the unmapped payload", first["raw"])
+	}
+}
+
+// Orders has no list endpoint: it is POST-only, location_ids is required, and
+// the cursor goes in the body rather than the query string.
+func TestSquareOrdersSearchSendsCursorAndLocationInBody(t *testing.T) {
+	ctx := context.Background()
+	type searchBody struct {
+		LocationIDs []string `json:"location_ids"`
+		Limit       int      `json:"limit"`
+		Cursor      string   `json:"cursor"`
+		Query       struct {
+			Sort struct {
+				SortField string `json:"sort_field"`
+				SortOrder string `json:"sort_order"`
+			} `json:"sort"`
+		} `json:"query"`
+	}
+	var bodies []searchBody
+	var orderQueries []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/locations":
+			fmt.Fprint(w, `{"locations":[{"id":"L1","name":"Main","status":"ACTIVE"}]}`)
+		case "/v2/orders/search":
+			var body searchBody
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Errorf("decode search body: %v", err)
+			}
+			bodies = append(bodies, body)
+			orderQueries = append(orderQueries, r.URL.RawQuery)
+			if body.Cursor == "" {
+				fmt.Fprint(w, `{"orders":[{"id":"ord_1","location_id":"L1","state":"COMPLETED","version":3,
+					"created_at":"2026-04-01T10:00:00Z","updated_at":"2026-04-01T10:30:00Z",
+					"total_money":{"amount":4200,"currency":"USD"},
+					"total_tax_money":{"amount":200,"currency":"USD"}}],"cursor":"orders-page-2"}`)
+				return
+			}
+			fmt.Fprint(w, `{"orders":[{"id":"ord_2","location_id":"L1","state":"OPEN","version":1,
+				"created_at":"2026-04-02T10:00:00Z","updated_at":"2026-04-02T10:30:00Z",
+				"total_money":{"amount":900,"currency":"USD"}}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(squareManifest), "https://connect.squareup.com", api.URL, 1))
+	src := NewManifest("square", "Square", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"access_token": "EAAA-test"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"orders"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract orders: %v", err)
+	}
+
+	if len(bodies) != 2 {
+		t.Fatalf("search requests = %d, want a first page and a cursor follow-up", len(bodies))
+	}
+	for i, body := range bodies {
+		if len(body.LocationIDs) != 1 || body.LocationIDs[0] != "L1" {
+			t.Fatalf("body[%d].location_ids = %v, want the captured parent location", i, body.LocationIDs)
+		}
+		if body.Limit != 1000 {
+			t.Fatalf("body[%d].limit = %d, want Square's 1000 maximum", i, body.Limit)
+		}
+		// Square rejects a date-filtered search whose sort_field differs from the
+		// filtered field, so the sort must be pinned even before a watermark
+		// exists to inject a filter.
+		if body.Query.Sort.SortField != "UPDATED_AT" || body.Query.Sort.SortOrder != "ASC" {
+			t.Fatalf("body[%d].query.sort = %#v, want UPDATED_AT/ASC", i, body.Query.Sort)
+		}
+	}
+	if bodies[0].Cursor != "" || bodies[1].Cursor != "orders-page-2" {
+		t.Fatalf("body cursors = %q/%q, want empty then orders-page-2", bodies[0].Cursor, bodies[1].Cursor)
+	}
+	// The cursor belongs in the body on the POST search endpoints, never the URL.
+	for i, raw := range orderQueries {
+		if raw != "" {
+			t.Fatalf("order request[%d] query = %q, want the cursor in the body only", i, raw)
+		}
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want both pages of orders", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode order: %v", err)
+	}
+	if first["id"] != "ord_1" || first["total_amount"] != float64(4200) || first["currency"] != "USD" {
+		t.Fatalf("order projection = %#v", first)
+	}
+}
+
+// The orders time filter lives five levels deep in the request body, so the
+// manifest uses a dotted start_param. This covers the mechanic the plain
+// first-run test above cannot: that the dotted path materializes as nested
+// JSON and does not clobber the sibling sort block templated alongside it.
+func TestSquareOrdersIncrementalNestsWatermarkDeepInBody(t *testing.T) {
+	ctx := context.Background()
+	type ordersFilterBody struct {
+		LocationIDs []string `json:"location_ids"`
+		Query       struct {
+			Filter struct {
+				DateTimeFilter struct {
+					UpdatedAt struct {
+						StartAt string `json:"start_at"`
+					} `json:"updated_at"`
+				} `json:"date_time_filter"`
+			} `json:"filter"`
+			Sort struct {
+				SortField string `json:"sort_field"`
+				SortOrder string `json:"sort_order"`
+			} `json:"sort"`
+		} `json:"query"`
+	}
+	var bodies []ordersFilterBody
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/locations":
+			fmt.Fprint(w, `{"locations":[{"id":"L1","name":"Main","status":"ACTIVE"}]}`)
+		case "/v2/orders/search":
+			var body ordersFilterBody
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Errorf("decode search body: %v", err)
+			}
+			bodies = append(bodies, body)
+			fmt.Fprint(w, `{"orders":[{"id":"ord_9","location_id":"L1","state":"COMPLETED",
+				"created_at":"2026-04-11T10:00:00Z","updated_at":"2026-04-11T10:30:00Z",
+				"total_money":{"amount":1500,"currency":"USD"}}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(squareManifest), "https://connect.squareup.com", api.URL, 1))
+	src := NewManifest("square", "Square", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"access_token": "EAAA-test"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	plan, err := src.PlanResume(ctx, []string{"orders"}, nil)
+	if err != nil {
+		t.Fatalf("plan resume: %v", err)
+	}
+	ks, ok := checkpoint.ParseKeyset(plan["orders"])
+	if !ok {
+		t.Fatal("orders plan did not parse as a keyset")
+	}
+	if len(ks.Cols) != 2 || ks.Cols[1] != "square_orders_updated_since" {
+		t.Fatalf("checkpoint cols = %v, want the declared orders checkpoint key", ks.Cols)
+	}
+
+	prev := map[string]filament.Checkpoint{
+		"orders": checkpoint.KeysetCheckpoint{
+			Cols:   ks.Cols,
+			Types:  []string{"string", "string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"", "2026-04-10T12:00:00Z"}}},
+		}.ToCheckpoint("orders"),
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"orders"}, Parallelism: 1}, prev); err != nil {
+		t.Fatalf("extract from: %v", err)
+	}
+
+	if len(bodies) != 1 {
+		t.Fatalf("search requests = %d, want one", len(bodies))
+	}
+	body := bodies[0]
+	// overlap_seconds: 60 re-reads a minute either side of the watermark, which
+	// is what covers Square's exclusive begin-bound semantics.
+	if got := body.Query.Filter.DateTimeFilter.UpdatedAt.StartAt; got != "2026-04-10T11:59:00Z" {
+		t.Fatalf("query.filter.date_time_filter.updated_at.start_at = %q, want the watermark minus the overlap", got)
+	}
+	// The injected filter must not have replaced the templated sort sibling.
+	if body.Query.Sort.SortField != "UPDATED_AT" || body.Query.Sort.SortOrder != "ASC" {
+		t.Fatalf("query.sort = %#v, want the templated UPDATED_AT/ASC to survive the merge", body.Query.Sort)
+	}
+	if len(body.LocationIDs) != 1 || body.LocationIDs[0] != "L1" {
+		t.Fatalf("location_ids = %v, want the captured parent location", body.LocationIDs)
+	}
+}

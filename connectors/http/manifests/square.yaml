@@ -1,0 +1,379 @@
+version: 1
+name: square
+config:
+  access_token:
+    type: secret
+    required: true
+    help: Square personal access token from the Developer Console > your application > Credentials. Use the production token; this manifest targets the production host only.
+  start_time:
+    type: string
+    default: "2009-01-01T00:00:00Z"
+    help: Oldest created_at to backfill, as RFC 3339. Square defaults begin_time to one year ago on the payments and refunds endpoints, which would silently truncate history; this pushes the floor back. Raise it to narrow a backfill.
+# Square documents its base URL with a trailing /v2, and every endpoint
+# reference also writes its own path as /v2/... . The /v2 lives on the resource
+# paths below so that it is not doubled. Keep the host itself out of comments:
+# the source tests retarget this manifest by replacing the first occurrence of
+# the base_url string with an httptest server, and a second mention earlier in
+# the file would shadow it and send the suite at Square's production API.
+defaults:
+  method: GET
+  response:
+    # Universal across the API: the request param is `cursor`, the next cursor
+    # comes back at the top level of the body, and the final page omits it.
+    # GET endpoints take it in the query string; the POST /search resources
+    # below override `request` to body.cursor. null_terminates is defensive —
+    # Square documents "absent" and "returned but empty" but never says whether
+    # an explicit null can appear.
+    pagination:
+      cursor:
+        response: cursor
+        request: query.cursor
+        null_terminates: true
+connection:
+  base_url: https://connect.squareup.com
+  auth:
+    bearer: config.access_token
+  headers:
+    # Pinned deliberately. When omitted, Square serves whatever version is
+    # pinned to the application in the Developer Console, so behaviour would
+    # drift without a manifest change. Square ships roughly monthly, so this
+    # needs periodic bumping.
+    Square-Version: "2026-07-15"
+    Accept: application/json
+  timeout_seconds: 60
+  # Square deliberately does not publish numeric REST rate limits, and documents
+  # no rate-limit response headers. (The X-RateLimit-* trio appears only in a
+  # developer-forum reply, never in the reference docs, so `dynamic:` is omitted
+  # rather than configured against header names nobody has verified.) Square
+  # staff suggest self-testing from 1-5 QPS, so hold at the top of that band.
+  rate_limit:
+    requests_per_second: 5
+resources:
+  # Declared first on purpose: connection validation probes the first top-level
+  # resource, and locations is universally present, needs only
+  # MERCHANT_PROFILE_READ, takes no parameters, and is not paginated. It is also
+  # the fan-out parent for payments and orders.
+  - name: locations
+    path: /v2/locations
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      status: string?
+      type: string?
+      merchant_id: string?
+      country: string?
+      language_code: string?
+      currency: string?
+      timezone: string?
+      phone_number: string?
+      business_name: string?
+      address: json?
+      capabilities: json?
+      coordinates: json?
+      business_hours: json?
+      # Locations carry created_at but no updated_at, and the endpoint accepts
+      # no filter, so this resource is always a full refresh.
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      location_id: id
+    response:
+      records: $.locations
+      pagination: none
+
+  # Fans out over locations because omitting location_id does NOT mean "all
+  # locations" here: Square returns results for the seller's default (main)
+  # location only, so a multi-location merchant would silently lose every
+  # payment taken anywhere else. Contrast refunds below, where the identically
+  # named optional parameter defaults to all locations.
+  - name: payments
+    path: /v2/payments
+    query:
+      location_id: "{{ parent.location_id }}"
+      begin_time: "{{ config.start_time }}"
+      sort_field: UPDATED_AT
+      sort_order: ASC
+      limit: "100"
+    for_each: locations
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      status: string?
+      source_type: string?
+      location_id: string?
+      order_id: string?
+      customer_id: string?
+      team_member_id: string?
+      receipt_number: string?
+      receipt_url: string?
+      version_token: string?
+      delay_action: string?
+      # Square Money is always {amount, currency} where amount is an integer in
+      # the currency's smallest denomination (cents for USD). Never coerce to a
+      # float; the pair is flattened rather than kept as json so the amounts are
+      # directly aggregable in the warehouse.
+      amount: { path: amount_money.amount, type: int64, nullable: true }
+      currency: { path: amount_money.currency, type: string, nullable: true }
+      tip_amount: { path: tip_money.amount, type: int64, nullable: true }
+      total_amount: { path: total_money.amount, type: int64, nullable: true }
+      app_fee_amount: { path: app_fee_money.amount, type: int64, nullable: true }
+      approved_amount: { path: approved_money.amount, type: int64, nullable: true }
+      refunded_amount: { path: refunded_money.amount, type: int64, nullable: true }
+      refund_ids: json?
+      processing_fee: json?
+      card_details: json?
+      application_details: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.payments
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_begin_time
+      inject_into: query
+      checkpoint_key: square_payments_updated_since
+      comparator: time
+      overlap_seconds: 60
+
+  # Top-level, unlike payments: "By default, results are returned for all
+  # locations associated with the seller." Fanning this out over locations would
+  # duplicate every refund once per location.
+  - name: refunds
+    path: /v2/refunds
+    query:
+      begin_time: "{{ config.start_time }}"
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      status: string?
+      reason: string?
+      location_id: string?
+      payment_id: string?
+      order_id: string?
+      team_member_id: string?
+      amount: { path: amount_money.amount, type: int64, nullable: true }
+      currency: { path: amount_money.currency, type: string, nullable: true }
+      app_fee_amount: { path: app_fee_money.amount, type: int64, nullable: true }
+      processing_fee: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.refunds
+    # No sort_field here, deliberately. The refunds reference hides its
+    # sort_field enum behind a toggle, so UPDATED_AT is unconfirmed for this
+    # endpoint and sending an invalid value would 400. Ordering is not needed
+    # for correctness: the watermark is the running max of observed updated_at
+    # values, not the last row read, and each run drains the whole page walk
+    # before the checkpoint is committed.
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_begin_time
+      inject_into: query
+      checkpoint_key: square_refunds_updated_since
+      comparator: time
+      overlap_seconds: 60
+
+  # There is no ListOrders endpoint; search is the only way to enumerate orders,
+  # and location_ids is required (max 10 per request, so one location per
+  # request stays well inside the cap).
+  - name: orders
+    path: /v2/orders/search
+    method: POST
+    for_each: locations
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      closed_at: timestamptz?
+      location_id: string?
+      reference_id: string?
+      customer_id: string?
+      state: string?
+      version: int64?
+      source_name: { path: source.name, type: string, nullable: true }
+      total_amount: { path: total_money.amount, type: int64, nullable: true }
+      currency: { path: total_money.currency, type: string, nullable: true }
+      total_tax_amount: { path: total_tax_money.amount, type: int64, nullable: true }
+      total_discount_amount: { path: total_discount_money.amount, type: int64, nullable: true }
+      total_tip_amount: { path: total_tip_money.amount, type: int64, nullable: true }
+      total_service_charge_amount: { path: total_service_charge_money.amount, type: int64, nullable: true }
+      net_amount_due: { path: net_amount_due_money.amount, type: int64, nullable: true }
+      line_items: json?
+      fulfillments: json?
+      tenders: json?
+      refunds: json?
+      net_amounts: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        location_ids: ["{{ parent.location_id }}"]
+        limit: 1000
+        # sort_field is pinned to UPDATED_AT permanently because Square rejects
+        # a search that filters on a date field without sorting on that same
+        # field, and the incremental block below injects exactly that filter.
+        # Sorting without filtering is legal, so the first (watermark-free) run
+        # is fine.
+        query:
+          sort:
+            sort_field: UPDATED_AT
+            sort_order: ASC
+    response:
+      records: $.orders
+      pagination:
+        cursor:
+          response: cursor
+          request: body.cursor
+          null_terminates: true
+    # The start value has to land five levels deep in the request body. A dotted
+    # start_param works because body overrides are merged with a path-splitting
+    # setter, which builds the intermediate objects and preserves the sibling
+    # `sort` block templated above.
+    incremental:
+      cursor_field: updated_at
+      start_param: query.filter.date_time_filter.updated_at.start_at
+      inject_into: body
+      checkpoint_key: square_orders_updated_since
+      comparator: time
+      overlap_seconds: 60
+
+  # Full refresh, deliberately. GET /v2/customers accepts no time filter, and
+  # the POST /v2/customers/search alternative that does is not safe to swap in:
+  # it returns only profiles carrying public information (given_name,
+  # family_name, company_name, email_address or phone_number), so it silently
+  # omits bare profiles this endpoint returns. Its CustomerSortField also has no
+  # UPDATED_AT member, so the stream would be filtered but unordered.
+  # Completeness beats incrementality here.
+  - name: customers
+    path: /v2/customers
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      given_name: string?
+      family_name: string?
+      company_name: string?
+      nickname: string?
+      email_address: string?
+      phone_number: string?
+      birthday: string?
+      reference_id: string?
+      note: string?
+      creation_source: string?
+      version: int64?
+      address: json?
+      preferences: json?
+      group_ids: json?
+      segment_ids: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.customers
+
+  # Search rather than GET /v2/catalog/list: search is the only variant with a
+  # time filter (begin_time) and the only one that can return deleted objects,
+  # whereas list silently omits deletions and exposes no limit parameter at all.
+  - name: catalog_objects
+    path: /v2/catalog/search
+    method: POST
+    primary_key: [id]
+    fields:
+      id: string
+      type: string?
+      # CatalogObject carries updated_at but no created_at.
+      updated_at: timestamptz?
+      version: int64?
+      is_deleted: bool?
+      present_at_all_locations: bool?
+      present_at_location_ids: json?
+      item_data: json?
+      item_variation_data: json?
+      category_data: json?
+      tax_data: json?
+      discount_data: json?
+      modifier_list_data: json?
+      image_data: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        # object_types is required and is hardcoded rather than config-driven: a
+        # template renders to a string, so a comma-separated config value would
+        # arrive as a single-element array instead of a list of types.
+        object_types:
+          - ITEM
+          - ITEM_VARIATION
+          - CATEGORY
+          - TAX
+          - DISCOUNT
+          - MODIFIER_LIST
+          - IMAGE
+        include_deleted_objects: true
+        limit: 1000
+    response:
+      records: $.objects
+      pagination:
+        cursor:
+          response: cursor
+          request: body.cursor
+          null_terminates: true
+    # begin_time is exclusive on this endpoint ("objects with a timestamp equal
+    # to begin_time will not be included"), so the overlap window is what keeps
+    # a row updated in the same second as the watermark from being skipped.
+    incremental:
+      cursor_field: updated_at
+      start_param: begin_time
+      inject_into: body
+      checkpoint_key: square_catalog_updated_since
+      comparator: time
+      overlap_seconds: 60
+
+  # POST-only, and no filter is required, so this lists every team member.
+  # Records carry updated_at but the request exposes no time filter (only
+  # location_ids / status / is_owner), so this is a full refresh.
+  - name: team_members
+    path: /v2/team-members/search
+    method: POST
+    primary_key: [id]
+    fields:
+      id: string
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      status: string?
+      is_owner: bool?
+      given_name: string?
+      family_name: string?
+      email_address: string?
+      phone_number: string?
+      reference_id: string?
+      assigned_locations: json?
+      wage_setting: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        limit: 200
+    response:
+      records: $.team_members
+      pagination:
+        cursor:
+          response: cursor
+          request: body.cursor
+          null_terminates: true
+discovery:
+  mode: static
+  include:
+    - locations
+    - payments
+    - refunds
+    - orders
+    - customers
+    - catalog_objects
+    - team_members

@@ -115,6 +115,7 @@
               "pages/connectors/sources/posthog",
               "pages/connectors/sources/resend",
               "pages/connectors/sources/slack",
+              "pages/connectors/sources/square",
               "pages/connectors/sources/stripe",
               "pages/connectors/sources/http",
               "pages/connectors/sources/sample"

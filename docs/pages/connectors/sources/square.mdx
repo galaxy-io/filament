@@ -1,0 +1,167 @@
+---
+title: "Square"
+description: "Read locations, payments, refunds, orders, customers, catalog, and team members from a Square account."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-square-dark.svg"
+---
+
+Square is a manifest-driven source — `connectors/http/manifests/square.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Square-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A Square **personal access token**, sent as a bearer token. Get it from the
+Developer Console → your application → **Credentials** → Production. Square
+describes a personal access token as having unrestricted access to the
+resources in its own account, so no per-resource permission grants are needed.
+
+Square's OAuth supports only the `authorization_code`, `refresh_token`, and
+`migration_token` grants — there is no `client_credentials` flow — so the static
+personal access token is the only mechanism this connector can use, and it is
+Square's documented approach for single-tenant integrations.
+
+An optional `start_time` config (default `2009-01-01T00:00:00Z`) sets how far
+back a backfill reaches; see [Backfill window](#backfill-window) below.
+
+## Resources
+
+Seven resources, all statically discovered.
+
+| Resource | Path | Method | Fans out from |
+|---|---|---|---|
+| `locations` | `/v2/locations` | GET | — |
+| `payments` | `/v2/payments` | GET | `locations` |
+| `refunds` | `/v2/refunds` | GET | — |
+| `orders` | `/v2/orders/search` | POST | `locations` |
+| `customers` | `/v2/customers` | GET | — |
+| `catalog_objects` | `/v2/catalog/search` | POST | — |
+| `team_members` | `/v2/team-members/search` | POST | — |
+
+`locations` is declared first deliberately: connection validation probes the
+first top-level resource in the manifest, and `locations` takes no parameters,
+is not paginated, and exists on every Square account. It is also the fan-out
+parent for `payments` and `orders`.
+
+<Warning>
+  **`payments` fans out over locations; `refunds` does not.** Both endpoints
+  take an optional `location_id`, but the defaults are opposite: omitting it on
+  `/v2/payments` returns only the seller's *default (main)* location, while
+  omitting it on `/v2/refunds` returns *all* locations. So `payments` must
+  iterate locations or a multi-location merchant silently loses every payment
+  taken elsewhere — and `refunds` must not, or every refund would be duplicated
+  once per location. This asymmetry between two identically named optional
+  parameters is the easiest way to introduce a silent data-completeness bug
+  here.
+</Warning>
+
+Pagination is uniform in shape and split by method: the request parameter is
+always `cursor`, the next cursor always comes back at the top level of the
+response body, and the final page omits it. GET resources take it as a query
+parameter (the connection-wide `defaults:` block), while the POST `/search`
+resources override the target to `body.cursor`. `locations` declares
+`pagination: none`.
+
+Money is flattened rather than stored as JSON. Square's `Money` object is
+always `{amount, currency}` where `amount` is an integer in the currency's
+smallest denomination, so `amount_money` becomes an `int64` `amount` column
+plus a `currency` column — never a float.
+
+### Endpoints deliberately not covered
+
+`catalog_objects` reads `POST /v2/catalog/search` rather than
+`GET /v2/catalog/list`, because search is the only variant with a time filter
+and the only one that can return deleted objects; `list` silently omits
+deletions and exposes no page-size parameter at all. Its required
+`object_types` list is fixed in the manifest (`ITEM`, `ITEM_VARIATION`,
+`CATEGORY`, `TAX`, `DISCOUNT`, `MODIFIER_LIST`, `IMAGE`) rather than
+config-driven, since a template renders to a string and a comma-separated
+config value would arrive as a single-element array.
+
+Payouts, disputes, invoices, subscriptions, inventory, loyalty, gift cards, and
+bank accounts are all expressible in the grammar but out of scope for this
+manifest, which covers the core commerce system of record.
+
+## Incremental sync
+
+Four of the seven resources declare an `incremental:` block:
+
+| Resource | Cursor field | Start parameter | Injected into |
+|---|---|---|---|
+| `payments` | `updated_at` | `updated_at_begin_time` | query |
+| `refunds` | `updated_at` | `updated_at_begin_time` | query |
+| `orders` | `updated_at` | `query.filter.date_time_filter.updated_at.start_at` | body |
+| `catalog_objects` | `updated_at` | `begin_time` | body |
+
+`orders` is the interesting one. Square's search filter is nested five levels
+deep in the request body, so the manifest uses a **dotted `start_param`** —
+body overrides are merged with a path-splitting setter that builds the
+intermediate objects and preserves siblings, so the injected filter lands
+alongside the templated `query.sort` block rather than replacing it. Square
+also rejects a date-filtered search whose `sort_field` differs from the
+filtered field, so the body template pins `sort_field: UPDATED_AT` permanently;
+sorting without filtering is legal, so the first watermark-free run is fine.
+
+All four use `comparator: time` with `overlap_seconds: 60`. The overlap matters
+most for `catalog_objects`, whose `begin_time` bound is *exclusive* — objects
+with a timestamp exactly equal to `begin_time` are omitted.
+
+The remaining three are full-refresh every run:
+
+- **`locations`** has no `updated_at` field and the endpoint takes no
+  parameters. The table is tiny, so this is harmless.
+- **`team_members`** records carry `updated_at`, but the search request filters
+  only on `location_ids` / `status` / `is_owner` — there is no time filter.
+- **`customers`** is a deliberate choice rather than a limitation.
+  `GET /v2/customers` has no time filter, and the `POST /v2/customers/search`
+  alternative that does is not safe to substitute: it returns only profiles
+  carrying public information (`given_name`, `family_name`, `company_name`,
+  `email_address`, or `phone_number`), so it silently omits bare profiles the
+  list endpoint returns. Its `CustomerSortField` also has no `UPDATED_AT`
+  member, so the stream would be filtered but unordered. Completeness wins.
+
+Note that ordering is not required for watermark correctness anywhere: the
+watermark is the running maximum of observed cursor values, not the last row
+read, and a run drains its whole page walk before the checkpoint commits. This
+is why `refunds` omits `sort_field` — the refunds reference hides its
+`sort_field` enum, so `UPDATED_AT` is unconfirmed there and sending an invalid
+value would fail the request for no correctness gain.
+
+### Backfill window
+
+On `/v2/payments` and `/v2/refunds`, Square's `begin_time` parameter is a
+*created-at* filter that **defaults to one year ago**. Left unset it would both
+cap history at twelve months and hide older records that were recently updated,
+even with `updated_at_begin_time` set. The manifest therefore templates the
+`start_time` config into `begin_time` on both resources, defaulting to
+`2009-01-01T00:00:00Z`. Raise it to narrow a backfill.
+
+## Errors and rate limits
+
+Square returns conventional HTTP status codes with an
+`{"errors": [{"category", "code", "detail"}]}` body, so this manifest needs no
+`response.error` block (contrast [Slack](/pages/connectors/sources/slack),
+which signals failure inside HTTP 200). Square's one 200-with-errors exception
+applies to `batch-retrieve` endpoints, none of which this manifest reads.
+
+Square deliberately does not publish numeric REST rate limits and documents no
+rate-limit response headers, so the manifest sets a conservative static
+`requests_per_second: 5` and omits the `dynamic:` block rather than configuring
+it against unverified header names.
+
+<Info>
+  Square cursors expire after **five minutes**. A resource pages in one
+  continuous pass so this is normally invisible, but a sink stalled for minutes
+  mid-resource can invalidate the cursor and fail that resource's walk.
+</Info>
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+
+<Note>
+  Production only. `base_url` is a fixed URI rather than a template, so Square
+  Sandbox (`connect.squareupsandbox.com`) would need a separate manifest.
+  The pinned `Square-Version: 2026-07-15` header also needs periodic bumping;
+  Square ships new API versions roughly monthly.
+</Note>
