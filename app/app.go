@@ -35,7 +35,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/internal/modules/engine"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
-	schedulermodule "github.com/galaxy-io/filament/internal/modules/scheduler"
+	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
@@ -103,9 +103,9 @@ func Run(ctx context.Context, opts ...Option) error {
 	if !ok {
 		return fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
 	}
-	scheduler := schedulermodule.New(scheduleStore, schedulermodule.WithPipelineSubmitter(api))
+	sched := scheduler.New(scheduleStore)
 	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks}
-	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, scheduler)
+	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, sched)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
 	}
@@ -122,7 +122,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run: %w", err)
 	}
-	scheduler.Start(ctx)
+	sched.Start(ctx)
 	for _, name := range h.Mounted() {
 		fmt.Println("mounted:", name)
 	}

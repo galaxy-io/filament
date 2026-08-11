@@ -18,6 +18,11 @@ type DataStore interface {
 	EnsureTenant(ctx context.Context, id TenantID, name string) error
 
 	SaveRun(ctx context.Context, s RunState) error
+	// CreateRun persists a new run row or promotes a pre-created RunScheduled
+	// row. A row that has progressed past RunScheduled is left untouched and
+	// ErrVersionConflict returned, so a racing intake cannot roll a live run
+	// back to an earlier status.
+	CreateRun(ctx context.Context, s RunState) error
 	LoadRun(ctx context.Context, id RunID) (RunState, error)
 	// ListRuns returns the page selected by the filter's Limit/Offset plus the
 	// total number of runs matching the filter before the page was cut.
@@ -145,18 +150,6 @@ type MetricsStore interface {
 	Ping(ctx context.Context) error
 	QueryRunTimeseries(ctx context.Context, q RunTimeseriesQuery) ([]RunTimeseries, error)
 	QueryRunAggregate(ctx context.Context, q RunAggregateQuery) ([]RunAggregateRow, error)
-}
-
-// Scheduler manages the lifecycle of recurring pipeline schedules.
-type Scheduler interface {
-	Register(ctx context.Context, spec ScheduleSpec) (ScheduleID, error)
-	Update(ctx context.Context, id ScheduleID, spec ScheduleSpec) error
-	Pause(ctx context.Context, id ScheduleID) error
-	Resume(ctx context.Context, id ScheduleID) error
-	Delete(ctx context.Context, id ScheduleID) error
-	Get(ctx context.Context, id ScheduleID) (ScheduleState, error)
-	List(ctx context.Context, f ScheduleFilter) ([]ScheduleState, error)
-	Name() string
 }
 
 // ScheduleSpec defines when a pipeline runs and whether occurrences may overlap.

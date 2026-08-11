@@ -121,8 +121,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		return
 	}
 	spec.WritePolicies = plan.WritePolicies
-	// Ordered reads (incremental cursors, CDC streams) cannot shard.
-	if incremental, _ := partitionCheckpointing(spec); plan.RequiresCDC || len(incremental) > 0 {
+	// Ordered reads (incremental cursors, CDC streams, checkpointed resume)
+	// cannot shard: parallel writers apply batches out of order, so a keyset
+	// cursor could persist behind rows already written.
+	if incremental, checkpointed := partitionCheckpointing(spec); plan.RequiresCDC || len(incremental) > 0 || len(checkpointed) > 0 {
 		spec.Options.SnapshotParallelism = 1
 	}
 	if err := snk.Open(ctx, spec); err != nil {
@@ -222,6 +224,11 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 
 	if err := snk.Commit(ctx); err != nil {
 		em.fail(fmt.Errorf("commit sink %q: %w", spec.Sink.Provider, err))
+		abortCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), abortWait)
+		defer cancel()
+		if aerr := snk.Abort(abortCtx); aerr != nil && deps.Log != nil {
+			deps.Log.Error("runner: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
+		}
 		return
 	}
 	for _, res := range resources {

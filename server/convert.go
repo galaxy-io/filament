@@ -216,25 +216,6 @@ func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
 	}
 }
 
-func ingestionTypeFromProto(t ingestionv1.IngestionType) filament.IngestionType {
-	switch t {
-	case ingestionv1.IngestionType_INGESTION_TYPE_FULL_UPSERT:
-		return filament.IngestionFullUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_FULL_APPEND:
-		return filament.IngestionFullAppend
-	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND:
-		return filament.IngestionIncrementalAppend
-	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT:
-		return filament.IngestionIncrementalUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE:
-		return filament.IngestionIncrementalDelete
-	case ingestionv1.IngestionType_INGESTION_TYPE_CDC:
-		return filament.IngestionCDC
-	default:
-		return filament.IngestionFullReplace
-	}
-}
-
 func operationsToProto(ops []filament.Operation) []ingestionv1.Operation {
 	out := make([]ingestionv1.Operation, 0, len(ops))
 	for _, op := range ops {

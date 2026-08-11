@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
-	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 )
@@ -327,7 +326,7 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 	// reap the schedule's pending pre-created runs.
 	if a.schedules != nil {
 		if st, err := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetId()); err == nil {
-			if err := a.DropScheduledRuns(ctx, st.ID); err != nil {
+			if err := runs.DropScheduled(ctx, a.store, st.ID); err != nil {
 				fmt.Printf("[ingestion-api] drop scheduled runs schedule=%s err=%v\n", st.ID, err)
 			}
 		}
@@ -338,309 +337,55 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 // RunPipeline groups the pipeline's edges into per-route runs and submits each
 // to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
-	bindings, err := a.submitPipeline(ctx, req.Msg, "")
+	bindings, err := a.submitPipeline(ctx, req.Msg)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&ingestionv1.RunPipelineResponse{Runs: bindings}), nil
 }
 
-// SubmitScheduledPipeline compiles and submits a pipeline for one claimed
-// schedule occurrence. The occurrence token makes each cron tick idempotent.
-func (a *Server) SubmitScheduledPipeline(ctx context.Context, pipelineID string, scheduleID filament.ScheduleID, token string) ([]filament.RunID, error) {
-	bindings, err := a.submitPipeline(ctx, &ingestionv1.RunPipelineRequest{
-		PipelineId:  pipelineID,
-		ClientToken: token,
-	}, scheduleID)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]filament.RunID, 0, len(bindings))
-	for _, binding := range bindings {
-		ids = append(ids, filament.RunID(binding.GetRunId()))
-	}
-	return ids, nil
-}
-
-func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelineRequest, scheduleID filament.ScheduleID) ([]*ingestionv1.RunBinding, error) {
+func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelineRequest) ([]*ingestionv1.RunBinding, error) {
 	token := req.GetClientToken()
 	if token == "" {
 		token = uuid.NewString()
 	}
-	compiled, err := a.compilePipeline(ctx, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), scheduleID)
+	compiled, err := a.compiler.Compile(ctx, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "")
 	if err != nil {
-		return nil, err
+		return nil, compileError(err)
 	}
 	var bindings []*ingestionv1.RunBinding
 	for _, c := range compiled {
-		run, err := a.orch.Submit(ctx, c.req)
+		run, err := a.orch.Submit(ctx, c.Req)
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", c.edge, c.req.Source.Provider, c.req.Sink.Provider, c.req.Resources, run)
-		bindings = append(bindings, &ingestionv1.RunBinding{Edge: c.edge, RunId: string(run)})
+		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", c.Edge, c.Req.Source.Provider, c.Req.Sink.Provider, c.Req.Resources, run)
+		bindings = append(bindings, &ingestionv1.RunBinding{Edge: c.Edge, RunId: string(run)})
 	}
 	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", req.GetPipelineId(), len(bindings))
 	return bindings, nil
 }
 
-// ReconcileScheduledRuns drops the schedule's pending pre-created runs and,
-// when the schedule will fire again, pre-creates rows for that occurrence at
-// RunScheduled, one per route. It is the single owner of RunScheduled
-// bookkeeping: the schedule RPCs call it on every save, CreatePipelineVersion
-// refreshes routes through it, and the scheduler calls it around fires and
-// skips. The occurrence token yields the same run ids SubmitScheduledPipeline
-// derives at fire, which is what lets promotion find these rows.
-func (a *Server) ReconcileScheduledRuns(ctx context.Context, st filament.ScheduleState) error {
-	if err := a.DropScheduledRuns(ctx, st.ID); err != nil {
-		return err
-	}
-	if !st.Enabled || st.NextFire == nil {
-		return nil
-	}
-	token := scheduledomain.OccurrenceToken(st.ID, *st.NextFire)
-	compiled, err := a.compilePipeline(ctx, st.Spec.PipelineID, token, filament.RunOptions{}, st.ID)
-	if err != nil {
-		return err
-	}
-	for _, c := range compiled {
-		// The fire path recompiles without a fire time, so this pre-create is
-		// where scheduled_at comes from; promotion preserves it.
-		c.req.ScheduledFor = *st.NextFire
-		if _, err := runs.Schedule(ctx, a.store, c.req); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// DropScheduledRuns deletes every pending RunScheduled row for the schedule.
-func (a *Server) DropScheduledRuns(ctx context.Context, id filament.ScheduleID) error {
-	pending, _, err := a.store.ListRuns(ctx, filament.RunFilter{
-		Schedule: id,
-		Status:   []filament.RunStatus{filament.RunScheduled},
-	})
-	if err != nil {
-		return err
-	}
-	for _, r := range pending {
-		if err := a.store.DeleteRun(ctx, r.Run); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// reconcileScheduledRunsBestEffort runs ReconcileScheduledRuns without failing
-// the caller: the rows are a visibility artifact, and a schedule on a pipeline
-// with no compilable version yet is expected to fail here until the first
-// version lands.
+// reconcileScheduledRunsBestEffort refreshes the schedule's pre-created
+// RunScheduled rows without failing the caller: the rows are a visibility
+// artifact, and a schedule on a pipeline with no compilable version yet is
+// expected to fail here until the first version lands.
 func (a *Server) reconcileScheduledRunsBestEffort(ctx context.Context, st filament.ScheduleState) {
-	if err := a.ReconcileScheduledRuns(ctx, st); err != nil {
+	if err := runs.ReconcileScheduled(ctx, a.store, a.compiler, st); err != nil {
 		fmt.Printf("[ingestion-api] reconcile scheduled runs schedule=%s err=%v\n", st.ID, err)
 	}
 }
 
-// compiledRun is one route's ready-to-submit request, keyed by its canvas edge.
-type compiledRun struct {
-	edge string
-	req  filament.RunRequest
-}
-
-// compilePipeline loads the pipeline's current version and collapses its edges
-// into per-route run requests. token salts each route's idempotency key.
-func (a *Server) compilePipeline(ctx context.Context, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID) ([]compiledRun, error) {
-	pipeline, err := a.store.LoadPipeline(ctx, pipelineID)
-	if errors.Is(err, filament.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+// compileError maps compiler sentinels onto Connect codes.
+func compileError(err error) error {
+	switch {
+	case errors.Is(err, filament.ErrNotFound):
+		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, compile.ErrPrecondition):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, compile.ErrInvalid):
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	default:
+		return connect.NewError(connect.CodeInternal, err)
 	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	if pipeline.GetDeletedAt() != 0 {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipeline.GetId()))
-	}
-	version, err := a.store.LoadPipelineVersion(ctx, pipeline.GetId(), pipeline.GetCurrentVersionId())
-	if errors.Is(err, filament.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline has no version: %w", err))
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	nodes := map[string]*ingestionv1.PipelineNode{}
-	connections := map[string]filament.Connection{}
-	for _, node := range version.GetNodes() {
-		nodes[node.GetId()] = node
-		if _, ok := connections[node.GetConnectionId()]; !ok {
-			conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
-			if err != nil {
-				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
-			}
-			if conn.DeletedAt != 0 {
-				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is deleted", node.GetConnectionId()))
-			}
-			connections[node.GetConnectionId()] = conn
-		}
-	}
-
-	groups, err := groupEdges(version.GetEdges(), nodes)
-	if err != nil {
-		return nil, err
-	}
-	compiled := make([]compiledRun, 0, len(groups))
-	for _, group := range groups {
-		key := group.key
-		var resources []string
-		var selectors []string
-		if !group.all {
-			for resource := range group.resources {
-				resources = append(resources, resource)
-			}
-			slices.Sort(resources)
-			for selector := range group.selectors {
-				selectors = append(selectors, selector)
-			}
-			slices.Sort(selectors)
-		}
-		sourceRef, err := a.resolveNodeRef(group.source, connections)
-		if err != nil {
-			return nil, err
-		}
-		sinkRef, err := a.resolveNodeRef(group.sink, connections)
-		if err != nil {
-			return nil, err
-		}
-		compiled = append(compiled, compiledRun{edge: key, req: filament.RunRequest{
-			Tenant:             filament.TenantID(defaultTenant(pipeline.GetTenantId())),
-			PipelineID:         pipeline.GetId(),
-			PipelineVersionID:  version.GetVersion(),
-			IdempotencyKey:     fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:             sourceRef,
-			Sink:               sinkRef,
-			SourceConnectionID: group.source.GetConnectionId(),
-			SinkConnectionID:   group.sink.GetConnectionId(),
-			Resources:          resources,
-			Selectors:          selectors,
-			IngestionTypes:     group.ingestionTypes,
-			CheckpointRoute:    key,
-			CursorConfigs:      group.cursorConfigs,
-			Options:            options,
-			ScheduleID:         scheduleID,
-		}})
-	}
-	return compiled, nil
-}
-
-// routeGroup is the set of edges that share a source node and sink node, and
-// so collapse into a single run. Each resource carries its own ingestion type;
-// the "" entry is the route default set by an all-resources edge.
-type routeGroup struct {
-	key            string
-	source         *ingestionv1.PipelineNode
-	sink           *ingestionv1.PipelineNode
-	from           string
-	to             string
-	ingestionTypes map[string]filament.IngestionType
-	all            bool
-	resources      map[string]bool
-	selectors      map[string]bool
-	cursorConfigs  map[string]filament.ResourceCursorConfig
-}
-
-// groupEdges collapses edges into per-route groups, preserving first-seen order.
-// An edge with no resource marks its group as "all resources". Two edges naming
-// the same resource (or two all-resources edges) with different ingestion types
-// conflict.
-func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
-	byKey := map[string]*routeGroup{}
-	var ordered []*routeGroup
-	for _, edge := range edges {
-		source := nodes[edge.GetFromNode()]
-		sink := nodes[edge.GetToNode()]
-		if source == nil || sink == nil {
-			return nil, fmt.Errorf("edge references missing node")
-		}
-		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-		key := fmt.Sprintf("route/%s/%s", edge.GetFromNode(), edge.GetToNode())
-		group := byKey[key]
-		if group == nil {
-			group = &routeGroup{
-				key:            key,
-				source:         source,
-				sink:           sink,
-				from:           edge.GetFromNode(),
-				to:             edge.GetToNode(),
-				ingestionTypes: map[string]filament.IngestionType{},
-				resources:      map[string]bool{},
-				selectors:      map[string]bool{},
-				cursorConfigs:  map[string]filament.ResourceCursorConfig{},
-			}
-			byKey[key] = group
-			ordered = append(ordered, group)
-		}
-		for _, cursor := range edge.GetCursors() {
-			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
-			if previous, exists := group.cursorConfigs[cursor.GetResource()]; exists && previous != config {
-				return nil, fmt.Errorf("conflicting cursor configuration for resource %q", cursor.GetResource())
-			}
-			group.cursorConfigs[cursor.GetResource()] = config
-		}
-		resource := edge.GetResource()
-		if previous, exists := group.ingestionTypes[resource]; exists && previous != ingestionType {
-			if resource == "" {
-				return nil, fmt.Errorf("conflicting ingestion types for route %s -> %s", edge.GetFromNode(), edge.GetToNode())
-			}
-			return nil, fmt.Errorf("conflicting ingestion types for resource %q", resource)
-		}
-		group.ingestionTypes[resource] = ingestionType
-		if resource == "" {
-			group.all = true
-			continue
-		}
-		group.resources[resource] = true
-		if selector := edge.GetSelector(); selector != "" {
-			group.selectors[selector] = true
-		} else {
-			group.selectors[resource] = true
-		}
-	}
-	return ordered, nil
-}
-
-// resolveNodeRef builds the run-time Ref for a pipeline node from the reusable
-// Connection it references, with the node's config/secret_refs shallow-merged
-// on top as the PIPELINE overlay (node keys win). connection_id is required.
-// It rejects an overlay that tries to set a CONNECTION-scoped field.
-func (a *Server) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]filament.Connection) (filament.Ref, error) {
-	conn, ok := connections[node.GetConnectionId()]
-	if !ok {
-		return filament.Ref{}, fmt.Errorf("node %q references missing connection %q", node.GetId(), node.GetConnectionId())
-	}
-	overlay := structMap(node.GetConfig())
-	if schema, err := a.schemaFor(connectionKindToProto(conn.Kind), conn.Connector); err == nil {
-		if err := validateOverlayConfig(schema, overlay); err != nil {
-			return filament.Ref{}, fmt.Errorf("node %q: %w", node.GetId(), err)
-		}
-	}
-	return filament.Ref{
-		Provider:   conn.Connector,
-		Config:     mergeConfig(conn.Config, overlay),
-		SecretRefs: mergeStrings(conn.SecretRefs, node.GetSecretRefs()),
-	}, nil
-}
-
-// mergeConfig shallow-merges overlay over base; overlay keys win. base is not
-// mutated.
-func mergeConfig(base, overlay map[string]any) map[string]any {
-	out := make(map[string]any, len(base)+len(overlay))
-	maps.Copy(out, base)
-	maps.Copy(out, overlay)
-	return out
-}
-
-func mergeStrings(base, overlay map[string]string) map[string]string {
-	out := make(map[string]string, len(base)+len(overlay))
-	maps.Copy(out, base)
-	maps.Copy(out, overlay)
-	return out
 }

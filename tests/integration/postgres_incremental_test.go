@@ -49,7 +49,7 @@ func TestPostgresIncrementalShardedBackfillAndChanges(t *testing.T) {
 	}
 	initial := &collectSink{}
 	if err := src.ExtractFrom(ctx, initial, filament.ExtractOpts{
-		Resources: []string{"incremental_users"}, Mode: filament.ModeIncremental, Parallelism: 4,
+		Resources: []string{"incremental_users"}, Parallelism: 4,
 	}, plan); err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestPostgresIncrementalShardedBackfillAndChanges(t *testing.T) {
 	}
 	changes := &collectSink{}
 	if err := src.ExtractFrom(ctx, changes, filament.ExtractOpts{
-		Resources: []string{"incremental_users"}, Mode: filament.ModeIncremental, Parallelism: 4,
+		Resources: []string{"incremental_users"}, Parallelism: 4,
 	}, next); err != nil {
 		t.Fatal(err)
 	}

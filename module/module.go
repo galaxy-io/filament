@@ -30,7 +30,6 @@ type Deps struct {
 	DataStore filament.DataStore
 	Secrets   filament.Secrets
 	Runtime   filament.Runtime
-	Scheduler filament.Scheduler
 	Dispatch  filament.Dispatcher
 
 	Sources filament.SourceRegistry

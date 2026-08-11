@@ -9,6 +9,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
 )
 
 // GetConnectionCapabilities reports one connection's levers: its replication
@@ -480,7 +481,7 @@ func (p *sourceProbes) discover(ctx context.Context, nodeID string, src filament
 }
 
 func (p *sourceProbes) configure(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection) (filament.Source, error) {
-	config := mergeConfig(conn.Config, structMap(node.GetConfig()))
+	config := compile.MergeConfig(conn.Config, structMap(node.GetConfig()))
 	if err := p.server.resolveConnectionSecrets(ctx, conn, config); err != nil {
 		return nil, err
 	}

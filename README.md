@@ -7,7 +7,7 @@ Filament moves data from sources to sinks with full, incremental, and CDC replic
 Filament is three components over a data store and an event bus.
 
 - `server` serves the API and web UI and owns connections, pipelines, and run requests
-- `control-plane` dispatches requested runs and tracks run state
+- `control-plane` fires schedules, dispatches requested runs, and tracks run state
 - `worker` executes a single run from extraction to verified write
 
 The data store holds durable state such as connections, pipelines, runs, and checkpoints. The event bus carries the events the components communicate through, rather than the components calling each other. Workers emit events as a run progresses and the control plane folds them into run state. Within a run, the pipeline handles batching, writing, integrity verification, and checkpoint advancement, so interrupted runs resume where they left off.
