@@ -1,11 +1,7 @@
 import { useCallback, useState } from "react";
 
-import { useSearch } from "@tanstack/react-router";
-
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
 import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
@@ -25,8 +21,6 @@ const CreateConnectionSelector = ({
   onClose,
   onConnectorSelect,
 }: CreateConnectionSelectorProps) => {
-  const { connectorKind } = useSearch({ from: "__root__" });
-
   const [state, setState] = useState<CreateConnectionSelectorState>(DEFAULT_STATE);
 
   const handleSearchChange = useCallback((search: string) => {
@@ -45,11 +39,7 @@ const CreateConnectionSelector = ({
       <FlexItem grow={0} shrink={0}>
         <HorizontalDivider />
       </FlexItem>
-      <CreateConnectionSelectorBody
-        search={state.search}
-        connectorKind={connectorKind ?? ConnectorKind.UNSPECIFIED}
-        onConnectorSelect={onConnectorSelect}
-      />
+      <CreateConnectionSelectorBody search={state.search} onConnectorSelect={onConnectorSelect} />
     </ConnectionFormWrapper>
   );
 };

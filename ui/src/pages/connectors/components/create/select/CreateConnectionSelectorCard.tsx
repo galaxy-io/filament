@@ -15,7 +15,10 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import { CONNECTOR_KIND_TO_DESCRIPTION_MAP } from "@/pages/connectors/constants";
+import {
+  CONNECTOR_KIND_TO_DESCRIPTION_MAP,
+  CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT,
+} from "@/pages/connectors/constants";
 
 interface CreateConnectionSelectorCardProps {
   connector: ConnectorSpec;
@@ -31,7 +34,12 @@ const CreateConnectionSelectorCard = ({
   }, [connector, onConnectorSelect]);
 
   return (
-    <Widget fillWidth minHeight={150} variant={WidgetVariant.PRIMARY} onClick={handleClick}>
+    <Widget
+      fillWidth
+      minHeight={CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT}
+      variant={WidgetVariant.PRIMARY}
+      onClick={handleClick}
+    >
       <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillHeight>
         <FlexWrapper
           justifyContent={JustifyContent.SPACE_BETWEEN}

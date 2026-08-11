@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
@@ -19,34 +19,21 @@ import { useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
 
 import { isSearchMatch } from "@/utils/search";
 
-interface PipelinesPageState {
-  search: string;
-}
-
-const DEFAULT_STATE: PipelinesPageState = {
-  search: "",
-};
-
 const PipelinesPage = () => {
   const navigate = useNavigate();
-
-  const [state, setState] = useState<PipelinesPageState>(DEFAULT_STATE);
-
-  const handleSearchChange = (search: string) => {
-    setState((prev) => ({ ...prev, search }));
-  };
+  const { q = "" } = useSearch({ from: "/_main/pipelines" });
 
   const { data } = useSuspenseListPipelinesQuery();
 
   const visiblePipelines = useMemo(
-    () => data.pipelines.filter((item) => isSearchMatch(state.search, item.name, item.id)),
-    [data.pipelines, state.search],
+    () => data.pipelines.filter((item) => isSearchMatch(q, item.name, item.id)),
+    [data.pipelines, q],
   );
 
   const handleNewPipeline = () => {
     void navigate({
       to: ".",
-      search: (prev) => ({ ...prev, flow: Flow.CREATE_PIPELINE }),
+      search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
     });
   };
 
@@ -80,8 +67,6 @@ const PipelinesPage = () => {
 
   return (
     <MainLayoutListPage
-      search={state.search}
-      onSearchChange={handleSearchChange}
       actions={[
         <Button
           key="new-pipeline"

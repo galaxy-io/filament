@@ -16,7 +16,7 @@ import { useGetPipelineQuery } from "@/api/queries/pipelines";
 import { formatTimestamp } from "@/utils/format";
 
 interface PipelineNameProps {
-  pipelineId: string;
+  pipelineId: Pipeline["id"];
   pipeline?: Pipeline;
   size?: TextSize;
 }

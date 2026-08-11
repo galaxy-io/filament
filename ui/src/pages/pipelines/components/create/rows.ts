@@ -1,5 +1,6 @@
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import type {
   ConnectorSpec,
   GetResourceColumnsResponse,
@@ -19,7 +20,10 @@ import type {
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
 
-export const getDefaultPipelineName = (source: Connection | null, sinks: Connection[]): string => {
+export const getDefaultPipelineName = (
+  source: Connection | null,
+  sinks: Connection[],
+): Pipeline["name"] => {
   const sinkNames = sinks.map((sink) => sink.name).join(", ");
   if (source && sinks.length) return `${source.name} -> ${sinkNames}`;
   if (source) return source.name;
@@ -61,12 +65,12 @@ const getResourceStatus = ({
   resource,
 }: {
   readMode: ReadMode;
-  cursorField: string;
+  cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
   isCursorKnown: boolean;
   hasPrimaryKey: boolean;
   needsPrimaryKey: boolean;
-  resource: string;
+  resource: Resource["name"];
 }): CreatePipelineModalResourceStatus | undefined => {
   if (readMode === ReadMode.INCREMENTAL && !cursorField) {
     if (cursorOptions.length) {
@@ -103,7 +107,7 @@ const buildResourceRows = ({
   writeModes,
 }: {
   state: CreatePipelineModalState;
-  sinkId: string;
+  sinkId: Connection["id"];
   resources: Resource[];
   columns: GetResourceColumnsResponse | undefined;
   readModes: ReadMode[];
@@ -180,8 +184,8 @@ export const buildResourceRowsBySink = ({
   columns: GetResourceColumnsResponse | undefined;
   readModes: ReadMode[];
   isCdc: boolean;
-  writeModesBySink: Record<string, WriteMode[]>;
-}): Record<string, CreatePipelineModalResourceRow[]> =>
+  writeModesBySink: Record<Connection["id"], WriteMode[]>;
+}): Record<Connection["id"], CreatePipelineModalResourceRow[]> =>
   Object.fromEntries(
     state.sinkConnections.map((sink) => [
       sink.id,
@@ -205,9 +209,9 @@ export const buildSinkRows = ({
   writeModesByReadMode,
 }: {
   state: CreatePipelineModalState;
-  rowsBySink: Record<string, CreatePipelineModalResourceRow[]>;
+  rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   isCdc: boolean;
-  writeModesBySink: Record<string, WriteMode[]>;
+  writeModesBySink: Record<Connection["id"], WriteMode[]>;
   writeModesByReadMode: Partial<Record<ReadMode, WriteMode[]>>;
 }): CreatePipelineModalSinkRow[] =>
   state.sinkConnections.map((connection) => {
@@ -231,8 +235,8 @@ export const buildSinkRows = ({
   });
 
 export const getIssuesBySink = (
-  rowsBySink: Record<string, CreatePipelineModalResourceRow[]>,
-): Record<string, string[]> =>
+  rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>,
+): Record<Connection["id"], string[]> =>
   Object.fromEntries(
     Object.entries(rowsBySink).map(([sinkId, rows]) => {
       if (!rows.some((row) => row.isSelected)) return [sinkId, ["No resources selected"]];
@@ -252,8 +256,8 @@ export const getIssuesBySink = (
   );
 
 export const getSelectedCountBySink = (
-  rowsBySink: Record<string, CreatePipelineModalResourceRow[]>,
-): Record<string, number> =>
+  rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>,
+): Record<Connection["id"], number> =>
   Object.fromEntries(
     Object.entries(rowsBySink).map(([sinkId, rows]) => [
       sinkId,

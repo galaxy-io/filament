@@ -1,4 +1,6 @@
+import type { Transport } from "@connectrpc/connect";
 import {
+  createConnectQueryKey,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -30,7 +32,7 @@ export const useListConnectorsQuery = ({
   return useQuery<
     typeof IngestionService.method.listConnectors.input,
     typeof IngestionService.method.listConnectors.output
-  >(IngestionService.method.listConnectors, input, options);
+  >(IngestionService.method.listConnectors, input, { staleTime: Infinity, ...options });
 };
 
 export const useGetConnectorQuery = ({
@@ -46,7 +48,19 @@ export const useGetConnectorQuery = ({
   return useQuery<
     typeof IngestionService.method.getConnector.input,
     typeof IngestionService.method.getConnector.output
-  >(IngestionService.method.getConnector, input, options);
+  >(IngestionService.method.getConnector, input, { staleTime: Infinity, ...options });
+};
+
+export const createDiscoverResourcesQueryKey = (
+  input?: DiscoverResourcesRequest,
+  transport?: Transport,
+) => {
+  return createConnectQueryKey({
+    schema: IngestionService.method.discoverResources,
+    input,
+    transport,
+    cardinality: "finite",
+  });
 };
 
 export const useDiscoverResourcesQuery = ({

@@ -6,6 +6,7 @@ import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/Flex
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorTile, {
   ConnectorOverflowTile,
@@ -21,8 +22,8 @@ export enum PipelineFlowSize {
 }
 
 export interface PipelineFlowConnection {
-  connectionId: string;
-  connector: string;
+  connectionId: Connection["id"];
+  connector: Connection["connector"];
   isDeleted?: boolean;
 }
 
@@ -60,7 +61,7 @@ const PipelineFlow = ({
   const hasSinks = sinks.length > 0;
   const isLinked = hasSource && hasSinks && hasEdges;
 
-  const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
+  const handleConnectionClick = (connectionId: Connection["id"], e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigate({

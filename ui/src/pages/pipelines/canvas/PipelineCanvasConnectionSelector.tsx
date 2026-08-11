@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
@@ -11,8 +10,12 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
+import {
+  PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT,
+  PIPELINE_CANVAS_CONNECTION_SELECTOR_WIDTH,
+} from "@/pages/pipelines/canvas/constants";
 import { getNextNodePosition } from "@/pages/pipelines/canvas/graph/layout";
 import { canAddSourceNode, createNodeFromConnection } from "@/pages/pipelines/canvas/graph/rules";
 import PipelineCanvasConnectionSelectorList from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorList";
@@ -21,16 +24,14 @@ import {
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
-import { useListConnectionsQuery } from "@/api/queries/connections";
+import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 
 import { isSearchMatch } from "@/utils/search";
-
-const DEFAULT_BODY_WIDTH = 320;
 
 const BodyWrapper = styled.div<{ $width: number; $fillHeight?: boolean }>`
   width: ${({ $width }) => $width}px;
   height: ${({ $fillHeight }) => ($fillHeight ? "100%" : "auto")};
-  max-height: 480px;
+  max-height: ${PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT}px;
   display: flex;
   flex-direction: column;
   border-radius: 8px;
@@ -61,7 +62,7 @@ const DEFAULT_STATE: PipelineCanvasConnectionSelectorState = {
 const PipelineCanvasConnectionSelector = ({
   kindFilter = ConnectorKind.UNSPECIFIED,
   onSelect,
-  width = DEFAULT_BODY_WIDTH,
+  width = PIPELINE_CANVAS_CONNECTION_SELECTOR_WIDTH,
   fillHeight = false,
 }: PipelineCanvasConnectionSelectorProps) => {
   const [state, setState] = useState<PipelineCanvasConnectionSelectorState>(DEFAULT_STATE);
@@ -72,11 +73,12 @@ const PipelineCanvasConnectionSelector = ({
     setState((prev) => ({ ...prev, search }));
   };
 
-  const { data, isLoading, isError } = useListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, { kind: kindFilter }),
-  });
+  const { data } = useSuspenseListConnectionsQuery();
 
-  const kindConnections = data?.connections ?? [];
+  const kindConnections =
+    kindFilter === ConnectorKind.UNSPECIFIED
+      ? data.connections
+      : data.connections.filter((connection) => connection.kind === kindFilter);
   const filteredConnections = kindConnections.filter((connection) =>
     isSearchMatch(state.search, connection.name),
   );
@@ -108,8 +110,6 @@ const PipelineCanvasConnectionSelector = ({
         connections={filteredConnections}
         hasConnections={kindConnections.length > 0}
         connectorKind={kindFilter}
-        isLoading={isLoading}
-        isError={isError}
         isSourceDisabled={!canAddSourceNode(canvasState.nodes)}
         onConnectionClick={handleConnectionClick}
       />

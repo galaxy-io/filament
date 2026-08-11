@@ -17,10 +17,14 @@ import {
   type Metric,
   MetricDimension,
   QueryTimeseriesRequestSchema,
+  type Timeseries,
 } from "@/gen/metrics/v1/metrics_pb";
 
 import { OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP } from "@/pages/observability/components/runs/constants";
-import { OBSERVABILITY_TIMESERIES_PIVOT_PALETTE } from "@/pages/observability/components/timeseries/constants";
+import {
+  OBSERVABILITY_TIMESERIES_CHART_HEIGHT,
+  OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
+} from "@/pages/observability/components/timeseries/constants";
 import { OBSERVABILITY_PIPELINES_INPUT } from "@/pages/observability/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
@@ -83,7 +87,7 @@ const ObservabilityTimeseriesChart = ({
       ]),
     );
 
-    const keyToLabel = (key: string) => {
+    const keyToLabel = (key: Timeseries["key"]) => {
       if (pivotDimension === MetricDimension.STATUS) {
         return PIPELINE_RUN_STATUS_TO_LABEL_MAP[Number(key) as RunStatus];
       }
@@ -93,7 +97,7 @@ const ObservabilityTimeseriesChart = ({
       return seriesLabel;
     };
 
-    const keyToColor = (key: string, index: number) => {
+    const keyToColor = (key: Timeseries["key"], index: number) => {
       if (pivotDimension === MetricDimension.STATUS) {
         return OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP[Number(key) as RunStatus];
       }
@@ -127,7 +131,12 @@ const ObservabilityTimeseriesChart = ({
   }, [data, pipelinesData, pivotDimension, seriesLabel, color]);
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} padding={"16px 12px"} height={240} fillWidth>
+    <FlexWrapper
+      direction={FlexDirection.COLUMN}
+      padding={"16px 12px"}
+      height={OBSERVABILITY_TIMESERIES_CHART_HEIGHT}
+      fillWidth
+    >
       <LineChart<string>
         series={series}
         lines={lines}

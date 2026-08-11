@@ -4,6 +4,9 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import {
   CONNECTOR_KIND_TO_NODE_TYPE_MAP,
+  PIPELINE_CANVAS_NODE_STACK_GAP,
+  PIPELINE_CANVAS_NODE_STACK_HEIGHT,
+  PIPELINE_CANVAS_NODE_STACK_START_Y,
   PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP,
   PIPELINE_CANVAS_SNAP_GRID,
 } from "@/pages/pipelines/canvas/constants";
@@ -13,10 +16,6 @@ import {
   PipelineCanvasNodeType,
   type PipelineCanvasPlaceholderNode,
 } from "@/pages/pipelines/canvas/types";
-
-const NODE_STACK_START_Y = 100;
-const NODE_STACK_HEIGHT = 120;
-const NODE_STACK_GAP = 40;
 
 const CONNECTOR_KIND_TO_NODE_STACK_BASE_X_MAP: Record<ConnectorKind, number> = {
   [ConnectorKind.UNSPECIFIED]: 100,
@@ -37,12 +36,12 @@ export const getNextNodePosition = (kind: ConnectorKind, nodes: CanvasNode[]) =>
   const sameTypeNodes = nodes.filter((node) => node.type === nodeType);
 
   if (sameTypeNodes.length === 0) {
-    return { x: baseX, y: NODE_STACK_START_Y };
+    return { x: baseX, y: PIPELINE_CANVAS_NODE_STACK_START_Y };
   }
 
   const maxY = sameTypeNodes.reduce((max, node) => Math.max(max, node.position.y), 0);
 
-  const nextY = maxY + NODE_STACK_HEIGHT + NODE_STACK_GAP;
+  const nextY = maxY + PIPELINE_CANVAS_NODE_STACK_HEIGHT + PIPELINE_CANVAS_NODE_STACK_GAP;
   const [, snapY] = PIPELINE_CANVAS_SNAP_GRID;
 
   return { x: baseX, y: Math.round(nextY / snapY) * snapY };
@@ -53,7 +52,7 @@ const buildPlaceholderNode = (kind: ConnectorKind): PipelineCanvasPlaceholderNod
   type: PipelineCanvasNodeType.PLACEHOLDER,
   position: {
     x: CONNECTOR_KIND_TO_NODE_STACK_BASE_X_MAP[kind],
-    y: NODE_STACK_START_Y,
+    y: PIPELINE_CANVAS_NODE_STACK_START_Y,
   },
   data: { kind },
   draggable: false,
@@ -85,7 +84,7 @@ export const getGraphBounds = (nodes: CanvasNode[]): Rect =>
       ...node,
       measured: {
         width: node.measured?.width ?? PIPELINE_CANVAS_NODE_WIDTH,
-        height: node.measured?.height ?? NODE_STACK_HEIGHT,
+        height: node.measured?.height ?? PIPELINE_CANVAS_NODE_STACK_HEIGHT,
       },
     })),
   );

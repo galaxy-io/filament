@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionForm from "@/pages/connectors/components/form/ConnectionForm";
@@ -21,17 +21,14 @@ import { useCreateConnectionMutation } from "@/api/queries/connections";
 import { getErrorMessage } from "@/utils/errors";
 
 interface CreateConnectionConfigureProps {
-  connector: ConnectorSpec;
   onClose: () => void;
   onBack: () => void;
 }
 
-const CreateConnectionConfigureContent = ({
-  connector,
-  onClose,
-  onBack,
-}: CreateConnectionConfigureProps) => {
+const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionConfigureProps) => {
   const navigate = useNavigate();
+  const { connector, connectorKind } = useSearch({ from: "__root__" });
+  const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
   const { state, dispatch } = useConnectionFormContext();
   const { showToast } = useToast();
 
@@ -48,8 +45,8 @@ const CreateConnectionConfigureContent = ({
 
     createConnection(
       create(CreateConnectionRequestSchema, {
-        kind: connector.kind,
-        connector: connector.name,
+        kind,
+        connector: connector ?? "",
         name,
         config: state.config,
       }),
@@ -85,14 +82,12 @@ const CreateConnectionConfigureContent = ({
         },
       },
     );
-  }, [state.name, state.config, connector, createConnection, showToast, navigate, dispatch]);
+  }, [state.name, state.config, connector, kind, createConnection, showToast, navigate, dispatch]);
 
   return (
     <ConnectionForm
-      connector={connector}
-      title={`New ${connector.displayName || connector.name} connection`}
-      submitLabel="Create"
-      submittingLabel="Creating..."
+      connectorName={connector ?? ""}
+      connectorKind={kind}
       onSubmit={handleCreateConnection}
       onClose={onClose}
       onBack={onBack}
@@ -100,13 +95,9 @@ const CreateConnectionConfigureContent = ({
   );
 };
 
-const CreateConnectionConfigure = ({
-  connector,
-  onClose,
-  onBack,
-}: CreateConnectionConfigureProps) => (
+const CreateConnectionConfigure = ({ onClose, onBack }: CreateConnectionConfigureProps) => (
   <ConnectionFormProvider initialState={{ name: "", config: {} }}>
-    <CreateConnectionConfigureContent connector={connector} onClose={onClose} onBack={onBack} />
+    <CreateConnectionConfigureContent onClose={onClose} onBack={onBack} />
   </ConnectionFormProvider>
 );
 
