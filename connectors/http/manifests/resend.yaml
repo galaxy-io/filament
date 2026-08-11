@@ -1,0 +1,525 @@
+version: 1
+name: resend
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Resend API key from Settings > API Keys (re_…). A full-access key is required; sending-only keys reject the list endpoints.
+# Deliberately absent: /emails/metrics, /segments/metrics,
+# /broadcasts/{id}/metrics and /broadcasts/{id}/recipients. All four are
+# private beta, gated to a handful of accounts, and 404 with
+# {"name":"not_found"} everywhere else — which fails the whole run rather than
+# degrading. The availability banners appear only on the rendered docs pages,
+# not on the .md mirrors. Re-add them, with the window config the metrics
+# rollups need, once Resend takes them GA.
+defaults:
+  method: GET
+  response:
+    # Every list endpoint returns {object: "list", has_more, data: [...]}.
+    # Resend returns no next-page token: the cursor is the id of the last
+    # record on the page, echoed back as `after`. has_more is the
+    # authoritative terminator, so a short final page ends the walk before
+    # data.-1 is ever read.
+    records: $.data
+    pagination:
+      cursor:
+        response: data.-1.id
+        request: query.after
+        more: has_more
+# Timestamp typing rule, applied per endpoint rather than per column name:
+# Resend renders most timestamps straight out of Postgres as
+# "2026-04-03 22:13:42.674981+00", which is not RFC 3339 (space separator, no
+# minutes in the offset) and fails the timestamptz coercion in the ClickHouse
+# sink. Those columns are typed `string` so the raw value survives intact. Only
+# the endpoints that genuinely emit ISO-8601 with a Z — received emails,
+# attachment expiries, webhook events and delivery attempts — are typed
+# `timestamptz`.
+field_sets:
+  contact_core:
+    id: uuid
+    email: string
+    first_name: string?
+    last_name: string?
+    unsubscribed: bool?
+    created_at: string?
+  attachment:
+    id: uuid
+    filename: string?
+    size: int64?
+    content_type: string?
+    content_disposition: string?
+    content_id: string?
+    download_url: string?
+    expires_at: timestamptz?
+connection:
+  base_url: https://api.resend.com
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  # Resend caps a team at 10 requests/second across every API key. One limiter
+  # is shared by all concurrently extracting resources, so hold below the cap
+  # and let the IETF-draft headers tighten it further when the window drains.
+  # ratelimit-reset counts seconds until the window resets, not a unix time.
+  rate_limit:
+    requests_per_second: 8
+    dynamic:
+      remaining_header: ratelimit-remaining
+      reset_header: ratelimit-reset
+      reset_format: seconds_from_now
+      min_floor_rps: 1
+resources:
+  # ----------------------------------------------------------------- emails
+  # First top-level resource, so it doubles as the TestConnection probe: GA,
+  # authenticated, and needing no parent scope.
+  - name: emails
+    path: /emails
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      message_id: string?
+      from: string?
+      # to is always an array; cc/bcc/reply_to are an array on the retrieve
+      # endpoint and a bare string or null on the list endpoint. json absorbs
+      # both without a per-endpoint split.
+      to: json?
+      cc: json?
+      bcc: json?
+      reply_to: json?
+      subject: string?
+      last_event: string?
+      scheduled_at: string?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      email_id: id
+
+  - name: email_details
+    # One request per sent email. Only source of the rendered html/text body
+    # and the tags attached at send time — the list endpoint carries neither.
+    path: /emails/{email_id}
+    params:
+      email_id: parent.email_id
+    for_each: emails
+    primary_key: [id]
+    fields:
+      id: uuid
+      message_id: string?
+      from: string?
+      to: json?
+      cc: json?
+      bcc: json?
+      reply_to: json?
+      subject: string?
+      html: string?
+      text: string?
+      tags: json?
+      last_event: string?
+      scheduled_at: string?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+
+  - name: email_attachments
+    # One request per sent email. download_url is a signed URL that expires;
+    # re-extract before expires_at if the bytes are needed downstream.
+    path: /emails/{email_id}/attachments
+    params:
+      email_id: parent.email_id
+    for_each: emails
+    query:
+      limit: "100"
+    primary_key: [email_id, id]
+    use_fields: [attachment]
+    fields:
+      email_id: { path: parent.email_id, type: string }
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------- inbound receiving
+  - name: received_emails
+    path: /emails/receiving
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      message_id: string?
+      from: string?
+      to: json?
+      cc: json?
+      bcc: json?
+      reply_to: json?
+      subject: string?
+      # Inbound emails embed their attachment metadata inline. The
+      # received_email_attachments resource re-fetches the same set to add
+      # signed download URLs.
+      attachments: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      received_email_id: id
+
+  - name: received_email_attachments
+    # One request per received email.
+    path: /emails/receiving/{email_id}/attachments
+    params:
+      email_id: parent.received_email_id
+    for_each: received_emails
+    query:
+      limit: "100"
+    primary_key: [email_id, id]
+    use_fields: [attachment]
+    fields:
+      email_id: { path: parent.received_email_id, type: string }
+      raw: { path: $, type: json, mode: remainder }
+
+  # ---------------------------------------------------------------- domains
+  - name: domains
+    path: /domains
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      status: string?
+      region: string?
+      capabilities: json?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      domain_id: id
+
+  - name: domain_settings
+    # The list endpoint omits the tracking settings; only the detail endpoint
+    # carries open_tracking / click_tracking / tracking_subdomain.
+    path: /domains/{domain_id}
+    params:
+      domain_id: parent.domain_id
+    for_each: domains
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      status: string?
+      region: string?
+      open_tracking: bool?
+      click_tracking: bool?
+      tracking_subdomain: string?
+      capabilities: json?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+
+  - name: domain_records
+    # The DNS records Resend expects the domain to publish, projected out of
+    # the same detail payload domain_settings reads. Keyed on type as well as
+    # name: the SPF MX and SPF TXT rows share the name "send".
+    path: /domains/{domain_id}
+    params:
+      domain_id: parent.domain_id
+    for_each: domains
+    primary_key: [domain_id, record, name, type]
+    fields:
+      domain_id: { path: parent.domain_id, type: string }
+      record: string
+      name: string
+      type: string
+      value: string?
+      ttl: string?
+      status: string?
+      priority: int64?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.records
+      pagination: none
+
+  # --------------------------------------------------------------- api keys
+  - name: api_keys
+    path: /api-keys
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      created_at: string?
+      last_used_at: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------------- broadcasts
+  - name: broadcasts
+    path: /broadcasts
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string?
+      audience_id: uuid?
+      segment_id: uuid?
+      status: string?
+      scheduled_at: string?
+      sent_at: string?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # --------------------------------------------------------------- contacts
+  - name: contacts
+    path: /contacts
+    query:
+      limit: "100"
+    primary_key: [id]
+    use_fields: [contact_core]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      contact_id: id
+
+  - name: contact_topics
+    # One request per contact. Topics have no reverse "list subscribers"
+    # endpoint, so this is the only path to per-contact subscription state.
+    path: /contacts/{contact_id}/topics
+    params:
+      contact_id: parent.contact_id
+    for_each: contacts
+    query:
+      limit: "100"
+    primary_key: [contact_id, id]
+    fields:
+      contact_id: { path: parent.contact_id, type: string }
+      id: uuid
+      name: string?
+      description: string?
+      subscription: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: contact_properties
+    path: /contact-properties
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      key: string
+      type: string?
+      fallback_value: string?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # --------------------------------------------------------------- segments
+  - name: segments
+    path: /segments
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      segment_id: id
+
+  - name: segment_contacts
+    # Segment membership, one request per segment. Prefer this over the
+    # per-contact /contacts/{id}/segments endpoint: same edges, and segments
+    # are orders of magnitude fewer than contacts.
+    path: /segments/{segment_id}/contacts
+    params:
+      segment_id: parent.segment_id
+    for_each: segments
+    query:
+      limit: "100"
+    primary_key: [segment_id, id]
+    use_fields: [contact_core]
+    fields:
+      segment_id: { path: parent.segment_id, type: string }
+      raw: { path: $, type: json, mode: remainder }
+
+  # ----------------------------------------------------------------- topics
+  - name: topics
+    path: /topics
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      description: string?
+      default_subscription: string?
+      visibility: string?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ----------------------------------------------------------- suppressions
+  - name: suppressions
+    path: /suppressions
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      email: string
+      origin: string?
+      source_id: uuid?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # --------------------------------------------------------------- webhooks
+  - name: webhooks
+    path: /webhooks
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      endpoint: string?
+      status: string?
+      events: json?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      webhook_id: id
+
+  - name: webhook_events
+    path: /webhooks/{webhook_id}/events
+    params:
+      webhook_id: parent.webhook_id
+    for_each: webhooks
+    query:
+      limit: "100"
+    primary_key: [webhook_id, id]
+    fields:
+      webhook_id: { path: parent.webhook_id, type: string }
+      id: string
+      type: string?
+      status: string?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      event_id: id
+
+  - name: webhook_event_attempts
+    # Grandchild of webhooks: webhook_id is inherited through the
+    # webhook_events capture. One request per event — the highest-cardinality
+    # stream in the manifest.
+    path: /webhooks/{webhook_id}/events/{event_id}/attempts
+    params:
+      webhook_id: parent.webhook_id
+      event_id: parent.event_id
+    for_each: webhook_events
+    query:
+      limit: "100"
+    primary_key: [webhook_id, event_id, id]
+    fields:
+      webhook_id: { path: parent.webhook_id, type: string }
+      event_id: { path: parent.event_id, type: string }
+      id: string
+      http_status_code: int64?
+      response: string?
+      sent_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # -------------------------------------------------------------- templates
+  - name: templates
+    path: /templates
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      alias: string?
+      status: string?
+      published_at: string?
+      created_at: string?
+      updated_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      template_id: id
+
+  - name: template_details
+    # One request per template. Carries the rendered html/text and the
+    # declared variables, none of which the list endpoint returns.
+    path: /templates/{template_id}
+    params:
+      template_id: parent.template_id
+    for_each: templates
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      alias: string?
+      status: string?
+      current_version_id: uuid?
+      from: string?
+      subject: string?
+      # Documented "string | string[]" and rendered as null in the docs
+      # example, but live templates return an array. A scalar type here is not
+      # merely lossy — a wrong-type projection aborts the whole extraction,
+      # since nullable only tolerates missing and null.
+      reply_to: json?
+      html: string?
+      text: string?
+      variables: json?
+      has_unpublished_versions: bool?
+      published_at: string?
+      created_at: string?
+      updated_at: string?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+
+  # ------------------------------------------------------------------- logs
+  - name: logs
+    path: /logs
+    query:
+      limit: "100"
+    primary_key: [id]
+    fields:
+      id: uuid
+      endpoint: string?
+      method: string?
+      response_status: int64?
+      user_agent: string?
+      created_at: string?
+      raw: { path: $, type: json, mode: remainder }
+
+discovery:
+  mode: static
+  include:
+    - emails
+    - email_details
+    - email_attachments
+    - received_emails
+    - received_email_attachments
+    - domains
+    - domain_settings
+    - domain_records
+    - api_keys
+    - broadcasts
+    - contacts
+    - contact_topics
+    - contact_properties
+    - segments
+    - segment_contacts
+    - topics
+    - suppressions
+    - webhooks
+    - webhook_events
+    - webhook_event_attempts
+    - templates
+    - template_details
+    - logs

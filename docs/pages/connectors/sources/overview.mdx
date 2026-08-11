@@ -3,8 +3,8 @@ title: "Sources Overview"
 description: "Connectors Filament can read from."
 ---
 
-Filament ships eight source connectors today: two native database
-connectors, five manifest-driven SaaS connectors sharing one implementation,
+Filament ships nine source connectors today: two native database
+connectors, six manifest-driven SaaS connectors sharing one implementation,
 and a synthetic generator for testing.
 
 ## Databases
@@ -16,22 +16,23 @@ and a synthetic generator for testing.
 
 ## SaaS Apps
 
-All five run on the same [HTTP](/pages/connectors/sources/http) connector,
+All six run on the same [HTTP](/pages/connectors/sources/http) connector,
 configured by a declarative manifest rather than by their own Go package:
 
 | Source | Manifest | Notes |
 |---|---|---|
-| [Attio](/pages/connectors/sources/attio) | `attio.yaml` | 23 resources — the deepest parent/child nesting of the five |
+| [Attio](/pages/connectors/sources/attio) | `attio.yaml` | 23 resources — the deepest parent/child nesting of the six |
 | [GitHub](/pages/connectors/sources/github) | `github.yaml` | Repositories, issues, pull requests for one organization |
 | [Linear](/pages/connectors/sources/linear) | `linear.yaml` | The one GraphQL manifest — everything else is REST |
 | [Notion](/pages/connectors/sources/notion) | `notion.yaml` | Databases, pages, blocks |
+| [Resend](/pages/connectors/sources/resend) | `resend.yaml` | 23 resources across sent and inbound email, contacts, segments, and webhooks |
 | [Slack](/pages/connectors/sources/slack) | `slack.yaml` | The only bundled manifest with incremental sync |
 
 ## Custom & Testing
 
 | Source | Package | Notes |
 |---|---|---|
-| [HTTP](/pages/connectors/sources/http) | `connectors/http` | The manifest-driven mechanism the five SaaS sources above run on; new APIs are onboarded declaratively |
+| [HTTP](/pages/connectors/sources/http) | `connectors/http` | The manifest-driven mechanism the six SaaS sources above run on; new APIs are onboarded declaratively |
 | [Sample](/pages/connectors/sources/sample) | `connectors/sample` | Synthetic data, for testing pipelines without a real upstream |
 
 Every source implements the base `Source` contract; several add optional

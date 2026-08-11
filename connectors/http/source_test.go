@@ -1048,3 +1048,416 @@ discovery:
 	}
 	return path
 }
+
+func TestNewResendSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewResend()
+	spec := src.Spec()
+	if spec.Name != "resend" || spec.DisplayName != "Resend" {
+		t.Fatalf("spec identity = %q/%q, want resend/Resend", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 1 {
+		t.Fatalf("config fields = %#v, want the API key alone", spec.Config.Fields)
+	}
+	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
+		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without API key succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure embedded Resend manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	// No metrics or broadcast-recipient resources: those endpoints are private
+	// beta and 404 for accounts outside it, which fails the whole run.
+	want := []string{
+		"emails", "email_details", "email_attachments", "received_emails",
+		"received_email_attachments", "domains", "domain_settings", "domain_records",
+		"api_keys", "broadcasts", "contacts", "contact_topics", "contact_properties",
+		"segments", "segment_contacts", "topics", "suppressions", "webhooks",
+		"webhook_events", "webhook_event_attempts", "templates", "template_details",
+		"logs",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+// Resend returns no next-page token: the cursor is the id of the last record
+// on the page, echoed back as `after`, with has_more as the terminator.
+func TestResendPaginatesOnLastRecordIDAndSendsBearerToken(t *testing.T) {
+	ctx := context.Background()
+	var auth string
+	var afters, limits []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/emails" {
+			http.NotFound(w, r)
+			return
+		}
+		auth = r.Header.Get("Authorization")
+		afters = append(afters, r.URL.Query().Get("after"))
+		limits = append(limits, r.URL.Query().Get("limit"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("after") == "" {
+			fmt.Fprint(w, `{"object":"list","has_more":true,"data":[
+				{"id":"em_1","message_id":"<1@example.com>","to":["a@example.com"],"from":"Acme <s@example.com>",
+				 "subject":"One","last_event":"delivered","bcc":null,"cc":null,"reply_to":null,
+				 "created_at":"2026-04-03 22:13:42.674981+00","scheduled_at":null},
+				{"id":"em_2","message_id":"<2@example.com>","to":["b@example.com"],"from":"Acme <s@example.com>",
+				 "subject":"Two","last_event":"opened","bcc":null,"cc":null,"reply_to":null,
+				 "created_at":"2026-04-03 22:14:42.674981+00","scheduled_at":null}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+			{"id":"em_3","message_id":"<3@example.com>","to":["c@example.com"],"from":"Acme <s@example.com>",
+			 "subject":"Three","last_event":"bounced","bcc":null,"cc":null,"reply_to":null,
+			 "created_at":"2026-04-03 22:15:42.674981+00","scheduled_at":null}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"emails"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract emails: %v", err)
+	}
+
+	if auth != "Bearer re_test_123" {
+		t.Fatalf("authorization = %q, want the API key as a bearer token", auth)
+	}
+	if len(afters) != 2 || afters[0] != "" || afters[1] != "em_2" {
+		t.Fatalf("after = %v, want the last id of page one on the second request", afters)
+	}
+	for i, limit := range limits {
+		if limit != "100" {
+			t.Fatalf("limit[%d] = %q, want Resend's 100 maximum", i, limit)
+		}
+	}
+	if len(sink.records) != 3 {
+		t.Fatalf("records = %d, want all three emails across both pages", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode email: %v", err)
+	}
+	if first["id"] != "em_1" || first["subject"] != "One" || first["last_event"] != "delivered" {
+		t.Fatalf("email projection = %#v", first)
+	}
+	// Postgres-rendered timestamps ("+00", space separator) are not RFC 3339,
+	// so created_at stays a string rather than a timestamptz the sinks would
+	// fail to parse.
+	if first["created_at"] != "2026-04-03 22:13:42.674981+00" {
+		t.Fatalf("created_at = %#v, want the raw Postgres-rendered value preserved", first["created_at"])
+	}
+	if _, ok := first["raw"].(map[string]any); !ok {
+		t.Fatalf("raw remainder = %#v, want the unmapped payload", first["raw"])
+	}
+}
+
+// TestConnection probes the first top-level, non-streaming resource with only
+// the config scope bound, so `emails` has to be declared first and has to need
+// no parent capture.
+func TestResendTestConnectionProbesEmails(t *testing.T) {
+	var paths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","has_more":true,"data":[{"id":"em_1"}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"api_key": "re_test_123",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	// has_more is true, but validation must not walk pagination.
+	if len(paths) != 1 || paths[0] != "/emails" {
+		t.Fatalf("probe requests = %v, want exactly one GET /emails", paths)
+	}
+}
+
+// The detail endpoints return a bare object rather than a list envelope, and
+// take no list parameters — `records: $` plus `cardinality: one` has to yield
+// exactly one row from one unpaginated request.
+func TestResendEmailDetailsSingletonFanOutSendsNoListParams(t *testing.T) {
+	ctx := context.Background()
+	var detailQueries []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/emails":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"em_1","from":"s@example.com","subject":"One","created_at":"2026-04-03 22:13:42.674981+00"}]}`)
+		case "/emails/em_1":
+			detailQueries = append(detailQueries, r.URL.RawQuery)
+			fmt.Fprint(w, `{"object":"email","id":"em_1","message_id":"<1@example.com>","to":["a@example.com"],
+				"from":"Acme <s@example.com>","subject":"One","html":"<p>Hi</p>","text":null,"bcc":[],"cc":[],
+				"reply_to":[],"last_event":"delivered","scheduled_at":null,
+				"created_at":"2026-04-03 22:13:42.674981+00","tags":[{"name":"category","value":"welcome"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"email_details"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract email details: %v", err)
+	}
+	if len(detailQueries) != 1 {
+		t.Fatalf("detail requests = %v, want a single unpaginated fetch per email", detailQueries)
+	}
+	if detailQueries[0] != "" {
+		t.Fatalf("detail query = %q, want no list parameters on /emails/{id}", detailQueries[0])
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want the email object as one row and no parent rows", len(sink.records))
+	}
+	var data map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &data); err != nil {
+		t.Fatalf("decode email detail: %v", err)
+	}
+	if data["id"] != "em_1" || data["html"] != "<p>Hi</p>" || data["text"] != nil {
+		t.Fatalf("email detail projection = %#v", data)
+	}
+	if tags, ok := data["tags"].([]any); !ok || len(tags) != 1 {
+		t.Fatalf("tags = %#v, want the send-time tags the list endpoint omits", data["tags"])
+	}
+}
+
+// domain_records projects the nested DNS array out of the same detail payload
+// domain_settings reads as a single object.
+func TestResendDomainRecordsProjectNestedArrayFromDomainDetail(t *testing.T) {
+	ctx := context.Background()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/domains":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"dom_1","name":"example.com","status":"verified","region":"us-east-1",
+				 "created_at":"2026-04-26 20:21:26.347412+00","capabilities":{"sending":"enabled","receiving":"disabled"}}]}`)
+		case "/domains/dom_1":
+			fmt.Fprint(w, `{"object":"domain","id":"dom_1","name":"example.com","status":"verified",
+				"region":"us-east-1","open_tracking":true,"click_tracking":false,"tracking_subdomain":"links",
+				"created_at":"2026-04-26 20:21:26.347412+00",
+				"capabilities":{"sending":"enabled","receiving":"disabled"},
+				"records":[
+					{"record":"SPF","name":"send","type":"MX","ttl":"Auto","status":"verified",
+					 "value":"feedback-smtp.us-east-1.amazonses.com","priority":10},
+					{"record":"DKIM","name":"resend._domainkey","type":"TXT","ttl":"Auto",
+					 "status":"verified","value":"p=MIGf"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var records collectSink
+	if err := src.Extract(ctx, &records, filament.ExtractOpts{Resources: []string{"domain_records"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract domain records: %v", err)
+	}
+	if len(records.records) != 2 {
+		t.Fatalf("records = %d, want one row per DNS record", len(records.records))
+	}
+	var spf map[string]any
+	if err := json.Unmarshal(records.records[0].Data, &spf); err != nil {
+		t.Fatalf("decode dns record: %v", err)
+	}
+	if spf["domain_id"] != "dom_1" || spf["record"] != "SPF" || spf["type"] != "MX" {
+		t.Fatalf("dns record projection = %#v", spf)
+	}
+	if spf["priority"] != float64(10) {
+		t.Fatalf("priority = %#v, want the MX priority as an integer", spf["priority"])
+	}
+	var dkim map[string]any
+	if err := json.Unmarshal(records.records[1].Data, &dkim); err != nil {
+		t.Fatalf("decode dns record: %v", err)
+	}
+	if dkim["priority"] != nil {
+		t.Fatalf("priority = %#v, want null on a record type that carries none", dkim["priority"])
+	}
+
+	// A fresh Source: parent captures accumulate for the lifetime of a
+	// configured connector, so reusing the one above would fan the detail
+	// request out once per prior run.
+	settingsSrc := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := settingsSrc.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer settingsSrc.Teardown(ctx)
+
+	var settings collectSink
+	if err := settingsSrc.Extract(ctx, &settings, filament.ExtractOpts{Resources: []string{"domain_settings"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract domain settings: %v", err)
+	}
+	if len(settings.records) != 1 {
+		t.Fatalf("settings records = %d, want one row per domain", len(settings.records))
+	}
+	var detail map[string]any
+	if err := json.Unmarshal(settings.records[0].Data, &detail); err != nil {
+		t.Fatalf("decode domain settings: %v", err)
+	}
+	if detail["open_tracking"] != true || detail["tracking_subdomain"] != "links" {
+		t.Fatalf("domain settings projection = %#v, want the tracking fields the list endpoint omits", detail)
+	}
+}
+
+// webhook_event_attempts is the only three-level fan-out in the manifest: the
+// webhook id has to survive from the grandparent through the event capture.
+func TestResendWebhookAttemptsInheritWebhookIDThroughEventCapture(t *testing.T) {
+	ctx := context.Background()
+	var attemptPaths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/webhooks":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"wh_1","endpoint":"https://example.com/hook","status":"enabled",
+				 "events":["email.sent"],"created_at":"2026-09-10 10:15:30.000+00"}]}`)
+		case "/webhooks/wh_1/events":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"msg_1","type":"email.sent","created_at":"2026-08-22T15:28:00.000Z","status":"success"},
+				{"id":"msg_2","type":"email.delivered","created_at":"2026-08-22T15:27:42.000Z","status":"failed"}]}`)
+		case "/webhooks/wh_1/events/msg_1/attempts", "/webhooks/wh_1/events/msg_2/attempts":
+			attemptPaths = append(attemptPaths, r.URL.Path)
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"atmpt_1","http_status_code":200,"response":"{\"ok\":true}","sent_at":"2026-08-22T15:33:12.000Z"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"webhook_event_attempts"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract webhook attempts: %v", err)
+	}
+	if len(attemptPaths) != 2 {
+		t.Fatalf("attempt requests = %v, want one per event", attemptPaths)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one attempt per event and no ancestor rows", len(sink.records))
+	}
+	seen := map[string]bool{}
+	for _, rec := range sink.records {
+		var data map[string]any
+		if err := json.Unmarshal(rec.Data, &data); err != nil {
+			t.Fatalf("decode attempt: %v", err)
+		}
+		if data["webhook_id"] != "wh_1" {
+			t.Fatalf("webhook_id = %#v, want the grandparent id carried through the event capture", data["webhook_id"])
+		}
+		if data["http_status_code"] != float64(200) {
+			t.Fatalf("http_status_code = %#v, want the delivery status as an integer", data["http_status_code"])
+		}
+		if data["sent_at"] != "2026-08-22T15:33:12.000Z" {
+			t.Fatalf("sent_at = %#v, want the ISO-8601 attempt timestamp", data["sent_at"])
+		}
+		seen[data["event_id"].(string)] = true
+	}
+	if !seen["msg_1"] || !seen["msg_2"] {
+		t.Fatalf("event_id values = %v, want both events denormalized onto their attempts", seen)
+	}
+}
+
+// reply_to is documented "string | string[]" and shows as null in the docs
+// example, but live templates return an array. Scalar-typed fields abort the
+// whole child extraction on a type mismatch — nullable only covers missing and
+// null — so the address fields have to be json.
+func TestResendTemplateDetailsAcceptArrayReplyTo(t *testing.T) {
+	ctx := context.Background()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/templates":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"tpl_1","name":"reset-password","alias":"reset-password","status":"published",
+				 "published_at":"2026-10-06 23:47:56.678+00","created_at":"2026-10-06 23:47:56.678+00",
+				 "updated_at":"2026-10-06 23:47:56.678+00"}]}`)
+		case "/templates/tpl_1":
+			fmt.Fprint(w, `{"object":"template","id":"tpl_1","current_version_id":"ver_1",
+				"alias":"reset-password","name":"reset-password","status":"published",
+				"published_at":"2026-10-06 23:47:56.678+00","created_at":"2026-10-06 23:47:56.678+00",
+				"updated_at":"2026-10-06 23:47:56.678+00","from":"John Doe <john@example.com>",
+				"subject":"Hello","reply_to":["support@example.com","ops@example.com"],
+				"html":"<h1>Hello</h1>","text":"Hello","has_unpublished_versions":true,
+				"variables":[{"id":"var_1","key":"user_name","type":"string"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"template_details"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract template details: %v", err)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want one row per template", len(sink.records))
+	}
+	var data map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &data); err != nil {
+		t.Fatalf("decode template detail: %v", err)
+	}
+	replyTo, ok := data["reply_to"].([]any)
+	if !ok || len(replyTo) != 2 || replyTo[0] != "support@example.com" {
+		t.Fatalf("reply_to = %#v, want the multi-address array preserved", data["reply_to"])
+	}
+	if data["from"] != "John Doe <john@example.com>" {
+		t.Fatalf("from = %#v, want the single sender as a scalar", data["from"])
+	}
+	if data["html"] != "<h1>Hello</h1>" {
+		t.Fatalf("html = %#v, want the rendered body the list endpoint omits", data["html"])
+	}
+}

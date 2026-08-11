@@ -6,7 +6,7 @@ import (
 )
 
 // init registers the bundled manifest-driven SaaS catalog
-// (Notion, Linear, Attio, GitHub, Slack). Enable with:
+// (Notion, Linear, Attio, GitHub, Slack, Resend). Enable with:
 //
 //	import _ "github.com/galaxy-io/filament/connectors/http"
 //
@@ -18,4 +18,5 @@ func init() {
 	registry.RegisterSource("attio", func() filament.Source { return NewAttio() })
 	registry.RegisterSource("github", func() filament.Source { return NewGitHub() })
 	registry.RegisterSource("slack", func() filament.Source { return NewSlack() })
+	registry.RegisterSource("resend", func() filament.Source { return NewResend() })
 }
