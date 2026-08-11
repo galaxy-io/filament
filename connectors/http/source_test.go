@@ -1461,3 +1461,374 @@ func TestResendTemplateDetailsAcceptArrayReplyTo(t *testing.T) {
 		t.Fatalf("html = %#v, want the rendered body the list endpoint omits", data["html"])
 	}
 }
+
+func TestNewStripeSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewStripe()
+	spec := src.Spec()
+	if spec.Name != "stripe" || spec.DisplayName != "Stripe" {
+		t.Fatalf("spec identity = %q/%q, want stripe/Stripe", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 1 {
+		t.Fatalf("config fields = %#v, want the API key alone", spec.Config.Fields)
+	}
+	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
+		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without API key succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure embedded Stripe manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	// No Connect or platform resources: transfers, application fees, top-ups,
+	// quotes, payment links and Radar warnings are gated on products the
+	// account may not have enabled.
+	want := []string{
+		"customers", "charges", "payment_intents", "refunds", "disputes",
+		"balance_transactions", "payouts", "invoices", "invoice_line_items",
+		"credit_notes", "subscriptions", "subscription_items", "products",
+		"prices", "coupons", "promotion_codes", "checkout_sessions",
+		"setup_intents", "payment_methods", "tax_rates", "events",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+// Stripe returns no next-page token: the cursor is the id of the last record on
+// the page, echoed back as `starting_after`, with has_more as the terminator.
+// Auth is the API key as the HTTP basic username with an empty password.
+func TestStripePaginatesOnLastRecordIDAndSendsBasicAuth(t *testing.T) {
+	ctx := context.Background()
+	var user, pass string
+	var okBasic bool
+	var version string
+	var startingAfters, limits []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/charges" {
+			http.NotFound(w, r)
+			return
+		}
+		user, pass, okBasic = r.BasicAuth()
+		version = r.Header.Get("Stripe-Version")
+		startingAfters = append(startingAfters, r.URL.Query().Get("starting_after"))
+		limits = append(limits, r.URL.Query().Get("limit"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("starting_after") == "" {
+			fmt.Fprint(w, `{"object":"list","url":"/v1/charges","has_more":true,"data":[
+				{"id":"ch_1","object":"charge","amount":1099,"amount_refunded":0,"currency":"usd",
+				 "created":1679090539,"customer":"cus_1","captured":true,"paid":true,"refunded":false,
+				 "status":"succeeded","livemode":false,"metadata":{},"failure_code":null,
+				 "receipt_url":"https://pay.stripe.com/receipts/1"},
+				{"id":"ch_2","object":"charge","amount":2200,"amount_refunded":2200,"currency":"usd",
+				 "created":1679090600,"customer":null,"captured":true,"paid":true,"refunded":true,
+				 "status":"succeeded","livemode":false,"metadata":{},"failure_code":null,
+				 "receipt_url":null}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"object":"list","url":"/v1/charges","has_more":false,"data":[
+			{"id":"ch_3","object":"charge","amount":500,"amount_refunded":0,"currency":"eur",
+			 "created":1679090700,"customer":"cus_2","captured":false,"paid":false,"refunded":false,
+			 "status":"failed","livemode":false,"metadata":{},"failure_code":"card_declined",
+			 "receipt_url":null}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"charges"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract charges: %v", err)
+	}
+
+	if !okBasic || user != "rk_test_123" || pass != "" {
+		t.Fatalf("basic auth = %q/%q (ok=%v), want the API key as username with no password", user, pass, okBasic)
+	}
+	if version != "2026-07-29.dahlia" {
+		t.Fatalf("Stripe-Version = %q, want the pinned API version", version)
+	}
+	if len(startingAfters) != 2 || startingAfters[0] != "" || startingAfters[1] != "ch_2" {
+		t.Fatalf("starting_after = %v, want the last id of page one on the second request", startingAfters)
+	}
+	for i, limit := range limits {
+		if limit != "100" {
+			t.Fatalf("limit[%d] = %q, want Stripe's 100 maximum rather than the default 10", i, limit)
+		}
+	}
+	if len(sink.records) != 3 {
+		t.Fatalf("records = %d, want all three charges across both pages", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode charge: %v", err)
+	}
+	if first["id"] != "ch_1" || first["status"] != "succeeded" || first["currency"] != "usd" {
+		t.Fatalf("charge projection = %#v", first)
+	}
+	// Stripe timestamps are Unix epoch integers, not RFC 3339, so created is an
+	// int64 column rather than a timestamptz the sinks would fail to coerce.
+	if created, ok := first["created"].(float64); !ok || int64(created) != 1679090539 {
+		t.Fatalf("created = %#v, want the epoch integer preserved", first["created"])
+	}
+	if _, ok := first["raw"].(map[string]any); !ok {
+		t.Fatalf("raw remainder = %#v, want the unmapped payload", first["raw"])
+	}
+}
+
+// /v1/subscription_items requires a subscription, so it fans out from
+// subscriptions with the parent id templated into the query. The parent must
+// send status=all or canceled subscriptions never appear.
+func TestStripeSubscriptionItemFanOut(t *testing.T) {
+	ctx := context.Background()
+	var subscriptionStatus string
+	var itemScopes []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/subscriptions":
+			subscriptionStatus = r.URL.Query().Get("status")
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"sub_1","object":"subscription","created":1679609767,"customer":"cus_1",
+				 "status":"active","currency":"usd","livemode":false,"metadata":{},
+				 "cancel_at_period_end":false,"start_date":1679609767},
+				{"id":"sub_2","object":"subscription","created":1679609800,"customer":"cus_2",
+				 "status":"canceled","currency":"usd","livemode":false,"metadata":{},
+				 "cancel_at_period_end":false,"canceled_at":1679700000,"start_date":1679609800}]}`)
+		case "/v1/subscription_items":
+			scope := r.URL.Query().Get("subscription")
+			itemScopes = append(itemScopes, scope)
+			fmt.Fprintf(w, `{"object":"list","has_more":false,"data":[
+				{"id":"si_%s","object":"subscription_item","created":1679609768,"quantity":1,
+				 "subscription":"%s","current_period_start":1679609767,"current_period_end":1682288167,
+				 "metadata":{},"tax_rates":[]}]}`, scope, scope)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"subscription_items"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract subscription items: %v", err)
+	}
+
+	if subscriptionStatus != "all" {
+		t.Fatalf("subscription status filter = %q, want all so canceled subscriptions are not dropped", subscriptionStatus)
+	}
+	gotScopes := map[string]bool{}
+	for _, scope := range itemScopes {
+		gotScopes[scope] = true
+	}
+	if len(itemScopes) != 2 || !gotScopes["sub_1"] || !gotScopes["sub_2"] {
+		t.Fatalf("item scopes = %v, want one request per parent subscription", itemScopes)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one item per subscription", len(sink.records))
+	}
+	for _, rec := range sink.records {
+		if rec.Resource != "subscription_items" {
+			t.Fatalf("resource = %q, want subscription_items (dependencies must not emit)", rec.Resource)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(rec.Data, &data); err != nil {
+			t.Fatalf("decode subscription item: %v", err)
+		}
+		// Recent API versions carry the billing period on the item, not the
+		// subscription, so this is the only place it surfaces.
+		if _, ok := data["current_period_end"].(float64); !ok {
+			t.Fatalf("current_period_end = %#v, want the item-level billing period", data["current_period_end"])
+		}
+	}
+}
+
+// The invoice's embedded `lines` truncates at 10 with its own has_more, so line
+// detail comes from a per-invoice fan-out that denormalizes the parent id.
+func TestStripeInvoiceLineItemFanOut(t *testing.T) {
+	ctx := context.Background()
+	var linePaths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/v1/invoices":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"in_1","object":"invoice","created":1680644467,"customer":"cus_1",
+				 "currency":"usd","status":"paid","total":1099,"amount_due":1099,"amount_paid":1099,
+				 "livemode":false,"metadata":{},"lines":{"object":"list","has_more":true,"data":[]}},
+				{"id":"in_2","object":"invoice","created":1680644500,"customer":"cus_2",
+				 "currency":"usd","status":"draft","total":0,"amount_due":0,"amount_paid":0,
+				 "livemode":false,"metadata":{},"lines":{"object":"list","has_more":false,"data":[]}}]}`)
+		case strings.HasSuffix(r.URL.Path, "/lines"):
+			linePaths = append(linePaths, r.URL.Path)
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"il_1","object":"line_item","amount":1099,"currency":"usd",
+				 "description":"T-shirt","quantity":1,"discountable":true,"livemode":false,
+				 "metadata":{},"period":{"start":1680644467,"end":1680644467}}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"invoice_line_items"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract invoice line items: %v", err)
+	}
+
+	gotPaths := map[string]bool{}
+	for _, path := range linePaths {
+		gotPaths[path] = true
+	}
+	if len(linePaths) != 2 || !gotPaths["/v1/invoices/in_1/lines"] || !gotPaths["/v1/invoices/in_2/lines"] {
+		t.Fatalf("line paths = %v, want one request per parent invoice", linePaths)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one line per invoice", len(sink.records))
+	}
+	invoiceIDs := map[string]bool{}
+	for _, rec := range sink.records {
+		var data map[string]any
+		if err := json.Unmarshal(rec.Data, &data); err != nil {
+			t.Fatalf("decode invoice line: %v", err)
+		}
+		id, _ := data["invoice_id"].(string)
+		invoiceIDs[id] = true
+		// Line items carry no created timestamp, so the shared field set
+		// excludes it rather than aborting the run on a missing path.
+		if _, ok := data["created"]; ok {
+			t.Fatalf("created = %#v, want the column excluded for line items", data["created"])
+		}
+	}
+	if !invoiceIDs["in_1"] || !invoiceIDs["in_2"] {
+		t.Fatalf("invoice_id values = %v, want the parent id denormalized onto each line", invoiceIDs)
+	}
+}
+
+// Stripe's only incremental filter is the bracketed `created[gte]`, which Go
+// percent-encodes to created%5Bgte%5D on the wire. This pins that round trip
+// along with the numeric comparator: created is an epoch integer, and a naive
+// float stringification would send 1.679090539e+09 and match nothing.
+func TestStripeIncrementalInjectsBracketedCreatedFilter(t *testing.T) {
+	ctx := context.Background()
+	var gotCreatedGte string
+	var rawQuery string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/charges" {
+			http.NotFound(w, r)
+			return
+		}
+		gotCreatedGte = r.URL.Query().Get("created[gte]")
+		rawQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","url":"/v1/charges","has_more":false,"data":[
+			{"id":"ch_9","object":"charge","amount":1000,"currency":"usd","created":1679090700,
+			 "status":"succeeded","livemode":false,"metadata":{}}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	plan, err := src.PlanResume(ctx, []string{"charges"}, nil)
+	if err != nil {
+		t.Fatalf("plan resume: %v", err)
+	}
+	ks, ok := checkpoint.ParseKeyset(plan["charges"])
+	if !ok {
+		t.Fatal("plan did not parse as keyset")
+	}
+	// Each ledger resource needs its own checkpoint key; the cursor_field
+	// fallback would collide across all ten and fail manifest validation.
+	if got, want := ks.Cols, []string{"cursor", "charges_created"}; len(got) != len(want) || got[1] != want[1] {
+		t.Fatalf("checkpoint cols = %v, want %v", got, want)
+	}
+
+	prev := map[string]filament.Checkpoint{
+		"charges": checkpoint.KeysetCheckpoint{
+			Cols:   []string{"cursor", "charges_created"},
+			Types:  []string{"string", "string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"", "1679090539"}}},
+		}.ToCheckpoint("charges"),
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"charges"}, Parallelism: 1}, prev); err != nil {
+		t.Fatalf("extract from: %v", err)
+	}
+
+	if gotCreatedGte != "1679090539" {
+		t.Fatalf("created[gte] = %q, want the stored watermark as a plain epoch integer", gotCreatedGte)
+	}
+	if !strings.Contains(rawQuery, "created%5Bgte%5D=1679090539") {
+		t.Fatalf("raw query = %q, want the bracketed filter percent-encoded", rawQuery)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want the single charge past the watermark", len(sink.records))
+	}
+	// The watermark advances to the newest created seen, not the oldest.
+	if got, want := sink.records[0].Key, []string{"", "1679090700"}; len(got) != len(want) || got[1] != want[1] {
+		t.Fatalf("record key = %v, want %v", got, want)
+	}
+}
+
+// TestConnection probes the first top-level, non-streaming resource with only
+// the config scope bound, so `customers` has to be declared first and has to
+// need no parent capture.
+func TestStripeTestConnectionProbesCustomers(t *testing.T) {
+	var paths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","url":"/v1/customers","has_more":true,"data":[{"id":"cus_1"}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"api_key": "rk_test_123",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	// has_more is true, but validation must not walk pagination.
+	if len(paths) != 1 || paths[0] != "/v1/customers" {
+		t.Fatalf("probe requests = %v, want exactly one GET /v1/customers", paths)
+	}
+}
