@@ -60,8 +60,10 @@ const PIPELINE_SCHEDULE_ORDINAL_SUFFIX_MAP: Record<number, string> = {
   23: "rd",
 };
 
+export const PIPELINE_SCHEDULE_DAY_OF_MONTH_COUNT = 28;
+
 export const PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS: SelectInputOption[] = Array.from(
-  { length: 28 },
+  { length: PIPELINE_SCHEDULE_DAY_OF_MONTH_COUNT },
   (_, index) => ({
     id: `${index + 1}`,
     label: `${index + 1}${PIPELINE_SCHEDULE_ORDINAL_SUFFIX_MAP[index + 1] ?? "th"}`,

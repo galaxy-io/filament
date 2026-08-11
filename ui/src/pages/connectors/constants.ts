@@ -8,23 +8,14 @@ export const CREATE_CONNECTION_MODAL_SELECTOR_WIDTH = 900;
 export const CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH = 480;
 export const CREATE_CONNECTION_MODAL_MIN_HEIGHT = 620;
 export const CREATE_CONNECTION_MODAL_MAX_HEIGHT = 720;
+export const CREATE_CONNECTION_SELECTOR_GHOST_COUNT = 6;
+export const CREATE_CONNECTION_SELECTOR_GRID_COLUMNS = "repeat(3, 1fr)";
+export const CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT = 150;
 
 export const CONNECTOR_KIND_TO_LABEL_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.UNSPECIFIED]: "—",
   [ConnectorKind.SOURCE]: "Source",
   [ConnectorKind.SINK]: "Sink",
-};
-
-export type ConnectorKindParam = "SOURCE" | "SINK";
-
-export const CONNECTOR_KIND_TO_PARAM_MAP: Partial<Record<ConnectorKind, ConnectorKindParam>> = {
-  [ConnectorKind.SOURCE]: "SOURCE",
-  [ConnectorKind.SINK]: "SINK",
-};
-
-export const CONNECTOR_KIND_PARAM_TO_KIND_MAP: Record<ConnectorKindParam, ConnectorKind> = {
-  SOURCE: ConnectorKind.SOURCE,
-  SINK: ConnectorKind.SINK,
 };
 
 export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = {

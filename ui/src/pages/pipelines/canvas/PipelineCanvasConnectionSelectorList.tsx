@@ -13,10 +13,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
-import {
-  CONNECTOR_KIND_TO_LABEL_MAP,
-  CONNECTOR_KIND_TO_PARAM_MAP,
-} from "@/pages/connectors/constants";
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
 
 import { Flow } from "@/routes/__root";
@@ -51,7 +48,7 @@ const PipelineCanvasConnectionSelectorEmpty = ({
         ...prev,
         connectionId: undefined,
         flow: Flow.CREATE_CONNECTION,
-        connectorKind: CONNECTOR_KIND_TO_PARAM_MAP[connectorKind],
+        connectorKind,
       }),
     });
   };

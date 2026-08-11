@@ -14,6 +14,6 @@ export const usePipelinePreviewVersion = (): PipelineVersion | undefined => {
   });
 
   return data.versions.find(
-    (item) => item.version !== data.versions[0]?.version && Number(item.version) === searchVersion,
+    (item) => item.version !== data.versions[0]?.version && item.version === searchVersion,
   );
 };

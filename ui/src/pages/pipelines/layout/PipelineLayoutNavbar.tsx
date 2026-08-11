@@ -20,7 +20,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/PipelineName";
@@ -39,7 +39,10 @@ import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
+import {
+  PIPELINE_NAVBAR_HEIGHT,
+  PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
+} from "@/pages/pipelines/layout/constants";
 import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
@@ -142,19 +145,19 @@ const PipelineLayoutNavbar = () => {
   const selectedVersionOption =
     versionOptions.find((option) => option.value === (previewVersion ?? latestVersion)) ?? null;
 
-  const handlePreviewVersionChange = (nextVersion: bigint | null) => {
+  const handlePreviewVersionChange = (nextVersion: PipelineVersion["version"] | null) => {
     void navigate({
       to: "/pipelines/$id/canvas",
       params: { id },
       search: (prev) => ({
         ...prev,
-        version: nextVersion === null ? undefined : Number(nextVersion),
+        version: nextVersion ?? undefined,
       }),
     });
   };
 
   const handleVersionChange = (option: SelectInputOption) => {
-    const version = option.value as bigint;
+    const version = option.value as PipelineVersion["version"];
     handlePreviewVersionChange(version === latestVersion ? null : version);
   };
 
@@ -216,7 +219,7 @@ const PipelineLayoutNavbar = () => {
             onChange={handleVersionChange}
             size={InputSize.SMALL}
             variant={SelectInputVariant.SECONDARY}
-            dropdownWidth={200}
+            dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
             isDisabled={hasUnsavedChanges}
           />
         )}

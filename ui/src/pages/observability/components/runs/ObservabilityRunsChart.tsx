@@ -6,6 +6,7 @@ import BarChart from "@galaxy-io/dls/charts/BarChart";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import {
+  OBSERVABILITY_RUNS_CHART_HEIGHT,
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   OBSERVABILITY_RUNS_SERIES,
 } from "@/pages/observability/components/runs/constants";
@@ -41,7 +42,12 @@ const ObservabilityRunsChart = () => {
   }, [data, statuses.length]);
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} padding={"24px 12px"} height={250} fillWidth>
+    <FlexWrapper
+      direction={FlexDirection.COLUMN}
+      padding={"24px 12px"}
+      height={OBSERVABILITY_RUNS_CHART_HEIGHT}
+      fillWidth
+    >
       <BarChart
         series={OBSERVABILITY_RUNS_SERIES}
         groups={groups}

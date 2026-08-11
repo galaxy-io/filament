@@ -3,14 +3,18 @@ import { CalendarIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
-import { GetPipelineRequestSchema, type PipelineSchedule } from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  GetPipelineRequestSchema,
+  type Pipeline,
+  type PipelineSchedule,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { formatTimeUntil } from "@/utils/format";
 
 interface PipelineScheduleChipProps {
-  pipelineId: string;
+  pipelineId: Pipeline["id"];
   schedule?: PipelineSchedule;
 }
 

@@ -1,6 +1,7 @@
-import type { PipelineSchedule } from "@/gen/ingestion/v1/pipelines_pb";
+import type { PipelineSchedule, PipelineScheduleConfig } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
+  PIPELINE_SCHEDULE_DAY_OF_MONTH_COUNT,
   PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS,
   PIPELINE_SCHEDULE_DAY_OPTIONS,
   PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
@@ -12,7 +13,7 @@ import {
 
 export const mapPipelineScheduleStateToCron = (
   state: PipelineSettingsPageScheduleState,
-): string => {
+): PipelineScheduleConfig["cron"] => {
   if (state.frequency === PipelineScheduleFrequency.HOURLY) return "0 * * * *";
   if (state.frequency === PipelineScheduleFrequency.WEEKLY) {
     return `0 ${state.hour} * * ${[...state.days].sort((a, b) => a - b).join(",")}`;
@@ -29,7 +30,7 @@ type PipelineScheduleCronState = Pick<
 >;
 
 export const mapPipelineScheduleCronToState = (
-  cron: string,
+  cron: PipelineScheduleConfig["cron"],
 ): Partial<PipelineScheduleCronState> | null => {
   const fields = cron.trim().split(/\s+/);
   if (fields.length !== 5) return null;
@@ -53,7 +54,12 @@ export const mapPipelineScheduleCronToState = (
   }
   if (dayOfMonth !== "*") {
     const dayValue = Number(dayOfMonth);
-    if (!Number.isInteger(dayValue) || dayValue < 1 || dayValue > 28) return null;
+    if (
+      !Number.isInteger(dayValue) ||
+      dayValue < 1 ||
+      dayValue > PIPELINE_SCHEDULE_DAY_OF_MONTH_COUNT
+    )
+      return null;
     return {
       frequency: PipelineScheduleFrequency.MONTHLY,
       hour: hourValue,

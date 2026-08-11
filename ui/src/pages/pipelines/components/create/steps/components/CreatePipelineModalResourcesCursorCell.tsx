@@ -13,6 +13,7 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
+import { CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const CellWrapper = styled.div`
@@ -71,7 +72,7 @@ const CreatePipelineModalResourcesCursorCell = ({
         }
         placeholder="Select a column..."
         variant={SelectInputVariant.SECONDARY}
-        dropdownWidth={260}
+        dropdownWidth={CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH}
         fillWidth
       />
     </CellWrapper>

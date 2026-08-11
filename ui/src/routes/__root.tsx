@@ -9,6 +9,8 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastProvider } from "@galaxy-io/dls/toast/ToastProvider";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
 import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
 import ConnectionDrawer from "@/pages/connectors/components/drawer/ConnectionDrawer";
 import EditConnectionModal from "@/pages/connectors/components/edit/EditConnectionModal";
@@ -24,7 +26,7 @@ export enum Flow {
 const searchParams = z.object({
   connectionId: z.string().optional().catch(undefined),
   flow: z.enum(Flow).optional().catch(undefined),
-  connectorKind: z.enum(["SOURCE", "SINK"]).optional().catch(undefined),
+  connectorKind: z.enum(ConnectorKind).optional().catch(undefined),
   connector: z.string().optional().catch(undefined),
 });
 

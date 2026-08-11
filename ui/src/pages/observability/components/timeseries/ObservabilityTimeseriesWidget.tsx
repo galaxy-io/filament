@@ -16,8 +16,8 @@ import ObservabilityTimeseriesChart from "@/pages/observability/components/times
 interface ObservabilityTimeseriesWidgetProps<View extends string> {
   views: Record<View, ObservabilityChartView>;
   defaultView: View;
-  viewSearchKey: "metric" | "usage";
-  pivotSearchKey: "pivot" | "usagePivot";
+  viewSearchKey: "throughput" | "usage";
+  pivotSearchKey: "throughputPivot" | "usagePivot";
 }
 
 const ObservabilityTimeseriesWidget = <View extends string>({

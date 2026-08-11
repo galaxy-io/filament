@@ -13,6 +13,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { getPipelineScopedFields } from "@/components/fields/utils";
@@ -76,8 +77,8 @@ const HeaderIsland = styled(PipelineCanvasNodeIsland)`
 `;
 
 interface PipelineCanvasNodeProps extends PropsWithChildren {
-  connector: string;
-  label: string;
+  connector: Connection["connector"];
+  label: Connection["name"];
   kind: ConnectorKind;
   isConnected?: boolean;
   isSelected?: boolean;

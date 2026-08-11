@@ -15,7 +15,6 @@ import ConnectionFormProvider, {
   useConnectionFormContext,
 } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
-import { CONNECTOR_KIND_PARAM_TO_KIND_MAP } from "@/pages/connectors/constants";
 
 import { useCreateConnectionMutation } from "@/api/queries/connections";
 
@@ -29,9 +28,7 @@ interface CreateConnectionConfigureProps {
 const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionConfigureProps) => {
   const navigate = useNavigate();
   const { connector, connectorKind } = useSearch({ from: "__root__" });
-  const kind = connectorKind
-    ? CONNECTOR_KIND_PARAM_TO_KIND_MAP[connectorKind]
-    : ConnectorKind.UNSPECIFIED;
+  const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
   const { state, dispatch } = useConnectionFormContext();
   const { showToast } = useToast();
 

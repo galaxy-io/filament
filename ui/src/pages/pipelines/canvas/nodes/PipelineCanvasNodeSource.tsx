@@ -4,6 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
@@ -20,7 +21,7 @@ import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
 
-const useSourceResources = (connectionId: string) => {
+const useSourceResources = (connectionId: Connection["id"]) => {
   const { data, error, isFetching, refetch } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, { connectionId }),
     options: { enabled: connectionId !== "", retry: false, networkMode: "always" },

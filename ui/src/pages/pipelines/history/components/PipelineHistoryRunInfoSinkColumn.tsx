@@ -5,7 +5,7 @@ import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/Flex
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import { GetRunRequestSchema } from "@/gen/ingestion/v1/runs_pb";
+import { GetRunRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
@@ -13,7 +13,7 @@ import { useGetConnectionQuery } from "@/api/queries/connections";
 import { useGetRunQuery } from "@/api/queries/runs";
 
 interface PipelineHistoryRunInfoSinkColumnProps {
-  runId: string;
+  runId: RunInfo["runId"];
 }
 
 const PipelineHistoryRunInfoSinkColumn = ({ runId }: PipelineHistoryRunInfoSinkColumnProps) => {

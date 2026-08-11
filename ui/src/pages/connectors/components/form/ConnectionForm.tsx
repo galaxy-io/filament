@@ -18,8 +18,10 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { ConfigField, ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
+  type ConnectorSpec,
   GetConnectorRequestSchema,
   ValidateConfigRequestSchema,
 } from "@/gen/ingestion/v1/providers_pb";
@@ -73,9 +75,9 @@ const FooterWrapper = withTheme(styled.div<PropsWithTheme>`
 `);
 
 interface ConnectionFormProps {
-  connectorName: string;
+  connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
-  connectionId?: string;
+  connectionId?: Connection["id"];
   onSubmit: () => void;
   onClose: () => void;
   onBack?: () => void;
@@ -126,7 +128,7 @@ const ConnectionForm = ({
   );
 
   const getFieldError = useCallback(
-    (fieldName: string): string | undefined =>
+    (fieldName: ConfigField["name"]): string | undefined =>
       state.shouldShowErrors ? errorMap.get(fieldName) : undefined,
     [state.shouldShowErrors, errorMap],
   );
@@ -209,7 +211,7 @@ const ConnectionForm = ({
   ]);
 
   const handleNameChange = useCallback(
-    (name: string) =>
+    (name: Connection["name"]) =>
       dispatch({
         type: ConnectionFormActionType.SET_NAME,
         payload: name,
@@ -218,7 +220,7 @@ const ConnectionForm = ({
   );
 
   const handleFieldChange = useCallback(
-    (fieldName: string, value: JsonValue) =>
+    (fieldName: ConfigField["name"], value: JsonValue) =>
       dispatch({
         type: ConnectionFormActionType.SET_CONFIG_FIELD,
         payload: { field: fieldName, value },
@@ -228,7 +230,7 @@ const ConnectionForm = ({
 
   const fieldDefaults = useMemo(() => getFieldDefaults(fields), [fields]);
 
-  const getFieldValue = (fieldName: string): JsonValue => {
+  const getFieldValue = (fieldName: ConfigField["name"]): JsonValue => {
     return state.config[fieldName] ?? fieldDefaults[fieldName] ?? null;
   };
 

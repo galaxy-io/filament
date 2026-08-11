@@ -7,7 +7,6 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import CreateConnectionConfigure from "@/pages/connectors/components/create/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
-import { CONNECTOR_KIND_TO_PARAM_MAP } from "@/pages/connectors/constants";
 
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
@@ -22,7 +21,7 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
         search: (prev) => ({
           ...prev,
           connector: connector.name,
-          connectorKind: CONNECTOR_KIND_TO_PARAM_MAP[connector.kind],
+          connectorKind: connector.kind,
         }),
       });
     },

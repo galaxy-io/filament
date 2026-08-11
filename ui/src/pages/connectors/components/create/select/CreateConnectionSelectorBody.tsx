@@ -14,13 +14,14 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import CreateConnectionSelectorCard from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
-import { CONNECTOR_KIND_PARAM_TO_KIND_MAP } from "@/pages/connectors/constants";
+import {
+  CREATE_CONNECTION_SELECTOR_GHOST_COUNT,
+  CREATE_CONNECTION_SELECTOR_GRID_COLUMNS,
+} from "@/pages/connectors/constants";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 
 import { isSearchMatch } from "@/utils/search";
-
-const CREATE_CONNECTION_SELECTOR_GHOST_COUNT = 6;
 
 interface CreateConnectionSelectorBodyProps {
   search: string;
@@ -52,9 +53,7 @@ const CreateConnectionSelectorBody = ({
   onConnectorSelect,
 }: CreateConnectionSelectorBodyProps) => {
   const { connectorKind } = useSearch({ from: "__root__" });
-  const kind = connectorKind
-    ? CONNECTOR_KIND_PARAM_TO_KIND_MAP[connectorKind]
-    : ConnectorKind.UNSPECIFIED;
+  const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
   const { data, isLoading } = useListConnectorsQuery();
 
@@ -73,7 +72,7 @@ const CreateConnectionSelectorBody = ({
   if (isLoading) {
     return (
       <BodyWrapper>
-        <GridWrapper columns="repeat(3, 1fr)" gap={12}>
+        <GridWrapper columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
           {Array.from({ length: CREATE_CONNECTION_SELECTOR_GHOST_COUNT }, (_, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
             <GhostCard key={index}>
@@ -100,7 +99,7 @@ const CreateConnectionSelectorBody = ({
 
   return (
     <BodyWrapper>
-      <GridWrapper columns="repeat(3, 1fr)" gap={12}>
+      <GridWrapper columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
         {filteredConnectors.map((connector) => (
           <CreateConnectionSelectorCard
             key={`${connector.name}-${connector.kind}`}

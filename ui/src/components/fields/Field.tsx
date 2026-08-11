@@ -21,9 +21,9 @@ import {
   isJsonObject,
 } from "@/components/fields/utils";
 
-const FIELD_TYPE_TO_FIELD_COMPONENT_MAP: Partial<Record<FieldType, FieldComponent>> = {
-  [FieldType.STRING]: FieldString,
+const FIELD_TYPE_TO_FIELD_COMPONENT_MAP: Record<FieldType, FieldComponent> = {
   [FieldType.UNSPECIFIED]: FieldString,
+  [FieldType.STRING]: FieldString,
   [FieldType.DURATION]: FieldString,
   [FieldType.INT]: FieldInt,
   [FieldType.BOOL]: FieldBoolean,

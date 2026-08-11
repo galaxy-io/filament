@@ -1,7 +1,8 @@
-import type { JsonValue } from "@bufbuild/protobuf";
 import type { Edge, Node } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Resource } from "@/gen/ingestion/v1/providers_pb";
 
 export enum PipelineCanvasNodeType {
   SOURCE = "SOURCE",
@@ -10,13 +11,13 @@ export enum PipelineCanvasNodeType {
 }
 
 export interface PipelineCanvasNodeTableInfo {
-  name: string;
+  name: Resource["name"];
   isConnected: boolean;
 }
 
 export type PipelineCanvasConnectionNodeData = {
-  connectionId: string;
-  config?: Record<string, JsonValue>;
+  connectionId: PipelineNode["connectionId"];
+  config?: NonNullable<PipelineNode["config"]>;
 };
 
 export type PipelineCanvasPlaceholderNodeData = {

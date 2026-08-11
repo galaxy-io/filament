@@ -12,7 +12,10 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import { READ_MODE_TO_LABEL_MAP } from "@/pages/pipelines/components/create/constants";
+import {
+  CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH,
+  READ_MODE_TO_LABEL_MAP,
+} from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const CellWrapper = styled.div`
@@ -54,7 +57,7 @@ const CreatePipelineModalResourcesReadModeCell = ({
           })
         }
         variant={SelectInputVariant.SECONDARY}
-        dropdownWidth={220}
+        dropdownWidth={CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH}
         isDisabled={!row.isSelected}
         fillWidth
       />

@@ -16,6 +16,8 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
 import DocsButton from "@/components/DocsButton";
 
 import {
@@ -72,7 +74,7 @@ const ObservabilitySetupChecklist = () => {
             ...prev,
             connectionId: undefined,
             flow: Flow.CREATE_CONNECTION,
-            connectorKind: "SOURCE",
+            connectorKind: ConnectorKind.SOURCE,
           }),
         });
       })
@@ -83,7 +85,7 @@ const ObservabilitySetupChecklist = () => {
             ...prev,
             connectionId: undefined,
             flow: Flow.CREATE_CONNECTION,
-            connectorKind: "SINK",
+            connectorKind: ConnectorKind.SINK,
           }),
         });
       })

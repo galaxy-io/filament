@@ -1,4 +1,4 @@
-import { DashboardProvider } from "@galaxy-io/dls/charts/DashboardProvider";
+import { ChartGroupProvider } from "@galaxy-io/dls/charts/ChartGroupProvider";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
@@ -13,12 +13,14 @@ import ObservabilityToolbar from "@/pages/observability/components/Observability
 import ObservabilityRunsWidget from "@/pages/observability/components/runs/ObservabilityRunsWidget";
 import ObservabilitySetupChecklist from "@/pages/observability/components/setup/ObservabilitySetupChecklist";
 import {
-  OBSERVABILITY_METRIC_VIEW_TO_CONFIG_MAP,
+  OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP,
   OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP,
 } from "@/pages/observability/components/timeseries/constants";
 import ObservabilityTimeseriesWidget from "@/pages/observability/components/timeseries/ObservabilityTimeseriesWidget";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
-import { ObservabilityMetricView, ObservabilityUsageView } from "@/pages/observability/types";
+import { ObservabilityThroughputView, ObservabilityUsageView } from "@/pages/observability/types";
+
+const OBSERVABILITY_TIMESERIES_WIDGET_BASIS = "400px";
 
 const ObservabilityPage = () => {
   const { isComplete } = useObservabilitySetup();
@@ -28,7 +30,7 @@ const ObservabilityPage = () => {
   }
 
   return (
-    <DashboardProvider sharedTooltip>
+    <ChartGroupProvider sharedTooltip>
       <FlexWrapper direction={FlexDirection.COLUMN} fillWidth fillHeight>
         <ObservabilityToolbar />
         <FlexItem grow={0} shrink={0} fillWidth>
@@ -49,15 +51,15 @@ const ObservabilityPage = () => {
             wrap={FlexWrap.WRAP}
             fillWidth
           >
-            <FlexItem grow={1} basis="400px" minWidth={0}>
+            <FlexItem grow={1} basis={OBSERVABILITY_TIMESERIES_WIDGET_BASIS} minWidth={0}>
               <ObservabilityTimeseriesWidget
-                views={OBSERVABILITY_METRIC_VIEW_TO_CONFIG_MAP}
-                defaultView={ObservabilityMetricView.RECORDS}
-                viewSearchKey="metric"
-                pivotSearchKey="pivot"
+                views={OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP}
+                defaultView={ObservabilityThroughputView.RECORDS}
+                viewSearchKey="throughput"
+                pivotSearchKey="throughputPivot"
               />
             </FlexItem>
-            <FlexItem grow={1} basis="400px" minWidth={0}>
+            <FlexItem grow={1} basis={OBSERVABILITY_TIMESERIES_WIDGET_BASIS} minWidth={0}>
               <ObservabilityTimeseriesWidget
                 views={OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP}
                 defaultView={ObservabilityUsageView.CPU}
@@ -69,7 +71,7 @@ const ObservabilityPage = () => {
           <ObservabilityRunsWidget />
         </FlexWrapper>
       </FlexWrapper>
-    </DashboardProvider>
+    </ChartGroupProvider>
   );
 };
 

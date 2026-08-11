@@ -8,7 +8,10 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import { PIPELINE_SIDEBAR_WIDTH } from "@/pages/pipelines/layout/constants";
+import {
+  PIPELINE_PREVIEW_CHIP_Z_INDEX,
+  PIPELINE_SIDEBAR_WIDTH,
+} from "@/pages/pipelines/layout/constants";
 import PipelineLayoutBackButton from "@/pages/pipelines/layout/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/pages/pipelines/layout/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/pages/pipelines/layout/PipelineLayoutSidebar";
@@ -79,7 +82,7 @@ const PreviewChipOverlay = styled.div`
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 1002;
+  z-index: ${PIPELINE_PREVIEW_CHIP_Z_INDEX};
 `;
 
 const PipelineLayout = ({ children }: PropsWithChildren) => {

@@ -4,6 +4,7 @@ import { IngestionType, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb
 import {
   type CreatePipelineVersionRequest,
   CreatePipelineVersionRequestSchema,
+  type Pipeline,
   type PipelineEdge as PipelineEdgeProto,
   type PipelineVersion,
 } from "@/gen/ingestion/v1/pipelines_pb";
@@ -19,7 +20,7 @@ import {
 import { getNextNodePosition } from "@/pages/pipelines/canvas/graph/layout";
 import { type CanvasEdge, type CanvasNode, isConnectionNode } from "@/pages/pipelines/canvas/types";
 
-const getCanvasEdgeResource = (edge: CanvasEdge) =>
+const getCanvasEdgeResource = (edge: CanvasEdge): PipelineEdgeProto["resource"] =>
   edge.sourceHandle && edge.sourceHandle !== PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID
     ? edge.sourceHandle
     : "";
@@ -63,7 +64,7 @@ export const mapPipelineVersionToCanvasState = (
 
 export const mapCanvasStateToVersionRequest = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
-  pipelineId: string,
+  pipelineId: Pipeline["id"],
   baseVersion: PipelineVersion | undefined,
 ): CreatePipelineVersionRequest => {
   const baseNodesById = new Map((baseVersion?.nodes ?? []).map((node) => [node.id, node]));

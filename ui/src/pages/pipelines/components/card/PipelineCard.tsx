@@ -20,6 +20,7 @@ import {
 } from "@/pages/pipelines/components/card/constants";
 import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
 import { usePipelineFlowEndpoints } from "@/pages/pipelines/hooks/usePipelineFlowEndpoints";
+
 import PipelineScheduleChip from "../schedule/PipelineScheduleChip";
 
 const CardLinkWrapper = styled(Link)`

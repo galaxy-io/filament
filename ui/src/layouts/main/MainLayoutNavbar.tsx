@@ -18,7 +18,8 @@ import GithubButton from "@/components/GithubButton";
 
 import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
 
-export const NAVBAR_HEIGHT = 52;
+const MAIN_NAVBAR_HEIGHT = 52;
+const MAIN_NAVBAR_RAIL_WIDTH = 200;
 
 export interface NavItem {
   to: TRoutes;
@@ -34,7 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
-  height: ${NAVBAR_HEIGHT}px;
+  height: ${MAIN_NAVBAR_HEIGHT}px;
 
   padding: 0 16px;
 
@@ -90,7 +91,11 @@ const MainLayoutNavbar = () => {
   return (
     <NavbarWrapper>
       <Link to={"/"}>
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} width={200}>
+        <FlexWrapper
+          alignItems={AlignItems.CENTER}
+          gap={FlexGap.MEDIUM}
+          width={MAIN_NAVBAR_RAIL_WIDTH}
+        >
           <FlexItem shrink={0}>
             <GalaxyLogomark height={12} />
           </FlexItem>
@@ -108,9 +113,9 @@ const MainLayoutNavbar = () => {
         alignItems={AlignItems.CENTER}
         justifyContent={JustifyContent.END}
         gap={FlexGap.SMALL}
-        width={200}
+        width={MAIN_NAVBAR_RAIL_WIDTH}
       >
-        <DocsButton label="Read to docs" />
+        <DocsButton label="Read the docs" />
         <GithubButton />
       </FlexWrapper>
     </NavbarWrapper>

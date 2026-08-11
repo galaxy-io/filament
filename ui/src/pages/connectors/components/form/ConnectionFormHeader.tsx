@@ -5,6 +5,7 @@ import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
 
 import DocsButton from "@/components/DocsButton";
 
@@ -15,14 +16,14 @@ import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
 interface ConnectionFormHeaderProps {
-  connectorName: string;
+  connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
   title: string;
   onClose: () => void;
 }
 
-const createDocsPath = (connectorName: string, connectorKind: ConnectorKind) => {
-  const kindSegment = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind]);
+const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: ConnectorKind) => {
+  const kindSegment = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind]).toLowerCase();
   return `/pages/connectors/${kindSegment}/${connectorName.toLowerCase()}`;
 };
 

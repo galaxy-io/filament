@@ -23,6 +23,13 @@ export const PIPELINE_CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
 
 export const PIPELINE_CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
+export const PIPELINE_CANVAS_NODE_STACK_START_Y = 100;
+export const PIPELINE_CANVAS_NODE_STACK_HEIGHT = 120;
+export const PIPELINE_CANVAS_NODE_STACK_GAP = 40;
+
+export const PIPELINE_CANVAS_CONNECTION_SELECTOR_WIDTH = 320;
+export const PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT = 480;
+
 export const CONNECTOR_KIND_TO_NODE_TYPE_MAP: Record<
   ConnectorKind,
   PipelineCanvasNodeType.SOURCE | PipelineCanvasNodeType.SINK

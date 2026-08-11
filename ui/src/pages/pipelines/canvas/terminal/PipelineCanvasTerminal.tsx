@@ -12,7 +12,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Flash from "@galaxy-io/dls/transform/Flash";
 
-import { ListRunsRequestSchema } from "@/gen/ingestion/v1/runs_pb";
+import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
@@ -24,6 +24,7 @@ import {
 } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import {
   PIPELINE_CANVAS_TERMINAL_HEIGHT,
+  PIPELINE_CANVAS_TERMINAL_MAX_RUNS,
   PIPELINE_CANVAS_TERMINAL_NOTCH_WIDTH,
   PIPELINE_CANVAS_TERMINAL_RIGHT_OFFSET,
   PIPELINE_CANVAS_TERMINAL_WIDTH,
@@ -32,8 +33,6 @@ import PipelineCanvasTerminalLine from "@/pages/pipelines/canvas/terminal/Pipeli
 
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useListRunsQuery, useTailRunsStream } from "@/api/queries/runs";
-
-const PIPELINE_CANVAS_TERMINAL_MAX_RUNS = 8;
 
 const TerminalWrapper = styled.div`
   position: absolute;
@@ -101,7 +100,7 @@ const PipelineCanvasTerminal = () => {
     }),
   });
 
-  const [runIds, setRunIds] = useState<string[]>([]);
+  const [runIds, setRunIds] = useState<RunInfo["runId"][]>([]);
   const mergedRunIds = [
     ...new Set([...runIds, ...(activeRunsData?.runs ?? []).map((run) => run.runId)]),
   ].slice(-PIPELINE_CANVAS_TERMINAL_MAX_RUNS);

@@ -16,8 +16,8 @@ export interface PipelineFlowEndpoints {
 }
 
 export const mapConnectionIdToFlowConnection = (
-  connectionId: string,
-  connectionsById: Map<string, Connection>,
+  connectionId: Connection["id"],
+  connectionsById: Map<Connection["id"], Connection>,
 ): PipelineFlowConnection => {
   const connection = connectionsById.get(connectionId);
   return {

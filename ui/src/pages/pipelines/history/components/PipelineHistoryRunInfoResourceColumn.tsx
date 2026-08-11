@@ -6,7 +6,11 @@ import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/Flex
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import { GetRunRequestSchema, type RunResourceState } from "@/gen/ingestion/v1/runs_pb";
+import {
+  GetRunRequestSchema,
+  type RunInfo,
+  type RunResourceState,
+} from "@/gen/ingestion/v1/runs_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
@@ -14,7 +18,7 @@ import { useGetConnectionQuery } from "@/api/queries/connections";
 import { useGetRunQuery } from "@/api/queries/runs";
 
 interface PipelineHistoryRunInfoResourceColumnProps {
-  runId: string;
+  runId: RunInfo["runId"];
   runResource: RunResourceState;
 }
 

@@ -10,6 +10,7 @@ import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/Selec
 import Text from "@galaxy-io/dls/text/Text";
 
 import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import {
@@ -25,7 +26,7 @@ const SinkNameWrapper = styled.div`
 
 interface CreatePipelineModalDeliverySinkProps {
   sink: CreatePipelineModalSinkRow;
-  onChange: (sinkId: string, writeMode: WriteMode) => void;
+  onChange: (sinkId: Connection["id"], writeMode: WriteMode) => void;
 }
 
 const CreatePipelineModalDeliverySink = ({

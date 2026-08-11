@@ -29,15 +29,13 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import {
-  CONNECTOR_KIND_TO_LABEL_MAP,
-  CONNECTOR_KIND_TO_PARAM_MAP,
-} from "@/pages/connectors/constants";
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
+import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
 
 import { Flow } from "@/routes/__root";
 
@@ -46,8 +44,6 @@ import { useListConnectionsQuery } from "@/api/queries/connections";
 import { NOOP } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
-
-const CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT = 4;
 
 const RowWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -89,7 +85,7 @@ const CreatePipelineModalConnectionsEmpty = ({
         ...prev,
         connectionId: undefined,
         flow: Flow.CREATE_CONNECTION,
-        connectorKind: CONNECTOR_KIND_TO_PARAM_MAP[connectorKind],
+        connectorKind,
       }),
     });
   };

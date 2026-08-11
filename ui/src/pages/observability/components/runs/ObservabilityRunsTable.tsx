@@ -18,7 +18,17 @@ import PipelineName from "@/components/PipelineName";
 import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
 import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
   OBSERVABILITY_RUNS_TABLE_LIMIT,
+  OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
@@ -79,7 +89,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "status",
         header: "Status",
-        size: 110,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
@@ -88,7 +98,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "runId",
         header: "Run",
-        size: 180,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace>
@@ -105,14 +115,14 @@ const ObservabilityRunsTable = () => {
       {
         id: "connectors",
         header: "Connectors",
-        size: 140,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
         cellLoading: () => <TextShimmer width={120} height={18} />,
         cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
       },
       {
         id: "startedAt",
         header: "Started",
-        size: 160,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
         accessorFn: (run) => Number(run.startedAt),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={100} height={14} />,
@@ -125,7 +135,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "duration",
         header: "Duration",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
         accessorFn: (run) =>
           run.startedAt && run.endedAt ? Number(run.endedAt - run.startedAt) : -1,
         enableSorting: true,
@@ -139,7 +149,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "records",
         header: "Records",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
         accessorFn: (run) => Number(run.records),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
@@ -152,7 +162,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "volume",
         header: "Volume",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
         accessorFn: (run) => Number(run.bytes),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={52} height={14} />,
@@ -165,7 +175,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "cpu",
         header: "CPU",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
         accessorFn: (run) => run.cpuSeconds,
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
@@ -178,7 +188,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "memory",
         header: "Memory",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
         align: ColumnAlign.RIGHT,
         accessorFn: (run) => Number(run.memoryPeakBytes),
         enableSorting: true,
@@ -217,10 +227,11 @@ const ObservabilityRunsTable = () => {
       onRowClick={handleRowClick}
       enableSorting
       isLoading={isLoading || (includeScheduled && isLoadingScheduled)}
+      loadingRowCount={1}
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }
-      maxHeight={450}
+      maxHeight={OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT}
       fillWidth
       noLastRowPadding
       noLastRowBorder

@@ -11,7 +11,7 @@ import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import DocsButton from "@/components/DocsButton";
 
@@ -25,7 +25,6 @@ import {
   CONNECTOR_GRID_MIN_COLUMN_WIDTH,
   CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP,
   CONNECTOR_KIND_TO_LABEL_MAP,
-  CONNECTOR_KIND_TO_PARAM_MAP,
 } from "@/pages/connectors/constants";
 import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineConnectionMap";
 
@@ -61,7 +60,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
         ...prev,
         connectionId: undefined,
         flow: Flow.CREATE_CONNECTION,
-        connectorKind: CONNECTOR_KIND_TO_PARAM_MAP[kind],
+        connectorKind: kind,
       }),
     });
   };
@@ -73,7 +72,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
 
   const { connectionIdsByPipelineId } = usePipelineConnectionMap();
   const pipelineCountsByConnectionId = useMemo(() => {
-    const counts = new Map<string, number>();
+    const counts = new Map<Connection["id"], number>();
     for (const connectionIds of connectionIdsByPipelineId.values()) {
       for (const connectionId of connectionIds) {
         counts.set(connectionId, (counts.get(connectionId) ?? 0) + 1);
@@ -87,7 +86,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
     [kindConnections, q],
   );
 
-  const handleConnectionClick = (connectionId: string) => {
+  const handleConnectionClick = (connectionId: Connection["id"]) => {
     void navigate({
       to: ".",
       search: (prev) => ({ ...prev, connectionId }),

@@ -17,6 +17,7 @@ import {
   OBSERVABILITY_RUN_STATUS_OPTIONS,
   OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH,
 } from "@/pages/observability/components/runs/constants";
 import ObservabilityRunsChart from "@/pages/observability/components/runs/ObservabilityRunsChart";
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
@@ -60,7 +61,7 @@ const ObservabilityRunsWidget = () => {
             value={selectedStatusOptions}
             onChange={handleStatusChange}
             placeholder="Select statuses..."
-            width={160}
+            width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}
             pinnedOptions={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION]}
             renderSelectedText={(selectedOptions, placeholder) =>
               selectedOptions.length
