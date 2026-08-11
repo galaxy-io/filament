@@ -55,7 +55,7 @@ const OBSERVABILITY_METRICS_OTHER_STATUSES = OBSERVABILITY_RUN_STATUSES.filter(
 
 const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
-  pagination: create(PaginationRequestSchema, { limit: OBSERVABILITY_RUNS_TABLE_LIMIT }),
+  pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
 });
 
 const ObservabilityMetricsWidget = () => {

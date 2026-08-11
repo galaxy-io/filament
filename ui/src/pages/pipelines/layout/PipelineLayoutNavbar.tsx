@@ -96,7 +96,7 @@ const PipelineLayoutNavbar = () => {
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
-      pagination: create(PaginationRequestSchema, { limit: 1 }),
+      pagination: create(PaginationRequestSchema, { total: 1 }),
     }),
   });
   const hasActiveRun = activeRunsData.runs.length > 0;

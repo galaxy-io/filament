@@ -7,9 +7,9 @@ import LineChart from "@galaxy-io/dls/charts/LineChart";
 import type {
   ChartPalette,
   ChartValueFormatter,
+  LineChartCurve,
   LineChartLineDatum,
 } from "@galaxy-io/dls/charts/types";
-import { LineChartCurve } from "@galaxy-io/dls/charts/types";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -44,6 +44,7 @@ interface ObservabilityTimeseriesChartProps {
   metric: Metric;
   color: ChartPalette;
   pivot: MetricDimension | undefined;
+  curve: LineChartCurve;
   valueFormatter?: ChartValueFormatter;
 }
 
@@ -52,6 +53,7 @@ const ObservabilityTimeseriesChart = ({
   metric,
   color,
   pivot,
+  curve,
   valueFormatter,
 }: ObservabilityTimeseriesChartProps) => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
@@ -140,7 +142,7 @@ const ObservabilityTimeseriesChart = ({
       <LineChart<string>
         series={series}
         lines={lines}
-        curve={LineChartCurve.LINEAR}
+        curve={curve}
         valueFormatter={valueFormatter}
         labelFormatter={bucketLabelFormatter}
         isLoading={isLoading}

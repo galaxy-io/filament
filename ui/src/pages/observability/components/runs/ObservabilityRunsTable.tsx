@@ -35,7 +35,7 @@ import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
-import { useListRunsQuery } from "@/api/queries/runs";
+import { useListRunsInfiniteQuery, useListRunsQuery } from "@/api/queries/runs";
 
 import {
   formatBytes,
@@ -59,27 +59,26 @@ const ObservabilityRunsTable = () => {
   );
 
   const input = useMemo(
-    () =>
-      create(ListRunsRequestSchema, {
-        status: windowedStatuses,
-        sinceMs: createTimeframeSince(timeframe),
-        pagination: create(PaginationRequestSchema, { limit: OBSERVABILITY_RUNS_TABLE_LIMIT }),
-      }),
+    () => ({
+      status: windowedStatuses,
+      sinceMs: createTimeframeSince(timeframe),
+    }),
     [timeframe, windowedStatuses],
   );
   const scheduledInput = useMemo(
     () =>
       create(ListRunsRequestSchema, {
         status: [RunStatus.SCHEDULED],
-        pagination: create(PaginationRequestSchema, { limit: OBSERVABILITY_RUNS_TABLE_LIMIT }),
+        pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
       }),
     [],
   );
 
-  const { data, isLoading } = useListRunsQuery({
-    input,
-    options: { enabled: windowedStatuses.length > 0 },
-  });
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useListRunsInfiniteQuery({
+      input,
+      options: { enabled: windowedStatuses.length > 0 },
+    });
   const { data: scheduledData, isLoading: isLoadingScheduled } = useListRunsQuery({
     input: scheduledInput,
     options: { enabled: includeScheduled },
@@ -205,7 +204,9 @@ const ObservabilityRunsTable = () => {
   );
 
   const scheduledRuns = includeScheduled ? (scheduledData?.runs ?? []) : [];
-  const windowedRuns = windowedStatuses.length ? (data?.runs ?? []) : [];
+  const windowedRuns = windowedStatuses.length
+    ? (data?.pages.flatMap((page) => page.runs) ?? [])
+    : [];
 
   const windowedIds = new Set(windowedRuns.map((run) => run.runId));
   const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.runId)), ...windowedRuns];
@@ -229,6 +230,9 @@ const ObservabilityRunsTable = () => {
       enableSorting
       isLoading={isLoading || (includeScheduled && isLoadingScheduled)}
       loadingRowCount={1}
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      fetchNextPage={fetchNextPage}
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }
