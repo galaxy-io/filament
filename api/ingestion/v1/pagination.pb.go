@@ -22,11 +22,13 @@ const (
 )
 
 // PaginationRequest narrows a List response to one page. Absent means the
-// full result; limit <= 0 means unbounded and offset <= 0 means the start.
+// full result. total is the page size, defaulted and capped server-side;
+// cursor is an opaque token from a prior response, absent meaning the first
+// page.
 type PaginationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
+	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Cursor        *string                `protobuf:"bytes,2,opt,name=cursor,proto3,oneof" json:"cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -61,27 +63,30 @@ func (*PaginationRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pagination_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PaginationRequest) GetLimit() int32 {
+func (x *PaginationRequest) GetTotal() int32 {
 	if x != nil {
-		return x.Limit
+		return x.Total
 	}
 	return 0
 }
 
-func (x *PaginationRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
+func (x *PaginationRequest) GetCursor() string {
+	if x != nil && x.Cursor != nil {
+		return *x.Cursor
 	}
-	return 0
+	return ""
 }
 
 // PaginationResponse reports how many items matched before the page was cut,
-// so clients can compute page counts.
+// plus opaque cursors for the adjacent pages. Absent cursors mean no page in
+// that direction.
 type PaginationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Total          int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	PreviousCursor *string                `protobuf:"bytes,2,opt,name=previous_cursor,json=previousCursor,proto3,oneof" json:"previous_cursor,omitempty"`
+	NextCursor     *string                `protobuf:"bytes,3,opt,name=next_cursor,json=nextCursor,proto3,oneof" json:"next_cursor,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PaginationResponse) Reset() {
@@ -121,16 +126,36 @@ func (x *PaginationResponse) GetTotal() int32 {
 	return 0
 }
 
+func (x *PaginationResponse) GetPreviousCursor() string {
+	if x != nil && x.PreviousCursor != nil {
+		return *x.PreviousCursor
+	}
+	return ""
+}
+
+func (x *PaginationResponse) GetNextCursor() string {
+	if x != nil && x.NextCursor != nil {
+		return *x.NextCursor
+	}
+	return ""
+}
+
 var File_ingestion_v1_pagination_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_pagination_proto_rawDesc = "" +
 	"\n" +
-	"\x1dingestion/v1/pagination.proto\x12\fingestion.v1\"A\n" +
+	"\x1dingestion/v1/pagination.proto\x12\fingestion.v1\"Q\n" +
 	"\x11PaginationRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x02 \x01(\x05R\x06offset\"*\n" +
+	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1b\n" +
+	"\x06cursor\x18\x02 \x01(\tH\x00R\x06cursor\x88\x01\x01B\t\n" +
+	"\a_cursor\"\xa2\x01\n" +
 	"\x12PaginationResponse\x12\x14\n" +
-	"\x05total\x18\x01 \x01(\x05R\x05totalB\xb0\x01\n" +
+	"\x05total\x18\x01 \x01(\x05R\x05total\x12,\n" +
+	"\x0fprevious_cursor\x18\x02 \x01(\tH\x00R\x0epreviousCursor\x88\x01\x01\x12$\n" +
+	"\vnext_cursor\x18\x03 \x01(\tH\x01R\n" +
+	"nextCursor\x88\x01\x01B\x12\n" +
+	"\x10_previous_cursorB\x0e\n" +
+	"\f_next_cursorB\xb0\x01\n" +
 	"\x10com.ingestion.v1B\x0fPaginationProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -163,6 +188,8 @@ func file_ingestion_v1_pagination_proto_init() {
 	if File_ingestion_v1_pagination_proto != nil {
 		return
 	}
+	file_ingestion_v1_pagination_proto_msgTypes[0].OneofWrappers = []any{}
+	file_ingestion_v1_pagination_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

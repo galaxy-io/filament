@@ -31,7 +31,10 @@ func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestio
 			connectors = append(connectors, sinkSpecToProto(spec))
 		}
 	}
-	page, pagination := pageOf(connectors, req.Msg.GetPagination())
+	page, pagination, err := pageOf(connectors, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: page, Pagination: pagination}), nil
 }
 

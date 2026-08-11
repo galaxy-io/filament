@@ -192,7 +192,10 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	page, pagination := pageOf(versions, req.Msg.GetPagination())
+	page, pagination, err := pageOf(versions, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: page, Pagination: pagination}), nil
 }
 
@@ -308,7 +311,10 @@ func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingesti
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	page, pagination := pageOf(pipelines, req.Msg.GetPagination())
+	page, pagination, err := pageOf(pipelines, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: page, Pagination: pagination}), nil
 }
 

@@ -3,14 +3,19 @@ syntax = "proto3";
 package ingestion.v1;
 
 // PaginationRequest narrows a List response to one page. Absent means the
-// full result; limit <= 0 means unbounded and offset <= 0 means the start.
+// full result. total is the page size, defaulted and capped server-side;
+// cursor is an opaque token from a prior response, absent meaning the first
+// page.
 message PaginationRequest {
-  int32 limit = 1;
-  int32 offset = 2;
+  int32 total = 1;
+  optional string cursor = 2;
 }
 
 // PaginationResponse reports how many items matched before the page was cut,
-// so clients can compute page counts.
+// plus opaque cursors for the adjacent pages. Absent cursors mean no page in
+// that direction.
 message PaginationResponse {
   int32 total = 1;
+  optional string previous_cursor = 2;
+  optional string next_cursor = 3;
 }

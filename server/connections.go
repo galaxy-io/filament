@@ -135,7 +135,10 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	page, pagination := pageOf(connections, req.Msg.GetPagination())
+	page, pagination, err := pageOf(connections, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
 	out := make([]*ingestionv1.Connection, len(page))
 	for i, c := range page {
 		out[i] = connectionToProto(c)
