@@ -1,11 +1,13 @@
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createInfiniteQueryOptions,
   createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
   useQuery,
+  useSuspenseInfiniteQuery,
   useSuspenseQuery,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +22,7 @@ import type {
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { getNextPageParam, INITIAL_PAGE_PARAM, type InfiniteQueryInput } from "@/api/utils";
 
 const LIST_PIPELINES_REFETCH_INTERVAL = 3 * 1000;
 
@@ -37,7 +40,7 @@ export const createListPipelinesQueryKey = (
     schema: IngestionService.method.listPipelines,
     input,
     transport,
-    cardinality: "finite",
+    cardinality: undefined,
   });
 };
 
@@ -83,6 +86,44 @@ export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelines
       return getListPipelinesRefetchInterval(query.state.data?.pipelines);
     },
   });
+};
+
+export const createListPipelinesInfiniteQueryOptions = ({
+  input,
+  transport,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listPipelines.input>;
+  transport: Transport;
+}) => {
+  return createInfiniteQueryOptions(
+    IngestionService.method.listPipelines,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    { transport, pageParamKey: "pagination", getNextPageParam },
+  );
+};
+
+export const useSuspenseListPipelinesInfiniteQuery = ({
+  input,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listPipelines.input>;
+} = {}) => {
+  return useSuspenseInfiniteQuery<
+    typeof IngestionService.method.listPipelines.input,
+    typeof IngestionService.method.listPipelines.output,
+    "pagination"
+  >(
+    IngestionService.method.listPipelines,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    {
+      pageParamKey: "pagination",
+      getNextPageParam,
+      refetchInterval: (query) => {
+        return getListPipelinesRefetchInterval(
+          query.state.data?.pages.flatMap((page) => page.pipelines),
+        );
+      },
+    },
+  );
 };
 
 export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?: Transport) => {

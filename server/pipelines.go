@@ -192,7 +192,11 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: versions}), nil
+	page, pagination, err := pageOf(versions, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: page, Pagination: pagination}), nil
 }
 
 // GetPipeline returns the pipeline by id along with its current graph version
@@ -307,7 +311,11 @@ func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingesti
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines}), nil
+	page, pagination, err := pageOf(pipelines, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: page, Pagination: pagination}), nil
 }
 
 // DeletePipeline removes the pipeline by id.
@@ -408,7 +416,7 @@ func (a *Server) ReconcileScheduledRuns(ctx context.Context, st filament.Schedul
 
 // DropScheduledRuns deletes every pending RunScheduled row for the schedule.
 func (a *Server) DropScheduledRuns(ctx context.Context, id filament.ScheduleID) error {
-	pending, err := a.store.ListRuns(ctx, filament.RunFilter{
+	pending, _, err := a.store.ListRuns(ctx, filament.RunFilter{
 		Schedule: id,
 		Status:   []filament.RunStatus{filament.RunScheduled},
 	})

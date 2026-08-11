@@ -17,6 +17,7 @@ import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
+import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
@@ -54,7 +55,7 @@ const OBSERVABILITY_METRICS_OTHER_STATUSES = OBSERVABILITY_RUN_STATUSES.filter(
 
 const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
-  limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
+  pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
 });
 
 const ObservabilityMetricsWidget = () => {

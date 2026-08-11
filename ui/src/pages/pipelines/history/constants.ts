@@ -3,7 +3,6 @@ import { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-export const PIPELINE_RUN_HISTORY_LIMIT = 50;
 export const PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT = 3;
 export const PIPELINE_RUN_ERROR_TOOLTIP_MAX_WIDTH = 360;
 

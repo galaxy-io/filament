@@ -320,7 +320,7 @@ func (m *Module) dropScheduledRuns(ctx context.Context, id filament.ScheduleID) 
 
 // hasActiveRuns checks every route run produced by prior occurrences.
 func (m *Module) hasActiveRuns(ctx context.Context, scheduleID filament.ScheduleID) bool {
-	active, err := m.ds.ListRuns(ctx, filament.RunFilter{
+	active, _, err := m.ds.ListRuns(ctx, filament.RunFilter{
 		Schedule: scheduleID,
 		Status: []filament.RunStatus{
 			filament.RunRequested,

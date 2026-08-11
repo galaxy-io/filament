@@ -135,11 +135,15 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := make([]*ingestionv1.Connection, len(connections))
-	for i, c := range connections {
+	page, pagination, err := pageOf(connections, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*ingestionv1.Connection, len(page))
+	for i, c := range page {
 		out[i] = connectionToProto(c)
 	}
-	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out}), nil
+	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out, Pagination: pagination}), nil
 }
 
 // DeleteConnection removes the connection with the requested ID.
