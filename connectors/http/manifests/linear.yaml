@@ -11,6 +11,12 @@ connection:
     header:
       name: Authorization
       value: config.api_key
+defaults:
+  response:
+    error:
+      path: errors
+      when_present: true
+      message_path: errors.0.message
 resources:
   - name: teams
     path: /graphql
