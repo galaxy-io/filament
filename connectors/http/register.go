@@ -5,8 +5,8 @@ import (
 	"github.com/galaxy-io/filament/registry"
 )
 
-// init registers the bundled manifest-driven SaaS catalog
-// (Notion, Linear, Attio, GitHub, Slack, Resend). Enable with:
+// init registers the bundled manifest-driven SaaS catalog.
+// Enable with:
 //
 //	import _ "github.com/galaxy-io/filament/connectors/http"
 //
