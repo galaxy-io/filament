@@ -1,16 +1,17 @@
 import type { PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline, PipelineSchedule, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
-
-import { PIPELINE_SIDEBAR_WIDTH } from "@/pages/pipelines/layout/constants";
+import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
+import {
+  PIPELINE_PREVIEW_CHIP_Z_INDEX,
+  PIPELINE_SIDEBAR_WIDTH,
+} from "@/pages/pipelines/layout/constants";
 import PipelineLayoutBackButton from "@/pages/pipelines/layout/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/pages/pipelines/layout/PipelineLayoutNavbar";
 import PipelineLayoutSidebar from "@/pages/pipelines/layout/PipelineLayoutSidebar";
@@ -81,32 +82,15 @@ const PreviewChipOverlay = styled.div`
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 1002;
+  z-index: ${PIPELINE_PREVIEW_CHIP_Z_INDEX};
 `;
 
-interface PipelineLayoutProps {
-  pipeline: Pipeline;
-  schedule?: PipelineSchedule;
-  currentVersion?: PipelineVersion;
-  versions: PipelineVersion[];
-  connections: Connection[];
-  previewVersion: bigint | null;
-  onPreviewVersionChange: (version: bigint | null) => void;
-}
-
-const PipelineLayout = ({
-  pipeline,
-  schedule,
-  currentVersion,
-  versions,
-  connections,
-  previewVersion,
-  onPreviewVersionChange,
-  children,
-}: PropsWithChildren<PipelineLayoutProps>) => {
+const PipelineLayout = ({ children }: PropsWithChildren) => {
   const navigate = useNavigate();
+  const { id } = useParams({ from: "/pipelines/$id" });
 
-  const isPreview = previewVersion !== null;
+  const previewed = usePipelinePreviewVersion();
+  const isPreview = previewed !== undefined;
 
   const { isRouteMatch: isHistoryActive } = useRouteMatch({
     route: "/pipelines/$id/history",
@@ -126,7 +110,7 @@ const PipelineLayout = ({
   const handleItemClick = (item: PipelineSidebarItem) => {
     navigate({
       to: `/pipelines/$id/${item}`,
-      params: { id: pipeline.id },
+      params: { id },
     });
   };
 
@@ -137,20 +121,12 @@ const PipelineLayout = ({
         <PipelineLayoutSidebar activeItem={getActiveItem()} onItemClick={handleItemClick} />
       </LeftColumn>
       <RightColumn>
-        <PipelineLayoutNavbar
-          pipeline={pipeline}
-          schedule={schedule}
-          currentVersion={currentVersion}
-          versions={versions}
-          connections={connections}
-          previewVersion={previewVersion}
-          onPreviewVersionChange={onPreviewVersionChange}
-        />
+        <PipelineLayoutNavbar />
         <ContentWrapper>
           <ContentIsland $isPreview={isPreview}>
             {isPreview && (
               <PreviewChipOverlay>
-                <Chip label={`Version ${previewVersion}`} variant={ChipVariant.WARNING} />
+                <Chip label={`Version ${previewed.version}`} variant={ChipVariant.WARNING} />
               </PreviewChipOverlay>
             )}
             {children}

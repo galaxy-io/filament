@@ -16,13 +16,13 @@ export interface PipelineFlowEndpoints {
 }
 
 export const mapConnectionIdToFlowConnection = (
-  connectionId: string,
-  connectionsById: Map<string, Connection>,
+  connectionId: Connection["id"],
+  connectionsById: Map<Connection["id"], Connection>,
 ): PipelineFlowConnection => {
   const connection = connectionsById.get(connectionId);
   return {
     connectionId,
-    connector: connection?.connector ?? connectionId,
+    connector: connection?.connector ?? "",
     isDeleted: !!connection?.deletedAt,
   };
 };
@@ -44,16 +44,21 @@ export const mapVersionNodesToFlowEndpoints = (
   };
 };
 
-export const mapCanvasNodesToFlowEndpoints = (nodes: CanvasNode[]): PipelineFlowEndpoints => {
+export const mapCanvasNodesToFlowEndpoints = (
+  nodes: CanvasNode[],
+  connections: Connection[],
+): PipelineFlowEndpoints => {
+  const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));
+
   const sourceNode = nodes.find(
     (node): node is PipelineCanvasSourceNode => node.type === PipelineCanvasNodeType.SOURCE,
   );
   return {
     source: sourceNode
-      ? { connectionId: sourceNode.data.connectionId, connector: sourceNode.data.connector }
+      ? mapConnectionIdToFlowConnection(sourceNode.data.connectionId, connectionsById)
       : undefined,
     sinks: nodes
       .filter((node): node is PipelineCanvasSinkNode => node.type === PipelineCanvasNodeType.SINK)
-      .map((node) => ({ connectionId: node.data.connectionId, connector: node.data.connector })),
+      .map((node) => mapConnectionIdToFlowConnection(node.data.connectionId, connectionsById)),
   };
 };

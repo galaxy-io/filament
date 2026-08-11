@@ -26,7 +26,7 @@ import {
 import type { ObservabilitySetupStep } from "@/pages/observability/components/setup/types";
 import { ObservabilitySetupStepStatus } from "@/pages/observability/components/setup/types";
 
-const STEP_MARKER_SIZE = 18;
+const OBSERVABILITY_SETUP_STEP_MARKER_SIZE = 18;
 
 const StepRow = styled.div<{ $opacity: number }>`
   display: flex;
@@ -75,7 +75,7 @@ const ObservabilitySetupChecklistStep = ({
       <StepMarker>
         <Icon
           component={OBSERVABILITY_SETUP_STATUS_TO_ICON_MAP[status]}
-          size={STEP_MARKER_SIZE}
+          size={OBSERVABILITY_SETUP_STEP_MARKER_SIZE}
           weight={OBSERVABILITY_SETUP_STATUS_TO_ICON_WEIGHT_MAP[status]}
           variant={OBSERVABILITY_SETUP_STATUS_TO_ICON_VARIANT_MAP[status]}
         />

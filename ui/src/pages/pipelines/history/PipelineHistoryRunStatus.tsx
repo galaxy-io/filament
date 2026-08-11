@@ -7,7 +7,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
-import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import {
   PIPELINE_RUN_ERROR_TOOLTIP_MAX_WIDTH,
@@ -18,7 +18,7 @@ import {
 
 interface PipelineHistoryRunStatusProps {
   status: RunStatus;
-  error?: string;
+  error?: RunInfo["error"];
 }
 
 const PipelineHistoryRunStatus = ({ status, error }: PipelineHistoryRunStatusProps) => {

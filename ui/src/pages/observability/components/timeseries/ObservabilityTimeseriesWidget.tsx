@@ -1,3 +1,5 @@
+import { useNavigate, useSearch } from "@tanstack/react-router";
+
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
@@ -13,27 +15,45 @@ import ObservabilityTimeseriesChart from "@/pages/observability/components/times
 
 interface ObservabilityTimeseriesWidgetProps<View extends string> {
   views: Record<View, ObservabilityChartView>;
-  view: View;
-  onViewChange: (view: View) => void;
-  pivot: MetricDimension | undefined;
-  onPivotChange: (pivot: MetricDimension | undefined) => void;
+  defaultView: View;
+  viewSearchKey: "throughput" | "usage";
+  pivotSearchKey: "throughputPivot" | "usagePivot";
 }
 
 const ObservabilityTimeseriesWidget = <View extends string>({
   views,
-  view,
-  onViewChange,
-  pivot,
-  onPivotChange,
+  defaultView,
+  viewSearchKey,
+  pivotSearchKey,
 }: ObservabilityTimeseriesWidgetProps<View>) => {
+  const navigate = useNavigate();
+  const search = useSearch({ from: "/_main/observability" });
+
+  const view = (search[viewSearchKey] as View | undefined) ?? defaultView;
+  const pivot = search[pivotSearchKey];
+
   const { label, seriesLabel, metric, color, valueFormatter } = views[view];
+
+  const handleViewChange = (nextView: View) => {
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, [viewSearchKey]: nextView }),
+    });
+  };
+
+  const handlePivotChange = (nextPivot: MetricDimension | undefined) => {
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, [pivotSearchKey]: nextPivot }),
+    });
+  };
 
   const switcherItems: SwitcherInputItem[] = (
     Object.entries(views) as [View, ObservabilityChartView][]
   ).map(([id, viewConfig]) => ({
     id,
     label: viewConfig.label,
-    onClick: () => onViewChange(id),
+    onClick: () => handleViewChange(id),
   }));
 
   return (
@@ -46,7 +66,11 @@ const ObservabilityTimeseriesWidget = <View extends string>({
         ]}
         trailingActions={[
           <SwitcherInput key="view-switcher" items={switcherItems} selectedId={view} />,
-          <ObservabilityPivotSelect key="pivot-selector" value={pivot} onChange={onPivotChange} />,
+          <ObservabilityPivotSelect
+            key="pivot-selector"
+            value={pivot}
+            onChange={handlePivotChange}
+          />,
         ]}
       />
       <HorizontalDivider />

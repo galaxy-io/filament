@@ -3,12 +3,14 @@ import type { ComponentProps } from "react";
 import type Accordion from "@galaxy-io/dls/accordion/Accordion";
 import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
 
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+
 import ConnectionDrawerSection from "@/pages/connectors/components/drawer/ConnectionDrawerSection";
 
 interface ConnectionDrawerJsonSectionProps {
   header: string;
   icon: ComponentProps<typeof Accordion>["icon"];
-  data: Record<string, unknown> | undefined;
+  data: Connection["config"] | Connection["secretRefs"] | undefined;
   emptyHeader: string;
   emptyMessage: string;
 }

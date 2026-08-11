@@ -1,7 +1,9 @@
-import { create, type JsonValue } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import Field from "@/components/fields/Field";
@@ -23,10 +25,10 @@ const FieldList = styled.div`
 `;
 
 interface PipelineCanvasNodeConfigIslandProps {
-  connector: string;
+  connector: Connection["connector"];
   kind: ConnectorKind;
-  config?: Record<string, JsonValue>;
-  onChange: (config: Record<string, JsonValue>) => void;
+  config?: PipelineNode["config"];
+  onChange: (config: NonNullable<PipelineNode["config"]>) => void;
   isOpen: boolean;
   isSelected?: boolean;
 }
@@ -42,6 +44,7 @@ const PipelineCanvasNodeConfigIsland = ({
   const isReadOnly = usePipelineCanvasReadOnly();
   const { data } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector, kind }),
+    options: { enabled: !!connector && !!kind },
   });
   const spec = data?.connector;
 
