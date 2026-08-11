@@ -148,49 +148,6 @@ controlPlane:
       # -- Seconds to retain completed dispatched worker Jobs.
       ttlSecondsAfterFinished: 3600
 
-metrics:
-  # -- Deploy the Filament metrics service. It answers run metrics queries by
-  # reading the same runs table server/control-plane persist to.
-  enabled: true
-
-  image:
-    # -- Metrics image repository.
-    repository: ghcr.io/galaxy-io/filament/metrics
-    # -- Metrics image tag.
-    # @default -- `""` (defaults to chart appVersion)
-    tag: ""
-    # -- Metrics image pull policy.
-    pullPolicy: IfNotPresent
-    # -- Image pull secrets for the metrics Deployment.
-    pullSecrets: []
-
-  serviceAccount:
-    # -- Existing ServiceAccount name for the metrics service. When set, the chart does not create one.
-    name: ""
-    # -- Annotations for the chart-created metrics ServiceAccount, e.g. an IRSA role ARN.
-    annotations: {}
-
-  # -- Number of metrics replicas. Ignored when `metrics.autoscaling.enabled` is true.
-  replicas: 1
-
-  autoscaling:
-    # -- Enable a HorizontalPodAutoscaler for the metrics service.
-    enabled: false
-    # -- Minimum metrics replicas when autoscaling is enabled.
-    minReplicas: 1
-    # -- Maximum metrics replicas when autoscaling is enabled.
-    maxReplicas: 10
-    # -- Target average CPU utilization percentage for metrics autoscaling.
-    targetCpu: 80
-
-  service:
-    # -- Metrics service and container port.
-    port: 8082
-
-  # -- Metrics resource requests and limits.
-  # @default -- `{}` (See [values.yaml])
-  resources: {}
-
 persistence:
   # -- Persistence provider.
   type: postgresql

@@ -3,31 +3,27 @@ package metricsstore
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/galaxy-io/filament"
-	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
-	metricspg "github.com/galaxy-io/filament/metricsstore/postgres"
+	"github.com/galaxy-io/filament/datastore/postgres"
+	"github.com/galaxy-io/filament/datastore/postgres/metrics"
 )
 
-// FromEnv selects the metrics store per METRICSSTORE_PROVIDER; postgres is
-// the default (and only) provider. It reuses PERSISTENCE_DSN — the metrics
-// store reads the same runs table server/control-plane persist to, not a
-// separate database.
-func FromEnv(ctx context.Context) (filament.MetricsStore, error) {
+// FromEnv selects the metrics backend per METRICSSTORE_PROVIDER. The default
+// (and "postgres") answers from the datastore's own pool — the metrics store
+// reads the same runs table server/control-plane persist to. A datastore with
+// no metrics support returns nil, leaving MetricsService unimplemented. A
+// separate metrics database (e.g. ClickHouse) becomes a new arm here with its
+// own DSN, never a topology change.
+func FromEnv(_ context.Context, store filament.DataStore) (filament.MetricsStore, error) {
 	switch provider := os.Getenv("METRICSSTORE_PROVIDER"); provider {
 	case "", "postgres", "postgresql":
-		dsn := os.Getenv("PERSISTENCE_DSN")
-		if dsn == "" {
-			return nil, errors.New("PERSISTENCE_DSN is required")
+		if pg, ok := store.(*postgres.Store); ok {
+			return metrics.New(pg.Pool()), nil
 		}
-		pool, err := ctlpg.NewPool(ctx, dsn)
-		if err != nil {
-			return nil, err
-		}
-		return metricspg.New(pool), nil
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unknown METRICSSTORE_PROVIDER %q (postgres)", provider)
 	}

@@ -1,4 +1,4 @@
-package postgres
+package metrics
 
 import (
 	"fmt"
@@ -51,7 +51,7 @@ func dimensionColumn(d filament.MetricsDimension) (string, bool) {
 func metricExpr(m filament.Metric) (string, error) {
 	expr, ok := metricExprs[m]
 	if !ok {
-		return "", fmt.Errorf("metricsstore/postgres: unsupported metric %v", m)
+		return "", fmt.Errorf("metrics: unsupported metric %v", m)
 	}
 	return expr, nil
 }
