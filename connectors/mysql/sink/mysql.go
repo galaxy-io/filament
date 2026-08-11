@@ -512,12 +512,18 @@ func frameJSONArray(recs []filament.Record) ([]byte, int64) {
 // in arrival order — order matters, a delete of a key must not jump over its
 // re-insert — and each run lands as one statement: inserts/updates through the
 // upsert INSERT … JSON_TABLE, deletes through the JSON_TABLE-join DELETE keyed on
-// the primary key from each delete's before-image payload.
+// the primary key from each delete's before-image payload. One database
+// transaction makes the whole batch atomic before its checkpoint can be committed.
 func (t *Sink) writeMerge(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	tbl, err := t.tableForBatch(b.Resource)
 	if err != nil {
 		return filament.WriteReceipt{}, err
 	}
+	tx, err := t.db.BeginTx(ctx, nil)
+	if err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: begin merge: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 
 	var nbytes int64
 	rows := 0
@@ -533,19 +539,20 @@ func (t *Sink) writeMerge(ctx context.Context, b filament.Batch) (filament.Write
 
 		buf, runBytes := frameJSONArray(run)
 		nbytes += runBytes
+		stmt := tbl.insertSQL
 		if isDelete {
-			if tbl.deleteSQL == "" {
+			stmt = tbl.deleteSQL
+			if stmt == "" {
 				return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge delete on keyless resource %q", b.Resource)
 			}
-			if _, err := t.db.ExecContext(ctx, tbl.deleteSQL, string(buf)); err != nil {
-				return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge delete %s seq %d: %w", b.Resource, b.Seq, err)
-			}
-		} else {
-			if _, err := t.db.ExecContext(ctx, tbl.insertSQL, string(buf)); err != nil {
-				return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge load %s seq %d: %w", b.Resource, b.Seq, err)
-			}
+		}
+		if _, err := tx.ExecContext(ctx, stmt, string(buf)); err != nil {
+			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge %s seq %d: %w", b.Resource, b.Seq, err)
 		}
 		rows += len(run)
+	}
+	if err := tx.Commit(); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: commit merge %s seq %d: %w", b.Resource, b.Seq, err)
 	}
 	t.written.Add(int64(rows))
 
