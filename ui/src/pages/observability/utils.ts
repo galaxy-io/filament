@@ -1,18 +1,19 @@
 import { useMemo } from "react";
 
-import { MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
+import { MetricGranularity, type TimeseriesPoint } from "@/gen/metrics/v1/metrics_pb";
 
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
-export const formatBucketKey = (bucketStartMs: bigint) => bucketStartMs.toString();
+export const formatBucketKey = (bucketStartMs: TimeseriesPoint["bucketStartMs"]) =>
+  bucketStartMs.toString();
 
-const formatHourBucketLabel = (bucketStartMs: bigint) =>
+const formatHourBucketLabel = (bucketStartMs: TimeseriesPoint["bucketStartMs"]) =>
   `${new Date(Number(bucketStartMs)).getHours().toString().padStart(2, "0")}:00`;
 
-const formatDayBucketLabel = (bucketStartMs: bigint) => {
+const formatDayBucketLabel = (bucketStartMs: TimeseriesPoint["bucketStartMs"]) => {
   const date = new Date(Number(bucketStartMs));
   return `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getDate().toString().padStart(2, "0")}`;
 };
@@ -20,7 +21,7 @@ const formatDayBucketLabel = (bucketStartMs: bigint) => {
 interface ObservabilityTimeframeQuery {
   durationMs: number;
   granularity: MetricGranularity;
-  formatBucketLabel: (bucketStartMs: bigint) => string;
+  formatBucketLabel: (bucketStartMs: TimeseriesPoint["bucketStartMs"]) => string;
 }
 
 export const OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP: Record<

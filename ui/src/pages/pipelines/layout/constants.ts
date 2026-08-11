@@ -6,6 +6,8 @@ import { PipelineSidebarItem } from "@/pages/pipelines/layout/types";
 export const PIPELINE_SIDEBAR_WIDTH = 48;
 export const PIPELINE_SIDEBAR_BUTTON_SIZE = 28;
 export const PIPELINE_NAVBAR_HEIGHT = 48;
+export const PIPELINE_PREVIEW_CHIP_Z_INDEX = 1002;
+export const PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH = 200;
 
 export const PIPELINE_SIDEBAR_ITEMS: PipelineSidebarItem[] = [
   PipelineSidebarItem.CANVAS,

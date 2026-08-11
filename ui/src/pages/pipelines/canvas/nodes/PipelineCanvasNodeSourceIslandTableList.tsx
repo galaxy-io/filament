@@ -12,6 +12,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 
+import { PIPELINE_CANVAS_NODE_TABLE_LIST_SHIMMER_COUNT } from "@/pages/pipelines/canvas/nodes/constants";
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
@@ -22,11 +23,9 @@ const TableRow = styled.div`
   gap: 4px;
 `;
 
-const SHIMMER_COUNT = 5;
-
 const TableListShimmer = () => (
   <>
-    {Array.from({ length: SHIMMER_COUNT }).map((_, index) => (
+    {Array.from({ length: PIPELINE_CANVAS_NODE_TABLE_LIST_SHIMMER_COUNT }).map((_, index) => (
       // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder rows with no identity
       <TextShimmer key={index} height={16} width="100%" />
     ))}

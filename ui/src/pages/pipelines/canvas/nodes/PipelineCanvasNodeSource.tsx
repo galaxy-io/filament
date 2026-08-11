@@ -4,6 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
@@ -17,9 +18,10 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
+import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
 
-const useSourceResources = (connectionId: string) => {
+const useSourceResources = (connectionId: Connection["id"]) => {
   const { data, error, isFetching, refetch } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, { connectionId }),
     options: { enabled: connectionId !== "", retry: false, networkMode: "always" },
@@ -50,6 +52,8 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
   const connections = useNodeConnections({ handleType: "source" });
   const { removeNode, setNodeConfig } = usePipelineCanvasActions();
   const [localState, setLocalState] = useState<PipelineCanvasNodeSourceState>(DEFAULT_STATE);
+  const { data: connectionsData } = useSuspenseListConnectionsQuery();
+  const connection = connectionsData.connections.find((item) => item.id === data.connectionId);
   const {
     tables: discoveredTables,
     error,
@@ -77,8 +81,8 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
 
   return (
     <PipelineCanvasNode
-      connector={data.connector}
-      label={data.label}
+      connector={connection?.connector ?? ""}
+      label={connection?.name ?? data.connectionId}
       kind={ConnectorKind.SOURCE}
       isConnected={connectedHandleIds.has(CONNECTOR_KIND_TO_HANDLE_ID_MAP[ConnectorKind.SOURCE])}
       isSelected={selected}
@@ -87,7 +91,7 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
       onConfigure={handleConfigure}
     >
       <PipelineCanvasNodeConfigIsland
-        connector={data.connector}
+        connector={connection?.connector ?? ""}
         kind={ConnectorKind.SOURCE}
         config={data.config}
         onChange={(config) => setNodeConfig(id, config)}

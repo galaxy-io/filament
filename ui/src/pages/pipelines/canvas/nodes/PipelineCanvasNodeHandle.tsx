@@ -9,10 +9,11 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_TYPE_MAP } from "@/pages/pipelines/canvas/constants";
-import { PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE } from "@/pages/pipelines/canvas/nodes/constants";
-
-const PORT_SIZE_ACTIVE = 12;
-const PORT_SIZE_IDLE = 5;
+import {
+  PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE,
+  PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE,
+  PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE,
+} from "@/pages/pipelines/canvas/nodes/constants";
 
 const HandleSlot = styled.div`
   width: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
@@ -40,8 +41,8 @@ const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?
     left: auto;
     transform: none;
 
-    width: ${({ $isConnected }) => ($isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE)}px;
-    height: ${({ $isConnected }) => ($isConnected ? PORT_SIZE_ACTIVE : PORT_SIZE_IDLE)}px;
+    width: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
+    height: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
 
     background-color: ${({ theme, $isConnected }) =>
       $isConnected ? "transparent" : theme.color.text.tertiary};
@@ -55,8 +56,8 @@ const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?
   }
 
   &.react-flow__handle:hover {
-    width: ${PORT_SIZE_ACTIVE}px;
-    height: ${PORT_SIZE_ACTIVE}px;
+    width: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
+    height: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
   }
 `);
 

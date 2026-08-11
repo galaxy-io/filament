@@ -1,5 +1,7 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 
+import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
 import type { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
@@ -14,12 +16,12 @@ export enum ConnectionFormActionType {
 
 export interface SetNameAction {
   type: ConnectionFormActionType.SET_NAME;
-  payload: string;
+  payload: Connection["name"];
 }
 
 export interface SetConfigFieldAction {
   type: ConnectionFormActionType.SET_CONFIG_FIELD;
-  payload: { field: string; value: JsonValue };
+  payload: { field: ConfigField["name"]; value: JsonValue };
 }
 
 export interface SetPhaseAction {

@@ -17,32 +17,32 @@ import {
   OBSERVABILITY_RUN_STATUS_OPTIONS,
   OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH,
 } from "@/pages/observability/components/runs/constants";
 import ObservabilityRunsChart from "@/pages/observability/components/runs/ObservabilityRunsChart";
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
 
 const ObservabilityRunsWidget = () => {
   const navigate = useNavigate();
-  const {
-    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
-    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
-  } = useSearch({ from: "/_main/observability" });
-
-  const statusValues = statuses as RunStatus[];
+  const { statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES } = useSearch({
+    from: "/_main/observability",
+  });
 
   const selectedStatusOptions = useMemo(
     () =>
       OBSERVABILITY_RUN_STATUS_OPTIONS.filter((option) =>
-        statusValues.includes(option.value as RunStatus),
+        statuses.includes(option.value as RunStatus),
       ),
-    [statusValues],
+    [statuses],
   );
 
   const handleStatusChange = (selected: SelectInputOption[]) => {
     void navigate({
       to: ".",
-      search: (prev) => ({ ...prev, statuses: selected.map((option) => option.value as number) }),
+      search: (prev) => ({
+        ...prev,
+        statuses: selected.map((option) => option.value as RunStatus),
+      }),
     });
   };
 
@@ -61,7 +61,7 @@ const ObservabilityRunsWidget = () => {
             value={selectedStatusOptions}
             onChange={handleStatusChange}
             placeholder="Select statuses..."
-            width={160}
+            width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}
             pinnedOptions={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION]}
             renderSelectedText={(selectedOptions, placeholder) =>
               selectedOptions.length
@@ -72,9 +72,9 @@ const ObservabilityRunsWidget = () => {
         ]}
       />
       <HorizontalDivider />
-      <ObservabilityRunsChart timeframe={timeframe} statuses={statusValues} />
+      <ObservabilityRunsChart />
       <HorizontalDivider />
-      <ObservabilityRunsTable timeframe={timeframe} statuses={statusValues} />
+      <ObservabilityRunsTable />
     </Widget>
   );
 };

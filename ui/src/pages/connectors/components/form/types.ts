@@ -1,5 +1,4 @@
-import type { JsonObject } from "@bufbuild/protobuf";
-
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
 
 export enum ConnectionFormPhase {
@@ -11,8 +10,8 @@ export enum ConnectionFormPhase {
 }
 
 export interface ConnectionFormState {
-  name: string;
-  config: JsonObject;
+  name: Connection["name"];
+  config: NonNullable<Connection["config"]>;
   phase: ConnectionFormPhase;
   validationErrors: ValidationError[];
   shouldShowErrors: boolean;

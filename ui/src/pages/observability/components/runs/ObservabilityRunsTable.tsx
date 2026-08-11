@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import InfiniteTable, {
   ColumnAlign,
@@ -17,8 +17,21 @@ import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/
 import PipelineName from "@/components/PipelineName";
 
 import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
-import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
-import type { ObservabilityTimeframe } from "@/pages/observability/types";
+import {
+  OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
+  OBSERVABILITY_RUNS_TABLE_LIMIT,
+  OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT,
+} from "@/pages/observability/components/runs/constants";
+import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
@@ -32,16 +45,13 @@ import {
   formatTimestamp,
 } from "@/utils/format";
 
-interface ObservabilityRunsTableProps {
-  timeframe: ObservabilityTimeframe;
-  statuses: RunStatus[];
-}
-
-const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
+const ObservabilityRunsTable = () => {
   const navigate = useNavigate();
+  const {
+    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
+    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  } = useSearch({ from: "/_main/observability" });
 
-  // Scheduled runs are upcoming — they have no started_at, so the timeframe
-  // window can't apply to them. They're fetched unwindowed and pinned first.
   const includeScheduled = statuses.includes(RunStatus.SCHEDULED);
   const windowedStatuses = useMemo(
     () => statuses.filter((status) => status !== RunStatus.SCHEDULED),
@@ -80,7 +90,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "status",
         header: "Status",
-        size: 110,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
@@ -89,7 +99,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "runId",
         header: "Run",
-        size: 180,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace>
@@ -106,14 +116,14 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "connectors",
         header: "Connectors",
-        size: 140,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
         cellLoading: () => <TextShimmer width={120} height={18} />,
         cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
       },
       {
         id: "startedAt",
         header: "Started",
-        size: 160,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
         accessorFn: (run) => Number(run.startedAt),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={100} height={14} />,
@@ -126,7 +136,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "duration",
         header: "Duration",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
         accessorFn: (run) =>
           run.startedAt && run.endedAt ? Number(run.endedAt - run.startedAt) : -1,
         enableSorting: true,
@@ -140,7 +150,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "records",
         header: "Records",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
         accessorFn: (run) => Number(run.records),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
@@ -153,7 +163,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "volume",
         header: "Volume",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
         accessorFn: (run) => Number(run.bytes),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={52} height={14} />,
@@ -166,7 +176,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "cpu",
         header: "CPU",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
         accessorFn: (run) => run.cpuSeconds,
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
@@ -179,7 +189,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "memory",
         header: "Memory",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
         align: ColumnAlign.RIGHT,
         accessorFn: (run) => Number(run.memoryPeakBytes),
         enableSorting: true,
@@ -196,8 +206,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
 
   const scheduledRuns = includeScheduled ? (scheduledData?.runs ?? []) : [];
   const windowedRuns = windowedStatuses.length ? (data?.runs ?? []) : [];
-  // A just-promoted run can sit in the stale scheduled cache and the fresh
-  // windowed result at once — the windowed row is the current truth.
+
   const windowedIds = new Set(windowedRuns.map((run) => run.runId));
   const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.runId)), ...windowedRuns];
 
@@ -207,6 +216,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       params: {
         id: row.original.pipelineId,
       },
+      search: { runId: row.original.runId },
     });
   };
 
@@ -218,10 +228,11 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       onRowClick={handleRowClick}
       enableSorting
       isLoading={isLoading || (includeScheduled && isLoadingScheduled)}
+      loadingRowCount={1}
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }
-      maxHeight={640}
+      maxHeight={OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT}
       fillWidth
       noLastRowPadding
       noLastRowBorder

@@ -1,11 +1,9 @@
 import { styled } from "@linaria/react";
-import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 
 import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Icon from "@galaxy-io/dls/icons/Icon";
 import Paragraph from "@galaxy-io/dls/text/Paragraph";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -25,45 +23,17 @@ import CreatePipelineModalSidebarSink from "@/pages/pipelines/components/create/
 import {
   CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
+  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_MAP,
+  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_VARIANT_MAP,
+  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_WEIGHT_MAP,
+  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_VARIANT_MAP,
+  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_WEIGHT_MAP,
   CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP,
 } from "@/pages/pipelines/components/create/constants";
-import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
-
-enum CreatePipelineModalStepStatus {
-  COMPLETED = "COMPLETED",
-  CURRENT = "CURRENT",
-  UPCOMING = "UPCOMING",
-}
-
-const STEP_STATUS_TO_ICON_MAP: Record<CreatePipelineModalStepStatus, PhosphorIcon> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: CheckCircleIcon,
-  [CreatePipelineModalStepStatus.CURRENT]: CircleIcon,
-  [CreatePipelineModalStepStatus.UPCOMING]: CircleIcon,
-};
-
-const STEP_STATUS_TO_ICON_WEIGHT_MAP: Record<CreatePipelineModalStepStatus, IconWeight> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: IconWeight.FILL,
-  [CreatePipelineModalStepStatus.CURRENT]: IconWeight.BOLD,
-  [CreatePipelineModalStepStatus.UPCOMING]: IconWeight.REGULAR,
-};
-
-const STEP_STATUS_TO_ICON_VARIANT_MAP: Record<CreatePipelineModalStepStatus, IconVariant> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: IconVariant.SUCCESS,
-  [CreatePipelineModalStepStatus.CURRENT]: IconVariant.PRIMARY,
-  [CreatePipelineModalStepStatus.UPCOMING]: IconVariant.DISABLED,
-};
-
-const STEP_STATUS_TO_TEXT_VARIANT_MAP: Record<CreatePipelineModalStepStatus, TextVariant> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: TextVariant.PRIMARY,
-  [CreatePipelineModalStepStatus.CURRENT]: TextVariant.PRIMARY,
-  [CreatePipelineModalStepStatus.UPCOMING]: TextVariant.TERTIARY,
-};
-
-const STEP_STATUS_TO_TEXT_WEIGHT_MAP: Record<CreatePipelineModalStepStatus, TextWeight> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: TextWeight.REGULAR,
-  [CreatePipelineModalStepStatus.CURRENT]: TextWeight.MEDIUM,
-  [CreatePipelineModalStepStatus.UPCOMING]: TextWeight.REGULAR,
-};
+import {
+  CreatePipelineModalStep,
+  CreatePipelineModalStepStatus,
+} from "@/pages/pipelines/components/create/types";
 
 const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -142,13 +112,13 @@ const CreatePipelineModalSidebar = () => {
                       }
                     >
                       <Icon
-                        component={STEP_STATUS_TO_ICON_MAP[status]}
-                        weight={STEP_STATUS_TO_ICON_WEIGHT_MAP[status]}
-                        variant={STEP_STATUS_TO_ICON_VARIANT_MAP[status]}
+                        component={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_MAP[status]}
+                        weight={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_WEIGHT_MAP[status]}
+                        variant={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_VARIANT_MAP[status]}
                       />
                       <Text
-                        variant={STEP_STATUS_TO_TEXT_VARIANT_MAP[status]}
-                        weight={STEP_STATUS_TO_TEXT_WEIGHT_MAP[status]}
+                        variant={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_VARIANT_MAP[status]}
+                        weight={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_WEIGHT_MAP[status]}
                       >
                         {CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP[item]}
                       </Text>

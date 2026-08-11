@@ -7,6 +7,7 @@ import {
   CreatePipelineRequestSchema,
   type CreatePipelineVersionRequest,
   CreatePipelineVersionRequestSchema,
+  type Pipeline,
   type PipelineEdge,
   PipelineEdgeSchema,
   type PipelineNode,
@@ -65,7 +66,7 @@ const buildSinkEdges = ({
   sink,
   isCdc,
 }: {
-  sourceId: string;
+  sourceId: PipelineNode["id"];
   rows: CreatePipelineModalResourceRow[];
   sink: CreatePipelineModalSinkRow;
   isCdc: boolean;
@@ -113,7 +114,7 @@ const buildEdges = ({
   isCdc,
 }: {
   sourceConnection: Connection | null;
-  rowsBySink: Record<string, CreatePipelineModalResourceRow[]>;
+  rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   sinks: CreatePipelineModalSinkRow[];
   isCdc: boolean;
 }): PipelineEdge[] => {
@@ -136,10 +137,10 @@ export const mapCreatePipelineStateToVersionRequest = ({
   pipelineId,
 }: {
   sourceConnection: Connection | null;
-  rowsBySink: Record<string, CreatePipelineModalResourceRow[]>;
+  rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   sinks: CreatePipelineModalSinkRow[];
   replication: ReplicationMode;
-  pipelineId: string;
+  pipelineId: Pipeline["id"];
 }): CreatePipelineVersionRequest =>
   create(CreatePipelineVersionRequestSchema, {
     pipelineId,
@@ -154,7 +155,7 @@ export const mapCreatePipelineStateToVersionRequest = ({
 
 export const mapCreatePipelineStateToRequest = (
   state: CreatePipelineModalState,
-  name: string,
+  name: Pipeline["name"],
 ): CreatePipelineRequest =>
   create(CreatePipelineRequestSchema, {
     name: name.trim(),
