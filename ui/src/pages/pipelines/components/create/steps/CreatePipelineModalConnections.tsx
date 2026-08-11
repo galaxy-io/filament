@@ -26,6 +26,8 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
+import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
+
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
@@ -39,7 +41,7 @@ import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/
 
 import { Flow } from "@/routes/__root";
 
-import { useListConnectionsQuery } from "@/api/queries/connections";
+import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
 
 import { NOOP } from "@/constants";
 
@@ -177,11 +179,10 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
     setState((prev) => ({ ...prev, search }));
   };
 
-  const { data, isLoading, isError } = useListConnectionsQuery();
+  const { data, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useListConnectionsInfiniteQuery({ input: { kind } });
 
-  const kindConnections = (data?.connections ?? []).filter(
-    (connection) => connection.kind === kind,
-  );
+  const kindConnections = data?.pages.flatMap((page) => page.connections) ?? [];
   const filteredConnections = kindConnections.filter((connection) =>
     isSearchMatch(state.search, connection.name),
   );
@@ -256,6 +257,11 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
             kind={kind}
           />
         ))}
+        <InfiniteScrollSentinel
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+        />
       </FlexWrapper>
     );
   };

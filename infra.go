@@ -24,10 +24,12 @@ type DataStore interface {
 	// back to an earlier status.
 	CreateRun(ctx context.Context, s RunState) error
 	LoadRun(ctx context.Context, id RunID) (RunState, error)
-	ListRuns(ctx context.Context, f RunFilter) ([]RunState, error)
-	// DeleteRun removes a run and its resources. Only run intake calls it, to
-	// reap pre-created RunScheduled rows and undispatched saves; deleting a run
-	// that ever executed would discard history. Deleting a missing run is a no-op.
+	// ListRuns returns the page selected by the filter's Limit/Offset plus the
+	// total number of runs matching the filter before the page was cut.
+	ListRuns(ctx context.Context, f RunFilter) ([]RunState, int, error)
+	// DeleteRun removes a run and its resources. Only the scheduler calls it, to
+	// reap pre-created RunScheduled rows; deleting a run that ever executed would
+	// discard history. Deleting a missing run is a no-op.
 	DeleteRun(ctx context.Context, id RunID) error
 
 	UpsertResource(ctx context.Context, rs ResourceState) error // enabled toggle + progress
