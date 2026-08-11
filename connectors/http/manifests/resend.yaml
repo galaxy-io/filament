@@ -70,7 +70,6 @@ connection:
       reset_format: seconds_from_now
       min_floor_rps: 1
 resources:
-  # ----------------------------------------------------------------- emails
   # First top-level resource, so it doubles as the TestConnection probe: GA,
   # authenticated, and needing no parent scope.
   - name: emails
@@ -141,7 +140,6 @@ resources:
       email_id: { path: parent.email_id, type: string }
       raw: { path: $, type: json, mode: remainder }
 
-  # ------------------------------------------------------- inbound receiving
   - name: received_emails
     path: /emails/receiving
     query:
@@ -179,7 +177,6 @@ resources:
       email_id: { path: parent.received_email_id, type: string }
       raw: { path: $, type: json, mode: remainder }
 
-  # ---------------------------------------------------------------- domains
   - name: domains
     path: /domains
     query:
@@ -243,7 +240,6 @@ resources:
       records: $.records
       pagination: none
 
-  # --------------------------------------------------------------- api keys
   - name: api_keys
     path: /api-keys
     query:
@@ -256,7 +252,6 @@ resources:
       last_used_at: string?
       raw: { path: $, type: json, mode: remainder }
 
-  # ------------------------------------------------------------- broadcasts
   - name: broadcasts
     path: /broadcasts
     query:
@@ -273,7 +268,6 @@ resources:
       created_at: string?
       raw: { path: $, type: json, mode: remainder }
 
-  # --------------------------------------------------------------- contacts
   - name: contacts
     path: /contacts
     query:
@@ -316,7 +310,6 @@ resources:
       created_at: string?
       raw: { path: $, type: json, mode: remainder }
 
-  # --------------------------------------------------------------- segments
   - name: segments
     path: /segments
     query:
@@ -346,7 +339,6 @@ resources:
       segment_id: { path: parent.segment_id, type: string }
       raw: { path: $, type: json, mode: remainder }
 
-  # ----------------------------------------------------------------- topics
   - name: topics
     path: /topics
     query:
@@ -361,7 +353,6 @@ resources:
       created_at: string?
       raw: { path: $, type: json, mode: remainder }
 
-  # ----------------------------------------------------------- suppressions
   - name: suppressions
     path: /suppressions
     query:
@@ -375,7 +366,6 @@ resources:
       created_at: string?
       raw: { path: $, type: json, mode: remainder }
 
-  # --------------------------------------------------------------- webhooks
   - name: webhooks
     path: /webhooks
     query:
@@ -430,7 +420,6 @@ resources:
       sent_at: timestamptz?
       raw: { path: $, type: json, mode: remainder }
 
-  # -------------------------------------------------------------- templates
   - name: templates
     path: /templates
     query:
@@ -482,7 +471,6 @@ resources:
       cardinality: one
       pagination: none
 
-  # ------------------------------------------------------------------- logs
   - name: logs
     path: /logs
     query:
