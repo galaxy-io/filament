@@ -72,8 +72,17 @@ func run(ctx context.Context) error {
 		return err
 	}
 	if !runner.ShouldRun(state) {
-		return nil // already running or finished — nothing for this Job to do
+		lg.Info("worker: nothing to do",
+			filament.Field{Key: "run", Value: string(runID)},
+			filament.Field{Key: "status", Value: int(state.Status)})
+		return nil
 	}
+	lg.Info("worker: executing run",
+		filament.Field{Key: "run", Value: string(runID)},
+		filament.Field{Key: "pipeline", Value: state.Request.PipelineID},
+		filament.Field{Key: "source", Value: state.Request.Source.Provider},
+		filament.Field{Key: "sink", Value: state.Request.Sink.Provider},
+		filament.Field{Key: "resources", Value: len(state.Request.Resources)})
 
 	mx, tracer, shutdown, err := otel.FromEnv(ctx)
 	if err != nil {
