@@ -115,9 +115,9 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
 
 interface PipelinesTableProps {
   pipelines: Pipeline[];
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  fetchNextPage: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  fetchNextPage?: () => void;
 }
 
 const PipelinesTable = ({
@@ -148,10 +148,10 @@ const PipelinesTable = ({
           />
         }
         onRowClick={handleRowClick}
-        enableSorting
         hasNextPage={hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
         fetchNextPage={fetchNextPage}
+        enableSorting
         fillWidth
         fillHeight
       />

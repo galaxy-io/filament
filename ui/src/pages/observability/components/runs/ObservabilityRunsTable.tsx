@@ -6,6 +6,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import InfiniteTable, {
   ColumnAlign,
   type ColumnDef,
+  ColumnPin,
   type Row,
 } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -90,6 +91,7 @@ const ObservabilityRunsTable = () => {
         id: "status",
         header: "Status",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
+        pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
@@ -109,13 +111,14 @@ const ObservabilityRunsTable = () => {
       {
         id: "pipeline",
         header: "Pipeline",
+        pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
       },
       {
         id: "connectors",
         header: "Connectors",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
         cellLoading: () => <TextShimmer width={120} height={18} />,
         cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
       },
