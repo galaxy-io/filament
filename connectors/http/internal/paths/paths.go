@@ -6,6 +6,7 @@
 //
 //	a.b.c          — nested object keys
 //	items.0.name   — numeric segments index into arrays
+//	data.-1.id     — negative indices count from the end (-1 is the last)
 //	meta.sub\.key  — backslash escapes a literal dot inside a key
 //
 // The package exposes three accessors. Each returns a typed error
@@ -210,9 +211,17 @@ func lookup(data any, path string) (value, error) {
 				return value{kind: kindOther}, fmt.Errorf("%w: segment %q is not an array index at %s",
 					errs.ErrPathType, seg, joinPrefix(segs, i))
 			}
+			// Negative indices count back from the end, -1 being the last
+			// element. This is what lets a manifest name "the last record on
+			// this page" — the shape of last-id cursor pagination (Stripe's
+			// starting_after) — without hard-coding the page size into the
+			// path and silently terminating early on a short final page.
+			if idx < 0 {
+				idx += len(node)
+			}
 			if idx < 0 || idx >= len(node) {
-				return value{kind: kindMissing}, fmt.Errorf("%w: index %d out of range at %s",
-					errs.ErrPathMissing, idx, joinPrefix(segs, i))
+				return value{kind: kindMissing}, fmt.Errorf("%w: index %s out of range at %s",
+					errs.ErrPathMissing, seg, joinPrefix(segs, i))
 			}
 			cur = node[idx]
 		default:

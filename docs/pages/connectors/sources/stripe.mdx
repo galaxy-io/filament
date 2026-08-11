@@ -1,0 +1,138 @@
+---
+title: "Stripe"
+description: "Read payments, billing, subscriptions, and the Connect ledger from a Stripe account."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-stripe-dark.svg"
+---
+
+Stripe is a manifest-driven source — `connectors/http/manifests/stripe.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Stripe-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A secret or restricted API key (`sk_live_…`, `sk_test_…`, `rk_live_…`). Stripe
+uses HTTP basic auth with the key as the username and no password, which is
+what `auth: { basic: { username: config.api_key } }` compiles to. Prefer a
+restricted key with read access to the resources you enable — a restricted key
+returns `403` on resources it isn't scoped for, and a failed resource fails the
+run.
+
+An optional `api_version` setting is sent as the `Stripe-Version` header and
+defaults to `2026-07-29.dahlia`. Pinning it means the extracted schema does not
+shift when the account's default API version is upgraded in Workbench.
+
+## Resources
+
+Forty-one resources, all statically discovered. Three fan out from a parent;
+the rest are top-level lists.
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `account` | `/v1/account` | — (the account itself, one row) |
+| `accounts` | `/v1/accounts` | — (Connect connected accounts) |
+| `balance_transactions` | `/v1/balance_transactions` | — |
+| `charges` | `/v1/charges` | — |
+| `payment_intents` | `/v1/payment_intents` | — |
+| `setup_intents` | `/v1/setup_intents` | — |
+| `payment_methods` | `/v1/payment_methods` | — |
+| `refunds` | `/v1/refunds` | — |
+| `disputes` | `/v1/disputes` | — |
+| `payouts` | `/v1/payouts` | — |
+| `transfers` | `/v1/transfers` | — |
+| `application_fees` | `/v1/application_fees` | — |
+| `topups` | `/v1/topups` | — |
+| `customers` | `/v1/customers` | — |
+| `invoices` | `/v1/invoices` | — |
+| `invoice_line_items` | `/v1/invoices/{invoice}/lines` | `invoices` |
+| `invoiceitems` | `/v1/invoiceitems` | — |
+| `invoice_payments` | `/v1/invoice_payments` | — |
+| `credit_notes` | `/v1/credit_notes` | — |
+| `subscriptions` | `/v1/subscriptions` | — |
+| `subscription_items` | `/v1/subscription_items` | `subscriptions` |
+| `subscription_schedules` | `/v1/subscription_schedules` | — |
+| `products` | `/v1/products` | — |
+| `prices` | `/v1/prices` | — |
+| `plans` | `/v1/plans` | — |
+| `coupons` | `/v1/coupons` | — |
+| `promotion_codes` | `/v1/promotion_codes` | — |
+| `tax_rates` | `/v1/tax_rates` | — |
+| `tax_ids` | `/v1/tax_ids` | — |
+| `shipping_rates` | `/v1/shipping_rates` | — |
+| `checkout_sessions` | `/v1/checkout/sessions` | — |
+| `checkout_session_line_items` | `/v1/checkout/sessions/{session}/line_items` | `checkout_sessions` |
+| `payment_links` | `/v1/payment_links` | — |
+| `quotes` | `/v1/quotes` | — |
+| `events` | `/v1/events` | — |
+| `reviews` | `/v1/reviews` | — |
+| `early_fraud_warnings` | `/v1/radar/early_fraud_warnings` | — |
+| `files` | `/v1/files` | — |
+| `file_links` | `/v1/file_links` | — |
+| `billing_meters` | `/v1/billing/meters` | — |
+| `webhook_endpoints` | `/v1/webhook_endpoints` | — |
+
+Stripe's vertical products — Issuing, Treasury, Terminal, Identity, Climate,
+Financial Connections, Sigma — are deliberately absent. Their endpoints reject
+requests from accounts that haven't enabled the product, and a rejected
+resource fails the whole run for everyone else.
+
+### Pagination
+
+Stripe returns no next-page token. Each list response carries `data`,
+`has_more`, and nothing else navigational, and the next page is requested with
+`starting_after=<id of the last object on this page>`. The manifest expresses
+that as a cursor whose response path is `data.-1.id` — a negative index into
+the page array, resolved by the connector's shared path lookup. `has_more` is
+the authoritative terminator and is checked before the cursor is read, so a
+short final page ends the walk without ever indexing `data.-1`.
+
+Every list request sends `limit=100`, Stripe's documented maximum. The one
+exception is `/v1/account`, which accepts no list parameters at all and would
+reject `limit` as an unknown parameter — it is declared with
+`pagination: none` and `cardinality: one`.
+
+### Quirks
+
+- `subscriptions` requests `status=all`. Without it the endpoint hides
+  canceled subscriptions, so churned rows would silently disappear from the
+  destination on the next run.
+- Timestamps are unix epoch seconds and are typed `int64`, not `timestamptz` —
+  Stripe sends integers, and casting them to a timestamp string would produce
+  garbage. Convert in the destination.
+- Reference fields (`customer`, `charge`, `payment_intent`, …) are typed
+  `string` and hold ids. The manifest never sends `expand[]`, so they are
+  never inflated into objects.
+- `client_secret` on `payment_intents`, `setup_intents`, and
+  `checkout_sessions`, and `confirmation_secret` on `invoices`, are mapped to
+  named columns rather than being swept into `raw`, so a downstream policy can
+  drop or mask exactly those columns.
+- `customer_account` is mapped everywhere Stripe exposes it. Accounts on the
+  v2 Accounts model leave `customer` null and populate `customer_account`
+  instead, so a pipeline that joins only on `customer` would drop those rows.
+- Rate limiting is capped at 20 requests/second across all resources, under
+  the 25 rps sandbox ceiling and Stripe's 25 rps per-endpoint limit. `429`s are
+  retried with `Retry-After` on top of that.
+- The three `for_each` resources issue one request per parent record. On a
+  large account `invoice_line_items` and `checkout_session_line_items` dominate
+  the run; disable them if you only need invoice- and session-level totals.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+Only `events` and `balance_transactions` declare an `incremental:` block —
+both checkpoint the `created` field and replay it into Stripe's
+`created[gte]` range filter with a `numeric` comparator. The floor is
+inclusive, so the boundary second is re-read each run and deduped downstream on
+the primary key.
+
+Every other resource is a full extract on every run, and that is deliberate.
+Stripe list endpoints filter on `created` only — there is no `updated`
+filter — so a created-based watermark would permanently miss mutations to
+existing rows: a charge refunded a month after it was created, a subscription
+that churns, an invoice that moves from `open` to `paid`. Full extracts keep
+those rows current.
+
+If full extracts of a high-volume resource become too expensive, `events` is
+the change feed for the gap: it carries every object mutation for the trailing
+30 days, syncs incrementally, and each row's `data` holds the object as it
+looked at the time of the change.

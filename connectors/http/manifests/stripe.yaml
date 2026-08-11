@@ -1,0 +1,1339 @@
+version: 1
+name: stripe
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Stripe secret or restricted API key (sk_live_…, sk_test_…, rk_live_…). A restricted key needs read access to every enabled resource.
+  api_version:
+    type: string
+    default: "2026-07-29.dahlia"
+    help: Stripe API version sent as the Stripe-Version header. Pinning keeps the extracted schema stable when the account's default version changes.
+defaults:
+  method: GET
+  response:
+    records: $.data
+    # Stripe returns no next-page token: the cursor is the id of the last
+    # object on the page, echoed back as starting_after. has_more is the
+    # authoritative terminator, so a short final page ends the walk before
+    # data.-1 is ever read.
+    pagination:
+      cursor:
+        response: data.-1.id
+        request: query.starting_after
+        more: has_more
+field_sets:
+  identity:
+    id: string
+    object: string
+connection:
+  base_url: https://api.stripe.com
+  auth:
+    basic:
+      username: config.api_key
+  headers:
+    Accept: application/json
+    Stripe-Version: "{{ config.api_version }}"
+  timeout_seconds: 60
+  # Sandbox accounts cap the global rate at 25 rps and every individual
+  # endpoint at 25 rps; live accounts get 100 rps globally. One limiter is
+  # shared across all concurrently extracting resources, so stay under the
+  # tighter of the two. 429s are retried with Retry-After on top of this.
+  rate_limit:
+    requests_per_second: 20
+resources:
+  # ---------------------------------------------------------------- account
+  - name: account
+    path: /v1/account
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      business_type: string?
+      country: string?
+      default_currency: string?
+      email: string?
+      type: string?
+      charges_enabled: bool?
+      payouts_enabled: bool?
+      details_submitted: bool?
+      created: int64?
+      business_profile: json?
+      capabilities: json?
+      company: json?
+      controller: json?
+      groups: json?
+      individual: json?
+      requirements: json?
+      future_requirements: json?
+      settings: json?
+      tos_acceptance: json?
+      external_accounts: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+
+  - name: accounts
+    path: /v1/accounts
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      business_type: string?
+      country: string?
+      default_currency: string?
+      email: string?
+      type: string?
+      charges_enabled: bool?
+      payouts_enabled: bool?
+      details_submitted: bool?
+      created: int64?
+      business_profile: json?
+      capabilities: json?
+      company: json?
+      controller: json?
+      groups: json?
+      individual: json?
+      requirements: json?
+      future_requirements: json?
+      settings: json?
+      tos_acceptance: json?
+      external_accounts: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------------ money in/out
+  - name: balance_transactions
+    path: /v1/balance_transactions
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      net: int64?
+      fee: int64?
+      fee_details: json?
+      currency: string?
+      created: int64?
+      available_on: int64?
+      balance_type: string?
+      description: string?
+      exchange_rate: float64?
+      reporting_category: string?
+      source: string?
+      status: string?
+      type: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      checkpoint_key: balance_transactions_created
+      comparator: numeric
+
+  - name: charges
+    path: /v1/charges
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      amount_captured: int64?
+      amount_refunded: int64?
+      application: string?
+      application_fee: string?
+      application_fee_amount: int64?
+      balance_transaction: string?
+      billing_details: json?
+      calculated_statement_descriptor: string?
+      captured: bool?
+      created: int64?
+      currency: string?
+      customer: string?
+      description: string?
+      disputed: bool?
+      failure_balance_transaction: string?
+      failure_code: string?
+      failure_message: string?
+      fraud_details: json?
+      livemode: bool?
+      on_behalf_of: string?
+      outcome: json?
+      paid: bool?
+      payment_intent: string?
+      payment_method: string?
+      payment_method_details: json?
+      presentment_details: json?
+      radar_options: json?
+      receipt_email: string?
+      receipt_number: string?
+      receipt_url: string?
+      refunded: bool?
+      refunds: json?
+      review: string?
+      shipping: json?
+      source_transfer: string?
+      statement_descriptor: string?
+      statement_descriptor_suffix: string?
+      status: string?
+      transfer: string?
+      transfer_data: json?
+      transfer_group: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: payment_intents
+    path: /v1/payment_intents
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      amount_capturable: int64?
+      amount_received: int64?
+      amount_details: json?
+      application: string?
+      application_fee_amount: int64?
+      automatic_payment_methods: json?
+      canceled_at: int64?
+      cancellation_reason: string?
+      capture_method: string?
+      # Declared rather than left to `raw` so the confirmation credential
+      # lands in one named column that a downstream policy can drop or mask.
+      client_secret: string?
+      confirmation_method: string?
+      created: int64?
+      currency: string?
+      customer: string?
+      customer_account: string?
+      description: string?
+      last_payment_error: json?
+      latest_charge: string?
+      livemode: bool?
+      next_action: json?
+      on_behalf_of: string?
+      payment_method: string?
+      payment_method_configuration_details: json?
+      payment_method_options: json?
+      payment_method_types: json?
+      presentment_details: json?
+      processing: json?
+      receipt_email: string?
+      review: string?
+      setup_future_usage: string?
+      shipping: json?
+      statement_descriptor: string?
+      statement_descriptor_suffix: string?
+      status: string?
+      transfer_data: json?
+      transfer_group: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: setup_intents
+    path: /v1/setup_intents
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      application: string?
+      attach_to_self: bool?
+      automatic_payment_methods: json?
+      cancellation_reason: string?
+      client_secret: string?
+      created: int64?
+      customer: string?
+      customer_account: string?
+      description: string?
+      flow_directions: json?
+      last_setup_error: json?
+      latest_attempt: string?
+      livemode: bool?
+      mandate: string?
+      next_action: json?
+      on_behalf_of: string?
+      payment_method: string?
+      payment_method_configuration_details: json?
+      payment_method_options: json?
+      payment_method_types: json?
+      single_use_mandate: string?
+      status: string?
+      usage: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: payment_methods
+    path: /v1/payment_methods
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      type: string?
+      customer: string?
+      customer_account: string?
+      created: int64?
+      livemode: bool?
+      allow_redisplay: string?
+      billing_details: json?
+      card: json?
+      us_bank_account: json?
+      sepa_debit: json?
+      link: json?
+      radar_options: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: refunds
+    path: /v1/refunds
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      currency: string?
+      created: int64?
+      charge: string?
+      payment_intent: string?
+      customer: string?
+      customer_account: string?
+      balance_transaction: string?
+      failure_balance_transaction: string?
+      failure_reason: string?
+      instructions_email: string?
+      description: string?
+      destination_details: json?
+      next_action: json?
+      payment_method: string?
+      pending_reason: string?
+      presentment_details: json?
+      reason: string?
+      receipt_number: string?
+      source_transfer_reversal: string?
+      transfer_reversal: string?
+      status: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: disputes
+    path: /v1/disputes
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      currency: string?
+      created: int64?
+      charge: string?
+      payment_intent: string?
+      balance_transactions: json?
+      enhanced_eligibility_types: json?
+      evidence: json?
+      evidence_details: json?
+      is_charge_refundable: bool?
+      livemode: bool?
+      payment_method_details: json?
+      reason: string?
+      status: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: payouts
+    path: /v1/payouts
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      currency: string?
+      created: int64?
+      arrival_date: int64?
+      automatic: bool?
+      balance_transaction: string?
+      application_fee: string?
+      application_fee_amount: int64?
+      description: string?
+      destination: string?
+      failure_balance_transaction: string?
+      failure_code: string?
+      failure_message: string?
+      livemode: bool?
+      method: string?
+      original_payout: string?
+      payout_method: string?
+      reconciliation_status: string?
+      reversed_by: string?
+      source_type: string?
+      statement_descriptor: string?
+      status: string?
+      trace_id: json?
+      type: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: transfers
+    path: /v1/transfers
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      amount_reversed: int64?
+      currency: string?
+      created: int64?
+      balance_transaction: string?
+      description: string?
+      destination: string?
+      destination_payment: string?
+      livemode: bool?
+      reversals: json?
+      reversed: bool?
+      source_transaction: string?
+      source_type: string?
+      transfer_group: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: application_fees
+    path: /v1/application_fees
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      account: string?
+      amount: int64?
+      amount_refunded: int64?
+      application: string?
+      balance_transaction: string?
+      charge: string?
+      currency: string?
+      created: int64?
+      fee_source: json?
+      livemode: bool?
+      originating_transaction: string?
+      refunded: bool?
+      refunds: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: topups
+    path: /v1/topups
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      currency: string?
+      created: int64?
+      balance_transaction: string?
+      description: string?
+      expected_availability_date: int64?
+      failure_code: string?
+      failure_message: string?
+      initiated_by: string?
+      livemode: bool?
+      payment_method: string?
+      payment_method_options: json?
+      source: json?
+      statement_descriptor: string?
+      status: string?
+      transfer_group: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------- customers/billing
+  - name: customers
+    path: /v1/customers
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      email: string?
+      name: string?
+      business_name: string?
+      individual_name: string?
+      description: string?
+      phone: string?
+      customer_account: string?
+      balance: int64?
+      invoice_credit_balance: json?
+      currency: string?
+      created: int64?
+      delinquent: bool?
+      address: json?
+      cash_balance: json?
+      default_source: string?
+      discount: json?
+      invoice_prefix: string?
+      invoice_settings: json?
+      livemode: bool?
+      next_invoice_sequence: int64?
+      preferred_locales: json?
+      shipping: json?
+      tax: json?
+      tax_exempt: string?
+      test_clock: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: invoices
+    path: /v1/invoices
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      number: string?
+      status: string?
+      billing_reason: string?
+      collection_method: string?
+      customer: string?
+      customer_account: string?
+      customer_email: string?
+      customer_name: string?
+      currency: string?
+      created: int64?
+      due_date: int64?
+      effective_at: int64?
+      period_start: int64?
+      period_end: int64?
+      amount_due: int64?
+      amount_overpaid: int64?
+      amount_paid: int64?
+      amount_remaining: int64?
+      amount_shipping: int64?
+      subtotal: int64?
+      subtotal_excluding_tax: int64?
+      total: int64?
+      total_excluding_tax: int64?
+      starting_balance: int64?
+      ending_balance: int64?
+      amount_paid_off_stripe: int64?
+      post_payment_credit_notes_amount: int64?
+      pre_payment_credit_notes_amount: int64?
+      attempt_count: int64?
+      attempted: bool?
+      auto_advance: bool?
+      automatic_tax: json?
+      account_country: string?
+      account_name: string?
+      account_tax_ids: json?
+      application: string?
+      automatically_finalizes_at: int64?
+      confirmation_secret: json?
+      custom_fields: json?
+      customer_address: json?
+      customer_phone: string?
+      customer_shipping: json?
+      customer_tax_exempt: string?
+      customer_tax_ids: json?
+      default_payment_method: string?
+      default_source: string?
+      default_tax_rates: json?
+      description: string?
+      discounts: json?
+      footer: string?
+      from_invoice: json?
+      hosted_invoice_url: string?
+      invoice_pdf: string?
+      issuer: json?
+      last_finalization_error: json?
+      latest_revision: string?
+      lines: json?
+      livemode: bool?
+      next_payment_attempt: int64?
+      on_behalf_of: string?
+      parent: json?
+      payment_settings: json?
+      payments: json?
+      receipt_number: string?
+      rendering: json?
+      shipping_cost: json?
+      shipping_details: json?
+      statement_descriptor: string?
+      status_transitions: json?
+      test_clock: string?
+      threshold_reason: json?
+      total_discount_amounts: json?
+      total_pretax_credit_amounts: json?
+      total_taxes: json?
+      webhooks_delivered_at: int64?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      invoice_id: id
+
+  - name: invoice_line_items
+    path: /v1/invoices/{invoice}/lines
+    params:
+      invoice: parent.invoice_id
+    for_each: invoices
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      invoice_id: { path: parent.invoice_id, type: string }
+      amount: int64?
+      currency: string?
+      description: string?
+      discountable: bool?
+      discount_amounts: json?
+      discounts: json?
+      livemode: bool?
+      parent: json?
+      period: json?
+      pretax_credit_amounts: json?
+      pricing: json?
+      quantity: int64?
+      quantity_decimal: string?
+      subscription: string?
+      subtotal: int64?
+      taxes: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: invoiceitems
+    path: /v1/invoiceitems
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      amount: int64?
+      net_amount: int64?
+      currency: string?
+      customer: string?
+      date: int64?
+      description: string?
+      discountable: bool?
+      discounts: json?
+      invoice: string?
+      customer_account: string?
+      livemode: bool?
+      parent: json?
+      period: json?
+      pricing: json?
+      proration: bool?
+      proration_details: json?
+      quantity: int64?
+      quantity_decimal: string?
+      tax_rates: json?
+      test_clock: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: invoice_payments
+    path: /v1/invoice_payments
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      invoice: string?
+      amount_paid: int64?
+      amount_requested: int64?
+      currency: string?
+      created: int64?
+      is_default: bool?
+      livemode: bool?
+      payment: json?
+      status: string?
+      status_transitions: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: credit_notes
+    path: /v1/credit_notes
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      number: string?
+      status: string?
+      type: string?
+      reason: string?
+      customer: string?
+      customer_account: string?
+      invoice: string?
+      currency: string?
+      created: int64?
+      effective_at: int64?
+      voided_at: int64?
+      amount: int64?
+      amount_shipping: int64?
+      discount_amount: int64?
+      discount_amounts: json?
+      subtotal: int64?
+      subtotal_excluding_tax: int64?
+      total: int64?
+      total_excluding_tax: int64?
+      out_of_band_amount: int64?
+      post_payment_amount: int64?
+      pre_payment_amount: int64?
+      pretax_credit_amounts: json?
+      customer_balance_transaction: string?
+      lines: json?
+      livemode: bool?
+      memo: string?
+      pdf: string?
+      refunds: json?
+      shipping_cost: json?
+      total_taxes: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------------ subscriptions
+  - name: subscriptions
+    path: /v1/subscriptions
+    query:
+      limit: "100"
+      # Without this the endpoint hides canceled subscriptions, so churned
+      # rows would silently disappear from the destination on the next run.
+      status: all
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      status: string?
+      customer: string?
+      customer_account: string?
+      currency: string?
+      created: int64?
+      start_date: int64?
+      billing_cycle_anchor: int64?
+      cancel_at: int64?
+      cancel_at_period_end: bool?
+      canceled_at: int64?
+      cancellation_details: json?
+      collection_method: string?
+      days_until_due: int64?
+      default_payment_method: string?
+      default_source: string?
+      default_tax_rates: json?
+      description: string?
+      discounts: json?
+      ended_at: int64?
+      application: string?
+      application_fee_percent: float64?
+      automatic_tax: json?
+      billing_cycle_anchor_config: json?
+      billing_mode: json?
+      billing_schedules: json?
+      billing_thresholds: json?
+      invoice_settings: json?
+      items: json?
+      latest_invoice: string?
+      livemode: bool?
+      next_pending_invoice_item_invoice: int64?
+      on_behalf_of: string?
+      pause_collection: json?
+      payment_settings: json?
+      pending_invoice_item_interval: json?
+      pending_setup_intent: string?
+      pending_update: json?
+      presentment_details: json?
+      schedule: string?
+      test_clock: string?
+      transfer_data: json?
+      trial_end: int64?
+      trial_settings: json?
+      trial_start: int64?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      subscription_id: id
+
+  - name: subscription_items
+    path: /v1/subscription_items
+    for_each: subscriptions
+    query:
+      limit: "100"
+      subscription: "{{ parent.subscription_id }}"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      subscription_id: { path: parent.subscription_id, type: string }
+      created: int64?
+      billed_until: int64?
+      billing_thresholds: json?
+      current_period_start: int64?
+      current_period_end: int64?
+      discounts: json?
+      price: json?
+      quantity: int64?
+      tax_rates: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: subscription_schedules
+    path: /v1/subscription_schedules
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      status: string?
+      customer: string?
+      customer_account: string?
+      subscription: string?
+      created: int64?
+      canceled_at: int64?
+      completed_at: int64?
+      released_at: int64?
+      released_subscription: string?
+      application: string?
+      billing_mode: json?
+      current_phase: json?
+      default_settings: json?
+      end_behavior: string?
+      livemode: bool?
+      phases: json?
+      test_clock: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------------ product catalog
+  - name: products
+    path: /v1/products
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      name: string?
+      description: string?
+      active: bool?
+      created: int64?
+      updated: int64?
+      default_price: string?
+      images: json?
+      livemode: bool?
+      marketing_features: json?
+      package_dimensions: json?
+      shippable: bool?
+      statement_descriptor: string?
+      tax_code: string?
+      unit_label: string?
+      url: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: prices
+    path: /v1/prices
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      product: string?
+      nickname: string?
+      active: bool?
+      type: string?
+      currency: string?
+      created: int64?
+      unit_amount: int64?
+      unit_amount_decimal: string?
+      billing_scheme: string?
+      currency_options: json?
+      custom_unit_amount: json?
+      livemode: bool?
+      lookup_key: string?
+      recurring: json?
+      tax_behavior: string?
+      tiers: json?
+      tiers_mode: string?
+      transform_quantity: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: plans
+    path: /v1/plans
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      product: string?
+      nickname: string?
+      active: bool?
+      amount: int64?
+      amount_decimal: string?
+      currency: string?
+      created: int64?
+      interval: string?
+      interval_count: int64?
+      billing_scheme: string?
+      livemode: bool?
+      meter: string?
+      tiers: json?
+      tiers_mode: string?
+      transform_usage: json?
+      trial_period_days: int64?
+      usage_type: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: coupons
+    path: /v1/coupons
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      name: string?
+      valid: bool?
+      duration: string?
+      duration_in_months: int64?
+      amount_off: int64?
+      percent_off: float64?
+      currency: string?
+      currency_options: json?
+      created: int64?
+      applies_to: json?
+      livemode: bool?
+      max_redemptions: int64?
+      redeem_by: int64?
+      times_redeemed: int64?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: promotion_codes
+    path: /v1/promotion_codes
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      code: string?
+      active: bool?
+      customer: string?
+      customer_account: string?
+      created: int64?
+      expires_at: int64?
+      livemode: bool?
+      max_redemptions: int64?
+      promotion: json?
+      restrictions: json?
+      times_redeemed: int64?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: tax_rates
+    path: /v1/tax_rates
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      display_name: string?
+      description: string?
+      active: bool?
+      inclusive: bool?
+      percentage: float64?
+      effective_percentage: float64?
+      country: string?
+      state: string?
+      jurisdiction: string?
+      jurisdiction_level: string?
+      created: int64?
+      flat_amount: json?
+      livemode: bool?
+      rate_type: string?
+      tax_type: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: tax_ids
+    path: /v1/tax_ids
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      type: string?
+      value: string?
+      country: string?
+      customer: string?
+      customer_account: string?
+      created: int64?
+      livemode: bool?
+      owner: json?
+      verification: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: shipping_rates
+    path: /v1/shipping_rates
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      display_name: string?
+      active: bool?
+      type: string?
+      created: int64?
+      delivery_estimate: json?
+      fixed_amount: json?
+      livemode: bool?
+      tax_behavior: string?
+      tax_code: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------------ selling surfaces
+  - name: checkout_sessions
+    path: /v1/checkout/sessions
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      status: string?
+      payment_status: string?
+      mode: string?
+      customer: string?
+      customer_account: string?
+      customer_email: string?
+      currency: string?
+      created: int64?
+      expires_at: int64?
+      amount_subtotal: int64?
+      amount_total: int64?
+      client_reference_id: string?
+      client_secret: string?
+      invoice: string?
+      payment_intent: string?
+      payment_link: string?
+      setup_intent: string?
+      subscription: string?
+      success_url: string?
+      cancel_url: string?
+      url: string?
+      ui_mode: string?
+      locale: string?
+      livemode: bool?
+      allow_promotion_codes: bool?
+      automatic_tax: json?
+      collected_information: json?
+      consent: json?
+      consent_collection: json?
+      custom_fields: json?
+      custom_text: json?
+      customer_details: json?
+      customer_creation: string?
+      billing_address_collection: string?
+      payment_method_collection: string?
+      after_expiration: json?
+      currency_conversion: json?
+      phone_number_collection: json?
+      recovered_from: string?
+      return_url: string?
+      discounts: json?
+      invoice_creation: json?
+      payment_method_options: json?
+      payment_method_types: json?
+      shipping_cost: json?
+      shipping_options: json?
+      total_details: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      checkout_session_id: id
+
+  - name: checkout_session_line_items
+    path: /v1/checkout/sessions/{session}/line_items
+    params:
+      session: parent.checkout_session_id
+    for_each: checkout_sessions
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      checkout_session_id: { path: parent.checkout_session_id, type: string }
+      description: string?
+      currency: string?
+      quantity: int64?
+      amount_subtotal: int64?
+      amount_total: int64?
+      amount_discount: int64?
+      amount_tax: int64?
+      adjustable_quantity: json?
+      discounts: json?
+      price: json?
+      taxes: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: payment_links
+    path: /v1/payment_links
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      url: string?
+      active: bool?
+      currency: string?
+      submit_type: string?
+      allow_promotion_codes: bool?
+      after_completion: json?
+      application: string?
+      application_fee_amount: int64?
+      application_fee_percent: float64?
+      automatic_tax: json?
+      billing_address_collection: string?
+      consent_collection: json?
+      custom_fields: json?
+      custom_text: json?
+      customer_creation: string?
+      inactive_message: string?
+      line_items: json?
+      payment_method_options: json?
+      invoice_creation: json?
+      livemode: bool?
+      on_behalf_of: string?
+      payment_method_collection: string?
+      payment_method_types: json?
+      phone_number_collection: json?
+      restrictions: json?
+      shipping_address_collection: json?
+      shipping_options: json?
+      subscription_data: json?
+      tax_id_collection: json?
+      transfer_data: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: quotes
+    path: /v1/quotes
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      number: string?
+      status: string?
+      customer: string?
+      customer_account: string?
+      currency: string?
+      created: int64?
+      expires_at: int64?
+      amount_subtotal: int64?
+      amount_total: int64?
+      application: string?
+      application_fee_amount: int64?
+      application_fee_percent: float64?
+      automatic_tax: json?
+      collection_method: string?
+      computed: json?
+      default_tax_rates: json?
+      description: string?
+      discounts: json?
+      footer: string?
+      from_quote: json?
+      header: string?
+      invoice: string?
+      invoice_settings: json?
+      line_items: json?
+      livemode: bool?
+      on_behalf_of: string?
+      status_transitions: json?
+      subscription: string?
+      subscription_data: json?
+      subscription_schedule: string?
+      test_clock: string?
+      total_details: json?
+      transfer_data: json?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------------ platform/ops
+  - name: events
+    path: /v1/events
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      type: string?
+      api_version: string?
+      account: string?
+      context: string?
+      created: int64?
+      data: json?
+      livemode: bool?
+      pending_webhooks: int64?
+      request: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      checkpoint_key: events_created
+      comparator: numeric
+
+  - name: reviews
+    path: /v1/reviews
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      open: bool?
+      reason: string?
+      opened_reason: string?
+      closed_reason: string?
+      charge: string?
+      payment_intent: string?
+      created: int64?
+      billing_zip: string?
+      ip_address: string?
+      ip_address_location: json?
+      livemode: bool?
+      session: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: early_fraud_warnings
+    path: /v1/radar/early_fraud_warnings
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      actionable: bool?
+      fraud_type: string?
+      charge: string?
+      payment_intent: string?
+      created: int64?
+      livemode: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: files
+    path: /v1/files
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      filename: string?
+      purpose: string?
+      title: string?
+      type: string?
+      size: int64?
+      created: int64?
+      expires_at: int64?
+      links: json?
+      url: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: file_links
+    path: /v1/file_links
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      file: string?
+      url: string?
+      expired: bool?
+      expires_at: int64?
+      created: int64?
+      livemode: bool?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: billing_meters
+    path: /v1/billing/meters
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      display_name: string?
+      event_name: string?
+      event_time_window: string?
+      status: string?
+      created: int64?
+      updated: int64?
+      customer_mapping: json?
+      default_aggregation: json?
+      livemode: bool?
+      status_transitions: json?
+      value_settings: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: webhook_endpoints
+    path: /v1/webhook_endpoints
+    query:
+      limit: "100"
+    use_fields: [identity]
+    primary_key: [id]
+    fields:
+      url: string?
+      status: string?
+      description: string?
+      api_version: string?
+      application: string?
+      created: int64?
+      enabled_events: json?
+      livemode: bool?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static
+  include:
+    - account
+    - accounts
+    - balance_transactions
+    - charges
+    - payment_intents
+    - setup_intents
+    - payment_methods
+    - refunds
+    - disputes
+    - payouts
+    - transfers
+    - application_fees
+    - topups
+    - customers
+    - invoices
+    - invoice_line_items
+    - invoiceitems
+    - invoice_payments
+    - credit_notes
+    - subscriptions
+    - subscription_items
+    - subscription_schedules
+    - products
+    - prices
+    - plans
+    - coupons
+    - promotion_codes
+    - tax_rates
+    - tax_ids
+    - shipping_rates
+    - checkout_sessions
+    - checkout_session_line_items
+    - payment_links
+    - quotes
+    - events
+    - reviews
+    - early_fraud_warnings
+    - files
+    - file_links
+    - billing_meters
+    - webhook_endpoints

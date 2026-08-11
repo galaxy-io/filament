@@ -110,9 +110,11 @@
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/attio",
               "pages/connectors/sources/github",
+              "pages/connectors/sources/hubspot",
               "pages/connectors/sources/linear",
               "pages/connectors/sources/notion",
               "pages/connectors/sources/slack",
+              "pages/connectors/sources/stripe",
               "pages/connectors/sources/http",
               "pages/connectors/sources/sample"
             ]

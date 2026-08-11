@@ -77,7 +77,9 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     cellLoading: () => <TextShimmer width={64} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
-        {row.original.lastRunAt > 0n ? formatTimeAgo(row.original.lastRunAt) : "—"}
+        {row.original.lastRunAt > 0n
+          ? formatTimeAgo(row.original.lastRunAt)
+          : "—"}
       </Text>
     ),
   },
@@ -107,7 +109,9 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.lastRunAt > 0n ? formatBytes(row.original.lastRunBytes) : "—"}
+        {row.original.lastRunAt > 0n
+          ? formatBytes(row.original.lastRunBytes)
+          : "—"}
       </Text>
     ),
   },
@@ -143,7 +147,12 @@ const PipelinesTable = ({
         getRowId={(pipeline) => pipeline.id}
         contentWhenEmpty={
           <EmptyLayout
-            icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
+            icon={
+              <Icon
+                component={MagnifyingGlassIcon}
+                variant={IconVariant.TERTIARY}
+              />
+            }
             message="No pipelines match your search"
           />
         }

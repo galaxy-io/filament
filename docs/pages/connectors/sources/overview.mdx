@@ -16,22 +16,24 @@ and a synthetic generator for testing.
 
 ## SaaS Apps
 
-All five run on the same [HTTP](/pages/connectors/sources/http) connector,
+All seven run on the same [HTTP](/pages/connectors/sources/http) connector,
 configured by a declarative manifest rather than by their own Go package:
 
 | Source | Manifest | Notes |
 |---|---|---|
-| [Attio](/pages/connectors/sources/attio) | `attio.yaml` | 23 resources — the deepest parent/child nesting of the five |
+| [Attio](/pages/connectors/sources/attio) | `attio.yaml` | 23 resources — the deepest parent/child nesting |
 | [GitHub](/pages/connectors/sources/github) | `github.yaml` | Repositories, issues, pull requests for one organization |
+| [HubSpot](/pages/connectors/sources/hubspot) | `hubspot.yaml` | 72 resources across CRM, marketing, CMS, and conversations |
 | [Linear](/pages/connectors/sources/linear) | `linear.yaml` | The one GraphQL manifest — everything else is REST |
 | [Notion](/pages/connectors/sources/notion) | `notion.yaml` | Databases, pages, blocks |
-| [Slack](/pages/connectors/sources/slack) | `slack.yaml` | The only bundled manifest with incremental sync |
+| [Slack](/pages/connectors/sources/slack) | `slack.yaml` | Channels, messages, thread replies; incremental sync |
+| [Stripe](/pages/connectors/sources/stripe) | `stripe.yaml` | 41 resources across payments, billing, and Connect |
 
 ## Custom & Testing
 
 | Source | Package | Notes |
 |---|---|---|
-| [HTTP](/pages/connectors/sources/http) | `connectors/http` | The manifest-driven mechanism the five SaaS sources above run on; new APIs are onboarded declaratively |
+| [HTTP](/pages/connectors/sources/http) | `connectors/http` | The manifest-driven mechanism the six SaaS sources above run on; new APIs are onboarded declaratively |
 | [Sample](/pages/connectors/sources/sample) | `connectors/sample` | Synthetic data, for testing pipelines without a real upstream |
 
 Every source implements the base `Source` contract; several add optional

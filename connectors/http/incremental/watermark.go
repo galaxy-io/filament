@@ -24,6 +24,19 @@
 // child resources). Internally Tracker uses a CAS loop in atomicwatermark, so
 // the stored value is always the max regardless of arrival order.
 //
+// # The injected floor is frozen for the run
+//
+// Apply always injects the watermark the run STARTED with (the checkpoint
+// seed, or spec.Initial), never the running max. Observe advances the running
+// max for the next run's floor only.
+//
+// The distinction matters as soon as a resource pages. Apply runs per page, so
+// injecting the running max would tighten the filter mid-pagination: on an API
+// that returns newest-first (Stripe, Slack) the max lands on page 1, and page 2
+// would ask for "created >= the newest record I just saw" — an empty result
+// that reads as the end of the list. Everything past page 1 is silently lost.
+// Freezing the floor keeps every page of one run asking the same question.
+//
 // # Overlap window (time comparator only)
 //
 // OverlapSeconds re-fetches a sliding window before the persisted cursor on
@@ -52,6 +65,10 @@ type Tracker struct {
 	spec     manifest.IncrementalSpec
 	resource string
 
+	// floor is the watermark this run started with. Immutable for the run's
+	// lifetime, so every page of a paginated resource is filtered by the same
+	// value — see the package doc on why the running max must not be injected.
+	floor  string
 	wm     *atomicwatermark.Watermark
 	logger *slog.Logger
 }
@@ -100,6 +117,7 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	t := &Tracker{
 		spec:     spec,
 		resource: resource,
+		floor:    start,
 		wm:       wm,
 	}
 	for _, opt := range opts {
@@ -157,9 +175,9 @@ func (t *Tracker) CheckpointKey() string { return t.checkpointKey() }
 func CheckpointKey(spec manifest.IncrementalSpec) string { return checkpointKey(spec) }
 
 // Scope returns a {start_param: effective_value} pair suitable for merging
-// into a template scope's State map. The effective value is the current
-// watermark minus OverlapSeconds (time comparator only). Returns nil when no
-// watermark is set yet.
+// into a template scope's State map. The effective value is the run's frozen
+// floor minus OverlapSeconds (time comparator only). Returns nil when the run
+// started with no watermark.
 func (t *Tracker) Scope() map[string]string {
 	v := t.effective()
 	if v == "" {
@@ -168,10 +186,10 @@ func (t *Tracker) Scope() map[string]string {
 	return map[string]string{t.spec.StartParam: v}
 }
 
-// effective returns the watermark value to inject — current minus overlap
-// for the time comparator, current as-is otherwise.
+// effective returns the watermark value to inject — the run's frozen floor,
+// minus overlap for the time comparator.
 func (t *Tracker) effective() string {
-	v := t.Current()
+	v := t.floor
 	if v == "" || t.spec.OverlapSeconds == 0 || t.spec.Comparator != "time" {
 		return v
 	}
@@ -188,7 +206,8 @@ func (t *Tracker) effective() string {
 	return parsed.Add(-time.Duration(t.spec.OverlapSeconds) * time.Second).Format(time.RFC3339)
 }
 
-// Apply injects the current watermark into an outgoing request. For
+// Apply injects the run's frozen floor into an outgoing request — not the
+// running max, which would tighten the filter between pages. For
 // body-injection, returns a body overrides map to be merged before encoding.
 // Returns nil overrides for query/header strategies.
 func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {

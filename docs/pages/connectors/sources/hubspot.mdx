@@ -1,0 +1,256 @@
+---
+title: "HubSpot"
+description: "Read CRM records, marketing assets, CMS content, and conversations from a HubSpot portal."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg"
+---
+
+HubSpot is a manifest-driven source — `connectors/http/manifests/hubspot.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no HubSpot-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A private app access token (`pat-na1-…`), created under **Settings →
+Integrations → Private Apps**. It is sent as `Authorization: Bearer <token>`.
+
+HubSpot's other credential path, the public-app OAuth flow, is
+authorization-code with refresh tokens, which grammar v1 does not model — only
+client-credentials OAuth is supported. Private apps are the supported route
+here, and they are the mechanism HubSpot itself recommends for single-portal
+integrations.
+
+Grant the private app read scopes for every stream you enable. A token missing
+a scope gets `403` on that resource, and a failed resource fails the run.
+
+### Property selection
+
+HubSpot's list endpoints return only three properties per record
+(`hs_object_id`, `hs_createdate`, `hs_lastmodifieddate`) unless the request
+names the ones it wants, and there is no wildcard. The connector therefore
+ships ten property-selector settings, each defaulting to a curated list of
+HubSpot's standard properties for that family of objects:
+
+| Setting | Applies to |
+|---|---|
+| `contact_properties` | `contacts` |
+| `company_properties` | `companies` |
+| `deal_properties` | `deals` |
+| `ticket_properties` | `tickets` |
+| `lead_properties` | `leads` |
+| `engagement_properties` | `calls`, `emails`, `meetings`, `notes`, `tasks`, `communications`, `postal_mail` |
+| `product_properties` | `products`, `line_items` |
+| `quote_properties` | `quotes` |
+| `commerce_properties` | `carts`, `orders`, `invoices`, `commerce_payments`, `subscriptions`, `discounts`, `fees`, `taxes` |
+| `object_properties` | `feedback_submissions`, `goal_targets`, `appointments`, `courses`, `listings`, `services` |
+
+Custom properties are portal-specific, so the defaults cannot know about
+yours — append their internal names to the relevant setting. HubSpot documents
+that "if any of the specified properties are not present on the requested
+object(s), they will be ignored", so over-listing is safe and is why one
+setting can cover several object types at once.
+
+## Resources
+
+Seventy-two resources, all statically discovered. Five fan out from a parent;
+the rest are top-level lists.
+
+### CRM objects
+
+Every stream below is `GET /crm/v3/objects/<type>` with the same envelope:
+`id`, `createdAt`, `updatedAt`, `archived`, a `properties` map, and an
+`associations` map.
+
+| Resource | Path | Associations requested |
+|---|---|---|
+| `contacts` | `/crm/v3/objects/contacts` | companies, deals, tickets |
+| `companies` | `/crm/v3/objects/companies` | contacts, deals, tickets |
+| `deals` | `/crm/v3/objects/deals` | contacts, companies, line items, quotes, tickets |
+| `tickets` | `/crm/v3/objects/tickets` | contacts, companies, deals |
+| `leads` | `/crm/v3/objects/leads` | contacts, companies |
+| `line_items` | `/crm/v3/objects/line_items` | deals, quotes, products |
+| `products` | `/crm/v3/objects/products` | — |
+| `quotes` | `/crm/v3/objects/quotes` | deals, line items, contacts, companies |
+| `feedback_submissions` | `/crm/v3/objects/feedback_submissions` | contacts, tickets |
+| `goal_targets` | `/crm/v3/objects/goal_targets` | — |
+| `calls` | `/crm/v3/objects/calls` | contacts, companies, deals, tickets |
+| `emails` | `/crm/v3/objects/emails` | contacts, companies, deals, tickets |
+| `meetings` | `/crm/v3/objects/meetings` | contacts, companies, deals, tickets |
+| `notes` | `/crm/v3/objects/notes` | contacts, companies, deals, tickets |
+| `tasks` | `/crm/v3/objects/tasks` | contacts, companies, deals, tickets |
+| `communications` | `/crm/v3/objects/communications` | contacts, companies, deals, tickets |
+| `postal_mail` | `/crm/v3/objects/postal_mail` | contacts, companies, deals, tickets |
+| `carts` | `/crm/v3/objects/carts` | contacts, companies, deals, line items |
+| `orders` | `/crm/v3/objects/orders` | contacts, companies, deals, line items, carts |
+| `invoices` | `/crm/v3/objects/invoices` | contacts, companies, deals, line items |
+| `commerce_payments` | `/crm/v3/objects/commerce_payments` | contacts, companies, deals, invoices, subscriptions |
+| `subscriptions` | `/crm/v3/objects/subscriptions` | contacts, companies, deals, line items |
+| `discounts` | `/crm/v3/objects/discounts` | — |
+| `fees` | `/crm/v3/objects/fees` | — |
+| `taxes` | `/crm/v3/objects/taxes` | — |
+| `appointments` | `/crm/v3/objects/0-421` | contacts, companies, deals |
+| `courses` | `/crm/v3/objects/0-410` | contacts, companies, deals |
+| `listings` | `/crm/v3/objects/0-420` | contacts, companies, deals |
+| `services` | `/crm/v3/objects/0-162` | contacts, companies, deals |
+
+The eight commerce objects require Commerce Hub, and the four industry objects
+(`appointments`, `courses`, `listings`, `services`) require the matching
+industry template. Both groups return `403` on portals without the
+subscription, so leave them deselected there.
+
+### CRM definitions
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `owners` | `/crm/v3/owners` | — |
+| `object_schemas` | `/crm-object-schemas/v3/schemas` | — (custom object definitions) |
+| `contact_property_definitions` | `/crm/v3/properties/contacts` | — |
+| `company_property_definitions` | `/crm/v3/properties/companies` | — |
+| `deal_property_definitions` | `/crm/v3/properties/deals` | — |
+| `ticket_property_definitions` | `/crm/v3/properties/tickets` | — |
+| `deal_pipelines` | `/crm/v3/pipelines/deals` | — |
+| `ticket_pipelines` | `/crm/v3/pipelines/tickets` | — |
+| `deal_pipeline_stages` | `/crm/v3/pipelines/deals/{pipeline}/stages` | `deal_pipelines` |
+| `ticket_pipeline_stages` | `/crm/v3/pipelines/tickets/{pipeline}/stages` | `ticket_pipelines` |
+
+The property-definition streams are the key to the `properties` JSON column:
+they carry each property's internal name, label, type, and enum options, which
+is what a destination needs to unnest the map into typed columns.
+
+### Lists and marketing
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `lists` | `POST /crm/v3/lists/search` | — |
+| `list_memberships` | `/crm/v3/lists/{list}/memberships` | `lists` |
+| `forms` | `/marketing/v3/forms` | — |
+| `marketing_emails` | `/marketing/v3/emails` | — |
+| `campaigns` | `/marketing/v3/campaigns` | — |
+| `marketing_events` | `/marketing/marketing-events/v3` | — |
+| `subscription_definitions` | `/communication-preferences/v3/definitions` | — |
+
+### CMS
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `blog_posts` | `/cms/v3/blogs/posts` | — |
+| `blog_authors` | `/cms/v3/blogs/authors` | — |
+| `blog_tags` | `/cms/v3/blogs/tags` | — |
+| `site_pages` | `/cms/v3/pages/site-pages` | — |
+| `landing_pages` | `/cms/v3/pages/landing-pages` | — |
+| `url_redirects` | `/cms/url-redirects/v3` | — |
+| `domains` | `/cms/v3/domains` | — |
+| `hubdb_tables` | `/cms/v3/hubdb/tables` | — |
+| `hubdb_rows` | `/cms/v3/hubdb/tables/{table}/rows` | `hubdb_tables` |
+
+### Files, conversations, account
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `files` | `/files/v3/files/search` | — |
+| `file_folders` | `/files/v3/folders/search` | — |
+| `conversation_inboxes` | `/conversations/v3/conversations/inboxes` | — |
+| `conversation_channels` | `/conversations/v3/conversations/channels` | — |
+| `conversation_channel_accounts` | `/conversations/v3/conversations/channel-accounts` | — |
+| `conversation_threads` | `/conversations/v3/conversations/threads` | — |
+| `conversation_messages` | `/conversations/v3/conversations/threads/{thread}/messages` | `conversation_threads` |
+| `account_details` | `/account-info/v3/details` | — (one row) |
+| `users` | `/settings/users/v3` | — |
+| `teams` | `/settings/v3/users/teams` | — |
+| `roles` | `/settings/v3/users/roles` | — |
+| `currency_exchange_rates` | `/settings/v3/currencies/exchange-rates` | — |
+| `tax_rates` | `/tax-rates/v1/tax-rates` | — |
+| `audit_logs` | `/account-info/v3/activity/audit-logs` | — |
+| `sequences` | `/automation/v4/sequences` | — |
+| `meeting_links` | `/scheduler/v3/meetings/meeting-links` | — |
+| `event_definitions` | `/events/v3/event-definitions` | — |
+
+### Pagination
+
+Nearly every HubSpot collection returns `{"results": [...], "paging": {"next":
+{"after": "…"}}}` and takes the cursor back as `?after=`. The manifest declares
+that once in `defaults:`, so a resource only mentions pagination when it
+differs. HubSpot drops the whole `paging` object on the final page, which the
+cursor paginator treats as termination.
+
+Three shapes deviate:
+
+- `lists` is `POST /crm/v3/lists/search` and pages by mutating the request
+  body — `offset` and `count` — with HubSpot's documented maximum of 500 per
+  page.
+- Definition endpoints (`properties`, `pipelines`, `schemas`, `teams`,
+  `roles`, `subscription_definitions`) return the whole collection in one
+  `results` array with no `paging` at all; they are declared
+  `pagination: none`.
+- `account_details` returns a bare object rather than a collection, so it is
+  `cardinality: one` with the record at the response root.
+
+CRM object lists request `limit=100`, HubSpot's per-page maximum.
+`list_memberships` requests 250, its own documented maximum. Every other list
+requests 100 except `forms`, which is held at 50.
+
+### Quirks
+
+- **API version.** The manifest targets the stable `v3`/`v4` paths rather than
+  HubSpot's newer date-based versions (`/crm/objects/2026-03/…`). The dated
+  versions carry an 18-month end-of-life by design; `v3` has no announced
+  sunset and covers the whole surface, including the CMS, files, settings, and
+  conversations APIs that the dated scheme has not fully absorbed.
+- **Properties are a map, not columns.** `properties` is emitted as a single
+  JSON column rather than being flattened. HubSpot property sets differ per
+  portal, so flattened columns would not be a stable schema across accounts;
+  unnest downstream using `*_property_definitions`.
+- **Associations are ids, not rows.** The `associations` query parameter
+  returns associated record ids inline, capped by HubSpot at 100 per record
+  per type. Records with more associations than that are truncated in the
+  `associations` column; use the association APIs directly if you need the
+  complete edge list for a hub record.
+- **CMS records use `created`/`updated`,** not `createdAt`/`updatedAt`. The
+  field names in those streams follow the API rather than being normalised.
+- **Rate limiting is capped at 8 requests/second.** Private apps get 100
+  requests per 10 seconds on Free and Starter, 190 on Professional and
+  Enterprise. 8 rps with the limiter's 2× burst stays inside the lowest tier's
+  window (16 + 80 &lt; 100), so the connector is safe on every plan without a
+  per-plan setting. HubSpot's rate-limit headers report an interval in
+  milliseconds with no reset timestamp, which the dynamic limiter cannot use,
+  so the ceiling is static.
+- **The `for_each` resources issue one request per parent record.**
+  `conversation_messages` and `list_memberships` dominate a run on a busy
+  portal — one request per thread and per list respectively, each then paged.
+  Disable them if you only need thread- and list-level rows.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+
+Ten resources declare an `incremental:` block, each replaying its watermark
+into the since-parameter the endpoint actually documents, with a `time`
+comparator and a 60-second overlap so retroactive edits at the boundary are
+re-read:
+
+| Resource | Cursor field | Request parameter |
+|---|---|---|
+| `marketing_emails` | `updatedAt` | `updatedAfter` |
+| `blog_posts` | `updated` | `updatedAfter` |
+| `blog_authors` | `updated` | `updatedAfter` |
+| `blog_tags` | `updated` | `updatedAfter` |
+| `site_pages` | `updated` | `updatedAfter` |
+| `landing_pages` | `updated` | `updatedAfter` |
+| `url_redirects` | `updated` | `updatedAfter` |
+| `files` | `updatedAt` | `updatedAtGte` |
+| `conversation_threads` | `latestMessageTimestamp` | `latestMessageTimestampAfter` |
+| `audit_logs` | `occurredAt` | `occurredAfter` |
+
+Everything else — including every CRM object — is a full extract on every run,
+and that is a property of the API, not a shortcut. `GET /crm/v3/objects/{type}`
+accepts no filter of any kind: no `updatedAfter`, no `since`, no sort. Declaring
+an incremental block against it would checkpoint a watermark that the endpoint
+silently ignores while still re-reading everything.
+
+HubSpot's filterable alternative is `POST /crm/v3/objects/{type}/search`, which
+does support `hs_lastmodifieddate GTE`, but it returns at most 10,000 results
+for any one query and is rate-limited separately at 5 requests/second. A first
+run against a portal with more than 10,000 records of a type would hit that
+ceiling, so the search endpoint is not used. If full extracts of `contacts` or
+`emails` become too expensive, narrow the property lists first — payload size,
+not request count, is what makes those runs slow.

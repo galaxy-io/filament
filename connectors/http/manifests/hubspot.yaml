@@ -1,0 +1,1306 @@
+version: 1
+name: hubspot
+config:
+  access_token:
+    type: secret
+    required: true
+    help: HubSpot private app access token (Settings > Integrations > Private Apps)
+  contact_properties:
+    type: string
+    default: email,firstname,lastname,phone,mobilephone,company,website,jobtitle,lifecyclestage,hs_lead_status,hubspot_owner_id,hubspot_owner_assigneddate,hubspot_team_id,hs_all_owner_ids,hs_all_team_ids,hs_object_id,createdate,lastmodifieddate,hs_lastmodifieddate,hs_email_domain,hs_additional_emails,address,city,state,zip,country,industry,annualrevenue,associatedcompanyid,num_associated_deals,total_revenue,hs_analytics_source,hs_analytics_source_data_1,hs_analytics_source_data_2,hs_analytics_first_touch_converting_campaign,hs_analytics_last_touch_converting_campaign,hs_analytics_num_page_views,hs_analytics_num_visits,hs_analytics_first_timestamp,hs_analytics_last_timestamp,hs_latest_source,hs_latest_source_data_1,hs_latest_source_data_2,hs_latest_source_timestamp,hs_marketable_status,hs_marketable_reason_type,hs_marketable_reason_id,hs_marketable_until_renewal,hs_email_optout,hs_content_membership_status,hs_language,hs_persona,hs_sequences_is_enrolled,hs_object_source,hs_object_source_label,hs_created_by_user_id,hs_updated_by_user_id,hs_merged_object_ids,num_notes,num_contacted_notes,notes_last_contacted,notes_last_updated,notes_next_activity_date,first_conversion_event_name,first_conversion_date,recent_conversion_event_name,recent_conversion_date,num_conversion_events,hs_email_bounce,hs_email_click,hs_email_open,hs_email_delivered,hs_email_last_send_date,hs_email_last_open_date,hs_email_last_click_date,hs_email_last_reply_date,twitterhandle,hs_facebookid,hs_linkedinid
+    help: Comma-separated contact properties to request. HubSpot ignores names that do not exist on the object, so extra entries are safe.
+  company_properties:
+    type: string
+    default: name,domain,website,industry,phone,address,address2,city,state,zip,country,description,numberofemployees,annualrevenue,type,lifecyclestage,hs_lead_status,hubspot_owner_id,hubspot_owner_assigneddate,hubspot_team_id,hs_all_owner_ids,hs_all_team_ids,hs_object_id,createdate,hs_lastmodifieddate,closedate,hs_num_child_companies,hs_parent_company_id,num_associated_contacts,num_associated_deals,total_money_raised,is_public,founded_year,timezone,twitterhandle,linkedin_company_page,facebook_company_page,hs_analytics_source,hs_analytics_source_data_1,hs_analytics_source_data_2,hs_analytics_num_page_views,hs_analytics_num_visits,hs_analytics_first_timestamp,hs_analytics_last_timestamp,hs_last_sales_activity_timestamp,hs_last_booked_meeting_date,hs_last_logged_call_date,notes_last_contacted,notes_last_updated,notes_next_activity_date,num_notes,num_contacted_notes,days_to_close,first_contact_createdate,first_deal_created_date,recent_deal_amount,recent_deal_close_date,hs_total_deal_value,hs_object_source,hs_object_source_label,hs_created_by_user_id,hs_updated_by_user_id,hs_merged_object_ids
+    help: Comma-separated company properties to request.
+  deal_properties:
+    type: string
+    default: dealname,amount,amount_in_home_currency,deal_currency_code,dealstage,pipeline,closedate,createdate,hs_lastmodifieddate,hs_object_id,dealtype,description,hubspot_owner_id,hubspot_owner_assigneddate,hubspot_team_id,hs_all_owner_ids,hs_all_team_ids,hs_deal_stage_probability,hs_forecast_amount,hs_forecast_probability,hs_projected_amount,hs_projected_amount_in_home_currency,hs_closed_amount,hs_closed_amount_in_home_currency,hs_is_closed,hs_is_closed_won,closed_lost_reason,closed_won_reason,num_associated_contacts,num_notes,num_contacted_notes,notes_last_contacted,notes_last_updated,notes_next_activity_date,days_to_close,hs_analytics_source,hs_analytics_source_data_1,hs_analytics_source_data_2,hs_campaign,hs_priority,hs_manual_forecast_category,hs_next_step,hs_acv,hs_arr,hs_mrr,hs_tcv,hs_deal_amount_calculation_preference,engagements_last_meeting_booked,hs_latest_meeting_activity,hs_sales_email_last_replied,hs_deal_score,hs_object_source,hs_object_source_label,hs_created_by_user_id,hs_updated_by_user_id,hs_merged_object_ids
+    help: Comma-separated deal properties to request.
+  ticket_properties:
+    type: string
+    default: subject,content,hs_pipeline,hs_pipeline_stage,hs_ticket_priority,hs_ticket_category,hs_ticket_id,createdate,hs_lastmodifieddate,hs_object_id,hubspot_owner_id,hubspot_owner_assigneddate,hubspot_team_id,hs_all_owner_ids,hs_all_team_ids,source_type,hs_resolution,closed_date,time_to_close,time_to_first_agent_reply,hs_first_agent_message_sent_at,hs_last_message_received_at,hs_last_message_from_visitor,hs_num_times_contacted,hs_conversations_originating_message_id,hs_conversations_originating_thread_id,hs_inbox_id,hs_custom_inbox,notes_last_contacted,notes_last_updated,notes_next_activity_date,num_notes,num_contacted_notes,hs_object_source,hs_object_source_label,hs_created_by_user_id,hs_updated_by_user_id,hs_merged_object_ids
+    help: Comma-separated ticket properties to request.
+  lead_properties:
+    type: string
+    default: hs_lead_name,hs_lead_type,hs_lead_label,hs_lead_status,hs_lead_source,hs_lead_disqualification_reason,hs_pipeline,hs_pipeline_stage,hs_object_id,hs_createdate,hs_lastmodifieddate,hubspot_owner_id,hubspot_team_id,hs_all_owner_ids,hs_all_team_ids,hs_associated_contact_id,hs_associated_company_id,hs_object_source,hs_object_source_label,hs_created_by_user_id,hs_updated_by_user_id
+    help: Comma-separated lead properties to request.
+  engagement_properties:
+    type: string
+    default: hs_timestamp,hs_object_id,hs_createdate,hs_lastmodifieddate,hs_created_by,hs_modified_by,hs_created_by_user_id,hs_updated_by_user_id,hubspot_owner_id,hubspot_team_id,hs_all_owner_ids,hs_all_team_ids,hs_body_preview,hs_body_preview_html,hs_body_preview_is_truncated,hs_activity_type,hs_attachment_ids,hs_engagement_source,hs_unique_id,hs_object_source,hs_object_source_label,hs_call_body,hs_call_callee_object_id,hs_call_callee_object_type_id,hs_call_direction,hs_call_disposition,hs_call_duration,hs_call_from_number,hs_call_to_number,hs_call_recording_url,hs_call_status,hs_call_title,hs_call_source,hs_call_video_recording_url,hs_call_transcription_id,hs_email_direction,hs_email_status,hs_email_subject,hs_email_text,hs_email_html,hs_email_headers,hs_email_from_email,hs_email_from_firstname,hs_email_from_lastname,hs_email_to_email,hs_email_to_firstname,hs_email_to_lastname,hs_email_cc_email,hs_email_bcc_email,hs_email_sender_email,hs_email_message_id,hs_email_thread_id,hs_email_send_event_id,hs_meeting_title,hs_meeting_body,hs_meeting_location,hs_meeting_start_time,hs_meeting_end_time,hs_meeting_outcome,hs_meeting_external_url,hs_internal_meeting_notes,hs_meeting_source,hs_meeting_source_id,hs_note_body,hs_task_body,hs_task_subject,hs_task_status,hs_task_priority,hs_task_type,hs_task_completion_date,hs_task_is_completed,hs_task_reminders,hs_task_repeat_interval,hs_queue_membership_ids,hs_communication_channel_type,hs_communication_logged_from,hs_communication_body,hs_postal_mail_body
+    help: Comma-separated properties requested for every engagement object (calls, emails, meetings, notes, tasks, communications, postal mail). The default is the union across those types; HubSpot drops the ones that do not apply.
+  product_properties:
+    type: string
+    default: name,description,price,amount,quantity,hs_sku,hs_product_id,hs_object_id,createdate,hs_createdate,hs_lastmodifieddate,hs_cost_of_goods_sold,hs_recurring_billing_period,recurringbillingfrequency,hs_recurring_billing_start_date,hs_recurring_billing_end_date,hs_billing_period_start_date,hs_billing_period_end_date,hs_term_in_months,hs_discount_percentage,discount,hs_total_discount,hs_pre_discount_amount,hs_line_item_currency_code,hs_acv,hs_arr,hs_mrr,hs_tcv,hs_margin,hs_position_on_quote,hs_external_id,hs_folder_id,hs_product_type,hs_url,hs_images,hs_avg_discount,hs_tax_amount,hs_tax_rate_group_id,hs_tax_category,tax,hs_object_source,hs_object_source_label
+    help: Comma-separated properties requested for products and line items.
+  quote_properties:
+    type: string
+    default: hs_title,hs_status,hs_expiration_date,hs_quote_amount,hs_currency,hs_language,hs_locale,hs_createdate,hs_lastmodifieddate,hs_object_id,hs_esign_enabled,hs_payment_enabled,hs_payment_status,hs_payment_type,hs_public_url_key,hs_quote_link,hs_pdf_download_link,hs_proposal_domain,hs_domain,hs_slug,hs_template_type,hs_terms,hs_approval_status,hs_sender_firstname,hs_sender_lastname,hs_sender_email,hs_sender_company_name,hs_sender_company_domain,hs_sender_image_url,hs_expiration_notification_sent_at,hubspot_owner_id,hs_all_owner_ids,hs_object_source,hs_object_source_label
+    help: Comma-separated quote properties to request.
+  commerce_properties:
+    type: string
+    default: hs_object_id,hs_createdate,hs_lastmodifieddate,hs_currency_code,hs_source_store,hs_external_id,hs_total_price,hs_subtotal_price,hs_tax,hs_shipping_cost,hs_discount_amount,hs_cart_name,hs_external_cart_id,hs_cart_discount,hs_order_name,hs_external_order_id,hs_fulfillment_status,hs_payment_status,hs_invoice_status,hs_amount_billed,hs_balance_due,hs_currency,hs_due_date,hs_invoice_date,hs_invoice_link,hs_number,hs_initial_amount,hs_net_amount,hs_status,hs_customer_email,hs_payment_method,hs_latest_status,hs_billing_frequency,hs_recurring_billing_amount,hs_start_date,hs_end_date,hs_next_payment_due_date,hs_label,hs_type,hs_value,hs_sort_order,hs_duration,hs_line_item_currency_code,hubspot_owner_id,hs_object_source,hs_object_source_label
+    help: Comma-separated properties requested for commerce objects (carts, orders, invoices, payments, subscriptions, discounts, fees, taxes).
+  object_properties:
+    type: string
+    default: hs_object_id,hs_createdate,hs_lastmodifieddate,hs_created_by_user_id,hs_updated_by_user_id,hubspot_owner_id,hubspot_team_id,hs_all_owner_ids,hs_all_team_ids,hs_pipeline,hs_pipeline_stage,hs_object_source,hs_object_source_label,hs_survey_id,hs_survey_name,hs_survey_type,hs_survey_channel,hs_submission_timestamp,hs_submission_name,hs_response_group,hs_sentiment,hs_value,hs_content,hs_ingestion_id,hs_contact_id,hs_visitor_id,hs_agent_id,hs_engagement_id,hs_form_guid,hs_knowledge_article_id,hs_goal_name,hs_goal_type,hs_target_amount,hs_start_datetime,hs_end_datetime,hs_kpi_value_last_calculated_at,hs_progress_percent,hs_appointment_name,hs_appointment_start,hs_appointment_end,hs_duration,hs_course_name,hs_course_type,hs_name,hs_address,hs_price,hs_service_type
+    help: Comma-separated properties requested for feedback submissions, goal targets, and the industry objects (appointments, courses, listings, services).
+defaults:
+  method: GET
+  response:
+    records: $.results
+    pagination:
+      cursor:
+        response: paging.next.after
+        request: query.after
+field_sets:
+  # Every /crm/v3/objects/* record shares this envelope. Account-specific
+  # values stay in the `properties` map rather than being flattened into
+  # columns — HubSpot property sets differ per portal, so a flattened schema
+  # would not be stable across accounts.
+  crm_object:
+    id: string
+    created_at: { path: createdAt, type: timestamptz }
+    updated_at: { path: updatedAt, type: timestamptz }
+    archived: bool?
+    archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+    properties: json?
+    associations: json?
+    raw: { path: $, type: json, mode: remainder }
+  # CMS content objects (blog posts, pages, tags, authors, redirects, domains)
+  # use `created`/`updated` rather than createdAt/updatedAt.
+  cms_lifecycle:
+    id: string
+    created: timestamptz?
+    updated: timestamptz?
+  # Site pages and landing pages share one content model.
+  web_page:
+    name: string?
+    slug: string?
+    url: string?
+    state: string?
+    current_state: { path: currentState, type: string, nullable: true }
+    currently_published: { path: currentlyPublished, type: bool, nullable: true }
+    language: string?
+    domain: string?
+    subcategory: string?
+    author_name: { path: authorName, type: string, nullable: true }
+    campaign: string?
+    folder_id: { path: folderId, type: string, nullable: true }
+    template_path: { path: templatePath, type: string, nullable: true }
+    html_title: { path: htmlTitle, type: string, nullable: true }
+    meta_description: { path: metaDescription, type: string, nullable: true }
+    head_html: { path: headHtml, type: string, nullable: true }
+    footer_html: { path: footerHtml, type: string, nullable: true }
+    featured_image: { path: featuredImage, type: string, nullable: true }
+    featured_image_alt_text: { path: featuredImageAltText, type: string, nullable: true }
+    use_featured_image: { path: useFeaturedImage, type: bool, nullable: true }
+    link_rel_canonical_url: { path: linkRelCanonicalUrl, type: string, nullable: true }
+    ab_status: { path: abStatus, type: string, nullable: true }
+    ab_test_id: { path: abTestId, type: string, nullable: true }
+    publish_date: { path: publishDate, type: timestamptz, nullable: true }
+    archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+    archived_in_dashboard: { path: archivedInDashboard, type: bool, nullable: true }
+    created_by_id: { path: createdById, type: string, nullable: true }
+    updated_by_id: { path: updatedById, type: string, nullable: true }
+    layout_sections: { path: layoutSections, type: json, nullable: true }
+    widgets: json?
+    translations: json?
+    raw: { path: $, type: json, mode: remainder }
+  # /crm/v3/properties/{objectType} record.
+  property_definition:
+    name: string
+    label: string
+    description: string?
+    type: string
+    field_type: { path: fieldType, type: string }
+    group_name: { path: groupName, type: string }
+    display_order: { path: displayOrder, type: int64, nullable: true }
+    options: json?
+    calculated: bool?
+    calculation_formula: { path: calculationFormula, type: string, nullable: true }
+    external_options: { path: externalOptions, type: bool, nullable: true }
+    has_unique_value: { path: hasUniqueValue, type: bool, nullable: true }
+    hidden: bool?
+    hubspot_defined: { path: hubspotDefined, type: bool, nullable: true }
+    form_field: { path: formField, type: bool, nullable: true }
+    data_sensitivity: { path: dataSensitivity, type: string, nullable: true }
+    referenced_object_type: { path: referencedObjectType, type: string, nullable: true }
+    currency_property_name: { path: currencyPropertyName, type: string, nullable: true }
+    modification_metadata: { path: modificationMetadata, type: json, nullable: true }
+    archived: bool?
+    archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+    created_user_id: { path: createdUserId, type: string, nullable: true }
+    updated_user_id: { path: updatedUserId, type: string, nullable: true }
+    created_at: { path: createdAt, type: timestamptz, nullable: true }
+    updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+    raw: { path: $, type: json, mode: remainder }
+  # /crm/v3/pipelines/{objectType} record.
+  pipeline:
+    id: string
+    label: string
+    display_order: { path: displayOrder, type: int64 }
+    stages: json?
+    archived: bool
+    archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+    created_at: { path: createdAt, type: timestamptz }
+    updated_at: { path: updatedAt, type: timestamptz }
+    raw: { path: $, type: json, mode: remainder }
+  # /crm/v3/pipelines/{objectType}/{pipelineId}/stages record.
+  pipeline_stage:
+    pipeline_id: { path: parent.pipeline_id, type: string }
+    id: string
+    label: string
+    display_order: { path: displayOrder, type: int64 }
+    metadata: json?
+    write_permissions: { path: writePermissions, type: string, nullable: true }
+    archived: bool
+    archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+    created_at: { path: createdAt, type: timestamptz }
+    updated_at: { path: updatedAt, type: timestamptz }
+    raw: { path: $, type: json, mode: remainder }
+connection:
+  base_url: https://api.hubapi.com
+  auth:
+    bearer: config.access_token
+  headers:
+    Accept: application/json
+  # Private apps get 100 requests/10s on Free and Starter, 190/10s on
+  # Professional and Enterprise. 8 rps with the limiter's 2x burst stays
+  # under the lowest tier's window (16 + 80 < 100).
+  rate_limit:
+    requests_per_second: 8
+resources:
+  # ---------------------------------------------------------------- CRM core
+  - name: contacts
+    path: /crm/v3/objects/contacts
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.contact_properties }}"
+      associations: companies,deals,tickets
+
+  - name: companies
+    path: /crm/v3/objects/companies
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.company_properties }}"
+      associations: contacts,deals,tickets
+
+  - name: deals
+    path: /crm/v3/objects/deals
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.deal_properties }}"
+      associations: contacts,companies,line_items,quotes,tickets
+
+  - name: tickets
+    path: /crm/v3/objects/tickets
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.ticket_properties }}"
+      associations: contacts,companies,deals
+
+  - name: leads
+    path: /crm/v3/objects/leads
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.lead_properties }}"
+      associations: contacts,companies
+
+  - name: line_items
+    path: /crm/v3/objects/line_items
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.product_properties }}"
+      associations: deals,quotes,products
+
+  - name: products
+    path: /crm/v3/objects/products
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.product_properties }}"
+
+  - name: quotes
+    path: /crm/v3/objects/quotes
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.quote_properties }}"
+      associations: deals,line_items,contacts,companies
+
+  - name: feedback_submissions
+    path: /crm/v3/objects/feedback_submissions
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.object_properties }}"
+      associations: contacts,tickets
+
+  - name: goal_targets
+    path: /crm/v3/objects/goal_targets
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.object_properties }}"
+
+  # ---------------------------------------------------------- CRM engagements
+  - name: calls
+    path: /crm/v3/objects/calls
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.engagement_properties }}"
+      associations: contacts,companies,deals,tickets
+
+  - name: emails
+    path: /crm/v3/objects/emails
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.engagement_properties }}"
+      associations: contacts,companies,deals,tickets
+
+  - name: meetings
+    path: /crm/v3/objects/meetings
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.engagement_properties }}"
+      associations: contacts,companies,deals,tickets
+
+  - name: notes
+    path: /crm/v3/objects/notes
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.engagement_properties }}"
+      associations: contacts,companies,deals,tickets
+
+  - name: tasks
+    path: /crm/v3/objects/tasks
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.engagement_properties }}"
+      associations: contacts,companies,deals,tickets
+
+  - name: communications
+    path: /crm/v3/objects/communications
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.engagement_properties }}"
+      associations: contacts,companies,deals,tickets
+
+  - name: postal_mail
+    path: /crm/v3/objects/postal_mail
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.engagement_properties }}"
+      associations: contacts,companies,deals,tickets
+
+  # ------------------------------------------------------------ CRM commerce
+  # Commerce Hub objects. A portal without Commerce Hub returns 403 for these
+  # streams — select them only when the account has the subscription.
+  - name: carts
+    path: /crm/v3/objects/carts
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+      associations: contacts,companies,deals,line_items
+
+  - name: orders
+    path: /crm/v3/objects/orders
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+      associations: contacts,companies,deals,line_items,carts
+
+  - name: invoices
+    path: /crm/v3/objects/invoices
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+      associations: contacts,companies,deals,line_items
+
+  - name: commerce_payments
+    path: /crm/v3/objects/commerce_payments
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+      associations: contacts,companies,deals,invoices,subscriptions
+
+  - name: subscriptions
+    path: /crm/v3/objects/subscriptions
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+      associations: contacts,companies,deals,line_items
+
+  - name: discounts
+    path: /crm/v3/objects/discounts
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+
+  - name: fees
+    path: /crm/v3/objects/fees
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+
+  - name: taxes
+    path: /crm/v3/objects/taxes
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.commerce_properties }}"
+
+  # ------------------------------------------------------ CRM industry objects
+  # Available only on portals with the matching industry template enabled.
+  - name: appointments
+    path: /crm/v3/objects/0-421
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.object_properties }}"
+      associations: contacts,companies,deals
+
+  - name: courses
+    path: /crm/v3/objects/0-410
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.object_properties }}"
+      associations: contacts,companies,deals
+
+  - name: listings
+    path: /crm/v3/objects/0-420
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.object_properties }}"
+      associations: contacts,companies,deals
+
+  - name: services
+    path: /crm/v3/objects/0-162
+    primary_key: [id]
+    use_fields: [crm_object]
+    query:
+      limit: "100"
+      properties: "{{ config.object_properties }}"
+      associations: contacts,companies,deals
+
+  # ---------------------------------------------------------- CRM definitions
+  - name: owners
+    path: /crm/v3/owners
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      email: string?
+      first_name: { path: firstName, type: string, nullable: true }
+      last_name: { path: lastName, type: string, nullable: true }
+      user_id: { path: userId, type: int64, nullable: true }
+      user_id_including_inactive: { path: userIdIncludingInactive, type: int64, nullable: true }
+      type: string?
+      teams: json?
+      archived: bool?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: object_schemas
+    path: /crm-object-schemas/v3/schemas
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      object_type_id: { path: objectTypeId, type: string, nullable: true }
+      fully_qualified_name: { path: fullyQualifiedName, type: string, nullable: true }
+      description: string?
+      labels: json?
+      primary_display_property: { path: primaryDisplayProperty, type: string, nullable: true }
+      secondary_display_properties: { path: secondaryDisplayProperties, type: json, nullable: true }
+      searchable_properties: { path: searchableProperties, type: json, nullable: true }
+      required_properties: { path: requiredProperties, type: json, nullable: true }
+      properties: json?
+      associations: json?
+      allows_sensitive_properties: { path: allowsSensitiveProperties, type: bool, nullable: true }
+      archived: bool?
+      created_by_user_id: { path: createdByUserId, type: int64, nullable: true }
+      updated_by_user_id: { path: updatedByUserId, type: int64, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination: none
+
+  - name: contact_property_definitions
+    path: /crm/v3/properties/contacts
+    primary_key: [name]
+    use_fields: [property_definition]
+    response:
+      records: $.results
+      pagination: none
+
+  - name: company_property_definitions
+    path: /crm/v3/properties/companies
+    primary_key: [name]
+    use_fields: [property_definition]
+    response:
+      records: $.results
+      pagination: none
+
+  - name: deal_property_definitions
+    path: /crm/v3/properties/deals
+    primary_key: [name]
+    use_fields: [property_definition]
+    response:
+      records: $.results
+      pagination: none
+
+  - name: ticket_property_definitions
+    path: /crm/v3/properties/tickets
+    primary_key: [name]
+    use_fields: [property_definition]
+    response:
+      records: $.results
+      pagination: none
+
+  - name: deal_pipelines
+    path: /crm/v3/pipelines/deals
+    primary_key: [id]
+    use_fields: [pipeline]
+    capture:
+      pipeline_id: id
+    response:
+      records: $.results
+      pagination: none
+
+  - name: ticket_pipelines
+    path: /crm/v3/pipelines/tickets
+    primary_key: [id]
+    use_fields: [pipeline]
+    capture:
+      pipeline_id: id
+    response:
+      records: $.results
+      pagination: none
+
+  - name: deal_pipeline_stages
+    path: /crm/v3/pipelines/deals/{pipeline}/stages
+    params:
+      pipeline: parent.pipeline_id
+    for_each: deal_pipelines
+    primary_key: [pipeline_id, id]
+    use_fields: [pipeline_stage]
+    response:
+      records: $.results
+      pagination: none
+
+  - name: ticket_pipeline_stages
+    path: /crm/v3/pipelines/tickets/{pipeline}/stages
+    params:
+      pipeline: parent.pipeline_id
+    for_each: ticket_pipelines
+    primary_key: [pipeline_id, id]
+    use_fields: [pipeline_stage]
+    response:
+      records: $.results
+      pagination: none
+
+  # ----------------------------------------------------------------- Lists
+  - name: lists
+    path: /crm/v3/lists/search
+    method: POST
+    primary_key: [list_id]
+    body:
+      encoding: json
+      template:
+        count: 500
+        offset: 0
+    fields:
+      list_id: { path: listId, type: string }
+      list_version: { path: listVersion, type: int64, nullable: true }
+      name: string
+      object_type_id: { path: objectTypeId, type: string }
+      processing_type: { path: processingType, type: string }
+      processing_status: { path: processingStatus, type: string }
+      created_by_id: { path: createdById, type: string, nullable: true }
+      updated_by_id: { path: updatedById, type: string, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      filters_updated_at: { path: filtersUpdatedAt, type: timestamptz, nullable: true }
+      deleted_at: { path: deletedAt, type: timestamptz, nullable: true }
+      additional_properties: { path: additionalProperties, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      list_id: listId
+    response:
+      records: $.lists
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.count
+          page_size: 500
+
+  - name: list_memberships
+    path: /crm/v3/lists/{list}/memberships
+    params:
+      list: parent.list_id
+    for_each: lists
+    primary_key: [list_id, record_id]
+    query:
+      limit: "250"
+    fields:
+      list_id: { path: parent.list_id, type: string }
+      record_id: { path: recordId, type: string }
+      membership_timestamp: { path: membershipTimestamp, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------------- Marketing
+  - name: forms
+    path: /marketing/v3/forms
+    primary_key: [id]
+    query:
+      limit: "50"
+    fields:
+      id: string
+      name: string?
+      form_type: { path: formType, type: string, nullable: true }
+      archived: bool?
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+      field_groups: { path: fieldGroups, type: json, nullable: true }
+      configuration: json?
+      display_options: { path: displayOptions, type: json, nullable: true }
+      legal_consent_options: { path: legalConsentOptions, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: marketing_emails
+    path: /marketing/v3/emails
+    primary_key: [id]
+    query:
+      limit: "100"
+      includeStats: "true"
+    fields:
+      id: string
+      name: string?
+      subject: string?
+      type: string?
+      state: string?
+      language: string?
+      subcategory: string?
+      active_domain: { path: activeDomain, type: string, nullable: true }
+      business_unit_id: { path: businessUnitId, type: string, nullable: true }
+      campaign: string?
+      campaign_name: { path: campaignName, type: string, nullable: true }
+      campaign_utm: { path: campaignUtm, type: string, nullable: true }
+      all_email_campaign_ids: { path: allEmailCampaignIds, type: json, nullable: true }
+      primary_email_campaign_id: { path: primaryEmailCampaignId, type: string, nullable: true }
+      email_campaign_group_id: { path: emailCampaignGroupId, type: string, nullable: true }
+      email_template_mode: { path: emailTemplateMode, type: string, nullable: true }
+      folder_id: { path: folderId, type: int64, nullable: true }
+      is_ab: { path: isAb, type: bool, nullable: true }
+      is_published: { path: isPublished, type: bool, nullable: true }
+      is_transactional: { path: isTransactional, type: bool, nullable: true }
+      archived: bool?
+      publish_date: { path: publishDate, type: timestamptz, nullable: true }
+      published_at: { path: publishedAt, type: timestamptz, nullable: true }
+      published_by_id: { path: publishedById, type: string, nullable: true }
+      published_by_email: { path: publishedByEmail, type: string, nullable: true }
+      unpublished_at: { path: unpublishedAt, type: timestamptz, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      deleted_at: { path: deletedAt, type: timestamptz, nullable: true }
+      created_by_id: { path: createdById, type: string, nullable: true }
+      updated_by_id: { path: updatedById, type: string, nullable: true }
+      from: json?
+      to: json?
+      content: json?
+      stats: json?
+      testing: json?
+      webversion: json?
+      subscription_details: { path: subscriptionDetails, type: json, nullable: true }
+      workflow_names: { path: workflowNames, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedAfter
+      inject_into: query
+      checkpoint_key: marketing_emails_updated_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: campaigns
+    path: /marketing/v3/campaigns
+    primary_key: [id]
+    query:
+      limit: "100"
+      properties: hs_name,hs_start_date,hs_end_date,hs_notes,hs_audience,hs_currency_code,hs_campaign_status,hs_utm,hs_owner,hs_color_hex,hs_created_by_user_id,hs_object_id,hs_budget_items_sum_amount,hs_spend_items_sum_amount
+    fields:
+      id: string
+      properties: json?
+      business_units: { path: businessUnits, type: json, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: marketing_events
+    path: /marketing/marketing-events/v3
+    primary_key: [object_id]
+    query:
+      limit: "100"
+    fields:
+      object_id: { path: objectId, type: string }
+      external_event_id: { path: externalEventId, type: string, nullable: true }
+      event_name: { path: eventName, type: string }
+      event_type: { path: eventType, type: string, nullable: true }
+      event_organizer: { path: eventOrganizer, type: string, nullable: true }
+      event_description: { path: eventDescription, type: string, nullable: true }
+      event_url: { path: eventUrl, type: string, nullable: true }
+      event_status: { path: eventStatus, type: string, nullable: true }
+      event_status_v2: { path: eventStatusV2, type: string, nullable: true }
+      event_cancelled: { path: eventCancelled, type: bool, nullable: true }
+      event_completed: { path: eventCompleted, type: bool, nullable: true }
+      start_date_time: { path: startDateTime, type: timestamptz, nullable: true }
+      end_date_time: { path: endDateTime, type: timestamptz, nullable: true }
+      registrants: int64?
+      attendees: int64?
+      cancellations: int64?
+      no_shows: { path: noShows, type: int64, nullable: true }
+      app_info: { path: appInfo, type: json, nullable: true }
+      custom_properties: { path: customProperties, type: json, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: subscription_definitions
+    path: /communication-preferences/v3/definitions
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      description: string?
+      purpose: string?
+      communication_method: { path: communicationMethod, type: string, nullable: true }
+      business_unit_id: { path: businessUnitId, type: int64, nullable: true }
+      is_active: { path: isActive, type: bool }
+      is_default: { path: isDefault, type: bool }
+      is_internal: { path: isInternal, type: bool }
+      subscription_translations: { path: subscriptionTranslations, type: json, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.subscriptionDefinitions
+      pagination: none
+
+  # ------------------------------------------------------------------- CMS
+  - name: blog_posts
+    path: /cms/v3/blogs/posts
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [cms_lifecycle]
+    fields:
+      name: string?
+      slug: string?
+      url: string?
+      state: string?
+      current_state: { path: currentState, type: string, nullable: true }
+      currently_published: { path: currentlyPublished, type: bool, nullable: true }
+      language: string?
+      domain: string?
+      author_name: { path: authorName, type: string, nullable: true }
+      blog_author_id: { path: blogAuthorId, type: string, nullable: true }
+      content_group_id: { path: contentGroupId, type: string, nullable: true }
+      category_id: { path: categoryId, type: int64, nullable: true }
+      campaign: string?
+      html_title: { path: htmlTitle, type: string, nullable: true }
+      meta_description: { path: metaDescription, type: string, nullable: true }
+      post_body: { path: postBody, type: string, nullable: true }
+      post_summary: { path: postSummary, type: string, nullable: true }
+      rss_body: { path: rssBody, type: string, nullable: true }
+      rss_summary: { path: rssSummary, type: string, nullable: true }
+      featured_image: { path: featuredImage, type: string, nullable: true }
+      featured_image_alt_text: { path: featuredImageAltText, type: string, nullable: true }
+      use_featured_image: { path: useFeaturedImage, type: bool, nullable: true }
+      tag_ids: { path: tagIds, type: json, nullable: true }
+      ab_status: { path: abStatus, type: string, nullable: true }
+      ab_test_id: { path: abTestId, type: string, nullable: true }
+      publish_date: { path: publishDate, type: timestamptz, nullable: true }
+      created_by_id: { path: createdById, type: string, nullable: true }
+      updated_by_id: { path: updatedById, type: string, nullable: true }
+      archived_in_dashboard: { path: archivedInDashboard, type: bool, nullable: true }
+      translations: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated
+      start_param: updatedAfter
+      inject_into: query
+      checkpoint_key: blog_posts_updated_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: blog_authors
+    path: /cms/v3/blogs/authors
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [cms_lifecycle]
+    fields:
+      name: string?
+      full_name: { path: fullName, type: string, nullable: true }
+      display_name: { path: displayName, type: string, nullable: true }
+      email: string?
+      bio: string?
+      slug: string?
+      avatar: string?
+      website: string?
+      twitter: string?
+      facebook: string?
+      linkedin: string?
+      language: string?
+      translated_from_id: { path: translatedFromId, type: int64, nullable: true }
+      deleted_at: { path: deletedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated
+      start_param: updatedAfter
+      inject_into: query
+      checkpoint_key: blog_authors_updated_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: blog_tags
+    path: /cms/v3/blogs/tags
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [cms_lifecycle]
+    fields:
+      name: string?
+      slug: string?
+      language: string?
+      translated_from_id: { path: translatedFromId, type: int64, nullable: true }
+      deleted_at: { path: deletedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated
+      start_param: updatedAfter
+      inject_into: query
+      checkpoint_key: blog_tags_updated_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: site_pages
+    path: /cms/v3/pages/site-pages
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [cms_lifecycle, web_page]
+    incremental:
+      cursor_field: updated
+      start_param: updatedAfter
+      inject_into: query
+      checkpoint_key: site_pages_updated_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: landing_pages
+    path: /cms/v3/pages/landing-pages
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [cms_lifecycle, web_page]
+    incremental:
+      cursor_field: updated
+      start_param: updatedAfter
+      inject_into: query
+      checkpoint_key: landing_pages_updated_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: url_redirects
+    path: /cms/url-redirects/v3
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [cms_lifecycle]
+    fields:
+      route_prefix: { path: routePrefix, type: string }
+      destination: string
+      precedence: int64?
+      redirect_style: { path: redirectStyle, type: int64, nullable: true }
+      is_pattern: { path: isPattern, type: bool, nullable: true }
+      is_match_full_url: { path: isMatchFullUrl, type: bool, nullable: true }
+      is_match_query_string: { path: isMatchQueryString, type: bool, nullable: true }
+      is_only_after_not_found: { path: isOnlyAfterNotFound, type: bool, nullable: true }
+      is_protocol_agnostic: { path: isProtocolAgnostic, type: bool, nullable: true }
+      is_trailing_slash_optional: { path: isTrailingSlashOptional, type: bool, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated
+      start_param: updatedAfter
+      inject_into: query
+      checkpoint_key: url_redirects_updated_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: domains
+    path: /cms/v3/domains
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [cms_lifecycle]
+    fields:
+      domain: string
+      is_resolving: { path: isResolving, type: bool, nullable: true }
+      is_ssl_enabled: { path: isSslEnabled, type: bool, nullable: true }
+      is_ssl_only: { path: isSslOnly, type: bool, nullable: true }
+      is_used_for_blog_post: { path: isUsedForBlogPost, type: bool, nullable: true }
+      is_used_for_site_page: { path: isUsedForSitePage, type: bool, nullable: true }
+      is_used_for_landing_page: { path: isUsedForLandingPage, type: bool, nullable: true }
+      is_used_for_email: { path: isUsedForEmail, type: bool, nullable: true }
+      is_used_for_knowledge: { path: isUsedForKnowledge, type: bool, nullable: true }
+      primary_blog_post: { path: primaryBlogPost, type: bool, nullable: true }
+      primary_site_page: { path: primarySitePage, type: bool, nullable: true }
+      primary_landing_page: { path: primaryLandingPage, type: bool, nullable: true }
+      primary_email: { path: primaryEmail, type: bool, nullable: true }
+      secondary_to_domain: { path: secondaryToDomain, type: string, nullable: true }
+      correct_cname: { path: correctCname, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: hubdb_tables
+    path: /cms/v3/hubdb/tables
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string
+      label: string
+      column_count: { path: columnCount, type: int64, nullable: true }
+      row_count: { path: rowCount, type: int64, nullable: true }
+      columns: json?
+      published: bool?
+      published_at: { path: publishedAt, type: timestamptz, nullable: true }
+      use_for_pages: { path: useForPages, type: bool, nullable: true }
+      allow_public_api_access: { path: allowPublicApiAccess, type: bool, nullable: true }
+      allow_child_tables: { path: allowChildTables, type: bool, nullable: true }
+      enable_child_table_pages: { path: enableChildTablePages, type: bool, nullable: true }
+      is_ordered_manually: { path: isOrderedManually, type: bool, nullable: true }
+      dynamic_meta_tags: { path: dynamicMetaTags, type: json, nullable: true }
+      created_by: { path: createdBy, type: json, nullable: true }
+      updated_by: { path: updatedBy, type: json, nullable: true }
+      deleted: bool?
+      deleted_at: { path: deletedAt, type: timestamptz, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      table_id: id
+
+  - name: hubdb_rows
+    path: /cms/v3/hubdb/tables/{table}/rows
+    params:
+      table: parent.table_id
+    for_each: hubdb_tables
+    primary_key: [table_id, id]
+    query:
+      limit: "100"
+    fields:
+      table_id: { path: parent.table_id, type: string }
+      id: string
+      path: string?
+      name: string?
+      display_index: { path: displayIndex, type: int64, nullable: true }
+      child_table_id: { path: childTableId, type: string, nullable: true }
+      values: json?
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      published_at: { path: publishedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  # ----------------------------------------------------------------- Files
+  - name: files
+    path: /files/v3/files/search
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string?
+      path: string?
+      extension: string?
+      type: string?
+      encoding: string?
+      size: int64?
+      width: int64?
+      height: int64?
+      access: string
+      url: string?
+      default_hosting_url: { path: defaultHostingUrl, type: string, nullable: true }
+      parent_folder_id: { path: parentFolderId, type: string, nullable: true }
+      file_md5: { path: fileMd5, type: string, nullable: true }
+      is_usable_in_content: { path: isUsableInContent, type: bool, nullable: true }
+      source_group: { path: sourceGroup, type: string, nullable: true }
+      expires_at: { path: expiresAt, type: int64, nullable: true }
+      archived: bool
+      archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updatedAt
+      start_param: updatedAtGte
+      inject_into: query
+      checkpoint_key: files_updated_at_gte
+      comparator: time
+      overlap_seconds: 60
+
+  - name: file_folders
+    path: /files/v3/folders/search
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string?
+      path: string?
+      parent_folder_id: { path: parentFolderId, type: string, nullable: true }
+      archived: bool
+      archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  # --------------------------------------------------------- Conversations
+  - name: conversation_inboxes
+    path: /conversations/v3/conversations/inboxes
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string
+      type: string
+      archived: bool
+      archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: conversation_channels
+    path: /conversations/v3/conversations/channels
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: conversation_channel_accounts
+    path: /conversations/v3/conversations/channel-accounts
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string
+      channel_id: { path: channelId, type: string }
+      inbox_id: { path: inboxId, type: string }
+      active: bool
+      authorized: bool
+      archived: bool
+      archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+      delivery_identifier: { path: deliveryIdentifier, type: json, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: conversation_threads
+    path: /conversations/v3/conversations/threads
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      inbox_id: { path: inboxId, type: string }
+      status: string
+      spam: bool
+      archived: bool
+      assigned_to: { path: assignedTo, type: string, nullable: true }
+      associated_contact_id: { path: associatedContactId, type: string, nullable: true }
+      original_channel_id: { path: originalChannelId, type: string }
+      original_channel_account_id: { path: originalChannelAccountId, type: string }
+      latest_message_timestamp: { path: latestMessageTimestamp, type: timestamptz, nullable: true }
+      latest_message_sent_timestamp: { path: latestMessageSentTimestamp, type: timestamptz, nullable: true }
+      latest_message_received_timestamp: { path: latestMessageReceivedTimestamp, type: timestamptz, nullable: true }
+      thread_associations: { path: threadAssociations, type: json, nullable: true }
+      closed_at: { path: closedAt, type: timestamptz, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      thread_id: id
+    incremental:
+      cursor_field: latestMessageTimestamp
+      start_param: latestMessageTimestampAfter
+      inject_into: query
+      checkpoint_key: conversation_threads_latest_message_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: conversation_messages
+    path: /conversations/v3/conversations/threads/{thread}/messages
+    params:
+      thread: parent.thread_id
+    for_each: conversation_threads
+    primary_key: [thread_id, id]
+    query:
+      limit: "100"
+    fields:
+      thread_id: { path: parent.thread_id, type: string }
+      id: string
+      type: string?
+      subject: string?
+      text: string?
+      rich_text: { path: richText, type: string, nullable: true }
+      direction: string?
+      status: json?
+      channel_id: { path: channelId, type: string, nullable: true }
+      channel_account_id: { path: channelAccountId, type: string, nullable: true }
+      conversations_thread_id: { path: conversationsThreadId, type: string, nullable: true }
+      in_reply_to_id: { path: inReplyToId, type: string, nullable: true }
+      senders: json?
+      recipients: json?
+      attachments: json?
+      client: json?
+      truncation_status: { path: truncationStatus, type: string, nullable: true }
+      archived: bool?
+      created_by: { path: createdBy, type: string, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  # ------------------------------------------------------ Account & settings
+  - name: account_details
+    path: /account-info/v3/details
+    primary_key: [portal_id]
+    fields:
+      portal_id: { path: portalId, type: int64 }
+      account_type: { path: accountType, type: string, nullable: true }
+      time_zone: { path: timeZone, type: string, nullable: true }
+      company_currency: { path: companyCurrency, type: string, nullable: true }
+      additional_currencies: { path: additionalCurrencies, type: json, nullable: true }
+      utc_offset: { path: utcOffset, type: string, nullable: true }
+      utc_offset_milliseconds: { path: utcOffsetMilliseconds, type: int64, nullable: true }
+      ui_domain: { path: uiDomain, type: string, nullable: true }
+      data_hosting_location: { path: dataHostingLocation, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+
+  - name: users
+    path: /settings/users/v3
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      email: string
+      first_name: { path: firstName, type: string, nullable: true }
+      last_name: { path: lastName, type: string, nullable: true }
+      role_id: { path: roleId, type: string, nullable: true }
+      role_ids: { path: roleIds, type: json, nullable: true }
+      primary_team_id: { path: primaryTeamId, type: string, nullable: true }
+      secondary_team_ids: { path: secondaryTeamIds, type: json, nullable: true }
+      super_admin: { path: superAdmin, type: bool }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: teams
+    path: /settings/v3/users/teams
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      user_ids: { path: userIds, type: json }
+      secondary_user_ids: { path: secondaryUserIds, type: json }
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination: none
+
+  - name: roles
+    path: /settings/v3/users/roles
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      requires_billing_write: { path: requiresBillingWrite, type: bool }
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.results
+      pagination: none
+
+  - name: currency_exchange_rates
+    path: /settings/v3/currencies/exchange-rates
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      from_currency_code: { path: fromCurrencyCode, type: string }
+      to_currency_code: { path: toCurrencyCode, type: string }
+      conversion_rate: { path: conversionRate, type: float64 }
+      effective_at: { path: effectiveAt, type: timestamptz }
+      visible_in_ui: { path: visibleInUI, type: bool }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: tax_rates
+    path: /tax-rates/v1/tax-rates
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string
+      label: string
+      percentage_rate: { path: percentageRate, type: float64 }
+      active: bool
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: audit_logs
+    path: /account-info/v3/activity/audit-logs
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      occurred_at: { path: occurredAt, type: timestamptz }
+      action: string
+      category: string
+      sub_category: { path: subCategory, type: string, nullable: true }
+      target_object_id: { path: targetObjectId, type: string, nullable: true }
+      acting_user: { path: actingUser, type: json }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: occurredAt
+      start_param: occurredAfter
+      inject_into: query
+      checkpoint_key: audit_logs_occurred_after
+      comparator: time
+      overlap_seconds: 60
+
+  - name: sequences
+    path: /automation/v4/sequences
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      name: string
+      user_id: { path: userId, type: string }
+      folder_id: { path: folderId, type: string, nullable: true }
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: meeting_links
+    path: /scheduler/v3/meetings/meeting-links
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      slug: string?
+      link: string?
+      name: string?
+      type: string?
+      organizer_user_id: { path: organizerUserId, type: string, nullable: true }
+      user_ids_of_link_members: { path: userIdsOfLinkMembers, type: json, nullable: true }
+      default_link: { path: defaultLink, type: bool, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: event_definitions
+    path: /events/v3/event-definitions
+    primary_key: [id]
+    query:
+      limit: "100"
+      includeProperties: "true"
+    fields:
+      id: string
+      name: string
+      fully_qualified_name: { path: fullyQualifiedName, type: string }
+      object_type_id: { path: objectTypeId, type: string }
+      labels: json?
+      description: string?
+      primary_object: { path: primaryObject, type: string, nullable: true }
+      primary_object_id: { path: primaryObjectId, type: string, nullable: true }
+      tracking_type: { path: trackingType, type: string, nullable: true }
+      properties: json?
+      associations: json?
+      archived: bool?
+      created_user_id: { path: createdUserId, type: int64, nullable: true }
+      updated_user_id: { path: updatedUserId, type: int64, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static

@@ -21,6 +21,12 @@ var githubManifest []byte
 //go:embed manifests/slack.yaml
 var slackManifest []byte
 
+//go:embed manifests/hubspot.yaml
+var hubspotManifest []byte
+
+//go:embed manifests/stripe.yaml
+var stripeManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return NewManifestWithMetadata("notion", "Notion", "All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.", "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg", notionManifest, manifestOwnedConfig())
@@ -44,6 +50,16 @@ func NewGitHub() *Source {
 // NewSlack returns a Source backed by the embedded Slack Web API manifest.
 func NewSlack() *Source {
 	return NewManifestWithMetadata("slack", "Slack", "Messaging and collaboration platform designed for teams to communicate and work together efficiently.", "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg", slackManifest, manifestOwnedConfig())
+}
+
+// NewHubSpot returns a Source backed by the embedded HubSpot REST API manifest.
+func NewHubSpot() *Source {
+	return NewManifestWithMetadata("hubspot", "HubSpot", "CRM and marketing platform covering contacts, deals, tickets, campaigns, content, and conversations.", "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-hubspot-light.svg", hubspotManifest, manifestOwnedConfig())
+}
+
+// NewStripe returns a Source backed by the embedded Stripe REST API manifest.
+func NewStripe() *Source {
+	return NewManifestWithMetadata("stripe", "Stripe", "Payments platform for online businesses to accept payments, run billing, and manage revenue.", "https://cdn.getgalaxy.io/sources/source-icon-stripe-dark.svg", "https://cdn.getgalaxy.io/sources/source-icon-stripe-light.svg", stripeManifest, manifestOwnedConfig())
 }
 
 func manifestOwnedConfig() filament.ConfigSchema { return filament.ConfigSchema{} }
