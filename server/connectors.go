@@ -106,6 +106,13 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
+		if req.Msg.GetLive() {
+			if live, ok := sink.(filament.LiveValidatable); ok {
+				if err := live.TestConnection(ctx, cfg); err != nil {
+					return connect.NewResponse(validationError(err.Error())), nil
+				}
+			}
+		}
 	default:
 		return connect.NewResponse(validationError("connector kind is required")), nil
 	}
