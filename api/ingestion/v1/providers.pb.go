@@ -253,10 +253,11 @@ func (x *ConnectorSpec) GetSchemaField() string {
 }
 
 type ListConnectorsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	// Filter to one kind; UNSPECIFIED returns both sources and sinks.
-	Kind          ConnectorKind      `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Pagination    *PaginationRequest `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Kind          ConnectorKind      `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Pagination    *PaginationRequest `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -289,6 +290,13 @@ func (x *ListConnectorsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListConnectorsRequest.ProtoReflect.Descriptor instead.
 func (*ListConnectorsRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListConnectorsRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *ListConnectorsRequest) GetKind() ConnectorKind {
@@ -359,8 +367,9 @@ func (x *ListConnectorsResponse) GetPagination() *PaginationResponse {
 
 type GetConnectorRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Connector     string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Connector     string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -393,6 +402,13 @@ func (x *GetConnectorRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetConnectorRequest.ProtoReflect.Descriptor instead.
 func (*GetConnectorRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetConnectorRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *GetConnectorRequest) GetConnector() string {
@@ -732,8 +748,8 @@ type Resource struct {
 	PrimaryKey    []string               `protobuf:"bytes,3,rep,name=primary_key,json=primaryKey,proto3" json:"primary_key,omitempty"`
 	EstimatedRows int64                  `protobuf:"varint,4,opt,name=estimated_rows,json=estimatedRows,proto3" json:"estimated_rows,omitempty"`
 	Selector      string                 `protobuf:"bytes,5,opt,name=selector,proto3" json:"selector,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,7,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,11,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	DisplayName   string                 `protobuf:"bytes,6,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -862,11 +878,13 @@ func (x *DiscoverResourcesResponse) GetResources() []*Resource {
 }
 
 type GetResourceColumnsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Connector     string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	ConnectionId  string                 `protobuf:"bytes,3,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
-	Resources     []string               `protobuf:"bytes,4,rep,name=resources,proto3" json:"resources,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	TenantId  string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Connector string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config    *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
+	// tenant_id must match the connection's tenant.
+	ConnectionId  string   `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Resources     []string `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -899,6 +917,13 @@ func (x *GetResourceColumnsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetResourceColumnsRequest.ProtoReflect.Descriptor instead.
 func (*GetResourceColumnsRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetResourceColumnsRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *GetResourceColumnsRequest) GetConnector() string {
@@ -1178,11 +1203,12 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\rdark_logo_url\x18\t \x01(\tR\vdarkLogoUrl\x12$\n" +
 	"\x0elight_logo_url\x18\n" +
 	" \x01(\tR\flightLogoUrl\x12!\n" +
-	"\fschema_field\x18\v \x01(\tR\vschemaField\"\x89\x01\n" +
-	"\x15ListConnectorsRequest\x12/\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
+	"\fschema_field\x18\v \x01(\tR\vschemaField\"\xa6\x01\n" +
+	"\x15ListConnectorsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
 	"\n" +
-	"pagination\x18\x02 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\x18\x03 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
 	"pagination\"\x97\x01\n" +
 	"\x16ListConnectorsResponse\x12;\n" +
 	"\n" +
@@ -1190,10 +1216,11 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"connectors\x12@\n" +
 	"\n" +
 	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
-	"pagination\"d\n" +
-	"\x13GetConnectorRequest\x12\x1c\n" +
-	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"Q\n" +
+	"pagination\"\x81\x01\n" +
+	"\x13GetConnectorRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1c\n" +
+	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"Q\n" +
 	"\x14GetConnectorResponse\x129\n" +
 	"\tconnector\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\tconnector\"\xed\x01\n" +
 	"\x15ValidateConfigRequest\x12\x1b\n" +
@@ -1224,18 +1251,19 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"primaryKey\x12%\n" +
 	"\x0eestimated_rows\x18\x04 \x01(\x03R\restimatedRows\x12\x1a\n" +
 	"\bselector\x18\x05 \x01(\tR\bselector\x12!\n" +
-	"\fdisplay_name\x18\a \x01(\tR\vdisplayName\x12@\n" +
-	"\bmetadata\x18\v \x03(\v2$.ingestion.v1.Resource.MetadataEntryR\bmetadata\x1a;\n" +
+	"\fdisplay_name\x18\x06 \x01(\tR\vdisplayName\x12@\n" +
+	"\bmetadata\x18\a \x03(\v2$.ingestion.v1.Resource.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
 	"\x19DiscoverResourcesResponse\x124\n" +
-	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xad\x01\n" +
-	"\x19GetResourceColumnsRequest\x12\x1c\n" +
-	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
-	"\rconnection_id\x18\x03 \x01(\tR\fconnectionId\x12\x1c\n" +
-	"\tresources\x18\x04 \x03(\tR\tresources\"\x99\x03\n" +
+	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xca\x01\n" +
+	"\x19GetResourceColumnsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1c\n" +
+	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
+	"\rconnection_id\x18\x04 \x01(\tR\fconnectionId\x12\x1c\n" +
+	"\tresources\x18\x05 \x03(\tR\tresources\"\x99\x03\n" +
 	"\x0eResourceColumn\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\x12\x1f\n" +

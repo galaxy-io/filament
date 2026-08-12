@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/runs.proto.
  */
 export const file_ingestion_v1_runs: GenFile = /*@__PURE__*/
-  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJqChJSdW5QaXBlbGluZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSFAoMY2xpZW50X3Rva2VuGAIgASgJEikKB29wdGlvbnMYAyABKAsyGC5pbmdlc3Rpb24udjEuUnVuT3B0aW9ucyIqCgpSdW5CaW5kaW5nEgwKBGVkZ2UYASABKAkSDgoGcnVuX2lkGAIgASgJIj0KE1J1blBpcGVsaW5lUmVzcG9uc2USJgoEcnVucxgBIAMoCzIYLmluZ2VzdGlvbi52MS5SdW5CaW5kaW5nIo0BChBSdW5SZXNvdXJjZVN0YXRlEhAKCHJlc291cmNlGAEgASgJEg8KB2VuYWJsZWQYAiABKAgSJwoGc3RhdHVzGAMgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAQgASgDEg0KBWJ5dGVzGAUgASgDEg0KBWVycm9yGAYgASgJIpoDCgdSdW5JbmZvEg4KBnJ1bl9pZBgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSEwoLcGlwZWxpbmVfaWQYAyABKAkSGwoTcGlwZWxpbmVfdmVyc2lvbl9pZBgEIAEoAxInCgZzdGF0dXMYBSABKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg8KB3JlY29yZHMYBiABKAMSDQoFYnl0ZXMYByABKAMSDQoFZXJyb3IYCCABKAkSEgoKc3RhcnRlZF9hdBgJIAEoAxIQCghlbmRlZF9hdBgKIAEoAxIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgLIAEoCRIaChJzaW5rX2Nvbm5lY3Rpb25faWQYDCABKAkSEwoLY3B1X3NlY29uZHMYDSABKAESGQoRbWVtb3J5X3BlYWtfYnl0ZXMYDiABKAMSEgoKY3JlYXRlZF9hdBgPIAEoAxIUCgxzY2hlZHVsZWRfYXQYECABKAMSFAoMcmVxdWVzdGVkX2F0GBEgASgDEhIKCnVwZGF0ZWRfYXQYEiABKAMidAoLUnVuU25hcHNob3QSIgoDcnVuGAEgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMQoJcmVzb3VyY2VzGAIgAygLMh4uaW5nZXN0aW9uLnYxLlJ1blJlc291cmNlU3RhdGUSDgoGYXRfc2VxGAMgASgEIh8KDUdldFJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIj0KDkdldFJ1blJlc3BvbnNlEisKCHNuYXBzaG90GAEgASgLMhkuaW5nZXN0aW9uLnYxLlJ1blNuYXBzaG90IvUBCg9MaXN0UnVuc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEiAKE3BpcGVsaW5lX3ZlcnNpb25faWQYAyABKANIAIgBARInCgZzdGF0dXMYBCADKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEjMKCnBhZ2luYXRpb24YBSABKAsyHy5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlcXVlc3QSEAoIc2luY2VfbXMYByABKAMSEAoIdW50aWxfbXMYCCABKANCFgoUX3BpcGVsaW5lX3ZlcnNpb25faWQibQoQTGlzdFJ1bnNSZXNwb25zZRIjCgRydW5zGAEgAygLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SNAoKcGFnaW5hdGlvbhgCIAEoCzIgLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVzcG9uc2UiSAoQU2lnbmFsUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSJAoGc2lnbmFsGAIgASgOMhQuaW5nZXN0aW9uLnYxLlNpZ25hbCITChFTaWduYWxSdW5SZXNwb25zZSJDCg5UYWlsUnVuUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnJlcGxheRgDIAEoCCJZCg5SdW5FdmVudEZpZWxkcxIPCgdyZWNvcmRzGAEgASgDEg0KBWJ5dGVzGAIgASgDEgsKA3VyaRgDIAEoCRILCgNjcmMYBCABKA0SDQoFZXJyb3IYBSABKAkirAEKCFJ1bkV2ZW50EgwKBHR5cGUYASABKAkSEQoJdGVuYW50X2lkGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIQCghyZXNvdXJjZRgEIAEoCRILCgNzZXEYBSABKAQSEgoKYXRfdW5peF9tcxgGIAEoAxIsCgZmaWVsZHMYByABKAsyHC5pbmdlc3Rpb24udjEuUnVuRXZlbnRGaWVsZHMSDgoGcmVwbGF5GAggASgIIjgKD1RhaWxSdW5SZXNwb25zZRIlCgVldmVudBgBIAEoCzIWLmluZ2VzdGlvbi52MS5SdW5FdmVudCrsAQoJUnVuU3RhdHVzEhoKFlJVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIYChRSVU5fU1RBVFVTX1JFUVVFU1RFRBABEhYKElJVTl9TVEFUVVNfUlVOTklORxACEhgKFFJVTl9TVEFUVVNfQ09NUExFVEVEEAMSFQoRUlVOX1NUQVRVU19GQUlMRUQQBBIXChNSVU5fU1RBVFVTX0NBTkNFTEVEEAUSFQoRUlVOX1NUQVRVU19QQVVTRUQQBhIWChJSVU5fU1RBVFVTX1BBUlRJQUwQBxIYChRSVU5fU1RBVFVTX1NDSEVEVUxFRBAIKlgKBlNpZ25hbBIWChJTSUdOQUxfVU5TUEVDSUZJRUQQABIQCgxTSUdOQUxfUEFVU0UQARIRCg1TSUdOQUxfUkVTVU1FEAISEQoNU0lHTkFMX0NBTkNFTBADYgZwcm90bzM", [file_ingestion_v1_pagination]);
+  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJ9ChJSdW5QaXBlbGluZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEhQKDGNsaWVudF90b2tlbhgDIAEoCRIpCgdvcHRpb25zGAQgASgLMhguaW5nZXN0aW9uLnYxLlJ1bk9wdGlvbnMiKgoKUnVuQmluZGluZxIMCgRlZGdlGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSI9ChNSdW5QaXBlbGluZVJlc3BvbnNlEiYKBHJ1bnMYASADKAsyGC5pbmdlc3Rpb24udjEuUnVuQmluZGluZyKNAQoQUnVuUmVzb3VyY2VTdGF0ZRIQCghyZXNvdXJjZRgBIAEoCRIPCgdlbmFibGVkGAIgASgIEicKBnN0YXR1cxgDIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSDwoHcmVjb3JkcxgEIAEoAxINCgVieXRlcxgFIAEoAxINCgVlcnJvchgGIAEoCSKaAwoHUnVuSW5mbxIRCgl0ZW5hbnRfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEhMKC3BpcGVsaW5lX2lkGAMgASgJEhsKE3BpcGVsaW5lX3ZlcnNpb25faWQYBCABKAMSJwoGc3RhdHVzGAUgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAYgASgDEg0KBWJ5dGVzGAcgASgDEg0KBWVycm9yGAggASgJEhIKCnN0YXJ0ZWRfYXQYCSABKAMSEAoIZW5kZWRfYXQYCiABKAMSHAoUc291cmNlX2Nvbm5lY3Rpb25faWQYCyABKAkSGgoSc2lua19jb25uZWN0aW9uX2lkGAwgASgJEhMKC2NwdV9zZWNvbmRzGA0gASgBEhkKEW1lbW9yeV9wZWFrX2J5dGVzGA4gASgDEhIKCmNyZWF0ZWRfYXQYDyABKAMSFAoMc2NoZWR1bGVkX2F0GBAgASgDEhQKDHJlcXVlc3RlZF9hdBgRIAEoAxISCgp1cGRhdGVkX2F0GBIgASgDInQKC1J1blNuYXBzaG90EiIKA3J1bhgBIAEoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvEjEKCXJlc291cmNlcxgCIAMoCzIeLmluZ2VzdGlvbi52MS5SdW5SZXNvdXJjZVN0YXRlEg4KBmF0X3NlcRgDIAEoBCIyCg1HZXRSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkiPQoOR2V0UnVuUmVzcG9uc2USKwoIc25hcHNob3QYASABKAsyGS5pbmdlc3Rpb24udjEuUnVuU25hcHNob3Qi9QEKD0xpc3RSdW5zUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEwoLcGlwZWxpbmVfaWQYAiABKAkSIAoTcGlwZWxpbmVfdmVyc2lvbl9pZBgDIAEoA0gAiAEBEicKBnN0YXR1cxgEIAMoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSMwoKcGFnaW5hdGlvbhgFIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBIQCghzaW5jZV9tcxgGIAEoAxIQCgh1bnRpbF9tcxgHIAEoA0IWChRfcGlwZWxpbmVfdmVyc2lvbl9pZCJtChBMaXN0UnVuc1Jlc3BvbnNlEiMKBHJ1bnMYASADKAsyFS5pbmdlc3Rpb24udjEuUnVuSW5mbxI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSJbChBTaWduYWxSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSJAoGc2lnbmFsGAMgASgOMhQuaW5nZXN0aW9uLnYxLlNpZ25hbCITChFTaWduYWxSdW5SZXNwb25zZSJDCg5UYWlsUnVuUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnJlcGxheRgDIAEoCCJZCg5SdW5FdmVudEZpZWxkcxIPCgdyZWNvcmRzGAEgASgDEg0KBWJ5dGVzGAIgASgDEgsKA3VyaRgDIAEoCRILCgNjcmMYBCABKA0SDQoFZXJyb3IYBSABKAkirAEKCFJ1bkV2ZW50EhEKCXRlbmFudF9pZBgBIAEoCRIMCgR0eXBlGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIQCghyZXNvdXJjZRgEIAEoCRILCgNzZXEYBSABKAQSEgoKYXRfdW5peF9tcxgGIAEoAxIsCgZmaWVsZHMYByABKAsyHC5pbmdlc3Rpb24udjEuUnVuRXZlbnRGaWVsZHMSDgoGcmVwbGF5GAggASgIIjgKD1RhaWxSdW5SZXNwb25zZRIlCgVldmVudBgBIAEoCzIWLmluZ2VzdGlvbi52MS5SdW5FdmVudCrsAQoJUnVuU3RhdHVzEhoKFlJVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIYChRSVU5fU1RBVFVTX1JFUVVFU1RFRBABEhYKElJVTl9TVEFUVVNfUlVOTklORxACEhgKFFJVTl9TVEFUVVNfQ09NUExFVEVEEAMSFQoRUlVOX1NUQVRVU19GQUlMRUQQBBIXChNSVU5fU1RBVFVTX0NBTkNFTEVEEAUSFQoRUlVOX1NUQVRVU19QQVVTRUQQBhIWChJSVU5fU1RBVFVTX1BBUlRJQUwQBxIYChRSVU5fU1RBVFVTX1NDSEVEVUxFRBAIKlgKBlNpZ25hbBIWChJTSUdOQUxfVU5TUEVDSUZJRUQQABIQCgxTSUdOQUxfUEFVU0UQARIRCg1TSUdOQUxfUkVTVU1FEAISEQoNU0lHTkFMX0NBTkNFTBADYgZwcm90bzM", [file_ingestion_v1_pagination]);
 
 /**
  * RatePolicy throttles source reads.
@@ -88,7 +88,12 @@ export const RunOptionsSchema: GenMessage<RunOptions> = /*@__PURE__*/
  */
 export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
   /**
-   * @generated from field: string pipeline_id = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string pipeline_id = 2;
    */
   pipelineId: string;
 
@@ -96,7 +101,7 @@ export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
    * client_token salts the idempotency key so a deliberate re-run differs from a
    * double-click; reusing a token dedupes to the same runs.
    *
-   * @generated from field: string client_token = 2;
+   * @generated from field: string client_token = 3;
    */
   clientToken: string;
 
@@ -104,7 +109,7 @@ export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
    * options overrides engine throughput defaults for every run this call
    * produces. Unset (or any zero field) defers to defaults.
    *
-   * @generated from field: ingestion.v1.RunOptions options = 3;
+   * @generated from field: ingestion.v1.RunOptions options = 4;
    */
   options?: RunOptions | undefined;
 };
@@ -209,14 +214,14 @@ export const RunResourceStateSchema: GenMessage<RunResourceState> = /*@__PURE__*
  */
 export type RunInfo = Message<"ingestion.v1.RunInfo"> & {
   /**
-   * @generated from field: string run_id = 1;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: string tenant_id = 2;
+   * @generated from field: string tenant_id = 1;
    */
   tenantId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
 
   /**
    * @generated from field: string pipeline_id = 3;
@@ -345,7 +350,12 @@ export const RunSnapshotSchema: GenMessage<RunSnapshot> = /*@__PURE__*/
  */
 export type GetRunRequest = Message<"ingestion.v1.GetRunRequest"> & {
   /**
-   * @generated from field: string run_id = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
    */
   runId: string;
 };
@@ -407,12 +417,12 @@ export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
    * since_ms/until_ms window on started_at (inclusive/exclusive, epoch
    * millis); 0 means unbounded. Runs that never started are excluded.
    *
-   * @generated from field: int64 since_ms = 7;
+   * @generated from field: int64 since_ms = 6;
    */
   sinceMs: bigint;
 
   /**
-   * @generated from field: int64 until_ms = 8;
+   * @generated from field: int64 until_ms = 7;
    */
   untilMs: bigint;
 };
@@ -451,12 +461,17 @@ export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*
  */
 export type SignalRunRequest = Message<"ingestion.v1.SignalRunRequest"> & {
   /**
-   * @generated from field: string run_id = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
    */
   runId: string;
 
   /**
-   * @generated from field: ingestion.v1.Signal signal = 2;
+   * @generated from field: ingestion.v1.Signal signal = 3;
    */
   signal: Signal;
 };
@@ -559,14 +574,14 @@ export const RunEventFieldsSchema: GenMessage<RunEventFields> = /*@__PURE__*/
  */
 export type RunEvent = Message<"ingestion.v1.RunEvent"> & {
   /**
-   * @generated from field: string type = 1;
-   */
-  type: string;
-
-  /**
-   * @generated from field: string tenant_id = 2;
+   * @generated from field: string tenant_id = 1;
    */
   tenantId: string;
+
+  /**
+   * @generated from field: string type = 2;
+   */
+  type: string;
 
   /**
    * @generated from field: string run_id = 3;
