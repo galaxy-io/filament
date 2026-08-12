@@ -10,24 +10,29 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/secrets.proto.
  */
 export const file_ingestion_v1_secrets: GenFile = /*@__PURE__*/
-  fileDesc("Chppbmdlc3Rpb24vdjEvc2VjcmV0cy5wcm90bxIMaW5nZXN0aW9uLnYxIpMBChBQdXRTZWNyZXRSZXF1ZXN0EgsKA3JlZhgBIAEoCRINCgV2YWx1ZRgCIAEoDBI2CgRtZXRhGAMgAygLMiguaW5nZXN0aW9uLnYxLlB1dFNlY3JldFJlcXVlc3QuTWV0YUVudHJ5GisKCU1ldGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIhMKEVB1dFNlY3JldFJlc3BvbnNlIiIKE0RlbGV0ZVNlY3JldFJlcXVlc3QSCwoDcmVmGAEgASgJIhYKFERlbGV0ZVNlY3JldFJlc3BvbnNlYgZwcm90bzM");
+  fileDesc("Chppbmdlc3Rpb24vdjEvc2VjcmV0cy5wcm90bxIMaW5nZXN0aW9uLnYxIqYBChBQdXRTZWNyZXRSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRILCgNyZWYYAiABKAkSDQoFdmFsdWUYAyABKAwSNgoEbWV0YRgEIAMoCzIoLmluZ2VzdGlvbi52MS5QdXRTZWNyZXRSZXF1ZXN0Lk1ldGFFbnRyeRorCglNZXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASITChFQdXRTZWNyZXRSZXNwb25zZSI1ChNEZWxldGVTZWNyZXRSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRILCgNyZWYYAiABKAkiFgoURGVsZXRlU2VjcmV0UmVzcG9uc2ViBnByb3RvMw");
 
 /**
  * @generated from message ingestion.v1.PutSecretRequest
  */
 export type PutSecretRequest = Message<"ingestion.v1.PutSecretRequest"> & {
   /**
-   * @generated from field: string ref = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string ref = 2;
    */
   ref: string;
 
   /**
-   * @generated from field: bytes value = 2;
+   * @generated from field: bytes value = 3;
    */
   value: Uint8Array;
 
   /**
-   * @generated from field: map<string, string> meta = 3;
+   * @generated from field: map<string, string> meta = 4;
    */
   meta: { [key: string]: string };
 };
@@ -57,7 +62,12 @@ export const PutSecretResponseSchema: GenMessage<PutSecretResponse> = /*@__PURE_
  */
 export type DeleteSecretRequest = Message<"ingestion.v1.DeleteSecretRequest"> & {
   /**
-   * @generated from field: string ref = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string ref = 2;
    */
   ref: string;
 };

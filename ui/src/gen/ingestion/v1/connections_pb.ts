@@ -15,7 +15,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/connections.proto.
  */
 export const file_ingestion_v1_connections: GenFile = /*@__PURE__*/
-  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSK3AgoKQ29ubmVjdGlvbhIKCgJpZBgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxISCgpkZWxldGVkX2F0GAkgASgDGjEKD1NlY3JldFJlZnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqACChdDcmVhdGVDb25uZWN0aW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYAyABKAkSEQoJY29ubmVjdG9yGAQgASgJEicKBmNvbmZpZxgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSSgoLc2VjcmV0X3JlZnMYBiADKAsyNS5pbmdlc3Rpb24udjEuQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QuU2VjcmV0UmVmc0VudHJ5GjEKD1NlY3JldFJlZnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkgKGENyZWF0ZUNvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iRwoXVXBkYXRlQ29ubmVjdGlvblJlcXVlc3QSLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkgKGFVwZGF0ZUNvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iIgoUR2V0Q29ubmVjdGlvblJlcXVlc3QSCgoCaWQYASABKAkiRQoVR2V0Q29ubmVjdGlvblJlc3BvbnNlEiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiKkAQoWTGlzdENvbm5lY3Rpb25zUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEhcKD2luY2x1ZGVfZGVsZXRlZBgDIAEoCBIzCgpwYWdpbmF0aW9uGAQgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0In4KF0xpc3RDb25uZWN0aW9uc1Jlc3BvbnNlEi0KC2Nvbm5lY3Rpb25zGAEgAygLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24SNAoKcGFnaW5hdGlvbhgCIAEoCzIgLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVzcG9uc2UiJQoXRGVsZXRlQ29ubmVjdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination]);
+  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSK3AgoKQ29ubmVjdGlvbhIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxISCgpkZWxldGVkX2F0GAkgASgDGjEKD1NlY3JldFJlZnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqACChdDcmVhdGVDb25uZWN0aW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYAyABKAkSEQoJY29ubmVjdG9yGAQgASgJEicKBmNvbmZpZxgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSSgoLc2VjcmV0X3JlZnMYBiADKAsyNS5pbmdlc3Rpb24udjEuQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QuU2VjcmV0UmVmc0VudHJ5GjEKD1NlY3JldFJlZnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkgKGENyZWF0ZUNvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iWgoXVXBkYXRlQ29ubmVjdGlvblJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEiwKCmNvbm5lY3Rpb24YAiABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJIChhVcGRhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIjUKFEdldENvbm5lY3Rpb25SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCSJFChVHZXRDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIqQBChZMaXN0Q29ubmVjdGlvbnNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFwoPaW5jbHVkZV9kZWxldGVkGAMgASgIEjMKCnBhZ2luYXRpb24YBCABKAsyHy5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlcXVlc3QifgoXTGlzdENvbm5lY3Rpb25zUmVzcG9uc2USLQoLY29ubmVjdGlvbnMYASADKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbhI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSI4ChdEZWxldGVDb25uZWN0aW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination]);
 
 /**
  * Connection is a reusable, tenant-scoped source or sink. It holds the
@@ -28,14 +28,14 @@ export const file_ingestion_v1_connections: GenFile = /*@__PURE__*/
  */
 export type Connection = Message<"ingestion.v1.Connection"> & {
   /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string tenant_id = 2;
+   * @generated from field: string tenant_id = 1;
    */
   tenantId: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
 
   /**
    * @generated from field: ingestion.v1.ConnectorKind kind = 3;
@@ -146,7 +146,12 @@ export const CreateConnectionResponseSchema: GenMessage<CreateConnectionResponse
  */
 export type UpdateConnectionRequest = Message<"ingestion.v1.UpdateConnectionRequest"> & {
   /**
-   * @generated from field: ingestion.v1.Connection connection = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: ingestion.v1.Connection connection = 2;
    */
   connection?: Connection | undefined;
 };
@@ -180,7 +185,12 @@ export const UpdateConnectionResponseSchema: GenMessage<UpdateConnectionResponse
  */
 export type GetConnectionRequest = Message<"ingestion.v1.GetConnectionRequest"> & {
   /**
-   * @generated from field: string id = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string id = 2;
    */
   id: string;
 };
@@ -271,7 +281,12 @@ export const ListConnectionsResponseSchema: GenMessage<ListConnectionsResponse> 
  */
 export type DeleteConnectionRequest = Message<"ingestion.v1.DeleteConnectionRequest"> & {
   /**
-   * @generated from field: string id = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string id = 2;
    */
   id: string;
 };

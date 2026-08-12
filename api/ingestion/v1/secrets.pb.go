@@ -23,9 +23,10 @@ const (
 
 type PutSecretRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ref           string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	Value         []byte                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
-	Meta          map[string]string      `protobuf:"bytes,3,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Ref           string                 `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
+	Value         []byte                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Meta          map[string]string      `protobuf:"bytes,4,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -58,6 +59,13 @@ func (x *PutSecretRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use PutSecretRequest.ProtoReflect.Descriptor instead.
 func (*PutSecretRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_secrets_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *PutSecretRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *PutSecretRequest) GetRef() string {
@@ -119,7 +127,8 @@ func (*PutSecretResponse) Descriptor() ([]byte, []int) {
 
 type DeleteSecretRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ref           string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Ref           string                 `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -152,6 +161,13 @@ func (x *DeleteSecretRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteSecretRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSecretRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_secrets_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DeleteSecretRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *DeleteSecretRequest) GetRef() string {
@@ -201,17 +217,19 @@ var File_ingestion_v1_secrets_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_secrets_proto_rawDesc = "" +
 	"\n" +
-	"\x1aingestion/v1/secrets.proto\x12\fingestion.v1\"\xb1\x01\n" +
-	"\x10PutSecretRequest\x12\x10\n" +
-	"\x03ref\x18\x01 \x01(\tR\x03ref\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\fR\x05value\x12<\n" +
-	"\x04meta\x18\x03 \x03(\v2(.ingestion.v1.PutSecretRequest.MetaEntryR\x04meta\x1a7\n" +
+	"\x1aingestion/v1/secrets.proto\x12\fingestion.v1\"\xce\x01\n" +
+	"\x10PutSecretRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x10\n" +
+	"\x03ref\x18\x02 \x01(\tR\x03ref\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\fR\x05value\x12<\n" +
+	"\x04meta\x18\x04 \x03(\v2(.ingestion.v1.PutSecretRequest.MetaEntryR\x04meta\x1a7\n" +
 	"\tMetaEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x13\n" +
-	"\x11PutSecretResponse\"'\n" +
-	"\x13DeleteSecretRequest\x12\x10\n" +
-	"\x03ref\x18\x01 \x01(\tR\x03ref\"\x16\n" +
+	"\x11PutSecretResponse\"D\n" +
+	"\x13DeleteSecretRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x10\n" +
+	"\x03ref\x18\x02 \x01(\tR\x03ref\"\x16\n" +
 	"\x14DeleteSecretResponseB\xad\x01\n" +
 	"\x10com.ingestion.v1B\fSecretsProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 

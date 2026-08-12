@@ -15,7 +15,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/providers.proto.
  */
 export const file_ingestion_v1_providers: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEioQIKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3kSLAoLd3JpdGVfbW9kZXMYCCADKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlItwCCg1Db25uZWN0b3JTcGVjEgwKBG5hbWUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEikKBGtpbmQYAyABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIPCgd2ZXJzaW9uGAQgASgJEiwKBW1vZGVzGAUgAygOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIxCg1jb25maWdfc2NoZW1hGAYgASgLMhouaW5nZXN0aW9uLnYxLkNvbmZpZ1NjaGVtYRIwCgxjYXBhYmlsaXRpZXMYByABKAsyGi5pbmdlc3Rpb24udjEuQ2FwYWJpbGl0aWVzEhMKC2Rlc2NyaXB0aW9uGAggASgJEhUKDWRhcmtfbG9nb191cmwYCSABKAkSFgoObGlnaHRfbG9nb191cmwYCiABKAkSFAoMc2NoZW1hX2ZpZWxkGAsgASgJIncKFUxpc3RDb25uZWN0b3JzUmVxdWVzdBIpCgRraW5kGAEgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSMwoKcGFnaW5hdGlvbhgCIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdCJ/ChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYxI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSJTChNHZXRDb25uZWN0b3JSZXF1ZXN0EhEKCWNvbm5lY3RvchgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQiRgoUR2V0Q29ubmVjdG9yUmVzcG9uc2USLgoJY29ubmVjdG9yGAEgASgLMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvclNwZWMitgEKFVZhbGlkYXRlQ29uZmlnUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEhEKCWNvbm5lY3RvchgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGxpdmUYBSABKAgSFQoNY29ubmVjdGlvbl9pZBgGIAEoCSIxCg9WYWxpZGF0aW9uRXJyb3ISDQoFZmllbGQYASABKAkSDwoHbWVzc2FnZRgCIAEoCSJWChZWYWxpZGF0ZUNvbmZpZ1Jlc3BvbnNlEg0KBXZhbGlkGAEgASgIEi0KBmVycm9ycxgCIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3IikQEKGERpc2NvdmVyUmVzb3VyY2VzUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEQoJY29ubmVjdG9yGAIgASgJEicKBmNvbmZpZxgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgEIAEoCBIVCg1jb25uZWN0aW9uX2lkGAUgASgJIuoBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhIKCnNlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSFgoOZXN0aW1hdGVkX3Jvd3MYBCABKAMSEAoIc2VsZWN0b3IYBSABKAkSFAoMZGlzcGxheV9uYW1lGAcgASgJEjYKCG1ldGFkYXRhGAsgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlIoEBChlHZXRSZXNvdXJjZUNvbHVtbnNSZXF1ZXN0EhEKCWNvbm5lY3RvchgBIAEoCRInCgZjb25maWcYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWNvbm5lY3Rpb25faWQYAyABKAkSEQoJcmVzb3VyY2VzGAQgAygJIoQCCg5SZXNvdXJjZUNvbHVtbhIMCgRuYW1lGAEgASgJEhQKDGxvZ2ljYWxfdHlwZRgCIAEoCRITCgtuYXRpdmVfdHlwZRgDIAEoCRIQCghudWxsYWJsZRgEIAEoCBITCgtwcmltYXJ5X2tleRgFIAEoCBIXCg9jdXJzb3JfZWxpZ2libGUYBiABKAgSGgoSY3Vyc29yX3JlY29tbWVuZGVkGAcgASgIEhsKE3JlY29tbWVuZGF0aW9uX3JhbmsYCCABKAUSDwoHd2FybmluZxgJIAEoCRIUCgxjb25maWd1cmFibGUYCiABKAgSGQoRc3VwcG9ydHNfbG9va2JhY2sYCyABKAgiUgoPUmVzb3VyY2VDb2x1bW5zEhAKCHJlc291cmNlGAEgASgJEi0KB2NvbHVtbnMYAiADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW4iTgoaR2V0UmVzb3VyY2VDb2x1bW5zUmVzcG9uc2USMAoJcmVzb3VyY2VzGAEgAygLMh0uaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1uc2IGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcHJvdmlkZXJzLnByb3RvEgxpbmdlc3Rpb24udjEioQIKDENhcGFiaWxpdGllcxIUCgxkaXNjb3ZlcmFibGUYASABKAgSGwoTcGVyX3Jlc291cmNlX2N1cnNvchgCIAEoCBIVCg10cmFuc2FjdGlvbmFsGAMgASgIEhIKCnVwc2VydGFibGUYBCABKAgSEwoLc2NoZW1hdGl6ZWQYBSABKAgSOwoOd3JpdGVfcG9saWNpZXMYBiADKAsyIy5pbmdlc3Rpb24udjEuV3JpdGVQb2xpY3lDYXBhYmlsaXR5EjMKD3NvdXJjZV9wb2xpY2llcxgHIAMoCzIaLmluZ2VzdGlvbi52MS5Tb3VyY2VQb2xpY3kSLAoLd3JpdGVfbW9kZXMYCCADKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlItwCCg1Db25uZWN0b3JTcGVjEgwKBG5hbWUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEikKBGtpbmQYAyABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIPCgd2ZXJzaW9uGAQgASgJEiwKBW1vZGVzGAUgAygOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIxCg1jb25maWdfc2NoZW1hGAYgASgLMhouaW5nZXN0aW9uLnYxLkNvbmZpZ1NjaGVtYRIwCgxjYXBhYmlsaXRpZXMYByABKAsyGi5pbmdlc3Rpb24udjEuQ2FwYWJpbGl0aWVzEhMKC2Rlc2NyaXB0aW9uGAggASgJEhUKDWRhcmtfbG9nb191cmwYCSABKAkSFgoObGlnaHRfbG9nb191cmwYCiABKAkSFAoMc2NoZW1hX2ZpZWxkGAsgASgJIooBChVMaXN0Q29ubmVjdG9yc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIzCgpwYWdpbmF0aW9uGAMgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0In8KFkxpc3RDb25uZWN0b3JzUmVzcG9uc2USLwoKY29ubmVjdG9ycxgBIAMoCzIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JTcGVjEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlImYKE0dldENvbm5lY3RvclJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhEKCWNvbm5lY3RvchgCIAEoCRIpCgRraW5kGAMgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQiRgoUR2V0Q29ubmVjdG9yUmVzcG9uc2USLgoJY29ubmVjdG9yGAEgASgLMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvclNwZWMitgEKFVZhbGlkYXRlQ29uZmlnUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEhEKCWNvbm5lY3RvchgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGxpdmUYBSABKAgSFQoNY29ubmVjdGlvbl9pZBgGIAEoCSIxCg9WYWxpZGF0aW9uRXJyb3ISDQoFZmllbGQYASABKAkSDwoHbWVzc2FnZRgCIAEoCSJWChZWYWxpZGF0ZUNvbmZpZ1Jlc3BvbnNlEg0KBXZhbGlkGAEgASgIEi0KBmVycm9ycxgCIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3IikQEKGERpc2NvdmVyUmVzb3VyY2VzUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEQoJY29ubmVjdG9yGAIgASgJEicKBmNvbmZpZxgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgEIAEoCBIVCg1jb25uZWN0aW9uX2lkGAUgASgJIuoBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhIKCnNlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSFgoOZXN0aW1hdGVkX3Jvd3MYBCABKAMSEAoIc2VsZWN0b3IYBSABKAkSFAoMZGlzcGxheV9uYW1lGAYgASgJEjYKCG1ldGFkYXRhGAcgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlIpQBChlHZXRSZXNvdXJjZUNvbHVtbnNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIVCg1jb25uZWN0aW9uX2lkGAQgASgJEhEKCXJlc291cmNlcxgFIAMoCSKEAgoOUmVzb3VyY2VDb2x1bW4SDAoEbmFtZRgBIAEoCRIUCgxsb2dpY2FsX3R5cGUYAiABKAkSEwoLbmF0aXZlX3R5cGUYAyABKAkSEAoIbnVsbGFibGUYBCABKAgSEwoLcHJpbWFyeV9rZXkYBSABKAgSFwoPY3Vyc29yX2VsaWdpYmxlGAYgASgIEhoKEmN1cnNvcl9yZWNvbW1lbmRlZBgHIAEoCBIbChNyZWNvbW1lbmRhdGlvbl9yYW5rGAggASgFEg8KB3dhcm5pbmcYCSABKAkSFAoMY29uZmlndXJhYmxlGAogASgIEhkKEXN1cHBvcnRzX2xvb2tiYWNrGAsgASgIIlIKD1Jlc291cmNlQ29sdW1ucxIQCghyZXNvdXJjZRgBIAEoCRItCgdjb2x1bW5zGAIgAygLMhwuaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1uIk4KGkdldFJlc291cmNlQ29sdW1uc1Jlc3BvbnNlEjAKCXJlc291cmNlcxgBIAMoCzIdLmluZ2VzdGlvbi52MS5SZXNvdXJjZUNvbHVtbnNiBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination]);
 
 /**
  * Capabilities flattens source and sink capabilities; fields not relevant to a
@@ -151,14 +151,19 @@ export const ConnectorSpecSchema: GenMessage<ConnectorSpec> = /*@__PURE__*/
  */
 export type ListConnectorsRequest = Message<"ingestion.v1.ListConnectorsRequest"> & {
   /**
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
    * Filter to one kind; UNSPECIFIED returns both sources and sinks.
    *
-   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
    */
   kind: ConnectorKind;
 
   /**
-   * @generated from field: ingestion.v1.PaginationRequest pagination = 2;
+   * @generated from field: ingestion.v1.PaginationRequest pagination = 3;
    */
   pagination?: PaginationRequest | undefined;
 };
@@ -197,12 +202,17 @@ export const ListConnectorsResponseSchema: GenMessage<ListConnectorsResponse> = 
  */
 export type GetConnectorRequest = Message<"ingestion.v1.GetConnectorRequest"> & {
   /**
-   * @generated from field: string connector = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string connector = 2;
    */
   connector: string;
 
   /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 3;
    */
   kind: ConnectorKind;
 };
@@ -398,12 +408,12 @@ export type Resource = Message<"ingestion.v1.Resource"> & {
   selector: string;
 
   /**
-   * @generated from field: string display_name = 7;
+   * @generated from field: string display_name = 6;
    */
   displayName: string;
 
   /**
-   * @generated from field: map<string, string> metadata = 11;
+   * @generated from field: map<string, string> metadata = 7;
    */
   metadata: { [key: string]: string };
 };
@@ -437,22 +447,29 @@ export const DiscoverResourcesResponseSchema: GenMessage<DiscoverResourcesRespon
  */
 export type GetResourceColumnsRequest = Message<"ingestion.v1.GetResourceColumnsRequest"> & {
   /**
-   * @generated from field: string connector = 1;
+   * @generated from field: string tenant_id = 1;
+   */
+  tenantId: string;
+
+  /**
+   * @generated from field: string connector = 2;
    */
   connector: string;
 
   /**
-   * @generated from field: google.protobuf.Struct config = 2;
+   * @generated from field: google.protobuf.Struct config = 3;
    */
   config?: JsonObject | undefined;
 
   /**
-   * @generated from field: string connection_id = 3;
+   * tenant_id must match the connection's tenant.
+   *
+   * @generated from field: string connection_id = 4;
    */
   connectionId: string;
 
   /**
-   * @generated from field: repeated string resources = 4;
+   * @generated from field: repeated string resources = 5;
    */
   resources: string[];
 };

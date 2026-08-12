@@ -43,13 +43,14 @@ message RunOptions {
 }
 
 message RunPipelineRequest {
-  string pipeline_id = 1;
+  string tenant_id = 1;
+  string pipeline_id = 2;
   // client_token salts the idempotency key so a deliberate re-run differs from a
   // double-click; reusing a token dedupes to the same runs.
-  string client_token = 2;
+  string client_token = 3;
   // options overrides engine throughput defaults for every run this call
   // produces. Unset (or any zero field) defers to defaults.
-  RunOptions options = 3;
+  RunOptions options = 4;
 }
 
 // RunBinding ties one compiled edge to the run it produced, so the UI can bind a
@@ -75,8 +76,8 @@ message RunResourceState {
 
 // RunInfo mirrors pkg.RunState (run-level rollup).
 message RunInfo {
-  string run_id = 1;
-  string tenant_id = 2;
+  string tenant_id = 1;
+  string run_id = 2;
   string pipeline_id = 3;
   int64 pipeline_version_id = 4;
   RunStatus status = 5;
@@ -107,7 +108,8 @@ message RunSnapshot {
 }
 
 message GetRunRequest {
-  string run_id = 1;
+  string tenant_id = 1;
+  string run_id = 2;
 }
 
 message GetRunResponse {
@@ -122,8 +124,8 @@ message ListRunsRequest {
   PaginationRequest pagination = 5;
   // since_ms/until_ms window on started_at (inclusive/exclusive, epoch
   // millis); 0 means unbounded. Runs that never started are excluded.
-  int64 since_ms = 7;
-  int64 until_ms = 8;
+  int64 since_ms = 6;
+  int64 until_ms = 7;
 }
 
 message ListRunsResponse {
@@ -132,8 +134,9 @@ message ListRunsResponse {
 }
 
 message SignalRunRequest {
-  string run_id = 1;
-  Signal signal = 2;
+  string tenant_id = 1;
+  string run_id = 2;
+  Signal signal = 3;
 }
 
 message SignalRunResponse {}
@@ -159,8 +162,8 @@ message RunEventFields {
 // wire token (e.g. "written", "completed"). replay marks a snapshot-synthesized
 // event rather than a live fact.
 message RunEvent {
-  string type = 1;
-  string tenant_id = 2;
+  string tenant_id = 1;
+  string type = 2;
   string run_id = 3;
   string resource = 4;
   uint64 seq = 5;

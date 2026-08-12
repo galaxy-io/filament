@@ -402,18 +402,18 @@ func (x *PipelineVersion) GetCreatedAt() int64 {
 // most recent run.
 type Pipeline struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	TenantId         string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId         string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Id               string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	Name             string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description      string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	CurrentVersionId int64                  `protobuf:"varint,6,opt,name=current_version_id,json=currentVersionId,proto3" json:"current_version_id,omitempty"`
-	LastRunVersionId int64                  `protobuf:"varint,7,opt,name=last_run_version_id,json=lastRunVersionId,proto3" json:"last_run_version_id,omitempty"`
-	LastRunAt        int64                  `protobuf:"varint,8,opt,name=last_run_at,json=lastRunAt,proto3" json:"last_run_at,omitempty"`
-	LastRunStatus    RunStatus              `protobuf:"varint,9,opt,name=last_run_status,json=lastRunStatus,proto3,enum=ingestion.v1.RunStatus" json:"last_run_status,omitempty"`
-	LastRunBytes     int64                  `protobuf:"varint,10,opt,name=last_run_bytes,json=lastRunBytes,proto3" json:"last_run_bytes,omitempty"`
-	LastRunEndedAt   int64                  `protobuf:"varint,11,opt,name=last_run_ended_at,json=lastRunEndedAt,proto3" json:"last_run_ended_at,omitempty"`
-	CreatedAt        int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	DeletedAt        int64                  `protobuf:"varint,13,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	CurrentVersionId int64                  `protobuf:"varint,5,opt,name=current_version_id,json=currentVersionId,proto3" json:"current_version_id,omitempty"`
+	LastRunVersionId int64                  `protobuf:"varint,6,opt,name=last_run_version_id,json=lastRunVersionId,proto3" json:"last_run_version_id,omitempty"`
+	LastRunAt        int64                  `protobuf:"varint,7,opt,name=last_run_at,json=lastRunAt,proto3" json:"last_run_at,omitempty"`
+	LastRunStatus    RunStatus              `protobuf:"varint,8,opt,name=last_run_status,json=lastRunStatus,proto3,enum=ingestion.v1.RunStatus" json:"last_run_status,omitempty"`
+	LastRunBytes     int64                  `protobuf:"varint,9,opt,name=last_run_bytes,json=lastRunBytes,proto3" json:"last_run_bytes,omitempty"`
+	LastRunEndedAt   int64                  `protobuf:"varint,10,opt,name=last_run_ended_at,json=lastRunEndedAt,proto3" json:"last_run_ended_at,omitempty"`
+	CreatedAt        int64                  `protobuf:"varint,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	DeletedAt        int64                  `protobuf:"varint,12,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -448,16 +448,16 @@ func (*Pipeline) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *Pipeline) GetId() string {
+func (x *Pipeline) GetTenantId() string {
 	if x != nil {
-		return x.Id
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *Pipeline) GetTenantId() string {
+func (x *Pipeline) GetId() string {
 	if x != nil {
-		return x.TenantId
+		return x.Id
 	}
 	return ""
 }
@@ -799,8 +799,9 @@ func (x *CreatePipelineResponse) GetSchedule() *PipelineSchedule {
 
 type CreatePipelineScheduleRequest struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
-	PipelineId    string                  `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
-	Schedule      *PipelineScheduleConfig `protobuf:"bytes,2,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	TenantId      string                  `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                  `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Schedule      *PipelineScheduleConfig `protobuf:"bytes,3,opt,name=schedule,proto3" json:"schedule,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -833,6 +834,13 @@ func (x *CreatePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreatePipelineScheduleRequest.ProtoReflect.Descriptor instead.
 func (*CreatePipelineScheduleRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CreatePipelineScheduleRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *CreatePipelineScheduleRequest) GetPipelineId() string {
@@ -895,8 +903,9 @@ func (x *CreatePipelineScheduleResponse) GetSchedule() *PipelineSchedule {
 
 type UpdatePipelineScheduleRequest struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
-	PipelineId    string                  `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
-	Schedule      *PipelineScheduleConfig `protobuf:"bytes,2,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	TenantId      string                  `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                  `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Schedule      *PipelineScheduleConfig `protobuf:"bytes,3,opt,name=schedule,proto3" json:"schedule,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -929,6 +938,13 @@ func (x *UpdatePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdatePipelineScheduleRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineScheduleRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UpdatePipelineScheduleRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *UpdatePipelineScheduleRequest) GetPipelineId() string {
@@ -991,7 +1007,8 @@ func (x *UpdatePipelineScheduleResponse) GetSchedule() *PipelineSchedule {
 
 type DeletePipelineScheduleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1024,6 +1041,13 @@ func (x *DeletePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeletePipelineScheduleRequest.ProtoReflect.Descriptor instead.
 func (*DeletePipelineScheduleRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeletePipelineScheduleRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *DeletePipelineScheduleRequest) GetPipelineId() string {
@@ -1071,7 +1095,8 @@ func (*DeletePipelineScheduleResponse) Descriptor() ([]byte, []int) {
 
 type PausePipelineScheduleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1104,6 +1129,13 @@ func (x *PausePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use PausePipelineScheduleRequest.ProtoReflect.Descriptor instead.
 func (*PausePipelineScheduleRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PausePipelineScheduleRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *PausePipelineScheduleRequest) GetPipelineId() string {
@@ -1159,7 +1191,8 @@ func (x *PausePipelineScheduleResponse) GetSchedule() *PipelineSchedule {
 
 type ResumePipelineScheduleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1192,6 +1225,13 @@ func (x *ResumePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ResumePipelineScheduleRequest.ProtoReflect.Descriptor instead.
 func (*ResumePipelineScheduleRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ResumePipelineScheduleRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *ResumePipelineScheduleRequest) GetPipelineId() string {
@@ -1247,9 +1287,10 @@ func (x *ResumePipelineScheduleResponse) GetSchedule() *PipelineSchedule {
 
 type CreatePipelineVersionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
-	Nodes         []*PipelineNode        `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	Edges         []*PipelineEdge        `protobuf:"bytes,3,rep,name=edges,proto3" json:"edges,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Nodes         []*PipelineNode        `protobuf:"bytes,3,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Edges         []*PipelineEdge        `protobuf:"bytes,4,rep,name=edges,proto3" json:"edges,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1282,6 +1323,13 @@ func (x *CreatePipelineVersionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreatePipelineVersionRequest.ProtoReflect.Descriptor instead.
 func (*CreatePipelineVersionRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CreatePipelineVersionRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *CreatePipelineVersionRequest) GetPipelineId() string {
@@ -1351,7 +1399,8 @@ func (x *CreatePipelineVersionResponse) GetVersion() *PipelineVersion {
 
 type UpdatePipelineRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Pipeline      *Pipeline              `protobuf:"bytes,1,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Pipeline      *Pipeline              `protobuf:"bytes,2,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1384,6 +1433,13 @@ func (x *UpdatePipelineRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdatePipelineRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *UpdatePipelineRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *UpdatePipelineRequest) GetPipeline() *Pipeline {
@@ -1439,7 +1495,8 @@ func (x *UpdatePipelineResponse) GetPipeline() *Pipeline {
 
 type GetPipelineRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1472,6 +1529,13 @@ func (x *GetPipelineRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetPipelineRequest.ProtoReflect.Descriptor instead.
 func (*GetPipelineRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetPipelineRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *GetPipelineRequest) GetId() string {
@@ -1551,8 +1615,9 @@ func (x *GetPipelineResponse) GetSchedule() *PipelineSchedule {
 
 type GetPipelineVersionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
-	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Version       int64                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1585,6 +1650,13 @@ func (x *GetPipelineVersionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetPipelineVersionRequest.ProtoReflect.Descriptor instead.
 func (*GetPipelineVersionRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GetPipelineVersionRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *GetPipelineVersionRequest) GetPipelineId() string {
@@ -1647,8 +1719,9 @@ func (x *GetPipelineVersionResponse) GetVersion() *PipelineVersion {
 
 type ListPipelineVersionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
-	Pagination    *PaginationRequest     `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId    string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Pagination    *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1681,6 +1754,13 @@ func (x *ListPipelineVersionsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListPipelineVersionsRequest.ProtoReflect.Descriptor instead.
 func (*ListPipelineVersionsRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ListPipelineVersionsRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *ListPipelineVersionsRequest) GetPipelineId() string {
@@ -1863,7 +1943,8 @@ func (x *ListPipelinesResponse) GetPagination() *PaginationResponse {
 
 type DeletePipelineRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1896,6 +1977,13 @@ func (x *DeletePipelineRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeletePipelineRequest.ProtoReflect.Descriptor instead.
 func (*DeletePipelineRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *DeletePipelineRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
 }
 
 func (x *DeletePipelineRequest) GetId() string {
@@ -1977,22 +2065,22 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x05edges\x18\x04 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\xba\x03\n" +
-	"\bPipeline\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x12\n" +
+	"\bPipeline\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12,\n" +
-	"\x12current_version_id\x18\x06 \x01(\x03R\x10currentVersionId\x12-\n" +
-	"\x13last_run_version_id\x18\a \x01(\x03R\x10lastRunVersionId\x12\x1e\n" +
-	"\vlast_run_at\x18\b \x01(\x03R\tlastRunAt\x12?\n" +
-	"\x0flast_run_status\x18\t \x01(\x0e2\x17.ingestion.v1.RunStatusR\rlastRunStatus\x12$\n" +
-	"\x0elast_run_bytes\x18\n" +
-	" \x01(\x03R\flastRunBytes\x12)\n" +
-	"\x11last_run_ended_at\x18\v \x01(\x03R\x0elastRunEndedAt\x12\x1d\n" +
+	"\x12current_version_id\x18\x05 \x01(\x03R\x10currentVersionId\x12-\n" +
+	"\x13last_run_version_id\x18\x06 \x01(\x03R\x10lastRunVersionId\x12\x1e\n" +
+	"\vlast_run_at\x18\a \x01(\x03R\tlastRunAt\x12?\n" +
+	"\x0flast_run_status\x18\b \x01(\x0e2\x17.ingestion.v1.RunStatusR\rlastRunStatus\x12$\n" +
+	"\x0elast_run_bytes\x18\t \x01(\x03R\flastRunBytes\x12)\n" +
+	"\x11last_run_ended_at\x18\n" +
+	" \x01(\x03R\x0elastRunEndedAt\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"created_at\x18\v \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"deleted_at\x18\r \x01(\x03R\tdeletedAt\"\xb6\x01\n" +
+	"deleted_at\x18\f \x01(\x03R\tdeletedAt\"\xb6\x01\n" +
 	"\x16PipelineScheduleConfig\x12\x12\n" +
 	"\x04cron\x18\x01 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x02 \x01(\tR\btimezone\x12\x18\n" +
@@ -2013,62 +2101,72 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\bschedule\x18\x04 \x01(\v2$.ingestion.v1.PipelineScheduleConfigR\bschedule\"\x88\x01\n" +
 	"\x16CreatePipelineResponse\x122\n" +
 	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\x12:\n" +
-	"\bschedule\x18\x02 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\x82\x01\n" +
-	"\x1dCreatePipelineScheduleRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\bschedule\x18\x02 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\x9f\x01\n" +
+	"\x1dCreatePipelineScheduleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x12@\n" +
-	"\bschedule\x18\x02 \x01(\v2$.ingestion.v1.PipelineScheduleConfigR\bschedule\"\\\n" +
+	"\bschedule\x18\x03 \x01(\v2$.ingestion.v1.PipelineScheduleConfigR\bschedule\"\\\n" +
 	"\x1eCreatePipelineScheduleResponse\x12:\n" +
-	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\x82\x01\n" +
-	"\x1dUpdatePipelineScheduleRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\x9f\x01\n" +
+	"\x1dUpdatePipelineScheduleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x12@\n" +
-	"\bschedule\x18\x02 \x01(\v2$.ingestion.v1.PipelineScheduleConfigR\bschedule\"\\\n" +
+	"\bschedule\x18\x03 \x01(\v2$.ingestion.v1.PipelineScheduleConfigR\bschedule\"\\\n" +
 	"\x1eUpdatePipelineScheduleResponse\x12:\n" +
-	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"@\n" +
-	"\x1dDeletePipelineScheduleRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"]\n" +
+	"\x1dDeletePipelineScheduleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\" \n" +
-	"\x1eDeletePipelineScheduleResponse\"?\n" +
-	"\x1cPausePipelineScheduleRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\x1eDeletePipelineScheduleResponse\"\\\n" +
+	"\x1cPausePipelineScheduleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\"[\n" +
 	"\x1dPausePipelineScheduleResponse\x12:\n" +
-	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"@\n" +
-	"\x1dResumePipelineScheduleRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"]\n" +
+	"\x1dResumePipelineScheduleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\"\\\n" +
 	"\x1eResumePipelineScheduleResponse\x12:\n" +
-	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\xa3\x01\n" +
-	"\x1cCreatePipelineVersionRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\xc0\x01\n" +
+	"\x1cCreatePipelineVersionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x120\n" +
-	"\x05nodes\x18\x02 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
-	"\x05edges\x18\x03 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\"X\n" +
+	"\x05nodes\x18\x03 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
+	"\x05edges\x18\x04 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\"X\n" +
 	"\x1dCreatePipelineVersionResponse\x127\n" +
-	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"K\n" +
-	"\x15UpdatePipelineRequest\x122\n" +
-	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"L\n" +
+	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"h\n" +
+	"\x15UpdatePipelineRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x122\n" +
+	"\bpipeline\x18\x02 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"L\n" +
 	"\x16UpdatePipelineResponse\x122\n" +
-	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"$\n" +
-	"\x12GetPipelineRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x88\x02\n" +
+	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"A\n" +
+	"\x12GetPipelineRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\x88\x02\n" +
 	"\x13GetPipelineResponse\x122\n" +
 	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\x12F\n" +
 	"\x0fcurrent_version\x18\x02 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\x0ecurrentVersion\x129\n" +
 	"\bversions\x18\x03 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\x12:\n" +
-	"\bschedule\x18\x04 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"V\n" +
-	"\x19GetPipelineVersionRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\bschedule\x18\x04 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"s\n" +
+	"\x19GetPipelineVersionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x03R\aversion\"U\n" +
+	"\aversion\x18\x03 \x01(\x03R\aversion\"U\n" +
 	"\x1aGetPipelineVersionResponse\x127\n" +
-	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\x7f\n" +
-	"\x1bListPipelineVersionsRequest\x12\x1f\n" +
-	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\x9c\x01\n" +
+	"\x1bListPipelineVersionsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x12?\n" +
 	"\n" +
-	"pagination\x18\x02 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\x18\x03 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
 	"pagination\"\x9b\x01\n" +
 	"\x1cListPipelineVersionsResponse\x129\n" +
 	"\bversions\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\x12@\n" +
@@ -2085,9 +2183,10 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\tpipelines\x18\x01 \x03(\v2\x16.ingestion.v1.PipelineR\tpipelines\x12@\n" +
 	"\n" +
 	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
-	"pagination\"'\n" +
-	"\x15DeletePipelineRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x18\n" +
+	"pagination\"D\n" +
+	"\x15DeletePipelineRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\x18\n" +
 	"\x16DeletePipelineResponse*\xa8\x01\n" +
 	"\x1dPipelineScheduleOverlapPolicy\x120\n" +
 	",PIPELINE_SCHEDULE_OVERLAP_POLICY_UNSPECIFIED\x10\x00\x12)\n" +
