@@ -1,6 +1,6 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { HandIcon, PlusIcon, SelectionIcon } from "@phosphor-icons/react";
-import { type FitViewOptions, type HandleType, Position } from "@xyflow/react";
+import { type HandleType, Position } from "@xyflow/react";
 
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
@@ -14,12 +14,9 @@ import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 
 export const PIPELINE_CANVAS_FIT_MIN_ZOOM = 0.5;
 export const PIPELINE_CANVAS_FIT_MAX_ZOOM = 1;
-export const PIPELINE_CANVAS_FIT_PADDING = 0.5;
 
-export const PIPELINE_CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
-  padding: PIPELINE_CANVAS_FIT_PADDING,
-  maxZoom: PIPELINE_CANVAS_FIT_MAX_ZOOM,
-};
+export const PIPELINE_CANVAS_FIT_INSET_Y = 48;
+export const PIPELINE_CANVAS_FIT_INSET_LEFT = 80;
 
 export const PIPELINE_CANVAS_SNAP_GRID: [number, number] = [20, 20];
 

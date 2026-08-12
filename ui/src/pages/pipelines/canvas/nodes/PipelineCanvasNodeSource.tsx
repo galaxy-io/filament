@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
@@ -9,7 +9,6 @@ import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb"
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasNode from "@/pages/pipelines/canvas/nodes/PipelineCanvasNode";
-import PipelineCanvasNodeConfigIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeConfigIsland";
 import PipelineCanvasNodeSourceIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIsland";
 import type { PipelineCanvasNodeSourceProps } from "@/pages/pipelines/canvas/nodes/types";
 import {
@@ -39,19 +38,10 @@ const useSourceResources = (connectionId: Connection["id"]) => {
   return { tables, error, isLoading: isFetching, refresh: () => void refetch() };
 };
 
-interface PipelineCanvasNodeSourceState {
-  isConfigOpen: boolean;
-}
-
-const DEFAULT_STATE: PipelineCanvasNodeSourceState = {
-  isConfigOpen: false,
-};
-
 const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNodeSourceProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "source" });
-  const { removeNode, setNodeConfig } = usePipelineCanvasActions();
-  const [localState, setLocalState] = useState<PipelineCanvasNodeSourceState>(DEFAULT_STATE);
+  const { removeNode } = usePipelineCanvasActions();
   const { data: connectionsData } = useSuspenseListConnectionsQuery();
   const connection = connectionsData.connections.find((item) => item.id === data.connectionId);
   const {
@@ -75,10 +65,6 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
     [discoveredTables, connectedHandleIds],
   );
 
-  const handleConfigure = useCallback(() => {
-    setLocalState((prev) => ({ ...prev, isConfigOpen: !prev.isConfigOpen }));
-  }, []);
-
   return (
     <PipelineCanvasNode
       connector={connection?.connector ?? ""}
@@ -88,16 +74,7 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
       isSelected={selected}
       onRefresh={isReadOnly ? undefined : refresh}
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
-      onConfigure={handleConfigure}
     >
-      <PipelineCanvasNodeConfigIsland
-        connector={connection?.connector ?? ""}
-        kind={ConnectorKind.SOURCE}
-        config={data.config}
-        onChange={(config) => setNodeConfig(id, config)}
-        isOpen={localState.isConfigOpen}
-        isSelected={selected}
-      />
       {(isLoading || error || tables.length > 0) && (
         <PipelineCanvasNodeSourceIsland
           tables={tables}

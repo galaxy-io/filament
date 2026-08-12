@@ -1,0 +1,192 @@
+import { create } from "@bufbuild/protobuf";
+import { FlowArrowIcon } from "@phosphor-icons/react";
+
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+
+import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
+
+import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
+import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
+import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
+import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
+import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
+import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
+import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
+import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
+import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
+import {
+  usePipelineCanvasActions,
+  usePipelineCanvasReadOnly,
+} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
+import { getCanvasEdgeResourceLabel } from "@/pages/pipelines/canvas/utils";
+import {
+  READ_MODE_TO_LABEL_MAP,
+  WRITE_MODE_TO_LABEL_MAP,
+} from "@/pages/pipelines/components/create/constants";
+
+interface PipelineCanvasPanelResourceDetailProps {
+  edge: CanvasEdge;
+}
+
+const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResourceDetailProps) => {
+  const isReadOnly = usePipelineCanvasReadOnly();
+  const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
+  const { setEdgeConfig } = usePipelineCanvasActions();
+
+  const resource = getCanvasEdgeResource(edge);
+
+  const {
+    isCdc,
+    isLoading,
+    coveredResources,
+    readModeOptions,
+    writeModeOptions,
+    cursorOptionsByResource,
+    recommendedCursorByResource,
+  } = usePipelineCanvasPanelResourceOptions(edge);
+
+  const { label: resourceLabel, isNamedResource } = getCanvasEdgeResourceLabel(
+    resource,
+    coveredResources.length,
+  );
+
+  const readMode = edge.data?.readMode ?? ReadMode.UNSPECIFIED;
+  const writeMode = edge.data?.writeMode ?? WriteMode.UNSPECIFIED;
+  const cursors = edge.data?.cursors ?? [];
+
+  const buildRecommendedCursors = () =>
+    coveredResources
+      .filter((resourceName) => (recommendedCursorByResource[resourceName] ?? "") !== "")
+      .map((resourceName) =>
+        create(ResourceCursorConfigSchema, {
+          resource: resourceName,
+          field: recommendedCursorByResource[resourceName],
+          lookbackSeconds: 0n,
+        }),
+      );
+
+  const handleReadModeChange = (mode: ReadMode) =>
+    setEdgeConfig(edge.id, {
+      readMode: mode,
+      writeMode,
+      cursors: mode === ReadMode.INCREMENTAL ? buildRecommendedCursors() : [],
+    });
+
+  const handleWriteModeChange = (mode: WriteMode) =>
+    setEdgeConfig(edge.id, { readMode, writeMode: mode, cursors });
+
+  const handleCursorChange = (resourceName: Resource["name"], field: ResourceColumn["name"]) =>
+    setEdgeConfig(edge.id, {
+      readMode,
+      writeMode,
+      cursors: [
+        ...cursors.filter((cursor) => cursor.resource !== resourceName),
+        create(ResourceCursorConfigSchema, {
+          resource: resourceName,
+          field,
+          lookbackSeconds: 0n,
+        }),
+      ],
+    });
+
+  const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
+
+  const readModeSelectOptions: SelectInputOption[] = readModeOptions.map((mode) => ({
+    id: String(mode),
+    label: READ_MODE_TO_LABEL_MAP[mode],
+    value: mode,
+  }));
+  const writeModeSelectOptions: SelectInputOption[] = writeModeOptions.map((mode) => ({
+    id: String(mode),
+    label: WRITE_MODE_TO_LABEL_MAP[mode],
+    value: mode,
+  }));
+
+  return (
+    <>
+      <PipelineCanvasPanelHeader
+        title={resourceLabel}
+        icon={FlowArrowIcon}
+        onBack={clearSelection}
+        onClose={() => setShowPanel(false)}
+      />
+      <PipelineCanvasPanelBody>
+        <ConnectionDrawerList>
+          <ConnectionDrawerKeyValueRow
+            label="Source"
+            value={
+              <PipelineCanvasPanelResourceEndpoint
+                nodeId={edge.source}
+                kind={ConnectorKind.SOURCE}
+              />
+            }
+          />
+          <ConnectionDrawerKeyValueRow
+            label="Resource"
+            value={
+              <Text size={TextSize.BODY_SM} isMonospace={isNamedResource}>
+                {resourceLabel}
+              </Text>
+            }
+          />
+          <ConnectionDrawerKeyValueRow
+            label="Sink"
+            value={
+              <PipelineCanvasPanelResourceEndpoint nodeId={edge.target} kind={ConnectorKind.SINK} />
+            }
+          />
+        </ConnectionDrawerList>
+        <PipelineCanvasPanelSection
+          header="Configuration"
+          isEmpty={isCdc}
+          emptyHeader="Managed automatically"
+          emptyMessage="This connection replicates changes via CDC, so read and write modes are set for you."
+          padding="12px"
+        >
+          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+            <SelectInput
+              label="Read mode"
+              options={readModeSelectOptions}
+              value={readModeSelectOptions.find((option) => option.value === readMode) ?? null}
+              onChange={(option) => handleReadModeChange(option.value as ReadMode)}
+              placeholder="Select a read mode..."
+              size={InputSize.LARGE}
+              isDisabled={isReadOnly || isLoading}
+              fillWidth
+            />
+            <SelectInput
+              label="Write mode"
+              options={writeModeSelectOptions}
+              value={writeModeSelectOptions.find((option) => option.value === writeMode) ?? null}
+              onChange={(option) => handleWriteModeChange(option.value as WriteMode)}
+              placeholder="Select a write mode..."
+              size={InputSize.LARGE}
+              isDisabled={isReadOnly || isLoading}
+              fillWidth
+            />
+            {readMode === ReadMode.INCREMENTAL &&
+              coveredResources.map((resourceName) => (
+                <PipelineCanvasPanelResourceCursorField
+                  key={resourceName}
+                  resource={resourceName}
+                  value={cursorsByResource.get(resourceName) ?? ""}
+                  options={cursorOptionsByResource[resourceName] ?? []}
+                  isDisabled={isReadOnly || isLoading}
+                  onChange={(field) => handleCursorChange(resourceName, field)}
+                />
+              ))}
+          </FlexWrapper>
+        </PipelineCanvasPanelSection>
+      </PipelineCanvasPanelBody>
+    </>
+  );
+};
+
+export default PipelineCanvasPanelResourceDetail;

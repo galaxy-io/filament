@@ -10,7 +10,7 @@ import {
   formatRunEventDetail,
   formatRunEventTime,
   getRunEventTextVariant,
-} from "@/pages/pipelines/canvas/terminal/utils";
+} from "@/pages/pipelines/canvas/panel/activity/utils";
 
 const LineWrapper = styled.div`
   display: flex;
@@ -30,11 +30,11 @@ const Detail = styled.div`
   overflow-wrap: anywhere;
 `;
 
-interface PipelineCanvasTerminalLineProps {
+interface PipelineCanvasPanelActivityLineProps {
   event: RunEvent;
 }
 
-const PipelineCanvasTerminalLine = ({ event }: PipelineCanvasTerminalLineProps) => {
+const PipelineCanvasPanelActivityLine = ({ event }: PipelineCanvasPanelActivityLineProps) => {
   const detail = formatRunEventDetail(event);
 
   return (
@@ -57,4 +57,4 @@ const PipelineCanvasTerminalLine = ({ event }: PipelineCanvasTerminalLineProps) 
   );
 };
 
-export default PipelineCanvasTerminalLine;
+export default PipelineCanvasPanelActivityLine;

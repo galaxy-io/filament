@@ -14,6 +14,7 @@ import {
   PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE,
   PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE,
 } from "@/pages/pipelines/canvas/nodes/constants";
+import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
 const HandleSlot = styled.div`
   width: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
@@ -73,15 +74,20 @@ const PipelineCanvasNodeHandle = ({
   kind,
   position,
   isConnected,
-}: PipelineCanvasNodeHandleProps) => (
-  <HandleSlot>
-    <StyledHandle
-      id={id}
-      type={CONNECTOR_KIND_TO_HANDLE_TYPE_MAP[kind]}
-      position={position}
-      $isConnected={isConnected}
-    />
-  </HandleSlot>
-);
+}: PipelineCanvasNodeHandleProps) => {
+  const isReadOnly = usePipelineCanvasReadOnly();
+
+  return (
+    <HandleSlot>
+      <StyledHandle
+        id={id}
+        type={CONNECTOR_KIND_TO_HANDLE_TYPE_MAP[kind]}
+        position={position}
+        isConnectable={!isReadOnly}
+        $isConnected={isConnected}
+      />
+    </HandleSlot>
+  );
+};
 
 export default PipelineCanvasNodeHandle;

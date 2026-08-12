@@ -8,7 +8,9 @@ import {
   PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
   PIPELINE_CANVAS_NODE_TYPE_TO_COUNTERPART_TYPE_MAP,
 } from "@/pages/pipelines/canvas/constants";
+import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import {
+  type CanvasEdge,
   type CanvasNode,
   isConnectionNode,
   PipelineCanvasNodeType,
@@ -27,6 +29,59 @@ export const createNodeFromConnection = (
   }
 
   return { id: crypto.randomUUID(), type: PipelineCanvasNodeType.SINK, position, data };
+};
+
+type CanvasEdgeEndpoints = Pick<CanvasEdge, "source" | "target" | "sourceHandle">;
+
+const getPairEdges = (edges: CanvasEdge[], pair: Pick<CanvasEdge, "source" | "target">) =>
+  edges.filter((edge) => edge.source === pair.source && edge.target === pair.target);
+
+const mapEdgesToPairs = (edges: CanvasEdge[]): CanvasEdge[][] => {
+  const pairs = new Map<string, CanvasEdge[]>();
+  for (const edge of edges) {
+    const key = `${edge.source} ${edge.target}`;
+    pairs.set(key, [...(pairs.get(key) ?? []), edge]);
+  }
+  return [...pairs.values()];
+};
+
+export const canConnectEdge = (connection: CanvasEdgeEndpoints, edges: CanvasEdge[]): boolean => {
+  const pairEdges = getPairEdges(edges, connection);
+  if (!pairEdges.length) return true;
+
+  const resource = getCanvasEdgeResource(connection);
+  if (!resource) return false;
+
+  return pairEdges.every((edge) => {
+    const existing = getCanvasEdgeResource(edge);
+    return existing !== "" && existing !== resource;
+  });
+};
+
+export const getPipelineGraphConflicts = (
+  edges: CanvasEdge[],
+  connectionByNodeId: Map<CanvasNode["id"], Connection | undefined>,
+): string[] => {
+  const getNodeLabel = (nodeId: CanvasNode["id"]) => connectionByNodeId.get(nodeId)?.name ?? nodeId;
+
+  return mapEdgesToPairs(edges).flatMap((pairEdges) => {
+    const { source, target } = pairEdges[0];
+    const resources = pairEdges.map(getCanvasEdgeResource);
+    const named = resources.filter(Boolean);
+    const route = `${getNodeLabel(source)} → ${getNodeLabel(target)}`;
+
+    const conflicts: string[] = [];
+    if (named.length && named.length !== resources.length) {
+      conflicts.push(
+        `${route} routes all resources and individual resources at the same time. Remove one or the other.`,
+      );
+    }
+    const duplicated = [...new Set(named.filter((name, index) => named.indexOf(name) !== index))];
+    if (duplicated.length) {
+      conflicts.push(`${route} routes ${duplicated.join(", ")} more than once.`);
+    }
+    return conflicts;
+  });
 };
 
 export const canAddSourceNode = (nodes: CanvasNode[]): boolean =>

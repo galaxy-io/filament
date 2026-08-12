@@ -32,6 +32,24 @@ const TableListShimmer = () => (
   </>
 );
 
+const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
+  <TableRow>
+    <Text
+      size={TextSize.BODY_SM}
+      variant={table.isConnected ? TextVariant.PRIMARY : TextVariant.TERTIARY}
+      isMonospace
+    >
+      {table.name}
+    </Text>
+    <PipelineCanvasNodeHandle
+      id={table.name}
+      kind={ConnectorKind.SOURCE}
+      position={Position.Right}
+      isConnected={table.isConnected}
+    />
+  </TableRow>
+);
+
 interface PipelineCanvasNodeSourceIslandTableListProps {
   tables: PipelineCanvasNodeTableInfo[];
   error?: Error | null;
@@ -67,23 +85,7 @@ const PipelineCanvasNodeSourceIslandTableList = ({
     );
   }
 
-  return tables.map((table) => (
-    <TableRow key={table.name}>
-      <Text
-        size={TextSize.BODY_SM}
-        variant={table.isConnected ? TextVariant.SECONDARY : TextVariant.TERTIARY}
-        isMonospace
-      >
-        {table.name}
-      </Text>
-      <PipelineCanvasNodeHandle
-        id={table.name}
-        kind={ConnectorKind.SOURCE}
-        position={Position.Right}
-        isConnected={table.isConnected}
-      />
-    </TableRow>
-  ));
+  return tables.map((table) => <TableListRow key={table.name} table={table} />);
 };
 
 export default PipelineCanvasNodeSourceIslandTableList;

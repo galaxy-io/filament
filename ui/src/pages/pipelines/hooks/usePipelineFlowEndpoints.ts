@@ -9,11 +9,11 @@ import { useListConnectionsQuery } from "@/api/queries/connections";
 import { useGetPipelineVersionQuery } from "@/api/queries/pipeline_versions";
 
 export const usePipelineFlowEndpoints = (pipelineId: Pipeline["id"]) => {
-  const { data: versionData } = useGetPipelineVersionQuery({
+  const { data: versionData, isLoading: isVersionLoading } = useGetPipelineVersionQuery({
     input: create(GetPipelineVersionRequestSchema, { pipelineId }),
     options: { retry: false },
   });
-  const { data: connectionsData } = useListConnectionsQuery({
+  const { data: connectionsData, isLoading: isConnectionsLoading } = useListConnectionsQuery({
     input: create(ListConnectionsRequestSchema, {}),
   });
 
@@ -22,5 +22,10 @@ export const usePipelineFlowEndpoints = (pipelineId: Pipeline["id"]) => {
     connectionsData?.connections ?? [],
   );
 
-  return { source, sinks, hasEdges: (versionData?.version?.edges ?? []).length > 0 };
+  return {
+    source,
+    sinks,
+    hasEdges: (versionData?.version?.edges ?? []).length > 0,
+    isLoading: isVersionLoading || isConnectionsLoading,
+  };
 };

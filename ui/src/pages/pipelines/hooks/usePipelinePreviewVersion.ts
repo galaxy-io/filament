@@ -7,7 +7,7 @@ import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 export const usePipelinePreviewVersion = (): PipelineVersion | undefined => {
   const { id } = useParams({ from: "/pipelines/$id" });
-  const { version: searchVersion } = useSearch({ strict: false });
+  const { version: searchVersion } = useSearch({ from: "/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
