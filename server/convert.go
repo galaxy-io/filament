@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -292,6 +293,8 @@ func fieldTypeToProto(t filament.FieldType) ingestionv1.FieldType {
 		return ingestionv1.FieldType_FIELD_TYPE_ENUM
 	case filament.FieldObject:
 		return ingestionv1.FieldType_FIELD_TYPE_OBJECT
+	case filament.FieldList:
+		return ingestionv1.FieldType_FIELD_TYPE_LIST
 	default:
 		return ingestionv1.FieldType_FIELD_TYPE_UNSPECIFIED
 	}
@@ -565,6 +568,9 @@ func validateConfigField(field filament.ConfigField, cfg filament.Config, path s
 	if field.Required && !cfg.Has(field.Name) {
 		return fmt.Errorf("%s is required", path)
 	}
+	if field.Required && field.Type == filament.FieldList && configListLen(cfg.Raw()[field.Name]) == 0 {
+		return fmt.Errorf("%s is required", path)
+	}
 	if !cfg.Has(field.Name) || len(field.Fields) == 0 {
 		return nil
 	}
@@ -575,6 +581,25 @@ func validateConfigField(field filament.ConfigField, cfg filament.Config, path s
 		}
 	}
 	return nil
+}
+
+func configListLen(value any) int {
+	switch value := value.(type) {
+	case []string:
+		return len(value)
+	case []any:
+		return len(value)
+	case string:
+		count := 0
+		for _, item := range strings.Split(value, ",") {
+			if strings.TrimSpace(item) != "" {
+				count++
+			}
+		}
+		return count
+	default:
+		return 0
+	}
 }
 
 func fieldIsVisible(field filament.ConfigField, cfg filament.Config) bool {

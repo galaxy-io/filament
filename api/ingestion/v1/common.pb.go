@@ -84,6 +84,8 @@ const (
 	FieldType_FIELD_TYPE_DURATION    FieldType = 5
 	FieldType_FIELD_TYPE_ENUM        FieldType = 6
 	FieldType_FIELD_TYPE_OBJECT      FieldType = 7
+	// LIST is a string list; ConfigField.enum supplies the selectable values.
+	FieldType_FIELD_TYPE_LIST FieldType = 8
 )
 
 // Enum value maps for FieldType.
@@ -97,6 +99,7 @@ var (
 		5: "FIELD_TYPE_DURATION",
 		6: "FIELD_TYPE_ENUM",
 		7: "FIELD_TYPE_OBJECT",
+		8: "FIELD_TYPE_LIST",
 	}
 	FieldType_value = map[string]int32{
 		"FIELD_TYPE_UNSPECIFIED": 0,
@@ -107,6 +110,7 @@ var (
 		"FIELD_TYPE_DURATION":    5,
 		"FIELD_TYPE_ENUM":        6,
 		"FIELD_TYPE_OBJECT":      7,
+		"FIELD_TYPE_LIST":        8,
 	}
 )
 
@@ -694,6 +698,7 @@ func (x *ConfigField) GetVisibleWhen() *FieldCondition {
 	return nil
 }
 
+// EnumOption is one ordered choice for an enum or list config field.
 type EnumOption struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
@@ -1031,7 +1036,7 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\rConnectorKind\x12\x1e\n" +
 	"\x1aCONNECTOR_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CONNECTOR_KIND_SOURCE\x10\x01\x12\x17\n" +
-	"\x13CONNECTOR_KIND_SINK\x10\x02*\xc3\x01\n" +
+	"\x13CONNECTOR_KIND_SINK\x10\x02*\xd8\x01\n" +
 	"\tFieldType\x12\x1a\n" +
 	"\x16FIELD_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11FIELD_TYPE_STRING\x10\x01\x12\x12\n" +
@@ -1040,7 +1045,8 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x11FIELD_TYPE_SECRET\x10\x04\x12\x17\n" +
 	"\x13FIELD_TYPE_DURATION\x10\x05\x12\x13\n" +
 	"\x0fFIELD_TYPE_ENUM\x10\x06\x12\x15\n" +
-	"\x11FIELD_TYPE_OBJECT\x10\a*l\n" +
+	"\x11FIELD_TYPE_OBJECT\x10\a\x12\x13\n" +
+	"\x0fFIELD_TYPE_LIST\x10\b*l\n" +
 	"\x0fReplicationMode\x12 \n" +
 	"\x1cREPLICATION_MODE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REPLICATION_MODE_STANDARD\x10\x01\x12\x18\n" +

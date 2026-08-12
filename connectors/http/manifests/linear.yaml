@@ -27,20 +27,21 @@ resources:
       key: string?
       name: string
       created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz }
       raw: { path: $, type: json, mode: remainder }
     body:
       encoding: json
       template:
         query: |
-          query Teams($first: Int!, $after: String) {
-            teams(first: $first, after: $after) {
+          query Teams($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
+            teams(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
               nodes { id key name createdAt updatedAt }
               pageInfo { hasNextPage endCursor }
             }
           }
         variables:
           first: 100
+          updatedAfter: "1970-01-01T00:00:00Z"
     response:
       records: $.data.teams.nodes
       pagination:
@@ -49,6 +50,13 @@ resources:
           request: body.variables.after
           more: data.teams.pageInfo.hasNextPage
           null_terminates: true
+    incremental:
+      cursor_field: updated_at
+      start_param: variables.updatedAfter
+      inject_into: body
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: teams_updated_at
+      comparator: time
   - name: users
     path: /graphql
     method: POST
@@ -59,20 +67,21 @@ resources:
       display_name: { path: displayName, type: string, nullable: true }
       email: string?
       created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz }
       raw: { path: $, type: json, mode: remainder }
     body:
       encoding: json
       template:
         query: |
-          query Users($first: Int!, $after: String) {
-            users(first: $first, after: $after) {
+          query Users($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
+            users(first: $first, after: $after, includeArchived: true, includeDisabled: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
               nodes { id name displayName email createdAt updatedAt }
               pageInfo { hasNextPage endCursor }
             }
           }
         variables:
           first: 100
+          updatedAfter: "1970-01-01T00:00:00Z"
     response:
       records: $.data.users.nodes
       pagination:
@@ -81,6 +90,13 @@ resources:
           request: body.variables.after
           more: data.users.pageInfo.hasNextPage
           null_terminates: true
+    incremental:
+      cursor_field: updated_at
+      start_param: variables.updatedAfter
+      inject_into: body
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: users_updated_at
+      comparator: time
   - name: projects
     path: /graphql
     method: POST
@@ -91,20 +107,21 @@ resources:
       description: string?
       url: string?
       created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz }
       raw: { path: $, type: json, mode: remainder }
     body:
       encoding: json
       template:
         query: |
-          query Projects($first: Int!, $after: String) {
-            projects(first: $first, after: $after) {
+          query Projects($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
+            projects(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
               nodes { id name description url createdAt updatedAt }
               pageInfo { hasNextPage endCursor }
             }
           }
         variables:
           first: 100
+          updatedAfter: "1970-01-01T00:00:00Z"
     response:
       records: $.data.projects.nodes
       pagination:
@@ -113,6 +130,13 @@ resources:
           request: body.variables.after
           more: data.projects.pageInfo.hasNextPage
           null_terminates: true
+    incremental:
+      cursor_field: updated_at
+      start_param: variables.updatedAfter
+      inject_into: body
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: projects_updated_at
+      comparator: time
   - name: issues
     path: /graphql
     method: POST
@@ -128,7 +152,7 @@ resources:
       url: string?
       branch_name: { path: branchName, type: string, nullable: true }
       created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz }
       completed_at: { path: completedAt, type: timestamptz, nullable: true }
       archived_at: { path: archivedAt, type: timestamptz, nullable: true }
       canceled_at: { path: canceledAt, type: timestamptz, nullable: true }
@@ -180,8 +204,8 @@ resources:
       encoding: json
       template:
         query: |
-          query Issues($first: Int!, $after: String) {
-            issues(first: $first, after: $after) {
+          query Issues($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
+            issues(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
               nodes {
                 id identifier number title description priority estimate url branchName
                 createdAt updatedAt completedAt archivedAt canceledAt
@@ -197,6 +221,7 @@ resources:
           }
         variables:
           first: 100
+          updatedAfter: "1970-01-01T00:00:00Z"
     response:
       records: $.data.issues.nodes
       pagination:
@@ -205,5 +230,12 @@ resources:
           request: body.variables.after
           more: data.issues.pageInfo.hasNextPage
           null_terminates: true
+    incremental:
+      cursor_field: updated_at
+      start_param: variables.updatedAfter
+      inject_into: body
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: issues_updated_at
+      comparator: time
 discovery:
   mode: static
