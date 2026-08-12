@@ -198,8 +198,8 @@
           "required": ["cursor_field", "start_param", "inject_into"],
           "additionalProperties": false,
           "properties": {
-            "cursor_field": { "type": "string" },
-            "start_param": { "type": "string" },
+            "cursor_field": { "type": "string", "minLength": 1 },
+            "start_param": { "type": "string", "minLength": 1 },
             "inject_into": { "type": "string", "enum": ["query", "body", "header"] },
             "initial": { "type": "string" },
             "checkpoint_key": { "type": "string" },

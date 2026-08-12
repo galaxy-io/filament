@@ -12,7 +12,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
@@ -39,16 +38,23 @@ type Source struct {
 	config           filament.ConfigSchema
 	manifestData     []byte
 	dynamicResources map[string]string
+	// incrementalResources is populated by PlanIncremental for the resources in
+	// the current run. It keeps durable watermark extraction distinct from
+	// ordinary within-run pagination resume.
+	incrementalResources map[string]manifest.IncrementalSpec
+	incrementalLookbacks map[string]int
 }
 
 var (
-	_ filament.Source          = (*Source)(nil)
-	_ filament.Discoverable    = (*Source)(nil)
-	_ filament.LiveValidatable = (*Source)(nil)
-	_ filament.Resumable       = (*Source)(nil)
-	_ filament.ResumePlanner   = (*Source)(nil)
-	_ filament.ResourcePlanner = (*Source)(nil)
-	_ filament.SchemaProvider  = (*Source)(nil)
+	_ filament.Source               = (*Source)(nil)
+	_ filament.Discoverable         = (*Source)(nil)
+	_ filament.LiveValidatable      = (*Source)(nil)
+	_ filament.Resumable            = (*Source)(nil)
+	_ filament.ResumePlanner        = (*Source)(nil)
+	_ filament.IncrementalPlanner   = (*Source)(nil)
+	_ filament.ResourcePlanner      = (*Source)(nil)
+	_ filament.SchemaProvider       = (*Source)(nil)
+	_ filament.CursorColumnProvider = (*Source)(nil)
 )
 
 // New returns the generic manifest-path-configured HTTP source.
@@ -70,22 +76,59 @@ func NewManifestWithMetadata(name, displayName, description, darkLogoURL, lightL
 // Spec reports the source's capabilities and configuration surface.
 func (s *Source) Spec() filament.ConnectorSpec {
 	config := s.configSchema()
-	return filament.ConnectorSpec{
-		Name:         s.name,
-		DisplayName:  s.displayName,
-		Description:  s.description,
-		DarkLogoURL:  s.darkLogoURL,
-		LightLogoURL: s.lightLogoURL,
-		Version:      "1",
-		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental},
-		SourcePolicies: filament.SourcePolicies(
-			filament.IngestionFullReplace,
-			filament.IngestionFullUpsert,
-			filament.IngestionFullAppend,
-		),
-		Config:    config,
-		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+	modes := []filament.ReadMode{filament.ModeFull}
+	policies := []filament.IngestionType{
+		filament.IngestionFullReplace,
+		filament.IngestionFullUpsert,
+		filament.IngestionFullAppend,
 	}
+	if s.canDeclareIncremental() {
+		modes = append(modes, filament.ModeIncremental)
+		policies = append(policies,
+			filament.IngestionIncrementalAppend,
+			filament.IngestionIncrementalUpsert,
+		)
+	}
+	return filament.ConnectorSpec{
+		Name:           s.name,
+		DisplayName:    s.displayName,
+		Description:    s.description,
+		DarkLogoURL:    s.darkLogoURL,
+		LightLogoURL:   s.lightLogoURL,
+		Version:        "1",
+		Modes:          modes,
+		SourcePolicies: filament.SourcePolicies(policies...),
+		Config:         config,
+		Resources:      filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+	}
+}
+
+// canDeclareIncremental is optimistic for the generic manifest-path source,
+// whose manifest is unavailable until configuration. Embedded connectors only
+// advertise incremental mode when at least one resource actually declares a
+// durable watermark.
+func (s *Source) canDeclareIncremental() bool {
+	if s.connector != nil && s.connector.manifest != nil {
+		for _, resource := range s.connector.manifest.Resources {
+			if resource.Incremental != nil {
+				return true
+			}
+		}
+		return false
+	}
+	if len(s.manifestData) == 0 {
+		return true
+	}
+	m, err := manifest.Parse(s.manifestData)
+	if err != nil {
+		return false
+	}
+	for _, resource := range m.Resources {
+		if resource.Incremental != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // Validate checks that all required config fields are present and non-empty.
@@ -269,6 +312,8 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 
 // Extract runs a full extraction into sink.
 func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+	s.incrementalResources = nil
+	s.incrementalLookbacks = nil
 	return s.extract(ctx, sink, opts, nil, nil)
 }
 
@@ -283,6 +328,18 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 			continue
 		}
 		key := ks.Shards[0].Key
+		if ks.Mode == checkpoint.ModeIncremental {
+			for i, checkpointKey := range ks.Cols {
+				if i >= len(key) || key[i] == "" {
+					continue
+				}
+				if resumeWatermarks[resource] == nil {
+					resumeWatermarks[resource] = map[string]string{}
+				}
+				resumeWatermarks[resource][checkpointKey] = key[i]
+			}
+			continue
+		}
 		resumeCursors[resource] = key[0]
 		for i, checkpointKey := range ks.Cols[1:] {
 			if i+1 >= len(key) || key[i+1] == "" {
@@ -305,8 +362,8 @@ func (s *Source) PlanResources(_ context.Context, resources, selectors []string)
 	return s.planResources(resources, selectors)
 }
 
-// PlanResume builds per-resource keyset checkpoints seeded from prev,
-// reshaping columns to the current cursor + watermark layout.
+// PlanResume builds per-resource pagination checkpoints for a full read.
+// Durable watermarks belong exclusively to PlanIncremental.
 func (s *Source) PlanResume(_ context.Context, resources []string, prev map[string]filament.Checkpoint) (map[string]filament.Checkpoint, error) {
 	if s.connector == nil || s.connector.manifest == nil {
 		return nil, fmt.Errorf("httpapi source: plan resume before configure")
@@ -317,7 +374,7 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 	}
 	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, resource := range resources {
-		cols := append([]string{"cursor"}, s.watermarkKeys(resource)...)
+		cols := []string{"cursor"}
 		types := make([]string, len(cols))
 		for i := range types {
 			types[i] = "string"
@@ -387,8 +444,14 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		reducer := newIncrementalRecordReducer(s, resumeWatermarks)
 		for rec := range ch {
-			if err := sink.Push(toIngestionRecord(rec)); err != nil {
+			converted, err := reducer.record(rec)
+			if err != nil {
+				setErr(err)
+				return
+			}
+			if err := sink.Push(converted); err != nil {
 				setErr(err)
 				return
 			}
@@ -396,13 +459,15 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 	}()
 
 	err := s.connector.Extract(ctx, pipeline.ExtractOptions{
-		Sink:             pipeline.NewRecordSink(ch, done, errFn),
-		Logger:           slog.Default(),
-		Reporter:         pipeline.NoopReporter{},
-		Resources:        s.connectorResources(opts.Resources),
-		EnabledResources: enabledResources(opts.Selectors),
-		ResumeCursors:    resumeCursors,
-		ResumeWatermarks: resumeWatermarks,
+		Sink:                 pipeline.NewRecordSink(ch, done, errFn),
+		Logger:               slog.Default(),
+		Reporter:             pipeline.NoopReporter{},
+		Resources:            s.connectorResources(opts.Resources),
+		EnabledResources:     enabledResources(opts.Selectors),
+		ResumeCursors:        resumeCursors,
+		ResumeWatermarks:     resumeWatermarks,
+		IncrementalLookbacks: s.incrementalLookbacks,
+		IncrementalResources: s.incrementalResourceSet(),
 	})
 	close(ch)
 	wg.Wait()
@@ -410,6 +475,14 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 		return err
 	}
 	return errFn()
+}
+
+func (s *Source) incrementalResourceSet() map[string]bool {
+	out := make(map[string]bool, len(s.incrementalResources))
+	for resource := range s.incrementalResources {
+		out[resource] = true
+	}
+	return out
 }
 
 func (s *Source) connectorResources(resources []string) []string {
@@ -545,16 +618,6 @@ func dynamicNamePrefix(tmpl string) string {
 		return tmpl[:i]
 	}
 	return tmpl
-}
-
-func (s *Source) watermarkKeys(resource string) []string {
-	resource = s.baseResourceName(resource)
-	for _, res := range s.connector.manifest.Resources {
-		if res.Name == resource && res.Incremental != nil {
-			return []string{incremental.CheckpointKey(*res.Incremental)}
-		}
-	}
-	return nil
 }
 
 // Teardown releases the underlying connector's resources.

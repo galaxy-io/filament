@@ -389,11 +389,17 @@ func (c *Connector) sendRecords(
 		wr.Resource = resourceName
 		wr.Projected = projected
 		wr.Cursor = cursor
-		if tracker != nil && tracker.Observe(rec) {
-			c.reportWatermarkOnce(res.Name, tracker)
-		}
-		if tracker != nil && tracker.Current() != "" {
-			wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+		if tracker != nil {
+			advanced, err := tracker.ObserveChecked(rec)
+			if err != nil {
+				return n, captured, fmt.Errorf("incremental cursor: %w", err)
+			}
+			if advanced {
+				c.reportWatermarkOnce(res.Name, tracker)
+			}
+			if tracker.Current() != "" {
+				wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+			}
 		}
 		if err := sink.Send(ctx, wr); err != nil {
 			return n, captured, err
