@@ -51,6 +51,10 @@ import (
 type Tracker struct {
 	spec     manifest.IncrementalSpec
 	resource string
+	// start is the immutable lower bound for this extraction. The running
+	// watermark advances as records arrive, but changing the request filter
+	// between pages can invalidate a server cursor and skip records.
+	start string
 
 	wm     *atomicwatermark.Watermark
 	logger *slog.Logger
@@ -100,6 +104,7 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	t := &Tracker{
 		spec:     spec,
 		resource: resource,
+		start:    start,
 		wm:       wm,
 	}
 	for _, opt := range opts {
@@ -160,10 +165,9 @@ func (t *Tracker) CheckpointKey() string { return t.checkpointKey() }
 // CheckpointKey resolves the durable storage key for an incremental spec.
 func CheckpointKey(spec manifest.IncrementalSpec) string { return checkpointKey(spec) }
 
-// Scope returns a {start_param: effective_value} pair suitable for merging
-// into a template scope's State map. The effective value is the current
-// watermark minus OverlapSeconds (time or numeric timestamp comparator). Returns nil when no
-// watermark is set yet.
+// Scope returns a {start_param: effective_start} pair suitable for merging
+// into a template scope's State map. The lower bound is fixed for the entire
+// extraction so paginated requests all scan the same result set.
 func (t *Tracker) Scope() map[string]string {
 	v := t.effective()
 	if v == "" {
@@ -172,10 +176,10 @@ func (t *Tracker) Scope() map[string]string {
 	return map[string]string{t.spec.StartParam: v}
 }
 
-// effective returns the watermark value to inject — current minus overlap
-// for the time comparator, current as-is otherwise.
+// effective returns the extraction's fixed starting watermark minus overlap
+// for time/numeric comparators.
 func (t *Tracker) effective() string {
-	v := t.Current()
+	v := t.start
 	if v == "" || t.spec.OverlapSeconds == 0 {
 		return v
 	}
@@ -204,7 +208,7 @@ func (t *Tracker) effective() string {
 	return parsed.Add(-time.Duration(t.spec.OverlapSeconds) * time.Second).Format(time.RFC3339)
 }
 
-// Apply injects the current watermark into an outgoing request. For
+// Apply injects the extraction's fixed starting watermark into a request. For
 // body-injection, returns a body overrides map to be merged before encoding.
 // Returns nil overrides for query/header strategies.
 func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {
