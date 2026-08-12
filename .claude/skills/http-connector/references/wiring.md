@@ -38,11 +38,26 @@ icon: "<dark-logo-url>"
 
 Body sections: a lead paragraph noting it is manifest-driven (link to `/pages/connectors/sources/http`), `## Auth` (what the user supplies), `## Resources` (table: resource, path, fans out from; then pagination/quirks prose), `## Modes` (full vs incremental). Plain prose, no marketing.
 
-Then add a card to the `CardGroup` in `docs/pages/connectors/sources/http.mdx`, alphabetical:
+Then three cross-references, all easy to miss:
+
+1. A card in the `CardGroup` in `docs/pages/connectors/sources/http.mdx`, alphabetical:
 
 ```mdx
 <Card title="<Display>" icon="<dark-logo-url>" href="/pages/connectors/sources/<name>" />
 ```
+
+2. A nav entry in `docs/docs.json`, alphabetical among the SaaS sources:
+
+```json
+"pages/connectors/sources/<name>",
+```
+
+3. A row in the SaaS Apps table in `docs/pages/connectors/sources/overview.mdx`
+   — **and bump the spelled-out connector count**, which appears three times in
+   that file (the "All N run on the same HTTP connector" lead, the Attio row's
+   "deepest parent/child nesting of the N", and the Custom & Testing row's
+   "the N SaaS sources above run on"). Grep the current number first; it moves
+   with every connector added.
 
 ## 4. Test in source_test.go
 
