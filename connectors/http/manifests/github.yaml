@@ -69,7 +69,7 @@ resources:
     query:
       state: all
       direction: asc
-      sort: created
+      sort: updated
     primary_key: [id]
     use_fields: [issue_lifecycle]
     fields:
@@ -92,6 +92,15 @@ resources:
       pull_request: json?
       raw: { path: $, type: json, mode: remainder }
     for_each: repositories
+    incremental:
+      cursor_field: updated_at
+      start_param: since
+      inject_into: query
+      checkpoint_key: issues_updated_at
+      comparator: time
+      # Issues fan out across repositories but share one durable watermark.
+      # Re-read a window to cover repositories updated while the scan runs.
+      overlap_seconds: 300
   - name: pull_requests
     path: /repos/{organization}/{repository}/pulls
     params:

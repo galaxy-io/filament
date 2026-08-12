@@ -221,7 +221,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      created: int64?
+      created: int64
       timestamp: int64?
       name: string?
       title: string?
@@ -252,6 +252,12 @@ resources:
           size: count
           page_size: 100
           total_pages: paging.pages
+    incremental:
+      cursor_field: created
+      start_param: ts_from
+      inject_into: query
+      checkpoint_key: files_created
+      comparator: numeric
 
   - name: bookmarks
     path: /bookmarks.list
