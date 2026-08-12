@@ -74,9 +74,7 @@ const ObservabilityRunsTable = () => {
     () =>
       create(ListRunsRequestSchema, {
         status: [RunStatus.SCHEDULED],
-        pagination: create(PaginationRequestSchema, {
-          total: OBSERVABILITY_RUNS_TABLE_LIMIT,
-        }),
+        pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
       }),
     [],
   );

@@ -3,6 +3,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { ArrowLeftIcon, ImageBrokenIcon } from "@phosphor-icons/react";
 import { CancelledError } from "@tanstack/react-query";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import z from "zod";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -37,7 +38,12 @@ const PipelineNotFoundComponent = () => {
   );
 };
 
+const searchParams = z.object({
+  version: z.coerce.bigint().positive().optional().catch(undefined),
+});
+
 export const Route = createFileRoute("/pipelines/$id")({
+  validateSearch: searchParams,
   loader: async ({ params }) => {
     try {
       await Promise.all([

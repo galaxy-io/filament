@@ -11,7 +11,6 @@ import {
   type NodeChange,
   type NodeTypes,
   ReactFlow,
-  SelectionMode,
 } from "@xyflow/react";
 
 import { useTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -22,26 +21,34 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
-  PIPELINE_CANVAS_FIT_VIEW_OPTIONS,
   PIPELINE_CANVAS_SNAP_GRID,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph/layout";
+import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
+import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodePlaceholder";
 import PipelineCanvasNodeSink from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSink";
 import PipelineCanvasNodeSource from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
+import PipelineCanvasPanel from "@/pages/pipelines/canvas/panel/PipelineCanvasPanel";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { PipelineCanvasInteractionMode } from "@/pages/pipelines/canvas/providers/canvas/types";
-import PipelineCanvasTerminal from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminal";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
-import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
-import { mapEdgesToStyledEdges } from "@/pages/pipelines/canvas/utils";
+import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import {
+  getPipelineCanvasFitViewOptions,
+  mapEdgesToStyledEdges,
+  mapElementsToSelected,
+} from "@/pages/pipelines/canvas/utils";
+
+const filterSelectionChanges = <T extends { type: string }>(changes: T[]): T[] =>
+  changes.filter((change) => change.type !== "select");
 
 const PIPELINE_CANVAS_NODE_TYPE_TO_COMPONENT_MAP: Record<
   PipelineCanvasNodeType,
@@ -64,21 +71,6 @@ const PipelineCanvasPageWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabM
   flex: 1;
   min-width: 0;
   height: 100%;
-
-  .react-flow__selection {
-    background: color-mix(
-      in srgb,
-      ${({ theme }) => theme.color.background.galaxy} 8%,
-      transparent
-    );
-    border: 1px solid ${({ theme }) => theme.color.background.galaxy};
-    border-radius: 6px;
-  }
-
-  .react-flow__nodesselection-rect {
-    background: transparent;
-    border: none;
-  }
 
   .react-flow__pane {
     cursor: ${({ $isGrabMode }) => ($isGrabMode ? "grab" : "default")};
@@ -110,13 +102,22 @@ const PipelineCanvasPage = () => {
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();
   const isReadOnly = usePipelineCanvasReadOnly();
+  const {
+    selectedNodeId,
+    selectedResourceId,
+    showPanel,
+    selectNode,
+    selectResource,
+    clearSelection,
+  } = usePipelineCanvasSelection();
 
   const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {
       if (isReadOnly) return;
-      applyNodeChanges(changes);
+      const applicable = filterSelectionChanges(changes);
+      if (applicable.length) applyNodeChanges(applicable);
     },
     [applyNodeChanges, isReadOnly],
   );
@@ -124,9 +125,23 @@ const PipelineCanvasPage = () => {
   const onEdgesChange = useCallback(
     (changes: EdgeChange<CanvasEdge>[]) => {
       if (isReadOnly) return;
-      applyEdgeChanges(changes);
+      const applicable = filterSelectionChanges(changes);
+      if (applicable.length) applyEdgeChanges(applicable);
     },
     [applyEdgeChanges, isReadOnly],
+  );
+
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: CanvasNode) => {
+      if (!isConnectionNode(node)) return;
+      selectNode(node.id);
+    },
+    [selectNode],
+  );
+
+  const onEdgeClick = useCallback(
+    (_event: React.MouseEvent, edge: CanvasEdge) => selectResource(edge.id),
+    [selectResource],
   );
 
   const onConnect = useCallback(
@@ -137,14 +152,31 @@ const PipelineCanvasPage = () => {
     [connect, isReadOnly],
   );
 
-  const renderedNodes = useMemo(
-    () => [...state.nodes, ...getPlaceholderNodes(state.nodes, isReadOnly)],
-    [state.nodes, isReadOnly],
+  const isValidConnection = useCallback(
+    (connection: Connection | CanvasEdge) => canConnectEdge(connection, state.edges),
+    [state.edges],
   );
 
+  const selectedNodes = useMemo(
+    () => mapElementsToSelected(state.nodes, selectedNodeId),
+    [state.nodes, selectedNodeId],
+  );
+
+  const selectedEdges = useMemo(
+    () => mapElementsToSelected(state.edges, selectedResourceId),
+    [state.edges, selectedResourceId],
+  );
+
+  const renderedNodes = useMemo(
+    () => [...selectedNodes, ...getPlaceholderNodes(state.nodes, isReadOnly)],
+    [selectedNodes, state.nodes, isReadOnly],
+  );
+
+  const fitViewOptions = useMemo(() => getPipelineCanvasFitViewOptions(showPanel), [showPanel]);
+
   const styledEdges = useMemo(
-    () => mapEdgesToStyledEdges(state.edges, state.nodes, theme),
-    [state.edges, state.nodes, theme],
+    () => mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme),
+    [selectedEdges, selectedNodes, theme],
   );
 
   return (
@@ -155,19 +187,21 @@ const PipelineCanvasPage = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={clearSelection}
         nodeTypes={PIPELINE_CANVAS_NODE_TYPE_TO_COMPONENT_MAP}
         edgeTypes={PIPELINE_EDGE_TYPE_TO_COMPONENT_MAP}
         nodesDraggable={!isReadOnly}
         nodesConnectable={!isReadOnly}
-        elementsSelectable={!isReadOnly}
-        selectionOnDrag={!isReadOnly && !isGrabMode}
-        selectionMode={SelectionMode.Partial}
+        elementsSelectable
         panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
         panOnScroll
         snapToGrid
         snapGrid={PIPELINE_CANVAS_SNAP_GRID}
         fitView
-        fitViewOptions={PIPELINE_CANVAS_FIT_VIEW_OPTIONS}
+        fitViewOptions={fitViewOptions}
         deleteKeyCode={isReadOnly ? null : ["Backspace", "Delete"]}
         proOptions={{ hideAttribution: true }}
       >
@@ -195,7 +229,7 @@ const PipelineCanvasPage = () => {
         />
       </ReactFlow>
       {!isReadOnly && <PipelineCanvasEditWidget />}
-      {!isReadOnly && <PipelineCanvasTerminal />}
+      <PipelineCanvasPanel />
     </PipelineCanvasPageWrapper>
   );
 };

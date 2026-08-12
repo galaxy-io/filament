@@ -27,15 +27,17 @@ import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion
 import PipelineName from "@/components/PipelineName";
 
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
+import { getPipelineGraphConflicts } from "@/pages/pipelines/canvas/graph/rules";
 import {
   mapCanvasStateToVersionRequest,
   mapPipelineVersionToCanvasState,
 } from "@/pages/pipelines/canvas/graph/serialize";
+import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
+import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { usePipelineCanvasRunActions } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
@@ -88,7 +90,13 @@ const PipelineLayoutNavbar = () => {
 
   const state = usePipelineCanvasState();
   const { loadGraph } = usePipelineCanvasActions();
-  const { setActivityOpen } = usePipelineCanvasRunActions();
+  const connectionByNodeId = usePipelineCanvasConnections();
+  const showActivity = () =>
+    void navigate({
+      to: "/pipelines/$id/canvas",
+      params: { id },
+      search: (prev) => ({ ...prev, showPanel: true, tab: PipelineCanvasPanelTab.ACTIVITY }),
+    });
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
@@ -112,6 +120,11 @@ const PipelineLayoutNavbar = () => {
   const { data: validation, isPending: isValidating } = useValidatePipelineQuery({
     input: validateInput,
   });
+  const graphConflicts = useMemo(
+    () => getPipelineGraphConflicts(state.edges, connectionByNodeId),
+    [state.edges, connectionByNodeId],
+  );
+
   const runErrors = useMemo(() => getPipelineValidationErrors(validation), [validation]);
 
   const hasChanges = useMemo(
@@ -189,7 +202,7 @@ const PipelineLayoutNavbar = () => {
   const handleRun = () => {
     runPipeline(create(RunPipelineRequestSchema, { pipelineId: id }), {
       onSuccess: () => {
-        setActivityOpen(true);
+        showActivity();
         showToast({
           header: "Run started",
           subheader: `${formatPipelineName(pipeline)} is now running.`,
@@ -249,14 +262,21 @@ const PipelineLayoutNavbar = () => {
                 size={ButtonSize.SMALL}
                 onClick={handleUndo}
               />
-              <Button
-                label="Save"
-                icon={FloppyDiskIcon}
-                variant={ButtonVariant.SUCCESS}
-                size={ButtonSize.SMALL}
-                isLoading={isSaving}
-                onClick={handleSave}
-              />
+              <Tooltip
+                body={graphConflicts.join("\n")}
+                position={TooltipPosition.BOTTOM}
+                isDisabled={graphConflicts.length === 0}
+              >
+                <Button
+                  label="Save"
+                  icon={FloppyDiskIcon}
+                  variant={ButtonVariant.PRIMARY_ALT}
+                  size={ButtonSize.SMALL}
+                  isLoading={isSaving}
+                  isDisabled={graphConflicts.length > 0}
+                  onClick={handleSave}
+                />
+              </Tooltip>
             </>
           ) : (
             <>

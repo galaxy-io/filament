@@ -97,10 +97,7 @@ const ConnectionForm = ({
   const { showToast } = useToast();
 
   const { data, isError } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, {
-      connector: connectorName,
-      kind: connectorKind,
-    }),
+    input: create(GetConnectorRequestSchema, { connector: connectorName, kind: connectorKind }),
     options: { retry: false },
   });
   const connector = data?.connector;

@@ -9,7 +9,6 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import {
   PIPELINE_CANVAS_FIT_MAX_ZOOM,
   PIPELINE_CANVAS_FIT_MIN_ZOOM,
-  PIPELINE_CANVAS_FIT_PADDING,
   PIPELINE_CANVAS_OVERLAY_Z_INDEX,
 } from "@/pages/pipelines/canvas/constants";
 import {
@@ -17,11 +16,13 @@ import {
   getPlaceholderNodes,
   mapNodesToStackedPositions,
 } from "@/pages/pipelines/canvas/graph/layout";
+import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import { getPipelineCanvasFitPadding } from "@/pages/pipelines/canvas/utils";
 
 const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   position: absolute;
@@ -70,10 +71,14 @@ const PipelineCanvasControls = () => {
   const state = usePipelineCanvasState();
   const isReadOnly = usePipelineCanvasReadOnly();
   const { setNodes } = usePipelineCanvasActions();
+  const { showPanel } = usePipelineCanvasSelection();
 
   const handleResetView = () => {
-    const repositioned = mapNodesToStackedPositions(state.nodes);
-    setNodes(repositioned);
+    let repositioned = state.nodes;
+    if (!isReadOnly) {
+      repositioned = mapNodesToStackedPositions(state.nodes);
+      setNodes(repositioned);
+    }
 
     const bounds = getGraphBounds([
       ...repositioned,
@@ -88,7 +93,7 @@ const PipelineCanvasControls = () => {
         height,
         PIPELINE_CANVAS_FIT_MIN_ZOOM,
         PIPELINE_CANVAS_FIT_MAX_ZOOM,
-        PIPELINE_CANVAS_FIT_PADDING,
+        getPipelineCanvasFitPadding(showPanel),
       ),
     );
   };

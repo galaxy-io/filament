@@ -1,12 +1,17 @@
+import { useSyncExternalStore } from "react";
+
 import { BaseEdge, type EdgeProps, getBezierPath, useInternalNode } from "@xyflow/react";
 
-import { PIPELINE_CANVAS_NODE_PADDING } from "@/pages/pipelines/canvas/nodes/constants";
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+import { getPipelineCanvasEdgeAnchor } from "@/pages/pipelines/canvas/edges/utils";
+import {
+  getPipelineCanvasNodeMeasurements,
+  subscribePipelineCanvasNodeMeasurements,
+} from "@/pages/pipelines/canvas/nodes/utils";
 
 const PipelineCanvasEdge = ({
   id,
   source,
+  sourceHandleId,
   sourceX,
   sourceY,
   targetX,
@@ -17,28 +22,21 @@ const PipelineCanvasEdge = ({
   markerEnd,
 }: EdgeProps) => {
   const sourceNode = useInternalNode(source);
+  const measurements = useSyncExternalStore(subscribePipelineCanvasNodeMeasurements, () =>
+    getPipelineCanvasNodeMeasurements(source),
+  );
 
-  let anchorX = sourceX;
-  let anchorY = sourceY;
-
-  const { positionAbsolute } = sourceNode?.internals ?? {};
-  const { width, height } = sourceNode?.measured ?? {};
-  if (positionAbsolute && width && height) {
-    const nodeTop = positionAbsolute.y;
-    const nodeBottom = nodeTop + height;
-    const nodeRight = positionAbsolute.x + width;
-
-    anchorX = Math.min(sourceX, nodeRight);
-    anchorY = clamp(
-      sourceY,
-      nodeTop + PIPELINE_CANVAS_NODE_PADDING,
-      nodeBottom - PIPELINE_CANVAS_NODE_PADDING,
-    );
-  }
+  const anchor = getPipelineCanvasEdgeAnchor({
+    sourceNode,
+    sourceHandle: sourceHandleId,
+    sourceX,
+    sourceY,
+    measurements,
+  });
 
   const [path] = getBezierPath({
-    sourceX: anchorX,
-    sourceY: anchorY,
+    sourceX: anchor.x,
+    sourceY: anchor.y,
     sourcePosition,
     targetX,
     targetY,

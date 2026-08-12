@@ -17,6 +17,7 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
+  PIPELINES_TABLE_COLUMN_MIN_WIDTH_NAME,
   PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
@@ -47,7 +48,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   {
     id: "name",
     header: "Name",
-    minSize: PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+    minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_NAME,
     accessorFn: (pipeline) => pipeline.name,
     enableSorting: true,
     cellLoading: () => <TextShimmer width={160} height={14} />,
