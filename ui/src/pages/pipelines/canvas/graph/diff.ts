@@ -7,8 +7,17 @@ import {
   CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP,
   PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP,
 } from "@/pages/pipelines/canvas/constants";
-import { getCanvasEdgeKey, getProtoEdgeKey } from "@/pages/pipelines/canvas/graph/serialize";
-import { type CanvasEdge, type CanvasNode, isConnectionNode } from "@/pages/pipelines/canvas/types";
+import {
+  getCanvasEdgeConfig,
+  getCanvasEdgeKey,
+  getProtoEdgeKey,
+} from "@/pages/pipelines/canvas/graph/serialize";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  isConnectionNode,
+  type PipelineCanvasEdgeData,
+} from "@/pages/pipelines/canvas/types";
 
 export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
   (version?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&
@@ -30,6 +39,12 @@ const canonicalize = (value: JsonValue): JsonValue => {
 const serializeNodeConfig = (config: PipelineNode["config"]): string =>
   config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
 
+const serializeEdgeConfig = ({ readMode, writeMode, cursors }: PipelineCanvasEdgeData): string =>
+  `${readMode}|${writeMode}|${cursors
+    .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
+    .sort()
+    .join(";")}`;
+
 export const hasPipelineGraphChanges = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
   version: PipelineVersion | undefined,
@@ -49,8 +64,18 @@ export const hasPipelineGraphChanges = (
     )
     .sort();
 
-  const canvasEdges = state.edges.map(getCanvasEdgeKey).sort();
-  const pipelineEdges = (version?.edges ?? []).map(getProtoEdgeKey).sort();
+  const versionEdgesByKey = new Map(
+    (version?.edges ?? []).map((edge) => [getProtoEdgeKey(edge), edge]),
+  );
+  const canvasEdges = state.edges
+    .map((edge) => {
+      const key = getCanvasEdgeKey(edge);
+      return `${key}|${serializeEdgeConfig(getCanvasEdgeConfig(edge, versionEdgesByKey.get(key)))}`;
+    })
+    .sort();
+  const pipelineEdges = (version?.edges ?? [])
+    .map((edge) => `${getProtoEdgeKey(edge)}|${serializeEdgeConfig(edge)}`)
+    .sort();
 
   return (
     canvasNodes.join(",") !== pipelineNodes.join(",") ||

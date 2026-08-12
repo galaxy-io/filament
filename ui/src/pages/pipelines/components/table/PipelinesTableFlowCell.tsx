@@ -8,9 +8,9 @@ interface PipelinesTableFlowCellProps {
 }
 
 const PipelinesTableFlowCell = ({ pipeline }: PipelinesTableFlowCellProps) => {
-  const { source, sinks, hasEdges } = usePipelineFlowEndpoints(pipeline.id);
+  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline.id);
 
-  return <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />;
+  return <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} isLoading={isLoading} />;
 };
 
 export default PipelinesTableFlowCell;

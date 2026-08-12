@@ -20,7 +20,7 @@ import {
 const CONNECTOR_KIND_TO_NODE_STACK_BASE_X_MAP: Record<ConnectorKind, number> = {
   [ConnectorKind.UNSPECIFIED]: 100,
   [ConnectorKind.SOURCE]: 100,
-  [ConnectorKind.SINK]: 600,
+  [ConnectorKind.SINK]: 500,
 };
 
 const CONNECTOR_KIND_TO_PLACEHOLDER_ID_MAP: Record<ConnectorKind, string> = {

@@ -18,12 +18,28 @@ import {
   PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP,
 } from "@/pages/pipelines/canvas/constants";
 import { getNextNodePosition } from "@/pages/pipelines/canvas/graph/layout";
-import { type CanvasEdge, type CanvasNode, isConnectionNode } from "@/pages/pipelines/canvas/types";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  isConnectionNode,
+  type PipelineCanvasEdgeData,
+} from "@/pages/pipelines/canvas/types";
 
-const getCanvasEdgeResource = (edge: CanvasEdge): PipelineEdgeProto["resource"] =>
+export const getCanvasEdgeResource = (
+  edge: Pick<CanvasEdge, "sourceHandle">,
+): PipelineEdgeProto["resource"] =>
   edge.sourceHandle && edge.sourceHandle !== PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID
     ? edge.sourceHandle
     : "";
+
+export const getCanvasEdgeConfig = (
+  edge: Pick<CanvasEdge, "data">,
+  baseEdge: PipelineEdgeProto | undefined,
+): PipelineCanvasEdgeData => ({
+  readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
+  writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
+  cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
+});
 
 export const getProtoEdgeKey = (edge: PipelineEdgeProto) =>
   `${edge.fromNode}|${edge.resource}|${edge.toNode}`;
@@ -50,14 +66,23 @@ export const mapPipelineVersionToCanvasState = (
     });
   }
 
-  const edges: CanvasEdge[] = (version?.edges ?? []).map((edge) => ({
-    id: getProtoEdgeKey(edge),
-    type: PIPELINE_CANVAS_EDGE_TYPE,
-    source: edge.fromNode,
-    target: edge.toNode,
-    sourceHandle: edge.resource || PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
-    targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
-  }));
+  const seenEdgeKeys = new Set<string>();
+  const edges: CanvasEdge[] = (version?.edges ?? [])
+    .filter((edge) => {
+      const key = getProtoEdgeKey(edge);
+      if (seenEdgeKeys.has(key)) return false;
+      seenEdgeKeys.add(key);
+      return true;
+    })
+    .map((edge) => ({
+      id: getProtoEdgeKey(edge),
+      type: PIPELINE_CANVAS_EDGE_TYPE,
+      source: edge.fromNode,
+      target: edge.toNode,
+      sourceHandle: edge.resource || PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
+      targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
+      data: getCanvasEdgeConfig({}, edge),
+    }));
 
   return { nodes, edges };
 };
@@ -91,9 +116,7 @@ export const mapCanvasStateToVersionRequest = (
       toNode: edge.target,
       ingestionType: baseEdge?.ingestionType ?? IngestionType.UNSPECIFIED,
       selector: baseEdge?.selector ?? "",
-      readMode: baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
-      writeMode: baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
-      cursors: baseEdge?.cursors ?? [],
+      ...getCanvasEdgeConfig(edge, baseEdge),
     };
   });
 
