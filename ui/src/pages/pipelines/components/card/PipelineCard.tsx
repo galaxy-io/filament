@@ -61,7 +61,7 @@ interface PipelineCardProps {
 }
 
 const PipelineCard = ({ pipeline }: PipelineCardProps) => {
-  const { source, sinks, hasEdges } = usePipelineFlowEndpoints(pipeline.id);
+  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline.id);
 
   return (
     <CardLinkWrapper to="/pipelines/$id" params={{ id: pipeline.id }}>
@@ -83,6 +83,7 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
             sinks={sinks}
             hasEdges={hasEdges}
             size={PipelineFlowSize.SMALL}
+            isLoading={isLoading}
           />
         </FlexWrapper>
       </CardWrapper>

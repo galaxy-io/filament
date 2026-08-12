@@ -6,6 +6,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import InfiniteTable, {
   ColumnAlign,
   type ColumnDef,
+  ColumnPin,
   type Row,
 } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -16,8 +17,7 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
-  PIPELINES_TABLE_COLUMN_MAX_WIDTH_CONNECTORS,
-  PIPELINES_TABLE_COLUMN_MIN_WIDTH_CONNECTORS,
+  PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
@@ -37,20 +37,21 @@ const PipelinesTableWrapper = styled.div`
 
 const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   {
+    id: "connectors",
+    header: "Connectors",
+    size: PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+    pin: ColumnPin.LEFT,
+    cellLoading: () => <TextShimmer width={120} height={18} />,
+    cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
+  },
+  {
     id: "name",
     header: "Name",
+    minSize: PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
     accessorFn: (pipeline) => pipeline.name,
     enableSorting: true,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
-  },
-  {
-    id: "connectors",
-    header: "Connectors",
-    minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_CONNECTORS,
-    maxSize: PIPELINES_TABLE_COLUMN_MAX_WIDTH_CONNECTORS,
-    cellLoading: () => <TextShimmer width={120} height={18} />,
-    cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
   },
   {
     id: "status",

@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import InfiniteTable, {
   ColumnAlign,
   type ColumnDef,
@@ -31,6 +32,7 @@ import {
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
+  OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT,
   OBSERVABILITY_RUNS_TABLE_LIMIT,
   OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
@@ -72,7 +74,9 @@ const ObservabilityRunsTable = () => {
     () =>
       create(ListRunsRequestSchema, {
         status: [RunStatus.SCHEDULED],
-        pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
+        pagination: create(PaginationRequestSchema, {
+          total: OBSERVABILITY_RUNS_TABLE_LIMIT,
+        }),
       }),
     [],
   );
@@ -112,20 +116,20 @@ const ObservabilityRunsTable = () => {
         ),
       },
       {
+        id: "connectors",
+        header: "Connectors",
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
+        pin: ColumnPin.LEFT,
+        cellLoading: () => <TextShimmer width={120} height={18} />,
+        cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
+      },
+      {
         id: "pipeline",
         header: "Pipeline",
         minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
         maxSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
-        pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
-      },
-      {
-        id: "connectors",
-        header: "Connectors",
-        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
-        cellLoading: () => <TextShimmer width={120} height={18} />,
-        cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
       },
       {
         id: "startedAt",
@@ -242,7 +246,13 @@ const ObservabilityRunsTable = () => {
       isFetchingNextPage={isFetchingNextPage}
       fetchNextPage={fetchNextPage}
       contentWhenEmpty={
-        <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
+        <FlexWrapper
+          height={OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT}
+          alignItems={AlignItems.CENTER}
+          justifyContent={JustifyContent.CENTER}
+        >
+          <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
+        </FlexWrapper>
       }
       maxHeight={OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT}
       fillWidth

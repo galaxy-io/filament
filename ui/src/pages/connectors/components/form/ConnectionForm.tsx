@@ -5,6 +5,7 @@ import { styled } from "@linaria/react";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
+import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -12,6 +13,7 @@ import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -95,7 +97,10 @@ const ConnectionForm = ({
   const { showToast } = useToast();
 
   const { data, isError } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, { connector: connectorName, kind: connectorKind }),
+    input: create(GetConnectorRequestSchema, {
+      connector: connectorName,
+      kind: connectorKind,
+    }),
     options: { retry: false },
   });
   const connector = data?.connector;
@@ -289,13 +294,19 @@ const ConnectionForm = ({
         />
       ))
       .with(ConnectionFormPhase.VALIDATED, () => (
-        <Button
-          size={ButtonSize.LARGE}
-          label={submitLabel}
-          icon={CheckIcon}
-          variant={ButtonVariant.SUCCESS}
-          onClick={onSubmit}
-        />
+        <FlexWrapper alignItems={AlignItems.CENTER} gap={16}>
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
+            <Beacon variant={BeaconVariant.SUCCESS} />
+            <Text variant={TextVariant.SUCCESS}>Connected</Text>
+          </FlexWrapper>
+          <Button
+            size={ButtonSize.LARGE}
+            label={submitLabel}
+            icon={CheckIcon}
+            variant={ButtonVariant.SUCCESS}
+            onClick={onSubmit}
+          />
+        </FlexWrapper>
       ))
       .with(ConnectionFormPhase.SUBMITTING, () => (
         <Button
