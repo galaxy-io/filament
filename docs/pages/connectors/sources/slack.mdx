@@ -8,9 +8,8 @@ Slack is a manifest-driven source — `connectors/http/manifests/slack.yaml`
 declares its resources, auth, and pagination against the shared grammar in
 `connectors/http/manifest/`; no Slack-specific Go code exists. See
 [HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
-It's also the only bundled SaaS manifest that declares an `incremental:`
-block, so it's the best reference for what incremental support looks like at
-the manifest level.
+Its message and file streams are useful references for numeric incremental
+cursors at the manifest level.
 
 ## Auth
 
@@ -31,7 +30,7 @@ Nine resources, statically discovered:
 | `conversations` | — | Channels/DMs the token's identity can see, via `users.conversations` |
 | `messages` | `conversations` | Incremental (see below) |
 | `thread_replies` | `messages` | Only fetched for messages that started a thread |
-| `files` | — | |
+| `files` | — | Incremental for newly created files (see below) |
 | `bookmarks` | `conversations` | |
 | `pins` | `conversations` | |
 
@@ -45,8 +44,7 @@ Nine resources, statically discovered:
 
 ## Incremental sync
 
-`messages` is the one resource in the bundled catalog with an `incremental:`
-block:
+`messages` checkpoints Slack's per-message timestamp:
 
 ```yaml
 incremental:
@@ -61,6 +59,22 @@ Each run reads a channel's messages newer than the last checkpointed `ts`
 (Slack's per-message timestamp, which doubles as a numeric cursor), injects
 it as the `oldest` query parameter on the next run, and checkpoints under
 `messages_since` per conversation.
+
+`files` checkpoints the integer `created` timestamp and injects it into
+Slack's inclusive `ts_from` filter:
+
+```yaml
+incremental:
+  cursor_field: created
+  start_param: ts_from
+  inject_into: query
+  checkpoint_key: files_created
+  comparator: numeric
+```
+
+This captures newly created files. Slack does not expose a corresponding
+updated-since filter, so edits to existing file metadata still require a full
+run.
 
 ## Error handling
 
