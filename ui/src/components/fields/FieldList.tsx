@@ -1,6 +1,6 @@
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
-import Widget from "@galaxy-io/dls/widget/Widget";
+import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
+import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -29,30 +29,26 @@ const FieldList = ({
   label,
 }: FieldComponentProps) => {
   const selected = selectedValues(value);
+  const options: SelectInputOption[] = field.enum.map((option) => ({
+    id: option.value,
+    label: option.label || option.value,
+    value: option.value,
+  }));
+  const selectedOptions = options.filter((option) => selected.includes(option.value as string));
 
   return (
-    <FieldWrapper label={label} help={field.help} isRequired={field.required} error={error}>
-      <Widget fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
-          {field.enum.map((option) => {
-            const isChecked = selected.includes(option.value);
-            return (
-              <CheckboxInput
-                key={option.value}
-                label={option.label || option.value}
-                isChecked={isChecked}
-                onChange={(checked) => {
-                  const next = new Set(selected);
-                  if (checked) next.add(option.value);
-                  else next.delete(option.value);
-                  onChange(field.enum.map((item) => item.value).filter((value) => next.has(value)));
-                }}
-                isDisabled={isDisabled}
-              />
-            );
-          })}
-        </FlexWrapper>
-      </Widget>
+    <FieldWrapper label={label} help={field.help} isRequired={field.required}>
+      <MultiSelectInput
+        options={options}
+        value={selectedOptions}
+        onChange={(next) => onChange(next.map((option) => option.value as string))}
+        onReset={() => onChange([])}
+        size={InputSize.LARGE}
+        placeholder={`Select ${label}...`}
+        error={error}
+        isDisabled={isDisabled}
+        fillWidth
+      />
     </FieldWrapper>
   );
 };
