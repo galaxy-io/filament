@@ -2,6 +2,7 @@ package filament
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -18,10 +19,12 @@ type RunSpec struct {
 	Sink              Ref
 	Resources         []string
 	Selectors         []string
-	IngestionType     IngestionType
-	Mode              ReplicationMode
-	Checkpoint        *CheckpointData
-	Options           RunOptions
+	// IngestionTypes maps each resource to its ingestion type; the "" entry is
+	// the route default for resources not explicitly listed.
+	IngestionTypes map[string]IngestionType
+	Checkpoint     *CheckpointData
+	Options        RunOptions
+	WritePolicies  map[string]WritePolicy
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
@@ -37,11 +40,15 @@ type RunRequest struct {
 	SinkConnectionID   string
 	Resources          []string
 	Selectors          []string
-	IngestionType      IngestionType
-	CheckpointRoute    string
-	CursorConfigs      map[string]ResourceCursorConfig
-	Options            RunOptions
-	ScheduleID         ScheduleID
+	// IngestionTypes maps each resource to its ingestion type; the "" entry is
+	// the route default for resources not explicitly listed.
+	IngestionTypes  map[string]IngestionType
+	CheckpointRoute string
+	CursorConfigs   map[string]ResourceCursorConfig
+	Options         RunOptions
+	ScheduleID      ScheduleID
+	// ScheduledFor is the occurrence this request represents; zero when manual.
+	ScheduledFor time.Time
 }
 
 // ResourceCursorConfig selects one resource's durable incremental field and
@@ -61,6 +68,26 @@ func (r RunRequest) ResourceCheckpointKey(resource string) (ResourceCheckpointKe
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 		Route: r.CheckpointRoute, Resource: resource,
 	}, true
+}
+
+// TypeFor returns the ingestion type governing resource: its per-resource
+// entry when one exists, otherwise the route default ("" entry).
+func TypeFor(types map[string]IngestionType, resource string) IngestionType {
+	if t, ok := types[resource]; ok {
+		return t.OrDefault()
+	}
+	return types[""].OrDefault()
+}
+
+// IsCDC reports whether types replicates a change stream. CDC never mixes
+// with other types on one route, so any CDC entry means the whole run is CDC.
+func IsCDC(types map[string]IngestionType) bool {
+	for _, t := range types {
+		if t == IngestionCDC {
+			return true
+		}
+	}
+	return false
 }
 
 // ResourceCheckpointKey returns the stable cross-run key for resource.
@@ -93,17 +120,31 @@ const DefaultCheckpointEvery = 25
 // RunState is the persisted record of a run: its request, per-resource
 // progress, and terminal outcome.
 type RunState struct {
-	Run        RunID
-	Tenant     TenantID
-	Status     RunStatus
-	Request    RunRequest
-	Resources  []ResourceState
-	Records    int64
-	Bytes      int64
-	StartedAt  time.Time
-	FinishedAt *time.Time
+	Run       RunID
+	Tenant    TenantID
+	Status    RunStatus
+	Request   RunRequest
+	Resources []ResourceState
+	Records   int64
+	Bytes     int64
+
+	// Lifecycle stamps, first-write-wins in the store. Created on insert,
+	// scheduled at the occurrence's fire time, requested when run.requested is
+	// emitted, started and finished folded from the run's own facts. Zero is
+	// unset.
+	CreatedAt   time.Time
+	ScheduledAt time.Time
+	RequestedAt time.Time
+	StartedAt   time.Time
+	FinishedAt  *time.Time
+	UpdatedAt   time.Time
+
 	Error      string
 	ScheduleID ScheduleID
+	// Folded from run.heartbeat facts: cumulative worker CPU time and the
+	// peak working set observed over the run.
+	CPUSeconds      float64
+	MemoryPeakBytes int64
 }
 
 // RunStatus is the lifecycle state of a run or resource.
@@ -121,6 +162,12 @@ const (
 	// Unlike RunFailed it is not terminal: re-emitting run.requested for the same
 	// RunID resumes it from the last checkpoint. Only resumable runs reach it.
 	RunPartial
+	// RunScheduled is a run pre-created for a schedule's next occurrence, before
+	// its fire time. It precedes RunRequested in lifecycle order but is declared
+	// last so persisted ordinals stay stable and the zero value stays RunRequested.
+	// Owned entirely by the control plane: the scheduler creates it and promotes
+	// it to RunRequested at fire; nothing downstream ever sees it.
+	RunScheduled
 )
 
 // RunResult is the terminal outcome of a run as reported by a RunHandle.
@@ -146,8 +193,8 @@ type ResourceState struct {
 }
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
-// Since is inclusive and Until exclusive on StartedAt; either bound excludes
-// runs that never started.
+// Since is inclusive and Until exclusive on StartedAt — a window asks which
+// runs ran in it, so runs that never started fall outside either bound.
 type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string
@@ -159,7 +206,6 @@ type RunFilter struct {
 	Until             time.Time
 	Limit             int
 	Offset            int
-	Cursor            string
 }
 
 // SyncSnapshot is a consistent read of a run and its resources at bus
@@ -174,20 +220,22 @@ type SyncSnapshot struct {
 // source's read policy and the sink's write policy.
 type IngestionType string
 
-// The defined ingestion types.
+// The defined ingestion types, named {read}_{write}: what the source reads
+// crossed with how the sink lands it. CDC implies both sides.
 const (
-	IngestionSnapshotReplace IngestionType = "snapshot_replace"
-	IngestionSnapshotUpsert  IngestionType = "snapshot_upsert"
-	IngestionAppend          IngestionType = "append"
-	IngestionUpsert          IngestionType = "upsert"
-	IngestionDelete          IngestionType = "delete"
-	IngestionCDC             IngestionType = "cdc"
+	IngestionFullReplace       IngestionType = "full_replace"
+	IngestionFullUpsert        IngestionType = "full_upsert"
+	IngestionFullAppend        IngestionType = "full_append"
+	IngestionIncrementalAppend IngestionType = "incremental_append"
+	IngestionIncrementalUpsert IngestionType = "incremental_upsert"
+	IngestionIncrementalDelete IngestionType = "incremental_delete"
+	IngestionCDC               IngestionType = "cdc"
 )
 
-// OrDefault substitutes IngestionSnapshotReplace for the empty type.
+// OrDefault substitutes IngestionFullReplace for the empty type.
 func (t IngestionType) OrDefault() IngestionType {
 	if t == "" {
-		return IngestionSnapshotReplace
+		return IngestionFullReplace
 	}
 	return t
 }
@@ -240,6 +288,72 @@ const (
 	WriteMerge   WriteMode = "merge"
 )
 
+// IngestionFor compiles the two user levers — per-table read mode and sink
+// write mode — into the internal ingestion type. Zero levers default to a
+// full-refresh replace; an unset write on an incremental read defaults to
+// upsert. CDC connections never reach this: their edges are always
+// IngestionCDC.
+//
+// Delete and merge are engine mechanisms rather than levers: they are derived
+// from the source's operations, never chosen. IngestionFor still compiles
+// delete so internal callers can name the type; WriteModesFor is what decides
+// what a user may pick.
+func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
+	if write == "" {
+		if read == ModeIncremental {
+			write = WriteUpsert
+		} else {
+			write = WriteReplace
+		}
+	}
+	switch read {
+	case ModeFull:
+		switch write {
+		case WriteReplace:
+			return IngestionFullReplace, nil
+		case WriteUpsert:
+			return IngestionFullUpsert, nil
+		case WriteAppend:
+			return IngestionFullAppend, nil
+		}
+	case ModeIncremental:
+		switch write {
+		case WriteAppend:
+			return IngestionIncrementalAppend, nil
+		case WriteUpsert:
+			return IngestionIncrementalUpsert, nil
+		case WriteDelete:
+			return IngestionIncrementalDelete, nil
+		}
+	}
+	return "", fmt.Errorf("read mode %q cannot combine with write mode %q", read, write)
+}
+
+// WriteModesFor returns the write modes a user may pair with read, in menu
+// order — the inverse of IngestionFor, and the one place that decides what a
+// write lever offers. CDC reads have no lever and yield none.
+func WriteModesFor(read ReadMode) []WriteMode {
+	switch read {
+	case ModeFull:
+		return []WriteMode{WriteAppend, WriteReplace, WriteUpsert}
+	case ModeIncremental:
+		return []WriteMode{WriteAppend, WriteUpsert}
+	}
+	return nil
+}
+
+// String renders a read mode for messages and logs.
+func (m ReadMode) String() string {
+	switch m {
+	case ModeIncremental:
+		return "incremental"
+	case ModeCDC:
+		return "cdc"
+	default:
+		return "full"
+	}
+}
+
 // WriteAtomicity is the unit at which a sink's writes become visible.
 type WriteAtomicity string
 
@@ -270,12 +384,43 @@ type WritePolicyCapability struct {
 	Atomicity     WriteAtomicity
 }
 
+// VersionStrategy selects the ordering value an insert-based upsert sink uses
+// when several records share the same primary key.
+type VersionStrategy string
+
+const (
+	// VersionInsertOrder leaves conflict ordering to the sink's insertion and
+	// merge semantics. It is the fallback when no row-level cursor is available.
+	VersionInsertOrder VersionStrategy = "insert_order"
+	// VersionCursor orders rows by the source field used for incremental reads.
+	// The field must be present, non-null, and advance on every source update.
+	VersionCursor VersionStrategy = "cursor"
+)
+
+// VersionPolicy tells a sink how to resolve competing values for one primary
+// key. Field and its types are populated for VersionCursor; they are empty for
+// VersionInsertOrder.
+type VersionPolicy struct {
+	Strategy VersionStrategy
+	Field    string
+	Logical  LogicalType
+	Native   string
+}
+
+// Eventually we might want to track a deleted-at tombstone alongside the
+// version cursor, but the engine and API do not support tombstones yet.
+//
+// type TombstonePolicy struct {
+// 	Field string // e.g. deleted_at; non-null means deleted
+// }
+
 // WritePolicy binds a capability to one resource's keys and checkpoint timing
 // — the per-resource contract handed to a sink via ApplyOptions.
 type WritePolicy struct {
 	Capability WritePolicyCapability
 	Resource   string
 	Keys       []string
+	Version    VersionPolicy
 	Checkpoint CheckpointPolicy
 }
 
@@ -285,12 +430,7 @@ func (c WritePolicyCapability) Accepts(op Operation) bool {
 	if len(c.AcceptsOps) == 0 {
 		return true
 	}
-	for _, candidate := range c.AcceptsOps {
-		if candidate == op {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.AcceptsOps, op)
 }
 
 // ValidateRecords rejects the first record whose operation the policy does
@@ -321,20 +461,17 @@ func OperationName(op Operation) string {
 // SourcePolicy is the read-side contract an ingestion type implies: mode,
 // emitted operations, ordering, and checkpoint timing.
 type SourcePolicy struct {
-	Mode          ReplicationMode
+	Mode          ReadMode
 	EmitsOps      []Operation
 	Ordered       bool
 	Checkpointing CheckpointPolicy
 }
 
-// IngestionPlan is the resolved policy set for a run: one source policy plus
-// per-resource write policies.
+// IngestionPlan is the resolved policy set for a run: per-resource write
+// policies, each bound from its resource's own ingestion type.
 type IngestionPlan struct {
-	Type          IngestionType
-	SourcePolicy  SourcePolicy
 	WritePolicies map[string]WritePolicy
 	RequiresCDC   bool
-	RequiresPK    bool
 }
 
 // WritePolicyForIngestion derives the canonical sink-side policy for an
@@ -347,21 +484,25 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	checkpoint := CheckpointNone
 
 	switch t.OrDefault() {
-	case IngestionSnapshotReplace:
+	case IngestionFullReplace:
 		capability.Mode = WriteReplace
 		capability.Atomicity = AtomicityResource
-	case IngestionSnapshotUpsert:
+	case IngestionFullUpsert:
 		capability.Mode = WriteUpsert
 		capability.RequiresPK = true
 		checkpoint = CheckpointAfterBatch
-	case IngestionUpsert:
+	case IngestionIncrementalUpsert:
 		capability.Mode = WriteUpsert
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpInsert, OpUpdate}
 		checkpoint = CheckpointAfterBatch
-	case IngestionAppend:
+	case IngestionFullAppend:
 		capability.Mode = WriteAppend
-	case IngestionDelete:
+	case IngestionIncrementalAppend:
+		capability.Mode = WriteAppend
+		capability.AcceptsOps = []Operation{OpInsert, OpUpdate}
+		checkpoint = CheckpointAfterBatch
+	case IngestionIncrementalDelete:
 		capability.Mode = WriteDelete
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpDelete}
@@ -374,7 +515,11 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 		checkpoint = CheckpointAfterCommit
 	}
 
-	return WritePolicy{Capability: capability, Checkpoint: checkpoint}
+	policy := WritePolicy{Capability: capability, Checkpoint: checkpoint}
+	if capability.Mode == WriteUpsert {
+		policy.Version.Strategy = VersionInsertOrder
+	}
+	return policy
 }
 
 // SourcePolicyForIngestion derives the canonical read-side policy for an
@@ -388,13 +533,13 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			Ordered:       true,
 			Checkpointing: CheckpointAfterCommit,
 		}
-	case IngestionSnapshotUpsert:
+	case IngestionFullUpsert:
 		return SourcePolicy{
 			Mode:          ModeFull,
 			EmitsOps:      []Operation{OpInsert},
 			Checkpointing: CheckpointAfterBatch,
 		}
-	case IngestionUpsert, IngestionDelete:
+	case IngestionIncrementalAppend, IngestionIncrementalUpsert, IngestionIncrementalDelete:
 		return SourcePolicy{
 			Mode:          ModeIncremental,
 			EmitsOps:      []Operation{OpInsert, OpUpdate},

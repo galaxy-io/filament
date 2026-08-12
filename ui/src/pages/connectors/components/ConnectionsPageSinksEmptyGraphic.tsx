@@ -14,7 +14,7 @@ import EmptyGraphic, {
   EmptyGraphicGhostTileFallback,
 } from "@/components/EmptyGraphic";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 
@@ -22,6 +22,8 @@ interface SinkEmptyCard {
   nameWidth: number;
   metaWidth: number;
 }
+
+const SINKS_EMPTY_CARD_HEIGHT = 92;
 
 const SINK_EMPTY_CARDS: SinkEmptyCard[] = [
   { nameWidth: 72, metaWidth: 56 },
@@ -43,7 +45,7 @@ const CardsWrapper = styled.div`
 `;
 
 const GhostCard = withTheme(styled.div<PropsWithTheme>`
-  height: 92px;
+  height: ${SINKS_EMPTY_CARD_HEIGHT}px;
   min-width: 0;
 
   display: flex;
@@ -58,7 +60,7 @@ const GhostCard = withTheme(styled.div<PropsWithTheme>`
 `);
 
 const LiveCard = withTheme(styled.div<PropsWithTheme>`
-  height: 92px;
+  height: ${SINKS_EMPTY_CARD_HEIGHT}px;
   min-width: 0;
 
   display: flex;
@@ -78,12 +80,11 @@ const GhostCardRow = styled.div`
 `;
 
 const GhostChip = withTheme(styled.div<PropsWithTheme>`
-  width: 34px;
-  height: 14px;
+  width: 32px;
+  height: 12px;
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
   border-radius: 4px;
 `);
 
@@ -107,11 +108,7 @@ const ConnectionsPageSinksEmptyGraphic = () => {
               <GhostCardRow>
                 {spec ? (
                   <EmptyGraphicGhostTile>
-                    <ConnectorTile
-                      connector={spec.name}
-                      spec={spec}
-                      size={ConnectorTileSize.SMALL}
-                    />
+                    <ConnectorTile connector={spec.name} kind={spec.kind} />
                   </EmptyGraphicGhostTile>
                 ) : (
                   <EmptyGraphicGhostTileFallback />

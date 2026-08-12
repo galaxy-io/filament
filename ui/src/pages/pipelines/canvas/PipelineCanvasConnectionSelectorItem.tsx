@@ -55,7 +55,11 @@ const PipelineCanvasConnectionSelectorItem = ({
 }: PipelineCanvasConnectionSelectorItemProps) => {
   return (
     <ItemWrapper $isDisabled={isDisabled} onClick={isDisabled ? undefined : onClick}>
-      <ConnectorTile connector={connection.connector} size={ConnectorTileSize.SMALL} />
+      <ConnectorTile
+        connector={connection.connector}
+        kind={connection.kind}
+        size={ConnectorTileSize.SMALL}
+      />
       <ItemName>
         <Text
           size={TextSize.BODY_SM}

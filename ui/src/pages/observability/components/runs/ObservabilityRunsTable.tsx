@@ -1,82 +1,99 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import InfiniteTable, {
   ColumnAlign,
   type ColumnDef,
+  ColumnPin,
   type Row,
 } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
-import { ListRunsRequestSchema, type RunInfo, type RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
+import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-import { OBSERVABILITY_RUNS_TABLE_LIMIT } from "@/pages/observability/components/runs/constants";
-import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import { createTimeframeWindow } from "@/pages/observability/utils";
-import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
+import PipelineName from "@/components/PipelineName";
+
+import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
+import {
+  OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
+  OBSERVABILITY_RUNS_TABLE_LIMIT,
+  OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT,
+} from "@/pages/observability/components/runs/constants";
+import { ObservabilityTimeframe } from "@/pages/observability/types";
+import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
-import { useListConnectionsQuery } from "@/api/queries/connections";
-import { useListPipelinesQuery } from "@/api/queries/pipelines";
-import { useListRunsQuery } from "@/api/queries/runs";
+import { useListRunsInfiniteQuery, useListRunsQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
+import {
+  formatBytes,
+  formatCount,
+  formatDuration,
+  formatSeconds,
+  formatTimestamp,
+} from "@/utils/format";
 
-interface ObservabilityRunsTableProps {
-  timeframe: ObservabilityTimeframe;
-  statuses: RunStatus[];
-}
-
-const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableProps) => {
+const ObservabilityRunsTable = () => {
   const navigate = useNavigate();
+  const {
+    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
+    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  } = useSearch({ from: "/_main/observability" });
 
-  const input = useMemo(() => {
-    const { sinceMs, untilMs } = createTimeframeWindow(timeframe);
-    return create(ListRunsRequestSchema, {
-      status: statuses,
-      sinceMs,
-      untilMs,
-      limit: OBSERVABILITY_RUNS_TABLE_LIMIT,
+  const includeScheduled = statuses.includes(RunStatus.SCHEDULED);
+  const windowedStatuses = useMemo(
+    () => statuses.filter((status) => status !== RunStatus.SCHEDULED),
+    [statuses],
+  );
+
+  const input = useMemo(
+    () => ({
+      status: windowedStatuses,
+      sinceMs: createTimeframeSince(timeframe),
+    }),
+    [timeframe, windowedStatuses],
+  );
+  const scheduledInput = useMemo(
+    () =>
+      create(ListRunsRequestSchema, {
+        status: [RunStatus.SCHEDULED],
+        pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
+      }),
+    [],
+  );
+
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useListRunsInfiniteQuery({
+      input,
+      options: { enabled: windowedStatuses.length > 0 },
     });
-  }, [timeframe, statuses]);
-
-  const { data, isLoading } = useListRunsQuery({ input });
-
-  const { data: pipelinesData } = useListPipelinesQuery();
-  const { data: connectionsData } = useListConnectionsQuery();
-
-  const connectorsByConnectionId = useMemo(
-    () =>
-      new Map(
-        (connectionsData?.connections ?? []).map((connection) => [
-          connection.id,
-          connection.connector,
-        ]),
-      ),
-    [connectionsData],
-  );
-
-  const pipelineNamesByPipelineId = useMemo(
-    () =>
-      new Map(
-        (pipelinesData?.pipelines ?? []).map((pipeline) => [
-          pipeline.id,
-          formatPipelineName(pipeline),
-        ]),
-      ),
-    [pipelinesData],
-  );
+  const { data: scheduledData, isLoading: isLoadingScheduled } = useListRunsQuery({
+    input: scheduledInput,
+    options: { enabled: includeScheduled },
+  });
 
   const columns = useMemo<ColumnDef<RunInfo>[]>(
     () => [
       {
         id: "status",
         header: "Status",
-        size: 110,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
+        pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
@@ -85,7 +102,8 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "runId",
         header: "Run",
-        size: 180,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
+        pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace>
@@ -96,46 +114,23 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "pipeline",
         header: "Pipeline",
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
+        maxSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
+        pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={120} height={14} />,
-        cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isEllipsis>
-            {pipelineNamesByPipelineId.get(row.original.pipelineId) ?? row.original.pipelineId}
-          </Text>
-        ),
+        cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
       },
       {
         id: "connectors",
         header: "Connectors",
-        size: 140,
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
         cellLoading: () => <TextShimmer width={120} height={18} />,
-        cell: ({ row }) => (
-          <PipelineFlow
-            source={{
-              connectionId: row.original.sourceConnectionId,
-              connector:
-                connectorsByConnectionId.get(row.original.sourceConnectionId) ??
-                row.original.sourceConnectionId,
-            }}
-            sinks={
-              row.original.sinkConnectionId
-                ? [
-                    {
-                      connectionId: row.original.sinkConnectionId,
-                      connector:
-                        connectorsByConnectionId.get(row.original.sinkConnectionId) ??
-                        row.original.sinkConnectionId,
-                    },
-                  ]
-                : []
-            }
-            size={PipelineFlowSize.SMALL}
-          />
-        ),
+        cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
       },
       {
         id: "startedAt",
         header: "Started",
-        size: 140,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
         accessorFn: (run) => Number(run.startedAt),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={100} height={14} />,
@@ -148,7 +143,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "duration",
         header: "Duration",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
         accessorFn: (run) =>
           run.startedAt && run.endedAt ? Number(run.endedAt - run.startedAt) : -1,
         enableSorting: true,
@@ -162,7 +157,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "records",
         header: "Records",
-        size: 100,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
         accessorFn: (run) => Number(run.records),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
@@ -175,8 +170,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       {
         id: "volume",
         header: "Volume",
-        size: 100,
-        align: ColumnAlign.RIGHT,
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
         accessorFn: (run) => Number(run.bytes),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={52} height={14} />,
@@ -186,11 +180,44 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
           </Text>
         ),
       },
+      {
+        id: "cpu",
+        header: "CPU",
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
+        accessorFn: (run) => run.cpuSeconds,
+        enableSorting: true,
+        cellLoading: () => <TextShimmer width={48} height={14} />,
+        cell: ({ row }) => (
+          <Text size={TextSize.BODY_SM} isMonospace>
+            {row.original.cpuSeconds ? formatSeconds(row.original.cpuSeconds) : "—"}
+          </Text>
+        ),
+      },
+      {
+        id: "memory",
+        header: "Memory",
+        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+        align: ColumnAlign.RIGHT,
+        accessorFn: (run) => Number(run.memoryPeakBytes),
+        enableSorting: true,
+        cellLoading: () => <TextShimmer width={52} height={14} />,
+        cell: ({ row }) => (
+          <Text size={TextSize.BODY_SM} isMonospace>
+            {row.original.memoryPeakBytes ? formatBytes(row.original.memoryPeakBytes) : "—"}
+          </Text>
+        ),
+      },
     ],
-    [pipelineNamesByPipelineId, connectorsByConnectionId],
+    [],
   );
 
-  const runs = statuses.length ? (data?.runs ?? []) : [];
+  const scheduledRuns = includeScheduled ? (scheduledData?.runs ?? []) : [];
+  const windowedRuns = windowedStatuses.length
+    ? (data?.pages.flatMap((page) => page.runs) ?? [])
+    : [];
+
+  const windowedIds = new Set(windowedRuns.map((run) => run.runId));
+  const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.runId)), ...windowedRuns];
 
   const handleRowClick = (row: Row<RunInfo>) => {
     navigate({
@@ -198,6 +225,7 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       params: {
         id: row.original.pipelineId,
       },
+      search: { runId: row.original.runId },
     });
   };
 
@@ -208,12 +236,18 @@ const ObservabilityRunsTable = ({ timeframe, statuses }: ObservabilityRunsTableP
       getRowId={(run) => run.runId}
       onRowClick={handleRowClick}
       enableSorting
-      isLoading={isLoading}
+      isLoading={isLoading || (includeScheduled && isLoadingScheduled)}
+      loadingRowCount={1}
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      fetchNextPage={fetchNextPage}
       contentWhenEmpty={
         <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
       }
+      maxHeight={OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT}
       fillWidth
-      height={300}
+      noLastRowPadding
+      noLastRowBorder
     />
   );
 };

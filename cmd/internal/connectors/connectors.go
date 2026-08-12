@@ -5,6 +5,7 @@ package connectors
 import (
 	// Each blank import registers that connector's sources and sinks with
 	// the default registry from init().
+	_ "github.com/galaxy-io/filament/connectors/clickhouse"
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
 	_ "github.com/galaxy-io/filament/connectors/mysql"

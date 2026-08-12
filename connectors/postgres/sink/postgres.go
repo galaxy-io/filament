@@ -19,12 +19,12 @@ import (
 // server-side via jsonb_to_recordset. It implements filament.Schematized; the engine only
 // runs schema discovery for sinks that do.
 type Sink struct {
-	pool      *pgxpool.Pool
-	run       filament.RunID
-	schema    string
-	dsn       string
-	resumable bool
-	written   atomic.Int64
+	pool     *pgxpool.Pool
+	run      filament.RunID
+	schema   string
+	dsn      string
+	policies map[string]filament.WritePolicy
+	written  atomic.Int64
 
 	// tables is populated entirely during the engine's pre-extract EnsureSchema pass
 	// (sequential), then only read by concurrent Write calls — no lock needed.
@@ -32,10 +32,23 @@ type Sink struct {
 }
 
 // table is one resource's ensured destination: the sanitized table identifier and the
-// prebuilt INSERT … SELECT … FROM jsonb_to_recordset statement.
+// prebuilt INSERT … SELECT … FROM jsonb_to_recordset statement. resumable marks a
+// table whose writes are idempotent by key, so a resume must preserve its rows.
 type table struct {
 	qualified string
 	insertSQL string
+	deleteSQL string
+	resumable bool
+}
+
+// resumableFor reports whether one resource's writes are idempotent by key —
+// an upsert or CDC merge under its bound write policy.
+func (t *Sink) resumableFor(resource string) bool {
+	p, ok := t.policies[resource]
+	if !ok {
+		p = t.policies[""]
+	}
+	return p.Capability.Mode == filament.WriteUpsert || p.Capability.Mode == filament.WriteMerge
 }
 
 const defaultSchema = "public"
@@ -44,8 +57,9 @@ const defaultSchema = "public"
 func New() *Sink { return &Sink{schema: defaultSchema} }
 
 var (
-	_ filament.Sink        = (*Sink)(nil)
-	_ filament.Schematized = (*Sink)(nil)
+	_ filament.Sink            = (*Sink)(nil)
+	_ filament.LiveValidatable = (*Sink)(nil)
+	_ filament.Schematized     = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
@@ -67,10 +81,11 @@ func (t *Sink) Spec() filament.SinkSpec {
 			Schematized: true,
 			Upsertable:  true,
 			WritePolicies: filament.WriteCapabilities(
-				filament.IngestionSnapshotReplace,
-				filament.IngestionAppend,
-				filament.IngestionSnapshotUpsert,
-				filament.IngestionUpsert,
+				filament.IngestionFullReplace,
+				filament.IngestionFullAppend,
+				filament.IngestionFullUpsert,
+				filament.IngestionIncrementalUpsert,
+				filament.IngestionCDC,
 			),
 		},
 	}
@@ -78,6 +93,28 @@ func (t *Sink) Spec() filament.SinkSpec {
 
 // Name identifies this sink implementation.
 func (t *Sink) Name() string { return "postgres" }
+
+// TestConnection opens a short-lived pool and verifies the configured
+// credentials without creating the destination schema.
+func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
+	dsn := cfg.Secret("dsn")
+	if dsn == "" {
+		return fmt.Errorf("postgres sink: dsn is required")
+	}
+	poolCfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return fmt.Errorf("postgres sink: parse dsn: %w", err)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		return fmt.Errorf("postgres sink: open pool: %w", err)
+	}
+	defer pool.Close()
+	if err := pool.Ping(ctx); err != nil {
+		return fmt.Errorf("postgres sink: ping: %w", err)
+	}
+	return nil
+}
 
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
@@ -91,7 +128,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		t.schema = v
 	}
 	t.run = run.Run
-	t.resumable = run.IngestionType == filament.IngestionSnapshotUpsert || run.IngestionType == filament.IngestionUpsert
+	t.policies = run.WritePolicies
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
@@ -129,6 +166,11 @@ func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyO
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
 		return t.Write(ctx, b)
+	case filament.WriteMerge:
+		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
+			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
+		}
+		return t.writeMerge(ctx, b)
 	default:
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
@@ -172,10 +214,11 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	if _, err := t.pool.Exec(ctx, ddl); err != nil {
 		return fmt.Errorf("create %s: %w", qualified, err)
 	}
-	// A resumable run upserts by key and must preserve any partial load from a prior
+	// A resumable table upserts by key and must preserve any partial load from a prior
 	// attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot dedup:
-	// a non-resumable run, or a keyless table that re-reads whole on resume).
-	upsert := t.resumable && len(schema.PrimaryKey) > 0
+	// a non-resumable table, or a keyless table that re-reads whole on resume).
+	resumable := t.resumableFor(resource)
+	upsert := resumable && len(schema.PrimaryKey) > 0
 	if !upsert {
 		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
 		if _, err := t.pool.Exec(ctx, "TRUNCATE "+qualified); err != nil {
@@ -193,8 +236,31 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 		insertSQL: fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM jsonb_to_recordset($1::jsonb) AS x(%s)%s",
 			qualified, strings.Join(idents, ", "), strings.Join(idents, ", "), strings.Join(recordset, ", "),
 			onConflict(upsert, schema)),
+		deleteSQL: deleteUsingSQL(qualified, schema),
+		resumable: resumable,
 	}
 	return nil
+}
+
+// deleteUsingSQL expands a delete run's before images on primary-key columns
+// only, then deletes matching destination rows in one statement.
+func deleteUsingSQL(qualified string, schema filament.RecordSchema) string {
+	if len(schema.PrimaryKey) == 0 {
+		return ""
+	}
+	fields := make(map[string]filament.SchemaField, len(schema.Fields))
+	for _, field := range schema.Fields {
+		fields[field.Name] = field
+	}
+	recordset := make([]string, len(schema.PrimaryKey))
+	where := make([]string, len(schema.PrimaryKey))
+	for i, name := range schema.PrimaryKey {
+		id := pgx.Identifier{name}.Sanitize()
+		recordset[i] = id + " " + postgresColumnType(fields[name])
+		where[i] = "t." + id + " = x." + id
+	}
+	return fmt.Sprintf("DELETE FROM %s AS t USING jsonb_to_recordset($1::jsonb) AS x(%s) WHERE %s",
+		qualified, strings.Join(recordset, ", "), strings.Join(where, " AND "))
 }
 
 func postgresColumnType(f filament.SchemaField) string {
@@ -317,6 +383,73 @@ func (t *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 	}, nil
 }
 
+// writeMerge applies CDC records in arrival order. Maximal delete/non-delete
+// runs become batched statements, and one database transaction makes the whole
+// Filament batch atomic before its WAL checkpoint can be committed.
+func (t *Sink) writeMerge(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
+	if t.pool == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
+	}
+	tbl := t.tables[b.Resource]
+	if tbl == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
+	}
+	tx, err := t.pool.Begin(ctx)
+	if err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: begin merge: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+
+	var nbytes int64
+	rows := 0
+	recs := b.Records
+	for len(recs) > 0 {
+		deleting := recs[0].Op == filament.OpDelete
+		n := 1
+		for n < len(recs) && (recs[n].Op == filament.OpDelete) == deleting {
+			n++
+		}
+		run := recs[:n]
+		recs = recs[n:]
+		buf, runBytes := frameJSONArray(run)
+		nbytes += runBytes
+		stmt := tbl.insertSQL
+		if deleting {
+			stmt = tbl.deleteSQL
+			if stmt == "" {
+				return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge delete on keyless resource %q", b.Resource)
+			}
+		}
+		if _, err := tx.Exec(ctx, stmt, string(buf)); err != nil {
+			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge %s seq %d: %w", b.Resource, b.Seq, err)
+		}
+		rows += len(run)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: commit merge %s seq %d: %w", b.Resource, b.Seq, err)
+	}
+	t.written.Add(int64(rows))
+	crc, _ := filament.CRC32C(b.Records)
+	return filament.WriteReceipt{
+		URI: fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource), Bytes: nbytes,
+		Rows: rows, WriteCRC: crc,
+	}, nil
+}
+
+func frameJSONArray(recs []filament.Record) ([]byte, int64) {
+	var nbytes int64
+	buf := make([]byte, 0, batchBufHint(recs))
+	buf = append(buf, '[')
+	for i := range recs {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, recs[i].Data...)
+		nbytes += int64(len(recs[i].Data))
+	}
+	return append(buf, ']'), nbytes
+}
+
 // batchBufHint sizes the JSON-array scratch: the payload bytes plus separators and
 // brackets, so the common case appends without growing.
 func batchBufHint(recs []filament.Record) int {
@@ -341,14 +474,14 @@ func (t *Sink) Abort(ctx context.Context) error {
 	if t.pool == nil {
 		return nil
 	}
-	// A resumable run keeps its partial load so a later resume can finish it — don't
+	// A resumable table keeps its partial load so a later resume can finish it — don't
 	// truncate. (The engine also skips Abort on a resumable failure; this guards any
 	// other Abort path.)
-	if t.resumable {
-		return nil
-	}
 	cleanup := context.WithoutCancel(ctx)
 	for _, tbl := range t.tables {
+		if tbl.resumable {
+			continue
+		}
 		_, _ = t.pool.Exec(cleanup, "TRUNCATE "+tbl.qualified)
 	}
 	return nil

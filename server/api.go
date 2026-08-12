@@ -6,7 +6,9 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
+	"github.com/galaxy-io/filament/api/metrics/v1/metricsv1connect"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/internal/compile"
 )
 
 type runSubmitter interface {
@@ -23,6 +25,8 @@ type Server struct {
 	bus       eventbus.Bus
 	secrets   filament.Secrets
 	schedules filament.PipelineScheduleStore
+	compiler  *compile.Compiler
+	metrics   filament.MetricsStore
 }
 
 // Option configures a Server.
@@ -31,14 +35,19 @@ type Option func(*Server)
 // WithSecrets sets the secrets provider used to resolve secret refs.
 func WithSecrets(secrets filament.Secrets) Option { return func(s *Server) { s.secrets = secrets } }
 
+// WithMetricsStore sets the run metrics query backend. Unset leaves
+// MetricsService unimplemented.
+func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) { s.metrics = ms } }
+
 // New returns a Server wired to the given providers.
 func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
 	s := &Server{
-		sources: sources,
-		sinks:   sinks,
-		store:   store,
-		orch:    orch,
-		bus:     bus,
+		sources:  sources,
+		sinks:    sinks,
+		store:    store,
+		orch:     orch,
+		bus:      bus,
+		compiler: &compile.Compiler{Store: store, Sources: sources, Sinks: sinks, DefaultTenant: defaultTenant("")},
 	}
 	if schedules, ok := store.(filament.PipelineScheduleStore); ok {
 		s.schedules = schedules
@@ -49,9 +58,11 @@ func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store fil
 	return s
 }
 
-// Mount registers the Connect handler on mux.
+// Mount registers the Connect handlers on mux.
 func (a *Server) Mount(mux *http.ServeMux) {
 	path, handler := ingestionv1connect.NewIngestionServiceHandler(a)
+	mux.Handle(path, withCORS(handler))
+	path, handler = metricsv1connect.NewMetricsServiceHandler(a)
 	mux.Handle(path, withCORS(handler))
 }
 

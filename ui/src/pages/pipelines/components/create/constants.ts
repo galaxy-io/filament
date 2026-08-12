@@ -1,27 +1,119 @@
-import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 
-export const CREATE_PIPELINE_MODAL_WIDTH = 960;
+import { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+
+import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+
+import {
+  CreatePipelineModalStep,
+  CreatePipelineModalStepStatus,
+} from "@/pages/pipelines/components/create/types";
+
+export const CREATE_PIPELINE_MODAL_WIDTH = 1080;
+export const CREATE_PIPELINE_MODAL_HEIGHT = 720;
 export const CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH = 240;
-export const CREATE_PIPELINE_MODAL_MIN_HEIGHT = 640;
-export const CREATE_PIPELINE_MODAL_MAX_HEIGHT = 720;
+
+export const CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT = 8;
+export const CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT = 4;
+export const CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH = 264;
+
+export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE = 180;
+export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR = 180;
+export const CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH = 220;
+export const CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH = 260;
+
+export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_MAP: Record<
+  CreatePipelineModalStepStatus,
+  PhosphorIcon
+> = {
+  [CreatePipelineModalStepStatus.COMPLETED]: CheckCircleIcon,
+  [CreatePipelineModalStepStatus.CURRENT]: CircleIcon,
+  [CreatePipelineModalStepStatus.UPCOMING]: CircleIcon,
+};
+
+export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_WEIGHT_MAP: Record<
+  CreatePipelineModalStepStatus,
+  IconWeight
+> = {
+  [CreatePipelineModalStepStatus.COMPLETED]: IconWeight.FILL,
+  [CreatePipelineModalStepStatus.CURRENT]: IconWeight.BOLD,
+  [CreatePipelineModalStepStatus.UPCOMING]: IconWeight.REGULAR,
+};
+
+export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_VARIANT_MAP: Record<
+  CreatePipelineModalStepStatus,
+  IconVariant
+> = {
+  [CreatePipelineModalStepStatus.COMPLETED]: IconVariant.SUCCESS,
+  [CreatePipelineModalStepStatus.CURRENT]: IconVariant.PRIMARY,
+  [CreatePipelineModalStepStatus.UPCOMING]: IconVariant.DISABLED,
+};
+
+export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_VARIANT_MAP: Record<
+  CreatePipelineModalStepStatus,
+  TextVariant
+> = {
+  [CreatePipelineModalStepStatus.COMPLETED]: TextVariant.PRIMARY,
+  [CreatePipelineModalStepStatus.CURRENT]: TextVariant.PRIMARY,
+  [CreatePipelineModalStepStatus.UPCOMING]: TextVariant.TERTIARY,
+};
+
+export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_WEIGHT_MAP: Record<
+  CreatePipelineModalStepStatus,
+  TextWeight
+> = {
+  [CreatePipelineModalStepStatus.COMPLETED]: TextWeight.REGULAR,
+  [CreatePipelineModalStepStatus.CURRENT]: TextWeight.MEDIUM,
+  [CreatePipelineModalStepStatus.UPCOMING]: TextWeight.REGULAR,
+};
 
 export const CREATE_PIPELINE_MODAL_STEP_ORDER: CreatePipelineModalStep[] = [
   CreatePipelineModalStep.CONNECTIONS,
+  CreatePipelineModalStep.RESOURCES,
+  CreatePipelineModalStep.DELIVERY,
   CreatePipelineModalStep.DETAILS,
-  CreatePipelineModalStep.SCHEDULE,
 ];
 
 export const CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP: Record<CreatePipelineModalStep, string> = {
-  [CreatePipelineModalStep.CONNECTIONS]: "Choose your connections",
-  [CreatePipelineModalStep.DETAILS]: "Configure your pipeline",
-  [CreatePipelineModalStep.SCHEDULE]: "Set your schedule",
+  [CreatePipelineModalStep.CONNECTIONS]: "Choose connections",
+  [CreatePipelineModalStep.RESOURCES]: "Select resources",
+  [CreatePipelineModalStep.DELIVERY]: "Configure delivery",
+  [CreatePipelineModalStep.DETAILS]: "Name pipeline",
 };
 
-export const CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP: Record<
-  CreatePipelineModalStep,
-  string
-> = {
-  [CreatePipelineModalStep.CONNECTIONS]: "Choose a source and sinks",
-  [CreatePipelineModalStep.DETAILS]: "Name your pipeline",
-  [CreatePipelineModalStep.SCHEDULE]: "Set an optional schedule",
+export const CREATE_PIPELINE_MODAL_STEP_TO_IS_PADDED_MAP: Record<CreatePipelineModalStep, boolean> =
+  {
+    [CreatePipelineModalStep.CONNECTIONS]: false,
+    [CreatePipelineModalStep.RESOURCES]: false,
+    [CreatePipelineModalStep.DELIVERY]: true,
+    [CreatePipelineModalStep.DETAILS]: true,
+  };
+
+export const CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP: Record<CreatePipelineModalStep, string> = {
+  [CreatePipelineModalStep.CONNECTIONS]: "Select a source and at least one sink",
+  [CreatePipelineModalStep.RESOURCES]: "Select at least one resource",
+  [CreatePipelineModalStep.DELIVERY]: "Complete the schedule to continue",
+  [CreatePipelineModalStep.DETAILS]: "Enter a valid pipeline name",
 };
+
+export const READ_MODE_TO_LABEL_MAP: Record<ReadMode, string> = {
+  [ReadMode.UNSPECIFIED]: "Unknown",
+  [ReadMode.FULL]: "Full",
+  [ReadMode.INCREMENTAL]: "Incremental",
+};
+
+export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
+  [WriteMode.UNSPECIFIED]: "Unknown",
+  [WriteMode.APPEND]: "Append",
+  [WriteMode.REPLACE]: "Replace",
+  [WriteMode.UPSERT]: "Upsert",
+  [WriteMode.DELETE]: "Delete",
+  [WriteMode.MERGE]: "Merge",
+};
+
+export const CREATE_PIPELINE_MODAL_FALLBACK_READ_MODES = [ReadMode.FULL];
+export const CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES = [WriteMode.APPEND, WriteMode.REPLACE];
+
+export const CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE = WriteMode.REPLACE;

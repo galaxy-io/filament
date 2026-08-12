@@ -4,8 +4,10 @@ import {
   createConnectQueryKey,
   type UseMutationOptions,
   type UseQueryOptions,
+  useInfiniteQuery,
   useMutation,
   useQuery,
+  useSuspenseInfiniteQuery,
   useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
@@ -15,6 +17,7 @@ import {
   type GetRunRequest,
   type GetRunResponse,
   type ListRunsRequest,
+  type ListRunsResponse,
   type RunEvent,
   type RunInfo,
   RunStatus,
@@ -24,11 +27,14 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-export const ACTIVE_RUN_STATUSES = new Set<RunStatus>([
-  RunStatus.REQUESTED,
-  RunStatus.RUNNING,
-  RunStatus.PAUSED,
-]);
+import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
+import {
+  getNextPageParam,
+  INITIAL_PAGE_PARAM,
+  type InfiniteQueryInput,
+  type UseInfiniteQueryOptions,
+} from "@/api/utils";
 
 const LIST_RUNS_REFETCH_INTERVAL = 3 * 1000;
 const GET_RUN_REFETCH_INTERVAL = 2 * 1000;
@@ -39,17 +45,27 @@ export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Tran
     schema: IngestionService.method.listRuns,
     input,
     transport,
-    cardinality: "finite",
+    cardinality: undefined,
   });
 };
 
+// Scheduled counts as live for polling — it transitions without user action
+// when the cron fires — but stays out of ACTIVE_RUN_STATUSES, which the
+// canvas navbar uses to gate the Run button.
+const isLiveRunStatus = (status: RunStatus) =>
+  ACTIVE_RUN_STATUSES.has(status) || status === RunStatus.SCHEDULED;
+
 const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
-  return runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status))
-    ? LIST_RUNS_REFETCH_INTERVAL
-    : false;
+  return runs?.some((run) => isLiveRunStatus(run.status)) ? LIST_RUNS_REFETCH_INTERVAL : false;
 };
 
-export const useListRunsQuery = ({ input }: { input?: ListRunsRequest } = {}) => {
+export const useListRunsQuery = ({
+  input,
+  options = {},
+}: {
+  input?: ListRunsRequest;
+  options?: UseQueryOptions<typeof IngestionService.method.listRuns.output, ListRunsResponse>;
+} = {}) => {
   return useQuery<
     typeof IngestionService.method.listRuns.input,
     typeof IngestionService.method.listRuns.output
@@ -57,6 +73,7 @@ export const useListRunsQuery = ({ input }: { input?: ListRunsRequest } = {}) =>
     refetchInterval: (query) => {
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
+    ...options,
   });
 };
 
@@ -71,8 +88,59 @@ export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } 
   });
 };
 
+export const useListRunsInfiniteQuery = ({
+  input,
+  options = {},
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
+  options?: UseInfiniteQueryOptions<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output,
+    "pagination"
+  >;
+} = {}) => {
+  return useInfiniteQuery<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output,
+    "pagination"
+  >(
+    IngestionService.method.listRuns,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    {
+      pageParamKey: "pagination",
+      getNextPageParam,
+      refetchInterval: (query) => {
+        return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
+      },
+      ...options,
+    },
+  );
+};
+
+export const useSuspenseListRunsInfiniteQuery = ({
+  input,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
+} = {}) => {
+  return useSuspenseInfiniteQuery<
+    typeof IngestionService.method.listRuns.input,
+    typeof IngestionService.method.listRuns.output,
+    "pagination"
+  >(
+    IngestionService.method.listRuns,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    {
+      pageParamKey: "pagination",
+      getNextPageParam,
+      refetchInterval: (query) => {
+        return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
+      },
+    },
+  );
+};
+
 const getGetRunRefetchInterval = (status: RunStatus | undefined) => {
-  return status !== undefined && ACTIVE_RUN_STATUSES.has(status) ? GET_RUN_REFETCH_INTERVAL : false;
+  return status !== undefined && isLiveRunStatus(status) ? GET_RUN_REFETCH_INTERVAL : false;
 };
 
 export const useGetRunQuery = ({
@@ -97,7 +165,7 @@ export const createTailRunQueryKey = (input?: TailRunRequest) => {
   return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
 };
 
-export const useTailRunsStream = (runIds: string[]) => {
+export const useTailRunsStream = (runIds: RunInfo["runId"][]) => {
   const transport = useTransport();
   const results = useQueries({
     queries: runIds.map((runId) => {
@@ -139,6 +207,12 @@ export const useRunPipelineMutation = (
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListPipelinesQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetPipelineQueryKey(),
       });
       return options.onSettled?.(...args);
     },

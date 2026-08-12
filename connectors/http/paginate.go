@@ -158,9 +158,18 @@ func (c *Connector) fetchPage(
 			}
 		}
 
-		// Incremental: same — overrides for body-strategy watermarks.
+		// Incremental: same — overrides for body-strategy watermarks. Skipped
+		// once a paginator has replaced the URL wholesale (next_url, Link
+		// header), because that URL is the server's own continuation of the
+		// already-filtered query. Re-injecting there would narrow the range
+		// out from under it using a watermark that Observe has been advancing
+		// mid-run: on a newest-first feed the start param would overtake the
+		// server's own end bound, the next page would come back empty, and the
+		// run would commit the newest value having silently skipped the tail.
+		// Cursor/offset/page strategies rebuild the URL from the manifest each
+		// page and still need the param, so they are unaffected.
 		var trackerOverrides map[string]any
-		if tracker != nil {
+		if tracker != nil && state.NextURL == "" {
 			trackerOverrides, err = tracker.Apply(req)
 			if err != nil {
 				return nil, fmt.Errorf("incremental apply: %w", err)

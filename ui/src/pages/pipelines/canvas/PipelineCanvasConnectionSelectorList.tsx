@@ -1,11 +1,10 @@
 import { styled } from "@linaria/react";
-import { PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -45,7 +44,12 @@ const PipelineCanvasConnectionSelectorEmpty = ({
   const handleCreateConnection = () => {
     navigate({
       to: ".",
-      search: { flow: Flow.CREATE_CONNECTION, connectorKind },
+      search: (prev) => ({
+        ...prev,
+        connectionId: undefined,
+        flow: Flow.CREATE_CONNECTION,
+        connectorKind,
+      }),
     });
   };
 
@@ -80,8 +84,6 @@ interface PipelineCanvasConnectionSelectorListProps {
   connections: Connection[];
   hasConnections: boolean;
   connectorKind: ConnectorKind;
-  isLoading: boolean;
-  isError: boolean;
   isSourceDisabled: boolean;
   onConnectionClick: (connection: Connection) => void;
 }
@@ -90,30 +92,9 @@ const PipelineCanvasConnectionSelectorList = ({
   connections,
   hasConnections,
   connectorKind,
-  isLoading,
-  isError,
   isSourceDisabled,
   onConnectionClick,
 }: PipelineCanvasConnectionSelectorListProps) => {
-  if (isLoading) {
-    return (
-      <PipelineCanvasConnectionSelectorEmpty
-        message="Loading connections..."
-        connectorKind={connectorKind}
-      />
-    );
-  }
-
-  if (isError) {
-    return (
-      <PipelineCanvasConnectionSelectorEmpty
-        icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
-        message="Failed to load connections"
-        connectorKind={connectorKind}
-      />
-    );
-  }
-
   if (!hasConnections) {
     return (
       <PipelineCanvasConnectionSelectorEmpty

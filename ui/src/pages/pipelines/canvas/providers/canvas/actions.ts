@@ -1,5 +1,6 @@
-import type { JsonValue } from "@bufbuild/protobuf";
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
+
+import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type {
   PipelineCanvasEditMode,
@@ -33,7 +34,7 @@ export interface AddNodeAction {
 
 export interface RemoveNodeAction {
   type: PipelineCanvasActionType.REMOVE_NODE;
-  payload: string;
+  payload: PipelineNode["id"];
 }
 
 export interface SetNodesAction {
@@ -68,7 +69,7 @@ export interface SetInteractionModeAction {
 
 export interface SetNodeConfigAction {
   type: PipelineCanvasActionType.SET_NODE_CONFIG;
-  payload: { nodeId: string; config: Record<string, JsonValue> };
+  payload: { nodeId: PipelineNode["id"]; config: NonNullable<PipelineNode["config"]> };
 }
 
 export type PipelineCanvasAction =

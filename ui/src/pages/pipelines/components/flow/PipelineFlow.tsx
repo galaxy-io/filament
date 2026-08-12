@@ -5,6 +5,9 @@ import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+
 import ConnectorTile, {
   ConnectorOverflowTile,
   ConnectorTileSize,
@@ -19,8 +22,9 @@ export enum PipelineFlowSize {
 }
 
 export interface PipelineFlowConnection {
-  connectionId: string;
-  connector: string;
+  connectionId: Connection["id"];
+  connector: Connection["connector"];
+  isDeleted?: boolean;
 }
 
 const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, ConnectorTileSize> = {
@@ -57,7 +61,7 @@ const PipelineFlow = ({
   const hasSinks = sinks.length > 0;
   const isLinked = hasSource && hasSinks && hasEdges;
 
-  const handleConnectionClick = (connectionId: string, e: React.MouseEvent) => {
+  const handleConnectionClick = (connectionId: Connection["id"], e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigate({
@@ -71,8 +75,10 @@ const PipelineFlow = ({
       return (
         <ConnectorTile
           connector={source.connector}
+          kind={ConnectorKind.SOURCE}
           onClick={(e) => handleConnectionClick(source.connectionId, e)}
           size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
+          isDeleted={source.isDeleted}
         />
       );
     }
@@ -87,8 +93,10 @@ const PipelineFlow = ({
               // biome-ignore lint/suspicious/noArrayIndexKey: two sink nodes can share a connection
               key={`${sink.connectionId}-${index}`}
               connector={sink.connector}
+              kind={ConnectorKind.SINK}
               size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
               onClick={(e) => handleConnectionClick(sink.connectionId, e)}
+              isDeleted={sink.isDeleted}
             />
           ))}
           {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
@@ -97,20 +105,19 @@ const PipelineFlow = ({
     }
   };
 
+  if (!isLinked) {
+    return <Chip label="Invalid pipeline" variant={ChipVariant.WARNING} size={ChipSize.SMALL} />;
+  }
+
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
       {renderSource()}
-      {isLinked && (
-        <Icon
-          component={FlowArrowIcon}
-          variant={IconVariant.PRIMARY}
-          size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
-          weight={IconWeight.REGULAR}
-        />
-      )}
-      {!isLinked && (
-        <Chip label="Invalid pipeline" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />
-      )}
+      <Icon
+        component={FlowArrowIcon}
+        variant={IconVariant.PRIMARY}
+        size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
+        weight={IconWeight.REGULAR}
+      />
       {renderSinks()}
     </FlexWrapper>
   );

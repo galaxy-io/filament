@@ -1,0 +1,247 @@
+//go:build integration
+
+package integration
+
+import (
+	"context"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
+	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
+	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
+)
+
+type snapshotBarrierSink struct {
+	collectSink
+	once    sync.Once
+	reached chan struct{}
+	release chan struct{}
+}
+
+func newSnapshotBarrierSink() *snapshotBarrierSink {
+	return &snapshotBarrierSink{reached: make(chan struct{}), release: make(chan struct{})}
+}
+
+func (s *snapshotBarrierSink) Push(r filament.Record) error {
+	if !r.Drained && r.Meta.LSN == "" {
+		s.once.Do(func() {
+			close(s.reached)
+			<-s.release
+		})
+	}
+	return s.collectSink.Push(r)
+}
+
+func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	pg := testcontainers.Postgres(t,
+		testcontainers.WithImage("postgres:16-alpine"),
+		testcontainers.WithLogicalReplication(),
+	)
+	if _, err := pg.Pool().Exec(ctx, `
+		CREATE TABLE cdc_handoff (id bigint PRIMARY KEY, name text NOT NULL);
+		ALTER TABLE cdc_handoff REPLICA IDENTITY FULL;
+		INSERT INTO cdc_handoff VALUES (1, 'Before');
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	src := pgsource.New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"dsn": pg.DSN(), "slot_name": "filament_test_handoff", "publication": "filament_test_handoff",
+		"max_conns": 1,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = src.Teardown(context.Background()) }()
+
+	sink := newSnapshotBarrierSink()
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- src.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{Resources: []string{"cdc_handoff"}})
+	}()
+
+	select {
+	case <-sink.reached:
+	case err := <-errCh:
+		t.Fatalf("CDC bootstrap ended before snapshot barrier: %v", err)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+
+	// Commit while the exported snapshot scan is paused. This transaction is not
+	// visible in the snapshot, so it must arrive from WAL after the baseline row.
+	if _, err := pg.Pool().Exec(ctx, `
+		UPDATE cdc_handoff SET name = 'During' WHERE id = 1;
+		INSERT INTO cdc_handoff VALUES (2, 'During');
+	`); err != nil {
+		close(sink.release)
+		t.Fatal(err)
+	}
+	close(sink.release)
+	if err := <-errCh; err != nil {
+		t.Fatal(err)
+	}
+
+	records := dataRecords(sink.recs)
+	if len(records) != 3 {
+		t.Fatalf("snapshot/WAL records = %#v, want baseline insert, WAL update, WAL insert", records)
+	}
+	if records[0].ID != "1" || records[0].Op != filament.OpInsert || records[0].Meta.LSN != "" {
+		t.Fatalf("first record = %#v, want snapshot insert for row 1", records[0])
+	}
+	if records[1].ID != "1" || records[1].Op != filament.OpUpdate || records[1].Meta.LSN == "" {
+		t.Fatalf("second record = %#v, want WAL update for row 1", records[1])
+	}
+	if records[2].ID != "2" || records[2].Op != filament.OpInsert || records[2].Meta.LSN == "" {
+		t.Fatalf("third record = %#v, want WAL insert for row 2", records[2])
+	}
+	_ = streamCheckpointFromRecords(t, sink.recs, "cdc_handoff")
+}
+
+func TestPostgresCDCCatchupAndResume(t *testing.T) {
+	ctx := context.Background()
+	pg := testcontainers.Postgres(t,
+		testcontainers.WithImage("postgres:16-alpine"),
+		testcontainers.WithLogicalReplication(),
+	)
+	if _, err := pg.Pool().Exec(ctx, `
+		CREATE TABLE cdc_users (id bigint PRIMARY KEY, name text NOT NULL);
+		ALTER TABLE cdc_users REPLICA IDENTITY FULL;
+		INSERT INTO cdc_users VALUES (10, 'Existing');
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	src := pgsource.New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"dsn": pg.DSN(), "slot_name": "filament_test_cdc", "publication": "filament_test_cdc",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = src.Teardown(ctx) }()
+
+	initial := &collectSink{}
+	if err := src.ExtractChanges(ctx, initial, filament.ChangeExtractOpts{Resources: []string{"cdc_users"}}); err != nil {
+		t.Fatal(err)
+	}
+	initialData := dataRecords(initial.recs)
+	if len(initialData) != 1 || initialData[0].ID != "10" || initialData[0].Op != filament.OpInsert {
+		t.Fatalf("initial CDC snapshot = %#v, want existing row 10", initialData)
+	}
+	first := streamCheckpointFromRecords(t, initial.recs, "cdc_users")
+
+	// Simulate an interrupted bootstrap whose slot survived but whose checkpoint
+	// did not. The retry must take another full snapshot before resuming the slot.
+	retry := &collectSink{}
+	if err := src.ExtractChanges(ctx, retry, filament.ChangeExtractOpts{Resources: []string{"cdc_users"}}); err != nil {
+		t.Fatal(err)
+	}
+	retryData := dataRecords(retry.recs)
+	if len(retryData) != 1 || retryData[0].ID != "10" {
+		t.Fatalf("retried CDC snapshot = %#v, want existing row 10", retryData)
+	}
+
+	if _, err := pg.Pool().Exec(ctx, `
+		INSERT INTO cdc_users VALUES (1, 'Ada');
+		UPDATE cdc_users SET id=2, name='Grace' WHERE id=1;
+		DELETE FROM cdc_users WHERE id=2;
+	`); err != nil {
+		t.Fatal(err)
+	}
+	changes := &collectSink{}
+	if err := src.ExtractChanges(ctx, changes, filament.ChangeExtractOpts{
+		Resources: []string{"cdc_users"}, Checkpoints: map[string]filament.Checkpoint{"cdc_users": first},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var ops []filament.Operation
+	for _, rec := range changes.recs {
+		if !rec.Drained {
+			ops = append(ops, rec.Op)
+		}
+	}
+	want := []filament.Operation{filament.OpInsert, filament.OpDelete, filament.OpInsert, filament.OpDelete}
+	if len(ops) != len(want) {
+		t.Fatalf("CDC ops = %v, want %v; records = %#v", ops, want, changes.recs)
+	}
+	for i := range want {
+		if ops[i] != want[i] {
+			t.Fatalf("CDC ops = %v, want %v", ops, want)
+		}
+	}
+
+	// Exercise the PostgreSQL sink's ordered merge path with the decoded stream.
+	dst := pgsink.New()
+	if err := dst.Open(ctx, filament.RunSpec{
+		Run: "cdc-sink", IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDC},
+		Sink: filament.Ref{Config: map[string]any{"dsn": pg.DSN(), "schema": "cdc_dst"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := src.Schema(ctx, "cdc_users")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := dst.EnsureSchema(ctx, "cdc_users", schema); err != nil {
+		t.Fatal(err)
+	}
+	policy := filament.WritePolicyForIngestion(filament.IngestionCDC)
+	policy.Resource = "cdc_users"
+	policy.Keys = []string{"id"}
+	if _, err := dst.Apply(ctx, filament.Batch{Resource: "cdc_users", Records: initialData}, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dst.Apply(ctx, filament.Batch{Resource: "cdc_users", Records: dataRecords(changes.recs)}, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if err := dst.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var destinationRows int
+	if err := pg.Pool().QueryRow(ctx, `SELECT count(*) FROM cdc_dst.cdc_users`).Scan(&destinationRows); err != nil {
+		t.Fatal(err)
+	}
+	if destinationRows != 1 {
+		t.Fatalf("CDC destination rows = %d, want only the snapshotted row", destinationRows)
+	}
+
+	next := streamCheckpointFromRecords(t, changes.recs, "cdc_users")
+	idle := &collectSink{}
+	if err := src.ExtractChanges(ctx, idle, filament.ChangeExtractOpts{
+		Resources: []string{"cdc_users"}, Checkpoints: map[string]filament.Checkpoint{"cdc_users": next},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rec := range idle.recs {
+		if !rec.Drained {
+			t.Fatalf("idle scheduled catch-up replayed data: %#v", idle.recs)
+		}
+	}
+}
+
+func dataRecords(records []filament.Record) []filament.Record {
+	out := make([]filament.Record, 0, len(records))
+	for _, rec := range records {
+		if !rec.Drained {
+			out = append(out, rec)
+		}
+	}
+	return out
+}
+
+func streamCheckpointFromRecords(t *testing.T, records []filament.Record, resource string) filament.Checkpoint {
+	t.Helper()
+	for i := len(records) - 1; i >= 0; i-- {
+		if records[i].Resource == resource && records[i].Drained && records[i].Meta.LSN != "" {
+			return checkpoint.NewStreamDelta(resource, records[i].Meta.LSN, records[i].Meta.Seq)
+		}
+	}
+	t.Fatalf("no stream marker for %q in %#v", resource, records)
+	return nil
+}

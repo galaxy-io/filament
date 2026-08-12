@@ -196,12 +196,12 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 		srcCfg[k] = v
 	}
 	id, err := orch.Submit(ctx, filament.RunRequest{
-		Tenant:        "t1",
-		Source:        filament.Ref{Provider: "postgres", Config: srcCfg},
-		Sink:          filament.Ref{Provider: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
-		Resources:     resources,
-		IngestionType: filament.IngestionSnapshotUpsert,
-		Options:       mode.opts,
+		Tenant:         "t1",
+		Source:         filament.Ref{Provider: "postgres", Config: srcCfg},
+		Sink:           filament.Ref{Provider: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
+		Resources:      resources,
+		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
+		Options:        mode.opts,
 	})
 	if err != nil {
 		t.Fatalf("submit: %v", err)

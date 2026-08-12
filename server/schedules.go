@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 )
 
@@ -34,6 +35,7 @@ func (a *Server) CreatePipelineSchedule(ctx context.Context, req *connect.Reques
 	if err := a.schedules.SaveSchedule(ctx, state); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	a.reconcileScheduledRunsBestEffort(ctx, state)
 	return connect.NewResponse(&ingestionv1.CreatePipelineScheduleResponse{
 		Schedule: pipelineScheduleToProto(state),
 	}), nil
@@ -62,6 +64,7 @@ func (a *Server) UpdatePipelineSchedule(ctx context.Context, req *connect.Reques
 	if err := a.schedules.SaveSchedule(ctx, next); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	a.reconcileScheduledRunsBestEffort(ctx, next)
 	return connect.NewResponse(&ingestionv1.UpdatePipelineScheduleResponse{
 		Schedule: pipelineScheduleToProto(next),
 	}), nil
@@ -78,6 +81,9 @@ func (a *Server) DeletePipelineSchedule(ctx context.Context, req *connect.Reques
 	}
 	if err := a.schedules.DeleteSchedule(ctx, state.ID); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := runs.DropScheduled(ctx, a.store, state.ID); err != nil {
+		fmt.Printf("[ingestion-api] drop scheduled runs schedule=%s err=%v\n", state.ID, err)
 	}
 	return connect.NewResponse(&ingestionv1.DeletePipelineScheduleResponse{}), nil
 }
@@ -97,6 +103,7 @@ func (a *Server) PausePipelineSchedule(ctx context.Context, req *connect.Request
 	if err := a.schedules.SaveSchedule(ctx, state); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	a.reconcileScheduledRunsBestEffort(ctx, state)
 	return connect.NewResponse(&ingestionv1.PausePipelineScheduleResponse{
 		Schedule: pipelineScheduleToProto(state),
 	}), nil
@@ -126,6 +133,7 @@ func (a *Server) ResumePipelineSchedule(ctx context.Context, req *connect.Reques
 	if err := a.schedules.SaveSchedule(ctx, state); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	a.reconcileScheduledRunsBestEffort(ctx, state)
 	return connect.NewResponse(&ingestionv1.ResumePipelineScheduleResponse{
 		Schedule: pipelineScheduleToProto(state),
 	}), nil
@@ -144,6 +152,9 @@ func (a *Server) schedulePipeline(ctx context.Context, pipelineID string) (*inge
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if pipeline.GetDeletedAt() != 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipelineID))
 	}
 	return pipeline, nil
 }

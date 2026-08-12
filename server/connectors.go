@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
 )
 
 const (
@@ -31,7 +32,33 @@ func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestio
 			connectors = append(connectors, sinkSpecToProto(spec))
 		}
 	}
-	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: connectors}), nil
+	page, pagination, err := pageOf(connectors, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: page, Pagination: pagination}), nil
+}
+
+// GetConnector returns the spec for one registered connector.
+func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv1.GetConnectorRequest]) (*connect.Response[ingestionv1.GetConnectorResponse], error) {
+	var spec *ingestionv1.ConnectorSpec
+	switch req.Msg.GetKind() {
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
+		source, err := a.sources.Resolve(req.Msg.GetConnector())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		spec = sourceSpecToProto(source.Spec())
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
+		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		spec = sinkSpecToProto(sink.Spec())
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("connector kind is required"))
+	}
+	return connect.NewResponse(&ingestionv1.GetConnectorResponse{Connector: spec}), nil
 }
 
 // ValidateConfig checks a connector config against its schema, optionally
@@ -78,6 +105,13 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		}
 		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
+		}
+		if req.Msg.GetLive() {
+			if live, ok := sink.(filament.LiveValidatable); ok {
+				if err := live.TestConnection(ctx, cfg); err != nil {
+					return connect.NewResponse(validationError(err.Error())), nil
+				}
+			}
 		}
 	default:
 		return connect.NewResponse(validationError("connector kind is required")), nil
@@ -149,7 +183,7 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 		if connector == "" {
 			connector = conn.Connector
 		}
-		config = mergeConfig(conn.Config, config)
+		config = compile.MergeConfig(conn.Config, config)
 		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}

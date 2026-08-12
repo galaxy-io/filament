@@ -19,7 +19,7 @@ row-by-row from the client.
 
 ## Write policies
 
-A resumable ingestion type (`SnapshotUpsert`, `Upsert`) upserts by primary
+A resumable ingestion type (`SnapshotUpsert`, `Upsert`, or `CDC`) upserts by primary
 key via `ON CONFLICT … DO UPDATE`, so a re-delivered row from an
 at-least-once resume overwrites rather than errors on the unique
 constraint. A non-resumable load truncates the table first and inserts
@@ -27,7 +27,7 @@ plain, for full-snapshot replace semantics.
 
 ## Modes
 
-Supports `SnapshotReplace`, `SnapshotUpsert`, `Append`, and `Upsert` write
-policies (see [Replication modes](/pages/guides/concepts/replication-modes)).
-CDC lands through the [MySQL sink's](/pages/connectors/sinks/mysql) merge
-path today; Postgres CDC write support is not yet implemented.
+Supports `SnapshotReplace`, `SnapshotUpsert`, `Append`, `Upsert`, and `CDC`
+write policies (see [Replication modes](/pages/guides/concepts/replication-modes)).
+CDC batches preserve arrival order: inserts and updates upsert by primary key,
+deletes match their before-image keys, and each batch commits in one transaction.

@@ -3,7 +3,6 @@ import { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-export const PIPELINE_RUN_HISTORY_LIMIT = 50;
 export const PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT = 3;
 export const PIPELINE_RUN_ERROR_TOOLTIP_MAX_WIDTH = 360;
 
@@ -23,26 +22,29 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.CANCELED]: "Canceled",
   [RunStatus.PAUSED]: "Paused",
   [RunStatus.PARTIAL]: "Partial",
+  [RunStatus.SCHEDULED]: "Scheduled",
 };
 
 export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> = {
   [RunStatus.UNSPECIFIED]: BeaconVariant.SECONDARY,
-  [RunStatus.REQUESTED]: BeaconVariant.YELLOW,
+  [RunStatus.REQUESTED]: BeaconVariant.LIME,
   [RunStatus.RUNNING]: BeaconVariant.BLUE,
   [RunStatus.COMPLETED]: BeaconVariant.SUCCESS,
   [RunStatus.FAILED]: BeaconVariant.ERROR,
   [RunStatus.CANCELED]: BeaconVariant.PURPLE,
   [RunStatus.PAUSED]: BeaconVariant.WARNING,
   [RunStatus.PARTIAL]: BeaconVariant.PINK,
+  [RunStatus.SCHEDULED]: BeaconVariant.YELLOW,
 };
 
 export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVariant> = {
   [RunStatus.UNSPECIFIED]: TextVariant.SECONDARY,
-  [RunStatus.REQUESTED]: TextVariant.YELLOW,
+  [RunStatus.REQUESTED]: TextVariant.LIME,
   [RunStatus.RUNNING]: TextVariant.BLUE,
   [RunStatus.COMPLETED]: TextVariant.SUCCESS,
   [RunStatus.FAILED]: TextVariant.ERROR,
   [RunStatus.CANCELED]: TextVariant.PURPLE,
   [RunStatus.PAUSED]: TextVariant.WARNING,
   [RunStatus.PARTIAL]: TextVariant.PINK,
+  [RunStatus.SCHEDULED]: TextVariant.YELLOW,
 };

@@ -21,13 +21,14 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/logger"
+	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
-	schedulermodule "github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
@@ -52,6 +53,8 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if migrateOnly {
 		return persistence.MigrateFromEnv(ctx)
 	}
+
+	lg := logger.New()
 
 	store, err := persistence.FromEnv(ctx)
 	if err != nil {
@@ -126,17 +129,16 @@ func run(ctx context.Context, migrateOnly bool) error {
 		}
 	}()
 
-	orch := orchestrator.New()
-	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, server.WithSecrets(secrets))
-	scheduleStore, ok := store.(filament.ScheduleStore)
-	if !ok {
-		return fmt.Errorf("datastore %q does not support schedules", store.Name())
+	metricStore, err := metricsstore.FromEnv(ctx, store)
+	if err != nil {
+		return err
 	}
-	scheduler := schedulermodule.New(scheduleStore, schedulermodule.WithPipelineSubmitter(api))
+	orch := orchestrator.New()
+	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus,
+		server.WithSecrets(secrets), server.WithMetricsStore(metricStore))
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Metrics: metrics, Tracer: tracer},
+		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
 		orch,
-		scheduler,
 	)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
@@ -151,7 +153,6 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run host: %w", err)
 	}
-	scheduler.Start(ctx)
 
 	api.Mount(mux)
 	mux.Handle("/", ui.Handler())

@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/logger"
+	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
 	"github.com/galaxy-io/filament/registry"
@@ -21,15 +24,16 @@ import (
 )
 
 func main() {
-	if err := run(context.Background()); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := run(ctx)
+	stop()
+	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 func run(ctx context.Context) error {
-	// Default logger too, so library logs (e.g. iceberg-go) come out as JSON.
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
+	lg := logger.New()
 
 	runID := filament.RunID(os.Getenv("RUN_ID"))
 	if runID == "" {
@@ -67,17 +71,44 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if state.Status != filament.RunRequested && state.Status != filament.RunPartial {
+	if !runner.ShouldRun(state) {
+		lg.Info("worker: nothing to do",
+			filament.Field{Key: "run", Value: string(runID)},
+			filament.Field{Key: "status", Value: int(state.Status)})
 		return nil
 	}
+	lg.Info("worker: executing run",
+		filament.Field{Key: "run", Value: string(runID)},
+		filament.Field{Key: "pipeline", Value: state.Request.PipelineID},
+		filament.Field{Key: "source", Value: state.Request.Source.Provider},
+		filament.Field{Key: "sink", Value: state.Request.Sink.Provider},
+		filament.Field{Key: "resources", Value: len(state.Request.Resources)})
+
+	mx, tracer, shutdown, err := otel.FromEnv(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+
+	hb := &heartbeat{
+		bus:      bus,
+		mx:       mx,
+		log:      lg,
+		tenant:   state.Tenant,
+		run:      state.Run,
+		pipeline: state.Request.PipelineID,
+	}
+	stopHeartbeat := hb.start(ctx, heartbeatInterval())
 
 	runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
 		DataStore: store,
-		Log:       slogLogger{l: logger},
+		Log:       lg,
 		Secrets:   secrets,
 		Sources:   registry.DefaultSources,
 		Sinks:     registry.DefaultSinks,
+		Tracer:    tracer,
 	}, runner.SpecFromState(state))
+	stopHeartbeat()
 	return nil
 }

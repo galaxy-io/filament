@@ -132,12 +132,15 @@ func (m *Manifest) validateSemantics() error {
 	}
 
 	// Connection-level templated fields. Headers run per-request (full scope
-	// available); auth params run at connection scope only — `parent` and
-	// `cursor` make no sense there and a referenced scope that won't ever
-	// resolve must surface at load time, not as a 401 on first request.
+	// available); base_url and auth params run at connection scope only —
+	// `parent` and `cursor` make no sense there and a referenced scope that
+	// won't ever resolve must surface at load time, not as a 401 on first
+	// request. base_url is rendered once at Configure, so it shares auth's
+	// scope set; regional APIs use it to select a host from config.
 	for k, v := range m.Connection.Headers {
 		validateTemplate(&agg, fmt.Sprintf("connection.headers[%q]", k), v)
 	}
+	validateTemplateScopes(&agg, "connection.base_url", m.Connection.BaseURL, template.AuthScopes)
 	validateAuthParams(&agg, "connection.auth", m.Connection.Auth.Params)
 
 	names := make(map[string]struct{}, len(m.Resources))

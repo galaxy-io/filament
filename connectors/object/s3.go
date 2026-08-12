@@ -90,7 +90,10 @@ type upload struct {
 // New returns an unconfigured sink. Open wires it to S3.
 func New() *Sink { return &Sink{uploads: map[string]*upload{}} }
 
-var _ filament.Sink = (*Sink)(nil)
+var (
+	_ filament.Sink            = (*Sink)(nil)
+	_ filament.LiveValidatable = (*Sink)(nil)
+)
 
 // Spec describes the sink's config fields and write capabilities.
 func (s *Sink) Spec() filament.SinkSpec {
@@ -113,14 +116,31 @@ func (s *Sink) Spec() filament.SinkSpec {
 		}},
 		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(
-			filament.IngestionAppend,
-			filament.IngestionSnapshotReplace,
+			filament.IngestionFullAppend,
+			filament.IngestionFullReplace,
 		)},
 	}
 }
 
 // Name identifies this sink implementation.
 func (s *Sink) Name() string { return "s3" }
+
+// TestConnection resolves the configured credential chain and checks access
+// to the destination bucket without creating an object.
+func (s *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
+	bucket := cfg.String("bucket")
+	if bucket == "" {
+		return fmt.Errorf("s3 sink: bucket is required")
+	}
+	client, err := s3Client(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)}); err != nil {
+		return fmt.Errorf("s3 sink: access bucket %q: %w", bucket, err)
+	}
+	return nil
+}
 
 // Open reads the sink config, builds an S3 client, and resets per-run state.
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
@@ -154,28 +174,41 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		return &b
 	}}
 
+	client, err := s3Client(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	s.client = client
+	return nil
+}
+
+func s3Client(ctx context.Context, cfg filament.Config) (*s3.Client, error) {
 	var loadOpts []func(*awscfg.LoadOptions) error
 	if region := cfg.String("region"); region != "" {
 		loadOpts = append(loadOpts, awscfg.WithRegion(region))
 	}
-	if id, secret := cfg.Secret("access_key_id"), cfg.Secret("secret_access_key"); id != "" && secret != "" {
+	id, secret := cfg.Secret("access_key_id"), cfg.Secret("secret_access_key")
+	if (id == "") != (secret == "") {
+		return nil, fmt.Errorf("s3 sink: access_key_id and secret_access_key must be provided together")
+	}
+	if id != "" {
 		loadOpts = append(loadOpts, awscfg.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(id, secret, ""),
 		))
 	}
 	awsCfg, err := awscfg.LoadDefaultConfig(ctx, loadOpts...)
 	if err != nil {
-		return fmt.Errorf("s3 sink: load aws config: %w", err)
+		return nil, fmt.Errorf("s3 sink: load aws config: %w", err)
 	}
 
 	endpoint := cfg.String("endpoint")
-	s.client = s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		if endpoint != "" {
 			o.BaseEndpoint = aws.String(endpoint)
 			o.UsePathStyle = true // MinIO and most non-AWS gateways need path-style addressing.
 		}
 	})
-	return nil
+	return client, nil
 }
 
 // Write appends each record as one NDJSON line to its resource's part buffer. A

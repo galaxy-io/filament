@@ -11,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/runner"
 )
 
 const defaultDurable = "k8sdispatch"
@@ -73,10 +74,10 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 	if err != nil {
 		return fmt.Errorf("k8sdispatch: load run %q: %w", ev.Run, err)
 	}
-	if state.Status != filament.RunRequested && state.Status != filament.RunPartial {
+	if !runner.ShouldRun(state) {
 		return nil
 	}
-	_, err = m.Dispatch(ctx, specFromState(state))
+	_, err = m.Dispatch(ctx, runner.SpecFromState(state))
 	return err
 }
 
@@ -103,19 +104,4 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 		)
 	}
 	return runHandle{run: spec.Run, ds: m.ds}, nil
-}
-
-func specFromState(s filament.RunState) filament.RunSpec {
-	r := s.Request
-	return filament.RunSpec{
-		Tenant:        r.Tenant,
-		Run:           s.Run,
-		Source:        r.Source,
-		Sink:          r.Sink,
-		Resources:     r.Resources,
-		Selectors:     r.Selectors,
-		IngestionType: r.IngestionType.OrDefault(),
-		Mode:          filament.ModeFull,
-		Options:       r.Options,
-	}
 }

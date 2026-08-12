@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { SlidersIcon } from "@phosphor-icons/react";
+import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Button from "@galaxy-io/dls/buttons/Button";
@@ -16,13 +17,18 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import { type Pipeline, UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  GetPipelineRequestSchema,
+  type Pipeline,
+  UpdatePipelineRequestSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
-import { useUpdatePipelineMutation } from "@/api/queries/pipelines";
+import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
+import { stripDeletedName } from "@/utils/format";
 
 interface PipelineSettingsPageGeneralState {
   name: Pipeline["name"];
@@ -34,20 +40,26 @@ const DEFAULT_STATE: PipelineSettingsPageGeneralState = {
   description: "",
 };
 
-interface PipelineSettingsPageGeneralProps {
-  pipeline: Pipeline;
-}
-
-const PipelineSettingsPageGeneral = ({ pipeline }: PipelineSettingsPageGeneralProps) => {
+const PipelineSettingsPageGeneral = () => {
   const { showToast } = useToast();
+  const { id } = useParams({ from: "/pipelines/$id" });
+
+  const { data } = useSuspenseGetPipelineQuery({
+    input: create(GetPipelineRequestSchema, { id }),
+  });
+  const pipeline = data.pipeline;
 
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();
 
   const [state, setState] = useState<PipelineSettingsPageGeneralState>(() => ({
     ...DEFAULT_STATE,
-    name: pipeline.name,
-    description: pipeline.description,
+    name: stripDeletedName(pipeline?.name ?? ""),
+    description: pipeline?.description ?? "",
   }));
+
+  if (!pipeline) return null;
+
+  const pipelineName = stripDeletedName(pipeline.name);
 
   const handleNameChange = (name: string) => {
     setState((prev) => ({ ...prev, name }));
@@ -58,7 +70,7 @@ const PipelineSettingsPageGeneral = ({ pipeline }: PipelineSettingsPageGeneralPr
   };
 
   const hasChanges =
-    state.name.trim() !== pipeline.name || state.description.trim() !== pipeline.description;
+    state.name.trim() !== pipelineName || state.description.trim() !== pipeline.description;
 
   const canSave = hasChanges && state.name.trim().length > 0;
 

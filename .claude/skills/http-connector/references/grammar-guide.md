@@ -34,7 +34,7 @@ Types: `string | int | bool | duration | enum | object | secret`. Optional `scop
 
 ```yaml
 connection:
-  base_url: https://api.example.com     # required, a URI
+  base_url: https://api.example.com     # required; templatable (see below)
   auth: ...                             # one strategy, see below
   headers: { Accept: application/json } # sent on every request
   timeout_seconds: 60
@@ -46,6 +46,21 @@ connection:
       reset_format: unix_seconds        # unix_seconds | seconds_from_now | http_date
       min_floor_rps: 0.5
 ```
+
+`base_url` accepts a template and is rendered once at Configure, so it carries
+auth's scope set (`config`, `state`, `env` — never `parent`/`cursor`). Use it
+for APIs with regional or per-tenant hosts rather than pinning one:
+
+```yaml
+config:
+  host: { type: string, default: https://us.posthog.com }
+connection:
+  base_url: "{{ config.host }}"
+```
+
+See posthog.yaml. Literal base URLs are unaffected. Note that tests for such a
+manifest set the host through config instead of the usual
+`strings.Replace(manifest, "https://api.example.com", api.URL, 1)` swap.
 
 ### auth — exactly one strategy key
 
@@ -141,7 +156,7 @@ Types: `string bool int16 int32 int64 float32 float64 decimal date time timestam
 
 ```yaml
 pagination: { link: next }                # Link response header, rel="next"
-pagination: { next_url: $.paging.next }   # full next-page URL in the response
+pagination: { next_url: paging.next }     # full next-page URL in the response (bare dot-path, no $.)
 pagination:
   cursor:
     response: response_metadata.next_cursor   # where the cursor appears in the response

@@ -28,8 +28,13 @@ type (
 	RunPartialEvent struct {
 		Error string `json:"error"`
 	}
-	// HeartbeatEvent is the worker liveness signal.
-	HeartbeatEvent struct{}
+	// HeartbeatEvent is the worker liveness and resource usage signal: the
+	// pod's cumulative cgroup CPU time and its current/peak working set.
+	HeartbeatEvent struct {
+		CPUSeconds      float64 `json:"cpuSeconds,omitempty"`
+		MemoryBytes     int64   `json:"memoryBytes,omitempty"`
+		MemoryPeakBytes int64   `json:"memoryPeakBytes,omitempty"`
+	}
 
 	// ResourceStartedEvent marks extraction beginning for one resource.
 	ResourceStartedEvent struct{}

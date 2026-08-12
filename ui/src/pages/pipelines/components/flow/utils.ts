@@ -15,35 +15,50 @@ export interface PipelineFlowEndpoints {
   sinks: PipelineFlowConnection[];
 }
 
+export const mapConnectionIdToFlowConnection = (
+  connectionId: Connection["id"],
+  connectionsById: Map<Connection["id"], Connection>,
+): PipelineFlowConnection => {
+  const connection = connectionsById.get(connectionId);
+  return {
+    connectionId,
+    connector: connection?.connector ?? "",
+    isDeleted: !!connection?.deletedAt,
+  };
+};
+
 export const mapVersionNodesToFlowEndpoints = (
   nodes: PipelineVersion["nodes"],
   connections: Connection[],
 ): PipelineFlowEndpoints => {
   const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));
-  const toFlowConnection = (connectionId: string): PipelineFlowConnection => ({
-    connectionId,
-    connector: connectionsById.get(connectionId)?.connector ?? connectionId,
-  });
 
   const sourceNode = nodes.find((node) => node.kind === ConnectorKind.SOURCE);
   return {
-    source: sourceNode ? toFlowConnection(sourceNode.connectionId) : undefined,
+    source: sourceNode
+      ? mapConnectionIdToFlowConnection(sourceNode.connectionId, connectionsById)
+      : undefined,
     sinks: nodes
       .filter((node) => node.kind === ConnectorKind.SINK)
-      .map((node) => toFlowConnection(node.connectionId)),
+      .map((node) => mapConnectionIdToFlowConnection(node.connectionId, connectionsById)),
   };
 };
 
-export const mapCanvasNodesToFlowEndpoints = (nodes: CanvasNode[]): PipelineFlowEndpoints => {
+export const mapCanvasNodesToFlowEndpoints = (
+  nodes: CanvasNode[],
+  connections: Connection[],
+): PipelineFlowEndpoints => {
+  const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));
+
   const sourceNode = nodes.find(
     (node): node is PipelineCanvasSourceNode => node.type === PipelineCanvasNodeType.SOURCE,
   );
   return {
     source: sourceNode
-      ? { connectionId: sourceNode.data.connectionId, connector: sourceNode.data.connector }
+      ? mapConnectionIdToFlowConnection(sourceNode.data.connectionId, connectionsById)
       : undefined,
     sinks: nodes
       .filter((node): node is PipelineCanvasSinkNode => node.type === PipelineCanvasNodeType.SINK)
-      .map((node) => ({ connectionId: node.data.connectionId, connector: node.data.connector })),
+      .map((node) => mapConnectionIdToFlowConnection(node.data.connectionId, connectionsById)),
   };
 };

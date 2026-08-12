@@ -4,13 +4,15 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { PaginationRequest, PaginationResponse } from "./pagination_pb";
+import { file_ingestion_v1_pagination } from "./pagination_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ingestion/v1/runs.proto.
  */
 export const file_ingestion_v1_runs: GenFile = /*@__PURE__*/
-  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJqChJSdW5QaXBlbGluZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSFAoMY2xpZW50X3Rva2VuGAIgASgJEikKB29wdGlvbnMYAyABKAsyGC5pbmdlc3Rpb24udjEuUnVuT3B0aW9ucyIqCgpSdW5CaW5kaW5nEgwKBGVkZ2UYASABKAkSDgoGcnVuX2lkGAIgASgJIj0KE1J1blBpcGVsaW5lUmVzcG9uc2USJgoEcnVucxgBIAMoCzIYLmluZ2VzdGlvbi52MS5SdW5CaW5kaW5nIo0BChBSdW5SZXNvdXJjZVN0YXRlEhAKCHJlc291cmNlGAEgASgJEg8KB2VuYWJsZWQYAiABKAgSJwoGc3RhdHVzGAMgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAQgASgDEg0KBWJ5dGVzGAUgASgDEg0KBWVycm9yGAYgASgJIpYCCgdSdW5JbmZvEg4KBnJ1bl9pZBgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSEwoLcGlwZWxpbmVfaWQYAyABKAkSGwoTcGlwZWxpbmVfdmVyc2lvbl9pZBgEIAEoAxInCgZzdGF0dXMYBSABKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg8KB3JlY29yZHMYBiABKAMSDQoFYnl0ZXMYByABKAMSDQoFZXJyb3IYCCABKAkSEgoKc3RhcnRlZF9hdBgJIAEoAxIQCghlbmRlZF9hdBgKIAEoAxIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgLIAEoCRIaChJzaW5rX2Nvbm5lY3Rpb25faWQYDCABKAkidAoLUnVuU25hcHNob3QSIgoDcnVuGAEgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMQoJcmVzb3VyY2VzGAIgAygLMh4uaW5nZXN0aW9uLnYxLlJ1blJlc291cmNlU3RhdGUSDgoGYXRfc2VxGAMgASgEIh8KDUdldFJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIj0KDkdldFJ1blJlc3BvbnNlEisKCHNuYXBzaG90GAEgASgLMhkuaW5nZXN0aW9uLnYxLlJ1blNuYXBzaG90It8BCg9MaXN0UnVuc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEiAKE3BpcGVsaW5lX3ZlcnNpb25faWQYAyABKANIAIgBARInCgZzdGF0dXMYBCADKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg0KBWxpbWl0GAUgASgFEg4KBm9mZnNldBgGIAEoBRIQCghzaW5jZV9tcxgHIAEoAxIQCgh1bnRpbF9tcxgIIAEoA0IWChRfcGlwZWxpbmVfdmVyc2lvbl9pZCI3ChBMaXN0UnVuc1Jlc3BvbnNlEiMKBHJ1bnMYASADKAsyFS5pbmdlc3Rpb24udjEuUnVuSW5mbyJIChBTaWduYWxSdW5SZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIkCgZzaWduYWwYAiABKA4yFC5pbmdlc3Rpb24udjEuU2lnbmFsIhMKEVNpZ25hbFJ1blJlc3BvbnNlIkMKDlRhaWxSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSDgoGcmVwbGF5GAMgASgIIlkKDlJ1bkV2ZW50RmllbGRzEg8KB3JlY29yZHMYASABKAMSDQoFYnl0ZXMYAiABKAMSCwoDdXJpGAMgASgJEgsKA2NyYxgEIAEoDRINCgVlcnJvchgFIAEoCSKsAQoIUnVuRXZlbnQSDAoEdHlwZRgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEhAKCHJlc291cmNlGAQgASgJEgsKA3NlcRgFIAEoBBISCgphdF91bml4X21zGAYgASgDEiwKBmZpZWxkcxgHIAEoCzIcLmluZ2VzdGlvbi52MS5SdW5FdmVudEZpZWxkcxIOCgZyZXBsYXkYCCABKAgiOAoPVGFpbFJ1blJlc3BvbnNlEiUKBWV2ZW50GAEgASgLMhYuaW5nZXN0aW9uLnYxLlJ1bkV2ZW50KtIBCglSdW5TdGF0dXMSGgoWUlVOX1NUQVRVU19VTlNQRUNJRklFRBAAEhgKFFJVTl9TVEFUVVNfUkVRVUVTVEVEEAESFgoSUlVOX1NUQVRVU19SVU5OSU5HEAISGAoUUlVOX1NUQVRVU19DT01QTEVURUQQAxIVChFSVU5fU1RBVFVTX0ZBSUxFRBAEEhcKE1JVTl9TVEFUVVNfQ0FOQ0VMRUQQBRIVChFSVU5fU1RBVFVTX1BBVVNFRBAGEhYKElJVTl9TVEFUVVNfUEFSVElBTBAHKlgKBlNpZ25hbBIWChJTSUdOQUxfVU5TUEVDSUZJRUQQABIQCgxTSUdOQUxfUEFVU0UQARIRCg1TSUdOQUxfUkVTVU1FEAISEQoNU0lHTkFMX0NBTkNFTBADYgZwcm90bzM");
+  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJqChJSdW5QaXBlbGluZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSFAoMY2xpZW50X3Rva2VuGAIgASgJEikKB29wdGlvbnMYAyABKAsyGC5pbmdlc3Rpb24udjEuUnVuT3B0aW9ucyIqCgpSdW5CaW5kaW5nEgwKBGVkZ2UYASABKAkSDgoGcnVuX2lkGAIgASgJIj0KE1J1blBpcGVsaW5lUmVzcG9uc2USJgoEcnVucxgBIAMoCzIYLmluZ2VzdGlvbi52MS5SdW5CaW5kaW5nIo0BChBSdW5SZXNvdXJjZVN0YXRlEhAKCHJlc291cmNlGAEgASgJEg8KB2VuYWJsZWQYAiABKAgSJwoGc3RhdHVzGAMgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAQgASgDEg0KBWJ5dGVzGAUgASgDEg0KBWVycm9yGAYgASgJIpoDCgdSdW5JbmZvEg4KBnJ1bl9pZBgBIAEoCRIRCgl0ZW5hbnRfaWQYAiABKAkSEwoLcGlwZWxpbmVfaWQYAyABKAkSGwoTcGlwZWxpbmVfdmVyc2lvbl9pZBgEIAEoAxInCgZzdGF0dXMYBSABKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg8KB3JlY29yZHMYBiABKAMSDQoFYnl0ZXMYByABKAMSDQoFZXJyb3IYCCABKAkSEgoKc3RhcnRlZF9hdBgJIAEoAxIQCghlbmRlZF9hdBgKIAEoAxIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgLIAEoCRIaChJzaW5rX2Nvbm5lY3Rpb25faWQYDCABKAkSEwoLY3B1X3NlY29uZHMYDSABKAESGQoRbWVtb3J5X3BlYWtfYnl0ZXMYDiABKAMSEgoKY3JlYXRlZF9hdBgPIAEoAxIUCgxzY2hlZHVsZWRfYXQYECABKAMSFAoMcmVxdWVzdGVkX2F0GBEgASgDEhIKCnVwZGF0ZWRfYXQYEiABKAMidAoLUnVuU25hcHNob3QSIgoDcnVuGAEgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMQoJcmVzb3VyY2VzGAIgAygLMh4uaW5nZXN0aW9uLnYxLlJ1blJlc291cmNlU3RhdGUSDgoGYXRfc2VxGAMgASgEIh8KDUdldFJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJIj0KDkdldFJ1blJlc3BvbnNlEisKCHNuYXBzaG90GAEgASgLMhkuaW5nZXN0aW9uLnYxLlJ1blNuYXBzaG90IvUBCg9MaXN0UnVuc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEiAKE3BpcGVsaW5lX3ZlcnNpb25faWQYAyABKANIAIgBARInCgZzdGF0dXMYBCADKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEjMKCnBhZ2luYXRpb24YBSABKAsyHy5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlcXVlc3QSEAoIc2luY2VfbXMYByABKAMSEAoIdW50aWxfbXMYCCABKANCFgoUX3BpcGVsaW5lX3ZlcnNpb25faWQibQoQTGlzdFJ1bnNSZXNwb25zZRIjCgRydW5zGAEgAygLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SNAoKcGFnaW5hdGlvbhgCIAEoCzIgLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVzcG9uc2UiSAoQU2lnbmFsUnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkSJAoGc2lnbmFsGAIgASgOMhQuaW5nZXN0aW9uLnYxLlNpZ25hbCITChFTaWduYWxSdW5SZXNwb25zZSJDCg5UYWlsUnVuUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnJlcGxheRgDIAEoCCJZCg5SdW5FdmVudEZpZWxkcxIPCgdyZWNvcmRzGAEgASgDEg0KBWJ5dGVzGAIgASgDEgsKA3VyaRgDIAEoCRILCgNjcmMYBCABKA0SDQoFZXJyb3IYBSABKAkirAEKCFJ1bkV2ZW50EgwKBHR5cGUYASABKAkSEQoJdGVuYW50X2lkGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIQCghyZXNvdXJjZRgEIAEoCRILCgNzZXEYBSABKAQSEgoKYXRfdW5peF9tcxgGIAEoAxIsCgZmaWVsZHMYByABKAsyHC5pbmdlc3Rpb24udjEuUnVuRXZlbnRGaWVsZHMSDgoGcmVwbGF5GAggASgIIjgKD1RhaWxSdW5SZXNwb25zZRIlCgVldmVudBgBIAEoCzIWLmluZ2VzdGlvbi52MS5SdW5FdmVudCrsAQoJUnVuU3RhdHVzEhoKFlJVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIYChRSVU5fU1RBVFVTX1JFUVVFU1RFRBABEhYKElJVTl9TVEFUVVNfUlVOTklORxACEhgKFFJVTl9TVEFUVVNfQ09NUExFVEVEEAMSFQoRUlVOX1NUQVRVU19GQUlMRUQQBBIXChNSVU5fU1RBVFVTX0NBTkNFTEVEEAUSFQoRUlVOX1NUQVRVU19QQVVTRUQQBhIWChJSVU5fU1RBVFVTX1BBUlRJQUwQBxIYChRSVU5fU1RBVFVTX1NDSEVEVUxFRBAIKlgKBlNpZ25hbBIWChJTSUdOQUxfVU5TUEVDSUZJRUQQABIQCgxTSUdOQUxfUEFVU0UQARIRCg1TSUdOQUxfUkVTVU1FEAISEQoNU0lHTkFMX0NBTkNFTBADYgZwcm90bzM", [file_ingestion_v1_pagination]);
 
 /**
  * RatePolicy throttles source reads.
@@ -265,6 +267,43 @@ export type RunInfo = Message<"ingestion.v1.RunInfo"> & {
    * @generated from field: string sink_connection_id = 12;
    */
   sinkConnectionId: string;
+
+  /**
+   * Worker pod usage folded from run.heartbeat facts.
+   *
+   * @generated from field: double cpu_seconds = 13;
+   */
+  cpuSeconds: number;
+
+  /**
+   * @generated from field: int64 memory_peak_bytes = 14;
+   */
+  memoryPeakBytes: bigint;
+
+  /**
+   * Lifecycle stamps in epoch millis; 0 means unset. created_at is row birth,
+   * scheduled_at the intended fire time (scheduled runs only), requested_at
+   * when the run was queued for dispatch. started_at/ended_at above are the
+   * worker's own start and finish.
+   *
+   * @generated from field: int64 created_at = 15;
+   */
+  createdAt: bigint;
+
+  /**
+   * @generated from field: int64 scheduled_at = 16;
+   */
+  scheduledAt: bigint;
+
+  /**
+   * @generated from field: int64 requested_at = 17;
+   */
+  requestedAt: bigint;
+
+  /**
+   * @generated from field: int64 updated_at = 18;
+   */
+  updatedAt: bigint;
 };
 
 /**
@@ -360,14 +399,9 @@ export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
   status: RunStatus[];
 
   /**
-   * @generated from field: int32 limit = 5;
+   * @generated from field: ingestion.v1.PaginationRequest pagination = 5;
    */
-  limit: number;
-
-  /**
-   * @generated from field: int32 offset = 6;
-   */
-  offset: number;
+  pagination?: PaginationRequest | undefined;
 
   /**
    * since_ms/until_ms window on started_at (inclusive/exclusive, epoch
@@ -398,6 +432,11 @@ export type ListRunsResponse = Message<"ingestion.v1.ListRunsResponse"> & {
    * @generated from field: repeated ingestion.v1.RunInfo runs = 1;
    */
   runs: RunInfo[];
+
+  /**
+   * @generated from field: ingestion.v1.PaginationResponse pagination = 2;
+   */
+  pagination?: PaginationResponse | undefined;
 };
 
 /**
@@ -629,6 +668,11 @@ export enum RunStatus {
    * @generated from enum value: RUN_STATUS_PARTIAL = 7;
    */
   PARTIAL = 7,
+
+  /**
+   * @generated from enum value: RUN_STATUS_SCHEDULED = 8;
+   */
+  SCHEDULED = 8,
 }
 
 /**

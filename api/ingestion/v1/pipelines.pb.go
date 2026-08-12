@@ -156,6 +156,9 @@ func (x *PipelineNode) GetSecretRefs() map[string]string {
 
 // PipelineEdge routes from a source node to a sink node. An empty resource routes
 // all enabled resources; a named resource is an additive per-resource route.
+// read_mode and write_mode are the user's two levers; ingestion_type is derived
+// from them (and the source connection's replication mode) by the server at
+// save time — clients never set it. Edges on a CDC connection carry no levers.
 type PipelineEdge struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FromNode      string                 `protobuf:"bytes,1,opt,name=from_node,json=fromNode,proto3" json:"from_node,omitempty"`
@@ -167,6 +170,8 @@ type PipelineEdge struct {
 	// configure several resources; a resource-specific edge may configure only
 	// its own resource. Omitted resources use connector auto-detection.
 	Cursors       []*ResourceCursorConfig `protobuf:"bytes,6,rep,name=cursors,proto3" json:"cursors,omitempty"`
+	ReadMode      ReadMode                `protobuf:"varint,7,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
+	WriteMode     WriteMode               `protobuf:"varint,8,opt,name=write_mode,json=writeMode,proto3,enum=ingestion.v1.WriteMode" json:"write_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -241,6 +246,20 @@ func (x *PipelineEdge) GetCursors() []*ResourceCursorConfig {
 		return x.Cursors
 	}
 	return nil
+}
+
+func (x *PipelineEdge) GetReadMode() ReadMode {
+	if x != nil {
+		return x.ReadMode
+	}
+	return ReadMode_READ_MODE_UNSPECIFIED
+}
+
+func (x *PipelineEdge) GetWriteMode() WriteMode {
+	if x != nil {
+		return x.WriteMode
+	}
+	return WriteMode_WRITE_MODE_UNSPECIFIED
 }
 
 type ResourceCursorConfig struct {
@@ -393,6 +412,8 @@ type Pipeline struct {
 	LastRunStatus    RunStatus              `protobuf:"varint,9,opt,name=last_run_status,json=lastRunStatus,proto3,enum=ingestion.v1.RunStatus" json:"last_run_status,omitempty"`
 	LastRunBytes     int64                  `protobuf:"varint,10,opt,name=last_run_bytes,json=lastRunBytes,proto3" json:"last_run_bytes,omitempty"`
 	LastRunEndedAt   int64                  `protobuf:"varint,11,opt,name=last_run_ended_at,json=lastRunEndedAt,proto3" json:"last_run_ended_at,omitempty"`
+	CreatedAt        int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	DeletedAt        int64                  `protobuf:"varint,13,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -493,6 +514,20 @@ func (x *Pipeline) GetLastRunBytes() int64 {
 func (x *Pipeline) GetLastRunEndedAt() int64 {
 	if x != nil {
 		return x.LastRunEndedAt
+	}
+	return 0
+}
+
+func (x *Pipeline) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *Pipeline) GetDeletedAt() int64 {
+	if x != nil {
+		return x.DeletedAt
 	}
 	return 0
 }
@@ -1613,6 +1648,7 @@ func (x *GetPipelineVersionResponse) GetVersion() *PipelineVersion {
 type ListPipelineVersionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Pagination    *PaginationRequest     `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1654,9 +1690,17 @@ func (x *ListPipelineVersionsRequest) GetPipelineId() string {
 	return ""
 }
 
+func (x *ListPipelineVersionsRequest) GetPagination() *PaginationRequest {
+	if x != nil {
+		return x.Pagination
+	}
+	return nil
+}
+
 type ListPipelineVersionsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Versions      []*PipelineVersion     `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	Pagination    *PaginationResponse    `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1698,11 +1742,20 @@ func (x *ListPipelineVersionsResponse) GetVersions() []*PipelineVersion {
 	return nil
 }
 
+func (x *ListPipelineVersionsResponse) GetPagination() *PaginationResponse {
+	if x != nil {
+		return x.Pagination
+	}
+	return nil
+}
+
 type ListPipelinesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IncludeDeleted bool                   `protobuf:"varint,2,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
+	Pagination     *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListPipelinesRequest) Reset() {
@@ -1742,9 +1795,24 @@ func (x *ListPipelinesRequest) GetTenantId() string {
 	return ""
 }
 
+func (x *ListPipelinesRequest) GetIncludeDeleted() bool {
+	if x != nil {
+		return x.IncludeDeleted
+	}
+	return false
+}
+
+func (x *ListPipelinesRequest) GetPagination() *PaginationRequest {
+	if x != nil {
+		return x.Pagination
+	}
+	return nil
+}
+
 type ListPipelinesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Pipelines     []*Pipeline            `protobuf:"bytes,1,rep,name=pipelines,proto3" json:"pipelines,omitempty"`
+	Pagination    *PaginationResponse    `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1782,6 +1850,13 @@ func (*ListPipelinesResponse) Descriptor() ([]byte, []int) {
 func (x *ListPipelinesResponse) GetPipelines() []*Pipeline {
 	if x != nil {
 		return x.Pipelines
+	}
+	return nil
+}
+
+func (x *ListPipelinesResponse) GetPagination() *PaginationResponse {
+	if x != nil {
+		return x.Pagination
 	}
 	return nil
 }
@@ -1870,7 +1945,7 @@ var File_ingestion_v1_pipelines_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\n" +
-	"\x1cingestion/v1/pipelines.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x17ingestion/v1/runs.proto\"\xb1\x02\n" +
+	"\x1cingestion/v1/pipelines.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x17ingestion/v1/runs.proto\"\xb1\x02\n" +
 	"\fPipelineNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12#\n" +
@@ -1880,14 +1955,17 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"secretRefs\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfe\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xeb\x02\n" +
 	"\fPipelineEdge\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x12\x17\n" +
 	"\ato_node\x18\x03 \x01(\tR\x06toNode\x12B\n" +
 	"\x0eingestion_type\x18\x04 \x01(\x0e2\x1b.ingestion.v1.IngestionTypeR\ringestionType\x12\x1a\n" +
 	"\bselector\x18\x05 \x01(\tR\bselector\x12<\n" +
-	"\acursors\x18\x06 \x03(\v2\".ingestion.v1.ResourceCursorConfigR\acursors\"s\n" +
+	"\acursors\x18\x06 \x03(\v2\".ingestion.v1.ResourceCursorConfigR\acursors\x123\n" +
+	"\tread_mode\x18\a \x01(\x0e2\x16.ingestion.v1.ReadModeR\breadMode\x126\n" +
+	"\n" +
+	"write_mode\x18\b \x01(\x0e2\x17.ingestion.v1.WriteModeR\twriteMode\"s\n" +
 	"\x14ResourceCursorConfig\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x14\n" +
 	"\x05field\x18\x02 \x01(\tR\x05field\x12)\n" +
@@ -1898,7 +1976,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x05nodes\x18\x03 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
 	"\x05edges\x18\x04 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\xfc\x02\n" +
+	"created_at\x18\x05 \x01(\x03R\tcreatedAt\"\xba\x03\n" +
 	"\bPipeline\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x12\n" +
@@ -1910,7 +1988,11 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x0flast_run_status\x18\t \x01(\x0e2\x17.ingestion.v1.RunStatusR\rlastRunStatus\x12$\n" +
 	"\x0elast_run_bytes\x18\n" +
 	" \x01(\x03R\flastRunBytes\x12)\n" +
-	"\x11last_run_ended_at\x18\v \x01(\x03R\x0elastRunEndedAt\"\xb6\x01\n" +
+	"\x11last_run_ended_at\x18\v \x01(\x03R\x0elastRunEndedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"deleted_at\x18\r \x01(\x03R\tdeletedAt\"\xb6\x01\n" +
 	"\x16PipelineScheduleConfig\x12\x12\n" +
 	"\x04cron\x18\x01 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x02 \x01(\tR\btimezone\x12\x18\n" +
@@ -1981,16 +2063,29 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"pipelineId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\"U\n" +
 	"\x1aGetPipelineVersionResponse\x127\n" +
-	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\">\n" +
+	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\x7f\n" +
 	"\x1bListPipelineVersionsRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
-	"pipelineId\"Y\n" +
+	"pipelineId\x12?\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\"\x9b\x01\n" +
 	"\x1cListPipelineVersionsResponse\x129\n" +
-	"\bversions\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\"3\n" +
+	"\bversions\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\x12@\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
+	"pagination\"\x9d\x01\n" +
 	"\x14ListPipelinesRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"M\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
+	"\x0finclude_deleted\x18\x02 \x01(\bR\x0eincludeDeleted\x12?\n" +
+	"\n" +
+	"pagination\x18\x03 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\"\x8f\x01\n" +
 	"\x15ListPipelinesResponse\x124\n" +
-	"\tpipelines\x18\x01 \x03(\v2\x16.ingestion.v1.PipelineR\tpipelines\"'\n" +
+	"\tpipelines\x18\x01 \x03(\v2\x16.ingestion.v1.PipelineR\tpipelines\x12@\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
+	"pagination\"'\n" +
 	"\x15DeletePipelineRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x18\n" +
 	"\x16DeletePipelineResponse*\xa8\x01\n" +
@@ -2053,7 +2148,11 @@ var file_ingestion_v1_pipelines_proto_goTypes = []any{
 	(ConnectorKind)(0),                     // 35: ingestion.v1.ConnectorKind
 	(*structpb.Struct)(nil),                // 36: google.protobuf.Struct
 	(IngestionType)(0),                     // 37: ingestion.v1.IngestionType
-	(RunStatus)(0),                         // 38: ingestion.v1.RunStatus
+	(ReadMode)(0),                          // 38: ingestion.v1.ReadMode
+	(WriteMode)(0),                         // 39: ingestion.v1.WriteMode
+	(RunStatus)(0),                         // 40: ingestion.v1.RunStatus
+	(*PaginationRequest)(nil),              // 41: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),             // 42: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
 	35, // 0: ingestion.v1.PipelineNode.kind:type_name -> ingestion.v1.ConnectorKind
@@ -2061,37 +2160,43 @@ var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
 	34, // 2: ingestion.v1.PipelineNode.secret_refs:type_name -> ingestion.v1.PipelineNode.SecretRefsEntry
 	37, // 3: ingestion.v1.PipelineEdge.ingestion_type:type_name -> ingestion.v1.IngestionType
 	3,  // 4: ingestion.v1.PipelineEdge.cursors:type_name -> ingestion.v1.ResourceCursorConfig
-	1,  // 5: ingestion.v1.PipelineVersion.nodes:type_name -> ingestion.v1.PipelineNode
-	2,  // 6: ingestion.v1.PipelineVersion.edges:type_name -> ingestion.v1.PipelineEdge
-	38, // 7: ingestion.v1.Pipeline.last_run_status:type_name -> ingestion.v1.RunStatus
-	0,  // 8: ingestion.v1.PipelineScheduleConfig.overlap_policy:type_name -> ingestion.v1.PipelineScheduleOverlapPolicy
-	6,  // 9: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
-	6,  // 10: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	5,  // 11: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	7,  // 12: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	6,  // 13: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	7,  // 14: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	6,  // 15: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	7,  // 16: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	7,  // 17: ingestion.v1.PausePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	7,  // 18: ingestion.v1.ResumePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	1,  // 19: ingestion.v1.CreatePipelineVersionRequest.nodes:type_name -> ingestion.v1.PipelineNode
-	2,  // 20: ingestion.v1.CreatePipelineVersionRequest.edges:type_name -> ingestion.v1.PipelineEdge
-	4,  // 21: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	5,  // 22: ingestion.v1.UpdatePipelineRequest.pipeline:type_name -> ingestion.v1.Pipeline
-	5,  // 23: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	5,  // 24: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	4,  // 25: ingestion.v1.GetPipelineResponse.current_version:type_name -> ingestion.v1.PipelineVersion
-	4,  // 26: ingestion.v1.GetPipelineResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	7,  // 27: ingestion.v1.GetPipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	4,  // 28: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	4,  // 29: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	5,  // 30: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	38, // 5: ingestion.v1.PipelineEdge.read_mode:type_name -> ingestion.v1.ReadMode
+	39, // 6: ingestion.v1.PipelineEdge.write_mode:type_name -> ingestion.v1.WriteMode
+	1,  // 7: ingestion.v1.PipelineVersion.nodes:type_name -> ingestion.v1.PipelineNode
+	2,  // 8: ingestion.v1.PipelineVersion.edges:type_name -> ingestion.v1.PipelineEdge
+	40, // 9: ingestion.v1.Pipeline.last_run_status:type_name -> ingestion.v1.RunStatus
+	0,  // 10: ingestion.v1.PipelineScheduleConfig.overlap_policy:type_name -> ingestion.v1.PipelineScheduleOverlapPolicy
+	6,  // 11: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
+	6,  // 12: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	5,  // 13: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	7,  // 14: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	6,  // 15: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	7,  // 16: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	6,  // 17: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	7,  // 18: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	7,  // 19: ingestion.v1.PausePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	7,  // 20: ingestion.v1.ResumePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	1,  // 21: ingestion.v1.CreatePipelineVersionRequest.nodes:type_name -> ingestion.v1.PipelineNode
+	2,  // 22: ingestion.v1.CreatePipelineVersionRequest.edges:type_name -> ingestion.v1.PipelineEdge
+	4,  // 23: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	5,  // 24: ingestion.v1.UpdatePipelineRequest.pipeline:type_name -> ingestion.v1.Pipeline
+	5,  // 25: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	5,  // 26: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	4,  // 27: ingestion.v1.GetPipelineResponse.current_version:type_name -> ingestion.v1.PipelineVersion
+	4,  // 28: ingestion.v1.GetPipelineResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	7,  // 29: ingestion.v1.GetPipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	4,  // 30: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	41, // 31: ingestion.v1.ListPipelineVersionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	4,  // 32: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	42, // 33: ingestion.v1.ListPipelineVersionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	41, // 34: ingestion.v1.ListPipelinesRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	5,  // 35: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
+	42, // 36: ingestion.v1.ListPipelinesResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	37, // [37:37] is the sub-list for method output_type
+	37, // [37:37] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_pipelines_proto_init() }
@@ -2100,6 +2205,7 @@ func file_ingestion_v1_pipelines_proto_init() {
 		return
 	}
 	file_ingestion_v1_common_proto_init()
+	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_runs_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

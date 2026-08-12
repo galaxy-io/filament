@@ -106,17 +106,16 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 }
 
 // apply folds one fact into persisted run/resource/checkpoint state. Facts not
-// listed here (heartbeats, page-fetched, batch-buffered, integrity-verified,
-// rate-limited, schedule-fired) carry no durable state change and are ignored.
+// listed here (page-fetched, batch-buffered, integrity-verified, rate-limited,
+// schedule-fired) carry no durable state change and are ignored.
 func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	env := f.Envelope
 	switch d := f.Data.(type) {
 	case events.RunStartedEvent:
 		return m.mutate(ctx, env, func(r *filament.RunState) {
 			r.Status = filament.RunRunning
-			if r.StartedAt.IsZero() {
-				r.StartedAt = env.At
-			}
+			// The store keeps the first stamp, so a redelivered fact cannot move it.
+			r.StartedAt = env.At
 		})
 
 	case events.RunCompletedEvent:
@@ -195,6 +194,14 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		}
 		return nil
 
+	case events.HeartbeatEvent:
+		// Usage counters are cumulative (CPU) or high-water (memory), so max
+		// keeps the fold idempotent under redelivery and reordering.
+		return m.mutate(ctx, env, func(r *filament.RunState) {
+			r.CPUSeconds = max(r.CPUSeconds, d.CPUSeconds)
+			r.MemoryPeakBytes = max(r.MemoryPeakBytes, d.MemoryPeakBytes, d.MemoryBytes)
+		})
+
 	case events.CheckpointSavedEvent:
 		return m.applyCheckpoint(ctx, env, d.Checkpoint)
 
@@ -219,7 +226,31 @@ func (m *Module) terminal(ctx context.Context, env events.Envelope, status strin
 	}
 	m.observeRun(env, status, labels)
 	m.flushRun(ctx, env.Run, status == "completed")
+	m.evictRun(env.Run)
 	return nil
+}
+
+// evictRun drops the run's accumulator entries once it is terminal, so the
+// maps don't grow with every run the process ever tracked.
+func (m *Module) evictRun(run filament.RunID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for key := range m.cp {
+		if key.run == run {
+			delete(m.cp, key)
+		}
+	}
+	for key := range m.since {
+		if key.run == run {
+			delete(m.since, key)
+		}
+	}
+	for key := range m.bm {
+		if key.run == run {
+			delete(m.bm, key)
+		}
+	}
+	delete(m.every, run)
 }
 
 // applyCheckpoint persists a cursor fact's checkpoint and pins it on the resource.
@@ -362,9 +393,9 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	}
 }
 
-// flushRun persists every accumulated cursor for the run. Incremental cursors
-// become durable only after a successful sink commit; other cursor modes retain
-// their existing attempt-local resume behavior.
+// flushRun persists every accumulated cursor for the run. Incremental and CDC
+// cursors become durable only after a successful sink commit; other cursor modes
+// retain their existing attempt-local resume behavior.
 func (m *Module) flushRun(ctx context.Context, run filament.RunID, committed bool) {
 	m.mu.Lock()
 	pending := make(map[string]filament.Checkpoint)
@@ -400,8 +431,8 @@ func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
 	return n
 }
 
-// saveCheckpoint persists attempt-local progress. Incremental progress remains
-// tentative until the sink commits and commitCheckpoint promotes it.
+// saveCheckpoint persists attempt-local progress. Cross-run incremental and CDC
+// progress remains tentative until the sink commits and commitCheckpoint promotes it.
 func (m *Module) saveCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
 	return m.persistCheckpoint(ctx, run, cp, false)
 }
@@ -415,7 +446,8 @@ func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp f
 	if err != nil {
 		return err
 	}
-	if filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode == filament.ModeIncremental {
+	mode := filament.SourcePolicyForIngestion(filament.TypeFor(state.Request.IngestionTypes, cp.Resource())).Mode
+	if mode == filament.ModeIncremental || mode == filament.ModeCDC {
 		if !committed {
 			return nil
 		}
@@ -428,14 +460,16 @@ func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp f
 
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.
 func (m *Module) loadCheckpoint(ctx context.Context, run filament.RunID, resource string) filament.Checkpoint {
-	if state, err := m.ds.LoadRun(ctx, run); err == nil &&
-		filament.SourcePolicyForIngestion(state.Request.IngestionType).Mode == filament.ModeIncremental {
-		if key, ok := state.Request.ResourceCheckpointKey(resource); ok {
-			stored, err := m.ds.LoadResourceCheckpoint(ctx, key)
-			if err == nil {
-				return stored.Checkpoint
+	if state, err := m.ds.LoadRun(ctx, run); err == nil {
+		mode := filament.SourcePolicyForIngestion(filament.TypeFor(state.Request.IngestionTypes, resource)).Mode
+		if mode == filament.ModeIncremental || mode == filament.ModeCDC {
+			if key, ok := state.Request.ResourceCheckpointKey(resource); ok {
+				stored, err := m.ds.LoadResourceCheckpoint(ctx, key)
+				if err == nil {
+					return stored.Checkpoint
+				}
+				return nil
 			}
-			return nil
 		}
 	}
 	cp, err := m.ds.LoadCheckpoint(ctx, run, resource)

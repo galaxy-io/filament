@@ -1,8 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ArrowLeftIcon, ImageBrokenIcon } from "@phosphor-icons/react";
+import { CancelledError } from "@tanstack/react-query";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
-import z from "zod";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -17,10 +17,6 @@ import { createListConnectionsQueryOptions } from "@/api/queries/connections";
 import { createGetPipelineQueryOptions } from "@/api/queries/pipelines";
 import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
-
-const searchParams = z.object({
-  version: z.number().int().positive().optional().catch(undefined),
-});
 
 const PipelineNotFoundComponent = () => {
   const navigate = useNavigate();
@@ -42,7 +38,6 @@ const PipelineNotFoundComponent = () => {
 };
 
 export const Route = createFileRoute("/pipelines/$id")({
-  validateSearch: searchParams,
   loader: async ({ params }) => {
     try {
       await Promise.all([
@@ -55,6 +50,9 @@ export const Route = createFileRoute("/pipelines/$id")({
         queryClient.ensureQueryData(createListConnectionsQueryOptions({ transport })),
       ]);
     } catch (error) {
+      if (error instanceof CancelledError) {
+        return;
+      }
       if (error instanceof ConnectError && error.code === Code.NotFound) {
         throw notFound();
       }

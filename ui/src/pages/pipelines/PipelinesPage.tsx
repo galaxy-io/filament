@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { BookOpenIcon, PlusIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { PlusIcon } from "@phosphor-icons/react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+
+import DocsButton from "@/components/DocsButton";
 
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
@@ -13,49 +15,33 @@ import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
 
 import { Flow } from "@/routes/__root";
 
-import { useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
-
-import { DOCUMENTATION_URL } from "@/constants";
+import { useSuspenseListPipelinesInfiniteQuery } from "@/api/queries/pipelines";
 
 import { isSearchMatch } from "@/utils/search";
 
-interface PipelinesPageState {
-  search: string;
-}
-
-const DEFAULT_STATE: PipelinesPageState = {
-  search: "",
-};
-
 const PipelinesPage = () => {
   const navigate = useNavigate();
+  const { q = "" } = useSearch({ from: "/_main/pipelines" });
 
-  const [state, setState] = useState<PipelinesPageState>(DEFAULT_STATE);
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useSuspenseListPipelinesInfiniteQuery();
 
-  const handleSearchChange = (search: string) => {
-    setState((prev) => ({ ...prev, search }));
-  };
-
-  const { data } = useSuspenseListPipelinesQuery();
+  const pipelines = useMemo(() => data.pages.flatMap((page) => page.pipelines), [data.pages]);
 
   const visiblePipelines = useMemo(
-    () => data.pipelines.filter((item) => isSearchMatch(state.search, item.name, item.id)),
-    [data.pipelines, state.search],
+    () => pipelines.filter((item) => isSearchMatch(q, item.name, item.id)),
+    [pipelines, q],
   );
 
   const handleNewPipeline = () => {
     void navigate({
       to: ".",
-      search: (prev) => ({ ...prev, flow: Flow.CREATE_PIPELINE }),
+      search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
     });
   };
 
-  const handleReadTheDocs = () => {
-    window.open(DOCUMENTATION_URL, "_blank");
-  };
-
   const renderContent = () => {
-    if (!data.pipelines.length) {
+    if (!pipelines.length) {
       return (
         <PipelinesPageEmptyGraphic
           actions={
@@ -64,13 +50,14 @@ const PipelinesPage = () => {
                 label="New pipeline"
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
+                size={ButtonSize.LARGE}
                 onClick={handleNewPipeline}
               />
-              <Button
-                label="Documentation"
-                icon={BookOpenIcon}
+              <DocsButton
+                label="Read the docs"
+                path="/pipelines"
                 variant={ButtonVariant.SECONDARY}
-                onClick={handleReadTheDocs}
+                size={ButtonSize.LARGE}
               />
             </FlexWrapper>
           }
@@ -78,13 +65,18 @@ const PipelinesPage = () => {
       );
     }
 
-    return <PipelinesTable pipelines={visiblePipelines} />;
+    return (
+      <PipelinesTable
+        pipelines={visiblePipelines}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={fetchNextPage}
+      />
+    );
   };
 
   return (
     <MainLayoutListPage
-      search={state.search}
-      onSearchChange={handleSearchChange}
       actions={[
         <Button
           key="new-pipeline"

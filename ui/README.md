@@ -6,12 +6,12 @@ Web UI for Filament, built with Vite + React + [@galaxy-io/dls](https://www.npmj
 
 ```bash
 just infra   # postgres + nats (docker compose)
-just dev     # control-plane + server (:8080) + metrics (:8082) + this UI (:5173)
+just dev     # control-plane + server (:8080) + this UI (:5173)
 ```
 
 Or run the pieces individually: `just server`, `just control-plane`, `just metrics`, `just ui`.
 
-The dev server proxies `/ingestion.v1.IngestionService` to `http://localhost:8080` and `/metrics.v1.MetricsService` to `http://localhost:8082` (the ports the justfile recipes bind), so the app is same-origin in dev and prod alike. Set `VITE_API_URL` to point the app at a remote Filament instance instead.
+The dev server proxies `/ingestion.v1.IngestionService` and `/metrics.v1.MetricsService` to `http://localhost:8080` (the port the justfile server recipe binds), so the app is same-origin in dev and prod alike. Set `VITE_API_URL` to point the app at a remote Filament instance instead.
 
 ## Build & embed
 

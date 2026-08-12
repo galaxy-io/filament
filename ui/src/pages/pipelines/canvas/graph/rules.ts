@@ -19,8 +19,6 @@ export const createNodeFromConnection = (
   position: { x: number; y: number },
 ): CanvasNode => {
   const data = {
-    label: connection.name,
-    connector: connection.connector,
     connectionId: connection.id,
   };
 

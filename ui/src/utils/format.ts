@@ -54,6 +54,13 @@ export const formatDuration = (startMillis: bigint, endMillis: bigint): string =
   return `${minutes}m ${Math.round(seconds % 60)}s`;
 };
 
+export const formatSeconds = (seconds: number): string => {
+  if (seconds < 1) return `${Math.round(seconds * 1_000)}ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${Math.round(seconds % 60)}s`;
+};
+
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
 
 export const formatBytes = (value: bigint): string => {
@@ -65,3 +72,7 @@ export const formatBytes = (value: bigint): string => {
   }
   return `${unitIndex === 0 ? scaled : scaled.toFixed(1)} ${BYTE_UNITS[unitIndex]}`;
 };
+
+const DELETED_NAME_SUFFIX = /__deleted__\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+export const stripDeletedName = (name: string): string => name.replace(DELETED_NAME_SUFFIX, "");

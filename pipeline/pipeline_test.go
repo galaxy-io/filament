@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -131,7 +132,7 @@ func defaultWritePolicies(recs []filament.Record) map[string]filament.WritePolic
 		if _, ok := policies[rec.Resource]; ok {
 			continue
 		}
-		policy := filament.WritePolicyForIngestion(filament.IngestionSnapshotReplace)
+		policy := filament.WritePolicyForIngestion(filament.IngestionFullReplace)
 		policy.Resource = rec.Resource
 		policies[rec.Resource] = policy
 	}
@@ -245,7 +246,7 @@ func TestPipelineWriteErrorIsFatal(t *testing.T) {
 
 func TestPipelineDispatchesSinkApply(t *testing.T) {
 	sink := &fakeSink{}
-	policy := filament.WritePolicyForIngestion(filament.IngestionSnapshotUpsert)
+	policy := filament.WritePolicyForIngestion(filament.IngestionFullUpsert)
 	policy.Resource = "users"
 	_, err := runWithPolicies(t, sink, 2, []filament.Record{rec("users", "1", `{}`)}, map[string]filament.WritePolicy{"users": policy})
 	if err != nil {
@@ -296,6 +297,63 @@ func TestPipelinePublishesLSNCheckpointFromRecordMeta(t *testing.T) {
 	}
 	if got := checkpoint.Int("seq"); got != 42 {
 		t.Fatalf("checkpoint seq = %d, want 42", got)
+	}
+}
+
+// stuckSink wedges Apply until the pipeline context is cancelled, so
+// backpressure fills the channels and blocks the inlet.
+type stuckSink struct{ fakeSink }
+
+func (s *stuckSink) Apply(ctx context.Context, _ filament.Batch, _ filament.ApplyOptions) (filament.WriteReceipt, error) {
+	<-ctx.Done()
+	return filament.WriteReceipt{}, ctx.Err()
+}
+
+func TestPipelineCancelReleasesBlockedPush(t *testing.T) {
+	sink := &stuckSink{}
+	c := &collector{}
+	p := New(Config{
+		Tenant:        "t1",
+		Run:           "r1",
+		Sink:          sink,
+		Emit:          c.emit,
+		WritePolicies: defaultWritePolicies([]filament.Record{rec("users", "0", `{}`)}),
+		Options:       filament.RunOptions{BatchMaxRows: 1},
+		FlushInterval: time.Hour,
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	p.Start(ctx)
+
+	pushed := make(chan error, 1)
+	go func() {
+		in := p.Records()
+		for i := 0; ; i++ {
+			if err := in.Push(rec("users", strconv.Itoa(i), `{}`)); err != nil {
+				pushed <- err
+				return
+			}
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond) // let the source wedge on a full pipeline
+	cancel()
+
+	select {
+	case err := <-pushed:
+		if err == nil {
+			t.Fatal("Push returned nil after cancel")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Push still blocked 5s after cancel")
+	}
+
+	p.CloseIngest()
+	waited := make(chan error, 1)
+	go func() { waited <- p.Wait() }()
+	select {
+	case <-waited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Wait still blocked 5s after cancel")
 	}
 }
 

@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 
@@ -43,52 +45,6 @@ const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.tertiary};
 `);
 
-export interface RunResourceStateColumn extends RunResourceState {
-  sourceConnectionId: string;
-  sinkConnectionId: string;
-}
-
-const RESOURCE_TABLE_COLUMNS: ColumnDef<RunResourceStateColumn>[] = [
-  {
-    id: "resource",
-    header: "Resource",
-    cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => <PipelineHistoryRunInfoResourceColumn runResource={row.original} />,
-  },
-  {
-    id: "sink",
-    header: "Sink",
-    size:
-      PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION +
-      PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
-    cellLoading: () => <TextShimmer width={48} height={14} />,
-    cell: ({ row }) => <PipelineHistoryRunInfoSinkColumn runResource={row.original} />,
-  },
-  {
-    id: "records",
-    header: "Records",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    cellLoading: () => <TextShimmer width={48} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {formatCount(row.original.records)}
-      </Text>
-    ),
-  },
-  {
-    id: "volume",
-    header: "Volume",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
-    align: ColumnAlign.RIGHT,
-    cellLoading: () => <TextShimmer width={52} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {formatBytes(row.original.bytes)}
-      </Text>
-    ),
-  },
-];
-
 interface PipelineHistoryRunInfoProps {
   runId: RunInfo["runId"];
 }
@@ -98,11 +54,53 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     input: create(GetRunRequestSchema, { runId }),
   });
 
-  const resources = (data?.snapshot?.resources ?? []).map((resource) => ({
-    ...resource,
-    sourceConnectionId: data?.snapshot?.run?.sourceConnectionId ?? "",
-    sinkConnectionId: data?.snapshot?.run?.sinkConnectionId ?? "",
-  }));
+  const columns = useMemo<ColumnDef<RunResourceState>[]>(
+    () => [
+      {
+        id: "resource",
+        header: "Resource",
+        cellLoading: () => <TextShimmer width={160} height={14} />,
+        cell: ({ row }) => (
+          <PipelineHistoryRunInfoResourceColumn runId={runId} runResource={row.original} />
+        ),
+      },
+      {
+        id: "sink",
+        header: "Sink",
+        size:
+          PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION +
+          PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
+        cellLoading: () => <TextShimmer width={48} height={14} />,
+        cell: () => <PipelineHistoryRunInfoSinkColumn runId={runId} />,
+      },
+      {
+        id: "records",
+        header: "Records",
+        size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+        cellLoading: () => <TextShimmer width={48} height={14} />,
+        cell: ({ row }) => (
+          <Text size={TextSize.BODY_SM} isMonospace>
+            {formatCount(row.original.records)}
+          </Text>
+        ),
+      },
+      {
+        id: "volume",
+        header: "Volume",
+        size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+        align: ColumnAlign.RIGHT,
+        cellLoading: () => <TextShimmer width={52} height={14} />,
+        cell: ({ row }) => (
+          <Text size={TextSize.BODY_SM} isMonospace>
+            {formatBytes(row.original.bytes)}
+          </Text>
+        ),
+      },
+    ],
+    [runId],
+  );
+
+  const resources = data?.snapshot?.resources ?? [];
   const isEmpty = !isLoading && resources.length === 0;
 
   if (isError) {
@@ -127,9 +125,9 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
 
   return (
     <ResourceTableWrapper>
-      <InfiniteTable<RunResourceStateColumn>
+      <InfiniteTable<RunResourceState>
         variant={TableVariant.TERTIARY}
-        columns={RESOURCE_TABLE_COLUMNS}
+        columns={columns}
         data={resources}
         getRowId={(resource) => resource.resource}
         isLoading={isLoading}

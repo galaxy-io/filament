@@ -9,9 +9,9 @@ import (
 
 // Subject grammar — the addressing scheme every fact travels under.
 //
-//	filament.v1.<entity>.<tenant>.<run>.<event>
-//	e.g. filament.v1.run.T123.R789.started
-//	     filament.v1.resource.T123.R789.page_fetched
+//	ingestion.v1.<entity>.<tenant>.<run>.<event>
+//	e.g. ingestion.v1.run.T123.R789.started
+//	     ingestion.v1.resource.T123.R789.page_fetched
 //
 // Exactly six dot-separated tokens. The resource name is not in the subject.
 const (
@@ -20,13 +20,13 @@ const (
 )
 
 // Subject builds the concrete publish subject for one fact:
-// filament.v1.<entity>.<tenant>.<run>.<event>.
+// ingestion.v1.<entity>.<tenant>.<run>.<event>.
 func Subject[T any](t EventType[T], tenant filament.TenantID, run filament.RunID) string {
 	return join(t.entity, string(tenant), string(run), t.name)
 }
 
 // SubjectPattern is the subscription pattern matching every fact of one kind:
-// filament.v1.<entity>.*.*.<event>. Modules that react to a single fact type
+// ingestion.v1.<entity>.*.*.<event>. Modules that react to a single fact type
 // (the engine on run.requested, the scheduler on schedule.fired) subscribe
 // with this.
 func SubjectPattern[T any](t EventType[T]) string {

@@ -33,6 +33,7 @@ const (
 	RunStatus_RUN_STATUS_CANCELED    RunStatus = 5
 	RunStatus_RUN_STATUS_PAUSED      RunStatus = 6
 	RunStatus_RUN_STATUS_PARTIAL     RunStatus = 7
+	RunStatus_RUN_STATUS_SCHEDULED   RunStatus = 8
 )
 
 // Enum value maps for RunStatus.
@@ -46,6 +47,7 @@ var (
 		5: "RUN_STATUS_CANCELED",
 		6: "RUN_STATUS_PAUSED",
 		7: "RUN_STATUS_PARTIAL",
+		8: "RUN_STATUS_SCHEDULED",
 	}
 	RunStatus_value = map[string]int32{
 		"RUN_STATUS_UNSPECIFIED": 0,
@@ -56,6 +58,7 @@ var (
 		"RUN_STATUS_CANCELED":    5,
 		"RUN_STATUS_PAUSED":      6,
 		"RUN_STATUS_PARTIAL":     7,
+		"RUN_STATUS_SCHEDULED":   8,
 	}
 )
 
@@ -540,8 +543,19 @@ type RunInfo struct {
 	EndedAt            int64                  `protobuf:"varint,10,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
 	SourceConnectionId string                 `protobuf:"bytes,11,opt,name=source_connection_id,json=sourceConnectionId,proto3" json:"source_connection_id,omitempty"`
 	SinkConnectionId   string                 `protobuf:"bytes,12,opt,name=sink_connection_id,json=sinkConnectionId,proto3" json:"sink_connection_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Worker pod usage folded from run.heartbeat facts.
+	CpuSeconds      float64 `protobuf:"fixed64,13,opt,name=cpu_seconds,json=cpuSeconds,proto3" json:"cpu_seconds,omitempty"`
+	MemoryPeakBytes int64   `protobuf:"varint,14,opt,name=memory_peak_bytes,json=memoryPeakBytes,proto3" json:"memory_peak_bytes,omitempty"`
+	// Lifecycle stamps in epoch millis; 0 means unset. created_at is row birth,
+	// scheduled_at the intended fire time (scheduled runs only), requested_at
+	// when the run was queued for dispatch. started_at/ended_at above are the
+	// worker's own start and finish.
+	CreatedAt     int64 `protobuf:"varint,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ScheduledAt   int64 `protobuf:"varint,16,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
+	RequestedAt   int64 `protobuf:"varint,17,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	UpdatedAt     int64 `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -656,6 +670,48 @@ func (x *RunInfo) GetSinkConnectionId() string {
 		return x.SinkConnectionId
 	}
 	return ""
+}
+
+func (x *RunInfo) GetCpuSeconds() float64 {
+	if x != nil {
+		return x.CpuSeconds
+	}
+	return 0
+}
+
+func (x *RunInfo) GetMemoryPeakBytes() int64 {
+	if x != nil {
+		return x.MemoryPeakBytes
+	}
+	return 0
+}
+
+func (x *RunInfo) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetScheduledAt() int64 {
+	if x != nil {
+		return x.ScheduledAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetRequestedAt() int64 {
+	if x != nil {
+		return x.RequestedAt
+	}
+	return 0
+}
+
+func (x *RunInfo) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
 }
 
 type RunSnapshot struct {
@@ -812,8 +868,7 @@ type ListRunsRequest struct {
 	PipelineId        string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	PipelineVersionId *int64                 `protobuf:"varint,3,opt,name=pipeline_version_id,json=pipelineVersionId,proto3,oneof" json:"pipeline_version_id,omitempty"`
 	Status            []RunStatus            `protobuf:"varint,4,rep,packed,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
-	Limit             int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset            int32                  `protobuf:"varint,6,opt,name=offset,proto3" json:"offset,omitempty"`
+	Pagination        *PaginationRequest     `protobuf:"bytes,5,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	// since_ms/until_ms window on started_at (inclusive/exclusive, epoch
 	// millis); 0 means unbounded. Runs that never started are excluded.
 	SinceMs       int64 `protobuf:"varint,7,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
@@ -880,18 +935,11 @@ func (x *ListRunsRequest) GetStatus() []RunStatus {
 	return nil
 }
 
-func (x *ListRunsRequest) GetLimit() int32 {
+func (x *ListRunsRequest) GetPagination() *PaginationRequest {
 	if x != nil {
-		return x.Limit
+		return x.Pagination
 	}
-	return 0
-}
-
-func (x *ListRunsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
+	return nil
 }
 
 func (x *ListRunsRequest) GetSinceMs() int64 {
@@ -911,6 +959,7 @@ func (x *ListRunsRequest) GetUntilMs() int64 {
 type ListRunsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Runs          []*RunInfo             `protobuf:"bytes,1,rep,name=runs,proto3" json:"runs,omitempty"`
+	Pagination    *PaginationResponse    `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -948,6 +997,13 @@ func (*ListRunsResponse) Descriptor() ([]byte, []int) {
 func (x *ListRunsResponse) GetRuns() []*RunInfo {
 	if x != nil {
 		return x.Runs
+	}
+	return nil
+}
+
+func (x *ListRunsResponse) GetPagination() *PaginationResponse {
+	if x != nil {
+		return x.Pagination
 	}
 	return nil
 }
@@ -1330,7 +1386,7 @@ var File_ingestion_v1_runs_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\"R\n" +
+	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1dingestion/v1/pagination.proto\"R\n" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
@@ -1362,7 +1418,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\x9f\x03\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\xf0\x04\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
@@ -1378,7 +1434,16 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\bended_at\x18\n" +
 	" \x01(\x03R\aendedAt\x120\n" +
 	"\x14source_connection_id\x18\v \x01(\tR\x12sourceConnectionId\x12,\n" +
-	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\"\x8b\x01\n" +
+	"\x12sink_connection_id\x18\f \x01(\tR\x10sinkConnectionId\x12\x1f\n" +
+	"\vcpu_seconds\x18\r \x01(\x01R\n" +
+	"cpuSeconds\x12*\n" +
+	"\x11memory_peak_bytes\x18\x0e \x01(\x03R\x0fmemoryPeakBytes\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x0f \x01(\x03R\tcreatedAt\x12!\n" +
+	"\fscheduled_at\x18\x10 \x01(\x03R\vscheduledAt\x12!\n" +
+	"\frequested_at\x18\x11 \x01(\x03R\vrequestedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +
@@ -1386,20 +1451,24 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\rGetRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"G\n" +
 	"\x0eGetRunResponse\x125\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xb1\x02\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xc4\x02\n" +
 	"\x0fListRunsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x123\n" +
 	"\x13pipeline_version_id\x18\x03 \x01(\x03H\x00R\x11pipelineVersionId\x88\x01\x01\x12/\n" +
-	"\x06status\x18\x04 \x03(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x14\n" +
-	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x06 \x01(\x05R\x06offset\x12\x19\n" +
+	"\x06status\x18\x04 \x03(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12?\n" +
+	"\n" +
+	"pagination\x18\x05 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\x12\x19\n" +
 	"\bsince_ms\x18\a \x01(\x03R\asinceMs\x12\x19\n" +
 	"\buntil_ms\x18\b \x01(\x03R\auntilMsB\x16\n" +
-	"\x14_pipeline_version_id\"=\n" +
+	"\x14_pipeline_version_id\"\x7f\n" +
 	"\x10ListRunsResponse\x12)\n" +
-	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\"W\n" +
+	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\x12@\n" +
+	"\n" +
+	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
+	"pagination\"W\n" +
 	"\x10SignalRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12,\n" +
 	"\x06signal\x18\x02 \x01(\x0e2\x14.ingestion.v1.SignalR\x06signal\"\x13\n" +
@@ -1425,7 +1494,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06fields\x18\a \x01(\v2\x1c.ingestion.v1.RunEventFieldsR\x06fields\x12\x16\n" +
 	"\x06replay\x18\b \x01(\bR\x06replay\"?\n" +
 	"\x0fTailRunResponse\x12,\n" +
-	"\x05event\x18\x01 \x01(\v2\x16.ingestion.v1.RunEventR\x05event*\xd2\x01\n" +
+	"\x05event\x18\x01 \x01(\v2\x16.ingestion.v1.RunEventR\x05event*\xec\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14RUN_STATUS_REQUESTED\x10\x01\x12\x16\n" +
@@ -1434,7 +1503,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x11RUN_STATUS_FAILED\x10\x04\x12\x17\n" +
 	"\x13RUN_STATUS_CANCELED\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_PAUSED\x10\x06\x12\x16\n" +
-	"\x12RUN_STATUS_PARTIAL\x10\a*X\n" +
+	"\x12RUN_STATUS_PARTIAL\x10\a\x12\x18\n" +
+	"\x14RUN_STATUS_SCHEDULED\x10\b*X\n" +
 	"\x06Signal\x12\x16\n" +
 	"\x12SIGNAL_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSIGNAL_PAUSE\x10\x01\x12\x11\n" +
@@ -1477,6 +1547,8 @@ var file_ingestion_v1_runs_proto_goTypes = []any{
 	(*RunEventFields)(nil),      // 17: ingestion.v1.RunEventFields
 	(*RunEvent)(nil),            // 18: ingestion.v1.RunEvent
 	(*TailRunResponse)(nil),     // 19: ingestion.v1.TailRunResponse
+	(*PaginationRequest)(nil),   // 20: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),  // 21: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	2,  // 0: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
@@ -1488,15 +1560,17 @@ var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	7,  // 6: ingestion.v1.RunSnapshot.resources:type_name -> ingestion.v1.RunResourceState
 	9,  // 7: ingestion.v1.GetRunResponse.snapshot:type_name -> ingestion.v1.RunSnapshot
 	0,  // 8: ingestion.v1.ListRunsRequest.status:type_name -> ingestion.v1.RunStatus
-	8,  // 9: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
-	1,  // 10: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.Signal
-	17, // 11: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
-	18, // 12: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	20, // 9: ingestion.v1.ListRunsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	8,  // 10: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
+	21, // 11: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	1,  // 12: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.Signal
+	17, // 13: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
+	18, // 14: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_runs_proto_init() }
@@ -1504,6 +1578,7 @@ func file_ingestion_v1_runs_proto_init() {
 	if File_ingestion_v1_runs_proto != nil {
 		return
 	}
+	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_runs_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

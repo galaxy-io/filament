@@ -1,17 +1,19 @@
-import { type ReactElement, useMemo, useState } from "react";
+import { type ReactElement, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
-import { BookOpenIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+
+import DocsButton from "@/components/DocsButton";
+import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
@@ -28,23 +30,13 @@ import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineCo
 
 import { Flow } from "@/routes/__root";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
-
-import { DOCUMENTATION_URL } from "@/constants";
+import { useSuspenseListConnectionsInfiniteQuery } from "@/api/queries/connections";
 
 import { isSearchMatch } from "@/utils/search";
 
 interface ConnectionsPageProps {
   kind: ConnectorKind.SOURCE | ConnectorKind.SINK;
 }
-
-interface ConnectionsPageState {
-  search: string;
-}
-
-const DEFAULT_STATE: ConnectionsPageState = {
-  search: "",
-};
 
 const CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP: Record<
   ConnectorKind.SOURCE | ConnectorKind.SINK,
@@ -56,31 +48,33 @@ const CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP: Record<
 
 const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   const navigate = useNavigate();
+  const { q = "" } = useSearch({ strict: false });
 
   const kindLabel = CONNECTOR_KIND_TO_LABEL_MAP[kind].toLowerCase();
   const kindPlural = pluralize(kindLabel);
 
-  const [state, setState] = useState<ConnectionsPageState>(DEFAULT_STATE);
-
-  const handleSearchChange = (search: string) => {
-    setState((prev) => ({ ...prev, search }));
-  };
-
   const handleOpenCreateConnectorModal = () => {
     void navigate({
       to: ".",
-      search: { flow: Flow.CREATE_CONNECTION, connectorKind: kind },
+      search: (prev) => ({
+        ...prev,
+        connectionId: undefined,
+        flow: Flow.CREATE_CONNECTION,
+        connectorKind: kind,
+      }),
     });
   };
 
-  const { data } = useSuspenseListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, { kind }),
-  });
-  const kindConnections = data.connections;
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useSuspenseListConnectionsInfiniteQuery({ input: { kind } });
+  const kindConnections = useMemo(
+    () => data.pages.flatMap((page) => page.connections),
+    [data.pages],
+  );
 
   const { connectionIdsByPipelineId } = usePipelineConnectionMap();
   const pipelineCountsByConnectionId = useMemo(() => {
-    const counts = new Map<string, number>();
+    const counts = new Map<Connection["id"], number>();
     for (const connectionIds of connectionIdsByPipelineId.values()) {
       for (const connectionId of connectionIds) {
         counts.set(connectionId, (counts.get(connectionId) ?? 0) + 1);
@@ -90,19 +84,15 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   }, [connectionIdsByPipelineId]);
 
   const filteredConnections = useMemo(
-    () => kindConnections.filter((connection) => isSearchMatch(state.search, connection.name)),
-    [kindConnections, state.search],
+    () => kindConnections.filter((connection) => isSearchMatch(q, connection.name)),
+    [kindConnections, q],
   );
 
-  const handleConnectionClick = (connectionId: string) => {
+  const handleConnectionClick = (connectionId: Connection["id"]) => {
     void navigate({
       to: ".",
       search: (prev) => ({ ...prev, connectionId }),
     });
-  };
-
-  const handleReadTheDocs = () => {
-    window.open(DOCUMENTATION_URL, "_blank", "noopener,noreferrer");
   };
 
   const renderContent = () => {
@@ -120,13 +110,14 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
                 label={`New ${kindLabel}`}
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
+                size={ButtonSize.LARGE}
                 onClick={handleOpenCreateConnectorModal}
               />
-              <Button
-                label="Documentation"
-                icon={BookOpenIcon}
+              <DocsButton
+                label="Read the docs"
+                path={`/pages/connectors/${kindPlural}`}
                 variant={ButtonVariant.SECONDARY}
-                onClick={handleReadTheDocs}
+                size={ButtonSize.LARGE}
               />
             </FlexWrapper>
           }
@@ -144,26 +135,31 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
     }
 
     return (
-      <GridWrapper
-        columns={`repeat(auto-fill, minmax(${CONNECTOR_GRID_MIN_COLUMN_WIDTH}px, 1fr))`}
-        gap={12}
-      >
-        {filteredConnections.map((connection) => (
-          <ConnectionCard
-            key={connection.id}
-            connection={connection}
-            pipelineCount={pipelineCountsByConnectionId.get(connection.id) ?? 0}
-            onClick={() => handleConnectionClick(connection.id)}
-          />
-        ))}
-      </GridWrapper>
+      <>
+        <GridWrapper
+          columns={`repeat(auto-fill, minmax(${CONNECTOR_GRID_MIN_COLUMN_WIDTH}px, 1fr))`}
+          gap={12}
+        >
+          {filteredConnections.map((connection) => (
+            <ConnectionCard
+              key={connection.id}
+              connection={connection}
+              pipelineCount={pipelineCountsByConnectionId.get(connection.id) ?? 0}
+              onClick={() => handleConnectionClick(connection.id)}
+            />
+          ))}
+        </GridWrapper>
+        <InfiniteScrollSentinel
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+        />
+      </>
     );
   };
 
   return (
     <MainLayoutListPage
-      search={state.search}
-      onSearchChange={handleSearchChange}
       actions={[
         <Button
           key="new-connector"

@@ -43,6 +43,80 @@ func (s *columnSource) CursorColumns(_ context.Context, resource string) ([]fila
 	}}, nil
 }
 
+type liveProbeSink struct {
+	probes *atomic.Int32
+	err    error
+}
+
+func (s *liveProbeSink) Spec() filament.SinkSpec                      { return filament.SinkSpec{Name: "live-sink"} }
+func (s *liveProbeSink) Open(context.Context, filament.RunSpec) error { return nil }
+func (s *liveProbeSink) Apply(context.Context, filament.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
+	return filament.WriteReceipt{}, nil
+}
+func (s *liveProbeSink) Commit(context.Context) error { return nil }
+func (s *liveProbeSink) Abort(context.Context) error  { return nil }
+func (s *liveProbeSink) Name() string                 { return "live-sink" }
+func (s *liveProbeSink) TestConnection(context.Context, filament.Config) error {
+	s.probes.Add(1)
+	return s.err
+}
+
+func TestValidateConfigRunsLiveSinkProbe(t *testing.T) {
+	probes := &atomic.Int32{}
+	sinks := registry.NewSinks()
+	sinks.Register("live-sink", func() filament.Sink {
+		return &liveProbeSink{probes: probes, err: context.DeadlineExceeded}
+	})
+	api := New(registry.NewSources(), sinks, memory.New(), nil, nil)
+
+	response, err := api.ValidateConfig(context.Background(), connect.NewRequest(&ingestionv1.ValidateConfigRequest{
+		Connector: "live-sink",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
+		Live:      true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetValid() {
+		t.Fatalf("response = %#v, want validation failure", response.Msg)
+	}
+	if got := probes.Load(); got != 1 {
+		t.Fatalf("live probes = %d, want 1", got)
+	}
+}
+
+func TestGetConnector(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("columns", func() filament.Source { return &columnSource{counts: &columnSourceCounts{}} })
+	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+
+	response, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
+		Connector: "columns",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetConnector().GetName(); got != "columns" {
+		t.Fatalf("connector name = %q, want %q", got, "columns")
+	}
+
+	_, err = api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
+		Connector: "missing",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unknown connector error = %v, want not found", err)
+	}
+
+	_, err = api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
+		Connector: "columns",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unspecified kind error = %v, want invalid argument", err)
+	}
+}
+
 func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 	counts := &columnSourceCounts{}
 	sources := registry.NewSources()

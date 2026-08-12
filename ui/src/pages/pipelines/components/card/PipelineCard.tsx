@@ -1,4 +1,3 @@
-import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { Link } from "@tanstack/react-router";
 
@@ -8,23 +7,21 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import { GetPipelineVersionRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+
+import PipelineName from "@/components/PipelineName";
 
 import {
   PIPELINE_CARD_HEIGHT,
   PIPELINE_INDICATOR_WIDTH,
 } from "@/pages/pipelines/components/card/constants";
 import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
-import { mapVersionNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
-import { formatPipelineName } from "@/pages/pipelines/utils";
+import { usePipelineFlowEndpoints } from "@/pages/pipelines/hooks/usePipelineFlowEndpoints";
 
-import { useListConnectionsQuery } from "@/api/queries/connections";
-import { useGetPipelineVersionQuery } from "@/api/queries/pipeline_versions";
+import PipelineScheduleChip from "../schedule/PipelineScheduleChip";
 
 const CardLinkWrapper = styled(Link)`
   display: block;
@@ -64,20 +61,7 @@ interface PipelineCardProps {
 }
 
 const PipelineCard = ({ pipeline }: PipelineCardProps) => {
-  const { data: versionData } = useGetPipelineVersionQuery({
-    input: create(GetPipelineVersionRequestSchema, { pipelineId: pipeline.id }),
-    options: { retry: false },
-  });
-  const nodes = versionData?.version?.nodes ?? [];
-  const hasEdges = (versionData?.version?.edges ?? []).length > 0;
-
-  const { data: connectionsData } = useListConnectionsQuery({
-    input: create(ListConnectionsRequestSchema, {}),
-  });
-  const { source, sinks } = mapVersionNodesToFlowEndpoints(
-    nodes,
-    connectionsData?.connections ?? [],
-  );
+  const { source, sinks, hasEdges } = usePipelineFlowEndpoints(pipeline.id);
 
   return (
     <CardLinkWrapper to="/pipelines/$id" params={{ id: pipeline.id }}>
@@ -90,11 +74,9 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
           >
             <Beacon variant={BeaconVariant.SUCCESS} />
           </FlexWrapper>
-          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM}>
-            {formatPipelineName(pipeline)}
-          </Text>
+          <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />
+          <PipelineScheduleChip pipelineId={pipeline.id} />
         </FlexWrapper>
-
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
           <PipelineFlow
             source={source}

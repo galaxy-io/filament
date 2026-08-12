@@ -44,6 +44,7 @@ type Source struct {
 var (
 	_ filament.Source          = (*Source)(nil)
 	_ filament.Discoverable    = (*Source)(nil)
+	_ filament.LiveValidatable = (*Source)(nil)
 	_ filament.Resumable       = (*Source)(nil)
 	_ filament.ResumePlanner   = (*Source)(nil)
 	_ filament.ResourcePlanner = (*Source)(nil)
@@ -76,11 +77,11 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  s.darkLogoURL,
 		LightLogoURL: s.lightLogoURL,
 		Version:      "1",
-		Modes:        []filament.ReplicationMode{filament.ModeFull, filament.ModeIncremental},
+		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental},
 		SourcePolicies: filament.SourcePolicies(
-			filament.IngestionSnapshotReplace,
-			filament.IngestionSnapshotUpsert,
-			filament.IngestionAppend,
+			filament.IngestionFullReplace,
+			filament.IngestionFullUpsert,
+			filament.IngestionFullAppend,
 		),
 		Config:    config,
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
@@ -155,21 +156,10 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	c := &Connector{}
-	if len(s.manifestData) > 0 {
-		c.SetManifestData(s.manifestData)
-	} else {
-		c.SetManifestPath(cfg.String("manifest_path"))
+	c, err := s.connectorForConfig(cfg)
+	if err != nil {
+		return err
 	}
-	var configSpecs map[string]manifest.ConfigSpec
-	if len(s.manifestData) > 0 {
-		if parsed, err := manifest.Parse(s.manifestData); err == nil {
-			configSpecs = parsed.Config
-		}
-	} else if parsed, err := manifest.Load(cfg.String("manifest_path")); err == nil {
-		configSpecs = parsed.Config
-	}
-	c.SetCredentials(credentialsFromConfig(cfg, configSpecs))
 	if err := c.Validate(); err != nil {
 		return fmt.Errorf("httpapi source: validate connector: %w", err)
 	}
@@ -178,6 +168,51 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	s.connector = c
 	return nil
+}
+
+// TestConnection builds the manifest connector and performs a single,
+// authenticated API request without extracting or persisting any records.
+func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error {
+	if err := s.Validate(cfg); err != nil {
+		return err
+	}
+	c, err := s.connectorForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	if err := c.Configure(ctx); err != nil {
+		return fmt.Errorf("%s source: configure connection probe: %w", s.name, err)
+	}
+	defer func() { _ = c.Teardown(ctx) }()
+	if err := c.TestConnection(ctx); err != nil {
+		return fmt.Errorf("%s source: %w", s.name, err)
+	}
+	return nil
+}
+
+func (s *Source) connectorForConfig(cfg filament.Config) (*Connector, error) {
+	c := &Connector{}
+	if len(s.manifestData) > 0 {
+		c.SetManifestData(s.manifestData)
+	} else {
+		c.SetManifestPath(cfg.String("manifest_path"))
+	}
+	var configSpecs map[string]manifest.ConfigSpec
+	if len(s.manifestData) > 0 {
+		parsed, err := manifest.Parse(s.manifestData)
+		if err != nil {
+			return nil, fmt.Errorf("%s source: parse manifest: %w", s.name, err)
+		}
+		configSpecs = parsed.Config
+	} else {
+		parsed, err := manifest.Load(cfg.String("manifest_path"))
+		if err != nil {
+			return nil, fmt.Errorf("%s source: load manifest: %w", s.name, err)
+		}
+		configSpecs = parsed.Config
+	}
+	c.SetCredentials(credentialsFromConfig(cfg, configSpecs))
+	return c, nil
 }
 
 // Discover enumerates selectable resources, falling back to the manifest's

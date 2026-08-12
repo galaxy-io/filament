@@ -1,4 +1,6 @@
+import type { Transport } from "@connectrpc/connect";
 import {
+  createConnectQueryKey,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -8,6 +10,10 @@ import {
 import type {
   DiscoverResourcesRequest,
   DiscoverResourcesResponse,
+  GetConnectorRequest,
+  GetConnectorResponse,
+  GetResourceColumnsRequest,
+  GetResourceColumnsResponse,
   ListConnectorsRequest,
   ListConnectorsResponse,
 } from "@/gen/ingestion/v1/providers_pb";
@@ -26,7 +32,35 @@ export const useListConnectorsQuery = ({
   return useQuery<
     typeof IngestionService.method.listConnectors.input,
     typeof IngestionService.method.listConnectors.output
-  >(IngestionService.method.listConnectors, input, options);
+  >(IngestionService.method.listConnectors, input, { staleTime: Infinity, ...options });
+};
+
+export const useGetConnectorQuery = ({
+  input,
+  options = {},
+}: {
+  input: GetConnectorRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.getConnector.output,
+    GetConnectorResponse
+  >;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.getConnector.input,
+    typeof IngestionService.method.getConnector.output
+  >(IngestionService.method.getConnector, input, { staleTime: Infinity, ...options });
+};
+
+export const createDiscoverResourcesQueryKey = (
+  input?: DiscoverResourcesRequest,
+  transport?: Transport,
+) => {
+  return createConnectQueryKey({
+    schema: IngestionService.method.discoverResources,
+    input,
+    transport,
+    cardinality: "finite",
+  });
 };
 
 export const useDiscoverResourcesQuery = ({
@@ -43,6 +77,22 @@ export const useDiscoverResourcesQuery = ({
     typeof IngestionService.method.discoverResources.input,
     typeof IngestionService.method.discoverResources.output
   >(IngestionService.method.discoverResources, input, options);
+};
+
+export const useGetResourceColumnsQuery = ({
+  input,
+  options = {},
+}: {
+  input: GetResourceColumnsRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.getResourceColumns.output,
+    GetResourceColumnsResponse
+  >;
+}) => {
+  return useQuery<
+    typeof IngestionService.method.getResourceColumns.input,
+    typeof IngestionService.method.getResourceColumns.output
+  >(IngestionService.method.getResourceColumns, input, options);
 };
 
 export const useValidateConfigMutation = (

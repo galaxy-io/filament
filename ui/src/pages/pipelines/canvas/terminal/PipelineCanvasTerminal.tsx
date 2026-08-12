@@ -1,7 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { ArrowsOutSimpleIcon, PulseIcon } from "@phosphor-icons/react";
+import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -9,6 +11,8 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Flash from "@galaxy-io/dls/transform/Flash";
+
+import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import EmptyLayout from "@/layouts/EmptyLayout";
@@ -20,13 +24,15 @@ import {
 } from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import {
   PIPELINE_CANVAS_TERMINAL_HEIGHT,
+  PIPELINE_CANVAS_TERMINAL_MAX_RUNS,
   PIPELINE_CANVAS_TERMINAL_NOTCH_WIDTH,
   PIPELINE_CANVAS_TERMINAL_RIGHT_OFFSET,
   PIPELINE_CANVAS_TERMINAL_WIDTH,
 } from "@/pages/pipelines/canvas/terminal/constants";
 import PipelineCanvasTerminalLine from "@/pages/pipelines/canvas/terminal/PipelineCanvasTerminalLine";
 
-import { useTailRunsStream } from "@/api/queries/runs";
+import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { useListRunsQuery, useTailRunsStream } from "@/api/queries/runs";
 
 const TerminalWrapper = styled.div`
   position: absolute;
@@ -41,7 +47,7 @@ const TerminalWrapper = styled.div`
 
 const HeaderBar = withTheme(styled.div<PropsWithTheme<{ $isOpen: boolean }>>`
   width: ${({ $isOpen }) => ($isOpen ? "100%" : `${PIPELINE_CANVAS_TERMINAL_NOTCH_WIDTH}px`)};
-  padding: 8px 12px;
+  padding: 8px 8px 8px 12px;
 
   background-color: ${({ theme }) => theme.color.background.primary};
   border: 0.5px solid ${({ theme }) => theme.color.border.primary};
@@ -83,13 +89,24 @@ const TerminalBody = styled.div`
 `;
 
 const PipelineCanvasTerminal = () => {
-  const { runBindings, isActivityOpen: isOpen } = usePipelineCanvasRunState();
+  const { id } = useParams({ from: "/pipelines/$id" });
+  const { isActivityOpen: isOpen } = usePipelineCanvasRunState();
   const { setActivityOpen } = usePipelineCanvasRunActions();
 
-  const runIds = useMemo(
-    () => [...new Set(runBindings.map((binding) => binding.runId))],
-    [runBindings],
-  );
+  const { data: activeRunsData } = useListRunsQuery({
+    input: create(ListRunsRequestSchema, {
+      pipelineId: id,
+      status: [...ACTIVE_RUN_STATUSES],
+    }),
+  });
+
+  const [runIds, setRunIds] = useState<RunInfo["runId"][]>([]);
+  const mergedRunIds = [
+    ...new Set([...runIds, ...(activeRunsData?.runs ?? []).map((run) => run.runId)]),
+  ].slice(-PIPELINE_CANVAS_TERMINAL_MAX_RUNS);
+  if (mergedRunIds.join("|") !== runIds.join("|")) {
+    setRunIds(mergedRunIds);
+  }
 
   const { events, isStreaming } = useTailRunsStream(runIds);
   const reversedEvents = useMemo(() => [...events].reverse(), [events]);
@@ -133,7 +150,7 @@ const PipelineCanvasTerminal = () => {
                   <Button
                     key="expand"
                     icon={ArrowsOutSimpleIcon}
-                    variant={ButtonVariant.TERTIARY}
+                    variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     onClick={() => setActivityOpen(true)}
                   />,

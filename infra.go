@@ -18,8 +18,19 @@ type DataStore interface {
 	EnsureTenant(ctx context.Context, id TenantID, name string) error
 
 	SaveRun(ctx context.Context, s RunState) error
+	// CreateRun persists a new run row or promotes a pre-created RunScheduled
+	// row. A row that has progressed past RunScheduled is left untouched and
+	// ErrVersionConflict returned, so a racing intake cannot roll a live run
+	// back to an earlier status.
+	CreateRun(ctx context.Context, s RunState) error
 	LoadRun(ctx context.Context, id RunID) (RunState, error)
-	ListRuns(ctx context.Context, f RunFilter) ([]RunState, error)
+	// ListRuns returns the page selected by the filter's Limit/Offset plus the
+	// total number of runs matching the filter before the page was cut.
+	ListRuns(ctx context.Context, f RunFilter) ([]RunState, int, error)
+	// DeleteRun removes a run and its resources. Only the scheduler calls it, to
+	// reap pre-created RunScheduled rows; deleting a run that ever executed would
+	// discard history. Deleting a missing run is a no-op.
+	DeleteRun(ctx context.Context, id RunID) error
 
 	UpsertResource(ctx context.Context, rs ResourceState) error // enabled toggle + progress
 	ListResources(ctx context.Context, id RunID) ([]ResourceState, error)
@@ -41,10 +52,12 @@ type DataStore interface {
 	CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
 	CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error)
 	UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
+	// LoadPipeline includes soft-deleted pipelines; check DeletedAt before
+	// mutating or running one.
 	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
 	LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
 	ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error)
-	ListPipelines(ctx context.Context, tenant string) ([]*ingestionv1.Pipeline, error)
+	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string
 }
@@ -89,12 +102,21 @@ type Connection struct {
 	Config     map[string]any
 	SecretRefs map[string]string
 	Version    int64
+	// DeletedAt is unix milliseconds, zero when the connection is live.
+	DeletedAt int64
 }
 
 // ConnectionFilter narrows a connection listing by tenant and/or kind.
 type ConnectionFilter struct {
-	Tenant string
-	Kind   ConnectorKind
+	Tenant         string
+	Kind           ConnectorKind
+	IncludeDeleted bool
+}
+
+// PipelineFilter narrows a pipeline listing by tenant.
+type PipelineFilter struct {
+	Tenant         string
+	IncludeDeleted bool
 }
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.
@@ -128,18 +150,6 @@ type MetricsStore interface {
 	Ping(ctx context.Context) error
 	QueryRunTimeseries(ctx context.Context, q RunTimeseriesQuery) ([]RunTimeseries, error)
 	QueryRunAggregate(ctx context.Context, q RunAggregateQuery) ([]RunAggregateRow, error)
-}
-
-// Scheduler manages the lifecycle of recurring pipeline schedules.
-type Scheduler interface {
-	Register(ctx context.Context, spec ScheduleSpec) (ScheduleID, error)
-	Update(ctx context.Context, id ScheduleID, spec ScheduleSpec) error
-	Pause(ctx context.Context, id ScheduleID) error
-	Resume(ctx context.Context, id ScheduleID) error
-	Delete(ctx context.Context, id ScheduleID) error
-	Get(ctx context.Context, id ScheduleID) (ScheduleState, error)
-	List(ctx context.Context, f ScheduleFilter) ([]ScheduleState, error)
-	Name() string
 }
 
 // ScheduleSpec defines when a pipeline runs and whether occurrences may overlap.

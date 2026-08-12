@@ -13,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
 )
 
 // CreateConnection separates schema-declared secret fields from ordinary
@@ -24,7 +25,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	cfg := structMap(req.Msg.GetConfig())
-	if err := validateConnectionConfig(schema, cfg); err != nil {
+	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
@@ -68,6 +69,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if stored.DeletedAt != 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is deleted", in.GetId()))
+	}
 	if stored.Version != in.GetVersion() {
 		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", in.GetId(), stored.Version, in.GetVersion()))
 	}
@@ -82,7 +86,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	cfg := structMap(in.GetConfig())
-	if err := validateConnectionConfig(schema, cfg); err != nil {
+	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	refs := cloneStrings(in.GetSecretRefs())
@@ -128,15 +132,19 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 
 // ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
-	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind())})
+	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind()), IncludeDeleted: req.Msg.GetIncludeDeleted()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := make([]*ingestionv1.Connection, len(connections))
-	for i, c := range connections {
+	page, pagination, err := pageOf(connections, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*ingestionv1.Connection, len(page))
+	for i, c := range page {
 		out[i] = connectionToProto(c)
 	}
-	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out}), nil
+	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out, Pagination: pagination}), nil
 }
 
 // DeleteConnection removes the connection with the requested ID.
@@ -147,7 +155,7 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInternal, loadErr)
 	}
 
-	pipelines, err := a.store.ListPipelines(ctx, "")
+	pipelines, err := a.store.ListPipelines(ctx, filament.PipelineFilter{})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

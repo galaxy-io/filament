@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "ingestion/v1/pagination.proto";
+
 // RunStatus mirrors pkg.RunStatus.
 enum RunStatus {
   RUN_STATUS_UNSPECIFIED = 0;
@@ -12,6 +14,7 @@ enum RunStatus {
   RUN_STATUS_CANCELED = 5;
   RUN_STATUS_PAUSED = 6;
   RUN_STATUS_PARTIAL = 7;
+  RUN_STATUS_SCHEDULED = 8;
 }
 
 // Signal mirrors pkg.Signal.
@@ -84,6 +87,17 @@ message RunInfo {
   int64 ended_at = 10;
   string source_connection_id = 11;
   string sink_connection_id = 12;
+  // Worker pod usage folded from run.heartbeat facts.
+  double cpu_seconds = 13;
+  int64 memory_peak_bytes = 14;
+  // Lifecycle stamps in epoch millis; 0 means unset. created_at is row birth,
+  // scheduled_at the intended fire time (scheduled runs only), requested_at
+  // when the run was queued for dispatch. started_at/ended_at above are the
+  // worker's own start and finish.
+  int64 created_at = 15;
+  int64 scheduled_at = 16;
+  int64 requested_at = 17;
+  int64 updated_at = 18;
 }
 
 message RunSnapshot {
@@ -105,8 +119,7 @@ message ListRunsRequest {
   string pipeline_id = 2;
   optional int64 pipeline_version_id = 3;
   repeated RunStatus status = 4;
-  int32 limit = 5;
-  int32 offset = 6;
+  PaginationRequest pagination = 5;
   // since_ms/until_ms window on started_at (inclusive/exclusive, epoch
   // millis); 0 means unbounded. Runs that never started are excluded.
   int64 since_ms = 7;
@@ -115,6 +128,7 @@ message ListRunsRequest {
 
 message ListRunsResponse {
   repeated RunInfo runs = 1;
+  PaginationResponse pagination = 2;
 }
 
 message SignalRunRequest {

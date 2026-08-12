@@ -1,0 +1,131 @@
+---
+title: "Resend"
+description: "Read sent and received email, broadcasts, contacts, segments, domains, templates, and webhook deliveries from Resend."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-resend-dark.svg"
+---
+
+Resend is a manifest-driven source — `connectors/http/manifests/resend.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Resend-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+A Resend API key from Settings → API Keys, sent as a bearer token, and nothing
+else. The key needs full access: sending-only keys are rejected by every list
+endpoint this connector reads.
+
+## Resources
+
+Twenty-three resources, all statically discovered.
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `emails` | `/emails` | — |
+| `email_details` | `/emails/{id}` | `emails` |
+| `email_attachments` | `/emails/{id}/attachments` | `emails` |
+| `received_emails` | `/emails/receiving` | — |
+| `received_email_attachments` | `/emails/receiving/{id}/attachments` | `received_emails` |
+| `domains` | `/domains` | — |
+| `domain_settings` | `/domains/{id}` | `domains` |
+| `domain_records` | `/domains/{id}` | `domains` |
+| `api_keys` | `/api-keys` | — |
+| `broadcasts` | `/broadcasts` | — |
+| `contacts` | `/contacts` | — |
+| `contact_topics` | `/contacts/{id}/topics` | `contacts` |
+| `contact_properties` | `/contact-properties` | — |
+| `segments` | `/segments` | — |
+| `segment_contacts` | `/segments/{id}/contacts` | `segments` |
+| `topics` | `/topics` | — |
+| `suppressions` | `/suppressions` | — |
+| `webhooks` | `/webhooks` | — |
+| `webhook_events` | `/webhooks/{id}/events` | `webhooks` |
+| `webhook_event_attempts` | `/webhooks/{id}/events/{event_id}/attempts` | `webhook_events` |
+| `templates` | `/templates` | — |
+| `template_details` | `/templates/{id}` | `templates` |
+| `logs` | `/logs` | — |
+
+`emails` is declared first deliberately: connection validation probes the first
+top-level resource in the manifest, and `emails` is generally available, needs
+no parent scope, and proves the key is accepted without walking pagination.
+
+### Endpoints deliberately not covered
+
+Resend's analytics endpoints — `/emails/metrics`, `/segments/metrics`,
+`/broadcasts/{id}/metrics`, and `/broadcasts/{id}/recipients` — are all in
+private beta, gated to a limited set of accounts. Outside that set they return
+`404 {"name": "not_found"}`, which fails the whole extraction rather than
+degrading, so the manifest omits them. Note that the availability banners
+appear only on the rendered documentation pages, not on the `.md` mirrors.
+
+They are a small addition once Resend takes them GA: the metrics rollups need
+connector config for their window (granularity, start date, timezone), and the
+recipient streams need one resource per event type keyed on
+`(broadcast_id, email)` — the `id` those endpoints return is a positional
+cursor token (`b2Zmc2V0OjA` is base64 for `offset:0`), not a stable record id.
+
+### Pagination
+
+Every list endpoint returns `{"object": "list", "has_more": …, "data": […]}`
+and takes `limit` / `after` / `before` on the query string. Resend returns no
+next-page token — the cursor is the `id` of the last record on the page,
+echoed back as `after` — so the connection-wide `defaults:` block declares
+`cursor: { response: data.-1.id, request: query.after, more: has_more }` and
+every paginated resource requests `limit=100`, the documented maximum.
+`has_more` is the authoritative terminator, so a short final page ends the
+walk before `data.-1` is ever read.
+
+The detail endpoints (`email_details`, `domain_settings`, `domain_records`,
+`template_details`) return a bare object rather than a list envelope. They
+declare `pagination: none` and deliberately carry no `limit`, so no unexpected
+list parameter reaches an endpoint that does not document one.
+
+### Timestamps
+
+Resend renders most timestamps straight out of Postgres —
+`2026-04-03 22:13:42.674981+00`, with a space separator and no minutes in the
+offset. That is not RFC 3339, and the ClickHouse sink's `timestamptz`
+coercion rejects it. Those columns are therefore typed `string` so the raw
+value survives intact and can be cast downstream. Only the endpoints that
+genuinely emit ISO-8601 with a `Z` — `received_emails.created_at`, the
+attachment `expires_at` fields, `webhook_events.created_at`, and
+`webhook_event_attempts.sent_at` — are typed `timestamptz`.
+
+Address fields are typed `json` for a related reason: `to`, `cc`, `bcc`, and
+`reply_to` are arrays on some endpoints and a bare string or null on others,
+and a scalar column would abort the whole extraction on the mismatch rather
+than merely lose the extra addresses. `from` stays a string — it is always a
+single sender.
+
+### Request cost
+
+Resend caps a team at 10 requests/second across every API key, so the manifest
+holds one shared limiter at 8 rps and tightens it further from the
+`ratelimit-remaining` / `ratelimit-reset` response headers (the reset counts
+seconds from now, not a unix time). Several resources issue one request per
+parent record, which at that ceiling dominates a run on a busy account. Enable
+them deliberately:
+
+- `email_details` and `email_attachments` — one request per **sent email**
+  each. They are the only source of the rendered html/text body, the send-time
+  tags, and attachment download URLs, none of which the list endpoint returns.
+- `received_email_attachments` — one request per **received email**.
+  `received_emails` already embeds attachment metadata inline; this resource
+  only adds the signed `download_url`.
+- `contact_topics` — one request per **contact**. Topics have no reverse
+  "list subscribers" endpoint, so it is the only path to per-contact
+  subscription state.
+- `webhook_event_attempts` — one request per **webhook event**, the
+  highest-cardinality stream in the manifest.
+
+Segment membership is read as `segment_contacts` (one request per segment)
+rather than the equivalent per-contact `/contacts/{id}/segments` endpoint:
+same edges, and segments are orders of magnitude fewer than contacts.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)),
+but this manifest declares no `incremental:` block, so runs are always full
+extracts. No Resend list endpoint accepts an updated-since or created-after
+filter — pagination is by opaque record id only — so there is no parameter a
+watermark could be injected into.

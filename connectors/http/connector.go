@@ -18,6 +18,8 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
 	"github.com/galaxy-io/filament/connectors/http/request"
+	"github.com/galaxy-io/filament/connectors/http/response"
+	"github.com/galaxy-io/filament/connectors/http/template"
 )
 
 // Capture is one parent record's flattened, captured field map keyed by the
@@ -150,8 +152,18 @@ func (c *Connector) Configure(ctx context.Context) error {
 		return fmt.Errorf("build auth: %w", err)
 	}
 
+	// Rendered once here rather than per request: the host is fixed for the
+	// life of a configured connector. Lets a manifest select a regional host
+	// from config (`base_url: "{{ config.host }}"`) instead of pinning one
+	// cloud. Literal base URLs pass through untouched — Render short-circuits
+	// when there is no template.
+	baseURL, err := template.Render(m.Connection.BaseURL, template.Scope{Config: c.creds})
+	if err != nil {
+		return fmt.Errorf("render base_url: %w", err)
+	}
+
 	c.builder = &request.Builder{
-		BaseURL:           m.Connection.BaseURL,
+		BaseURL:           baseURL,
 		ConnectionHeaders: m.Connection.Headers,
 		Auth:              authn,
 	}
@@ -176,6 +188,39 @@ func (c *Connector) Configure(ctx context.Context) error {
 	// auth strategies grow startup probes (oauth2 token preflight, etc.) they
 	// will need ctx to honour caller deadlines.
 	_ = ctx
+	return nil
+}
+
+// TestConnection performs one authenticated request against the first
+// top-level, non-streaming resource in the manifest. It deliberately stops
+// after the first response: validation should prove that the credentials are
+// accepted without walking pagination or extracting user data.
+func (c *Connector) TestConnection(ctx context.Context) error {
+	if c.manifest == nil || c.builder == nil || c.client == nil {
+		return fmt.Errorf("connector is not configured")
+	}
+	var probe *manifest.Resource
+	for i := range c.manifest.Resources {
+		candidate := &c.manifest.Resources[i]
+		if candidate.Parent == nil && candidate.Mode != "stream" {
+			probe = candidate
+			break
+		}
+	}
+	if probe == nil {
+		return fmt.Errorf("manifest has no top-level request suitable for connection validation")
+	}
+
+	build := func(ctx context.Context) (*http.Request, error) {
+		return c.builder.Build(ctx, *probe, template.Scope{Config: c.creds})
+	}
+	_, body, err := c.doRequest(ctx, build, probe.Name)
+	if err != nil {
+		return fmt.Errorf("connection probe: %w", err)
+	}
+	if err := response.New(probe.Response).CheckError(body); err != nil {
+		return fmt.Errorf("connection probe: %w", err)
+	}
 	return nil
 }
 

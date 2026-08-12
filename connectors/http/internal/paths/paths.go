@@ -6,6 +6,7 @@
 //
 //	a.b.c          — nested object keys
 //	items.0.name   — numeric segments index into arrays
+//	data.-1.id     — negative indices count from the end (-1 is the last)
 //	meta.sub\.key  — backslash escapes a literal dot inside a key
 //
 // The package exposes three accessors. Each returns a typed error
@@ -210,11 +211,19 @@ func lookup(data any, path string) (value, error) {
 				return value{kind: kindOther}, fmt.Errorf("%w: segment %q is not an array index at %s",
 					errs.ErrPathType, seg, joinPrefix(segs, i))
 			}
-			if idx < 0 || idx >= len(node) {
+			// Negative indices count back from the end, so `data.-1.id` reads
+			// the last record without hardcoding a page size. An out-of-range
+			// index (including -1 on an empty array) stays ErrPathMissing,
+			// which cursor pagination reads as a clean terminator.
+			at := idx
+			if at < 0 {
+				at += len(node)
+			}
+			if at < 0 || at >= len(node) {
 				return value{kind: kindMissing}, fmt.Errorf("%w: index %d out of range at %s",
 					errs.ErrPathMissing, idx, joinPrefix(segs, i))
 			}
-			cur = node[idx]
+			cur = node[at]
 		default:
 			return value{kind: kindOther}, fmt.Errorf("%w: cannot descend into %T at %s",
 				errs.ErrPathType, node, joinPrefix(segs, i))

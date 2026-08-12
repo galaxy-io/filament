@@ -4,6 +4,7 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
+import "ingestion/v1/pagination.proto";
 
 // Capabilities flattens source and sink capabilities; fields not relevant to a
 // given kind stay false.
@@ -15,6 +16,8 @@ message Capabilities {
   bool schematized = 5;
   repeated WritePolicyCapability write_policies = 6;
   repeated SourcePolicy source_policies = 7;
+  // Sink: the write modes this sink offers.
+  repeated WriteMode write_modes = 8;
 }
 
 // ConnectorSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
@@ -37,10 +40,21 @@ message ConnectorSpec {
 message ListConnectorsRequest {
   // Filter to one kind; UNSPECIFIED returns both sources and sinks.
   ConnectorKind kind = 1;
+  PaginationRequest pagination = 2;
 }
 
 message ListConnectorsResponse {
   repeated ConnectorSpec connectors = 1;
+  PaginationResponse pagination = 2;
+}
+
+message GetConnectorRequest {
+  string connector = 1;
+  ConnectorKind kind = 2;
+}
+
+message GetConnectorResponse {
+  ConnectorSpec connector = 1;
 }
 
 message ValidateConfigRequest {

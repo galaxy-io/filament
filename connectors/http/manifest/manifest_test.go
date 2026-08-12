@@ -171,6 +171,46 @@ resources:
 	}
 }
 
+// base_url is rendered once at Configure, so it carries auth's scope set:
+// config/state/env resolve, parent/cursor never can. Regional APIs use this to
+// pick a host from config instead of pinning one cloud per manifest.
+func TestParseAcceptsTemplatedBaseURL(t *testing.T) {
+	m, err := Parse([]byte(`
+version: 1
+name: regional
+config:
+  host:
+    type: string
+    default: https://us.example.com
+connection:
+  base_url: "{{ config.host }}"
+resources:
+  - name: widgets
+    path: /widgets
+`))
+	if err != nil {
+		t.Fatalf("parse templated base_url: %v", err)
+	}
+	if m.Connection.BaseURL != "{{ config.host }}" {
+		t.Fatalf("base_url = %q, want the template preserved for render at Configure", m.Connection.BaseURL)
+	}
+}
+
+func TestParseRejectsBaseURLWithUnresolvableScope(t *testing.T) {
+	_, err := Parse([]byte(`
+version: 1
+name: regional
+connection:
+  base_url: "{{ parent.host }}"
+resources:
+  - name: widgets
+    path: /widgets
+`))
+	if err == nil {
+		t.Fatal("base_url referencing parent parsed; that scope can never resolve at connection time")
+	}
+}
+
 func TestParseRejectsFormerV3Manifest(t *testing.T) {
 	_, err := Parse([]byte(`
 version: 3

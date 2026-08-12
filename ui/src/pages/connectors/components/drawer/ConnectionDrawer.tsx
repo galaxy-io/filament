@@ -1,20 +1,26 @@
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { KeyIcon, SlidersIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { KeyIcon, LinkBreakIcon, SlidersIcon } from "@phosphor-icons/react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import DangerZone from "@/components/DangerZone";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+
+import ErrorLayout from "@/layouts/ErrorLayout";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectionDrawerHeader from "@/pages/connectors/components/drawer/ConnectionDrawerHeader";
@@ -23,7 +29,7 @@ import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/Co
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 import ConnectionDrawerPipelines from "@/pages/connectors/components/drawer/ConnectionDrawerPipelines";
 
-import { useDeleteConnectionMutation } from "@/api/queries/connections";
+import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/queries/connections";
 
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
@@ -43,31 +49,85 @@ const DrawerBody = withTheme(styled.div<PropsWithTheme>`
 `);
 
 interface ConnectionDrawerProps {
-  connection: Connection;
   onClose: () => void;
 }
 
-const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
+const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
   const navigate = useNavigate();
+  const { connectionId } = useSearch({ from: "__root__" });
+
+  const { data, isError } = useGetConnectionQuery({
+    input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
+    options: { enabled: !!connectionId, retry: false },
+  });
+  const connection = data?.connection;
 
   const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
 
   const { handleOpen, isOpen, handleClose, handleConfirm } = useDeleteConfirm({
     entityLabel: "Connection",
-    entityName: connection.name,
-    onDelete: ({ onSuccess, onError }) =>
-      deleteConnection({ id: connection.id }, { onSuccess, onError }),
+    entityName: connection?.name ?? "",
+    onDelete: ({ onSuccess, onError }) => {
+      if (!connection) return;
+      deleteConnection({ id: connection.id }, { onSuccess, onError });
+    },
     onDeleted: () => {
       onClose();
       navigate({
-        to: connection.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
+        to: connection?.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
       });
     },
   });
 
+  if (isError) {
+    return (
+      <DrawerWrapper>
+        <ErrorLayout
+          icon={<Icon component={LinkBreakIcon} size={24} variant={IconVariant.ERROR} />}
+          header="Connection not found"
+          message="This connection no longer exists."
+          actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
+        />
+      </DrawerWrapper>
+    );
+  }
+
+  if (!connection) {
+    return (
+      <DrawerWrapper>
+        <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
+          <TextShimmer height={36} width={36} />
+          <FlexWrapper direction={FlexDirection.COLUMN} gap={6}>
+            <TextShimmer height={18} width={160} />
+            <TextShimmer height={14} width={120} />
+          </FlexWrapper>
+        </FlexWrapper>
+        <HorizontalDivider />
+        <DrawerBody>
+          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="16px" fillWidth>
+            <ConnectionDrawerList>
+              <ConnectionDrawerKeyValueRow
+                label="Connector"
+                value={<TextShimmer height={16} width={100} />}
+              />
+              <ConnectionDrawerKeyValueRow
+                label="Kind"
+                value={<TextShimmer height={16} width={60} />}
+              />
+              <ConnectionDrawerKeyValueRow
+                label="Version"
+                value={<TextShimmer height={16} width={40} />}
+              />
+            </ConnectionDrawerList>
+          </FlexWrapper>
+        </DrawerBody>
+      </DrawerWrapper>
+    );
+  }
+
   return (
     <DrawerWrapper>
-      <ConnectionDrawerHeader connection={connection} onClose={onClose} />
+      <ConnectionDrawerHeader onClose={onClose} />
 
       <HorizontalDivider />
 
@@ -102,7 +162,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
             emptyHeader="No secrets"
             emptyMessage="This connection has no secret references."
           />
-          <ConnectionDrawerPipelines connectionId={connection.id} />
+          <ConnectionDrawerPipelines />
         </FlexWrapper>
       </DrawerBody>
 
@@ -113,6 +173,7 @@ const ConnectionDrawer = ({ connection, onClose }: ConnectionDrawerProps) => {
           title="Delete connection"
           description="This will permanently delete this connection."
           onDelete={handleOpen}
+          isDisabled={!!connection.deletedAt}
         />
       </FlexItem>
 

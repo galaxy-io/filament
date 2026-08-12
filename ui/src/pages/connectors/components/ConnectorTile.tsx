@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
@@ -8,9 +9,10 @@ import { GalaxyTheme } from "@galaxy-io/dls/theme";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
 
-import { useConnectorSpec } from "@/pages/connectors/hooks/useConnectorSpec";
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 export enum ConnectorTileSize {
   SMALL = "SMALL",
@@ -31,9 +33,9 @@ const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
 };
 
 const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
-  [ConnectorTileSize.SMALL]: 16,
-  [ConnectorTileSize.MEDIUM]: 18,
-  [ConnectorTileSize.LARGE]: 21,
+  [ConnectorTileSize.SMALL]: 14,
+  [ConnectorTileSize.MEDIUM]: 16,
+  [ConnectorTileSize.LARGE]: 24,
 };
 
 const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> = {
@@ -43,7 +45,11 @@ const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> 
 };
 
 const TileWrapper = withTheme(styled.div<
-  PropsWithTheme<{ $size: ConnectorTileSize; $isClickable: boolean }>
+  PropsWithTheme<{
+    $size: ConnectorTileSize;
+    $isClickable: boolean;
+    $isDeleted: boolean;
+  }>
 >`
   width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
   height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
@@ -53,10 +59,13 @@ const TileWrapper = withTheme(styled.div<
   justify-content: center;
   flex-shrink: 0;
 
-  background-color: ${({ theme }) => theme.color.background.secondary};
+  background-color: ${({ theme, $isDeleted }) =>
+    $isDeleted ? theme.color.background.error : theme.color.background.secondary};
 
   border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
-  border: 0.5px solid ${({ theme }) => theme.color.border.tertiary};
+  border: 0.5px solid
+    ${({ theme, $isDeleted }) =>
+      $isDeleted ? theme.color.border.error : theme.color.border.tertiary};
 
   overflow: hidden;
 
@@ -77,10 +86,11 @@ const ConnectorLogo = styled.img<{ $height: number }>`
 `;
 
 interface ConnectorTileProps {
-  connector: string;
-  spec?: ConnectorSpec;
+  connector: ConnectorSpec["name"];
+  kind?: ConnectorKind;
   size?: ConnectorTileSize;
   onClick?: (e: React.MouseEvent) => void;
+  isDeleted?: boolean;
 }
 
 interface ConnectorTileState {
@@ -91,13 +101,17 @@ const DEFAULT_STATE: ConnectorTileState = {};
 
 const ConnectorTile = ({
   connector,
-  spec,
+  kind,
   size = ConnectorTileSize.MEDIUM,
   onClick,
+  isDeleted = false,
 }: ConnectorTileProps) => {
   const { activeTheme } = useGalaxyTheme();
-  const resolvedSpec = useConnectorSpec(connector);
-  const catalogSpec = spec ?? resolvedSpec;
+  const { data, isLoading } = useGetConnectorQuery({
+    input: create(GetConnectorRequestSchema, { connector, kind }),
+    options: { enabled: !!connector && !!kind },
+  });
+  const catalogSpec = data?.connector;
   const logoURL = match(activeTheme)
     .with(GalaxyTheme.DARK, () => catalogSpec?.darkLogoUrl)
     .with(GalaxyTheme.LIGHT, () => catalogSpec?.lightLogoUrl)
@@ -110,7 +124,7 @@ const ConnectorTile = ({
   };
 
   return (
-    <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick}>
+    <TileWrapper $size={size} $isClickable={!!onClick} onClick={onClick} $isDeleted={isDeleted}>
       {showLogo ? (
         <ConnectorLogo
           src={logoURL}
@@ -118,7 +132,7 @@ const ConnectorTile = ({
           $height={CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP[size]}
           onError={handleLogoError}
         />
-      ) : (
+      ) : isLoading ? null : (
         <Text
           size={CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP[size]}
           variant={TextVariant.SECONDARY}
@@ -133,7 +147,7 @@ const ConnectorTile = ({
 
 export const ConnectorOverflowTile = ({ count }: { count: number }) => {
   return (
-    <TileWrapper $size={ConnectorTileSize.SMALL} $isClickable={false}>
+    <TileWrapper $size={ConnectorTileSize.SMALL} $isClickable={false} $isDeleted={false}>
       <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isMonospace>
         +{count}
       </Text>

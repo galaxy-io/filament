@@ -18,6 +18,18 @@ import (
 // shared sentinel regardless of which DataStore impl they hold.
 var ErrNotFound = filament.ErrNotFound
 
+// deletedNameTimestamp renders the delete time stamped onto a soft-deleted
+// pipeline or connection name, keeping the name unique if the row is ever
+// restored into a partial unique index. Fixed-width milliseconds, matching the
+// postgres to_char pattern in queries/{pipelines,connections}.sql —
+// time.RFC3339 has no fractional seconds and RFC3339Nano trims trailing zeros.
+const deletedNameTimestamp = "2006-01-02T15:04:05.000Z"
+
+// stampDeletedName appends the delete marker the postgres store writes in SQL.
+func stampDeletedName(name string, at time.Time) string {
+	return fmt.Sprintf("%s__deleted__%s", name, at.UTC().Format(deletedNameTimestamp))
+}
+
 // Store is an in-memory DataStore.
 type Store struct {
 	mu                  sync.RWMutex
@@ -27,7 +39,9 @@ type Store struct {
 	resourceCheckpoints map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState
 	seen                map[dkey]struct{} // dedup keys already applied
 	connections         map[string]filament.Connection
+	deletedConnections  map[string]filament.Connection
 	pipelines           map[string]*ingestionv1.Pipeline
+	deletedPipelines    map[string]*ingestionv1.Pipeline
 	pipelineVersions    map[string]map[int64]*ingestionv1.PipelineVersion
 	schedules           map[filament.ScheduleID]filament.ScheduleState
 	scheduleClaims      map[filament.ScheduleID]time.Time
@@ -53,7 +67,9 @@ func New() *Store {
 		resourceCheckpoints: map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState{},
 		seen:                map[dkey]struct{}{},
 		connections:         map[string]filament.Connection{},
+		deletedConnections:  map[string]filament.Connection{},
 		pipelines:           map[string]*ingestionv1.Pipeline{},
+		deletedPipelines:    map[string]*ingestionv1.Pipeline{},
 		pipelineVersions:    map[string]map[int64]*ingestionv1.PipelineVersion{},
 		schedules:           map[filament.ScheduleID]filament.ScheduleState{},
 		scheduleClaims:      map[filament.ScheduleID]time.Time{},
@@ -83,6 +99,24 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveRunLocked(r)
+}
+
+// CreateRun inserts the run or promotes a pre-created RunScheduled row; a row
+// that has progressed past RunScheduled is left untouched.
+func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if existing, ok := s.runs[r.Run]; ok && existing.Status != filament.RunScheduled {
+		return fmt.Errorf("create run %q: %w", r.Run, filament.ErrVersionConflict)
+	}
+	return s.saveRunLocked(r)
+}
+
+func (s *Store) saveRunLocked(r filament.RunState) error {
 	if activeCheckpointRun(r) {
 		for id, existing := range s.runs {
 			if id != r.Run && activeCheckpointRun(existing) && sameCheckpointRoute(existing.Request, r.Request) {
@@ -95,7 +129,13 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		s.putResourceLocked(rs)
 	}
 	r.Resources = nil
+	r = mergeRunTimes(s.runs[r.Run], r)
 	s.runs[r.Run] = r
+	// A pre-created scheduled run hasn't happened yet — it must not become the
+	// pipeline's last run.
+	if r.Status == filament.RunScheduled {
+		return nil
+	}
 	if p := s.pipelines[r.Request.PipelineID]; p != nil && (p.LastRunAt == 0 || p.LastRunAt <= r.StartedAt.UnixMilli()) {
 		p.LastRunVersionId = r.Request.PipelineVersionID
 		p.LastRunAt = r.StartedAt.UnixMilli()
@@ -107,6 +147,33 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		}
 	}
 	return nil
+}
+
+// mergeRunTimes applies the same first-write-wins rule postgres gets from
+// coalesce(runs.col, EXCLUDED.col): a stamp already on the row survives a later
+// save from a writer that does not own it. CreatedAt is stamped on insert and
+// never moves; UpdatedAt is refreshed on every write.
+func mergeRunTimes(prev, next filament.RunState) filament.RunState {
+	now := time.Now()
+	next.CreatedAt = prev.CreatedAt
+	if next.CreatedAt.IsZero() {
+		next.CreatedAt = now
+	}
+	next.ScheduledAt = firstSet(prev.ScheduledAt, next.ScheduledAt)
+	next.RequestedAt = firstSet(prev.RequestedAt, next.RequestedAt)
+	next.StartedAt = firstSet(prev.StartedAt, next.StartedAt)
+	if prev.FinishedAt != nil {
+		next.FinishedAt = prev.FinishedAt
+	}
+	next.UpdatedAt = now
+	return next
+}
+
+func firstSet(prev, next time.Time) time.Time {
+	if !prev.IsZero() {
+		return prev
+	}
+	return next
 }
 
 func activeCheckpointRun(r filament.RunState) bool {
@@ -140,10 +207,29 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
-// ListRuns returns runs matching the filter, newest StartedAt first.
-func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, error) {
+// DeleteRun removes the run with its resources and checkpoints; missing is a no-op.
+func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.runs, id)
+	delete(s.resources, id)
+	for key := range s.checkpoints {
+		if key.run == id {
+			delete(s.checkpoints, key)
+		}
+	}
+	return nil
+}
+
+// ListRuns returns runs matching the filter, newest StartedAt first. A run that
+// has not started sorts before every started run, mirroring postgres's
+// started_at DESC NULLS FIRST: pending work belongs at the top.
+func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
 	}
 	s.mu.RLock()
 	var out []filament.RunState
@@ -160,18 +246,22 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		if out[i].StartedAt.Equal(out[j].StartedAt) {
 			return out[i].Run > out[j].Run
 		}
+		if out[i].StartedAt.IsZero() || out[j].StartedAt.IsZero() {
+			return out[i].StartedAt.IsZero()
+		}
 		return out[i].StartedAt.After(out[j].StartedAt)
 	})
+	total := len(out)
 	if f.Offset > 0 {
 		if f.Offset >= len(out) {
-			return nil, nil
+			return nil, total, nil
 		}
 		out = out[f.Offset:]
 	}
 	if f.Limit > 0 && len(out) > f.Limit {
 		out = out[:f.Limit]
 	}
-	return out, nil
+	return out, total, nil
 }
 
 // UpsertResource records (or replaces) a resource's state under its run.

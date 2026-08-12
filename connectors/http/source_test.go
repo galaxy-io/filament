@@ -67,6 +67,58 @@ func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 	}
 }
 
+func TestSourceTestConnectionMakesOneAuthenticatedRequest(t *testing.T) {
+	var calls int
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != http.MethodGet || r.URL.Path != "/probe" {
+			t.Errorf("request = %s %s, want GET /probe", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if r.Header.Get("Authorization") != "Bearer good-token" {
+			fmt.Fprint(w, `{"error":"invalid token"}`)
+			return
+		}
+		fmt.Fprint(w, `{"items":[]}`)
+	}))
+	defer api.Close()
+
+	data := []byte(fmt.Sprintf(`
+version: 1
+name: probe
+config:
+  token: {type: secret, required: true}
+connection:
+  base_url: %s
+  auth:
+    bearer: config.token
+resources:
+  - name: probe
+    path: /probe
+    response:
+      records: $.items
+      error:
+        path: error
+        when_present: true
+`, api.URL))
+	src := NewManifest("probe", "Probe", data, filament.ConfigSchema{})
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"token": "good-token",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("requests = %d, want exactly 1", calls)
+	}
+
+	err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"token": "bad-token",
+	}))
+	if err == nil || !strings.Contains(err.Error(), "invalid token") {
+		t.Fatalf("bad credentials error = %v, want wrapped API error", err)
+	}
+}
+
 func TestSourcePlanResumeExpandsManifestResources(t *testing.T) {
 	ctx := context.Background()
 	api := httptest.NewServer(http.NotFoundHandler())
@@ -995,4 +1047,1081 @@ discovery:
 		t.Fatalf("write notion manifest: %v", err)
 	}
 	return path
+}
+
+func TestNewResendSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewResend()
+	spec := src.Spec()
+	if spec.Name != "resend" || spec.DisplayName != "Resend" {
+		t.Fatalf("spec identity = %q/%q, want resend/Resend", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 1 {
+		t.Fatalf("config fields = %#v, want the API key alone", spec.Config.Fields)
+	}
+	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
+		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without API key succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure embedded Resend manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	// No metrics or broadcast-recipient resources: those endpoints are private
+	// beta and 404 for accounts outside it, which fails the whole run.
+	want := []string{
+		"emails", "email_details", "email_attachments", "received_emails",
+		"received_email_attachments", "domains", "domain_settings", "domain_records",
+		"api_keys", "broadcasts", "contacts", "contact_topics", "contact_properties",
+		"segments", "segment_contacts", "topics", "suppressions", "webhooks",
+		"webhook_events", "webhook_event_attempts", "templates", "template_details",
+		"logs",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+// Resend returns no next-page token: the cursor is the id of the last record
+// on the page, echoed back as `after`, with has_more as the terminator.
+func TestResendPaginatesOnLastRecordIDAndSendsBearerToken(t *testing.T) {
+	ctx := context.Background()
+	var auth string
+	var afters, limits []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/emails" {
+			http.NotFound(w, r)
+			return
+		}
+		auth = r.Header.Get("Authorization")
+		afters = append(afters, r.URL.Query().Get("after"))
+		limits = append(limits, r.URL.Query().Get("limit"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("after") == "" {
+			fmt.Fprint(w, `{"object":"list","has_more":true,"data":[
+				{"id":"em_1","message_id":"<1@example.com>","to":["a@example.com"],"from":"Acme <s@example.com>",
+				 "subject":"One","last_event":"delivered","bcc":null,"cc":null,"reply_to":null,
+				 "created_at":"2026-04-03 22:13:42.674981+00","scheduled_at":null},
+				{"id":"em_2","message_id":"<2@example.com>","to":["b@example.com"],"from":"Acme <s@example.com>",
+				 "subject":"Two","last_event":"opened","bcc":null,"cc":null,"reply_to":null,
+				 "created_at":"2026-04-03 22:14:42.674981+00","scheduled_at":null}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+			{"id":"em_3","message_id":"<3@example.com>","to":["c@example.com"],"from":"Acme <s@example.com>",
+			 "subject":"Three","last_event":"bounced","bcc":null,"cc":null,"reply_to":null,
+			 "created_at":"2026-04-03 22:15:42.674981+00","scheduled_at":null}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"emails"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract emails: %v", err)
+	}
+
+	if auth != "Bearer re_test_123" {
+		t.Fatalf("authorization = %q, want the API key as a bearer token", auth)
+	}
+	if len(afters) != 2 || afters[0] != "" || afters[1] != "em_2" {
+		t.Fatalf("after = %v, want the last id of page one on the second request", afters)
+	}
+	for i, limit := range limits {
+		if limit != "100" {
+			t.Fatalf("limit[%d] = %q, want Resend's 100 maximum", i, limit)
+		}
+	}
+	if len(sink.records) != 3 {
+		t.Fatalf("records = %d, want all three emails across both pages", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode email: %v", err)
+	}
+	if first["id"] != "em_1" || first["subject"] != "One" || first["last_event"] != "delivered" {
+		t.Fatalf("email projection = %#v", first)
+	}
+	// Postgres-rendered timestamps ("+00", space separator) are not RFC 3339,
+	// so created_at stays a string rather than a timestamptz the sinks would
+	// fail to parse.
+	if first["created_at"] != "2026-04-03 22:13:42.674981+00" {
+		t.Fatalf("created_at = %#v, want the raw Postgres-rendered value preserved", first["created_at"])
+	}
+	if _, ok := first["raw"].(map[string]any); !ok {
+		t.Fatalf("raw remainder = %#v, want the unmapped payload", first["raw"])
+	}
+}
+
+// TestConnection probes the first top-level, non-streaming resource with only
+// the config scope bound, so `emails` has to be declared first and has to need
+// no parent capture.
+func TestResendTestConnectionProbesEmails(t *testing.T) {
+	var paths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","has_more":true,"data":[{"id":"em_1"}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"api_key": "re_test_123",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	// has_more is true, but validation must not walk pagination.
+	if len(paths) != 1 || paths[0] != "/emails" {
+		t.Fatalf("probe requests = %v, want exactly one GET /emails", paths)
+	}
+}
+
+// The detail endpoints return a bare object rather than a list envelope, and
+// take no list parameters — `records: $` plus `cardinality: one` has to yield
+// exactly one row from one unpaginated request.
+func TestResendEmailDetailsSingletonFanOutSendsNoListParams(t *testing.T) {
+	ctx := context.Background()
+	var detailQueries []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/emails":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"em_1","from":"s@example.com","subject":"One","created_at":"2026-04-03 22:13:42.674981+00"}]}`)
+		case "/emails/em_1":
+			detailQueries = append(detailQueries, r.URL.RawQuery)
+			fmt.Fprint(w, `{"object":"email","id":"em_1","message_id":"<1@example.com>","to":["a@example.com"],
+				"from":"Acme <s@example.com>","subject":"One","html":"<p>Hi</p>","text":null,"bcc":[],"cc":[],
+				"reply_to":[],"last_event":"delivered","scheduled_at":null,
+				"created_at":"2026-04-03 22:13:42.674981+00","tags":[{"name":"category","value":"welcome"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"email_details"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract email details: %v", err)
+	}
+	if len(detailQueries) != 1 {
+		t.Fatalf("detail requests = %v, want a single unpaginated fetch per email", detailQueries)
+	}
+	if detailQueries[0] != "" {
+		t.Fatalf("detail query = %q, want no list parameters on /emails/{id}", detailQueries[0])
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want the email object as one row and no parent rows", len(sink.records))
+	}
+	var data map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &data); err != nil {
+		t.Fatalf("decode email detail: %v", err)
+	}
+	if data["id"] != "em_1" || data["html"] != "<p>Hi</p>" || data["text"] != nil {
+		t.Fatalf("email detail projection = %#v", data)
+	}
+	if tags, ok := data["tags"].([]any); !ok || len(tags) != 1 {
+		t.Fatalf("tags = %#v, want the send-time tags the list endpoint omits", data["tags"])
+	}
+}
+
+// domain_records projects the nested DNS array out of the same detail payload
+// domain_settings reads as a single object.
+func TestResendDomainRecordsProjectNestedArrayFromDomainDetail(t *testing.T) {
+	ctx := context.Background()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/domains":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"dom_1","name":"example.com","status":"verified","region":"us-east-1",
+				 "created_at":"2026-04-26 20:21:26.347412+00","capabilities":{"sending":"enabled","receiving":"disabled"}}]}`)
+		case "/domains/dom_1":
+			fmt.Fprint(w, `{"object":"domain","id":"dom_1","name":"example.com","status":"verified",
+				"region":"us-east-1","open_tracking":true,"click_tracking":false,"tracking_subdomain":"links",
+				"created_at":"2026-04-26 20:21:26.347412+00",
+				"capabilities":{"sending":"enabled","receiving":"disabled"},
+				"records":[
+					{"record":"SPF","name":"send","type":"MX","ttl":"Auto","status":"verified",
+					 "value":"feedback-smtp.us-east-1.amazonses.com","priority":10},
+					{"record":"DKIM","name":"resend._domainkey","type":"TXT","ttl":"Auto",
+					 "status":"verified","value":"p=MIGf"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var records collectSink
+	if err := src.Extract(ctx, &records, filament.ExtractOpts{Resources: []string{"domain_records"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract domain records: %v", err)
+	}
+	if len(records.records) != 2 {
+		t.Fatalf("records = %d, want one row per DNS record", len(records.records))
+	}
+	var spf map[string]any
+	if err := json.Unmarshal(records.records[0].Data, &spf); err != nil {
+		t.Fatalf("decode dns record: %v", err)
+	}
+	if spf["domain_id"] != "dom_1" || spf["record"] != "SPF" || spf["type"] != "MX" {
+		t.Fatalf("dns record projection = %#v", spf)
+	}
+	if spf["priority"] != float64(10) {
+		t.Fatalf("priority = %#v, want the MX priority as an integer", spf["priority"])
+	}
+	var dkim map[string]any
+	if err := json.Unmarshal(records.records[1].Data, &dkim); err != nil {
+		t.Fatalf("decode dns record: %v", err)
+	}
+	if dkim["priority"] != nil {
+		t.Fatalf("priority = %#v, want null on a record type that carries none", dkim["priority"])
+	}
+
+	// A fresh Source: parent captures accumulate for the lifetime of a
+	// configured connector, so reusing the one above would fan the detail
+	// request out once per prior run.
+	settingsSrc := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := settingsSrc.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer settingsSrc.Teardown(ctx)
+
+	var settings collectSink
+	if err := settingsSrc.Extract(ctx, &settings, filament.ExtractOpts{Resources: []string{"domain_settings"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract domain settings: %v", err)
+	}
+	if len(settings.records) != 1 {
+		t.Fatalf("settings records = %d, want one row per domain", len(settings.records))
+	}
+	var detail map[string]any
+	if err := json.Unmarshal(settings.records[0].Data, &detail); err != nil {
+		t.Fatalf("decode domain settings: %v", err)
+	}
+	if detail["open_tracking"] != true || detail["tracking_subdomain"] != "links" {
+		t.Fatalf("domain settings projection = %#v, want the tracking fields the list endpoint omits", detail)
+	}
+}
+
+// webhook_event_attempts is the only three-level fan-out in the manifest: the
+// webhook id has to survive from the grandparent through the event capture.
+func TestResendWebhookAttemptsInheritWebhookIDThroughEventCapture(t *testing.T) {
+	ctx := context.Background()
+	var attemptPaths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/webhooks":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"wh_1","endpoint":"https://example.com/hook","status":"enabled",
+				 "events":["email.sent"],"created_at":"2026-09-10 10:15:30.000+00"}]}`)
+		case "/webhooks/wh_1/events":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"msg_1","type":"email.sent","created_at":"2026-08-22T15:28:00.000Z","status":"success"},
+				{"id":"msg_2","type":"email.delivered","created_at":"2026-08-22T15:27:42.000Z","status":"failed"}]}`)
+		case "/webhooks/wh_1/events/msg_1/attempts", "/webhooks/wh_1/events/msg_2/attempts":
+			attemptPaths = append(attemptPaths, r.URL.Path)
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"atmpt_1","http_status_code":200,"response":"{\"ok\":true}","sent_at":"2026-08-22T15:33:12.000Z"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"webhook_event_attempts"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract webhook attempts: %v", err)
+	}
+	if len(attemptPaths) != 2 {
+		t.Fatalf("attempt requests = %v, want one per event", attemptPaths)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one attempt per event and no ancestor rows", len(sink.records))
+	}
+	seen := map[string]bool{}
+	for _, rec := range sink.records {
+		var data map[string]any
+		if err := json.Unmarshal(rec.Data, &data); err != nil {
+			t.Fatalf("decode attempt: %v", err)
+		}
+		if data["webhook_id"] != "wh_1" {
+			t.Fatalf("webhook_id = %#v, want the grandparent id carried through the event capture", data["webhook_id"])
+		}
+		if data["http_status_code"] != float64(200) {
+			t.Fatalf("http_status_code = %#v, want the delivery status as an integer", data["http_status_code"])
+		}
+		if data["sent_at"] != "2026-08-22T15:33:12.000Z" {
+			t.Fatalf("sent_at = %#v, want the ISO-8601 attempt timestamp", data["sent_at"])
+		}
+		seen[data["event_id"].(string)] = true
+	}
+	if !seen["msg_1"] || !seen["msg_2"] {
+		t.Fatalf("event_id values = %v, want both events denormalized onto their attempts", seen)
+	}
+}
+
+// reply_to is documented "string | string[]" and shows as null in the docs
+// example, but live templates return an array. Scalar-typed fields abort the
+// whole child extraction on a type mismatch — nullable only covers missing and
+// null — so the address fields have to be json.
+func TestResendTemplateDetailsAcceptArrayReplyTo(t *testing.T) {
+	ctx := context.Background()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/templates":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"tpl_1","name":"reset-password","alias":"reset-password","status":"published",
+				 "published_at":"2026-10-06 23:47:56.678+00","created_at":"2026-10-06 23:47:56.678+00",
+				 "updated_at":"2026-10-06 23:47:56.678+00"}]}`)
+		case "/templates/tpl_1":
+			fmt.Fprint(w, `{"object":"template","id":"tpl_1","current_version_id":"ver_1",
+				"alias":"reset-password","name":"reset-password","status":"published",
+				"published_at":"2026-10-06 23:47:56.678+00","created_at":"2026-10-06 23:47:56.678+00",
+				"updated_at":"2026-10-06 23:47:56.678+00","from":"John Doe <john@example.com>",
+				"subject":"Hello","reply_to":["support@example.com","ops@example.com"],
+				"html":"<h1>Hello</h1>","text":"Hello","has_unpublished_versions":true,
+				"variables":[{"id":"var_1","key":"user_name","type":"string"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
+	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"template_details"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract template details: %v", err)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want one row per template", len(sink.records))
+	}
+	var data map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &data); err != nil {
+		t.Fatalf("decode template detail: %v", err)
+	}
+	replyTo, ok := data["reply_to"].([]any)
+	if !ok || len(replyTo) != 2 || replyTo[0] != "support@example.com" {
+		t.Fatalf("reply_to = %#v, want the multi-address array preserved", data["reply_to"])
+	}
+	if data["from"] != "John Doe <john@example.com>" {
+		t.Fatalf("from = %#v, want the single sender as a scalar", data["from"])
+	}
+	if data["html"] != "<h1>Hello</h1>" {
+		t.Fatalf("html = %#v, want the rendered body the list endpoint omits", data["html"])
+	}
+}
+
+func TestNewStripeSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewStripe()
+	spec := src.Spec()
+	if spec.Name != "stripe" || spec.DisplayName != "Stripe" {
+		t.Fatalf("spec identity = %q/%q, want stripe/Stripe", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 1 {
+		t.Fatalf("config fields = %#v, want the API key alone", spec.Config.Fields)
+	}
+	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
+		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without API key succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure embedded Stripe manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	// No Connect or platform resources: transfers, application fees, top-ups,
+	// quotes, payment links and Radar warnings are gated on products the
+	// account may not have enabled.
+	want := []string{
+		"customers", "charges", "payment_intents", "refunds", "disputes",
+		"balance_transactions", "payouts", "invoices", "invoice_line_items",
+		"credit_notes", "subscriptions", "subscription_items", "products",
+		"prices", "coupons", "promotion_codes", "checkout_sessions",
+		"setup_intents", "payment_methods", "tax_rates", "events",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+// Stripe returns no next-page token: the cursor is the id of the last record on
+// the page, echoed back as `starting_after`, with has_more as the terminator.
+// Auth is the API key as the HTTP basic username with an empty password.
+func TestStripePaginatesOnLastRecordIDAndSendsBasicAuth(t *testing.T) {
+	ctx := context.Background()
+	var user, pass string
+	var okBasic bool
+	var version string
+	var startingAfters, limits []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/charges" {
+			http.NotFound(w, r)
+			return
+		}
+		user, pass, okBasic = r.BasicAuth()
+		version = r.Header.Get("Stripe-Version")
+		startingAfters = append(startingAfters, r.URL.Query().Get("starting_after"))
+		limits = append(limits, r.URL.Query().Get("limit"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("starting_after") == "" {
+			fmt.Fprint(w, `{"object":"list","url":"/v1/charges","has_more":true,"data":[
+				{"id":"ch_1","object":"charge","amount":1099,"amount_refunded":0,"currency":"usd",
+				 "created":1679090539,"customer":"cus_1","captured":true,"paid":true,"refunded":false,
+				 "status":"succeeded","livemode":false,"metadata":{},"failure_code":null,
+				 "receipt_url":"https://pay.stripe.com/receipts/1"},
+				{"id":"ch_2","object":"charge","amount":2200,"amount_refunded":2200,"currency":"usd",
+				 "created":1679090600,"customer":null,"captured":true,"paid":true,"refunded":true,
+				 "status":"succeeded","livemode":false,"metadata":{},"failure_code":null,
+				 "receipt_url":null}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"object":"list","url":"/v1/charges","has_more":false,"data":[
+			{"id":"ch_3","object":"charge","amount":500,"amount_refunded":0,"currency":"eur",
+			 "created":1679090700,"customer":"cus_2","captured":false,"paid":false,"refunded":false,
+			 "status":"failed","livemode":false,"metadata":{},"failure_code":"card_declined",
+			 "receipt_url":null}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"charges"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract charges: %v", err)
+	}
+
+	if !okBasic || user != "rk_test_123" || pass != "" {
+		t.Fatalf("basic auth = %q/%q (ok=%v), want the API key as username with no password", user, pass, okBasic)
+	}
+	if version != "2026-07-29.dahlia" {
+		t.Fatalf("Stripe-Version = %q, want the pinned API version", version)
+	}
+	if len(startingAfters) != 2 || startingAfters[0] != "" || startingAfters[1] != "ch_2" {
+		t.Fatalf("starting_after = %v, want the last id of page one on the second request", startingAfters)
+	}
+	for i, limit := range limits {
+		if limit != "100" {
+			t.Fatalf("limit[%d] = %q, want Stripe's 100 maximum rather than the default 10", i, limit)
+		}
+	}
+	if len(sink.records) != 3 {
+		t.Fatalf("records = %d, want all three charges across both pages", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode charge: %v", err)
+	}
+	if first["id"] != "ch_1" || first["status"] != "succeeded" || first["currency"] != "usd" {
+		t.Fatalf("charge projection = %#v", first)
+	}
+	// Stripe timestamps are Unix epoch integers, not RFC 3339, so created is an
+	// int64 column rather than a timestamptz the sinks would fail to coerce.
+	if created, ok := first["created"].(float64); !ok || int64(created) != 1679090539 {
+		t.Fatalf("created = %#v, want the epoch integer preserved", first["created"])
+	}
+	if _, ok := first["raw"].(map[string]any); !ok {
+		t.Fatalf("raw remainder = %#v, want the unmapped payload", first["raw"])
+	}
+}
+
+// /v1/subscription_items requires a subscription, so it fans out from
+// subscriptions with the parent id templated into the query. The parent must
+// send status=all or canceled subscriptions never appear.
+func TestStripeSubscriptionItemFanOut(t *testing.T) {
+	ctx := context.Background()
+	var subscriptionStatus string
+	var itemScopes []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/subscriptions":
+			subscriptionStatus = r.URL.Query().Get("status")
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"sub_1","object":"subscription","created":1679609767,"customer":"cus_1",
+				 "status":"active","currency":"usd","livemode":false,"metadata":{},
+				 "cancel_at_period_end":false,"start_date":1679609767},
+				{"id":"sub_2","object":"subscription","created":1679609800,"customer":"cus_2",
+				 "status":"canceled","currency":"usd","livemode":false,"metadata":{},
+				 "cancel_at_period_end":false,"canceled_at":1679700000,"start_date":1679609800}]}`)
+		case "/v1/subscription_items":
+			scope := r.URL.Query().Get("subscription")
+			itemScopes = append(itemScopes, scope)
+			fmt.Fprintf(w, `{"object":"list","has_more":false,"data":[
+				{"id":"si_%s","object":"subscription_item","created":1679609768,"quantity":1,
+				 "subscription":"%s","current_period_start":1679609767,"current_period_end":1682288167,
+				 "metadata":{},"tax_rates":[]}]}`, scope, scope)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"subscription_items"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract subscription items: %v", err)
+	}
+
+	if subscriptionStatus != "all" {
+		t.Fatalf("subscription status filter = %q, want all so canceled subscriptions are not dropped", subscriptionStatus)
+	}
+	gotScopes := map[string]bool{}
+	for _, scope := range itemScopes {
+		gotScopes[scope] = true
+	}
+	if len(itemScopes) != 2 || !gotScopes["sub_1"] || !gotScopes["sub_2"] {
+		t.Fatalf("item scopes = %v, want one request per parent subscription", itemScopes)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one item per subscription", len(sink.records))
+	}
+	for _, rec := range sink.records {
+		if rec.Resource != "subscription_items" {
+			t.Fatalf("resource = %q, want subscription_items (dependencies must not emit)", rec.Resource)
+		}
+		var data map[string]any
+		if err := json.Unmarshal(rec.Data, &data); err != nil {
+			t.Fatalf("decode subscription item: %v", err)
+		}
+		// Recent API versions carry the billing period on the item, not the
+		// subscription, so this is the only place it surfaces.
+		if _, ok := data["current_period_end"].(float64); !ok {
+			t.Fatalf("current_period_end = %#v, want the item-level billing period", data["current_period_end"])
+		}
+	}
+}
+
+// The invoice's embedded `lines` truncates at 10 with its own has_more, so line
+// detail comes from a per-invoice fan-out that denormalizes the parent id.
+func TestStripeInvoiceLineItemFanOut(t *testing.T) {
+	ctx := context.Background()
+	var linePaths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/v1/invoices":
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"in_1","object":"invoice","created":1680644467,"customer":"cus_1",
+				 "currency":"usd","status":"paid","total":1099,"amount_due":1099,"amount_paid":1099,
+				 "livemode":false,"metadata":{},"lines":{"object":"list","has_more":true,"data":[]}},
+				{"id":"in_2","object":"invoice","created":1680644500,"customer":"cus_2",
+				 "currency":"usd","status":"draft","total":0,"amount_due":0,"amount_paid":0,
+				 "livemode":false,"metadata":{},"lines":{"object":"list","has_more":false,"data":[]}}]}`)
+		case strings.HasSuffix(r.URL.Path, "/lines"):
+			linePaths = append(linePaths, r.URL.Path)
+			fmt.Fprint(w, `{"object":"list","has_more":false,"data":[
+				{"id":"il_1","object":"line_item","amount":1099,"currency":"usd",
+				 "description":"T-shirt","quantity":1,"discountable":true,"livemode":false,
+				 "metadata":{},"period":{"start":1680644467,"end":1680644467}}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"invoice_line_items"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract invoice line items: %v", err)
+	}
+
+	gotPaths := map[string]bool{}
+	for _, path := range linePaths {
+		gotPaths[path] = true
+	}
+	if len(linePaths) != 2 || !gotPaths["/v1/invoices/in_1/lines"] || !gotPaths["/v1/invoices/in_2/lines"] {
+		t.Fatalf("line paths = %v, want one request per parent invoice", linePaths)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want one line per invoice", len(sink.records))
+	}
+	invoiceIDs := map[string]bool{}
+	for _, rec := range sink.records {
+		var data map[string]any
+		if err := json.Unmarshal(rec.Data, &data); err != nil {
+			t.Fatalf("decode invoice line: %v", err)
+		}
+		id, _ := data["invoice_id"].(string)
+		invoiceIDs[id] = true
+		// Line items carry no created timestamp, so the shared field set
+		// excludes it rather than aborting the run on a missing path.
+		if _, ok := data["created"]; ok {
+			t.Fatalf("created = %#v, want the column excluded for line items", data["created"])
+		}
+	}
+	if !invoiceIDs["in_1"] || !invoiceIDs["in_2"] {
+		t.Fatalf("invoice_id values = %v, want the parent id denormalized onto each line", invoiceIDs)
+	}
+}
+
+// Stripe's only incremental filter is the bracketed `created[gte]`, which Go
+// percent-encodes to created%5Bgte%5D on the wire. This pins that round trip
+// along with the numeric comparator: created is an epoch integer, and a naive
+// float stringification would send 1.679090539e+09 and match nothing.
+func TestStripeIncrementalInjectsBracketedCreatedFilter(t *testing.T) {
+	ctx := context.Background()
+	var gotCreatedGte string
+	var rawQuery string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/charges" {
+			http.NotFound(w, r)
+			return
+		}
+		gotCreatedGte = r.URL.Query().Get("created[gte]")
+		rawQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","url":"/v1/charges","has_more":false,"data":[
+			{"id":"ch_9","object":"charge","amount":1000,"currency":"usd","created":1679090700,
+			 "status":"succeeded","livemode":false,"metadata":{}}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	plan, err := src.PlanResume(ctx, []string{"charges"}, nil)
+	if err != nil {
+		t.Fatalf("plan resume: %v", err)
+	}
+	ks, ok := checkpoint.ParseKeyset(plan["charges"])
+	if !ok {
+		t.Fatal("plan did not parse as keyset")
+	}
+	// Each ledger resource needs its own checkpoint key; the cursor_field
+	// fallback would collide across all ten and fail manifest validation.
+	if got, want := ks.Cols, []string{"cursor", "charges_created"}; len(got) != len(want) || got[1] != want[1] {
+		t.Fatalf("checkpoint cols = %v, want %v", got, want)
+	}
+
+	prev := map[string]filament.Checkpoint{
+		"charges": checkpoint.KeysetCheckpoint{
+			Cols:   []string{"cursor", "charges_created"},
+			Types:  []string{"string", "string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"", "1679090539"}}},
+		}.ToCheckpoint("charges"),
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"charges"}, Parallelism: 1}, prev); err != nil {
+		t.Fatalf("extract from: %v", err)
+	}
+
+	if gotCreatedGte != "1679090539" {
+		t.Fatalf("created[gte] = %q, want the stored watermark as a plain epoch integer", gotCreatedGte)
+	}
+	if !strings.Contains(rawQuery, "created%5Bgte%5D=1679090539") {
+		t.Fatalf("raw query = %q, want the bracketed filter percent-encoded", rawQuery)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want the single charge past the watermark", len(sink.records))
+	}
+	// The watermark advances to the newest created seen, not the oldest.
+	if got, want := sink.records[0].Key, []string{"", "1679090700"}; len(got) != len(want) || got[1] != want[1] {
+		t.Fatalf("record key = %v, want %v", got, want)
+	}
+}
+
+// TestConnection probes the first top-level, non-streaming resource with only
+// the config scope bound, so `customers` has to be declared first and has to
+// need no parent capture.
+func TestStripeTestConnectionProbesCustomers(t *testing.T) {
+	var paths []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"object":"list","url":"/v1/customers","has_more":true,"data":[{"id":"cus_1"}]}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
+	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"api_key": "rk_test_123",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	// has_more is true, but validation must not walk pagination.
+	if len(paths) != 1 || paths[0] != "/v1/customers" {
+		t.Fatalf("probe requests = %v, want exactly one GET /v1/customers", paths)
+	}
+}
+
+// The shipped manifest paces at 0.3 req/s to stay under PostHog's 1200/hour
+// analytics ceiling, which would add ~3.3s of real sleep to every multi-page
+// test. Pagination is what these tests exercise, not throttling, so they lift
+// the ceiling the same way other connectors swap in a test base URL. A missed
+// replacement only makes the test slow, never wrong.
+func unthrottledPostHogManifest(t *testing.T) []byte {
+	t.Helper()
+	const throttled = "requests_per_second: 0.3"
+	if !strings.Contains(string(posthogManifest), throttled) {
+		t.Fatalf("manifest no longer contains %q — update the test helper", throttled)
+	}
+	return []byte(strings.Replace(string(posthogManifest), throttled, "requests_per_second: 1000", 1))
+}
+
+func TestNewPostHogSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewPostHog()
+	spec := src.Spec()
+	if spec.Name != "posthog" || spec.DisplayName != "PostHog" {
+		t.Fatalf("spec identity = %q/%q, want posthog/PostHog", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 3 {
+		t.Fatalf("config fields = %#v, want api_key, project_id and host", spec.Config.Fields)
+	}
+	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
+		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])
+	}
+	if fields["project_id"].Type != filament.FieldString || !fields["project_id"].Required {
+		t.Fatalf("project_id field = %#v, want required string", fields["project_id"])
+	}
+	// host carries a default so US Cloud works with no input; EU Cloud and
+	// self-hosted override it.
+	if fields["host"].Type != filament.FieldString || fields["host"].Required {
+		t.Fatalf("host field = %#v, want optional string", fields["host"])
+	}
+	if fields["host"].Default != "https://us.posthog.com" {
+		t.Fatalf("host default = %#v, want the US Cloud host", fields["host"].Default)
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{"api_key": "phx_test_123"})); err == nil {
+		t.Fatal("validate without project_id succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+	})); err != nil {
+		t.Fatalf("configure embedded PostHog manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	want := []string{
+		"persons", "events", "cohorts", "feature_flags", "experiments",
+		"insights", "dashboards", "actions", "annotations", "surveys",
+		"session_recordings",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+// PostHog is the first manifest whose base_url is templated rather than
+// literal, so the host arrives through config instead of a string swap. Every
+// path is scoped to one project id, and DRF hands back an absolute next-page
+// URL that the engine follows as given.
+func TestPostHogPaginatesViaNextURLAndScopesToProject(t *testing.T) {
+	ctx := context.Background()
+	var authorization string
+	var paths, limits, offsets []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/projects/12345/persons/" {
+			http.NotFound(w, r)
+			return
+		}
+		authorization = r.Header.Get("Authorization")
+		paths = append(paths, r.URL.Path)
+		limits = append(limits, r.URL.Query().Get("limit"))
+		offsets = append(offsets, r.URL.Query().Get("offset"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("offset") == "" {
+			// PostHog documents this id as "Accepts both numeric ID and UUID",
+			// and live instances return the UUID even though the response
+			// schema claims integer — so both shapes have to survive.
+			fmt.Fprintf(w, `{"count":3,"previous":null,"next":%q,"results":[
+				{"id":"0516dfdf-d689-58aa-842d-6c88fd4c2423","uuid":"095be615-a8ad-4c33-8e9c-c7612fbf6c9f","name":"ada@example.com",
+				 "distinct_ids":["ada"],"properties":{"plan":"pro"},
+				 "created_at":"2026-01-02T03:04:05Z","last_seen_at":"2026-02-02T03:04:05Z"},
+				{"id":2,"uuid":"18f0a1c4-31d6-4f7c-9a3f-2b1a0c5d6e7f","name":null,
+				 "distinct_ids":["grace"],"properties":{},
+				 "created_at":"2026-01-03T03:04:05Z","last_seen_at":null}]}`,
+				"http://"+r.Host+"/api/projects/12345/persons/?limit=100&offset=100")
+			return
+		}
+		fmt.Fprint(w, `{"count":3,"previous":null,"next":null,"results":[
+			{"id":"2c1d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f","uuid":"2c1d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f","name":"linus@example.com",
+			 "distinct_ids":["linus"],"properties":null,
+			 "created_at":"2026-01-04T03:04:05Z","last_seen_at":"2026-02-04T03:04:05Z"}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("posthog", "PostHog", unthrottledPostHogManifest(t), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+		"host":       api.URL,
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"persons"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract persons: %v", err)
+	}
+
+	if authorization != "Bearer phx_test_123" {
+		t.Fatalf("Authorization = %q, want the personal API key as a bearer token", authorization)
+	}
+	if len(paths) != 2 {
+		t.Fatalf("requests = %v, want the first page and the server's next page", paths)
+	}
+	if limits[0] != "100" {
+		t.Fatalf("limit = %q, want 100 on the first request", limits[0])
+	}
+	// Page two comes from the server's absolute next URL, so its offset is
+	// PostHog's, never one the manifest computed.
+	if offsets[0] != "" || offsets[1] != "100" {
+		t.Fatalf("offsets = %v, want the second request to carry the server's offset", offsets)
+	}
+	if len(sink.records) != 3 {
+		t.Fatalf("records = %d, want all three persons across both pages", len(sink.records))
+	}
+	var first map[string]any
+	if err := json.Unmarshal(sink.records[0].Data, &first); err != nil {
+		t.Fatalf("decode person: %v", err)
+	}
+	if first["id"] != "0516dfdf-d689-58aa-842d-6c88fd4c2423" || first["uuid"] != "095be615-a8ad-4c33-8e9c-c7612fbf6c9f" {
+		t.Fatalf("person projection = %#v", first)
+	}
+	// The second person carries a numeric id. Typing the column int64 would
+	// abort on the UUID above; string has to hold both, coercing the number.
+	var second map[string]any
+	if err := json.Unmarshal(sink.records[1].Data, &second); err != nil {
+		t.Fatalf("decode person: %v", err)
+	}
+	if second["id"] != "2" {
+		t.Fatalf("numeric person id = %#v, want it coerced into the string column", second["id"])
+	}
+	// distinct_ids and properties stay json rather than being flattened.
+	if _, ok := first["distinct_ids"].([]any); !ok {
+		t.Fatalf("distinct_ids = %#v, want a json array", first["distinct_ids"])
+	}
+}
+
+func TestPostHogEventsIncrementalInjectsAfterMinusOverlap(t *testing.T) {
+	ctx := context.Background()
+	var gotAfter string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/projects/12345/events/" {
+			http.NotFound(w, r)
+			return
+		}
+		gotAfter = r.URL.Query().Get("after")
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"next":null,"results":[
+			{"id":"01890a5d-0000-0000-0000-000000000001","event":"$pageview","distinct_id":"ada",
+			 "timestamp":"2026-08-01T15:00:00Z","properties":{"$browser":"Chrome"},
+			 "person":null,"elements":[],"elements_chain":""}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("posthog", "PostHog", posthogManifest, filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+		"host":       api.URL,
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	plan, err := src.PlanResume(ctx, []string{"events"}, nil)
+	if err != nil {
+		t.Fatalf("plan resume: %v", err)
+	}
+	ks, ok := checkpoint.ParseKeyset(plan["events"])
+	if !ok {
+		t.Fatal("plan did not parse as keyset")
+	}
+	// events and insights each declare their own checkpoint key; the
+	// cursor_field fallback would not collide here, but naming them keeps the
+	// stored key stable if either cursor field is ever renamed.
+	if got, want := ks.Cols, []string{"cursor", "events_timestamp"}; len(got) != len(want) || got[1] != want[1] {
+		t.Fatalf("checkpoint cols = %v, want %v", got, want)
+	}
+
+	prev := map[string]filament.Checkpoint{
+		"events": checkpoint.KeysetCheckpoint{
+			Cols:   []string{"cursor", "events_timestamp"},
+			Types:  []string{"string", "string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"", "2026-08-01T12:00:00Z"}}},
+		}.ToCheckpoint("events"),
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"events"}, Parallelism: 1}, prev); err != nil {
+		t.Fatalf("extract from: %v", err)
+	}
+
+	// overlap_seconds: 3600 rewinds the stored watermark an hour, because
+	// buffered SDKs deliver events well behind their own timestamps.
+	if gotAfter != "2026-08-01T11:00:00Z" {
+		t.Fatalf("after = %q, want the stored watermark rewound by the overlap window", gotAfter)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want the single event past the watermark", len(sink.records))
+	}
+}
+
+// Regression test. The watermark advances per record as a page streams, so
+// re-applying it to a server-issued next URL would narrow the range out from
+// under PostHog's own bounds: on a newest-first feed page two would come back
+// empty and the run would commit the newest timestamp having skipped the tail.
+// Pages after the first must carry the server's query untouched.
+func TestPostHogIncrementalLeavesServerNextURLUntouched(t *testing.T) {
+	ctx := context.Background()
+	var afters, befores []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/projects/12345/events/" {
+			http.NotFound(w, r)
+			return
+		}
+		afters = append(afters, r.URL.Query().Get("after"))
+		befores = append(befores, r.URL.Query().Get("before"))
+		w.Header().Set("Content-Type", "application/json")
+		// Newest first, as PostHog orders events by -timestamp, and the next
+		// URL narrows with `before` rather than an offset.
+		if r.URL.Query().Get("before") == "" {
+			fmt.Fprintf(w, `{"next":%q,"results":[
+				{"id":"evt_1","event":"$pageview","distinct_id":"ada",
+				 "timestamp":"2026-08-01T15:00:00Z","properties":{},"person":null,
+				 "elements":[],"elements_chain":""}]}`,
+				"http://"+r.Host+"/api/projects/12345/events/?limit=100&before=2026-08-01T15%3A00%3A00Z")
+			return
+		}
+		fmt.Fprint(w, `{"next":null,"results":[
+			{"id":"evt_0","event":"$pageview","distinct_id":"grace",
+			 "timestamp":"2026-07-20T09:00:00Z","properties":{},"person":null,
+			 "elements":[],"elements_chain":""}]}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest("posthog", "PostHog", unthrottledPostHogManifest(t), filament.ConfigSchema{})
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"api_key":    "phx_test_123",
+		"project_id": "12345",
+		"host":       api.URL,
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"events"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract events: %v", err)
+	}
+
+	if len(afters) != 2 {
+		t.Fatalf("requests = %d, want both pages walked", len(afters))
+	}
+	// Page one had no stored watermark, and page two must not inherit the one
+	// page one's own records just produced.
+	if afters[0] != "" || afters[1] != "" {
+		t.Fatalf("after = %v, want no watermark injected on either page", afters)
+	}
+	if befores[1] == "" {
+		t.Fatalf("before = %v, want the server's own bound preserved on page two", befores)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want both pages of events", len(sink.records))
+	}
 }

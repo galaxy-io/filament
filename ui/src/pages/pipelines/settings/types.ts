@@ -1,3 +1,5 @@
+import type { PipelineScheduleConfig } from "@/gen/ingestion/v1/pipelines_pb";
+
 export enum PipelineScheduleFrequency {
   HOURLY = "HOURLY",
   DAILY = "DAILY",
@@ -16,5 +18,5 @@ export interface PipelineSettingsPageScheduleState {
   days: number[];
   dayOfMonth: number;
   hour: number;
-  timezone: string;
+  timezone: PipelineScheduleConfig["timezone"];
 }

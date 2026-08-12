@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
+	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 )
 
@@ -58,8 +59,19 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validateCursorConfigs(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := a.deriveEdgeTypes(ctx, nodes, edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	a.defaultSinkSchemas(ctx, nodes, edges)
 	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Nodes: nodes, Edges: edges})
+	// A new version can change the routes a scheduled occurrence compiles into
+	// (or make the pipeline compilable for the first time) — refresh the
+	// schedule's pre-created rows to match.
+	if err == nil && a.schedules != nil {
+		if st, scheduleErr := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetPipelineId()); scheduleErr == nil {
+			a.reconcileScheduledRunsBestEffort(ctx, st)
+		}
+	}
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -69,15 +81,53 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
 }
 
+// deriveEdgeTypes compiles every edge's read/write levers — or its source
+// connection's CDC replication — into the stored ingestion type. Clients
+// never set ingestion_type; it is derived here at save time.
+func (a *Server) deriveEdgeTypes(ctx context.Context, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
+	byID := make(map[string]*ingestionv1.PipelineNode, len(nodes))
+	for _, node := range nodes {
+		byID[node.GetId()] = node
+	}
+	cdcByConnection := map[string]bool{}
+	for _, edge := range edges {
+		node := byID[edge.GetFromNode()]
+		if node == nil {
+			return fmt.Errorf("edge %s -> %s references unknown node %q", edge.GetFromNode(), edge.GetToNode(), edge.GetFromNode())
+		}
+		isCDC, ok := cdcByConnection[node.GetConnectionId()]
+		if !ok {
+			conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
+			if err != nil {
+				return fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
+			}
+			source, err := a.sources.Resolve(conn.Connector)
+			if err != nil {
+				return err
+			}
+			isCDC = filament.ReplicationOf(source, filament.NewConfig(conn.Config)) == filament.ReplicationCDC
+			cdcByConnection[node.GetConnectionId()] = isCDC
+		}
+		if isCDC {
+			edge.IngestionType = ingestionTypeToProto(filament.IngestionCDC)
+			continue
+		}
+		compiled, err := filament.IngestionFor(readModeFromProto(edge.GetReadMode()), writeModeFromProto(edge.GetWriteMode()))
+		if err != nil {
+			return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
+		}
+		edge.IngestionType = ingestionTypeToProto(compiled)
+	}
+	return nil
+}
+
 func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 	for _, edge := range edges {
 		if len(edge.GetCursors()) == 0 {
 			continue
 		}
-		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-		policy := filament.SourcePolicyForIngestion(ingestionType)
-		if policy.Mode != filament.ModeIncremental {
-			return fmt.Errorf("cursor configuration requires incremental ingestion, got %q", ingestionType)
+		if readModeFromProto(edge.GetReadMode()) != filament.ModeIncremental {
+			return fmt.Errorf("cursor configuration requires an incremental read mode")
 		}
 		seen := make(map[string]struct{}, len(edge.GetCursors()))
 		for _, cursor := range edge.GetCursors() {
@@ -141,7 +191,11 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: versions}), nil
+	page, pagination, err := pageOf(versions, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: page, Pagination: pagination}), nil
 }
 
 // GetPipeline returns the pipeline by id along with its current graph version
@@ -252,11 +306,15 @@ func pipelineScheduleOverlapToProto(policy filament.OverlapPolicy) ingestionv1.P
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
-	pipelines, err := a.store.ListPipelines(ctx, req.Msg.GetTenantId())
+	pipelines, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: req.Msg.GetTenantId(), IncludeDeleted: req.Msg.GetIncludeDeleted()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines}), nil
+	page, pagination, err := pageOf(pipelines, req.Msg.GetPagination())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: page, Pagination: pagination}), nil
 }
 
 // DeletePipeline removes the pipeline by id.
@@ -264,231 +322,70 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 	if err := a.store.DeletePipeline(ctx, req.Msg.GetId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	// The schedule RPCs reject deleted pipelines, so this is the last chance to
+	// reap the schedule's pending pre-created runs.
+	if a.schedules != nil {
+		if st, err := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetId()); err == nil {
+			if err := runs.DropScheduled(ctx, a.store, st.ID); err != nil {
+				fmt.Printf("[ingestion-api] drop scheduled runs schedule=%s err=%v\n", st.ID, err)
+			}
+		}
+	}
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }
 
 // RunPipeline groups the pipeline's edges into per-route runs and submits each
 // to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
-	bindings, err := a.submitPipeline(ctx, req.Msg, "")
+	bindings, err := a.submitPipeline(ctx, req.Msg)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&ingestionv1.RunPipelineResponse{Runs: bindings}), nil
 }
 
-// SubmitScheduledPipeline compiles and submits a pipeline for one claimed
-// schedule occurrence. The occurrence token makes each cron tick idempotent.
-func (a *Server) SubmitScheduledPipeline(ctx context.Context, pipelineID string, scheduleID filament.ScheduleID, token string) ([]filament.RunID, error) {
-	bindings, err := a.submitPipeline(ctx, &ingestionv1.RunPipelineRequest{
-		PipelineId:  pipelineID,
-		ClientToken: token,
-	}, scheduleID)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]filament.RunID, 0, len(bindings))
-	for _, binding := range bindings {
-		ids = append(ids, filament.RunID(binding.GetRunId()))
-	}
-	return ids, nil
-}
-
-func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelineRequest, scheduleID filament.ScheduleID) ([]*ingestionv1.RunBinding, error) {
-	pipeline, err := a.store.LoadPipeline(ctx, req.GetPipelineId())
-	if errors.Is(err, filament.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	version, err := a.store.LoadPipelineVersion(ctx, pipeline.GetId(), pipeline.GetCurrentVersionId())
-	if errors.Is(err, filament.ErrNotFound) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline has no version: %w", err))
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	nodes := map[string]*ingestionv1.PipelineNode{}
-	connections := map[string]filament.Connection{}
-	for _, node := range version.GetNodes() {
-		nodes[node.GetId()] = node
-		if _, ok := connections[node.GetConnectionId()]; !ok {
-			conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
-			if err != nil {
-				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
-			}
-			connections[node.GetConnectionId()] = conn
-		}
-	}
-
-	var bindings []*ingestionv1.RunBinding
+func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelineRequest) ([]*ingestionv1.RunBinding, error) {
 	token := req.GetClientToken()
 	if token == "" {
 		token = uuid.NewString()
 	}
-	groups, err := groupEdges(version.GetEdges(), nodes)
+	compiled, err := a.compiler.Compile(ctx, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "")
 	if err != nil {
-		return nil, err
+		return nil, compileError(err)
 	}
-	options := runOptionsFromProto(req.GetOptions())
-	for _, group := range groups {
-		key := group.key
-		var resources []string
-		var selectors []string
-		if !group.all {
-			for resource := range group.resources {
-				resources = append(resources, resource)
-			}
-			slices.Sort(resources)
-			for selector := range group.selectors {
-				selectors = append(selectors, selector)
-			}
-			slices.Sort(selectors)
-		}
-		sourceRef, err := a.resolveNodeRef(group.source, connections)
+	var bindings []*ingestionv1.RunBinding
+	for _, c := range compiled {
+		run, err := a.orch.Submit(ctx, c.Req)
 		if err != nil {
 			return nil, err
 		}
-		sinkRef, err := a.resolveNodeRef(group.sink, connections)
-		if err != nil {
-			return nil, err
-		}
-		run, err := a.orch.Submit(ctx, filament.RunRequest{
-			Tenant:             filament.TenantID(defaultTenant(pipeline.GetTenantId())),
-			PipelineID:         pipeline.GetId(),
-			PipelineVersionID:  version.GetVersion(),
-			IdempotencyKey:     fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:             sourceRef,
-			Sink:               sinkRef,
-			SourceConnectionID: group.source.GetConnectionId(),
-			SinkConnectionID:   group.sink.GetConnectionId(),
-			Resources:          resources,
-			Selectors:          selectors,
-			IngestionType:      group.ingestionType,
-			CheckpointRoute:    key,
-			CursorConfigs:      group.cursorConfigs,
-			Options:            options,
-			ScheduleID:         scheduleID,
-		})
-		if err != nil {
-			return nil, err
-		}
-		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", key, sourceRef.Provider, sinkRef.Provider, resources, run)
-		bindings = append(bindings, &ingestionv1.RunBinding{Edge: key, RunId: string(run)})
+		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", c.Edge, c.Req.Source.Provider, c.Req.Sink.Provider, c.Req.Resources, run)
+		bindings = append(bindings, &ingestionv1.RunBinding{Edge: c.Edge, RunId: string(run)})
 	}
-	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", pipeline.GetId(), len(bindings))
+	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", req.GetPipelineId(), len(bindings))
 	return bindings, nil
 }
 
-// routeGroup is the set of edges that share a source node, sink node, and
-// ingestion type, and so collapse into a single run.
-type routeGroup struct {
-	key           string
-	source        *ingestionv1.PipelineNode
-	sink          *ingestionv1.PipelineNode
-	from          string
-	to            string
-	ingestionType filament.IngestionType
-	all           bool
-	resources     map[string]bool
-	selectors     map[string]bool
-	cursorConfigs map[string]filament.ResourceCursorConfig
+// reconcileScheduledRunsBestEffort refreshes the schedule's pre-created
+// RunScheduled rows without failing the caller: the rows are a visibility
+// artifact, and a schedule on a pipeline with no compilable version yet is
+// expected to fail here until the first version lands.
+func (a *Server) reconcileScheduledRunsBestEffort(ctx context.Context, st filament.ScheduleState) {
+	if err := runs.ReconcileScheduled(ctx, a.store, a.compiler, st); err != nil {
+		fmt.Printf("[ingestion-api] reconcile scheduled runs schedule=%s err=%v\n", st.ID, err)
+	}
 }
 
-// groupEdges collapses edges into per-route groups, preserving first-seen order.
-// An edge with no resource marks its group as "all resources".
-func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
-	byKey := map[string]*routeGroup{}
-	var ordered []*routeGroup
-	for _, edge := range edges {
-		source := nodes[edge.GetFromNode()]
-		sink := nodes[edge.GetToNode()]
-		if source == nil || sink == nil {
-			return nil, fmt.Errorf("edge references missing node")
-		}
-		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
-		key := fmt.Sprintf("route/%s/%s/%s", edge.GetFromNode(), edge.GetToNode(), ingestionType)
-		group := byKey[key]
-		if group == nil {
-			group = &routeGroup{
-				key:           key,
-				source:        source,
-				sink:          sink,
-				from:          edge.GetFromNode(),
-				to:            edge.GetToNode(),
-				ingestionType: ingestionType,
-				resources:     map[string]bool{},
-				selectors:     map[string]bool{},
-				cursorConfigs: map[string]filament.ResourceCursorConfig{},
-			}
-			byKey[key] = group
-			ordered = append(ordered, group)
-		}
-		for _, cursor := range edge.GetCursors() {
-			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
-			if previous, exists := group.cursorConfigs[cursor.GetResource()]; exists && previous != config {
-				return nil, fmt.Errorf("conflicting cursor configuration for resource %q", cursor.GetResource())
-			}
-			group.cursorConfigs[cursor.GetResource()] = config
-		}
-		if edge.GetResource() == "" {
-			group.all = true
-			continue
-		}
-		resource := edge.GetResource()
-		group.resources[resource] = true
-		if selector := edge.GetSelector(); selector != "" {
-			group.selectors[selector] = true
-		} else {
-			group.selectors[resource] = true
-		}
+// compileError maps compiler sentinels onto Connect codes.
+func compileError(err error) error {
+	switch {
+	case errors.Is(err, filament.ErrNotFound):
+		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, compile.ErrPrecondition):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, compile.ErrInvalid):
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	default:
+		return connect.NewError(connect.CodeInternal, err)
 	}
-	return ordered, nil
-}
-
-// resolveNodeRef builds the run-time Ref for a pipeline node from the reusable
-// Connection it references, with the node's config/secret_refs shallow-merged
-// on top as the PIPELINE overlay (node keys win). connection_id is required.
-// It rejects an overlay that tries to set a CONNECTION-scoped field.
-func (a *Server) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]filament.Connection) (filament.Ref, error) {
-	conn, ok := connections[node.GetConnectionId()]
-	if !ok {
-		return filament.Ref{}, fmt.Errorf("node %q references missing connection %q", node.GetId(), node.GetConnectionId())
-	}
-	overlay := structMap(node.GetConfig())
-	if schema, err := a.schemaFor(connectionKindToProto(conn.Kind), conn.Connector); err == nil {
-		if err := validateOverlayConfig(schema, overlay); err != nil {
-			return filament.Ref{}, fmt.Errorf("node %q: %w", node.GetId(), err)
-		}
-	}
-	return filament.Ref{
-		Provider:   conn.Connector,
-		Config:     mergeConfig(conn.Config, overlay),
-		SecretRefs: mergeStrings(conn.SecretRefs, node.GetSecretRefs()),
-	}, nil
-}
-
-// mergeConfig shallow-merges overlay over base; overlay keys win. base is not
-// mutated.
-func mergeConfig(base, overlay map[string]any) map[string]any {
-	out := make(map[string]any, len(base)+len(overlay))
-	for k, v := range base {
-		out[k] = v
-	}
-	for k, v := range overlay {
-		out[k] = v
-	}
-	return out
-}
-
-func mergeStrings(base, overlay map[string]string) map[string]string {
-	out := make(map[string]string, len(base)+len(overlay))
-	for k, v := range base {
-		out[k] = v
-	}
-	for k, v := range overlay {
-		out[k] = v
-	}
-	return out
 }

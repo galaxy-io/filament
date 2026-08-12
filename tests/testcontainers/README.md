@@ -81,6 +81,26 @@ func TestFoo(t *testing.T) {
 
 > **Note:** `Pool()` returns a new handle after each `Snapshot` or `Restore`. Any handle taken before the call is closed and must not be used.
 
+### ClickHouse
+
+```go
+ch := testcontainers.ClickHouse(t)
+dsn := ch.DSN // native clickhouse:// DSN on the mapped host port
+```
+
+The helper uses a pinned ClickHouse LTS image and terminates the container with
+`t.Cleanup`. The TPC-H integration test replicates all eight tables from the
+Postgres testcontainer and verifies insertion-order retries and cursor-ordered
+incremental upserts.
+It defaults to scale factor 0.01 for a fast complete-schema check; set
+`FILAMENT_TPCH_SCALE=1` (or another positive scale) for a larger run.
+
+```sh
+cd tests
+GOWORK=off go test -tags integration ./integration \
+  -run '^TestPostgresTPCHToClickHouse$' -v
+```
+
 ### NATS
 
 ```go

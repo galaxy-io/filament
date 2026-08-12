@@ -1,6 +1,6 @@
-// Command control-plane runs Filament's orchestration loop: it executes or
-// dispatches requested runs per DISPATCH_MODE and folds worker-emitted facts
-// back into Postgres through tracker.
+// Command control-plane runs Filament's orchestration loop: it fires due
+// schedules, executes or dispatches requested runs per DISPATCH_MODE, and
+// folds worker-emitted facts back into Postgres through tracker.
 package main
 
 import (
@@ -14,12 +14,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
@@ -37,6 +40,8 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	lg := logger.New()
+
 	store, err := persistence.FromEnv(ctx)
 	if err != nil {
 		return err
@@ -98,10 +103,16 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	scheduleStore, ok := store.(filament.ScheduleStore)
+	if !ok {
+		return fmt.Errorf("datastore %q does not support schedules", store.Name())
+	}
+	sched := scheduler.New(scheduleStore)
 	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Metrics: metrics, Tracer: tracer},
+		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
 		tracker.New(),
 		dispatcher,
+		sched,
 	)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)
@@ -116,6 +127,7 @@ func run(ctx context.Context) error {
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run host: %w", err)
 	}
+	sched.Start(ctx)
 	for _, name := range h.Mounted() {
 		fmt.Println("mounted:", name)
 	}

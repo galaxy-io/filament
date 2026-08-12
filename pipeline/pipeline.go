@@ -147,6 +147,12 @@ func shardFor(resource string, n int) int {
 // a Sink whose Apply is concurrent-safe.
 func (p *Pipeline) Start(ctx context.Context) {
 	ctx, p.cancel = context.WithCancel(ctx)
+	// Cancellation must also release the inlet, or a Source blocked on a full
+	// shard channel deadlocks the run.
+	go func() {
+		<-ctx.Done()
+		p.doneCh.Do(func() { close(p.done) })
+	}()
 	p.batcherWg.Add(p.shards)
 	for i := range p.shards {
 		go p.batcher(ctx, i)
@@ -167,9 +173,11 @@ func (p *Pipeline) CloseIngest() {
 }
 
 // Wait blocks until the writer pool exits (which happens after every batcher shard
-// has drained and closed batchCh) and returns the first fatal error.
+// has drained and closed batchCh), releases the pipeline context, and returns the
+// first fatal error.
 func (p *Pipeline) Wait() error {
 	p.wg.Wait()
+	p.cancel()
 	return p.Err()
 }
 

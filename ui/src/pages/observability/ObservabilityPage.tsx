@@ -1,6 +1,4 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
-import { ChartPalette } from "@galaxy-io/dls/charts/types";
+import { ChartGroupProvider } from "@galaxy-io/dls/charts/ChartGroupProvider";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
@@ -10,82 +8,73 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 
-import { Metric } from "@/gen/metrics/v1/metrics_pb";
+import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import ObservabilityMetricsWidget from "@/pages/observability/components/metrics/ObservabilityMetricsWidget";
 import ObservabilityToolbar from "@/pages/observability/components/ObservabilityToolbar";
 import ObservabilityRunsWidget from "@/pages/observability/components/runs/ObservabilityRunsWidget";
+import ObservabilitySetupChecklist from "@/pages/observability/components/setup/ObservabilitySetupChecklist";
+import {
+  OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP,
+  OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP,
+} from "@/pages/observability/components/timeseries/constants";
 import ObservabilityTimeseriesWidget from "@/pages/observability/components/timeseries/ObservabilityTimeseriesWidget";
+import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
+import { ObservabilityThroughputView, ObservabilityUsageView } from "@/pages/observability/types";
 
-import type { ObservabilityPivotDimension } from "@/routes/_main/observability";
-
-import { formatBytes, formatCount } from "@/utils/format";
-
-const OBSERVABILITY_COUNT_VALUE_FORMATTER = (value: number) =>
-  formatCount(BigInt(Math.round(value)));
-
-const OBSERVABILITY_BYTES_VALUE_FORMATTER = (value: number) =>
-  formatBytes(BigInt(Math.round(value)));
+const OBSERVABILITY_TIMESERIES_WIDGET_BASIS = "400px";
 
 const ObservabilityPage = () => {
-  const navigate = useNavigate();
-  const { records, volume } = useSearch({ from: "/_main/observability" });
+  const { isComplete } = useObservabilitySetup();
 
-  const handleRecordsPivotChange = (pivot: ObservabilityPivotDimension | null) => {
-    void navigate({ to: ".", search: (prev) => ({ ...prev, records: pivot ?? undefined }) });
-  };
-
-  const handleVolumePivotChange = (pivot: ObservabilityPivotDimension | null) => {
-    void navigate({ to: ".", search: (prev) => ({ ...prev, volume: pivot ?? undefined }) });
-  };
+  if (!isComplete) {
+    return <ObservabilitySetupChecklist />;
+  }
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} fillWidth fillHeight>
-      <ObservabilityToolbar />
-      <FlexItem grow={0} shrink={0} fillWidth>
-        <HorizontalDivider />
-      </FlexItem>
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        padding={"12px"}
-        gap={FlexGap.MEDIUM}
-        fillWidth
-        fillHeight
-        overflow="auto"
-      >
-        <ObservabilityMetricsWidget />
+    <ChartGroupProvider sharedTooltip>
+      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth fillHeight>
+        <ObservabilityToolbar />
+        <FlexItem grow={0} shrink={0} fillWidth>
+          <HorizontalDivider />
+        </FlexItem>
         <FlexWrapper
+          direction={FlexDirection.COLUMN}
+          padding={"12px"}
           gap={FlexGap.MEDIUM}
-          alignItems={AlignItems.STRETCH}
-          wrap={FlexWrap.WRAP}
           fillWidth
+          fillHeight
+          overflow="auto"
         >
-          <FlexItem grow={1} basis="400px" minWidth={0}>
-            <ObservabilityTimeseriesWidget
-              title="Records"
-              seriesLabel="Records"
-              metric={Metric.RUN_RECORDS}
-              color={ChartPalette.PURPLE}
-              pivot={records}
-              onPivotChange={handleRecordsPivotChange}
-              valueFormatter={OBSERVABILITY_COUNT_VALUE_FORMATTER}
-            />
-          </FlexItem>
-          <FlexItem grow={1} basis="400px" minWidth={0}>
-            <ObservabilityTimeseriesWidget
-              title="Volume"
-              seriesLabel="Bytes"
-              metric={Metric.RUN_BYTES}
-              color={ChartPalette.TEAL}
-              pivot={volume}
-              onPivotChange={handleVolumePivotChange}
-              valueFormatter={OBSERVABILITY_BYTES_VALUE_FORMATTER}
-            />
-          </FlexItem>
+          <ObservabilityMetricsWidget />
+          <FlexWrapper
+            gap={FlexGap.MEDIUM}
+            alignItems={AlignItems.STRETCH}
+            wrap={FlexWrap.WRAP}
+            fillWidth
+          >
+            <FlexItem grow={1} basis={OBSERVABILITY_TIMESERIES_WIDGET_BASIS} minWidth={0}>
+              <ObservabilityTimeseriesWidget
+                views={OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP}
+                defaultView={ObservabilityThroughputView.RECORDS}
+                viewSearchKey="throughput"
+                pivotSearchKey="throughputPivot"
+              />
+            </FlexItem>
+            <FlexItem grow={1} basis={OBSERVABILITY_TIMESERIES_WIDGET_BASIS} minWidth={0}>
+              <ObservabilityTimeseriesWidget
+                views={OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP}
+                defaultView={ObservabilityUsageView.CPU}
+                defaultPivot={MetricDimension.PIPELINE_ID}
+                viewSearchKey="usage"
+                pivotSearchKey="usagePivot"
+              />
+            </FlexItem>
+          </FlexWrapper>
+          <ObservabilityRunsWidget />
         </FlexWrapper>
-        <ObservabilityRunsWidget />
       </FlexWrapper>
-    </FlexWrapper>
+    </ChartGroupProvider>
   );
 };
 

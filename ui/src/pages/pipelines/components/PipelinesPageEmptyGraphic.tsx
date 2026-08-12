@@ -21,7 +21,7 @@ import EmptyGraphic, {
   EmptyGraphicGhostTileFallback,
 } from "@/components/EmptyGraphic";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 
@@ -108,11 +108,7 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
               <GhostRow key={row.nameWidth}>
                 <GhostFlowWrapper>
                   {sourceSpec ? (
-                    <ConnectorTile
-                      connector={sourceSpec.name}
-                      spec={sourceSpec}
-                      size={ConnectorTileSize.SMALL}
-                    />
+                    <ConnectorTile connector={sourceSpec.name} kind={sourceSpec.kind} />
                   ) : (
                     <EmptyGraphicGhostTileFallback />
                   )}
@@ -132,8 +128,7 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
                         <ConnectorTile
                           key={offset}
                           connector={sinkSpec.name}
-                          spec={sinkSpec}
-                          size={ConnectorTileSize.SMALL}
+                          kind={sinkSpec.kind}
                         />
                       ) : (
                         <EmptyGraphicGhostTileFallback key={offset} />

@@ -12,21 +12,17 @@ export const OBSERVABILITY_RUNS_SERIES: ChartSeriesStyles<ObservabilityRunMetric
   runs: { label: "Runs" },
 };
 
-export const OBSERVABILITY_RUN_STATUSES = [
-  RunStatus.COMPLETED,
-  RunStatus.FAILED,
-  RunStatus.RUNNING,
-  RunStatus.REQUESTED,
-  RunStatus.CANCELED,
-  RunStatus.PAUSED,
-  RunStatus.PARTIAL,
-];
+export const OBSERVABILITY_RUN_STATUSES = Object.values(RunStatus).filter(
+  (status): status is RunStatus => typeof status === "number" && status !== RunStatus.UNSPECIFIED,
+);
 
-export const OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP: Partial<Record<RunStatus, ChartPalette>> = {
+export const OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP: Record<RunStatus, ChartPalette | undefined> = {
+  [RunStatus.UNSPECIFIED]: undefined,
   [RunStatus.COMPLETED]: ChartPalette.GREEN,
   [RunStatus.FAILED]: ChartPalette.RED,
   [RunStatus.RUNNING]: ChartPalette.BLUE,
-  [RunStatus.REQUESTED]: ChartPalette.YELLOW,
+  [RunStatus.REQUESTED]: ChartPalette.LIME,
+  [RunStatus.SCHEDULED]: ChartPalette.YELLOW,
   [RunStatus.CANCELED]: ChartPalette.PURPLE,
   [RunStatus.PAUSED]: ChartPalette.ORANGE,
   [RunStatus.PARTIAL]: ChartPalette.TEAL,
@@ -50,6 +46,23 @@ export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
   RunStatus.COMPLETED,
   RunStatus.FAILED,
   RunStatus.RUNNING,
+  RunStatus.SCHEDULED,
 ];
 
 export const OBSERVABILITY_RUNS_TABLE_LIMIT = 50;
+
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS = 110;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN = 180;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE = 240;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE = 360;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS = 140;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT = 160;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION = 100;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS = 100;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME = 100;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU = 100;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY = 100;
+export const OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT = 450;
+
+export const OBSERVABILITY_RUNS_CHART_HEIGHT = 250;
+export const OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH = 160;

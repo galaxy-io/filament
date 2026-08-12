@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -21,11 +22,15 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
-		Capabilities: &ingestionv1.Capabilities{
-			Discoverable:      spec.Resources.Discoverable,
-			PerResourceCursor: spec.Resources.PerResourceCursor,
-			SourcePolicies:    sourcePoliciesToProto(spec.SourcePolicies),
-		},
+		Capabilities: sourceCapabilitiesToProto(spec, spec.SourcePolicies),
+	}
+}
+
+func sourceCapabilitiesToProto(spec filament.ConnectorSpec, policies []filament.SourcePolicy) *ingestionv1.Capabilities {
+	return &ingestionv1.Capabilities{
+		Discoverable:      spec.Resources.Discoverable,
+		PerResourceCursor: spec.Resources.PerResourceCursor,
+		SourcePolicies:    sourcePoliciesToProto(policies),
 	}
 }
 
@@ -40,12 +45,17 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		ConfigSchema: configSchemaToProto(spec.Config),
 		SchemaField:  spec.SchemaField,
-		Capabilities: &ingestionv1.Capabilities{
-			Transactional: spec.Capabilities.Transactional,
-			Upsertable:    spec.Capabilities.Upsertable,
-			Schematized:   spec.Capabilities.Schematized,
-			WritePolicies: writePolicyCapabilitiesToProto(spec.Capabilities.WritePolicies),
-		},
+		Capabilities: sinkCapabilitiesToProto(spec.Capabilities),
+	}
+}
+
+func sinkCapabilitiesToProto(caps filament.SinkCapabilities) *ingestionv1.Capabilities {
+	return &ingestionv1.Capabilities{
+		Transactional: caps.Transactional,
+		Upsertable:    caps.Upsertable,
+		Schematized:   caps.Schematized,
+		WritePolicies: writePolicyCapabilitiesToProto(caps.WritePolicies),
+		WriteModes:    sinkWriteModes(caps),
 	}
 }
 
@@ -120,41 +130,89 @@ func writePolicyCapabilitiesToProto(caps []filament.WritePolicyCapability) []*in
 	return out
 }
 
-func modesToProto(modes []filament.ReplicationMode) []ingestionv1.ReplicationMode {
-	out := make([]ingestionv1.ReplicationMode, 0, len(modes))
+// modesToProto reduces the engine's read mechanisms to the connection-level
+// replication modes a connector supports.
+func modesToProto(modes []filament.ReadMode) []ingestionv1.ReplicationMode {
+	var standard, cdc bool
 	for _, mode := range modes {
-		out = append(out, modeToProto(mode))
+		if mode == filament.ModeCDC {
+			cdc = true
+		} else {
+			standard = true
+		}
+	}
+	var out []ingestionv1.ReplicationMode
+	if standard {
+		out = append(out, ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD)
+	}
+	if cdc {
+		out = append(out, ingestionv1.ReplicationMode_REPLICATION_MODE_CDC)
 	}
 	return out
 }
 
-func modeToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
+// modeToProto maps an engine read mechanism onto the per-table read lever;
+// CDC is a stream, not a per-table read, so it has no lever value.
+func modeToProto(mode filament.ReadMode) ingestionv1.ReadMode {
 	switch mode {
 	case filament.ModeFull:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_FULL
+		return ingestionv1.ReadMode_READ_MODE_FULL
 	case filament.ModeIncremental:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_INCREMENTAL
-	case filament.ModeCDC:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
+		return ingestionv1.ReadMode_READ_MODE_INCREMENTAL
 	default:
-		return ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED
+		return ingestionv1.ReadMode_READ_MODE_UNSPECIFIED
 	}
 }
 
-func ingestionTypeFromProto(t ingestionv1.IngestionType) filament.IngestionType {
-	switch t {
-	case ingestionv1.IngestionType_INGESTION_TYPE_SNAPSHOT_UPSERT:
-		return filament.IngestionSnapshotUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_APPEND:
-		return filament.IngestionAppend
-	case ingestionv1.IngestionType_INGESTION_TYPE_UPSERT:
-		return filament.IngestionUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_DELETE:
-		return filament.IngestionDelete
-	case ingestionv1.IngestionType_INGESTION_TYPE_CDC:
-		return filament.IngestionCDC
+func replicationToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
+	if mode == filament.ReplicationCDC {
+		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
+	}
+	return ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD
+}
+
+func readModeFromProto(mode ingestionv1.ReadMode) filament.ReadMode {
+	if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
+		return filament.ModeIncremental
+	}
+	return filament.ModeFull
+}
+
+func writeModeFromProto(mode ingestionv1.WriteMode) filament.WriteMode {
+	switch mode {
+	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
+		return filament.WriteAppend
+	case ingestionv1.WriteMode_WRITE_MODE_REPLACE:
+		return filament.WriteReplace
+	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
+		return filament.WriteUpsert
+	case ingestionv1.WriteMode_WRITE_MODE_DELETE:
+		return filament.WriteDelete
+	case ingestionv1.WriteMode_WRITE_MODE_MERGE:
+		return filament.WriteMerge
 	default:
-		return filament.IngestionSnapshotReplace
+		return ""
+	}
+}
+
+func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
+	switch t.OrDefault() {
+	case filament.IngestionFullReplace:
+		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE
+	case filament.IngestionFullUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_UPSERT
+	case filament.IngestionFullAppend:
+		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_APPEND
+	case filament.IngestionIncrementalAppend:
+		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND
+	case filament.IngestionIncrementalUpsert:
+		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT
+	case filament.IngestionIncrementalDelete:
+		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE
+	case filament.IngestionCDC:
+		return ingestionv1.IngestionType_INGESTION_TYPE_CDC
+	default:
+		return ingestionv1.IngestionType_INGESTION_TYPE_UNSPECIFIED
 	}
 }
 
@@ -266,6 +324,8 @@ func runStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
 		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
 	case filament.RunPartial:
 		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
+	case filament.RunScheduled:
+		return ingestionv1.RunStatus_RUN_STATUS_SCHEDULED
 	default:
 		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
 	}
@@ -289,6 +349,8 @@ func runStatusesFromProto(statuses []ingestionv1.RunStatus) []filament.RunStatus
 			out = append(out, filament.RunPaused)
 		case ingestionv1.RunStatus_RUN_STATUS_PARTIAL:
 			out = append(out, filament.RunPartial)
+		case ingestionv1.RunStatus_RUN_STATUS_SCHEDULED:
+			out = append(out, filament.RunScheduled)
 		}
 	}
 	return out
@@ -310,11 +372,16 @@ func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResour
 	return &ingestionv1.DiscoverResourcesResponse{Resources: out}
 }
 
-func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
-	var startedAt, endedAt int64
-	if !state.StartedAt.IsZero() {
-		startedAt = state.StartedAt.UnixMilli()
+// epochMillis renders a stamp for the wire, where 0 means unset.
+func epochMillis(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
 	}
+	return t.UnixMilli()
+}
+
+func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
+	var endedAt int64
 	if state.FinishedAt != nil {
 		endedAt = state.FinishedAt.UnixMilli()
 	}
@@ -327,10 +394,16 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		Records:            state.Records,
 		Bytes:              state.Bytes,
 		Error:              state.Error,
-		StartedAt:          startedAt,
+		StartedAt:          epochMillis(state.StartedAt),
 		EndedAt:            endedAt,
 		SourceConnectionId: state.Request.SourceConnectionID,
 		SinkConnectionId:   state.Request.SinkConnectionID,
+		CpuSeconds:         state.CPUSeconds,
+		MemoryPeakBytes:    state.MemoryPeakBytes,
+		CreatedAt:          epochMillis(state.CreatedAt),
+		ScheduledAt:        epochMillis(state.ScheduledAt),
+		RequestedAt:        epochMillis(state.RequestedAt),
+		UpdatedAt:          epochMillis(state.UpdatedAt),
 	}
 }
 

@@ -8,7 +8,7 @@ import InfiniteTable, {
   type ColumnDef,
   type Row,
 } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -16,7 +16,8 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
-  PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+  PIPELINES_TABLE_COLUMN_MAX_WIDTH_CONNECTORS,
+  PIPELINES_TABLE_COLUMN_MIN_WIDTH_CONNECTORS,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
@@ -24,8 +25,8 @@ import {
 } from "@/pages/pipelines/components/table/constants";
 import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
+import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
 import { formatBytes, formatDuration, formatTimeAgo } from "@/utils/format";
 
 const PipelinesTableWrapper = styled.div`
@@ -38,19 +39,16 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   {
     id: "name",
     header: "Name",
-    accessorFn: (pipeline) => formatPipelineName(pipeline),
+    accessorFn: (pipeline) => pipeline.name,
     enableSorting: true,
     cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isEllipsis>
-        {formatPipelineName(row.original)}
-      </Text>
-    ),
+    cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
   },
   {
     id: "connectors",
     header: "Connectors",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+    minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_CONNECTORS,
+    maxSize: PIPELINES_TABLE_COLUMN_MAX_WIDTH_CONNECTORS,
     cellLoading: () => <TextShimmer width={120} height={18} />,
     cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
   },
@@ -117,9 +115,17 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
 
 interface PipelinesTableProps {
   pipelines: Pipeline[];
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  fetchNextPage?: () => void;
 }
 
-const PipelinesTable = ({ pipelines }: PipelinesTableProps) => {
+const PipelinesTable = ({
+  pipelines,
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage,
+}: PipelinesTableProps) => {
   const navigate = useNavigate();
 
   const handleRowClick = (row: Row<Pipeline>) => {
@@ -142,6 +148,9 @@ const PipelinesTable = ({ pipelines }: PipelinesTableProps) => {
           />
         }
         onRowClick={handleRowClick}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={fetchNextPage}
         enableSorting
         fillWidth
         fillHeight
