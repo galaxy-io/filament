@@ -7,7 +7,11 @@ import type {
   PipelineCanvasGraph,
   PipelineCanvasInteractionMode,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
-import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
+import type {
+  CanvasEdge,
+  CanvasNode,
+  PipelineCanvasEdgeData,
+} from "@/pages/pipelines/canvas/types";
 
 export enum PipelineCanvasActionType {
   LOAD_GRAPH = "LOAD_GRAPH",
@@ -20,6 +24,7 @@ export enum PipelineCanvasActionType {
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
   SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
+  SET_EDGE_CONFIG = "SET_EDGE_CONFIG",
 }
 
 export interface LoadGraphAction {
@@ -72,6 +77,11 @@ export interface SetNodeConfigAction {
   payload: { nodeId: PipelineNode["id"]; config: NonNullable<PipelineNode["config"]> };
 }
 
+export interface SetEdgeConfigAction {
+  type: PipelineCanvasActionType.SET_EDGE_CONFIG;
+  payload: { edgeId: CanvasEdge["id"]; data: PipelineCanvasEdgeData };
+}
+
 export type PipelineCanvasAction =
   | LoadGraphAction
   | AddNodeAction
@@ -82,4 +92,5 @@ export type PipelineCanvasAction =
   | ConnectAction
   | SetActiveModeAction
   | SetInteractionModeAction
-  | SetNodeConfigAction;
+  | SetNodeConfigAction
+  | SetEdgeConfigAction;

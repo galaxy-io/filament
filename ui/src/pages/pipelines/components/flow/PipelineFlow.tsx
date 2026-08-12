@@ -10,6 +10,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorTile, {
   ConnectorOverflowTile,
+  ConnectorTileShimmer,
   ConnectorTileSize,
 } from "@/pages/connectors/components/ConnectorTile";
 
@@ -44,6 +45,7 @@ interface PipelineFlowProps {
   sinks?: PipelineFlowConnection[];
   size?: PipelineFlowSize;
   hasEdges?: boolean;
+  isLoading?: boolean;
 }
 
 const PipelineFlow = ({
@@ -51,6 +53,7 @@ const PipelineFlow = ({
   sinks = [],
   size = PipelineFlowSize.MEDIUM,
   hasEdges = true,
+  isLoading = false,
 }: PipelineFlowProps) => {
   const navigate = useNavigate();
 
@@ -99,11 +102,31 @@ const PipelineFlow = ({
               isDeleted={sink.isDeleted}
             />
           ))}
-          {overflowCount > 0 && <ConnectorOverflowTile count={overflowCount} />}
+          {overflowCount > 0 && (
+            <ConnectorOverflowTile
+              count={overflowCount}
+              size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
+            />
+          )}
         </FlexWrapper>
       );
     }
   };
+
+  if (isLoading) {
+    return (
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+        <ConnectorTileShimmer size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]} />
+        <Icon
+          component={FlowArrowIcon}
+          variant={IconVariant.TERTIARY}
+          size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
+          weight={IconWeight.REGULAR}
+        />
+        <ConnectorTileShimmer size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]} />
+      </FlexWrapper>
+    );
+  }
 
   if (!isLinked) {
     return <Chip label="Invalid pipeline" variant={ChipVariant.WARNING} size={ChipSize.SMALL} />;

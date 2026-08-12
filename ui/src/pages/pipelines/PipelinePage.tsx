@@ -13,7 +13,6 @@ import ErrorLayout from "@/layouts/ErrorLayout";
 
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import PipelineCanvasRunProvider from "@/pages/pipelines/canvas/providers/run/PipelineCanvasRunProvider";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 import PipelineLayout from "@/pages/pipelines/layout/PipelineLayout";
 
@@ -69,11 +68,9 @@ const PipelinePage = () => {
       graph={graph}
       isReadOnly={Boolean(previewed)}
     >
-      <PipelineCanvasRunProvider>
-        <PipelineLayout>
-          <Outlet />
-        </PipelineLayout>
-      </PipelineCanvasRunProvider>
+      <PipelineLayout>
+        <Outlet />
+      </PipelineLayout>
     </PipelineCanvasProvider>
   );
 };

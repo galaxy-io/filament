@@ -72,7 +72,7 @@ const ContentIsland = withTheme(styled.div<PropsWithTheme<{ $isPreview?: boolean
 
   border: 0.5px solid
     ${({ $isPreview, theme }) =>
-      $isPreview ? theme.color.border.warning : theme.color.border.primary};
+      $isPreview ? theme.color.border.error : theme.color.border.primary};
   border-radius: 6px;
 
   overflow: hidden;
@@ -81,7 +81,7 @@ const ContentIsland = withTheme(styled.div<PropsWithTheme<{ $isPreview?: boolean
 const PreviewChipOverlay = styled.div`
   position: absolute;
   top: 16px;
-  right: 16px;
+  left: 16px;
   z-index: ${PIPELINE_PREVIEW_CHIP_Z_INDEX};
 `;
 
@@ -100,7 +100,6 @@ const PipelineLayout = ({ children }: PropsWithChildren) => {
     route: "/pipelines/$id/settings",
     fuzzy: false,
   });
-
   const getActiveItem = (): PipelineSidebarItem => {
     if (isHistoryActive) return PipelineSidebarItem.HISTORY;
     if (isSettingsActive) return PipelineSidebarItem.SETTINGS;
@@ -126,7 +125,7 @@ const PipelineLayout = ({ children }: PropsWithChildren) => {
           <ContentIsland $isPreview={isPreview}>
             {isPreview && (
               <PreviewChipOverlay>
-                <Chip label={`Version ${previewed.version}`} variant={ChipVariant.WARNING} />
+                <Chip label={`Version ${previewed.version}`} variant={ChipVariant.ERROR} />
               </PreviewChipOverlay>
             )}
             {children}

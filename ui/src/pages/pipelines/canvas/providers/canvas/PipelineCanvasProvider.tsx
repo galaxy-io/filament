@@ -24,7 +24,11 @@ import type {
   PipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { createInitialPipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/utils";
-import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
+import type {
+  CanvasEdge,
+  CanvasNode,
+  PipelineCanvasEdgeData,
+} from "@/pages/pipelines/canvas/types";
 
 const PipelineCanvasStateContext = createContext<PipelineCanvasState | null>(null);
 PipelineCanvasStateContext.displayName = "PipelineCanvasStateContext";
@@ -98,6 +102,11 @@ export const usePipelineCanvasActions = () => {
         dispatch({
           type: PipelineCanvasActionType.SET_NODE_CONFIG,
           payload: { nodeId, config },
+        }),
+      setEdgeConfig: (edgeId: CanvasEdge["id"], data: PipelineCanvasEdgeData) =>
+        dispatch({
+          type: PipelineCanvasActionType.SET_EDGE_CONFIG,
+          payload: { edgeId, data },
         }),
     }),
     [dispatch],

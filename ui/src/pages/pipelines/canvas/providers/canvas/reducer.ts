@@ -5,7 +5,11 @@ import {
 } from "@xyflow/react";
 
 import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
-import { canAddSourceNode, getAutoConnections } from "@/pages/pipelines/canvas/graph/rules";
+import {
+  canAddSourceNode,
+  canConnectEdge,
+  getAutoConnections,
+} from "@/pages/pipelines/canvas/graph/rules";
 import {
   type AddNodeAction,
   type ApplyEdgeChangesAction,
@@ -16,6 +20,7 @@ import {
   PipelineCanvasActionType,
   type RemoveNodeAction,
   type SetActiveModeAction,
+  type SetEdgeConfigAction,
   type SetInteractionModeAction,
   type SetNodeConfigAction,
   type SetNodesAction,
@@ -44,7 +49,9 @@ function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCan
 
   const edges = getAutoConnections(node, state.nodes).reduce(
     (nextEdges, connection) =>
-      xyflowAddEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, nextEdges),
+      canConnectEdge(connection, nextEdges)
+        ? xyflowAddEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, nextEdges)
+        : nextEdges,
     state.edges,
   );
 
@@ -89,6 +96,8 @@ function applyEdgeChanges(
 }
 
 function connect(state: PipelineCanvasState, action: ConnectAction): PipelineCanvasState {
+  if (!canConnectEdge(action.payload, state.edges)) return state;
+
   return {
     ...state,
     edges: xyflowAddEdge({ ...action.payload, type: PIPELINE_CANVAS_EDGE_TYPE }, state.edges),
@@ -129,6 +138,18 @@ function setNodeConfig(
   };
 }
 
+function setEdgeConfig(
+  state: PipelineCanvasState,
+  action: SetEdgeConfigAction,
+): PipelineCanvasState {
+  return {
+    ...state,
+    edges: state.edges.map((edge) =>
+      edge.id === action.payload.edgeId ? { ...edge, data: action.payload.data } : edge,
+    ),
+  };
+}
+
 const pipelineCanvasReducer = (
   state: PipelineCanvasState,
   action: PipelineCanvasAction,
@@ -154,6 +175,8 @@ const pipelineCanvasReducer = (
       return setInteractionMode(state, action);
     case PipelineCanvasActionType.SET_NODE_CONFIG:
       return setNodeConfig(state, action);
+    case PipelineCanvasActionType.SET_EDGE_CONFIG:
+      return setEdgeConfig(state, action);
   }
 };
 

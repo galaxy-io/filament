@@ -1,8 +1,7 @@
 import { type PropsWithChildren, useCallback } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowsClockwiseIcon, GearSixIcon, TrashIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -14,9 +13,6 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
-
-import { getPipelineScopedFields } from "@/components/fields/utils";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
@@ -31,8 +27,6 @@ import {
 } from "@/pages/pipelines/canvas/nodes/constants";
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
-
-import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 const NodeContainer = withTheme(styled.div<
   PropsWithTheme<{ $isSelected?: boolean; $width: number }>
@@ -84,7 +78,6 @@ interface PipelineCanvasNodeProps extends PropsWithChildren {
   isSelected?: boolean;
   onRefresh?: () => void;
   onDelete?: () => void;
-  onConfigure?: () => void;
 }
 
 const PipelineCanvasNode = ({
@@ -95,18 +88,8 @@ const PipelineCanvasNode = ({
   isSelected = false,
   onRefresh,
   onDelete,
-  onConfigure,
   children,
 }: PipelineCanvasNodeProps) => {
-  const { data } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, { connector, kind }),
-    options: { enabled: !!connector && !!kind },
-  });
-  const connectorSpec = data?.connector;
-
-  const hasPipelineFields =
-    getPipelineScopedFields(connectorSpec?.configSchema?.fields ?? []).length > 0;
-
   const handleRefresh = useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation();
@@ -132,11 +115,6 @@ const PipelineCanvasNode = ({
           size={ChipSize.SMALL}
         />
         <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
-          {onConfigure && hasPipelineFields && (
-            <ActionButton className="nodrag" onClick={onConfigure}>
-              <Icon component={GearSixIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
-          )}
           {onRefresh && (
             <ActionButton className="nodrag" onClick={handleRefresh}>
               <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />
