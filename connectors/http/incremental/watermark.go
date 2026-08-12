@@ -13,10 +13,9 @@
 //   - "numeric"       — float64 parse on both sides; errors on parse failure
 //   - "time"          — RFC3339 parse on both sides; errors on parse failure
 //
-// When a record's cursor value can't be parsed by the comparator, Observe
-// logs at WARN with the field name + raw value, skips the row's contribution
-// to the watermark (returns false), and the pipeline keeps running. The
-// record still flows through the sink — at-least-once delivery is unaffected.
+// Extraction uses ObserveChecked, so a missing or unparseable durable cursor
+// fails the run rather than letting it succeed without checkpoint progress.
+// Observe remains available as a best-effort compatibility helper.
 //
 // # Concurrency
 //
@@ -24,7 +23,7 @@
 // child resources). Internally Tracker uses a CAS loop in atomicwatermark, so
 // the stored value is always the max regardless of arrival order.
 //
-// # Overlap window (time comparator only)
+// # Overlap window (time or numeric timestamp comparator)
 //
 // OverlapSeconds re-fetches a sliding window before the persisted cursor on
 // Apply. Catches retroactive updates whose timestamps fall behind the last
@@ -38,6 +37,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
@@ -86,8 +86,8 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	if spec.OverlapSeconds < 0 {
 		return nil, fmt.Errorf("incremental: overlap_seconds must be non-negative")
 	}
-	if spec.OverlapSeconds > 0 && spec.Comparator != "time" {
-		return nil, fmt.Errorf("incremental: overlap_seconds requires comparator: time")
+	if spec.OverlapSeconds > 0 && spec.Comparator != "time" && spec.Comparator != "numeric" {
+		return nil, fmt.Errorf("incremental: overlap_seconds requires comparator: time or numeric")
 	}
 	start := initialWatermark
 	if start == "" {
@@ -111,35 +111,39 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	return t, nil
 }
 
-// Observe inspects one record's cursor field and advances the watermark when
-// the observed value is larger per the configured comparator. Returns true
-// when the watermark advanced.
-//
-// Comparator parse failures (e.g. comparator=numeric, value="abc") are logged
-// at WARN and the record's contribution is silently skipped — Observe returns
-// false. The record itself still flows through the pipeline (at-least-once
-// is unaffected); only the watermark stops advancing for that bad row.
+// Observe inspects one record's cursor field and advances the watermark. It is
+// the compatibility, best-effort form; extraction uses ObserveChecked so bad
+// durable cursor data fails the run instead of silently stalling progress.
 func (t *Tracker) Observe(record map[string]any) bool {
-	v, _, err := paths.AsString(record, t.spec.CursorField)
+	advanced, err := t.ObserveChecked(record)
 	if err != nil {
-		t.logger.Warn("incremental: cursor field lookup failed",
+		t.logger.Warn("incremental: cursor value rejected",
 			"resource", t.resource, "field", t.spec.CursorField, "error", err)
 		return false
 	}
+	return advanced
+}
+
+// ObserveChecked advances the watermark or returns a cursor lookup/type error.
+// A durable incremental run must not report success when its configured cursor
+// is missing or unorderable on a returned record.
+func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
+	cursorPath := t.spec.CursorPath
+	if cursorPath == "" {
+		cursorPath = t.spec.CursorField
+	}
+	v, _, err := paths.AsString(record, cursorPath)
+	if err != nil {
+		return false, fmt.Errorf("cursor field %q: %w", t.spec.CursorField, err)
+	}
 	if v == "" {
-		return false
+		return false, fmt.Errorf("cursor field %q is empty", t.spec.CursorField)
 	}
 	advanced, err := t.wm.Observe(v)
 	if err != nil {
-		t.logger.Warn("incremental: cursor value rejected by comparator",
-			"resource", t.resource,
-			"field", t.spec.CursorField,
-			"value", v,
-			"comparator", t.wm.ComparatorName(),
-			"error", err)
-		return false
+		return false, fmt.Errorf("cursor field %q value %q rejected by %s comparator: %w", t.spec.CursorField, v, t.wm.ComparatorName(), err)
 	}
-	return advanced
+	return advanced, nil
 }
 
 // Current returns the running watermark (max observed or initial).
@@ -158,7 +162,7 @@ func CheckpointKey(spec manifest.IncrementalSpec) string { return checkpointKey(
 
 // Scope returns a {start_param: effective_value} pair suitable for merging
 // into a template scope's State map. The effective value is the current
-// watermark minus OverlapSeconds (time comparator only). Returns nil when no
+// watermark minus OverlapSeconds (time or numeric timestamp comparator). Returns nil when no
 // watermark is set yet.
 func (t *Tracker) Scope() map[string]string {
 	v := t.effective()
@@ -172,7 +176,19 @@ func (t *Tracker) Scope() map[string]string {
 // for the time comparator, current as-is otherwise.
 func (t *Tracker) effective() string {
 	v := t.Current()
-	if v == "" || t.spec.OverlapSeconds == 0 || t.spec.Comparator != "time" {
+	if v == "" || t.spec.OverlapSeconds == 0 {
+		return v
+	}
+	if t.spec.Comparator == "numeric" {
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			t.logger.Warn("incremental: cannot apply overlap to non-numeric watermark",
+				"resource", t.resource, "value", v, "error", err)
+			return v
+		}
+		return strconv.FormatFloat(parsed-float64(t.spec.OverlapSeconds), 'f', -1, 64)
+	}
+	if t.spec.Comparator != "time" {
 		return v
 	}
 	parsed, err := time.Parse(time.RFC3339, v)
