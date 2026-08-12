@@ -97,7 +97,7 @@ jobs:
         run: just ui-format check
 
       - name: Build
-        run: cd ui && pnpm build
+        run: just ui-dist
 
   chart:
     needs: changes
