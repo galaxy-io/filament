@@ -38,5 +38,12 @@ request carries `per_page=100` and the pinned API version header
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
-this manifest declares no `incremental:` block, so runs are full extracts.
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+`issues` supports incremental extraction on `updated_at`: the checkpoint is
+sent as GitHub's `since` parameter, with results sorted by `updated`, so both
+new issues and later edits are captured. A five-minute overlap covers updates
+that land in repositories already visited during the fan-out scan; configure a
+larger lookback when a complete organization scan routinely takes longer.
+
+`repositories` and `pull_requests` remain full extracts because their list
+endpoints do not expose an updated-since boundary.

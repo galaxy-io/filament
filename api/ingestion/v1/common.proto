@@ -21,6 +21,8 @@ enum FieldType {
   FIELD_TYPE_DURATION = 5;
   FIELD_TYPE_ENUM = 6;
   FIELD_TYPE_OBJECT = 7;
+  // LIST is a string list; ConfigField.enum supplies the selectable values.
+  FIELD_TYPE_LIST = 8;
 }
 
 // ReplicationMode is how a connection replicates, decided at source creation:
@@ -111,6 +113,7 @@ message ConfigField {
   FieldCondition visible_when = 10;
 }
 
+// EnumOption is one ordered choice for an enum or list config field.
 message EnumOption {
   string value = 1;
   string label = 2;

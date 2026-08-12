@@ -40,6 +40,8 @@ func (c *Connector) extract(ctx context.Context, opts pipeline.ExtractOptions, p
 	c.commitCheckpoint = opts.Checkpoint
 	c.resumeCursors = opts.ResumeCursors
 	c.resumeWatermarks = opts.ResumeWatermarks
+	c.incrementalLookbacks = opts.IncrementalLookbacks
+	c.incrementalResources = opts.IncrementalResources
 	c.buildEnabledFilter(opts.EnabledResources)
 	c.buildResourceFilter(opts.Resources)
 
@@ -231,13 +233,32 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	}
 	extractor := response.New(res.Response)
 
-	var tracker *incremental.Tracker
-	if res.Incremental != nil {
-		seed := incremental.LoadFrom(prev, res.Name, *res.Incremental)
-		if seed == "" && c.resumeWatermarks != nil {
-			seed = c.resumeWatermarks[res.Name][incremental.CheckpointKey(*res.Incremental)]
+	stateResource := res.Name
+	if parent != nil && res.EmitAs != "" {
+		stateResource, err = emittedResourceName(res, parent)
+		if err != nil {
+			return 0, 0, fmt.Errorf("resource name: %w", err)
 		}
-		tracker, err = incremental.New(*res.Incremental, res.Name, seed)
+	}
+	var tracker *incremental.Tracker
+	if res.Incremental != nil && c.incrementalEnabled(stateResource, res.Name) {
+		spec := *res.Incremental
+		if field, ok := incrementalField(res); ok {
+			spec.CursorPath = field.Path
+		}
+		if lookback, ok := c.incrementalLookbacks[stateResource]; ok {
+			spec.OverlapSeconds = lookback
+		} else if lookback, ok := c.incrementalLookbacks[res.Name]; ok {
+			spec.OverlapSeconds = lookback
+		}
+		seed := incremental.LoadFrom(prev, stateResource, spec)
+		if seed == "" && c.resumeWatermarks != nil {
+			seed = c.resumeWatermarks[stateResource][incremental.CheckpointKey(spec)]
+			if seed == "" && stateResource != res.Name {
+				seed = c.resumeWatermarks[res.Name][incremental.CheckpointKey(spec)]
+			}
+		}
+		tracker, err = incremental.New(spec, stateResource, seed)
 		if err != nil {
 			return 0, 0, fmt.Errorf("incremental: %w", err)
 		}
@@ -273,6 +294,13 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 		c.persistCapturesIfTopLevel(res, parent)
 	}
 	return n, pages, err
+}
+
+func (c *Connector) incrementalEnabled(resource, base string) bool {
+	if c.incrementalResources == nil {
+		return true
+	}
+	return c.incrementalResources[resource] || c.incrementalResources[base]
 }
 
 // persistCapturesIfTopLevel writes the captured parent records to the runner-
