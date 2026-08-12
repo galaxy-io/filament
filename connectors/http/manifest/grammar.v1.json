@@ -14,13 +14,28 @@
         "required": ["type"],
         "additionalProperties": false,
         "properties": {
-          "type": { "type": "string", "enum": ["string", "int", "bool", "duration", "enum", "object", "secret"] },
+          "type": { "type": "string", "enum": ["string", "int", "bool", "duration", "enum", "object", "secret", "list"] },
           "required": { "type": "boolean" },
           "default": {},
           "enum": { "type": "array", "items": { "type": "string" } },
           "help": { "type": "string" },
           "scope": { "type": "string", "enum": ["connection", "pipeline", ""] }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "type": { "const": "list" } },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["enum"],
+              "properties": {
+                "enum": { "minItems": 1, "uniqueItems": true },
+                "default": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+              }
+            }
+          }
+        ]
       }
     },
     "defaults": {
