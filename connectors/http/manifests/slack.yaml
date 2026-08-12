@@ -6,9 +6,10 @@ config:
     required: true
     help: Slack bot or user OAuth token
   conversation_types:
-    type: string
-    default: public_channel
-    help: Comma-separated Slack conversation types (public_channel, private_channel, mpim, im)
+    type: list
+    default: [public_channel]
+    enum: [public_channel, private_channel, mpim, im]
+    help: Slack conversation types to include
 defaults:
   method: GET
   response:

@@ -221,7 +221,7 @@ type ConfigField struct {
 	Fields []ConfigField
 }
 
-// EnumOption is one ordered choice for an enum config field.
+// EnumOption is one ordered choice for an enum or list config field.
 type EnumOption struct {
 	Value string
 	Label string
@@ -246,6 +246,9 @@ const (
 	FieldDuration
 	FieldEnum
 	FieldObject
+	// FieldList is an ordered list of strings. Enum contains the selectable
+	// values when the field is rendered as a checkbox group.
+	FieldList
 )
 
 // FieldScope is the scope for a config field, aligning with either a connection config or a pipeline config.

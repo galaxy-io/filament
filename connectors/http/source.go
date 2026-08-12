@@ -145,8 +145,30 @@ func (s *Source) Validate(cfg filament.Config) error {
 		if field.Required && field.Type == filament.FieldSecret && cfg.Secret(field.Name) == "" {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
+		if field.Required && field.Type == filament.FieldList && listLen(cfg.Raw()[field.Name]) == 0 {
+			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
+		}
 	}
 	return nil
+}
+
+func listLen(value any) int {
+	switch value := value.(type) {
+	case []string:
+		return len(value)
+	case []any:
+		return len(value)
+	case string: // Backward compatibility for previously comma-separated values.
+		count := 0
+		for _, item := range strings.Split(value, ",") {
+			if strings.TrimSpace(item) != "" {
+				count++
+			}
+		}
+		return count
+	default:
+		return 0
+	}
 }
 
 func (s *Source) configSchema() filament.ConfigSchema {
@@ -177,6 +199,8 @@ func (s *Source) configSchema() filament.ConfigSchema {
 			fieldType = filament.FieldEnum
 		case "object":
 			fieldType = filament.FieldObject
+		case "list":
+			fieldType = filament.FieldList
 		case "secret":
 			fieldType = filament.FieldSecret
 		}
@@ -658,6 +682,16 @@ func credentialsFromConfig(cfg filament.Config, specs map[string]manifest.Config
 			creds[k] = strconv.FormatFloat(value, 'f', -1, 64)
 		case bool:
 			creds[k] = strconv.FormatBool(value)
+		case []string:
+			creds[k] = strings.Join(value, ",")
+		case []any:
+			items := make([]string, 0, len(value))
+			for _, item := range value {
+				if text, ok := item.(string); ok {
+					items = append(items, text)
+				}
+			}
+			creds[k] = strings.Join(items, ",")
 		}
 	}
 	return creds

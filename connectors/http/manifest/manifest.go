@@ -82,7 +82,8 @@ type DiscoverySpec struct {
 	Resources []Discovery `yaml:"resources,omitempty"`
 }
 
-// ConfigSpec declares one user-facing connector configuration field.
+// ConfigSpec declares one user-facing connector configuration field. Enum is
+// the ordered set of choices for enum and list fields.
 type ConfigSpec struct {
 	Type     string   `yaml:"type"`
 	Required bool     `yaml:"required,omitempty"`

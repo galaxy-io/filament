@@ -101,6 +101,56 @@ discovery:
 	}
 }
 
+func TestParseListConfig(t *testing.T) {
+	m, err := Parse([]byte(`
+version: 1
+name: list-config
+config:
+  kinds:
+    type: list
+    default: [public, private]
+    enum: [public, private, direct]
+connection:
+  base_url: https://example.com
+resources:
+  - name: records
+    path: /records
+    records: $
+    primary_key: [id]
+    fields:
+      id: string
+`))
+	if err != nil {
+		t.Fatalf("parse list config: %v", err)
+	}
+	field := m.Config["kinds"]
+	if field.Type != "list" || len(field.Enum) != 3 {
+		t.Fatalf("list config = %#v", field)
+	}
+}
+
+func TestParseRejectsListConfigWithoutOptions(t *testing.T) {
+	_, err := Parse([]byte(`
+version: 1
+name: list-config
+config:
+  kinds:
+    type: list
+connection:
+  base_url: https://example.com
+resources:
+  - name: records
+    path: /records
+    records: $
+    primary_key: [id]
+    fields:
+      id: string
+`))
+	if err == nil || !strings.Contains(err.Error(), "enum") {
+		t.Fatalf("parse error = %v, want missing enum", err)
+	}
+}
+
 func TestParseRejectsInvalidIncrementalContracts(t *testing.T) {
 	tests := []struct {
 		name, field, pagination, incremental, want string

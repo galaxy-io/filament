@@ -663,6 +663,14 @@ func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 
 func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	ctx := context.Background()
+	schemaFields := map[string]filament.ConfigField{}
+	for _, field := range NewSlack().Spec().Config.Fields {
+		schemaFields[field.Name] = field
+	}
+	conversationTypesField := schemaFields["conversation_types"]
+	if conversationTypesField.Type != filament.FieldList || len(conversationTypesField.Enum) != 4 {
+		t.Fatalf("conversation_types field = %#v, want four-option list", conversationTypesField)
+	}
 	var authorization string
 	var historyChannels []string
 	var replyScopes []string
@@ -754,6 +762,43 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 		if data["channel_id"] != "C123" {
 			t.Fatalf("channel_id = %#v, want inherited C123", data["channel_id"])
 		}
+	}
+}
+
+func TestCredentialsFromConfigJoinsStringLists(t *testing.T) {
+	got := credentialsFromConfig(filament.NewConfig(map[string]any{
+		"conversation_types": []any{"public_channel", "im"},
+	}), nil)
+	if got["conversation_types"] != "public_channel,im" {
+		t.Fatalf("conversation_types = %q, want public_channel,im", got["conversation_types"])
+	}
+}
+
+func TestRequiredListConfigRejectsEmptySelection(t *testing.T) {
+	src := NewManifest("list", "List", []byte(`
+version: 1
+name: list
+config:
+  choices:
+    type: list
+    required: true
+    enum: [one, two]
+connection:
+  base_url: https://example.com
+resources:
+  - name: records
+    path: /records
+    records: $
+    primary_key: [id]
+    fields:
+      id: string
+`), filament.ConfigSchema{})
+
+	if err := src.Validate(filament.NewConfig(map[string]any{"choices": []any{}})); err == nil {
+		t.Fatal("empty required list validated successfully")
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{"choices": []any{"one"}})); err != nil {
+		t.Fatalf("non-empty required list: %v", err)
 	}
 }
 
