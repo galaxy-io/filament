@@ -35,14 +35,20 @@ const FieldList = ({
     value: option.value,
   }));
   const selectedOptions = options.filter((option) => selected.includes(option.value as string));
+  const handleChange = (next: SelectInputOption[]) => {
+    onChange(next.map((option) => option.value as string));
+  };
+  const handleReset = () => {
+    onChange([]);
+  };
 
   return (
     <FieldWrapper label={label} help={field.help} isRequired={field.required}>
       <MultiSelectInput
         options={options}
         value={selectedOptions}
-        onChange={(next) => onChange(next.map((option) => option.value as string))}
-        onReset={() => onChange([])}
+        onChange={handleChange}
+        onReset={handleReset}
         size={InputSize.LARGE}
         placeholder={`Select ${label}...`}
         error={error}
