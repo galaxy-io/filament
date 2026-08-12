@@ -1,0 +1,122 @@
+---
+title: "Stripe"
+description: "Read charges, payment intents, invoices, subscriptions, and the balance ledger from a Stripe account."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-stripe-dark.svg"
+---
+
+Stripe is a manifest-driven source — `connectors/http/manifests/stripe.yaml`
+declares its resources, auth, and pagination against the shared grammar in
+`connectors/http/manifest/`; no Stripe-specific Go code exists. See
+[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+
+## Auth
+
+One API key, sent as the HTTP basic username with no password — the trailing
+colon in `curl -u sk_test_…:`. A restricted key (`rk_…`) with read permissions
+on the resources you extract is enough and is the recommended choice; a secret
+key (`sk_…`) also works but grants far more than an extract needs.
+
+Requests pin `Stripe-Version: 2026-07-29.dahlia`. Without the pin the payload
+shape would follow whatever version the account's dashboard happens to be set
+to, so the pinned value and the manifest's field lists move together.
+
+## Resources
+
+Twenty-one resources, all statically discovered.
+
+| Resource | Path | Fans out from |
+|---|---|---|
+| `customers` | `/v1/customers` | — |
+| `charges` | `/v1/charges` | — |
+| `payment_intents` | `/v1/payment_intents` | — |
+| `refunds` | `/v1/refunds` | — |
+| `disputes` | `/v1/disputes` | — |
+| `balance_transactions` | `/v1/balance_transactions` | — |
+| `payouts` | `/v1/payouts` | — |
+| `invoices` | `/v1/invoices` | — |
+| `invoice_line_items` | `/v1/invoices/{invoice}/lines` | `invoices` |
+| `credit_notes` | `/v1/credit_notes` | — |
+| `subscriptions` | `/v1/subscriptions` | — |
+| `subscription_items` | `/v1/subscription_items` | `subscriptions` |
+| `products` | `/v1/products` | — |
+| `prices` | `/v1/prices` | — |
+| `coupons` | `/v1/coupons` | — |
+| `promotion_codes` | `/v1/promotion_codes` | — |
+| `checkout_sessions` | `/v1/checkout/sessions` | — |
+| `setup_intents` | `/v1/setup_intents` | — |
+| `payment_methods` | `/v1/payment_methods` | — |
+| `tax_rates` | `/v1/tax_rates` | — |
+| `events` | `/v1/events` | — |
+
+Every v1 list endpoint returns `{object: "list", has_more, data: [...]}` and
+none of them return a next-page token. The cursor is the id of the last record
+on the page, echoed back as `starting_after` — expressed in the manifest as
+`response: data.-1.id`, with `has_more` as the authoritative terminator. Every
+request carries `limit=100`; Stripe's default is 10, so omitting it would
+decuple the request count.
+
+Two things the API does by default that the manifest deliberately overrides:
+
+- `subscriptions` sends `status=all`. With no status parameter Stripe returns
+  only subscriptions that have *not* been canceled, so every churned
+  subscription would silently vanish from the extract.
+- `invoice_line_items` and `subscription_items` exist as separate resources
+  because the copies embedded in the parent objects (`invoice.lines`,
+  `subscription.items`) are themselves paginated lists that truncate at ten
+  entries. The embedded copies are still extracted as raw JSON for reference,
+  but the child resources are the complete set.
+
+Rate limiting is a static 8 requests/second shared across all concurrently
+extracting resources. Stripe allows 100 req/s in live mode but only 25 in a
+sandbox, and caps any individual endpoint at 25 req/s. Stripe publishes no
+`RateLimit-*` response headers — only `Stripe-Rate-Limited-Reason` on a `429` —
+so there is nothing for a dynamic rate limiter to read.
+
+`events` is capped at 30 days of history by Stripe, so a pipeline paused longer
+than that leaves a permanent hole. Its `data.object` is rendered at the API
+version current when the event was created, not the pinned `Stripe-Version`, so
+that column's shape varies across older rows.
+
+## Modes
+
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+
+Ten resources declare an `incremental:` block — `charges`, `payment_intents`,
+`refunds`, `disputes`, `balance_transactions`, `payouts`, `invoices`,
+`credit_notes`, `checkout_sessions`, and `events`. All ten watermark on
+`created` and inject it as `created[gte]` with a `numeric` comparator, since
+Stripe timestamps are Unix epoch integers rather than RFC 3339 strings.
+
+<Warning>
+  **Incremental runs capture new records, not changes to existing ones.** No
+  Stripe object carries an update timestamp — `products.updated` is the sole
+  exception across the whole API, and the products list endpoint filters on
+  `created` anyway. A `created` watermark therefore never re-reads a record
+  whose *state* changed: a charge refunded, an invoice moving from open to
+  paid, a payout settling from pending, a dispute resolving.
+
+  Because `created` is an integer, the comparator has to be `numeric`, and
+  `overlap_seconds` is only available under `comparator: time` — so no lookback
+  window can be expressed either. Schedule periodic full runs for any stream
+  whose status matters downstream.
+</Warning>
+
+The eleven remaining resources declare no `incremental:` block on purpose.
+`customers`, `subscriptions`, `products`, `prices`, `coupons`,
+`promotion_codes`, `setup_intents` and `tax_rates` are mutable configuration
+objects where a created-time watermark would quietly serve stale rows, so they
+always full-refresh. `payment_methods` has no `created` filter at all. The two
+fan-out children inherit their parents' scope.
+
+<Note>
+  The `raw` remainder column preserves each object's full payload, which for
+  `payment_intents` and `setup_intents` includes `client_secret`. Anyone who can
+  read the destination table can act on an unconfirmed intent — treat the
+  landing tables with the same care as the source account.
+</Note>
+
+Not extracted: the Connect and platform endpoints (`/v1/transfers`,
+`/v1/application_fees`, `/v1/topups`, `/v1/quotes`, `/v1/payment_links`,
+`/v1/radar/early_fraud_warnings`). Each is gated on a product an account may
+not have enabled, and returns an empty stream or a permission error rather than
+degrading.

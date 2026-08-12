@@ -1,0 +1,653 @@
+version: 1
+name: stripe
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Stripe API key from Developers > API keys. A restricted key (rk_…) with read permissions on the resources you extract is enough; a secret key (sk_…) also works.
+# Deliberately absent: the Connect and platform endpoints — /v1/transfers,
+# /v1/application_fees, /v1/topups, /v1/quotes, /v1/payment_links and
+# /v1/radar/early_fraud_warnings. Each is gated on a product the account may
+# not have enabled, and returns an empty stream or a permission error rather
+# than degrading. Add them behind their own manifest once there's a Connect
+# account to validate against.
+defaults:
+  method: GET
+  query:
+    # Stripe's page size defaults to 10 and caps at 100. Every list endpoint
+    # honours the same parameter, so it lives here rather than per resource.
+    limit: "100"
+  response:
+    # Every v1 list endpoint returns {object: "list", url, has_more, data: [...]}.
+    # Stripe returns no next-page token: the cursor is the id of the last record
+    # on the page, echoed back as `starting_after`. has_more is the authoritative
+    # terminator, so a short final page ends the walk before data.-1 is read.
+    records: $.data
+    pagination:
+      cursor:
+        response: data.-1.id
+        request: query.starting_after
+        more: has_more
+# Nullability rule: a missing path on a non-nullable field aborts the whole
+# extraction, while a nullable one yields NULL. Stripe's payloads vary by
+# payment method, enabled products and pinned API version, so only `id`,
+# `object` and `created` — present on every object in every sampled payload —
+# are non-nullable. Everything else is optional even when the docs imply
+# otherwise.
+#
+# Timestamp typing rule: every Stripe timestamp is a Unix epoch integer, not
+# RFC 3339. They are typed int64 rather than timestamptz so the raw value
+# survives instead of failing the sinks' timestamp coercion.
+field_sets:
+  stripe_object:
+    id: string
+    object: string
+    created: int64
+    livemode: bool?
+    metadata: json?
+connection:
+  base_url: https://api.stripe.com
+  auth:
+    # Stripe takes the API key as the HTTP basic username with no password —
+    # the trailing colon in `curl -u sk_test_…:`. password is omitted rather
+    # than set empty; the basic strategy treats an absent password as "".
+    basic:
+      username: config.api_key
+  headers:
+    Accept: application/json
+    # Pinned so the payload shape is a property of this manifest rather than of
+    # whatever version the account's dashboard happens to be set to. Bump this
+    # and the field lists together.
+    Stripe-Version: "2026-07-29.dahlia"
+  timeout_seconds: 60
+  # Stripe allows 100 req/s in live mode but only 25 in a sandbox, and caps any
+  # single endpoint at 25 req/s. One limiter is shared across all concurrently
+  # extracting resources, so hold below the sandbox ceiling. Stripe publishes no
+  # RateLimit-* response headers — only Stripe-Rate-Limited-Reason on a 429 —
+  # so there is nothing for a dynamic block to read.
+  rate_limit:
+    requests_per_second: 8
+resources:
+  # First top-level resource, so it doubles as the TestConnection probe:
+  # universally available, authenticated, and needing no parent scope.
+  - name: customers
+    path: /v1/customers
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      address: json?
+      balance: int64?
+      currency: string?
+      default_source: string?
+      delinquent: bool?
+      description: string?
+      email: string?
+      invoice_prefix: string?
+      invoice_settings: json?
+      name: string?
+      next_invoice_sequence: int64?
+      phone: string?
+      preferred_locales: json?
+      shipping: json?
+      tax_exempt: string?
+      test_clock: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: charges
+    path: /v1/charges
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount: int64?
+      amount_captured: int64?
+      amount_refunded: int64?
+      application_fee_amount: int64?
+      balance_transaction: string?
+      billing_details: json?
+      captured: bool?
+      currency: string?
+      customer: string?
+      description: string?
+      disputed: bool?
+      failure_code: string?
+      failure_message: string?
+      outcome: json?
+      paid: bool?
+      payment_intent: string?
+      payment_method: string?
+      payment_method_details: json?
+      receipt_email: string?
+      receipt_url: string?
+      refunded: bool?
+      statement_descriptor: string?
+      status: string?
+      transfer_group: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: charges_created
+
+  - name: payment_intents
+    # The raw remainder preserves client_secret. Anyone who can read the
+    # destination table can confirm an unconfirmed intent — treat the landing
+    # tables as sensitive, same as the source.
+    path: /v1/payment_intents
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount: int64?
+      amount_capturable: int64?
+      amount_received: int64?
+      application_fee_amount: int64?
+      canceled_at: int64?
+      cancellation_reason: string?
+      capture_method: string?
+      confirmation_method: string?
+      currency: string?
+      customer: string?
+      description: string?
+      last_payment_error: json?
+      latest_charge: string?
+      on_behalf_of: string?
+      payment_method: string?
+      payment_method_types: json?
+      receipt_email: string?
+      setup_future_usage: string?
+      statement_descriptor: string?
+      status: string?
+      transfer_group: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: payment_intents_created
+
+  - name: refunds
+    path: /v1/refunds
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount: int64?
+      balance_transaction: string?
+      charge: string?
+      currency: string?
+      description: string?
+      destination_details: json?
+      payment_intent: string?
+      reason: string?
+      receipt_number: string?
+      source_transfer_reversal: string?
+      # Settles from pending to succeeded or failed after creation; see the
+      # incremental caveat in the docs page.
+      status: string?
+      transfer_reversal: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: refunds_created
+
+  - name: disputes
+    path: /v1/disputes
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount: int64?
+      balance_transactions: json?
+      charge: string?
+      currency: string?
+      evidence: json?
+      evidence_details: json?
+      is_charge_refundable: bool?
+      payment_intent: string?
+      reason: string?
+      status: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: disputes_created
+
+  - name: balance_transactions
+    # The account ledger: one row per movement of funds, with the fee split
+    # that the charge and payout objects don't carry.
+    path: /v1/balance_transactions
+    primary_key: [id]
+    use_fields: [stripe_object]
+    # Balance transactions carry neither livemode nor metadata.
+    exclude_fields: [livemode, metadata]
+    fields:
+      amount: int64?
+      available_on: int64?
+      currency: string?
+      description: string?
+      exchange_rate: float64?
+      fee: int64?
+      fee_details: json?
+      net: int64?
+      reporting_category: string?
+      source: string?
+      status: string?
+      type: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: balance_transactions_created
+
+  - name: payouts
+    path: /v1/payouts
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount: int64?
+      arrival_date: int64?
+      automatic: bool?
+      balance_transaction: string?
+      currency: string?
+      description: string?
+      destination: string?
+      failure_balance_transaction: string?
+      failure_code: string?
+      failure_message: string?
+      method: string?
+      original_payout: string?
+      reconciliation_status: string?
+      reversed_by: string?
+      source_type: string?
+      statement_descriptor: string?
+      status: string?
+      type: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: payouts_created
+
+  - name: invoices
+    # `lines` is an embedded list that truncates at 10 with its own has_more,
+    # so it is kept as raw json for reference only — invoice_line_items below
+    # is the complete set.
+    path: /v1/invoices
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      account_country: string?
+      account_name: string?
+      amount_due: int64?
+      amount_overpaid: int64?
+      amount_paid: int64?
+      amount_remaining: int64?
+      amount_shipping: int64?
+      attempt_count: int64?
+      attempted: bool?
+      auto_advance: bool?
+      billing_reason: string?
+      collection_method: string?
+      currency: string?
+      customer: string?
+      customer_email: string?
+      customer_name: string?
+      default_payment_method: string?
+      description: string?
+      due_date: int64?
+      ending_balance: int64?
+      hosted_invoice_url: string?
+      invoice_pdf: string?
+      lines: json?
+      number: string?
+      # Recent API versions moved the charge / payment_intent / subscription
+      # links off the top level and under `parent`. Kept as json so the shape
+      # survives whichever variant the pinned version emits.
+      parent: json?
+      period_end: int64?
+      period_start: int64?
+      receipt_number: string?
+      starting_balance: int64?
+      statement_descriptor: string?
+      status: string?
+      status_transitions: json?
+      subtotal: int64?
+      subtotal_excluding_tax: int64?
+      total: int64?
+      total_excluding_tax: int64?
+      webhooks_delivered_at: int64?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      invoice: id
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: invoices_created
+
+  - name: invoice_line_items
+    # One request per invoice. The invoice's embedded `lines` stops at 10, so
+    # this is the only complete source of line detail.
+    path: /v1/invoices/{invoice}/lines
+    params:
+      invoice: parent.invoice
+    for_each: invoices
+    primary_key: [invoice_id, id]
+    use_fields: [stripe_object]
+    # Line items carry no creation timestamp of their own.
+    exclude_fields: [created]
+    fields:
+      invoice_id: { path: parent.invoice, type: string }
+      amount: int64?
+      currency: string?
+      description: string?
+      discount_amounts: json?
+      discountable: bool?
+      period: json?
+      # `pricing` on current API versions, `price` on older ones; json absorbs
+      # both.
+      pricing: json?
+      quantity: int64?
+      taxes: json?
+      type: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: credit_notes
+    path: /v1/credit_notes
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount: int64?
+      amount_shipping: int64?
+      currency: string?
+      customer: string?
+      customer_balance_transaction: string?
+      discount_amount: int64?
+      invoice: string?
+      lines: json?
+      memo: string?
+      number: string?
+      out_of_band_amount: int64?
+      pdf: string?
+      post_payment_amount: int64?
+      pre_payment_amount: int64?
+      reason: string?
+      refunds: json?
+      status: string?
+      subtotal: int64?
+      subtotal_excluding_tax: int64?
+      total: int64?
+      total_excluding_tax: int64?
+      type: string?
+      voided_at: int64?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: credit_notes_created
+
+  - name: subscriptions
+    # status=all is mandatory: with no status parameter Stripe returns only
+    # subscriptions that have not been canceled, so every churned subscription
+    # would silently disappear from the extract.
+    path: /v1/subscriptions
+    query:
+      status: all
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      application_fee_percent: float64?
+      automatic_tax: json?
+      billing_cycle_anchor: int64?
+      cancel_at: int64?
+      cancel_at_period_end: bool?
+      canceled_at: int64?
+      cancellation_details: json?
+      collection_method: string?
+      currency: string?
+      customer: string?
+      days_until_due: int64?
+      default_payment_method: string?
+      description: string?
+      discounts: json?
+      ended_at: int64?
+      # Embedded list, truncates at 10 like invoice lines; subscription_items
+      # below is the complete set.
+      items: json?
+      latest_invoice: string?
+      pause_collection: json?
+      schedule: string?
+      start_date: int64?
+      status: string?
+      test_clock: string?
+      trial_end: int64?
+      trial_start: int64?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      subscription: id
+
+  - name: subscription_items
+    # /v1/subscription_items requires a subscription, so this fans out rather
+    # than listing account-wide. Recent API versions carry the billing period on
+    # the item rather than on the subscription, making this the only source of
+    # current_period_start / current_period_end.
+    path: /v1/subscription_items
+    query:
+      subscription: "{{ parent.subscription }}"
+    for_each: subscriptions
+    primary_key: [id]
+    use_fields: [stripe_object]
+    # Subscription items carry no livemode flag.
+    exclude_fields: [livemode]
+    fields:
+      subscription: string?
+      current_period_end: int64?
+      current_period_start: int64?
+      price: json?
+      quantity: int64?
+      tax_rates: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: products
+    # `updated` is the only update timestamp Stripe exposes on any object. It
+    # still can't drive incremental extraction — the list endpoint filters on
+    # created, not updated.
+    path: /v1/products
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      active: bool?
+      default_price: string?
+      description: string?
+      images: json?
+      marketing_features: json?
+      name: string?
+      package_dimensions: json?
+      shippable: bool?
+      statement_descriptor: string?
+      tax_code: string?
+      unit_label: string?
+      updated: int64?
+      url: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: prices
+    path: /v1/prices
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      active: bool?
+      billing_scheme: string?
+      currency: string?
+      custom_unit_amount: json?
+      lookup_key: string?
+      nickname: string?
+      product: string?
+      recurring: json?
+      tax_behavior: string?
+      tiers_mode: string?
+      transform_quantity: json?
+      type: string?
+      unit_amount: int64?
+      # Stripe sends the decimal variants as strings to preserve precision
+      # beyond the integer minor-unit amount.
+      unit_amount_decimal: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: coupons
+    path: /v1/coupons
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount_off: int64?
+      currency: string?
+      duration: string?
+      duration_in_months: int64?
+      max_redemptions: int64?
+      name: string?
+      percent_off: float64?
+      redeem_by: int64?
+      times_redeemed: int64?
+      valid: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: promotion_codes
+    path: /v1/promotion_codes
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      active: bool?
+      code: string?
+      coupon: json?
+      customer: string?
+      expires_at: int64?
+      max_redemptions: int64?
+      restrictions: json?
+      times_redeemed: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: checkout_sessions
+    path: /v1/checkout/sessions
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      amount_subtotal: int64?
+      amount_total: int64?
+      cancel_url: string?
+      client_reference_id: string?
+      currency: string?
+      customer: string?
+      customer_details: json?
+      customer_email: string?
+      expires_at: int64?
+      invoice: string?
+      mode: string?
+      payment_intent: string?
+      payment_link: string?
+      payment_method_types: json?
+      payment_status: string?
+      setup_intent: string?
+      status: string?
+      subscription: string?
+      success_url: string?
+      total_details: json?
+      ui_mode: string?
+      url: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: checkout_sessions_created
+
+  - name: setup_intents
+    # Like payment_intents, the raw remainder preserves client_secret.
+    path: /v1/setup_intents
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      cancellation_reason: string?
+      customer: string?
+      description: string?
+      last_setup_error: json?
+      latest_attempt: string?
+      mandate: string?
+      on_behalf_of: string?
+      payment_method: string?
+      payment_method_types: json?
+      single_use_mandate: string?
+      status: string?
+      usage: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: payment_methods
+    # Lists account-wide; customer and type are both optional filters. This is
+    # the one list endpoint here with no `created` filter, so it can never run
+    # incrementally regardless of mode.
+    path: /v1/payment_methods
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      allow_redisplay: string?
+      billing_details: json?
+      card: json?
+      customer: string?
+      type: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: tax_rates
+    path: /v1/tax_rates
+    primary_key: [id]
+    use_fields: [stripe_object]
+    fields:
+      active: bool?
+      country: string?
+      description: string?
+      display_name: string?
+      effective_percentage: float64?
+      inclusive: bool?
+      jurisdiction: string?
+      percentage: float64?
+      state: string?
+      tax_type: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: events
+    # The account audit feed, and the only genuinely immutable resource here.
+    # Stripe retains events for 30 days only, so a pipeline that pauses longer
+    # than that leaves a permanent hole. `data.object` is rendered at the API
+    # version current when the event was created, not the pinned
+    # Stripe-Version, so its shape varies across old rows.
+    path: /v1/events
+    primary_key: [id]
+    use_fields: [stripe_object]
+    # Events carry no metadata.
+    exclude_fields: [metadata]
+    fields:
+      api_version: string?
+      data: json?
+      pending_webhooks: int64?
+      request: json?
+      type: string?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created
+      start_param: created[gte]
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: events_created
+discovery:
+  mode: static
