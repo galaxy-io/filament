@@ -874,13 +874,6 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 				plan[resource] = old.ToCheckpoint(resource)
 				continue
 			}
-			// Migrate the former [pagination cursor, watermark] checkpoint shape.
-			for i, col := range old.Cols {
-				if col == checkpointKey && i < len(old.Shards[0].Key) {
-					seed = old.Shards[0].Key[i]
-					break
-				}
-			}
 		}
 		plan[resource] = checkpoint.KeysetCheckpoint{
 			Mode: checkpoint.ModeIncremental, Cols: cols, Types: types,

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -215,12 +216,13 @@ func TestSourcePlanIncrementalUsesOnlyDurableWatermark(t *testing.T) {
 	}
 	defer src.Teardown(ctx)
 
-	legacy := checkpoint.KeysetCheckpoint{
-		Cols:   []string{"cursor", "items_since"},
-		Types:  []string{"string", "string"},
-		Shards: []checkpoint.KeysetShard{{Key: []string{"page-17", "2026-01-01T00:00:00Z"}}},
+	current := checkpoint.KeysetCheckpoint{
+		Mode:   checkpoint.ModeIncremental,
+		Cols:   []string{"items_since"},
+		Types:  []string{"timestamptz"},
+		Shards: []checkpoint.KeysetShard{{Key: []string{"2026-01-01T00:00:00Z"}}},
 	}.ToCheckpoint("items")
-	plan, err := src.PlanIncremental(ctx, []string{"items"}, map[string]filament.Checkpoint{"items": legacy}, map[string]filament.ResourceCursorConfig{
+	plan, err := src.PlanIncremental(ctx, []string{"items"}, map[string]filament.Checkpoint{"items": current}, map[string]filament.ResourceCursorConfig{
 		"items": {Field: "updated_at", LookbackSeconds: 60},
 	})
 	if err != nil {
@@ -1883,29 +1885,31 @@ func TestStripeIncrementalInjectsBracketedCreatedFilter(t *testing.T) {
 	}
 	defer src.Teardown(ctx)
 
-	plan, err := src.PlanResume(ctx, []string{"charges"}, nil)
+	// Each ledger resource needs its own checkpoint key; the cursor_field
+	// fallback would collide across all ten and fail manifest validation.
+	prev := map[string]filament.Checkpoint{
+		"charges": checkpoint.KeysetCheckpoint{
+			Mode:   checkpoint.ModeIncremental,
+			Cols:   []string{"charges_created"},
+			Types:  []string{"int64"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"1679090539"}}},
+		}.ToCheckpoint("charges"),
+	}
+	plan, err := src.PlanIncremental(ctx, []string{"charges"}, prev, map[string]filament.ResourceCursorConfig{
+		"charges": {Field: "created"},
+	})
 	if err != nil {
-		t.Fatalf("plan resume: %v", err)
+		t.Fatalf("plan incremental: %v", err)
 	}
 	ks, ok := checkpoint.ParseKeyset(plan["charges"])
 	if !ok {
 		t.Fatal("plan did not parse as keyset")
 	}
-	// Each ledger resource needs its own checkpoint key; the cursor_field
-	// fallback would collide across all ten and fail manifest validation.
-	if got, want := ks.Cols, []string{"cursor", "charges_created"}; len(got) != len(want) || got[1] != want[1] {
-		t.Fatalf("checkpoint cols = %v, want %v", got, want)
-	}
-
-	prev := map[string]filament.Checkpoint{
-		"charges": checkpoint.KeysetCheckpoint{
-			Cols:   []string{"cursor", "charges_created"},
-			Types:  []string{"string", "string"},
-			Shards: []checkpoint.KeysetShard{{Key: []string{"", "1679090539"}}},
-		}.ToCheckpoint("charges"),
+	if got, want := ks.Cols, []string{"charges_created"}; !slices.Equal(got, want) {
+		t.Fatalf("checkpoint cols = %v, want durable watermark only %v", got, want)
 	}
 	var sink collectSink
-	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"charges"}, Parallelism: 1}, prev); err != nil {
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"charges"}, Parallelism: 1}, plan); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 
@@ -1919,7 +1923,7 @@ func TestStripeIncrementalInjectsBracketedCreatedFilter(t *testing.T) {
 		t.Fatalf("records = %d, want the single charge past the watermark", len(sink.records))
 	}
 	// The watermark advances to the newest created seen, not the oldest.
-	if got, want := sink.records[0].Key, []string{"", "1679090700"}; len(got) != len(want) || got[1] != want[1] {
+	if got, want := sink.records[0].Key, []string{"1679090700"}; !slices.Equal(got, want) {
 		t.Fatalf("record key = %v, want %v", got, want)
 	}
 }
@@ -2141,30 +2145,32 @@ func TestPostHogEventsIncrementalInjectsAfterMinusOverlap(t *testing.T) {
 	}
 	defer src.Teardown(ctx)
 
-	plan, err := src.PlanResume(ctx, []string{"events"}, nil)
+	// events and insights each declare their own checkpoint key; the
+	// cursor_field fallback would not collide here, but naming them keeps the
+	// stored key stable if either cursor field is ever renamed.
+	prev := map[string]filament.Checkpoint{
+		"events": checkpoint.KeysetCheckpoint{
+			Mode:   checkpoint.ModeIncremental,
+			Cols:   []string{"events_timestamp"},
+			Types:  []string{"timestamptz"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"2026-08-01T12:00:00Z"}}},
+		}.ToCheckpoint("events"),
+	}
+	plan, err := src.PlanIncremental(ctx, []string{"events"}, prev, map[string]filament.ResourceCursorConfig{
+		"events": {Field: "timestamp"},
+	})
 	if err != nil {
-		t.Fatalf("plan resume: %v", err)
+		t.Fatalf("plan incremental: %v", err)
 	}
 	ks, ok := checkpoint.ParseKeyset(plan["events"])
 	if !ok {
 		t.Fatal("plan did not parse as keyset")
 	}
-	// events and insights each declare their own checkpoint key; the
-	// cursor_field fallback would not collide here, but naming them keeps the
-	// stored key stable if either cursor field is ever renamed.
-	if got, want := ks.Cols, []string{"cursor", "events_timestamp"}; len(got) != len(want) || got[1] != want[1] {
-		t.Fatalf("checkpoint cols = %v, want %v", got, want)
-	}
-
-	prev := map[string]filament.Checkpoint{
-		"events": checkpoint.KeysetCheckpoint{
-			Cols:   []string{"cursor", "events_timestamp"},
-			Types:  []string{"string", "string"},
-			Shards: []checkpoint.KeysetShard{{Key: []string{"", "2026-08-01T12:00:00Z"}}},
-		}.ToCheckpoint("events"),
+	if got, want := ks.Cols, []string{"events_timestamp"}; !slices.Equal(got, want) {
+		t.Fatalf("checkpoint cols = %v, want durable watermark only %v", got, want)
 	}
 	var sink collectSink
-	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"events"}, Parallelism: 1}, prev); err != nil {
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"events"}, Parallelism: 1}, plan); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 
