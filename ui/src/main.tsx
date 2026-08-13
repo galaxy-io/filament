@@ -13,6 +13,8 @@ import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
 
 import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
 
+import AppAuthProvider from "@/auth/AppAuthProvider";
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Root element not found");
@@ -20,10 +22,12 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   <StrictMode>
-    <TransportQueryClientProvider>
-      <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM}>
-        <App />
-      </GalaxyThemeProvider>
-    </TransportQueryClientProvider>
+    <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM}>
+      <AppAuthProvider>
+        <TransportQueryClientProvider>
+          <App />
+        </TransportQueryClientProvider>
+      </AppAuthProvider>
+    </GalaxyThemeProvider>
   </StrictMode>,
 );

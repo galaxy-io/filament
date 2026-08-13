@@ -37,6 +37,26 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      "/auth/config": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/auth/login": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/auth/register": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/auth/invite": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/auth/members": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
   resolve: {
