@@ -1,9 +1,7 @@
 import { styled } from "@linaria/react";
 
-import SelectInput, {
-  type SelectInputOption,
-  SelectInputVariant,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
@@ -56,7 +54,7 @@ const CreatePipelineModalResourcesReadModeCell = ({
             },
           })
         }
-        variant={SelectInputVariant.SECONDARY}
+        variant={InputVariant.TERTIARY}
         dropdownWidth={CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH}
         isDisabled={!row.isSelected}
         fillWidth

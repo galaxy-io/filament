@@ -12,7 +12,7 @@ import FlexWrapper, {
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -115,7 +115,7 @@ const PipelineSettingsPageGeneral = () => {
         <TextAreaInput
           value={state.description}
           onChange={handleDescriptionChange}
-          size={TextAreaSize.LARGE}
+          size={InputSize.LARGE}
           placeholder="Optional description"
           label="Description"
           fillWidth

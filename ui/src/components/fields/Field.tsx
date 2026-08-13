@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { JsonValue } from "@bufbuild/protobuf";
 
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 
 import { type ConfigField, FieldType } from "@/gen/ingestion/v1/common_pb";
 
@@ -38,6 +39,7 @@ interface FieldProps {
   field: ConfigField;
   value: JsonValue;
   onChange: (value: JsonValue) => void;
+  variant?: InputVariant;
   isDisabled?: boolean;
   path?: string;
   getError?: (path: string) => string | undefined;
@@ -48,6 +50,7 @@ const Field = ({
   field,
   value,
   onChange,
+  variant = InputVariant.PRIMARY,
   isDisabled = false,
   path = field.name,
   getError,
@@ -80,6 +83,7 @@ const Field = ({
                     [child.name]: childValue,
                   })
                 }
+                variant={variant}
                 isDisabled={isDisabled}
                 path={`${path}.${child.name}`}
                 getError={getError}
@@ -101,6 +105,7 @@ const Field = ({
       onChange={onChange}
       error={getError?.(path)}
       isDisabled={isDisabled}
+      variant={variant}
       label={label}
       hasStoredSecret={hasStoredSecret}
     />

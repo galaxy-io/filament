@@ -26,7 +26,7 @@ import {
   type PipelineSettingsPageScheduleState,
 } from "@/pages/pipelines/settings/types";
 
-const PIPELINE_SCHEDULE_INPUT_WIDTH = 264;
+const PIPELINE_SCHEDULE_INPUT_WIDTH = 276;
 
 const SwitcherWrapper = styled.div<{ $isDisabled: boolean }>`
   opacity: ${({ $isDisabled }) => ($isDisabled ? 0.5 : 1)};
@@ -95,7 +95,11 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
           fillWidth
         >
           <Text variant={TextVariant.SECONDARY}>Enabled</Text>
-          <ToggleInput value={state.isEnabled} onChange={handleEnabledChange} />
+          <ToggleInput
+            size={InputSize.LARGE}
+            value={state.isEnabled}
+            onChange={handleEnabledChange}
+          />
         </FlexWrapper>
       </Widget>
       <Widget noHover fillWidth>
