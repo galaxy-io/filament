@@ -21,14 +21,10 @@ import {
   type RemoveNodeAction,
   type SetActiveModeAction,
   type SetEdgeConfigAction,
-  type SetInteractionModeAction,
   type SetNodeConfigAction,
   type SetNodesAction,
 } from "@/pages/pipelines/canvas/providers/canvas/actions";
-import {
-  PipelineCanvasInteractionMode,
-  type PipelineCanvasState,
-} from "@/pages/pipelines/canvas/providers/canvas/types";
+import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 
 function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): PipelineCanvasState {
@@ -37,7 +33,6 @@ function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): Pipelin
     nodes: action.payload.nodes,
     edges: action.payload.edges,
     activeMode: null,
-    interactionMode: PipelineCanvasInteractionMode.GRAB,
   };
 }
 
@@ -114,16 +109,6 @@ function setActiveMode(
   };
 }
 
-function setInteractionMode(
-  state: PipelineCanvasState,
-  action: SetInteractionModeAction,
-): PipelineCanvasState {
-  return {
-    ...state,
-    interactionMode: action.payload,
-  };
-}
-
 function setNodeConfig(
   state: PipelineCanvasState,
   action: SetNodeConfigAction,
@@ -171,8 +156,6 @@ const pipelineCanvasReducer = (
       return connect(state, action);
     case PipelineCanvasActionType.SET_ACTIVE_MODE:
       return setActiveMode(state, action);
-    case PipelineCanvasActionType.SET_INTERACTION_MODE:
-      return setInteractionMode(state, action);
     case PipelineCanvasActionType.SET_NODE_CONFIG:
       return setNodeConfig(state, action);
     case PipelineCanvasActionType.SET_EDGE_CONFIG:

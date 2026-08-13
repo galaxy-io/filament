@@ -218,3 +218,24 @@ export const useRunPipelineMutation = (
     },
   });
 };
+
+export const useSignalRunMutation = (
+  options: UseMutationOptions<
+    typeof IngestionService.method.signalRun.input,
+    typeof IngestionService.method.signalRun.output
+  > = {},
+) => {
+  const queryClient = useQueryClient();
+  return useMutation<
+    typeof IngestionService.method.signalRun.input,
+    typeof IngestionService.method.signalRun.output
+  >(IngestionService.method.signalRun, {
+    ...options,
+    onSettled: (...args) => {
+      void queryClient.invalidateQueries({
+        queryKey: createListRunsQueryKey(),
+      });
+      return options.onSettled?.(...args);
+    },
+  });
+};

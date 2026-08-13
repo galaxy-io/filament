@@ -60,7 +60,7 @@ const PipelineCanvasPanelTabHeader = () => {
         alignItems={AlignItems.CENTER}
         justifyContent={JustifyContent.SPACE_BETWEEN}
         gap={8}
-        padding="0 8px"
+        padding="0 12px"
         shrink={0}
         fillWidth
       >

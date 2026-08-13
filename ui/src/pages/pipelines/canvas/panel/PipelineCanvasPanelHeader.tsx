@@ -27,7 +27,7 @@ const PipelineCanvasPanelHeader = ({
   onClose,
 }: PipelineCanvasPanelHeaderProps) => (
   <>
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px" shrink={0} fillWidth>
+    <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px 12px" shrink={0} fillWidth>
       {onBack && (
         <FlexItem shrink={0}>
           <Button

@@ -77,9 +77,9 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 // SignalRun rejects the request; run signals are not configured in this binary.
 func (a *Server) SignalRun(_ context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
 	if req.Msg.GetRunId() == "" {
-		return nil, fmt.Errorf("run_id is required")
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
 	}
-	return nil, fmt.Errorf("run signals are not configured in this ingestion binary")
+	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("run signals are not configured in this ingestion binary"))
 }
 
 // TailRun streams run progress facts to the client, optionally replaying

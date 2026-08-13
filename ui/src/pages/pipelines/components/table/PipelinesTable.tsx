@@ -17,8 +17,8 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
-  PIPELINES_TABLE_COLUMN_MIN_WIDTH_NAME,
-  PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+  PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
+  PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
@@ -38,17 +38,17 @@ const PipelinesTableWrapper = styled.div`
 
 const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   {
-    id: "connectors",
-    header: "Connectors",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_CONNECTORS,
+    id: "flow",
+    header: "Flow",
+    size: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
     pin: ColumnPin.LEFT,
     cellLoading: () => <TextShimmer width={120} height={18} />,
     cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
   },
   {
-    id: "name",
-    header: "Name",
-    minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_NAME,
+    id: "pipeline",
+    header: "Pipeline",
+    minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
     accessorFn: (pipeline) => pipeline.name,
     enableSorting: true,
     cellLoading: () => <TextShimmer width={160} height={14} />,
