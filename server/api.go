@@ -7,9 +7,11 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
 	"github.com/galaxy-io/filament/api/metrics/v1/metricsv1connect"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/internal/compile"
 )
 
@@ -29,7 +31,7 @@ type Server struct {
 	schedules filament.PipelineScheduleStore
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
-	auth      connect.Interceptor
+	identity  identity.Provider
 }
 
 // Option configures a Server.
@@ -42,9 +44,11 @@ func WithSecrets(secrets filament.Secrets) Option { return func(s *Server) { s.s
 // MetricsService unimplemented.
 func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) { s.metrics = ms } }
 
-// WithAuth installs an interceptor on every RPC handler. Unset leaves the
-// API unauthenticated.
-func WithAuth(ic connect.Interceptor) Option { return func(s *Server) { s.auth = ic } }
+// WithIdentity sets the authentication provider. Unset leaves the API
+// unauthenticated and AuthService unimplemented apart from its config
+// document, the same way an unset metrics store leaves MetricsService
+// unimplemented.
+func WithIdentity(p identity.Provider) Option { return func(s *Server) { s.identity = p } }
 
 // New returns a Server wired to the given providers.
 func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
@@ -65,15 +69,20 @@ func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store fil
 	return s
 }
 
-// Mount registers the Connect handlers on mux.
+// Mount registers the Connect handlers on mux. AuthService mounts whether
+// or not a provider is configured so the UI always has a config document to
+// read; with a provider, one interceptor authenticates every procedure that
+// is not part of the public session flow.
 func (a *Server) Mount(mux *http.ServeMux) {
 	var opts []connect.HandlerOption
-	if a.auth != nil {
-		opts = append(opts, connect.WithInterceptors(a.auth))
+	if a.identity != nil {
+		opts = append(opts, connect.WithInterceptors(&authInterceptor{provider: a.identity, store: a.store}))
 	}
 	path, handler := ingestionv1connect.NewIngestionServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
 	path, handler = metricsv1connect.NewMetricsServiceHandler(a, opts...)
+	mux.Handle(path, withCORS(handler))
+	path, handler = authv1connect.NewAuthServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
 }
 

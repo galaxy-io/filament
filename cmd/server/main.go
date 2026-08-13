@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -21,8 +20,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/cmd/internal/auth"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/identity"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
@@ -81,9 +80,9 @@ func run(ctx context.Context, migrateOnly bool) error {
 		_ = otelShutdown(flushCtx)
 	}()
 
-	// Provision the OIDC app in Zitadel when auth is configured; nil means
-	// auth is disabled and the UI skips login entirely.
-	authCfg, err := auth.FromEnv(ctx)
+	// A nil provider means auth is disabled: the API stays unauthenticated
+	// and the UI renders without a session.
+	identityProvider, err := identity.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
@@ -108,23 +107,6 @@ func run(ctx context.Context, migrateOnly bool) error {
 	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("/auth/config", func(w http.ResponseWriter, _ *http.Request) {
-		cfg := authCfg
-		if cfg == nil {
-			cfg = &auth.Config{}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(cfg)
-	})
-	if authCfg != nil {
-		mux.Handle("/auth/login", authCfg.LoginHandler())
-		mux.Handle("/auth/register", authCfg.RegisterHandler())
-		mux.Handle("/auth/invite", authCfg.InviteHandler())
-		mux.Handle("/auth/invite/accept", authCfg.InviteAcceptHandler())
-		mux.Handle("/auth/members", authCfg.MembersHandler())
-		mux.Handle("/auth/members/role", authCfg.RoleHandler())
-		mux.Handle("/auth/members/remove", authCfg.RemoveHandler())
-	}
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -161,8 +143,8 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	orch := orchestrator.New()
 	apiOpts := []server.Option{server.WithSecrets(secrets), server.WithMetricsStore(metricStore)}
-	if authCfg != nil {
-		apiOpts = append(apiOpts, server.WithAuth(authCfg.Interceptor(store)))
+	if identityProvider != nil {
+		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
 	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, apiOpts...)
 	mods, err := module.MountAll(ctx,

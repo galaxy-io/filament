@@ -22,8 +22,9 @@ server mode="": migrate
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
-      AUTH_ISSUER="${AUTH_ISSUER:-{{ if mode == "auth" { "http://localhost:8300" } else { "" } }}}" \
-      AUTH_PAT_FILE="${AUTH_PAT_FILE:-../../.zitadel/pat}" \
+      AUTH_PROVIDER="${AUTH_PROVIDER:-{{ if mode == "auth" { "zitadel" } else { "" } }}}" \
+      AUTH_ISSUER="${AUTH_ISSUER:-http://localhost:8300}" \
+      AUTH_PAT="${AUTH_PAT:-$(cat {{ justfile_directory() }}/.zitadel/pat 2>/dev/null)}" \
       AUTH_UI_ORIGIN="${AUTH_UI_ORIGIN:-http://localhost:5173}" \
       GOWORK=off go run .
 
