@@ -60,7 +60,7 @@ services:
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: admin
       ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: Password1!
       # Machine user + PAT for filament's boot-time app provisioning; the PAT
-      # lands in ./.zitadel where the server reads it (AUTH_PAT_FILE).
+      # lands in ./.zitadel, which the justfile reads into AUTH_PAT.
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: filament-sa
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: filament-sa
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2100-01-01T00:00:00Z"
