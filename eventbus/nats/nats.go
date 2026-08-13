@@ -213,26 +213,8 @@ func (b *Bus) Resolve(pattern string) (eventbus.Route, error) {
 	return eventbus.PassthroughResolver{}.Resolve(pattern)
 }
 
-// EnsureStream creates the named JetStream stream capturing subjects if it does
+// ensureStream creates the named JetStream stream capturing subjects if it does
 // not already exist. It is idempotent: an existing stream is left untouched.
-// This is the optional provisioning capability the control plane discovers by
-// type assertion; providers without a stream concept do not implement it.
-func (b *Bus) EnsureStream(ctx context.Context, name string, subjects []string) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if b.closed.Load() {
-		return eventbus.ErrBusClosed
-	}
-	if name == "" {
-		return errors.New("eventbus/nats: empty stream name")
-	}
-	if len(subjects) == 0 {
-		return fmt.Errorf("eventbus/nats: stream %q has no subjects", name)
-	}
-	return b.ensureStream(ctx, name, subjects)
-}
-
 func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string) error {
 	if len(subjects) == 0 {
 		subjects = []string{eventbus.TailWildcard}
