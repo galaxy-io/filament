@@ -7,6 +7,7 @@ const FieldSecret = ({
   field,
   value,
   onChange,
+  variant,
   error,
   isDisabled = false,
   label,
@@ -19,6 +20,7 @@ const FieldSecret = ({
       value={(value as string) ?? ""}
       onChange={(v) => onChange(v)}
       size={InputSize.LARGE}
+      variant={variant}
       placeholder={placeholder}
       label={label}
       labelTooltip={field.help || undefined}

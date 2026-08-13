@@ -7,6 +7,7 @@ const FieldInt = ({
   field,
   value,
   onChange,
+  variant,
   error,
   isDisabled = false,
   label,
@@ -16,6 +17,7 @@ const FieldInt = ({
       value={value !== null && value !== undefined ? Number(value) : undefined}
       size={InputSize.LARGE}
       onChange={(v) => onChange(v)}
+      variant={variant}
       placeholder={`Enter ${label}...`}
       label={label}
       labelTooltip={field.help || undefined}
