@@ -6,9 +6,10 @@ config:
     required: true
     help: Slack bot or user OAuth token
   conversation_types:
-    type: string
-    default: public_channel
-    help: Comma-separated Slack conversation types (public_channel, private_channel, mpim, im)
+    type: list
+    default: [public_channel]
+    enum: [public_channel, private_channel, mpim, im]
+    help: Slack conversation types to include
 defaults:
   method: GET
   response:
@@ -221,7 +222,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      created: int64?
+      created: int64
       timestamp: int64?
       name: string?
       title: string?
@@ -252,6 +253,12 @@ resources:
           size: count
           page_size: 100
           total_pages: paging.pages
+    incremental:
+      cursor_field: created
+      start_param: ts_from
+      inject_into: query
+      checkpoint_key: files_created
+      comparator: numeric
 
   - name: bookmarks
     path: /bookmarks.list

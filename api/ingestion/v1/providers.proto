@@ -38,9 +38,10 @@ message ConnectorSpec {
 }
 
 message ListConnectorsRequest {
+  string tenant_id = 1;
   // Filter to one kind; UNSPECIFIED returns both sources and sinks.
-  ConnectorKind kind = 1;
-  PaginationRequest pagination = 2;
+  ConnectorKind kind = 2;
+  PaginationRequest pagination = 3;
 }
 
 message ListConnectorsResponse {
@@ -49,8 +50,9 @@ message ListConnectorsResponse {
 }
 
 message GetConnectorRequest {
-  string connector = 1;
-  ConnectorKind kind = 2;
+  string tenant_id = 1;
+  string connector = 2;
+  ConnectorKind kind = 3;
 }
 
 message GetConnectorResponse {
@@ -98,8 +100,8 @@ message Resource {
   repeated string primary_key = 3;
   int64 estimated_rows = 4;
   string selector = 5;
-  string display_name = 7;
-  map<string, string> metadata = 11;
+  string display_name = 6;
+  map<string, string> metadata = 7;
 }
 
 message DiscoverResourcesResponse {
@@ -107,10 +109,12 @@ message DiscoverResourcesResponse {
 }
 
 message GetResourceColumnsRequest {
-  string connector = 1;
-  google.protobuf.Struct config = 2;
-  string connection_id = 3;
-  repeated string resources = 4;
+  string tenant_id = 1;
+  string connector = 2;
+  google.protobuf.Struct config = 3;
+  // tenant_id must match the connection's tenant.
+  string connection_id = 4;
+  repeated string resources = 5;
 }
 
 message ResourceColumn {

@@ -29,13 +29,7 @@ import {
   useGetResourceColumnsQuery,
   useListConnectorsQuery,
 } from "@/api/queries/connectors";
-
-const PROBE_QUERY_OPTIONS = {
-  retry: false,
-  networkMode: "always",
-  staleTime: Number.POSITIVE_INFINITY,
-  refetchOnWindowFocus: false,
-} as const;
+import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
 export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const connectionId = state.sourceConnection?.id ?? "";

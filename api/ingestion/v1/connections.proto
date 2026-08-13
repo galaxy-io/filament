@@ -12,8 +12,8 @@ import "ingestion/v1/pagination.proto";
 // duplicated inline on each pipeline. version is an optimistic lock, mirroring
 // Pipeline: an update must carry the version it last read.
 message Connection {
-  string id = 1;
-  string tenant_id = 2;
+  string tenant_id = 1;
+  string id = 2;
   ConnectorKind kind = 3;
   string name = 4;
   string connector = 5;
@@ -37,7 +37,8 @@ message CreateConnectionResponse {
 }
 
 message UpdateConnectionRequest {
-  Connection connection = 1;
+  string tenant_id = 1;
+  Connection connection = 2;
 }
 
 message UpdateConnectionResponse {
@@ -45,7 +46,8 @@ message UpdateConnectionResponse {
 }
 
 message GetConnectionRequest {
-  string id = 1;
+  string tenant_id = 1;
+  string id = 2;
 }
 
 message GetConnectionResponse {
@@ -67,7 +69,8 @@ message ListConnectionsResponse {
 }
 
 message DeleteConnectionRequest {
-  string id = 1;
+  string tenant_id = 1;
+  string id = 2;
 }
 
 message DeleteConnectionResponse {}

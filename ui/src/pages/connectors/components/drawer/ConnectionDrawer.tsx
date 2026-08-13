@@ -9,7 +9,7 @@ import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/container
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Modal from "@galaxy-io/dls/modal/Modal";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -144,7 +144,12 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
             />
             <ConnectionDrawerKeyValueRow
               label="Version"
-              value={<Text size={TextSize.BODY_SM}>{connection.version.toString()}</Text>}
+              value={
+                <Text
+                  size={TextSize.BODY_SM}
+                  variant={TextVariant.SECONDARY}
+                >{`Version ${connection.version.toString()}`}</Text>
+              }
             />
           </ConnectionDrawerList>
 

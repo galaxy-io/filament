@@ -2,7 +2,9 @@ package manifest
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/template"
@@ -242,11 +244,37 @@ func (m *Manifest) validateSemantics() error {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
 		if r.Incremental != nil {
+			if r.Incremental.CursorField == "" {
+				_ = agg.Addf(path+".incremental.cursor_field", "is required")
+			}
+			if r.Incremental.StartParam == "" {
+				_ = agg.Addf(path+".incremental.start_param", "is required")
+			}
 			if err := checkEnum(r.Incremental.InjectInto, ValidIncrementalInject); err != nil {
 				_ = agg.Addf(path+".incremental.inject_into", "%v", err)
 			}
 			if err := checkEnum(r.Incremental.Comparator, ValidComparators); err != nil {
 				_ = agg.Addf(path+".incremental.comparator", "%v", err)
+			}
+			if r.Incremental.OverlapSeconds > 0 && r.Incremental.Comparator != "time" && r.Incremental.Comparator != "numeric" {
+				_ = agg.Addf(path+".incremental.overlap_seconds", "requires comparator time or numeric")
+			}
+			if err := validateIncrementalInitial(*r.Incremental); err != nil {
+				_ = agg.Addf(path+".incremental.initial", "%v", err)
+			}
+			cursor, found := incrementalCursorField(*r)
+			if !found {
+				_ = agg.Addf(path+".incremental.cursor_field", "field %q must be declared and projected in fields", r.Incremental.CursorField)
+			} else {
+				if cursor.Nullable {
+					_ = agg.Addf(path+".incremental.cursor_field", "field %q must be non-nullable", cursor.Name)
+				}
+				if !incrementalTypeCompatible(r.Incremental.Comparator, cursor.Type) {
+					_ = agg.Addf(path+".incremental.comparator", "comparator %q is incompatible with cursor field %q type %q", comparatorName(r.Incremental.Comparator), cursor.Name, cursor.Type)
+				}
+			}
+			if paginationInjectionCollides(r.Pagination, *r.Incremental) {
+				_ = agg.Addf(path+".incremental.start_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, r.Incremental.StartParam)
 			}
 		}
 		if r.Stream != nil {
@@ -334,6 +362,86 @@ func (m *Manifest) validateSemantics() error {
 	}
 
 	return agg.AsError()
+}
+
+func incrementalCursorField(resource Resource) (FieldSpec, bool) {
+	if resource.Incremental == nil {
+		return FieldSpec{}, false
+	}
+	for _, field := range resource.Fields {
+		if field.Name == resource.Incremental.CursorField {
+			if strings.HasPrefix(field.Path, "parent.") {
+				return FieldSpec{}, false
+			}
+			return field, true
+		}
+	}
+	return FieldSpec{}, false
+}
+
+func comparatorName(name string) string {
+	if name == "" {
+		return "lex"
+	}
+	return name
+}
+
+func incrementalTypeCompatible(comparator, fieldType string) bool {
+	typ := strings.ToLower(strings.TrimSpace(fieldType))
+	switch comparatorName(comparator) {
+	case "numeric":
+		switch typ {
+		case "string", "int", "int16", "int32", "int64", "float", "float32", "float64", "decimal", "number":
+			return true
+		}
+	case "time":
+		return typ == "string" || typ == "timestamp" || typ == "timestamptz"
+	case "lex":
+		switch typ {
+		case "string", "uuid", "date", "time", "timestamp", "timestamptz":
+			return true
+		}
+	}
+	return false
+}
+
+func validateIncrementalInitial(spec IncrementalSpec) error {
+	if spec.Initial == "" {
+		return nil
+	}
+	switch comparatorName(spec.Comparator) {
+	case "numeric":
+		if _, err := strconv.ParseFloat(spec.Initial, 64); err != nil {
+			return fmt.Errorf("must be numeric")
+		}
+	case "time":
+		if _, err := time.Parse(time.RFC3339, spec.Initial); err != nil {
+			return fmt.Errorf("must be RFC3339")
+		}
+	}
+	return nil
+}
+
+func paginationInjectionCollides(pagination PaginationSpec, incremental IncrementalSpec) bool {
+	target, param := "", ""
+	switch pagination.Type {
+	case "cursor":
+		target, param = pagination.InjectInto, pagination.CursorParam
+	case "offset":
+		if pagination.OffsetParam == incremental.StartParam {
+			target, param = pagination.OffsetInjectInto, pagination.OffsetParam
+		} else {
+			target, param = pagination.OffsetInjectInto, pagination.LimitParam
+		}
+	case "page":
+		target = "query"
+		if pagination.PageParam == incremental.StartParam {
+			param = pagination.PageParam
+		} else {
+			param = pagination.SizeParam
+		}
+	}
+	return target == incremental.InjectInto && param == incremental.StartParam
 }
 
 // validateTemplate parses s and records any syntax/semantic issue against
