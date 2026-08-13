@@ -145,7 +145,7 @@ const ObservabilitySetupChecklist = () => {
         </SetupCard>
         <ProgressBar
           percentage={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
-          variant={ProgressBarVariant.SUCCESS}
+          variant={ProgressBarVariant.PRIMARY}
           height={4}
           noAnimation
         />

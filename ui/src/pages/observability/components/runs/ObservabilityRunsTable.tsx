@@ -18,12 +18,12 @@ import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/
 
 import PipelineName from "@/components/PipelineName";
 
-import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
+import ObservabilityRunsTableColumnFlow from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnFlow";
 import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
@@ -113,12 +113,12 @@ const ObservabilityRunsTable = () => {
         ),
       },
       {
-        id: "connectors",
-        header: "Connectors",
-        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
+        id: "flow",
+        header: "Flow",
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
         pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={120} height={18} />,
-        cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
+        cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row.original} />,
       },
       {
         id: "pipeline",

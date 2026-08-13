@@ -8,13 +8,11 @@ import { mapConnectionIdToFlowConnection } from "@/pages/pipelines/components/fl
 
 import { useListConnectionsQuery } from "@/api/queries/connections";
 
-interface ObservabilityRunsTableColumnConnectorsProps {
+interface ObservabilityRunsTableColumnFlowProps {
   runInfo: RunInfo;
 }
 
-const ObservabilityRunsTableColumnConnectors = ({
-  runInfo,
-}: ObservabilityRunsTableColumnConnectorsProps) => {
+const ObservabilityRunsTableColumnFlow = ({ runInfo }: ObservabilityRunsTableColumnFlowProps) => {
   const { data } = useListConnectionsQuery({
     input: OBSERVABILITY_CONNECTIONS_INPUT,
   });
@@ -37,4 +35,4 @@ const ObservabilityRunsTableColumnConnectors = ({
   );
 };
 
-export default ObservabilityRunsTableColumnConnectors;
+export default ObservabilityRunsTableColumnFlow;
