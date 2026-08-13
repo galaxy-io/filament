@@ -36,9 +36,15 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import { GalaxyTheme, type PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import type { Member } from "@/gen/auth/v1/members_pb";
-import { Role } from "@/gen/auth/v1/members_pb";
+import type { Member, Role } from "@/gen/auth/v1/members_pb";
 
+import {
+  INVITE_DEFAULT_ROLE,
+  optionRole,
+  ROLE_OPTIONS,
+  roleLabel,
+  roleOption,
+} from "@/components/settings/constants";
 import TooltipIconButton from "@/components/TooltipIconButton";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
@@ -198,29 +204,6 @@ const MemberAvatar = ({ member }: { member: Member }) => (
     </Text>
   </InitialsCircle>
 );
-
-const ROLE_OPTIONS: SelectInputOption[] = [
-  { id: "admin", label: "Admin", value: Role.ADMIN },
-  { id: "creator", label: "Creator", value: Role.CREATOR },
-  { id: "viewer", label: "Viewer", value: Role.VIEWER },
-];
-
-const ROLE_LABEL_BY_ROLE: Partial<Record<Role, string>> = {
-  [Role.ADMIN]: "Admin",
-  [Role.CREATOR]: "Creator",
-  [Role.VIEWER]: "Viewer",
-};
-
-const INVITE_DEFAULT_ROLE =
-  ROLE_OPTIONS.find((option) => option.value === Role.CREATOR) ?? ROLE_OPTIONS[0];
-
-const roleOption = (role: Role) => ROLE_OPTIONS.find((option) => option.value === role) ?? null;
-
-const optionRole = (option: SelectInputOption): Role | undefined =>
-  typeof option.value === "number" ? (option.value as Role) : undefined;
-
-const roleLabel = (role: Role | undefined): string | undefined =>
-  role === undefined ? undefined : ROLE_LABEL_BY_ROLE[role];
 
 const memberColumns = ({
   myID,

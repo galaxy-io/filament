@@ -15,9 +15,17 @@ import (
 	"github.com/galaxy-io/filament/identity"
 )
 
-// errNoIdentity is what every AuthService RPC but GetAuthConfig answers when
-// no provider is configured, mirroring an unset metrics store.
-var errNoIdentity = errors.New("no identity provider configured")
+// disabledAuth answers AuthService when no provider is configured: the
+// config document reports an empty issuer so the UI renders without a
+// session, and the generated base leaves every other RPC unimplemented,
+// exactly as an unset metrics store leaves MetricsService.
+type disabledAuth struct {
+	authv1connect.UnimplementedAuthServiceHandler
+}
+
+func (disabledAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.GetAuthConfigRequest]) (*connect.Response[authv1.GetAuthConfigResponse], error) {
+	return connect.NewResponse(&authv1.GetAuthConfigResponse{}), nil
+}
 
 // publicProcedures are the AuthService RPCs a caller reaches before holding
 // a token. Everything absent from this set requires authentication, so a new
@@ -27,74 +35,6 @@ var publicProcedures = map[string]bool{
 	authv1connect.AuthServiceLoginProcedure:         true,
 	authv1connect.AuthServiceRegisterProcedure:      true,
 	authv1connect.AuthServiceAcceptInviteProcedure:  true,
-}
-
-// GetAuthConfig reports how the UI should start the sign-in flow. Unlike the
-// rest of AuthService it answers with auth disabled, returning an empty
-// issuer so the UI knows to render without a session.
-func (a *Server) GetAuthConfig(ctx context.Context, req *connect.Request[authv1.GetAuthConfigRequest]) (*connect.Response[authv1.GetAuthConfigResponse], error) {
-	if a.identity == nil {
-		return connect.NewResponse(&authv1.GetAuthConfigResponse{}), nil
-	}
-	return a.identity.GetAuthConfig(ctx, req)
-}
-
-// Login exchanges credentials for the callback that completes the OIDC
-// flow.
-func (a *Server) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
-	if a.identity == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errNoIdentity)
-	}
-	return a.identity.Login(ctx, req)
-}
-
-// Register creates a tenant and its first admin.
-func (a *Server) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
-	if a.identity == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errNoIdentity)
-	}
-	return a.identity.Register(ctx, req)
-}
-
-// AcceptInvite redeems an invitation and sets the member's password.
-func (a *Server) AcceptInvite(ctx context.Context, req *connect.Request[authv1.AcceptInviteRequest]) (*connect.Response[authv1.AcceptInviteResponse], error) {
-	if a.identity == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errNoIdentity)
-	}
-	return a.identity.AcceptInvite(ctx, req)
-}
-
-// ListMembers returns the caller's tenant membership.
-func (a *Server) ListMembers(ctx context.Context, req *connect.Request[authv1.ListMembersRequest]) (*connect.Response[authv1.ListMembersResponse], error) {
-	if a.identity == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errNoIdentity)
-	}
-	return a.identity.ListMembers(ctx, req)
-}
-
-// InviteMember adds a teammate to the caller's tenant and returns the code
-// that redeems the invitation.
-func (a *Server) InviteMember(ctx context.Context, req *connect.Request[authv1.InviteMemberRequest]) (*connect.Response[authv1.InviteMemberResponse], error) {
-	if a.identity == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errNoIdentity)
-	}
-	return a.identity.InviteMember(ctx, req)
-}
-
-// SetMemberRole reassigns a member's role.
-func (a *Server) SetMemberRole(ctx context.Context, req *connect.Request[authv1.SetMemberRoleRequest]) (*connect.Response[authv1.SetMemberRoleResponse], error) {
-	if a.identity == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errNoIdentity)
-	}
-	return a.identity.SetMemberRole(ctx, req)
-}
-
-// RemoveMember deletes a member from the caller's tenant.
-func (a *Server) RemoveMember(ctx context.Context, req *connect.Request[authv1.RemoveMemberRequest]) (*connect.Response[authv1.RemoveMemberResponse], error) {
-	if a.identity == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errNoIdentity)
-	}
-	return a.identity.RemoveMember(ctx, req)
 }
 
 // authInterceptor authenticates every RPC except the public session

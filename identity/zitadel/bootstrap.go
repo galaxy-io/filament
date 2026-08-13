@@ -229,22 +229,21 @@ func createOIDCConfig(uiOrigin string) *appv2.CreateOIDCApplicationRequest {
 	}
 }
 
+// updateOIDCConfig is the create form with the optional-field pointers the
+// update API takes, so the two can never drift.
 func updateOIDCConfig(uiOrigin string) *appv2.UpdateOIDCApplicationConfigurationRequest {
-	appType := appv2.OIDCApplicationType_OIDC_APP_TYPE_USER_AGENT
-	authMethod := appv2.OIDCAuthMethodType_OIDC_AUTH_METHOD_TYPE_NONE
-	tokenType := appv2.OIDCTokenType_OIDC_TOKEN_TYPE_JWT
-	enabled := true
+	create := createOIDCConfig(uiOrigin)
 	return &appv2.UpdateOIDCApplicationConfigurationRequest{
-		RedirectUris:             []string{uiOrigin + "/auth/callback"},
-		PostLogoutRedirectUris:   []string{uiOrigin},
-		ResponseTypes:            []appv2.OIDCResponseType{appv2.OIDCResponseType_OIDC_RESPONSE_TYPE_CODE},
-		GrantTypes:               []appv2.OIDCGrantType{appv2.OIDCGrantType_OIDC_GRANT_TYPE_AUTHORIZATION_CODE, appv2.OIDCGrantType_OIDC_GRANT_TYPE_REFRESH_TOKEN},
-		ApplicationType:          &appType,
-		AuthMethodType:           &authMethod,
-		AccessTokenType:          &tokenType,
-		AccessTokenRoleAssertion: &enabled,
-		DevelopmentMode:          &enabled,
-		LoginVersion:             loginVersion(uiOrigin),
+		RedirectUris:             create.RedirectUris,
+		PostLogoutRedirectUris:   create.PostLogoutRedirectUris,
+		ResponseTypes:            create.ResponseTypes,
+		GrantTypes:               create.GrantTypes,
+		ApplicationType:          &create.ApplicationType,
+		AuthMethodType:           &create.AuthMethodType,
+		AccessTokenType:          &create.AccessTokenType,
+		AccessTokenRoleAssertion: &create.AccessTokenRoleAssertion,
+		DevelopmentMode:          &create.DevelopmentMode,
+		LoginVersion:             create.LoginVersion,
 	}
 }
 

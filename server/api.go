@@ -82,7 +82,13 @@ func (a *Server) Mount(mux *http.ServeMux) {
 	mux.Handle(path, withCORS(handler))
 	path, handler = metricsv1connect.NewMetricsServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
-	path, handler = authv1connect.NewAuthServiceHandler(a, opts...)
+	// The provider serves AuthService directly; without one, a stub keeps
+	// the config document answering so the UI can tell auth is off.
+	var authHandler authv1connect.AuthServiceHandler = disabledAuth{}
+	if a.identity != nil {
+		authHandler = a.identity
+	}
+	path, handler = authv1connect.NewAuthServiceHandler(authHandler, opts...)
 	mux.Handle(path, withCORS(handler))
 }
 
