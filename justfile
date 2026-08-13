@@ -4,9 +4,9 @@ default:
     @just --list
 
 # start local infra (postgres + nats); `just infra auth` adds zitadel,
-# `just infra down` stops everything, `just infra volumes` also drops volumes
-infra mode="up":
-    docker compose {{ if mode == "down" { "--profile auth down" } else if mode == "volumes" { "--profile auth down -v" } else if mode == "auth" { "--profile auth up -d --wait" } else { "up -d --wait" } }}
+# `just infra down` stops everything, `just infra down volumes` also drops volumes
+infra mode="up" scope="":
+    docker compose {{ if mode == "down" { if scope == "volumes" { "--profile auth down -v" } else { "--profile auth down" } } else if mode == "auth" { "--profile auth up -d --wait" } else { "up -d --wait" } }}
 
 # run datastore migrations against the local database
 migrate:
@@ -44,7 +44,7 @@ ui:
     cd ui && pnpm install && pnpm dev
 
 # run the full app: control plane, API server, UI
-dev mode="":
+dev mode="": migrate
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
