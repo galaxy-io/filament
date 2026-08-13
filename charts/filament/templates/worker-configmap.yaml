@@ -1,0 +1,43 @@
+{{- if .Values.controlPlane.enabled }}
+{{/* envFrom'd whole into dispatched worker Jobs; the control plane only learns
+     this ConfigMap's name. Worker env belongs here, not in the dispatcher. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "filament.worker.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
+data:
+  # Persistence
+  PERSISTENCE_PROVIDER: {{ .Values.persistence.type | quote }}
+
+  # Event bus
+  EVENTBUS_PROVIDER: {{ .Values.eventBus.type | quote }}
+  NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
+  NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
+
+  # Observability
+  {{- with .Values.observability.otel.endpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
+  OTEL_SERVICE_NAME: {{ include "filament.worker.fullname" $ | quote }}
+  {{- with $.Values.observability.otel.protocol }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+
+  # Secrets
+  SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
+  {{- if eq .Values.secrets.type "postgres" }}
+  {{- with .Values.secrets.postgres.encryptionKeyId }}
+  ENCRYPTION_KEY_ID: {{ . | quote }}
+  {{- end }}
+  {{- else }}
+  {{- with .Values.secrets.prefix }}
+  SECRETS_PREFIX: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if eq .Values.secrets.type "aws-secrets-manager" }}
+  {{- with .Values.secrets.aws.region }}
+  AWS_REGION: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}

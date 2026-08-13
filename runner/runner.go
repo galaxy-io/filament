@@ -46,6 +46,7 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
 		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
+		WorkerConfiguration: r.WorkerConfiguration,
 	}
 }
 

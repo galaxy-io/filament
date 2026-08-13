@@ -43,8 +43,11 @@ type CompiledRun struct {
 }
 
 // Compile loads the pipeline's current version and collapses its edges into
-// per-route run requests. token salts each route's idempotency key.
-func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID) ([]CompiledRun, error) {
+// per-route run requests. token salts each route's idempotency key. workerCfg
+// overrides the pipeline's own worker configuration field by field for this
+// call only; the resolved result is stamped onto every request, so a later edit
+// to the pipeline cannot reshape a run already requested.
+func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration) ([]CompiledRun, error) {
 	pipeline, err := c.Store.LoadPipeline(ctx, pipelineID)
 	if err != nil {
 		return nil, fmt.Errorf("load pipeline %q: %w", pipelineID, err)
@@ -83,6 +86,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	if tenant == "" {
 		tenant = c.DefaultTenant
 	}
+	worker := workerCfg.Merge(WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration()))
 	compiled := make([]CompiledRun, 0, len(groups))
 	for _, group := range groups {
 		key := group.key
@@ -107,21 +111,22 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 			return nil, err
 		}
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
-			Tenant:             filament.TenantID(tenant),
-			PipelineID:         pipeline.GetId(),
-			PipelineVersionID:  version.GetVersion(),
-			IdempotencyKey:     fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:             sourceRef,
-			Sink:               sinkRef,
-			SourceConnectionID: group.source.GetConnectionId(),
-			SinkConnectionID:   group.sink.GetConnectionId(),
-			Resources:          resources,
-			Selectors:          selectors,
-			IngestionTypes:     group.ingestionTypes,
-			CheckpointRoute:    key,
-			CursorConfigs:      group.cursorConfigs,
-			Options:            options,
-			ScheduleID:         scheduleID,
+			Tenant:              filament.TenantID(tenant),
+			PipelineID:          pipeline.GetId(),
+			PipelineVersionID:   version.GetVersion(),
+			IdempotencyKey:      fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+			Source:              sourceRef,
+			Sink:                sinkRef,
+			SourceConnectionID:  group.source.GetConnectionId(),
+			SinkConnectionID:    group.sink.GetConnectionId(),
+			Resources:           resources,
+			Selectors:           selectors,
+			IngestionTypes:      group.ingestionTypes,
+			CheckpointRoute:     key,
+			CursorConfigs:       group.cursorConfigs,
+			Options:             options,
+			ScheduleID:          scheduleID,
+			WorkerConfiguration: worker,
 		}})
 	}
 	return compiled, nil

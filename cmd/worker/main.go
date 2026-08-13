@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
@@ -56,6 +57,15 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	mx, tracer, otelShutdown, err := otel.FromEnv(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = otelShutdown(flushCtx)
+	}()
 
 	bus, err := eventbus.FromEnv()
 	if err != nil {
@@ -83,12 +93,6 @@ func run(ctx context.Context) error {
 		filament.Field{Key: "source", Value: state.Request.Source.Provider},
 		filament.Field{Key: "sink", Value: state.Request.Sink.Provider},
 		filament.Field{Key: "resources", Value: len(state.Request.Resources)})
-
-	mx, tracer, shutdown, err := otel.FromEnv(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = shutdown(context.Background()) }()
 
 	hb := &heartbeat{
 		bus:      bus,

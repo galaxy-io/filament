@@ -1,0 +1,10 @@
+# Generated output. Marked so GitHub collapses it in pull request diffs and
+# leaves it out of language stats; it is still versioned and still reviewable
+# by expanding the file. Regenerate rather than edit: `just gen` for the Go
+# stubs and sqlc, `pnpm -C ui codegen` for the TypeScript clients, and
+# `pnpm -C ui assets` for the SVG components.
+api/**/*.pb.go              linguist-generated=true
+api/**/*.connect.go         linguist-generated=true
+datastore/postgres/sqlcgen/** linguist-generated=true
+ui/src/gen/**               linguist-generated=true
+ui/src/assets/components/**  linguist-generated=true

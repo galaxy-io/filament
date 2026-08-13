@@ -17,7 +17,11 @@ import (
 
 // CreatePipeline stores a new pipeline.
 func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
-	createdAt, err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription()})
+	workerCfg, err := marshalWorkerConfiguration(p.GetWorkerConfiguration())
+	if err != nil {
+		return nil, err
+	}
+	createdAt, err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription(), WorkerConfiguration: workerCfg})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
 	}
@@ -34,11 +38,16 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
+	workerCfg, err := marshalWorkerConfiguration(p.GetWorkerConfiguration())
+	if err != nil {
+		return nil, err
+	}
 	createdAt, err := q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
-		PipelineID:  p.GetId(),
-		TenantID:    p.GetTenantId(),
-		Name:        p.GetName(),
-		Description: p.GetDescription(),
+		PipelineID:          p.GetId(),
+		TenantID:            p.GetTenantId(),
+		Name:                p.GetName(),
+		Description:         p.GetDescription(),
+		WorkerConfiguration: workerCfg,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
@@ -78,7 +87,11 @@ func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v 
 
 // UpdatePipeline updates a pipeline's mutable metadata.
 func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error) {
-	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription()})
+	workerCfg, err := marshalWorkerConfiguration(p.GetWorkerConfiguration())
+	if err != nil {
+		return nil, err
+	}
+	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(), WorkerConfiguration: workerCfg})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: update pipeline: %w", err)
 	}
@@ -101,6 +114,9 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	out := pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt)
 	out.CreatedAt = timestampMillis(row.CreatedAt)
 	out.DeletedAt = timestampMillis(row.DeletedAt)
+	if out.WorkerConfiguration, err = unmarshalWorkerConfiguration(row.WorkerConfiguration); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -149,6 +165,9 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 		out[i] = pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt)
 		out[i].CreatedAt = timestampMillis(row.CreatedAt)
 		out[i].DeletedAt = timestampMillis(row.DeletedAt)
+		if out[i].WorkerConfiguration, err = unmarshalWorkerConfiguration(row.WorkerConfiguration); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -192,6 +211,36 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 		return fmt.Errorf("datastore/postgres: commit pipeline delete: %w", err)
 	}
 	return nil
+}
+
+// marshalWorkerConfiguration renders the pipeline's worker configuration for
+// the JSONB column. A nil configuration marshals to nil, which the update
+// coalesces to the stored value: a client that sends a Pipeline without this
+// field (renaming one, say) leaves the configuration alone instead of erasing
+// it.
+func marshalWorkerConfiguration(cfg *ingestionv1.WorkerConfiguration) ([]byte, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+	b, err := protojson.Marshal(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("datastore/postgres: marshal worker configuration: %w", err)
+	}
+	return b, nil
+}
+
+func unmarshalWorkerConfiguration(raw []byte) (*ingestionv1.WorkerConfiguration, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	cfg := &ingestionv1.WorkerConfiguration{}
+	if err := protojson.Unmarshal(raw, cfg); err != nil {
+		return nil, fmt.Errorf("datastore/postgres: unmarshal worker configuration: %w", err)
+	}
+	if cfg.GetResources() == nil {
+		return nil, nil
+	}
+	return cfg, nil
 }
 
 func unmarshalGraph(nodesJSON, edgesJSON []byte) ([]*ingestionv1.PipelineNode, []*ingestionv1.PipelineEdge, error) {

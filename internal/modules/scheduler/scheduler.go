@@ -183,7 +183,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 // one run per route, returning the first run id for the schedule.fired fact.
 // The occurrence token makes each cron tick idempotent.
 func (m *Module) fire(ctx context.Context, st filament.ScheduleState, occurrence time.Time) (filament.RunID, error) {
-	compiled, err := m.compiler.Compile(ctx, st.Spec.PipelineID, scheduledomain.OccurrenceToken(st.ID, occurrence), filament.RunOptions{}, st.ID)
+	compiled, err := m.compiler.Compile(ctx, st.Spec.PipelineID, scheduledomain.OccurrenceToken(st.ID, occurrence), filament.RunOptions{}, st.ID, filament.WorkerConfiguration{})
 	if err != nil {
 		return "", err
 	}
