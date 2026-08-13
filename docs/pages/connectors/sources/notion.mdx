@@ -22,7 +22,7 @@ Four resources, statically discovered:
 | Resource | Path | Fans out from | Notes |
 |---|---|---|---|
 | `databases` | `POST /v1/search` | — | Notion has no list-databases endpoint; this filters search results to `object: database` |
-| `pages` | `POST /v1/databases/{database}/query` | `databases` | |
+| `pages` | `POST /v1/databases/{database}/query` | `databases` | Incremental on `last_edited_time` |
 | `users` | `GET /v1/users` | — | Workspace members and bots |
 | `blocks` | `GET /v1/blocks/{block}/children` | `pages` | The page's content, one level of children at a time |
 
@@ -32,5 +32,11 @@ two `POST` resources, in the query string for the two `GET` ones).
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
-this manifest declares no `incremental:` block, so runs are full extracts.
+`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+`pages` supports incremental extraction using Notion's inclusive
+`last_edited_time.on_or_after` timestamp filter. The manifest keeps a single
+`pages_last_edited_time` checkpoint across database fan-out and re-reads a
+five-minute window to cover edits made while databases are being scanned.
+
+`databases`, `users`, and `blocks` remain full extracts because their current
+list endpoints do not expose a compatible last-edited boundary.

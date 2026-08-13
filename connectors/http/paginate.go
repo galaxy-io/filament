@@ -158,16 +158,13 @@ func (c *Connector) fetchPage(
 			}
 		}
 
-		// Incremental: same — overrides for body-strategy watermarks. Skipped
-		// once a paginator has replaced the URL wholesale (next_url, Link
-		// header), because that URL is the server's own continuation of the
-		// already-filtered query. Re-injecting there would narrow the range
-		// out from under it using a watermark that Observe has been advancing
-		// mid-run: on a newest-first feed the start param would overtake the
-		// server's own end bound, the next page would come back empty, and the
-		// run would commit the newest value having silently skipped the tail.
-		// Cursor/offset/page strategies rebuild the URL from the manifest each
-		// page and still need the param, so they are unaffected.
+		// Incremental: same — overrides for body-strategy watermarks. The
+		// tracker holds its request lower bound fixed across the page walk while
+		// independently advancing the watermark that will be committed. Skip
+		// this once a paginator replaces the URL wholesale (next_url, Link
+		// header), because that URL is already the server's continuation of the
+		// filtered query. Cursor/offset/page strategies rebuild the request from
+		// the manifest and need the fixed lower bound applied on every page.
 		var trackerOverrides map[string]any
 		if tracker != nil && state.NextURL == "" {
 			trackerOverrides, err = tracker.Apply(req)
@@ -389,11 +386,17 @@ func (c *Connector) sendRecords(
 		wr.Resource = resourceName
 		wr.Projected = projected
 		wr.Cursor = cursor
-		if tracker != nil && tracker.Observe(rec) {
-			c.reportWatermarkOnce(res.Name, tracker)
-		}
-		if tracker != nil && tracker.Current() != "" {
-			wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+		if tracker != nil {
+			advanced, err := tracker.ObserveChecked(rec)
+			if err != nil {
+				return n, captured, fmt.Errorf("incremental cursor: %w", err)
+			}
+			if advanced {
+				c.reportWatermarkOnce(res.Name, tracker)
+			}
+			if tracker.Current() != "" {
+				wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+			}
 		}
 		if err := sink.Send(ctx, wr); err != nil {
 			return n, captured, err

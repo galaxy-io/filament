@@ -82,7 +82,8 @@ type DiscoverySpec struct {
 	Resources []Discovery `yaml:"resources,omitempty"`
 }
 
-// ConfigSpec declares one user-facing connector configuration field.
+// ConfigSpec declares one user-facing connector configuration field. Enum is
+// the ordered set of choices for enum and list fields.
 type ConfigSpec struct {
 	Type     string   `yaml:"type"`
 	Required bool     `yaml:"required,omitempty"`
@@ -468,7 +469,10 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 
 // IncrementalSpec configures watermark-based incremental extraction.
 type IncrementalSpec struct {
-	CursorField   string `yaml:"cursor_field"`
+	CursorField string `yaml:"cursor_field"`
+	// CursorPath is resolved from the projected field declaration after parsing.
+	// It is runtime-only; manifests continue to name the output cursor field.
+	CursorPath    string `yaml:"-"`
 	StartParam    string `yaml:"start_param"`
 	InjectInto    string `yaml:"inject_into"` // query | body | header
 	Initial       string `yaml:"initial,omitempty"`
@@ -476,8 +480,8 @@ type IncrementalSpec struct {
 	// Comparator selects watermark-advance ordering. lex (default) compares as
 	// strings; numeric parses both sides as float64; time parses RFC3339.
 	Comparator string `yaml:"comparator,omitempty"` // lex | numeric | time
-	// OverlapSeconds re-fetches a sliding window before the persisted cursor
-	// to tolerate retroactive updates whose timestamps fall behind the max.
+	// OverlapSeconds re-fetches a sliding window before a time or numeric
+	// timestamp cursor to tolerate retroactive updates behind the max.
 	OverlapSeconds int `yaml:"overlap_seconds,omitempty"`
 }
 

@@ -29,10 +29,10 @@ Four resources, all statically discovered, none with a parent:
 
 | Resource | GraphQL query | Notes |
 |---|---|---|
-| `teams` | `Teams($first, $after)` | |
-| `users` | `Users($first, $after)` | |
-| `projects` | `Projects($first, $after)` | |
-| `issues` | `Issues($first, $after)` | Denormalizes `team`, `state`, `assignee`, `creator`, and `project` as both a flat `_id` field and a nested `json` object |
+| `teams` | `Teams($first, $after, $updatedAfter)` | Incremental on `updatedAt` |
+| `users` | `Users($first, $after, $updatedAfter)` | Incremental on `updatedAt` |
+| `projects` | `Projects($first, $after, $updatedAfter)` | Incremental on `updatedAt` |
+| `issues` | `Issues($first, $after, $updatedAfter)` | Incremental on `updatedAt`; denormalizes `team`, `state`, `assignee`, `creator`, and `project` as both a flat `_id` field and a nested `json` object |
 
 Every query pages 100 nodes at a time and reads cursor state from GraphQL's
 standard `pageInfo { hasNextPage, endCursor }` shape — the manifest's cursor
@@ -42,5 +42,9 @@ pagination points at `data.<field>.pageInfo.endCursor` /
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
-this manifest declares no `incremental:` block, so runs are full extracts.
+All four resources support `ModeFull` and `ModeIncremental` (see
+[HTTP](/pages/connectors/sources/http)). Incremental runs filter Linear's
+GraphQL collections with `updatedAt >= <checkpoint>` and order results by
+`updatedAt`. The queries include archived records, and the users query also
+includes disabled accounts, so those lifecycle transitions remain visible.
+Each resource maintains its own `updated_at` checkpoint.

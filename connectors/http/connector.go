@@ -78,11 +78,13 @@ type Connector struct {
 	// manifest.Discovery (which resource produces which kind). nil for a
 	// resource means "no filter" — legacy extract-everything behavior. Read
 	// only after Connector.extract has set it.
-	enabledByResource map[string]map[string]struct{}
-	enabledIDPath     map[string]string
-	enabledResources  map[string]struct{}
-	resumeCursors     map[string]string
-	resumeWatermarks  map[string]map[string]string
+	enabledByResource    map[string]map[string]struct{}
+	enabledIDPath        map[string]string
+	enabledResources     map[string]struct{}
+	resumeCursors        map[string]string
+	resumeWatermarks     map[string]map[string]string
+	incrementalLookbacks map[string]int
+	incrementalResources map[string]bool
 
 	// watermarkReported tracks which resources have already emitted a
 	// EventWatermarkAdvanced event during this extraction. The event is

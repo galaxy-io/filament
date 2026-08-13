@@ -105,11 +105,17 @@ func (c *Connector) streamResource(
 		wr := pipeline.NewRecord(pipeline.OperationSnapshot, keyJSON, metaJSON, dataJSON)
 		wr.Resource = resourceName
 		wr.Projected = projected
-		if tracker != nil && tracker.Observe(record) {
-			c.reportWatermarkOnce(res.Name, tracker)
-		}
-		if tracker != nil && tracker.Current() != "" {
-			wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+		if tracker != nil {
+			advanced, err := tracker.ObserveChecked(record)
+			if err != nil {
+				return fmt.Errorf("incremental cursor: %w", err)
+			}
+			if advanced {
+				c.reportWatermarkOnce(res.Name, tracker)
+			}
+			if tracker.Current() != "" {
+				wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+			}
 		}
 		if err := sink.Send(ctx, wr); err != nil {
 			return fmt.Errorf("stream send: %w", err)

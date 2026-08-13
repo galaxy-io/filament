@@ -99,6 +99,13 @@ type ExtractOptions struct {
 	// owns checkpoint persistence. Outer key is resource name, inner key is the
 	// manifest checkpoint key.
 	ResumeWatermarks map[string]map[string]string
+	// IncrementalLookbacks overrides manifest overlap_seconds for resources
+	// whose pipeline route explicitly configures a lookback window.
+	IncrementalLookbacks map[string]int
+	// IncrementalResources identifies resources whose current route selected
+	// incremental mode. nil preserves the standalone connector's manifest-led
+	// behavior; a non-nil empty map explicitly selects full extraction.
+	IncrementalResources map[string]bool
 }
 
 // ResourceRef identifies a single discovered resource by connector-side kind+id.

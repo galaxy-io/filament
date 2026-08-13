@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { useNodeId, useUpdateNodeInternals } from "@xyflow/react";
 
 import Badge, { BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
@@ -13,7 +12,9 @@ import {
   PIPELINE_CANVAS_NODE_PADDING,
   PIPELINE_CANVAS_NODE_TABLE_LIST_MAX_HEIGHT,
 } from "@/pages/pipelines/canvas/nodes/constants";
+import { usePipelineCanvasNodeIslandMeasurements } from "@/pages/pipelines/canvas/nodes/hooks/usePipelineCanvasNodeIslandMeasurements";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
+import PipelineCanvasNodeSourceIslandHiddenHandles from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIslandHiddenHandles";
 import PipelineCanvasNodeSourceIslandTableList from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIslandTableList";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
@@ -71,23 +72,25 @@ const PipelineCanvasNodeSourceIsland = ({
   isLoading = false,
   isSelected,
 }: PipelineCanvasNodeSourceIslandProps) => {
-  const nodeId = useNodeId();
-  const updateNodeInternals = useUpdateNodeInternals();
   const [state, setState] = useState<PipelineCanvasNodeSourceIslandState>(DEFAULT_STATE);
-
-  const syncNodeInternals = () => {
-    if (nodeId) {
-      updateNodeInternals(nodeId);
-    }
-  };
-
-  const handleSearchChange = (search: string) => {
-    setState((prev) => ({ ...prev, search }));
-    syncNodeInternals();
-  };
 
   const filteredTables = tables.filter((table) => isSearchMatch(state.search, table.name));
   const connectedCount = tables.filter((table) => table.isConnected).length;
+
+  const hasRows = !isLoading && !error && filteredTables.length > 0;
+  const renderedNames = new Set(hasRows ? filteredTables.map((table) => table.name) : []);
+  const hiddenTables = tables.filter(
+    (table) => table.isConnected && !renderedNames.has(table.name),
+  );
+
+  const { listRef, badgeRef, syncMeasurements } = usePipelineCanvasNodeIslandMeasurements(
+    hiddenTables.map((table) => table.name),
+  );
+
+  const handleSearchChange = (search: string) => {
+    setState((prev) => ({ ...prev, search }));
+    syncMeasurements();
+  };
 
   return (
     <IslandWrapper $isSelected={isSelected}>
@@ -100,7 +103,7 @@ const PipelineCanvasNodeSourceIsland = ({
           fillWidth
         />
         {connectedCount > 0 && (
-          <BadgeSlot>
+          <BadgeSlot ref={badgeRef}>
             <Badge count={connectedCount} variant={BadgeVariant.SECONDARY} />
           </BadgeSlot>
         )}
@@ -108,12 +111,13 @@ const PipelineCanvasNodeSourceIsland = ({
 
       <HorizontalDivider />
 
-      <TableList className="nowheel" onScroll={syncNodeInternals}>
+      <TableList ref={listRef} className="nowheel" onScroll={syncMeasurements}>
         <PipelineCanvasNodeSourceIslandTableList
           tables={filteredTables}
           error={error}
           isLoading={isLoading}
         />
+        <PipelineCanvasNodeSourceIslandHiddenHandles tables={hiddenTables} />
       </TableList>
     </IslandWrapper>
   );

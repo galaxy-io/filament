@@ -35,7 +35,7 @@ export const getSinkWriteModes = (spec: ConnectorSpec | undefined): WriteMode[] 
     ? spec.capabilities.writeModes
     : CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES;
 
-const getCompatibleWriteModes = (
+export const getCompatibleWriteModes = (
   readModes: ReadMode[],
   writeModesByReadMode: Partial<Record<ReadMode, WriteMode[]>>,
 ): WriteMode[] =>
@@ -45,7 +45,7 @@ const getCompatibleWriteModes = (
         .reduce((left, right) => left.filter((mode) => right.includes(mode)))
     : [...new Set(Object.values(writeModesByReadMode).flatMap((writeModes) => writeModes ?? []))];
 
-const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
+export const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
   columns
     .filter((column) => column.cursorEligible)
     .sort((left, right) => {

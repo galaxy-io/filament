@@ -5,6 +5,7 @@ import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { GalaxyTheme } from "@galaxy-io/dls/theme";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -145,13 +146,32 @@ const ConnectorTile = ({
   );
 };
 
-export const ConnectorOverflowTile = ({ count }: { count: number }) => {
+export const ConnectorOverflowTile = ({
+  count,
+  size = ConnectorTileSize.MEDIUM,
+}: {
+  count: number;
+  size?: ConnectorTileSize;
+}) => {
   return (
-    <TileWrapper $size={ConnectorTileSize.SMALL} $isClickable={false} $isDeleted={false}>
+    <TileWrapper $size={size} $isClickable={false} $isDeleted={false}>
       <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isMonospace>
         +{count}
       </Text>
     </TileWrapper>
+  );
+};
+
+export const ConnectorTileShimmer = ({
+  size = ConnectorTileSize.MEDIUM,
+}: {
+  size?: ConnectorTileSize;
+}) => {
+  return (
+    <TextShimmer
+      height={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]}
+      width={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]}
+    />
   );
 };
 
