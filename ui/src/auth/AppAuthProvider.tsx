@@ -1,4 +1,4 @@
-import { type PropsWithChildren, useEffect, useState } from "react";
+import { type PropsWithChildren, useEffect, useLayoutEffect, useMemo } from "react";
 
 import { BugIcon } from "@phosphor-icons/react";
 import { AuthProvider, useAuth } from "react-oidc-context";
@@ -8,25 +8,22 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import ErrorLayout from "@/layouts/ErrorLayout";
 import PendingLayout from "@/layouts/PendingLayout";
 
-import { type AuthConfig, fetchAuthConfig } from "@/auth/config";
+import { useGetAuthConfigQuery } from "@/api/queries/auth";
+
 import InvitePage from "@/auth/InvitePage";
 import LoginPage from "@/auth/LoginPage";
 import RegisterPage from "@/auth/RegisterPage";
+import { AppSessionProvider } from "@/auth/session";
 import { setAccessTokenGetter, setProfileGetter } from "@/auth/token";
 
 // Zitadel returns the user's org (the tenant) only when this scope is
 // requested; offline_access adds the refresh token silent renew needs.
 const SCOPE = "openid profile email offline_access urn:zitadel:iam:user:resourceowner";
 
-// AppAuthProvider fetches /auth/config before first render. Auth disabled
+// AppAuthProvider reads AuthService config before first render. Auth disabled
 // renders the app untouched; enabled wraps it in the OIDC session gate.
 const AppAuthProvider = ({ children }: PropsWithChildren) => {
-  const [config, setConfig] = useState<AuthConfig | undefined>(undefined);
-  const [error, setError] = useState<Error | undefined>(undefined);
-
-  useEffect(() => {
-    fetchAuthConfig().then(setConfig).catch(setError);
-  }, []);
+  const { data: config, error, isLoading } = useGetAuthConfigQuery();
 
   if (error) {
     return (
@@ -38,11 +35,11 @@ const AppAuthProvider = ({ children }: PropsWithChildren) => {
       />
     );
   }
-  if (!config) {
+  if (isLoading || !config) {
     return <PendingLayout />;
   }
   if (!config.issuer) {
-    return children;
+    return <AppSessionProvider value={{ isAuthEnabled: false }}>{children}</AppSessionProvider>;
   }
   // Zitadel's authorize endpoint redirects here for credentials; the login
   // and signup pages live outside the session gate by definition.
@@ -78,7 +75,18 @@ const AppAuthProvider = ({ children }: PropsWithChildren) => {
 const SessionGate = ({ children }: PropsWithChildren) => {
   const auth = useAuth();
 
-  useEffect(() => {
+  const session = useMemo(() => {
+    const profile = auth.user?.profile;
+    return {
+      isAuthEnabled: true,
+      accessToken: auth.user?.access_token,
+      userId: profile?.sub,
+      name: profile?.name,
+      email: profile?.email,
+    };
+  }, [auth.user]);
+
+  useLayoutEffect(() => {
     setAccessTokenGetter(() => auth.user?.access_token);
     setProfileGetter(() => {
       const profile = auth.user?.profile;
@@ -109,7 +117,7 @@ const SessionGate = ({ children }: PropsWithChildren) => {
   if (!auth.isAuthenticated) {
     return <PendingLayout />;
   }
-  return children;
+  return <AppSessionProvider value={session}>{children}</AppSessionProvider>;
 };
 
 export default AppAuthProvider;

@@ -12,29 +12,25 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import FilamentWordmark from "@/components/FilamentWordmark";
 
-import { API_URL } from "@/constants";
+import { useAcceptInviteMutation } from "@/api/mutations/auth";
 
+import { decodeInviteToken } from "@/auth/inviteToken";
 import { Card, Page } from "@/auth/LoginPage";
+import { getErrorMessage } from "@/utils/errors";
 
 // InvitePage redeems an invite link (/invite?userId=..&code=..): the invited
 // teammate picks a password and then signs in through the normal flow.
 const InvitePage = () => {
   // The link is /invite/<token> where token packs "userId:code".
   const token = window.location.pathname.replace(/^\/invite\/?/, "");
-  let userId = "";
-  let code = "";
-  try {
-    [userId = "", code = ""] = atob(token).split(":");
-  } catch {
-    // fall through to the redirect below
-  }
+  const invite = decodeInviteToken(token);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const { mutate: acceptInvite, isPending } = useAcceptInviteMutation();
 
-  const handleSubmit = async () => {
-    if (pending) {
+  const handleSubmit = () => {
+    if (isPending || !invite) {
       return;
     }
     if (password === "") {
@@ -45,27 +41,21 @@ const InvitePage = () => {
       setError("Passwords do not match");
       return;
     }
-    setPending(true);
     setError(undefined);
-    try {
-      const res = await fetch(`${API_URL}/auth/invite/accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, code, password }),
-      });
-      if (!res.ok) {
-        setError(await res.text());
-        return;
-      }
-      window.location.replace("/");
-    } catch {
-      setError("Something went wrong, please try again");
-    } finally {
-      setPending(false);
-    }
+    acceptInvite(
+      { userId: invite.userId, code: invite.code, password },
+      {
+        onSuccess: () => {
+          window.location.replace("/");
+        },
+        onError: (err) => {
+          setError(getErrorMessage(err, "Something went wrong, please try again"));
+        },
+      },
+    );
   };
 
-  if (!userId || !code) {
+  if (!invite) {
     window.location.replace("/");
     return null;
   }
@@ -75,7 +65,7 @@ const InvitePage = () => {
       <Card
         onKeyDown={(e: React.KeyboardEvent) => {
           if (e.key === "Enter") {
-            void handleSubmit();
+            handleSubmit();
           }
         }}
       >
@@ -107,9 +97,9 @@ const InvitePage = () => {
             </Text>
           )}
           <Button
-            label={pending ? "Joining..." : "Join organization"}
-            onClick={() => void handleSubmit()}
-            isDisabled={pending}
+            label={isPending ? "Joining..." : "Join organization"}
+            onClick={handleSubmit}
+            isDisabled={isPending}
             fillWidth
           />
         </FlexWrapper>

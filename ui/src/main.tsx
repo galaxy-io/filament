@@ -15,6 +15,18 @@ import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
 
 import AppAuthProvider from "@/auth/AppAuthProvider";
 
+const GALAXY_THEME_VALUES = new Set<string>(Object.values(GalaxyTheme));
+
+const themeStorage = {
+  get: (key: string): GalaxyTheme | null => {
+    const theme = window.localStorage.getItem(key);
+    return theme && GALAXY_THEME_VALUES.has(theme) ? (theme as GalaxyTheme) : null;
+  },
+  set: (key: string, theme: GalaxyTheme) => {
+    window.localStorage.setItem(key, theme);
+  },
+};
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Root element not found");
@@ -22,12 +34,12 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   <StrictMode>
-    <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM}>
-      <AppAuthProvider>
-        <TransportQueryClientProvider>
+    <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM} storage={themeStorage}>
+      <TransportQueryClientProvider>
+        <AppAuthProvider>
           <App />
-        </TransportQueryClientProvider>
-      </AppAuthProvider>
+        </AppAuthProvider>
+      </TransportQueryClientProvider>
     </GalaxyThemeProvider>
   </StrictMode>,
 );

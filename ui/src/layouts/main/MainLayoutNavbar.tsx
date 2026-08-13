@@ -15,7 +15,7 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import DocsButton from "@/components/DocsButton";
 import FilamentWordmark from "@/components/FilamentWordmark";
 import GithubButton from "@/components/GithubButton";
-import TeamButton from "@/components/TeamButton";
+import SettingsButton from "@/components/SettingsButton";
 
 import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
 
@@ -118,7 +118,7 @@ const MainLayoutNavbar = () => {
       >
         <DocsButton label="Read the docs" />
         <GithubButton />
-        <TeamButton />
+        <SettingsButton />
       </FlexWrapper>
     </NavbarWrapper>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Code, ConnectError } from "@connectrpc/connect";
 import { styled } from "@linaria/react";
 
 import Button from "@galaxy-io/dls/buttons/Button";
@@ -18,7 +19,7 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import FilamentWordmark from "@/components/FilamentWordmark";
 
-import { API_URL } from "@/constants";
+import { useLoginMutation } from "@/api/mutations/auth";
 
 export const Page = withTheme(styled.div<PropsWithTheme>`
   position: relative;
@@ -29,7 +30,7 @@ export const Page = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.primary};
 `);
 
-export const LinkText = styled.span`
+export const LinkText = styled.a`
   cursor: pointer;
 
   &:hover {
@@ -56,40 +57,33 @@ const LoginPage = () => {
   const authRequestId = new URLSearchParams(window.location.search).get("authRequest") ?? "";
   const [loginName, setLoginName] = useState("");
   const [password, setPassword] = useState("");
-  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const { mutate: login, isPending } = useLoginMutation();
 
-  const handleSubmit = async () => {
-    if (pending) {
+  const handleSubmit = () => {
+    if (isPending) {
       return;
     }
     if (loginName === "" || password === "") {
       setError("Enter your email and password");
       return;
     }
-    setPending(true);
     setError(undefined);
-    try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authRequestId, loginName, password }),
-      });
-      if (res.status === 401) {
-        setError("Incorrect email or password");
-        return;
-      }
-      if (!res.ok) {
-        setError("Sign-in failed, please try again");
-        return;
-      }
-      const { callbackUrl } = (await res.json()) as { callbackUrl: string };
-      window.location.href = callbackUrl;
-    } catch {
-      setError("Sign-in failed, please try again");
-    } finally {
-      setPending(false);
-    }
+    login(
+      { authRequestId, loginName, password },
+      {
+        onSuccess: ({ callbackUrl }) => {
+          window.location.href = callbackUrl;
+        },
+        onError: (err) => {
+          setError(
+            ConnectError.from(err).code === Code.Unauthenticated
+              ? "Incorrect email or password"
+              : "Sign-in failed, please try again",
+          );
+        },
+      },
+    );
   };
 
   if (!authRequestId) {
@@ -104,7 +98,7 @@ const LoginPage = () => {
       <Card
         onKeyDown={(e: React.KeyboardEvent) => {
           if (e.key === "Enter") {
-            void handleSubmit();
+            handleSubmit();
           }
         }}
       >
@@ -137,9 +131,9 @@ const LoginPage = () => {
             </Text>
           )}
           <Button
-            label={pending ? "Signing in..." : "Sign in"}
-            onClick={() => void handleSubmit()}
-            isDisabled={pending}
+            label={isPending ? "Signing in..." : "Sign in"}
+            onClick={handleSubmit}
+            isDisabled={isPending}
             fillWidth
           />
         </FlexWrapper>
@@ -152,11 +146,7 @@ const LoginPage = () => {
           <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
             New to filament?
           </Text>
-          <LinkText
-            onClick={() => {
-              window.location.href = "/register";
-            }}
-          >
+          <LinkText href="/register">
             <Text size={TextSize.BODY_SM} variant={TextVariant.BLUE}>
               Create an organization
             </Text>

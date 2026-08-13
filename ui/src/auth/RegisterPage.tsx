@@ -14,9 +14,10 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import FilamentWordmark from "@/components/FilamentWordmark";
 
-import { API_URL } from "@/constants";
+import { useRegisterMutation } from "@/api/mutations/auth";
 
 import { Card, LinkText, Page } from "@/auth/LoginPage";
+import { getErrorMessage } from "@/utils/errors";
 
 // RegisterPage is filament's self-service signup: one organization plus its
 // first admin user. The org becomes the tenant. On success the user goes
@@ -27,11 +28,11 @@ const RegisterPage = () => {
   const [familyName, setFamilyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const { mutate: register, isPending } = useRegisterMutation();
 
-  const handleSubmit = async () => {
-    if (pending) {
+  const handleSubmit = () => {
+    if (isPending) {
       return;
     }
     if (
@@ -44,25 +45,18 @@ const RegisterPage = () => {
       setError("All fields are required");
       return;
     }
-    setPending(true);
     setError(undefined);
-    try {
-      const res = await fetch(`${API_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgName, givenName, familyName, email, password }),
-      });
-      if (!res.ok) {
-        setError(await res.text());
-        return;
-      }
-      // Registration done; run the normal sign-in flow from the top.
-      window.location.replace("/");
-    } catch {
-      setError("Sign-up failed, please try again");
-    } finally {
-      setPending(false);
-    }
+    register(
+      { orgName, givenName, familyName, email, password },
+      {
+        onSuccess: () => {
+          window.location.replace("/");
+        },
+        onError: (err) => {
+          setError(getErrorMessage(err, "Sign-up failed, please try again"));
+        },
+      },
+    );
   };
 
   return (
@@ -70,7 +64,7 @@ const RegisterPage = () => {
       <Card
         onKeyDown={(e: React.KeyboardEvent) => {
           if (e.key === "Enter") {
-            void handleSubmit();
+            handleSubmit();
           }
         }}
       >
@@ -112,9 +106,9 @@ const RegisterPage = () => {
             </Text>
           )}
           <Button
-            label={pending ? "Creating..." : "Create organization"}
-            onClick={() => void handleSubmit()}
-            isDisabled={pending}
+            label={isPending ? "Creating..." : "Create organization"}
+            onClick={handleSubmit}
+            isDisabled={isPending}
             fillWidth
           />
         </FlexWrapper>
@@ -127,11 +121,7 @@ const RegisterPage = () => {
           <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
             Already have an account?
           </Text>
-          <LinkText
-            onClick={() => {
-              window.location.href = "/";
-            }}
-          >
+          <LinkText href="/">
             <Text size={TextSize.BODY_SM} variant={TextVariant.BLUE}>
               Sign in
             </Text>
