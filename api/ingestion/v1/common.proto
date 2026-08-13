@@ -4,6 +4,23 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 
+// WorkerResources sizes the worker that executes a run. Values are Kubernetes
+// quantity strings ("500m", "2Gi"); an empty field is unset and inherits, and
+// only the Kubernetes dispatcher consults them.
+message WorkerResources {
+  string cpu_request = 1;
+  string cpu_limit = 2;
+  string memory_request = 3;
+  string memory_limit = 4;
+}
+
+// WorkerConfiguration is how a pipeline's workers are shaped. It is a container
+// on purpose: resources today, placement (node selectors, tolerations) later,
+// without a migration per knob.
+message WorkerConfiguration {
+  WorkerResources resources = 1;
+}
+
 // ConnectorKind distinguishes a source from a sink in the catalog.
 enum ConnectorKind {
   CONNECTOR_KIND_UNSPECIFIED = 0;

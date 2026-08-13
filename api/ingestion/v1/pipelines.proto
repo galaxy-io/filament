@@ -68,6 +68,10 @@ message Pipeline {
   int64 last_run_ended_at = 10;
   int64 created_at = 11;
   int64 deleted_at = 12;
+  // worker_configuration shapes this pipeline's runs by default. It lives on
+  // the pipeline rather than the version so editing it cannot mint a version
+  // and orphan the resource checkpoints keyed by the old one.
+  WorkerConfiguration worker_configuration = 13;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -99,6 +103,9 @@ message CreatePipelineRequest {
   string name = 2;
   string description = 3;
   PipelineScheduleConfig schedule = 4;
+  // worker_configuration shapes this pipeline's runs. Omit it to configure the
+  // pipeline's workers later through UpdatePipeline.
+  WorkerConfiguration worker_configuration = 5;
 }
 
 message CreatePipelineResponse {
