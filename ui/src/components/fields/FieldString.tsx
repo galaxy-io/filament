@@ -7,6 +7,7 @@ const FieldString = ({
   field,
   value,
   onChange,
+  variant,
   error,
   isDisabled = false,
   label,
@@ -16,6 +17,7 @@ const FieldString = ({
       value={(value as string) ?? ""}
       onChange={(v) => onChange(v)}
       size={InputSize.LARGE}
+      variant={variant}
       placeholder={`Enter ${label}...`}
       label={label}
       labelTooltip={field.help || undefined}

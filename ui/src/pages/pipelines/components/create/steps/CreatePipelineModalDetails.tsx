@@ -1,6 +1,6 @@
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
@@ -36,7 +36,7 @@ const CreatePipelineModalDetails = () => {
             payload: nextDescription,
           })
         }
-        size={TextAreaSize.LARGE}
+        size={InputSize.LARGE}
         placeholder="Enter an optional description..."
         label="Description"
         fillHeight

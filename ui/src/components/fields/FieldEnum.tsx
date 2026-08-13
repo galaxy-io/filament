@@ -8,6 +8,7 @@ const FieldEnum = ({
   field,
   value,
   onChange,
+  variant,
   error,
   isDisabled = false,
   label,
@@ -26,6 +27,7 @@ const FieldEnum = ({
         options={options}
         value={selectedOption}
         onChange={(opt) => onChange(opt.value as string)}
+        variant={variant}
         placeholder={`Select ${label}...`}
         error={error}
         isDisabled={isDisabled}

@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
@@ -105,6 +106,7 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
                 key={field.name}
                 field={field}
                 value={displayValue[field.name] ?? null}
+                variant={InputVariant.TERTIARY}
                 onChange={(value) =>
                   setNodeConfig(node.id, {
                     ...configValue,

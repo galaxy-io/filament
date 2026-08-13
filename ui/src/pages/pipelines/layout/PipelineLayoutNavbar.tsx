@@ -15,10 +15,7 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, {
-  type SelectInputOption,
-  SelectInputVariant,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -258,7 +255,6 @@ const PipelineLayoutNavbar = () => {
             value={selectedVersionOption}
             onChange={handleVersionChange}
             size={InputSize.SMALL}
-            variant={SelectInputVariant.PRIMARY}
             dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
             isDisabled={hasUnsavedChanges}
           />
