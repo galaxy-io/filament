@@ -21,6 +21,7 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
+  PIPELINE_CANVAS_PAN_ON_DRAG,
   PIPELINE_CANVAS_SNAP_GRID,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
@@ -38,7 +39,6 @@ import {
   usePipelineCanvasReadOnly,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { PipelineCanvasInteractionMode } from "@/pages/pipelines/canvas/providers/canvas/types";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 import {
@@ -66,14 +66,14 @@ const PIPELINE_EDGE_TYPE_TO_COMPONENT_MAP: Record<
   [PIPELINE_CANVAS_EDGE_TYPE]: PipelineCanvasEdge,
 };
 
-const PipelineCanvasPageWrapper = withTheme(styled.div<PropsWithTheme<{ $isGrabMode?: boolean }>>`
+const PipelineCanvasPageWrapper = withTheme(styled.div<PropsWithTheme>`
   position: relative;
   flex: 1;
   min-width: 0;
   height: 100%;
 
   .react-flow__pane {
-    cursor: ${({ $isGrabMode }) => ($isGrabMode ? "grab" : "default")};
+    cursor: grab;
   }
 
   .react-flow__pane.dragging {
@@ -110,8 +110,6 @@ const PipelineCanvasPage = () => {
     selectResource,
     clearSelection,
   } = usePipelineCanvasSelection();
-
-  const isGrabMode = state.interactionMode === PipelineCanvasInteractionMode.GRAB;
 
   const onNodesChange = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {
@@ -180,7 +178,7 @@ const PipelineCanvasPage = () => {
   );
 
   return (
-    <PipelineCanvasPageWrapper $isGrabMode={isGrabMode}>
+    <PipelineCanvasPageWrapper>
       <ReactFlow
         nodes={renderedNodes}
         edges={styledEdges}
@@ -196,7 +194,7 @@ const PipelineCanvasPage = () => {
         nodesDraggable={!isReadOnly}
         nodesConnectable={!isReadOnly}
         elementsSelectable
-        panOnDrag={isGrabMode ? [0, 1, 2] : [1, 2]}
+        panOnDrag={PIPELINE_CANVAS_PAN_ON_DRAG}
         panOnScroll
         snapToGrid
         snapGrid={PIPELINE_CANVAS_SNAP_GRID}

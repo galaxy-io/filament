@@ -54,7 +54,7 @@ const SetupCard = withTheme(styled.div<PropsWithTheme>`
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.galaxy};
   border-radius: 6px;
 
   overflow: hidden;
@@ -145,7 +145,7 @@ const ObservabilitySetupChecklist = () => {
         </SetupCard>
         <ProgressBar
           percentage={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
-          variant={ProgressBarVariant.SUCCESS}
+          variant={ProgressBarVariant.PRIMARY}
           height={4}
           noAnimation
         />

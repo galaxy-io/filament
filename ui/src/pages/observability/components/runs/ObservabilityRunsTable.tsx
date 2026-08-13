@@ -18,15 +18,14 @@ import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/
 
 import PipelineName from "@/components/PipelineName";
 
-import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
+import ObservabilityRunsTableColumnFlow from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnFlow";
 import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
@@ -114,18 +113,17 @@ const ObservabilityRunsTable = () => {
         ),
       },
       {
-        id: "connectors",
-        header: "Connectors",
-        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
+        id: "flow",
+        header: "Flow",
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
         pin: ColumnPin.LEFT,
         cellLoading: () => <TextShimmer width={120} height={18} />,
-        cell: ({ row }) => <ObservabilityRunsTableColumnConnectors runInfo={row.original} />,
+        cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row.original} />,
       },
       {
         id: "pipeline",
         header: "Pipeline",
-        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
-        maxSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
       },
@@ -165,7 +163,7 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatCount(row.original.records)}
+            {row.original.status === RunStatus.SCHEDULED ? "—" : formatCount(row.original.records)}
           </Text>
         ),
       },
@@ -178,7 +176,7 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatBytes(row.original.bytes)}
+            {row.original.status === RunStatus.SCHEDULED ? "—" : formatBytes(row.original.bytes)}
           </Text>
         ),
       },
@@ -227,7 +225,7 @@ const ObservabilityRunsTable = () => {
       params: {
         id: row.original.pipelineId,
       },
-      search: { runId: row.original.runId },
+      search: { runId: [row.original.runId] },
     });
   };
 

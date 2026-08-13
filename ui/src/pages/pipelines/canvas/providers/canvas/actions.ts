@@ -5,7 +5,6 @@ import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
 import type {
   PipelineCanvasEditMode,
   PipelineCanvasGraph,
-  PipelineCanvasInteractionMode,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
 import type {
   CanvasEdge,
@@ -22,7 +21,6 @@ export enum PipelineCanvasActionType {
   APPLY_EDGE_CHANGES = "APPLY_EDGE_CHANGES",
   CONNECT = "CONNECT",
   SET_ACTIVE_MODE = "SET_ACTIVE_MODE",
-  SET_INTERACTION_MODE = "SET_INTERACTION_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
   SET_EDGE_CONFIG = "SET_EDGE_CONFIG",
 }
@@ -67,11 +65,6 @@ export interface SetActiveModeAction {
   payload: PipelineCanvasEditMode | null;
 }
 
-export interface SetInteractionModeAction {
-  type: PipelineCanvasActionType.SET_INTERACTION_MODE;
-  payload: PipelineCanvasInteractionMode;
-}
-
 export interface SetNodeConfigAction {
   type: PipelineCanvasActionType.SET_NODE_CONFIG;
   payload: { nodeId: PipelineNode["id"]; config: NonNullable<PipelineNode["config"]> };
@@ -91,6 +84,5 @@ export type PipelineCanvasAction =
   | ApplyEdgeChangesAction
   | ConnectAction
   | SetActiveModeAction
-  | SetInteractionModeAction
   | SetNodeConfigAction
   | SetEdgeConfigAction;
