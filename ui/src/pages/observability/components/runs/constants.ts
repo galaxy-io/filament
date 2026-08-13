@@ -25,7 +25,7 @@ export const OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP: Record<RunStatus, ChartPalet
   [RunStatus.SCHEDULED]: ChartPalette.YELLOW,
   [RunStatus.CANCELED]: ChartPalette.PURPLE,
   [RunStatus.PAUSED]: ChartPalette.ORANGE,
-  [RunStatus.PARTIAL]: ChartPalette.TEAL,
+  [RunStatus.PARTIAL]: ChartPalette.PINK,
 };
 
 export const OBSERVABILITY_RUN_STATUS_OPTIONS: SelectInputOption[] = OBSERVABILITY_RUN_STATUSES.map(
