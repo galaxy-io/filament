@@ -23,7 +23,7 @@
     "@connectrpc/connect": "^2.1.0",
     "@connectrpc/connect-query": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.0",
-    "@galaxy-io/dls": "^1.4.14",
+    "@galaxy-io/dls": "^1.4.15",
     "@linaria/core": "^7.0.0",
     "@linaria/react": "^7.0.1",
     "@phosphor-icons/react": "^2.1.10",
