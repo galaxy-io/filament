@@ -32,3 +32,6 @@ charts/filament/values-*.yaml
 
 # Environment
 .env
+
+# Zitadel bootstrap PAT (docker-compose bind mount)
+.zitadel/

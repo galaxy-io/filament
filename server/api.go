@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"connectrpc.com/connect"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
 	"github.com/galaxy-io/filament/api/metrics/v1/metricsv1connect"
@@ -27,6 +29,7 @@ type Server struct {
 	schedules filament.PipelineScheduleStore
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
+	auth      connect.Interceptor
 }
 
 // Option configures a Server.
@@ -38,6 +41,10 @@ func WithSecrets(secrets filament.Secrets) Option { return func(s *Server) { s.s
 // WithMetricsStore sets the run metrics query backend. Unset leaves
 // MetricsService unimplemented.
 func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) { s.metrics = ms } }
+
+// WithAuth installs an interceptor on every RPC handler. Unset leaves the
+// API unauthenticated.
+func WithAuth(ic connect.Interceptor) Option { return func(s *Server) { s.auth = ic } }
 
 // New returns a Server wired to the given providers.
 func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
@@ -60,9 +67,13 @@ func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store fil
 
 // Mount registers the Connect handlers on mux.
 func (a *Server) Mount(mux *http.ServeMux) {
-	path, handler := ingestionv1connect.NewIngestionServiceHandler(a)
+	var opts []connect.HandlerOption
+	if a.auth != nil {
+		opts = append(opts, connect.WithInterceptors(a.auth))
+	}
+	path, handler := ingestionv1connect.NewIngestionServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
-	path, handler = metricsv1connect.NewMetricsServiceHandler(a)
+	path, handler = metricsv1connect.NewMetricsServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
 }
 

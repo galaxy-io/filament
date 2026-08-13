@@ -3,6 +3,8 @@ module github.com/galaxy-io/filament/cmd
 go 1.26.4
 
 require (
+	connectrpc.com/connect v1.20.0
+	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
@@ -34,7 +36,6 @@ require (
 	cloud.google.com/go/iam v1.11.0 // indirect
 	cloud.google.com/go/monitoring v1.29.0 // indirect
 	cloud.google.com/go/storage v1.63.1 // indirect
-	connectrpc.com/connect v1.20.0 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0 // indirect
