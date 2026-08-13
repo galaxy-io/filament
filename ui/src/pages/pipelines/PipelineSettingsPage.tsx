@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { useParams } from "@tanstack/react-router";
+import { notFound, useParams } from "@tanstack/react-router";
 
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
@@ -45,7 +45,7 @@ const PipelineSettingsPage = () => {
   });
 
   if (!data.pipeline) {
-    throw new Error(`Pipeline ${id} not found`);
+    throw notFound();
   }
 
   return (
