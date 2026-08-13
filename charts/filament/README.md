@@ -101,6 +101,7 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.job.ttlSecondsAfterFinished | int | `3600` | Seconds to retain completed dispatched worker Jobs. |
 | controlPlane.dispatch.mode | string | `"kubernetes"` | Worker dispatch backend. |
 | controlPlane.dispatch.worker.activeDeadlineSeconds | string | `""` | Worker Job active deadline in seconds. Leave empty for no deadline. |
+| controlPlane.dispatch.worker.heartbeatSeconds | int | `30` | Interval in seconds between worker heartbeats, stored in the worker ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default. |
 | controlPlane.dispatch.worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
 | controlPlane.dispatch.worker.image.pullSecrets | list | `[]` | Image pull secrets for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs. |
@@ -110,6 +111,7 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
 | controlPlane.dispatch.worker.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
+| controlPlane.health.port | int | `8081` | Port the control plane serves `/livez` and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |
 | controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Control plane image pull policy. |
 | controlPlane.image.pullSecrets | list | `[]` | Image pull secrets for the control plane Deployment. |
 | controlPlane.image.repository | string | `"ghcr.io/galaxy-io/filament/control-plane"` | Control plane image repository. |
@@ -123,6 +125,7 @@ helm upgrade --install filament . \
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| metrics.type | string | `"postgresql"` | Metrics backend for the dashboard query API, stored in the server ConfigMap as `METRICSSTORE_PROVIDER`. `postgresql` answers from the datastore's own pool. |
 
 ## Persistence parameters
 
@@ -156,7 +159,9 @@ helm upgrade --install filament . \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | observability.otel.endpoint | string | `""` | OTLP endpoint metrics and traces are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for plaintext in-cluster collectors. Empty disables export. |
+| observability.otel.metricsEndpoint | string | `""` | OTLP endpoint metrics alone are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`. Overrides `endpoint` for metrics; setting it alone also enables export. |
 | observability.otel.protocol | string | `""` | OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`. Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318). Empty defaults to `grpc`. |
+| observability.otel.tracesEndpoint | string | `""` | OTLP endpoint traces alone are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Overrides `endpoint` for traces; setting it alone also enables export. |
 
 ## Vendored PostgreSQL parameters
 

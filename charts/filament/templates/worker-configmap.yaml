@@ -15,11 +15,24 @@ data:
   NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
   NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
 
+  # Heartbeat
+  {{- with .Values.controlPlane.dispatch.worker.heartbeatSeconds }}
+  HEARTBEAT_SECONDS: {{ . | quote }}
+  {{- end }}
+
   # Observability
+  {{- if or .Values.observability.otel.endpoint .Values.observability.otel.metricsEndpoint .Values.observability.otel.tracesEndpoint }}
+  OTEL_SERVICE_NAME: {{ include "filament.worker.fullname" . | quote }}
   {{- with .Values.observability.otel.endpoint }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
-  OTEL_SERVICE_NAME: {{ include "filament.worker.fullname" $ | quote }}
-  {{- with $.Values.observability.otel.protocol }}
+  {{- end }}
+  {{- with .Values.observability.otel.metricsEndpoint }}
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.observability.otel.tracesEndpoint }}
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.observability.otel.protocol }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
   {{- end }}
   {{- end }}
