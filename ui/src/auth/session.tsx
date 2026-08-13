@@ -6,6 +6,7 @@ export interface AppSession {
   userId?: string;
   name?: string;
   email?: string;
+  avatarUrl?: string;
 }
 
 const DEFAULT_SESSION: AppSession = {

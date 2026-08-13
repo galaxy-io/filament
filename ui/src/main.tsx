@@ -13,7 +13,7 @@ import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
 
 import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
 
-import AppAuthProvider from "@/auth/AppAuthProvider";
+import IdentityProvider from "@/auth/IdentityProvider";
 
 const GALAXY_THEME_VALUES = new Set<string>(Object.values(GalaxyTheme));
 
@@ -36,9 +36,9 @@ root.render(
   <StrictMode>
     <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM} storage={themeStorage}>
       <TransportQueryClientProvider>
-        <AppAuthProvider>
+        <IdentityProvider>
           <App />
-        </AppAuthProvider>
+        </IdentityProvider>
       </TransportQueryClientProvider>
     </GalaxyThemeProvider>
   </StrictMode>,

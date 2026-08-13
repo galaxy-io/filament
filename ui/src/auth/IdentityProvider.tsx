@@ -1,7 +1,7 @@
 import { type PropsWithChildren, useEffect, useLayoutEffect, useMemo } from "react";
 
 import { BugIcon } from "@phosphor-icons/react";
-import { AuthProvider, useAuth } from "react-oidc-context";
+import { AuthProvider as OidcAuthProvider, useAuth } from "react-oidc-context";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
@@ -20,9 +20,9 @@ import { setAccessTokenGetter, setProfileGetter } from "@/auth/token";
 // requested; offline_access adds the refresh token silent renew needs.
 const SCOPE = "openid profile email offline_access urn:zitadel:iam:user:resourceowner";
 
-// AppAuthProvider reads AuthService config before first render. Auth disabled
+// IdentityProvider reads AuthService config before first render. Auth disabled
 // renders the app untouched; enabled wraps it in the OIDC session gate.
-const AppAuthProvider = ({ children }: PropsWithChildren) => {
+const IdentityProvider = ({ children }: PropsWithChildren) => {
   const { data: config, error, isLoading } = useGetAuthConfigQuery();
 
   if (error) {
@@ -53,7 +53,7 @@ const AppAuthProvider = ({ children }: PropsWithChildren) => {
     return <InvitePage />;
   }
   return (
-    <AuthProvider
+    <OidcAuthProvider
       authority={config.issuer}
       client_id={config.clientId}
       redirect_uri={`${window.location.origin}/auth/callback`}
@@ -65,7 +65,7 @@ const AppAuthProvider = ({ children }: PropsWithChildren) => {
       }}
     >
       <SessionGate>{children}</SessionGate>
-    </AuthProvider>
+    </OidcAuthProvider>
   );
 };
 
@@ -83,6 +83,7 @@ const SessionGate = ({ children }: PropsWithChildren) => {
       userId: profile?.sub,
       name: profile?.name,
       email: profile?.email,
+      avatarUrl: profile?.picture,
     };
   }, [auth.user]);
 
@@ -120,4 +121,4 @@ const SessionGate = ({ children }: PropsWithChildren) => {
   return <AppSessionProvider value={session}>{children}</AppSessionProvider>;
 };
 
-export default AppAuthProvider;
+export default IdentityProvider;
