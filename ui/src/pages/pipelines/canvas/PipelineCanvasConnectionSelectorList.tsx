@@ -80,6 +80,9 @@ const PipelineCanvasConnectionSelectorEmpty = ({
   );
 };
 
+const isConnectionDisabled = (connection: Connection, isSourceDisabled: boolean) =>
+  isSourceDisabled && connection.kind === ConnectorKind.SOURCE;
+
 interface PipelineCanvasConnectionSelectorListProps {
   connections: Connection[];
   hasConnections: boolean;
@@ -113,13 +116,18 @@ const PipelineCanvasConnectionSelectorList = ({
     );
   }
 
+  const orderedConnections = [
+    ...connections.filter((connection) => !isConnectionDisabled(connection, isSourceDisabled)),
+    ...connections.filter((connection) => isConnectionDisabled(connection, isSourceDisabled)),
+  ];
+
   return (
     <ConnectionList>
-      {connections.map((connection) => (
+      {orderedConnections.map((connection) => (
         <PipelineCanvasConnectionSelectorItem
           key={connection.id}
           connection={connection}
-          isDisabled={isSourceDisabled && connection.kind === ConnectorKind.SOURCE}
+          isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
           onClick={() => onConnectionClick(connection)}
         />
       ))}

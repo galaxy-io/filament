@@ -1,7 +1,6 @@
-import {
-  type PipelineCanvasGraph,
-  PipelineCanvasInteractionMode,
-  type PipelineCanvasState,
+import type {
+  PipelineCanvasGraph,
+  PipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
 
 export const createInitialPipelineCanvasState = (
@@ -10,5 +9,4 @@ export const createInitialPipelineCanvasState = (
   nodes: graph.nodes,
   edges: graph.edges,
   activeMode: null,
-  interactionMode: PipelineCanvasInteractionMode.GRAB,
 });

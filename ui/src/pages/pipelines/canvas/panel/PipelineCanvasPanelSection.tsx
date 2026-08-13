@@ -1,6 +1,6 @@
 import type { ComponentProps, PropsWithChildren } from "react";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
+import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
 
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
@@ -22,7 +22,12 @@ const PipelineCanvasPanelSection = ({
   isOpenInitial = true,
   children,
 }: PropsWithChildren<PipelineCanvasPanelSectionProps>) => (
-  <Accordion header={header} padding={isEmpty ? "24px" : padding} isOpenInitial={isOpenInitial}>
+  <Accordion
+    header={header}
+    variant={AccordionVariant.TERTIARY}
+    padding={isEmpty ? "24px" : padding}
+    isOpenInitial={isOpenInitial}
+  >
     {isEmpty ? (
       <EmptyLayout size={EmptyLayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
     ) : (

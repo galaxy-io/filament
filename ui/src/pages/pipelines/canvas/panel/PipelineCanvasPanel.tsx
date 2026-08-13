@@ -13,8 +13,8 @@ import {
   PIPELINE_CANVAS_PANEL_INSET,
   PIPELINE_CANVAS_PANEL_WIDTH,
 } from "@/pages/pipelines/canvas/panel/constants";
+import PipelineCanvasPanelNodeDetail from "@/pages/pipelines/canvas/panel/overview/node/PipelineCanvasPanelNodeDetail";
 import PipelineCanvasPanelOverview from "@/pages/pipelines/canvas/panel/overview/PipelineCanvasPanelOverview";
-import PipelineCanvasPanelNodeDetail from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelNodeDetail";
 import PipelineCanvasPanelResourceDetail from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceDetail";
 import PipelineCanvasPanelTabHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelTabHeader";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
@@ -47,7 +47,7 @@ const CollapsedWrapper = styled.div`
   right: ${PIPELINE_CANVAS_PANEL_INSET}px;
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 
-  padding: 8px;
+  padding: 8px 12px;
 
   border: 0.5px solid transparent;
 `;
