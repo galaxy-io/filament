@@ -54,7 +54,7 @@ const SetupCard = withTheme(styled.div<PropsWithTheme>`
 
   background-color: ${({ theme }) => theme.color.background.secondary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.galaxy};
   border-radius: 6px;
 
   overflow: hidden;
