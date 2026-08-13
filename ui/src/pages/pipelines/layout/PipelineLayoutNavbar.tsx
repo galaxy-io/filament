@@ -328,8 +328,8 @@ const PipelineLayoutNavbar = () => {
                 <>
                   <PipelineHistoryRunStatus status={activeRun.status} />
                   <Button
-                    label={activeRun?.status === RunStatus.PAUSED ? "Pause" : "Resume"}
-                    icon={activeRun?.status === RunStatus.PAUSED ? PauseIcon : PlayIcon}
+                    label={activeRun?.status === RunStatus.PAUSED ? "Resume" : "Pause"}
+                    icon={activeRun?.status === RunStatus.PAUSED ? PlayIcon : PauseIcon}
                     variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}

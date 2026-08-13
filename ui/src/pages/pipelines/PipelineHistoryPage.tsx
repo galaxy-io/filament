@@ -128,7 +128,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
 const PipelineHistoryPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
   const navigate = useNavigate();
-  const { runId } = useSearch({ from: "/pipelines/$id/history" });
+  const { runId: runIds = [] } = useSearch({ from: "/pipelines/$id/history" });
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useSuspenseListRunsInfiniteQuery(
     {
@@ -142,7 +142,10 @@ const PipelineHistoryPage = () => {
     void navigate({
       to: ".",
       replace: true,
-      search: (prev) => ({ ...prev, runId: expandedRowIds[expandedRowIds.length - 1] }),
+      search: (prev) => ({
+        ...prev,
+        runId: expandedRowIds.length > 0 ? expandedRowIds : undefined,
+      }),
     });
   };
 
@@ -162,9 +165,8 @@ const PipelineHistoryPage = () => {
           contentWhenEmpty={
             <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
           }
-          expandedRowIds={runId ? [runId] : []}
+          expandedRowIds={runIds}
           onExpandedChange={handleExpandedChange}
-          enableMultiRowExpansion={false}
           onRowExpand={(row) => {
             return <PipelineHistoryRunInfo runId={row.original.runId} />;
           }}

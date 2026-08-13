@@ -225,7 +225,7 @@ const ObservabilityRunsTable = () => {
       params: {
         id: row.original.pipelineId,
       },
-      search: { runId: row.original.runId },
+      search: { runId: [row.original.runId] },
     });
   };
 

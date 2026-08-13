@@ -3,7 +3,7 @@ import { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-export const PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT = 3;
+export const PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT = 1;
 export const PIPELINE_RUN_ERROR_TOOLTIP_MAX_WIDTH = 360;
 
 export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS = 110;
