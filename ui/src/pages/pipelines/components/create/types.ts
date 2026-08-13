@@ -3,7 +3,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
 
-import type { WorkerResourcesState } from "@/pages/pipelines/components/worker/WorkerResourcesFields";
+import type { WorkerResourcesState } from "@/pages/pipelines/components/worker/types";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalStep {

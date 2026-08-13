@@ -4,7 +4,7 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
 
 import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
-import type { WorkerResourcesState } from "@/pages/pipelines/components/worker/WorkerResourcesFields";
+import type { WorkerResourcesState } from "@/pages/pipelines/components/worker/types";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalActionType {
