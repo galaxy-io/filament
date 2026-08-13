@@ -22,8 +22,6 @@ export const useCreatePipelineScheduleMutation = (
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(),
       });
-      // The server reconciles the schedule's pre-created SCHEDULED run rows
-      // before responding, so every runs list is stale once this settles.
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(),
       });
