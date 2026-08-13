@@ -4,6 +4,7 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
 
 import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
+import type { WorkerResourcesState } from "@/pages/pipelines/components/worker/WorkerResourcesFields";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalActionType {
@@ -18,6 +19,7 @@ export enum CreatePipelineModalActionType {
   SET_NAME = "SET_NAME",
   SET_DESCRIPTION = "SET_DESCRIPTION",
   SET_SCHEDULE = "SET_SCHEDULE",
+  SET_WORKER_RESOURCES = "SET_WORKER_RESOURCES",
   GO_TO_STEP = "GO_TO_STEP",
   GO_BACK = "GO_BACK",
   GO_NEXT = "GO_NEXT",
@@ -87,6 +89,11 @@ export interface SetScheduleAction {
   payload: Partial<PipelineSettingsPageScheduleState>;
 }
 
+export interface SetWorkerResourcesAction {
+  type: CreatePipelineModalActionType.SET_WORKER_RESOURCES;
+  payload: Partial<WorkerResourcesState>;
+}
+
 export interface GoToStepAction {
   type: CreatePipelineModalActionType.GO_TO_STEP;
   payload: CreatePipelineModalStep;
@@ -117,6 +124,7 @@ export type CreatePipelineModalAction =
   | SetNameAction
   | SetDescriptionAction
   | SetScheduleAction
+  | SetWorkerResourcesAction
   | GoToStepAction
   | GoBackAction
   | GoNextAction

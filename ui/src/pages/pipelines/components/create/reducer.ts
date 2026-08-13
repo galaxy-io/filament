@@ -13,6 +13,7 @@ import {
   type SetScheduleAction,
   type SetSinkWriteModeAction,
   type SetSubmittingAction,
+  type SetWorkerResourcesAction,
   type ToggleSinkAction,
 } from "@/pages/pipelines/components/create/actions";
 import { CREATE_PIPELINE_MODAL_STEP_ORDER } from "@/pages/pipelines/components/create/constants";
@@ -134,6 +135,16 @@ function setSchedule(
   return { ...state, schedule: { ...state.schedule, ...action.payload } };
 }
 
+function setWorkerResources(
+  state: CreatePipelineModalState,
+  action: SetWorkerResourcesAction,
+): CreatePipelineModalState {
+  return {
+    ...state,
+    workerResources: { ...state.workerResources, ...action.payload },
+  };
+}
+
 function goToStep(
   state: CreatePipelineModalState,
   action: GoToStepAction,
@@ -185,6 +196,8 @@ const createPipelineModalReducer = (
       return setDescription(state, action);
     case CreatePipelineModalActionType.SET_SCHEDULE:
       return setSchedule(state, action);
+    case CreatePipelineModalActionType.SET_WORKER_RESOURCES:
+      return setWorkerResources(state, action);
     case CreatePipelineModalActionType.GO_TO_STEP:
       return goToStep(state, action);
     case CreatePipelineModalActionType.GO_BACK:
