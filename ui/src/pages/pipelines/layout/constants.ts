@@ -1,13 +1,5 @@
 import type { Icon } from "@phosphor-icons/react";
-import {
-  ClockCounterClockwiseIcon,
-  GearFineIcon,
-  PauseIcon,
-  PlayIcon,
-  TreeStructureIcon,
-} from "@phosphor-icons/react";
-
-import { Signal } from "@/gen/ingestion/v1/runs_pb";
+import { ClockCounterClockwiseIcon, GearFineIcon, TreeStructureIcon } from "@phosphor-icons/react";
 
 import { PipelineSidebarItem } from "@/pages/pipelines/layout/types";
 
@@ -27,11 +19,4 @@ export const PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP: Record<PipelineSidebarItem, Icon
   [PipelineSidebarItem.CANVAS]: TreeStructureIcon,
   [PipelineSidebarItem.HISTORY]: ClockCounterClockwiseIcon,
   [PipelineSidebarItem.SETTINGS]: GearFineIcon,
-};
-
-export const PIPELINE_RUN_PAUSE_ACTION = { label: "Pause", icon: PauseIcon, signal: Signal.PAUSE };
-export const PIPELINE_RUN_RESUME_ACTION = {
-  label: "Resume",
-  icon: PlayIcon,
-  signal: Signal.RESUME,
 };

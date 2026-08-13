@@ -2,7 +2,13 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
+import {
+  ArrowUUpLeftIcon,
+  FloppyDiskIcon,
+  PauseIcon,
+  PlayIcon,
+  StopIcon,
+} from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -52,8 +58,6 @@ import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryR
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 import {
   PIPELINE_NAVBAR_HEIGHT,
-  PIPELINE_RUN_PAUSE_ACTION,
-  PIPELINE_RUN_RESUME_ACTION,
   PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
 } from "@/pages/pipelines/layout/constants";
 import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
@@ -123,8 +127,6 @@ const PipelineLayoutNavbar = () => {
     }),
   });
   const activeRun = activeRunsData.runs[0];
-  const runToggleAction =
-    activeRun?.status === RunStatus.PAUSED ? PIPELINE_RUN_RESUME_ACTION : PIPELINE_RUN_PAUSE_ACTION;
 
   const validateInput = useMemo(
     () =>
@@ -326,12 +328,17 @@ const PipelineLayoutNavbar = () => {
                 <>
                   <PipelineHistoryRunStatus status={activeRun.status} />
                   <Button
-                    label={runToggleAction.label}
-                    icon={runToggleAction.icon}
+                    label={activeRun?.status === RunStatus.PAUSED ? "Pause" : "Resume"}
+                    icon={activeRun?.status === RunStatus.PAUSED ? PauseIcon : PlayIcon}
                     variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
-                    onClick={() => handleSignal(activeRun.runId, runToggleAction.signal)}
+                    onClick={() =>
+                      handleSignal(
+                        activeRun.runId,
+                        activeRun?.status === RunStatus.PAUSED ? Signal.RESUME : Signal.PAUSE,
+                      )
+                    }
                     isIconFilled
                   />
                   <Button
