@@ -1,15 +1,12 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { HandIcon, PlusIcon, SelectionIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { type HandleType, Position } from "@xyflow/react";
 
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import {
-  PipelineCanvasEditMode,
-  PipelineCanvasInteractionMode,
-} from "@/pages/pipelines/canvas/providers/canvas/types";
+import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 
 export const PIPELINE_CANVAS_FIT_MIN_ZOOM = 0.5;
@@ -20,12 +17,14 @@ export const PIPELINE_CANVAS_FIT_INSET_LEFT = 80;
 
 export const PIPELINE_CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
+export const PIPELINE_CANVAS_PAN_ON_DRAG: number[] = [0, 1, 2];
+
 export const PIPELINE_CANVAS_NODE_STACK_START_Y = 100;
 export const PIPELINE_CANVAS_NODE_STACK_HEIGHT = 120;
 export const PIPELINE_CANVAS_NODE_STACK_GAP = 40;
 
 export const PIPELINE_CANVAS_CONNECTION_SELECTOR_WIDTH = 320;
-export const PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT = 480;
+export const PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT = 360;
 
 export const CONNECTOR_KIND_TO_NODE_TYPE_MAP: Record<
   ConnectorKind,
@@ -44,14 +43,6 @@ export const CONNECTOR_KIND_TO_HANDLE_TYPE_MAP: Record<ConnectorKind, HandleType
 
 export const PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP: Record<PipelineCanvasEditMode, PhosphorIcon> = {
   [PipelineCanvasEditMode.ADD_NODE]: PlusIcon,
-};
-
-export const PIPELINE_CANVAS_INTERACTION_MODE_TO_ICON_MAP: Record<
-  PipelineCanvasInteractionMode,
-  PhosphorIcon
-> = {
-  [PipelineCanvasInteractionMode.GRAB]: HandIcon,
-  [PipelineCanvasInteractionMode.SELECT]: SelectionIcon,
 };
 
 export const PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID = "output";

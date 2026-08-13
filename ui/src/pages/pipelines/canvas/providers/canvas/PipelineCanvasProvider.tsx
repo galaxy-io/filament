@@ -20,7 +20,6 @@ import pipelineCanvasReducer from "@/pages/pipelines/canvas/providers/canvas/red
 import type {
   PipelineCanvasEditMode,
   PipelineCanvasGraph,
-  PipelineCanvasInteractionMode,
   PipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { createInitialPipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/utils";
@@ -91,11 +90,6 @@ export const usePipelineCanvasActions = () => {
       setActiveMode: (mode: PipelineCanvasEditMode | null) =>
         dispatch({
           type: PipelineCanvasActionType.SET_ACTIVE_MODE,
-          payload: mode,
-        }),
-      setInteractionMode: (mode: PipelineCanvasInteractionMode) =>
-        dispatch({
-          type: PipelineCanvasActionType.SET_INTERACTION_MODE,
           payload: mode,
         }),
       setNodeConfig: (nodeId: PipelineNode["id"], config: NonNullable<PipelineNode["config"]>) =>

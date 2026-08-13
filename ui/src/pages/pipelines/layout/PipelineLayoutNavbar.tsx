@@ -2,17 +2,17 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon } from "@phosphor-icons/react";
+import { ArrowUUpLeftIcon, FloppyDiskIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, {
   type SelectInputOption,
   SelectInputVariant,
 } from "@galaxy-io/dls/inputs/SelectInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -22,7 +22,14 @@ import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
-import { ListRunsRequestSchema, RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
+import {
+  ListRunsRequestSchema,
+  type RunInfo,
+  RunPipelineRequestSchema,
+  RunStatus,
+  Signal,
+  SignalRunRequestSchema,
+} from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/PipelineName";
 
@@ -41,9 +48,12 @@ import {
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
+import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 import {
   PIPELINE_NAVBAR_HEIGHT,
+  PIPELINE_RUN_PAUSE_ACTION,
+  PIPELINE_RUN_RESUME_ACTION,
   PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
 } from "@/pages/pipelines/layout/constants";
 import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
@@ -53,7 +63,11 @@ import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
-import { useRunPipelineMutation, useSuspenseListRunsQuery } from "@/api/queries/runs";
+import {
+  useRunPipelineMutation,
+  useSignalRunMutation,
+  useSuspenseListRunsQuery,
+} from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -99,6 +113,7 @@ const PipelineLayoutNavbar = () => {
     });
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
+  const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
 
   const { data: activeRunsData } = useSuspenseListRunsQuery({
     input: create(ListRunsRequestSchema, {
@@ -107,7 +122,9 @@ const PipelineLayoutNavbar = () => {
       pagination: create(PaginationRequestSchema, { total: 1 }),
     }),
   });
-  const hasActiveRun = activeRunsData.runs.length > 0;
+  const activeRun = activeRunsData.runs[0];
+  const runToggleAction =
+    activeRun?.status === RunStatus.PAUSED ? PIPELINE_RUN_RESUME_ACTION : PIPELINE_RUN_PAUSE_ACTION;
 
   const validateInput = useMemo(
     () =>
@@ -143,13 +160,10 @@ const PipelineLayoutNavbar = () => {
     () =>
       versions.map((version) => ({
         id: version.version.toString(),
-        label:
-          version.version === latestVersion
-            ? `Version ${version.version} - Latest`
-            : `Version ${version.version}`,
+        label: `Version ${version.version.toString()}`,
         value: version.version,
       })),
-    [versions, latestVersion],
+    [versions],
   );
 
   if (!pipeline) return null;
@@ -219,25 +233,37 @@ const PipelineLayoutNavbar = () => {
     });
   };
 
+  const handleSignal = (runId: RunInfo["runId"], signal: Signal) => {
+    signalRun(create(SignalRunRequestSchema, { runId, signal }), {
+      onError: (error) => {
+        showToast({
+          header: "Run signal failed",
+          subheader: getErrorMessage(error, "Failed to signal run"),
+          variant: ToastVariant.ERROR,
+        });
+      },
+    });
+  };
+
   return (
     <PipelineLayoutNavbarWrapper>
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
         <PipelineName pipelineId={id} />
-      </FlexWrapper>
-
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         {versionOptions.length > 0 && (
           <SelectInput
             options={versionOptions}
             value={selectedVersionOption}
             onChange={handleVersionChange}
             size={InputSize.SMALL}
-            variant={SelectInputVariant.SECONDARY}
+            variant={SelectInputVariant.PRIMARY}
             dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
             isDisabled={hasUnsavedChanges}
           />
         )}
+      </FlexWrapper>
+
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
         {isPreview && (
           <Button
             label="Back to latest"
@@ -248,9 +274,7 @@ const PipelineLayoutNavbar = () => {
           />
         )}
         {!isPreview && hasUnsavedChanges && (
-          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-            Unsaved changes
-          </Text>
+          <Chip label="Unsaved changes" variant={ChipVariant.ERROR} />
         )}
         {!isPreview &&
           (hasUnsavedChanges ? (
@@ -258,7 +282,7 @@ const PipelineLayoutNavbar = () => {
               <Button
                 label="Undo"
                 icon={ArrowUUpLeftIcon}
-                variant={ButtonVariant.TERTIARY}
+                variant={ButtonVariant.SECONDARY}
                 size={ButtonSize.SMALL}
                 onClick={handleUndo}
               />
@@ -281,23 +305,46 @@ const PipelineLayoutNavbar = () => {
           ) : (
             <>
               <PipelineScheduleChip pipelineId={id} />
-              <Tooltip
-                body={runErrors.join("\n")}
-                position={TooltipPosition.BOTTOM}
-                isDisabled={runErrors.length === 0}
-              >
-                <Button
-                  label={hasActiveRun ? "Running..." : "Run"}
-                  icon={PlayIcon}
-                  variant={ButtonVariant.PRIMARY}
-                  size={ButtonSize.SMALL}
-                  isLoading={isRunning || isValidating}
-                  isDisabled={
-                    !isPipelineRunnable(currentVersion) || runErrors.length > 0 || hasActiveRun
-                  }
-                  onClick={handleRun}
-                />
-              </Tooltip>
+              {!activeRun ? (
+                <Tooltip
+                  body={runErrors.join("\n")}
+                  position={TooltipPosition.BOTTOM}
+                  isDisabled={runErrors.length === 0}
+                >
+                  <Button
+                    label="Run"
+                    icon={PlayIcon}
+                    variant={ButtonVariant.PRIMARY}
+                    size={ButtonSize.SMALL}
+                    isLoading={isRunning || isValidating}
+                    isDisabled={!isPipelineRunnable(currentVersion) || runErrors.length > 0}
+                    onClick={handleRun}
+                    isIconFilled
+                  />
+                </Tooltip>
+              ) : (
+                <>
+                  <PipelineHistoryRunStatus status={activeRun.status} />
+                  <Button
+                    label={runToggleAction.label}
+                    icon={runToggleAction.icon}
+                    variant={ButtonVariant.SECONDARY}
+                    size={ButtonSize.SMALL}
+                    isLoading={isSignaling}
+                    onClick={() => handleSignal(activeRun.runId, runToggleAction.signal)}
+                    isIconFilled
+                  />
+                  <Button
+                    label="Stop"
+                    icon={StopIcon}
+                    variant={ButtonVariant.ERROR}
+                    size={ButtonSize.SMALL}
+                    isLoading={isSignaling}
+                    onClick={() => handleSignal(activeRun.runId, Signal.CANCEL)}
+                    isIconFilled
+                  />
+                </>
+              )}
             </>
           ))}
       </FlexWrapper>

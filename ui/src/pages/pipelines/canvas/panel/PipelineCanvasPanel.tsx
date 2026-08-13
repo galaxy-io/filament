@@ -47,7 +47,7 @@ const CollapsedWrapper = styled.div`
   right: ${PIPELINE_CANVAS_PANEL_INSET}px;
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 
-  padding: 8px;
+  padding: 8px 12px;
 
   border: 0.5px solid transparent;
 `;

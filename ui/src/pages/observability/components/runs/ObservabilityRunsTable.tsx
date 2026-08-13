@@ -21,12 +21,11 @@ import PipelineName from "@/components/PipelineName";
 import ObservabilityRunsTableColumnConnectors from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnConnectors";
 import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CONNECTORS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
@@ -124,8 +123,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "pipeline",
         header: "Pipeline",
-        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
-        maxSize: OBSERVABILITY_RUNS_TABLE_COLUMN_MAX_WIDTH_PIPELINE,
+        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
       },
@@ -165,7 +163,7 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatCount(row.original.records)}
+            {row.original.status === RunStatus.SCHEDULED ? "—" : formatCount(row.original.records)}
           </Text>
         ),
       },
@@ -178,7 +176,7 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatBytes(row.original.bytes)}
+            {row.original.status === RunStatus.SCHEDULED ? "—" : formatBytes(row.original.bytes)}
           </Text>
         ),
       },
