@@ -21,7 +21,7 @@ This chart deploys Filament server, control plane, Kubernetes worker dispatch su
 
 {{ end }}{{ if .Dependencies }}{{ template "chart.requirementsTable" . }}{{ end }}
 
-The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) and [NATS chart](https://artifacthub.io/packages/helm/nats/nats) documentation for their full configuration surfaces.
+The vendored PostgreSQL, NATS, and Zitadel charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql), [NATS chart](https://artifacthub.io/packages/helm/nats/nats), and [Zitadel chart](https://artifacthub.io/packages/helm/zitadel/zitadel) documentation for their full configuration surfaces.
 {{ end }}
 
 ## Runtime configuration
@@ -135,6 +135,16 @@ helm upgrade --install filament . \
   {{- end }}
 {{- end }}
 
+## Authentication parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "auth." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
 ## Observability parameters
 
 | Key | Type | Default | Description |
@@ -161,6 +171,18 @@ helm upgrade --install filament . \
 |-----|------|---------|-------------|
 {{- range .Values }}
   {{- if hasPrefix "nats." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Vendored Zitadel parameters
+
+The vendored Zitadel runs its init and setup jobs as post-install hooks so the vendored PostgreSQL exists before they poll it, and the server starts once setup has minted its access token. Do not install with `--wait`, which holds those hooks until pods that depend on them are ready.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "zitadel." .Key }}
 | {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
   {{- end }}
 {{- end }}
