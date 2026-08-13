@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
@@ -156,6 +156,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               options={readModeSelectOptions}
               value={readModeSelectOptions.find((option) => option.value === readMode) ?? null}
               onChange={(option) => handleReadModeChange(option.value as ReadMode)}
+              variant={InputVariant.TERTIARY}
               placeholder="Select a read mode..."
               size={InputSize.LARGE}
               isDisabled={isReadOnly || isLoading}
@@ -166,6 +167,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               options={writeModeSelectOptions}
               value={writeModeSelectOptions.find((option) => option.value === writeMode) ?? null}
               onChange={(option) => handleWriteModeChange(option.value as WriteMode)}
+              variant={InputVariant.TERTIARY}
               placeholder="Select a write mode..."
               size={InputSize.LARGE}
               isDisabled={isReadOnly || isLoading}

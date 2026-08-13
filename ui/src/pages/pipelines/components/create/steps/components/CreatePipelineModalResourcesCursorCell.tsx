@@ -1,9 +1,7 @@
 import { styled } from "@linaria/react";
 
-import SelectInput, {
-  type SelectInputOption,
-  SelectInputVariant,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
@@ -71,7 +69,7 @@ const CreatePipelineModalResourcesCursorCell = ({
           })
         }
         placeholder="Select a column..."
-        variant={SelectInputVariant.SECONDARY}
+        variant={InputVariant.TERTIARY}
         dropdownWidth={CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH}
         fillWidth
       />

@@ -9,6 +9,7 @@ const FieldList = ({
   field,
   value,
   onChange,
+  variant,
   error,
   isDisabled = false,
   label,
@@ -35,6 +36,7 @@ const FieldList = ({
         onChange={handleChange}
         onReset={handleReset}
         size={InputSize.LARGE}
+        variant={variant}
         placeholder={`Select ${label}...`}
         error={error}
         isDisabled={isDisabled}
