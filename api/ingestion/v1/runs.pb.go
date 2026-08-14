@@ -290,9 +290,14 @@ type RunPipelineRequest struct {
 	ClientToken string `protobuf:"bytes,3,opt,name=client_token,json=clientToken,proto3" json:"client_token,omitempty"`
 	// options overrides engine throughput defaults for every run this call
 	// produces. Unset (or any zero field) defers to defaults.
-	Options       *RunOptions `protobuf:"bytes,4,opt,name=options,proto3" json:"options,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Options *RunOptions `protobuf:"bytes,4,opt,name=options,proto3" json:"options,omitempty"`
+	// worker_configuration overrides the pipeline's own for this call only, field
+	// by field: an empty field inherits the pipeline's value. The resolved result
+	// is stamped onto each run, so editing the pipeline afterwards cannot change
+	// a run already requested.
+	WorkerConfiguration *WorkerConfiguration `protobuf:"bytes,5,opt,name=worker_configuration,json=workerConfiguration,proto3" json:"worker_configuration,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *RunPipelineRequest) Reset() {
@@ -349,6 +354,13 @@ func (x *RunPipelineRequest) GetClientToken() string {
 func (x *RunPipelineRequest) GetOptions() *RunOptions {
 	if x != nil {
 		return x.Options
+	}
+	return nil
+}
+
+func (x *RunPipelineRequest) GetWorkerConfiguration() *WorkerConfiguration {
+	if x != nil {
+		return x.WorkerConfiguration
 	}
 	return nil
 }
@@ -1401,7 +1413,7 @@ var File_ingestion_v1_runs_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1dingestion/v1/pagination.proto\"R\n" +
+	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"R\n" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
@@ -1415,13 +1427,14 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
 	"rate_limit\x18\x04 \x01(\v2\x18.ingestion.v1.RatePolicyR\trateLimit\x121\n" +
 	"\x14snapshot_parallelism\x18\x05 \x01(\x05R\x13snapshotParallelism\x12)\n" +
-	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\"\xa9\x01\n" +
+	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\"\xff\x01\n" +
 	"\x12RunPipelineRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x12!\n" +
 	"\fclient_token\x18\x03 \x01(\tR\vclientToken\x122\n" +
-	"\aoptions\x18\x04 \x01(\v2\x18.ingestion.v1.RunOptionsR\aoptions\"f\n" +
+	"\aoptions\x18\x04 \x01(\v2\x18.ingestion.v1.RunOptionsR\aoptions\x12T\n" +
+	"\x14worker_configuration\x18\x05 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\"f\n" +
 	"\x0fPipelineEdgeRun\x12*\n" +
 	"\x11pipeline_edge_key\x18\x01 \x01(\tR\x0fpipelineEdgeKey\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\"Q\n" +
@@ -1564,31 +1577,33 @@ var file_ingestion_v1_runs_proto_goTypes = []any{
 	(*RunEventFields)(nil),      // 17: ingestion.v1.RunEventFields
 	(*RunEvent)(nil),            // 18: ingestion.v1.RunEvent
 	(*TailRunResponse)(nil),     // 19: ingestion.v1.TailRunResponse
-	(*PaginationRequest)(nil),   // 20: ingestion.v1.PaginationRequest
-	(*PaginationResponse)(nil),  // 21: ingestion.v1.PaginationResponse
+	(*WorkerConfiguration)(nil), // 20: ingestion.v1.WorkerConfiguration
+	(*PaginationRequest)(nil),   // 21: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),  // 22: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	2,  // 0: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
 	3,  // 1: ingestion.v1.RunPipelineRequest.options:type_name -> ingestion.v1.RunOptions
-	8,  // 2: ingestion.v1.PipelineEdgeRun.run:type_name -> ingestion.v1.RunInfo
-	5,  // 3: ingestion.v1.RunPipelineResponse.edge_runs:type_name -> ingestion.v1.PipelineEdgeRun
-	0,  // 4: ingestion.v1.RunResourceState.status:type_name -> ingestion.v1.RunStatus
-	0,  // 5: ingestion.v1.RunInfo.status:type_name -> ingestion.v1.RunStatus
-	8,  // 6: ingestion.v1.RunSnapshot.run:type_name -> ingestion.v1.RunInfo
-	7,  // 7: ingestion.v1.RunSnapshot.resources:type_name -> ingestion.v1.RunResourceState
-	9,  // 8: ingestion.v1.GetRunResponse.snapshot:type_name -> ingestion.v1.RunSnapshot
-	0,  // 9: ingestion.v1.ListRunsRequest.status:type_name -> ingestion.v1.RunStatus
-	20, // 10: ingestion.v1.ListRunsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	8,  // 11: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
-	21, // 12: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	1,  // 13: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.RunSignal
-	17, // 14: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
-	18, // 15: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	20, // 2: ingestion.v1.RunPipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	8,  // 3: ingestion.v1.PipelineEdgeRun.run:type_name -> ingestion.v1.RunInfo
+	5,  // 4: ingestion.v1.RunPipelineResponse.edge_runs:type_name -> ingestion.v1.PipelineEdgeRun
+	0,  // 5: ingestion.v1.RunResourceState.status:type_name -> ingestion.v1.RunStatus
+	0,  // 6: ingestion.v1.RunInfo.status:type_name -> ingestion.v1.RunStatus
+	8,  // 7: ingestion.v1.RunSnapshot.run:type_name -> ingestion.v1.RunInfo
+	7,  // 8: ingestion.v1.RunSnapshot.resources:type_name -> ingestion.v1.RunResourceState
+	9,  // 9: ingestion.v1.GetRunResponse.snapshot:type_name -> ingestion.v1.RunSnapshot
+	0,  // 10: ingestion.v1.ListRunsRequest.status:type_name -> ingestion.v1.RunStatus
+	21, // 11: ingestion.v1.ListRunsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	8,  // 12: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
+	22, // 13: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	1,  // 14: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.RunSignal
+	17, // 15: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
+	18, // 16: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_runs_proto_init() }
@@ -1596,6 +1611,7 @@ func file_ingestion_v1_runs_proto_init() {
 	if File_ingestion_v1_runs_proto != nil {
 		return
 	}
+	file_ingestion_v1_common_proto_init()
 	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_runs_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}

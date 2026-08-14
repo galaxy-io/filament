@@ -1,26 +1,28 @@
+{{- if .Values.controlPlane.enabled }}
+{{/* envFrom'd whole into dispatched worker Jobs; the control plane only learns
+     this ConfigMap's name. Worker env belongs here, not in the dispatcher. */}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "filament.server.fullname" . }}
+  name: {{ include "filament.worker.fullname" . }}
   namespace: {{ include "filament.namespace" . }}
 data:
   # Persistence
   PERSISTENCE_PROVIDER: {{ .Values.persistence.type | quote }}
-
-  # Metrics
-  METRICSSTORE_PROVIDER: {{ .Values.metrics.type | quote }}
 
   # Event bus
   EVENTBUS_PROVIDER: {{ .Values.eventBus.type | quote }}
   NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
   NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
 
-  # Ingestion
-  SERVER_ADDR: ":{{ .Values.server.service.port }}"
+  # Heartbeat
+  {{- with .Values.controlPlane.dispatch.worker.heartbeatSeconds }}
+  HEARTBEAT_SECONDS: {{ . | quote }}
+  {{- end }}
 
   # Observability
   {{- with .Values.observability.otel.endpoint }}
-  OTEL_SERVICE_NAME: {{ include "filament.server.fullname" $ | quote }}
+  OTEL_SERVICE_NAME: {{ include "filament.worker.fullname" $ | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   {{- with $.Values.observability.otel.protocol }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
@@ -43,3 +45,4 @@ data:
   AWS_REGION: {{ . | quote }}
   {{- end }}
   {{- end }}
+{{- end }}

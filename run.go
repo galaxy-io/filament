@@ -25,6 +25,9 @@ type RunSpec struct {
 	Checkpoint     *CheckpointData
 	Options        RunOptions
 	WritePolicies  map[string]WritePolicy
+	// WorkerConfiguration is the already-resolved worker shape for this run: the
+	// pipeline's configuration with the request's override folded in.
+	WorkerConfiguration WorkerConfiguration
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
@@ -49,6 +52,9 @@ type RunRequest struct {
 	ScheduleID      ScheduleID
 	// ScheduledFor is the occurrence this request represents; zero when manual.
 	ScheduledFor time.Time
+	// WorkerConfiguration is resolved at compile time and stamped here, so a
+	// later edit to the pipeline cannot reshape a run already requested.
+	WorkerConfiguration WorkerConfiguration `json:",omitzero"`
 }
 
 // ResourceCursorConfig selects one resource's durable incremental field and
@@ -116,6 +122,56 @@ type RunOptions struct {
 // DefaultCheckpointEvery persists a resource's cursor every N written batches when
 // RunOptions.CheckpointEvery is unset.
 const DefaultCheckpointEvery = 25
+
+// WorkerResources sizes the worker that executes a run, as Kubernetes quantity
+// strings ("500m", "2Gi"). Empty means unset: the field is left off the Job so
+// a namespace LimitRange can supply it. Only the Kubernetes dispatcher reads
+// them; in-process execution ignores them entirely.
+type WorkerResources struct {
+	CPURequest    string
+	CPULimit      string
+	MemoryRequest string
+	MemoryLimit   string
+}
+
+// IsZero reports whether nothing is set.
+func (w WorkerResources) IsZero() bool { return w == WorkerResources{} }
+
+// WorkerConfiguration is how a run's worker is shaped: resources today,
+// placement later. It travels as a whole so adding a knob does not change every
+// signature that carries it.
+type WorkerConfiguration struct {
+	Resources WorkerResources
+}
+
+// IsZero reports whether nothing is set.
+func (w WorkerConfiguration) IsZero() bool { return w == WorkerConfiguration{} }
+
+// Merge overlays w's set fields onto base and returns the result, delegating to
+// each member's own merge so an override touches only what it names.
+func (w WorkerConfiguration) Merge(base WorkerConfiguration) WorkerConfiguration {
+	return WorkerConfiguration{Resources: w.Resources.Merge(base.Resources)}
+}
+
+// Merge overlays w's non-empty fields onto base, field by field, and returns
+// the result. This is how a per-run override folds over a pipeline's configured
+// default: overriding memory alone leaves the pipeline's CPU in place.
+func (w WorkerResources) Merge(base WorkerResources) WorkerResources {
+	out := base
+	if w.CPURequest != "" {
+		out.CPURequest = w.CPURequest
+	}
+	if w.CPULimit != "" {
+		out.CPULimit = w.CPULimit
+	}
+	if w.MemoryRequest != "" {
+		out.MemoryRequest = w.MemoryRequest
+	}
+	if w.MemoryLimit != "" {
+		out.MemoryLimit = w.MemoryLimit
+	}
+	return out
+}
 
 // RunState is the persisted record of a run: its request, per-resource
 // progress, and terminal outcome.

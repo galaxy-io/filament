@@ -23,6 +23,7 @@ import {
   type CreatePipelineModalState,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
+import { WORKER_RESOURCES_DEFAULT_STATE } from "@/pages/pipelines/components/worker/constants";
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
@@ -39,6 +40,7 @@ const DEFAULT_STATE: CreatePipelineModalState = {
   isNameTouched: false,
   description: "",
   schedule: PIPELINE_SCHEDULE_DEFAULT_STATE,
+  workerResources: WORKER_RESOURCES_DEFAULT_STATE,
   isSubmitting: false,
 };
 

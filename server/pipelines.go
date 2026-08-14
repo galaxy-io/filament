@@ -19,8 +19,12 @@ import (
 // CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
 	id := uuid.NewString()
+	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(req.Msg.GetWorkerConfiguration())); err != nil {
+		return nil, compileError(err)
+	}
 	pipeline := &ingestionv1.Pipeline{
 		Id: id, TenantId: defaultTenant(req.Msg.GetTenantId()), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
+		WorkerConfiguration: req.Msg.GetWorkerConfiguration(),
 	}
 	var schedule *filament.ScheduleState
 	if config := req.Msg.GetSchedule(); config != nil {
@@ -163,6 +167,9 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := req.Msg.GetPipeline()
 	if pipeline == nil || pipeline.GetId() == "" {
 		return nil, fmt.Errorf("pipeline.id is required")
+	}
+	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration())); err != nil {
+		return nil, compileError(err)
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
 	if errors.Is(err, filament.ErrNotFound) {
@@ -381,7 +388,11 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	if token == "" {
 		token = uuid.NewString()
 	}
-	compiled, err := a.compiler.Compile(ctx, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "")
+	workerCfg := compile.WorkerConfigurationFromProto(req.GetWorkerConfiguration())
+	if err := compile.ValidateWorkerConfiguration(workerCfg); err != nil {
+		return nil, compileError(err)
+	}
+	compiled, err := a.compiler.Compile(ctx, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "", workerCfg)
 	if err != nil {
 		return nil, compileError(err)
 	}

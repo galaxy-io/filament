@@ -86,7 +86,10 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 	if m.client == nil {
 		return nil, errors.New("k8sdispatch: module is not mounted")
 	}
-	job := m.jobForSpec(spec)
+	job, err := m.jobForSpec(spec)
+	if err != nil {
+		return nil, err
+	}
 	if err := m.client.createJob(ctx, m.cfg.Namespace, job); err != nil {
 		if m.mx != nil {
 			m.mx.Counter("filament_dispatch_failures_total").Inc()

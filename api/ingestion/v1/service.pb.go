@@ -24,7 +24,7 @@ var File_ingestion_v1_service_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1aingestion/v1/service.proto\x12\fingestion.v1\x1a\x1fingestion/v1/capabilities.proto\x1a\x1eingestion/v1/connections.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x17ingestion/v1/runs.proto2\x87\x17\n" +
+	"\x1aingestion/v1/service.proto\x12\fingestion.v1\x1a\x1fingestion/v1/capabilities.proto\x1a\x1eingestion/v1/connections.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x17ingestion/v1/runs.proto2\x87\x17\n" +
 	"\x10IngestionService\x12[\n" +
 	"\x0eListConnectors\x12#.ingestion.v1.ListConnectorsRequest\x1a$.ingestion.v1.ListConnectorsResponse\x12U\n" +
 	"\fGetConnector\x12!.ingestion.v1.GetConnectorRequest\x1a\".ingestion.v1.GetConnectorResponse\x12[\n" +
@@ -195,8 +195,8 @@ func file_ingestion_v1_service_proto_init() {
 	}
 	file_ingestion_v1_capabilities_proto_init()
 	file_ingestion_v1_connections_proto_init()
-	file_ingestion_v1_pipelines_proto_init()
 	file_ingestion_v1_connectors_proto_init()
+	file_ingestion_v1_pipelines_proto_init()
 	file_ingestion_v1_runs_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

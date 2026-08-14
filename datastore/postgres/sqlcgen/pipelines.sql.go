@@ -12,16 +12,17 @@ import (
 )
 
 const createPipeline = `-- name: CreatePipeline :one
-INSERT INTO pipelines (id, tenant_id, name, description, updated_at)
-VALUES ($1, $2, $3, $4, now())
+INSERT INTO pipelines (id, tenant_id, name, description, worker_configuration, updated_at)
+VALUES ($1, $2, $3, $4, COALESCE($5::jsonb, '{}'::jsonb), now())
 RETURNING created_at
 `
 
 type CreatePipelineParams struct {
-	PipelineID  string
-	TenantID    string
-	Name        string
-	Description string
+	PipelineID          string
+	TenantID            string
+	Name                string
+	Description         string
+	WorkerConfiguration []byte
 }
 
 func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) (pgtype.Timestamptz, error) {
@@ -30,6 +31,7 @@ func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) 
 		arg.TenantID,
 		arg.Name,
 		arg.Description,
+		arg.WorkerConfiguration,
 	)
 	var created_at pgtype.Timestamptz
 	err := row.Scan(&created_at)
@@ -86,23 +88,25 @@ func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
 }
 
 const getPipeline = `-- name: GetPipeline :one
-SELECT id, tenant_id, name, description, current_version_id, created_at, updated_at, deleted_at,
+SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
+       created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines WHERE id = $1
 `
 
 type GetPipelineRow struct {
-	ID               string
-	TenantID         string
-	Name             string
-	Description      string
-	CurrentVersionID pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	CreatedByUserID  pgtype.Text
-	UpdatedByUserID  pgtype.Text
-	DeletedByUserID  pgtype.Text
+	ID                  string
+	TenantID            string
+	Name                string
+	Description         string
+	CurrentVersionID    pgtype.Text
+	WorkerConfiguration []byte
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	DeletedAt           pgtype.Timestamptz
+	CreatedByUserID     pgtype.Text
+	UpdatedByUserID     pgtype.Text
+	DeletedByUserID     pgtype.Text
 }
 
 func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipelineRow, error) {
@@ -114,6 +118,7 @@ func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipel
 		&i.Name,
 		&i.Description,
 		&i.CurrentVersionID,
+		&i.WorkerConfiguration,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -215,7 +220,8 @@ func (q *Queries) ListPipelineVersions(ctx context.Context, pipelineID string) (
 }
 
 const listPipelines = `-- name: ListPipelines :many
-SELECT id, tenant_id, name, description, current_version_id, created_at, updated_at, deleted_at,
+SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
+       created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines
 WHERE ($1::text = '' OR tenant_id = $1)
@@ -229,17 +235,18 @@ type ListPipelinesParams struct {
 }
 
 type ListPipelinesRow struct {
-	ID               string
-	TenantID         string
-	Name             string
-	Description      string
-	CurrentVersionID pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	CreatedByUserID  pgtype.Text
-	UpdatedByUserID  pgtype.Text
-	DeletedByUserID  pgtype.Text
+	ID                  string
+	TenantID            string
+	Name                string
+	Description         string
+	CurrentVersionID    pgtype.Text
+	WorkerConfiguration []byte
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	DeletedAt           pgtype.Timestamptz
+	CreatedByUserID     pgtype.Text
+	UpdatedByUserID     pgtype.Text
+	DeletedByUserID     pgtype.Text
 }
 
 func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([]*ListPipelinesRow, error) {
@@ -257,6 +264,7 @@ func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([
 			&i.Name,
 			&i.Description,
 			&i.CurrentVersionID,
+			&i.WorkerConfiguration,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -275,18 +283,26 @@ func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([
 }
 
 const updatePipeline = `-- name: UpdatePipeline :execrows
-UPDATE pipelines SET name = $1, description = $2, updated_at = now()
-WHERE id = $3 AND NOT is_deleted
+UPDATE pipelines SET name = $1, description = $2,
+  worker_configuration = COALESCE($3::jsonb, worker_configuration),
+  updated_at = now()
+WHERE id = $4 AND NOT is_deleted
 `
 
 type UpdatePipelineParams struct {
-	Name        string
-	Description string
-	PipelineID  string
+	Name                string
+	Description         string
+	WorkerConfiguration []byte
+	PipelineID          string
 }
 
 func (q *Queries) UpdatePipeline(ctx context.Context, arg UpdatePipelineParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updatePipeline, arg.Name, arg.Description, arg.PipelineID)
+	result, err := q.db.Exec(ctx, updatePipeline,
+		arg.Name,
+		arg.Description,
+		arg.WorkerConfiguration,
+		arg.PipelineID,
+	)
 	if err != nil {
 		return 0, err
 	}

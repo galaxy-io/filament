@@ -1,0 +1,6 @@
+# Generated output; regenerate rather than edit.
+api/**/*.pb.go                linguist-generated=true
+api/**/*.connect.go           linguist-generated=true
+datastore/postgres/sqlcgen/** linguist-generated=true
+ui/src/gen/**                 linguist-generated=true
+ui/src/assets/components/**   linguist-generated=true

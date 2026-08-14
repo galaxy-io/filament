@@ -1,10 +1,12 @@
 -- name: CreatePipeline :one
-INSERT INTO pipelines (id, tenant_id, name, description, updated_at)
-VALUES (@pipeline_id, @tenant_id, @name, @description, now())
+INSERT INTO pipelines (id, tenant_id, name, description, worker_configuration, updated_at)
+VALUES (@pipeline_id, @tenant_id, @name, @description, COALESCE(sqlc.narg(worker_configuration)::jsonb, '{}'::jsonb), now())
 RETURNING created_at;
 
 -- name: UpdatePipeline :execrows
-UPDATE pipelines SET name = @name, description = @description, updated_at = now()
+UPDATE pipelines SET name = @name, description = @description,
+  worker_configuration = COALESCE(sqlc.narg(worker_configuration)::jsonb, worker_configuration),
+  updated_at = now()
 WHERE id = @pipeline_id AND NOT is_deleted;
 
 -- name: CreatePipelineVersion :one
@@ -23,7 +25,8 @@ FROM inserted WHERE p.id = sqlc.arg(pipeline_id)
 RETURNING inserted.id, inserted.version, inserted.created_at;
 
 -- name: GetPipeline :one
-SELECT id, tenant_id, name, description, current_version_id, created_at, updated_at, deleted_at,
+SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
+       created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines WHERE id = @pipeline_id;
 
@@ -40,7 +43,8 @@ SELECT id, pipeline_id, version, graph, created_at, updated_at,
 WHERE pipeline_id = @pipeline_id ORDER BY version DESC;
 
 -- name: ListPipelines :many
-SELECT id, tenant_id, name, description, current_version_id, created_at, updated_at, deleted_at,
+SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
+       created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines
 WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)

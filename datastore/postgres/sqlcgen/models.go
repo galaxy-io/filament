@@ -72,18 +72,19 @@ type Connection struct {
 }
 
 type Pipeline struct {
-	ID               string
-	TenantID         string
-	Name             string
-	Description      string
-	CurrentVersionID pgtype.Text
-	IsDeleted        bool
-	DeletedAt        pgtype.Timestamptz
-	CreatedByUserID  pgtype.Text
-	UpdatedByUserID  pgtype.Text
-	DeletedByUserID  pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
+	ID                  string
+	TenantID            string
+	Name                string
+	Description         string
+	CurrentVersionID    pgtype.Text
+	WorkerConfiguration []byte
+	IsDeleted           bool
+	DeletedAt           pgtype.Timestamptz
+	CreatedByUserID     pgtype.Text
+	UpdatedByUserID     pgtype.Text
+	DeletedByUserID     pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
 }
 
 type PipelineResourceCheckpoint struct {

@@ -12,7 +12,64 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/common.proto.
  */
 export const file_ingestion_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiywIKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRImCgRlbnVtGAUgAygLMhguaW5nZXN0aW9uLnYxLkVudW1PcHRpb24SDAoEaGVscBgGIAEoCRInCgVzY29wZRgHIAEoDjIYLmluZ2VzdGlvbi52MS5GaWVsZFNjb3BlEg4KBnNlY3JldBgIIAEoCBIpCgZmaWVsZHMYCSADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQSMgoMdmlzaWJsZV93aGVuGAogASgLMhwuaW5nZXN0aW9uLnYxLkZpZWxkQ29uZGl0aW9uIioKCkVudW1PcHRpb24SDQoFdmFsdWUYASABKAkSDQoFbGFiZWwYAiABKAkiLwoORmllbGRDb25kaXRpb24SDQoFZmllbGQYASABKAkSDgoGdmFsdWVzGAIgAygJIjkKDENvbmZpZ1NjaGVtYRIpCgZmaWVsZHMYASADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQiygEKFVdyaXRlUG9saWN5Q2FwYWJpbGl0eRIlCgRtb2RlGAEgASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRITCgtyZXF1aXJlc19waxgCIAEoCBIWCg5yZXF1aXJlc19vcmRlchgDIAEoCBIsCgthY2NlcHRzX29wcxgEIAMoDjIXLmluZ2VzdGlvbi52MS5PcGVyYXRpb24SLwoJYXRvbWljaXR5GAUgASgOMhwuaW5nZXN0aW9uLnYxLldyaXRlQXRvbWljaXR5IqgBCgxTb3VyY2VQb2xpY3kSJAoEbW9kZRgBIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIqCgllbWl0c19vcHMYAiADKA4yFy5pbmdlc3Rpb24udjEuT3BlcmF0aW9uEg8KB29yZGVyZWQYAyABKAgSNQoNY2hlY2twb2ludGluZxgEIAEoDjIeLmluZ2VzdGlvbi52MS5DaGVja3BvaW50UG9saWN5KmMKDUNvbm5lY3RvcktpbmQSHgoaQ09OTkVDVE9SX0tJTkRfVU5TUEVDSUZJRUQQABIZChVDT05ORUNUT1JfS0lORF9TT1VSQ0UQARIXChNDT05ORUNUT1JfS0lORF9TSU5LEAIq2AEKCUZpZWxkVHlwZRIaChZGSUVMRF9UWVBFX1VOU1BFQ0lGSUVEEAASFQoRRklFTERfVFlQRV9TVFJJTkcQARISCg5GSUVMRF9UWVBFX0lOVBACEhMKD0ZJRUxEX1RZUEVfQk9PTBADEhUKEUZJRUxEX1RZUEVfU0VDUkVUEAQSFwoTRklFTERfVFlQRV9EVVJBVElPThAFEhMKD0ZJRUxEX1RZUEVfRU5VTRAGEhUKEUZJRUxEX1RZUEVfT0JKRUNUEAcSEwoPRklFTERfVFlQRV9MSVNUEAgqbAoPUmVwbGljYXRpb25Nb2RlEiAKHFJFUExJQ0FUSU9OX01PREVfVU5TUEVDSUZJRUQQABIdChlSRVBMSUNBVElPTl9NT0RFX1NUQU5EQVJEEAESGAoUUkVQTElDQVRJT05fTU9ERV9DREMQAipUCghSZWFkTW9kZRIZChVSRUFEX01PREVfVU5TUEVDSUZJRUQQABISCg5SRUFEX01PREVfRlVMTBABEhkKFVJFQURfTU9ERV9JTkNSRU1FTlRBTBACKmgKCU9wZXJhdGlvbhIZChVPUEVSQVRJT05fVU5TUEVDSUZJRUQQABIUChBPUEVSQVRJT05fSU5TRVJUEAESFAoQT1BFUkFUSU9OX1VQREFURRACEhQKEE9QRVJBVElPTl9ERUxFVEUQAyqdAgoNSW5nZXN0aW9uVHlwZRIeChpJTkdFU1RJT05fVFlQRV9VTlNQRUNJRklFRBAAEh8KG0lOR0VTVElPTl9UWVBFX0ZVTExfUkVQTEFDRRABEh4KGklOR0VTVElPTl9UWVBFX0ZVTExfVVBTRVJUEAISHgoaSU5HRVNUSU9OX1RZUEVfRlVMTF9BUFBFTkQQAxIlCiFJTkdFU1RJT05fVFlQRV9JTkNSRU1FTlRBTF9BUFBFTkQQBBIlCiFJTkdFU1RJT05fVFlQRV9JTkNSRU1FTlRBTF9VUFNFUlQQBRIlCiFJTkdFU1RJT05fVFlQRV9JTkNSRU1FTlRBTF9ERUxFVEUQBhIWChJJTkdFU1RJT05fVFlQRV9DREMQByqaAQoJV3JpdGVNb2RlEhoKFldSSVRFX01PREVfVU5TUEVDSUZJRUQQABIVChFXUklURV9NT0RFX0FQUEVORBABEhYKEldSSVRFX01PREVfUkVQTEFDRRACEhUKEVdSSVRFX01PREVfVVBTRVJUEAMSFQoRV1JJVEVfTU9ERV9ERUxFVEUQBBIUChBXUklURV9NT0RFX01FUkdFEAUqgwEKDldyaXRlQXRvbWljaXR5Eh8KG1dSSVRFX0FUT01JQ0lUWV9VTlNQRUNJRklFRBAAEhkKFVdSSVRFX0FUT01JQ0lUWV9CQVRDSBABEhwKGFdSSVRFX0FUT01JQ0lUWV9SRVNPVVJDRRACEhcKE1dSSVRFX0FUT01JQ0lUWV9SVU4QAyqYAQoQQ2hlY2twb2ludFBvbGljeRIhCh1DSEVDS1BPSU5UX1BPTElDWV9VTlNQRUNJRklFRBAAEhoKFkNIRUNLUE9JTlRfUE9MSUNZX05PTkUQARIhCh1DSEVDS1BPSU5UX1BPTElDWV9BRlRFUl9CQVRDSBACEiIKHkNIRUNLUE9JTlRfUE9MSUNZX0FGVEVSX0NPTU1JVBADKl8KCkZpZWxkU2NvcGUSGwoXRklFTERfU0NPUEVfVU5TUEVDSUZJRUQQABIaChZGSUVMRF9TQ09QRV9DT05ORUNUSU9OEAESGAoURklFTERfU0NPUEVfUElQRUxJTkUQAmIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiZwoPV29ya2VyUmVzb3VyY2VzEhMKC2NwdV9yZXF1ZXN0GAEgASgJEhEKCWNwdV9saW1pdBgCIAEoCRIWCg5tZW1vcnlfcmVxdWVzdBgDIAEoCRIUCgxtZW1vcnlfbGltaXQYBCABKAkiRwoTV29ya2VyQ29uZmlndXJhdGlvbhIwCglyZXNvdXJjZXMYASABKAsyHS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzIssCCgtDb25maWdGaWVsZBIMCgRuYW1lGAEgASgJEiUKBHR5cGUYAiABKA4yFy5pbmdlc3Rpb24udjEuRmllbGRUeXBlEhAKCHJlcXVpcmVkGAMgASgIEicKB2RlZmF1bHQYBCABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJgoEZW51bRgFIAMoCzIYLmluZ2VzdGlvbi52MS5FbnVtT3B0aW9uEgwKBGhlbHAYBiABKAkSJwoFc2NvcGUYByABKA4yGC5pbmdlc3Rpb24udjEuRmllbGRTY29wZRIOCgZzZWNyZXQYCCABKAgSKQoGZmllbGRzGAkgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkEjIKDHZpc2libGVfd2hlbhgKIAEoCzIcLmluZ2VzdGlvbi52MS5GaWVsZENvbmRpdGlvbiIqCgpFbnVtT3B0aW9uEg0KBXZhbHVlGAEgASgJEg0KBWxhYmVsGAIgASgJIi8KDkZpZWxkQ29uZGl0aW9uEg0KBWZpZWxkGAEgASgJEg4KBnZhbHVlcxgCIAMoCSI5CgxDb25maWdTY2hlbWESKQoGZmllbGRzGAEgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkIsoBChVXcml0ZVBvbGljeUNhcGFiaWxpdHkSJQoEbW9kZRgBIAEoDjIXLmluZ2VzdGlvbi52MS5Xcml0ZU1vZGUSEwoLcmVxdWlyZXNfcGsYAiABKAgSFgoOcmVxdWlyZXNfb3JkZXIYAyABKAgSLAoLYWNjZXB0c19vcHMYBCADKA4yFy5pbmdlc3Rpb24udjEuT3BlcmF0aW9uEi8KCWF0b21pY2l0eRgFIAEoDjIcLmluZ2VzdGlvbi52MS5Xcml0ZUF0b21pY2l0eSKoAQoMU291cmNlUG9saWN5EiQKBG1vZGUYASABKA4yFi5pbmdlc3Rpb24udjEuUmVhZE1vZGUSKgoJZW1pdHNfb3BzGAIgAygOMhcuaW5nZXN0aW9uLnYxLk9wZXJhdGlvbhIPCgdvcmRlcmVkGAMgASgIEjUKDWNoZWNrcG9pbnRpbmcYBCABKA4yHi5pbmdlc3Rpb24udjEuQ2hlY2twb2ludFBvbGljeSpjCg1Db25uZWN0b3JLaW5kEh4KGkNPTk5FQ1RPUl9LSU5EX1VOU1BFQ0lGSUVEEAASGQoVQ09OTkVDVE9SX0tJTkRfU09VUkNFEAESFwoTQ09OTkVDVE9SX0tJTkRfU0lOSxACKtgBCglGaWVsZFR5cGUSGgoWRklFTERfVFlQRV9VTlNQRUNJRklFRBAAEhUKEUZJRUxEX1RZUEVfU1RSSU5HEAESEgoORklFTERfVFlQRV9JTlQQAhITCg9GSUVMRF9UWVBFX0JPT0wQAxIVChFGSUVMRF9UWVBFX1NFQ1JFVBAEEhcKE0ZJRUxEX1RZUEVfRFVSQVRJT04QBRITCg9GSUVMRF9UWVBFX0VOVU0QBhIVChFGSUVMRF9UWVBFX09CSkVDVBAHEhMKD0ZJRUxEX1RZUEVfTElTVBAIKmwKD1JlcGxpY2F0aW9uTW9kZRIgChxSRVBMSUNBVElPTl9NT0RFX1VOU1BFQ0lGSUVEEAASHQoZUkVQTElDQVRJT05fTU9ERV9TVEFOREFSRBABEhgKFFJFUExJQ0FUSU9OX01PREVfQ0RDEAIqVAoIUmVhZE1vZGUSGQoVUkVBRF9NT0RFX1VOU1BFQ0lGSUVEEAASEgoOUkVBRF9NT0RFX0ZVTEwQARIZChVSRUFEX01PREVfSU5DUkVNRU5UQUwQAipoCglPcGVyYXRpb24SGQoVT1BFUkFUSU9OX1VOU1BFQ0lGSUVEEAASFAoQT1BFUkFUSU9OX0lOU0VSVBABEhQKEE9QRVJBVElPTl9VUERBVEUQAhIUChBPUEVSQVRJT05fREVMRVRFEAMqnQIKDUluZ2VzdGlvblR5cGUSHgoaSU5HRVNUSU9OX1RZUEVfVU5TUEVDSUZJRUQQABIfChtJTkdFU1RJT05fVFlQRV9GVUxMX1JFUExBQ0UQARIeChpJTkdFU1RJT05fVFlQRV9GVUxMX1VQU0VSVBACEh4KGklOR0VTVElPTl9UWVBFX0ZVTExfQVBQRU5EEAMSJQohSU5HRVNUSU9OX1RZUEVfSU5DUkVNRU5UQUxfQVBQRU5EEAQSJQohSU5HRVNUSU9OX1RZUEVfSU5DUkVNRU5UQUxfVVBTRVJUEAUSJQohSU5HRVNUSU9OX1RZUEVfSU5DUkVNRU5UQUxfREVMRVRFEAYSFgoSSU5HRVNUSU9OX1RZUEVfQ0RDEAcqmgEKCVdyaXRlTW9kZRIaChZXUklURV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRV1JJVEVfTU9ERV9BUFBFTkQQARIWChJXUklURV9NT0RFX1JFUExBQ0UQAhIVChFXUklURV9NT0RFX1VQU0VSVBADEhUKEVdSSVRFX01PREVfREVMRVRFEAQSFAoQV1JJVEVfTU9ERV9NRVJHRRAFKoMBCg5Xcml0ZUF0b21pY2l0eRIfChtXUklURV9BVE9NSUNJVFlfVU5TUEVDSUZJRUQQABIZChVXUklURV9BVE9NSUNJVFlfQkFUQ0gQARIcChhXUklURV9BVE9NSUNJVFlfUkVTT1VSQ0UQAhIXChNXUklURV9BVE9NSUNJVFlfUlVOEAMqmAEKEENoZWNrcG9pbnRQb2xpY3kSIQodQ0hFQ0tQT0lOVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABIaChZDSEVDS1BPSU5UX1BPTElDWV9OT05FEAESIQodQ0hFQ0tQT0lOVF9QT0xJQ1lfQUZURVJfQkFUQ0gQAhIiCh5DSEVDS1BPSU5UX1BPTElDWV9BRlRFUl9DT01NSVQQAypfCgpGaWVsZFNjb3BlEhsKF0ZJRUxEX1NDT1BFX1VOU1BFQ0lGSUVEEAASGgoWRklFTERfU0NPUEVfQ09OTkVDVElPThABEhgKFEZJRUxEX1NDT1BFX1BJUEVMSU5FEAJiBnByb3RvMw", [file_google_protobuf_struct]);
+
+/**
+ * WorkerResources sizes the worker that executes a run. Values are Kubernetes
+ * quantity strings ("500m", "2Gi"); an empty field is unset and inherits, and
+ * only the Kubernetes dispatcher consults them.
+ *
+ * @generated from message ingestion.v1.WorkerResources
+ */
+export type WorkerResources = Message<"ingestion.v1.WorkerResources"> & {
+  /**
+   * @generated from field: string cpu_request = 1;
+   */
+  cpuRequest: string;
+
+  /**
+   * @generated from field: string cpu_limit = 2;
+   */
+  cpuLimit: string;
+
+  /**
+   * @generated from field: string memory_request = 3;
+   */
+  memoryRequest: string;
+
+  /**
+   * @generated from field: string memory_limit = 4;
+   */
+  memoryLimit: string;
+};
+
+/**
+ * Describes the message ingestion.v1.WorkerResources.
+ * Use `create(WorkerResourcesSchema)` to create a new message.
+ */
+export const WorkerResourcesSchema: GenMessage<WorkerResources> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 0);
+
+/**
+ * WorkerConfiguration is how a pipeline's workers are shaped. It is a container
+ * on purpose: resources today, placement (node selectors, tolerations) later,
+ * without a migration per knob.
+ *
+ * @generated from message ingestion.v1.WorkerConfiguration
+ */
+export type WorkerConfiguration = Message<"ingestion.v1.WorkerConfiguration"> & {
+  /**
+   * @generated from field: ingestion.v1.WorkerResources resources = 1;
+   */
+  resources?: WorkerResources | undefined;
+};
+
+/**
+ * Describes the message ingestion.v1.WorkerConfiguration.
+ * Use `create(WorkerConfigurationSchema)` to create a new message.
+ */
+export const WorkerConfigurationSchema: GenMessage<WorkerConfiguration> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 1);
 
 /**
  * ConfigField describes one connector configuration field.
@@ -83,7 +140,7 @@ export type ConfigField = Message<"ingestion.v1.ConfigField"> & {
  * Use `create(ConfigFieldSchema)` to create a new message.
  */
 export const ConfigFieldSchema: GenMessage<ConfigField> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 0);
+  messageDesc(file_ingestion_v1_common, 2);
 
 /**
  * EnumOption is one ordered choice for an enum or list config field.
@@ -107,7 +164,7 @@ export type EnumOption = Message<"ingestion.v1.EnumOption"> & {
  * Use `create(EnumOptionSchema)` to create a new message.
  */
 export const EnumOptionSchema: GenMessage<EnumOption> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 1);
+  messageDesc(file_ingestion_v1_common, 3);
 
 /**
  * @generated from message ingestion.v1.FieldCondition
@@ -129,7 +186,7 @@ export type FieldCondition = Message<"ingestion.v1.FieldCondition"> & {
  * Use `create(FieldConditionSchema)` to create a new message.
  */
 export const FieldConditionSchema: GenMessage<FieldCondition> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 2);
+  messageDesc(file_ingestion_v1_common, 4);
 
 /**
  * ConfigSchema describes the configuration accepted by a connector.
@@ -148,7 +205,7 @@ export type ConfigSchema = Message<"ingestion.v1.ConfigSchema"> & {
  * Use `create(ConfigSchemaSchema)` to create a new message.
  */
 export const ConfigSchemaSchema: GenMessage<ConfigSchema> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 3);
+  messageDesc(file_ingestion_v1_common, 5);
 
 /**
  * @generated from message ingestion.v1.WritePolicyCapability
@@ -185,7 +242,7 @@ export type WritePolicyCapability = Message<"ingestion.v1.WritePolicyCapability"
  * Use `create(WritePolicyCapabilitySchema)` to create a new message.
  */
 export const WritePolicyCapabilitySchema: GenMessage<WritePolicyCapability> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 4);
+  messageDesc(file_ingestion_v1_common, 6);
 
 /**
  * @generated from message ingestion.v1.SourcePolicy
@@ -220,7 +277,7 @@ export type SourcePolicy = Message<"ingestion.v1.SourcePolicy"> & {
  * Use `create(SourcePolicySchema)` to create a new message.
  */
 export const SourcePolicySchema: GenMessage<SourcePolicy> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 5);
+  messageDesc(file_ingestion_v1_common, 7);
 
 /**
  * ConnectorKind distinguishes a source from a sink in the catalog.

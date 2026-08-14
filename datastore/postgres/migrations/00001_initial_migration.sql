@@ -56,6 +56,7 @@ CREATE TABLE pipelines (
   name               TEXT        NOT NULL,
   description        TEXT        NOT NULL DEFAULT '',
   current_version_id TEXT,
+  worker_configuration JSONB     NOT NULL DEFAULT '{}',
   is_deleted         BOOLEAN     NOT NULL DEFAULT false,
   deleted_at         TIMESTAMPTZ,
   created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,

@@ -81,6 +81,10 @@ message Pipeline {
   string created_by_user_id = 14;
   string updated_by_user_id = 15;
   string deleted_by_user_id = 16;
+  // worker_configuration shapes this pipeline's runs by default. It lives on
+  // the pipeline rather than the version so editing it cannot mint a version
+  // and orphan the resource checkpoints keyed by the old one.
+  WorkerConfiguration worker_configuration = 17;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -112,6 +116,9 @@ message CreatePipelineRequest {
   string name = 2;
   string description = 3;
   PipelineScheduleConfig schedule = 4;
+  // worker_configuration shapes this pipeline's runs. Omit it to configure the
+  // pipeline's workers later through UpdatePipeline.
+  WorkerConfiguration worker_configuration = 5;
 }
 
 message CreatePipelineResponse {
