@@ -1,9 +1,9 @@
 -- name: SaveSchedule :exec
-INSERT INTO schedules (schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+INSERT INTO schedules (id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, claimed_at, created_at, updated_at)
 VALUES (@schedule_id, @tenant_id, @pipeline_id, @name, @cron_expr, @timezone, @overlap_policy,
     @enabled, @last_fired_at, @next_fire_at, NULL, @created_at, now())
-ON CONFLICT (schedule_id) DO UPDATE SET
+ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     name = EXCLUDED.name,
@@ -17,34 +17,34 @@ ON CONFLICT (schedule_id) DO UPDATE SET
     updated_at = now();
 
 -- name: LoadSchedule :one
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
-FROM schedules WHERE schedule_id = @schedule_id;
+FROM schedules WHERE id = @schedule_id;
 
 -- name: LoadPipelineSchedule :one
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules WHERE pipeline_id = @pipeline_id;
 
 -- name: DeleteSchedule :exec
-DELETE FROM schedules WHERE schedule_id = @schedule_id;
+DELETE FROM schedules WHERE id = @schedule_id;
 
 -- name: DeletePipelineSchedules :exec
 DELETE FROM schedules WHERE pipeline_id = @pipeline_id;
 
 -- name: ListSchedules :many
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
 WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
   AND (sqlc.narg(filter_enabled)::boolean IS NULL OR enabled = sqlc.narg(filter_enabled))
-ORDER BY schedule_id
+ORDER BY id
 LIMIT NULLIF(@lim::int, 0);
 
 -- name: ClaimDue :many
 -- lease_cutoff is now - leaseTTL, computed in Go: a claimed_at older than that
 -- is treated as an abandoned lease and eligible to be reclaimed.
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
 WHERE enabled AND next_fire_at <= @now
@@ -54,7 +54,7 @@ LIMIT NULLIF(@lim::int, 0)
 FOR UPDATE SKIP LOCKED;
 
 -- name: LeaseSchedules :exec
-UPDATE schedules SET claimed_at = @claimed_at WHERE schedule_id = ANY(@schedule_ids::text[]);
+UPDATE schedules SET claimed_at = @claimed_at WHERE id = ANY(@schedule_ids::text[]);
 
 -- name: ReleaseScheduleClaim :exec
-UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE schedule_id = @schedule_id;
+UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE id = @schedule_id;

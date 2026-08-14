@@ -144,13 +144,15 @@ export const mapCreatePipelineStateToVersionRequest = ({
 }): CreatePipelineVersionRequest =>
   create(CreatePipelineVersionRequestSchema, {
     pipelineId,
-    nodes: buildNodes(sourceConnection, sinks),
-    edges: buildEdges({
-      sourceConnection,
-      rowsBySink,
-      sinks,
-      isCdc: replication === ReplicationMode.CDC,
-    }),
+    graph: {
+      nodes: buildNodes(sourceConnection, sinks),
+      edges: buildEdges({
+        sourceConnection,
+        rowsBySink,
+        sinks,
+        isCdc: replication === ReplicationMode.CDC,
+      }),
+    },
   });
 
 export const mapCreatePipelineStateToRequest = (
@@ -164,7 +166,7 @@ export const mapCreatePipelineStateToRequest = (
       ? {
           cron: mapPipelineScheduleStateToCron(state.schedule),
           timezone: state.schedule.timezone,
-          enabled: true,
+          isEnabled: true,
         }
       : undefined,
   });

@@ -167,7 +167,7 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		for _, node := range version.GetNodes() {
+		for _, node := range version.GetGraph().GetNodes() {
 			if node.GetConnectionId() == id {
 				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is in use by pipeline %q", id, pipeline.GetId()))
 			}
@@ -196,8 +196,9 @@ func (a *Server) storeSecretFields(ctx context.Context, schema filament.ConfigSc
 	for _, field := range fields {
 		ref := filament.ConnectionSecretRef(tenant, id, field.path, version)
 		secret := filament.Secret{
-			Value: []byte(field.value),
-			Meta:  map[string]string{"tenant": tenant, "connection": id, "field": field.path},
+			Tenant: filament.TenantID(tenant),
+			Value:  []byte(field.value),
+			Meta:   map[string]string{"tenant": tenant, "connection": id, "field": field.path},
 		}
 		if err := a.secrets.Write(ctx, ref, secret); err != nil {
 			a.deleteSecretRefs(ctx, written)

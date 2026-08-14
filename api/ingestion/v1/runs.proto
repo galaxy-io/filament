@@ -4,7 +4,7 @@ package ingestion.v1;
 
 import "ingestion/v1/pagination.proto";
 
-// RunStatus mirrors pkg.RunStatus.
+// RunStatus is the persisted lifecycle state of a run.
 enum RunStatus {
   RUN_STATUS_UNSPECIFIED = 0;
   RUN_STATUS_REQUESTED = 1;
@@ -17,12 +17,12 @@ enum RunStatus {
   RUN_STATUS_SCHEDULED = 8;
 }
 
-// Signal mirrors pkg.Signal.
-enum Signal {
-  SIGNAL_UNSPECIFIED = 0;
-  SIGNAL_PAUSE = 1;
-  SIGNAL_RESUME = 2;
-  SIGNAL_CANCEL = 3;
+// RunSignal is a lifecycle command sent to a run.
+enum RunSignal {
+  RUN_SIGNAL_UNSPECIFIED = 0;
+  RUN_SIGNAL_PAUSE = 1;
+  RUN_SIGNAL_RESUME = 2;
+  RUN_SIGNAL_CANCEL = 3;
 }
 
 // RatePolicy throttles source reads.
@@ -53,36 +53,36 @@ message RunPipelineRequest {
   RunOptions options = 4;
 }
 
-// RunBinding ties one compiled edge to the run it produced, so the UI can bind a
-// canvas edge to live run progress. edge is a stable key: "from|resource|to".
-message RunBinding {
-  string edge = 1;
-  string run_id = 2;
+// PipelineEdgeRun ties one compiled pipeline edge to the run it produced.
+message PipelineEdgeRun {
+  string pipeline_edge_key = 1;
+  RunInfo run = 2;
 }
 
 message RunPipelineResponse {
-  repeated RunBinding runs = 1;
+  repeated PipelineEdgeRun edge_runs = 1;
 }
 
-// RunResourceState mirrors pkg.ResourceState (progress per resource).
+// RunResourceState reports progress for one resource in a run.
 message RunResourceState {
-  string resource = 1;
-  bool enabled = 2;
+  string resource_name = 1;
+  reserved 2;
+  reserved "enabled";
   RunStatus status = 3;
-  int64 records = 4;
-  int64 bytes = 5;
+  int64 records_processed = 4;
+  int64 bytes_processed = 5;
   string error = 6;
 }
 
-// RunInfo mirrors pkg.RunState (run-level rollup).
+// RunInfo is the run-level persisted state exposed by the API.
 message RunInfo {
   string tenant_id = 1;
-  string run_id = 2;
+  string id = 2;
   string pipeline_id = 3;
-  int64 pipeline_version_id = 4;
+  string pipeline_version_id = 4;
   RunStatus status = 5;
-  int64 records = 6;
-  int64 bytes = 7;
+  int64 records_processed = 6;
+  int64 bytes_processed = 7;
   string error = 8;
   int64 started_at = 9;
   int64 ended_at = 10;
@@ -119,7 +119,7 @@ message GetRunResponse {
 message ListRunsRequest {
   string tenant_id = 1;
   string pipeline_id = 2;
-  optional int64 pipeline_version_id = 3;
+  optional string pipeline_version_id = 3;
   repeated RunStatus status = 4;
   PaginationRequest pagination = 5;
   // since_ms/until_ms window on started_at (inclusive/exclusive, epoch
@@ -136,7 +136,7 @@ message ListRunsResponse {
 message SignalRunRequest {
   string tenant_id = 1;
   string run_id = 2;
-  Signal signal = 3;
+  RunSignal signal = 3;
 }
 
 message SignalRunResponse {}
@@ -146,30 +146,30 @@ message TailRunRequest {
   string run_id = 2;
   // replay first emits events synthesized from the current snapshot (each marked
   // replay=true) so progress is correct on reconnect, before live facts stream.
-  bool replay = 3;
+  bool should_replay = 3;
 }
 
-// RunEventFields mirrors the set fields of pkg.EventFields.
+// RunEventFields contains the optional measurements carried by a run event.
 message RunEventFields {
-  int64 records = 1;
-  int64 bytes = 2;
+  int64 records_processed = 1;
+  int64 bytes_processed = 2;
   string uri = 3;
   uint32 crc = 4;
   string error = 5;
 }
 
-// RunEvent is the pkg.Event envelope forwarded verbatim. type is the event's
+// RunEvent is the event envelope forwarded by the run stream. event_type is the
 // wire token (e.g. "written", "completed"). replay marks a snapshot-synthesized
 // event rather than a live fact.
 message RunEvent {
   string tenant_id = 1;
-  string type = 2;
+  string event_type = 2;
   string run_id = 3;
   string resource = 4;
   uint64 seq = 5;
-  int64 at_unix_ms = 6;
+  int64 occurred_at = 6;
   RunEventFields fields = 7;
-  bool replay = 8;
+  bool is_replay = 8;
 }
 
 message TailRunResponse {

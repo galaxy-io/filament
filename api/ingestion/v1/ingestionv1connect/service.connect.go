@@ -48,12 +48,6 @@ const (
 	// IngestionServiceGetResourceColumnsProcedure is the fully-qualified name of the IngestionService's
 	// GetResourceColumns RPC.
 	IngestionServiceGetResourceColumnsProcedure = "/ingestion.v1.IngestionService/GetResourceColumns"
-	// IngestionServicePutSecretProcedure is the fully-qualified name of the IngestionService's
-	// PutSecret RPC.
-	IngestionServicePutSecretProcedure = "/ingestion.v1.IngestionService/PutSecret"
-	// IngestionServiceDeleteSecretProcedure is the fully-qualified name of the IngestionService's
-	// DeleteSecret RPC.
-	IngestionServiceDeleteSecretProcedure = "/ingestion.v1.IngestionService/DeleteSecret"
 	// IngestionServiceCreateConnectionProcedure is the fully-qualified name of the IngestionService's
 	// CreateConnection RPC.
 	IngestionServiceCreateConnectionProcedure = "/ingestion.v1.IngestionService/CreateConnection"
@@ -139,9 +133,6 @@ type IngestionServiceClient interface {
 	ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error)
 	DiscoverResources(context.Context, *connect.Request[v1.DiscoverResourcesRequest]) (*connect.Response[v1.DiscoverResourcesResponse], error)
 	GetResourceColumns(context.Context, *connect.Request[v1.GetResourceColumnsRequest]) (*connect.Response[v1.GetResourceColumnsResponse], error)
-	// Secrets; write-only values referenced by name from configs.
-	PutSecret(context.Context, *connect.Request[v1.PutSecretRequest]) (*connect.Response[v1.PutSecretResponse], error)
-	DeleteSecret(context.Context, *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error)
 	// Connections; reusable, tenant-scoped sources and sinks.
 	CreateConnection(context.Context, *connect.Request[v1.CreateConnectionRequest]) (*connect.Response[v1.CreateConnectionResponse], error)
 	UpdateConnection(context.Context, *connect.Request[v1.UpdateConnectionRequest]) (*connect.Response[v1.UpdateConnectionResponse], error)
@@ -214,18 +205,6 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceGetResourceColumnsProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("GetResourceColumns")),
-			connect.WithClientOptions(opts...),
-		),
-		putSecret: connect.NewClient[v1.PutSecretRequest, v1.PutSecretResponse](
-			httpClient,
-			baseURL+IngestionServicePutSecretProcedure,
-			connect.WithSchema(ingestionServiceMethods.ByName("PutSecret")),
-			connect.WithClientOptions(opts...),
-		),
-		deleteSecret: connect.NewClient[v1.DeleteSecretRequest, v1.DeleteSecretResponse](
-			httpClient,
-			baseURL+IngestionServiceDeleteSecretProcedure,
-			connect.WithSchema(ingestionServiceMethods.ByName("DeleteSecret")),
 			connect.WithClientOptions(opts...),
 		),
 		createConnection: connect.NewClient[v1.CreateConnectionRequest, v1.CreateConnectionResponse](
@@ -388,8 +367,6 @@ type ingestionServiceClient struct {
 	validateConfig            *connect.Client[v1.ValidateConfigRequest, v1.ValidateConfigResponse]
 	discoverResources         *connect.Client[v1.DiscoverResourcesRequest, v1.DiscoverResourcesResponse]
 	getResourceColumns        *connect.Client[v1.GetResourceColumnsRequest, v1.GetResourceColumnsResponse]
-	putSecret                 *connect.Client[v1.PutSecretRequest, v1.PutSecretResponse]
-	deleteSecret              *connect.Client[v1.DeleteSecretRequest, v1.DeleteSecretResponse]
 	createConnection          *connect.Client[v1.CreateConnectionRequest, v1.CreateConnectionResponse]
 	updateConnection          *connect.Client[v1.UpdateConnectionRequest, v1.UpdateConnectionResponse]
 	getConnection             *connect.Client[v1.GetConnectionRequest, v1.GetConnectionResponse]
@@ -440,16 +417,6 @@ func (c *ingestionServiceClient) DiscoverResources(ctx context.Context, req *con
 // GetResourceColumns calls ingestion.v1.IngestionService.GetResourceColumns.
 func (c *ingestionServiceClient) GetResourceColumns(ctx context.Context, req *connect.Request[v1.GetResourceColumnsRequest]) (*connect.Response[v1.GetResourceColumnsResponse], error) {
 	return c.getResourceColumns.CallUnary(ctx, req)
-}
-
-// PutSecret calls ingestion.v1.IngestionService.PutSecret.
-func (c *ingestionServiceClient) PutSecret(ctx context.Context, req *connect.Request[v1.PutSecretRequest]) (*connect.Response[v1.PutSecretResponse], error) {
-	return c.putSecret.CallUnary(ctx, req)
-}
-
-// DeleteSecret calls ingestion.v1.IngestionService.DeleteSecret.
-func (c *ingestionServiceClient) DeleteSecret(ctx context.Context, req *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error) {
-	return c.deleteSecret.CallUnary(ctx, req)
 }
 
 // CreateConnection calls ingestion.v1.IngestionService.CreateConnection.
@@ -586,9 +553,6 @@ type IngestionServiceHandler interface {
 	ValidateConfig(context.Context, *connect.Request[v1.ValidateConfigRequest]) (*connect.Response[v1.ValidateConfigResponse], error)
 	DiscoverResources(context.Context, *connect.Request[v1.DiscoverResourcesRequest]) (*connect.Response[v1.DiscoverResourcesResponse], error)
 	GetResourceColumns(context.Context, *connect.Request[v1.GetResourceColumnsRequest]) (*connect.Response[v1.GetResourceColumnsResponse], error)
-	// Secrets; write-only values referenced by name from configs.
-	PutSecret(context.Context, *connect.Request[v1.PutSecretRequest]) (*connect.Response[v1.PutSecretResponse], error)
-	DeleteSecret(context.Context, *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error)
 	// Connections; reusable, tenant-scoped sources and sinks.
 	CreateConnection(context.Context, *connect.Request[v1.CreateConnectionRequest]) (*connect.Response[v1.CreateConnectionResponse], error)
 	UpdateConnection(context.Context, *connect.Request[v1.UpdateConnectionRequest]) (*connect.Response[v1.UpdateConnectionResponse], error)
@@ -657,18 +621,6 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceGetResourceColumnsProcedure,
 		svc.GetResourceColumns,
 		connect.WithSchema(ingestionServiceMethods.ByName("GetResourceColumns")),
-		connect.WithHandlerOptions(opts...),
-	)
-	ingestionServicePutSecretHandler := connect.NewUnaryHandler(
-		IngestionServicePutSecretProcedure,
-		svc.PutSecret,
-		connect.WithSchema(ingestionServiceMethods.ByName("PutSecret")),
-		connect.WithHandlerOptions(opts...),
-	)
-	ingestionServiceDeleteSecretHandler := connect.NewUnaryHandler(
-		IngestionServiceDeleteSecretProcedure,
-		svc.DeleteSecret,
-		connect.WithSchema(ingestionServiceMethods.ByName("DeleteSecret")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceCreateConnectionHandler := connect.NewUnaryHandler(
@@ -833,10 +785,6 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceDiscoverResourcesHandler.ServeHTTP(w, r)
 		case IngestionServiceGetResourceColumnsProcedure:
 			ingestionServiceGetResourceColumnsHandler.ServeHTTP(w, r)
-		case IngestionServicePutSecretProcedure:
-			ingestionServicePutSecretHandler.ServeHTTP(w, r)
-		case IngestionServiceDeleteSecretProcedure:
-			ingestionServiceDeleteSecretHandler.ServeHTTP(w, r)
 		case IngestionServiceCreateConnectionProcedure:
 			ingestionServiceCreateConnectionHandler.ServeHTTP(w, r)
 		case IngestionServiceUpdateConnectionProcedure:
@@ -914,14 +862,6 @@ func (UnimplementedIngestionServiceHandler) DiscoverResources(context.Context, *
 
 func (UnimplementedIngestionServiceHandler) GetResourceColumns(context.Context, *connect.Request[v1.GetResourceColumnsRequest]) (*connect.Response[v1.GetResourceColumnsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetResourceColumns is not implemented"))
-}
-
-func (UnimplementedIngestionServiceHandler) PutSecret(context.Context, *connect.Request[v1.PutSecretRequest]) (*connect.Response[v1.PutSecretResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.PutSecret is not implemented"))
-}
-
-func (UnimplementedIngestionServiceHandler) DeleteSecret(context.Context, *connect.Request[v1.DeleteSecretRequest]) (*connect.Response[v1.DeleteSecretResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.DeleteSecret is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) CreateConnection(context.Context, *connect.Request[v1.CreateConnectionRequest]) (*connect.Response[v1.CreateConnectionResponse], error) {

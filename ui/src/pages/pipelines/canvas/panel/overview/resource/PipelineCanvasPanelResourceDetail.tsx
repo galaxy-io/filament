@@ -7,8 +7,8 @@ import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/Selec
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
 
 import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";

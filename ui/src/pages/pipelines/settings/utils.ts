@@ -101,7 +101,7 @@ export const hasPipelineScheduleChanges = (
 ): boolean => {
   if (!schedule?.config) return true;
   return (
-    state.isEnabled !== schedule.config.enabled ||
+    state.isEnabled !== schedule.config.isEnabled ||
     mapPipelineScheduleStateToCron(state) !== schedule.config.cron ||
     state.timezone !== (schedule.config.timezone || PIPELINE_SCHEDULE_DEFAULT_TIMEZONE)
   );

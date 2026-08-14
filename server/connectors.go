@@ -81,8 +81,7 @@ func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv
 	return connect.NewResponse(&ingestionv1.GetConnectorResponse{Connector: spec}), nil
 }
 
-// ValidateConfig checks a connector config against its schema, optionally
-// testing the live connection.
+// ValidateConfig checks a connector config against its schema.
 func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingestionv1.ValidateConfigRequest]) (*connect.Response[ingestionv1.ValidateConfigResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
@@ -111,13 +110,6 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		if err := source.Validate(cfg); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
-		if req.Msg.GetLive() {
-			if live, ok := source.(filament.LiveValidatable); ok {
-				if err := live.TestConnection(ctx, cfg); err != nil {
-					return connect.NewResponse(validationError(err.Error())), nil
-				}
-			}
-		}
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
 		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
 		if err != nil {
@@ -125,13 +117,6 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		}
 		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
-		}
-		if req.Msg.GetLive() {
-			if live, ok := sink.(filament.LiveValidatable); ok {
-				if err := live.TestConnection(ctx, cfg); err != nil {
-					return connect.NewResponse(validationError(err.Error())), nil
-				}
-			}
 		}
 	default:
 		return connect.NewResponse(validationError("connector kind is required")), nil
@@ -252,10 +237,10 @@ func cursorColumnsToProto(columns []filament.CursorColumn) []*ingestionv1.Resour
 	for _, column := range columns {
 		out = append(out, &ingestionv1.ResourceColumn{
 			Name: column.Name, LogicalType: string(column.Logical), NativeType: column.Native,
-			Nullable: column.Nullable, PrimaryKey: column.PrimaryKey,
-			CursorEligible: column.Eligible, CursorRecommended: column.Recommended,
+			IsNullable: column.Nullable, IsPrimaryKey: column.PrimaryKey,
+			IsCursorEligible: column.Eligible, IsCursorRecommended: column.Recommended,
 			RecommendationRank: int32(column.Rank), Warning: column.Warning, //nolint:gosec // tiny rank
-			Configurable: column.Configurable, SupportsLookback: column.SupportsLookback,
+			IsConfigurable: column.Configurable, SupportsLookback: column.SupportsLookback,
 		})
 	}
 	return out

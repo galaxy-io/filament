@@ -72,7 +72,7 @@ func (ConnectorKind) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
-// FieldType mirrors pkg.FieldType; drives UI form controls for config fields.
+// FieldType drives UI form controls for connector configuration fields.
 type FieldType int32
 
 const (
@@ -577,7 +577,7 @@ func (FieldScope) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{9}
 }
 
-// ConfigField mirrors pkg.ConfigField.
+// ConfigField describes one connector configuration field.
 type ConfigField struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Name     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -803,7 +803,7 @@ func (x *FieldCondition) GetValues() []string {
 	return nil
 }
 
-// ConfigSchema mirrors pkg.ConfigSchema.
+// ConfigSchema describes the configuration accepted by a connector.
 type ConfigSchema struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Fields        []*ConfigField         `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`

@@ -37,7 +37,7 @@ const PipelineCanvasPanelOverview = () => {
     input: create(GetPipelineRequestSchema, { id }),
   });
   const previewed = usePipelinePreviewVersion();
-  const version = previewed?.version ?? pipelineData.currentVersion?.version;
+  const version = previewed?.version ?? pipelineData.pipeline?.currentVersion?.version;
 
   const connectionNodes = state.nodes.filter(isConnectionNode);
   const sourceNodes = connectionNodes.filter((node) => node.type === PipelineCanvasNodeType.SOURCE);

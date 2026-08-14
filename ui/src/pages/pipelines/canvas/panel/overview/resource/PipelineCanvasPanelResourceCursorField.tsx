@@ -3,7 +3,7 @@ import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
+import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 interface PipelineCanvasPanelResourceCursorFieldProps {
   resource: Resource["name"];

@@ -41,9 +41,9 @@ const PipelineCanvasPanelActivity = () => {
     }),
   });
 
-  const [runIds, setRunIds] = useState<RunInfo["runId"][]>([]);
+  const [runIds, setRunIds] = useState<RunInfo["id"][]>([]);
   const mergedRunIds = [
-    ...new Set([...runIds, ...(activeRunsData?.runs ?? []).map((run) => run.runId)]),
+    ...new Set([...runIds, ...(activeRunsData?.runs ?? []).map((run) => run.id)]),
   ].slice(-PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS);
   if (mergedRunIds.join("|") !== runIds.join("|")) {
     setRunIds(mergedRunIds);

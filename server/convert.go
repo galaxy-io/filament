@@ -378,13 +378,12 @@ func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResour
 	out := make([]*ingestionv1.Resource, 0, len(resources))
 	for _, resource := range resources {
 		out = append(out, &ingestionv1.Resource{
-			Name:          resource.Name,
-			Selectable:    resource.Selectable,
-			PrimaryKey:    resource.PrimaryKey,
-			EstimatedRows: resource.Estimated,
-			Selector:      resource.Selector,
-			DisplayName:   resource.DisplayName,
-			Metadata:      resource.Metadata,
+			Name:         resource.Name,
+			IsSelectable: resource.Selectable,
+			PrimaryKey:   resource.PrimaryKey,
+			Selector:     resource.Selector,
+			DisplayName:  resource.DisplayName,
+			Metadata:     resource.Metadata,
 		})
 	}
 	return &ingestionv1.DiscoverResourcesResponse{Resources: out}
@@ -400,17 +399,17 @@ func epochMillis(t time.Time) int64 {
 
 func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 	var endedAt int64
-	if state.FinishedAt != nil {
-		endedAt = state.FinishedAt.UnixMilli()
+	if state.EndedAt != nil {
+		endedAt = state.EndedAt.UnixMilli()
 	}
 	return &ingestionv1.RunInfo{
-		RunId:              string(state.Run),
+		Id:                 string(state.Run),
 		TenantId:           string(state.Tenant),
 		PipelineId:         state.Request.PipelineID,
 		PipelineVersionId:  state.Request.PipelineVersionID,
 		Status:             runStatusToProto(state.Status),
-		Records:            state.Records,
-		Bytes:              state.Bytes,
+		RecordsProcessed:   state.Records,
+		BytesProcessed:     state.Bytes,
 		Error:              state.Error,
 		StartedAt:          epochMillis(state.StartedAt),
 		EndedAt:            endedAt,
@@ -427,14 +426,14 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 
 func eventToProto(f events.Fact, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
-		Type:     f.Name,
-		TenantId: string(f.Tenant),
-		RunId:    string(f.Run),
-		Resource: f.Resource,
-		Seq:      f.Seq,
-		AtUnixMs: f.At.UnixMilli(),
-		Fields:   eventFieldsToProto(f.Data),
-		Replay:   replay,
+		EventType:  f.Name,
+		TenantId:   string(f.Tenant),
+		RunId:      string(f.Run),
+		Resource:   f.Resource,
+		Seq:        f.Seq,
+		OccurredAt: f.At.UnixMilli(),
+		Fields:     eventFieldsToProto(f.Data),
+		IsReplay:   replay,
 	}
 }
 
@@ -443,21 +442,21 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 	fields := &ingestionv1.RunEventFields{}
 	switch d := data.(type) {
 	case events.RunCompletedEvent:
-		fields.Records, fields.Bytes = d.Records, d.Bytes
+		fields.RecordsProcessed, fields.BytesProcessed = d.Records, d.Bytes
 	case events.RunFailedEvent:
 		fields.Error = d.Error
 	case events.RunPartialEvent:
 		fields.Error = d.Error
 	case events.PageFetchedEvent:
-		fields.Records, fields.Bytes, fields.Uri = d.Records, d.Bytes, d.URI
+		fields.RecordsProcessed, fields.BytesProcessed, fields.Uri = d.Records, d.Bytes, d.URI
 	case events.ResourceCompletedEvent:
-		fields.Records, fields.Bytes = d.Records, d.Bytes
+		fields.RecordsProcessed, fields.BytesProcessed = d.Records, d.Bytes
 	case events.ResourceFailedEvent:
 		fields.Error = d.Error
 	case events.BatchBufferedEvent:
-		fields.Records, fields.Bytes = d.Records, d.Bytes
+		fields.RecordsProcessed, fields.BytesProcessed = d.Records, d.Bytes
 	case events.BatchWrittenEvent:
-		fields.Records, fields.Bytes, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
+		fields.RecordsProcessed, fields.BytesProcessed, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
 	case events.IntegrityVerifiedEvent:
 		fields.Crc = d.CRC
 	case events.ChunkDivergenceEvent:
@@ -474,15 +473,15 @@ func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
 
 func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
-		Type:     runEventType(state.Status),
-		TenantId: string(state.Tenant),
-		RunId:    string(state.Run),
+		EventType: runEventType(state.Status),
+		TenantId:  string(state.Tenant),
+		RunId:     string(state.Run),
 		Fields: &ingestionv1.RunEventFields{
-			Records: state.Records,
-			Bytes:   state.Bytes,
-			Error:   state.Error,
+			RecordsProcessed: state.Records,
+			BytesProcessed:   state.Bytes,
+			Error:            state.Error,
 		},
-		Replay: replay,
+		IsReplay: replay,
 	}
 }
 

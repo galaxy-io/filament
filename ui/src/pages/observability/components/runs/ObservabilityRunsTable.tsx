@@ -108,7 +108,7 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace>
-            {row.original.runId}
+            {row.original.id}
           </Text>
         ),
       },
@@ -158,12 +158,14 @@ const ObservabilityRunsTable = () => {
         id: "records",
         header: "Records",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
-        accessorFn: (run) => Number(run.records),
+        accessorFn: (run) => Number(run.recordsProcessed),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.status === RunStatus.SCHEDULED ? "—" : formatCount(row.original.records)}
+            {row.original.status === RunStatus.SCHEDULED
+              ? "—"
+              : formatCount(row.original.recordsProcessed)}
           </Text>
         ),
       },
@@ -171,12 +173,14 @@ const ObservabilityRunsTable = () => {
         id: "volume",
         header: "Volume",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-        accessorFn: (run) => Number(run.bytes),
+        accessorFn: (run) => Number(run.bytesProcessed),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.status === RunStatus.SCHEDULED ? "—" : formatBytes(row.original.bytes)}
+            {row.original.status === RunStatus.SCHEDULED
+              ? "—"
+              : formatBytes(row.original.bytesProcessed)}
           </Text>
         ),
       },
@@ -216,8 +220,8 @@ const ObservabilityRunsTable = () => {
     ? (data?.pages.flatMap((page) => page.runs) ?? [])
     : [];
 
-  const windowedIds = new Set(windowedRuns.map((run) => run.runId));
-  const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.runId)), ...windowedRuns];
+  const windowedIds = new Set(windowedRuns.map((run) => run.id));
+  const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.id)), ...windowedRuns];
 
   const handleRowClick = (row: Row<RunInfo>) => {
     navigate({
@@ -225,7 +229,7 @@ const ObservabilityRunsTable = () => {
       params: {
         id: row.original.pipelineId,
       },
-      search: { runId: [row.original.runId] },
+      search: { runId: [row.original.id] },
     });
   };
 
@@ -233,7 +237,7 @@ const ObservabilityRunsTable = () => {
     <InfiniteTable<RunInfo>
       columns={columns}
       data={runs}
-      getRowId={(run) => run.runId}
+      getRowId={(run) => run.id}
       onRowClick={handleRowClick}
       enableSorting
       isLoading={isLoading || (includeScheduled && isLoadingScheduled)}

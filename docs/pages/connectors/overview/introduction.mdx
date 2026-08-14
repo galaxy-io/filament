@@ -16,7 +16,7 @@ PostgreSQL and MySQL today — ship both, as separate packages
 Every connector describes itself through its spec — `ConnectorSpec` for
 sources, `SinkSpec` for sinks — covering identity, config schema, and
 capabilities. This is what powers the catalog: the API server's
-`ListConnectors` RPC (see [API Reference](/pages/api-reference/service/providers)) surfaces
+`ListConnectors` RPC (see [API Reference](/pages/api-reference/service/connectors)) surfaces
 exactly this metadata to the UI, so a new connector shows up automatically
 once it's registered, with no separate catalog to update by hand.
 

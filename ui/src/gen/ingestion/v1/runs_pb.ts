@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/runs.proto.
  */
 export const file_ingestion_v1_runs: GenFile = /*@__PURE__*/
-  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJ9ChJSdW5QaXBlbGluZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEhQKDGNsaWVudF90b2tlbhgDIAEoCRIpCgdvcHRpb25zGAQgASgLMhguaW5nZXN0aW9uLnYxLlJ1bk9wdGlvbnMiKgoKUnVuQmluZGluZxIMCgRlZGdlGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSI9ChNSdW5QaXBlbGluZVJlc3BvbnNlEiYKBHJ1bnMYASADKAsyGC5pbmdlc3Rpb24udjEuUnVuQmluZGluZyKNAQoQUnVuUmVzb3VyY2VTdGF0ZRIQCghyZXNvdXJjZRgBIAEoCRIPCgdlbmFibGVkGAIgASgIEicKBnN0YXR1cxgDIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSDwoHcmVjb3JkcxgEIAEoAxINCgVieXRlcxgFIAEoAxINCgVlcnJvchgGIAEoCSKaAwoHUnVuSW5mbxIRCgl0ZW5hbnRfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEhMKC3BpcGVsaW5lX2lkGAMgASgJEhsKE3BpcGVsaW5lX3ZlcnNpb25faWQYBCABKAMSJwoGc3RhdHVzGAUgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAYgASgDEg0KBWJ5dGVzGAcgASgDEg0KBWVycm9yGAggASgJEhIKCnN0YXJ0ZWRfYXQYCSABKAMSEAoIZW5kZWRfYXQYCiABKAMSHAoUc291cmNlX2Nvbm5lY3Rpb25faWQYCyABKAkSGgoSc2lua19jb25uZWN0aW9uX2lkGAwgASgJEhMKC2NwdV9zZWNvbmRzGA0gASgBEhkKEW1lbW9yeV9wZWFrX2J5dGVzGA4gASgDEhIKCmNyZWF0ZWRfYXQYDyABKAMSFAoMc2NoZWR1bGVkX2F0GBAgASgDEhQKDHJlcXVlc3RlZF9hdBgRIAEoAxISCgp1cGRhdGVkX2F0GBIgASgDInQKC1J1blNuYXBzaG90EiIKA3J1bhgBIAEoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvEjEKCXJlc291cmNlcxgCIAMoCzIeLmluZ2VzdGlvbi52MS5SdW5SZXNvdXJjZVN0YXRlEg4KBmF0X3NlcRgDIAEoBCIyCg1HZXRSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkiPQoOR2V0UnVuUmVzcG9uc2USKwoIc25hcHNob3QYASABKAsyGS5pbmdlc3Rpb24udjEuUnVuU25hcHNob3Qi9QEKD0xpc3RSdW5zUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEwoLcGlwZWxpbmVfaWQYAiABKAkSIAoTcGlwZWxpbmVfdmVyc2lvbl9pZBgDIAEoA0gAiAEBEicKBnN0YXR1cxgEIAMoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSMwoKcGFnaW5hdGlvbhgFIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBIQCghzaW5jZV9tcxgGIAEoAxIQCgh1bnRpbF9tcxgHIAEoA0IWChRfcGlwZWxpbmVfdmVyc2lvbl9pZCJtChBMaXN0UnVuc1Jlc3BvbnNlEiMKBHJ1bnMYASADKAsyFS5pbmdlc3Rpb24udjEuUnVuSW5mbxI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSJbChBTaWduYWxSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSJAoGc2lnbmFsGAMgASgOMhQuaW5nZXN0aW9uLnYxLlNpZ25hbCITChFTaWduYWxSdW5SZXNwb25zZSJDCg5UYWlsUnVuUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnJlcGxheRgDIAEoCCJZCg5SdW5FdmVudEZpZWxkcxIPCgdyZWNvcmRzGAEgASgDEg0KBWJ5dGVzGAIgASgDEgsKA3VyaRgDIAEoCRILCgNjcmMYBCABKA0SDQoFZXJyb3IYBSABKAkirAEKCFJ1bkV2ZW50EhEKCXRlbmFudF9pZBgBIAEoCRIMCgR0eXBlGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIQCghyZXNvdXJjZRgEIAEoCRILCgNzZXEYBSABKAQSEgoKYXRfdW5peF9tcxgGIAEoAxIsCgZmaWVsZHMYByABKAsyHC5pbmdlc3Rpb24udjEuUnVuRXZlbnRGaWVsZHMSDgoGcmVwbGF5GAggASgIIjgKD1RhaWxSdW5SZXNwb25zZRIlCgVldmVudBgBIAEoCzIWLmluZ2VzdGlvbi52MS5SdW5FdmVudCrsAQoJUnVuU3RhdHVzEhoKFlJVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIYChRSVU5fU1RBVFVTX1JFUVVFU1RFRBABEhYKElJVTl9TVEFUVVNfUlVOTklORxACEhgKFFJVTl9TVEFUVVNfQ09NUExFVEVEEAMSFQoRUlVOX1NUQVRVU19GQUlMRUQQBBIXChNSVU5fU1RBVFVTX0NBTkNFTEVEEAUSFQoRUlVOX1NUQVRVU19QQVVTRUQQBhIWChJSVU5fU1RBVFVTX1BBUlRJQUwQBxIYChRSVU5fU1RBVFVTX1NDSEVEVUxFRBAIKlgKBlNpZ25hbBIWChJTSUdOQUxfVU5TUEVDSUZJRUQQABIQCgxTSUdOQUxfUEFVU0UQARIRCg1TSUdOQUxfUkVTVU1FEAISEQoNU0lHTkFMX0NBTkNFTBADYgZwcm90bzM", [file_ingestion_v1_pagination]);
+  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSJ9ChJSdW5QaXBlbGluZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEhQKDGNsaWVudF90b2tlbhgDIAEoCRIpCgdvcHRpb25zGAQgASgLMhguaW5nZXN0aW9uLnYxLlJ1bk9wdGlvbnMiUAoPUGlwZWxpbmVFZGdlUnVuEhkKEXBpcGVsaW5lX2VkZ2Vfa2V5GAEgASgJEiIKA3J1bhgCIAEoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvIkcKE1J1blBpcGVsaW5lUmVzcG9uc2USMAoJZWRnZV9ydW5zGAEgAygLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lRWRnZVJ1biKkAQoQUnVuUmVzb3VyY2VTdGF0ZRIVCg1yZXNvdXJjZV9uYW1lGAEgASgJEicKBnN0YXR1cxgDIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSGQoRcmVjb3Jkc19wcm9jZXNzZWQYBCABKAMSFwoPYnl0ZXNfcHJvY2Vzc2VkGAUgASgDEg0KBWVycm9yGAYgASgJSgQIAhADUgdlbmFibGVkIqoDCgdSdW5JbmZvEhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCRITCgtwaXBlbGluZV9pZBgDIAEoCRIbChNwaXBlbGluZV92ZXJzaW9uX2lkGAQgASgJEicKBnN0YXR1cxgFIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSGQoRcmVjb3Jkc19wcm9jZXNzZWQYBiABKAMSFwoPYnl0ZXNfcHJvY2Vzc2VkGAcgASgDEg0KBWVycm9yGAggASgJEhIKCnN0YXJ0ZWRfYXQYCSABKAMSEAoIZW5kZWRfYXQYCiABKAMSHAoUc291cmNlX2Nvbm5lY3Rpb25faWQYCyABKAkSGgoSc2lua19jb25uZWN0aW9uX2lkGAwgASgJEhMKC2NwdV9zZWNvbmRzGA0gASgBEhkKEW1lbW9yeV9wZWFrX2J5dGVzGA4gASgDEhIKCmNyZWF0ZWRfYXQYDyABKAMSFAoMc2NoZWR1bGVkX2F0GBAgASgDEhQKDHJlcXVlc3RlZF9hdBgRIAEoAxISCgp1cGRhdGVkX2F0GBIgASgDInQKC1J1blNuYXBzaG90EiIKA3J1bhgBIAEoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvEjEKCXJlc291cmNlcxgCIAMoCzIeLmluZ2VzdGlvbi52MS5SdW5SZXNvdXJjZVN0YXRlEg4KBmF0X3NlcRgDIAEoBCIyCg1HZXRSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkiPQoOR2V0UnVuUmVzcG9uc2USKwoIc25hcHNob3QYASABKAsyGS5pbmdlc3Rpb24udjEuUnVuU25hcHNob3Qi9QEKD0xpc3RSdW5zUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEwoLcGlwZWxpbmVfaWQYAiABKAkSIAoTcGlwZWxpbmVfdmVyc2lvbl9pZBgDIAEoCUgAiAEBEicKBnN0YXR1cxgEIAMoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSMwoKcGFnaW5hdGlvbhgFIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBIQCghzaW5jZV9tcxgGIAEoAxIQCgh1bnRpbF9tcxgHIAEoA0IWChRfcGlwZWxpbmVfdmVyc2lvbl9pZCJtChBMaXN0UnVuc1Jlc3BvbnNlEiMKBHJ1bnMYASADKAsyFS5pbmdlc3Rpb24udjEuUnVuSW5mbxI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSJeChBTaWduYWxSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSJwoGc2lnbmFsGAMgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blNpZ25hbCITChFTaWduYWxSdW5SZXNwb25zZSJKCg5UYWlsUnVuUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJEhUKDXNob3VsZF9yZXBsYXkYAyABKAgibQoOUnVuRXZlbnRGaWVsZHMSGQoRcmVjb3Jkc19wcm9jZXNzZWQYASABKAMSFwoPYnl0ZXNfcHJvY2Vzc2VkGAIgASgDEgsKA3VyaRgDIAEoCRILCgNjcmMYBCABKA0SDQoFZXJyb3IYBSABKAkitgEKCFJ1bkV2ZW50EhEKCXRlbmFudF9pZBgBIAEoCRISCgpldmVudF90eXBlGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIQCghyZXNvdXJjZRgEIAEoCRILCgNzZXEYBSABKAQSEwoLb2NjdXJyZWRfYXQYBiABKAMSLAoGZmllbGRzGAcgASgLMhwuaW5nZXN0aW9uLnYxLlJ1bkV2ZW50RmllbGRzEhEKCWlzX3JlcGxheRgIIAEoCCI4Cg9UYWlsUnVuUmVzcG9uc2USJQoFZXZlbnQYASABKAsyFi5pbmdlc3Rpb24udjEuUnVuRXZlbnQq7AEKCVJ1blN0YXR1cxIaChZSVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASGAoUUlVOX1NUQVRVU19SRVFVRVNURUQQARIWChJSVU5fU1RBVFVTX1JVTk5JTkcQAhIYChRSVU5fU1RBVFVTX0NPTVBMRVRFRBADEhUKEVJVTl9TVEFUVVNfRkFJTEVEEAQSFwoTUlVOX1NUQVRVU19DQU5DRUxFRBAFEhUKEVJVTl9TVEFUVVNfUEFVU0VEEAYSFgoSUlVOX1NUQVRVU19QQVJUSUFMEAcSGAoUUlVOX1NUQVRVU19TQ0hFRFVMRUQQCCprCglSdW5TaWduYWwSGgoWUlVOX1NJR05BTF9VTlNQRUNJRklFRBAAEhQKEFJVTl9TSUdOQUxfUEFVU0UQARIVChFSVU5fU0lHTkFMX1JFU1VNRRACEhUKEVJVTl9TSUdOQUxfQ0FOQ0VMEANiBnByb3RvMw", [file_ingestion_v1_pagination]);
 
 /**
  * RatePolicy throttles source reads.
@@ -122,28 +122,27 @@ export const RunPipelineRequestSchema: GenMessage<RunPipelineRequest> = /*@__PUR
   messageDesc(file_ingestion_v1_runs, 2);
 
 /**
- * RunBinding ties one compiled edge to the run it produced, so the UI can bind a
- * canvas edge to live run progress. edge is a stable key: "from|resource|to".
+ * PipelineEdgeRun ties one compiled pipeline edge to the run it produced.
  *
- * @generated from message ingestion.v1.RunBinding
+ * @generated from message ingestion.v1.PipelineEdgeRun
  */
-export type RunBinding = Message<"ingestion.v1.RunBinding"> & {
+export type PipelineEdgeRun = Message<"ingestion.v1.PipelineEdgeRun"> & {
   /**
-   * @generated from field: string edge = 1;
+   * @generated from field: string pipeline_edge_key = 1;
    */
-  edge: string;
+  pipelineEdgeKey: string;
 
   /**
-   * @generated from field: string run_id = 2;
+   * @generated from field: ingestion.v1.RunInfo run = 2;
    */
-  runId: string;
+  run?: RunInfo | undefined;
 };
 
 /**
- * Describes the message ingestion.v1.RunBinding.
- * Use `create(RunBindingSchema)` to create a new message.
+ * Describes the message ingestion.v1.PipelineEdgeRun.
+ * Use `create(PipelineEdgeRunSchema)` to create a new message.
  */
-export const RunBindingSchema: GenMessage<RunBinding> = /*@__PURE__*/
+export const PipelineEdgeRunSchema: GenMessage<PipelineEdgeRun> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_runs, 3);
 
 /**
@@ -151,9 +150,9 @@ export const RunBindingSchema: GenMessage<RunBinding> = /*@__PURE__*/
  */
 export type RunPipelineResponse = Message<"ingestion.v1.RunPipelineResponse"> & {
   /**
-   * @generated from field: repeated ingestion.v1.RunBinding runs = 1;
+   * @generated from field: repeated ingestion.v1.PipelineEdgeRun edge_runs = 1;
    */
-  runs: RunBinding[];
+  edgeRuns: PipelineEdgeRun[];
 };
 
 /**
@@ -164,20 +163,15 @@ export const RunPipelineResponseSchema: GenMessage<RunPipelineResponse> = /*@__P
   messageDesc(file_ingestion_v1_runs, 4);
 
 /**
- * RunResourceState mirrors pkg.ResourceState (progress per resource).
+ * RunResourceState reports progress for one resource in a run.
  *
  * @generated from message ingestion.v1.RunResourceState
  */
 export type RunResourceState = Message<"ingestion.v1.RunResourceState"> & {
   /**
-   * @generated from field: string resource = 1;
+   * @generated from field: string resource_name = 1;
    */
-  resource: string;
-
-  /**
-   * @generated from field: bool enabled = 2;
-   */
-  enabled: boolean;
+  resourceName: string;
 
   /**
    * @generated from field: ingestion.v1.RunStatus status = 3;
@@ -185,14 +179,14 @@ export type RunResourceState = Message<"ingestion.v1.RunResourceState"> & {
   status: RunStatus;
 
   /**
-   * @generated from field: int64 records = 4;
+   * @generated from field: int64 records_processed = 4;
    */
-  records: bigint;
+  recordsProcessed: bigint;
 
   /**
-   * @generated from field: int64 bytes = 5;
+   * @generated from field: int64 bytes_processed = 5;
    */
-  bytes: bigint;
+  bytesProcessed: bigint;
 
   /**
    * @generated from field: string error = 6;
@@ -208,7 +202,7 @@ export const RunResourceStateSchema: GenMessage<RunResourceState> = /*@__PURE__*
   messageDesc(file_ingestion_v1_runs, 5);
 
 /**
- * RunInfo mirrors pkg.RunState (run-level rollup).
+ * RunInfo is the run-level persisted state exposed by the API.
  *
  * @generated from message ingestion.v1.RunInfo
  */
@@ -219,9 +213,9 @@ export type RunInfo = Message<"ingestion.v1.RunInfo"> & {
   tenantId: string;
 
   /**
-   * @generated from field: string run_id = 2;
+   * @generated from field: string id = 2;
    */
-  runId: string;
+  id: string;
 
   /**
    * @generated from field: string pipeline_id = 3;
@@ -229,9 +223,9 @@ export type RunInfo = Message<"ingestion.v1.RunInfo"> & {
   pipelineId: string;
 
   /**
-   * @generated from field: int64 pipeline_version_id = 4;
+   * @generated from field: string pipeline_version_id = 4;
    */
-  pipelineVersionId: bigint;
+  pipelineVersionId: string;
 
   /**
    * @generated from field: ingestion.v1.RunStatus status = 5;
@@ -239,14 +233,14 @@ export type RunInfo = Message<"ingestion.v1.RunInfo"> & {
   status: RunStatus;
 
   /**
-   * @generated from field: int64 records = 6;
+   * @generated from field: int64 records_processed = 6;
    */
-  records: bigint;
+  recordsProcessed: bigint;
 
   /**
-   * @generated from field: int64 bytes = 7;
+   * @generated from field: int64 bytes_processed = 7;
    */
-  bytes: bigint;
+  bytesProcessed: bigint;
 
   /**
    * @generated from field: string error = 8;
@@ -399,9 +393,9 @@ export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
   pipelineId: string;
 
   /**
-   * @generated from field: optional int64 pipeline_version_id = 3;
+   * @generated from field: optional string pipeline_version_id = 3;
    */
-  pipelineVersionId?: bigint | undefined;
+  pipelineVersionId?: string | undefined;
 
   /**
    * @generated from field: repeated ingestion.v1.RunStatus status = 4;
@@ -471,9 +465,9 @@ export type SignalRunRequest = Message<"ingestion.v1.SignalRunRequest"> & {
   runId: string;
 
   /**
-   * @generated from field: ingestion.v1.Signal signal = 3;
+   * @generated from field: ingestion.v1.RunSignal signal = 3;
    */
-  signal: Signal;
+  signal: RunSignal;
 };
 
 /**
@@ -514,9 +508,9 @@ export type TailRunRequest = Message<"ingestion.v1.TailRunRequest"> & {
    * replay first emits events synthesized from the current snapshot (each marked
    * replay=true) so progress is correct on reconnect, before live facts stream.
    *
-   * @generated from field: bool replay = 3;
+   * @generated from field: bool should_replay = 3;
    */
-  replay: boolean;
+  shouldReplay: boolean;
 };
 
 /**
@@ -527,20 +521,20 @@ export const TailRunRequestSchema: GenMessage<TailRunRequest> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_runs, 14);
 
 /**
- * RunEventFields mirrors the set fields of pkg.EventFields.
+ * RunEventFields contains the optional measurements carried by a run event.
  *
  * @generated from message ingestion.v1.RunEventFields
  */
 export type RunEventFields = Message<"ingestion.v1.RunEventFields"> & {
   /**
-   * @generated from field: int64 records = 1;
+   * @generated from field: int64 records_processed = 1;
    */
-  records: bigint;
+  recordsProcessed: bigint;
 
   /**
-   * @generated from field: int64 bytes = 2;
+   * @generated from field: int64 bytes_processed = 2;
    */
-  bytes: bigint;
+  bytesProcessed: bigint;
 
   /**
    * @generated from field: string uri = 3;
@@ -566,7 +560,7 @@ export const RunEventFieldsSchema: GenMessage<RunEventFields> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_runs, 15);
 
 /**
- * RunEvent is the pkg.Event envelope forwarded verbatim. type is the event's
+ * RunEvent is the event envelope forwarded by the run stream. event_type is the
  * wire token (e.g. "written", "completed"). replay marks a snapshot-synthesized
  * event rather than a live fact.
  *
@@ -579,9 +573,9 @@ export type RunEvent = Message<"ingestion.v1.RunEvent"> & {
   tenantId: string;
 
   /**
-   * @generated from field: string type = 2;
+   * @generated from field: string event_type = 2;
    */
-  type: string;
+  eventType: string;
 
   /**
    * @generated from field: string run_id = 3;
@@ -599,9 +593,9 @@ export type RunEvent = Message<"ingestion.v1.RunEvent"> & {
   seq: bigint;
 
   /**
-   * @generated from field: int64 at_unix_ms = 6;
+   * @generated from field: int64 occurred_at = 6;
    */
-  atUnixMs: bigint;
+  occurredAt: bigint;
 
   /**
    * @generated from field: ingestion.v1.RunEventFields fields = 7;
@@ -609,9 +603,9 @@ export type RunEvent = Message<"ingestion.v1.RunEvent"> & {
   fields?: RunEventFields | undefined;
 
   /**
-   * @generated from field: bool replay = 8;
+   * @generated from field: bool is_replay = 8;
    */
-  replay: boolean;
+  isReplay: boolean;
 };
 
 /**
@@ -639,7 +633,7 @@ export const TailRunResponseSchema: GenMessage<TailRunResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_runs, 17);
 
 /**
- * RunStatus mirrors pkg.RunStatus.
+ * RunStatus is the persisted lifecycle state of a run.
  *
  * @generated from enum ingestion.v1.RunStatus
  */
@@ -697,35 +691,35 @@ export const RunStatusSchema: GenEnum<RunStatus> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_runs, 0);
 
 /**
- * Signal mirrors pkg.Signal.
+ * RunSignal is a lifecycle command sent to a run.
  *
- * @generated from enum ingestion.v1.Signal
+ * @generated from enum ingestion.v1.RunSignal
  */
-export enum Signal {
+export enum RunSignal {
   /**
-   * @generated from enum value: SIGNAL_UNSPECIFIED = 0;
+   * @generated from enum value: RUN_SIGNAL_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: SIGNAL_PAUSE = 1;
+   * @generated from enum value: RUN_SIGNAL_PAUSE = 1;
    */
   PAUSE = 1,
 
   /**
-   * @generated from enum value: SIGNAL_RESUME = 2;
+   * @generated from enum value: RUN_SIGNAL_RESUME = 2;
    */
   RESUME = 2,
 
   /**
-   * @generated from enum value: SIGNAL_CANCEL = 3;
+   * @generated from enum value: RUN_SIGNAL_CANCEL = 3;
    */
   CANCEL = 3,
 }
 
 /**
- * Describes the enum ingestion.v1.Signal.
+ * Describes the enum ingestion.v1.RunSignal.
  */
-export const SignalSchema: GenEnum<Signal> = /*@__PURE__*/
+export const RunSignalSchema: GenEnum<RunSignal> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_runs, 1);
 

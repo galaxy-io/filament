@@ -11,7 +11,7 @@ import (
 func TestResourceCheckpointSurvivesRunIdentity(t *testing.T) {
 	ctx := context.Background()
 	store := New()
-	key := filament.ResourceCheckpointKey{PipelineID: "pipe", PipelineVersionID: 2, Route: "source/sink/upsert", Resource: "users"}
+	key := filament.ResourceCheckpointKey{PipelineID: "pipe", PipelineVersionID: "version-2", Route: "source/sink/upsert", Resource: "users"}
 	cp := filament.NewCheckpoint("users").Set("updated_at", "2026-08-04T00:00:00Z")
 	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: cp}); err != nil {
 		t.Fatal(err)
@@ -25,7 +25,7 @@ func TestResourceCheckpointSurvivesRunIdentity(t *testing.T) {
 	}
 
 	otherVersion := key
-	otherVersion.PipelineVersionID++
+	otherVersion.PipelineVersionID = "version-3"
 	if _, err := store.LoadResourceCheckpoint(ctx, otherVersion); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("other version error = %v", err)
 	}

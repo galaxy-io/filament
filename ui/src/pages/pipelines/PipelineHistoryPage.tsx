@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
@@ -9,6 +12,7 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
@@ -25,6 +29,7 @@ import {
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
+import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
@@ -47,7 +52,7 @@ const RunTableWrapper = styled.div`
   min-height: 0;
 `;
 
-const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
+const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): ColumnDef<RunInfo>[] => [
   {
     id: "status",
     header: "Status",
@@ -74,7 +79,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
-        {row.original.runId}
+        {row.original.id}
       </Text>
     ),
   },
@@ -83,11 +88,10 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     header: "Version",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cellLoading: () => <TextShimmer width={32} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM}>
-        {row.original.pipelineVersionId ? `Version ${row.original.pipelineVersionId}` : "—"}
-      </Text>
-    ),
+    cell: ({ row }) => {
+      const version = versionById.get(row.original.pipelineVersionId);
+      return <Text size={TextSize.BODY_SM}>{version ? `Version ${version.toString()}` : "—"}</Text>;
+    },
   },
   {
     id: "duration",
@@ -107,7 +111,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {formatCount(row.original.records)}
+        {formatCount(row.original.recordsProcessed)}
       </Text>
     ),
   },
@@ -119,7 +123,7 @@ const RUN_TABLE_COLUMNS: ColumnDef<RunInfo>[] = [
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {formatBytes(row.original.bytes)}
+        {formatBytes(row.original.bytesProcessed)}
       </Text>
     ),
   },
@@ -129,6 +133,20 @@ const PipelineHistoryPage = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
   const navigate = useNavigate();
   const { runId: runIds = [] } = useSearch({ from: "/pipelines/$id/history" });
+
+  const { data: pipelineData } = useSuspenseGetPipelineQuery({
+    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+  });
+  const columns = useMemo(() => {
+    const pipeline = pipelineData.pipeline;
+    const versions = [pipeline?.currentVersion, ...(pipeline?.versions ?? [])];
+    const versionById = new Map(
+      versions
+        .filter((version) => version !== undefined)
+        .map((version) => [version.id, version.version] as const),
+    );
+    return createRunTableColumns(versionById);
+  }, [pipelineData.pipeline]);
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = useSuspenseListRunsInfiniteQuery(
     {
@@ -159,16 +177,16 @@ const PipelineHistoryPage = () => {
 
       <RunTableWrapper>
         <InfiniteTable<RunInfo>
-          columns={RUN_TABLE_COLUMNS}
+          columns={columns}
           data={runs}
-          getRowId={(run) => run.runId}
+          getRowId={(run) => run.id}
           contentWhenEmpty={
             <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
           }
           expandedRowIds={runIds}
           onExpandedChange={handleExpandedChange}
           onRowExpand={(row) => {
-            return <PipelineHistoryRunInfo runId={row.original.runId} />;
+            return <PipelineHistoryRunInfo runId={row.original.id} />;
           }}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}

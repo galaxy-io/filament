@@ -4,10 +4,9 @@ package ingestion.v1;
 
 import "ingestion/v1/capabilities.proto";
 import "ingestion/v1/connections.proto";
+import "ingestion/v1/connectors.proto";
 import "ingestion/v1/pipelines.proto";
-import "ingestion/v1/providers.proto";
 import "ingestion/v1/runs.proto";
-import "ingestion/v1/secrets.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
 service IngestionService {
@@ -19,10 +18,6 @@ service IngestionService {
   rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);
   rpc DiscoverResources(DiscoverResourcesRequest) returns (DiscoverResourcesResponse);
   rpc GetResourceColumns(GetResourceColumnsRequest) returns (GetResourceColumnsResponse);
-
-  // Secrets; write-only values referenced by name from configs.
-  rpc PutSecret(PutSecretRequest) returns (PutSecretResponse);
-  rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse);
 
   // Connections; reusable, tenant-scoped sources and sinks.
   rpc CreateConnection(CreateConnectionRequest) returns (CreateConnectionResponse);

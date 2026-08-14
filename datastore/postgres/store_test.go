@@ -45,13 +45,17 @@ func newTestStore(t *testing.T) *postgres.Store {
 
 	// wipe between tests so each test starts from a clean slate against the
 	// same long-lived container/schema.
-	for _, table := range []string{"dedup_seen", "checkpoints", "resource_states", "runs", "schedules", "pipelines", "connections", "secrets"} {
+	for _, table := range []string{"secrets", "run_dedup_seen", "pipeline_resource_checkpoints", "run_resource_checkpoints", "run_resource_states", "runs", "schedules", "pipelines", "connections", "users", "tenants"} {
 		if _, err := pool.Exec(ctx, "DELETE FROM "+table); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
 	}
 
-	return postgres.New(pool)
+	store := postgres.New(pool)
+	if err := store.EnsureTenant(ctx, "tenant-a", "Tenant A"); err != nil {
+		t.Fatalf("EnsureTenant: %v", err)
+	}
+	return store
 }
 
 func TestStore_RunLifecycle(t *testing.T) {
@@ -130,13 +134,16 @@ func TestStore_RunLifecycle(t *testing.T) {
 }
 
 // TestStore_DedupSeenHighWaterMark verifies the high-water-mark semantics:
-// dedup_seen holds one row per (tenant, run), not one per fact, so it must
+// run_dedup_seen holds one row per (tenant, run), not one per fact, so it must
 // treat any seq at or below the highest one already applied as "seen" — not
 // just an exact repeat of the same seq — and correctly advance past it for a
 // genuinely new, higher seq.
 func TestStore_DedupSeenHighWaterMark(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t)
+	if err := store.SaveRun(ctx, filament.RunState{Run: "run-hwm", Tenant: "tenant-a", Request: filament.RunRequest{Tenant: "tenant-a"}}); err != nil {
+		t.Fatalf("SaveRun: %v", err)
+	}
 
 	seen, err := store.DedupSeen(ctx, "tenant-a", "run-hwm", 10)
 	if err != nil {
@@ -315,7 +322,7 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	if created.GetCreatedAt() == 0 {
 		t.Fatalf("expected created_at on the create response, got %+v", created)
 	}
-	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{}); err != nil {
+	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}}); err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
 	if err := store.SaveSchedule(ctx, filament.ScheduleState{
@@ -366,7 +373,7 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	if withDeleted[0].GetCreatedAt() == 0 || withDeleted[0].GetDeletedAt() == 0 {
 		t.Fatalf("expected created_at and deleted_at set, got %+v", withDeleted[0])
 	}
-	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{}); !errors.Is(err, filament.ErrNotFound) {
+	if _, err := store.CreatePipelineVersion(ctx, "pipe-del", &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}}); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound creating version on deleted pipeline, got %v", err)
 	}
 	if _, err := store.LoadPipelineSchedule(ctx, "pipe-del"); !errors.Is(err, filament.ErrNotFound) {
@@ -410,7 +417,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	version, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{})
+	version, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
@@ -418,7 +425,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("expected version 1, got %d", version.Version)
 	}
 
-	second, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{})
+	second, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion second: %v", err)
 	}
@@ -463,7 +470,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	if fetched.Name != "orders-sync-v2" {
 		t.Fatalf("got name %q", fetched.Name)
 	}
-	if fetched.CurrentVersionId != 2 {
-		t.Fatalf("expected current version 2, got %d", fetched.CurrentVersionId)
+	if fetched.GetCurrentVersion().GetId() != second.Id {
+		t.Fatalf("expected current version %q, got %q", second.Id, fetched.GetCurrentVersion().GetId())
 	}
 }

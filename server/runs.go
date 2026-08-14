@@ -63,12 +63,11 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 	resources := make([]*ingestionv1.RunResourceState, 0, len(state.Resources))
 	for _, resource := range state.Resources {
 		resources = append(resources, &ingestionv1.RunResourceState{
-			Resource: resource.Resource,
-			Enabled:  resource.Enabled,
-			Status:   runStatusToProto(resource.Status),
-			Records:  resource.Records,
-			Bytes:    resource.Bytes,
-			Error:    resource.Error,
+			ResourceName:     resource.Resource,
+			Status:           runStatusToProto(resource.Status),
+			RecordsProcessed: resource.Records,
+			BytesProcessed:   resource.Bytes,
+			Error:            resource.Error,
 		})
 	}
 	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: runInfoToProto(state), Resources: resources}}), nil
@@ -94,7 +93,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 	if run == "" {
 		return fmt.Errorf("run_id is required")
 	}
-	if req.Msg.GetReplay() {
+	if req.Msg.GetShouldReplay() {
 		if err := a.replayRun(ctx, run, send); err != nil {
 			return err
 		}
@@ -156,16 +155,16 @@ func (a *Server) replayRun(ctx context.Context, run filament.RunID, send func(*i
 	}
 	for _, resource := range state.Resources {
 		if err := send(tailResponse(&ingestionv1.RunEvent{
-			Type:     runStatusEventType(resource.Status),
-			TenantId: string(state.Tenant),
-			RunId:    string(state.Run),
-			Resource: resource.Resource,
+			EventType: runStatusEventType(resource.Status),
+			TenantId:  string(state.Tenant),
+			RunId:     string(state.Run),
+			Resource:  resource.Resource,
 			Fields: &ingestionv1.RunEventFields{
-				Records: resource.Records,
-				Bytes:   resource.Bytes,
-				Error:   resource.Error,
+				RecordsProcessed: resource.Records,
+				BytesProcessed:   resource.Bytes,
+				Error:            resource.Error,
 			},
-			Replay: true,
+			IsReplay: true,
 		})); err != nil {
 			return err
 		}

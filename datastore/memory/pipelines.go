@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/galaxy-io/filament"
@@ -26,6 +27,7 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	delete(s.deletedPipelines, p.GetId())
 	next := clonePipeline(p)
 	next.CreatedAt = time.Now().UnixMilli()
+	next.UpdatedAt = next.CreatedAt
 	s.pipelines[next.Id] = clonePipeline(next)
 	return next, nil
 }
@@ -43,6 +45,7 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 	delete(s.deletedPipelines, p.GetId())
 	stored := clonePipeline(p)
 	stored.CreatedAt = time.Now().UnixMilli()
+	stored.UpdatedAt = stored.CreatedAt
 	s.pipelines[p.GetId()] = stored
 	s.pipelineVersions[p.GetId()] = map[int64]*ingestionv1.PipelineVersion{}
 	if schedule != nil {
@@ -73,11 +76,16 @@ func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v 
 		s.pipelineVersions[pipelineID] = versions
 	}
 	next := clonePipelineVersion(v)
-	next.Id = pipelineID
-	next.Version = p.GetCurrentVersionId() + 1
+	next.Id = uuid.NewString()
+	next.Version = 1
+	for _, existing := range versions {
+		if existing.GetVersion() >= next.Version {
+			next.Version = existing.GetVersion() + 1
+		}
+	}
 	next.CreatedAt = time.Now().UnixMilli()
 	versions[next.Version] = clonePipelineVersion(next)
-	p.CurrentVersionId = next.Version
+	p.CurrentVersion = clonePipelineVersion(next)
 	return next, nil
 }
 
@@ -93,6 +101,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrNotFound)
 	}
 	stored.Name, stored.Description = p.GetName(), p.GetDescription()
+	stored.UpdatedAt = time.Now().UnixMilli()
 	return clonePipeline(stored), nil
 }
 
@@ -122,8 +131,8 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if version == 0 {
-		if p := s.pipelines[pipelineID]; p != nil {
-			version = p.GetCurrentVersionId()
+		if p := s.pipelines[pipelineID]; p != nil && p.GetCurrentVersion() != nil {
+			version = p.GetCurrentVersion().GetVersion()
 		}
 	}
 	v := s.pipelineVersions[pipelineID][version]
@@ -211,27 +220,4 @@ func clonePipelineVersion(v *ingestionv1.PipelineVersion) *ingestionv1.PipelineV
 		return nil
 	}
 	return proto.Clone(v).(*ingestionv1.PipelineVersion)
-}
-
-func pipelineRunStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
-	switch status {
-	case filament.RunRequested:
-		return ingestionv1.RunStatus_RUN_STATUS_REQUESTED
-	case filament.RunRunning:
-		return ingestionv1.RunStatus_RUN_STATUS_RUNNING
-	case filament.RunCompleted:
-		return ingestionv1.RunStatus_RUN_STATUS_COMPLETED
-	case filament.RunFailed:
-		return ingestionv1.RunStatus_RUN_STATUS_FAILED
-	case filament.RunCanceled:
-		return ingestionv1.RunStatus_RUN_STATUS_CANCELED
-	case filament.RunPaused:
-		return ingestionv1.RunStatus_RUN_STATUS_PAUSED
-	case filament.RunPartial:
-		return ingestionv1.RunStatus_RUN_STATUS_PARTIAL
-	case filament.RunScheduled:
-		return ingestionv1.RunStatus_RUN_STATUS_SCHEDULED
-	default:
-		return ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
-	}
 }

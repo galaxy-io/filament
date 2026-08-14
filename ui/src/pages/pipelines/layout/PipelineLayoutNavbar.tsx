@@ -29,8 +29,8 @@ import {
   ListRunsRequestSchema,
   type RunInfo,
   RunPipelineRequestSchema,
+  RunSignal,
   RunStatus,
-  Signal,
   SignalRunRequestSchema,
 } from "@/gen/ingestion/v1/runs_pb";
 
@@ -93,14 +93,14 @@ const PipelineLayoutNavbar = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
   });
   const { data: connectionsData } = useSuspenseListConnectionsQuery();
   const previewed = usePipelinePreviewVersion();
 
   const pipeline = pipelineData.pipeline;
-  const currentVersion = pipelineData.currentVersion;
-  const versions = pipelineData.versions;
+  const currentVersion = pipelineData.pipeline?.currentVersion;
+  const versions = pipelineData.pipeline?.versions ?? [];
   const previewVersion = previewed?.version ?? null;
 
   const state = usePipelineCanvasState();
@@ -128,8 +128,8 @@ const PipelineLayoutNavbar = () => {
   const validateInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
-        nodes: currentVersion?.nodes ?? [],
-        edges: currentVersion?.edges ?? [],
+        nodes: currentVersion?.graph?.nodes ?? [],
+        edges: currentVersion?.graph?.edges ?? [],
       }),
     [currentVersion],
   );
@@ -232,7 +232,7 @@ const PipelineLayoutNavbar = () => {
     });
   };
 
-  const handleSignal = (runId: RunInfo["runId"], signal: Signal) => {
+  const handleSignal = (runId: RunInfo["id"], signal: RunSignal) => {
     signalRun(create(SignalRunRequestSchema, { runId, signal }), {
       onError: (error) => {
         showToast({
@@ -331,8 +331,8 @@ const PipelineLayoutNavbar = () => {
                     isLoading={isSignaling}
                     onClick={() =>
                       handleSignal(
-                        activeRun.runId,
-                        activeRun?.status === RunStatus.PAUSED ? Signal.RESUME : Signal.PAUSE,
+                        activeRun.id,
+                        activeRun?.status === RunStatus.PAUSED ? RunSignal.RESUME : RunSignal.PAUSE,
                       )
                     }
                     isIconFilled
@@ -343,7 +343,7 @@ const PipelineLayoutNavbar = () => {
                     variant={ButtonVariant.ERROR}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
-                    onClick={() => handleSignal(activeRun.runId, Signal.CANCEL)}
+                    onClick={() => handleSignal(activeRun.id, RunSignal.CANCEL)}
                     isIconFilled
                   />
                 </>

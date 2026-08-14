@@ -1,8 +1,8 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge, PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
-import type { Resource } from "@/gen/ingestion/v1/providers_pb";
 
 export enum PipelineCanvasNodeType {
   SOURCE = "SOURCE",

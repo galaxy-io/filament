@@ -36,9 +36,9 @@ func (q *Queries) ReadSecret(ctx context.Context, ref string) (*ReadSecretRow, e
 }
 
 const writeSecret = `-- name: WriteSecret :exec
-INSERT INTO secrets (ref, ciphertext, nonce, key_id, metadata, updated_at)
-VALUES ($1, $2, $3, $4, $5, now())
-ON CONFLICT (ref) DO UPDATE SET
+INSERT INTO secrets (id, tenant_id, ref, ciphertext, nonce, key_id, metadata, updated_at)
+VALUES (jsonb_build_array($1::text, $2::text)::text, $1, $2, $3, $4, $5, $6, now())
+ON CONFLICT (tenant_id, ref) DO UPDATE SET
     ciphertext = EXCLUDED.ciphertext,
     nonce = EXCLUDED.nonce,
     key_id = EXCLUDED.key_id,
@@ -47,6 +47,7 @@ ON CONFLICT (ref) DO UPDATE SET
 `
 
 type WriteSecretParams struct {
+	TenantID   string
 	Ref        string
 	Ciphertext []byte
 	Nonce      []byte
@@ -56,6 +57,7 @@ type WriteSecretParams struct {
 
 func (q *Queries) WriteSecret(ctx context.Context, arg WriteSecretParams) error {
 	_, err := q.db.Exec(ctx, writeSecret,
+		arg.TenantID,
 		arg.Ref,
 		arg.Ciphertext,
 		arg.Nonce,

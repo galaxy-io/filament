@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: ingestion/v1/providers.proto
+// source: ingestion/v1/connectors.proto
 
 package ingestionv1
 
@@ -26,12 +26,9 @@ type ConnectorMaturity int32
 
 const (
 	ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED ConnectorMaturity = 0
-	// Created from documentation and not yet tested end to end.
-	ConnectorMaturity_CONNECTOR_MATURITY_ALPHA ConnectorMaturity = 1
-	// Run end to end, but not verified for every object or production environment.
-	ConnectorMaturity_CONNECTOR_MATURITY_BETA ConnectorMaturity = 2
-	// Fully production-ready across its supported objects.
-	ConnectorMaturity_CONNECTOR_MATURITY_STABLE ConnectorMaturity = 3
+	ConnectorMaturity_CONNECTOR_MATURITY_ALPHA       ConnectorMaturity = 1
+	ConnectorMaturity_CONNECTOR_MATURITY_BETA        ConnectorMaturity = 2
+	ConnectorMaturity_CONNECTOR_MATURITY_STABLE      ConnectorMaturity = 3
 )
 
 // Enum value maps for ConnectorMaturity.
@@ -61,11 +58,11 @@ func (x ConnectorMaturity) String() string {
 }
 
 func (ConnectorMaturity) Descriptor() protoreflect.EnumDescriptor {
-	return file_ingestion_v1_providers_proto_enumTypes[0].Descriptor()
+	return file_ingestion_v1_connectors_proto_enumTypes[0].Descriptor()
 }
 
 func (ConnectorMaturity) Type() protoreflect.EnumType {
-	return &file_ingestion_v1_providers_proto_enumTypes[0]
+	return &file_ingestion_v1_connectors_proto_enumTypes[0]
 }
 
 func (x ConnectorMaturity) Number() protoreflect.EnumNumber {
@@ -74,7 +71,7 @@ func (x ConnectorMaturity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ConnectorMaturity.Descriptor instead.
 func (ConnectorMaturity) EnumDescriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{0}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{0}
 }
 
 // Capabilities flattens source and sink capabilities; fields not relevant to a
@@ -88,15 +85,14 @@ type Capabilities struct {
 	Schematized       bool                     `protobuf:"varint,5,opt,name=schematized,proto3" json:"schematized,omitempty"`
 	WritePolicies     []*WritePolicyCapability `protobuf:"bytes,6,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
 	SourcePolicies    []*SourcePolicy          `protobuf:"bytes,7,rep,name=source_policies,json=sourcePolicies,proto3" json:"source_policies,omitempty"`
-	// Sink: the write modes this sink offers.
-	WriteModes    []WriteMode `protobuf:"varint,8,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	WriteModes        []WriteMode              `protobuf:"varint,8,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Capabilities) Reset() {
 	*x = Capabilities{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[0]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -108,7 +104,7 @@ func (x *Capabilities) String() string {
 func (*Capabilities) ProtoMessage() {}
 
 func (x *Capabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[0]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -121,7 +117,7 @@ func (x *Capabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Capabilities.ProtoReflect.Descriptor instead.
 func (*Capabilities) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{0}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Capabilities) GetDiscoverable() bool {
@@ -180,30 +176,28 @@ func (x *Capabilities) GetWriteModes() []WriteMode {
 	return nil
 }
 
-// ConnectorSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
+// ConnectorSpec describes one registered source or sink connector.
 type ConnectorSpec struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Name         string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName  string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Kind         ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Version      string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
-	Modes        []ReplicationMode      `protobuf:"varint,5,rep,packed,name=modes,proto3,enum=ingestion.v1.ReplicationMode" json:"modes,omitempty"`
-	ConfigSchema *ConfigSchema          `protobuf:"bytes,6,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
-	Capabilities *Capabilities          `protobuf:"bytes,7,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
-	Description  string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
-	DarkLogoUrl  string                 `protobuf:"bytes,9,opt,name=dark_logo_url,json=darkLogoUrl,proto3" json:"dark_logo_url,omitempty"`
-	LightLogoUrl string                 `protobuf:"bytes,10,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
-	// Pipeline-scoped config field holding the sink's destination schema, when
-	// the sink has one. The server defaults it from the source connection name.
-	SchemaField   string            `protobuf:"bytes,11,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
-	Maturity      ConnectorMaturity `protobuf:"varint,12,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Modes         []ReplicationMode      `protobuf:"varint,5,rep,packed,name=modes,proto3,enum=ingestion.v1.ReplicationMode" json:"modes,omitempty"`
+	ConfigSchema  *ConfigSchema          `protobuf:"bytes,6,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
+	Capabilities  *Capabilities          `protobuf:"bytes,7,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Description   string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	DarkLogoUrl   string                 `protobuf:"bytes,9,opt,name=dark_logo_url,json=darkLogoUrl,proto3" json:"dark_logo_url,omitempty"`
+	LightLogoUrl  string                 `protobuf:"bytes,10,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
+	SchemaField   string                 `protobuf:"bytes,11,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
+	Maturity      ConnectorMaturity      `protobuf:"varint,12,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConnectorSpec) Reset() {
 	*x = ConnectorSpec{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[1]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +209,7 @@ func (x *ConnectorSpec) String() string {
 func (*ConnectorSpec) ProtoMessage() {}
 
 func (x *ConnectorSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[1]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,7 +222,7 @@ func (x *ConnectorSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectorSpec.ProtoReflect.Descriptor instead.
 func (*ConnectorSpec) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{1}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ConnectorSpec) GetName() string {
@@ -316,18 +310,17 @@ func (x *ConnectorSpec) GetMaturity() ConnectorMaturity {
 }
 
 type ListConnectorsRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	// Filter to one kind; UNSPECIFIED returns both sources and sinks.
-	Kind          ConnectorKind      `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Pagination    *PaginationRequest `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Pagination    *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListConnectorsRequest) Reset() {
 	*x = ListConnectorsRequest{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[2]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -339,7 +332,7 @@ func (x *ListConnectorsRequest) String() string {
 func (*ListConnectorsRequest) ProtoMessage() {}
 
 func (x *ListConnectorsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[2]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -352,7 +345,7 @@ func (x *ListConnectorsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConnectorsRequest.ProtoReflect.Descriptor instead.
 func (*ListConnectorsRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{2}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListConnectorsRequest) GetTenantId() string {
@@ -386,7 +379,7 @@ type ListConnectorsResponse struct {
 
 func (x *ListConnectorsResponse) Reset() {
 	*x = ListConnectorsResponse{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[3]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -398,7 +391,7 @@ func (x *ListConnectorsResponse) String() string {
 func (*ListConnectorsResponse) ProtoMessage() {}
 
 func (x *ListConnectorsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[3]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -411,7 +404,7 @@ func (x *ListConnectorsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConnectorsResponse.ProtoReflect.Descriptor instead.
 func (*ListConnectorsResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{3}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListConnectorsResponse) GetConnectors() []*ConnectorSpec {
@@ -439,7 +432,7 @@ type GetConnectorRequest struct {
 
 func (x *GetConnectorRequest) Reset() {
 	*x = GetConnectorRequest{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[4]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -451,7 +444,7 @@ func (x *GetConnectorRequest) String() string {
 func (*GetConnectorRequest) ProtoMessage() {}
 
 func (x *GetConnectorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[4]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -464,7 +457,7 @@ func (x *GetConnectorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConnectorRequest.ProtoReflect.Descriptor instead.
 func (*GetConnectorRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{4}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetConnectorRequest) GetTenantId() string {
@@ -497,7 +490,7 @@ type GetConnectorResponse struct {
 
 func (x *GetConnectorResponse) Reset() {
 	*x = GetConnectorResponse{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[5]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -509,7 +502,7 @@ func (x *GetConnectorResponse) String() string {
 func (*GetConnectorResponse) ProtoMessage() {}
 
 func (x *GetConnectorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[5]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -522,7 +515,7 @@ func (x *GetConnectorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConnectorResponse.ProtoReflect.Descriptor instead.
 func (*GetConnectorResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{5}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetConnectorResponse) GetConnector() *ConnectorSpec {
@@ -533,23 +526,19 @@ func (x *GetConnectorResponse) GetConnector() *ConnectorSpec {
 }
 
 type ValidateConfigRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	TenantId  string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind      ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Connector string                 `protobuf:"bytes,3,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config    *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
-	// live attempts a TestConnection probe if the connector supports it.
-	Live bool `protobuf:"varint,5,opt,name=live,proto3" json:"live,omitempty"`
-	// When set, secrets stored on this connection fill config fields the
-	// request leaves blank. tenant_id must match the connection's tenant.
-	ConnectionId  string `protobuf:"bytes,6,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Connector     string                 `protobuf:"bytes,3,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,6,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidateConfigRequest) Reset() {
 	*x = ValidateConfigRequest{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[6]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -561,7 +550,7 @@ func (x *ValidateConfigRequest) String() string {
 func (*ValidateConfigRequest) ProtoMessage() {}
 
 func (x *ValidateConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[6]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -574,7 +563,7 @@ func (x *ValidateConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateConfigRequest.ProtoReflect.Descriptor instead.
 func (*ValidateConfigRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{6}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ValidateConfigRequest) GetTenantId() string {
@@ -605,13 +594,6 @@ func (x *ValidateConfigRequest) GetConfig() *structpb.Struct {
 	return nil
 }
 
-func (x *ValidateConfigRequest) GetLive() bool {
-	if x != nil {
-		return x.Live
-	}
-	return false
-}
-
 func (x *ValidateConfigRequest) GetConnectionId() string {
 	if x != nil {
 		return x.ConnectionId
@@ -619,8 +601,6 @@ func (x *ValidateConfigRequest) GetConnectionId() string {
 	return ""
 }
 
-// ValidationError carries a field-keyed validation failure. An empty field means
-// the error applies to the whole config.
 type ValidationError struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
@@ -631,7 +611,7 @@ type ValidationError struct {
 
 func (x *ValidationError) Reset() {
 	*x = ValidationError{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[7]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +623,7 @@ func (x *ValidationError) String() string {
 func (*ValidationError) ProtoMessage() {}
 
 func (x *ValidationError) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[7]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +636,7 @@ func (x *ValidationError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationError.ProtoReflect.Descriptor instead.
 func (*ValidationError) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{7}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ValidationError) GetField() string {
@@ -683,7 +663,7 @@ type ValidateConfigResponse struct {
 
 func (x *ValidateConfigResponse) Reset() {
 	*x = ValidateConfigResponse{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[8]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +675,7 @@ func (x *ValidateConfigResponse) String() string {
 func (*ValidateConfigResponse) ProtoMessage() {}
 
 func (x *ValidateConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[8]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +688,7 @@ func (x *ValidateConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateConfigResponse.ProtoReflect.Descriptor instead.
 func (*ValidateConfigResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{8}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ValidateConfigResponse) GetValid() bool {
@@ -726,21 +706,19 @@ func (x *ValidateConfigResponse) GetErrors() []*ValidationError {
 }
 
 type DiscoverResourcesRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	// Source connector only; discovering a sink is not meaningful.
-	Connector string           `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config    *structpb.Struct `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
-	Refresh   bool             `protobuf:"varint,4,opt,name=refresh,proto3" json:"refresh,omitempty"`
-	// tenant_id must match the connection's tenant.
-	ConnectionId  string `protobuf:"bytes,5,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Connector     string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
+	Refresh       bool                   `protobuf:"varint,4,opt,name=refresh,proto3" json:"refresh,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,5,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DiscoverResourcesRequest) Reset() {
 	*x = DiscoverResourcesRequest{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[9]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -752,7 +730,7 @@ func (x *DiscoverResourcesRequest) String() string {
 func (*DiscoverResourcesRequest) ProtoMessage() {}
 
 func (x *DiscoverResourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[9]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -765,7 +743,7 @@ func (x *DiscoverResourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverResourcesRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverResourcesRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{9}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DiscoverResourcesRequest) GetTenantId() string {
@@ -803,13 +781,11 @@ func (x *DiscoverResourcesRequest) GetConnectionId() string {
 	return ""
 }
 
-// Resource mirrors pkg.Resource.
 type Resource struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Selectable    bool                   `protobuf:"varint,2,opt,name=selectable,proto3" json:"selectable,omitempty"`
+	IsSelectable  bool                   `protobuf:"varint,2,opt,name=is_selectable,json=isSelectable,proto3" json:"is_selectable,omitempty"`
 	PrimaryKey    []string               `protobuf:"bytes,3,rep,name=primary_key,json=primaryKey,proto3" json:"primary_key,omitempty"`
-	EstimatedRows int64                  `protobuf:"varint,4,opt,name=estimated_rows,json=estimatedRows,proto3" json:"estimated_rows,omitempty"`
 	Selector      string                 `protobuf:"bytes,5,opt,name=selector,proto3" json:"selector,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,6,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Metadata      map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -819,7 +795,7 @@ type Resource struct {
 
 func (x *Resource) Reset() {
 	*x = Resource{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[10]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -831,7 +807,7 @@ func (x *Resource) String() string {
 func (*Resource) ProtoMessage() {}
 
 func (x *Resource) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[10]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -844,7 +820,7 @@ func (x *Resource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Resource.ProtoReflect.Descriptor instead.
 func (*Resource) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{10}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Resource) GetName() string {
@@ -854,9 +830,9 @@ func (x *Resource) GetName() string {
 	return ""
 }
 
-func (x *Resource) GetSelectable() bool {
+func (x *Resource) GetIsSelectable() bool {
 	if x != nil {
-		return x.Selectable
+		return x.IsSelectable
 	}
 	return false
 }
@@ -866,13 +842,6 @@ func (x *Resource) GetPrimaryKey() []string {
 		return x.PrimaryKey
 	}
 	return nil
-}
-
-func (x *Resource) GetEstimatedRows() int64 {
-	if x != nil {
-		return x.EstimatedRows
-	}
-	return 0
 }
 
 func (x *Resource) GetSelector() string {
@@ -905,7 +874,7 @@ type DiscoverResourcesResponse struct {
 
 func (x *DiscoverResourcesResponse) Reset() {
 	*x = DiscoverResourcesResponse{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[11]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +886,7 @@ func (x *DiscoverResourcesResponse) String() string {
 func (*DiscoverResourcesResponse) ProtoMessage() {}
 
 func (x *DiscoverResourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[11]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +899,7 @@ func (x *DiscoverResourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverResourcesResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverResourcesResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{11}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DiscoverResourcesResponse) GetResources() []*Resource {
@@ -941,20 +910,19 @@ func (x *DiscoverResourcesResponse) GetResources() []*Resource {
 }
 
 type GetResourceColumnsRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	TenantId  string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Connector string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config    *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
-	// tenant_id must match the connection's tenant.
-	ConnectionId  string   `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
-	Resources     []string `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Connector     string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Resources     []string               `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetResourceColumnsRequest) Reset() {
 	*x = GetResourceColumnsRequest{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[12]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +934,7 @@ func (x *GetResourceColumnsRequest) String() string {
 func (*GetResourceColumnsRequest) ProtoMessage() {}
 
 func (x *GetResourceColumnsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[12]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +947,7 @@ func (x *GetResourceColumnsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResourceColumnsRequest.ProtoReflect.Descriptor instead.
 func (*GetResourceColumnsRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{12}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetResourceColumnsRequest) GetTenantId() string {
@@ -1018,25 +986,25 @@ func (x *GetResourceColumnsRequest) GetResources() []string {
 }
 
 type ResourceColumn struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	LogicalType        string                 `protobuf:"bytes,2,opt,name=logical_type,json=logicalType,proto3" json:"logical_type,omitempty"`
-	NativeType         string                 `protobuf:"bytes,3,opt,name=native_type,json=nativeType,proto3" json:"native_type,omitempty"`
-	Nullable           bool                   `protobuf:"varint,4,opt,name=nullable,proto3" json:"nullable,omitempty"`
-	PrimaryKey         bool                   `protobuf:"varint,5,opt,name=primary_key,json=primaryKey,proto3" json:"primary_key,omitempty"`
-	CursorEligible     bool                   `protobuf:"varint,6,opt,name=cursor_eligible,json=cursorEligible,proto3" json:"cursor_eligible,omitempty"`
-	CursorRecommended  bool                   `protobuf:"varint,7,opt,name=cursor_recommended,json=cursorRecommended,proto3" json:"cursor_recommended,omitempty"`
-	RecommendationRank int32                  `protobuf:"varint,8,opt,name=recommendation_rank,json=recommendationRank,proto3" json:"recommendation_rank,omitempty"`
-	Warning            string                 `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
-	Configurable       bool                   `protobuf:"varint,10,opt,name=configurable,proto3" json:"configurable,omitempty"`
-	SupportsLookback   bool                   `protobuf:"varint,11,opt,name=supports_lookback,json=supportsLookback,proto3" json:"supports_lookback,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Name                string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	LogicalType         string                 `protobuf:"bytes,2,opt,name=logical_type,json=logicalType,proto3" json:"logical_type,omitempty"`
+	NativeType          string                 `protobuf:"bytes,3,opt,name=native_type,json=nativeType,proto3" json:"native_type,omitempty"`
+	IsNullable          bool                   `protobuf:"varint,4,opt,name=is_nullable,json=isNullable,proto3" json:"is_nullable,omitempty"`
+	IsPrimaryKey        bool                   `protobuf:"varint,5,opt,name=is_primary_key,json=isPrimaryKey,proto3" json:"is_primary_key,omitempty"`
+	IsCursorEligible    bool                   `protobuf:"varint,6,opt,name=is_cursor_eligible,json=isCursorEligible,proto3" json:"is_cursor_eligible,omitempty"`
+	IsCursorRecommended bool                   `protobuf:"varint,7,opt,name=is_cursor_recommended,json=isCursorRecommended,proto3" json:"is_cursor_recommended,omitempty"`
+	RecommendationRank  int32                  `protobuf:"varint,8,opt,name=recommendation_rank,json=recommendationRank,proto3" json:"recommendation_rank,omitempty"`
+	Warning             string                 `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
+	IsConfigurable      bool                   `protobuf:"varint,10,opt,name=is_configurable,json=isConfigurable,proto3" json:"is_configurable,omitempty"`
+	SupportsLookback    bool                   `protobuf:"varint,11,opt,name=supports_lookback,json=supportsLookback,proto3" json:"supports_lookback,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ResourceColumn) Reset() {
 	*x = ResourceColumn{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[13]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1048,7 +1016,7 @@ func (x *ResourceColumn) String() string {
 func (*ResourceColumn) ProtoMessage() {}
 
 func (x *ResourceColumn) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[13]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1061,7 +1029,7 @@ func (x *ResourceColumn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceColumn.ProtoReflect.Descriptor instead.
 func (*ResourceColumn) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{13}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ResourceColumn) GetName() string {
@@ -1085,30 +1053,30 @@ func (x *ResourceColumn) GetNativeType() string {
 	return ""
 }
 
-func (x *ResourceColumn) GetNullable() bool {
+func (x *ResourceColumn) GetIsNullable() bool {
 	if x != nil {
-		return x.Nullable
+		return x.IsNullable
 	}
 	return false
 }
 
-func (x *ResourceColumn) GetPrimaryKey() bool {
+func (x *ResourceColumn) GetIsPrimaryKey() bool {
 	if x != nil {
-		return x.PrimaryKey
+		return x.IsPrimaryKey
 	}
 	return false
 }
 
-func (x *ResourceColumn) GetCursorEligible() bool {
+func (x *ResourceColumn) GetIsCursorEligible() bool {
 	if x != nil {
-		return x.CursorEligible
+		return x.IsCursorEligible
 	}
 	return false
 }
 
-func (x *ResourceColumn) GetCursorRecommended() bool {
+func (x *ResourceColumn) GetIsCursorRecommended() bool {
 	if x != nil {
-		return x.CursorRecommended
+		return x.IsCursorRecommended
 	}
 	return false
 }
@@ -1127,9 +1095,9 @@ func (x *ResourceColumn) GetWarning() string {
 	return ""
 }
 
-func (x *ResourceColumn) GetConfigurable() bool {
+func (x *ResourceColumn) GetIsConfigurable() bool {
 	if x != nil {
-		return x.Configurable
+		return x.IsConfigurable
 	}
 	return false
 }
@@ -1151,7 +1119,7 @@ type ResourceColumns struct {
 
 func (x *ResourceColumns) Reset() {
 	*x = ResourceColumns{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[14]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1163,7 +1131,7 @@ func (x *ResourceColumns) String() string {
 func (*ResourceColumns) ProtoMessage() {}
 
 func (x *ResourceColumns) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[14]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1176,7 +1144,7 @@ func (x *ResourceColumns) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceColumns.ProtoReflect.Descriptor instead.
 func (*ResourceColumns) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{14}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ResourceColumns) GetResource() string {
@@ -1202,7 +1170,7 @@ type GetResourceColumnsResponse struct {
 
 func (x *GetResourceColumnsResponse) Reset() {
 	*x = GetResourceColumnsResponse{}
-	mi := &file_ingestion_v1_providers_proto_msgTypes[15]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1214,7 +1182,7 @@ func (x *GetResourceColumnsResponse) String() string {
 func (*GetResourceColumnsResponse) ProtoMessage() {}
 
 func (x *GetResourceColumnsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_providers_proto_msgTypes[15]
+	mi := &file_ingestion_v1_connectors_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1227,7 +1195,7 @@ func (x *GetResourceColumnsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResourceColumnsResponse.ProtoReflect.Descriptor instead.
 func (*GetResourceColumnsResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{15}
+	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetResourceColumnsResponse) GetResources() []*ResourceColumns {
@@ -1237,11 +1205,11 @@ func (x *GetResourceColumnsResponse) GetResources() []*ResourceColumns {
 	return nil
 }
 
-var File_ingestion_v1_providers_proto protoreflect.FileDescriptor
+var File_ingestion_v1_connectors_proto protoreflect.FileDescriptor
 
-const file_ingestion_v1_providers_proto_rawDesc = "" +
+const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\n" +
-	"\x1cingestion/v1/providers.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\x95\x03\n" +
+	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\x95\x03\n" +
 	"\fCapabilities\x12\"\n" +
 	"\fdiscoverable\x18\x01 \x01(\bR\fdiscoverable\x12.\n" +
 	"\x13per_resource_cursor\x18\x02 \x01(\bR\x11perResourceCursor\x12$\n" +
@@ -1286,14 +1254,13 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"Q\n" +
 	"\x14GetConnectorResponse\x129\n" +
-	"\tconnector\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\tconnector\"\xed\x01\n" +
+	"\tconnector\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\tconnector\"\xe5\x01\n" +
 	"\x15ValidateConfigRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
 	"\tconnector\x18\x03 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x12\n" +
-	"\x04live\x18\x05 \x01(\bR\x04live\x12#\n" +
-	"\rconnection_id\x18\x06 \x01(\tR\fconnectionId\"A\n" +
+	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
+	"\rconnection_id\x18\x06 \x01(\tR\fconnectionIdJ\x04\b\x05\x10\x06R\x04live\"A\n" +
 	"\x0fValidationError\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"e\n" +
@@ -1305,21 +1272,18 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
 	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x18\n" +
 	"\arefresh\x18\x04 \x01(\bR\arefresh\x12#\n" +
-	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\"\xc4\x02\n" +
+	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\"\xb8\x02\n" +
 	"\bResource\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
-	"\n" +
-	"selectable\x18\x02 \x01(\bR\n" +
-	"selectable\x12\x1f\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
+	"\ris_selectable\x18\x02 \x01(\bR\fisSelectable\x12\x1f\n" +
 	"\vprimary_key\x18\x03 \x03(\tR\n" +
-	"primaryKey\x12%\n" +
-	"\x0eestimated_rows\x18\x04 \x01(\x03R\restimatedRows\x12\x1a\n" +
+	"primaryKey\x12\x1a\n" +
 	"\bselector\x18\x05 \x01(\tR\bselector\x12!\n" +
 	"\fdisplay_name\x18\x06 \x01(\tR\vdisplayName\x12@\n" +
 	"\bmetadata\x18\a \x03(\v2$.ingestion.v1.Resource.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x04\x10\x05R\x0eestimated_rows\"Q\n" +
 	"\x19DiscoverResourcesResponse\x124\n" +
 	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xca\x01\n" +
 	"\x19GetResourceColumnsRequest\x12\x1b\n" +
@@ -1327,21 +1291,21 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
 	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
 	"\rconnection_id\x18\x04 \x01(\tR\fconnectionId\x12\x1c\n" +
-	"\tresources\x18\x05 \x03(\tR\tresources\"\x99\x03\n" +
+	"\tresources\x18\x05 \x03(\tR\tresources\"\xb2\x03\n" +
 	"\x0eResourceColumn\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\x12\x1f\n" +
 	"\vnative_type\x18\x03 \x01(\tR\n" +
-	"nativeType\x12\x1a\n" +
-	"\bnullable\x18\x04 \x01(\bR\bnullable\x12\x1f\n" +
-	"\vprimary_key\x18\x05 \x01(\bR\n" +
-	"primaryKey\x12'\n" +
-	"\x0fcursor_eligible\x18\x06 \x01(\bR\x0ecursorEligible\x12-\n" +
-	"\x12cursor_recommended\x18\a \x01(\bR\x11cursorRecommended\x12/\n" +
+	"nativeType\x12\x1f\n" +
+	"\vis_nullable\x18\x04 \x01(\bR\n" +
+	"isNullable\x12$\n" +
+	"\x0eis_primary_key\x18\x05 \x01(\bR\fisPrimaryKey\x12,\n" +
+	"\x12is_cursor_eligible\x18\x06 \x01(\bR\x10isCursorEligible\x122\n" +
+	"\x15is_cursor_recommended\x18\a \x01(\bR\x13isCursorRecommended\x12/\n" +
 	"\x13recommendation_rank\x18\b \x01(\x05R\x12recommendationRank\x12\x18\n" +
-	"\awarning\x18\t \x01(\tR\awarning\x12\"\n" +
-	"\fconfigurable\x18\n" +
-	" \x01(\bR\fconfigurable\x12+\n" +
+	"\awarning\x18\t \x01(\tR\awarning\x12'\n" +
+	"\x0fis_configurable\x18\n" +
+	" \x01(\bR\x0eisConfigurable\x12+\n" +
 	"\x11supports_lookback\x18\v \x01(\bR\x10supportsLookback\"e\n" +
 	"\x0fResourceColumns\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x126\n" +
@@ -1352,24 +1316,24 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\x1eCONNECTOR_MATURITY_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18CONNECTOR_MATURITY_ALPHA\x10\x01\x12\x1b\n" +
 	"\x17CONNECTOR_MATURITY_BETA\x10\x02\x12\x1d\n" +
-	"\x19CONNECTOR_MATURITY_STABLE\x10\x03B\xaf\x01\n" +
-	"\x10com.ingestion.v1B\x0eProvidersProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
+	"\x19CONNECTOR_MATURITY_STABLE\x10\x03B\xb0\x01\n" +
+	"\x10com.ingestion.v1B\x0fConnectorsProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
-	file_ingestion_v1_providers_proto_rawDescOnce sync.Once
-	file_ingestion_v1_providers_proto_rawDescData []byte
+	file_ingestion_v1_connectors_proto_rawDescOnce sync.Once
+	file_ingestion_v1_connectors_proto_rawDescData []byte
 )
 
-func file_ingestion_v1_providers_proto_rawDescGZIP() []byte {
-	file_ingestion_v1_providers_proto_rawDescOnce.Do(func() {
-		file_ingestion_v1_providers_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_ingestion_v1_providers_proto_rawDesc), len(file_ingestion_v1_providers_proto_rawDesc)))
+func file_ingestion_v1_connectors_proto_rawDescGZIP() []byte {
+	file_ingestion_v1_connectors_proto_rawDescOnce.Do(func() {
+		file_ingestion_v1_connectors_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_ingestion_v1_connectors_proto_rawDesc), len(file_ingestion_v1_connectors_proto_rawDesc)))
 	})
-	return file_ingestion_v1_providers_proto_rawDescData
+	return file_ingestion_v1_connectors_proto_rawDescData
 }
 
-var file_ingestion_v1_providers_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_ingestion_v1_providers_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
-var file_ingestion_v1_providers_proto_goTypes = []any{
+var file_ingestion_v1_connectors_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_ingestion_v1_connectors_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_ingestion_v1_connectors_proto_goTypes = []any{
 	(ConnectorMaturity)(0),             // 0: ingestion.v1.ConnectorMaturity
 	(*Capabilities)(nil),               // 1: ingestion.v1.Capabilities
 	(*ConnectorSpec)(nil),              // 2: ingestion.v1.ConnectorSpec
@@ -1398,7 +1362,7 @@ var file_ingestion_v1_providers_proto_goTypes = []any{
 	(*PaginationResponse)(nil),         // 25: ingestion.v1.PaginationResponse
 	(*structpb.Struct)(nil),            // 26: google.protobuf.Struct
 }
-var file_ingestion_v1_providers_proto_depIdxs = []int32{
+var file_ingestion_v1_connectors_proto_depIdxs = []int32{
 	18, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
 	19, // 1: ingestion.v1.Capabilities.source_policies:type_name -> ingestion.v1.SourcePolicy
 	20, // 2: ingestion.v1.Capabilities.write_modes:type_name -> ingestion.v1.WriteMode
@@ -1429,9 +1393,9 @@ var file_ingestion_v1_providers_proto_depIdxs = []int32{
 	0,  // [0:23] is the sub-list for field type_name
 }
 
-func init() { file_ingestion_v1_providers_proto_init() }
-func file_ingestion_v1_providers_proto_init() {
-	if File_ingestion_v1_providers_proto != nil {
+func init() { file_ingestion_v1_connectors_proto_init() }
+func file_ingestion_v1_connectors_proto_init() {
+	if File_ingestion_v1_connectors_proto != nil {
 		return
 	}
 	file_ingestion_v1_common_proto_init()
@@ -1440,18 +1404,18 @@ func file_ingestion_v1_providers_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_providers_proto_rawDesc), len(file_ingestion_v1_providers_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_connectors_proto_rawDesc), len(file_ingestion_v1_connectors_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_ingestion_v1_providers_proto_goTypes,
-		DependencyIndexes: file_ingestion_v1_providers_proto_depIdxs,
-		EnumInfos:         file_ingestion_v1_providers_proto_enumTypes,
-		MessageInfos:      file_ingestion_v1_providers_proto_msgTypes,
+		GoTypes:           file_ingestion_v1_connectors_proto_goTypes,
+		DependencyIndexes: file_ingestion_v1_connectors_proto_depIdxs,
+		EnumInfos:         file_ingestion_v1_connectors_proto_enumTypes,
+		MessageInfos:      file_ingestion_v1_connectors_proto_msgTypes,
 	}.Build()
-	File_ingestion_v1_providers_proto = out.File
-	file_ingestion_v1_providers_proto_goTypes = nil
-	file_ingestion_v1_providers_proto_depIdxs = nil
+	File_ingestion_v1_connectors_proto = out.File
+	file_ingestion_v1_connectors_proto_goTypes = nil
+	file_ingestion_v1_connectors_proto_depIdxs = nil
 }

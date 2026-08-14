@@ -11,7 +11,7 @@ import FlexWrapper, {
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";

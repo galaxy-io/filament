@@ -16,11 +16,10 @@ message Capabilities {
   bool schematized = 5;
   repeated WritePolicyCapability write_policies = 6;
   repeated SourcePolicy source_policies = 7;
-  // Sink: the write modes this sink offers.
   repeated WriteMode write_modes = 8;
 }
 
-// ConnectorSpec mirrors pkg.ConnectorSpec / pkg.SinkSpec.
+// ConnectorSpec describes one registered source or sink connector.
 message ConnectorSpec {
   string name = 1;
   string display_name = 2;
@@ -32,25 +31,19 @@ message ConnectorSpec {
   string description = 8;
   string dark_logo_url = 9;
   string light_logo_url = 10;
-  // Pipeline-scoped config field holding the sink's destination schema, when
-  // the sink has one. The server defaults it from the source connection name.
   string schema_field = 11;
   ConnectorMaturity maturity = 12;
 }
 
 enum ConnectorMaturity {
   CONNECTOR_MATURITY_UNSPECIFIED = 0;
-  // Created from documentation and not yet tested end to end.
   CONNECTOR_MATURITY_ALPHA = 1;
-  // Run end to end, but not verified for every object or production environment.
   CONNECTOR_MATURITY_BETA = 2;
-  // Fully production-ready across its supported objects.
   CONNECTOR_MATURITY_STABLE = 3;
 }
 
 message ListConnectorsRequest {
   string tenant_id = 1;
-  // Filter to one kind; UNSPECIFIED returns both sources and sinks.
   ConnectorKind kind = 2;
   PaginationRequest pagination = 3;
 }
@@ -75,15 +68,11 @@ message ValidateConfigRequest {
   ConnectorKind kind = 2;
   string connector = 3;
   google.protobuf.Struct config = 4;
-  // live attempts a TestConnection probe if the connector supports it.
-  bool live = 5;
-  // When set, secrets stored on this connection fill config fields the
-  // request leaves blank. tenant_id must match the connection's tenant.
+  reserved 5;
+  reserved "live";
   string connection_id = 6;
 }
 
-// ValidationError carries a field-keyed validation failure. An empty field means
-// the error applies to the whole config.
 message ValidationError {
   string field = 1;
   string message = 2;
@@ -96,20 +85,18 @@ message ValidateConfigResponse {
 
 message DiscoverResourcesRequest {
   string tenant_id = 1;
-  // Source connector only; discovering a sink is not meaningful.
   string connector = 2;
   google.protobuf.Struct config = 3;
   bool refresh = 4;
-  // tenant_id must match the connection's tenant.
   string connection_id = 5;
 }
 
-// Resource mirrors pkg.Resource.
 message Resource {
   string name = 1;
-  bool selectable = 2;
+  bool is_selectable = 2;
   repeated string primary_key = 3;
-  int64 estimated_rows = 4;
+  reserved 4;
+  reserved "estimated_rows";
   string selector = 5;
   string display_name = 6;
   map<string, string> metadata = 7;
@@ -123,7 +110,6 @@ message GetResourceColumnsRequest {
   string tenant_id = 1;
   string connector = 2;
   google.protobuf.Struct config = 3;
-  // tenant_id must match the connection's tenant.
   string connection_id = 4;
   repeated string resources = 5;
 }
@@ -132,13 +118,13 @@ message ResourceColumn {
   string name = 1;
   string logical_type = 2;
   string native_type = 3;
-  bool nullable = 4;
-  bool primary_key = 5;
-  bool cursor_eligible = 6;
-  bool cursor_recommended = 7;
+  bool is_nullable = 4;
+  bool is_primary_key = 5;
+  bool is_cursor_eligible = 6;
+  bool is_cursor_recommended = 7;
   int32 recommendation_rank = 8;
   string warning = 9;
-  bool configurable = 10;
+  bool is_configurable = 10;
   bool supports_lookback = 11;
 }
 

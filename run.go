@@ -12,7 +12,7 @@ type RunSpec struct {
 	Tenant            TenantID
 	Run               RunID
 	PipelineID        string
-	PipelineVersionID int64
+	PipelineVersionID string
 	CheckpointRoute   string
 	CursorConfigs     map[string]ResourceCursorConfig
 	Source            Ref
@@ -32,7 +32,7 @@ type RunSpec struct {
 type RunRequest struct {
 	Tenant             TenantID
 	PipelineID         string
-	PipelineVersionID  int64
+	PipelineVersionID  string
 	IdempotencyKey     string
 	Source             Ref
 	Sink               Ref
@@ -61,7 +61,7 @@ type ResourceCursorConfig struct {
 // ResourceCheckpointKey returns the stable cross-run key for resource. False
 // means the request did not originate from a versioned pipeline route.
 func (r RunRequest) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
-	if r.PipelineID == "" || r.PipelineVersionID <= 0 || r.CheckpointRoute == "" || resource == "" {
+	if r.PipelineID == "" || r.PipelineVersionID == "" || r.CheckpointRoute == "" || resource == "" {
 		return ResourceCheckpointKey{}, false
 	}
 	return ResourceCheckpointKey{
@@ -136,7 +136,7 @@ type RunState struct {
 	ScheduledAt time.Time
 	RequestedAt time.Time
 	StartedAt   time.Time
-	FinishedAt  *time.Time
+	EndedAt     *time.Time
 	UpdatedAt   time.Time
 
 	Error      string
@@ -198,7 +198,7 @@ type ResourceState struct {
 type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string
-	PipelineVersionID *int64
+	PipelineVersionID *string
 	Source            string
 	Status            []RunStatus
 	Schedule          ScheduleID

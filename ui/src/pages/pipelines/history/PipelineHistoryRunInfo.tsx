@@ -46,7 +46,7 @@ const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
 `);
 
 interface PipelineHistoryRunInfoProps {
-  runId: RunInfo["runId"];
+  runId: RunInfo["id"];
 }
 
 const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
@@ -80,7 +80,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatCount(row.original.records)}
+            {formatCount(row.original.recordsProcessed)}
           </Text>
         ),
       },
@@ -92,7 +92,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatBytes(row.original.bytes)}
+            {formatBytes(row.original.bytesProcessed)}
           </Text>
         ),
       },
@@ -129,7 +129,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         variant={TableVariant.TERTIARY}
         columns={columns}
         data={resources}
-        getRowId={(resource) => resource.resource}
+        getRowId={(resource) => resource.resourceName}
         isLoading={isLoading}
         loadingRowCount={PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT}
         noLastRowPadding

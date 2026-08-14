@@ -12,7 +12,7 @@ import (
 )
 
 const claimDue = `-- name: ClaimDue :many
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
 WHERE enabled AND next_fire_at <= $1
@@ -29,7 +29,7 @@ type ClaimDueParams struct {
 }
 
 type ClaimDueRow struct {
-	ScheduleID    string
+	ID            string
 	TenantID      string
 	PipelineID    string
 	Name          pgtype.Text
@@ -54,7 +54,7 @@ func (q *Queries) ClaimDue(ctx context.Context, arg ClaimDueParams) ([]*ClaimDue
 	for rows.Next() {
 		var i ClaimDueRow
 		if err := rows.Scan(
-			&i.ScheduleID,
+			&i.ID,
 			&i.TenantID,
 			&i.PipelineID,
 			&i.Name,
@@ -86,7 +86,7 @@ func (q *Queries) DeletePipelineSchedules(ctx context.Context, pipelineID string
 }
 
 const deleteSchedule = `-- name: DeleteSchedule :exec
-DELETE FROM schedules WHERE schedule_id = $1
+DELETE FROM schedules WHERE id = $1
 `
 
 func (q *Queries) DeleteSchedule(ctx context.Context, scheduleID string) error {
@@ -95,7 +95,7 @@ func (q *Queries) DeleteSchedule(ctx context.Context, scheduleID string) error {
 }
 
 const leaseSchedules = `-- name: LeaseSchedules :exec
-UPDATE schedules SET claimed_at = $1 WHERE schedule_id = ANY($2::text[])
+UPDATE schedules SET claimed_at = $1 WHERE id = ANY($2::text[])
 `
 
 type LeaseSchedulesParams struct {
@@ -109,12 +109,12 @@ func (q *Queries) LeaseSchedules(ctx context.Context, arg LeaseSchedulesParams) 
 }
 
 const listSchedules = `-- name: ListSchedules :many
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
 WHERE ($1::text = '' OR tenant_id = $1)
   AND ($2::boolean IS NULL OR enabled = $2)
-ORDER BY schedule_id
+ORDER BY id
 LIMIT NULLIF($3::int, 0)
 `
 
@@ -125,7 +125,7 @@ type ListSchedulesParams struct {
 }
 
 type ListSchedulesRow struct {
-	ScheduleID    string
+	ID            string
 	TenantID      string
 	PipelineID    string
 	Name          pgtype.Text
@@ -148,7 +148,7 @@ func (q *Queries) ListSchedules(ctx context.Context, arg ListSchedulesParams) ([
 	for rows.Next() {
 		var i ListSchedulesRow
 		if err := rows.Scan(
-			&i.ScheduleID,
+			&i.ID,
 			&i.TenantID,
 			&i.PipelineID,
 			&i.Name,
@@ -171,13 +171,13 @@ func (q *Queries) ListSchedules(ctx context.Context, arg ListSchedulesParams) ([
 }
 
 const loadPipelineSchedule = `-- name: LoadPipelineSchedule :one
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules WHERE pipeline_id = $1
 `
 
 type LoadPipelineScheduleRow struct {
-	ScheduleID    string
+	ID            string
 	TenantID      string
 	PipelineID    string
 	Name          pgtype.Text
@@ -194,7 +194,7 @@ func (q *Queries) LoadPipelineSchedule(ctx context.Context, pipelineID string) (
 	row := q.db.QueryRow(ctx, loadPipelineSchedule, pipelineID)
 	var i LoadPipelineScheduleRow
 	err := row.Scan(
-		&i.ScheduleID,
+		&i.ID,
 		&i.TenantID,
 		&i.PipelineID,
 		&i.Name,
@@ -210,13 +210,13 @@ func (q *Queries) LoadPipelineSchedule(ctx context.Context, pipelineID string) (
 }
 
 const loadSchedule = `-- name: LoadSchedule :one
-SELECT schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
-FROM schedules WHERE schedule_id = $1
+FROM schedules WHERE id = $1
 `
 
 type LoadScheduleRow struct {
-	ScheduleID    string
+	ID            string
 	TenantID      string
 	PipelineID    string
 	Name          pgtype.Text
@@ -233,7 +233,7 @@ func (q *Queries) LoadSchedule(ctx context.Context, scheduleID string) (*LoadSch
 	row := q.db.QueryRow(ctx, loadSchedule, scheduleID)
 	var i LoadScheduleRow
 	err := row.Scan(
-		&i.ScheduleID,
+		&i.ID,
 		&i.TenantID,
 		&i.PipelineID,
 		&i.Name,
@@ -249,7 +249,7 @@ func (q *Queries) LoadSchedule(ctx context.Context, scheduleID string) (*LoadSch
 }
 
 const releaseScheduleClaim = `-- name: ReleaseScheduleClaim :exec
-UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE schedule_id = $1
+UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE id = $1
 `
 
 func (q *Queries) ReleaseScheduleClaim(ctx context.Context, scheduleID string) error {
@@ -258,11 +258,11 @@ func (q *Queries) ReleaseScheduleClaim(ctx context.Context, scheduleID string) e
 }
 
 const saveSchedule = `-- name: SaveSchedule :exec
-INSERT INTO schedules (schedule_id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
+INSERT INTO schedules (id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, claimed_at, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7,
     $8, $9, $10, NULL, $11, now())
-ON CONFLICT (schedule_id) DO UPDATE SET
+ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     name = EXCLUDED.name,

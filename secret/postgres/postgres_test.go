@@ -32,12 +32,16 @@ func TestProviderRoundTrip(t *testing.T) {
 	if _, err := pool.Exec(ctx, "DELETE FROM secrets"); err != nil {
 		t.Fatal(err)
 	}
+	store := datastorepostgres.New(pool)
+	if err := store.EnsureTenant(ctx, "tenant-a", "Tenant A"); err != nil {
+		t.Fatal(err)
+	}
 	p, err := secretpostgres.New(pool, "test-key-v1", make([]byte, 32))
 	if err != nil {
 		t.Fatal(err)
 	}
 	ref := "tenant-a/pg-dsn"
-	original := filament.Secret{Value: []byte("postgres://user:pw@host/db"), Meta: map[string]string{"rotated": "2026-01-01"}}
+	original := filament.Secret{Tenant: "tenant-a", Value: []byte("postgres://user:pw@host/db"), Meta: map[string]string{"rotated": "2026-01-01"}}
 	if err := p.Write(ctx, ref, original); err != nil {
 		t.Fatal(err)
 	}

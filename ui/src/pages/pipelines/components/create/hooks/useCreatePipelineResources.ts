@@ -12,7 +12,7 @@ import {
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
-} from "@/gen/ingestion/v1/providers_pb";
+} from "@/gen/ingestion/v1/connectors_pb";
 
 import {
   buildResourceRowsBySink,

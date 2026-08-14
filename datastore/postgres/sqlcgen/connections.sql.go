@@ -12,7 +12,7 @@ import (
 )
 
 const createConnection = `-- name: CreateConnection :exec
-INSERT INTO connections (connection_id, tenant_id, kind, name, provider, config, secret_refs, version, updated_at)
+INSERT INTO connections (id, tenant_id, kind, name, provider, config, secret_refs, version, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, 1, now())
 `
 
@@ -46,7 +46,7 @@ SET
   is_deleted = true,
   deleted_at = now(),
   updated_at = now()
-WHERE connection_id = $1 AND NOT is_deleted
+WHERE id = $1 AND NOT is_deleted
 `
 
 func (q *Queries) DeleteConnection(ctx context.Context, connectionID string) error {
@@ -55,27 +55,33 @@ func (q *Queries) DeleteConnection(ctx context.Context, connectionID string) err
 }
 
 const getConnection = `-- name: GetConnection :one
-SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version, deleted_at
-FROM connections WHERE connection_id = $1
+SELECT id, tenant_id, kind, name, provider, config, secret_refs, version, created_at, updated_at, deleted_at,
+       created_by_user_id, updated_by_user_id, deleted_by_user_id
+FROM connections WHERE id = $1
 `
 
 type GetConnectionRow struct {
-	ConnectionID string
-	TenantID     string
-	Kind         ConnectionKind
-	Name         string
-	Provider     string
-	Config       []byte
-	SecretRefs   []byte
-	Version      int64
-	DeletedAt    pgtype.Timestamptz
+	ID              string
+	TenantID        string
+	Kind            ConnectionKind
+	Name            string
+	Provider        string
+	Config          []byte
+	SecretRefs      []byte
+	Version         int64
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
 }
 
 func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetConnectionRow, error) {
 	row := q.db.QueryRow(ctx, getConnection, connectionID)
 	var i GetConnectionRow
 	err := row.Scan(
-		&i.ConnectionID,
+		&i.ID,
 		&i.TenantID,
 		&i.Kind,
 		&i.Name,
@@ -83,18 +89,24 @@ func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetC
 		&i.Config,
 		&i.SecretRefs,
 		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CreatedByUserID,
+		&i.UpdatedByUserID,
+		&i.DeletedByUserID,
 	)
 	return &i, err
 }
 
 const listConnections = `-- name: ListConnections :many
-SELECT connection_id, tenant_id, kind, name, provider, config, secret_refs, version, deleted_at
+SELECT id, tenant_id, kind, name, provider, config, secret_refs, version, created_at, updated_at, deleted_at,
+       created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM connections
 WHERE ($1::text = '' OR tenant_id = $1)
   AND ($2::connection_kind IS NULL OR kind = $2)
   AND ($3::boolean OR NOT is_deleted)
-ORDER BY connection_id
+ORDER BY id
 `
 
 type ListConnectionsParams struct {
@@ -104,15 +116,20 @@ type ListConnectionsParams struct {
 }
 
 type ListConnectionsRow struct {
-	ConnectionID string
-	TenantID     string
-	Kind         ConnectionKind
-	Name         string
-	Provider     string
-	Config       []byte
-	SecretRefs   []byte
-	Version      int64
-	DeletedAt    pgtype.Timestamptz
+	ID              string
+	TenantID        string
+	Kind            ConnectionKind
+	Name            string
+	Provider        string
+	Config          []byte
+	SecretRefs      []byte
+	Version         int64
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
 }
 
 func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams) ([]*ListConnectionsRow, error) {
@@ -125,7 +142,7 @@ func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams
 	for rows.Next() {
 		var i ListConnectionsRow
 		if err := rows.Scan(
-			&i.ConnectionID,
+			&i.ID,
 			&i.TenantID,
 			&i.Kind,
 			&i.Name,
@@ -133,7 +150,12 @@ func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams
 			&i.Config,
 			&i.SecretRefs,
 			&i.Version,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.CreatedByUserID,
+			&i.UpdatedByUserID,
+			&i.DeletedByUserID,
 		); err != nil {
 			return nil, err
 		}
@@ -149,7 +171,7 @@ const updateConnection = `-- name: UpdateConnection :one
 UPDATE connections
 SET name = $1, provider = $2, config = $3, secret_refs = $4,
     version = version + 1, updated_at = now()
-WHERE connection_id = $5 AND version = $6 AND NOT is_deleted
+WHERE id = $5 AND version = $6 AND NOT is_deleted
 RETURNING version
 `
 

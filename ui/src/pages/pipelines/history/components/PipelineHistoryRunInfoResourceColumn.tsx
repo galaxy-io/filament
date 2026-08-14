@@ -18,7 +18,7 @@ import { useGetConnectionQuery } from "@/api/queries/connections";
 import { useGetRunQuery } from "@/api/queries/runs";
 
 interface PipelineHistoryRunInfoResourceColumnProps {
-  runId: RunInfo["runId"];
+  runId: RunInfo["id"];
   runResource: RunResourceState;
 }
 
@@ -69,7 +69,7 @@ const PipelineHistoryRunInfoResourceColumn = ({
         </Text>
         <FlexItem shrink={0}>
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
-            {runResource.resource}
+            {runResource.resourceName}
           </Text>
         </FlexItem>
       </FlexWrapper>

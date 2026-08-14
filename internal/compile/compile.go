@@ -52,7 +52,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
 	}
-	version, err := c.Store.LoadPipelineVersion(ctx, pipeline.GetId(), pipeline.GetCurrentVersionId())
+	version, err := c.Store.LoadPipelineVersion(ctx, pipeline.GetId(), 0)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
 	}
@@ -61,7 +61,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	}
 	nodes := map[string]*ingestionv1.PipelineNode{}
 	connections := map[string]filament.Connection{}
-	for _, node := range version.GetNodes() {
+	for _, node := range version.GetGraph().GetNodes() {
 		nodes[node.GetId()] = node
 		if _, ok := connections[node.GetConnectionId()]; !ok {
 			conn, err := c.Store.LoadConnection(ctx, node.GetConnectionId())
@@ -75,7 +75,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		}
 	}
 
-	groups, err := groupEdges(version.GetEdges(), nodes)
+	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
 			Tenant:             filament.TenantID(tenant),
 			PipelineID:         pipeline.GetId(),
-			PipelineVersionID:  version.GetVersion(),
+			PipelineVersionID:  version.GetId(),
 			IdempotencyKey:     fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
 			Source:             sourceRef,
 			Sink:               sinkRef,

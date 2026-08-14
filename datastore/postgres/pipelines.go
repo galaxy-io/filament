@@ -2,10 +2,10 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -23,6 +23,7 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	}
 	out := cloneProto(p)
 	out.CreatedAt = timestampMillis(createdAt)
+	out.UpdatedAt = out.CreatedAt
 	return out, nil
 }
 
@@ -53,27 +54,26 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 	}
 	out := cloneProto(p)
 	out.CreatedAt = timestampMillis(createdAt)
+	out.UpdatedAt = out.CreatedAt
 	return out, nil
 }
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
-	nodes, err := marshalProtoSlice(v.GetNodes())
+	graph, err := protojson.Marshal(v.GetGraph())
 	if err != nil {
-		return nil, fmt.Errorf("datastore/postgres: marshal nodes: %w", err)
+		return nil, fmt.Errorf("datastore/postgres: marshal graph: %w", err)
 	}
-	edges, err := marshalProtoSlice(v.GetEdges())
-	if err != nil {
-		return nil, fmt.Errorf("datastore/postgres: marshal edges: %w", err)
-	}
-	row, err := s.q.CreatePipelineVersion(ctx, sqlcgen.CreatePipelineVersionParams{PipelineID: pipelineID, Nodes: nodes, Edges: edges})
+	id := uuid.NewString()
+	row, err := s.q.CreatePipelineVersion(ctx, sqlcgen.CreatePipelineVersionParams{PipelineID: pipelineID, ID: id, Graph: graph})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("pipeline %q: %w", pipelineID, filament.ErrNotFound)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline version: %w", err)
 	}
-	return &ingestionv1.PipelineVersion{Id: pipelineID, Version: row.Version, Nodes: v.GetNodes(), Edges: v.GetEdges(), CreatedAt: row.CreatedAt.Time.UnixMilli()}, nil
+	createdAt := timestampMillis(row.CreatedAt)
+	return &ingestionv1.PipelineVersion{Id: row.ID, Version: row.Version, Graph: v.GetGraph(), CreatedAt: createdAt, UpdatedAt: createdAt}, nil
 }
 
 // UpdatePipeline updates a pipeline's mutable metadata.
@@ -98,9 +98,19 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: get pipeline: %w", err)
 	}
-	out := pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt)
+	out := pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
+	if row.CurrentVersionID.Valid {
+		out.CurrentVersion, err = s.LoadPipelineVersion(ctx, row.ID, 0)
+		if err != nil {
+			return nil, err
+		}
+	}
 	out.CreatedAt = timestampMillis(row.CreatedAt)
+	out.UpdatedAt = timestampMillis(row.UpdatedAt)
 	out.DeletedAt = timestampMillis(row.DeletedAt)
+	out.CreatedByUserId = row.CreatedByUserID.String
+	out.UpdatedByUserId = row.UpdatedByUserID.String
+	out.DeletedByUserId = row.DeletedByUserID.String
 	return out, nil
 }
 
@@ -113,11 +123,11 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: get pipeline version: %w", err)
 	}
-	nodes, edges, err := unmarshalGraph(row.Nodes, row.Edges)
+	graph, err := unmarshalGraph(row.Graph)
 	if err != nil {
 		return nil, err
 	}
-	return &ingestionv1.PipelineVersion{Id: row.PipelineID, Version: row.Version, Nodes: nodes, Edges: edges, CreatedAt: row.CreatedAt.Time.UnixMilli()}, nil
+	return &ingestionv1.PipelineVersion{Id: row.ID, Version: row.Version, Graph: graph, CreatedAt: timestampMillis(row.CreatedAt), UpdatedAt: timestampMillis(row.UpdatedAt), CreatedByUserId: row.CreatedByUserID.String, UpdatedByUserId: row.UpdatedByUserID.String, DeletedByUserId: row.DeletedByUserID.String}, nil
 }
 
 // ListPipelineVersions returns all of a pipeline's graph versions, newest
@@ -129,11 +139,11 @@ func (s *Store) ListPipelineVersions(ctx context.Context, pipelineID string) ([]
 	}
 	out := make([]*ingestionv1.PipelineVersion, len(rows))
 	for i, row := range rows {
-		nodes, edges, err := unmarshalGraph(row.Nodes, row.Edges)
+		graph, err := unmarshalGraph(row.Graph)
 		if err != nil {
 			return nil, err
 		}
-		out[i] = &ingestionv1.PipelineVersion{Id: row.PipelineID, Version: row.Version, Nodes: nodes, Edges: edges, CreatedAt: row.CreatedAt.Time.UnixMilli()}
+		out[i] = &ingestionv1.PipelineVersion{Id: row.ID, Version: row.Version, Graph: graph, CreatedAt: timestampMillis(row.CreatedAt), UpdatedAt: timestampMillis(row.UpdatedAt), CreatedByUserId: row.CreatedByUserID.String, UpdatedByUserId: row.UpdatedByUserID.String, DeletedByUserId: row.DeletedByUserID.String}
 	}
 	return out, nil
 }
@@ -146,9 +156,19 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	}
 	out := make([]*ingestionv1.Pipeline, len(rows))
 	for i, row := range rows {
-		out[i] = pipelineFromRow(row.PipelineID, row.TenantID, row.Name, row.Description, row.CurrentVersionID, row.LastRunVersionID, row.LastRunAt, row.LastRunStatus, row.LastRunBytes, row.LastRunEndedAt)
+		out[i] = pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
+		if row.CurrentVersionID.Valid {
+			out[i].CurrentVersion, err = s.LoadPipelineVersion(ctx, row.ID, 0)
+			if err != nil {
+				return nil, err
+			}
+		}
 		out[i].CreatedAt = timestampMillis(row.CreatedAt)
+		out[i].UpdatedAt = timestampMillis(row.UpdatedAt)
 		out[i].DeletedAt = timestampMillis(row.DeletedAt)
+		out[i].CreatedByUserId = row.CreatedByUserID.String
+		out[i].UpdatedByUserId = row.UpdatedByUserID.String
+		out[i].DeletedByUserId = row.DeletedByUserID.String
 	}
 	return out, nil
 }
@@ -160,17 +180,8 @@ func timestampMillis(ts pgtype.Timestamptz) int64 {
 	return ts.Time.UnixMilli()
 }
 
-func pipelineFromRow(id, tenant, name, description string, current, lastVersion int64, lastAt pgtype.Timestamptz, status int16, bytes int64, lastEndedAt pgtype.Timestamptz) *ingestionv1.Pipeline {
-	at, endedAt := timestampMillis(lastAt), timestampMillis(lastEndedAt)
-	lastStatus := ingestionv1.RunStatus_RUN_STATUS_UNSPECIFIED
-	if lastVersion != 0 {
-		lastStatus = runStatusToPipelineProto(status)
-	}
-	return &ingestionv1.Pipeline{Id: id, TenantId: tenant, Name: name, Description: description, CurrentVersionId: current, LastRunVersionId: lastVersion, LastRunAt: at, LastRunStatus: lastStatus, LastRunBytes: bytes, LastRunEndedAt: endedAt}
-}
-
-func runStatusToPipelineProto(status int16) ingestionv1.RunStatus {
-	return ingestionv1.RunStatus(int32(status) + 1)
+func pipelineFromRow(id, tenant, name, description string) *ingestionv1.Pipeline {
+	return &ingestionv1.Pipeline{Id: id, TenantId: tenant, Name: name, Description: description}
 }
 
 // DeletePipeline soft-deletes a pipeline and removes its schedules so the
@@ -194,28 +205,10 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	return nil
 }
 
-func unmarshalGraph(nodesJSON, edgesJSON []byte) ([]*ingestionv1.PipelineNode, []*ingestionv1.PipelineEdge, error) {
-	var rawNodes []json.RawMessage
-	if err := json.Unmarshal(nodesJSON, &rawNodes); err != nil {
-		return nil, nil, fmt.Errorf("datastore/postgres: unmarshal nodes: %w", err)
+func unmarshalGraph(graphJSON []byte) (*ingestionv1.PipelineGraph, error) {
+	graph := &ingestionv1.PipelineGraph{}
+	if err := protojson.Unmarshal(graphJSON, graph); err != nil {
+		return nil, fmt.Errorf("datastore/postgres: unmarshal graph: %w", err)
 	}
-	nodes := make([]*ingestionv1.PipelineNode, len(rawNodes))
-	for i, raw := range rawNodes {
-		nodes[i] = &ingestionv1.PipelineNode{}
-		if err := protojson.Unmarshal(raw, nodes[i]); err != nil {
-			return nil, nil, fmt.Errorf("datastore/postgres: unmarshal node: %w", err)
-		}
-	}
-	var rawEdges []json.RawMessage
-	if err := json.Unmarshal(edgesJSON, &rawEdges); err != nil {
-		return nil, nil, fmt.Errorf("datastore/postgres: unmarshal edges: %w", err)
-	}
-	edges := make([]*ingestionv1.PipelineEdge, len(rawEdges))
-	for i, raw := range rawEdges {
-		edges[i] = &ingestionv1.PipelineEdge{}
-		if err := protojson.Unmarshal(raw, edges[i]); err != nil {
-			return nil, nil, fmt.Errorf("datastore/postgres: unmarshal edge: %w", err)
-		}
-	}
-	return nodes, edges, nil
+	return graph, nil
 }

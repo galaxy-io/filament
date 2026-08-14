@@ -12,7 +12,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
@@ -67,7 +67,7 @@ const PipelineCanvasPanelResourceSection = ({
     options: { ...PROBE_QUERY_OPTIONS, enabled: sourceConnectionId !== "" },
   });
   const discoveredCount = (discovered?.resources ?? []).filter(
-    (resource) => resource.selectable,
+    (resource) => resource.isSelectable,
   ).length;
 
   return (

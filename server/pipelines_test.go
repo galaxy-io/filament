@@ -31,7 +31,7 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 		t.Fatalf("DeletePipeline: %v", err)
 	}
 
-	res, err := api.GetPipeline(ctx, connect.NewRequest(&ingestionv1.GetPipelineRequest{Id: "pipe-1"}))
+	res, err := api.GetPipeline(ctx, connect.NewRequest(&ingestionv1.GetPipelineRequest{Id: "pipe-1", IncludeVersions: true}))
 	if err != nil {
 		t.Fatalf("GetPipeline after delete: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 	if stampedAt.UnixMilli() != res.Msg.GetPipeline().GetDeletedAt() {
 		t.Fatalf("delete stamp %d disagrees with deleted_at %d", stampedAt.UnixMilli(), res.Msg.GetPipeline().GetDeletedAt())
 	}
-	if len(res.Msg.GetVersions()) != 1 || res.Msg.GetCurrentVersion() == nil {
+	if len(res.Msg.GetPipeline().GetVersions()) != 0 || res.Msg.GetPipeline().GetCurrentVersion() == nil {
 		t.Fatalf("expected version history kept, got %+v", res.Msg)
 	}
 

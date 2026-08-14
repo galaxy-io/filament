@@ -5,32 +5,12 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
-
-// protoMessage is the subset of generated message types marshalProtoSlice needs.
-type protoMessage interface {
-	proto.Message
-}
-
-// marshalProtoSlice encodes each element with protojson and wraps the results as a
-// JSON array, suitable for a JSONB column.
-func marshalProtoSlice[T protoMessage](items []T) ([]byte, error) {
-	raw := make([]json.RawMessage, len(items))
-	for i, item := range items {
-		b, err := protojson.Marshal(item)
-		if err != nil {
-			return nil, err
-		}
-		raw[i] = b
-	}
-	return json.Marshal(raw)
-}
 
 func cloneProto(p *ingestionv1.Pipeline) *ingestionv1.Pipeline {
 	return proto.Clone(p).(*ingestionv1.Pipeline)
@@ -73,7 +53,7 @@ func connectionKindFromDB(kind sqlcgen.ConnectionKind) filament.ConnectorKind {
 	return filament.ConnectorKindUnspecified
 }
 
-func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64, deletedAt pgtype.Timestamptz) (filament.Connection, error) {
+func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64, createdAt, updatedAt, deletedAt pgtype.Timestamptz, createdBy, updatedBy, deletedBy pgtype.Text) (filament.Connection, error) {
 	cfg := map[string]any{}
 	if len(configJSON) > 0 {
 		if err := json.Unmarshal(configJSON, &cfg); err != nil {
@@ -86,5 +66,5 @@ func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, pro
 			return filament.Connection{}, fmt.Errorf("datastore/postgres: unmarshal connection secret_refs: %w", err)
 		}
 	}
-	return filament.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: provider, Config: cfg, SecretRefs: refs, Version: version, DeletedAt: timestampMillis(deletedAt)}, nil
+	return filament.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: provider, Config: cfg, SecretRefs: refs, Version: version, CreatedAt: timestampMillis(createdAt), UpdatedAt: timestampMillis(updatedAt), DeletedAt: timestampMillis(deletedAt), CreatedByUserID: createdBy.String, UpdatedByUserID: updatedBy.String, DeletedByUserID: deletedBy.String}, nil
 }
