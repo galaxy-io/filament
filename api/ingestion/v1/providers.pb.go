@@ -22,6 +22,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ConnectorMaturity int32
+
+const (
+	ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED ConnectorMaturity = 0
+	// Created from documentation and not yet tested end to end.
+	ConnectorMaturity_CONNECTOR_MATURITY_ALPHA ConnectorMaturity = 1
+	// Run end to end, but not verified for every object or production environment.
+	ConnectorMaturity_CONNECTOR_MATURITY_BETA ConnectorMaturity = 2
+	// Fully production-ready across its supported objects.
+	ConnectorMaturity_CONNECTOR_MATURITY_STABLE ConnectorMaturity = 3
+)
+
+// Enum value maps for ConnectorMaturity.
+var (
+	ConnectorMaturity_name = map[int32]string{
+		0: "CONNECTOR_MATURITY_UNSPECIFIED",
+		1: "CONNECTOR_MATURITY_ALPHA",
+		2: "CONNECTOR_MATURITY_BETA",
+		3: "CONNECTOR_MATURITY_STABLE",
+	}
+	ConnectorMaturity_value = map[string]int32{
+		"CONNECTOR_MATURITY_UNSPECIFIED": 0,
+		"CONNECTOR_MATURITY_ALPHA":       1,
+		"CONNECTOR_MATURITY_BETA":        2,
+		"CONNECTOR_MATURITY_STABLE":      3,
+	}
+)
+
+func (x ConnectorMaturity) Enum() *ConnectorMaturity {
+	p := new(ConnectorMaturity)
+	*p = x
+	return p
+}
+
+func (x ConnectorMaturity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ConnectorMaturity) Descriptor() protoreflect.EnumDescriptor {
+	return file_ingestion_v1_providers_proto_enumTypes[0].Descriptor()
+}
+
+func (ConnectorMaturity) Type() protoreflect.EnumType {
+	return &file_ingestion_v1_providers_proto_enumTypes[0]
+}
+
+func (x ConnectorMaturity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ConnectorMaturity.Descriptor instead.
+func (ConnectorMaturity) EnumDescriptor() ([]byte, []int) {
+	return file_ingestion_v1_providers_proto_rawDescGZIP(), []int{0}
+}
+
 // Capabilities flattens source and sink capabilities; fields not relevant to a
 // given kind stay false.
 type Capabilities struct {
@@ -140,7 +195,8 @@ type ConnectorSpec struct {
 	LightLogoUrl string                 `protobuf:"bytes,10,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
 	// Pipeline-scoped config field holding the sink's destination schema, when
 	// the sink has one. The server defaults it from the source connection name.
-	SchemaField   string `protobuf:"bytes,11,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
+	SchemaField   string            `protobuf:"bytes,11,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
+	Maturity      ConnectorMaturity `protobuf:"varint,12,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -250,6 +306,13 @@ func (x *ConnectorSpec) GetSchemaField() string {
 		return x.SchemaField
 	}
 	return ""
+}
+
+func (x *ConnectorSpec) GetMaturity() ConnectorMaturity {
+	if x != nil {
+		return x.Maturity
+	}
+	return ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED
 }
 
 type ListConnectorsRequest struct {
@@ -1190,7 +1253,7 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\x0ewrite_policies\x18\x06 \x03(\v2#.ingestion.v1.WritePolicyCapabilityR\rwritePolicies\x12C\n" +
 	"\x0fsource_policies\x18\a \x03(\v2\x1a.ingestion.v1.SourcePolicyR\x0esourcePolicies\x128\n" +
 	"\vwrite_modes\x18\b \x03(\x0e2\x17.ingestion.v1.WriteModeR\n" +
-	"writeModes\"\xd6\x03\n" +
+	"writeModes\"\x93\x04\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -1203,7 +1266,8 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\rdark_logo_url\x18\t \x01(\tR\vdarkLogoUrl\x12$\n" +
 	"\x0elight_logo_url\x18\n" +
 	" \x01(\tR\flightLogoUrl\x12!\n" +
-	"\fschema_field\x18\v \x01(\tR\vschemaField\"\xa6\x01\n" +
+	"\fschema_field\x18\v \x01(\tR\vschemaField\x12;\n" +
+	"\bmaturity\x18\f \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\"\xa6\x01\n" +
 	"\x15ListConnectorsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
@@ -1283,7 +1347,12 @@ const file_ingestion_v1_providers_proto_rawDesc = "" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x126\n" +
 	"\acolumns\x18\x02 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\"Y\n" +
 	"\x1aGetResourceColumnsResponse\x12;\n" +
-	"\tresources\x18\x01 \x03(\v2\x1d.ingestion.v1.ResourceColumnsR\tresourcesB\xaf\x01\n" +
+	"\tresources\x18\x01 \x03(\v2\x1d.ingestion.v1.ResourceColumnsR\tresources*\x91\x01\n" +
+	"\x11ConnectorMaturity\x12\"\n" +
+	"\x1eCONNECTOR_MATURITY_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18CONNECTOR_MATURITY_ALPHA\x10\x01\x12\x1b\n" +
+	"\x17CONNECTOR_MATURITY_BETA\x10\x02\x12\x1d\n" +
+	"\x19CONNECTOR_MATURITY_STABLE\x10\x03B\xaf\x01\n" +
 	"\x10com.ingestion.v1B\x0eProvidersProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -1298,63 +1367,66 @@ func file_ingestion_v1_providers_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_providers_proto_rawDescData
 }
 
+var file_ingestion_v1_providers_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_ingestion_v1_providers_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_ingestion_v1_providers_proto_goTypes = []any{
-	(*Capabilities)(nil),               // 0: ingestion.v1.Capabilities
-	(*ConnectorSpec)(nil),              // 1: ingestion.v1.ConnectorSpec
-	(*ListConnectorsRequest)(nil),      // 2: ingestion.v1.ListConnectorsRequest
-	(*ListConnectorsResponse)(nil),     // 3: ingestion.v1.ListConnectorsResponse
-	(*GetConnectorRequest)(nil),        // 4: ingestion.v1.GetConnectorRequest
-	(*GetConnectorResponse)(nil),       // 5: ingestion.v1.GetConnectorResponse
-	(*ValidateConfigRequest)(nil),      // 6: ingestion.v1.ValidateConfigRequest
-	(*ValidationError)(nil),            // 7: ingestion.v1.ValidationError
-	(*ValidateConfigResponse)(nil),     // 8: ingestion.v1.ValidateConfigResponse
-	(*DiscoverResourcesRequest)(nil),   // 9: ingestion.v1.DiscoverResourcesRequest
-	(*Resource)(nil),                   // 10: ingestion.v1.Resource
-	(*DiscoverResourcesResponse)(nil),  // 11: ingestion.v1.DiscoverResourcesResponse
-	(*GetResourceColumnsRequest)(nil),  // 12: ingestion.v1.GetResourceColumnsRequest
-	(*ResourceColumn)(nil),             // 13: ingestion.v1.ResourceColumn
-	(*ResourceColumns)(nil),            // 14: ingestion.v1.ResourceColumns
-	(*GetResourceColumnsResponse)(nil), // 15: ingestion.v1.GetResourceColumnsResponse
-	nil,                                // 16: ingestion.v1.Resource.MetadataEntry
-	(*WritePolicyCapability)(nil),      // 17: ingestion.v1.WritePolicyCapability
-	(*SourcePolicy)(nil),               // 18: ingestion.v1.SourcePolicy
-	(WriteMode)(0),                     // 19: ingestion.v1.WriteMode
-	(ConnectorKind)(0),                 // 20: ingestion.v1.ConnectorKind
-	(ReplicationMode)(0),               // 21: ingestion.v1.ReplicationMode
-	(*ConfigSchema)(nil),               // 22: ingestion.v1.ConfigSchema
-	(*PaginationRequest)(nil),          // 23: ingestion.v1.PaginationRequest
-	(*PaginationResponse)(nil),         // 24: ingestion.v1.PaginationResponse
-	(*structpb.Struct)(nil),            // 25: google.protobuf.Struct
+	(ConnectorMaturity)(0),             // 0: ingestion.v1.ConnectorMaturity
+	(*Capabilities)(nil),               // 1: ingestion.v1.Capabilities
+	(*ConnectorSpec)(nil),              // 2: ingestion.v1.ConnectorSpec
+	(*ListConnectorsRequest)(nil),      // 3: ingestion.v1.ListConnectorsRequest
+	(*ListConnectorsResponse)(nil),     // 4: ingestion.v1.ListConnectorsResponse
+	(*GetConnectorRequest)(nil),        // 5: ingestion.v1.GetConnectorRequest
+	(*GetConnectorResponse)(nil),       // 6: ingestion.v1.GetConnectorResponse
+	(*ValidateConfigRequest)(nil),      // 7: ingestion.v1.ValidateConfigRequest
+	(*ValidationError)(nil),            // 8: ingestion.v1.ValidationError
+	(*ValidateConfigResponse)(nil),     // 9: ingestion.v1.ValidateConfigResponse
+	(*DiscoverResourcesRequest)(nil),   // 10: ingestion.v1.DiscoverResourcesRequest
+	(*Resource)(nil),                   // 11: ingestion.v1.Resource
+	(*DiscoverResourcesResponse)(nil),  // 12: ingestion.v1.DiscoverResourcesResponse
+	(*GetResourceColumnsRequest)(nil),  // 13: ingestion.v1.GetResourceColumnsRequest
+	(*ResourceColumn)(nil),             // 14: ingestion.v1.ResourceColumn
+	(*ResourceColumns)(nil),            // 15: ingestion.v1.ResourceColumns
+	(*GetResourceColumnsResponse)(nil), // 16: ingestion.v1.GetResourceColumnsResponse
+	nil,                                // 17: ingestion.v1.Resource.MetadataEntry
+	(*WritePolicyCapability)(nil),      // 18: ingestion.v1.WritePolicyCapability
+	(*SourcePolicy)(nil),               // 19: ingestion.v1.SourcePolicy
+	(WriteMode)(0),                     // 20: ingestion.v1.WriteMode
+	(ConnectorKind)(0),                 // 21: ingestion.v1.ConnectorKind
+	(ReplicationMode)(0),               // 22: ingestion.v1.ReplicationMode
+	(*ConfigSchema)(nil),               // 23: ingestion.v1.ConfigSchema
+	(*PaginationRequest)(nil),          // 24: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),         // 25: ingestion.v1.PaginationResponse
+	(*structpb.Struct)(nil),            // 26: google.protobuf.Struct
 }
 var file_ingestion_v1_providers_proto_depIdxs = []int32{
-	17, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
-	18, // 1: ingestion.v1.Capabilities.source_policies:type_name -> ingestion.v1.SourcePolicy
-	19, // 2: ingestion.v1.Capabilities.write_modes:type_name -> ingestion.v1.WriteMode
-	20, // 3: ingestion.v1.ConnectorSpec.kind:type_name -> ingestion.v1.ConnectorKind
-	21, // 4: ingestion.v1.ConnectorSpec.modes:type_name -> ingestion.v1.ReplicationMode
-	22, // 5: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
-	0,  // 6: ingestion.v1.ConnectorSpec.capabilities:type_name -> ingestion.v1.Capabilities
-	20, // 7: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	23, // 8: ingestion.v1.ListConnectorsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	1,  // 9: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
-	24, // 10: ingestion.v1.ListConnectorsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	20, // 11: ingestion.v1.GetConnectorRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	1,  // 12: ingestion.v1.GetConnectorResponse.connector:type_name -> ingestion.v1.ConnectorSpec
-	20, // 13: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	25, // 14: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
-	7,  // 15: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
-	25, // 16: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
-	16, // 17: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
-	10, // 18: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
-	25, // 19: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
-	13, // 20: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
-	14, // 21: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	18, // 0: ingestion.v1.Capabilities.write_policies:type_name -> ingestion.v1.WritePolicyCapability
+	19, // 1: ingestion.v1.Capabilities.source_policies:type_name -> ingestion.v1.SourcePolicy
+	20, // 2: ingestion.v1.Capabilities.write_modes:type_name -> ingestion.v1.WriteMode
+	21, // 3: ingestion.v1.ConnectorSpec.kind:type_name -> ingestion.v1.ConnectorKind
+	22, // 4: ingestion.v1.ConnectorSpec.modes:type_name -> ingestion.v1.ReplicationMode
+	23, // 5: ingestion.v1.ConnectorSpec.config_schema:type_name -> ingestion.v1.ConfigSchema
+	1,  // 6: ingestion.v1.ConnectorSpec.capabilities:type_name -> ingestion.v1.Capabilities
+	0,  // 7: ingestion.v1.ConnectorSpec.maturity:type_name -> ingestion.v1.ConnectorMaturity
+	21, // 8: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	24, // 9: ingestion.v1.ListConnectorsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	2,  // 10: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
+	25, // 11: ingestion.v1.ListConnectorsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	21, // 12: ingestion.v1.GetConnectorRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	2,  // 13: ingestion.v1.GetConnectorResponse.connector:type_name -> ingestion.v1.ConnectorSpec
+	21, // 14: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	26, // 15: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
+	8,  // 16: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
+	26, // 17: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
+	17, // 18: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
+	11, // 19: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
+	26, // 20: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
+	14, // 21: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
+	15, // 22: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_providers_proto_init() }
@@ -1369,13 +1441,14 @@ func file_ingestion_v1_providers_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_providers_proto_rawDesc), len(file_ingestion_v1_providers_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_ingestion_v1_providers_proto_goTypes,
 		DependencyIndexes: file_ingestion_v1_providers_proto_depIdxs,
+		EnumInfos:         file_ingestion_v1_providers_proto_enumTypes,
 		MessageInfos:      file_ingestion_v1_providers_proto_msgTypes,
 	}.Build()
 	File_ingestion_v1_providers_proto = out.File

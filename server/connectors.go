@@ -44,17 +44,37 @@ func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv
 	var spec *ingestionv1.ConnectorSpec
 	switch req.Msg.GetKind() {
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
-		source, err := a.sources.Resolve(req.Msg.GetConnector())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, err)
+		if catalog, ok := a.sources.(interface {
+			Spec(string) (filament.ConnectorSpec, error)
+		}); ok {
+			sourceSpec, err := catalog.Spec(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sourceSpecToProto(sourceSpec)
+		} else {
+			source, err := a.sources.Resolve(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sourceSpecToProto(source.Spec())
 		}
-		spec = sourceSpecToProto(source.Spec())
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
-		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, err)
+		if catalog, ok := a.sinks.(interface {
+			Spec(string) (filament.SinkSpec, error)
+		}); ok {
+			sinkSpec, err := catalog.Spec(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sinkSpecToProto(sinkSpec)
+		} else {
+			sink, err := a.sinks.Resolve(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sinkSpecToProto(sink.Spec())
 		}
-		spec = sinkSpecToProto(sink.Spec())
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("connector kind is required"))
 	}
