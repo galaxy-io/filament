@@ -1,5 +1,8 @@
 import { Fragment } from "react";
 
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
+
+import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -12,6 +15,7 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliverySink from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySink";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
+import WorkerResourcesFields from "@/pages/pipelines/components/worker/WorkerResourcesFields";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
 interface CreatePipelineModalDeliverySectionProps {
@@ -59,6 +63,25 @@ const CreatePipelineModalDeliverySchedule = () => {
   );
 };
 
+const CreatePipelineModalDeliveryAdvanced = () => {
+  const { workerResources } = useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
+
+  return (
+    <Accordion header="Advanced configuration" icon={SlidersHorizontalIcon}>
+      <WorkerResourcesFields
+        state={workerResources}
+        onChange={(payload) =>
+          dispatch({
+            type: CreatePipelineModalActionType.SET_WORKER_RESOURCES,
+            payload,
+          })
+        }
+      />
+    </Accordion>
+  );
+};
+
 const CreatePipelineModalDelivery = () => {
   const { sinks, isCdc } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
@@ -90,6 +113,7 @@ const CreatePipelineModalDelivery = () => {
       <CreatePipelineModalDeliverySection header="Schedule">
         <CreatePipelineModalDeliverySchedule />
       </CreatePipelineModalDeliverySection>
+      <CreatePipelineModalDeliveryAdvanced />
     </FlexWrapper>
   );
 };
