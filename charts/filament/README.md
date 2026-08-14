@@ -159,9 +159,7 @@ helm upgrade --install filament . \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | observability.otel.endpoint | string | `""` | OTLP endpoint metrics and traces are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for plaintext in-cluster collectors. Empty disables export. |
-| observability.otel.metricsEndpoint | string | `""` | OTLP endpoint metrics alone are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`. Overrides `endpoint` for metrics; setting it alone also enables export. |
 | observability.otel.protocol | string | `""` | OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`. Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318). Empty defaults to `grpc`. |
-| observability.otel.tracesEndpoint | string | `""` | OTLP endpoint traces alone are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Overrides `endpoint` for traces; setting it alone also enables export. |
 
 ## Vendored PostgreSQL parameters
 

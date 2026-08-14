@@ -233,16 +233,6 @@ observability:
     # plaintext in-cluster collectors. Empty disables export.
     endpoint: ""
 
-    # -- OTLP endpoint metrics alone are exported to, stored in the ConfigMaps as
-    # `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`. Overrides `endpoint` for metrics;
-    # setting it alone also enables export.
-    metricsEndpoint: ""
-
-    # -- OTLP endpoint traces alone are exported to, stored in the ConfigMaps as
-    # `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. Overrides `endpoint` for traces;
-    # setting it alone also enables export.
-    tracesEndpoint: ""
-
     # -- OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`.
     # Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318).
     # Empty defaults to `grpc`.

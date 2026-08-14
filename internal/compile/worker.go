@@ -22,10 +22,11 @@ func WorkerConfigurationFromProto(cfg *ingestionv1.WorkerConfiguration) filament
 	}
 }
 
-// ValidateWorkerConfiguration rejects quantities Kubernetes cannot parse, so a
-// bad value fails at the API write where a human sees it rather than at Job
-// creation. Empty fields are unset and always valid.
+// ValidateWorkerConfiguration rejects quantities and request/limit pairs that
+// Kubernetes would refuse, so a bad value fails at the API write where a human
+// sees it rather than at Job creation. Empty fields are unset and always valid.
 func ValidateWorkerConfiguration(cfg filament.WorkerConfiguration) error {
+	quantities := make(map[string]resource.Quantity, 4)
 	for _, q := range []struct {
 		field string
 		value string
@@ -38,8 +39,26 @@ func ValidateWorkerConfiguration(cfg filament.WorkerConfiguration) error {
 		if q.value == "" {
 			continue
 		}
-		if _, err := resource.ParseQuantity(q.value); err != nil {
+		quantity, err := resource.ParseQuantity(q.value)
+		if err != nil {
 			return fmt.Errorf("%w: worker %s %q: %w", ErrInvalid, q.field, q.value, err)
+		}
+		if quantity.Sign() < 0 {
+			return fmt.Errorf("%w: worker %s %q must be non-negative", ErrInvalid, q.field, q.value)
+		}
+		quantities[q.field] = quantity
+	}
+	for _, pair := range []struct {
+		request string
+		limit   string
+	}{
+		{"cpu_request", "cpu_limit"},
+		{"memory_request", "memory_limit"},
+	} {
+		request, hasRequest := quantities[pair.request]
+		limit, hasLimit := quantities[pair.limit]
+		if hasRequest && hasLimit && request.Cmp(limit) > 0 {
+			return fmt.Errorf("%w: worker %s must be less than or equal to %s", ErrInvalid, pair.request, pair.limit)
 		}
 	}
 	return nil

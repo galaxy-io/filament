@@ -21,18 +21,10 @@ data:
   {{- end }}
 
   # Observability
-  {{- if or .Values.observability.otel.endpoint .Values.observability.otel.metricsEndpoint .Values.observability.otel.tracesEndpoint }}
-  OTEL_SERVICE_NAME: {{ include "filament.worker.fullname" . | quote }}
   {{- with .Values.observability.otel.endpoint }}
+  OTEL_SERVICE_NAME: {{ include "filament.worker.fullname" $ | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
-  {{- end }}
-  {{- with .Values.observability.otel.metricsEndpoint }}
-  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: {{ . | quote }}
-  {{- end }}
-  {{- with .Values.observability.otel.tracesEndpoint }}
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: {{ . | quote }}
-  {{- end }}
-  {{- with .Values.observability.otel.protocol }}
+  {{- with $.Values.observability.otel.protocol }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
   {{- end }}
   {{- end }}
