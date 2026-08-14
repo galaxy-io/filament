@@ -35,6 +35,17 @@ message ConnectorSpec {
   // Pipeline-scoped config field holding the sink's destination schema, when
   // the sink has one. The server defaults it from the source connection name.
   string schema_field = 11;
+  ConnectorMaturity maturity = 12;
+}
+
+enum ConnectorMaturity {
+  CONNECTOR_MATURITY_UNSPECIFIED = 0;
+  // Created from documentation and not yet tested end to end.
+  CONNECTOR_MATURITY_ALPHA = 1;
+  // Run end to end, but not verified for every object or production environment.
+  CONNECTOR_MATURITY_BETA = 2;
+  // Fully production-ready across its supported objects.
+  CONNECTOR_MATURITY_STABLE = 3;
 }
 
 message ListConnectorsRequest {

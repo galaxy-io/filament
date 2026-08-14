@@ -87,7 +87,9 @@ func TestValidateConfigRunsLiveSinkProbe(t *testing.T) {
 
 func TestGetConnector(t *testing.T) {
 	sources := registry.NewSources()
-	sources.Register("columns", func() filament.Source { return &columnSource{counts: &columnSourceCounts{}} })
+	sources.RegisterWithMaturity("columns", filament.MaturityBeta, func() filament.Source {
+		return &columnSource{counts: &columnSourceCounts{}}
+	})
 	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
 
 	response, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
@@ -99,6 +101,9 @@ func TestGetConnector(t *testing.T) {
 	}
 	if got := response.Msg.GetConnector().GetName(); got != "columns" {
 		t.Fatalf("connector name = %q, want %q", got, "columns")
+	}
+	if got := response.Msg.GetConnector().GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA {
+		t.Fatalf("connector maturity = %v, want beta", got)
 	}
 
 	_, err = api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
@@ -114,6 +119,59 @@ func TestGetConnector(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unspecified kind error = %v, want invalid argument", err)
+	}
+}
+
+func TestListConnectorsIncludesConnectorMaturity(t *testing.T) {
+	sources := registry.NewSources()
+	sources.RegisterWithMaturity("columns", filament.MaturityStable, func() filament.Source {
+		return &columnSource{counts: &columnSourceCounts{}}
+	})
+	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+
+	response, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
+		Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(response.Msg.GetConnectors()); got != 1 {
+		t.Fatalf("connectors = %d, want 1", got)
+	}
+	if got := response.Msg.GetConnectors()[0].GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE {
+		t.Fatalf("connector maturity = %v, want stable", got)
+	}
+}
+
+func TestSinkConnectorResponsesIncludeMaturity(t *testing.T) {
+	sinks := registry.NewSinks()
+	sinks.RegisterWithMaturity("live-sink", filament.MaturityBeta, func() filament.Sink {
+		return &liveProbeSink{probes: &atomic.Int32{}}
+	})
+	api := New(registry.NewSources(), sinks, memory.New(), nil, nil)
+
+	getResponse, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
+		Connector: "live-sink",
+		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := getResponse.Msg.GetConnector().GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA {
+		t.Fatalf("get connector maturity = %v, want beta", got)
+	}
+
+	listResponse, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
+		Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(listResponse.Msg.GetConnectors()); got != 1 {
+		t.Fatalf("connectors = %d, want 1", got)
+	}
+	if got := listResponse.Msg.GetConnectors()[0].GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA {
+		t.Fatalf("list connector maturity = %v, want beta", got)
 	}
 }
 

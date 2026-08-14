@@ -265,10 +265,23 @@ const (
 )
 
 type (
+	// ConnectorMaturity describes how thoroughly a connector has been tested.
+	ConnectorMaturity string
 	// SourceFactory constructs a fresh Source instance per resolve.
 	SourceFactory func() Source
 	// SinkFactory constructs a fresh Sink instance per resolve.
 	SinkFactory func() Sink
+)
+
+// Connector maturity levels, from least to most proven.
+const (
+	// MaturityAlpha is documentation-derived and not yet tested end to end.
+	MaturityAlpha ConnectorMaturity = "alpha"
+	// MaturityBeta has run end to end, but is not verified for every supported
+	// object or production environment.
+	MaturityBeta ConnectorMaturity = "beta"
+	// MaturityStable is fully production-ready across its supported objects.
+	MaturityStable ConnectorMaturity = "stable"
 )
 
 // SourceRegistry maps source names to factories and exposes their specs for

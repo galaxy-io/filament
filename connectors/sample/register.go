@@ -9,5 +9,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/sample"
 func init() {
-	registry.RegisterSource("sample", func() filament.Source { return New() })
+	registry.RegisterSource("sample", filament.MaturityStable, func() filament.Source { return New() })
 }

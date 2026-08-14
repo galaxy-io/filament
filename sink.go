@@ -45,6 +45,7 @@ type SinkSpec struct {
 	DarkLogoURL  string
 	LightLogoURL string
 	Version      string
+	Maturity     ConnectorMaturity
 	Config       ConfigSchema
 	Capabilities SinkCapabilities
 
