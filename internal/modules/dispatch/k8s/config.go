@@ -14,22 +14,18 @@ type Config struct {
 	WorkerImage                 string
 	WorkerServiceAccount        string
 	WorkerImagePullPolicy       string
-	NATSStream                  string
-	NATSSubjects                string
 	JobNamePrefix               string
 	BackoffLimit                int32
 	TTLSecondsAfterFinished     *int32
 	WorkerSecretName            string
-	SecretProvider              string
-	EncryptionKeyID             string
-	SecretsPrefix               string
-	AWSRegion                   string
-	OTELEndpoint                string
-	OTELProtocol                string
+	WorkerConfigMapName         string
 	Kubeconfig                  string
 	WorkerRestartPolicy         string
 	WorkerTerminationGraceSecs  *int64
 	WorkerActiveDeadlineSeconds *int64
+	// WorkerAppName is the chart's app name for the Job's
+	// app.kubernetes.io/name label; empty means "filament".
+	WorkerAppName string
 }
 
 // ConfigFromEnv builds a Config for in-cluster use, with optional overrides.
@@ -39,23 +35,18 @@ func ConfigFromEnv() Config {
 		WorkerImage:           os.Getenv("K8S_WORKER_IMAGE"),
 		WorkerServiceAccount:  os.Getenv("K8S_WORKER_SERVICE_ACCOUNT"),
 		WorkerImagePullPolicy: getenv("K8S_WORKER_IMAGE_PULL_POLICY", "IfNotPresent"),
-		NATSStream:            os.Getenv("NATS_STREAM"),
-		NATSSubjects:          os.Getenv("NATS_SUBJECTS"),
 		JobNamePrefix:         getenv("K8S_JOB_NAME_PREFIX", "filament"),
 		BackoffLimit:          int32Env("K8S_JOB_BACKOFF_LIMIT", 1),
 		Kubeconfig:            getenv("K8S_KUBECONFIG", os.Getenv("KUBECONFIG")),
 		WorkerRestartPolicy:   getenv("K8S_WORKER_RESTART_POLICY", "Never"),
-		SecretProvider:        os.Getenv("SECRET_PROVIDER"),
-		EncryptionKeyID:       os.Getenv("ENCRYPTION_KEY_ID"),
-		SecretsPrefix:         os.Getenv("SECRETS_PREFIX"),
-		AWSRegion:             os.Getenv("AWS_REGION"),
-		// Forwarded to worker Jobs so their heartbeat instruments export to the
-		// same collector as the control plane.
-		OTELEndpoint: os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
-		OTELProtocol: os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"),
-		// envFrom'd whole into worker pods: carries PERSISTENCE_DSN, NATS_URL,
-		// and ENCRYPTION_KEY under keys named after the env vars they feed.
-		WorkerSecretName: os.Getenv("K8S_WORKER_SECRET_NAME"),
+		// Both are envFrom'd whole into worker pods, so worker configuration is
+		// owned by whoever renders them rather than copied through the control
+		// plane's own environment. The Secret carries PERSISTENCE_DSN, NATS_URL,
+		// and ENCRYPTION_KEY; the ConfigMap carries the plain settings, including
+		// the worker's own OTEL_SERVICE_NAME.
+		WorkerSecretName:    os.Getenv("K8S_WORKER_SECRET_NAME"),
+		WorkerConfigMapName: os.Getenv("K8S_WORKER_CONFIGMAP_NAME"),
+		WorkerAppName:       os.Getenv("K8S_WORKER_APP_NAME"),
 	}
 	if v := os.Getenv("K8S_JOB_TTL_SECONDS_AFTER_FINISHED"); v != "" {
 		n := int32Env("K8S_JOB_TTL_SECONDS_AFTER_FINISHED", 0)

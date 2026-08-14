@@ -83,20 +83,21 @@ type DedupSeen struct {
 }
 
 type Pipeline struct {
-	PipelineID       string
-	TenantID         string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	Description      string
-	CurrentVersionID int64
-	LastRunVersionID int64
-	LastRunAt        pgtype.Timestamptz
-	LastRunStatus    int16
-	LastRunBytes     int64
-	IsDeleted        bool
-	DeletedAt        pgtype.Timestamptz
-	LastRunEndedAt   pgtype.Timestamptz
+	PipelineID          string
+	TenantID            string
+	Name                string
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	Description         string
+	CurrentVersionID    int64
+	LastRunVersionID    int64
+	LastRunAt           pgtype.Timestamptz
+	LastRunStatus       int16
+	LastRunBytes        int64
+	IsDeleted           bool
+	DeletedAt           pgtype.Timestamptz
+	LastRunEndedAt      pgtype.Timestamptz
+	WorkerConfiguration []byte
 }
 
 type PipelineVersion struct {

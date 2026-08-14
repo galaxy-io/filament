@@ -12,16 +12,17 @@ import (
 )
 
 const createPipeline = `-- name: CreatePipeline :one
-INSERT INTO pipelines (pipeline_id, tenant_id, name, description, current_version_id, updated_at)
-VALUES ($1, $2, $3, $4, 0, now())
+INSERT INTO pipelines (pipeline_id, tenant_id, name, description, current_version_id, worker_configuration, updated_at)
+VALUES ($1, $2, $3, $4, 0, COALESCE($5::jsonb, '{}'::jsonb), now())
 RETURNING created_at
 `
 
 type CreatePipelineParams struct {
-	PipelineID  string
-	TenantID    string
-	Name        string
-	Description string
+	PipelineID          string
+	TenantID            string
+	Name                string
+	Description         string
+	WorkerConfiguration []byte
 }
 
 func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) (pgtype.Timestamptz, error) {
@@ -30,6 +31,7 @@ func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) 
 		arg.TenantID,
 		arg.Name,
 		arg.Description,
+		arg.WorkerConfiguration,
 	)
 	var created_at pgtype.Timestamptz
 	err := row.Scan(&created_at)
@@ -83,23 +85,25 @@ func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
 
 const getPipeline = `-- name: GetPipeline :one
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at,
+       worker_configuration
 FROM pipelines WHERE pipeline_id = $1
 `
 
 type GetPipelineRow struct {
-	PipelineID       string
-	TenantID         string
-	Name             string
-	Description      string
-	CurrentVersionID int64
-	LastRunVersionID int64
-	LastRunAt        pgtype.Timestamptz
-	LastRunStatus    int16
-	LastRunBytes     int64
-	LastRunEndedAt   pgtype.Timestamptz
-	CreatedAt        pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
+	PipelineID          string
+	TenantID            string
+	Name                string
+	Description         string
+	CurrentVersionID    int64
+	LastRunVersionID    int64
+	LastRunAt           pgtype.Timestamptz
+	LastRunStatus       int16
+	LastRunBytes        int64
+	LastRunEndedAt      pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	DeletedAt           pgtype.Timestamptz
+	WorkerConfiguration []byte
 }
 
 func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipelineRow, error) {
@@ -118,6 +122,7 @@ func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipel
 		&i.LastRunEndedAt,
 		&i.CreatedAt,
 		&i.DeletedAt,
+		&i.WorkerConfiguration,
 	)
 	return &i, err
 }
@@ -179,7 +184,8 @@ func (q *Queries) ListPipelineVersions(ctx context.Context, pipelineID string) (
 
 const listPipelines = `-- name: ListPipelines :many
 SELECT pipeline_id, tenant_id, name, description, current_version_id, last_run_version_id,
-       last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at
+       last_run_at, last_run_status, last_run_bytes, last_run_ended_at, created_at, deleted_at,
+       worker_configuration
 FROM pipelines
 WHERE ($1::text = '' OR tenant_id = $1)
   AND ($2::boolean OR NOT is_deleted)
@@ -192,18 +198,19 @@ type ListPipelinesParams struct {
 }
 
 type ListPipelinesRow struct {
-	PipelineID       string
-	TenantID         string
-	Name             string
-	Description      string
-	CurrentVersionID int64
-	LastRunVersionID int64
-	LastRunAt        pgtype.Timestamptz
-	LastRunStatus    int16
-	LastRunBytes     int64
-	LastRunEndedAt   pgtype.Timestamptz
-	CreatedAt        pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
+	PipelineID          string
+	TenantID            string
+	Name                string
+	Description         string
+	CurrentVersionID    int64
+	LastRunVersionID    int64
+	LastRunAt           pgtype.Timestamptz
+	LastRunStatus       int16
+	LastRunBytes        int64
+	LastRunEndedAt      pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	DeletedAt           pgtype.Timestamptz
+	WorkerConfiguration []byte
 }
 
 func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([]*ListPipelinesRow, error) {
@@ -228,6 +235,7 @@ func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([
 			&i.LastRunEndedAt,
 			&i.CreatedAt,
 			&i.DeletedAt,
+			&i.WorkerConfiguration,
 		); err != nil {
 			return nil, err
 		}
@@ -240,18 +248,26 @@ func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([
 }
 
 const updatePipeline = `-- name: UpdatePipeline :execrows
-UPDATE pipelines SET name = $1, description = $2, updated_at = now()
-WHERE pipeline_id = $3 AND NOT is_deleted
+UPDATE pipelines SET name = $1, description = $2,
+  worker_configuration = COALESCE($3::jsonb, worker_configuration),
+  updated_at = now()
+WHERE pipeline_id = $4 AND NOT is_deleted
 `
 
 type UpdatePipelineParams struct {
-	Name        string
-	Description string
-	PipelineID  string
+	Name                string
+	Description         string
+	WorkerConfiguration []byte
+	PipelineID          string
 }
 
 func (q *Queries) UpdatePipeline(ctx context.Context, arg UpdatePipelineParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updatePipeline, arg.Name, arg.Description, arg.PipelineID)
+	result, err := q.db.Exec(ctx, updatePipeline,
+		arg.Name,
+		arg.Description,
+		arg.WorkerConfiguration,
+		arg.PipelineID,
+	)
 	if err != nil {
 		return 0, err
 	}

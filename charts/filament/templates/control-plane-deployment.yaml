@@ -32,7 +32,7 @@ spec:
           imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
           ports:
             - name: health
-              containerPort: 8081
+              containerPort: {{ .Values.controlPlane.health.port }}
               protocol: TCP
           startupProbe:
             httpGet:

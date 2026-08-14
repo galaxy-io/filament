@@ -113,6 +113,11 @@ controlPlane:
   # @default -- `{}` (See [values.yaml])
   resources: {}
 
+  health:
+    # -- Port the control plane serves `/livez` and `/readyz` on, stored in the
+    # ConfigMap as `HEALTH_ADDR` and used for the container port and probes.
+    port: 8081
+
   dispatch:
     # -- Worker dispatch backend.
     mode: kubernetes
@@ -139,6 +144,9 @@ controlPlane:
       terminationGraceSeconds: 30
       # -- Worker Job active deadline in seconds. Leave empty for no deadline.
       activeDeadlineSeconds: ""
+      # -- Interval in seconds between worker heartbeats, stored in the worker
+      # ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default.
+      heartbeatSeconds: 30
 
     job:
       # -- Prefix used when naming dispatched worker Jobs.
@@ -147,6 +155,12 @@ controlPlane:
       backoffLimit: 1
       # -- Seconds to retain completed dispatched worker Jobs.
       ttlSecondsAfterFinished: 3600
+
+metrics:
+  # -- Metrics backend for the dashboard query API, stored in the server
+  # ConfigMap as `METRICSSTORE_PROVIDER`. `postgresql` answers from the
+  # datastore's own pool.
+  type: postgresql
 
 persistence:
   # -- Persistence provider.

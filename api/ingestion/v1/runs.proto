@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "ingestion/v1/common.proto";
 import "ingestion/v1/pagination.proto";
 
 // RunStatus mirrors pkg.RunStatus.
@@ -51,6 +52,11 @@ message RunPipelineRequest {
   // options overrides engine throughput defaults for every run this call
   // produces. Unset (or any zero field) defers to defaults.
   RunOptions options = 4;
+  // worker_configuration overrides the pipeline's own for this call only, field
+  // by field: an empty field inherits the pipeline's value. The resolved result
+  // is stamped onto each run, so editing the pipeline afterwards cannot change
+  // a run already requested.
+  WorkerConfiguration worker_configuration = 5;
 }
 
 // RunBinding ties one compiled edge to the run it produced, so the UI can bind a

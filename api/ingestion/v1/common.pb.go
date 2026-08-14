@@ -577,6 +577,124 @@ func (FieldScope) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{9}
 }
 
+// WorkerResources sizes the worker that executes a run. Values are Kubernetes
+// quantity strings ("500m", "2Gi"); an empty field is unset and inherits, and
+// only the Kubernetes dispatcher consults them.
+type WorkerResources struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CpuRequest    string                 `protobuf:"bytes,1,opt,name=cpu_request,json=cpuRequest,proto3" json:"cpu_request,omitempty"`
+	CpuLimit      string                 `protobuf:"bytes,2,opt,name=cpu_limit,json=cpuLimit,proto3" json:"cpu_limit,omitempty"`
+	MemoryRequest string                 `protobuf:"bytes,3,opt,name=memory_request,json=memoryRequest,proto3" json:"memory_request,omitempty"`
+	MemoryLimit   string                 `protobuf:"bytes,4,opt,name=memory_limit,json=memoryLimit,proto3" json:"memory_limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkerResources) Reset() {
+	*x = WorkerResources{}
+	mi := &file_ingestion_v1_common_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkerResources) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerResources) ProtoMessage() {}
+
+func (x *WorkerResources) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_common_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerResources.ProtoReflect.Descriptor instead.
+func (*WorkerResources) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *WorkerResources) GetCpuRequest() string {
+	if x != nil {
+		return x.CpuRequest
+	}
+	return ""
+}
+
+func (x *WorkerResources) GetCpuLimit() string {
+	if x != nil {
+		return x.CpuLimit
+	}
+	return ""
+}
+
+func (x *WorkerResources) GetMemoryRequest() string {
+	if x != nil {
+		return x.MemoryRequest
+	}
+	return ""
+}
+
+func (x *WorkerResources) GetMemoryLimit() string {
+	if x != nil {
+		return x.MemoryLimit
+	}
+	return ""
+}
+
+// WorkerConfiguration is how a pipeline's workers are shaped. It is a container
+// on purpose: resources today, placement (node selectors, tolerations) later,
+// without a migration per knob.
+type WorkerConfiguration struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resources     *WorkerResources       `protobuf:"bytes,1,opt,name=resources,proto3" json:"resources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkerConfiguration) Reset() {
+	*x = WorkerConfiguration{}
+	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkerConfiguration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerConfiguration) ProtoMessage() {}
+
+func (x *WorkerConfiguration) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerConfiguration.ProtoReflect.Descriptor instead.
+func (*WorkerConfiguration) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *WorkerConfiguration) GetResources() *WorkerResources {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
 // ConfigField mirrors pkg.ConfigField.
 type ConfigField struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
@@ -600,7 +718,7 @@ type ConfigField struct {
 
 func (x *ConfigField) Reset() {
 	*x = ConfigField{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[0]
+	mi := &file_ingestion_v1_common_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -612,7 +730,7 @@ func (x *ConfigField) String() string {
 func (*ConfigField) ProtoMessage() {}
 
 func (x *ConfigField) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[0]
+	mi := &file_ingestion_v1_common_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -625,7 +743,7 @@ func (x *ConfigField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigField.ProtoReflect.Descriptor instead.
 func (*ConfigField) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{0}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ConfigField) GetName() string {
@@ -709,7 +827,7 @@ type EnumOption struct {
 
 func (x *EnumOption) Reset() {
 	*x = EnumOption{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	mi := &file_ingestion_v1_common_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +839,7 @@ func (x *EnumOption) String() string {
 func (*EnumOption) ProtoMessage() {}
 
 func (x *EnumOption) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	mi := &file_ingestion_v1_common_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +852,7 @@ func (x *EnumOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnumOption.ProtoReflect.Descriptor instead.
 func (*EnumOption) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{1}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *EnumOption) GetValue() string {
@@ -761,7 +879,7 @@ type FieldCondition struct {
 
 func (x *FieldCondition) Reset() {
 	*x = FieldCondition{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	mi := &file_ingestion_v1_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +891,7 @@ func (x *FieldCondition) String() string {
 func (*FieldCondition) ProtoMessage() {}
 
 func (x *FieldCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	mi := &file_ingestion_v1_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +904,7 @@ func (x *FieldCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FieldCondition.ProtoReflect.Descriptor instead.
 func (*FieldCondition) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{2}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *FieldCondition) GetField() string {
@@ -813,7 +931,7 @@ type ConfigSchema struct {
 
 func (x *ConfigSchema) Reset() {
 	*x = ConfigSchema{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[3]
+	mi := &file_ingestion_v1_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -825,7 +943,7 @@ func (x *ConfigSchema) String() string {
 func (*ConfigSchema) ProtoMessage() {}
 
 func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[3]
+	mi := &file_ingestion_v1_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -838,7 +956,7 @@ func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSchema.ProtoReflect.Descriptor instead.
 func (*ConfigSchema) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ConfigSchema) GetFields() []*ConfigField {
@@ -861,7 +979,7 @@ type WritePolicyCapability struct {
 
 func (x *WritePolicyCapability) Reset() {
 	*x = WritePolicyCapability{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[4]
+	mi := &file_ingestion_v1_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -873,7 +991,7 @@ func (x *WritePolicyCapability) String() string {
 func (*WritePolicyCapability) ProtoMessage() {}
 
 func (x *WritePolicyCapability) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[4]
+	mi := &file_ingestion_v1_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,7 +1004,7 @@ func (x *WritePolicyCapability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WritePolicyCapability.ProtoReflect.Descriptor instead.
 func (*WritePolicyCapability) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{4}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *WritePolicyCapability) GetMode() WriteMode {
@@ -938,7 +1056,7 @@ type SourcePolicy struct {
 
 func (x *SourcePolicy) Reset() {
 	*x = SourcePolicy{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[5]
+	mi := &file_ingestion_v1_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -950,7 +1068,7 @@ func (x *SourcePolicy) String() string {
 func (*SourcePolicy) ProtoMessage() {}
 
 func (x *SourcePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[5]
+	mi := &file_ingestion_v1_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -963,7 +1081,7 @@ func (x *SourcePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourcePolicy.ProtoReflect.Descriptor instead.
 func (*SourcePolicy) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{5}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SourcePolicy) GetMode() ReadMode {
@@ -998,7 +1116,15 @@ var File_ingestion_v1_common_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x19ingestion/v1/common.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x9a\x03\n" +
+	"\x19ingestion/v1/common.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x99\x01\n" +
+	"\x0fWorkerResources\x12\x1f\n" +
+	"\vcpu_request\x18\x01 \x01(\tR\n" +
+	"cpuRequest\x12\x1b\n" +
+	"\tcpu_limit\x18\x02 \x01(\tR\bcpuLimit\x12%\n" +
+	"\x0ememory_request\x18\x03 \x01(\tR\rmemoryRequest\x12!\n" +
+	"\fmemory_limit\x18\x04 \x01(\tR\vmemoryLimit\"R\n" +
+	"\x13WorkerConfiguration\x12;\n" +
+	"\tresources\x18\x01 \x01(\v2\x1d.ingestion.v1.WorkerResourcesR\tresources\"\x9a\x03\n" +
 	"\vConfigField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.ingestion.v1.FieldTypeR\x04type\x12\x1a\n" +
@@ -1106,7 +1232,7 @@ func file_ingestion_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_ingestion_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_ingestion_v1_common_proto_goTypes = []any{
 	(ConnectorKind)(0),            // 0: ingestion.v1.ConnectorKind
 	(FieldType)(0),                // 1: ingestion.v1.FieldType
@@ -1118,33 +1244,36 @@ var file_ingestion_v1_common_proto_goTypes = []any{
 	(WriteAtomicity)(0),           // 7: ingestion.v1.WriteAtomicity
 	(CheckpointPolicy)(0),         // 8: ingestion.v1.CheckpointPolicy
 	(FieldScope)(0),               // 9: ingestion.v1.FieldScope
-	(*ConfigField)(nil),           // 10: ingestion.v1.ConfigField
-	(*EnumOption)(nil),            // 11: ingestion.v1.EnumOption
-	(*FieldCondition)(nil),        // 12: ingestion.v1.FieldCondition
-	(*ConfigSchema)(nil),          // 13: ingestion.v1.ConfigSchema
-	(*WritePolicyCapability)(nil), // 14: ingestion.v1.WritePolicyCapability
-	(*SourcePolicy)(nil),          // 15: ingestion.v1.SourcePolicy
-	(*structpb.Value)(nil),        // 16: google.protobuf.Value
+	(*WorkerResources)(nil),       // 10: ingestion.v1.WorkerResources
+	(*WorkerConfiguration)(nil),   // 11: ingestion.v1.WorkerConfiguration
+	(*ConfigField)(nil),           // 12: ingestion.v1.ConfigField
+	(*EnumOption)(nil),            // 13: ingestion.v1.EnumOption
+	(*FieldCondition)(nil),        // 14: ingestion.v1.FieldCondition
+	(*ConfigSchema)(nil),          // 15: ingestion.v1.ConfigSchema
+	(*WritePolicyCapability)(nil), // 16: ingestion.v1.WritePolicyCapability
+	(*SourcePolicy)(nil),          // 17: ingestion.v1.SourcePolicy
+	(*structpb.Value)(nil),        // 18: google.protobuf.Value
 }
 var file_ingestion_v1_common_proto_depIdxs = []int32{
-	1,  // 0: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
-	16, // 1: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
-	11, // 2: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
-	9,  // 3: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
-	10, // 4: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
-	12, // 5: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
-	10, // 6: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
-	6,  // 7: ingestion.v1.WritePolicyCapability.mode:type_name -> ingestion.v1.WriteMode
-	4,  // 8: ingestion.v1.WritePolicyCapability.accepts_ops:type_name -> ingestion.v1.Operation
-	7,  // 9: ingestion.v1.WritePolicyCapability.atomicity:type_name -> ingestion.v1.WriteAtomicity
-	3,  // 10: ingestion.v1.SourcePolicy.mode:type_name -> ingestion.v1.ReadMode
-	4,  // 11: ingestion.v1.SourcePolicy.emits_ops:type_name -> ingestion.v1.Operation
-	8,  // 12: ingestion.v1.SourcePolicy.checkpointing:type_name -> ingestion.v1.CheckpointPolicy
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	10, // 0: ingestion.v1.WorkerConfiguration.resources:type_name -> ingestion.v1.WorkerResources
+	1,  // 1: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
+	18, // 2: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
+	13, // 3: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
+	9,  // 4: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
+	12, // 5: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
+	14, // 6: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
+	12, // 7: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
+	6,  // 8: ingestion.v1.WritePolicyCapability.mode:type_name -> ingestion.v1.WriteMode
+	4,  // 9: ingestion.v1.WritePolicyCapability.accepts_ops:type_name -> ingestion.v1.Operation
+	7,  // 10: ingestion.v1.WritePolicyCapability.atomicity:type_name -> ingestion.v1.WriteAtomicity
+	3,  // 11: ingestion.v1.SourcePolicy.mode:type_name -> ingestion.v1.ReadMode
+	4,  // 12: ingestion.v1.SourcePolicy.emits_ops:type_name -> ingestion.v1.Operation
+	8,  // 13: ingestion.v1.SourcePolicy.checkpointing:type_name -> ingestion.v1.CheckpointPolicy
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_common_proto_init() }
@@ -1158,7 +1287,7 @@ func file_ingestion_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_common_proto_rawDesc), len(file_ingestion_v1_common_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
