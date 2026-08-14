@@ -56,6 +56,12 @@ The failure output aggregates every grammar and semantic error with its YAML pat
 
 Follow `references/wiring.md` exactly: embed + constructor in `connectors/http/catalog.go`, registration line in `connectors/http/register.go`, docs page `docs/pages/connectors/sources/<name>.mdx` plus a card in `http.mdx`, and an httptest-backed test in `connectors/http/source_test.go`.
 
+Register every new HTTP connector with `filament.MaturityAlpha`. These
+connectors are authored from documentation, so manifest validation and mocked
+HTTP tests do not establish end-to-end behavior against the live API. Only use
+beta or stable when the user explicitly provides a different maturity based on
+live validation.
+
 ## 6. Verify
 
 ```
@@ -64,7 +70,7 @@ go vet ./connectors/http/...
 go build -o /dev/null ./connectors/http
 ```
 
-Never leave a compiled binary in the tree. Never commit or branch — the user runs git themselves. Finish by reporting per-system: resources covered, auth/pagination choices, incremental support, and anything that needs a live-credential smoke test.
+Never leave a compiled binary in the tree. Never commit or branch — the user runs git themselves. Finish by reporting per-system: resources covered, auth/pagination choices, incremental support, maturity (alpha by default), and anything that needs a live-credential smoke test.
 
 ## Swarm mode (2+ systems)
 
@@ -73,6 +79,6 @@ Orchestrate with the Workflow tool. Stages, pipelined per system with no cross-s
 1. **Research** — one agent per system executes step 2 and returns a structured spec (auth, pagination, rate limits, resource list with paths/keys/fields, incremental candidates, eligibility verdict). Ineligible systems drop out with the reason; they still appear in the final report.
 2. **Author + validate** — one agent per system executes steps 3–4 and writes only files that system exclusively owns: its manifest, its docs page, its test functions. It must NOT touch `catalog.go`, `register.go`, or `http.mdx`. No worktree isolation needed because owned files never overlap.
 3. **Review** — one adversarial agent per manifest re-checks the manifest against the API docs: pagination param names and response paths exact, field types match documented payloads, primary key actually unique, incremental comparator correct. Findings go back to the author agent (or get fixed directly) before the final stage.
-4. **Finalize** — a single agent, after all systems land, edits the shared files once (`catalog.go`, `register.go`, `http.mdx` cards), runs the full step-6 verification, and emits the per-system report.
+4. **Finalize** — a single agent, after all systems land, edits the shared files once (`catalog.go`, `register.go`, `http.mdx` cards), registers each new connector with `filament.MaturityAlpha`, runs the full step-6 verification, and emits the per-system report.
 
 Each subagent prompt must point at this skill directory so the agent reads the same references.
