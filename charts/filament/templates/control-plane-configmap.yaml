@@ -16,10 +16,13 @@ data:
   # Dispatch
   DISPATCH_MODE: {{ .Values.controlPlane.dispatch.mode | quote }}
 
+  # Health
+  HEALTH_ADDR: ":{{ .Values.controlPlane.health.port }}"
+
   # Observability
   {{- with .Values.observability.otel.endpoint }}
-  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   OTEL_SERVICE_NAME: {{ include "filament.controlPlane.fullname" $ | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   {{- with $.Values.observability.otel.protocol }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
   {{- end }}
