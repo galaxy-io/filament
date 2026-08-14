@@ -1,6 +1,7 @@
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorMaturity } from "@/gen/ingestion/v1/providers_pb";
 
 export const CONNECTOR_GRID_MIN_COLUMN_WIDTH = 320;
 export const CONNECTOR_DRAWER_WIDTH = 600;
@@ -36,4 +37,18 @@ export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<ConnectorKind, ChipVaria
   [ConnectorKind.UNSPECIFIED]: ChipVariant.TERTIARY,
   [ConnectorKind.SOURCE]: ChipVariant.LIME,
   [ConnectorKind.SINK]: ChipVariant.PINK,
+};
+
+export const CONNECTOR_MATURITY_TO_LABEL_MAP: Record<ConnectorMaturity, string> = {
+  [ConnectorMaturity.UNSPECIFIED]: "—",
+  [ConnectorMaturity.ALPHA]: "Alpha",
+  [ConnectorMaturity.BETA]: "Beta",
+  [ConnectorMaturity.STABLE]: "Stable",
+};
+
+export const CONNECTOR_MATURITY_TO_CHIP_VARIANT_MAP: Record<ConnectorMaturity, ChipVariant> = {
+  [ConnectorMaturity.UNSPECIFIED]: ChipVariant.TERTIARY,
+  [ConnectorMaturity.ALPHA]: ChipVariant.ORANGE,
+  [ConnectorMaturity.BETA]: ChipVariant.BLUE,
+  [ConnectorMaturity.STABLE]: ChipVariant.SUCCESS,
 };

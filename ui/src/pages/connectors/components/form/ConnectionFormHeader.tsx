@@ -12,12 +12,14 @@ import DocsButton from "@/components/DocsButton";
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
+import ConnectorMaturityChip from "@/pages/connectors/components/ConnectorMaturityChip";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
 interface ConnectionFormHeaderProps {
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
+  connectorMaturity: ConnectorSpec["maturity"];
   title: string;
   onClose: () => void;
 }
@@ -30,6 +32,7 @@ const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: Con
 const ConnectionFormHeader = ({
   connectorName,
   connectorKind,
+  connectorMaturity,
   title,
   onClose,
 }: ConnectionFormHeaderProps) => {
@@ -52,7 +55,10 @@ const ConnectionFormHeader = ({
             ]}
             onClose={onClose}
           />
-          <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
+            <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
+            <ConnectorMaturityChip maturity={connectorMaturity} size={ChipSize.SMALL} />
+          </FlexWrapper>
         </FlexWrapper>
       </FlexItem>
     </FlexWrapper>
