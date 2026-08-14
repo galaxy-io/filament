@@ -11,6 +11,18 @@ not writing a new connector — the bundled catalog (`catalog.go`) is a few
 lines per integration: an embedded manifest file plus a display name,
 description, and logo.
 
+## Maturity
+
+New manifest-driven HTTP integrations start at **alpha** because their behavior
+is derived from API documentation. Schema validation and mocked HTTP tests can
+confirm that a manifest is internally consistent, but they do not prove it
+against the live API.
+
+An integration moves to **beta** after a successful live end-to-end run, and to
+**stable** only after its supported resources and production behavior have been
+fully verified. Maturity is set independently for each integration in the
+connector registry and appears in the UI alongside its Source badge.
+
 ## Integrations shipped today
 
 <CardGroup cols={2}>

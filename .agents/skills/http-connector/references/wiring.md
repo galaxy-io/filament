@@ -21,8 +21,14 @@ Logo URLs follow `https://cdn.getgalaxy.io/sources/source-icon-<name>-dark.svg` 
 ## 2. register.go — one line
 
 ```go
-registry.RegisterSource("<name>", func() filament.Source { return New<Name>() })
+registry.RegisterSource("<name>", filament.MaturityAlpha, func() filament.Source { return New<Name>() })
 ```
+
+Alpha is mandatory by default for a newly authored HTTP connector because its
+behavior was derived from API documentation. Manifest validation and
+`httptest` coverage verify the implementation mechanically, but do not count as
+a live end-to-end run. Only register it as beta or stable when the user
+explicitly directs that promotion based on live validation.
 
 ## 3. Docs
 

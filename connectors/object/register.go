@@ -9,5 +9,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/object"
 func init() {
-	registry.RegisterSink("s3", func() filament.Sink { return New() })
+	registry.RegisterSink("s3", filament.MaturityAlpha, func() filament.Sink { return New() })
 }

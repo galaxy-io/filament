@@ -21,9 +21,23 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Version:      spec.Version,
+		Maturity:     connectorMaturityToProto(spec.Maturity),
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
 		Capabilities: sourceCapabilitiesToProto(spec, spec.SourcePolicies),
+	}
+}
+
+func connectorMaturityToProto(maturity filament.ConnectorMaturity) ingestionv1.ConnectorMaturity {
+	switch maturity {
+	case filament.MaturityAlpha:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_ALPHA
+	case filament.MaturityBeta:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA
+	case filament.MaturityStable:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE
+	default:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED
 	}
 }
 
@@ -44,6 +58,7 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Version:      spec.Version,
+		Maturity:     connectorMaturityToProto(spec.Maturity),
 		ConfigSchema: configSchemaToProto(spec.Config),
 		SchemaField:  spec.SchemaField,
 		Capabilities: sinkCapabilitiesToProto(spec.Capabilities),

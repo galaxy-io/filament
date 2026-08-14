@@ -11,5 +11,5 @@ import (
 )
 
 func init() {
-	registry.RegisterSink("clickhouse", func() filament.Sink { return sink.New() })
+	registry.RegisterSink("clickhouse", filament.MaturityAlpha, func() filament.Sink { return sink.New() })
 }
