@@ -25,8 +25,7 @@ type runExecutor func(context.Context, filament.RunSpec) (runResult, error)
 
 func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 	if len(args) == 0 || helpRequested(args) {
-		a.printRunHelp(args)
-		return nil
+		return a.printRunHelp(args)
 	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
@@ -52,8 +51,8 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(a.statusWriter(), "Run %s completed: %d records, %d bytes.\n", spec.Run, result.records, result.bytes)
-	return nil
+	_, err = fmt.Fprintf(a.statusWriter(), "Run %s completed: %d records, %d bytes.\n", spec.Run, result.records, result.bytes)
+	return err
 }
 
 func (a *cliApp) directRunSpec(flags map[string][]string) (filament.RunSpec, error) {

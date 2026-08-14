@@ -14,8 +14,8 @@ import (
 
 func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" || helpRequested(args[1:]) {
-		fmt.Fprint(a.stdout, configHelp)
-		return nil
+		_, err := fmt.Fprint(a.stdout, configHelp)
+		return err
 	}
 	if len(args) != 1 {
 		return fmt.Errorf("usage: filament config <path|validate|edit>")
@@ -23,8 +23,8 @@ func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
 	store := configStore{path: a.configPath}
 	switch args[0] {
 	case "path":
-		fmt.Fprintln(a.stdout, a.configPath)
-		return nil
+		_, err := fmt.Fprintln(a.stdout, a.configPath)
+		return err
 	case "validate":
 		doc, _, err := store.load()
 		if err != nil {
@@ -33,8 +33,8 @@ func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
 		if err := validateDocument(doc, a.catalog); err != nil {
 			return err
 		}
-		fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", a.configPath)
-		return nil
+		_, err = fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", a.configPath)
+		return err
 	case "edit":
 		return a.editConfig(ctx, store)
 	default:
@@ -71,6 +71,8 @@ func (a *cliApp) editConfig(ctx context.Context, store configStore) error {
 		editor = "vi"
 	}
 	parts := strings.Fields(editor)
+	// #nosec G204,G702 -- VISUAL and EDITOR intentionally select the user's editor;
+	// CommandContext invokes it directly without a shell.
 	cmd := exec.CommandContext(ctx, parts[0], append(parts[1:], recoveryPath)...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = a.stdin, a.stdout, a.statusWriter()
 	if cmd.Stdin == nil {
@@ -100,6 +102,6 @@ func (a *cliApp) editConfig(ctx context.Context, store configStore) error {
 		return fmt.Errorf("recovery file kept at %s: %w", recoveryPath, err)
 	}
 	_ = os.Remove(recoveryPath)
-	fmt.Fprintf(a.statusWriter(), "Updated %s.\n", store.path)
-	return nil
+	_, err = fmt.Fprintf(a.statusWriter(), "Updated %s.\n", store.path)
+	return err
 }

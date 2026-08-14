@@ -147,13 +147,14 @@ func setMappingValue(parent *yaml.Node, key string, value *yaml.Node) {
 	// declaration shape instead of collapsing the whole section onto one line.
 	parent.Style = 0
 	for i := 0; i+1 < len(parent.Content); i += 2 {
-		if parent.Content[i].Value == key {
-			value.HeadComment = parent.Content[i+1].HeadComment
-			value.LineComment = parent.Content[i+1].LineComment
-			value.FootComment = parent.Content[i+1].FootComment
-			parent.Content[i+1] = value
-			return
+		if parent.Content[i].Value != key {
+			continue
 		}
+		value.HeadComment = parent.Content[i+1].HeadComment
+		value.LineComment = parent.Content[i+1].LineComment
+		value.FootComment = parent.Content[i+1].FootComment
+		parent.Content[i+1] = value
+		return
 	}
 	parent.Content = append(parent.Content,
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, value)

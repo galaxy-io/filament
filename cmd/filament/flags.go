@@ -30,16 +30,17 @@ func (a *cliApp) parseCommandArgs(args []string) (commandArgs, error) {
 			return parsed, fmt.Errorf("invalid empty flag")
 		}
 		if !hasValue {
-			if booleans[name] {
+			switch {
+			case booleans[name]:
 				value = "true"
 				if i+1 < len(args) && (args[i+1] == "true" || args[i+1] == "false") {
 					value = args[i+1]
 					i++
 				}
-			} else if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+			case i+1 < len(args) && !strings.HasPrefix(args[i+1], "--"):
 				value = args[i+1]
 				i++
-			} else {
+			default:
 				return parsed, fmt.Errorf("--%s requires a value", name)
 			}
 		}

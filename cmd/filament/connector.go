@@ -11,12 +11,10 @@ import (
 
 func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []string) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		a.printConnectionHelp(kind)
-		return nil
+		return a.printConnectionHelp(kind)
 	}
 	if helpRequested(args[1:]) && rawFlagValue(args[1:], kind+"-connector") != "" {
-		a.printConnectionOperationHelp(kind, args[0], args[1:], newDocument())
-		return nil
+		return a.printConnectionOperationHelp(kind, args[0], args[1:], newDocument())
 	}
 	store := configStore{path: a.configPath}
 	doc, _, err := store.load()
@@ -24,8 +22,7 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 		return err
 	}
 	if helpRequested(args[1:]) {
-		a.printConnectionOperationHelp(kind, args[0], args[1:], doc)
-		return nil
+		return a.printConnectionOperationHelp(kind, args[0], args[1:], doc)
 	}
 	switch args[0] {
 	case "discover":
@@ -89,8 +86,7 @@ func (a *cliApp) changeConnection(operation, kind string, args []string, doc con
 	if err := store.put(kind+"s", name, conn); err != nil {
 		return err
 	}
-	printSuccess(a.statusWriter(), fmt.Sprintf("%s %s %s", pastTense(operation), name, kind))
-	return nil
+	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s %s", pastTense(operation), name, kind))
 }
 
 func (a *cliApp) deleteConnection(kind string, args []string, doc configDocument, store configStore) error {
@@ -127,8 +123,8 @@ func (a *cliApp) deleteConnection(kind string, args []string, doc configDocument
 	if err := store.delete(kind+"s", name); err != nil {
 		return err
 	}
-	fmt.Fprintf(a.statusWriter(), "Deleted %s %q.\n", kind, name)
-	return nil
+	_, err = fmt.Fprintf(a.statusWriter(), "Deleted %s %q.\n", kind, name)
+	return err
 }
 
 func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, flags map[string][]string) (connection, error) {
@@ -213,11 +209,13 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 func (a *cliApp) listConnections(kind string, doc configDocument) error {
 	connections := connectionMap(kind, doc)
 	if len(connections) == 0 {
-		fmt.Fprintf(a.stdout, "No saved %ss.\n", kind)
-		return nil
+		_, err := fmt.Fprintf(a.stdout, "No saved %ss.\n", kind)
+		return err
 	}
 	table := tabwriter.NewWriter(a.stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(table, "Name\tConnector\tDescription")
+	if _, err := fmt.Fprintln(table, "Name\tConnector\tDescription"); err != nil {
+		return err
+	}
 	for _, name := range sortedKeys(connections) {
 		conn := connections[name]
 		description := ""
@@ -228,7 +226,9 @@ func (a *cliApp) listConnections(kind string, doc configDocument) error {
 		} else if spec, ok := a.catalog.sinks[conn.Type]; ok {
 			description = spec.Description
 		}
-		fmt.Fprintf(table, "%s\t%s\t%s\n", name, conn.Type, description)
+		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\n", name, conn.Type, description); err != nil {
+			return err
+		}
 	}
 	return table.Flush()
 }

@@ -12,10 +12,14 @@ import (
 )
 
 func main() {
+	os.Exit(runMain())
+}
+
+func runMain() int {
 	path, err := defaultConfigPath()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "filament:", err)
-		os.Exit(1)
+		printCLIError(err)
+		return 1
 	}
 	cli := &cliApp{
 		stdin:      os.Stdin,
@@ -27,7 +31,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := cli.run(ctx, os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "filament:", err)
-		os.Exit(1)
+		printCLIError(err)
+		return 1
 	}
+	return 0
+}
+
+func printCLIError(err error) {
+	_, _ = fmt.Fprintln(os.Stderr, "filament:", err)
 }

@@ -23,6 +23,29 @@ use --source-<field> or --sink-<field>. Secret fields accept plaintext values,
 literal $NAME or ${NAME} references, or --<kind>-<field>-env VARIABLE.
 `
 
+type helpOutput struct {
+	w   io.Writer
+	err error
+}
+
+func (o *helpOutput) print(value string) {
+	if o.err == nil {
+		_, o.err = fmt.Fprint(o.w, value)
+	}
+}
+
+func (o *helpOutput) printf(format string, values ...any) {
+	if o.err == nil {
+		_, o.err = fmt.Fprintf(o.w, format, values...)
+	}
+}
+
+func (o *helpOutput) println(value string) {
+	if o.err == nil {
+		_, o.err = fmt.Fprintln(o.w, value)
+	}
+}
+
 func helpRequested(args []string) bool {
 	for _, arg := range args {
 		if arg == "help" || arg == "--help" || arg == "-h" || strings.HasPrefix(arg, "--help=") {
@@ -55,12 +78,13 @@ func rawFlagValue(args []string, name string) string {
 	return ""
 }
 
-func (a *cliApp) printConnectionHelp(kind string) {
+func (a *cliApp) printConnectionHelp(kind string) error {
 	discover := ""
 	if kind == "source" {
 		discover = fmt.Sprintf("  filament %s discover [name] [flags]\n", kind)
 	}
-	fmt.Fprintf(a.stdout, `%s commands
+	out := &helpOutput{w: a.stdout}
+	out.printf(`%s commands
 
 Usage:
   filament %s create <name> --%s-connector NAME [flags]
@@ -71,9 +95,11 @@ Usage:
 Use --help with create, edit, or discover and a connector selection to list
 the connector-derived flags.
 `, strings.ToUpper(kind[:1])+kind[1:], kind, kind, kind, kind, discover, kind)
+	return out.err
 }
 
-func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []string, doc configDocument) {
+func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []string, doc configDocument) error {
+	out := &helpOutput{w: a.stdout}
 	prefix := kind + "-"
 	connectorName := rawFlagValue(args, prefix+"connector")
 	parsed, _ := a.parseCommandArgs(removeHelp(args))
@@ -86,39 +112,40 @@ func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []str
 
 	switch operation {
 	case "create":
-		fmt.Fprintf(a.stdout, "Usage: filament %s create <name> --%sconnector NAME [flags]\n", kind, prefix)
+		out.printf("Usage: filament %s create <name> --%sconnector NAME [flags]\n", kind, prefix)
 	case "edit":
-		fmt.Fprintf(a.stdout, "Usage: filament %s edit <name> [--%sconnector NAME] [flags]\n", kind, prefix)
+		out.printf("Usage: filament %s edit <name> [--%sconnector NAME] [flags]\n", kind, prefix)
 	case "discover":
-		fmt.Fprintln(a.stdout, "Usage: filament source discover [name] [--source-connector NAME] [flags]")
+		out.println("Usage: filament source discover [name] [--source-connector NAME] [flags]")
 	case "list":
-		fmt.Fprintf(a.stdout, "Usage: filament %s list\n", kind)
+		out.printf("Usage: filament %s list\n", kind)
 	case "delete":
-		fmt.Fprintf(a.stdout, "Usage: filament %s delete <name> [--force]\n", kind)
+		out.printf("Usage: filament %s delete <name> [--force]\n", kind)
 	default:
-		a.printConnectionHelp(kind)
-		return
+		return a.printConnectionHelp(kind)
 	}
 
 	if connectorName == "" {
-		fmt.Fprintf(a.stdout, "\nAvailable %s connectors: %s\n", kind, strings.Join(a.connectorNames(kind), ", "))
-		return
+		out.printf("\nAvailable %s connectors: %s\n", kind, strings.Join(a.connectorNames(kind), ", "))
+		return out.err
 	}
 	schema, ok := a.connectorSchema(kind, connectorName)
 	if !ok {
-		fmt.Fprintf(a.stdout, "\nUnknown %s connector %q.\n", kind, connectorName)
-		return
+		out.printf("\nUnknown %s connector %q.\n", kind, connectorName)
+		return out.err
 	}
 	scope := filament.ScopeConnection
 	if operation == "discover" && name != "" {
 		scope = filament.ScopePipeline
 	}
-	fmt.Fprintf(a.stdout, "\n%s connector flags:\n", connectorName)
-	printSchemaFlags(a.stdout, prefix, schema, scope, operation == "discover" && name == "")
+	out.printf("\n%s connector flags:\n", connectorName)
+	printSchemaFlags(out, prefix, schema, scope, operation == "discover" && name == "")
+	return out.err
 }
 
-func (a *cliApp) printRunHelp(args []string) {
-	fmt.Fprint(a.stdout, runHelp)
+func (a *cliApp) printRunHelp(args []string) error {
+	out := &helpOutput{w: a.stdout}
+	out.print(runHelp)
 	printed := map[string]bool{}
 	for _, kind := range []string{"source", "sink"} {
 		name := rawFlagValue(args, kind+"-connector")
@@ -129,8 +156,8 @@ func (a *cliApp) printRunHelp(args []string) {
 		if !ok {
 			continue
 		}
-		fmt.Fprintf(a.stdout, "\n%s %s flags:\n", name, kind)
-		printSchemaFlags(a.stdout, kind+"-", schema, filament.ScopeConnection, true)
+		out.printf("\n%s %s flags:\n", name, kind)
+		printSchemaFlags(out, kind+"-", schema, filament.ScopeConnection, true)
 		printed[kind] = true
 	}
 	parsed, _ := a.parseCommandArgs(removeHelp(args))
@@ -148,17 +175,19 @@ func (a *cliApp) printRunHelp(args []string) {
 					}
 					schema, ok := a.connectorSchema(kind, conn.Type)
 					if ok {
-						fmt.Fprintf(a.stdout, "\n%s %s flags:\n", conn.Type, kind)
-						printSchemaFlags(a.stdout, kind+"-", schema, filament.ScopePipeline, false)
+						out.printf("\n%s %s flags:\n", conn.Type, kind)
+						printSchemaFlags(out, kind+"-", schema, filament.ScopePipeline, false)
 					}
 				}
 			}
 		}
 	}
+	return out.err
 }
 
-func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc configDocument) {
-	fmt.Fprint(a.stdout, pipelineHelp)
+func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc configDocument) error {
+	out := &helpOutput{w: a.stdout}
+	out.print(pipelineHelp)
 	parsed, _ := a.parseCommandArgs(removeHelp(args))
 	sourceRef := lastFlag(parsed.flags, "source")
 	sinkRef := lastFlag(parsed.flags, "sink")
@@ -185,9 +214,10 @@ func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc configD
 		if !ok {
 			continue
 		}
-		fmt.Fprintf(a.stdout, "\n%s %s flags:\n", conn.Type, kind)
-		printSchemaFlags(a.stdout, kind+"-", schema, filament.ScopePipeline, false)
+		out.printf("\n%s %s flags:\n", conn.Type, kind)
+		printSchemaFlags(out, kind+"-", schema, filament.ScopePipeline, false)
 	}
+	return out.err
 }
 
 func (a *cliApp) connectorNames(kind string) []string {
@@ -206,7 +236,7 @@ func (a *cliApp) connectorSchema(kind, name string) (filament.ConfigSchema, bool
 	return spec.Config, ok
 }
 
-func printSchemaFlags(w io.Writer, prefix string, schema filament.ConfigSchema, scope filament.FieldScope, allScopes bool) {
+func printSchemaFlags(out *helpOutput, prefix string, schema filament.ConfigSchema, scope filament.FieldScope, allScopes bool) {
 	for _, field := range schema.Fields {
 		actualScope := field.Scope
 		if actualScope == filament.ScopeUnspecified {
@@ -220,9 +250,9 @@ func printSchemaFlags(w io.Writer, prefix string, schema filament.ConfigSchema, 
 		if field.Required && field.Default == nil {
 			required = " (required)"
 		}
-		fmt.Fprintf(w, "  %-32s %s%s\n", name+" "+fieldTypeName(field.Type), field.Help, required)
+		out.printf("  %-32s %s%s\n", name+" "+fieldTypeName(field.Type), field.Help, required)
 		if isSecretField(field) {
-			fmt.Fprintf(w, "  %-32s environment-variable reference (NAME, $NAME, or ${NAME})\n", name+"-env VARIABLE")
+			out.printf("  %-32s environment-variable reference (NAME, $NAME, or ${NAME})\n", name+"-env VARIABLE")
 		}
 	}
 }

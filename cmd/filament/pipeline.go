@@ -8,8 +8,8 @@ import (
 
 func (a *cliApp) runPipelineCommand(args []string) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprint(a.stdout, pipelineHelp)
-		return nil
+		_, err := fmt.Fprint(a.stdout, pipelineHelp)
+		return err
 	}
 	store := configStore{path: a.configPath}
 	doc, _, err := store.load()
@@ -17,8 +17,7 @@ func (a *cliApp) runPipelineCommand(args []string) error {
 		return err
 	}
 	if helpRequested(args[1:]) {
-		a.printPipelineOperationHelp(args[0], args[1:], doc)
-		return nil
+		return a.printPipelineOperationHelp(args[0], args[1:], doc)
 	}
 	switch args[0] {
 	case "list":
@@ -37,18 +36,22 @@ func (a *cliApp) listPipelines(args []string, doc configDocument) error {
 		return fmt.Errorf("usage: filament pipeline list")
 	}
 	if len(doc.Pipelines) == 0 {
-		fmt.Fprintln(a.stdout, "No saved pipelines.")
-		return nil
+		_, err := fmt.Fprintln(a.stdout, "No saved pipelines.")
+		return err
 	}
 	table := tabwriter.NewWriter(a.stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(table, "Name\tSource\tSink\tResources\tSync mode\tWrite mode")
+	if _, err := fmt.Fprintln(table, "Name\tSource\tSink\tResources\tSync mode\tWrite mode"); err != nil {
+		return err
+	}
 	for _, name := range sortedKeys(doc.Pipelines) {
 		p := doc.Pipelines[name]
 		resourceCount := "all"
 		if len(p.Resources) > 0 {
 			resourceCount = strconv.Itoa(len(p.Resources))
 		}
-		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", name, p.Source.Ref, p.Sink.Ref, resourceCount, p.SyncMode, p.WriteMode)
+		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", name, p.Source.Ref, p.Sink.Ref, resourceCount, p.SyncMode, p.WriteMode); err != nil {
+			return err
+		}
 	}
 	return table.Flush()
 }
@@ -90,8 +93,7 @@ func (a *cliApp) changePipeline(operation string, args []string, doc configDocum
 	if err := store.put("pipelines", name, p); err != nil {
 		return err
 	}
-	printSuccess(a.statusWriter(), fmt.Sprintf("%s %s pipeline", pastTense(operation), name))
-	return nil
+	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s pipeline", pastTense(operation), name))
 }
 
 func (a *cliApp) deletePipeline(args []string, doc configDocument, store configStore) error {
@@ -125,8 +127,8 @@ func (a *cliApp) deletePipeline(args []string, doc configDocument, store configS
 	if err := store.delete("pipelines", name); err != nil {
 		return err
 	}
-	fmt.Fprintf(a.statusWriter(), "Deleted pipeline %q.\n", name)
-	return nil
+	_, err = fmt.Fprintf(a.statusWriter(), "Deleted pipeline %q.\n", name)
+	return err
 }
 
 func (a *cliApp) pipelineFromFlags(name string, existing *pipeline, flags map[string][]string, doc configDocument) (pipeline, error) {

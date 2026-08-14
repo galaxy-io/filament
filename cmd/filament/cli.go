@@ -26,8 +26,8 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 		return err
 	}
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		fmt.Fprint(a.stdout, rootHelp)
-		return nil
+		_, err := fmt.Fprint(a.stdout, rootHelp)
+		return err
 	}
 	switch args[0] {
 	case "source", "sink":
@@ -63,8 +63,9 @@ func (a *cliApp) extractGlobalFlags(args []string) ([]string, error) {
 	return result, nil
 }
 
-func printSuccess(w io.Writer, message string) {
-	fmt.Fprintln(w, message+".")
+func printSuccess(w io.Writer, message string) error {
+	_, err := fmt.Fprintln(w, message+".")
+	return err
 }
 
 func (a *cliApp) statusWriter() io.Writer {
@@ -80,7 +81,9 @@ func (a *cliApp) confirmDelete(kind, name string) (bool, error) {
 		in = os.Stdin
 	}
 	out := a.statusWriter()
-	fmt.Fprintf(out, "Delete %s %q? [y/N] ", kind, name)
+	if _, err := fmt.Fprintf(out, "Delete %s %q? [y/N] ", kind, name); err != nil {
+		return false, err
+	}
 	answer, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return false, fmt.Errorf("read deletion confirmation: %w", err)
@@ -92,8 +95,8 @@ func (a *cliApp) confirmDelete(kind, name string) (bool, error) {
 	if answer == "y" || answer == "yes" {
 		return true, nil
 	}
-	fmt.Fprintln(out, "Cancelled.")
-	return false, nil
+	_, err = fmt.Fprintln(out, "Cancelled.")
+	return false, err
 }
 
 func parseForceFlag(flags map[string][]string) (bool, error) {

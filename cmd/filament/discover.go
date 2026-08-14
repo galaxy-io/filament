@@ -25,7 +25,7 @@ func (a *cliApp) discoverSource(ctx context.Context, args []string, doc configDo
 	if name == "" {
 		connectorName = lastFlag(parsed.flags, "source-connector")
 		if connectorName == "" {
-			return fmt.Errorf("a saved source name or --source-connector is required; example: filament source discover --source-connector postgres --source-dsn postgres://...")
+			return fmt.Errorf("a saved source name or --source-connector is required; example: filament source discover --source-connector postgres --source-dsn postgres://user:password@host/database")
 		}
 		var ok bool
 		spec, ok = a.catalog.sources[connectorName]
@@ -90,22 +90,26 @@ func (a *cliApp) discoverSource(ctx context.Context, args []string, doc configDo
 		return fmt.Errorf("discover source %q: %w", label, err)
 	}
 	if len(result.Resources) == 0 {
-		fmt.Fprintf(a.stdout, "No resources discovered for source %q.\n", label)
-		return nil
+		_, err := fmt.Fprintf(a.stdout, "No resources discovered for source %q.\n", label)
+		return err
 	}
 	sort.Slice(result.Resources, func(i, j int) bool {
 		return result.Resources[i].Name < result.Resources[j].Name
 	})
 
 	table := tabwriter.NewWriter(a.stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(table, "Resource\tDisplay name\tSelectable\tPrimary key\tEstimated rows")
+	if _, err := fmt.Fprintln(table, "Resource\tDisplay name\tSelectable\tPrimary key\tEstimated rows"); err != nil {
+		return err
+	}
 	for _, resource := range result.Resources {
 		selectable := "no"
 		if resource.Selectable {
 			selectable = "yes"
 		}
-		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\n",
-			resource.Name, resource.DisplayName, selectable, strings.Join(resource.PrimaryKey, ","), resource.Estimated)
+		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\n",
+			resource.Name, resource.DisplayName, selectable, strings.Join(resource.PrimaryKey, ","), resource.Estimated); err != nil {
+			return err
+		}
 	}
 	return table.Flush()
 }
