@@ -177,9 +177,17 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 				return conn, fmt.Errorf("--%s and --%s cannot be combined", flagName, envFlag)
 			}
 			if fromEnv {
-				conn.Config[field.Name] = "env:" + strings.TrimPrefix(envName, "env:")
+				name, err := normalizeEnvironmentName(envName)
+				if err != nil {
+					return conn, fmt.Errorf("--%s: %w", envFlag, err)
+				}
+				conn.Config[field.Name] = "env:" + name
 			}
 			if plaintext {
+				if name, referenced := environmentReferenceName(raw); referenced {
+					conn.Config[field.Name] = "env:" + name
+					continue
+				}
 				value, err := parseFlagValue(field, raw)
 				if err != nil {
 					return conn, fmt.Errorf("--%s: %w", flagName, err)

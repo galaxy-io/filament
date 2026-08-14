@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -160,14 +159,18 @@ func directConnectorConfig(kind string, schema filament.ConfigSchema, flags map[
 				return nil, fmt.Errorf("--%s and --%s cannot be combined", name, envName)
 			}
 			if fromEnv {
-				var present bool
-				raw, present = os.LookupEnv(strings.TrimPrefix(envVar, "env:"))
-				if !present {
-					return nil, fmt.Errorf("--%s: environment variable %s is not set", envName, strings.TrimPrefix(envVar, "env:"))
+				variable, err := normalizeEnvironmentName(envVar)
+				if err != nil {
+					return nil, fmt.Errorf("--%s: %w", envName, err)
 				}
+				raw = "env:" + variable
 			}
 			if direct || fromEnv {
-				config[field.Name] = raw
+				resolved, err := resolveEnvironmentReference(raw)
+				if err != nil {
+					return nil, fmt.Errorf("--%s: %w", name, err)
+				}
+				config[field.Name] = resolved
 			}
 			continue
 		}
@@ -203,15 +206,12 @@ func resolvedConnectionConfig(conn connection, scoped map[string]any, schema fil
 		if !isSecretField(field) {
 			continue
 		}
-		ref, _ := config[field.Name].(string)
-		if strings.HasPrefix(ref, "env:") {
-			name := strings.TrimPrefix(ref, "env:")
-			value, ok := os.LookupEnv(name)
-			if !ok {
-				return nil, fmt.Errorf("environment variable %s is not set", name)
-			}
-			config[field.Name] = value
+		value, _ := config[field.Name].(string)
+		resolved, err := resolveEnvironmentReference(value)
+		if err != nil {
+			return nil, err
 		}
+		config[field.Name] = resolved
 	}
 	for field, value := range scoped {
 		config[field] = value

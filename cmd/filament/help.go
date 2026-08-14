@@ -19,8 +19,8 @@ Usage:
   filament run --source-connector NAME --sink-connector NAME [flags]
 
 Use --help after a command or operation for its flags. Connector fields always
-use --source-<field> or --sink-<field>. Secret fields accept plaintext values
-or the corresponding --<kind>-<field>-env VARIABLE form.
+use --source-<field> or --sink-<field>. Secret fields accept plaintext values,
+literal $NAME or ${NAME} references, or --<kind>-<field>-env VARIABLE.
 `
 
 func helpRequested(args []string) bool {
@@ -222,7 +222,7 @@ func printSchemaFlags(w io.Writer, prefix string, schema filament.ConfigSchema, 
 		}
 		fmt.Fprintf(w, "  %-32s %s%s\n", name+" "+fieldTypeName(field.Type), field.Help, required)
 		if isSecretField(field) {
-			fmt.Fprintf(w, "  %-32s environment-variable reference\n", name+"-env VARIABLE")
+			fmt.Fprintf(w, "  %-32s environment-variable reference (NAME, $NAME, or ${NAME})\n", name+"-env VARIABLE")
 		}
 	}
 }

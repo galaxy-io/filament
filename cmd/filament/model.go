@@ -14,8 +14,9 @@ import (
 const configVersion = 1
 
 var (
-	namePattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-	envRefPattern = regexp.MustCompile(`^env:[A-Za-z_][A-Za-z0-9_]*$`)
+	namePattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+	envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	envRefPattern  = regexp.MustCompile(`^env:[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 type configDocument struct {
