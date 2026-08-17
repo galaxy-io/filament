@@ -110,6 +110,20 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
+		source, err := c.Sources.Resolve(sourceRef.Provider)
+		if err != nil {
+			return nil, err
+		}
+		ingestionTypes := make(map[string]filament.IngestionType, len(group.syncModes))
+		if filament.ReplicationOf(source, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC {
+			for resource := range group.syncModes {
+				ingestionTypes[resource] = filament.IngestionCDC
+			}
+		} else {
+			for resource, mode := range group.syncModes {
+				ingestionTypes[resource] = mode.IngestionType()
+			}
+		}
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
 			Tenant:              filament.TenantID(tenant),
 			PipelineID:          pipeline.GetId(),
@@ -121,7 +135,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 			SinkConnectionID:    group.sink.GetConnectionId(),
 			Resources:           resources,
 			Selectors:           selectors,
-			IngestionTypes:      group.ingestionTypes,
+			IngestionTypes:      ingestionTypes,
 			CheckpointRoute:     key,
 			CursorConfigs:       group.cursorConfigs,
 			Options:             options,

@@ -22,21 +22,18 @@ message PipelineNode {
 
 // PipelineEdge routes from a source node to a sink node. An empty resource routes
 // all enabled resources; a named resource is an additive per-resource route.
-// read_mode and write_mode are the user's two levers; ingestion_type is derived
-// from them (and the source connection's replication mode) by the server at
-// save time — clients never set it. Edges on a CDC connection carry no levers.
+// Standard connections carry one destination-oriented sync mode. CDC connections
+// carry no mode because the connection implies the complete stream recipe.
 message PipelineEdge {
   string from_node = 1;
   string resource = 2;
   string to_node = 3;
-  IngestionType ingestion_type = 4;
   string selector = 5;
   // cursors contains durable-incremental overrides. An all-resource edge may
   // configure several resources; a resource-specific edge may configure only
   // its own resource. Omitted resources use connector auto-detection.
   repeated ResourceCursorConfig cursors = 6;
-  ReadMode read_mode = 7;
-  WriteMode write_mode = 8;
+  StandardSyncMode standard_sync_mode = 9;
 }
 
 message ResourceCursorConfig {

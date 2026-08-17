@@ -288,6 +288,30 @@ const (
 	IngestionCDC               IngestionType = "cdc"
 )
 
+// StandardSyncMode is the small, outcome-oriented choice accepted from a
+// standard pipeline edge. It deliberately does not expose the engine's
+// independent read/write policy dimensions.
+type StandardSyncMode string
+
+const (
+	StandardSyncReplace     StandardSyncMode = "replace"
+	StandardSyncAppend      StandardSyncMode = "append"
+	StandardSyncIncremental StandardSyncMode = "incremental"
+)
+
+// IngestionType compiles a Standard edge choice into its canonical internal
+// recipe. The empty mode is the safe default: a full replacement snapshot.
+func (m StandardSyncMode) IngestionType() IngestionType {
+	switch m {
+	case StandardSyncAppend:
+		return IngestionFullAppend
+	case StandardSyncIncremental:
+		return IngestionIncrementalUpsert
+	default:
+		return IngestionFullReplace
+	}
+}
+
 // OrDefault substitutes IngestionFullReplace for the empty type.
 func (t IngestionType) OrDefault() IngestionType {
 	if t == "" {
@@ -343,60 +367,6 @@ const (
 	WriteDelete  WriteMode = "delete"
 	WriteMerge   WriteMode = "merge"
 )
-
-// IngestionFor compiles the two user levers — per-table read mode and sink
-// write mode — into the internal ingestion type. Zero levers default to a
-// full-refresh replace; an unset write on an incremental read defaults to
-// upsert. CDC connections never reach this: their edges are always
-// IngestionCDC.
-//
-// Delete and merge are engine mechanisms rather than levers: they are derived
-// from the source's operations, never chosen. IngestionFor still compiles
-// delete so internal callers can name the type; WriteModesFor is what decides
-// what a user may pick.
-func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
-	if write == "" {
-		if read == ModeIncremental {
-			write = WriteUpsert
-		} else {
-			write = WriteReplace
-		}
-	}
-	switch read {
-	case ModeFull:
-		switch write {
-		case WriteReplace:
-			return IngestionFullReplace, nil
-		case WriteUpsert:
-			return IngestionFullUpsert, nil
-		case WriteAppend:
-			return IngestionFullAppend, nil
-		}
-	case ModeIncremental:
-		switch write {
-		case WriteAppend:
-			return IngestionIncrementalAppend, nil
-		case WriteUpsert:
-			return IngestionIncrementalUpsert, nil
-		case WriteDelete:
-			return IngestionIncrementalDelete, nil
-		}
-	}
-	return "", fmt.Errorf("read mode %q cannot combine with write mode %q", read, write)
-}
-
-// WriteModesFor returns the write modes a user may pair with read, in menu
-// order — the inverse of IngestionFor, and the one place that decides what a
-// write lever offers. CDC reads have no lever and yield none.
-func WriteModesFor(read ReadMode) []WriteMode {
-	switch read {
-	case ModeFull:
-		return []WriteMode{WriteAppend, WriteReplace, WriteUpsert}
-	case ModeIncremental:
-		return []WriteMode{WriteAppend, WriteUpsert}
-	}
-	return nil
-}
 
 // String renders a read mode for messages and logs.
 func (m ReadMode) String() string {

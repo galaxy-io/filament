@@ -8,24 +8,24 @@ import (
 )
 
 // routeGroup is the set of edges that share a source node and sink node, and
-// so collapse into a single run. Each resource carries its own ingestion type;
+// so collapse into a single run. Each resource carries its own Standard sync mode;
 // the "" entry is the route default set by an all-resources edge.
 type routeGroup struct {
-	key            string
-	source         *ingestionv1.PipelineNode
-	sink           *ingestionv1.PipelineNode
-	from           string
-	to             string
-	ingestionTypes map[string]filament.IngestionType
-	all            bool
-	resources      map[string]bool
-	selectors      map[string]bool
-	cursorConfigs  map[string]filament.ResourceCursorConfig
+	key           string
+	source        *ingestionv1.PipelineNode
+	sink          *ingestionv1.PipelineNode
+	from          string
+	to            string
+	syncModes     map[string]filament.StandardSyncMode
+	all           bool
+	resources     map[string]bool
+	selectors     map[string]bool
+	cursorConfigs map[string]filament.ResourceCursorConfig
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
 // An edge with no resource marks its group as "all resources". Two edges naming
-// the same resource (or two all-resources edges) with different ingestion types
+// the same resource (or two all-resources edges) with different sync modes
 // conflict.
 func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
 	byKey := map[string]*routeGroup{}
@@ -36,20 +36,23 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		if source == nil || sink == nil {
 			return nil, fmt.Errorf("%w: edge references missing node", ErrInvalid)
 		}
-		ingestionType := ingestionTypeFromProto(edge.GetIngestionType()).OrDefault()
+		syncMode, err := standardSyncModeFromProto(edge.GetStandardSyncMode())
+		if err != nil {
+			return nil, err
+		}
 		key := fmt.Sprintf("route/%s/%s", edge.GetFromNode(), edge.GetToNode())
 		group := byKey[key]
 		if group == nil {
 			group = &routeGroup{
-				key:            key,
-				source:         source,
-				sink:           sink,
-				from:           edge.GetFromNode(),
-				to:             edge.GetToNode(),
-				ingestionTypes: map[string]filament.IngestionType{},
-				resources:      map[string]bool{},
-				selectors:      map[string]bool{},
-				cursorConfigs:  map[string]filament.ResourceCursorConfig{},
+				key:           key,
+				source:        source,
+				sink:          sink,
+				from:          edge.GetFromNode(),
+				to:            edge.GetToNode(),
+				syncModes:     map[string]filament.StandardSyncMode{},
+				resources:     map[string]bool{},
+				selectors:     map[string]bool{},
+				cursorConfigs: map[string]filament.ResourceCursorConfig{},
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
@@ -62,13 +65,13 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		resource := edge.GetResource()
-		if previous, exists := group.ingestionTypes[resource]; exists && previous != ingestionType {
+		if previous, exists := group.syncModes[resource]; exists && previous != syncMode {
 			if resource == "" {
-				return nil, fmt.Errorf("%w: conflicting ingestion types for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
+				return nil, fmt.Errorf("%w: conflicting sync modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
 			}
-			return nil, fmt.Errorf("%w: conflicting ingestion types for resource %q", ErrInvalid, resource)
+			return nil, fmt.Errorf("%w: conflicting sync modes for resource %q", ErrInvalid, resource)
 		}
-		group.ingestionTypes[resource] = ingestionType
+		group.syncModes[resource] = syncMode
 		if resource == "" {
 			group.all = true
 			continue
@@ -83,21 +86,16 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 	return ordered, nil
 }
 
-func ingestionTypeFromProto(t ingestionv1.IngestionType) filament.IngestionType {
-	switch t {
-	case ingestionv1.IngestionType_INGESTION_TYPE_FULL_UPSERT:
-		return filament.IngestionFullUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_FULL_APPEND:
-		return filament.IngestionFullAppend
-	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND:
-		return filament.IngestionIncrementalAppend
-	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT:
-		return filament.IngestionIncrementalUpsert
-	case ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE:
-		return filament.IngestionIncrementalDelete
-	case ingestionv1.IngestionType_INGESTION_TYPE_CDC:
-		return filament.IngestionCDC
+func standardSyncModeFromProto(mode ingestionv1.StandardSyncMode) (filament.StandardSyncMode, error) {
+	switch mode {
+	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED,
+		ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE:
+		return filament.StandardSyncReplace, nil
+	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_APPEND:
+		return filament.StandardSyncAppend, nil
+	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL:
+		return filament.StandardSyncIncremental, nil
 	default:
-		return filament.IngestionFullReplace
+		return "", fmt.Errorf("%w: unknown Standard sync mode %d", ErrInvalid, mode)
 	}
 }

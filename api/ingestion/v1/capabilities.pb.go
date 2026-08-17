@@ -126,214 +126,6 @@ func (CandidateStatus) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{1}
 }
 
-type GetConnectionCapabilitiesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetConnectionCapabilitiesRequest) Reset() {
-	*x = GetConnectionCapabilitiesRequest{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetConnectionCapabilitiesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetConnectionCapabilitiesRequest) ProtoMessage() {}
-
-func (x *GetConnectionCapabilitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetConnectionCapabilitiesRequest.ProtoReflect.Descriptor instead.
-func (*GetConnectionCapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *GetConnectionCapabilitiesRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
-}
-
-func (x *GetConnectionCapabilitiesRequest) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-// ReadModeWriteCompatibility is one read mode crossed with the write modes
-// it can compile with. Delete and merge are engine mechanisms, never offered
-// as read or write modes.
-type ReadModeWriteCompatibility struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ReadMode      ReadMode               `protobuf:"varint,1,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
-	WriteModes    []WriteMode            `protobuf:"varint,2,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReadModeWriteCompatibility) Reset() {
-	*x = ReadModeWriteCompatibility{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReadModeWriteCompatibility) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReadModeWriteCompatibility) ProtoMessage() {}
-
-func (x *ReadModeWriteCompatibility) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReadModeWriteCompatibility.ProtoReflect.Descriptor instead.
-func (*ReadModeWriteCompatibility) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ReadModeWriteCompatibility) GetReadMode() ReadMode {
-	if x != nil {
-		return x.ReadMode
-	}
-	return ReadMode_READ_MODE_UNSPECIFIED
-}
-
-func (x *ReadModeWriteCompatibility) GetWriteModes() []WriteMode {
-	if x != nil {
-		return x.WriteModes
-	}
-	return nil
-}
-
-type GetConnectionCapabilitiesResponse struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Connector string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
-	Kind      ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	// Flags and the connection's effective policies, narrowed by its config.
-	Capabilities *Capabilities `protobuf:"bytes,3,opt,name=capabilities,proto3" json:"capabilities,omitempty"`
-	// The connection's replication mode, resolved from its stored config.
-	// Sinks report UNSPECIFIED.
-	Replication ReplicationMode `protobuf:"varint,4,opt,name=replication,proto3,enum=ingestion.v1.ReplicationMode" json:"replication,omitempty"`
-	// Source: the per-table read modes this connection offers. Empty on a CDC
-	// connection — replication is understood, there is no read mode.
-	ReadModes []ReadMode `protobuf:"varint,5,rep,packed,name=read_modes,json=readModes,proto3,enum=ingestion.v1.ReadMode" json:"read_modes,omitempty"`
-	// Sink: the write modes this sink offers.
-	WriteModes []WriteMode `protobuf:"varint,6,rep,packed,name=write_modes,json=writeModes,proto3,enum=ingestion.v1.WriteMode" json:"write_modes,omitempty"`
-	// Source: for each offered read mode, the write modes it combines with —
-	// the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
-	// connections.
-	ReadModeWriteCompatibilities []*ReadModeWriteCompatibility `protobuf:"bytes,7,rep,name=read_mode_write_compatibilities,json=readModeWriteCompatibilities,proto3" json:"read_mode_write_compatibilities,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
-}
-
-func (x *GetConnectionCapabilitiesResponse) Reset() {
-	*x = GetConnectionCapabilitiesResponse{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetConnectionCapabilitiesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetConnectionCapabilitiesResponse) ProtoMessage() {}
-
-func (x *GetConnectionCapabilitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetConnectionCapabilitiesResponse.ProtoReflect.Descriptor instead.
-func (*GetConnectionCapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *GetConnectionCapabilitiesResponse) GetConnector() string {
-	if x != nil {
-		return x.Connector
-	}
-	return ""
-}
-
-func (x *GetConnectionCapabilitiesResponse) GetKind() ConnectorKind {
-	if x != nil {
-		return x.Kind
-	}
-	return ConnectorKind_CONNECTOR_KIND_UNSPECIFIED
-}
-
-func (x *GetConnectionCapabilitiesResponse) GetCapabilities() *Capabilities {
-	if x != nil {
-		return x.Capabilities
-	}
-	return nil
-}
-
-func (x *GetConnectionCapabilitiesResponse) GetReplication() ReplicationMode {
-	if x != nil {
-		return x.Replication
-	}
-	return ReplicationMode_REPLICATION_MODE_UNSPECIFIED
-}
-
-func (x *GetConnectionCapabilitiesResponse) GetReadModes() []ReadMode {
-	if x != nil {
-		return x.ReadModes
-	}
-	return nil
-}
-
-func (x *GetConnectionCapabilitiesResponse) GetWriteModes() []WriteMode {
-	if x != nil {
-		return x.WriteModes
-	}
-	return nil
-}
-
-func (x *GetConnectionCapabilitiesResponse) GetReadModeWriteCompatibilities() []*ReadModeWriteCompatibility {
-	if x != nil {
-		return x.ReadModeWriteCompatibilities
-	}
-	return nil
-}
-
 // ValidatePipelineRequest carries the graph inline so unsaved canvas state
 // validates the same as a persisted version.
 type ValidatePipelineRequest struct {
@@ -347,7 +139,7 @@ type ValidatePipelineRequest struct {
 
 func (x *ValidatePipelineRequest) Reset() {
 	*x = ValidatePipelineRequest{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[3]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -359,7 +151,7 @@ func (x *ValidatePipelineRequest) String() string {
 func (*ValidatePipelineRequest) ProtoMessage() {}
 
 func (x *ValidatePipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[3]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -372,7 +164,7 @@ func (x *ValidatePipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidatePipelineRequest.ProtoReflect.Descriptor instead.
 func (*ValidatePipelineRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{3}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ValidatePipelineRequest) GetTenantId() string {
@@ -409,7 +201,7 @@ type CandidateValue struct {
 
 func (x *CandidateValue) Reset() {
 	*x = CandidateValue{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[4]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +213,7 @@ func (x *CandidateValue) String() string {
 func (*CandidateValue) ProtoMessage() {}
 
 func (x *CandidateValue) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[4]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +226,7 @@ func (x *CandidateValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CandidateValue.ProtoReflect.Descriptor instead.
 func (*CandidateValue) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{4}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CandidateValue) GetValue() string {
@@ -465,7 +257,7 @@ func (x *CandidateValue) GetWarning() string {
 	return ""
 }
 
-// Requirement is configuration the chosen ingestion type involves. It is
+// Requirement is configuration the chosen sync mode involves. It is
 // emitted whether or not the value is set so a picker can render from it:
 // satisfied means the value is configured, blocking means the run would fail
 // as-is. Unsatisfied and non-blocking means auto-detection covers it.
@@ -484,7 +276,7 @@ type Requirement struct {
 
 func (x *Requirement) Reset() {
 	*x = Requirement{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[5]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +288,7 @@ func (x *Requirement) String() string {
 func (*Requirement) ProtoMessage() {}
 
 func (x *Requirement) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[5]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +301,7 @@ func (x *Requirement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Requirement.ProtoReflect.Descriptor instead.
 func (*Requirement) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{5}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Requirement) GetKind() RequirementKind {
@@ -561,23 +353,21 @@ func (x *Requirement) GetCandidateStatus() CandidateStatus {
 	return CandidateStatus_CANDIDATE_STATUS_UNSPECIFIED
 }
 
-// ResourceValidation is one routed table's verdict under the edge: the read
-// modes this table can actually serve given its cursor reality, plus
-// requirements for the edge's chosen levers. Populated when the chosen levers
-// need per-table setup; full-read append/replace edges have nothing to
-// configure.
+// ResourceValidation is one routed table's verdict: the final Standard modes
+// supported by the source/resource/sink combination and any requirements for
+// the selected mode. CDC resources report no Standard modes.
 type ResourceValidation struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Resource           string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
-	SupportedReadModes []ReadMode             `protobuf:"varint,2,rep,packed,name=supported_read_modes,json=supportedReadModes,proto3,enum=ingestion.v1.ReadMode" json:"supported_read_modes,omitempty"`
-	Requirements       []*Requirement         `protobuf:"bytes,3,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Resource       string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	Requirements   []*Requirement         `protobuf:"bytes,3,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	SupportedModes []StandardSyncMode     `protobuf:"varint,4,rep,packed,name=supported_modes,json=supportedModes,proto3,enum=ingestion.v1.StandardSyncMode" json:"supported_modes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ResourceValidation) Reset() {
 	*x = ResourceValidation{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[6]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -589,7 +379,7 @@ func (x *ResourceValidation) String() string {
 func (*ResourceValidation) ProtoMessage() {}
 
 func (x *ResourceValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[6]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -602,7 +392,7 @@ func (x *ResourceValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceValidation.ProtoReflect.Descriptor instead.
 func (*ResourceValidation) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{6}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ResourceValidation) GetResource() string {
@@ -612,13 +402,6 @@ func (x *ResourceValidation) GetResource() string {
 	return ""
 }
 
-func (x *ResourceValidation) GetSupportedReadModes() []ReadMode {
-	if x != nil {
-		return x.SupportedReadModes
-	}
-	return nil
-}
-
 func (x *ResourceValidation) GetRequirements() []*Requirement {
 	if x != nil {
 		return x.Requirements
@@ -626,26 +409,32 @@ func (x *ResourceValidation) GetRequirements() []*Requirement {
 	return nil
 }
 
-// EdgeValidation is one edge's verdict: the write levers the sink offers, the
-// ingestion type the server derived from the edge's levers, hard errors,
-// edge-scoped requirements, and the per-table breakdown.
+func (x *ResourceValidation) GetSupportedModes() []StandardSyncMode {
+	if x != nil {
+		return x.SupportedModes
+	}
+	return nil
+}
+
+// EdgeValidation is one edge's authoritative mode and requirement verdict.
 type EdgeValidation struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	FromNode            string                 `protobuf:"bytes,1,opt,name=from_node,json=fromNode,proto3" json:"from_node,omitempty"`
-	ToNode              string                 `protobuf:"bytes,2,opt,name=to_node,json=toNode,proto3" json:"to_node,omitempty"`
-	Resource            string                 `protobuf:"bytes,3,opt,name=resource,proto3" json:"resource,omitempty"`
-	SupportedWriteModes []WriteMode            `protobuf:"varint,4,rep,packed,name=supported_write_modes,json=supportedWriteModes,proto3,enum=ingestion.v1.WriteMode" json:"supported_write_modes,omitempty"`
-	Errors              []*ValidationError     `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
-	Requirements        []*Requirement         `protobuf:"bytes,6,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	Resources           []*ResourceValidation  `protobuf:"bytes,7,rep,name=resources,proto3" json:"resources,omitempty"`
-	IngestionType       IngestionType          `protobuf:"varint,8,opt,name=ingestion_type,json=ingestionType,proto3,enum=ingestion.v1.IngestionType" json:"ingestion_type,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	FromNode       string                 `protobuf:"bytes,1,opt,name=from_node,json=fromNode,proto3" json:"from_node,omitempty"`
+	ToNode         string                 `protobuf:"bytes,2,opt,name=to_node,json=toNode,proto3" json:"to_node,omitempty"`
+	Resource       string                 `protobuf:"bytes,3,opt,name=resource,proto3" json:"resource,omitempty"`
+	Errors         []*ValidationError     `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
+	Requirements   []*Requirement         `protobuf:"bytes,6,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	Resources      []*ResourceValidation  `protobuf:"bytes,7,rep,name=resources,proto3" json:"resources,omitempty"`
+	SupportedModes []StandardSyncMode     `protobuf:"varint,9,rep,packed,name=supported_modes,json=supportedModes,proto3,enum=ingestion.v1.StandardSyncMode" json:"supported_modes,omitempty"`
+	Replication    ReplicationMode        `protobuf:"varint,10,opt,name=replication,proto3,enum=ingestion.v1.ReplicationMode" json:"replication,omitempty"`
+	EffectiveMode  StandardSyncMode       `protobuf:"varint,11,opt,name=effective_mode,json=effectiveMode,proto3,enum=ingestion.v1.StandardSyncMode" json:"effective_mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EdgeValidation) Reset() {
 	*x = EdgeValidation{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[7]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +446,7 @@ func (x *EdgeValidation) String() string {
 func (*EdgeValidation) ProtoMessage() {}
 
 func (x *EdgeValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[7]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +459,7 @@ func (x *EdgeValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EdgeValidation.ProtoReflect.Descriptor instead.
 func (*EdgeValidation) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{7}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EdgeValidation) GetFromNode() string {
@@ -694,13 +483,6 @@ func (x *EdgeValidation) GetResource() string {
 	return ""
 }
 
-func (x *EdgeValidation) GetSupportedWriteModes() []WriteMode {
-	if x != nil {
-		return x.SupportedWriteModes
-	}
-	return nil
-}
-
 func (x *EdgeValidation) GetErrors() []*ValidationError {
 	if x != nil {
 		return x.Errors
@@ -722,11 +504,25 @@ func (x *EdgeValidation) GetResources() []*ResourceValidation {
 	return nil
 }
 
-func (x *EdgeValidation) GetIngestionType() IngestionType {
+func (x *EdgeValidation) GetSupportedModes() []StandardSyncMode {
 	if x != nil {
-		return x.IngestionType
+		return x.SupportedModes
 	}
-	return IngestionType_INGESTION_TYPE_UNSPECIFIED
+	return nil
+}
+
+func (x *EdgeValidation) GetReplication() ReplicationMode {
+	if x != nil {
+		return x.Replication
+	}
+	return ReplicationMode_REPLICATION_MODE_UNSPECIFIED
+}
+
+func (x *EdgeValidation) GetEffectiveMode() StandardSyncMode {
+	if x != nil {
+		return x.EffectiveMode
+	}
+	return StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED
 }
 
 type ValidatePipelineResponse struct {
@@ -741,7 +537,7 @@ type ValidatePipelineResponse struct {
 
 func (x *ValidatePipelineResponse) Reset() {
 	*x = ValidatePipelineResponse{}
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[8]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -753,7 +549,7 @@ func (x *ValidatePipelineResponse) String() string {
 func (*ValidatePipelineResponse) ProtoMessage() {}
 
 func (x *ValidatePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_capabilities_proto_msgTypes[8]
+	mi := &file_ingestion_v1_capabilities_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -766,7 +562,7 @@ func (x *ValidatePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidatePipelineResponse.ProtoReflect.Descriptor instead.
 func (*ValidatePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{8}
+	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ValidatePipelineResponse) GetValid() bool {
@@ -794,24 +590,7 @@ var File_ingestion_v1_capabilities_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\n" +
-	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"O\n" +
-	" GetConnectionCapabilitiesRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"\x8b\x01\n" +
-	"\x1aReadModeWriteCompatibility\x123\n" +
-	"\tread_mode\x18\x01 \x01(\x0e2\x16.ingestion.v1.ReadModeR\breadMode\x128\n" +
-	"\vwrite_modes\x18\x02 \x03(\x0e2\x17.ingestion.v1.WriteModeR\n" +
-	"writeModes\"\xd5\x03\n" +
-	"!GetConnectionCapabilitiesResponse\x12\x1c\n" +
-	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12>\n" +
-	"\fcapabilities\x18\x03 \x01(\v2\x1a.ingestion.v1.CapabilitiesR\fcapabilities\x12?\n" +
-	"\vreplication\x18\x04 \x01(\x0e2\x1d.ingestion.v1.ReplicationModeR\vreplication\x125\n" +
-	"\n" +
-	"read_modes\x18\x05 \x03(\x0e2\x16.ingestion.v1.ReadModeR\treadModes\x128\n" +
-	"\vwrite_modes\x18\x06 \x03(\x0e2\x17.ingestion.v1.WriteModeR\n" +
-	"writeModes\x12o\n" +
-	"\x1fread_mode_write_compatibilities\x18\a \x03(\v2(.ingestion.v1.ReadModeWriteCompatibilityR\x1creadModeWriteCompatibilities\"\x9a\x01\n" +
+	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"\x9a\x01\n" +
 	"\x17ValidatePipelineRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
 	"\x05nodes\x18\x02 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
@@ -830,20 +609,22 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"candidates\x12\x1c\n" +
 	"\tsatisfied\x18\x05 \x01(\bR\tsatisfied\x12\x1a\n" +
 	"\bblocking\x18\x06 \x01(\bR\bblocking\x12H\n" +
-	"\x10candidate_status\x18\a \x01(\x0e2\x1d.ingestion.v1.CandidateStatusR\x0fcandidateStatus\"\xb9\x01\n" +
+	"\x10candidate_status\x18\a \x01(\x0e2\x1d.ingestion.v1.CandidateStatusR\x0fcandidateStatus\"\xb8\x01\n" +
 	"\x12ResourceValidation\x12\x1a\n" +
-	"\bresource\x18\x01 \x01(\tR\bresource\x12H\n" +
-	"\x14supported_read_modes\x18\x02 \x03(\x0e2\x16.ingestion.v1.ReadModeR\x12supportedReadModes\x12=\n" +
-	"\frequirements\x18\x03 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\"\xa9\x03\n" +
+	"\bresource\x18\x01 \x01(\tR\bresource\x12=\n" +
+	"\frequirements\x18\x03 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12G\n" +
+	"\x0fsupported_modes\x18\x04 \x03(\x0e2\x1e.ingestion.v1.StandardSyncModeR\x0esupportedModes\"\xe9\x03\n" +
 	"\x0eEdgeValidation\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x17\n" +
 	"\ato_node\x18\x02 \x01(\tR\x06toNode\x12\x1a\n" +
-	"\bresource\x18\x03 \x01(\tR\bresource\x12K\n" +
-	"\x15supported_write_modes\x18\x04 \x03(\x0e2\x17.ingestion.v1.WriteModeR\x13supportedWriteModes\x125\n" +
+	"\bresource\x18\x03 \x01(\tR\bresource\x125\n" +
 	"\x06errors\x18\x05 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\x12=\n" +
 	"\frequirements\x18\x06 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12>\n" +
-	"\tresources\x18\a \x03(\v2 .ingestion.v1.ResourceValidationR\tresources\x12B\n" +
-	"\x0eingestion_type\x18\b \x01(\x0e2\x1b.ingestion.v1.IngestionTypeR\ringestionType\"\x9b\x01\n" +
+	"\tresources\x18\a \x03(\v2 .ingestion.v1.ResourceValidationR\tresources\x12G\n" +
+	"\x0fsupported_modes\x18\t \x03(\x0e2\x1e.ingestion.v1.StandardSyncModeR\x0esupportedModes\x12?\n" +
+	"\vreplication\x18\n" +
+	" \x01(\x0e2\x1d.ingestion.v1.ReplicationModeR\vreplication\x12E\n" +
+	"\x0eeffective_mode\x18\v \x01(\x0e2\x1e.ingestion.v1.StandardSyncModeR\reffectiveMode\"\x9b\x01\n" +
 	"\x18ValidatePipelineResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x122\n" +
 	"\x05edges\x18\x02 \x03(\v2\x1c.ingestion.v1.EdgeValidationR\x05edges\x125\n" +
@@ -872,57 +653,43 @@ func file_ingestion_v1_capabilities_proto_rawDescGZIP() []byte {
 }
 
 var file_ingestion_v1_capabilities_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ingestion_v1_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_ingestion_v1_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_ingestion_v1_capabilities_proto_goTypes = []any{
-	(RequirementKind)(0),                      // 0: ingestion.v1.RequirementKind
-	(CandidateStatus)(0),                      // 1: ingestion.v1.CandidateStatus
-	(*GetConnectionCapabilitiesRequest)(nil),  // 2: ingestion.v1.GetConnectionCapabilitiesRequest
-	(*ReadModeWriteCompatibility)(nil),        // 3: ingestion.v1.ReadModeWriteCompatibility
-	(*GetConnectionCapabilitiesResponse)(nil), // 4: ingestion.v1.GetConnectionCapabilitiesResponse
-	(*ValidatePipelineRequest)(nil),           // 5: ingestion.v1.ValidatePipelineRequest
-	(*CandidateValue)(nil),                    // 6: ingestion.v1.CandidateValue
-	(*Requirement)(nil),                       // 7: ingestion.v1.Requirement
-	(*ResourceValidation)(nil),                // 8: ingestion.v1.ResourceValidation
-	(*EdgeValidation)(nil),                    // 9: ingestion.v1.EdgeValidation
-	(*ValidatePipelineResponse)(nil),          // 10: ingestion.v1.ValidatePipelineResponse
-	(ReadMode)(0),                             // 11: ingestion.v1.ReadMode
-	(WriteMode)(0),                            // 12: ingestion.v1.WriteMode
-	(ConnectorKind)(0),                        // 13: ingestion.v1.ConnectorKind
-	(*Capabilities)(nil),                      // 14: ingestion.v1.Capabilities
-	(ReplicationMode)(0),                      // 15: ingestion.v1.ReplicationMode
-	(*PipelineNode)(nil),                      // 16: ingestion.v1.PipelineNode
-	(*PipelineEdge)(nil),                      // 17: ingestion.v1.PipelineEdge
-	(*ValidationError)(nil),                   // 18: ingestion.v1.ValidationError
-	(IngestionType)(0),                        // 19: ingestion.v1.IngestionType
+	(RequirementKind)(0),             // 0: ingestion.v1.RequirementKind
+	(CandidateStatus)(0),             // 1: ingestion.v1.CandidateStatus
+	(*ValidatePipelineRequest)(nil),  // 2: ingestion.v1.ValidatePipelineRequest
+	(*CandidateValue)(nil),           // 3: ingestion.v1.CandidateValue
+	(*Requirement)(nil),              // 4: ingestion.v1.Requirement
+	(*ResourceValidation)(nil),       // 5: ingestion.v1.ResourceValidation
+	(*EdgeValidation)(nil),           // 6: ingestion.v1.EdgeValidation
+	(*ValidatePipelineResponse)(nil), // 7: ingestion.v1.ValidatePipelineResponse
+	(*PipelineNode)(nil),             // 8: ingestion.v1.PipelineNode
+	(*PipelineEdge)(nil),             // 9: ingestion.v1.PipelineEdge
+	(StandardSyncMode)(0),            // 10: ingestion.v1.StandardSyncMode
+	(*ValidationError)(nil),          // 11: ingestion.v1.ValidationError
+	(ReplicationMode)(0),             // 12: ingestion.v1.ReplicationMode
 }
 var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
-	11, // 0: ingestion.v1.ReadModeWriteCompatibility.read_mode:type_name -> ingestion.v1.ReadMode
-	12, // 1: ingestion.v1.ReadModeWriteCompatibility.write_modes:type_name -> ingestion.v1.WriteMode
-	13, // 2: ingestion.v1.GetConnectionCapabilitiesResponse.kind:type_name -> ingestion.v1.ConnectorKind
-	14, // 3: ingestion.v1.GetConnectionCapabilitiesResponse.capabilities:type_name -> ingestion.v1.Capabilities
-	15, // 4: ingestion.v1.GetConnectionCapabilitiesResponse.replication:type_name -> ingestion.v1.ReplicationMode
-	11, // 5: ingestion.v1.GetConnectionCapabilitiesResponse.read_modes:type_name -> ingestion.v1.ReadMode
-	12, // 6: ingestion.v1.GetConnectionCapabilitiesResponse.write_modes:type_name -> ingestion.v1.WriteMode
-	3,  // 7: ingestion.v1.GetConnectionCapabilitiesResponse.read_mode_write_compatibilities:type_name -> ingestion.v1.ReadModeWriteCompatibility
-	16, // 8: ingestion.v1.ValidatePipelineRequest.nodes:type_name -> ingestion.v1.PipelineNode
-	17, // 9: ingestion.v1.ValidatePipelineRequest.edges:type_name -> ingestion.v1.PipelineEdge
-	0,  // 10: ingestion.v1.Requirement.kind:type_name -> ingestion.v1.RequirementKind
-	6,  // 11: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
-	1,  // 12: ingestion.v1.Requirement.candidate_status:type_name -> ingestion.v1.CandidateStatus
-	11, // 13: ingestion.v1.ResourceValidation.supported_read_modes:type_name -> ingestion.v1.ReadMode
-	7,  // 14: ingestion.v1.ResourceValidation.requirements:type_name -> ingestion.v1.Requirement
-	12, // 15: ingestion.v1.EdgeValidation.supported_write_modes:type_name -> ingestion.v1.WriteMode
-	18, // 16: ingestion.v1.EdgeValidation.errors:type_name -> ingestion.v1.ValidationError
-	7,  // 17: ingestion.v1.EdgeValidation.requirements:type_name -> ingestion.v1.Requirement
-	8,  // 18: ingestion.v1.EdgeValidation.resources:type_name -> ingestion.v1.ResourceValidation
-	19, // 19: ingestion.v1.EdgeValidation.ingestion_type:type_name -> ingestion.v1.IngestionType
-	9,  // 20: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
-	18, // 21: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	8,  // 0: ingestion.v1.ValidatePipelineRequest.nodes:type_name -> ingestion.v1.PipelineNode
+	9,  // 1: ingestion.v1.ValidatePipelineRequest.edges:type_name -> ingestion.v1.PipelineEdge
+	0,  // 2: ingestion.v1.Requirement.kind:type_name -> ingestion.v1.RequirementKind
+	3,  // 3: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
+	1,  // 4: ingestion.v1.Requirement.candidate_status:type_name -> ingestion.v1.CandidateStatus
+	4,  // 5: ingestion.v1.ResourceValidation.requirements:type_name -> ingestion.v1.Requirement
+	10, // 6: ingestion.v1.ResourceValidation.supported_modes:type_name -> ingestion.v1.StandardSyncMode
+	11, // 7: ingestion.v1.EdgeValidation.errors:type_name -> ingestion.v1.ValidationError
+	4,  // 8: ingestion.v1.EdgeValidation.requirements:type_name -> ingestion.v1.Requirement
+	5,  // 9: ingestion.v1.EdgeValidation.resources:type_name -> ingestion.v1.ResourceValidation
+	10, // 10: ingestion.v1.EdgeValidation.supported_modes:type_name -> ingestion.v1.StandardSyncMode
+	12, // 11: ingestion.v1.EdgeValidation.replication:type_name -> ingestion.v1.ReplicationMode
+	10, // 12: ingestion.v1.EdgeValidation.effective_mode:type_name -> ingestion.v1.StandardSyncMode
+	6,  // 13: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
+	11, // 14: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_capabilities_proto_init() }
@@ -939,7 +706,7 @@ func file_ingestion_v1_capabilities_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_capabilities_proto_rawDesc), len(file_ingestion_v1_capabilities_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   9,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

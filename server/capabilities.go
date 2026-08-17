@@ -12,129 +12,9 @@ import (
 	"github.com/galaxy-io/filament/internal/compile"
 )
 
-// GetConnectionCapabilities reports one connection's levers: its replication
-// mode, the per-table read modes a source offers, or the write modes a sink
-// offers — all narrowed by the connection's stored config.
-func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Request[ingestionv1.GetConnectionCapabilitiesRequest]) (*connect.Response[ingestionv1.GetConnectionCapabilitiesResponse], error) {
-	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
-	defer cancel()
-
-	conn, err := a.loadConnectionForTenant(ctx, req.Msg.GetId(), req.Msg.GetTenantId())
-	if err != nil {
-		if errors.Is(err, filament.ErrNotFound) {
-			return nil, connect.NewError(connect.CodeNotFound, err)
-		}
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
-	switch conn.Kind {
-	case filament.ConnectorKindSource:
-		source, err := a.sources.Resolve(conn.Connector)
-		if err != nil {
-			return nil, err
-		}
-		spec := source.Spec()
-		replication := filament.ReplicationOf(source, filament.NewConfig(conn.Config))
-		policies := policiesForReplication(spec.SourcePolicies, replication)
-		readModes := readModesForPolicies(policies)
-		return connect.NewResponse(&ingestionv1.GetConnectionCapabilitiesResponse{
-			Connector:                    spec.Name,
-			Kind:                         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
-			Capabilities:                 sourceCapabilitiesToProto(spec, policies),
-			Replication:                  replicationToProto(replication),
-			ReadModes:                    readModes,
-			ReadModeWriteCompatibilities: readModeWriteCompatibilities(readModes),
-		}), nil
-	case filament.ConnectorKindSink:
-		sink, err := a.sinks.Resolve(conn.Connector)
-		if err != nil {
-			return nil, err
-		}
-		spec := sink.Spec()
-		return connect.NewResponse(&ingestionv1.GetConnectionCapabilitiesResponse{
-			Connector:    spec.Name,
-			Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
-			Capabilities: sinkCapabilitiesToProto(spec.Capabilities),
-			WriteModes:   sinkWriteModes(spec.Capabilities),
-		}), nil
-	default:
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q has no connector kind", conn.ID))
-	}
-}
-
-// policiesForReplication filters a spec's declared policies down to the ones
-// the connection's replication mode can serve.
-func policiesForReplication(policies []filament.SourcePolicy, replication filament.ReplicationMode) []filament.SourcePolicy {
-	out := make([]filament.SourcePolicy, 0, len(policies))
-	for _, policy := range policies {
-		if (policy.Mode == filament.ModeCDC) == (replication == filament.ReplicationCDC) {
-			out = append(out, policy)
-		}
-	}
-	return out
-}
-
-// readModesForPolicies reduces a policy set to the per-table read levers it
-// offers; a CDC connection's policies yield none.
-func readModesForPolicies(policies []filament.SourcePolicy) []ingestionv1.ReadMode {
-	var full, incremental bool
-	for _, policy := range policies {
-		switch policy.Mode {
-		case filament.ModeFull:
-			full = true
-		case filament.ModeIncremental:
-			incremental = true
-		}
-	}
-	var out []ingestionv1.ReadMode
-	if full {
-		out = append(out, ingestionv1.ReadMode_READ_MODE_FULL)
-	}
-	if incremental {
-		out = append(out, ingestionv1.ReadMode_READ_MODE_INCREMENTAL)
-	}
-	return out
-}
-
-// readModeWriteCompatibilities pairs each read mode the connection offers with
-// the write modes it can combine with. The matrix itself is global; only the
-// set of read modes it is filtered to comes from the connection.
-func readModeWriteCompatibilities(readModes []ingestionv1.ReadMode) []*ingestionv1.ReadModeWriteCompatibility {
-	out := make([]*ingestionv1.ReadModeWriteCompatibility, 0, len(readModes))
-	for _, readMode := range readModes {
-		modes := filament.WriteModesFor(readModeFromProto(readMode))
-		writeModes := make([]ingestionv1.WriteMode, 0, len(modes))
-		for _, writeMode := range modes {
-			writeModes = append(writeModes, writeModeToProto(writeMode))
-		}
-		out = append(out, &ingestionv1.ReadModeWriteCompatibility{ReadMode: readMode, WriteModes: writeModes})
-	}
-	return out
-}
-
-// sinkWriteModes lists the write levers a sink offers. Append and replace are
-// universal; upsert needs the declared capability. append_dedupe joins once a
-// sink implements it.
-func sinkWriteModes(caps filament.SinkCapabilities) []ingestionv1.WriteMode {
-	out := []ingestionv1.WriteMode{
-		ingestionv1.WriteMode_WRITE_MODE_APPEND,
-		ingestionv1.WriteMode_WRITE_MODE_REPLACE,
-	}
-	upsert := caps.Upsertable
-	for _, capability := range caps.WritePolicies {
-		if capability.Mode == filament.WriteUpsert {
-			upsert = true
-		}
-	}
-	if upsert {
-		out = append(out, ingestionv1.WriteMode_WRITE_MODE_UPSERT)
-	}
-	return out
-}
-
-// ValidatePipeline checks every edge of a graph: the ingestion types the
-// source/sink pair supports, whether the chosen type is among them, and the
-// per-table setup that type involves. Snapshot and append edges have nothing
+// ValidatePipeline checks every edge of a graph: the Standard sync modes the
+// source/sink pair supports, whether the chosen mode is among them, and the
+// per-table setup that mode involves. Replace and Append edges have nothing
 // to configure and skip source probing entirely; types that read a cursor or
 // write by key probe the live source for per-table menus, cursor candidates,
 // and primary keys. Only blocking requirements gate valid — an unset cursor
@@ -225,36 +105,70 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 	srcSpec, snkSpec := source.Spec(), sink.Spec()
 	replication := filament.ReplicationOf(source, filament.NewConfig(srcConn.Config))
-	policies := policiesForReplication(srcSpec.SourcePolicies, replication)
-	ev.SupportedWriteModes = sinkWriteModes(snkSpec.Capabilities)
+	ev.Replication = replicationToProto(replication)
 
-	// A CDC connection implies the whole recipe; standard edges compile from
-	// the two levers.
+	// A CDC connection implies the complete recipe. Standard edges expose one
+	// destination-oriented mode which compiles to a canonical internal recipe.
 	var chosen filament.IngestionType
 	if replication == filament.ReplicationCDC {
 		chosen = filament.IngestionCDC
+		if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED {
+			edgeError(ev, "standard_sync_mode", "CDC connections do not accept a Standard sync mode")
+		}
+		if len(edge.GetCursors()) > 0 {
+			edgeError(ev, "cursors", "CDC connections manage their stream position automatically")
+		}
 	} else {
-		var err error
-		chosen, err = filament.IngestionFor(readModeFromProto(edge.GetReadMode()), writeModeFromProto(edge.GetWriteMode()))
+		ev.SupportedModes = supportedStandardSyncModes(srcSpec, snkSpec)
+		mode, err := standardSyncModeFromProto(edge.GetStandardSyncMode())
 		if err != nil {
-			edgeError(ev, "read_mode", err.Error())
+			edgeError(ev, "standard_sync_mode", err.Error())
 			return nil
 		}
+		ev.EffectiveMode = standardSyncModeToProto(mode)
+		chosen = mode.IngestionType()
+		if !containsStandardSyncMode(ev.SupportedModes, ev.EffectiveMode) {
+			edgeError(ev, "standard_sync_mode", fmt.Sprintf("%s is not supported by this source and sink", mode))
+		}
 	}
-	ev.IngestionType = ingestionTypeToProto(chosen)
 
 	if err := filament.ValidateSourceIngestion(srcSpec, chosen); err != nil {
-		edgeError(ev, "read_mode", err.Error())
+		edgeError(ev, "standard_sync_mode", err.Error())
 	}
 	if err := filament.ValidateSinkIngestion(snkSpec, chosen); err != nil {
-		edgeError(ev, "write_mode", err.Error())
+		edgeError(ev, "standard_sync_mode", err.Error())
 	}
-	if len(ev.Errors) > 0 {
+	if len(ev.Errors) > 0 && replication == filament.ReplicationCDC {
 		return nil
 	}
 
-	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, readModesForPolicies(policies), probes, ev)
+	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, ev.SupportedModes, probes, ev)
 	return nil
+}
+
+func supportedStandardSyncModes(source filament.ConnectorSpec, sink filament.SinkSpec) []ingestionv1.StandardSyncMode {
+	modes := []filament.StandardSyncMode{
+		filament.StandardSyncReplace,
+		filament.StandardSyncAppend,
+		filament.StandardSyncIncremental,
+	}
+	out := make([]ingestionv1.StandardSyncMode, 0, len(modes))
+	for _, mode := range modes {
+		ingestionType := mode.IngestionType()
+		if filament.ValidateSourceIngestion(source, ingestionType) == nil && filament.ValidateSinkIngestion(sink, ingestionType) == nil {
+			out = append(out, standardSyncModeToProto(mode))
+		}
+	}
+	return out
+}
+
+func containsStandardSyncMode(modes []ingestionv1.StandardSyncMode, want ingestionv1.StandardSyncMode) bool {
+	for _, mode := range modes {
+		if mode == want {
+			return true
+		}
+	}
+	return false
 }
 
 // loadEdgeConnection loads one node's connection and verifies its kind. A nil
@@ -283,12 +197,9 @@ func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.Pipel
 	return &conn, nil
 }
 
-// resourceBreakdown builds the per-table verdicts: which read modes each
-// routed table can serve, its cursor requirement (satisfied, auto-covered,
-// or blocking), and its primary-key requirement. The breakdown is always
-// computed so the FE can offer per-table levers before anything is chosen;
-// requirements only accompany chosen levers that involve setup.
-func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, readModes []ingestionv1.ReadMode, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+// resourceBreakdown narrows the pair-level modes using each table's cursor and
+// primary-key reality, then reports requirements for the selected mode.
+func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, supportedModes []ingestionv1.StandardSyncMode, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
 	needsCursor := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
 	needsPK := chosen.WriteCapability().RequiresPK
 
@@ -336,25 +247,24 @@ func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.Pipeli
 		rv := &ingestionv1.ResourceValidation{Resource: resource}
 		ev.Resources = append(ev.Resources, rv)
 
-		keys, err := filament.PrimaryKeyForResource(ctx, src, resource)
-		if err != nil {
-			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
-			continue
+		keys, keyErr := filament.PrimaryKeyForResource(ctx, src, resource)
+		if keyErr != nil && needsPK {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect primary key for %q: %v", resource, keyErr))
 		}
 		candidates, status := cursorCandidates(ctx, src, resource)
 		// When candidates are unknowable stay optimistic; runtime decides.
 		cursorable := cursors[resource] || len(candidates) > 0 ||
 			status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
-		for _, mode := range readModes {
-			if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL && !cursorable {
+		for _, mode := range supportedModes {
+			if mode == ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL && (!cursorable || keyErr != nil || len(keys) == 0) {
 				continue
 			}
-			rv.SupportedReadModes = append(rv.SupportedReadModes, mode)
+			rv.SupportedModes = append(rv.SupportedModes, mode)
 		}
 		if needsCursor {
 			rv.Requirements = append(rv.Requirements, cursorRequirement(resource, candidates, status, cursors[resource]))
 		}
-		if needsPK && len(keys) == 0 {
+		if needsPK && keyErr == nil && len(keys) == 0 {
 			rv.Requirements = append(rv.Requirements, &ingestionv1.Requirement{
 				Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_PRIMARY_KEY,
 				Resource:        resource,

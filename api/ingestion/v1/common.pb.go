@@ -193,339 +193,62 @@ func (ReplicationMode) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{2}
 }
 
-// ReadMode is the per-table read lever on standard connections: reread the
-// whole table each run, or only rows past a cursor column.
-type ReadMode int32
+// StandardSyncMode is the destination outcome for a query-based source.
+// CDC connections do not set this field: their stream and merge behavior is
+// implied by the connection's replication mode.
+type StandardSyncMode int32
 
 const (
-	ReadMode_READ_MODE_UNSPECIFIED ReadMode = 0
-	ReadMode_READ_MODE_FULL        ReadMode = 1
-	ReadMode_READ_MODE_INCREMENTAL ReadMode = 2
+	StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED StandardSyncMode = 0
+	// Replace reads every selected row and replaces the destination snapshot.
+	StandardSyncMode_STANDARD_SYNC_MODE_REPLACE StandardSyncMode = 1
+	// Append reads every selected row and adds it to the destination.
+	StandardSyncMode_STANDARD_SYNC_MODE_APPEND StandardSyncMode = 2
+	// Incremental performs one backfill, then reads a cursor and merges by key.
+	StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL StandardSyncMode = 3
 )
 
-// Enum value maps for ReadMode.
+// Enum value maps for StandardSyncMode.
 var (
-	ReadMode_name = map[int32]string{
-		0: "READ_MODE_UNSPECIFIED",
-		1: "READ_MODE_FULL",
-		2: "READ_MODE_INCREMENTAL",
+	StandardSyncMode_name = map[int32]string{
+		0: "STANDARD_SYNC_MODE_UNSPECIFIED",
+		1: "STANDARD_SYNC_MODE_REPLACE",
+		2: "STANDARD_SYNC_MODE_APPEND",
+		3: "STANDARD_SYNC_MODE_INCREMENTAL",
 	}
-	ReadMode_value = map[string]int32{
-		"READ_MODE_UNSPECIFIED": 0,
-		"READ_MODE_FULL":        1,
-		"READ_MODE_INCREMENTAL": 2,
+	StandardSyncMode_value = map[string]int32{
+		"STANDARD_SYNC_MODE_UNSPECIFIED": 0,
+		"STANDARD_SYNC_MODE_REPLACE":     1,
+		"STANDARD_SYNC_MODE_APPEND":      2,
+		"STANDARD_SYNC_MODE_INCREMENTAL": 3,
 	}
 )
 
-func (x ReadMode) Enum() *ReadMode {
-	p := new(ReadMode)
+func (x StandardSyncMode) Enum() *StandardSyncMode {
+	p := new(StandardSyncMode)
 	*p = x
 	return p
 }
 
-func (x ReadMode) String() string {
+func (x StandardSyncMode) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (ReadMode) Descriptor() protoreflect.EnumDescriptor {
+func (StandardSyncMode) Descriptor() protoreflect.EnumDescriptor {
 	return file_ingestion_v1_common_proto_enumTypes[3].Descriptor()
 }
 
-func (ReadMode) Type() protoreflect.EnumType {
+func (StandardSyncMode) Type() protoreflect.EnumType {
 	return &file_ingestion_v1_common_proto_enumTypes[3]
 }
 
-func (x ReadMode) Number() protoreflect.EnumNumber {
+func (x StandardSyncMode) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use ReadMode.Descriptor instead.
-func (ReadMode) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use StandardSyncMode.Descriptor instead.
+func (StandardSyncMode) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
-}
-
-type Operation int32
-
-const (
-	Operation_OPERATION_UNSPECIFIED Operation = 0
-	Operation_OPERATION_INSERT      Operation = 1
-	Operation_OPERATION_UPDATE      Operation = 2
-	Operation_OPERATION_DELETE      Operation = 3
-)
-
-// Enum value maps for Operation.
-var (
-	Operation_name = map[int32]string{
-		0: "OPERATION_UNSPECIFIED",
-		1: "OPERATION_INSERT",
-		2: "OPERATION_UPDATE",
-		3: "OPERATION_DELETE",
-	}
-	Operation_value = map[string]int32{
-		"OPERATION_UNSPECIFIED": 0,
-		"OPERATION_INSERT":      1,
-		"OPERATION_UPDATE":      2,
-		"OPERATION_DELETE":      3,
-	}
-)
-
-func (x Operation) Enum() *Operation {
-	p := new(Operation)
-	*p = x
-	return p
-}
-
-func (x Operation) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Operation) Descriptor() protoreflect.EnumDescriptor {
-	return file_ingestion_v1_common_proto_enumTypes[4].Descriptor()
-}
-
-func (Operation) Type() protoreflect.EnumType {
-	return &file_ingestion_v1_common_proto_enumTypes[4]
-}
-
-func (x Operation) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Operation.Descriptor instead.
-func (Operation) EnumDescriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{4}
-}
-
-// IngestionType is named {read}_{write}: what the source reads crossed with
-// how the sink lands it. Derived by the server from read_mode, write_mode,
-// and the connection's replication mode — never set by clients.
-type IngestionType int32
-
-const (
-	IngestionType_INGESTION_TYPE_UNSPECIFIED        IngestionType = 0
-	IngestionType_INGESTION_TYPE_FULL_REPLACE       IngestionType = 1
-	IngestionType_INGESTION_TYPE_FULL_UPSERT        IngestionType = 2
-	IngestionType_INGESTION_TYPE_FULL_APPEND        IngestionType = 3
-	IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND IngestionType = 4
-	IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT IngestionType = 5
-	IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE IngestionType = 6
-	IngestionType_INGESTION_TYPE_CDC                IngestionType = 7
-)
-
-// Enum value maps for IngestionType.
-var (
-	IngestionType_name = map[int32]string{
-		0: "INGESTION_TYPE_UNSPECIFIED",
-		1: "INGESTION_TYPE_FULL_REPLACE",
-		2: "INGESTION_TYPE_FULL_UPSERT",
-		3: "INGESTION_TYPE_FULL_APPEND",
-		4: "INGESTION_TYPE_INCREMENTAL_APPEND",
-		5: "INGESTION_TYPE_INCREMENTAL_UPSERT",
-		6: "INGESTION_TYPE_INCREMENTAL_DELETE",
-		7: "INGESTION_TYPE_CDC",
-	}
-	IngestionType_value = map[string]int32{
-		"INGESTION_TYPE_UNSPECIFIED":        0,
-		"INGESTION_TYPE_FULL_REPLACE":       1,
-		"INGESTION_TYPE_FULL_UPSERT":        2,
-		"INGESTION_TYPE_FULL_APPEND":        3,
-		"INGESTION_TYPE_INCREMENTAL_APPEND": 4,
-		"INGESTION_TYPE_INCREMENTAL_UPSERT": 5,
-		"INGESTION_TYPE_INCREMENTAL_DELETE": 6,
-		"INGESTION_TYPE_CDC":                7,
-	}
-)
-
-func (x IngestionType) Enum() *IngestionType {
-	p := new(IngestionType)
-	*p = x
-	return p
-}
-
-func (x IngestionType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (IngestionType) Descriptor() protoreflect.EnumDescriptor {
-	return file_ingestion_v1_common_proto_enumTypes[5].Descriptor()
-}
-
-func (IngestionType) Type() protoreflect.EnumType {
-	return &file_ingestion_v1_common_proto_enumTypes[5]
-}
-
-func (x IngestionType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use IngestionType.Descriptor instead.
-func (IngestionType) EnumDescriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{5}
-}
-
-// WriteMode is the sink write lever: append keeps the history of every load;
-// replace, upsert, and append_dedupe manage current state. Delete and merge
-// are engine mechanisms, never offered as levers.
-type WriteMode int32
-
-const (
-	WriteMode_WRITE_MODE_UNSPECIFIED WriteMode = 0
-	WriteMode_WRITE_MODE_APPEND      WriteMode = 1
-	WriteMode_WRITE_MODE_REPLACE     WriteMode = 2
-	WriteMode_WRITE_MODE_UPSERT      WriteMode = 3
-	WriteMode_WRITE_MODE_DELETE      WriteMode = 4
-	WriteMode_WRITE_MODE_MERGE       WriteMode = 5
-)
-
-// Enum value maps for WriteMode.
-var (
-	WriteMode_name = map[int32]string{
-		0: "WRITE_MODE_UNSPECIFIED",
-		1: "WRITE_MODE_APPEND",
-		2: "WRITE_MODE_REPLACE",
-		3: "WRITE_MODE_UPSERT",
-		4: "WRITE_MODE_DELETE",
-		5: "WRITE_MODE_MERGE",
-	}
-	WriteMode_value = map[string]int32{
-		"WRITE_MODE_UNSPECIFIED": 0,
-		"WRITE_MODE_APPEND":      1,
-		"WRITE_MODE_REPLACE":     2,
-		"WRITE_MODE_UPSERT":      3,
-		"WRITE_MODE_DELETE":      4,
-		"WRITE_MODE_MERGE":       5,
-	}
-)
-
-func (x WriteMode) Enum() *WriteMode {
-	p := new(WriteMode)
-	*p = x
-	return p
-}
-
-func (x WriteMode) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (WriteMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_ingestion_v1_common_proto_enumTypes[6].Descriptor()
-}
-
-func (WriteMode) Type() protoreflect.EnumType {
-	return &file_ingestion_v1_common_proto_enumTypes[6]
-}
-
-func (x WriteMode) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use WriteMode.Descriptor instead.
-func (WriteMode) EnumDescriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{6}
-}
-
-type WriteAtomicity int32
-
-const (
-	WriteAtomicity_WRITE_ATOMICITY_UNSPECIFIED WriteAtomicity = 0
-	WriteAtomicity_WRITE_ATOMICITY_BATCH       WriteAtomicity = 1
-	WriteAtomicity_WRITE_ATOMICITY_RESOURCE    WriteAtomicity = 2
-	WriteAtomicity_WRITE_ATOMICITY_RUN         WriteAtomicity = 3
-)
-
-// Enum value maps for WriteAtomicity.
-var (
-	WriteAtomicity_name = map[int32]string{
-		0: "WRITE_ATOMICITY_UNSPECIFIED",
-		1: "WRITE_ATOMICITY_BATCH",
-		2: "WRITE_ATOMICITY_RESOURCE",
-		3: "WRITE_ATOMICITY_RUN",
-	}
-	WriteAtomicity_value = map[string]int32{
-		"WRITE_ATOMICITY_UNSPECIFIED": 0,
-		"WRITE_ATOMICITY_BATCH":       1,
-		"WRITE_ATOMICITY_RESOURCE":    2,
-		"WRITE_ATOMICITY_RUN":         3,
-	}
-)
-
-func (x WriteAtomicity) Enum() *WriteAtomicity {
-	p := new(WriteAtomicity)
-	*p = x
-	return p
-}
-
-func (x WriteAtomicity) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (WriteAtomicity) Descriptor() protoreflect.EnumDescriptor {
-	return file_ingestion_v1_common_proto_enumTypes[7].Descriptor()
-}
-
-func (WriteAtomicity) Type() protoreflect.EnumType {
-	return &file_ingestion_v1_common_proto_enumTypes[7]
-}
-
-func (x WriteAtomicity) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use WriteAtomicity.Descriptor instead.
-func (WriteAtomicity) EnumDescriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{7}
-}
-
-type CheckpointPolicy int32
-
-const (
-	CheckpointPolicy_CHECKPOINT_POLICY_UNSPECIFIED  CheckpointPolicy = 0
-	CheckpointPolicy_CHECKPOINT_POLICY_NONE         CheckpointPolicy = 1
-	CheckpointPolicy_CHECKPOINT_POLICY_AFTER_BATCH  CheckpointPolicy = 2
-	CheckpointPolicy_CHECKPOINT_POLICY_AFTER_COMMIT CheckpointPolicy = 3
-)
-
-// Enum value maps for CheckpointPolicy.
-var (
-	CheckpointPolicy_name = map[int32]string{
-		0: "CHECKPOINT_POLICY_UNSPECIFIED",
-		1: "CHECKPOINT_POLICY_NONE",
-		2: "CHECKPOINT_POLICY_AFTER_BATCH",
-		3: "CHECKPOINT_POLICY_AFTER_COMMIT",
-	}
-	CheckpointPolicy_value = map[string]int32{
-		"CHECKPOINT_POLICY_UNSPECIFIED":  0,
-		"CHECKPOINT_POLICY_NONE":         1,
-		"CHECKPOINT_POLICY_AFTER_BATCH":  2,
-		"CHECKPOINT_POLICY_AFTER_COMMIT": 3,
-	}
-)
-
-func (x CheckpointPolicy) Enum() *CheckpointPolicy {
-	p := new(CheckpointPolicy)
-	*p = x
-	return p
-}
-
-func (x CheckpointPolicy) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (CheckpointPolicy) Descriptor() protoreflect.EnumDescriptor {
-	return file_ingestion_v1_common_proto_enumTypes[8].Descriptor()
-}
-
-func (CheckpointPolicy) Type() protoreflect.EnumType {
-	return &file_ingestion_v1_common_proto_enumTypes[8]
-}
-
-func (x CheckpointPolicy) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use CheckpointPolicy.Descriptor instead.
-func (CheckpointPolicy) EnumDescriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{8}
 }
 
 type FieldScope int32
@@ -561,11 +284,11 @@ func (x FieldScope) String() string {
 }
 
 func (FieldScope) Descriptor() protoreflect.EnumDescriptor {
-	return file_ingestion_v1_common_proto_enumTypes[9].Descriptor()
+	return file_ingestion_v1_common_proto_enumTypes[4].Descriptor()
 }
 
 func (FieldScope) Type() protoreflect.EnumType {
-	return &file_ingestion_v1_common_proto_enumTypes[9]
+	return &file_ingestion_v1_common_proto_enumTypes[4]
 }
 
 func (x FieldScope) Number() protoreflect.EnumNumber {
@@ -574,7 +297,7 @@ func (x FieldScope) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FieldScope.Descriptor instead.
 func (FieldScope) EnumDescriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{9}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{4}
 }
 
 // WorkerResources sizes the worker that executes a run. Values are Kubernetes
@@ -966,152 +689,6 @@ func (x *ConfigSchema) GetFields() []*ConfigField {
 	return nil
 }
 
-type WritePolicyCapability struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mode          WriteMode              `protobuf:"varint,1,opt,name=mode,proto3,enum=ingestion.v1.WriteMode" json:"mode,omitempty"`
-	RequiresPk    bool                   `protobuf:"varint,2,opt,name=requires_pk,json=requiresPk,proto3" json:"requires_pk,omitempty"`
-	RequiresOrder bool                   `protobuf:"varint,3,opt,name=requires_order,json=requiresOrder,proto3" json:"requires_order,omitempty"`
-	AcceptsOps    []Operation            `protobuf:"varint,4,rep,packed,name=accepts_ops,json=acceptsOps,proto3,enum=ingestion.v1.Operation" json:"accepts_ops,omitempty"`
-	Atomicity     WriteAtomicity         `protobuf:"varint,5,opt,name=atomicity,proto3,enum=ingestion.v1.WriteAtomicity" json:"atomicity,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WritePolicyCapability) Reset() {
-	*x = WritePolicyCapability{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WritePolicyCapability) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WritePolicyCapability) ProtoMessage() {}
-
-func (x *WritePolicyCapability) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WritePolicyCapability.ProtoReflect.Descriptor instead.
-func (*WritePolicyCapability) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *WritePolicyCapability) GetMode() WriteMode {
-	if x != nil {
-		return x.Mode
-	}
-	return WriteMode_WRITE_MODE_UNSPECIFIED
-}
-
-func (x *WritePolicyCapability) GetRequiresPk() bool {
-	if x != nil {
-		return x.RequiresPk
-	}
-	return false
-}
-
-func (x *WritePolicyCapability) GetRequiresOrder() bool {
-	if x != nil {
-		return x.RequiresOrder
-	}
-	return false
-}
-
-func (x *WritePolicyCapability) GetAcceptsOps() []Operation {
-	if x != nil {
-		return x.AcceptsOps
-	}
-	return nil
-}
-
-func (x *WritePolicyCapability) GetAtomicity() WriteAtomicity {
-	if x != nil {
-		return x.Atomicity
-	}
-	return WriteAtomicity_WRITE_ATOMICITY_UNSPECIFIED
-}
-
-type SourcePolicy struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The engine read mechanism; CDC policies report READ_MODE_UNSPECIFIED
-	// since the stream is not a per-table read.
-	Mode          ReadMode         `protobuf:"varint,1,opt,name=mode,proto3,enum=ingestion.v1.ReadMode" json:"mode,omitempty"`
-	EmitsOps      []Operation      `protobuf:"varint,2,rep,packed,name=emits_ops,json=emitsOps,proto3,enum=ingestion.v1.Operation" json:"emits_ops,omitempty"`
-	Ordered       bool             `protobuf:"varint,3,opt,name=ordered,proto3" json:"ordered,omitempty"`
-	Checkpointing CheckpointPolicy `protobuf:"varint,4,opt,name=checkpointing,proto3,enum=ingestion.v1.CheckpointPolicy" json:"checkpointing,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SourcePolicy) Reset() {
-	*x = SourcePolicy{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SourcePolicy) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SourcePolicy) ProtoMessage() {}
-
-func (x *SourcePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SourcePolicy.ProtoReflect.Descriptor instead.
-func (*SourcePolicy) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *SourcePolicy) GetMode() ReadMode {
-	if x != nil {
-		return x.Mode
-	}
-	return ReadMode_READ_MODE_UNSPECIFIED
-}
-
-func (x *SourcePolicy) GetEmitsOps() []Operation {
-	if x != nil {
-		return x.EmitsOps
-	}
-	return nil
-}
-
-func (x *SourcePolicy) GetOrdered() bool {
-	if x != nil {
-		return x.Ordered
-	}
-	return false
-}
-
-func (x *SourcePolicy) GetCheckpointing() CheckpointPolicy {
-	if x != nil {
-		return x.Checkpointing
-	}
-	return CheckpointPolicy_CHECKPOINT_POLICY_UNSPECIFIED
-}
-
 var File_ingestion_v1_common_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_common_proto_rawDesc = "" +
@@ -1145,20 +722,7 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x16\n" +
 	"\x06values\x18\x02 \x03(\tR\x06values\"A\n" +
 	"\fConfigSchema\x121\n" +
-	"\x06fields\x18\x01 \x03(\v2\x19.ingestion.v1.ConfigFieldR\x06fields\"\x82\x02\n" +
-	"\x15WritePolicyCapability\x12+\n" +
-	"\x04mode\x18\x01 \x01(\x0e2\x17.ingestion.v1.WriteModeR\x04mode\x12\x1f\n" +
-	"\vrequires_pk\x18\x02 \x01(\bR\n" +
-	"requiresPk\x12%\n" +
-	"\x0erequires_order\x18\x03 \x01(\bR\rrequiresOrder\x128\n" +
-	"\vaccepts_ops\x18\x04 \x03(\x0e2\x17.ingestion.v1.OperationR\n" +
-	"acceptsOps\x12:\n" +
-	"\tatomicity\x18\x05 \x01(\x0e2\x1c.ingestion.v1.WriteAtomicityR\tatomicity\"\xd0\x01\n" +
-	"\fSourcePolicy\x12*\n" +
-	"\x04mode\x18\x01 \x01(\x0e2\x16.ingestion.v1.ReadModeR\x04mode\x124\n" +
-	"\temits_ops\x18\x02 \x03(\x0e2\x17.ingestion.v1.OperationR\bemitsOps\x12\x18\n" +
-	"\aordered\x18\x03 \x01(\bR\aordered\x12D\n" +
-	"\rcheckpointing\x18\x04 \x01(\x0e2\x1e.ingestion.v1.CheckpointPolicyR\rcheckpointing*c\n" +
+	"\x06fields\x18\x01 \x03(\v2\x19.ingestion.v1.ConfigFieldR\x06fields*c\n" +
 	"\rConnectorKind\x12\x1e\n" +
 	"\x1aCONNECTOR_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CONNECTOR_KIND_SOURCE\x10\x01\x12\x17\n" +
@@ -1176,42 +740,12 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x0fReplicationMode\x12 \n" +
 	"\x1cREPLICATION_MODE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REPLICATION_MODE_STANDARD\x10\x01\x12\x18\n" +
-	"\x14REPLICATION_MODE_CDC\x10\x02*T\n" +
-	"\bReadMode\x12\x19\n" +
-	"\x15READ_MODE_UNSPECIFIED\x10\x00\x12\x12\n" +
-	"\x0eREAD_MODE_FULL\x10\x01\x12\x19\n" +
-	"\x15READ_MODE_INCREMENTAL\x10\x02*h\n" +
-	"\tOperation\x12\x19\n" +
-	"\x15OPERATION_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10OPERATION_INSERT\x10\x01\x12\x14\n" +
-	"\x10OPERATION_UPDATE\x10\x02\x12\x14\n" +
-	"\x10OPERATION_DELETE\x10\x03*\x9d\x02\n" +
-	"\rIngestionType\x12\x1e\n" +
-	"\x1aINGESTION_TYPE_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bINGESTION_TYPE_FULL_REPLACE\x10\x01\x12\x1e\n" +
-	"\x1aINGESTION_TYPE_FULL_UPSERT\x10\x02\x12\x1e\n" +
-	"\x1aINGESTION_TYPE_FULL_APPEND\x10\x03\x12%\n" +
-	"!INGESTION_TYPE_INCREMENTAL_APPEND\x10\x04\x12%\n" +
-	"!INGESTION_TYPE_INCREMENTAL_UPSERT\x10\x05\x12%\n" +
-	"!INGESTION_TYPE_INCREMENTAL_DELETE\x10\x06\x12\x16\n" +
-	"\x12INGESTION_TYPE_CDC\x10\a*\x9a\x01\n" +
-	"\tWriteMode\x12\x1a\n" +
-	"\x16WRITE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11WRITE_MODE_APPEND\x10\x01\x12\x16\n" +
-	"\x12WRITE_MODE_REPLACE\x10\x02\x12\x15\n" +
-	"\x11WRITE_MODE_UPSERT\x10\x03\x12\x15\n" +
-	"\x11WRITE_MODE_DELETE\x10\x04\x12\x14\n" +
-	"\x10WRITE_MODE_MERGE\x10\x05*\x83\x01\n" +
-	"\x0eWriteAtomicity\x12\x1f\n" +
-	"\x1bWRITE_ATOMICITY_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15WRITE_ATOMICITY_BATCH\x10\x01\x12\x1c\n" +
-	"\x18WRITE_ATOMICITY_RESOURCE\x10\x02\x12\x17\n" +
-	"\x13WRITE_ATOMICITY_RUN\x10\x03*\x98\x01\n" +
-	"\x10CheckpointPolicy\x12!\n" +
-	"\x1dCHECKPOINT_POLICY_UNSPECIFIED\x10\x00\x12\x1a\n" +
-	"\x16CHECKPOINT_POLICY_NONE\x10\x01\x12!\n" +
-	"\x1dCHECKPOINT_POLICY_AFTER_BATCH\x10\x02\x12\"\n" +
-	"\x1eCHECKPOINT_POLICY_AFTER_COMMIT\x10\x03*_\n" +
+	"\x14REPLICATION_MODE_CDC\x10\x02*\x99\x01\n" +
+	"\x10StandardSyncMode\x12\"\n" +
+	"\x1eSTANDARD_SYNC_MODE_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aSTANDARD_SYNC_MODE_REPLACE\x10\x01\x12\x1d\n" +
+	"\x19STANDARD_SYNC_MODE_APPEND\x10\x02\x12\"\n" +
+	"\x1eSTANDARD_SYNC_MODE_INCREMENTAL\x10\x03*_\n" +
 	"\n" +
 	"FieldScope\x12\x1b\n" +
 	"\x17FIELD_SCOPE_UNSPECIFIED\x10\x00\x12\x1a\n" +
@@ -1231,49 +765,36 @@ func file_ingestion_v1_common_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_common_proto_rawDescData
 }
 
-var file_ingestion_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_ingestion_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_ingestion_v1_common_proto_goTypes = []any{
-	(ConnectorKind)(0),            // 0: ingestion.v1.ConnectorKind
-	(FieldType)(0),                // 1: ingestion.v1.FieldType
-	(ReplicationMode)(0),          // 2: ingestion.v1.ReplicationMode
-	(ReadMode)(0),                 // 3: ingestion.v1.ReadMode
-	(Operation)(0),                // 4: ingestion.v1.Operation
-	(IngestionType)(0),            // 5: ingestion.v1.IngestionType
-	(WriteMode)(0),                // 6: ingestion.v1.WriteMode
-	(WriteAtomicity)(0),           // 7: ingestion.v1.WriteAtomicity
-	(CheckpointPolicy)(0),         // 8: ingestion.v1.CheckpointPolicy
-	(FieldScope)(0),               // 9: ingestion.v1.FieldScope
-	(*WorkerResources)(nil),       // 10: ingestion.v1.WorkerResources
-	(*WorkerConfiguration)(nil),   // 11: ingestion.v1.WorkerConfiguration
-	(*ConfigField)(nil),           // 12: ingestion.v1.ConfigField
-	(*EnumOption)(nil),            // 13: ingestion.v1.EnumOption
-	(*FieldCondition)(nil),        // 14: ingestion.v1.FieldCondition
-	(*ConfigSchema)(nil),          // 15: ingestion.v1.ConfigSchema
-	(*WritePolicyCapability)(nil), // 16: ingestion.v1.WritePolicyCapability
-	(*SourcePolicy)(nil),          // 17: ingestion.v1.SourcePolicy
-	(*structpb.Value)(nil),        // 18: google.protobuf.Value
+	(ConnectorKind)(0),          // 0: ingestion.v1.ConnectorKind
+	(FieldType)(0),              // 1: ingestion.v1.FieldType
+	(ReplicationMode)(0),        // 2: ingestion.v1.ReplicationMode
+	(StandardSyncMode)(0),       // 3: ingestion.v1.StandardSyncMode
+	(FieldScope)(0),             // 4: ingestion.v1.FieldScope
+	(*WorkerResources)(nil),     // 5: ingestion.v1.WorkerResources
+	(*WorkerConfiguration)(nil), // 6: ingestion.v1.WorkerConfiguration
+	(*ConfigField)(nil),         // 7: ingestion.v1.ConfigField
+	(*EnumOption)(nil),          // 8: ingestion.v1.EnumOption
+	(*FieldCondition)(nil),      // 9: ingestion.v1.FieldCondition
+	(*ConfigSchema)(nil),        // 10: ingestion.v1.ConfigSchema
+	(*structpb.Value)(nil),      // 11: google.protobuf.Value
 }
 var file_ingestion_v1_common_proto_depIdxs = []int32{
-	10, // 0: ingestion.v1.WorkerConfiguration.resources:type_name -> ingestion.v1.WorkerResources
+	5,  // 0: ingestion.v1.WorkerConfiguration.resources:type_name -> ingestion.v1.WorkerResources
 	1,  // 1: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
-	18, // 2: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
-	13, // 3: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
-	9,  // 4: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
-	12, // 5: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
-	14, // 6: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
-	12, // 7: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
-	6,  // 8: ingestion.v1.WritePolicyCapability.mode:type_name -> ingestion.v1.WriteMode
-	4,  // 9: ingestion.v1.WritePolicyCapability.accepts_ops:type_name -> ingestion.v1.Operation
-	7,  // 10: ingestion.v1.WritePolicyCapability.atomicity:type_name -> ingestion.v1.WriteAtomicity
-	3,  // 11: ingestion.v1.SourcePolicy.mode:type_name -> ingestion.v1.ReadMode
-	4,  // 12: ingestion.v1.SourcePolicy.emits_ops:type_name -> ingestion.v1.Operation
-	8,  // 13: ingestion.v1.SourcePolicy.checkpointing:type_name -> ingestion.v1.CheckpointPolicy
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	11, // 2: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
+	8,  // 3: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
+	4,  // 4: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
+	7,  // 5: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
+	9,  // 6: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
+	7,  // 7: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_common_proto_init() }
@@ -1286,8 +807,8 @@ func file_ingestion_v1_common_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_common_proto_rawDesc), len(file_ingestion_v1_common_proto_rawDesc)),
-			NumEnums:      10,
-			NumMessages:   8,
+			NumEnums:      5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

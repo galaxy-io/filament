@@ -2,39 +2,20 @@ package filament
 
 import "testing"
 
-func TestIngestionFor(t *testing.T) {
+func TestStandardSyncModeIngestionType(t *testing.T) {
 	tests := []struct {
-		name  string
-		read  ReadMode
-		write WriteMode
-		want  IngestionType
-		fails bool
+		name string
+		mode StandardSyncMode
+		want IngestionType
 	}{
-		{"defaults to full refresh", ModeFull, "", IngestionFullReplace, false},
-		{"incremental defaults to upsert", ModeIncremental, "", IngestionIncrementalUpsert, false},
-		{"full replace", ModeFull, WriteReplace, IngestionFullReplace, false},
-		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert, false},
-		{"full append", ModeFull, WriteAppend, IngestionFullAppend, false},
-		{"incremental append", ModeIncremental, WriteAppend, IngestionIncrementalAppend, false},
-		{"incremental upsert", ModeIncremental, WriteUpsert, IngestionIncrementalUpsert, false},
-		{"incremental delete", ModeIncremental, WriteDelete, IngestionIncrementalDelete, false},
-		{"incremental replace is incoherent", ModeIncremental, WriteReplace, "", true},
-		{"full delete is incoherent", ModeFull, WriteDelete, "", true},
-		{"merge is never a lever", ModeFull, WriteMerge, "", true},
-		{"cdc never compiles from levers", ModeCDC, WriteMerge, "", true},
+		{"unspecified defaults to replace", "", IngestionFullReplace},
+		{"replace", StandardSyncReplace, IngestionFullReplace},
+		{"append", StandardSyncAppend, IngestionFullAppend},
+		{"incremental", StandardSyncIncremental, IngestionIncrementalUpsert},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := IngestionFor(tt.read, tt.write)
-			if tt.fails {
-				if err == nil {
-					t.Fatalf("want error, got %q", got)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
+			got := tt.mode.IngestionType()
 			if got != tt.want {
 				t.Fatalf("got %q, want %q", got, tt.want)
 			}

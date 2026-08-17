@@ -51,59 +51,17 @@ enum ReplicationMode {
   REPLICATION_MODE_CDC = 2;
 }
 
-// ReadMode is the per-table read lever on standard connections: reread the
-// whole table each run, or only rows past a cursor column.
-enum ReadMode {
-  READ_MODE_UNSPECIFIED = 0;
-  READ_MODE_FULL = 1;
-  READ_MODE_INCREMENTAL = 2;
-}
-
-enum Operation {
-  OPERATION_UNSPECIFIED = 0;
-  OPERATION_INSERT = 1;
-  OPERATION_UPDATE = 2;
-  OPERATION_DELETE = 3;
-}
-
-// IngestionType is named {read}_{write}: what the source reads crossed with
-// how the sink lands it. Derived by the server from read_mode, write_mode,
-// and the connection's replication mode — never set by clients.
-enum IngestionType {
-  INGESTION_TYPE_UNSPECIFIED = 0;
-  INGESTION_TYPE_FULL_REPLACE = 1;
-  INGESTION_TYPE_FULL_UPSERT = 2;
-  INGESTION_TYPE_FULL_APPEND = 3;
-  INGESTION_TYPE_INCREMENTAL_APPEND = 4;
-  INGESTION_TYPE_INCREMENTAL_UPSERT = 5;
-  INGESTION_TYPE_INCREMENTAL_DELETE = 6;
-  INGESTION_TYPE_CDC = 7;
-}
-
-// WriteMode is the sink write lever: append keeps the history of every load;
-// replace, upsert, and append_dedupe manage current state. Delete and merge
-// are engine mechanisms, never offered as levers.
-enum WriteMode {
-  WRITE_MODE_UNSPECIFIED = 0;
-  WRITE_MODE_APPEND = 1;
-  WRITE_MODE_REPLACE = 2;
-  WRITE_MODE_UPSERT = 3;
-  WRITE_MODE_DELETE = 4;
-  WRITE_MODE_MERGE = 5;
-}
-
-enum WriteAtomicity {
-  WRITE_ATOMICITY_UNSPECIFIED = 0;
-  WRITE_ATOMICITY_BATCH = 1;
-  WRITE_ATOMICITY_RESOURCE = 2;
-  WRITE_ATOMICITY_RUN = 3;
-}
-
-enum CheckpointPolicy {
-  CHECKPOINT_POLICY_UNSPECIFIED = 0;
-  CHECKPOINT_POLICY_NONE = 1;
-  CHECKPOINT_POLICY_AFTER_BATCH = 2;
-  CHECKPOINT_POLICY_AFTER_COMMIT = 3;
+// StandardSyncMode is the destination outcome for a query-based source.
+// CDC connections do not set this field: their stream and merge behavior is
+// implied by the connection's replication mode.
+enum StandardSyncMode {
+  STANDARD_SYNC_MODE_UNSPECIFIED = 0;
+  // Replace reads every selected row and replaces the destination snapshot.
+  STANDARD_SYNC_MODE_REPLACE = 1;
+  // Append reads every selected row and adds it to the destination.
+  STANDARD_SYNC_MODE_APPEND = 2;
+  // Incremental performs one backfill, then reads a cursor and merges by key.
+  STANDARD_SYNC_MODE_INCREMENTAL = 3;
 }
 
 enum FieldScope {
@@ -144,21 +102,4 @@ message FieldCondition {
 // ConfigSchema describes the configuration accepted by a connector.
 message ConfigSchema {
   repeated ConfigField fields = 1;
-}
-
-message WritePolicyCapability {
-  WriteMode mode = 1;
-  bool requires_pk = 2;
-  bool requires_order = 3;
-  repeated Operation accepts_ops = 4;
-  WriteAtomicity atomicity = 5;
-}
-
-message SourcePolicy {
-  // The engine read mechanism; CDC policies report READ_MODE_UNSPECIFIED
-  // since the stream is not a per-table read.
-  ReadMode mode = 1;
-  repeated Operation emits_ops = 2;
-  bool ordered = 3;
-  CheckpointPolicy checkpointing = 4;
 }

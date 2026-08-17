@@ -24,7 +24,6 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		Maturity:     connectorMaturityToProto(spec.Maturity),
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
-		Capabilities: sourceCapabilitiesToProto(spec, spec.SourcePolicies),
 	}
 }
 
@@ -41,14 +40,6 @@ func connectorMaturityToProto(maturity filament.ConnectorMaturity) ingestionv1.C
 	}
 }
 
-func sourceCapabilitiesToProto(spec filament.ConnectorSpec, policies []filament.SourcePolicy) *ingestionv1.Capabilities {
-	return &ingestionv1.Capabilities{
-		Discoverable:      spec.Resources.Discoverable,
-		PerResourceCursor: spec.Resources.PerResourceCursor,
-		SourcePolicies:    sourcePoliciesToProto(policies),
-	}
-}
-
 func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 	return &ingestionv1.ConnectorSpec{
 		Name:         spec.Name,
@@ -61,17 +52,6 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		Maturity:     connectorMaturityToProto(spec.Maturity),
 		ConfigSchema: configSchemaToProto(spec.Config),
 		SchemaField:  spec.SchemaField,
-		Capabilities: sinkCapabilitiesToProto(spec.Capabilities),
-	}
-}
-
-func sinkCapabilitiesToProto(caps filament.SinkCapabilities) *ingestionv1.Capabilities {
-	return &ingestionv1.Capabilities{
-		Transactional: caps.Transactional,
-		Upsertable:    caps.Upsertable,
-		Schematized:   caps.Schematized,
-		WritePolicies: writePolicyCapabilitiesToProto(caps.WritePolicies),
-		WriteModes:    sinkWriteModes(caps),
 	}
 }
 
@@ -119,33 +99,6 @@ func fieldConditionToProto(condition *filament.FieldCondition) *ingestionv1.Fiel
 	}
 }
 
-func sourcePoliciesToProto(policies []filament.SourcePolicy) []*ingestionv1.SourcePolicy {
-	out := make([]*ingestionv1.SourcePolicy, 0, len(policies))
-	for _, policy := range policies {
-		out = append(out, &ingestionv1.SourcePolicy{
-			Mode:          modeToProto(policy.Mode),
-			EmitsOps:      operationsToProto(policy.EmitsOps),
-			Ordered:       policy.Ordered,
-			Checkpointing: checkpointPolicyToProto(policy.Checkpointing),
-		})
-	}
-	return out
-}
-
-func writePolicyCapabilitiesToProto(caps []filament.WritePolicyCapability) []*ingestionv1.WritePolicyCapability {
-	out := make([]*ingestionv1.WritePolicyCapability, 0, len(caps))
-	for _, cap := range caps {
-		out = append(out, &ingestionv1.WritePolicyCapability{
-			Mode:          writeModeToProto(cap.Mode),
-			RequiresPk:    cap.RequiresPK,
-			RequiresOrder: cap.RequiresOrder,
-			AcceptsOps:    operationsToProto(cap.AcceptsOps),
-			Atomicity:     writeAtomicityToProto(cap.Atomicity),
-		})
-	}
-	return out
-}
-
 // modesToProto reduces the engine's read mechanisms to the connection-level
 // replication modes a connector supports.
 func modesToProto(modes []filament.ReadMode) []ingestionv1.ReplicationMode {
@@ -167,19 +120,6 @@ func modesToProto(modes []filament.ReadMode) []ingestionv1.ReplicationMode {
 	return out
 }
 
-// modeToProto maps an engine read mechanism onto the per-table read lever;
-// CDC is a stream, not a per-table read, so it has no lever value.
-func modeToProto(mode filament.ReadMode) ingestionv1.ReadMode {
-	switch mode {
-	case filament.ModeFull:
-		return ingestionv1.ReadMode_READ_MODE_FULL
-	case filament.ModeIncremental:
-		return ingestionv1.ReadMode_READ_MODE_INCREMENTAL
-	default:
-		return ingestionv1.ReadMode_READ_MODE_UNSPECIFIED
-	}
-}
-
 func replicationToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
 	if mode == filament.ReplicationCDC {
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
@@ -187,108 +127,28 @@ func replicationToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMo
 	return ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD
 }
 
-func readModeFromProto(mode ingestionv1.ReadMode) filament.ReadMode {
-	if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
-		return filament.ModeIncremental
-	}
-	return filament.ModeFull
-}
-
-func writeModeFromProto(mode ingestionv1.WriteMode) filament.WriteMode {
+func standardSyncModeFromProto(mode ingestionv1.StandardSyncMode) (filament.StandardSyncMode, error) {
 	switch mode {
-	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
-		return filament.WriteAppend
-	case ingestionv1.WriteMode_WRITE_MODE_REPLACE:
-		return filament.WriteReplace
-	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
-		return filament.WriteUpsert
-	case ingestionv1.WriteMode_WRITE_MODE_DELETE:
-		return filament.WriteDelete
-	case ingestionv1.WriteMode_WRITE_MODE_MERGE:
-		return filament.WriteMerge
+	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED,
+		ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE:
+		return filament.StandardSyncReplace, nil
+	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_APPEND:
+		return filament.StandardSyncAppend, nil
+	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL:
+		return filament.StandardSyncIncremental, nil
 	default:
-		return ""
+		return "", fmt.Errorf("unknown Standard sync mode %d", mode)
 	}
 }
 
-func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
-	switch t.OrDefault() {
-	case filament.IngestionFullReplace:
-		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE
-	case filament.IngestionFullUpsert:
-		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_UPSERT
-	case filament.IngestionFullAppend:
-		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_APPEND
-	case filament.IngestionIncrementalAppend:
-		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND
-	case filament.IngestionIncrementalUpsert:
-		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT
-	case filament.IngestionIncrementalDelete:
-		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE
-	case filament.IngestionCDC:
-		return ingestionv1.IngestionType_INGESTION_TYPE_CDC
-	default:
-		return ingestionv1.IngestionType_INGESTION_TYPE_UNSPECIFIED
-	}
-}
-
-func operationsToProto(ops []filament.Operation) []ingestionv1.Operation {
-	out := make([]ingestionv1.Operation, 0, len(ops))
-	for _, op := range ops {
-		switch op {
-		case filament.OpInsert:
-			out = append(out, ingestionv1.Operation_OPERATION_INSERT)
-		case filament.OpUpdate:
-			out = append(out, ingestionv1.Operation_OPERATION_UPDATE)
-		case filament.OpDelete:
-			out = append(out, ingestionv1.Operation_OPERATION_DELETE)
-		default:
-			out = append(out, ingestionv1.Operation_OPERATION_UNSPECIFIED)
-		}
-	}
-	return out
-}
-
-func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
+func standardSyncModeToProto(mode filament.StandardSyncMode) ingestionv1.StandardSyncMode {
 	switch mode {
-	case filament.WriteAppend:
-		return ingestionv1.WriteMode_WRITE_MODE_APPEND
-	case filament.WriteReplace:
-		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
-	case filament.WriteUpsert:
-		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
-	case filament.WriteDelete:
-		return ingestionv1.WriteMode_WRITE_MODE_DELETE
-	case filament.WriteMerge:
-		return ingestionv1.WriteMode_WRITE_MODE_MERGE
+	case filament.StandardSyncAppend:
+		return ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_APPEND
+	case filament.StandardSyncIncremental:
+		return ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL
 	default:
-		return ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED
-	}
-}
-
-func writeAtomicityToProto(atomicity filament.WriteAtomicity) ingestionv1.WriteAtomicity {
-	switch atomicity {
-	case filament.AtomicityBatch:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_BATCH
-	case filament.AtomicityResource:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_RESOURCE
-	case filament.AtomicityRun:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_RUN
-	default:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_UNSPECIFIED
-	}
-}
-
-func checkpointPolicyToProto(policy filament.CheckpointPolicy) ingestionv1.CheckpointPolicy {
-	switch policy {
-	case filament.CheckpointNone:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_NONE
-	case filament.CheckpointAfterBatch:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_AFTER_BATCH
-	case filament.CheckpointAfterCommit:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_AFTER_COMMIT
-	default:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_UNSPECIFIED
+		return ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE
 	}
 }
 

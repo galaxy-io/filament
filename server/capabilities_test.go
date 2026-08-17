@@ -135,73 +135,33 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 	}
 }
 
-func TestGetConnectionCapabilitiesLevers(t *testing.T) {
+func TestConnectionReportsEffectiveReplication(t *testing.T) {
 	api, ids := leverAPI(t)
-	get := func(id string) *ingestionv1.GetConnectionCapabilitiesResponse {
-		resp, err := api.GetConnectionCapabilities(context.Background(), connect.NewRequest(&ingestionv1.GetConnectionCapabilitiesRequest{Id: id}))
+	for name, want := range map[string]ingestionv1.ReplicationMode{
+		"standard": ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD,
+		"cdc":      ingestionv1.ReplicationMode_REPLICATION_MODE_CDC,
+		"sink":     ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED,
+	} {
+		resp, err := api.GetConnection(context.Background(), connect.NewRequest(&ingestionv1.GetConnectionRequest{Id: ids[name]}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		return resp.Msg
+		if got := resp.Msg.GetConnection().GetReplication(); got != want {
+			t.Fatalf("%s replication = %v, want %v", name, got, want)
+		}
 	}
 
-	standard := get(ids["standard"])
-	if standard.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD {
-		t.Fatalf("standard replication = %v", standard.GetReplication())
+	resp, err := api.GetConnection(context.Background(), connect.NewRequest(&ingestionv1.GetConnectionRequest{Id: ids["cdc"]}))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := standard.GetReadModes(); len(got) != 2 {
-		t.Fatalf("standard read modes = %v", got)
+	resp.Msg.Connection.Config, err = structpb.NewStruct(map[string]any{"replication": "standard"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := len(standard.GetCapabilities().GetSourcePolicies()); got != 5 {
-		t.Fatalf("standard policies = %d, want 5 (cdc filtered)", got)
-	}
-	compat := standard.GetReadModeWriteCompatibilities()
-	if len(compat) != 2 {
-		t.Fatalf("standard read/write compatibilities = %v", compat)
-	}
-	if compat[0].GetReadMode() != ingestionv1.ReadMode_READ_MODE_FULL || len(compat[0].GetWriteModes()) != 3 {
-		t.Fatalf("full compatibility = %v", compat[0])
-	}
-	incremental := compat[1]
-	if incremental.GetReadMode() != ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
-		t.Fatalf("incremental compatibility = %v", incremental)
-	}
-	wantIncremental := []ingestionv1.WriteMode{
-		ingestionv1.WriteMode_WRITE_MODE_APPEND,
-		ingestionv1.WriteMode_WRITE_MODE_UPSERT,
-	}
-	if got := incremental.GetWriteModes(); len(got) != len(wantIncremental) || got[0] != wantIncremental[0] || got[1] != wantIncremental[1] {
-		t.Fatalf("incremental write modes = %v", got)
-	}
-
-	cdc := get(ids["cdc"])
-	if cdc.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
-		t.Fatalf("cdc replication = %v", cdc.GetReplication())
-	}
-	if got := cdc.GetReadModes(); len(got) != 0 {
-		t.Fatalf("cdc read modes = %v, want none", got)
-	}
-	if got := len(cdc.GetCapabilities().GetSourcePolicies()); got != 1 {
-		t.Fatalf("cdc policies = %d, want 1", got)
-	}
-	if got := cdc.GetReadModeWriteCompatibilities(); len(got) != 0 {
-		t.Fatalf("cdc read/write compatibilities = %v, want none", got)
-	}
-
-	sink := get(ids["sink"])
-	want := []ingestionv1.WriteMode{
-		ingestionv1.WriteMode_WRITE_MODE_APPEND,
-		ingestionv1.WriteMode_WRITE_MODE_REPLACE,
-		ingestionv1.WriteMode_WRITE_MODE_UPSERT,
-	}
-	if got := sink.GetWriteModes(); len(got) != len(want) || got[0] != want[0] || got[2] != want[2] {
-		t.Fatalf("sink write modes = %v", got)
-	}
-	if got := sink.GetReadModeWriteCompatibilities(); len(got) != 0 {
-		t.Fatalf("sink read/write compatibilities = %v, want none", got)
-	}
-	if got := sink.GetCapabilities().GetWriteModes(); len(got) != len(want) || got[0] != want[0] || got[2] != want[2] {
-		t.Fatalf("sink capabilities write modes = %v", got)
+	_, err = api.UpdateConnection(context.Background(), connect.NewRequest(&ingestionv1.UpdateConnectionRequest{Connection: resp.Msg.Connection}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("changing replication mode: got %v, want invalid argument", err)
 	}
 }
 
@@ -231,34 +191,33 @@ func TestValidatePipelineLevers(t *testing.T) {
 		return nil
 	}
 
-	t.Run("default edge is a valid full refresh with per-table menus", func(t *testing.T) {
+	t.Run("default edge is Replace with final per-table options", func(t *testing.T) {
 		resp := validate(ids["standard"], &ingestionv1.PipelineEdge{})
 		if !resp.GetValid() {
 			t.Fatalf("valid = false: %v", resp)
 		}
 		ev := resp.GetEdges()[0]
-		if ev.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE {
-			t.Fatalf("derived = %v", ev.GetIngestionType())
+		if ev.GetEffectiveMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE {
+			t.Fatalf("effective mode = %v", ev.GetEffectiveMode())
 		}
-		if got := byResource(ev, "orders").GetSupportedReadModes(); len(got) != 2 {
-			t.Fatalf("orders read modes = %v", got)
+		if got := byResource(ev, "orders").GetSupportedModes(); len(got) != 3 {
+			t.Fatalf("orders modes = %v", got)
 		}
-		if got := byResource(ev, "audit").GetSupportedReadModes(); len(got) != 1 || got[0] != ingestionv1.ReadMode_READ_MODE_FULL {
-			t.Fatalf("audit read modes = %v, want full only", got)
+		if got := byResource(ev, "audit").GetSupportedModes(); len(got) != 2 || got[0] != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE {
+			t.Fatalf("audit modes = %v, want Replace and Append", got)
 		}
 	})
 
-	t.Run("incremental upsert blocks only where nothing qualifies", func(t *testing.T) {
+	t.Run("Incremental blocks only where cursor and key do not qualify", func(t *testing.T) {
 		resp := validate(ids["standard"], &ingestionv1.PipelineEdge{
-			ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
-			WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
 		})
 		if resp.GetValid() {
 			t.Fatal("valid = true, want blocked by audit")
 		}
 		ev := resp.GetEdges()[0]
-		if ev.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT {
-			t.Fatalf("derived = %v", ev.GetIngestionType())
+		if ev.GetEffectiveMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL {
+			t.Fatalf("effective mode = %v", ev.GetEffectiveMode())
 		}
 		orders := byResource(ev, "orders")
 		for _, req := range orders.GetRequirements() {
@@ -277,25 +236,24 @@ func TestValidatePipelineLevers(t *testing.T) {
 		}
 	})
 
-	t.Run("incremental upsert scoped to a qualifying table is valid", func(t *testing.T) {
+	t.Run("Incremental scoped to a qualifying table is valid", func(t *testing.T) {
 		resp := validate(ids["standard"], &ingestionv1.PipelineEdge{
-			Resource:  "orders",
-			ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
-			WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			Resource:         "orders",
+			StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
 		})
 		if !resp.GetValid() {
 			t.Fatalf("valid = false: %v", resp)
 		}
 	})
 
-	t.Run("cdc connection derives cdc and carries no levers", func(t *testing.T) {
+	t.Run("CDC connection carries no Standard mode", func(t *testing.T) {
 		resp := validate(ids["cdc"], &ingestionv1.PipelineEdge{})
 		ev := resp.GetEdges()[0]
-		if ev.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_CDC {
-			t.Fatalf("derived = %v", ev.GetIngestionType())
+		if ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
+			t.Fatalf("replication = %v", ev.GetReplication())
 		}
-		if got := byResource(ev, "orders").GetSupportedReadModes(); len(got) != 0 {
-			t.Fatalf("cdc per-table read modes = %v, want none", got)
+		if got := byResource(ev, "orders").GetSupportedModes(); len(got) != 0 {
+			t.Fatalf("CDC Standard modes = %v, want none", got)
 		}
 		if resp.GetValid() {
 			t.Fatal("valid = true, want blocked by audit's missing primary key")
@@ -303,7 +261,7 @@ func TestValidatePipelineLevers(t *testing.T) {
 	})
 }
 
-func TestDeriveEdgeTypes(t *testing.T) {
+func TestNormalizeEdgeModes(t *testing.T) {
 	api, ids := leverAPI(t)
 	nodes := func(sourceConn string) []*ingestionv1.PipelineNode {
 		return []*ingestionv1.PipelineNode{
@@ -313,39 +271,45 @@ func TestDeriveEdgeTypes(t *testing.T) {
 	}
 
 	edge := &ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk"}
-	if err := api.deriveEdgeTypes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
+	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
-	if edge.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE {
-		t.Fatalf("default derived = %v", edge.GetIngestionType())
+	if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE {
+		t.Fatalf("default mode = %v", edge.GetStandardSyncMode())
 	}
 
 	edge = &ingestionv1.PipelineEdge{
 		FromNode: "src", ToNode: "snk",
-		ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
-		WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND,
+		StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
 	}
-	if err := api.deriveEdgeTypes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
+	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
-	if edge.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND {
-		t.Fatalf("incremental append derived = %v", edge.GetIngestionType())
+	if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL {
+		t.Fatalf("Incremental mode = %v", edge.GetStandardSyncMode())
 	}
 
 	edge = &ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk"}
-	if err := api.deriveEdgeTypes(context.Background(), nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
+	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
-	if edge.GetIngestionType() != ingestionv1.IngestionType_INGESTION_TYPE_CDC {
-		t.Fatalf("cdc derived = %v", edge.GetIngestionType())
+	if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED {
+		t.Fatalf("CDC mode = %v", edge.GetStandardSyncMode())
 	}
 
 	edge = &ingestionv1.PipelineEdge{
 		FromNode: "src", ToNode: "snk",
-		ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
-		WriteMode: ingestionv1.WriteMode_WRITE_MODE_REPLACE,
+		StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE,
 	}
-	if err := api.deriveEdgeTypes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
-		t.Fatal("incremental replace must not compile")
+	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
+		t.Fatal("CDC must reject a Standard mode")
+	}
+
+	edge = &ingestionv1.PipelineEdge{
+		FromNode: "src", ToNode: "snk",
+		StandardSyncMode: ingestionv1.StandardSyncMode(99),
+	}
+	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
+		t.Fatal("unknown Standard sync mode must be rejected")
 	}
 }
