@@ -10,11 +10,10 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/internal/modules/dispatch"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/runner"
 )
-
-const defaultDurable = "k8sdispatch"
 
 // Module subscribes to run.requested and creates one worker Job per run.
 type Module struct {
@@ -46,7 +45,7 @@ func (m *Module) Name() string { return "k8sdispatch" }
 // Subscriptions declares a durable consumer over run.requested across every tenant/run.
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
-		{Pattern: events.SubjectPattern(events.RunRequested), Durable: defaultDurable, Handler: events.Handler(events.RunRequested, m.onRunRequested)},
+		{Pattern: events.SubjectPattern(events.RunRequested), Durable: dispatch.Durable, Handler: events.Handler(events.RunRequested, m.onRunRequested)},
 	}
 }
 
