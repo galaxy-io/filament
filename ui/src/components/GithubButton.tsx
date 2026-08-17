@@ -11,6 +11,7 @@ const GithubButton = () => {
 
   return (
     <Button
+      label="Star on GitHub"
       icon={GithubLogoIcon}
       variant={ButtonVariant.SECONDARY}
       size={ButtonSize.SMALL}

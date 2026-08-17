@@ -9,13 +9,14 @@ import InfiniteTable, {
   type ColumnDef,
   TableVariant,
 } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import {
   GetRunRequestSchema,
+  RunStatus,
   type RunInfo,
   type RunResourceState,
 } from "@/gen/ingestion/v1/runs_pb";
@@ -107,7 +108,17 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     return (
       <ResourceTableWrapper>
         <FlexWrapper padding={"16px"} fillWidth>
-          <ErrorLayout message="Failed to load run details." />
+          <Text variant={TextVariant.ERROR}>Failed to load run details.</Text>
+        </FlexWrapper>
+      </ResourceTableWrapper>
+    );
+  }
+
+  if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
+    return (
+      <ResourceTableWrapper>
+        <FlexWrapper padding={"16px"} fillWidth>
+          <Text variant={TextVariant.TERTIARY}>The run is scheduled and has not started yet.</Text>
         </FlexWrapper>
       </ResourceTableWrapper>
     );
@@ -117,7 +128,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     return (
       <ResourceTableWrapper>
         <FlexWrapper padding={"16px"} fillWidth>
-          <EmptyLayout message="The run did not record any resource activity." />
+          <Text variant={TextVariant.TERTIARY}>The run did not record any resource activity.</Text>
         </FlexWrapper>
       </ResourceTableWrapper>
     );

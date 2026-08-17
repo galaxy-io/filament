@@ -32,6 +32,13 @@ const FieldList = ({
     <FieldWrapper label={label} help={field.help} isRequired={field.required}>
       <MultiSelectInput
         options={options}
+        pinnedOptions={[
+          {
+            id: "select-all",
+            label: `All ${label.toLowerCase()}`,
+            optionIds: options.map((option) => option.value as string),
+          },
+        ]}
         value={selectedOptions}
         onChange={handleChange}
         onReset={handleReset}

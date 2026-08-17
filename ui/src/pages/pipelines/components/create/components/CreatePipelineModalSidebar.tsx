@@ -28,6 +28,7 @@ import {
   CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_WEIGHT_MAP,
   CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_VARIANT_MAP,
   CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_WEIGHT_MAP,
+  CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP,
   CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP,
 } from "@/pages/pipelines/components/create/constants";
 import {
@@ -60,7 +61,7 @@ const StepButton = styled.button<{ $isClickable: boolean }>`
 `;
 
 const CreatePipelineModalSidebar = () => {
-  const { stepIndex, sinks, activeSinkId, issuesBySink, isSubmitting } =
+  const { step, stepIndex, sinks, activeSinkId, issuesBySink, isSubmitting } =
     useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
@@ -156,8 +157,7 @@ const CreatePipelineModalSidebar = () => {
       </FlexWrapper>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} padding="16px" fillWidth>
         <Paragraph weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
-          Connect a source to one or more sinks, pick the resources you want to ingest, name your
-          pipeline, and optionally set a schedule so it runs on its own.
+          {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
         </Paragraph>
         <DocsButton
           label="Read the docs"
