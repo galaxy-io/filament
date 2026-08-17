@@ -154,7 +154,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		if aerr := snk.Abort(ctx); aerr != nil && deps.Log != nil {
 			deps.Log.Error("runner: sink abort", aerr, filament.Field{Key: "run", Value: string(spec.Run)})
 		}
-		em.failed(err, nil, false)
+		em.failed(err, spec.Resources, false)
 		return
 	}
 
@@ -216,7 +216,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	}
 
 	if err := snk.Commit(ctx); err != nil {
-		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Provider, err), nil, false)
+		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Provider, err), resources, false)
 		abortCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), abortWait)
 		defer cancel()
 		if aerr := snk.Abort(abortCtx); aerr != nil && deps.Log != nil {

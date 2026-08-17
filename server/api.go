@@ -27,6 +27,7 @@ type Server struct {
 	schedules filament.PipelineScheduleStore
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
+	log       filament.Logger
 }
 
 // Option configures a Server.
@@ -38,6 +39,9 @@ func WithSecrets(secrets filament.Secrets) Option { return func(s *Server) { s.s
 // WithMetricsStore sets the run metrics query backend. Unset leaves
 // MetricsService unimplemented.
 func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) { s.metrics = ms } }
+
+// WithLogger sets the structured logger used for API diagnostics.
+func WithLogger(log filament.Logger) Option { return func(s *Server) { s.log = log } }
 
 // New returns a Server wired to the given providers.
 func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {

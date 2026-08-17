@@ -163,3 +163,22 @@ func TestResolveIngestionPlanUsesInsertOrderForSnapshotUpsert(t *testing.T) {
 		t.Fatalf("version strategy = %q, want %q", got, filament.VersionInsertOrder)
 	}
 }
+
+func TestIncrementalAppendFailureIsNotResumable(t *testing.T) {
+	spec := filament.RunSpec{
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalAppend},
+	}
+	plan := filament.IngestionPlan{WritePolicies: map[string]filament.WritePolicy{
+		"users": filament.WritePolicyForIngestion(filament.IngestionIncrementalAppend),
+	}}
+	if isResumableRun(spec, plan) {
+		t.Fatal("incremental append must abort instead of resuming into preserved append data")
+	}
+
+	spec.IngestionTypes["users"] = filament.IngestionIncrementalUpsert
+	plan.WritePolicies["users"] = filament.WritePolicyForIngestion(filament.IngestionIncrementalUpsert)
+	if !isResumableRun(spec, plan) {
+		t.Fatal("incremental upsert should remain resumable")
+	}
+}
