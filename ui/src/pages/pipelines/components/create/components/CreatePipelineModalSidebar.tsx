@@ -1,6 +1,6 @@
 import { styled } from "@linaria/react";
 
-import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon from "@galaxy-io/dls/icons/Icon";
@@ -159,12 +159,7 @@ const CreatePipelineModalSidebar = () => {
         <Paragraph weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
           {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
         </Paragraph>
-        <DocsButton
-          label="Read the docs"
-          path="/pipelines/create"
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.MEDIUM}
-        />
+        <DocsButton label="Read the docs" path="/pipelines/create" size={ButtonSize.MEDIUM} />
       </FlexWrapper>
     </SidebarWrapper>
   );

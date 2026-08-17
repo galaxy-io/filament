@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
-import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/charts/ProgressBar";
 import FlexWrapper, {
   AlignItems,
@@ -143,12 +143,7 @@ const ObservabilitySetupChecklist = () => {
           height={4}
           noAnimation
         />
-        <DocsButton
-          label="Read the docs"
-          path="/pipelines"
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.LARGE}
-        />
+        <DocsButton label="Read the docs" path="/pipelines" size={ButtonSize.LARGE} />
       </SetupContent>
     </DotGridBackground>
   );

@@ -1,6 +1,7 @@
 import { styled } from "@linaria/react";
 import { Link } from "@tanstack/react-router";
 
+import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
   AlignItems,
@@ -103,7 +104,7 @@ const MainLayoutNavbar = () => {
             <GalaxyFilamentWordmark height={18} />
           </FlexItem>
           <FlexItem shrink={0}>
-            <DocsButton />
+            <DocsButton variant={ButtonVariant.TERTIARY} />
           </FlexItem>
         </FlexWrapper>
       </Link>

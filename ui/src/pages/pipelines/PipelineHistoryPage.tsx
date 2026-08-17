@@ -99,7 +99,7 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {formatCount(row.original.records)}
+        {row.original.records ? formatCount(row.original.records) : "—"}
       </Text>
     ),
   },
@@ -111,7 +111,7 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {formatBytes(row.original.bytes)}
+        {row.original.bytes ? formatBytes(row.original.bytes) : "—"}
       </Text>
     ),
   },

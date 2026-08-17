@@ -16,13 +16,10 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import {
   GetRunRequestSchema,
-  RunStatus,
   type RunInfo,
   type RunResourceState,
+  RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
-import ErrorLayout from "@/layouts/ErrorLayout";
 
 import PipelineHistoryRunInfoResourceColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoResourceColumn";
 import {

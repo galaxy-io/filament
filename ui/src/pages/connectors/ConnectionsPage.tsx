@@ -116,7 +116,6 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
               <DocsButton
                 label="Read the docs"
                 path={`/pages/connectors/${kindPlural}`}
-                variant={ButtonVariant.SECONDARY}
                 size={ButtonSize.LARGE}
               />
             </FlexWrapper>

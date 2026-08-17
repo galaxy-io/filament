@@ -20,6 +20,8 @@ import {
   CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT,
 } from "@/pages/connectors/constants";
 
+import ConnectorMaturityIcon from "../../ConnectorMaturityIcon";
+
 interface CreateConnectionSelectorCardProps {
   connector: ConnectorSpec;
   onConnectorSelect: (connector: ConnectorSpec) => void;
@@ -50,7 +52,10 @@ const CreateConnectionSelectorCard = ({
             <ConnectorTile connector={connector.name} kind={connector.kind} />
             <Text weight={TextWeight.MEDIUM}>{connector.displayName || connector.name}</Text>
           </FlexWrapper>
-          <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
+            <ConnectorMaturityIcon maturity={connector.maturity} />
+            <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+          </FlexWrapper>
         </FlexWrapper>
 
         <FlexItem grow={1}>
@@ -58,7 +63,6 @@ const CreateConnectionSelectorCard = ({
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
-
         <Button label="Connect" onClick={handleClick} fillWidth />
       </FlexWrapper>
     </Widget>

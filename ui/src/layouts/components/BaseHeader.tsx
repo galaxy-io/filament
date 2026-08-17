@@ -45,7 +45,7 @@ const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, number> = {
 const TitleWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
   overflow: hidden;
