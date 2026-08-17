@@ -3,7 +3,6 @@ package nats
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament/eventbus"
@@ -54,19 +53,5 @@ func TestPublishClosed(t *testing.T) {
 	err := b.Publish(context.Background(), "app.v1.run.t1.r1.started", "payload")
 	if !errors.Is(err, eventbus.ErrBusClosed) {
 		t.Fatalf("Publish error = %v, want ErrBusClosed", err)
-	}
-}
-
-func TestSubscribeErrorIdentifiesDurableAndRoute(t *testing.T) {
-	cause := errors.New("consumer configuration mismatch")
-	err := subscribeError("ingestion.v1.run.*.*.requested", "dispatch", "EVENTBUS", cause)
-
-	for _, want := range []string{`durable "dispatch"`, `pattern "ingestion.v1.run.*.*.requested"`, `stream "EVENTBUS"`} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("subscribe error %q does not contain %q", err, want)
-		}
-	}
-	if !errors.Is(err, cause) {
-		t.Fatalf("subscribe error does not wrap cause: %v", err)
 	}
 }

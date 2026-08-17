@@ -307,7 +307,7 @@ func (b *Bus) subscribe(ctx context.Context, pattern string, opts eventbus.SubOp
 
 	cons, err := b.ensureConsumer(ctx, cfg)
 	if err != nil {
-		return nil, subscribeError(pattern, opts.Durable, b.stream, err)
+		return nil, fmt.Errorf("eventbus/nats: subscribe pattern %q durable %q stream %q: %w", pattern, opts.Durable, b.stream, err)
 	}
 
 	s := &subscription{
@@ -333,13 +333,6 @@ func (b *Bus) subscribe(ctx context.Context, pattern string, opts eventbus.SubOp
 	s.wg.Add(1)
 	go s.pump()
 	return s, nil
-}
-
-func subscribeError(pattern, durable, stream string, err error) error {
-	if durable != "" {
-		return fmt.Errorf("eventbus/nats: subscribe pattern %q with durable %q on stream %q: %w", pattern, durable, stream, err)
-	}
-	return fmt.Errorf("eventbus/nats: subscribe ephemeral pattern %q on stream %q: %w", pattern, stream, err)
 }
 
 // ensureConsumer creates or binds the consumer. CreateOrUpdateConsumer

@@ -13,7 +13,6 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
-	"github.com/galaxy-io/filament/internal/modules/dispatch"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/runner"
 )
@@ -30,13 +29,13 @@ func New() *Module { return &Module{} }
 var _ module.Module = (*Module)(nil)
 
 // Name identifies this module.
-func (m *Module) Name() string { return "engine" }
+func (m *Module) Name() string { return "dispatch" }
 
 // Subscriptions declares a durable consumer over run.requested across every tenant/run.
 // The fact is only a trigger; the request payload is loaded from the DataStore.
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{
-		{Pattern: events.SubjectPattern(events.RunRequested), Durable: dispatch.Durable, Handler: events.Handler(events.RunRequested, m.onRunRequested)},
+		{Pattern: events.SubjectPattern(events.RunRequested), Durable: m.Name(), Handler: events.Handler(events.RunRequested, m.onRunRequested)},
 	}
 }
 
