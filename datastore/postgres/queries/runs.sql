@@ -51,6 +51,12 @@ WHERE runs.status = @from_status;
 -- name: DeleteRun :exec
 DELETE FROM runs WHERE id = @run_id;
 
+-- Reaps a pipeline's pre-created scheduled runs by the pipeline_id column:
+-- deleting the schedules row SET-NULLs runs.schedule_id, so schedule-scoped
+-- lookups cannot find these rows once the delete tx is underway.
+-- name: DeletePipelineScheduledRuns :exec
+DELETE FROM runs WHERE pipeline_id = @pipeline_id AND status = @status;
+
 -- name: LoadRun :one
 SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
 FROM runs WHERE id = @run_id;

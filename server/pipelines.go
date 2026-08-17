@@ -356,20 +356,11 @@ func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipel
 	return nil
 }
 
-// DeletePipeline removes the pipeline by id.
+// DeletePipeline removes the pipeline by id. The store's delete transaction
+// also removes the pipeline's schedules and pending scheduled runs.
 func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
 	if err := a.store.DeletePipeline(ctx, req.Msg.GetId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	// The schedule RPCs reject deleted pipelines, so this is the last chance to
-	// reap the schedule's pending pre-created runs.
-	if a.schedules != nil {
-		if st, err := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetId()); err == nil {
-			if err := runs.DropScheduled(ctx, a.store, st.ID); err != nil {
-				a.logError("ingestion-api: drop scheduled runs", err,
-					filament.Field{Key: "schedule", Value: string(st.ID)})
-			}
-		}
 	}
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }

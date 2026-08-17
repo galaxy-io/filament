@@ -31,7 +31,7 @@ import {
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
   OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT,
-  OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT,
+  OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
 import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
@@ -256,10 +256,8 @@ const ObservabilityRunsTable = () => {
           </Text>
         </FlexWrapper>
       }
-      maxHeight={OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT}
+      height={OBSERVABILITY_RUNS_TABLE_HEIGHT}
       fillWidth
-      noLastRowPadding
-      noLastRowBorder
     />
   );
 };

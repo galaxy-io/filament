@@ -204,6 +204,11 @@ func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.deleteRunLocked(id)
+	return nil
+}
+
+func (s *Store) deleteRunLocked(id filament.RunID) {
 	delete(s.runs, id)
 	delete(s.resources, id)
 	for key := range s.checkpoints {
@@ -211,7 +216,6 @@ func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 			delete(s.checkpoints, key)
 		}
 	}
-	return nil
 }
 
 // ListRuns returns runs matching the filter, newest StartedAt first. A run that

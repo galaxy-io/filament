@@ -83,6 +83,23 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (int64, er
 	return result.RowsAffected(), nil
 }
 
+const deletePipelineScheduledRuns = `-- name: DeletePipelineScheduledRuns :exec
+DELETE FROM runs WHERE pipeline_id = $1 AND status = $2
+`
+
+type DeletePipelineScheduledRunsParams struct {
+	PipelineID pgtype.Text
+	Status     int16
+}
+
+// Reaps a pipeline's pre-created scheduled runs by the pipeline_id column:
+// deleting the schedules row SET-NULLs runs.schedule_id, so schedule-scoped
+// lookups cannot find these rows once the delete tx is underway.
+func (q *Queries) DeletePipelineScheduledRuns(ctx context.Context, arg DeletePipelineScheduledRunsParams) error {
+	_, err := q.db.Exec(ctx, deletePipelineScheduledRuns, arg.PipelineID, arg.Status)
+	return err
+}
+
 const deleteRun = `-- name: DeleteRun :exec
 DELETE FROM runs WHERE id = $1
 `

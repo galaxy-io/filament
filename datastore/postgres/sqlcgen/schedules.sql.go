@@ -257,11 +257,12 @@ func (q *Queries) ReleaseScheduleClaim(ctx context.Context, scheduleID string) e
 	return err
 }
 
-const saveSchedule = `-- name: SaveSchedule :exec
+const saveSchedule = `-- name: SaveSchedule :execrows
 INSERT INTO schedules (id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, claimed_at, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7,
-    $8, $9, $10, NULL, $11, now())
+SELECT $1, $2, $3, $4, $5, $6, $7,
+    $8, $9, $10, NULL, $11, now()
+FROM pipelines WHERE id = $3 AND NOT is_deleted
 ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
@@ -290,8 +291,11 @@ type SaveScheduleParams struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
-func (q *Queries) SaveSchedule(ctx context.Context, arg SaveScheduleParams) error {
-	_, err := q.db.Exec(ctx, saveSchedule,
+// The insert arm sources from pipelines so a save racing a pipeline delete
+// cannot re-insert the schedule row the delete just removed; 0 rows means the
+// pipeline is gone or deleted.
+func (q *Queries) SaveSchedule(ctx context.Context, arg SaveScheduleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveSchedule,
 		arg.ScheduleID,
 		arg.TenantID,
 		arg.PipelineID,
@@ -304,5 +308,8 @@ func (q *Queries) SaveSchedule(ctx context.Context, arg SaveScheduleParams) erro
 		arg.NextFireAt,
 		arg.CreatedAt,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

@@ -8,8 +8,10 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -56,6 +58,43 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 	_, err = api.RunPipeline(ctx, connect.NewRequest(&ingestionv1.RunPipelineRequest{PipelineId: "pipe-1"}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("expected FailedPrecondition running a deleted pipeline, got %v", err)
+	}
+}
+
+// TestDeletePipelineDropsScheduledRuns covers the reap ordering: the store
+// delete cascades the schedule row away, so the schedule id must be captured
+// before the delete or the pending pre-created runs are orphaned.
+func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: "t1", Name: "scheduled"}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	fire := time.Now().Add(time.Hour)
+	if err := store.SaveSchedule(ctx, filament.ScheduleState{
+		ID:       "sched-1",
+		Spec:     filament.ScheduleSpec{Tenant: "t1", Name: "scheduled", PipelineID: "pipe-1", Cron: "0 * * * *", Timezone: "UTC", Enabled: true},
+		Enabled:  true,
+		NextFire: &fire,
+	}); err != nil {
+		t.Fatalf("SaveSchedule: %v", err)
+	}
+	if _, err := runs.Schedule(ctx, store, filament.RunRequest{Tenant: "t1", PipelineID: "pipe-1", IdempotencyKey: "occ-1", ScheduleID: "sched-1", ScheduledFor: fire}); err != nil {
+		t.Fatalf("Schedule: %v", err)
+	}
+
+	if _, err := api.DeletePipeline(ctx, connect.NewRequest(&ingestionv1.DeletePipelineRequest{Id: "pipe-1"})); err != nil {
+		t.Fatalf("DeletePipeline: %v", err)
+	}
+
+	pending, _, err := store.ListRuns(ctx, filament.RunFilter{Schedule: "sched-1", Status: []filament.RunStatus{filament.RunScheduled}})
+	if err != nil {
+		t.Fatalf("ListRuns: %v", err)
+	}
+	if len(pending) != 0 {
+		t.Fatalf("expected pending scheduled runs reaped on pipeline delete, got %d", len(pending))
 	}
 }
 
