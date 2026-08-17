@@ -148,13 +148,6 @@ func (c *Connector) streamResource(
 
 	c.appendCaptures(res.Name, captured)
 
-	c.reporter.Report(pipeline.Event{
-		Type:         pipeline.EventResourceComplete,
-		Resource:     res.Name,
-		Connector:    c.manifest.Name,
-		TotalRecords: totalRecords,
-	})
-
 	return totalRecords, nil
 }
 

@@ -366,7 +366,8 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 	if a.schedules != nil {
 		if st, err := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetId()); err == nil {
 			if err := runs.DropScheduled(ctx, a.store, st.ID); err != nil {
-				fmt.Printf("[ingestion-api] drop scheduled runs schedule=%s err=%v\n", st.ID, err)
+				a.logError("ingestion-api: drop scheduled runs", err,
+					filament.Field{Key: "schedule", Value: string(st.ID)})
 			}
 		}
 	}
@@ -402,11 +403,22 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("[ingestion-api] RunPipeline route=%s source=%s sink=%s resources=%v run=%s\n", c.Edge, c.Req.Source.Provider, c.Req.Sink.Provider, c.Req.Resources, run)
+		if a.log != nil {
+			a.log.Info("ingestion-api: run submitted",
+				filament.Field{Key: "route", Value: c.Edge},
+				filament.Field{Key: "source", Value: c.Req.Source.Provider},
+				filament.Field{Key: "sink", Value: c.Req.Sink.Provider},
+				filament.Field{Key: "resources", Value: c.Req.Resources},
+				filament.Field{Key: "run", Value: string(run)})
+		}
 		state := filament.RunState{Run: run, Tenant: c.Req.Tenant, Request: c.Req, ScheduleID: c.Req.ScheduleID, Status: filament.RunRequested}
 		edgeRuns = append(edgeRuns, &ingestionv1.PipelineEdgeRun{PipelineEdgeKey: c.Edge, Run: runInfoToProto(state)})
 	}
-	fmt.Printf("[ingestion-api] RunPipeline pipeline=%s runs=%d\n", req.GetPipelineId(), len(edgeRuns))
+	if a.log != nil {
+		a.log.Info("ingestion-api: pipeline submitted",
+			filament.Field{Key: "pipeline", Value: req.GetPipelineId()},
+			filament.Field{Key: "runs", Value: len(edgeRuns)})
+	}
 	return edgeRuns, nil
 }
 
@@ -416,7 +428,14 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 // expected to fail here until the first version lands.
 func (a *Server) reconcileScheduledRunsBestEffort(ctx context.Context, st filament.ScheduleState) {
 	if err := runs.ReconcileScheduled(ctx, a.store, a.compiler, st); err != nil {
-		fmt.Printf("[ingestion-api] reconcile scheduled runs schedule=%s err=%v\n", st.ID, err)
+		a.logError("ingestion-api: reconcile scheduled runs", err,
+			filament.Field{Key: "schedule", Value: string(st.ID)})
+	}
+}
+
+func (a *Server) logError(msg string, err error, fields ...filament.Field) {
+	if a.log != nil {
+		a.log.Error(msg, err, fields...)
 	}
 }
 

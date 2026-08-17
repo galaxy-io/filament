@@ -40,6 +40,7 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 	defer func() { _ = facts.Close() }()
 
 	failed := make(chan string, 1)
+	resourceFailed := make(chan string, 1)
 	go func() {
 		for msg := range facts.C() {
 			f, decodeErr := events.Decode(msg)
@@ -50,6 +51,9 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 			if d, ok := f.Data.(events.RunFailedEvent); ok {
 				failed <- d.Error
 				return
+			}
+			if d, ok := f.Data.(events.ResourceFailedEvent); ok && f.Resource == "users" {
+				resourceFailed <- d.Error
 			}
 		}
 	}()
@@ -81,6 +85,14 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("no run.failed fact published")
+	}
+	select {
+	case msg := <-resourceFailed:
+		if !strings.Contains(msg, "commit") {
+			t.Fatalf("resource.failed error = %q, want commit failure", msg)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no resource.failed fact published")
 	}
 	if got := sink.aborts.Load(); got != 1 {
 		t.Fatalf("Abort calls = %d, want 1", got)
