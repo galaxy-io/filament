@@ -1,18 +1,13 @@
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type {
-  ConnectorSpec,
   GetResourceColumnsResponse,
   Resource,
   ResourceColumn,
 } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import {
-  CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE,
-  CREATE_PIPELINE_MODAL_FALLBACK_READ_MODES,
-  CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES,
-} from "@/pages/pipelines/components/create/constants";
+import { CREATE_PIPELINE_MODAL_DEFAULT_SYNC_MODE } from "@/pages/pipelines/components/create/constants";
 import type {
   CreatePipelineModalResourceRow,
   CreatePipelineModalResourceStatus,
@@ -30,21 +25,6 @@ export const getDefaultPipelineName = (
   return sinkNames;
 };
 
-export const getSinkWriteModes = (spec: ConnectorSpec | undefined): WriteMode[] =>
-  spec?.capabilities?.writeModes?.length
-    ? spec.capabilities.writeModes
-    : CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES;
-
-export const getCompatibleWriteModes = (
-  readModes: ReadMode[],
-  writeModesByReadMode: Partial<Record<ReadMode, WriteMode[]>>,
-): WriteMode[] =>
-  readModes.length
-    ? readModes
-        .map((readMode) => writeModesByReadMode[readMode] ?? [])
-        .reduce((left, right) => left.filter((mode) => right.includes(mode)))
-    : [...new Set(Object.values(writeModesByReadMode).flatMap((writeModes) => writeModes ?? []))];
-
 export const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
   columns
     .filter((column) => column.isCursorEligible)
@@ -56,44 +36,41 @@ export const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
     });
 
 const getResourceStatus = ({
-  readMode,
+  syncMode,
+  syncModeOptions,
   cursorField,
   cursorOptions,
   isCursorKnown,
-  hasPrimaryKey,
-  needsPrimaryKey,
   resource,
 }: {
-  readMode: ReadMode;
+  syncMode: StandardSyncMode;
+  syncModeOptions: StandardSyncMode[];
   cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
   isCursorKnown: boolean;
-  hasPrimaryKey: boolean;
-  needsPrimaryKey: boolean;
   resource: Resource["name"];
 }): CreatePipelineModalResourceStatus | undefined => {
-  if (readMode === ReadMode.INCREMENTAL && !cursorField) {
-    if (cursorOptions.length) {
-      return {
-        message: `Incremental reads require a cursor column for ${resource}`,
-        isBlocking: true,
-      };
-    }
-    if (isCursorKnown) {
-      return {
-        message: `${resource} has no usable cursor column; read it in full instead`,
-        isBlocking: true,
-      };
-    }
-  }
-
-  if (needsPrimaryKey && !hasPrimaryKey) {
+  if (!syncModeOptions.includes(syncMode)) {
     return {
-      message: `Writing by key needs a primary key, but none was discovered for ${resource}`,
-      isBlocking: false,
+      message: syncModeOptions.length
+        ? `${resource} does not support the default mode; choose an available mode`
+        : `${resource} has no sync mode supported by this source and sink`,
+      isBlocking: true,
     };
   }
-
+  if (syncMode !== StandardSyncMode.INCREMENTAL || cursorField) return undefined;
+  if (cursorOptions.length) {
+    return {
+      message: `Incremental sync requires a cursor column for ${resource}`,
+      isBlocking: true,
+    };
+  }
+  if (isCursorKnown) {
+    return {
+      message: `${resource} has no usable cursor column; use Replace or Append instead`,
+      isBlocking: true,
+    };
+  }
   return undefined;
 };
 
@@ -102,25 +79,19 @@ const buildResourceRows = ({
   sinkId,
   resources,
   columns,
-  readModes,
+  supportedModes,
   isCdc,
-  writeModes,
 }: {
   state: CreatePipelineModalState;
   sinkId: Connection["id"];
   resources: Resource[];
   columns: GetResourceColumnsResponse | undefined;
-  readModes: ReadMode[];
+  supportedModes: Record<Resource["name"], StandardSyncMode[]>;
   isCdc: boolean;
-  writeModes: WriteMode[];
 }): CreatePipelineModalResourceRow[] => {
   const columnsByResource = new Map(
     (columns?.resources ?? []).map((entry) => [entry.resource, entry.columns]),
   );
-  const connectionReadModes = readModes.length
-    ? readModes
-    : CREATE_PIPELINE_MODAL_FALLBACK_READ_MODES;
-  const needsPrimaryKey = writeModes.includes(WriteMode.UPSERT);
 
   return resources.map((resource) => {
     const resourceColumns = columnsByResource.get(resource.name);
@@ -128,21 +99,13 @@ const buildResourceRows = ({
     const cursorOptions = getCursorOptions(resourceColumns ?? []);
     const autoCursor =
       (resourceColumns ?? []).find((column) => column.isCursorRecommended)?.name ?? "";
-    const canIncremental =
-      connectionReadModes.includes(ReadMode.INCREMENTAL) &&
-      (cursorOptions.length > 0 || !isCursorKnown);
-
-    const readModeOptions = isCdc
-      ? []
-      : connectionReadModes.filter((mode) => mode !== ReadMode.INCREMENTAL || canIncremental);
-
-    const storedReadMode = state.resourceReadModes[sinkId]?.[resource.name];
-    const defaultReadMode = autoCursor ? ReadMode.INCREMENTAL : ReadMode.FULL;
-    const preferredReadMode = storedReadMode ?? defaultReadMode;
-    const readMode = readModeOptions.includes(preferredReadMode)
-      ? preferredReadMode
-      : (readModeOptions[0] ?? ReadMode.FULL);
-
+    const syncModeOptions = isCdc ? [] : (supportedModes[resource.name] ?? []);
+    const storedMode = state.resourceSyncModes[sinkId]?.[resource.name];
+    const defaultMode =
+      autoCursor && syncModeOptions.includes(StandardSyncMode.INCREMENTAL)
+        ? StandardSyncMode.INCREMENTAL
+        : CREATE_PIPELINE_MODAL_DEFAULT_SYNC_MODE;
+    const syncMode = storedMode ?? defaultMode;
     const isSelected = state.resourceSelection[sinkId]?.[resource.name] ?? true;
     const cursorField = state.resourceCursors[sinkId]?.[resource.name] ?? autoCursor;
 
@@ -151,20 +114,19 @@ const buildResourceRows = ({
       displayName: resource.displayName || resource.name,
       isSelectable: resource.isSelectable,
       isSelected: resource.isSelectable && isSelected,
-      readMode,
-      readModeOptions,
+      syncMode,
+      syncModeOptions,
       cursorField,
       cursorOptions,
       status:
         isCdc || !isSelected
           ? undefined
           : getResourceStatus({
-              readMode,
+              syncMode,
+              syncModeOptions,
               cursorField,
               cursorOptions,
               isCursorKnown,
-              hasPrimaryKey: resource.primaryKey.length > 0,
-              needsPrimaryKey,
               resource: resource.name,
             }),
     };
@@ -175,16 +137,17 @@ export const buildResourceRowsBySink = ({
   state,
   resources,
   columns,
-  readModes,
+  supportedModesBySink,
   isCdc,
-  writeModesBySink,
 }: {
   state: CreatePipelineModalState;
   resources: Resource[];
   columns: GetResourceColumnsResponse | undefined;
-  readModes: ReadMode[];
+  supportedModesBySink: Record<
+    Connection["id"],
+    Record<Resource["name"], StandardSyncMode[]>
+  >;
   isCdc: boolean;
-  writeModesBySink: Record<Connection["id"], WriteMode[]>;
 }): Record<Connection["id"], CreatePipelineModalResourceRow[]> =>
   Object.fromEntries(
     state.sinkConnections.map((sink) => [
@@ -194,45 +157,14 @@ export const buildResourceRowsBySink = ({
         sinkId: sink.id,
         resources,
         columns,
-        readModes,
+        supportedModes: supportedModesBySink[sink.id] ?? {},
         isCdc,
-        writeModes: writeModesBySink[sink.id] ?? [],
       }),
     ]),
   );
 
-export const buildSinkRows = ({
-  state,
-  rowsBySink,
-  isCdc,
-  writeModesBySink,
-  writeModesByReadMode,
-}: {
-  state: CreatePipelineModalState;
-  rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
-  isCdc: boolean;
-  writeModesBySink: Record<Connection["id"], WriteMode[]>;
-  writeModesByReadMode: Partial<Record<ReadMode, WriteMode[]>>;
-}): CreatePipelineModalSinkRow[] =>
-  state.sinkConnections.map((connection) => {
-    const rows = rowsBySink[connection.id] ?? [];
-    const readModes = [...new Set(rows.filter((row) => row.isSelected).map((row) => row.readMode))];
-    const compatible = getCompatibleWriteModes(readModes, writeModesByReadMode);
-    const supported = writeModesBySink[connection.id] ?? CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES;
-    const narrowed = supported.filter((mode) => compatible.includes(mode));
-    const writeModeOptions = narrowed.length ? narrowed : supported;
-
-    const stored = state.sinkWriteModes[connection.id] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE;
-    const writeMode = writeModeOptions.includes(stored)
-      ? stored
-      : (writeModeOptions[0] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE);
-
-    return {
-      connection,
-      writeMode: isCdc ? WriteMode.UNSPECIFIED : writeMode,
-      writeModeOptions,
-    };
-  });
+export const buildSinkRows = (state: CreatePipelineModalState): CreatePipelineModalSinkRow[] =>
+  state.sinkConnections.map((connection) => ({ connection }));
 
 export const getIssuesBySink = (
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>,

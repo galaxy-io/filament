@@ -6,7 +6,7 @@ import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
-import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -26,10 +26,7 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import { getCanvasEdgeResourceLabel } from "@/pages/pipelines/canvas/utils";
-import {
-  READ_MODE_TO_LABEL_MAP,
-  WRITE_MODE_TO_LABEL_MAP,
-} from "@/pages/pipelines/components/create/constants";
+import { STANDARD_SYNC_MODE_TO_LABEL_MAP } from "@/pages/pipelines/components/create/constants";
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -46,8 +43,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     isCdc,
     isLoading,
     coveredResources,
-    readModeOptions,
-    writeModeOptions,
+    syncModeOptions,
     cursorOptionsByResource,
     recommendedCursorByResource,
   } = usePipelineCanvasPanelResourceOptions(edge);
@@ -57,8 +53,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     coveredResources.length,
   );
 
-  const readMode = edge.data?.readMode ?? ReadMode.UNSPECIFIED;
-  const writeMode = edge.data?.writeMode ?? WriteMode.UNSPECIFIED;
+  const syncMode = edge.data?.standardSyncMode ?? StandardSyncMode.UNSPECIFIED;
   const cursors = edge.data?.cursors ?? [];
 
   const buildRecommendedCursors = () =>
@@ -72,20 +67,15 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
         }),
       );
 
-  const handleReadModeChange = (mode: ReadMode) =>
+  const handleSyncModeChange = (mode: StandardSyncMode) =>
     setEdgeConfig(edge.id, {
-      readMode: mode,
-      writeMode,
-      cursors: mode === ReadMode.INCREMENTAL ? buildRecommendedCursors() : [],
+      standardSyncMode: mode,
+      cursors: mode === StandardSyncMode.INCREMENTAL ? buildRecommendedCursors() : [],
     });
-
-  const handleWriteModeChange = (mode: WriteMode) =>
-    setEdgeConfig(edge.id, { readMode, writeMode: mode, cursors });
 
   const handleCursorChange = (resourceName: Resource["name"], field: ResourceColumn["name"]) =>
     setEdgeConfig(edge.id, {
-      readMode,
-      writeMode,
+      standardSyncMode: syncMode,
       cursors: [
         ...cursors.filter((cursor) => cursor.resource !== resourceName),
         create(ResourceCursorConfigSchema, {
@@ -98,14 +88,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
 
   const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
 
-  const readModeSelectOptions: SelectInputOption[] = readModeOptions.map((mode) => ({
+  const syncModeSelectOptions: SelectInputOption[] = syncModeOptions.map((mode) => ({
     id: String(mode),
-    label: READ_MODE_TO_LABEL_MAP[mode],
-    value: mode,
-  }));
-  const writeModeSelectOptions: SelectInputOption[] = writeModeOptions.map((mode) => ({
-    id: String(mode),
-    label: WRITE_MODE_TO_LABEL_MAP[mode],
+    label: STANDARD_SYNC_MODE_TO_LABEL_MAP[mode],
     value: mode,
   }));
 
@@ -147,33 +132,22 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           header="Configuration"
           isEmpty={isCdc}
           emptyHeader="Managed automatically"
-          emptyMessage="This connection replicates changes via CDC, so read and write modes are set for you."
+          emptyMessage="This connection applies inserts, updates, and deletes through CDC."
           padding="12px"
         >
           <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
             <SelectInput
-              label="Read mode"
-              options={readModeSelectOptions}
-              value={readModeSelectOptions.find((option) => option.value === readMode) ?? null}
-              onChange={(option) => handleReadModeChange(option.value as ReadMode)}
+              label="Mode"
+              options={syncModeSelectOptions}
+              value={syncModeSelectOptions.find((option) => option.value === syncMode) ?? null}
+              onChange={(option) => handleSyncModeChange(option.value as StandardSyncMode)}
               variant={InputVariant.TERTIARY}
-              placeholder="Select a read mode..."
+              placeholder="Select a mode..."
               size={InputSize.LARGE}
               isDisabled={isReadOnly || isLoading}
               fillWidth
             />
-            <SelectInput
-              label="Write mode"
-              options={writeModeSelectOptions}
-              value={writeModeSelectOptions.find((option) => option.value === writeMode) ?? null}
-              onChange={(option) => handleWriteModeChange(option.value as WriteMode)}
-              variant={InputVariant.TERTIARY}
-              placeholder="Select a write mode..."
-              size={InputSize.LARGE}
-              isDisabled={isReadOnly || isLoading}
-              fillWidth
-            />
-            {readMode === ReadMode.INCREMENTAL &&
+            {syncMode === StandardSyncMode.INCREMENTAL &&
               coveredResources.map((resourceName) => (
                 <PipelineCanvasPanelResourceCursorField
                   key={resourceName}

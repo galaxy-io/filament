@@ -8,10 +8,9 @@ import {
   type SetDescriptionAction,
   type SetNameAction,
   type SetResourceCursorAction,
-  type SetResourceReadModeAction,
+  type SetResourceSyncModeAction,
   type SetResourceSelectionAction,
   type SetScheduleAction,
-  type SetSinkWriteModeAction,
   type SetSubmittingAction,
   type SetWorkerResourcesAction,
   type ToggleSinkAction,
@@ -30,7 +29,7 @@ function selectSource(
     ...state,
     sourceConnection: state.sourceConnection?.id === action.payload.id ? null : action.payload,
     resourceSelection: {},
-    resourceReadModes: {},
+    resourceSyncModes: {},
     resourceCursors: {},
   };
 }
@@ -78,16 +77,16 @@ function setResourceSelection(
   };
 }
 
-function setResourceReadMode(
+function setResourceSyncMode(
   state: CreatePipelineModalState,
-  action: SetResourceReadModeAction,
+  action: SetResourceSyncModeAction,
 ): CreatePipelineModalState {
-  const { sinkId, resource, readMode } = action.payload;
+  const { sinkId, resource, syncMode } = action.payload;
   return {
     ...state,
-    resourceReadModes: {
-      ...state.resourceReadModes,
-      [sinkId]: { ...state.resourceReadModes[sinkId], [resource]: readMode },
+    resourceSyncModes: {
+      ...state.resourceSyncModes,
+      [sinkId]: { ...state.resourceSyncModes[sinkId], [resource]: syncMode },
     },
   };
 }
@@ -103,17 +102,6 @@ function setResourceCursor(
       ...state.resourceCursors,
       [sinkId]: { ...state.resourceCursors[sinkId], [resource]: cursorField },
     },
-  };
-}
-
-function setSinkWriteMode(
-  state: CreatePipelineModalState,
-  action: SetSinkWriteModeAction,
-): CreatePipelineModalState {
-  const { sinkId, writeMode } = action.payload;
-  return {
-    ...state,
-    sinkWriteModes: { ...state.sinkWriteModes, [sinkId]: writeMode },
   };
 }
 
@@ -184,12 +172,10 @@ const createPipelineModalReducer = (
       return openSinkResources(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_SELECTION:
       return setResourceSelection(state, action);
-    case CreatePipelineModalActionType.SET_RESOURCE_READ_MODE:
-      return setResourceReadMode(state, action);
+    case CreatePipelineModalActionType.SET_RESOURCE_SYNC_MODE:
+      return setResourceSyncMode(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_CURSOR:
       return setResourceCursor(state, action);
-    case CreatePipelineModalActionType.SET_SINK_WRITE_MODE:
-      return setSinkWriteMode(state, action);
     case CreatePipelineModalActionType.SET_NAME:
       return setName(state, action);
     case CreatePipelineModalActionType.SET_DESCRIPTION:

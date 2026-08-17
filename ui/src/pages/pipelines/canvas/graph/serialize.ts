@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
-import { IngestionType, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
 import {
   type CreatePipelineVersionRequest,
   CreatePipelineVersionRequestSchema,
@@ -36,8 +36,10 @@ export const getCanvasEdgeConfig = (
   edge: Pick<CanvasEdge, "data">,
   baseEdge: PipelineEdgeProto | undefined,
 ): PipelineCanvasEdgeData => ({
-  readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
-  writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
+  standardSyncMode:
+    edge.data?.standardSyncMode ??
+    baseEdge?.standardSyncMode ??
+    StandardSyncMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
 });
 
@@ -114,7 +116,6 @@ export const mapCanvasStateToVersionRequest = (
       fromNode: edge.source,
       resource: getCanvasEdgeResource(edge),
       toNode: edge.target,
-      ingestionType: baseEdge?.ingestionType ?? IngestionType.UNSPECIFIED,
       selector: baseEdge?.selector ?? "",
       ...getCanvasEdgeConfig(edge, baseEdge),
     };

@@ -4,9 +4,9 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { ConnectorKind, IngestionType, ReadMode, ReplicationMode, WriteMode } from "./common_pb";
+import type { ReplicationMode, StandardSyncMode } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
-import type { Capabilities, ValidationError } from "./connectors_pb";
+import type { ValidationError } from "./connectors_pb";
 import { file_ingestion_v1_connectors } from "./connectors_pb";
 import type { PipelineEdge, PipelineNode } from "./pipelines_pb";
 import { file_ingestion_v1_pipelines } from "./pipelines_pb";
@@ -16,116 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/capabilities.proto.
  */
 export const file_ingestion_v1_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiQQogR2V0Q29ubmVjdGlvbkNhcGFiaWxpdGllc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJInUKGlJlYWRNb2RlV3JpdGVDb21wYXRpYmlsaXR5EikKCXJlYWRfbW9kZRgBIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIsCgt3cml0ZV9tb2RlcxgCIAMoDjIXLmluZ2VzdGlvbi52MS5Xcml0ZU1vZGUi9AIKIUdldENvbm5lY3Rpb25DYXBhYmlsaXRpZXNSZXNwb25zZRIRCgljb25uZWN0b3IYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEjAKDGNhcGFiaWxpdGllcxgDIAEoCzIaLmluZ2VzdGlvbi52MS5DYXBhYmlsaXRpZXMSMgoLcmVwbGljYXRpb24YBCABKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEioKCnJlYWRfbW9kZXMYBSADKA4yFi5pbmdlc3Rpb24udjEuUmVhZE1vZGUSLAoLd3JpdGVfbW9kZXMYBiADKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlElEKH3JlYWRfbW9kZV93cml0ZV9jb21wYXRpYmlsaXRpZXMYByADKAsyKC5pbmdlc3Rpb24udjEuUmVhZE1vZGVXcml0ZUNvbXBhdGliaWxpdHkiggEKF1ZhbGlkYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgVub2RlcxgCIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYAyADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIlMKDkNhbmRpZGF0ZVZhbHVlEg0KBXZhbHVlGAEgASgJEhMKC3JlY29tbWVuZGVkGAIgASgIEgwKBHJhbmsYAyABKAUSDwoHd2FybmluZxgEIAEoCSLtAQoLUmVxdWlyZW1lbnQSKwoEa2luZBgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudEtpbmQSEAoIcmVzb3VyY2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIwCgpjYW5kaWRhdGVzGAQgAygLMhwuaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVZhbHVlEhEKCXNhdGlzZmllZBgFIAEoCBIQCghibG9ja2luZxgGIAEoCBI3ChBjYW5kaWRhdGVfc3RhdHVzGAcgASgOMh0uaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVN0YXR1cyKNAQoSUmVzb3VyY2VWYWxpZGF0aW9uEhAKCHJlc291cmNlGAEgASgJEjQKFHN1cHBvcnRlZF9yZWFkX21vZGVzGAIgAygOMhYuaW5nZXN0aW9uLnYxLlJlYWRNb2RlEi8KDHJlcXVpcmVtZW50cxgDIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudCLIAgoORWRnZVZhbGlkYXRpb24SEQoJZnJvbV9ub2RlGAEgASgJEg8KB3RvX25vZGUYAiABKAkSEAoIcmVzb3VyY2UYAyABKAkSNgoVc3VwcG9ydGVkX3dyaXRlX21vZGVzGAQgAygOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRItCgZlcnJvcnMYBSADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yEi8KDHJlcXVpcmVtZW50cxgGIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudBIzCglyZXNvdXJjZXMYByADKAsyIC5pbmdlc3Rpb24udjEuUmVzb3VyY2VWYWxpZGF0aW9uEjMKDmluZ2VzdGlvbl90eXBlGAggASgOMhsuaW5nZXN0aW9uLnYxLkluZ2VzdGlvblR5cGUihQEKGFZhbGlkYXRlUGlwZWxpbmVSZXNwb25zZRINCgV2YWxpZBgBIAEoCBIrCgVlZGdlcxgCIAMoCzIcLmluZ2VzdGlvbi52MS5FZGdlVmFsaWRhdGlvbhItCgZlcnJvcnMYAyADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yKnkKD1JlcXVpcmVtZW50S2luZBIgChxSRVFVSVJFTUVOVF9LSU5EX1VOU1BFQ0lGSUVEEAASIgoeUkVRVUlSRU1FTlRfS0lORF9DVVJTT1JfQ09MVU1OEAESIAocUkVRVUlSRU1FTlRfS0lORF9QUklNQVJZX0tFWRACKpoBCg9DYW5kaWRhdGVTdGF0dXMSIAocQ0FORElEQVRFX1NUQVRVU19VTlNQRUNJRklFRBAAEh8KG0NBTkRJREFURV9TVEFUVVNfRU5VTUVSQVRFRBABEiIKHkNBTkRJREFURV9TVEFUVVNfTk9UX1NVUFBPUlRFRBACEiAKHENBTkRJREFURV9TVEFUVVNfVU5BVkFJTEFCTEUQA2IGcHJvdG8z", [file_ingestion_v1_common, file_ingestion_v1_connectors, file_ingestion_v1_pipelines]);
-
-/**
- * @generated from message ingestion.v1.GetConnectionCapabilitiesRequest
- */
-export type GetConnectionCapabilitiesRequest = Message<"ingestion.v1.GetConnectionCapabilitiesRequest"> & {
-  /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string id = 2;
-   */
-  id: string;
-};
-
-/**
- * Describes the message ingestion.v1.GetConnectionCapabilitiesRequest.
- * Use `create(GetConnectionCapabilitiesRequestSchema)` to create a new message.
- */
-export const GetConnectionCapabilitiesRequestSchema: GenMessage<GetConnectionCapabilitiesRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 0);
-
-/**
- * ReadModeWriteCompatibility is one read mode crossed with the write modes
- * it can compile with. Delete and merge are engine mechanisms, never offered
- * as read or write modes.
- *
- * @generated from message ingestion.v1.ReadModeWriteCompatibility
- */
-export type ReadModeWriteCompatibility = Message<"ingestion.v1.ReadModeWriteCompatibility"> & {
-  /**
-   * @generated from field: ingestion.v1.ReadMode read_mode = 1;
-   */
-  readMode: ReadMode;
-
-  /**
-   * @generated from field: repeated ingestion.v1.WriteMode write_modes = 2;
-   */
-  writeModes: WriteMode[];
-};
-
-/**
- * Describes the message ingestion.v1.ReadModeWriteCompatibility.
- * Use `create(ReadModeWriteCompatibilitySchema)` to create a new message.
- */
-export const ReadModeWriteCompatibilitySchema: GenMessage<ReadModeWriteCompatibility> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 1);
-
-/**
- * @generated from message ingestion.v1.GetConnectionCapabilitiesResponse
- */
-export type GetConnectionCapabilitiesResponse = Message<"ingestion.v1.GetConnectionCapabilitiesResponse"> & {
-  /**
-   * @generated from field: string connector = 1;
-   */
-  connector: string;
-
-  /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
-   */
-  kind: ConnectorKind;
-
-  /**
-   * Flags and the connection's effective policies, narrowed by its config.
-   *
-   * @generated from field: ingestion.v1.Capabilities capabilities = 3;
-   */
-  capabilities?: Capabilities | undefined;
-
-  /**
-   * The connection's replication mode, resolved from its stored config.
-   * Sinks report UNSPECIFIED.
-   *
-   * @generated from field: ingestion.v1.ReplicationMode replication = 4;
-   */
-  replication: ReplicationMode;
-
-  /**
-   * Source: the per-table read modes this connection offers. Empty on a CDC
-   * connection — replication is understood, there is no read mode.
-   *
-   * @generated from field: repeated ingestion.v1.ReadMode read_modes = 5;
-   */
-  readModes: ReadMode[];
-
-  /**
-   * Sink: the write modes this sink offers.
-   *
-   * @generated from field: repeated ingestion.v1.WriteMode write_modes = 6;
-   */
-  writeModes: WriteMode[];
-
-  /**
-   * Source: for each offered read mode, the write modes it combines with —
-   * the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
-   * connections.
-   *
-   * @generated from field: repeated ingestion.v1.ReadModeWriteCompatibility read_mode_write_compatibilities = 7;
-   */
-  readModeWriteCompatibilities: ReadModeWriteCompatibility[];
-};
-
-/**
- * Describes the message ingestion.v1.GetConnectionCapabilitiesResponse.
- * Use `create(GetConnectionCapabilitiesResponseSchema)` to create a new message.
- */
-export const GetConnectionCapabilitiesResponseSchema: GenMessage<GetConnectionCapabilitiesResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 2);
+  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiggEKF1ZhbGlkYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgVub2RlcxgCIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYAyADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIlMKDkNhbmRpZGF0ZVZhbHVlEg0KBXZhbHVlGAEgASgJEhMKC3JlY29tbWVuZGVkGAIgASgIEgwKBHJhbmsYAyABKAUSDwoHd2FybmluZxgEIAEoCSLtAQoLUmVxdWlyZW1lbnQSKwoEa2luZBgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudEtpbmQSEAoIcmVzb3VyY2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIwCgpjYW5kaWRhdGVzGAQgAygLMhwuaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVZhbHVlEhEKCXNhdGlzZmllZBgFIAEoCBIQCghibG9ja2luZxgGIAEoCBI3ChBjYW5kaWRhdGVfc3RhdHVzGAcgASgOMh0uaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVN0YXR1cyKQAQoSUmVzb3VyY2VWYWxpZGF0aW9uEhAKCHJlc291cmNlGAEgASgJEi8KDHJlcXVpcmVtZW50cxgDIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudBI3Cg9zdXBwb3J0ZWRfbW9kZXMYBCADKA4yHi5pbmdlc3Rpb24udjEuU3RhbmRhcmRTeW5jTW9kZSKAAwoORWRnZVZhbGlkYXRpb24SEQoJZnJvbV9ub2RlGAEgASgJEg8KB3RvX25vZGUYAiABKAkSEAoIcmVzb3VyY2UYAyABKAkSLQoGZXJyb3JzGAUgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchIvCgxyZXF1aXJlbWVudHMYBiADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQSMwoJcmVzb3VyY2VzGAcgAygLMiAuaW5nZXN0aW9uLnYxLlJlc291cmNlVmFsaWRhdGlvbhI3Cg9zdXBwb3J0ZWRfbW9kZXMYCSADKA4yHi5pbmdlc3Rpb24udjEuU3RhbmRhcmRTeW5jTW9kZRIyCgtyZXBsaWNhdGlvbhgKIAEoDjIdLmluZ2VzdGlvbi52MS5SZXBsaWNhdGlvbk1vZGUSNgoOZWZmZWN0aXZlX21vZGUYCyABKA4yHi5pbmdlc3Rpb24udjEuU3RhbmRhcmRTeW5jTW9kZSKFAQoYVmFsaWRhdGVQaXBlbGluZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEisKBWVkZ2VzGAIgAygLMhwuaW5nZXN0aW9uLnYxLkVkZ2VWYWxpZGF0aW9uEi0KBmVycm9ycxgDIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3IqeQoPUmVxdWlyZW1lbnRLaW5kEiAKHFJFUVVJUkVNRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIiCh5SRVFVSVJFTUVOVF9LSU5EX0NVUlNPUl9DT0xVTU4QARIgChxSRVFVSVJFTUVOVF9LSU5EX1BSSU1BUllfS0VZEAIqmgEKD0NhbmRpZGF0ZVN0YXR1cxIgChxDQU5ESURBVEVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHwobQ0FORElEQVRFX1NUQVRVU19FTlVNRVJBVEVEEAESIgoeQ0FORElEQVRFX1NUQVRVU19OT1RfU1VQUE9SVEVEEAISIAocQ0FORElEQVRFX1NUQVRVU19VTkFWQUlMQUJMRRADYgZwcm90bzM", [file_ingestion_v1_common, file_ingestion_v1_connectors, file_ingestion_v1_pipelines]);
 
 /**
  * ValidatePipelineRequest carries the graph inline so unsaved canvas state
@@ -155,7 +46,7 @@ export type ValidatePipelineRequest = Message<"ingestion.v1.ValidatePipelineRequ
  * Use `create(ValidatePipelineRequestSchema)` to create a new message.
  */
 export const ValidatePipelineRequestSchema: GenMessage<ValidatePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 3);
+  messageDesc(file_ingestion_v1_capabilities, 0);
 
 /**
  * CandidateValue is one value the user may pick to satisfy a requirement.
@@ -189,10 +80,10 @@ export type CandidateValue = Message<"ingestion.v1.CandidateValue"> & {
  * Use `create(CandidateValueSchema)` to create a new message.
  */
 export const CandidateValueSchema: GenMessage<CandidateValue> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 4);
+  messageDesc(file_ingestion_v1_capabilities, 1);
 
 /**
- * Requirement is configuration the chosen ingestion type involves. It is
+ * Requirement is configuration the chosen sync mode involves. It is
  * emitted whether or not the value is set so a picker can render from it:
  * satisfied means the value is configured, blocking means the run would fail
  * as-is. Unsatisfied and non-blocking means auto-detection covers it.
@@ -241,14 +132,12 @@ export type Requirement = Message<"ingestion.v1.Requirement"> & {
  * Use `create(RequirementSchema)` to create a new message.
  */
 export const RequirementSchema: GenMessage<Requirement> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 5);
+  messageDesc(file_ingestion_v1_capabilities, 2);
 
 /**
- * ResourceValidation is one routed table's verdict under the edge: the read
- * modes this table can actually serve given its cursor reality, plus
- * requirements for the edge's chosen levers. Populated when the chosen levers
- * need per-table setup; full-read append/replace edges have nothing to
- * configure.
+ * ResourceValidation is one routed table's verdict: the final Standard modes
+ * supported by the source/resource/sink combination and any requirements for
+ * the selected mode. CDC resources report no Standard modes.
  *
  * @generated from message ingestion.v1.ResourceValidation
  */
@@ -259,14 +148,14 @@ export type ResourceValidation = Message<"ingestion.v1.ResourceValidation"> & {
   resource: string;
 
   /**
-   * @generated from field: repeated ingestion.v1.ReadMode supported_read_modes = 2;
-   */
-  supportedReadModes: ReadMode[];
-
-  /**
    * @generated from field: repeated ingestion.v1.Requirement requirements = 3;
    */
   requirements: Requirement[];
+
+  /**
+   * @generated from field: repeated ingestion.v1.StandardSyncMode supported_modes = 4;
+   */
+  supportedModes: StandardSyncMode[];
 };
 
 /**
@@ -274,12 +163,10 @@ export type ResourceValidation = Message<"ingestion.v1.ResourceValidation"> & {
  * Use `create(ResourceValidationSchema)` to create a new message.
  */
 export const ResourceValidationSchema: GenMessage<ResourceValidation> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 6);
+  messageDesc(file_ingestion_v1_capabilities, 3);
 
 /**
- * EdgeValidation is one edge's verdict: the write levers the sink offers, the
- * ingestion type the server derived from the edge's levers, hard errors,
- * edge-scoped requirements, and the per-table breakdown.
+ * EdgeValidation is one edge's authoritative mode and requirement verdict.
  *
  * @generated from message ingestion.v1.EdgeValidation
  */
@@ -300,11 +187,6 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
   resource: string;
 
   /**
-   * @generated from field: repeated ingestion.v1.WriteMode supported_write_modes = 4;
-   */
-  supportedWriteModes: WriteMode[];
-
-  /**
    * @generated from field: repeated ingestion.v1.ValidationError errors = 5;
    */
   errors: ValidationError[];
@@ -320,9 +202,19 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
   resources: ResourceValidation[];
 
   /**
-   * @generated from field: ingestion.v1.IngestionType ingestion_type = 8;
+   * @generated from field: repeated ingestion.v1.StandardSyncMode supported_modes = 9;
    */
-  ingestionType: IngestionType;
+  supportedModes: StandardSyncMode[];
+
+  /**
+   * @generated from field: ingestion.v1.ReplicationMode replication = 10;
+   */
+  replication: ReplicationMode;
+
+  /**
+   * @generated from field: ingestion.v1.StandardSyncMode effective_mode = 11;
+   */
+  effectiveMode: StandardSyncMode;
 };
 
 /**
@@ -330,7 +222,7 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
  * Use `create(EdgeValidationSchema)` to create a new message.
  */
 export const EdgeValidationSchema: GenMessage<EdgeValidation> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 7);
+  messageDesc(file_ingestion_v1_capabilities, 4);
 
 /**
  * @generated from message ingestion.v1.ValidatePipelineResponse
@@ -359,7 +251,7 @@ export type ValidatePipelineResponse = Message<"ingestion.v1.ValidatePipelineRes
  * Use `create(ValidatePipelineResponseSchema)` to create a new message.
  */
 export const ValidatePipelineResponseSchema: GenMessage<ValidatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_capabilities, 8);
+  messageDesc(file_ingestion_v1_capabilities, 5);
 
 /**
  * @generated from enum ingestion.v1.RequirementKind

@@ -4,7 +4,7 @@ import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 import { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
 
 import {
   CreatePipelineModalStep,
@@ -19,9 +19,9 @@ export const CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT = 8;
 export const CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT = 4;
 export const CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH = 264;
 
-export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE = 180;
+export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_SYNC_MODE = 180;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR = 180;
-export const CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH = 220;
+export const CREATE_PIPELINE_MODAL_SYNC_MODE_DROPDOWN_WIDTH = 220;
 export const CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH = 260;
 
 export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_MAP: Record<
@@ -112,22 +112,11 @@ export const CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP: Record<CreatePipelineModalS
   [CreatePipelineModalStep.DETAILS]: "Enter a valid pipeline name",
 };
 
-export const READ_MODE_TO_LABEL_MAP: Record<ReadMode, string> = {
-  [ReadMode.UNSPECIFIED]: "Unknown",
-  [ReadMode.FULL]: "Full",
-  [ReadMode.INCREMENTAL]: "Incremental",
+export const STANDARD_SYNC_MODE_TO_LABEL_MAP: Record<StandardSyncMode, string> = {
+  [StandardSyncMode.UNSPECIFIED]: "Unknown",
+  [StandardSyncMode.REPLACE]: "Replace",
+  [StandardSyncMode.APPEND]: "Append",
+  [StandardSyncMode.INCREMENTAL]: "Incremental",
 };
 
-export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
-  [WriteMode.UNSPECIFIED]: "Unknown",
-  [WriteMode.APPEND]: "Append",
-  [WriteMode.REPLACE]: "Replace",
-  [WriteMode.UPSERT]: "Upsert",
-  [WriteMode.DELETE]: "Delete",
-  [WriteMode.MERGE]: "Merge",
-};
-
-export const CREATE_PIPELINE_MODAL_FALLBACK_READ_MODES = [ReadMode.FULL];
-export const CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES = [WriteMode.APPEND, WriteMode.REPLACE];
-
-export const CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE = WriteMode.REPLACE;
+export const CREATE_PIPELINE_MODAL_DEFAULT_SYNC_MODE = StandardSyncMode.REPLACE;

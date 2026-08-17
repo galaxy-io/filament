@@ -4,7 +4,7 @@ import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import { ReadMode } from "@/gen/ingestion/v1/common_pb";
+import { StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -29,7 +29,7 @@ const CreatePipelineModalResourcesCursorCell = ({
   const { activeSinkId } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
-  if (!row.isSelected || row.readMode !== ReadMode.INCREMENTAL) {
+  if (!row.isSelected || row.syncMode !== StandardSyncMode.INCREMENTAL) {
     return (
       <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
         —
