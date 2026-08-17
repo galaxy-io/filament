@@ -53,6 +53,8 @@ message PipelineGraph {
 message PipelineVersion {
   string id = 1;
   int64 version = 2;
+  // nodes and edges were replaced by graph; reserve their wire identifiers so
+  // future fields cannot accidentally reinterpret older payloads.
   reserved 3, 4;
   reserved "nodes", "edges";
   int64 created_at = 5;

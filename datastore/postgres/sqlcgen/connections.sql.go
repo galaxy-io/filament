@@ -12,16 +12,16 @@ import (
 )
 
 const createConnection = `-- name: CreateConnection :exec
-INSERT INTO connections (id, tenant_id, kind, name, provider, config, secret_refs, version, updated_at)
+INSERT INTO connections (id, tenant_id, kind, name, connector, config, secret_refs, version, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, 1, now())
 `
 
 type CreateConnectionParams struct {
 	ConnectionID string
 	TenantID     string
-	Kind         ConnectionKind
+	Kind         ConnectorKind
 	Name         string
-	Provider     string
+	Connector    string
 	Config       []byte
 	SecretRefs   []byte
 }
@@ -32,7 +32,7 @@ func (q *Queries) CreateConnection(ctx context.Context, arg CreateConnectionPara
 		arg.TenantID,
 		arg.Kind,
 		arg.Name,
-		arg.Provider,
+		arg.Connector,
 		arg.Config,
 		arg.SecretRefs,
 	)
@@ -55,7 +55,7 @@ func (q *Queries) DeleteConnection(ctx context.Context, connectionID string) err
 }
 
 const getConnection = `-- name: GetConnection :one
-SELECT id, tenant_id, kind, name, provider, config, secret_refs, version, created_at, updated_at, deleted_at,
+SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM connections WHERE id = $1
 `
@@ -63,9 +63,9 @@ FROM connections WHERE id = $1
 type GetConnectionRow struct {
 	ID              string
 	TenantID        string
-	Kind            ConnectionKind
+	Kind            ConnectorKind
 	Name            string
-	Provider        string
+	Connector       string
 	Config          []byte
 	SecretRefs      []byte
 	Version         int64
@@ -85,7 +85,7 @@ func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetC
 		&i.TenantID,
 		&i.Kind,
 		&i.Name,
-		&i.Provider,
+		&i.Connector,
 		&i.Config,
 		&i.SecretRefs,
 		&i.Version,
@@ -100,27 +100,27 @@ func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetC
 }
 
 const listConnections = `-- name: ListConnections :many
-SELECT id, tenant_id, kind, name, provider, config, secret_refs, version, created_at, updated_at, deleted_at,
+SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM connections
 WHERE ($1::text = '' OR tenant_id = $1)
-  AND ($2::connection_kind IS NULL OR kind = $2)
+  AND ($2::connector_kind IS NULL OR kind = $2)
   AND ($3::boolean OR NOT is_deleted)
 ORDER BY id
 `
 
 type ListConnectionsParams struct {
 	TenantID       string
-	Kind           NullConnectionKind
+	Kind           NullConnectorKind
 	IncludeDeleted bool
 }
 
 type ListConnectionsRow struct {
 	ID              string
 	TenantID        string
-	Kind            ConnectionKind
+	Kind            ConnectorKind
 	Name            string
-	Provider        string
+	Connector       string
 	Config          []byte
 	SecretRefs      []byte
 	Version         int64
@@ -146,7 +146,7 @@ func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams
 			&i.TenantID,
 			&i.Kind,
 			&i.Name,
-			&i.Provider,
+			&i.Connector,
 			&i.Config,
 			&i.SecretRefs,
 			&i.Version,
@@ -169,7 +169,7 @@ func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams
 
 const updateConnection = `-- name: UpdateConnection :one
 UPDATE connections
-SET name = $1, provider = $2, config = $3, secret_refs = $4,
+SET name = $1, connector = $2, config = $3, secret_refs = $4,
     version = version + 1, updated_at = now()
 WHERE id = $5 AND version = $6 AND NOT is_deleted
 RETURNING version
@@ -177,7 +177,7 @@ RETURNING version
 
 type UpdateConnectionParams struct {
 	Name            string
-	Provider        string
+	Connector       string
 	Config          []byte
 	SecretRefs      []byte
 	ConnectionID    string
@@ -187,7 +187,7 @@ type UpdateConnectionParams struct {
 func (q *Queries) UpdateConnection(ctx context.Context, arg UpdateConnectionParams) (int64, error) {
 	row := q.db.QueryRow(ctx, updateConnection,
 		arg.Name,
-		arg.Provider,
+		arg.Connector,
 		arg.Config,
 		arg.SecretRefs,
 		arg.ConnectionID,

@@ -11,54 +11,54 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type ConnectionKind string
+type ConnectorKind string
 
 const (
-	ConnectionKindSource ConnectionKind = "source"
-	ConnectionKindSink   ConnectionKind = "sink"
+	ConnectorKindSource ConnectorKind = "source"
+	ConnectorKindSink   ConnectorKind = "sink"
 )
 
-func (e *ConnectionKind) Scan(src interface{}) error {
+func (e *ConnectorKind) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = ConnectionKind(s)
+		*e = ConnectorKind(s)
 	case string:
-		*e = ConnectionKind(s)
+		*e = ConnectorKind(s)
 	default:
-		return fmt.Errorf("unsupported scan type for ConnectionKind: %T", src)
+		return fmt.Errorf("unsupported scan type for ConnectorKind: %T", src)
 	}
 	return nil
 }
 
-type NullConnectionKind struct {
-	ConnectionKind ConnectionKind
-	Valid          bool // Valid is true if ConnectionKind is not NULL
+type NullConnectorKind struct {
+	ConnectorKind ConnectorKind
+	Valid         bool // Valid is true if ConnectorKind is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullConnectionKind) Scan(value interface{}) error {
+func (ns *NullConnectorKind) Scan(value interface{}) error {
 	if value == nil {
-		ns.ConnectionKind, ns.Valid = "", false
+		ns.ConnectorKind, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.ConnectionKind.Scan(value)
+	return ns.ConnectorKind.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullConnectionKind) Value() (driver.Value, error) {
+func (ns NullConnectorKind) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.ConnectionKind), nil
+	return string(ns.ConnectorKind), nil
 }
 
 type Connection struct {
 	ID              string
 	TenantID        string
-	Kind            ConnectionKind
+	Kind            ConnectorKind
 	Name            string
-	Provider        string
+	Connector       string
 	Config          []byte
 	SecretRefs      []byte
 	Version         int64

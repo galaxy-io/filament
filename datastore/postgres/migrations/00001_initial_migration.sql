@@ -26,14 +26,14 @@ ALTER TABLE tenants
   ADD CONSTRAINT tenants_updated_by_user_fkey FOREIGN KEY (updated_by_user_id) REFERENCES users (id) ON DELETE SET NULL,
   ADD CONSTRAINT tenants_deleted_by_user_fkey FOREIGN KEY (deleted_by_user_id) REFERENCES users (id) ON DELETE SET NULL;
 
-CREATE TYPE connection_kind AS ENUM ('source', 'sink');
+CREATE TYPE connector_kind AS ENUM ('source', 'sink');
 
 CREATE TABLE connections (
   id                 TEXT            PRIMARY KEY,
   tenant_id          TEXT            NOT NULL REFERENCES tenants (id),
-  kind               connection_kind NOT NULL,
+  kind               connector_kind NOT NULL,
   name               TEXT            NOT NULL,
-  provider           TEXT            NOT NULL,
+  connector          TEXT            NOT NULL,
   config             JSONB           NOT NULL DEFAULT '{}',
   secret_refs        JSONB           NOT NULL DEFAULT '{}',
   version            BIGINT          NOT NULL DEFAULT 1,
@@ -242,7 +242,7 @@ ALTER TABLE pipelines DROP CONSTRAINT pipelines_current_version_fkey;
 DROP TABLE pipeline_versions;
 DROP TABLE pipelines;
 DROP TABLE connections;
-DROP TYPE connection_kind;
+DROP TYPE connector_kind;
 ALTER TABLE tenants
   DROP CONSTRAINT tenants_created_by_user_fkey,
   DROP CONSTRAINT tenants_updated_by_user_fkey,

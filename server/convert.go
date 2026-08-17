@@ -408,8 +408,8 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		PipelineId:         state.Request.PipelineID,
 		PipelineVersionId:  state.Request.PipelineVersionID,
 		Status:             runStatusToProto(state.Status),
-		RecordsProcessed:   state.Records,
-		BytesProcessed:     state.Bytes,
+		Records:            state.Records,
+		Bytes:              state.Bytes,
 		Error:              state.Error,
 		StartedAt:          epochMillis(state.StartedAt),
 		EndedAt:            endedAt,
@@ -426,14 +426,14 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 
 func eventToProto(f events.Fact, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
-		EventType:  f.Name,
-		TenantId:   string(f.Tenant),
-		RunId:      string(f.Run),
-		Resource:   f.Resource,
-		Seq:        f.Seq,
-		OccurredAt: f.At.UnixMilli(),
-		Fields:     eventFieldsToProto(f.Data),
-		IsReplay:   replay,
+		EventType: f.Name,
+		TenantId:  string(f.Tenant),
+		RunId:     string(f.Run),
+		Resource:  f.Resource,
+		Seq:       f.Seq,
+		CreatedAt: f.At.UnixMilli(),
+		Fields:    eventFieldsToProto(f.Data),
+		IsReplay:  replay,
 	}
 }
 
@@ -442,21 +442,21 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 	fields := &ingestionv1.RunEventFields{}
 	switch d := data.(type) {
 	case events.RunCompletedEvent:
-		fields.RecordsProcessed, fields.BytesProcessed = d.Records, d.Bytes
+		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.RunFailedEvent:
 		fields.Error = d.Error
 	case events.RunPartialEvent:
 		fields.Error = d.Error
 	case events.PageFetchedEvent:
-		fields.RecordsProcessed, fields.BytesProcessed, fields.Uri = d.Records, d.Bytes, d.URI
+		fields.Records, fields.Bytes, fields.Uri = d.Records, d.Bytes, d.URI
 	case events.ResourceCompletedEvent:
-		fields.RecordsProcessed, fields.BytesProcessed = d.Records, d.Bytes
+		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.ResourceFailedEvent:
 		fields.Error = d.Error
 	case events.BatchBufferedEvent:
-		fields.RecordsProcessed, fields.BytesProcessed = d.Records, d.Bytes
+		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.BatchWrittenEvent:
-		fields.RecordsProcessed, fields.BytesProcessed, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
+		fields.Records, fields.Bytes, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
 	case events.IntegrityVerifiedEvent:
 		fields.Crc = d.CRC
 	case events.ChunkDivergenceEvent:
@@ -477,9 +477,9 @@ func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEven
 		TenantId:  string(state.Tenant),
 		RunId:     string(state.Run),
 		Fields: &ingestionv1.RunEventFields{
-			RecordsProcessed: state.Records,
-			BytesProcessed:   state.Bytes,
-			Error:            state.Error,
+			Records: state.Records,
+			Bytes:   state.Bytes,
+			Error:   state.Error,
 		},
 		IsReplay: replay,
 	}

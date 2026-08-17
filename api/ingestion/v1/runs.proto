@@ -75,8 +75,8 @@ message RunResourceState {
   reserved 2;
   reserved "enabled";
   RunStatus status = 3;
-  int64 records_processed = 4;
-  int64 bytes_processed = 5;
+  int64 records = 4;
+  int64 bytes = 5;
   string error = 6;
 }
 
@@ -87,8 +87,8 @@ message RunInfo {
   string pipeline_id = 3;
   string pipeline_version_id = 4;
   RunStatus status = 5;
-  int64 records_processed = 6;
-  int64 bytes_processed = 7;
+  int64 records = 6;
+  int64 bytes = 7;
   string error = 8;
   int64 started_at = 9;
   int64 ended_at = 10;
@@ -157,8 +157,8 @@ message TailRunRequest {
 
 // RunEventFields contains the optional measurements carried by a run event.
 message RunEventFields {
-  int64 records_processed = 1;
-  int64 bytes_processed = 2;
+  int64 records = 1;
+  int64 bytes = 2;
   string uri = 3;
   uint32 crc = 4;
   string error = 5;
@@ -173,7 +173,7 @@ message RunEvent {
   string run_id = 3;
   string resource = 4;
   uint64 seq = 5;
-  int64 occurred_at = 6;
+  int64 created_at = 6;
   RunEventFields fields = 7;
   bool is_replay = 8;
 }

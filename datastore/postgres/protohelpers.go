@@ -36,24 +36,24 @@ func marshalConnectionConfig(c filament.Connection) ([]byte, []byte, error) {
 	return configJSON, refsJSON, nil
 }
 
-func connectionKindToDB(kind filament.ConnectorKind) sqlcgen.ConnectionKind {
+func connectionKindToDB(kind filament.ConnectorKind) sqlcgen.ConnectorKind {
 	if kind == filament.ConnectorKindSink {
-		return sqlcgen.ConnectionKindSink
+		return sqlcgen.ConnectorKindSink
 	}
-	return sqlcgen.ConnectionKindSource
+	return sqlcgen.ConnectorKindSource
 }
 
-func connectionKindFromDB(kind sqlcgen.ConnectionKind) filament.ConnectorKind {
-	if kind == sqlcgen.ConnectionKindSink {
+func connectionKindFromDB(kind sqlcgen.ConnectorKind) filament.ConnectorKind {
+	if kind == sqlcgen.ConnectorKindSink {
 		return filament.ConnectorKindSink
 	}
-	if kind == sqlcgen.ConnectionKindSource {
+	if kind == sqlcgen.ConnectorKindSource {
 		return filament.ConnectorKindSource
 	}
 	return filament.ConnectorKindUnspecified
 }
 
-func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, provider string, configJSON, refsJSON []byte, version int64, createdAt, updatedAt, deletedAt pgtype.Timestamptz, createdBy, updatedBy, deletedBy pgtype.Text) (filament.Connection, error) {
+func connectionFromRow(id, tenant string, kind sqlcgen.ConnectorKind, name, connector string, configJSON, refsJSON []byte, version int64, createdAt, updatedAt, deletedAt pgtype.Timestamptz, createdBy, updatedBy, deletedBy pgtype.Text) (filament.Connection, error) {
 	cfg := map[string]any{}
 	if len(configJSON) > 0 {
 		if err := json.Unmarshal(configJSON, &cfg); err != nil {
@@ -66,5 +66,5 @@ func connectionFromRow(id, tenant string, kind sqlcgen.ConnectionKind, name, pro
 			return filament.Connection{}, fmt.Errorf("datastore/postgres: unmarshal connection secret_refs: %w", err)
 		}
 	}
-	return filament.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: provider, Config: cfg, SecretRefs: refs, Version: version, CreatedAt: timestampMillis(createdAt), UpdatedAt: timestampMillis(updatedAt), DeletedAt: timestampMillis(deletedAt), CreatedByUserID: createdBy.String, UpdatedByUserID: updatedBy.String, DeletedByUserID: deletedBy.String}, nil
+	return filament.Connection{ID: id, Tenant: tenant, Kind: connectionKindFromDB(kind), Name: name, Connector: connector, Config: cfg, SecretRefs: refs, Version: version, CreatedAt: timestampMillis(createdAt), UpdatedAt: timestampMillis(updatedAt), DeletedAt: timestampMillis(deletedAt), CreatedByUserID: createdBy.String, UpdatedByUserID: updatedBy.String, DeletedByUserID: deletedBy.String}, nil
 }

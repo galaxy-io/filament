@@ -464,14 +464,14 @@ func (x *RunPipelineResponse) GetEdgeRuns() []*PipelineEdgeRun {
 
 // RunResourceState reports progress for one resource in a run.
 type RunResourceState struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	ResourceName     string                 `protobuf:"bytes,1,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
-	Status           RunStatus              `protobuf:"varint,3,opt,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
-	RecordsProcessed int64                  `protobuf:"varint,4,opt,name=records_processed,json=recordsProcessed,proto3" json:"records_processed,omitempty"`
-	BytesProcessed   int64                  `protobuf:"varint,5,opt,name=bytes_processed,json=bytesProcessed,proto3" json:"bytes_processed,omitempty"`
-	Error            string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ResourceName  string                 `protobuf:"bytes,1,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
+	Status        RunStatus              `protobuf:"varint,3,opt,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
+	Records       int64                  `protobuf:"varint,4,opt,name=records,proto3" json:"records,omitempty"`
+	Bytes         int64                  `protobuf:"varint,5,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Error         string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunResourceState) Reset() {
@@ -518,16 +518,16 @@ func (x *RunResourceState) GetStatus() RunStatus {
 	return RunStatus_RUN_STATUS_UNSPECIFIED
 }
 
-func (x *RunResourceState) GetRecordsProcessed() int64 {
+func (x *RunResourceState) GetRecords() int64 {
 	if x != nil {
-		return x.RecordsProcessed
+		return x.Records
 	}
 	return 0
 }
 
-func (x *RunResourceState) GetBytesProcessed() int64 {
+func (x *RunResourceState) GetBytes() int64 {
 	if x != nil {
-		return x.BytesProcessed
+		return x.Bytes
 	}
 	return 0
 }
@@ -547,8 +547,8 @@ type RunInfo struct {
 	PipelineId         string                 `protobuf:"bytes,3,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	PipelineVersionId  string                 `protobuf:"bytes,4,opt,name=pipeline_version_id,json=pipelineVersionId,proto3" json:"pipeline_version_id,omitempty"`
 	Status             RunStatus              `protobuf:"varint,5,opt,name=status,proto3,enum=ingestion.v1.RunStatus" json:"status,omitempty"`
-	RecordsProcessed   int64                  `protobuf:"varint,6,opt,name=records_processed,json=recordsProcessed,proto3" json:"records_processed,omitempty"`
-	BytesProcessed     int64                  `protobuf:"varint,7,opt,name=bytes_processed,json=bytesProcessed,proto3" json:"bytes_processed,omitempty"`
+	Records            int64                  `protobuf:"varint,6,opt,name=records,proto3" json:"records,omitempty"`
+	Bytes              int64                  `protobuf:"varint,7,opt,name=bytes,proto3" json:"bytes,omitempty"`
 	Error              string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
 	StartedAt          int64                  `protobuf:"varint,9,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	EndedAt            int64                  `protobuf:"varint,10,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
@@ -634,16 +634,16 @@ func (x *RunInfo) GetStatus() RunStatus {
 	return RunStatus_RUN_STATUS_UNSPECIFIED
 }
 
-func (x *RunInfo) GetRecordsProcessed() int64 {
+func (x *RunInfo) GetRecords() int64 {
 	if x != nil {
-		return x.RecordsProcessed
+		return x.Records
 	}
 	return 0
 }
 
-func (x *RunInfo) GetBytesProcessed() int64 {
+func (x *RunInfo) GetBytes() int64 {
 	if x != nil {
-		return x.BytesProcessed
+		return x.Bytes
 	}
 	return 0
 }
@@ -1187,14 +1187,14 @@ func (x *TailRunRequest) GetShouldReplay() bool {
 
 // RunEventFields contains the optional measurements carried by a run event.
 type RunEventFields struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	RecordsProcessed int64                  `protobuf:"varint,1,opt,name=records_processed,json=recordsProcessed,proto3" json:"records_processed,omitempty"`
-	BytesProcessed   int64                  `protobuf:"varint,2,opt,name=bytes_processed,json=bytesProcessed,proto3" json:"bytes_processed,omitempty"`
-	Uri              string                 `protobuf:"bytes,3,opt,name=uri,proto3" json:"uri,omitempty"`
-	Crc              uint32                 `protobuf:"varint,4,opt,name=crc,proto3" json:"crc,omitempty"`
-	Error            string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Records       int64                  `protobuf:"varint,1,opt,name=records,proto3" json:"records,omitempty"`
+	Bytes         int64                  `protobuf:"varint,2,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Uri           string                 `protobuf:"bytes,3,opt,name=uri,proto3" json:"uri,omitempty"`
+	Crc           uint32                 `protobuf:"varint,4,opt,name=crc,proto3" json:"crc,omitempty"`
+	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunEventFields) Reset() {
@@ -1227,16 +1227,16 @@ func (*RunEventFields) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *RunEventFields) GetRecordsProcessed() int64 {
+func (x *RunEventFields) GetRecords() int64 {
 	if x != nil {
-		return x.RecordsProcessed
+		return x.Records
 	}
 	return 0
 }
 
-func (x *RunEventFields) GetBytesProcessed() int64 {
+func (x *RunEventFields) GetBytes() int64 {
 	if x != nil {
-		return x.BytesProcessed
+		return x.Bytes
 	}
 	return 0
 }
@@ -1272,7 +1272,7 @@ type RunEvent struct {
 	RunId         string                 `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Resource      string                 `protobuf:"bytes,4,opt,name=resource,proto3" json:"resource,omitempty"`
 	Seq           uint64                 `protobuf:"varint,5,opt,name=seq,proto3" json:"seq,omitempty"`
-	OccurredAt    int64                  `protobuf:"varint,6,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	Fields        *RunEventFields        `protobuf:"bytes,7,opt,name=fields,proto3" json:"fields,omitempty"`
 	IsReplay      bool                   `protobuf:"varint,8,opt,name=is_replay,json=isReplay,proto3" json:"is_replay,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1344,9 +1344,9 @@ func (x *RunEvent) GetSeq() uint64 {
 	return 0
 }
 
-func (x *RunEvent) GetOccurredAt() int64 {
+func (x *RunEvent) GetCreatedAt() int64 {
 	if x != nil {
-		return x.OccurredAt
+		return x.CreatedAt
 	}
 	return 0
 }
@@ -1439,22 +1439,22 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x11pipeline_edge_key\x18\x01 \x01(\tR\x0fpipelineEdgeKey\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\"Q\n" +
 	"\x13RunPipelineResponse\x12:\n" +
-	"\tedge_runs\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineEdgeRunR\bedgeRuns\"\xe3\x01\n" +
+	"\tedge_runs\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineEdgeRunR\bedgeRuns\"\xbd\x01\n" +
 	"\x10RunResourceState\x12#\n" +
 	"\rresource_name\x18\x01 \x01(\tR\fresourceName\x12/\n" +
-	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12+\n" +
-	"\x11records_processed\x18\x04 \x01(\x03R\x10recordsProcessed\x12'\n" +
-	"\x0fbytes_processed\x18\x05 \x01(\x03R\x0ebytesProcessed\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05errorJ\x04\b\x02\x10\x03R\aenabled\"\x8f\x05\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
+	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
+	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
+	"\x05error\x18\x06 \x01(\tR\x05errorJ\x04\b\x02\x10\x03R\aenabled\"\xe9\x04\n" +
 	"\aRunInfo\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1f\n" +
 	"\vpipeline_id\x18\x03 \x01(\tR\n" +
 	"pipelineId\x12.\n" +
 	"\x13pipeline_version_id\x18\x04 \x01(\tR\x11pipelineVersionId\x12/\n" +
-	"\x06status\x18\x05 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12+\n" +
-	"\x11records_processed\x18\x06 \x01(\x03R\x10recordsProcessed\x12'\n" +
-	"\x0fbytes_processed\x18\a \x01(\x03R\x0ebytesProcessed\x12\x14\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
+	"\arecords\x18\x06 \x01(\x03R\arecords\x12\x14\n" +
+	"\x05bytes\x18\a \x01(\x03R\x05bytes\x12\x14\n" +
 	"\x05error\x18\b \x01(\tR\x05error\x12\x1d\n" +
 	"\n" +
 	"started_at\x18\t \x01(\x03R\tstartedAt\x12\x19\n" +
@@ -1505,22 +1505,22 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x0eTailRunRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12#\n" +
-	"\rshould_replay\x18\x03 \x01(\bR\fshouldReplay\"\xa0\x01\n" +
-	"\x0eRunEventFields\x12+\n" +
-	"\x11records_processed\x18\x01 \x01(\x03R\x10recordsProcessed\x12'\n" +
-	"\x0fbytes_processed\x18\x02 \x01(\x03R\x0ebytesProcessed\x12\x10\n" +
+	"\rshould_replay\x18\x03 \x01(\bR\fshouldReplay\"z\n" +
+	"\x0eRunEventFields\x12\x18\n" +
+	"\arecords\x18\x01 \x01(\x03R\arecords\x12\x14\n" +
+	"\x05bytes\x18\x02 \x01(\x03R\x05bytes\x12\x10\n" +
 	"\x03uri\x18\x03 \x01(\tR\x03uri\x12\x10\n" +
 	"\x03crc\x18\x04 \x01(\rR\x03crc\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\xff\x01\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\xfd\x01\n" +
 	"\bRunEvent\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x02 \x01(\tR\teventType\x12\x15\n" +
 	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bresource\x18\x04 \x01(\tR\bresource\x12\x10\n" +
-	"\x03seq\x18\x05 \x01(\x04R\x03seq\x12\x1f\n" +
-	"\voccurred_at\x18\x06 \x01(\x03R\n" +
-	"occurredAt\x124\n" +
+	"\x03seq\x18\x05 \x01(\x04R\x03seq\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x124\n" +
 	"\x06fields\x18\a \x01(\v2\x1c.ingestion.v1.RunEventFieldsR\x06fields\x12\x1b\n" +
 	"\tis_replay\x18\b \x01(\bR\bisReplay\"?\n" +
 	"\x0fTailRunResponse\x12,\n" +

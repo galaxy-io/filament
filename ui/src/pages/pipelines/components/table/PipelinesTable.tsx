@@ -109,12 +109,12 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     header: "Volume",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
     align: ColumnAlign.RIGHT,
-    accessorFn: (pipeline) => Number(pipeline.lastRun?.bytesProcessed ?? 0n),
+    accessorFn: (pipeline) => Number(pipeline.lastRun?.bytes ?? 0n),
     enableSorting: true,
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.lastRun ? formatBytes(row.original.lastRun.bytesProcessed) : "—"}
+        {row.original.lastRun ? formatBytes(row.original.lastRun.bytes) : "—"}
       </Text>
     ),
   },

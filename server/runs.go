@@ -63,11 +63,11 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 	resources := make([]*ingestionv1.RunResourceState, 0, len(state.Resources))
 	for _, resource := range state.Resources {
 		resources = append(resources, &ingestionv1.RunResourceState{
-			ResourceName:     resource.Resource,
-			Status:           runStatusToProto(resource.Status),
-			RecordsProcessed: resource.Records,
-			BytesProcessed:   resource.Bytes,
-			Error:            resource.Error,
+			ResourceName: resource.Resource,
+			Status:       runStatusToProto(resource.Status),
+			Records:      resource.Records,
+			Bytes:        resource.Bytes,
+			Error:        resource.Error,
 		})
 	}
 	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: runInfoToProto(state), Resources: resources}}), nil
@@ -160,9 +160,9 @@ func (a *Server) replayRun(ctx context.Context, run filament.RunID, send func(*i
 			RunId:     string(state.Run),
 			Resource:  resource.Resource,
 			Fields: &ingestionv1.RunEventFields{
-				RecordsProcessed: resource.Records,
-				BytesProcessed:   resource.Bytes,
-				Error:            resource.Error,
+				Records: resource.Records,
+				Bytes:   resource.Bytes,
+				Error:   resource.Error,
 			},
 			IsReplay: true,
 		})); err != nil {

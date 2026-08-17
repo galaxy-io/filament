@@ -80,7 +80,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatCount(row.original.recordsProcessed)}
+            {formatCount(row.original.records)}
           </Text>
         ),
       },
@@ -92,7 +92,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {formatBytes(row.original.bytesProcessed)}
+            {formatBytes(row.original.bytes)}
           </Text>
         ),
       },

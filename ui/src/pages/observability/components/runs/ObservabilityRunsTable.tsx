@@ -158,14 +158,12 @@ const ObservabilityRunsTable = () => {
         id: "records",
         header: "Records",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
-        accessorFn: (run) => Number(run.recordsProcessed),
+        accessorFn: (run) => Number(run.records),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.status === RunStatus.SCHEDULED
-              ? "—"
-              : formatCount(row.original.recordsProcessed)}
+            {row.original.status === RunStatus.SCHEDULED ? "—" : formatCount(row.original.records)}
           </Text>
         ),
       },
@@ -173,14 +171,12 @@ const ObservabilityRunsTable = () => {
         id: "volume",
         header: "Volume",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-        accessorFn: (run) => Number(run.bytesProcessed),
+        accessorFn: (run) => Number(run.bytes),
         enableSorting: true,
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.status === RunStatus.SCHEDULED
-              ? "—"
-              : formatBytes(row.original.bytesProcessed)}
+            {row.original.status === RunStatus.SCHEDULED ? "—" : formatBytes(row.original.bytes)}
           </Text>
         ),
       },
