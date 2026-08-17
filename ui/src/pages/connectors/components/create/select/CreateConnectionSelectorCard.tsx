@@ -97,8 +97,7 @@ export const CreateConnectionSelectorEmptyCard = () => {
           <FlexWrapper direction={FlexDirection.COLUMN} gap={6}>
             <Text weight={TextWeight.MEDIUM}>Looking for something different?</Text>
             <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
-              Request a connector by opening an issue, or reach out and we&apos;ll help you get set
-              up.
+              Request a connector by opening an issue on GitHub or message our Slack community.
             </Text>
           </FlexWrapper>
         </FlexItem>
