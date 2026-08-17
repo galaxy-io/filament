@@ -1,10 +1,9 @@
-import type { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { ReadMode, WorkerResources, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
-import type { WorkerResourcesState } from "@/pages/pipelines/components/worker/types";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalActionType {
@@ -91,7 +90,7 @@ export interface SetScheduleAction {
 
 export interface SetWorkerResourcesAction {
   type: CreatePipelineModalActionType.SET_WORKER_RESOURCES;
-  payload: Partial<WorkerResourcesState>;
+  payload: Partial<WorkerResources>;
 }
 
 export interface GoToStepAction {

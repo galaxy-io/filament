@@ -79,7 +79,10 @@ const DeleteConfirmDialog = ({
     }
   }, [open]);
 
-  const isConfirmDisabled = state.inputValue !== confirmationPhrase || isPending;
+  const normalizeArrows = (value: string) => value.replace(/->/g, "→");
+
+  const isConfirmDisabled =
+    normalizeArrows(state.inputValue) !== normalizeArrows(confirmationPhrase) || isPending;
 
   return (
     <DeleteConfirmDialogWrapper>

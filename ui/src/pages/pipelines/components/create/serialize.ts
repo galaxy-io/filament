@@ -21,7 +21,7 @@ import type {
   CreatePipelineModalSinkRow,
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
-import { mapWorkerResourcesStateToWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
+import { mapWorkerResourcesToWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 import { mapPipelineScheduleStateToCron } from "@/pages/pipelines/settings/utils";
 
 const buildNodes = (
@@ -170,5 +170,5 @@ export const mapCreatePipelineStateToRequest = (
           isEnabled: true,
         }
       : undefined,
-    workerConfiguration: mapWorkerResourcesStateToWorkerConfiguration(state.workerResources),
+    workerConfiguration: mapWorkerResourcesToWorkerConfiguration(state.workerResources),
   });

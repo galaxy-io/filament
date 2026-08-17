@@ -3,31 +3,20 @@ import { create } from "@bufbuild/protobuf";
 import {
   type WorkerConfiguration,
   WorkerConfigurationSchema,
+  type WorkerResources,
   WorkerResourcesSchema,
 } from "@/gen/ingestion/v1/common_pb";
 
-import type {
-  WorkerResourcesDraft,
-  WorkerResourcesState,
-} from "@/pages/pipelines/components/worker/types";
-
-export const trimWorkerResourceValue = (value: string | undefined) => value?.trim() ?? "";
-
-export const trimWorkerResourcesState = (state: WorkerResourcesDraft): WorkerResourcesState => ({
-  cpuRequest: trimWorkerResourceValue(state?.cpuRequest),
-  cpuLimit: trimWorkerResourceValue(state?.cpuLimit),
-  memoryRequest: trimWorkerResourceValue(state?.memoryRequest),
-  memoryLimit: trimWorkerResourceValue(state?.memoryLimit),
-});
-
-export const hasWorkerResourcesStateValues = (state: WorkerResourcesDraft) =>
-  Object.values(trimWorkerResourcesState(state)).some(Boolean);
-
-export const mapWorkerResourcesStateToWorkerConfiguration = (
-  state: WorkerResourcesDraft,
+export const mapWorkerResourcesToWorkerConfiguration = (
+  state: WorkerResources,
 ): WorkerConfiguration | undefined => {
-  const resources = trimWorkerResourcesState(state);
-  if (!hasWorkerResourcesStateValues(resources)) return undefined;
+  const resources = {
+    cpuRequest: state.cpuRequest.trim(),
+    cpuLimit: state.cpuLimit.trim(),
+    memoryRequest: state.memoryRequest.trim(),
+    memoryLimit: state.memoryLimit.trim(),
+  };
+  if (!Object.values(resources).some(Boolean)) return undefined;
 
   return create(WorkerConfigurationSchema, {
     resources: create(WorkerResourcesSchema, resources),

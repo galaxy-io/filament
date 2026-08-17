@@ -5,7 +5,7 @@ import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorMaturity, ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import DocsButton from "@/components/DocsButton";
 
@@ -15,9 +15,12 @@ import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
+import ConnectorMaturityIcon from "../ConnectorMaturityIcon";
+
 interface ConnectionFormHeaderProps {
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
+  connectorMaturity: ConnectorMaturity;
   title: string;
   onClose: () => void;
 }
@@ -30,6 +33,7 @@ const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: Con
 const ConnectionFormHeader = ({
   connectorName,
   connectorKind,
+  connectorMaturity,
   title,
   onClose,
 }: ConnectionFormHeaderProps) => {
@@ -52,7 +56,10 @@ const ConnectionFormHeader = ({
             ]}
             onClose={onClose}
           />
-          <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
+            <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
+            <ConnectorMaturityIcon maturity={connectorMaturity} />
+          </FlexWrapper>
         </FlexWrapper>
       </FlexItem>
     </FlexWrapper>

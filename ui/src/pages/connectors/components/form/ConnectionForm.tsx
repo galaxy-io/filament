@@ -404,6 +404,7 @@ const ConnectionForm = ({
         <ConnectionFormHeader
           connectorName={connectorName}
           connectorKind={connectorKind}
+          connectorMaturity={connector.maturity}
           title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
           onClose={onClose}
         />

@@ -1,6 +1,16 @@
+import {
+  CircleNotchIcon,
+  FlaskIcon,
+  type Icon as PhosphorIcon,
+  SealCheckIcon,
+  ShieldStarIcon,
+} from "@phosphor-icons/react";
+
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorMaturity } from "@/gen/ingestion/v1/connectors_pb";
 
 export const CONNECTOR_GRID_MIN_COLUMN_WIDTH = 320;
 export const CONNECTOR_DRAWER_WIDTH = 600;
@@ -36,4 +46,25 @@ export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<ConnectorKind, ChipVaria
   [ConnectorKind.UNSPECIFIED]: ChipVariant.TERTIARY,
   [ConnectorKind.SOURCE]: ChipVariant.LIME,
   [ConnectorKind.SINK]: ChipVariant.PINK,
+};
+
+export const CONNECTOR_MATURITY_TO_ICON_MAP: Record<ConnectorMaturity, PhosphorIcon> = {
+  [ConnectorMaturity.UNSPECIFIED]: CircleNotchIcon,
+  [ConnectorMaturity.ALPHA]: FlaskIcon,
+  [ConnectorMaturity.BETA]: ShieldStarIcon,
+  [ConnectorMaturity.STABLE]: SealCheckIcon,
+};
+
+export const CONNECTOR_MATURITY_TO_LABEL_MAP: Record<ConnectorMaturity, string> = {
+  [ConnectorMaturity.UNSPECIFIED]: "—",
+  [ConnectorMaturity.ALPHA]: "Experimental",
+  [ConnectorMaturity.BETA]: "Beta",
+  [ConnectorMaturity.STABLE]: "Verified",
+};
+
+export const CONNECTOR_MATURITY_TO_ICON_VARIANT_MAP: Record<ConnectorMaturity, IconVariant> = {
+  [ConnectorMaturity.UNSPECIFIED]: IconVariant.PRIMARY,
+  [ConnectorMaturity.ALPHA]: IconVariant.DISABLED,
+  [ConnectorMaturity.BETA]: IconVariant.TERTIARY,
+  [ConnectorMaturity.STABLE]: IconVariant.PRIMARY,
 };

@@ -91,6 +91,20 @@ export const CREATE_PIPELINE_MODAL_STEP_TO_IS_PADDED_MAP: Record<CreatePipelineM
     [CreatePipelineModalStep.DETAILS]: true,
   };
 
+export const CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP: Record<
+  CreatePipelineModalStep,
+  string
+> = {
+  [CreatePipelineModalStep.CONNECTIONS]:
+    "Choose a source to pull data from and one or more sinks to deliver it to.",
+  [CreatePipelineModalStep.RESOURCES]:
+    "Pick the resources you want to ingest and how each one is read and written.",
+  [CreatePipelineModalStep.DELIVERY]:
+    "Set a schedule so the pipeline runs on its own, or leave it manual and trigger runs yourself.",
+  [CreatePipelineModalStep.DETAILS]:
+    "Name your pipeline and add an optional description so your team knows what it does.",
+};
+
 export const CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP: Record<CreatePipelineModalStep, string> = {
   [CreatePipelineModalStep.CONNECTIONS]: "Select a source and at least one sink",
   [CreatePipelineModalStep.RESOURCES]: "Select at least one resource",

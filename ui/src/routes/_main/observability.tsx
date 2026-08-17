@@ -6,6 +6,7 @@ import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import ObservabilityPage from "@/pages/observability/ObservabilityPage";
 import {
+  ObservabilityRunsView,
   ObservabilityThroughputView,
   ObservabilityTimeframe,
   ObservabilityUsageView,
@@ -13,6 +14,7 @@ import {
 
 const searchParams = z.object({
   timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
+  runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
   throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
   throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
   usage: z.enum(ObservabilityUsageView).optional().catch(undefined),

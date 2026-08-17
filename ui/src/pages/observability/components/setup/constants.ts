@@ -25,9 +25,9 @@ export const OBSERVABILITY_SETUP_STEP_TO_TITLE_MAP: Record<ObservabilitySetupSte
 };
 
 export const OBSERVABILITY_SETUP_STEP_TO_DESCRIPTION_MAP: Record<ObservabilitySetupStep, string> = {
-  [ObservabilitySetupStep.SOURCE]: "Point Filament at the system your data comes from",
-  [ObservabilitySetupStep.SINK]: "Choose the destination your data lands in",
-  [ObservabilitySetupStep.PIPELINE]: "Wire your source to your sink and let it run",
+  [ObservabilitySetupStep.SOURCE]: "Configure a source system to ingest from",
+  [ObservabilitySetupStep.SINK]: "Configure a destination to send data to",
+  [ObservabilitySetupStep.PIPELINE]: "Connect your source to your sink and replicate data",
 };
 
 export const OBSERVABILITY_SETUP_STEP_TO_ACTION_LABEL_MAP: Record<ObservabilitySetupStep, string> =

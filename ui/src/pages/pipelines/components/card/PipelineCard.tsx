@@ -1,12 +1,7 @@
 import { styled } from "@linaria/react";
 import { Link } from "@tanstack/react-router";
 
-import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -14,10 +9,7 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineName from "@/components/PipelineName";
 
-import {
-  PIPELINE_CARD_HEIGHT,
-  PIPELINE_INDICATOR_WIDTH,
-} from "@/pages/pipelines/components/card/constants";
+import { PIPELINE_CARD_HEIGHT } from "@/pages/pipelines/components/card/constants";
 import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
 import { usePipelineFlowEndpoints } from "@/pages/pipelines/hooks/usePipelineFlowEndpoints";
 
@@ -67,13 +59,6 @@ const PipelineCard = ({ pipeline }: PipelineCardProps) => {
     <CardLinkWrapper to="/pipelines/$id" params={{ id: pipeline.id }}>
       <CardWrapper>
         <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-          <FlexWrapper
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.CENTER}
-            width={PIPELINE_INDICATOR_WIDTH}
-          >
-            <Beacon variant={BeaconVariant.SUCCESS} />
-          </FlexWrapper>
           <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />
           <PipelineScheduleChip pipelineId={pipeline.id} />
         </FlexWrapper>

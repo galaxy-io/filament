@@ -7,7 +7,10 @@ import {
   useReducer,
 } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { match } from "ts-pattern";
+
+import { WorkerResourcesSchema } from "@/gen/ingestion/v1/common_pb";
 
 import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
 import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
@@ -23,7 +26,6 @@ import {
   type CreatePipelineModalState,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
-import { WORKER_RESOURCES_DEFAULT_STATE } from "@/pages/pipelines/components/worker/constants";
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
@@ -40,7 +42,7 @@ const DEFAULT_STATE: CreatePipelineModalState = {
   isNameTouched: false,
   description: "",
   schedule: PIPELINE_SCHEDULE_DEFAULT_STATE,
-  workerResources: WORKER_RESOURCES_DEFAULT_STATE,
+  workerResources: create(WorkerResourcesSchema),
   isSubmitting: false,
 };
 

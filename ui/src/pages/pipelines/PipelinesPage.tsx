@@ -55,12 +55,7 @@ const PipelinesPage = () => {
                 size={ButtonSize.LARGE}
                 onClick={handleNewPipeline}
               />
-              <DocsButton
-                label="Read the docs"
-                path="/pipelines"
-                variant={ButtonVariant.SECONDARY}
-                size={ButtonSize.LARGE}
-              />
+              <DocsButton label="Read the docs" path="/pipelines" size={ButtonSize.LARGE} />
             </FlexWrapper>
           }
         />
