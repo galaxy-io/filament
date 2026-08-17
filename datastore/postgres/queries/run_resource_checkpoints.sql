@@ -1,6 +1,8 @@
 -- name: SaveCheckpoint :exec
-INSERT INTO run_resource_checkpoints (id, run_id, resource_name, cursor, updated_at)
-VALUES (jsonb_build_array(@run_id::text, @resource_name::text)::text, @run_id, @resource_name, @cursor, now())
+INSERT INTO run_resource_checkpoints (tenant_id, run_id, resource_name, cursor, updated_at)
+SELECT tenant_id, @run_id, @resource_name, @cursor, now()
+FROM runs
+WHERE id = @run_id
 ON CONFLICT (run_id, resource_name) DO UPDATE SET cursor = EXCLUDED.cursor, updated_at = now();
 
 -- name: LoadCheckpoint :one

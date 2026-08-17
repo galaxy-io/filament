@@ -489,6 +489,9 @@ type (
 	StageID string
 )
 
+// DefaultTenantID identifies the built-in tenant used when callers omit one.
+const DefaultTenantID TenantID = "00000000-0000-0000-0000-000000000000"
+
 // Valid reports whether the ID is usable as a subject token (see ValidToken).
 // TenantID and RunID become subject tokens, so they must validate before a run
 // is accepted or an event published.

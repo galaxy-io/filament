@@ -36,8 +36,8 @@ func (q *Queries) ReadSecret(ctx context.Context, ref string) (*ReadSecretRow, e
 }
 
 const writeSecret = `-- name: WriteSecret :exec
-INSERT INTO secrets (id, tenant_id, ref, ciphertext, nonce, key_id, metadata, updated_at)
-VALUES (jsonb_build_array($1::text, $2::text)::text, $1, $2, $3, $4, $5, $6, now())
+INSERT INTO secrets (tenant_id, ref, ciphertext, nonce, key_id, metadata, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, now())
 ON CONFLICT (tenant_id, ref) DO UPDATE SET
     ciphertext = EXCLUDED.ciphertext,
     nonce = EXCLUDED.nonce,

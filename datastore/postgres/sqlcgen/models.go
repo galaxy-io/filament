@@ -89,6 +89,7 @@ type Pipeline struct {
 
 type PipelineResourceCheckpoint struct {
 	ID                string
+	TenantID          string
 	PipelineID        string
 	PipelineVersionID string
 	RouteKey          string
@@ -104,6 +105,7 @@ type PipelineResourceCheckpoint struct {
 
 type PipelineVersion struct {
 	ID              string
+	TenantID        string
 	PipelineID      string
 	Version         int64
 	Graph           []byte
@@ -152,6 +154,7 @@ type RunDedupSeen struct {
 
 type RunResourceCheckpoint struct {
 	ID              string
+	TenantID        string
 	RunID           string
 	ResourceName    string
 	Cursor          []byte

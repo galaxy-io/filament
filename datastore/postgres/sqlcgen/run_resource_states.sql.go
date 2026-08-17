@@ -53,8 +53,8 @@ func (q *Queries) ListResources(ctx context.Context, runID string) ([]*ListResou
 }
 
 const upsertResource = `-- name: UpsertResource :exec
-INSERT INTO run_resource_states (id, run_id, resource_name, tenant_id, status, records, bytes, error, updated_at)
-VALUES (jsonb_build_array($1::text, $2::text)::text, $1, $2, $3, $4, $5, $6, nullif($7::text, ''), now())
+INSERT INTO run_resource_states (run_id, resource_name, tenant_id, status, records, bytes, error, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, nullif($7::text, ''), now())
 ON CONFLICT (run_id, resource_name) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     status = EXCLUDED.status,

@@ -13,7 +13,7 @@ import (
 
 const createRun = `-- name: CreateRun :execrows
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
-VALUES ($1, $2, nullif($3::text, ''), nullif($4::text, ''), nullif($5::text, ''), $6, $7, $8, $9, $10, $11, $12, $13, nullif($14::text, ''), $15, $16, now())
+VALUES ($1, $2, nullif($3::text, '')::uuid, nullif($4::text, '')::uuid, nullif($5::text, '')::uuid, $6, $7, $8, $9, $10, $11, $12, $13, nullif($14::text, ''), $15, $16, now())
 ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
@@ -93,7 +93,7 @@ func (q *Queries) DeleteRun(ctx context.Context, runID string) error {
 }
 
 const loadRun = `-- name: LoadRun :one
-SELECT id, tenant_id, coalesce(schedule_id, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
+SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
 FROM runs WHERE id = $1
 `
 
@@ -142,7 +142,7 @@ func (q *Queries) LoadRun(ctx context.Context, runID string) (*LoadRunRow, error
 
 const saveRun = `-- name: SaveRun :exec
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
-VALUES ($1, $2, nullif($3::text, ''), nullif($4::text, ''), nullif($5::text, ''), $6, $7, $8, $9, $10, $11, $12, $13, nullif($14::text, ''), $15, $16, now())
+VALUES ($1, $2, nullif($3::text, '')::uuid, nullif($4::text, '')::uuid, nullif($5::text, '')::uuid, $6, $7, $8, $9, $10, $11, $12, $13, nullif($14::text, ''), $15, $16, now())
 ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,

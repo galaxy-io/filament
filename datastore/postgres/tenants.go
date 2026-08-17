@@ -13,7 +13,7 @@ import (
 )
 
 // DefaultTenantID is the tenant seeded by migrations and used by POC commands.
-const DefaultTenantID = "t1"
+const DefaultTenantID = string(filament.DefaultTenantID)
 
 // Tenant is a control-plane tenant row.
 type Tenant struct {

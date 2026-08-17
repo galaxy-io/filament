@@ -103,7 +103,7 @@ const listConnections = `-- name: ListConnections :many
 SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM connections
-WHERE ($1::text = '' OR tenant_id = $1)
+WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
   AND ($2::connector_kind IS NULL OR kind = $2)
   AND ($3::boolean OR NOT is_deleted)
 ORDER BY id

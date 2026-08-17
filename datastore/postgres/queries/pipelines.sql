@@ -16,8 +16,10 @@ WITH locked AS MATERIALIZED (
   SELECT coalesce(max(v.version), 0) + 1 AS version
   FROM locked LEFT JOIN pipeline_versions v ON v.pipeline_id = locked.id
 ), inserted AS (
-  INSERT INTO pipeline_versions (id, pipeline_id, version, graph)
-  SELECT sqlc.arg(id), sqlc.arg(pipeline_id), version, sqlc.arg(graph) FROM next
+  INSERT INTO pipeline_versions (id, tenant_id, pipeline_id, version, graph)
+  SELECT sqlc.arg(id), p.tenant_id, sqlc.arg(pipeline_id), next.version, sqlc.arg(graph)
+  FROM next
+  JOIN pipelines p ON p.id = sqlc.arg(pipeline_id)
   RETURNING id, version, created_at
 )
 UPDATE pipelines p SET current_version_id = inserted.id, updated_at = now()
@@ -47,7 +49,7 @@ SELECT id, tenant_id, name, description, current_version_id, worker_configuratio
        created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines
-WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
+WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
   AND (@include_deleted::boolean OR NOT is_deleted)
 ORDER BY id;
 

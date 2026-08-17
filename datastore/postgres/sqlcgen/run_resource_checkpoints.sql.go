@@ -26,8 +26,10 @@ func (q *Queries) LoadCheckpoint(ctx context.Context, arg LoadCheckpointParams) 
 }
 
 const saveCheckpoint = `-- name: SaveCheckpoint :exec
-INSERT INTO run_resource_checkpoints (id, run_id, resource_name, cursor, updated_at)
-VALUES (jsonb_build_array($1::text, $2::text)::text, $1, $2, $3, now())
+INSERT INTO run_resource_checkpoints (tenant_id, run_id, resource_name, cursor, updated_at)
+SELECT tenant_id, $1, $2, $3, now()
+FROM runs
+WHERE id = $1
 ON CONFLICT (run_id, resource_name) DO UPDATE SET cursor = EXCLUDED.cursor, updated_at = now()
 `
 

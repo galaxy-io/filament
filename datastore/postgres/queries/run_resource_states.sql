@@ -1,6 +1,6 @@
 -- name: UpsertResource :exec
-INSERT INTO run_resource_states (id, run_id, resource_name, tenant_id, status, records, bytes, error, updated_at)
-VALUES (jsonb_build_array(@run_id::text, @resource_name::text)::text, @run_id, @resource_name, @tenant_id, @status, @records, @bytes, nullif(@error::text, ''), now())
+INSERT INTO run_resource_states (run_id, resource_name, tenant_id, status, records, bytes, error, updated_at)
+VALUES (@run_id, @resource_name, @tenant_id, @status, @records, @bytes, nullif(@error::text, ''), now())
 ON CONFLICT (run_id, resource_name) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     status = EXCLUDED.status,

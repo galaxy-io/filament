@@ -11,6 +11,7 @@ import (
 )
 
 func TestProviderRoundTrip(t *testing.T) {
+	const tenantID = "11111111-1111-4111-8111-111111111111"
 	dsn := os.Getenv("FILAMENT_TEST_POSTGRES_DSN")
 	if dsn == "" {
 		t.Skip("FILAMENT_TEST_POSTGRES_DSN not set")
@@ -33,7 +34,7 @@ func TestProviderRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := datastorepostgres.New(pool)
-	if err := store.EnsureTenant(ctx, "tenant-a", "Tenant A"); err != nil {
+	if err := store.EnsureTenant(ctx, tenantID, "Tenant A"); err != nil {
 		t.Fatal(err)
 	}
 	p, err := secretpostgres.New(pool, "test-key-v1", make([]byte, 32))
@@ -41,7 +42,7 @@ func TestProviderRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	ref := "tenant-a/pg-dsn"
-	original := filament.Secret{Tenant: "tenant-a", Value: []byte("postgres://user:pw@host/db"), Meta: map[string]string{"rotated": "2026-01-01"}}
+	original := filament.Secret{Tenant: tenantID, Value: []byte("postgres://user:pw@host/db"), Meta: map[string]string{"rotated": "2026-01-01"}}
 	if err := p.Write(ctx, ref, original); err != nil {
 		t.Fatal(err)
 	}

@@ -95,7 +95,7 @@ func (q *Queries) DeleteSchedule(ctx context.Context, scheduleID string) error {
 }
 
 const leaseSchedules = `-- name: LeaseSchedules :exec
-UPDATE schedules SET claimed_at = $1 WHERE id = ANY($2::text[])
+UPDATE schedules SET claimed_at = $1 WHERE id = ANY($2::uuid[])
 `
 
 type LeaseSchedulesParams struct {
@@ -112,7 +112,7 @@ const listSchedules = `-- name: ListSchedules :many
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
-WHERE ($1::text = '' OR tenant_id = $1)
+WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
   AND ($2::boolean IS NULL OR enabled = $2)
 ORDER BY id
 LIMIT NULLIF($3::int, 0)

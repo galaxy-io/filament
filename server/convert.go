@@ -653,7 +653,7 @@ func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
 
 func defaultTenant(tenant string) string {
 	if tenant == "" {
-		return "t1"
+		return string(filament.DefaultTenantID)
 	}
 	return tenant
 }

@@ -1,21 +1,21 @@
 -- +goose Up
 CREATE TABLE tenants (
-  id                 TEXT        PRIMARY KEY,
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   name               TEXT,
-  created_by_user_id TEXT,
-  updated_by_user_id TEXT,
-  deleted_by_user_id TEXT,
+  created_by_user_id UUID,
+  updated_by_user_id UUID,
+  deleted_by_user_id UUID,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE users (
-  id                 TEXT        PRIMARY KEY,
-  tenant_id          TEXT        NOT NULL REFERENCES tenants (id),
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
   external_id        TEXT        NOT NULL,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, external_id)
@@ -29,8 +29,8 @@ ALTER TABLE tenants
 CREATE TYPE connector_kind AS ENUM ('source', 'sink');
 
 CREATE TABLE connections (
-  id                 TEXT            PRIMARY KEY,
-  tenant_id          TEXT            NOT NULL REFERENCES tenants (id),
+  id                 UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID            NOT NULL REFERENCES tenants (id),
   kind               connector_kind NOT NULL,
   name               TEXT            NOT NULL,
   connector          TEXT            NOT NULL,
@@ -39,9 +39,9 @@ CREATE TABLE connections (
   version            BIGINT          NOT NULL DEFAULT 1,
   is_deleted         BOOLEAN         NOT NULL DEFAULT false,
   deleted_at         TIMESTAMPTZ,
-  created_by_user_id TEXT            REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT            REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT            REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID            REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID            REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID            REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ     NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ     NOT NULL DEFAULT now()
 );
@@ -51,17 +51,17 @@ CREATE UNIQUE INDEX connections_tenant_name_kind_idx
   ON connections (tenant_id, kind, name) WHERE NOT is_deleted;
 
 CREATE TABLE pipelines (
-  id                 TEXT        PRIMARY KEY,
-  tenant_id          TEXT        NOT NULL REFERENCES tenants (id),
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
   name               TEXT        NOT NULL,
   description        TEXT        NOT NULL DEFAULT '',
-  current_version_id TEXT,
+  current_version_id UUID,
   worker_configuration JSONB     NOT NULL DEFAULT '{}',
   is_deleted         BOOLEAN     NOT NULL DEFAULT false,
   deleted_at         TIMESTAMPTZ,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (id, tenant_id)
@@ -70,13 +70,14 @@ CREATE TABLE pipelines (
 CREATE INDEX pipelines_tenant_idx ON pipelines (tenant_id);
 
 CREATE TABLE pipeline_versions (
-  id                 TEXT        PRIMARY KEY,
-  pipeline_id        TEXT        NOT NULL REFERENCES pipelines (id) ON DELETE CASCADE,
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
+  pipeline_id        UUID        NOT NULL REFERENCES pipelines (id) ON DELETE CASCADE,
   version            BIGINT      NOT NULL,
   graph              JSONB       NOT NULL,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (pipeline_id, version),
@@ -89,9 +90,9 @@ ALTER TABLE pipelines
   REFERENCES pipeline_versions (pipeline_id, id);
 
 CREATE TABLE schedules (
-  id                 TEXT        PRIMARY KEY,
-  tenant_id          TEXT        NOT NULL REFERENCES tenants (id),
-  pipeline_id        TEXT        NOT NULL,
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
+  pipeline_id        UUID        NOT NULL,
   name               TEXT,
   cron_expr          TEXT        NOT NULL,
   timezone           TEXT        NOT NULL DEFAULT 'UTC',
@@ -100,9 +101,9 @@ CREATE TABLE schedules (
   last_fired_at      TIMESTAMPTZ,
   next_fire_at       TIMESTAMPTZ,
   claimed_at         TIMESTAMPTZ,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (pipeline_id, tenant_id) REFERENCES pipelines (id, tenant_id) ON DELETE CASCADE,
@@ -113,11 +114,11 @@ CREATE INDEX schedules_due_idx ON schedules (next_fire_at) WHERE enabled = true;
 CREATE INDEX schedules_tenant_idx ON schedules (tenant_id);
 
 CREATE TABLE runs (
-  id                 TEXT        PRIMARY KEY,
-  tenant_id          TEXT        NOT NULL REFERENCES tenants (id),
-  pipeline_id        TEXT,
-  pipeline_version_id TEXT,
-  schedule_id        TEXT        REFERENCES schedules (id) ON DELETE SET NULL,
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
+  pipeline_id        UUID,
+  pipeline_version_id UUID,
+  schedule_id        UUID        REFERENCES schedules (id) ON DELETE SET NULL,
   status             SMALLINT    NOT NULL,
   request            JSONB       NOT NULL,
   records            BIGINT      NOT NULL DEFAULT 0,
@@ -129,9 +130,9 @@ CREATE TABLE runs (
   started_at         TIMESTAMPTZ,
   ended_at           TIMESTAMPTZ,
   error              TEXT,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (pipeline_id, pipeline_version_id)
@@ -150,46 +151,48 @@ CREATE UNIQUE INDEX runs_active_checkpoint_route_idx
     AND nullif(request->>'CheckpointRoute', '') IS NOT NULL;
 
 CREATE TABLE run_resource_states (
-  id                 TEXT        PRIMARY KEY,
-  run_id             TEXT        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id             UUID        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
   resource_name      TEXT        NOT NULL,
-  tenant_id          TEXT        NOT NULL REFERENCES tenants (id),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
   status             SMALLINT    NOT NULL,
   records            BIGINT      NOT NULL DEFAULT 0,
   bytes              BIGINT      NOT NULL DEFAULT 0,
   error              TEXT,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (run_id, resource_name)
 );
 
 CREATE TABLE run_resource_checkpoints (
-  id                 TEXT        PRIMARY KEY,
-  run_id             TEXT        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
+  run_id             UUID        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
   resource_name      TEXT        NOT NULL,
   cursor             JSONB       NOT NULL,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (run_id, resource_name)
 );
 
 CREATE TABLE pipeline_resource_checkpoints (
-  id                  TEXT        PRIMARY KEY,
-  pipeline_id         TEXT        NOT NULL,
-  pipeline_version_id TEXT        NOT NULL,
+  id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id           UUID        NOT NULL REFERENCES tenants (id),
+  pipeline_id         UUID        NOT NULL,
+  pipeline_version_id UUID        NOT NULL,
   route_key           TEXT        NOT NULL,
   resource_name       TEXT        NOT NULL,
   cursor              JSONB       NOT NULL,
-  last_run_id         TEXT        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
-  created_by_user_id  TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id  TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id  TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  last_run_id         UUID        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
+  created_by_user_id  UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id  UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id  UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   FOREIGN KEY (pipeline_id, pipeline_version_id)
@@ -201,29 +204,29 @@ CREATE INDEX pipeline_resource_checkpoints_last_run_idx
   ON pipeline_resource_checkpoints (last_run_id);
 
 CREATE TABLE run_dedup_seen (
-  id                 TEXT        PRIMARY KEY,
-  tenant_id          TEXT        NOT NULL REFERENCES tenants (id),
-  run_id             TEXT        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
+  run_id             UUID        NOT NULL REFERENCES runs (id) ON DELETE CASCADE,
   last_seq           BIGINT      NOT NULL,
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, run_id)
 );
 
 CREATE TABLE secrets (
-  id                 TEXT        PRIMARY KEY,
-  tenant_id          TEXT        NOT NULL REFERENCES tenants (id),
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID        NOT NULL REFERENCES tenants (id),
   ref                TEXT        NOT NULL,
   ciphertext         BYTEA       NOT NULL,
   nonce              BYTEA       NOT NULL,
   key_id             TEXT        NOT NULL,
   metadata           JSONB       NOT NULL DEFAULT '{}',
-  created_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  updated_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
-  deleted_by_user_id TEXT        REFERENCES users (id) ON DELETE SET NULL,
+  created_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  updated_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
+  deleted_by_user_id UUID        REFERENCES users (id) ON DELETE SET NULL,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, ref),

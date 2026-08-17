@@ -92,6 +92,7 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
+		rs.Tenant = r.Tenant
 		if err := upsertResource(ctx, q, rs); err != nil {
 			return err
 		}
@@ -144,6 +145,7 @@ func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
 
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
+		rs.Tenant = r.Tenant
 		if err := upsertResource(ctx, q, rs); err != nil {
 			return err
 		}
@@ -198,7 +200,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 // resource states attached. Runs that have not started sort first: a pending
 // scheduled run and one still spinning up are both upcoming work.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
-	q := `SELECT id, tenant_id, coalesce(schedule_id, ''), status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes, count(*) OVER ()
+	q := `SELECT id, tenant_id, coalesce(schedule_id::text, ''), status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes, count(*) OVER ()
 	      FROM runs WHERE 1=1`
 	args := []any{}
 	arg := func(v any) string {

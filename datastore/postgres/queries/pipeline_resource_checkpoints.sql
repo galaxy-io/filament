@@ -1,10 +1,10 @@
 -- name: SaveResourceCheckpoint :exec
 INSERT INTO pipeline_resource_checkpoints (
-  id, pipeline_id, pipeline_version_id, route_key, resource_name, cursor, last_run_id, updated_at
-) VALUES (
-  jsonb_build_array(@pipeline_id::text, @pipeline_version_id::text, @route_key::text, @resource_name::text)::text,
-  @pipeline_id, @pipeline_version_id, @route_key, @resource_name, @cursor, @last_run_id, now()
+  tenant_id, pipeline_id, pipeline_version_id, route_key, resource_name, cursor, last_run_id, updated_at
 )
+SELECT tenant_id, @pipeline_id, @pipeline_version_id, @route_key, @resource_name, @cursor, @last_run_id, now()
+FROM pipelines
+WHERE id = @pipeline_id
 ON CONFLICT (pipeline_id, pipeline_version_id, route_key, resource_name) DO UPDATE
 SET cursor = EXCLUDED.cursor, last_run_id = EXCLUDED.last_run_id, updated_at = now();
 

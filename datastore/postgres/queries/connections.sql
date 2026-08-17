@@ -18,7 +18,7 @@ FROM connections WHERE id = @connection_id;
 SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM connections
-WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
+WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
   AND (sqlc.narg('kind')::connector_kind IS NULL OR kind = sqlc.narg('kind'))
   AND (@include_deleted::boolean OR NOT is_deleted)
 ORDER BY id;

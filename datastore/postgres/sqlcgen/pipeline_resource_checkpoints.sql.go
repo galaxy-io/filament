@@ -72,11 +72,11 @@ func (q *Queries) LoadResourceCheckpoint(ctx context.Context, arg LoadResourceCh
 
 const saveResourceCheckpoint = `-- name: SaveResourceCheckpoint :exec
 INSERT INTO pipeline_resource_checkpoints (
-  id, pipeline_id, pipeline_version_id, route_key, resource_name, cursor, last_run_id, updated_at
-) VALUES (
-  jsonb_build_array($1::text, $2::text, $3::text, $4::text)::text,
-  $1, $2, $3, $4, $5, $6, now()
+  tenant_id, pipeline_id, pipeline_version_id, route_key, resource_name, cursor, last_run_id, updated_at
 )
+SELECT tenant_id, $1, $2, $3, $4, $5, $6, now()
+FROM pipelines
+WHERE id = $1
 ON CONFLICT (pipeline_id, pipeline_version_id, route_key, resource_name) DO UPDATE
 SET cursor = EXCLUDED.cursor, last_run_id = EXCLUDED.last_run_id, updated_at = now()
 `

@@ -1,6 +1,6 @@
 -- name: SaveRun :exec
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
-VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, ''), nullif(@pipeline_version_id::text, ''), nullif(@schedule_id::text, ''), @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
+VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, '')::uuid, nullif(@pipeline_version_id::text, '')::uuid, nullif(@schedule_id::text, '')::uuid, @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
 ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
@@ -28,7 +28,7 @@ ON CONFLICT (id) DO UPDATE SET
 -- intake cannot roll a live run back; 0 rows reports the conflict.
 -- name: CreateRun :execrows
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
-VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, ''), nullif(@pipeline_version_id::text, ''), nullif(@schedule_id::text, ''), @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
+VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, '')::uuid, nullif(@pipeline_version_id::text, '')::uuid, nullif(@schedule_id::text, '')::uuid, @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
 ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
@@ -52,5 +52,5 @@ WHERE runs.status = @from_status;
 DELETE FROM runs WHERE id = @run_id;
 
 -- name: LoadRun :one
-SELECT id, tenant_id, coalesce(schedule_id, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
+SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
 FROM runs WHERE id = @run_id;

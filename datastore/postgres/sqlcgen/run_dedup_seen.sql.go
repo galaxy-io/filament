@@ -10,8 +10,8 @@ import (
 )
 
 const advanceDedupSeen = `-- name: AdvanceDedupSeen :one
-INSERT INTO run_dedup_seen (id, tenant_id, run_id, last_seq, updated_at)
-VALUES (jsonb_build_array($1::text, $2::text)::text, $1, $2, $3, now())
+INSERT INTO run_dedup_seen (tenant_id, run_id, last_seq, updated_at)
+VALUES ($1, $2, $3, now())
 ON CONFLICT (tenant_id, run_id) DO UPDATE
   SET last_seq = EXCLUDED.last_seq, updated_at = now()
   WHERE run_dedup_seen.last_seq < EXCLUDED.last_seq

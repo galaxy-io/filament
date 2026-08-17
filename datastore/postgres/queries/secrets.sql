@@ -1,6 +1,6 @@
 -- name: WriteSecret :exec
-INSERT INTO secrets (id, tenant_id, ref, ciphertext, nonce, key_id, metadata, updated_at)
-VALUES (jsonb_build_array(@tenant_id::text, @ref::text)::text, @tenant_id, @ref, @ciphertext, @nonce, @key_id, @metadata, now())
+INSERT INTO secrets (tenant_id, ref, ciphertext, nonce, key_id, metadata, updated_at)
+VALUES (@tenant_id, @ref, @ciphertext, @nonce, @key_id, @metadata, now())
 ON CONFLICT (tenant_id, ref) DO UPDATE SET
     ciphertext = EXCLUDED.ciphertext,
     nonce = EXCLUDED.nonce,

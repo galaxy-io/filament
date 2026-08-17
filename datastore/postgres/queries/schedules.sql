@@ -36,7 +36,7 @@ DELETE FROM schedules WHERE pipeline_id = @pipeline_id;
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
-WHERE (@tenant_id::text = '' OR tenant_id = @tenant_id)
+WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
   AND (sqlc.narg(filter_enabled)::boolean IS NULL OR enabled = sqlc.narg(filter_enabled))
 ORDER BY id
 LIMIT NULLIF(@lim::int, 0);
@@ -54,7 +54,7 @@ LIMIT NULLIF(@lim::int, 0)
 FOR UPDATE SKIP LOCKED;
 
 -- name: LeaseSchedules :exec
-UPDATE schedules SET claimed_at = @claimed_at WHERE id = ANY(@schedule_ids::text[]);
+UPDATE schedules SET claimed_at = @claimed_at WHERE id = ANY(@schedule_ids::uuid[]);
 
 -- name: ReleaseScheduleClaim :exec
 UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE id = @schedule_id;

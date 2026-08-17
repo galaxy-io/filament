@@ -45,14 +45,14 @@ type Option func(*Module)
 func WithInterval(d time.Duration) Option { return func(m *Module) { m.interval = d } }
 
 // WithDefaultTenant sets the tenant compiled runs fall back to when the
-// pipeline row carries none (default "t1", matching the API's fallback).
+// pipeline row carries none (matching the API's fallback).
 func WithDefaultTenant(tenant string) Option { return func(m *Module) { m.defaultTenant = tenant } }
 
 // New returns an unmounted scheduler over the given ScheduleStore. The bus,
 // data store, and compiler inputs are injected by Mount; the timer is launched
 // by Start.
 func New(store filament.ScheduleStore, opts ...Option) *Module {
-	m := &Module{store: store, interval: defaultInterval, defaultTenant: "t1"}
+	m := &Module{store: store, interval: defaultInterval, defaultTenant: string(filament.DefaultTenantID)}
 	for _, o := range opts {
 		o(m)
 	}
