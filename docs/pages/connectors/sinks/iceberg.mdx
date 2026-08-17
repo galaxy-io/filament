@@ -20,12 +20,11 @@ fields are shown:
 | `polaris` | Apache Polaris specifically — same REST protocol as `rest`, but requires a `warehouse` (Polaris's catalog name, not a storage path) |
 | `lakekeeper` | Lakekeeper specifically — requires its `/catalog` REST endpoint and the name of a warehouse registered in Lakekeeper |
 
-## Write modes
+## Write behavior
 
-`write_mode` controls how each commit applies a resource's staged records:
-`auto` (the default) resolves to `replace` for a full-mode run or `append`
-otherwise, or it can be pinned explicitly to `append`, `replace`, `upsert`,
-`delete`, or `merge`.
+Iceberg uses the pipeline resource's sync mode. Replace, Append, Incremental,
+and CDC compile to the corresponding internal Iceberg commit behavior; there
+is no separate connector-level write-mode override.
 
 ## Staged, transactional commits
 
