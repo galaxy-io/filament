@@ -120,9 +120,6 @@ func run(ctx context.Context) error {
 	h := host.New(bus)
 	defer func() {
 		_ = h.Close()
-		if c, ok := any(bus).(io.Closer); ok {
-			_ = c.Close()
-		}
 	}()
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run host: %w", err)
