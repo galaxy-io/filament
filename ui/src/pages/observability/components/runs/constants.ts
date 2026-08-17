@@ -78,7 +78,7 @@ export const OBSERVABILITY_RUNS_TABLE_LIMIT = 50;
 
 export const OBSERVABILITY_RUNS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
-  pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
+  pagination: create(PaginationRequestSchema, { pageSize: OBSERVABILITY_RUNS_TABLE_LIMIT }),
 });
 
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS = 110;

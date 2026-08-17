@@ -14,7 +14,7 @@ export const file_metrics_v1_metrics: GenFile = /*@__PURE__*/
 
 /**
  * MetricFilter narrows a query; values are dimension values as strings
- * (a RunStatus number, a pipeline id, a provider name).
+ * (a RunStatus number or a pipeline id).
  *
  * @generated from message metrics.v1.MetricFilter
  */
