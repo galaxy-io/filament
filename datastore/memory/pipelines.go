@@ -183,9 +183,10 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	return out, nil
 }
 
-// DeletePipeline soft-deletes a pipeline and removes its schedules so the
-// scheduler stops firing it. Versions are kept so it stays readable. The name
-// is stamped with the delete time to mark it in raw listings.
+// DeletePipeline soft-deletes a pipeline and removes its schedules and pending
+// scheduled runs so the scheduler stops firing it and nothing lingers as
+// upcoming work. Versions are kept so it stays readable. The name is stamped
+// with the delete time to mark it in raw listings.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -203,6 +204,11 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 		if schedule.Spec.PipelineID == id {
 			delete(s.schedules, scheduleID)
 			delete(s.scheduleClaims, scheduleID)
+		}
+	}
+	for runID, run := range s.runs {
+		if run.Request.PipelineID == id && run.Status == filament.RunScheduled {
+			s.deleteRunLocked(runID)
 		}
 	}
 	return nil

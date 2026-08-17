@@ -1,8 +1,12 @@
--- name: SaveSchedule :exec
+-- The insert arm sources from pipelines so a save racing a pipeline delete
+-- cannot re-insert the schedule row the delete just removed; 0 rows means the
+-- pipeline is gone or deleted.
+-- name: SaveSchedule :execrows
 INSERT INTO schedules (id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, claimed_at, created_at, updated_at)
-VALUES (@schedule_id, @tenant_id, @pipeline_id, @name, @cron_expr, @timezone, @overlap_policy,
-    @enabled, @last_fired_at, @next_fire_at, NULL, @created_at, now())
+SELECT @schedule_id, @tenant_id, @pipeline_id, @name, @cron_expr, @timezone, @overlap_policy,
+    @enabled, @last_fired_at, @next_fire_at, NULL, @created_at, now()
+FROM pipelines WHERE id = @pipeline_id AND NOT is_deleted
 ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,

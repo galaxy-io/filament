@@ -203,8 +203,9 @@ func pipelineFromRow(id, tenant, name, description string) *ingestionv1.Pipeline
 	return &ingestionv1.Pipeline{Id: id, TenantId: tenant, Name: name, Description: description}
 }
 
-// DeletePipeline soft-deletes a pipeline and removes its schedules so the
-// scheduler stops firing it. Versions and run history are kept.
+// DeletePipeline soft-deletes a pipeline and removes its schedules and pending
+// scheduled runs so the scheduler stops firing it and nothing lingers as
+// upcoming work. Versions and run history are kept.
 func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -215,8 +216,17 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 	if err := q.DeletePipeline(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline: %w", err)
 	}
+	// Schedules go before runs: a concurrent reconcile insert either commits
+	// ahead of this delete's parent-row lock (the runs reap below still sees
+	// it) or fails its schedules FK once the lock is taken.
 	if err := q.DeletePipelineSchedules(ctx, id); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline schedules: %w", err)
+	}
+	if err := q.DeletePipelineScheduledRuns(ctx, sqlcgen.DeletePipelineScheduledRunsParams{
+		PipelineID: toText(id),
+		Status:     int16(filament.RunScheduled), //nolint:gosec // small enum
+	}); err != nil {
+		return fmt.Errorf("datastore/postgres: delete pipeline scheduled runs: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("datastore/postgres: commit pipeline delete: %w", err)

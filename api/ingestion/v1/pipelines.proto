@@ -142,31 +142,6 @@ message UpdatePipelineScheduleResponse {
   PipelineSchedule schedule = 1;
 }
 
-message DeletePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-}
-
-message DeletePipelineScheduleResponse {}
-
-message PausePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-}
-
-message PausePipelineScheduleResponse {
-  PipelineSchedule schedule = 1;
-}
-
-message ResumePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-}
-
-message ResumePipelineScheduleResponse {
-  PipelineSchedule schedule = 1;
-}
-
 message CreatePipelineVersionRequest {
   string tenant_id = 1;
   string pipeline_id = 2;
