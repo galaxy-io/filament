@@ -72,8 +72,6 @@ message RunPipelineResponse {
 // RunResourceState reports progress for one resource in a run.
 message RunResourceState {
   string resource_name = 1;
-  reserved 2;
-  reserved "enabled";
   RunStatus status = 3;
   int64 records = 4;
   int64 bytes = 5;

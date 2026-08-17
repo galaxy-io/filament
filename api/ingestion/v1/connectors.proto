@@ -68,8 +68,6 @@ message ValidateConfigRequest {
   ConnectorKind kind = 2;
   string connector = 3;
   google.protobuf.Struct config = 4;
-  reserved 5;
-  reserved "live";
   string connection_id = 6;
 }
 
@@ -95,8 +93,6 @@ message Resource {
   string name = 1;
   bool is_selectable = 2;
   repeated string primary_key = 3;
-  reserved 4;
-  reserved "estimated_rows";
   string selector = 5;
   string display_name = 6;
   map<string, string> metadata = 7;

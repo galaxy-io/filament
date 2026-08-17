@@ -2188,7 +2188,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x10lookback_seconds\x18\x03 \x01(\x03R\x0flookbackSeconds\"s\n" +
 	"\rPipelineGraph\x120\n" +
 	"\x05nodes\x18\x01 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
-	"\x05edges\x18\x02 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\"\xcd\x02\n" +
+	"\x05edges\x18\x02 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\"\xb3\x02\n" +
 	"\x0fPipelineVersion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1d\n" +
@@ -2200,7 +2200,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x12created_by_user_id\x18\b \x01(\tR\x0fcreatedByUserId\x12+\n" +
 	"\x12updated_by_user_id\x18\t \x01(\tR\x0fupdatedByUserId\x12+\n" +
 	"\x12deleted_by_user_id\x18\n" +
-	" \x01(\tR\x0fdeletedByUserIdJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05nodesR\x05edges\"\xc5\x05\n" +
+	" \x01(\tR\x0fdeletedByUserId\"\x98\x05\n" +
 	"\bPipeline\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -2219,9 +2219,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x12created_by_user_id\x18\x0e \x01(\tR\x0fcreatedByUserId\x12+\n" +
 	"\x12updated_by_user_id\x18\x0f \x01(\tR\x0fupdatedByUserId\x12+\n" +
 	"\x12deleted_by_user_id\x18\x10 \x01(\tR\x0fdeletedByUserId\x12T\n" +
-	"\x14worker_configuration\x18\x11 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfigurationJ\x04\b\t\x10\n" +
-	"J\x04\b\n" +
-	"\x10\vR\x0flast_run_statusR\x0elast_run_bytes\"\xbb\x01\n" +
+	"\x14worker_configuration\x18\x11 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\"\xbb\x01\n" +
 	"\x16PipelineScheduleConfig\x12\x12\n" +
 	"\x04cron\x18\x01 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x02 \x01(\tR\btimezone\x12\x1d\n" +
@@ -2275,12 +2273,12 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\"\\\n" +
 	"\x1eResumePipelineScheduleResponse\x12:\n" +
-	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\xa9\x01\n" +
+	"\bschedule\x18\x01 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\x8f\x01\n" +
 	"\x1cCreatePipelineVersionRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x121\n" +
-	"\x05graph\x18\x05 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graphJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x05nodesR\x05edges\"X\n" +
+	"\x05graph\x18\x05 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\"X\n" +
 	"\x1dCreatePipelineVersionResponse\x127\n" +
 	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"h\n" +
 	"\x15UpdatePipelineRequest\x12\x1b\n" +

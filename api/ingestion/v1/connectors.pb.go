@@ -1254,13 +1254,13 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"Q\n" +
 	"\x14GetConnectorResponse\x129\n" +
-	"\tconnector\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\tconnector\"\xe5\x01\n" +
+	"\tconnector\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\tconnector\"\xd9\x01\n" +
 	"\x15ValidateConfigRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
 	"\tconnector\x18\x03 \x01(\tR\tconnector\x12/\n" +
 	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
-	"\rconnection_id\x18\x06 \x01(\tR\fconnectionIdJ\x04\b\x05\x10\x06R\x04live\"A\n" +
+	"\rconnection_id\x18\x06 \x01(\tR\fconnectionId\"A\n" +
 	"\x0fValidationError\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"e\n" +
@@ -1272,7 +1272,7 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
 	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x18\n" +
 	"\arefresh\x18\x04 \x01(\bR\arefresh\x12#\n" +
-	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\"\xb8\x02\n" +
+	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\"\xa2\x02\n" +
 	"\bResource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\ris_selectable\x18\x02 \x01(\bR\fisSelectable\x12\x1f\n" +
@@ -1283,7 +1283,7 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\bmetadata\x18\a \x03(\v2$.ingestion.v1.Resource.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x04\x10\x05R\x0eestimated_rows\"Q\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
 	"\x19DiscoverResourcesResponse\x124\n" +
 	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xca\x01\n" +
 	"\x19GetResourceColumnsRequest\x12\x1b\n" +

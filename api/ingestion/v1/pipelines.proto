@@ -53,10 +53,6 @@ message PipelineGraph {
 message PipelineVersion {
   string id = 1;
   int64 version = 2;
-  // nodes and edges were replaced by graph; reserve their wire identifiers so
-  // future fields cannot accidentally reinterpret older payloads.
-  reserved 3, 4;
-  reserved "nodes", "edges";
   int64 created_at = 5;
   PipelineGraph graph = 6;
   int64 updated_at = 7;
@@ -75,8 +71,6 @@ message Pipeline {
   repeated PipelineVersion versions = 6;
   RunInfo last_run = 7;
   PipelineSchedule schedule = 8;
-  reserved 9, 10;
-  reserved "last_run_status", "last_run_bytes";
   int64 created_at = 11;
   int64 deleted_at = 12;
   int64 updated_at = 13;
@@ -176,8 +170,6 @@ message ResumePipelineScheduleResponse {
 message CreatePipelineVersionRequest {
   string tenant_id = 1;
   string pipeline_id = 2;
-  reserved 3, 4;
-  reserved "nodes", "edges";
   PipelineGraph graph = 5;
 }
 

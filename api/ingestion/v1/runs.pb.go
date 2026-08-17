@@ -1439,13 +1439,13 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x11pipeline_edge_key\x18\x01 \x01(\tR\x0fpipelineEdgeKey\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\"Q\n" +
 	"\x13RunPipelineResponse\x12:\n" +
-	"\tedge_runs\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineEdgeRunR\bedgeRuns\"\xbd\x01\n" +
+	"\tedge_runs\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineEdgeRunR\bedgeRuns\"\xae\x01\n" +
 	"\x10RunResourceState\x12#\n" +
 	"\rresource_name\x18\x01 \x01(\tR\fresourceName\x12/\n" +
 	"\x06status\x18\x03 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x04 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x05 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05errorJ\x04\b\x02\x10\x03R\aenabled\"\xe9\x04\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\xe9\x04\n" +
 	"\aRunInfo\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1f\n" +
