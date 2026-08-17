@@ -307,7 +307,7 @@ func (b *Bus) subscribe(ctx context.Context, pattern string, opts eventbus.SubOp
 
 	cons, err := b.ensureConsumer(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("eventbus/nats: subscribe: %w", err)
+		return nil, fmt.Errorf("eventbus/nats: subscribe pattern %q durable %q stream %q: %w", pattern, opts.Durable, b.stream, err)
 	}
 
 	s := &subscription{

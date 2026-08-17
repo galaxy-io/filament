@@ -53,6 +53,7 @@ type Config struct {
 	Sources filament.SourceRegistry
 	Sinks   filament.SinkRegistry
 	UI      http.Handler
+	Log     filament.Logger
 }
 
 // Option mutates a Config. Options passed to Run override the defaults.
@@ -82,6 +83,9 @@ func WithSecrets(s filament.Secrets) Option { return func(c *Config) { c.Secrets
 // precedence; everything else falls through to the UI handler.
 func WithUI(h http.Handler) Option { return func(c *Config) { c.UI = h } }
 
+// WithLogger sets the structured logger used by the API and runtime modules.
+func WithLogger(log filament.Logger) Option { return func(c *Config) { c.Log = log } }
+
 func newConfig(opts ...Option) Config {
 	c := Config{
 		Bus:     inproc.New(),
@@ -104,13 +108,13 @@ func Run(ctx context.Context, opts ...Option) error {
 
 	orch := orchestrator.New()
 	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus,
-		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics))
+		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics), server.WithLogger(cfg.Log))
 	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
 	if !ok {
 		return fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks}
+	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}
 	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, sched)
 	if err != nil {
 		return fmt.Errorf("mount: %w", err)

@@ -175,6 +175,22 @@ func (e *rowEncoder) pkTexts(raw [][]byte) ([]string, error) {
 	return out, nil
 }
 
+// textAt renders one projected native column in the same text form PostgreSQL
+// uses for keyset cursors and the jsonb compatibility projection.
+func (e *rowEncoder) textAt(raw [][]byte, i int) (string, error) {
+	if i < 0 || i >= len(e.fns) || i >= len(raw) {
+		return "", fmt.Errorf("column index %d outside row", i)
+	}
+	if raw[i] == nil {
+		return "", nil
+	}
+	b, err := e.fns[i].text(nil, raw[i])
+	if err != nil {
+		return "", fmt.Errorf("column %q: %w", e.names[i], err)
+	}
+	return string(b), nil
+}
+
 // rowID derives the record id from the pk values' text forms, or from the
 // trailing ctid column for a keyless table.
 func (e *rowEncoder) rowID(raw [][]byte) (string, error) {

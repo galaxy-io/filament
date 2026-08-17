@@ -214,12 +214,12 @@ func TestPipelinePerResourceBatching(t *testing.T) {
 	_ = c
 }
 
-func TestPipelineDivergenceIsNonFatal(t *testing.T) {
+func TestPipelineDivergenceIsFatal(t *testing.T) {
 	sink := &fakeSink{corrupt: true}
 	recs := []filament.Record{rec("users", "1", `{}`), rec("users", "2", `{}`)}
 	c, err := run(t, sink, 2, recs)
-	if err != nil {
-		t.Fatalf("Wait: divergence should not fail the run, got %v", err)
+	if err == nil || !errContains(err, "CRC divergence") {
+		t.Fatalf("Wait error = %v, want CRC divergence", err)
 	}
 	if got := c.count(events.ChunkDivergence.Name()); got != 1 {
 		t.Errorf("divergence facts = %d, want 1", got)
