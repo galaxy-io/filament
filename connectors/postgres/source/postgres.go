@@ -141,7 +141,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
-			{Name: "read_mode", Type: filament.FieldEnum, Default: "keyset", Enum: []filament.EnumOption{
+			{Name: "scan_strategy", Type: filament.FieldEnum, Default: "keyset", Enum: []filament.EnumOption{
 				{Value: "auto", Label: "Auto"},
 				{Value: "keyset", Label: "Keyset"},
 				{Value: "bitmap", Label: "Bitmap"},
@@ -231,7 +231,7 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		// 0 is a valid value here (disable sharding), so honor it as-is.
 		s.shardPages = cfg.Int("shard_pages")
 	}
-	if v := cfg.String("read_mode"); v != "" {
+	if v := cfg.String("scan_strategy"); v != "" {
 		s.readMode = v
 	}
 	if v := cfg.String("encoding"); v != "" {

@@ -97,9 +97,8 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 		Sink: filament.Ref{
 			Provider: "iceberg",
 			Config: map[string]any{
-				"warehouse":  "s3://" + lake.Bucket + "/",
-				"namespace":  "tpch_e2e",
-				"write_mode": "replace",
+				"warehouse": "s3://" + lake.Bucket + "/",
+				"namespace": "tpch_e2e",
 				"catalog": map[string]any{
 					"provider": "rest",
 					"uri":      restURI,

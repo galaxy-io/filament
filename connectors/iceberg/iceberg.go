@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	iceberg "github.com/apache/iceberg-go"
@@ -37,7 +36,6 @@ const (
 type writeMode string
 
 const (
-	writeModeAuto    writeMode = "auto"
 	writeModeAppend  writeMode = "append"
 	writeModeReplace writeMode = "replace"
 	writeModeUpsert  writeMode = "upsert"
@@ -106,14 +104,6 @@ func (s *Sink) Spec() filament.SinkSpec {
 			catalogConfigField(),
 			tableConfigField(),
 			{Name: "namespace", Type: filament.FieldString, Default: defaultNamespace, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables. Empty defaults to the normalized source connection name."},
-			{Name: "write_mode", Type: filament.FieldEnum, Enum: []filament.EnumOption{
-				{Value: "auto", Label: "Auto"},
-				{Value: "append", Label: "Append"},
-				{Value: "replace", Label: "Replace"},
-				{Value: "upsert", Label: "Upsert"},
-				{Value: "delete", Label: "Delete"},
-				{Value: "merge", Label: "Merge"},
-			}, Default: "auto", Scope: filament.ScopePipeline, Help: "Write behavior; auto picks replace for full loads, append otherwise."},
 			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
 		}},
 		SchemaField: "namespace",
@@ -166,11 +156,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
 		s.stageBufLimitBytes = int64(mb) << 20
 	}
-	mode, err := resolveWriteMode(cfg.String("write_mode"),
-		filament.SourcePolicyForIngestion(filament.TypeFor(run.IngestionTypes, "")).Mode)
-	if err != nil {
-		return err
-	}
+	mode := writeModeForPolicy(filament.TypeFor(run.IngestionTypes, "").WritePolicy())
 
 	setup, err := buildCatalogSetup(cfg)
 	if err != nil {
@@ -501,20 +487,17 @@ func (s *Sink) tableIdent(resource string) icetable.Identifier {
 	return catalog.ToIdentifier(append(parts, tableName(resource))...)
 }
 
-func resolveWriteMode(configured string, runMode filament.ReadMode) (writeMode, error) {
-	mode := writeMode(strings.ToLower(strings.TrimSpace(configured)))
-	if mode == "" {
-		mode = writeModeAuto
-	}
-	switch mode {
-	case writeModeAuto:
-		if runMode == filament.ModeFull {
-			return writeModeReplace, nil
-		}
-		return writeModeAppend, nil
-	case writeModeAppend, writeModeReplace, writeModeUpsert, writeModeDelete, writeModeMerge:
-		return mode, nil
+func writeModeForPolicy(policy filament.WritePolicy) writeMode {
+	switch policy.Capability.Mode {
+	case filament.WriteAppend:
+		return writeModeAppend
+	case filament.WriteUpsert:
+		return writeModeUpsert
+	case filament.WriteDelete:
+		return writeModeDelete
+	case filament.WriteMerge:
+		return writeModeMerge
 	default:
-		return "", fmt.Errorf("iceberg sink: invalid write_mode %q (want auto, append, replace, upsert, delete, or merge)", configured)
+		return writeModeReplace
 	}
 }
