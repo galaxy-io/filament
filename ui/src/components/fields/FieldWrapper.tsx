@@ -29,7 +29,7 @@ const FieldWrapper = ({
 
   if (isSection) {
     return (
-      <Accordion variant={AccordionVariant.PRIMARY} header={label} subheader={help} isOpenInitial>
+      <Accordion variant={AccordionVariant.PRIMARY} header={label} isOpenInitial>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>
           {children}
           {errorText}

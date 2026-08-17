@@ -1,3 +1,4 @@
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
@@ -28,6 +29,7 @@ const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectP
     <SelectInput
       options={METRIC_DIMENSION_PIVOT_OPTIONS}
       value={selectedOption}
+      variant={InputVariant.TERTIARY}
       onChange={handleChange}
       onReset={handleReset}
       placeholder="Pivot"

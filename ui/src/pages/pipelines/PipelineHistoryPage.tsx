@@ -7,7 +7,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -21,7 +21,6 @@ import EmptyLayout from "@/layouts/EmptyLayout";
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-  PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
@@ -65,21 +64,10 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
   {
     id: "startedAt",
     header: "Started",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STARTED_AT,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
         {formatTimestamp(row.original.startedAt)}
-      </Text>
-    ),
-  },
-  {
-    id: "run",
-    header: "Run",
-    cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
-        {row.original.id}
       </Text>
     ),
   },
@@ -111,7 +99,7 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {formatCount(row.original.records)}
+        {row.original.records ? formatCount(row.original.records) : "—"}
       </Text>
     ),
   },
@@ -123,7 +111,7 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {formatBytes(row.original.bytes)}
+        {row.original.bytes ? formatBytes(row.original.bytes) : "—"}
       </Text>
     ),
   },

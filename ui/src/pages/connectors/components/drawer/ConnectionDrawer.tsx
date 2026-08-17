@@ -107,10 +107,6 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
           <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="16px" fillWidth>
             <ConnectionDrawerList>
               <ConnectionDrawerKeyValueRow
-                label="Connector"
-                value={<TextShimmer height={16} width={100} />}
-              />
-              <ConnectionDrawerKeyValueRow
                 label="Kind"
                 value={<TextShimmer height={16} width={60} />}
               />
@@ -134,10 +130,6 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
       <DrawerBody>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="16px" fillWidth>
           <ConnectionDrawerList>
-            <ConnectionDrawerKeyValueRow
-              label="Connector"
-              value={<Text size={TextSize.BODY_SM}>{connection.connector}</Text>}
-            />
             <ConnectionDrawerKeyValueRow
               label="Kind"
               value={<ConnectionKindChip kind={connection.kind} />}

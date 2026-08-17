@@ -4,6 +4,11 @@ export enum ObservabilityTimeframe {
   THIRTY_DAYS = "30D",
 }
 
+export enum ObservabilityRunsView {
+  PAST = "PAST",
+  UPCOMING = "UPCOMING",
+}
+
 export enum ObservabilityThroughputView {
   RECORDS = "RECORDS",
   VOLUME = "VOLUME",

@@ -14,7 +14,7 @@ interface DocsButtonProps {
 const DocsButton = ({
   label = "Docs",
   path = "/",
-  variant = ButtonVariant.TERTIARY,
+  variant = ButtonVariant.SECONDARY,
   size = ButtonSize.SMALL,
 }: DocsButtonProps) => {
   const handleDocs = () => {

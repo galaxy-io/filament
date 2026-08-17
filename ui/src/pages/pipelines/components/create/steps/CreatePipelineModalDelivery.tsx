@@ -1,8 +1,6 @@
 import { Fragment } from "react";
 
-import { SlidersHorizontalIcon } from "@phosphor-icons/react";
-
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
+import Accordion, { AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -15,7 +13,7 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliverySink from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySink";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
-import WorkerResourcesFields from "@/pages/pipelines/components/worker/WorkerResourcesFields";
+import PipelineWorkerResourcesFields from "@/pages/pipelines/components/worker/PipelineWorkerResourcesFields";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
 interface CreatePipelineModalDeliverySectionProps {
@@ -68,8 +66,8 @@ const CreatePipelineModalDeliveryAdvanced = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <Accordion header="Advanced configuration" icon={SlidersHorizontalIcon}>
-      <WorkerResourcesFields
+    <Accordion header="Worker resources" size={AccordionSize.LARGE}>
+      <PipelineWorkerResourcesFields
         state={workerResources}
         onChange={(payload) =>
           dispatch({

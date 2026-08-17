@@ -14,6 +14,7 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
+import ConnectorMaturityIcon from "@/pages/connectors/components/ConnectorMaturityIcon";
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import {
   CONNECTOR_KIND_TO_DESCRIPTION_MAP,
@@ -50,7 +51,10 @@ const CreateConnectionSelectorCard = ({
             <ConnectorTile connector={connector.name} kind={connector.kind} />
             <Text weight={TextWeight.MEDIUM}>{connector.displayName || connector.name}</Text>
           </FlexWrapper>
-          <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
+            <ConnectorMaturityIcon maturity={connector.maturity} />
+            <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+          </FlexWrapper>
         </FlexWrapper>
 
         <FlexItem grow={1}>
@@ -58,7 +62,6 @@ const CreateConnectionSelectorCard = ({
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
-
         <Button label="Connect" onClick={handleClick} fillWidth />
       </FlexWrapper>
     </Widget>
