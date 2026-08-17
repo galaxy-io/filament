@@ -14,13 +14,12 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
+import ConnectorMaturityIcon from "@/pages/connectors/components/ConnectorMaturityIcon";
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import {
   CONNECTOR_KIND_TO_DESCRIPTION_MAP,
   CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT,
 } from "@/pages/connectors/constants";
-
-import ConnectorMaturityIcon from "../../ConnectorMaturityIcon";
 
 interface CreateConnectionSelectorCardProps {
   connector: ConnectorSpec;
