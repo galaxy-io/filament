@@ -59,7 +59,7 @@ export const CONNECTOR_MATURITY_TO_LABEL_MAP: Record<ConnectorMaturity, string> 
   [ConnectorMaturity.UNSPECIFIED]: "—",
   [ConnectorMaturity.ALPHA]: "Experimental",
   [ConnectorMaturity.BETA]: "Beta",
-  [ConnectorMaturity.STABLE]: "Stable",
+  [ConnectorMaturity.STABLE]: "Verified",
 };
 
 export const CONNECTOR_MATURITY_TO_ICON_VARIANT_MAP: Record<ConnectorMaturity, IconVariant> = {
