@@ -21,16 +21,9 @@ import type {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { getNextPageParam, INITIAL_PAGE_PARAM, type InfiniteQueryInput } from "@/api/utils";
 
-const LIST_PIPELINES_REFETCH_INTERVAL = 3 * 1000;
-
-const getListPipelinesRefetchInterval = (pipelines: Pipeline[] | undefined) => {
-  return pipelines?.some((pipeline) => ACTIVE_RUN_STATUSES.has(pipeline.lastRunStatus))
-    ? LIST_PIPELINES_REFETCH_INTERVAL
-    : false;
-};
+const getListPipelinesRefetchInterval = (_pipelines: Pipeline[] | undefined): false => false;
 
 export const createListPipelinesQueryKey = (
   input?: ListPipelinesRequest,

@@ -28,18 +28,23 @@ const (
 // duplicated inline on each pipeline. version is an optimistic lock, mirroring
 // Pipeline: an update must carry the version it last read.
 type Connection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
-	Connector     string                 `protobuf:"bytes,5,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"` // CONNECTION-scoped fields only
-	SecretRefs    map[string]string      `protobuf:"bytes,7,rep,name=secret_refs,json=secretRefs,proto3" json:"secret_refs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Version       int64                  `protobuf:"varint,8,opt,name=version,proto3" json:"version,omitempty"`
-	DeletedAt     int64                  `protobuf:"varint,9,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TenantId        string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Id              string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Kind            ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Name            string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	Connector       string                 `protobuf:"bytes,5,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config          *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"` // CONNECTION-scoped fields only
+	SecretRefs      map[string]string      `protobuf:"bytes,7,rep,name=secret_refs,json=secretRefs,proto3" json:"secret_refs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Version         int64                  `protobuf:"varint,8,opt,name=version,proto3" json:"version,omitempty"`
+	DeletedAt       int64                  `protobuf:"varint,9,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	CreatedAt       int64                  `protobuf:"varint,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt       int64                  `protobuf:"varint,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CreatedByUserId string                 `protobuf:"bytes,12,opt,name=created_by_user_id,json=createdByUserId,proto3" json:"created_by_user_id,omitempty"`
+	UpdatedByUserId string                 `protobuf:"bytes,13,opt,name=updated_by_user_id,json=updatedByUserId,proto3" json:"updated_by_user_id,omitempty"`
+	DeletedByUserId string                 `protobuf:"bytes,14,opt,name=deleted_by_user_id,json=deletedByUserId,proto3" json:"deleted_by_user_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Connection) Reset() {
@@ -133,6 +138,41 @@ func (x *Connection) GetDeletedAt() int64 {
 		return x.DeletedAt
 	}
 	return 0
+}
+
+func (x *Connection) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *Connection) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *Connection) GetCreatedByUserId() string {
+	if x != nil {
+		return x.CreatedByUserId
+	}
+	return ""
+}
+
+func (x *Connection) GetUpdatedByUserId() string {
+	if x != nil {
+		return x.UpdatedByUserId
+	}
+	return ""
+}
+
+func (x *Connection) GetDeletedByUserId() string {
+	if x != nil {
+		return x.DeletedByUserId
+	}
+	return ""
 }
 
 type CreateConnectionRequest struct {
@@ -669,7 +709,7 @@ var File_ingestion_v1_connections_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\n" +
-	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\x90\x03\n" +
+	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\xd5\x04\n" +
 	"\n" +
 	"Connection\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
@@ -682,7 +722,15 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"secretRefs\x12\x18\n" +
 	"\aversion\x18\b \x01(\x03R\aversion\x12\x1d\n" +
 	"\n" +
-	"deleted_at\x18\t \x01(\x03R\tdeletedAt\x1a=\n" +
+	"deleted_at\x18\t \x01(\x03R\tdeletedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\v \x01(\x03R\tupdatedAt\x12+\n" +
+	"\x12created_by_user_id\x18\f \x01(\tR\x0fcreatedByUserId\x12+\n" +
+	"\x12updated_by_user_id\x18\r \x01(\tR\x0fupdatedByUserId\x12+\n" +
+	"\x12deleted_by_user_id\x18\x0e \x01(\tR\x0fdeletedByUserId\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x02\n" +

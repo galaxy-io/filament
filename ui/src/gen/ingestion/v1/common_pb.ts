@@ -72,7 +72,7 @@ export const WorkerConfigurationSchema: GenMessage<WorkerConfiguration> = /*@__P
   messageDesc(file_ingestion_v1_common, 1);
 
 /**
- * ConfigField mirrors pkg.ConfigField.
+ * ConfigField describes one connector configuration field.
  *
  * @generated from message ingestion.v1.ConfigField
  */
@@ -189,7 +189,7 @@ export const FieldConditionSchema: GenMessage<FieldCondition> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_common, 4);
 
 /**
- * ConfigSchema mirrors pkg.ConfigSchema.
+ * ConfigSchema describes the configuration accepted by a connector.
  *
  * @generated from message ingestion.v1.ConfigSchema
  */
@@ -308,7 +308,7 @@ export const ConnectorKindSchema: GenEnum<ConnectorKind> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 0);
 
 /**
- * FieldType mirrors pkg.FieldType; drives UI form controls for config fields.
+ * FieldType drives UI form controls for connector configuration fields.
  *
  * @generated from enum ingestion.v1.FieldType
  */

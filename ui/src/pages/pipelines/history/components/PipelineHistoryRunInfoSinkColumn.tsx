@@ -13,7 +13,7 @@ import { useGetConnectionQuery } from "@/api/queries/connections";
 import { useGetRunQuery } from "@/api/queries/runs";
 
 interface PipelineHistoryRunInfoSinkColumnProps {
-  runId: RunInfo["runId"];
+  runId: RunInfo["id"];
 }
 
 const PipelineHistoryRunInfoSinkColumn = ({ runId }: PipelineHistoryRunInfoSinkColumnProps) => {

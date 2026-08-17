@@ -5,7 +5,7 @@ import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/providers_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import DocsButton from "@/components/DocsButton";
 

@@ -67,7 +67,7 @@ type DataStore interface {
 // table advances independently.
 type ResourceCheckpointKey struct {
 	PipelineID        string
-	PipelineVersionID int64
+	PipelineVersionID string
 	Route             string
 	Resource          string
 }
@@ -102,8 +102,13 @@ type Connection struct {
 	Config     map[string]any
 	SecretRefs map[string]string
 	Version    int64
+	CreatedAt  int64
+	UpdatedAt  int64
 	// DeletedAt is unix milliseconds, zero when the connection is live.
-	DeletedAt int64
+	DeletedAt       int64
+	CreatedByUserID string
+	UpdatedByUserID string
+	DeletedByUserID string
 }
 
 // ConnectionFilter narrows a connection listing by tenant and/or kind.
@@ -202,8 +207,9 @@ type Secrets interface {
 
 // Secret is plaintext, in-memory only; never logged, never on the bus.
 type Secret struct {
-	Value []byte
-	Meta  map[string]string
+	Tenant TenantID
+	Value  []byte
+	Meta   map[string]string
 }
 
 // ConnectionSecretPrefix namespaces the secret refs the connection API mints on
@@ -482,6 +488,9 @@ type (
 	// StageID identifies a Transactional sink's staging area.
 	StageID string
 )
+
+// DefaultTenantID identifies the built-in tenant used when callers omit one.
+const DefaultTenantID TenantID = "00000000-0000-0000-0000-000000000000"
 
 // Valid reports whether the ID is usable as a subject token (see ValidToken).
 // TenantID and RunID become subject tokens, so they must validate before a run

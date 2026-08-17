@@ -3,7 +3,7 @@ import { TextVariant } from "@galaxy-io/dls/text/Text";
 import type { RunEvent } from "@/gen/ingestion/v1/runs_pb";
 
 export const formatRunEventTime = (event: RunEvent): string => {
-  const date = new Date(Number(event.atUnixMs));
+  const date = new Date(Number(event.createdAt));
   return date.toLocaleTimeString("en-US", { hour12: false });
 };
 
@@ -34,13 +34,13 @@ export const formatRunEventDetail = (event: RunEvent): string => {
 };
 
 export const getRunEventTextVariant = (event: RunEvent): TextVariant => {
-  if (event.type.endsWith(".failed") || event.fields?.error) {
+  if (event.eventType.endsWith(".failed") || event.fields?.error) {
     return TextVariant.ERROR;
   }
-  if (event.type === "run.completed") {
+  if (event.eventType === "run.completed") {
     return TextVariant.SUCCESS;
   }
-  if (event.replay) {
+  if (event.isReplay) {
     return TextVariant.TERTIARY;
   }
   return TextVariant.SECONDARY;

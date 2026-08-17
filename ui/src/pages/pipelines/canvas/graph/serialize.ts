@@ -51,7 +51,7 @@ export const mapPipelineVersionToCanvasState = (
   version: PipelineVersion | undefined,
 ): { nodes: CanvasNode[]; edges: CanvasEdge[] } => {
   const nodes: CanvasNode[] = [];
-  for (const node of version?.nodes ?? []) {
+  for (const node of version?.graph?.nodes ?? []) {
     const kind = CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP[node.kind];
     const type = CONNECTOR_KIND_TO_NODE_TYPE_MAP[kind];
 
@@ -67,7 +67,7 @@ export const mapPipelineVersionToCanvasState = (
   }
 
   const seenEdgeKeys = new Set<string>();
-  const edges: CanvasEdge[] = (version?.edges ?? [])
+  const edges: CanvasEdge[] = (version?.graph?.edges ?? [])
     .filter((edge) => {
       const key = getProtoEdgeKey(edge);
       if (seenEdgeKeys.has(key)) return false;
@@ -92,9 +92,9 @@ export const mapCanvasStateToVersionRequest = (
   pipelineId: Pipeline["id"],
   baseVersion: PipelineVersion | undefined,
 ): CreatePipelineVersionRequest => {
-  const baseNodesById = new Map((baseVersion?.nodes ?? []).map((node) => [node.id, node]));
+  const baseNodesById = new Map((baseVersion?.graph?.nodes ?? []).map((node) => [node.id, node]));
   const baseEdgesByKey = new Map(
-    (baseVersion?.edges ?? []).map((edge) => [getProtoEdgeKey(edge), edge]),
+    (baseVersion?.graph?.edges ?? []).map((edge) => [getProtoEdgeKey(edge), edge]),
   );
 
   const nodes = state.nodes.filter(isConnectionNode).map((node) => {
@@ -122,7 +122,6 @@ export const mapCanvasStateToVersionRequest = (
 
   return create(CreatePipelineVersionRequestSchema, {
     pipelineId,
-    nodes,
-    edges,
+    graph: { nodes, edges },
   });
 };

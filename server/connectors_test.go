@@ -61,7 +61,7 @@ func (s *liveProbeSink) TestConnection(context.Context, filament.Config) error {
 	return s.err
 }
 
-func TestValidateConfigRunsLiveSinkProbe(t *testing.T) {
+func TestValidateConfigDoesNotRunLiveSinkProbe(t *testing.T) {
 	probes := &atomic.Int32{}
 	sinks := registry.NewSinks()
 	sinks.Register("live-sink", func() filament.Sink {
@@ -72,16 +72,15 @@ func TestValidateConfigRunsLiveSinkProbe(t *testing.T) {
 	response, err := api.ValidateConfig(context.Background(), connect.NewRequest(&ingestionv1.ValidateConfigRequest{
 		Connector: "live-sink",
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
-		Live:      true,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.GetValid() {
-		t.Fatalf("response = %#v, want validation failure", response.Msg)
+	if !response.Msg.GetValid() {
+		t.Fatalf("response = %#v, want valid structural config", response.Msg)
 	}
-	if got := probes.Load(); got != 1 {
-		t.Fatalf("live probes = %d, want 1", got)
+	if got := probes.Load(); got != 0 {
+		t.Fatalf("live probes = %d, want 0", got)
 	}
 }
 
@@ -201,7 +200,7 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 		t.Fatalf("first response = %#v", response.Msg.GetResources()[0])
 	}
 	column := response.Msg.GetResources()[0].GetColumns()[0]
-	if !column.GetConfigurable() || !column.GetSupportsLookback() {
+	if !column.GetIsConfigurable() || !column.GetSupportsLookback() {
 		t.Fatalf("cursor capabilities did not round trip: %#v", column)
 	}
 }

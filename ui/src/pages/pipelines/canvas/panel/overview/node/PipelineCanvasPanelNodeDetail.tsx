@@ -5,7 +5,7 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import Field from "@/components/fields/Field";
 import {

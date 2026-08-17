@@ -14,7 +14,7 @@ import {
   GetResourceColumnsRequestSchema,
   type Resource,
   type ResourceColumn,
-} from "@/gen/ingestion/v1/providers_pb";
+} from "@/gen/ingestion/v1/connectors_pb";
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
@@ -58,7 +58,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
       edgeResource !== ""
         ? [edgeResource]
         : (discovered?.resources ?? [])
-            .filter((resource) => resource.selectable)
+            .filter((resource) => resource.isSelectable)
             .map((resource) => resource.name),
     [edgeResource, discovered?.resources],
   );
@@ -107,7 +107,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
       Object.fromEntries(
         coveredResources.map((resource) => [
           resource,
-          (columnsByResource.get(resource) ?? []).find((column) => column.cursorRecommended)
+          (columnsByResource.get(resource) ?? []).find((column) => column.isCursorRecommended)
             ?.name ?? "",
         ]),
       ),

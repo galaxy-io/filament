@@ -151,9 +151,8 @@
               "pages/api-reference/service/introduction",
               "pages/api-reference/service/connections",
               "pages/api-reference/service/pipelines",
-              "pages/api-reference/service/providers",
-              "pages/api-reference/service/runs",
-              "pages/api-reference/service/secrets"
+              "pages/api-reference/service/connectors",
+              "pages/api-reference/service/runs"
             ]
           }
         ]

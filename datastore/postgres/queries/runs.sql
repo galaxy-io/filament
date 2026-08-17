@@ -1,8 +1,10 @@
 -- name: SaveRun :exec
-INSERT INTO runs (run_id, tenant_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, finished_at, error, cpu_seconds, memory_peak_bytes, updated_at)
-VALUES (@run_id, @tenant_id, nullif(@schedule_id::text, ''), @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @finished_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
-ON CONFLICT (run_id) DO UPDATE SET
+INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
+VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, '')::uuid, nullif(@pipeline_version_id::text, '')::uuid, nullif(@schedule_id::text, '')::uuid, @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
+ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
+    pipeline_id = EXCLUDED.pipeline_id,
+    pipeline_version_id = EXCLUDED.pipeline_version_id,
     schedule_id = EXCLUDED.schedule_id,
     status = EXCLUDED.status,
     request = EXCLUDED.request,
@@ -15,7 +17,7 @@ ON CONFLICT (run_id) DO UPDATE SET
     scheduled_at = coalesce(runs.scheduled_at, EXCLUDED.scheduled_at),
     requested_at = coalesce(runs.requested_at, EXCLUDED.requested_at),
     started_at = coalesce(runs.started_at, EXCLUDED.started_at),
-    finished_at = coalesce(runs.finished_at, EXCLUDED.finished_at),
+    ended_at = coalesce(runs.ended_at, EXCLUDED.ended_at),
     error = EXCLUDED.error,
     cpu_seconds = EXCLUDED.cpu_seconds,
     memory_peak_bytes = EXCLUDED.memory_peak_bytes,
@@ -25,10 +27,12 @@ ON CONFLICT (run_id) DO UPDATE SET
 -- arm only fires while the existing row is still at @from_status, so a racing
 -- intake cannot roll a live run back; 0 rows reports the conflict.
 -- name: CreateRun :execrows
-INSERT INTO runs (run_id, tenant_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, finished_at, error, cpu_seconds, memory_peak_bytes, updated_at)
-VALUES (@run_id, @tenant_id, nullif(@schedule_id::text, ''), @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @finished_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
-ON CONFLICT (run_id) DO UPDATE SET
+INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
+VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, '')::uuid, nullif(@pipeline_version_id::text, '')::uuid, nullif(@schedule_id::text, '')::uuid, @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
+ON CONFLICT (id) DO UPDATE SET
     tenant_id = EXCLUDED.tenant_id,
+    pipeline_id = EXCLUDED.pipeline_id,
+    pipeline_version_id = EXCLUDED.pipeline_version_id,
     schedule_id = EXCLUDED.schedule_id,
     status = EXCLUDED.status,
     request = EXCLUDED.request,
@@ -37,7 +41,7 @@ ON CONFLICT (run_id) DO UPDATE SET
     scheduled_at = coalesce(runs.scheduled_at, EXCLUDED.scheduled_at),
     requested_at = coalesce(runs.requested_at, EXCLUDED.requested_at),
     started_at = coalesce(runs.started_at, EXCLUDED.started_at),
-    finished_at = coalesce(runs.finished_at, EXCLUDED.finished_at),
+    ended_at = coalesce(runs.ended_at, EXCLUDED.ended_at),
     error = EXCLUDED.error,
     cpu_seconds = EXCLUDED.cpu_seconds,
     memory_peak_bytes = EXCLUDED.memory_peak_bytes,
@@ -45,8 +49,8 @@ ON CONFLICT (run_id) DO UPDATE SET
 WHERE runs.status = @from_status;
 
 -- name: DeleteRun :exec
-DELETE FROM runs WHERE run_id = @run_id;
+DELETE FROM runs WHERE id = @run_id;
 
 -- name: LoadRun :one
-SELECT run_id, tenant_id, coalesce(schedule_id, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, finished_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
-FROM runs WHERE run_id = @run_id;
+SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
+FROM runs WHERE id = @run_id;

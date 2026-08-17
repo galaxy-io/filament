@@ -55,7 +55,7 @@ var (
 func (s *Store) Name() string { return "postgres" }
 
 // SaveRun upserts the run row and reattaches any carried Resources into
-// resource_states, mirroring datastore/memory's SaveRun contract.
+// run_resource_states, mirroring datastore/memory's SaveRun contract.
 func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	req, err := json.Marshal(r.Request)
 	if err != nil {
@@ -69,20 +69,22 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	q := s.q.WithTx(tx)
 
 	err = q.SaveRun(ctx, sqlcgen.SaveRunParams{
-		RunID:           string(r.Run),
-		TenantID:        string(r.Tenant),
-		ScheduleID:      string(r.ScheduleID),
-		Status:          int16(r.Status), //nolint:gosec // small enum
-		Request:         req,
-		Records:         r.Records,
-		Bytes:           r.Bytes,
-		ScheduledAt:     toTimestamptz(nullTime(r.ScheduledAt)),
-		RequestedAt:     toTimestamptz(nullTime(r.RequestedAt)),
-		StartedAt:       toTimestamptz(nullTime(r.StartedAt)),
-		FinishedAt:      toTimestamptz(r.FinishedAt),
-		Error:           r.Error,
-		CpuSeconds:      r.CPUSeconds,
-		MemoryPeakBytes: r.MemoryPeakBytes,
+		RunID:             string(r.Run),
+		TenantID:          string(r.Tenant),
+		PipelineID:        r.Request.PipelineID,
+		PipelineVersionID: r.Request.PipelineVersionID,
+		ScheduleID:        string(r.ScheduleID),
+		Status:            int16(r.Status), //nolint:gosec // small enum
+		Request:           req,
+		Records:           r.Records,
+		Bytes:             r.Bytes,
+		ScheduledAt:       toTimestamptz(nullTime(r.ScheduledAt)),
+		RequestedAt:       toTimestamptz(nullTime(r.RequestedAt)),
+		StartedAt:         toTimestamptz(nullTime(r.StartedAt)),
+		EndedAt:           toTimestamptz(r.EndedAt),
+		Error:             r.Error,
+		CpuSeconds:        r.CPUSeconds,
+		MemoryPeakBytes:   r.MemoryPeakBytes,
 	})
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: save run: %w", err)
@@ -90,26 +92,11 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
+		rs.Tenant = r.Tenant
 		if err := upsertResource(ctx, q, rs); err != nil {
 			return err
 		}
 	}
-	// A pre-created scheduled run hasn't happened yet — it must not become the
-	// pipeline's last run.
-	if r.Request.PipelineID != "" && r.Status != filament.RunScheduled {
-		err = q.UpdatePipelineRunSummary(ctx, sqlcgen.UpdatePipelineRunSummaryParams{
-			PipelineID: r.Request.PipelineID,
-			Version:    r.Request.PipelineVersionID,
-			StartedAt:  toTimestamptz(nullTime(r.StartedAt)),
-			Status:     int16(r.Status), //nolint:gosec // small enum
-			Bytes:      r.Bytes,
-			EndedAt:    toTimestamptz(r.FinishedAt),
-		})
-		if err != nil {
-			return fmt.Errorf("datastore/postgres: update pipeline run summary: %w", err)
-		}
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
 	}
@@ -131,21 +118,23 @@ func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
 	q := s.q.WithTx(tx)
 
 	rows, err := q.CreateRun(ctx, sqlcgen.CreateRunParams{
-		RunID:           string(r.Run),
-		TenantID:        string(r.Tenant),
-		ScheduleID:      string(r.ScheduleID),
-		Status:          int16(r.Status), //nolint:gosec // small enum
-		Request:         req,
-		Records:         r.Records,
-		Bytes:           r.Bytes,
-		ScheduledAt:     toTimestamptz(nullTime(r.ScheduledAt)),
-		RequestedAt:     toTimestamptz(nullTime(r.RequestedAt)),
-		StartedAt:       toTimestamptz(nullTime(r.StartedAt)),
-		FinishedAt:      toTimestamptz(r.FinishedAt),
-		Error:           r.Error,
-		CpuSeconds:      r.CPUSeconds,
-		MemoryPeakBytes: r.MemoryPeakBytes,
-		FromStatus:      int16(filament.RunScheduled), //nolint:gosec // small enum
+		RunID:             string(r.Run),
+		TenantID:          string(r.Tenant),
+		PipelineID:        r.Request.PipelineID,
+		PipelineVersionID: r.Request.PipelineVersionID,
+		ScheduleID:        string(r.ScheduleID),
+		Status:            int16(r.Status), //nolint:gosec // small enum
+		Request:           req,
+		Records:           r.Records,
+		Bytes:             r.Bytes,
+		ScheduledAt:       toTimestamptz(nullTime(r.ScheduledAt)),
+		RequestedAt:       toTimestamptz(nullTime(r.RequestedAt)),
+		StartedAt:         toTimestamptz(nullTime(r.StartedAt)),
+		EndedAt:           toTimestamptz(r.EndedAt),
+		Error:             r.Error,
+		CpuSeconds:        r.CPUSeconds,
+		MemoryPeakBytes:   r.MemoryPeakBytes,
+		FromStatus:        int16(filament.RunScheduled), //nolint:gosec // small enum
 	})
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: create run: %w", err)
@@ -156,26 +145,11 @@ func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
 
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
+		rs.Tenant = r.Tenant
 		if err := upsertResource(ctx, q, rs); err != nil {
 			return err
 		}
 	}
-	// A pre-created scheduled run hasn't happened yet — it must not become the
-	// pipeline's last run.
-	if r.Request.PipelineID != "" && r.Status != filament.RunScheduled {
-		err = q.UpdatePipelineRunSummary(ctx, sqlcgen.UpdatePipelineRunSummaryParams{
-			PipelineID: r.Request.PipelineID,
-			Version:    r.Request.PipelineVersionID,
-			StartedAt:  toTimestamptz(nullTime(r.StartedAt)),
-			Status:     int16(r.Status), //nolint:gosec // small enum
-			Bytes:      r.Bytes,
-			EndedAt:    toTimestamptz(r.FinishedAt),
-		})
-		if err != nil {
-			return fmt.Errorf("datastore/postgres: update pipeline run summary: %w", err)
-		}
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
 	}
@@ -201,13 +175,13 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 		return filament.RunState{}, fmt.Errorf("datastore/postgres: load run: %w", err)
 	}
 
-	r, err := runFromRaw(row.RunID, row.TenantID, row.ScheduleID, int(row.Status), row.Request,
+	r, err := runFromRaw(row.ID, row.TenantID, row.ScheduleID, int(row.Status), row.Request,
 		row.Records, row.Bytes, runTimes{
 			created:   fromTimestamptz(row.CreatedAt),
 			scheduled: fromTimestamptz(row.ScheduledAt),
 			requested: fromTimestamptz(row.RequestedAt),
 			started:   fromTimestamptz(row.StartedAt),
-			finished:  fromTimestamptz(row.FinishedAt),
+			ended:     fromTimestamptz(row.EndedAt),
 			updated:   fromTimestamptz(row.UpdatedAt),
 		}, row.Error, row.CpuSeconds, row.MemoryPeakBytes)
 	if err != nil {
@@ -226,7 +200,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 // resource states attached. Runs that have not started sort first: a pending
 // scheduled run and one still spinning up are both upcoming work.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
-	q := `SELECT run_id, tenant_id, coalesce(schedule_id, ''), status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, finished_at, updated_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes, count(*) OVER ()
+	q := `SELECT id, tenant_id, coalesce(schedule_id::text, ''), status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes, count(*) OVER ()
 	      FROM runs WHERE 1=1`
 	args := []any{}
 	arg := func(v any) string {
@@ -236,9 +210,7 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	if f.Tenant != "" {
 		q += " AND tenant_id = " + arg(string(f.Tenant))
 	}
-	// pipeline_id / pipeline_version_id are the generated columns from
-	// 00012_runs_pipeline_columns.sql, indexed by runs_metrics_idx. Same values
-	// as the json paths they replace, without the per-row extraction.
+	// pipeline_id and pipeline_version_id are indexed foreign-key columns.
 	if f.PipelineID != "" {
 		q += " AND pipeline_id = " + arg(f.PipelineID)
 	}
@@ -249,7 +221,7 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		q += " AND schedule_id = " + arg(string(f.Schedule))
 	}
 	if f.Source != "" {
-		q += " AND (source_provider = " + arg(f.Source) + " OR request->'Source'->>'ConfigRef' = " + arg(f.Source) + ")"
+		q += " AND (request->'Source'->>'Provider' = " + arg(f.Source) + " OR request->'Source'->>'ConfigRef' = " + arg(f.Source) + ")"
 	}
 	if !f.Since.IsZero() {
 		q += " AND started_at >= " + arg(f.Since)
@@ -264,7 +236,7 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		}
 		q += " AND status = ANY(" + arg(statuses) + ")"
 	}
-	q += " ORDER BY started_at DESC NULLS FIRST, run_id DESC"
+	q += " ORDER BY started_at DESC NULLS FIRST, id DESC"
 	if f.Limit > 0 {
 		q += " LIMIT " + arg(f.Limit)
 	}
@@ -292,7 +264,7 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 			memoryPeakBytes                   int64
 		)
 		if err := rows.Scan(&runID, &tenant, &scheduleID, &status, &req, &records, &bytes,
-			&times.created, &times.scheduled, &times.requested, &times.started, &times.finished, &times.updated,
+			&times.created, &times.scheduled, &times.requested, &times.started, &times.ended, &times.updated,
 			&errMsg, &cpuSeconds, &memoryPeakBytes, &total); err != nil {
 			return nil, 0, fmt.Errorf("datastore/postgres: scan run: %w", err)
 		}
@@ -324,7 +296,7 @@ type runTimes struct {
 	scheduled *time.Time
 	requested *time.Time
 	started   *time.Time
-	finished  *time.Time
+	ended     *time.Time
 	updated   *time.Time
 }
 
@@ -344,7 +316,7 @@ func runFromRaw(runID, tenant, scheduleID string, status int, req []byte, record
 	r.RequestedAt = derefTime(times.requested)
 	r.StartedAt = derefTime(times.started)
 	r.UpdatedAt = derefTime(times.updated)
-	r.FinishedAt = times.finished
+	r.EndedAt = times.ended
 	if err := json.Unmarshal(req, &r.Request); err != nil {
 		return filament.RunState{}, fmt.Errorf("datastore/postgres: unmarshal request: %w", err)
 	}
@@ -390,7 +362,6 @@ func upsertResource(ctx context.Context, q *sqlcgen.Queries, rs filament.Resourc
 		RunID:        string(rs.Run),
 		ResourceName: rs.Resource,
 		TenantID:     string(rs.Tenant),
-		Enabled:      rs.Enabled,
 		Status:       int16(rs.Status), //nolint:gosec // small enum
 		Records:      rs.Records,
 		Bytes:        rs.Bytes,
@@ -414,7 +385,7 @@ func (s *Store) ListResources(ctx context.Context, id filament.RunID) ([]filamen
 			Run:      filament.RunID(row.RunID),
 			Resource: row.ResourceName,
 			Tenant:   filament.TenantID(row.TenantID),
-			Enabled:  row.Enabled,
+			Enabled:  true,
 			Status:   filament.RunStatus(row.Status),
 			Records:  row.Records,
 			Bytes:    row.Bytes,
@@ -468,7 +439,7 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 		return fmt.Errorf("datastore/postgres: marshal resource checkpoint: %w", err)
 	}
 	err = s.q.SaveResourceCheckpoint(ctx, sqlcgen.SaveResourceCheckpointParams{
-		PipelineID: state.Key.PipelineID, PipelineVersion: state.Key.PipelineVersionID,
+		PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
 		RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
 		Cursor: cursor, LastRunID: string(state.Run),
 	})
@@ -482,7 +453,7 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 // resource.
 func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) (filament.ResourceCheckpointState, error) {
 	row, err := s.q.LoadResourceCheckpoint(ctx, sqlcgen.LoadResourceCheckpointParams{
-		PipelineID: key.PipelineID, PipelineVersion: key.PipelineVersionID,
+		PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
 		RouteKey: key.Route, ResourceName: key.Resource,
 	})
 	if err != nil {
@@ -504,7 +475,7 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 // DeleteResourceCheckpoint resets durable progress for one route/resource.
 func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {
 	err := s.q.DeleteResourceCheckpoint(ctx, sqlcgen.DeleteResourceCheckpointParams{
-		PipelineID: key.PipelineID, PipelineVersion: key.PipelineVersionID,
+		PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
 		RouteKey: key.Route, ResourceName: key.Resource,
 	})
 	if err != nil {
@@ -566,7 +537,7 @@ func (s *Store) LoadSchedule(ctx context.Context, id filament.ScheduleID) (filam
 		}
 		return filament.ScheduleState{}, fmt.Errorf("datastore/postgres: load schedule: %w", err)
 	}
-	return scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+	return scheduleFromLoadRow(row.ID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
 		row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
 }
 
@@ -579,7 +550,7 @@ func (s *Store) LoadPipelineSchedule(ctx context.Context, pipelineID string) (fi
 		}
 		return filament.ScheduleState{}, fmt.Errorf("datastore/postgres: load pipeline schedule: %w", err)
 	}
-	return scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+	return scheduleFromLoadRow(row.ID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
 		row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
 }
 
@@ -599,7 +570,7 @@ func (s *Store) ListSchedules(ctx context.Context, f filament.ScheduleFilter) ([
 	}
 	out := make([]filament.ScheduleState, len(rows))
 	for i, row := range rows {
-		st, err := scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+		st, err := scheduleFromLoadRow(row.ID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
 			row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
 		if err != nil {
 			return nil, err
@@ -645,13 +616,13 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 	out := make([]filament.ScheduleState, len(rows))
 	ids := make([]string, len(rows))
 	for i, row := range rows {
-		st, err := scheduleFromLoadRow(row.ScheduleID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
+		st, err := scheduleFromLoadRow(row.ID, row.TenantID, row.PipelineID, row.Name, row.CronExpr, row.Timezone,
 			row.OverlapPolicy, row.Enabled, row.LastFiredAt, row.NextFireAt, row.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
 		out[i] = st
-		ids[i] = row.ScheduleID
+		ids[i] = row.ID
 	}
 
 	if len(ids) > 0 {

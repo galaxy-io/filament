@@ -49,7 +49,7 @@ const PipelineCanvasPanelActivityLine = ({ event }: PipelineCanvasPanelActivityL
           isMonospace
           isSelectable
         >
-          {event.type}
+          {event.eventType}
           {detail ? ` ${detail}` : ""}
         </Text>
       </Detail>

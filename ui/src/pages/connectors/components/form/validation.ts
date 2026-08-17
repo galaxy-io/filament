@@ -1,4 +1,4 @@
-import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
+import type { ValidationError } from "@/gen/ingestion/v1/connectors_pb";
 
 export function createRequiredFieldsValidationErrorMap(
   errors: ValidationError[],

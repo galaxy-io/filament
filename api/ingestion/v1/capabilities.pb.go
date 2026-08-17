@@ -794,7 +794,7 @@ var File_ingestion_v1_capabilities_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\n" +
-	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x1cingestion/v1/providers.proto\"O\n" +
+	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"O\n" +
 	" GetConnectionCapabilitiesRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"\x8b\x01\n" +
@@ -931,8 +931,8 @@ func file_ingestion_v1_capabilities_proto_init() {
 		return
 	}
 	file_ingestion_v1_common_proto_init()
+	file_ingestion_v1_connectors_proto_init()
 	file_ingestion_v1_pipelines_proto_init()
-	file_ingestion_v1_providers_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

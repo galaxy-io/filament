@@ -516,8 +516,8 @@ func resourceRef(r *filament.RunState, name string) *filament.ResourceState {
 
 // finishedAt stamps the run's finish time once.
 func finishedAt(r *filament.RunState, at time.Time) {
-	if r.FinishedAt == nil {
+	if r.EndedAt == nil {
 		t := at
-		r.FinishedAt = &t
+		r.EndedAt = &t
 	}
 }

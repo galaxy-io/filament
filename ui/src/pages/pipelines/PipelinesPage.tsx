@@ -24,7 +24,9 @@ const PipelinesPage = () => {
   const { q = "" } = useSearch({ from: "/_main/pipelines" });
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useSuspenseListPipelinesInfiniteQuery();
+    useSuspenseListPipelinesInfiniteQuery({
+      input: { includeLastRun: true },
+    });
 
   const pipelines = useMemo(() => data.pages.flatMap((page) => page.pipelines), [data.pages]);
 

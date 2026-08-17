@@ -27,7 +27,7 @@ const PipelinePage = () => {
   });
 
   const pipeline = pipelineData.pipeline;
-  const version = pipelineData.currentVersion;
+  const version = pipelineData.pipeline?.currentVersion;
 
   const previewed = usePipelinePreviewVersion();
 

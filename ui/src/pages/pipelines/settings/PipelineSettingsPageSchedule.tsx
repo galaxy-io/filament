@@ -19,6 +19,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import {
   CreatePipelineScheduleRequestSchema,
   GetPipelineRequestSchema,
+  type PipelineScheduleConfig,
   UpdatePipelineScheduleRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -45,9 +46,9 @@ const PipelineSettingsPageSchedule = () => {
   const { id: pipelineId } = useParams({ from: "/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id: pipelineId }),
+    input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),
   });
-  const schedule = data.schedule;
+  const schedule = data.pipeline?.schedule;
 
   const { mutate: createSchedule, isPending: isCreating } = useCreatePipelineScheduleMutation();
   const { mutate: updateSchedule, isPending: isUpdating } = useUpdatePipelineScheduleMutation();
@@ -55,7 +56,7 @@ const PipelineSettingsPageSchedule = () => {
   const [state, setState] = useState<PipelineSettingsPageScheduleState>(() => ({
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
     ...mapPipelineScheduleCronToState(schedule?.config?.cron ?? ""),
-    isEnabled: schedule?.config?.enabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
+    isEnabled: schedule?.config?.isEnabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || PIPELINE_SCHEDULE_DEFAULT_STATE.timezone,
   }));
 
@@ -64,10 +65,10 @@ const PipelineSettingsPageSchedule = () => {
   };
 
   const handleSave = () => {
-    const config = {
+    const config: Omit<PipelineScheduleConfig, "$typeName" | "overlapPolicy"> = {
       cron: mapPipelineScheduleStateToCron(state),
       timezone: state.timezone,
-      enabled: state.isEnabled,
+      isEnabled: state.isEnabled,
     };
 
     if (schedule?.config) {

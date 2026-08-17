@@ -6,8 +6,6 @@ package runs
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -98,8 +96,7 @@ func Schedule(ctx context.Context, ds filament.DataStore, req filament.RunReques
 // converge on one run) or a random id when no key is given.
 func IDFor(req filament.RunRequest) filament.RunID {
 	if req.IdempotencyKey != "" {
-		sum := sha256.Sum256([]byte(string(req.Tenant) + "|" + req.IdempotencyKey))
-		return filament.RunID("run_" + hex.EncodeToString(sum[:8]))
+		return filament.RunID(uuid.NewSHA1(uuid.NameSpaceOID, []byte(string(req.Tenant)+"|"+req.IdempotencyKey)).String())
 	}
 	return filament.RunID(uuid.NewString())
 }

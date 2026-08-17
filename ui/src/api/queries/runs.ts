@@ -165,11 +165,11 @@ export const createTailRunQueryKey = (input?: TailRunRequest) => {
   return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
 };
 
-export const useTailRunsStream = (runIds: RunInfo["runId"][]) => {
+export const useTailRunsStream = (runIds: RunInfo["id"][]) => {
   const transport = useTransport();
   const results = useQueries({
     queries: runIds.map((runId) => {
-      const input = create(TailRunRequestSchema, { runId, replay: true });
+      const input = create(TailRunRequestSchema, { runId, shouldReplay: true });
       return {
         queryKey: createTailRunQueryKey(input),
         queryFn: experimental_streamedQuery({

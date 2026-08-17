@@ -1,12 +1,12 @@
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import type {
   ConnectorSpec,
   GetResourceColumnsResponse,
   Resource,
   ResourceColumn,
-} from "@/gen/ingestion/v1/providers_pb";
+} from "@/gen/ingestion/v1/connectors_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE,
@@ -47,7 +47,7 @@ export const getCompatibleWriteModes = (
 
 export const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
   columns
-    .filter((column) => column.cursorEligible)
+    .filter((column) => column.isCursorEligible)
     .sort((left, right) => {
       if (left.recommendationRank === right.recommendationRank) return 0;
       if (left.recommendationRank === 0) return 1;
@@ -127,7 +127,7 @@ const buildResourceRows = ({
     const isCursorKnown = resourceColumns !== undefined;
     const cursorOptions = getCursorOptions(resourceColumns ?? []);
     const autoCursor =
-      (resourceColumns ?? []).find((column) => column.cursorRecommended)?.name ?? "";
+      (resourceColumns ?? []).find((column) => column.isCursorRecommended)?.name ?? "";
     const canIncremental =
       connectionReadModes.includes(ReadMode.INCREMENTAL) &&
       (cursorOptions.length > 0 || !isCursorKnown);
@@ -149,8 +149,8 @@ const buildResourceRows = ({
     return {
       name: resource.name,
       displayName: resource.displayName || resource.name,
-      isSelectable: resource.selectable,
-      isSelected: resource.selectable && isSelected,
+      isSelectable: resource.isSelectable,
+      isSelected: resource.isSelectable && isSelected,
       readMode,
       readModeOptions,
       cursorField,

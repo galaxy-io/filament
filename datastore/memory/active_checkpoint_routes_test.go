@@ -10,7 +10,7 @@ import (
 func TestSaveRunRejectsOverlappingCheckpointRoute(t *testing.T) {
 	ctx := context.Background()
 	store := New()
-	request := filament.RunRequest{PipelineID: "pipe", PipelineVersionID: 1, CheckpointRoute: "route/source/sink/upsert"}
+	request := filament.RunRequest{PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink/upsert"}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestSaveRunRejectsOverlappingCheckpointRoute(t *testing.T) {
 func TestPartialRunDoesNotBlockNextScheduledAttempt(t *testing.T) {
 	ctx := context.Background()
 	store := New()
-	request := filament.RunRequest{PipelineID: "pipe", PipelineVersionID: 1, CheckpointRoute: "route/source/sink/upsert"}
+	request := filament.RunRequest{PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink/upsert"}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunPartial, Request: request}); err != nil {
 		t.Fatal(err)
 	}

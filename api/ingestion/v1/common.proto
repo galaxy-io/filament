@@ -28,7 +28,7 @@ enum ConnectorKind {
   CONNECTOR_KIND_SINK = 2;
 }
 
-// FieldType mirrors pkg.FieldType; drives UI form controls for config fields.
+// FieldType drives UI form controls for connector configuration fields.
 enum FieldType {
   FIELD_TYPE_UNSPECIFIED = 0;
   FIELD_TYPE_STRING = 1;
@@ -112,7 +112,7 @@ enum FieldScope {
   FIELD_SCOPE_PIPELINE = 2;
 }
 
-// ConfigField mirrors pkg.ConfigField.
+// ConfigField describes one connector configuration field.
 message ConfigField {
   string name = 1;
   FieldType type = 2;
@@ -141,7 +141,7 @@ message FieldCondition {
   repeated string values = 2;
 }
 
-// ConfigSchema mirrors pkg.ConfigSchema.
+// ConfigSchema describes the configuration accepted by a connector.
 message ConfigSchema {
   repeated ConfigField fields = 1;
 }

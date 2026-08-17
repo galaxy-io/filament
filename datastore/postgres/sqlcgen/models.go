@@ -11,177 +11,227 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type ConnectionKind string
+type ConnectorKind string
 
 const (
-	ConnectionKindSource ConnectionKind = "source"
-	ConnectionKindSink   ConnectionKind = "sink"
+	ConnectorKindSource ConnectorKind = "source"
+	ConnectorKindSink   ConnectorKind = "sink"
 )
 
-func (e *ConnectionKind) Scan(src interface{}) error {
+func (e *ConnectorKind) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = ConnectionKind(s)
+		*e = ConnectorKind(s)
 	case string:
-		*e = ConnectionKind(s)
+		*e = ConnectorKind(s)
 	default:
-		return fmt.Errorf("unsupported scan type for ConnectionKind: %T", src)
+		return fmt.Errorf("unsupported scan type for ConnectorKind: %T", src)
 	}
 	return nil
 }
 
-type NullConnectionKind struct {
-	ConnectionKind ConnectionKind
-	Valid          bool // Valid is true if ConnectionKind is not NULL
+type NullConnectorKind struct {
+	ConnectorKind ConnectorKind
+	Valid         bool // Valid is true if ConnectorKind is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullConnectionKind) Scan(value interface{}) error {
+func (ns *NullConnectorKind) Scan(value interface{}) error {
 	if value == nil {
-		ns.ConnectionKind, ns.Valid = "", false
+		ns.ConnectorKind, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.ConnectionKind.Scan(value)
+	return ns.ConnectorKind.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullConnectionKind) Value() (driver.Value, error) {
+func (ns NullConnectorKind) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.ConnectionKind), nil
-}
-
-type Checkpoint struct {
-	RunID        string
-	ResourceName string
-	Cursor       []byte
-	UpdatedAt    pgtype.Timestamptz
+	return string(ns.ConnectorKind), nil
 }
 
 type Connection struct {
-	ConnectionID string
-	TenantID     string
-	Kind         ConnectionKind
-	Name         string
-	Provider     string
-	Config       []byte
-	SecretRefs   []byte
-	Version      int64
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	IsDeleted    bool
-	DeletedAt    pgtype.Timestamptz
-}
-
-type DedupSeen struct {
-	TenantID  string
-	RunID     string
-	LastSeq   int64
-	UpdatedAt pgtype.Timestamptz
-}
-
-type Pipeline struct {
-	PipelineID          string
-	TenantID            string
-	Name                string
-	CreatedAt           pgtype.Timestamptz
-	UpdatedAt           pgtype.Timestamptz
-	Description         string
-	CurrentVersionID    int64
-	LastRunVersionID    int64
-	LastRunAt           pgtype.Timestamptz
-	LastRunStatus       int16
-	LastRunBytes        int64
-	IsDeleted           bool
-	DeletedAt           pgtype.Timestamptz
-	LastRunEndedAt      pgtype.Timestamptz
-	WorkerConfiguration []byte
-}
-
-type PipelineVersion struct {
-	PipelineID string
-	Version    int64
-	Nodes      []byte
-	Edges      []byte
-	CreatedAt  pgtype.Timestamptz
-}
-
-type ResourceCheckpoint struct {
-	PipelineID      string
-	PipelineVersion int64
-	RouteKey        string
-	ResourceName    string
-	Cursor          []byte
-	LastRunID       string
+	ID              string
+	TenantID        string
+	Kind            ConnectorKind
+	Name            string
+	Connector       string
+	Config          []byte
+	SecretRefs      []byte
+	Version         int64
+	IsDeleted       bool
+	DeletedAt       pgtype.Timestamptz
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
 }
 
-type ResourceState struct {
-	RunID        string
-	ResourceName string
-	TenantID     string
-	Enabled      bool
-	Status       int16
-	Records      int64
-	Bytes        int64
-	Error        pgtype.Text
-	UpdatedAt    pgtype.Timestamptz
+type Pipeline struct {
+	ID                  string
+	TenantID            string
+	Name                string
+	Description         string
+	CurrentVersionID    pgtype.Text
+	WorkerConfiguration []byte
+	IsDeleted           bool
+	DeletedAt           pgtype.Timestamptz
+	CreatedByUserID     pgtype.Text
+	UpdatedByUserID     pgtype.Text
+	DeletedByUserID     pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+}
+
+type PipelineResourceCheckpoint struct {
+	ID                string
+	TenantID          string
+	PipelineID        string
+	PipelineVersionID string
+	RouteKey          string
+	ResourceName      string
+	Cursor            []byte
+	LastRunID         string
+	CreatedByUserID   pgtype.Text
+	UpdatedByUserID   pgtype.Text
+	DeletedByUserID   pgtype.Text
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
+type PipelineVersion struct {
+	ID              string
+	TenantID        string
+	PipelineID      string
+	Version         int64
+	Graph           []byte
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type Run struct {
-	RunID             string
+	ID                string
 	TenantID          string
+	PipelineID        pgtype.Text
+	PipelineVersionID pgtype.Text
 	ScheduleID        pgtype.Text
 	Status            int16
 	Request           []byte
 	Records           int64
 	Bytes             int64
-	StartedAt         pgtype.Timestamptz
-	FinishedAt        pgtype.Timestamptz
-	Error             pgtype.Text
-	CreatedAt         pgtype.Timestamptz
-	UpdatedAt         pgtype.Timestamptz
-	SourceProvider    pgtype.Text
-	IngestionType     pgtype.Text
-	PipelineID        pgtype.Text
-	PipelineVersionID pgtype.Int8
 	CpuSeconds        float64
 	MemoryPeakBytes   int64
 	ScheduledAt       pgtype.Timestamptz
 	RequestedAt       pgtype.Timestamptz
+	StartedAt         pgtype.Timestamptz
+	EndedAt           pgtype.Timestamptz
+	Error             pgtype.Text
+	CreatedByUserID   pgtype.Text
+	UpdatedByUserID   pgtype.Text
+	DeletedByUserID   pgtype.Text
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
+type RunDedupSeen struct {
+	ID              string
+	TenantID        string
+	RunID           string
+	LastSeq         int64
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type RunResourceCheckpoint struct {
+	ID              string
+	TenantID        string
+	RunID           string
+	ResourceName    string
+	Cursor          []byte
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type RunResourceState struct {
+	ID              string
+	RunID           string
+	ResourceName    string
+	TenantID        string
+	Status          int16
+	Records         int64
+	Bytes           int64
+	Error           pgtype.Text
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type Schedule struct {
-	ScheduleID    string
-	TenantID      string
-	Name          pgtype.Text
-	CronExpr      string
-	Timezone      string
-	OverlapPolicy int16
-	Enabled       bool
-	LastFiredAt   pgtype.Timestamptz
-	NextFireAt    pgtype.Timestamptz
-	ClaimedAt     pgtype.Timestamptz
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	PipelineID    string
+	ID              string
+	TenantID        string
+	PipelineID      string
+	Name            pgtype.Text
+	CronExpr        string
+	Timezone        string
+	OverlapPolicy   int16
+	Enabled         bool
+	LastFiredAt     pgtype.Timestamptz
+	NextFireAt      pgtype.Timestamptz
+	ClaimedAt       pgtype.Timestamptz
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type Secret struct {
-	Ref        string
-	Ciphertext []byte
-	Nonce      []byte
-	KeyID      string
-	Metadata   []byte
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
+	ID              string
+	TenantID        string
+	Ref             string
+	Ciphertext      []byte
+	Nonce           []byte
+	KeyID           string
+	Metadata        []byte
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type Tenant struct {
-	TenantID  string
-	Name      pgtype.Text
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	ID              string
+	Name            pgtype.Text
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type User struct {
+	ID              string
+	TenantID        string
+	ExternalID      string
+	CreatedByUserID pgtype.Text
+	UpdatedByUserID pgtype.Text
+	DeletedByUserID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }

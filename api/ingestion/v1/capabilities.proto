@@ -3,8 +3,8 @@ syntax = "proto3";
 package ingestion.v1;
 
 import "ingestion/v1/common.proto";
+import "ingestion/v1/connectors.proto";
 import "ingestion/v1/pipelines.proto";
-import "ingestion/v1/providers.proto";
 
 message GetConnectionCapabilitiesRequest {
   string tenant_id = 1;
