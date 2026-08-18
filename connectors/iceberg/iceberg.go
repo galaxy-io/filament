@@ -1,5 +1,6 @@
-// Package iceberg implements filament.Sink writing records as Parquet data files into
-// Iceberg tables managed by any catalog backend registered with iceberg-go.
+// Package iceberg implements filament.Sink writing Arrow batches as Parquet data
+// files into Iceberg tables managed by any catalog backend registered with
+// iceberg-go.
 package iceberg
 
 import (
@@ -27,6 +28,7 @@ import (
 	_ "github.com/apache/iceberg-go/io/gocloud"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
 )
 
 const (
@@ -59,17 +61,16 @@ type Sink struct {
 	mu       sync.Mutex
 	tables   map[string]*iceTable // populated by EnsureSchema
 	stages   map[filament.StageID]*stage
-	curStage filament.StageID // the stage Write targets; "" until first Stage/Write
+	curStage filament.StageID // the stage Apply targets; "" until first Stage/Apply
 }
 
 type iceTable struct {
 	tbl        *icetable.Table
 	schema     *iceberg.Schema
-	record     filament.RecordSchema
 	primaryKey []string
 }
 
-// stage holds per-resource record buffers for one pending commit.
+// stage holds per-resource row buffers for one pending commit.
 type stage struct {
 	id                  filament.StageID
 	mu                  sync.Mutex
@@ -240,7 +241,6 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	s.tables[resource] = &iceTable{
 		tbl:        tbl,
 		schema:     tbl.Schema(),
-		record:     schema,
 		primaryKey: append([]string(nil), schema.PrimaryKey...),
 	}
 	s.mu.Unlock()
@@ -260,46 +260,8 @@ func (s *Sink) Stage(_ context.Context) (filament.StageID, error) {
 	return id, nil
 }
 
-// Write buffers each record's JSON payload into the active stage, auto-opening
-// one if Stage was never called (the direct filament.Sink lifecycle). Spills to a
-// temp file once the per-resource byte total exceeds stageBufLimitBytes.
-func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt, error) {
-	s.mu.Lock()
-	it := s.tables[b.Resource]
-	if it == nil {
-		s.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: no schema ensured for resource %q", b.Resource)
-	}
-	st := s.activeStageLocked()
-	s.mu.Unlock()
-
-	st.mu.Lock()
-	rb := st.buf[b.Resource]
-	if rb == nil {
-		rb = newRecordBuf(s.stageBufLimitBytes)
-		st.buf[b.Resource] = rb
-	}
-	var nbytes int64
-	for i := range b.Records {
-		if err := rb.appendRecord(b.Records[i].Data, b.Records[i].Op); err != nil {
-			st.mu.Unlock()
-			return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-		}
-		nbytes += int64(len(b.Records[i].Data))
-	}
-	st.mu.Unlock()
-
-	crc, _ := filament.CRC32C(b.Records)
-	return filament.WriteReceipt{
-		URI:      it.tbl.Location(),
-		Bytes:    nbytes,
-		Rows:     len(b.Records),
-		WriteCRC: crc,
-	}, nil
-}
-
 // Apply validates the batch against the run's write policy and buffers it
-// for the resource's table.
+// for the resource's table, retaining its rows until commit (or spilling them).
 func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]
@@ -318,6 +280,11 @@ func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOpt
 	st := s.activeStageLocked()
 	s.mu.Unlock()
 
+	if err := policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: %w", err)
+	}
+	nbytes := batch.Bytes(b.Rows)
+
 	st.mu.Lock()
 	rb := st.buf[b.Resource]
 	if rb == nil {
@@ -328,26 +295,17 @@ func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOpt
 		st.mu.Unlock()
 		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
 	}
-	var nbytes int64
-	if err := policy.ValidateRecords(b.Resource, b.Records); err != nil {
+	if err := rb.append(b.Rows, b.Ops, nbytes); err != nil {
 		st.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: %w", err)
-	}
-	for i := range b.Records {
-		if err := rb.appendRecord(b.Records[i].Data, b.Records[i].Op); err != nil {
-			st.mu.Unlock()
-			return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-		}
-		nbytes += int64(len(b.Records[i].Data))
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
 	}
 	st.mu.Unlock()
 
-	crc, _ := filament.CRC32C(b.Records)
 	return filament.WriteReceipt{
 		URI:      it.tbl.Location(),
 		Bytes:    nbytes,
-		Rows:     len(b.Records),
-		WriteCRC: crc,
+		Rows:     b.NumRows(),
+		WriteCRC: batch.CRC(b.Rows, b.Ops),
 	}, nil
 }
 
@@ -363,7 +321,7 @@ func (s *Sink) Promote(ctx context.Context, id filament.StageID) error {
 	return s.promoteStage(ctx, st)
 }
 
-// Commit promotes the active stage so the direct Open→Write→Commit lifecycle
+// Commit promotes the active stage so the direct Open→Apply→Commit lifecycle
 // lands data. A stage already flushed via Promote leaves nothing to do.
 func (s *Sink) Commit(ctx context.Context) error {
 	s.mu.Lock()
@@ -450,7 +408,7 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 	return nil
 }
 
-// activeStageLocked returns the stage Write targets, opening one if none exists.
+// activeStageLocked returns the stage Apply targets, opening one if none exists.
 // Caller holds s.mu.
 func (s *Sink) activeStageLocked() *stage {
 	if st := s.stages[s.curStage]; st != nil {

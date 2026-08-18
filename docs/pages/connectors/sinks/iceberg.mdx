@@ -4,7 +4,7 @@ description: "Write to Apache Iceberg tables."
 icon: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg"
 ---
 
-`connectors/iceberg` writes records as Parquet data files into Iceberg
+`connectors/iceberg` writes rows as Parquet data files into Iceberg
 tables, via any catalog backend registered with
 [iceberg-go](https://github.com/apache/iceberg-go).
 
@@ -22,25 +22,27 @@ fields are shown:
 
 ## Write modes
 
-`write_mode` controls how each commit applies a resource's staged records:
+`write_mode` controls how each commit applies a resource's staged rows:
 `auto` (the default) resolves to `replace` for a full-mode run or `append`
 otherwise, or it can be pinned explicitly to `append`, `replace`, `upsert`,
 `delete`, or `merge`.
 
 ## Staged, transactional commits
 
-The sink implements `filament.Transactional`: `Stage` opens a scope, `Write`
-buffers each resource's records into it (spilling to disk past a configured
-byte threshold), and `Promote` commits every resource in the stage as
-Iceberg transactions — dropping the stage only once every resource
-succeeds, so a retry after a partial failure skips whatever already
-committed. Used directly (no explicit `Stage` call), `Commit` opens and
-promotes an implicit stage itself.
+The sink implements `filament.Transactional`: `Stage` opens a scope, `Apply`
+retains each resource's Arrow batches in it (spilling them to an LZ4 Arrow
+IPC file past a configured byte threshold), and `Promote` commits every
+resource in the stage as Iceberg transactions — dropping the stage only once
+every resource succeeds, so a retry after a partial failure skips whatever
+already committed. Used directly (no explicit `Stage` call), `Commit` opens
+and promotes an implicit stage itself.
 
-Row buffers are parsed and streamed to the Iceberg writer in bounded
-8192-row chunks (via Arrow record batches) rather than materialized as one
-giant table in memory, so a large resource doesn't require a matching
-memory footprint.
+At commit the batches are conformed to the table's Arrow schema (int16 to
+int32, uuid text to the uuid type, unbounded numeric text to decimal(38,9))
+and streamed to the Parquet writer batch by batch, so a large resource never
+sits in memory as one table. An upsert or merge folds the buffer by key
+first — each key's last row wins, a trailing delete drops it — and overwrites
+just the touched keys.
 
 ## Schema evolution
 
@@ -49,6 +51,11 @@ added, but type changes, nullability changes, and dropped columns are never
 applied automatically. Iceberg tolerates a reader seeing a superset schema;
 a narrowing change could silently break something reading the table, so it's
 left to a deliberate migration instead.
+
+Array columns land as their source's literal text (a `string` column). A
+table created by an earlier filament with a `list` column for the same
+source column has to be recreated; the commit fails on the type mismatch
+rather than rewriting the column.
 
 ## Modes
 

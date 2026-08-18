@@ -2,27 +2,20 @@ package iceberg
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"iter"
-	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
-	"github.com/apache/arrow-go/v18/arrow/memory"
 	"github.com/apache/iceberg-go/table"
+
+	"github.com/galaxy-io/filament"
 )
 
-// commitRowsPerChunk bounds how many records are parsed into one Arrow record
-// batch at a time, so a large buffer streams to the writer instead of
-// materializing as one giant JSON string + table in memory.
-const commitRowsPerChunk = 8192
-
 // writeBuffer streams a resource buffer into the Iceberg table in one
-// transaction, parsing the buffer in bounded chunks rather than all at once.
-// It reloads the table from the catalog first: a credential-vending catalog
-// issues storage tokens with a TTL at load time, and a buffered run can
-// outlive them by commit.
+// transaction, one batch at a time. It reloads the table from the catalog
+// first: a credential-vending catalog issues storage tokens with a TTL at load
+// time, and a buffered run can outlive them by commit.
 func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mode writeMode) error {
 	s.mu.Lock()
 	cat := s.cat
@@ -34,20 +27,17 @@ func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mod
 	it.tbl = tbl
 	it.schema = tbl.Schema()
 
-	switch mode {
-	case writeModeUpsert, writeModeDelete, writeModeMerge:
-		return s.writeMutationBuffer(ctx, it, rb, mode)
-	}
-
 	arrowSchema, err := table.SchemaToArrowSchema(it.schema, nil, false, false)
 	if err != nil {
 		return fmt.Errorf("build arrow schema: %w", err)
 	}
-	mem := memory.NewGoAllocator()
 
-	// Collect chunk payloads lazily via the buffer's streamer, converting each to
-	// an Arrow record batch only as the reader pulls it.
-	batches, errPtr := chunkBatches(arrowSchema, mem, rb, jsonColumns(it.record))
+	switch mode {
+	case writeModeUpsert, writeModeDelete, writeModeMerge:
+		return s.writeMutationBuffer(ctx, it, rb, mode, arrowSchema)
+	}
+
+	batches, errPtr := conformedBatches(rb, arrowSchema)
 	rdr := array.ReaderFromIter(arrowSchema, batches)
 	defer rdr.Release()
 
@@ -76,40 +66,29 @@ func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mod
 	return nil
 }
 
-func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mode writeMode) error {
-	keys := rb.policy.Keys
-	changes, err := collectMutationState(it, rb, keys)
+func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mode writeMode, arrowSchema *arrow.Schema) error {
+	m, err := foldMutations(ctx, it, rb, rb.policy.Keys, arrowSchema)
 	if err != nil {
 		return err
 	}
-	if len(changes.filterKeys) == 0 {
+	defer m.release()
+	if m.filter == nil {
 		return nil
-	}
-	filter, err := keyFilter(it, keys, changes.filterKeys)
-	if err != nil {
-		return err
 	}
 
 	txn := it.tbl.NewTransaction()
-	if len(changes.live) == 0 {
-		if err := txn.Delete(ctx, filter, nil); err != nil {
+	if len(m.live) == 0 {
+		if err := txn.Delete(ctx, m.filter, nil); err != nil {
 			return fmt.Errorf("delete: %w", err)
 		}
 	} else {
-		arrowSchema, err := table.SchemaToArrowSchema(it.schema, nil, false, false)
+		rdr, err := array.NewRecordReader(arrowSchema, m.live)
 		if err != nil {
-			return fmt.Errorf("build arrow schema: %w", err)
+			return fmt.Errorf("mutation reader: %w", err)
 		}
-		mem := memory.NewGoAllocator()
-		rb := recordsFromRaw(changes.live)
-		batches, errPtr := chunkBatches(arrowSchema, mem, rb, jsonColumns(it.record))
-		rdr := array.ReaderFromIter(arrowSchema, batches)
 		defer rdr.Release()
-		if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(filter)); err != nil {
+		if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(m.filter)); err != nil {
 			return fmt.Errorf("%s: %w", mode, err)
-		}
-		if *errPtr != nil {
-			return fmt.Errorf("read mutation buffer: %w", *errPtr)
 		}
 	}
 	updated, err := txn.Commit(ctx)
@@ -121,23 +100,19 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 	return nil
 }
 
-// chunkBatches returns an iterator yielding one Arrow record batch per buffer
-// chunk. Any streaming/parse error is surfaced through the returned pointer
-// (the iter.Seq2 stops on the first error). Caller checks *err after the reader
-// drains.
+// conformedBatches returns an iterator yielding each buffered batch in the
+// table's Arrow schema. Any streaming error is surfaced through the returned
+// pointer (the iter.Seq2 stops on the first error). Caller checks *err after
+// the reader drains.
 //
 //nolint:gocritic // *error is the iterator out-param, read after the seq drains
-func chunkBatches(schema *arrow.Schema, mem memory.Allocator, rb *recordBuf, jsonCols map[string]bool) (iter.Seq2[arrow.RecordBatch, error], *error) {
+func conformedBatches(rb *recordBuf, schema *arrow.Schema) (iter.Seq2[arrow.RecordBatch, error], *error) {
 	var streamErr error
 	seq := func(yield func(arrow.RecordBatch, error) bool) {
-		streamErr = rb.stream(commitRowsPerChunk, func(recs []json.RawMessage) error {
-			recs, err := encodeJSONColumns(recs, jsonCols)
+		streamErr = rb.stream(func(rows arrow.RecordBatch, _ []filament.Operation) error {
+			rec, err := conform(rows, schema)
 			if err != nil {
-				return fmt.Errorf("parse chunk: %w", err)
-			}
-			rec, _, err := array.RecordFromJSON(mem, schema, strings.NewReader(jsonArray(recs)))
-			if err != nil {
-				return fmt.Errorf("parse chunk: %w", err)
+				return err
 			}
 			if !yield(rec, nil) {
 				rec.Release()
@@ -155,18 +130,3 @@ func chunkBatches(schema *arrow.Schema, mem memory.Allocator, rb *recordBuf, jso
 // errStopIteration unwinds rb.stream when the consumer stops early; it is never
 // surfaced as a real error.
 var errStopIteration = fmt.Errorf("stop iteration")
-
-// jsonArray frames a chunk of pre-validated JSON objects as one array literal,
-// the form RecordFromJSON expects.
-func jsonArray(recs []json.RawMessage) string {
-	var b strings.Builder
-	b.WriteByte('[')
-	for i, r := range recs {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		b.Write(r)
-	}
-	b.WriteByte(']')
-	return b.String()
-}
