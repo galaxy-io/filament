@@ -46,7 +46,7 @@ const CreatePipelineModalDeliverySink = ({
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.SPACE_BETWEEN}
       gap={16}
-      padding="12px"
+      padding="12px 16px"
       fillWidth
     >
       <FlexWrapper alignItems={AlignItems.CENTER} gap={10}>

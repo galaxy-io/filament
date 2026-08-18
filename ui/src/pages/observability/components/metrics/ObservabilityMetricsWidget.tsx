@@ -17,17 +17,13 @@ import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
-import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
 import MetricCard from "@/components/metrics/MetricCard";
 import MetricGroup from "@/components/metrics/MetricGroup";
 
-import {
-  OBSERVABILITY_RUN_STATUSES,
-  OBSERVABILITY_RUNS_TABLE_LIMIT,
-} from "@/pages/observability/components/runs/constants";
+import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
 import {
@@ -46,8 +42,6 @@ const OBSERVABILITY_METRICS_FEATURED_STATUSES = [
   RunStatus.RUNNING,
 ];
 
-// Scheduled is excluded: it has its own card fed by ListRuns, since scheduled
-// runs never started and so can't appear in the windowed aggregate.
 const OBSERVABILITY_METRICS_OTHER_STATUSES = OBSERVABILITY_RUN_STATUSES.filter(
   (status) =>
     !OBSERVABILITY_METRICS_FEATURED_STATUSES.includes(status) && status !== RunStatus.SCHEDULED,
@@ -55,7 +49,6 @@ const OBSERVABILITY_METRICS_OTHER_STATUSES = OBSERVABILITY_RUN_STATUSES.filter(
 
 const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
-  pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
 });
 
 const ObservabilityMetricsWidget = () => {

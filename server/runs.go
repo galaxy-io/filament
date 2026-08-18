@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,7 +28,7 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		filter.Limit = int(pageSizeOf(p.GetTotal()))
+		filter.Limit = int(pageSizeOf(p.GetPageSize()))
 		filter.Offset = int(offset)
 	}
 	if req.Msg.GetSinceMs() > 0 {
@@ -178,10 +179,10 @@ func (a *Server) replayRun(ctx context.Context, run filament.RunID, send func(*i
 func (a *Server) loadRunSnapshot(ctx context.Context, run filament.RunID) (filament.RunState, bool, error) {
 	state, err := a.store.LoadRun(ctx, run)
 	if err != nil {
-		if ctx.Err() != nil {
-			return filament.RunState{}, false, ctx.Err()
+		if errors.Is(err, filament.ErrNotFound) {
+			return filament.RunState{}, false, nil
 		}
-		return filament.RunState{}, false, nil
+		return filament.RunState{}, false, err
 	}
 	return state, true, nil
 }

@@ -22,12 +22,12 @@ const (
 )
 
 // PaginationRequest narrows a List response to one page. Absent means the
-// full result. total is the page size, defaulted and capped server-side;
+// full result. page_size is defaulted and capped server-side;
 // cursor is an opaque token from a prior response, absent meaning the first
 // page.
 type PaginationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	Cursor        *string                `protobuf:"bytes,2,opt,name=cursor,proto3,oneof" json:"cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -63,9 +63,9 @@ func (*PaginationRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_pagination_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PaginationRequest) GetTotal() int32 {
+func (x *PaginationRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Total
+		return x.PageSize
 	}
 	return 0
 }
@@ -144,9 +144,9 @@ var File_ingestion_v1_pagination_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_pagination_proto_rawDesc = "" +
 	"\n" +
-	"\x1dingestion/v1/pagination.proto\x12\fingestion.v1\"Q\n" +
-	"\x11PaginationRequest\x12\x14\n" +
-	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1b\n" +
+	"\x1dingestion/v1/pagination.proto\x12\fingestion.v1\"X\n" +
+	"\x11PaginationRequest\x12\x1b\n" +
+	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1b\n" +
 	"\x06cursor\x18\x02 \x01(\tH\x00R\x06cursor\x88\x01\x01B\t\n" +
 	"\a_cursor\"\xa2\x01\n" +
 	"\x12PaginationResponse\x12\x14\n" +

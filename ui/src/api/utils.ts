@@ -3,16 +3,16 @@ import type { UseInfiniteQueryOptions as ConnectUseInfiniteQueryOptions } from "
 
 import type { PaginationRequestSchema, PaginationResponse } from "@/gen/ingestion/v1/pagination_pb";
 
-export const DEFAULT_PAGINATION_TOTAL = 25;
+export const DEFAULT_PAGE_SIZE = 25;
 
 export const INITIAL_PAGE_PARAM: MessageInitShape<typeof PaginationRequestSchema> = {
-  total: DEFAULT_PAGINATION_TOTAL,
+  pageSize: DEFAULT_PAGE_SIZE,
 };
 
 export const getNextPageParam = (lastPage: { pagination?: PaginationResponse }) => {
   return lastPage.pagination?.nextCursor
     ? {
-        total: DEFAULT_PAGINATION_TOTAL,
+        pageSize: DEFAULT_PAGE_SIZE,
         cursor: lastPage.pagination.nextCursor,
       }
     : undefined;

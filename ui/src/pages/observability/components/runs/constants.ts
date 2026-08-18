@@ -5,7 +5,6 @@ import { ChartPalette } from "@galaxy-io/dls/charts/types";
 import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
@@ -74,11 +73,8 @@ export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
   RunStatus.RUNNING,
 ];
 
-export const OBSERVABILITY_RUNS_TABLE_LIMIT = 50;
-
 export const OBSERVABILITY_RUNS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
-  pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
 });
 
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS = 110;
