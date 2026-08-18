@@ -10,12 +10,15 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
+	"github.com/galaxy-io/filament/connectors/internal/ndjson"
 )
 
 func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
@@ -296,7 +299,7 @@ func TestIncrementalRecordReducerNeverRegressesFanoutWatermark(t *testing.T) {
 		"messages": {"messages_since": "10"},
 	})
 	for i, value := range []string{"30", "20"} {
-		got, err := reducer.record(pipeline.Record{
+		got, err := reducer.meta(pipeline.Record{
 			Resource: "messages", KeyJSON: []byte(`{"id":"x"}`), DataJSON: []byte(`{"id":"x"}`),
 			Watermarks: map[string]string{"messages_since": value},
 		})
@@ -363,18 +366,28 @@ func TestSourcePlanResourcesKeepsSingleStaticResource(t *testing.T) {
 	}
 }
 
-func TestToIngestionRecordWrapsHTTPAPIPayload(t *testing.T) {
-	rec := toIngestionRecord(pipeline.Record{
+func TestRowSinkWrapsUnprojectedPayload(t *testing.T) {
+	src := &Source{connector: &Connector{manifest: &manifest.Manifest{Resources: []manifest.Resource{{Name: "databases", PrimaryKey: []string{"id"}}}}}}
+	var sink collectSink
+	rows := newRowSink(context.Background(), src, &sink)
+	err := rows.append(pipeline.Record{
 		Resource: "databases",
 		KeyJSON:  []byte(`{"id":"db1"}`),
 		DataJSON: []byte(`{"id":"db1","title":[{"plain_text":"Team Tasks"}]}`),
-	})
+	}, filament.RowMeta{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.records) != 1 {
+		t.Fatalf("records = %d, want 1", len(sink.records))
+	}
+	rec := sink.records[0]
 	var got map[string]json.RawMessage
 	if err := json.Unmarshal(rec.Data, &got); err != nil {
 		t.Fatalf("record data is not json: %v", err)
 	}
-	if string(got["id"]) != `"db1"` {
-		t.Fatalf("id = %s, want db1", got["id"])
+	if string(got["id"]) != `"db1"` || rec.ID != "db1" {
+		t.Fatalf("id = %s / %q, want db1", got["id"], rec.ID)
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(got["data"], &payload); err != nil {
@@ -382,9 +395,6 @@ func TestToIngestionRecordWrapsHTTPAPIPayload(t *testing.T) {
 	}
 	if payload["id"] != "db1" {
 		t.Fatalf("payload id = %v, want db1", payload["id"])
-	}
-	if rec.ID != "db1" {
-		t.Fatalf("record id = %q, want db1", rec.ID)
 	}
 }
 
@@ -627,9 +637,9 @@ func TestNewAttioSpecAndEmbeddedManifest(t *testing.T) {
 
 func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 	ctx := context.Background()
-	var authorization string
+	var authorization atomic.Value // resources are fetched concurrently
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorization = r.Header.Get("Authorization")
+		authorization.Store(r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/v2/objects":
@@ -653,8 +663,8 @@ func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"objects", "lists"}}); err != nil {
 		t.Fatalf("extract Attio catalog: %v", err)
 	}
-	if authorization != "Bearer attio-key" {
-		t.Fatalf("Authorization = %q, want Bearer attio-key", authorization)
+	if got, _ := authorization.Load().(string); got != "Bearer attio-key" {
+		t.Fatalf("Authorization = %q, want Bearer attio-key", got)
 	}
 	if len(sink.records) != 2 {
 		t.Fatalf("records = %#v, want one Attio object and list", sink.records)
@@ -1044,23 +1054,48 @@ func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testin
 	}
 }
 
+// testRecord is one row as the tests inspect it: the resource, the primary key
+// value (a single key column's text), the row rendered as JSON, and its cursor.
+type testRecord struct {
+	Resource string
+	ID       string
+	Data     []byte
+	Key      []string
+}
+
+// collectSink is a filament.RecordSink that renders every flushed row back to
+// a testRecord.
 type collectSink struct {
-	records []filament.Record
+	records []testRecord
 }
 
-func (s *collectSink) Push(r filament.Record) error {
-	s.records = append(s.records, r)
-	return nil
+func (s *collectSink) Builder(resource string, _ int, schema filament.RecordSchema) (filament.RowWriter, error) {
+	as := batch.Schema(schema)
+	return batch.New(as, batch.Options{MaxRows: 1}, &collectChunks{sink: s, resource: resource, pk: schema.PrimaryKey, enc: ndjson.NewEncoder(as)}), nil
 }
 
-func (s *collectSink) PushBatch(records []filament.Record) error {
-	for _, r := range records {
-		if err := s.Push(r); err != nil {
-			return err
+type collectChunks struct {
+	sink     *collectSink
+	resource string
+	pk       []string
+	enc      *ndjson.Encoder
+}
+
+func (c *collectChunks) Chunk(ch batch.Chunk) error {
+	defer ch.Rows.Release()
+	for i := range int(ch.Rows.NumRows()) {
+		rec := testRecord{Resource: c.resource, Data: c.enc.AppendRow(nil, ch.Rows, i), Key: ch.Last.Key}
+		if len(c.pk) == 1 {
+			if idx := ch.Rows.Schema().FieldIndices(c.pk[0]); len(idx) == 1 {
+				rec.ID = ch.Rows.Column(idx[0]).ValueStr(i)
+			}
 		}
+		c.sink.records = append(c.sink.records, rec)
 	}
 	return nil
 }
+
+func (c *collectChunks) Drained(filament.RowMeta, int) error { return nil }
 
 func writeTestManifest(t *testing.T, baseURL string) string {
 	t.Helper()
@@ -1557,7 +1592,7 @@ func TestResendWebhookAttemptsInheritWebhookIDThroughEventCapture(t *testing.T) 
 		if data["http_status_code"] != float64(200) {
 			t.Fatalf("http_status_code = %#v, want the delivery status as an integer", data["http_status_code"])
 		}
-		if data["sent_at"] != "2026-08-22T15:33:12.000Z" {
+		if data["sent_at"] != "2026-08-22T15:33:12Z" { // a typed timestamp, rendered without the source's zero millis
 			t.Fatalf("sent_at = %#v, want the ISO-8601 attempt timestamp", data["sent_at"])
 		}
 		seen[data["event_id"].(string)] = true

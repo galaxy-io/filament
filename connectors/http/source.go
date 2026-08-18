@@ -471,13 +471,14 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 	go func() {
 		defer wg.Done()
 		reducer := newIncrementalRecordReducer(s, resumeWatermarks)
+		rows := newRowSink(ctx, s, sink)
 		for rec := range ch {
-			converted, err := reducer.record(rec)
+			meta, err := reducer.meta(rec)
 			if err != nil {
 				setErr(err)
 				return
 			}
-			if err := sink.Push(converted); err != nil {
+			if err := rows.append(rec, meta); err != nil {
 				setErr(err)
 				return
 			}
@@ -731,76 +732,100 @@ func decodeSelector(selector string) (pipeline.ResourceRef, bool) {
 	return pipeline.ResourceRef{Kind: token.Kind, ID: token.ID}, true
 }
 
-func toIngestionRecord(rec pipeline.Record) filament.Record {
-	out := filament.Record{
-		Resource: rec.Resource,
-		ID:       recordID(rec.KeyJSON),
-		Op:       operationToPkg(rec.Operation),
-		Data:     rec.DataJSON,
-	}
-	if !rec.Projected {
-		out.Data = recordData(rec.KeyJSON, rec.DataJSON)
-	}
-	if rec.Cursor != "" || len(rec.Watermarks) > 0 {
-		out.Key = []string{rec.Cursor}
-		keys := make([]string, 0, len(rec.Watermarks))
-		for key := range rec.Watermarks {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			out.Key = append(out.Key, rec.Watermarks[key])
-		}
-	}
-	return out
+// rowSink appends the connector's records into the pipeline's row writers, one
+// writer per resource, parsing each record's JSON by the resource's schema.
+type rowSink struct {
+	ctx     context.Context
+	source  *Source
+	sink    filament.RecordSink
+	writers map[string]*resourceWriter
 }
 
-func recordData(keyJSON, dataJSON []byte) []byte {
-	var key map[string]any
-	if err := json.Unmarshal(keyJSON, &key); err != nil {
-		return dataJSON
+// resourceWriter is one resource's writer with its schema-ordered field parsers.
+type resourceWriter struct {
+	w       filament.RowWriter
+	fields  []filament.SchemaField
+	parsers []valueParser
+}
+
+func newRowSink(ctx context.Context, source *Source, sink filament.RecordSink) *rowSink {
+	return &rowSink{ctx: ctx, source: source, sink: sink, writers: map[string]*resourceWriter{}}
+}
+
+func (r *rowSink) writer(resource string) (*resourceWriter, error) {
+	if rw := r.writers[resource]; rw != nil {
+		return rw, nil
 	}
-	var payload json.RawMessage
-	if err := json.Unmarshal(dataJSON, &payload); err != nil {
-		return dataJSON
-	}
-	out := make(map[string]any, len(key)+1)
-	for k, v := range key {
-		out[k] = v
-	}
-	out["data"] = payload
-	b, err := json.Marshal(out)
+	schema, err := r.source.Schema(r.ctx, resource)
 	if err != nil {
-		return dataJSON
+		return nil, err
 	}
-	return b
+	w, err := r.sink.Builder(resource, 0, schema)
+	if err != nil {
+		return nil, err
+	}
+	rw := &resourceWriter{w: w, fields: schema.Fields, parsers: make([]valueParser, len(schema.Fields))}
+	for i, f := range schema.Fields {
+		rw.parsers[i] = typeFor(f)
+	}
+	r.writers[resource] = rw
+	return rw, nil
 }
 
-func recordID(keyJSON []byte) string {
-	if len(keyJSON) == 0 {
-		return ""
+// append writes one record as a row: a projected record's DataJSON is the row
+// object; an unprojected one is its key fields plus the whole payload under
+// "data" (the shape the schema advertises for such resources).
+func (r *rowSink) append(rec pipeline.Record, meta filament.RowMeta) error {
+	rw, err := r.writer(rec.Resource)
+	if err != nil {
+		return err
 	}
-	var key map[string]any
-	if err := json.Unmarshal(keyJSON, &key); err != nil || len(key) != 1 {
-		return string(keyJSON)
-	}
-	for _, v := range key {
-		switch value := v.(type) {
-		case string:
-			return value
-		case float64:
-			return strconv.FormatFloat(value, 'f', -1, 64)
-		case bool:
-			return strconv.FormatBool(value)
-		default:
-			b, err := json.Marshal(value)
-			if err != nil {
-				return string(keyJSON)
+	var obj map[string]json.RawMessage
+	if rec.Projected {
+		if err := json.Unmarshal(rec.DataJSON, &obj); err != nil {
+			return fmt.Errorf("httpapi %q: record is not a JSON object: %w", rec.Resource, err)
+		}
+	} else {
+		if len(rec.KeyJSON) > 0 {
+			if err := json.Unmarshal(rec.KeyJSON, &obj); err != nil {
+				return fmt.Errorf("httpapi %q: key is not a JSON object: %w", rec.Resource, err)
 			}
-			return string(b)
+		}
+		if obj == nil {
+			obj = map[string]json.RawMessage{}
+		}
+		obj["data"] = rec.DataJSON
+	}
+	for i, f := range rw.fields {
+		raw, ok := obj[f.Name]
+		if !ok || len(raw) == 0 || string(raw) == "null" {
+			rw.w.Null()
+			continue
+		}
+		if err := rw.parsers[i](rw.w, raw); err != nil {
+			return fmt.Errorf("httpapi %q field %q: %w", rec.Resource, f.Name, err)
 		}
 	}
-	return string(keyJSON)
+	meta.Op = operationToPkg(rec.Operation)
+	return rw.w.EndRow(meta)
+}
+
+// cursorKey renders a record's resume position: its pagination cursor followed
+// by its watermarks in key order.
+func cursorKey(rec pipeline.Record) []string {
+	if rec.Cursor == "" && len(rec.Watermarks) == 0 {
+		return nil
+	}
+	key := []string{rec.Cursor}
+	names := make([]string, 0, len(rec.Watermarks))
+	for name := range rec.Watermarks {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		key = append(key, rec.Watermarks[name])
+	}
+	return key
 }
 
 func operationToPkg(op pipeline.Operation) filament.Operation {
@@ -969,21 +994,23 @@ func newIncrementalRecordReducer(source *Source, seeds map[string]map[string]str
 	return &incrementalRecordReducer{source: source, seeds: seeds, marks: map[string]*atomicwatermark.Watermark{}}
 }
 
-func (r *incrementalRecordReducer) record(rec pipeline.Record) (filament.Record, error) {
+// meta returns a record's row meta: its resume key, advanced through the
+// resource's incremental watermark when it has one.
+func (r *incrementalRecordReducer) meta(rec pipeline.Record) (filament.RowMeta, error) {
 	spec, ok := r.source.incrementalResources[rec.Resource]
 	if !ok {
 		base := r.source.baseResourceName(rec.Resource)
 		spec, ok = r.source.incrementalResources[base]
 	}
 	if !ok {
-		return toIngestionRecord(rec), nil
+		return filament.RowMeta{Key: cursorKey(rec)}, nil
 	}
 	checkpointKey := incrementalCheckpointKey(spec)
 	mark := r.marks[rec.Resource]
 	if mark == nil {
 		cmp, err := atomicwatermark.ForName(spec.Comparator)
 		if err != nil {
-			return filament.Record{}, err
+			return filament.RowMeta{}, err
 		}
 		seed := r.seeds[rec.Resource][checkpointKey]
 		if seed == "" {
@@ -991,16 +1018,14 @@ func (r *incrementalRecordReducer) record(rec pipeline.Record) (filament.Record,
 		}
 		mark, err = atomicwatermark.New(cmp, seed)
 		if err != nil {
-			return filament.Record{}, err
+			return filament.RowMeta{}, err
 		}
 		r.marks[rec.Resource] = mark
 	}
 	if value := rec.Watermarks[checkpointKey]; value != "" {
 		if _, err := mark.Observe(value); err != nil {
-			return filament.Record{}, fmt.Errorf("incremental %q watermark: %w", rec.Resource, err)
+			return filament.RowMeta{}, fmt.Errorf("incremental %q watermark: %w", rec.Resource, err)
 		}
 	}
-	out := toIngestionRecord(rec)
-	out.Key = watermarkKey(mark.Current())
-	return out, nil
+	return filament.RowMeta{Key: watermarkKey(mark.Current())}, nil
 }
