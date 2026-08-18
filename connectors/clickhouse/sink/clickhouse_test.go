@@ -5,11 +5,14 @@ import (
 	"math"
 	"strings"
 	"testing"
+	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/apache/arrow-go/v18/arrow/decimal128"
 	"github.com/shopspring/decimal"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
 )
 
 func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
@@ -115,8 +118,8 @@ func TestClickHouseColumnType(t *testing.T) {
 	}{
 		{name: "bool", field: filament.SchemaField{Logical: filament.LogicalBool}, want: "Bool"},
 		{name: "int64 nullable", field: filament.SchemaField{Logical: filament.LogicalInt64, Nullable: true}, want: "Nullable(Int64)"},
-		{name: "decimal native", field: filament.SchemaField{Logical: filament.LogicalDecimal, Native: "numeric(12, 2)"}, want: "Decimal(12, 2)"},
-		{name: "decimal invalid", field: filament.SchemaField{Logical: filament.LogicalDecimal, Native: "decimal(100,2)"}, want: "Decimal(38, 9)"},
+		{name: "decimal bounded", field: filament.SchemaField{Logical: filament.LogicalDecimal, Precision: 12, Scale: 2}, want: "Decimal(12, 2)"},
+		{name: "decimal unbounded", field: filament.SchemaField{Logical: filament.LogicalDecimal, Native: "numeric"}, want: "Decimal(38, 9)"},
 		{name: "timestamp", field: filament.SchemaField{Logical: filament.LogicalTimestamp}, want: "DateTime64(6)"},
 		{name: "timestamptz", field: filament.SchemaField{Logical: filament.LogicalTimestampTZ}, want: "DateTime64(6, 'UTC')"},
 		{name: "json text", field: filament.SchemaField{Logical: filament.LogicalJSON}, want: "String"},
@@ -124,8 +127,8 @@ func TestClickHouseColumnType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := clickhouseColumnType(tt.field); got != tt.want {
-				t.Fatalf("clickhouseColumnType() = %q, want %q", got, tt.want)
+			if got := columnType(tt.field); got != tt.want {
+				t.Fatalf("columnType() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -220,24 +223,52 @@ func TestCreateTableDDLRejectsUnsafeCursorVersion(t *testing.T) {
 	}
 }
 
-func TestDecodeRecordPreservesTypes(t *testing.T) {
-	schema := filament.RecordSchema{Fields: []filament.SchemaField{
+type collect struct{ chunks []batch.Chunk }
+
+func (c *collect) Chunk(ch batch.Chunk) error          { c.chunks = append(c.chunks, ch); return nil }
+func (c *collect) Drained(filament.RowMeta, int) error { return nil }
+
+func TestValuesPreserveTypes(t *testing.T) {
+	rs := filament.RecordSchema{Fields: []filament.SchemaField{
 		{Name: "id", Logical: filament.LogicalInt64},
 		{Name: "name", Logical: filament.LogicalString},
 		{Name: "active", Logical: filament.LogicalBool},
 		{Name: "score", Logical: filament.LogicalFloat64},
-		{Name: "amount", Logical: filament.LogicalDecimal},
+		{Name: "amount", Logical: filament.LogicalDecimal, Precision: 10, Scale: 3},
+		{Name: "big", Logical: filament.LogicalDecimal},
 		{Name: "payload", Logical: filament.LogicalJSON},
-		{Name: "tags", Logical: filament.LogicalArray},
 		{Name: "bytes", Logical: filament.LogicalBytes},
+		{Name: "at", Logical: filament.LogicalTimestamp},
+		{Name: "tz", Logical: filament.LogicalTimestampTZ},
 		{Name: "optional", Logical: filament.LogicalString, Nullable: true},
 	}}
-	values, err := decodeRecord(schema, []byte(`{
-		"id":9223372036854775806,"name":"Ada","active":true,"score":"NaN",
-		"amount":"123.450","payload":{"ok":true},"tags":["a","b"],"bytes":"aGk="
-	}`))
-	if err != nil {
+	schema := batch.Schema(rs)
+	c := &collect{}
+	b := batch.New(schema, batch.Options{MaxRows: 4}, c)
+	b.Int64(9223372036854775806)
+	b.String("Ada")
+	b.Bool(true)
+	b.Float64(math.NaN())
+	b.Decimal(decimal128.FromI64(123450))
+	b.String("123.450")
+	b.String(`{"ok":true}`)
+	b.Bytes([]byte("hi"))
+	b.Timestamp(1704067200_000000)
+	b.Timestamp(1704067200_000000)
+	b.Null()
+	if err := b.EndRow(filament.RowMeta{}); err != nil {
 		t.Fatal(err)
+	}
+	if err := b.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	rows := c.chunks[0].Rows
+	values := make([]any, rows.NumCols())
+	for i, f := range schema.Fields() {
+		if rows.Column(i).IsNull(0) {
+			continue
+		}
+		values[i] = valueFor(f)(rows.Column(i), 0)
 	}
 	if got := values[0]; got != int64(9223372036854775806) {
 		t.Fatalf("id = %#v", got)
@@ -245,23 +276,22 @@ func TestDecodeRecordPreservesTypes(t *testing.T) {
 	if values[1] != "Ada" || values[2] != true || !math.IsNaN(values[3].(float64)) {
 		t.Fatalf("scalar values = %#v", values[:4])
 	}
-	if got := values[4].(decimal.Decimal); !got.Equal(decimal.RequireFromString("123.450")) {
-		t.Fatalf("decimal = %s", got)
+	for _, i := range []int{4, 5} {
+		if got := values[i].(decimal.Decimal); !got.Equal(decimal.RequireFromString("123.450")) {
+			t.Fatalf("decimal %d = %s", i, got)
+		}
 	}
-	if values[5] != `{"ok":true}` || values[6] != `["a","b"]` || values[7] != "hi" {
-		t.Fatalf("structured values = %#v", values[5:8])
+	if values[6] != `{"ok":true}` || values[7] != "hi" {
+		t.Fatalf("structured values = %#v", values[6:8])
 	}
-	if len(values) != 9 || values[8] != nil {
-		t.Fatalf("nullable value = %#v", values[8:])
+	if values[8] != "2024-01-01 00:00:00" {
+		t.Fatalf("naive timestamp = %#v, want wall-clock text", values[8])
 	}
-}
-
-func TestDecodeRecordRejectsMissingRequiredField(t *testing.T) {
-	_, err := decodeRecord(filament.RecordSchema{Fields: []filament.SchemaField{
-		{Name: "id", Logical: filament.LogicalInt64},
-	}}, []byte(`{}`))
-	if err == nil || !strings.Contains(err.Error(), `field "id"`) {
-		t.Fatalf("error = %v", err)
+	if got := values[9].(time.Time); got.Unix() != 1704067200 || got.Location() != time.UTC {
+		t.Fatalf("instant = %v", got)
+	}
+	if values[10] != nil {
+		t.Fatalf("nullable value = %#v", values[10])
 	}
 }
 
