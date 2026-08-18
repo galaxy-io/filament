@@ -294,8 +294,11 @@ const (
 type StandardSyncMode string
 
 const (
-	StandardSyncReplace     StandardSyncMode = "replace"
-	StandardSyncAppend      StandardSyncMode = "append"
+	// StandardSyncReplace replaces the destination with a full source snapshot.
+	StandardSyncReplace StandardSyncMode = "replace"
+	// StandardSyncAppend appends a full source snapshot to the destination.
+	StandardSyncAppend StandardSyncMode = "append"
+	// StandardSyncIncremental reads from a cursor and merges rows by key.
 	StandardSyncIncremental StandardSyncMode = "incremental"
 )
 
