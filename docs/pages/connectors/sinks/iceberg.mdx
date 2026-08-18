@@ -22,9 +22,9 @@ fields are shown:
 
 ## Write behavior
 
-Iceberg uses the pipeline resource's sync mode. Replace, Append, Incremental,
-and CDC compile to the corresponding internal Iceberg commit behavior; there
-is no separate connector-level write-mode override.
+Iceberg uses the pipeline route's write mode together with each resource's read
+mode. Append, Replace, Upsert, and CDC compile to the corresponding internal
+Iceberg commit behavior; there is no separate connector-level override.
 
 ## Staged, transactional commits
 

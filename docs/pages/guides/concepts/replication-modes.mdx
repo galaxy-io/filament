@@ -4,8 +4,9 @@ description: "How Standard and CDC connections move data."
 icon: "arrows-rotate"
 ---
 
-Filament exposes two replication modes at connection creation and one simple
-sync-mode choice for resources on Standard connections.
+Filament exposes two replication modes at connection creation. Standard
+pipelines then choose how each resource is read and how each destination route
+is written.
 
 ## Replication mode
 
@@ -15,35 +16,43 @@ need database-side preparation, such as logical replication on PostgreSQL.
 Sources without CDC support are always Standard.
 
 Replication is a property of the connection. Pipelines built on a CDC
-connection have no editable sync mode or cursor. The change stream already
+connection have no editable read or write mode and no cursor. The change stream already
 defines the read and applies ordered inserts, updates, and deletes.
 
 The replication mode is immutable. Create a new connection when changing
 between Standard and CDC so existing pipeline versions cannot silently change
 meaning.
 
-## Standard sync modes
+## Standard read and write modes
 
-Each resource routed from a Standard connection has one outcome-oriented mode:
+Read mode is selected per resource. Write mode is selected once per destination
+route and applies to every resource sent from that source to that destination.
 
-| Mode | Source behavior | Destination outcome |
-|---|---|---|
-| **Replace** | Read every selected row on every run | Replace the destination with the new snapshot |
-| **Append** | Read every selected row on every run | Add the new rows to the destination |
-| **Incremental** | Backfill once, then read rows after a cursor | Merge changed rows into the destination by primary key |
+| Read mode | Source behavior |
+|---|---|
+| **Full** | Read every selected row on every run |
+| **Incremental** | Backfill once, then read rows after a cursor |
 
-Replace is the default. Filament does not automatically choose Incremental
+| Write mode | Destination behavior |
+|---|---|
+| **Append** | Preserve every row version Filament extracts |
+| **Replace** | Replace the destination with a full snapshot |
+| **Upsert** | Insert or update one current row per primary key |
+
+Full + Replace is the default. Filament does not automatically choose Incremental
 just because a cursor-like column exists: Incremental changes delete semantics
 and requires an explicit choice.
 
-Incremental requires a usable cursor column, a primary key, and a sink that can
-merge by key. A recommended cursor is selected automatically when one is safe;
-otherwise the pipeline editor asks for it. Update cursors do not observe hard
-deletes—use CDC, tombstones, or soft deletes when deletions must propagate.
+Incremental requires a usable cursor column. Upsert requires a primary key and
+a sink that can merge by key. A recommended cursor is selected automatically
+when one is safe; otherwise the pipeline editor asks for it. Update cursors do
+not observe hard deletes—use CDC, tombstones, or soft deletes when deletions
+must propagate.
 
+The valid combinations are Full + Append, Full + Replace, Full + Upsert,
+Incremental + Append, and Incremental + Upsert. Replace requires a Full read.
 The server validates the actual source, resource, and sink combination and
-returns the supported modes. Clients do not combine source and sink capability
-matrices themselves.
+returns supported read modes per resource and supported write modes per route.
 
 ## Incremental write versions
 
@@ -68,8 +77,9 @@ non-null, and advances whenever the source row changes.
 
 ## Engine behavior
 
-A pipeline edge stores only its Standard sync mode and optional per-resource
-cursor overrides. For CDC, it stores neither. The server compiles that intent
+A pipeline edge stores its resource read mode, route write mode, and optional
+per-resource cursor overrides. All edges on a route carry the same write mode.
+For CDC, an edge stores neither lever. The server compiles that intent
 into source read policy, sink write policy, operation handling, and checkpoint
 behavior. Those mechanisms remain internal so every client sees the same small
 model without losing an explicit description of the result.

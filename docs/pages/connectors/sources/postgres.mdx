@@ -30,7 +30,7 @@ that matters.
 
 The optional `scan_strategy` pipeline setting controls this physical choice
 (`auto`, `keyset`, or `bitmap`). It is deliberately named separately from the
-pipeline resource's Replace, Append, or Incremental sync mode.
+pipeline resource's Full or Incremental read mode.
 
 <Accordion title="What each mode actually does">
   **ModeKeyset** — issues `ORDER BY pk LIMIT` page queries, walking the PK
