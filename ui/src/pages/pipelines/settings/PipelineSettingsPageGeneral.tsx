@@ -76,11 +76,10 @@ const PipelineSettingsPageGeneral = () => {
 
   const handleSave = () => {
     const request = create(UpdatePipelineRequestSchema, {
-      pipeline: {
-        ...pipeline,
-        name: state.name.trim(),
-        description: state.description.trim(),
-      },
+      tenantId: pipeline.tenantId,
+      pipelineId: pipeline.id,
+      name: state.name.trim(),
+      description: state.description.trim(),
     });
 
     updatePipeline(request, {

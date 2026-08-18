@@ -31,7 +31,7 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 	case filament.ConnectorKindSource:
 		source, err := a.sources.Resolve(conn.Connector)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 		spec := source.Spec()
 		replication := filament.ReplicationOf(source, filament.NewConfig(conn.Config))
@@ -48,7 +48,7 @@ func (a *Server) GetConnectionCapabilities(ctx context.Context, req *connect.Req
 	case filament.ConnectorKindSink:
 		sink, err := a.sinks.Resolve(conn.Connector)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 		spec := sink.Spec()
 		return connect.NewResponse(&ingestionv1.GetConnectionCapabilitiesResponse{

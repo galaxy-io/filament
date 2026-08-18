@@ -1222,11 +1222,14 @@ func (x *CreatePipelineVersionResponse) GetVersion() *PipelineVersion {
 }
 
 type UpdatePipelineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Pipeline      *Pipeline              `protobuf:"bytes,2,opt,name=pipeline,proto3" json:"pipeline,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId          string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Name                string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description         string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	WorkerConfiguration *WorkerConfiguration   `protobuf:"bytes,5,opt,name=worker_configuration,json=workerConfiguration,proto3" json:"worker_configuration,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdatePipelineRequest) Reset() {
@@ -1266,9 +1269,30 @@ func (x *UpdatePipelineRequest) GetTenantId() string {
 	return ""
 }
 
-func (x *UpdatePipelineRequest) GetPipeline() *Pipeline {
+func (x *UpdatePipelineRequest) GetPipelineId() string {
 	if x != nil {
-		return x.Pipeline
+		return x.PipelineId
+	}
+	return ""
+}
+
+func (x *UpdatePipelineRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdatePipelineRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *UpdatePipelineRequest) GetWorkerConfiguration() *WorkerConfiguration {
+	if x != nil {
+		return x.WorkerConfiguration
 	}
 	return nil
 }
@@ -1983,10 +2007,14 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"pipelineId\x121\n" +
 	"\x05graph\x18\x05 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\"X\n" +
 	"\x1dCreatePipelineVersionResponse\x127\n" +
-	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"h\n" +
+	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\xe1\x01\n" +
 	"\x15UpdatePipelineRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x122\n" +
-	"\bpipeline\x18\x02 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"L\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x02 \x01(\tR\n" +
+	"pipelineId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12T\n" +
+	"\x14worker_configuration\x18\x05 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\"L\n" +
 	"\x16UpdatePipelineResponse\x122\n" +
 	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"\xc1\x01\n" +
 	"\x12GetPipelineRequest\x12\x1b\n" +
@@ -2123,7 +2151,7 @@ var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
 	8,  // 24: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
 	4,  // 25: ingestion.v1.CreatePipelineVersionRequest.graph:type_name -> ingestion.v1.PipelineGraph
 	5,  // 26: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	6,  // 27: ingestion.v1.UpdatePipelineRequest.pipeline:type_name -> ingestion.v1.Pipeline
+	36, // 27: ingestion.v1.UpdatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
 	6,  // 28: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
 	6,  // 29: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
 	5,  // 30: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion

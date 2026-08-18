@@ -98,6 +98,42 @@ func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 	}
 }
 
+func TestUpdatePipelineUsesExplicitMutableFields(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{
+		Id: "pipe-1", TenantId: "t1", Name: "old", Description: "old description",
+		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{CpuRequest: "250m"}},
+	}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	version, err := store.CreatePipelineVersion(ctx, "pipe-1", &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+
+	res, err := api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{
+		PipelineId: "pipe-1", Name: "new", Description: "new description",
+		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{CpuRequest: "500m"}},
+	}))
+	if err != nil {
+		t.Fatalf("UpdatePipeline: %v", err)
+	}
+	if got := res.Msg.GetPipeline(); got.GetName() != "new" || got.GetDescription() != "new description" {
+		t.Fatalf("updated pipeline = %+v", got)
+	} else if got.GetWorkerConfiguration().GetResources().GetCpuRequest() != "500m" {
+		t.Fatalf("worker configuration = %+v, want cpu_request 500m", got.GetWorkerConfiguration())
+	} else if got.GetCurrentVersion().GetId() != version.GetId() {
+		t.Fatalf("current version = %q, want %q", got.GetCurrentVersion().GetId(), version.GetId())
+	}
+
+	_, err = api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing pipeline_id error = %v, want invalid argument", err)
+	}
+}
+
 func TestValidateCursorConfigs(t *testing.T) {
 	valid := []*ingestionv1.PipelineEdge{{
 		Resource: "users",

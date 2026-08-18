@@ -105,7 +105,7 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
 		source, err := a.sources.Resolve(req.Msg.GetConnector())
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		if err := source.Validate(cfg); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
@@ -113,7 +113,7 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
 		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
@@ -150,21 +150,21 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 
 	source, err := a.sources.Resolve(connector)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	cfg := filament.NewConfig(config)
 	if err := source.Configure(ctx, cfg); err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	defer func() { _ = source.Teardown(ctx) }()
 
 	discoverable, ok := source.(filament.Discoverable)
 	if !ok {
-		return nil, fmt.Errorf("connector %q does not support discovery", req.Msg.GetConnector())
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not support discovery", connector))
 	}
 	result, err := discoverable.Discover(ctx, filament.DiscoverOpts{Refresh: req.Msg.GetRefresh()})
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(resourcesToProto(result.Resources)), nil
 }
@@ -195,10 +195,10 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 	}
 	source, err := a.sources.Resolve(connector)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	defer func() { _ = source.Teardown(ctx) }()
 
@@ -224,7 +224,7 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			}
 		}
 		if err != nil {
-			return nil, fmt.Errorf("resource columns %q: %w", resource, err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource columns %q: %w", resource, err))
 		}
 		out := cursorColumnsToProto(columns)
 		response.Resources = append(response.Resources, &ingestionv1.ResourceColumns{Resource: resource, Columns: out})
