@@ -433,6 +433,7 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 		reducer: newIncrementalRecordReducer(s, resumeWatermarks),
 	}
 	return s.connector.Extract(ctx, reducingSink, extractOptions{
+		Observe:              opts.Observe,
 		Resources:            s.connectorResources(opts.Resources),
 		EnabledResources:     enabledResources(opts.Selectors),
 		ResumeCursors:        resumeCursors,

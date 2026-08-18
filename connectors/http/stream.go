@@ -90,9 +90,12 @@ func (c *Connector) streamResource(
 		}
 		wr := newHTTPRecord(resourceName, keyJSON, dataJSON, projected)
 		if tracker != nil {
-			_, err := tracker.ObserveChecked(record)
+			advanced, err := tracker.ObserveChecked(record)
 			if err != nil {
 				return fmt.Errorf("incremental cursor: %w", err)
+			}
+			if advanced {
+				c.reportWatermarkOnce(resourceName, incremental.CheckpointKey(*res.Incremental), tracker.Current())
 			}
 			if tracker.Current() != "" {
 				wr.Key = watermarkKey(tracker.Current())
@@ -110,6 +113,13 @@ func (c *Connector) streamResource(
 				}
 			}
 			captured = append(captured, fields)
+		}
+		if totalRecords%1000 == 0 {
+			c.observe.Report(filament.SourceProgress{
+				Kind:     filament.SourceProgressPageFetched,
+				Resource: resourceName,
+				Records:  1000,
+			})
 		}
 
 		return nil

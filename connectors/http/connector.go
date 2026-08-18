@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/auth"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
@@ -53,7 +54,8 @@ type Connector struct {
 	client       *http.Client
 	streamClient *http.Client // no timeout — caller-controlled via ctx
 
-	logger *slog.Logger
+	logger  *slog.Logger
+	observe filament.SourceObserver
 
 	// parentRecords collects each parent record's captured fields so that
 	// child resources can fan out across them. Keyed by parent resource name;
@@ -75,6 +77,7 @@ type Connector struct {
 	resumeWatermarks     map[string]map[string]string
 	incrementalLookbacks map[string]int
 	incrementalResources map[string]bool
+	watermarkReported    sync.Map
 }
 
 type resourceRef struct {
@@ -83,6 +86,7 @@ type resourceRef struct {
 }
 
 type extractOptions struct {
+	Observe              filament.SourceObserver
 	EnabledResources     []resourceRef
 	Resources            []string
 	ResumeCursors        map[string]string

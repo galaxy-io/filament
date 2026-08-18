@@ -17,6 +17,12 @@ import (
 
 // Extract runs a full extraction across all enabled resources.
 func (c *Connector) Extract(ctx context.Context, sink filament.RecordSink, opts extractOptions) error {
+	c.observe = opts.Observe
+	c.watermarkReported.Clear()
+	defer func() {
+		c.observe = nil
+		c.watermarkReported.Clear()
+	}()
 	return c.extract(ctx, sink, opts)
 }
 
@@ -92,6 +98,11 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 	if concurrency <= 0 {
 		concurrency = defaultChildConcurrency
 	}
+	c.observe.Report(filament.SourceProgress{
+		Kind:         filament.SourceProgressFanOutStarted,
+		Resource:     res.Name,
+		ParentsTotal: int64(len(parents)),
+	})
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(concurrency)
@@ -177,6 +188,23 @@ func (c *Connector) incrementalEnabled(resource, base string) bool {
 		return true
 	}
 	return c.incrementalResources[resource] || c.incrementalResources[base]
+}
+
+func (c *Connector) reportWatermarkOnce(resource, key, value string) {
+	if value == "" {
+		return
+	}
+	if _, loaded := c.watermarkReported.LoadOrStore(resource, struct{}{}); loaded {
+		return
+	}
+	c.observe.Report(filament.SourceProgress{
+		Kind:     filament.SourceProgressWatermarkAdvanced,
+		Resource: resource,
+		Checkpoint: &filament.CheckpointData{
+			ResourceName: resource,
+			Cursor:       map[string]any{key: value},
+		},
+	})
 }
 
 // scopeFor builds the per-request template scope.

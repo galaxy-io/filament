@@ -58,6 +58,10 @@ func (c *Connector) paginate(
 	}
 
 	var totalRecords, pageCount int
+	progressResource, err := emittedResourceName(res, parent)
+	if err != nil {
+		return 0, 0, fmt.Errorf("resource name: %w", err)
+	}
 
 	for {
 		resp, raw, err := c.fetchPage(ctx, res, parent, state, pag, tracker)
@@ -91,6 +95,12 @@ func (c *Connector) paginate(
 		pageCount++
 
 		c.appendCaptures(res.Name, captured)
+		c.observe.Report(filament.SourceProgress{
+			Kind:     filament.SourceProgressPageFetched,
+			Resource: progressResource,
+			Records:  int64(n),
+			Bytes:    int64(len(raw)),
+		})
 
 		if pag == nil {
 			// Single-request resource: we're done.
@@ -226,7 +236,18 @@ func (c *Connector) doRequest(
 
 		switch {
 		case resp.StatusCode == 429:
-			if err := sleepCtx(ctx, retryAfterDuration(resp, attempt)); err != nil {
+			delay := retryAfterDuration(resp, attempt)
+			c.observe.Report(filament.SourceProgress{
+				Kind:       filament.SourceProgressRateLimited,
+				Resource:   resourceName,
+				RetryAfter: delay,
+			})
+			if attempt+1 >= maxRetries {
+				err := fmt.Errorf("retries exhausted after %d attempts on %s", maxRetries, resourceName)
+				c.reportRetryExhausted(resourceName, err)
+				return nil, nil, err
+			}
+			if err := sleepCtx(ctx, delay); err != nil {
 				return nil, nil, err
 			}
 		case resp.StatusCode >= 500 && serverRetries < maxServerErrRetries:
@@ -237,6 +258,12 @@ func (c *Connector) doRequest(
 			if err := sleepCtx(ctx, retryAfterDuration(resp, serverRetries)); err != nil {
 				return nil, nil, err
 			}
+		case resp.StatusCode >= 500:
+			err := fmt.Errorf("%s %s HTTP %d: %s",
+				resourceName, req.URL.Redacted(),
+				resp.StatusCode, formatHTTPErrorBody(body))
+			c.reportRetryExhausted(resourceName, err)
+			return resp, body, err
 		case resp.StatusCode >= 400:
 			return resp, body, fmt.Errorf("%s %s HTTP %d: %s",
 				resourceName, req.URL.Redacted(),
@@ -245,7 +272,17 @@ func (c *Connector) doRequest(
 			return resp, body, nil
 		}
 	}
-	return nil, nil, fmt.Errorf("retries exhausted after %d attempts on %s", maxRetries, resourceName)
+	err := fmt.Errorf("retries exhausted after %d attempts on %s", maxRetries, resourceName)
+	c.reportRetryExhausted(resourceName, err)
+	return nil, nil, err
+}
+
+func (c *Connector) reportRetryExhausted(resource string, err error) {
+	c.observe.Report(filament.SourceProgress{
+		Kind:     filament.SourceProgressRetryExhausted,
+		Resource: resource,
+		Error:    err.Error(),
+	})
 }
 
 func formatHTTPErrorBody(body []byte) string {
@@ -361,9 +398,12 @@ func (c *Connector) sendRecords(
 			wr.Key = []string{cursor}
 		}
 		if tracker != nil {
-			_, err := tracker.ObserveChecked(rec)
+			advanced, err := tracker.ObserveChecked(rec)
 			if err != nil {
 				return n, captured, fmt.Errorf("incremental cursor: %w", err)
+			}
+			if advanced {
+				c.reportWatermarkOnce(resourceName, incremental.CheckpointKey(*res.Incremental), tracker.Current())
 			}
 			if tracker.Current() != "" {
 				wr.Key = watermarkKey(tracker.Current())
