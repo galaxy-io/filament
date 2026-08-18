@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 
 	iceberg "github.com/apache/iceberg-go"
@@ -49,7 +50,8 @@ type Sink struct {
 	tableLocationRoot  string
 	namespace          string
 	stageBufLimitBytes int64
-	writeMode          writeMode
+	ingestionTypes     map[string]filament.IngestionType
+	writeModes         map[string]writeMode
 	run                filament.RunID
 
 	cat catalog.Catalog
@@ -69,18 +71,19 @@ type iceTable struct {
 
 // stage holds per-resource record buffers for one pending commit.
 type stage struct {
-	id                  filament.StageID
-	mu                  sync.Mutex
-	buf                 map[string]*recordBuf
-	committed           map[string]bool
-	includeAllResources bool
+	id                      filament.StageID
+	mu                      sync.Mutex
+	buf                     map[string]*recordBuf
+	committed               map[string]bool
+	includeReplaceResources bool
 }
 
 // New returns an unconfigured iceberg sink.
 func New() *Sink {
 	return &Sink{
-		tables: map[string]*iceTable{},
-		stages: map[filament.StageID]*stage{},
+		tables:     map[string]*iceTable{},
+		writeModes: map[string]writeMode{},
+		stages:     map[filament.StageID]*stage{},
 	}
 }
 
@@ -156,8 +159,6 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
 		s.stageBufLimitBytes = int64(mb) << 20
 	}
-	mode := writeModeForPolicy(filament.TypeFor(run.IngestionTypes, "").WritePolicy())
-
 	setup, err := buildCatalogSetup(cfg)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: %w", err)
@@ -170,7 +171,8 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	s.mu.Lock()
 	s.cat = cat
 	s.tableLocationRoot = setup.TableLocationRoot
-	s.writeMode = mode
+	s.ingestionTypes = maps.Clone(run.IngestionTypes)
+	s.writeModes = map[string]writeMode{}
 	s.tables = map[string]*iceTable{}
 	s.stages = map[filament.StageID]*stage{}
 	s.curStage = ""
@@ -229,6 +231,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 		record:     schema,
 		primaryKey: append([]string(nil), schema.PrimaryKey...),
 	}
+	s.writeModes[resource] = s.writeModeForResource(resource)
 	s.mu.Unlock()
 	return nil
 }
@@ -354,7 +357,8 @@ func (s *Sink) Promote(ctx context.Context, id filament.StageID) error {
 func (s *Sink) Commit(ctx context.Context) error {
 	s.mu.Lock()
 	st := s.stages[s.curStage]
-	if st == nil && s.writeMode == writeModeReplace && len(s.tables) > 0 {
+	hasReplace := s.hasReplaceResourceLocked()
+	if st == nil && hasReplace {
 		st = newStage(filament.StageID(uuid.NewString()))
 		s.stages[st.id] = st
 		s.curStage = st.id
@@ -363,9 +367,9 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if st == nil {
 		return nil
 	}
-	if s.writeMode == writeModeReplace {
+	if hasReplace {
 		st.mu.Lock()
-		st.includeAllResources = true
+		st.includeReplaceResources = true
 		st.mu.Unlock()
 	}
 	return s.promoteStage(ctx, st)
@@ -403,7 +407,10 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 		}
 		s.mu.Lock()
 		it := s.tables[resource]
-		mode := s.writeMode
+		mode := s.writeModes[resource]
+		if mode == "" {
+			mode = writeModeReplace
+		}
 		limit := s.stageBufLimitBytes
 		s.mu.Unlock()
 		if it == nil {
@@ -460,17 +467,30 @@ func (s *Sink) stageResources(st *stage) []string {
 		seen[resource] = true
 		out = append(out, resource)
 	}
-	if !st.includeAllResources {
+	if !st.includeReplaceResources {
 		return out
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for resource := range s.tables {
-		if !seen[resource] {
+		if !seen[resource] && s.writeModes[resource] == writeModeReplace {
 			out = append(out, resource)
 		}
 	}
 	return out
+}
+
+func (s *Sink) hasReplaceResourceLocked() bool {
+	for resource := range s.tables {
+		if s.writeModes[resource] == writeModeReplace {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Sink) writeModeForResource(resource string) writeMode {
+	return writeModeForPolicy(filament.TypeFor(s.ingestionTypes, resource).WritePolicy())
 }
 
 func (s *Sink) dropStage(id filament.StageID) {
