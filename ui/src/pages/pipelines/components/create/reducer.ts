@@ -92,6 +92,16 @@ function setResourceReadMode(
   };
 }
 
+function setSinkWriteMode(
+  state: CreatePipelineModalState,
+  action: SetSinkWriteModeAction,
+): CreatePipelineModalState {
+  return {
+    ...state,
+    sinkWriteModes: { ...state.sinkWriteModes, [action.payload.sinkId]: action.payload.writeMode },
+  };
+}
+
 function setResourceCursor(
   state: CreatePipelineModalState,
   action: SetResourceCursorAction,
@@ -103,17 +113,6 @@ function setResourceCursor(
       ...state.resourceCursors,
       [sinkId]: { ...state.resourceCursors[sinkId], [resource]: cursorField },
     },
-  };
-}
-
-function setSinkWriteMode(
-  state: CreatePipelineModalState,
-  action: SetSinkWriteModeAction,
-): CreatePipelineModalState {
-  const { sinkId, writeMode } = action.payload;
-  return {
-    ...state,
-    sinkWriteModes: { ...state.sinkWriteModes, [sinkId]: writeMode },
   };
 }
 
