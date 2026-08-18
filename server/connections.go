@@ -53,7 +53,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		a.deleteSecretRefs(ctx, written)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.CreateConnectionResponse{Connection: connectionToProto(conn)}), nil
+	return connect.NewResponse(&ingestionv1.CreateConnectionResponse{Connection: a.connectionForResponse(conn)}), nil
 }
 
 // UpdateConnection applies changes to an existing connection, enforcing optimistic versioning.
@@ -89,6 +89,17 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if stored.Kind == filament.ConnectorKindSource {
+		source, err := a.sources.Resolve(stored.Connector)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		before := filament.ReplicationOf(source, filament.NewConfig(stored.Config))
+		after := filament.ReplicationOf(source, filament.NewConfig(cfg))
+		if before != after {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection replication mode is immutable; create a new connection to change from %s to %s", before, after))
+		}
+	}
 	refs := cloneStrings(in.GetSecretRefs())
 	if err := validateSecretRefTenant(refs, stored.Tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -115,7 +126,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
 	a.deleteReplacedSecretRefs(ctx, stored.SecretRefs, next.SecretRefs)
-	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: connectionToProto(next)}), nil
+	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: a.connectionForResponse(next)}), nil
 }
 
 // GetConnection returns the connection with the requested ID.
@@ -127,7 +138,7 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&ingestionv1.GetConnectionResponse{Connection: connectionToProto(conn)}), nil
+	return connect.NewResponse(&ingestionv1.GetConnectionResponse{Connection: a.connectionForResponse(conn)}), nil
 }
 
 // ListConnections returns connections matching the request's tenant and kind filter.
@@ -142,9 +153,22 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 	}
 	out := make([]*ingestionv1.Connection, len(page))
 	for i, c := range page {
-		out[i] = connectionToProto(c)
+		out[i] = a.connectionForResponse(c)
 	}
 	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out, Pagination: pagination}), nil
+}
+
+func (a *Server) connectionForResponse(conn filament.Connection) *ingestionv1.Connection {
+	out := connectionToProto(conn)
+	if conn.Kind != filament.ConnectorKindSource {
+		return out
+	}
+	source, err := a.sources.Resolve(conn.Connector)
+	if err != nil {
+		return out
+	}
+	out.Replication = replicationToProto(filament.ReplicationOf(source, filament.NewConfig(conn.Config)))
+	return out
 }
 
 // DeleteConnection removes the connection with the requested ID.

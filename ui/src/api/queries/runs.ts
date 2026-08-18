@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { createClient, type Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createInfiniteQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useInfiniteQuery,
@@ -83,6 +84,20 @@ export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } 
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
   });
+};
+
+export const createListRunsInfiniteQueryOptions = ({
+  input,
+  transport,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
+  transport: Transport;
+}) => {
+  return createInfiniteQueryOptions(
+    IngestionService.method.listRuns,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    { transport, pageParamKey: "pagination", getNextPageParam },
+  );
 };
 
 export const useListRunsInfiniteQuery = ({
