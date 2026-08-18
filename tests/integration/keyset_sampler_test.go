@@ -119,7 +119,7 @@ func TestSourceBitmapSharded(t *testing.T) {
 	}
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "bitmap", "shard_pages": 1})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "scan_strategy": "bitmap", "shard_pages": 1})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()

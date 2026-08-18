@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
-import { IngestionType, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import {
   type CreatePipelineVersionRequest,
   CreatePipelineVersionRequestSchema,
@@ -114,7 +114,6 @@ export const mapCanvasStateToVersionRequest = (
       fromNode: edge.source,
       resource: getCanvasEdgeResource(edge),
       toNode: edge.target,
-      ingestionType: baseEdge?.ingestionType ?? IngestionType.UNSPECIFIED,
       selector: baseEdge?.selector ?? "",
       ...getCanvasEdgeConfig(edge, baseEdge),
     };

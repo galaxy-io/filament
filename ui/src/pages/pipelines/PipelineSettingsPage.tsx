@@ -58,10 +58,10 @@ const PipelineSettingsPage = () => {
       <ScrollWrapper>
         <FlexWrapper
           direction={FlexDirection.COLUMN}
-          gap={16}
+          gap={12}
           padding={"16px"}
           minWidth={400}
-          maxWidth={600}
+          maxWidth={640}
         >
           <PipelineSettingsPageGeneral />
           <PipelineSettingsPageSchedule />

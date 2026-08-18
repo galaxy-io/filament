@@ -6,19 +6,6 @@ import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
 import "ingestion/v1/pagination.proto";
 
-// Capabilities flattens source and sink capabilities; fields not relevant to a
-// given kind stay false.
-message Capabilities {
-  bool discoverable = 1;
-  bool per_resource_cursor = 2;
-  bool transactional = 3;
-  bool upsertable = 4;
-  bool schematized = 5;
-  repeated WritePolicyCapability write_policies = 6;
-  repeated SourcePolicy source_policies = 7;
-  repeated WriteMode write_modes = 8;
-}
-
 // ConnectorSpec describes one registered source or sink connector.
 message ConnectorSpec {
   string name = 1;
@@ -27,7 +14,6 @@ message ConnectorSpec {
   string version = 4;
   repeated ReplicationMode modes = 5;
   ConfigSchema config_schema = 6;
-  Capabilities capabilities = 7;
   string description = 8;
   string dark_logo_url = 9;
   string light_logo_url = 10;

@@ -12,7 +12,7 @@ import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import SwitcherInput from "@galaxy-io/dls/inputs/SwitcherInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import {
@@ -103,7 +103,9 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
           padding="16px"
           fillWidth
         >
-          <Text variant={TextVariant.SECONDARY}>Enabled</Text>
+          <Text variant={TextVariant.SECONDARY} weight={TextWeight.MEDIUM}>
+            Enabled
+          </Text>
           <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
             {state.isEnabled && summary && (
               <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>

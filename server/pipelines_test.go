@@ -148,7 +148,7 @@ func TestValidateCursorConfigs(t *testing.T) {
 		name string
 		edge *ingestionv1.PipelineEdge
 	}{
-		{"full read", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, Cursors: valid[0].Cursors}},
+		{"Full", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, Cursors: valid[0].Cursors}},
 		{"missing resource", &ingestionv1.PipelineEdge{ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Field: "updated_at"}}}},
 		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}}}},
 		{"missing field", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users"}}}},
@@ -160,5 +160,49 @@ func TestValidateCursorConfigs(t *testing.T) {
 				t.Fatal("expected validation error")
 			}
 		})
+	}
+}
+
+func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
+	ctx := context.Background()
+	api, ids := leverAPI(t)
+	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "validated"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineID := pipelineResp.Msg.GetPipeline().GetId()
+	nodes := []*ingestionv1.PipelineNode{
+		{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+		{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+	}
+
+	_, err = api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+		PipelineId: pipelineID,
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: nodes,
+			Edges: []*ingestionv1.PipelineEdge{{
+				FromNode: "src", ToNode: "snk", Resource: "audit",
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			}},
+		},
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid Incremental resource: got %v, want invalid argument", err)
+	}
+
+	_, err = api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+		PipelineId: pipelineID,
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: nodes,
+			Edges: []*ingestionv1.PipelineEdge{{
+				FromNode: "src", ToNode: "snk", Resource: "orders",
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			}},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("valid Incremental resource: %v", err)
 	}
 }
