@@ -108,11 +108,20 @@ func parseFloat(bits int, set func(filament.RowWriter, float64)) valueParser {
 	}
 }
 
-// parseNumberText keeps an unbounded decimal as its digits.
+// parseNumberText keeps an unbounded decimal as its digits. A JSON number in
+// exponent form (1e5) is spelled out, since the sinks' numeric parsers take
+// plain digits; at that point it is a float anyway.
 func parseNumberText(w filament.RowWriter, raw json.RawMessage) error {
 	s, err := unquoted(raw)
 	if err != nil {
 		return err
+	}
+	if strings.ContainsAny(s, "eE") {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return fmt.Errorf("%q is not a number", s)
+		}
+		s = strconv.FormatFloat(f, 'f', -1, 64)
 	}
 	w.String(s)
 	return nil
