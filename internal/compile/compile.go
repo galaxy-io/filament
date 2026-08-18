@@ -23,8 +23,8 @@ import (
 var ErrPrecondition = errors.New("pipeline not runnable")
 
 // ErrInvalid marks a pipeline definition the compiler rejects: edges with
-// conflicting ingestion types or cursors, references to missing nodes or
-// connections, or a node overlay that violates field scopes.
+// conflicting read modes, route write modes, or cursors; references to missing
+// nodes or connections; or a node overlay that violates field scopes.
 var ErrInvalid = errors.New("invalid pipeline")
 
 // Compiler collapses a pipeline's current version into ready-to-submit run
@@ -114,14 +114,18 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
-		ingestionTypes := make(map[string]filament.IngestionType, len(group.syncModes))
+		ingestionTypes := make(map[string]filament.IngestionType, len(group.readModes))
 		if filament.ReplicationOf(source, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC {
-			for resource := range group.syncModes {
+			for resource := range group.readModes {
 				ingestionTypes[resource] = filament.IngestionCDC
 			}
 		} else {
-			for resource, mode := range group.syncModes {
-				ingestionTypes[resource] = mode.IngestionType()
+			for resource, mode := range group.readModes {
+				ingestionType, err := filament.IngestionFor(mode, group.writeMode)
+				if err != nil {
+					return nil, err
+				}
+				ingestionTypes[resource] = ingestionType
 			}
 		}
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{

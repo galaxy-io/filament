@@ -2,24 +2,37 @@ package filament
 
 import "testing"
 
-func TestStandardSyncModeIngestionType(t *testing.T) {
+func TestIngestionFor(t *testing.T) {
 	tests := []struct {
-		name string
-		mode StandardSyncMode
-		want IngestionType
+		name  string
+		read  ReadMode
+		write WriteMode
+		want  IngestionType
 	}{
-		{"unspecified defaults to replace", "", IngestionFullReplace},
-		{"replace", StandardSyncReplace, IngestionFullReplace},
-		{"append", StandardSyncAppend, IngestionFullAppend},
-		{"incremental", StandardSyncIncremental, IngestionIncrementalUpsert},
+		{"defaults to full replace", ModeFull, "", IngestionFullReplace},
+		{"full replace", ModeFull, WriteReplace, IngestionFullReplace},
+		{"full append", ModeFull, WriteAppend, IngestionFullAppend},
+		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert},
+		{"incremental defaults to upsert", ModeIncremental, "", IngestionIncrementalUpsert},
+		{"incremental append", ModeIncremental, WriteAppend, IngestionIncrementalAppend},
+		{"incremental upsert", ModeIncremental, WriteUpsert, IngestionIncrementalUpsert},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.mode.IngestionType()
+			got, err := IngestionFor(tt.read, tt.write)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if got != tt.want {
 				t.Fatalf("got %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIngestionForRejectsIncrementalReplace(t *testing.T) {
+	if _, err := IngestionFor(ModeIncremental, WriteReplace); err == nil {
+		t.Fatal("incremental replace must be rejected")
 	}
 }
 
