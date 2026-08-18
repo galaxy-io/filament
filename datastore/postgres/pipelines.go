@@ -258,7 +258,7 @@ func unmarshalWorkerConfiguration(raw []byte) (*ingestionv1.WorkerConfiguration,
 	if err := protojson.Unmarshal(raw, cfg); err != nil {
 		return nil, fmt.Errorf("datastore/postgres: unmarshal worker configuration: %w", err)
 	}
-	if cfg.GetResources() == nil {
+	if cfg.GetResources() == nil && len(cfg.GetNodeSelector()) == 0 && len(cfg.GetTolerations()) == 0 {
 		return nil, nil
 	}
 	return cfg, nil

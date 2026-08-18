@@ -2,6 +2,7 @@ package filament
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 )
@@ -123,52 +124,76 @@ type RunOptions struct {
 // RunOptions.CheckpointEvery is unset.
 const DefaultCheckpointEvery = 25
 
-// WorkerResources sizes the worker that executes a run, as Kubernetes quantity
-// strings ("500m", "2Gi"). Empty means unset: the field is left off the Job so
-// a namespace LimitRange can supply it. Only the Kubernetes dispatcher reads
-// them; in-process execution ignores them entirely.
+// WorkerResources sizes the worker that executes a run, shaped like a
+// Kubernetes ResourceRequirements: resource name ("cpu", "memory") to quantity
+// string ("500m", "2Gi"). A missing key is left off the Job so a namespace
+// LimitRange can supply it. Only the Kubernetes dispatcher reads them;
+// in-process execution ignores them entirely.
 type WorkerResources struct {
-	CPURequest    string
-	CPULimit      string
-	MemoryRequest string
-	MemoryLimit   string
+	Requests map[string]string
+	Limits   map[string]string
 }
 
 // IsZero reports whether nothing is set.
-func (w WorkerResources) IsZero() bool { return w == WorkerResources{} }
+func (w WorkerResources) IsZero() bool { return len(w.Requests) == 0 && len(w.Limits) == 0 }
 
-// WorkerConfiguration is how a run's worker is shaped: resources today,
-// placement later. It travels as a whole so adding a knob does not change every
+// Merge overlays w's keys onto base, per map, and returns the result. This is
+// how a per-run override folds over a pipeline's configured default:
+// overriding memory alone leaves the pipeline's CPU in place.
+func (w WorkerResources) Merge(base WorkerResources) WorkerResources {
+	return WorkerResources{
+		Requests: mergeStringMaps(w.Requests, base.Requests),
+		Limits:   mergeStringMaps(w.Limits, base.Limits),
+	}
+}
+
+func mergeStringMaps(over, base map[string]string) map[string]string {
+	if len(over) == 0 && len(base) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(base)+len(over))
+	maps.Copy(out, base)
+	maps.Copy(out, over)
+	return out
+}
+
+// WorkerToleration mirrors a Kubernetes toleration verbatim: Operator is
+// "Equal" (the default when empty) or "Exists"; Effect is "NoSchedule",
+// "PreferNoSchedule", "NoExecute", or empty to match every effect.
+type WorkerToleration struct {
+	Key      string
+	Operator string
+	Value    string
+	Effect   string
+}
+
+// WorkerConfiguration is how a run's worker is shaped, a subset of a Kubernetes
+// pod spec. It travels as a whole so adding a knob does not change every
 // signature that carries it.
 type WorkerConfiguration struct {
-	Resources WorkerResources
+	Resources    WorkerResources
+	NodeSelector map[string]string
+	Tolerations  []WorkerToleration
 }
 
 // IsZero reports whether nothing is set.
-func (w WorkerConfiguration) IsZero() bool { return w == WorkerConfiguration{} }
-
-// Merge overlays w's set fields onto base and returns the result, delegating to
-// each member's own merge so an override touches only what it names.
-func (w WorkerConfiguration) Merge(base WorkerConfiguration) WorkerConfiguration {
-	return WorkerConfiguration{Resources: w.Resources.Merge(base.Resources)}
+func (w WorkerConfiguration) IsZero() bool {
+	return w.Resources.IsZero() && len(w.NodeSelector) == 0 && len(w.Tolerations) == 0
 }
 
-// Merge overlays w's non-empty fields onto base, field by field, and returns
-// the result. This is how a per-run override folds over a pipeline's configured
-// default: overriding memory alone leaves the pipeline's CPU in place.
-func (w WorkerResources) Merge(base WorkerResources) WorkerResources {
-	out := base
-	if w.CPURequest != "" {
-		out.CPURequest = w.CPURequest
+// Merge overlays w onto base and returns the result. Resources merge per key;
+// node selector and tolerations replace wholesale when set, since merging
+// selector keys from two sources would produce a node set neither author asked
+// for.
+func (w WorkerConfiguration) Merge(base WorkerConfiguration) WorkerConfiguration {
+	out := WorkerConfiguration{
+		Resources:    w.Resources.Merge(base.Resources),
+		NodeSelector: base.NodeSelector,
+		Tolerations:  base.Tolerations,
 	}
-	if w.CPULimit != "" {
-		out.CPULimit = w.CPULimit
-	}
-	if w.MemoryRequest != "" {
-		out.MemoryRequest = w.MemoryRequest
-	}
-	if w.MemoryLimit != "" {
-		out.MemoryLimit = w.MemoryLimit
+	if len(w.NodeSelector) > 0 || len(w.Tolerations) > 0 {
+		out.NodeSelector = w.NodeSelector
+		out.Tolerations = w.Tolerations
 	}
 	return out
 }
