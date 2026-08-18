@@ -23,6 +23,7 @@ import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineC
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
+  usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import { getCanvasEdgeResourceLabel } from "@/pages/pipelines/canvas/utils";
@@ -37,8 +38,9 @@ interface PipelineCanvasPanelResourceDetailProps {
 
 const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResourceDetailProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
+  const { edges } = usePipelineCanvasState();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
-  const { setEdgeConfig } = usePipelineCanvasActions();
+  const { setEdgeConfig, setRouteWriteMode } = usePipelineCanvasActions();
 
   const resource = getCanvasEdgeResource(edge);
 
@@ -48,6 +50,8 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     coveredResources,
     readModeOptions,
     writeModeOptions,
+    effectiveReadMode,
+    effectiveWriteMode,
     cursorOptionsByResource,
     recommendedCursorByResource,
   } = usePipelineCanvasPanelResourceOptions(edge);
@@ -57,8 +61,12 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     coveredResources.length,
   );
 
-  const readMode = edge.data?.readMode ?? ReadMode.UNSPECIFIED;
-  const writeMode = edge.data?.writeMode ?? WriteMode.UNSPECIFIED;
+  const configuredReadMode = edge.data?.readMode ?? ReadMode.UNSPECIFIED;
+  const configuredWriteMode = edge.data?.writeMode ?? WriteMode.UNSPECIFIED;
+  const readMode =
+    configuredReadMode === ReadMode.UNSPECIFIED ? effectiveReadMode : configuredReadMode;
+  const writeMode =
+    configuredWriteMode === WriteMode.UNSPECIFIED ? effectiveWriteMode : configuredWriteMode;
   const cursors = edge.data?.cursors ?? [];
 
   const buildRecommendedCursors = () =>
@@ -72,15 +80,31 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
         }),
       );
 
-  const handleReadModeChange = (mode: ReadMode) =>
+  const routeHasIncremental = edges.some(
+    (candidate) =>
+      candidate.source === edge.source &&
+      candidate.target === edge.target &&
+      (candidate.id === edge.id ? readMode : candidate.data?.readMode) === ReadMode.INCREMENTAL,
+  );
+  const compatibleWriteModes = writeModeOptions.filter(
+    (mode) => !routeHasIncremental || mode !== WriteMode.REPLACE,
+  );
+
+  const handleReadModeChange = (mode: ReadMode) => {
+    const nextWriteMode =
+      mode === ReadMode.INCREMENTAL && writeMode === WriteMode.REPLACE
+        ? (writeModeOptions.find((candidate) => candidate !== WriteMode.REPLACE) ?? writeMode)
+        : writeMode;
     setEdgeConfig(edge.id, {
       readMode: mode,
-      writeMode,
+      writeMode: nextWriteMode,
       cursors: mode === ReadMode.INCREMENTAL ? buildRecommendedCursors() : [],
     });
+    if (nextWriteMode !== writeMode) setRouteWriteMode(edge.source, edge.target, nextWriteMode);
+  };
 
   const handleWriteModeChange = (mode: WriteMode) =>
-    setEdgeConfig(edge.id, { readMode, writeMode: mode, cursors });
+    setRouteWriteMode(edge.source, edge.target, mode);
 
   const handleCursorChange = (resourceName: Resource["name"], field: ResourceColumn["name"]) =>
     setEdgeConfig(edge.id, {
@@ -103,7 +127,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     label: READ_MODE_TO_LABEL_MAP[mode],
     value: mode,
   }));
-  const writeModeSelectOptions: SelectInputOption[] = writeModeOptions.map((mode) => ({
+  const writeModeSelectOptions: SelectInputOption[] = compatibleWriteModes.map((mode) => ({
     id: String(mode),
     label: WRITE_MODE_TO_LABEL_MAP[mode],
     value: mode,
@@ -147,7 +171,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           header="Configuration"
           isEmpty={isCdc}
           emptyHeader="Managed automatically"
-          emptyMessage="This connection replicates changes via CDC, so read and write modes are set for you."
+          emptyMessage="This connection applies inserts, updates, and deletes through CDC."
           padding="12px"
         >
           <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
@@ -177,7 +201,6 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               coveredResources.map((resourceName) => (
                 <PipelineCanvasPanelResourceCursorField
                   key={resourceName}
-                  resource={resourceName}
                   value={cursorsByResource.get(resourceName) ?? ""}
                   options={cursorOptionsByResource[resourceName] ?? []}
                   isDisabled={isReadOnly || isLoading}

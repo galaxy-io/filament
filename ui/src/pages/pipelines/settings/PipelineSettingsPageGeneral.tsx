@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { SlidersIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
@@ -101,7 +100,7 @@ const PipelineSettingsPageGeneral = () => {
   };
 
   return (
-    <Accordion header="General" icon={SlidersIcon} isOpenInitial>
+    <Accordion header="General" isOpenInitial>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
         <TextInput
           value={state.name}

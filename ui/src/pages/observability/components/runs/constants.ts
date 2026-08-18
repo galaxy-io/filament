@@ -1,7 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
 import type { ChartSeriesStyles } from "@galaxy-io/dls/charts/types";
-import { ChartPalette } from "@galaxy-io/dls/charts/types";
 import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
@@ -9,7 +8,10 @@ import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import { ObservabilityRunsView } from "@/pages/observability/types";
-import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
+import {
+  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+} from "@/pages/pipelines/history/constants";
 
 export const OBSERVABILITY_RUNS_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: { label: "Runs" },
@@ -19,22 +21,10 @@ export const OBSERVABILITY_RUN_STATUSES = Object.values(RunStatus).filter(
   (status): status is RunStatus => typeof status === "number" && status !== RunStatus.UNSPECIFIED,
 );
 
-export const OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP: Record<RunStatus, ChartPalette | undefined> = {
-  [RunStatus.UNSPECIFIED]: undefined,
-  [RunStatus.COMPLETED]: ChartPalette.GREEN,
-  [RunStatus.FAILED]: ChartPalette.RED,
-  [RunStatus.RUNNING]: ChartPalette.BLUE,
-  [RunStatus.REQUESTED]: ChartPalette.LIME,
-  [RunStatus.SCHEDULED]: ChartPalette.YELLOW,
-  [RunStatus.CANCELED]: ChartPalette.PURPLE,
-  [RunStatus.PAUSED]: ChartPalette.ORANGE,
-  [RunStatus.PARTIAL]: ChartPalette.PINK,
-};
-
 export const OBSERVABILITY_RUNS_SCHEDULED_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: {
     label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
-    color: OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP[RunStatus.SCHEDULED],
+    color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[RunStatus.SCHEDULED],
   },
 };
 

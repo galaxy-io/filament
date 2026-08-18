@@ -59,7 +59,7 @@ type readMode struct {
 	name string
 	tier tier
 	opts filament.RunOptions
-	src  map[string]any // extra source config (e.g. read_mode, shard_pages)
+	src  map[string]any // extra source config (e.g. scan_strategy, shard_pages)
 }
 
 // modesUnderTest is the set the matrix exercises. Add ctid+xmin / slot here as they land;
@@ -72,11 +72,11 @@ func modesUnderTest() []readMode {
 		{name: "keyset", tier: tierKeySpace, opts: filament.RunOptions{SnapshotParallelism: 1, BatchMaxRows: 100}},
 		// Bitmap forces sub-range splitting (low shard_pages) and runs with parallel writers
 		// + concurrent shards — the configuration its ack-counted completion must survive.
-		{name: "bitmap", tier: tierKeySpace, opts: opts, src: map[string]any{"read_mode": "bitmap", "shard_pages": 1}},
+		{name: "bitmap", tier: tierKeySpace, opts: opts, src: map[string]any{"scan_strategy": "bitmap", "shard_pages": 1}},
 		// ctid+xmin is the physical tier: block-range shards + horizon-compare reconciliation.
 		// At tierPhysical the matrix demands gap-added rows (insert, pk-update, savepoint)
 		// REappear after resume — loss is a real bug, not a documented limitation.
-		{name: "ctid_xmin", tier: tierPhysical, opts: opts, src: map[string]any{"read_mode": "ctid", "shard_pages": 1}},
+		{name: "ctid_xmin", tier: tierPhysical, opts: opts, src: map[string]any{"scan_strategy": "ctid", "shard_pages": 1}},
 	}
 }
 

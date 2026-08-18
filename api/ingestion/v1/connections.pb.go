@@ -43,8 +43,11 @@ type Connection struct {
 	CreatedByUserId string                 `protobuf:"bytes,12,opt,name=created_by_user_id,json=createdByUserId,proto3" json:"created_by_user_id,omitempty"`
 	UpdatedByUserId string                 `protobuf:"bytes,13,opt,name=updated_by_user_id,json=updatedByUserId,proto3" json:"updated_by_user_id,omitempty"`
 	DeletedByUserId string                 `protobuf:"bytes,14,opt,name=deleted_by_user_id,json=deletedByUserId,proto3" json:"deleted_by_user_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// replication is the effective source behavior derived from the immutable
+	// connection configuration. Sinks report UNSPECIFIED.
+	Replication   ReplicationMode `protobuf:"varint,15,opt,name=replication,proto3,enum=ingestion.v1.ReplicationMode" json:"replication,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Connection) Reset() {
@@ -173,6 +176,13 @@ func (x *Connection) GetDeletedByUserId() string {
 		return x.DeletedByUserId
 	}
 	return ""
+}
+
+func (x *Connection) GetReplication() ReplicationMode {
+	if x != nil {
+		return x.Replication
+	}
+	return ReplicationMode_REPLICATION_MODE_UNSPECIFIED
 }
 
 type CreateConnectionRequest struct {
@@ -709,7 +719,7 @@ var File_ingestion_v1_connections_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\n" +
-	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\xd5\x04\n" +
+	"\x1eingestion/v1/connections.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\x96\x05\n" +
 	"\n" +
 	"Connection\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
@@ -730,7 +740,8 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"updated_at\x18\v \x01(\x03R\tupdatedAt\x12+\n" +
 	"\x12created_by_user_id\x18\f \x01(\tR\x0fcreatedByUserId\x12+\n" +
 	"\x12updated_by_user_id\x18\r \x01(\tR\x0fupdatedByUserId\x12+\n" +
-	"\x12deleted_by_user_id\x18\x0e \x01(\tR\x0fdeletedByUserId\x1a=\n" +
+	"\x12deleted_by_user_id\x18\x0e \x01(\tR\x0fdeletedByUserId\x12?\n" +
+	"\vreplication\x18\x0f \x01(\x0e2\x1d.ingestion.v1.ReplicationModeR\vreplication\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x02\n" +
@@ -812,29 +823,31 @@ var file_ingestion_v1_connections_proto_goTypes = []any{
 	nil,                              // 12: ingestion.v1.CreateConnectionRequest.SecretRefsEntry
 	(ConnectorKind)(0),               // 13: ingestion.v1.ConnectorKind
 	(*structpb.Struct)(nil),          // 14: google.protobuf.Struct
-	(*PaginationRequest)(nil),        // 15: ingestion.v1.PaginationRequest
-	(*PaginationResponse)(nil),       // 16: ingestion.v1.PaginationResponse
+	(ReplicationMode)(0),             // 15: ingestion.v1.ReplicationMode
+	(*PaginationRequest)(nil),        // 16: ingestion.v1.PaginationRequest
+	(*PaginationResponse)(nil),       // 17: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_connections_proto_depIdxs = []int32{
 	13, // 0: ingestion.v1.Connection.kind:type_name -> ingestion.v1.ConnectorKind
 	14, // 1: ingestion.v1.Connection.config:type_name -> google.protobuf.Struct
 	11, // 2: ingestion.v1.Connection.secret_refs:type_name -> ingestion.v1.Connection.SecretRefsEntry
-	13, // 3: ingestion.v1.CreateConnectionRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	14, // 4: ingestion.v1.CreateConnectionRequest.config:type_name -> google.protobuf.Struct
-	12, // 5: ingestion.v1.CreateConnectionRequest.secret_refs:type_name -> ingestion.v1.CreateConnectionRequest.SecretRefsEntry
-	0,  // 6: ingestion.v1.CreateConnectionResponse.connection:type_name -> ingestion.v1.Connection
-	0,  // 7: ingestion.v1.UpdateConnectionRequest.connection:type_name -> ingestion.v1.Connection
-	0,  // 8: ingestion.v1.UpdateConnectionResponse.connection:type_name -> ingestion.v1.Connection
-	0,  // 9: ingestion.v1.GetConnectionResponse.connection:type_name -> ingestion.v1.Connection
-	13, // 10: ingestion.v1.ListConnectionsRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	15, // 11: ingestion.v1.ListConnectionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	0,  // 12: ingestion.v1.ListConnectionsResponse.connections:type_name -> ingestion.v1.Connection
-	16, // 13: ingestion.v1.ListConnectionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	15, // 3: ingestion.v1.Connection.replication:type_name -> ingestion.v1.ReplicationMode
+	13, // 4: ingestion.v1.CreateConnectionRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	14, // 5: ingestion.v1.CreateConnectionRequest.config:type_name -> google.protobuf.Struct
+	12, // 6: ingestion.v1.CreateConnectionRequest.secret_refs:type_name -> ingestion.v1.CreateConnectionRequest.SecretRefsEntry
+	0,  // 7: ingestion.v1.CreateConnectionResponse.connection:type_name -> ingestion.v1.Connection
+	0,  // 8: ingestion.v1.UpdateConnectionRequest.connection:type_name -> ingestion.v1.Connection
+	0,  // 9: ingestion.v1.UpdateConnectionResponse.connection:type_name -> ingestion.v1.Connection
+	0,  // 10: ingestion.v1.GetConnectionResponse.connection:type_name -> ingestion.v1.Connection
+	13, // 11: ingestion.v1.ListConnectionsRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	16, // 12: ingestion.v1.ListConnectionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	0,  // 13: ingestion.v1.ListConnectionsResponse.connections:type_name -> ingestion.v1.Connection
+	17, // 14: ingestion.v1.ListConnectionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_connections_proto_init() }

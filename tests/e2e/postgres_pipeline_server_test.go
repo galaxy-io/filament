@@ -112,10 +112,11 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	var edges []*ingestionv1.PipelineEdge
 	for _, r := range resources {
 		edges = append(edges, &ingestionv1.PipelineEdge{
-			FromNode:      "src",
-			ToNode:        "dst",
-			Resource:      r,
-			IngestionType: ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE,
+			FromNode:  "src",
+			ToNode:    "dst",
+			Resource:  r,
+			ReadMode:  ingestionv1.ReadMode_READ_MODE_FULL,
+			WriteMode: ingestionv1.WriteMode_WRITE_MODE_REPLACE,
 		})
 	}
 	created, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
