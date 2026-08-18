@@ -2,25 +2,24 @@
 // NDJSON object in an S3 bucket.
 //
 // A run lands one object per resource at <prefix>/<run>/<resource>.ndjson, each
-// record serialized to its own JSON line — the same dev-readable shape the stdout
-// sink emits. Because S3 objects are not appendable, each resource is streamed via
-// a single multipart upload: Write buffers records per resource and hands a full
-// part to a background uploader, Commit waits for in-flight parts, flushes the
-// tails, and completes every upload in parallel; Abort cancels them so a failed
-// run leaves no object behind.
+// row rendered as its own JSON object — the same shape the stdout sink emits.
+// Because S3 objects are not appendable, each resource is streamed via a single
+// multipart upload: Apply buffers rows per resource and hands a full part to a
+// background uploader, Commit waits for in-flight parts, flushes the tails, and
+// completes every upload in parallel; Abort cancels them so a failed run leaves
+// no object behind.
 //
 // Parts upload asynchronously so encoding the next part overlaps the network
 // round-trip of the previous one; a sink-wide semaphore caps total in-flight
 // parts and full-size buffers are pooled so steady state allocates nothing.
 //
-// Each Write's WriteCRC is computed over the records it persists, letting the engine
-// verify the batch reached the sink intact.
+// Each Apply's WriteCRC is computed over the rows it persists, letting the
+// engine verify the batch reached the sink intact.
 package s3
 
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -36,6 +35,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/connectors/internal/ndjson"
 )
 
 // s3debug enables per-call S3 API timing to stderr; set S3_SINK_DEBUG=1 to turn on.
@@ -57,8 +58,8 @@ const (
 	defaultConcurrency = 8
 )
 
-// Sink streams each resource to its own NDJSON object via a per-resource multipart
-// upload with asynchronous part uploads.
+// Sink streams each resource to its own NDJSON object (one JSON object per row)
+// via a per-resource multipart upload with asynchronous part uploads.
 type Sink struct {
 	client   *s3.Client
 	bucket   string
@@ -88,7 +89,9 @@ type upload struct {
 }
 
 // New returns an unconfigured sink. Open wires it to S3.
-func New() *Sink { return &Sink{uploads: map[string]*upload{}} }
+func New() *Sink {
+	return &Sink{uploads: map[string]*upload{}}
+}
 
 var (
 	_ filament.Sink            = (*Sink)(nil)
@@ -155,7 +158,6 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	s.prefix = strings.Trim(cfg.String("prefix"), "/")
 	s.run = run.Run
 	s.uploads = map[string]*upload{}
-
 	s.partSize = cfg.Int("part_size_mib") << 20
 	if s.partSize < minPartSize {
 		s.partSize = defaultPartSize
@@ -224,17 +226,13 @@ func (s *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 		return filament.WriteReceipt{}, err
 	}
 
-	// Encode outside u.mu: JSON serialization is pure CPU and would otherwise
+	// Encode outside u.mu: JSON rendering is pure CPU and would otherwise
 	// serialize every writer targeting the same resource. The lock window below is
 	// just a memcpy plus the threshold check.
 	scratch := (*s.scratchPool.Get().(*[]byte))[:0]
-	for i := range b.Records {
-		line, err := encodeRecord(b.Records[i])
-		if err != nil {
-			s.scratchPool.Put(&scratch)
-			return filament.WriteReceipt{}, fmt.Errorf("s3 sink: encode %s: %w", b.Resource, err)
-		}
-		scratch = append(scratch, line...)
+	enc := ndjson.NewEncoder(b.Rows.Schema())
+	for i := range b.NumRows() {
+		scratch = enc.AppendRow(scratch, b.Rows, i)
 		scratch = append(scratch, '\n')
 	}
 	nbytes := int64(len(scratch))
@@ -262,12 +260,11 @@ func (s *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 		s.startPartUpload(ctx, u, body, num)
 	}
 
-	crc, _ := filament.CRC32C(b.Records)
 	return filament.WriteReceipt{
 		URI:      fmt.Sprintf("s3://%s/%s", s.bucket, u.key),
 		Bytes:    nbytes,
-		Rows:     len(b.Records),
-		WriteCRC: crc,
+		Rows:     b.NumRows(),
+		WriteCRC: batch.CRC(b.Rows, b.Ops),
 	}, nil
 }
 
@@ -275,7 +272,7 @@ func (s *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 func (s *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteAppend, filament.WriteReplace:
-		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
+		if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("s3 sink: %w", err)
 		}
 		return s.Write(ctx, b)
@@ -299,6 +296,9 @@ func (s *Sink) swapBuffer(u *upload) (body []byte, num int32) {
 // rather than spawning unbounded goroutines and buffers.
 func (s *Sink) startPartUpload(ctx context.Context, u *upload, body []byte, num int32) {
 	s.sem <- struct{}{}
+	// The part outlives Apply: the pipeline cancels its context once the last
+	// batch is applied, before Commit completes the uploads.
+	ctx = context.WithoutCancel(ctx)
 	u.inflight.Go(func() {
 		defer func() { <-s.sem }()
 
@@ -358,7 +358,7 @@ func (s *Sink) objectKey(resource string) string {
 
 // Commit drains each resource's in-flight parts, flushes its tail, and completes
 // its multipart upload — resources in parallel — making every object durable. A
-// resource that produced no records is completed as an empty object via a single
+// resource that produced no rows is completed as an empty object via a single
 // PutObject (S3 forbids a zero-part multipart upload).
 func (s *Sink) Commit(ctx context.Context) error {
 	uploads := s.snapshot()
@@ -482,22 +482,4 @@ func (s *Sink) Abort(ctx context.Context) error {
 		}
 	}
 	return firstErr
-}
-
-type recordLine struct {
-	ID   string          `json:"id"`
-	Op   int             `json:"op"`
-	Data json.RawMessage `json:"data"`
-}
-
-func encodeRecord(r filament.Record) ([]byte, error) {
-	data := json.RawMessage(r.Data)
-	if !json.Valid(r.Data) {
-		s, err := json.Marshal(string(r.Data))
-		if err != nil {
-			return nil, err
-		}
-		data = s
-	}
-	return json.Marshal(recordLine{ID: r.ID, Op: int(r.Op), Data: data})
 }
