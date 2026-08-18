@@ -101,6 +101,9 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrNotFound)
 	}
 	stored.Name, stored.Description = p.GetName(), p.GetDescription()
+	if p.GetWorkerConfiguration() != nil {
+		stored.WorkerConfiguration = proto.Clone(p.GetWorkerConfiguration()).(*ingestionv1.WorkerConfiguration)
+	}
 	stored.UpdatedAt = time.Now().UnixMilli()
 	return clonePipeline(stored), nil
 }

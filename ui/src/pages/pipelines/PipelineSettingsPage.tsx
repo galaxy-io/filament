@@ -12,6 +12,7 @@ import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
+import PipelineSettingsPageAdvanced from "@/pages/pipelines/settings/PipelineSettingsPageAdvanced";
 import PipelineSettingsPageDanger from "@/pages/pipelines/settings/PipelineSettingsPageDanger";
 import PipelineSettingsPageGeneral from "@/pages/pipelines/settings/PipelineSettingsPageGeneral";
 import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSettingsPageSchedule";
@@ -64,6 +65,7 @@ const PipelineSettingsPage = () => {
         >
           <PipelineSettingsPageGeneral />
           <PipelineSettingsPageSchedule />
+          <PipelineSettingsPageAdvanced />
           <PipelineSettingsPageDanger />
         </FlexWrapper>
       </ScrollWrapper>
