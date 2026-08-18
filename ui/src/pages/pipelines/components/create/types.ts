@@ -1,7 +1,8 @@
 import type {
+  ReadMode,
   ReplicationMode,
-  StandardSyncMode,
   WorkerResources,
+  WriteMode,
 } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
@@ -28,8 +29,9 @@ export interface CreatePipelineModalState {
   sourceConnection: Connection | null;
   sinkConnections: Connection[];
   resourceSelection: Record<Connection["id"], Record<Resource["name"], boolean>>;
-  resourceSyncModes: Record<Connection["id"], Record<Resource["name"], StandardSyncMode>>;
+  resourceReadModes: Record<Connection["id"], Record<Resource["name"], ReadMode>>;
   resourceCursors: Record<Connection["id"], Record<Resource["name"], ResourceColumn["name"]>>;
+  sinkWriteModes: Record<Connection["id"], WriteMode>;
   name: Pipeline["name"];
   isNameTouched: boolean;
   description: Pipeline["description"];
@@ -48,8 +50,8 @@ export interface CreatePipelineModalResourceRow {
   displayName: Resource["displayName"];
   isSelectable: boolean;
   isSelected: boolean;
-  syncMode: StandardSyncMode;
-  syncModeOptions: StandardSyncMode[];
+  readMode: ReadMode;
+  readModeOptions: ReadMode[];
   cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
   status?: CreatePipelineModalResourceStatus;
@@ -57,6 +59,8 @@ export interface CreatePipelineModalResourceRow {
 
 export interface CreatePipelineModalSinkRow {
   connection: Connection;
+  writeMode: WriteMode;
+  writeModeOptions: WriteMode[];
 }
 
 export interface CreatePipelineModalDerivedState {

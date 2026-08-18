@@ -1,4 +1,4 @@
-import type { StandardSyncMode, WorkerResources } from "@/gen/ingestion/v1/common_pb";
+import type { ReadMode, WorkerResources, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -12,8 +12,9 @@ export enum CreatePipelineModalActionType {
   SET_ACTIVE_SINK = "SET_ACTIVE_SINK",
   OPEN_SINK_RESOURCES = "OPEN_SINK_RESOURCES",
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
-  SET_RESOURCE_SYNC_MODE = "SET_RESOURCE_SYNC_MODE",
+  SET_RESOURCE_READ_MODE = "SET_RESOURCE_READ_MODE",
   SET_RESOURCE_CURSOR = "SET_RESOURCE_CURSOR",
+  SET_SINK_WRITE_MODE = "SET_SINK_WRITE_MODE",
   SET_NAME = "SET_NAME",
   SET_DESCRIPTION = "SET_DESCRIPTION",
   SET_SCHEDULE = "SET_SCHEDULE",
@@ -53,9 +54,9 @@ export interface SetResourceSelectionAction {
   };
 }
 
-export interface SetResourceSyncModeAction {
-  type: CreatePipelineModalActionType.SET_RESOURCE_SYNC_MODE;
-  payload: { sinkId: Connection["id"]; resource: Resource["name"]; syncMode: StandardSyncMode };
+export interface SetResourceReadModeAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE;
+  payload: { sinkId: Connection["id"]; resource: Resource["name"]; readMode: ReadMode };
 }
 
 export interface SetResourceCursorAction {
@@ -65,6 +66,11 @@ export interface SetResourceCursorAction {
     resource: Resource["name"];
     cursorField: ResourceColumn["name"];
   };
+}
+
+export interface SetSinkWriteModeAction {
+  type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE;
+  payload: { sinkId: Connection["id"]; writeMode: WriteMode };
 }
 
 export interface SetNameAction {
@@ -111,8 +117,9 @@ export type CreatePipelineModalAction =
   | SetActiveSinkAction
   | OpenSinkResourcesAction
   | SetResourceSelectionAction
-  | SetResourceSyncModeAction
+  | SetResourceReadModeAction
   | SetResourceCursorAction
+  | SetSinkWriteModeAction
   | SetNameAction
   | SetDescriptionAction
   | SetScheduleAction

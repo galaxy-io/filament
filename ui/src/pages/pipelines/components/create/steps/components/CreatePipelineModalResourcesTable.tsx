@@ -23,11 +23,11 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
-  CREATE_PIPELINE_MODAL_COLUMN_WIDTH_SYNC_MODE,
+  CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
   CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT,
 } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
-import CreatePipelineModalResourcesSyncModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesSyncModeCell";
+import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const TableWrapper = styled.div`
@@ -61,12 +61,12 @@ const RESOURCE_COLUMNS_BASE: ColumnDef<CreatePipelineModalResourceRow>[] = [NAME
 const RESOURCE_COLUMNS_WITH_LEVERS: ColumnDef<CreatePipelineModalResourceRow>[] = [
   NAME_COLUMN,
   {
-    id: "syncMode",
-    header: "Mode",
-    size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_SYNC_MODE,
+    id: "readMode",
+    header: "Read mode",
+    size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
     pin: ColumnPin.RIGHT,
     cellLoading: () => <TextShimmer width={120} height={16} />,
-    cell: ({ row }) => <CreatePipelineModalResourcesSyncModeCell row={row.original} />,
+    cell: ({ row }) => <CreatePipelineModalResourcesReadModeCell row={row.original} />,
   },
   {
     id: "cursor",

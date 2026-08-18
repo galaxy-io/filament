@@ -3,13 +3,14 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import { ConnectorKind, ReplicationMode, StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
 } from "@/gen/ingestion/v1/connectors_pb";
 import { PipelineEdgeSchema, PipelineNodeSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE } from "@/pages/pipelines/components/create/constants";
 import {
   buildResourceRowsBySink,
   buildSinkRows,
@@ -73,12 +74,15 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
               create(PipelineEdgeSchema, {
                 fromNode: source.id,
                 toNode: sink.id,
-                standardSyncMode: isCdc ? StandardSyncMode.UNSPECIFIED : StandardSyncMode.REPLACE,
+                readMode: isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL,
+                writeMode: isCdc
+                  ? WriteMode.UNSPECIFIED
+                  : (state.sinkWriteModes[sink.id] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE),
               }),
             )
           : [],
       }),
-    [source, state.sinkConnections, isCdc],
+    [source, state.sinkConnections, state.sinkWriteModes, isCdc],
   );
 
   const { data: validation, isLoading: isLoadingValidation } = useValidatePipelineQuery({
@@ -89,15 +93,23 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     },
   });
 
-  const supportedModesBySink = useMemo(
+  const supportedReadModesBySink = useMemo(
     () =>
       Object.fromEntries(
         (validation?.edges ?? []).map((edge) => [
           edge.toNode,
           Object.fromEntries(
-            edge.resources.map((resource) => [resource.resource, resource.supportedModes]),
+            edge.resources.map((resource) => [resource.resource, resource.supportedReadModes]),
           ),
         ]),
+      ),
+    [validation?.edges],
+  );
+
+  const supportedWriteModesBySink = useMemo(
+    () =>
+      Object.fromEntries(
+        (validation?.edges ?? []).map((edge) => [edge.toNode, edge.supportedWriteModes]),
       ),
     [validation?.edges],
   );
@@ -115,17 +127,20 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
             state,
             resources,
             columns,
-            supportedModesBySink,
+            supportedReadModesBySink,
             isCdc,
           }),
-    [isLoading, state, resources, columns, supportedModesBySink, isCdc],
+    [isLoading, state, resources, columns, supportedReadModesBySink, isCdc],
   );
 
-  const sinks = useMemo(() => buildSinkRows(state), [state]);
+  const sinks = useMemo(
+    () => buildSinkRows({ state, rowsBySink, isCdc, supportedWriteModesBySink }),
+    [state, rowsBySink, isCdc, supportedWriteModesBySink],
+  );
 
   const issuesBySink = useMemo(
-    () => (isLoading || discoverError ? {} : getIssuesBySink(rowsBySink)),
-    [rowsBySink, isLoading, discoverError],
+    () => (isLoading || discoverError ? {} : getIssuesBySink(rowsBySink, sinks)),
+    [rowsBySink, sinks, isLoading, discoverError],
   );
   const selectedCountBySink = useMemo(() => getSelectedCountBySink(rowsBySink), [rowsBySink]);
 

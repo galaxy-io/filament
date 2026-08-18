@@ -39,8 +39,8 @@ const canonicalize = (value: JsonValue): JsonValue => {
 const serializeNodeConfig = (config: PipelineNode["config"]): string =>
   config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
 
-const serializeEdgeConfig = ({ standardSyncMode, cursors }: PipelineCanvasEdgeData): string =>
-  `${standardSyncMode}|${cursors
+const serializeEdgeConfig = ({ readMode, writeMode, cursors }: PipelineCanvasEdgeData): string =>
+  `${readMode}|${writeMode}|${cursors
     .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
     .sort()
     .join(";")}`;
