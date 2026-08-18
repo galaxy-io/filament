@@ -21,6 +21,7 @@ import type {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
+import { createListRunsQueryKey } from "@/api/queries/runs";
 import { getNextPageParam, INITIAL_PAGE_PARAM, type InfiniteQueryInput } from "@/api/utils";
 
 const getListPipelinesRefetchInterval = (_pipelines: Pipeline[] | undefined): false => false;
@@ -223,6 +224,9 @@ export const useDeletePipelineMutation = (
       });
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListRunsQueryKey(),
       });
       return options.onSettled?.(...args);
     },

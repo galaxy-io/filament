@@ -11,9 +11,9 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
-import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
-
-import CreateConnectionSelectorCard from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
+import CreateConnectionSelectorCard, {
+  CreateConnectionSelectorEmptyCard,
+} from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
 import {
   CREATE_CONNECTION_SELECTOR_GHOST_COUNT,
   CREATE_CONNECTION_SELECTOR_GRID_COLUMNS,
@@ -85,18 +85,6 @@ const CreateConnectionSelectorBody = ({
     );
   }
 
-  if (filteredConnectors.length === 0) {
-    return (
-      <BodyWrapper>
-        <EmptyLayout
-          size={EmptyLayoutSize.SMALL}
-          header="No connectors found"
-          message={search ? "No connectors match your search." : "No connectors are available."}
-        />
-      </BodyWrapper>
-    );
-  }
-
   return (
     <BodyWrapper>
       <GridWrapper columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
@@ -107,6 +95,7 @@ const CreateConnectionSelectorBody = ({
             onConnectorSelect={onConnectorSelect}
           />
         ))}
+        <CreateConnectionSelectorEmptyCard />
       </GridWrapper>
     </BodyWrapper>
   );

@@ -39,12 +39,11 @@ service IngestionService {
   rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
   rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
 
-  // Pipeline schedules; one primary schedule per pipeline.
+  // Pipeline schedules; one primary schedule per pipeline. Enable/disable is
+  // expressed through PipelineScheduleConfig.is_enabled on update; a schedule
+  // is removed only by deleting its pipeline.
   rpc CreatePipelineSchedule(CreatePipelineScheduleRequest) returns (CreatePipelineScheduleResponse);
   rpc UpdatePipelineSchedule(UpdatePipelineScheduleRequest) returns (UpdatePipelineScheduleResponse);
-  rpc DeletePipelineSchedule(DeletePipelineScheduleRequest) returns (DeletePipelineScheduleResponse);
-  rpc PausePipelineSchedule(PausePipelineScheduleRequest) returns (PausePipelineScheduleResponse);
-  rpc ResumePipelineSchedule(ResumePipelineScheduleRequest) returns (ResumePipelineScheduleResponse);
 
   // Runs; compile + submit a pipeline, then list / snapshot / signal.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);

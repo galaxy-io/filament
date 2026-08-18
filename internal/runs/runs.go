@@ -44,22 +44,46 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req fi
 		RequestedAt: now,
 	}); err != nil {
 		if errors.Is(err, filament.ErrVersionConflict) {
-			return id, nil // already submitted — the winning intake dispatched it
+			state, loadErr := ds.LoadRun(ctx, id)
+			if loadErr != nil {
+				return "", fmt.Errorf("runs: inspect existing run %q: %w", id, loadErr)
+			}
+			// Requested with no observed start is also the shape left behind when
+			// dispatch and its compensating delete both failed. Publishing the
+			// idempotent trigger again repairs that row; progressed runs need no
+			// further dispatch.
+			if state.Status != filament.RunRequested || !state.StartedAt.IsZero() {
+				return id, nil
+			}
+			now = state.RequestedAt
+			if now.IsZero() {
+				now = time.Now()
+			}
+			if err := dispatch(ctx, bus, state.Request.Tenant, id, now); err != nil {
+				return "", err
+			}
+			return id, nil
 		}
 		return "", fmt.Errorf("runs: save run %q: %w", id, err)
 	}
 
-	env := events.Envelope{Tenant: req.Tenant, Run: id, At: now}
-	if err := events.Emit(ctx, bus, events.RunRequested, env, events.RunRequestedEvent{}); err != nil {
+	if err := dispatch(ctx, bus, req.Tenant, id, now); err != nil {
 		// A row with no trigger would sit Requested forever — reap it and
 		// surface the failure so the caller retries the whole submit.
-		err = fmt.Errorf("runs: dispatch run %q: %w", id, err)
 		if derr := ds.DeleteRun(ctx, id); derr != nil {
 			err = errors.Join(err, fmt.Errorf("runs: delete undispatched run %q: %w", id, derr))
 		}
 		return "", err
 	}
 	return id, nil
+}
+
+func dispatch(ctx context.Context, bus eventbus.Bus, tenant filament.TenantID, id filament.RunID, at time.Time) error {
+	env := events.Envelope{Tenant: tenant, Run: id, At: at}
+	if err := events.Emit(ctx, bus, events.RunRequested, env, events.RunRequestedEvent{}); err != nil {
+		return fmt.Errorf("runs: dispatch run %q: %w", id, err)
+	}
+	return nil
 }
 
 // Schedule pre-creates the run for an upcoming schedule occurrence: persisted

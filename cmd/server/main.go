@@ -135,7 +135,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	orch := orchestrator.New()
 	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus,
-		server.WithSecrets(secrets), server.WithMetricsStore(metricStore))
+		server.WithSecrets(secrets), server.WithMetricsStore(metricStore), server.WithLogger(lg))
 	mods, err := module.MountAll(ctx,
 		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
 		orch,

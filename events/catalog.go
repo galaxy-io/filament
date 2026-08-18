@@ -28,6 +28,10 @@ type (
 	RunPartialEvent struct {
 		Error string `json:"error"`
 	}
+	// RunCanceledEvent marks a run stopped by a cancellation request.
+	RunCanceledEvent struct{}
+	// RunPausedEvent marks a run suspended for a later continuation.
+	RunPausedEvent struct{}
 	// HeartbeatEvent is the worker liveness and resource usage signal: the
 	// pod's cumulative cgroup CPU time and its current/peak working set.
 	HeartbeatEvent struct {
@@ -107,6 +111,8 @@ var (
 	RunCompleted = define[RunCompletedEvent]("run.completed")
 	RunFailed    = define[RunFailedEvent]("run.failed")
 	RunPartial   = define[RunPartialEvent]("run.partial")
+	RunCanceled  = define[RunCanceledEvent]("run.canceled")
+	RunPaused    = define[RunPausedEvent]("run.paused")
 	Heartbeat    = define[HeartbeatEvent]("run.heartbeat")
 
 	ResourceStarted   = define[ResourceStartedEvent]("resource.started")

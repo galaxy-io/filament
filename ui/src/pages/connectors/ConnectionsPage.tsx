@@ -23,6 +23,7 @@ import ConnectionsPageSourcesEmptyGraphic from "@/pages/connectors/components/Co
 import ConnectionCard from "@/pages/connectors/components/card/ConnectionCard";
 import {
   CONNECTOR_GRID_MIN_COLUMN_WIDTH,
+  CONNECTOR_KIND_TO_DOCS_PATH_MAP,
   CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP,
   CONNECTOR_KIND_TO_LABEL_MAP,
 } from "@/pages/connectors/constants";
@@ -115,7 +116,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
               />
               <DocsButton
                 label="Read the docs"
-                path={`/pages/connectors/${kindPlural}`}
+                path={CONNECTOR_KIND_TO_DOCS_PATH_MAP[kind]}
                 size={ButtonSize.LARGE}
               />
             </FlexWrapper>

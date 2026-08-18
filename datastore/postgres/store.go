@@ -509,7 +509,7 @@ func (s *Store) SaveSchedule(ctx context.Context, st filament.ScheduleState) err
 }
 
 func saveSchedule(ctx context.Context, q *sqlcgen.Queries, st filament.ScheduleState) error {
-	err := q.SaveSchedule(ctx, sqlcgen.SaveScheduleParams{
+	rows, err := q.SaveSchedule(ctx, sqlcgen.SaveScheduleParams{
 		ScheduleID:    string(st.ID),
 		TenantID:      string(st.Spec.Tenant),
 		PipelineID:    st.Spec.PipelineID,
@@ -524,6 +524,9 @@ func saveSchedule(ctx context.Context, q *sqlcgen.Queries, st filament.ScheduleS
 	})
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: save schedule: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("datastore/postgres: save schedule %q: pipeline %q: %w", st.ID, st.Spec.PipelineID, filament.ErrNotFound)
 	}
 	return nil
 }

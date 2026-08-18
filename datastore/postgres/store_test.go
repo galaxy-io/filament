@@ -18,11 +18,14 @@ const (
 	runOne           = "20000000-0000-4000-8000-000000000001"
 	runHighWater     = "20000000-0000-4000-8000-000000000002"
 	missingRun       = "20000000-0000-4000-8000-000000000099"
+	runReaped        = "20000000-0000-4000-8000-000000000003"
 	scheduleOne      = "30000000-0000-4000-8000-000000000001"
 	scheduleDeleted  = "30000000-0000-4000-8000-000000000002"
+	scheduleReaped   = "30000000-0000-4000-8000-000000000003"
 	pipelineSchedule = "40000000-0000-4000-8000-000000000001"
 	pipelineDeleted  = "40000000-0000-4000-8000-000000000002"
 	pipelineOne      = "40000000-0000-4000-8000-000000000003"
+	pipelineReaped   = "40000000-0000-4000-8000-000000000004"
 	missingPipeline  = "40000000-0000-4000-8000-000000000099"
 	connectionOne    = "50000000-0000-4000-8000-000000000001"
 	connectionTwo    = "50000000-0000-4000-8000-000000000002"
@@ -402,6 +405,88 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	}
 	if len(versions) != 1 {
 		t.Fatalf("expected version history kept, got %d versions", len(versions))
+	}
+}
+
+// TestStore_DeletePipelineReapsScheduledRuns pins the delete cascade against
+// the runs.schedule_id ON DELETE SET NULL foreign key: removing the schedules
+// row nulls the pointer before any post-delete reap could use it, so the
+// delete transaction itself must remove pending RunScheduled rows, and a
+// stale SaveSchedule afterward must not resurrect the schedule.
+func TestStore_DeletePipelineReapsScheduledRuns(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelineReaped, TenantId: tenantA, Name: "reaped"}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	version, err := store.CreatePipelineVersion(ctx, pipelineReaped, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+	fire := time.Now().Add(time.Hour).Truncate(time.Microsecond)
+	schedule := filament.ScheduleState{
+		ID:        scheduleReaped,
+		Spec:      filament.ScheduleSpec{Tenant: tenantA, PipelineID: pipelineReaped, Cron: "0 * * * *", Timezone: "UTC", Enabled: true},
+		Enabled:   true,
+		NextFire:  &fire,
+		CreatedAt: time.Now().Truncate(time.Microsecond),
+	}
+	if err := store.SaveSchedule(ctx, schedule); err != nil {
+		t.Fatalf("SaveSchedule: %v", err)
+	}
+	if err := store.CreateRun(ctx, filament.RunState{
+		Run:    runReaped,
+		Tenant: tenantA,
+		Status: filament.RunScheduled,
+		Request: filament.RunRequest{
+			Tenant:            tenantA,
+			PipelineID:        pipelineReaped,
+			PipelineVersionID: version.GetId(),
+			ScheduleID:        scheduleReaped,
+		},
+		ScheduleID:  scheduleReaped,
+		ScheduledAt: fire,
+	}); err != nil {
+		t.Fatalf("CreateRun: %v", err)
+	}
+	pending, _, err := store.ListRuns(ctx, filament.RunFilter{PipelineID: pipelineReaped, Status: []filament.RunStatus{filament.RunScheduled}})
+	if err != nil {
+		t.Fatalf("ListRuns before delete: %v", err)
+	}
+	if len(pending) != 1 {
+		t.Fatalf("expected 1 pending scheduled run before delete, got %d", len(pending))
+	}
+
+	if err := store.DeletePipeline(ctx, pipelineReaped); err != nil {
+		t.Fatalf("DeletePipeline: %v", err)
+	}
+
+	pending, _, err = store.ListRuns(ctx, filament.RunFilter{PipelineID: pipelineReaped, Status: []filament.RunStatus{filament.RunScheduled}})
+	if err != nil {
+		t.Fatalf("ListRuns after delete: %v", err)
+	}
+	if len(pending) != 0 {
+		t.Fatalf("expected pending scheduled runs reaped on pipeline delete, got %d", len(pending))
+	}
+	orphans, _, err := store.ListRuns(ctx, filament.RunFilter{Tenant: tenantA, Status: []filament.RunStatus{filament.RunScheduled}})
+	if err != nil {
+		t.Fatalf("ListRuns for orphans: %v", err)
+	}
+	if len(orphans) != 0 {
+		t.Fatalf("expected no scheduled runs left for the tenant, got %+v", orphans)
+	}
+	if _, err := store.LoadPipelineSchedule(ctx, pipelineReaped); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected schedule removed with pipeline, got %v", err)
+	}
+
+	// A scheduler tick that claimed the schedule before the delete saves its
+	// detached state afterward — that save must not re-insert the row.
+	if err := store.SaveSchedule(ctx, schedule); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound saving a schedule for a deleted pipeline, got %v", err)
+	}
+	if _, err := store.LoadPipelineSchedule(ctx, pipelineReaped); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected schedule to stay deleted after stale save, got %v", err)
 	}
 }
 
