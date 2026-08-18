@@ -126,8 +126,11 @@ const buildResourceRows = ({
     const autoCursor =
       (resourceColumns ?? []).find((column) => column.isCursorRecommended)?.name ?? "";
     const readModeOptions = isCdc ? [] : (supportedReadModes[resource.name] ?? []);
-    const readMode =
-      state.resourceReadModes[sinkId]?.[resource.name] ?? CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE;
+    const defaultReadMode =
+      autoCursor && readModeOptions.includes(ReadMode.INCREMENTAL)
+        ? ReadMode.INCREMENTAL
+        : CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE;
+    const readMode = state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode;
     const isSelected = state.resourceSelection[sinkId]?.[resource.name] ?? true;
     const cursorField = state.resourceCursors[sinkId]?.[resource.name] ?? autoCursor;
 

@@ -90,7 +90,7 @@ const PipelineSettingsPageAdvanced = () => {
   };
 
   return (
-    <Accordion header="Advanced configuration">
+    <Accordion header="Worker resources">
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
         <PipelineWorkerResourcesFields
           state={workerResources}
