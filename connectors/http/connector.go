@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament/connectors/http/auth"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline/integrity"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
 	"github.com/galaxy-io/filament/connectors/http/request"
@@ -55,15 +53,7 @@ type Connector struct {
 	client       *http.Client
 	streamClient *http.Client // no timeout — caller-controlled via ctx
 
-	logger   *slog.Logger
-	reporter pipeline.Reporter
-
-	// commitCheckpoint, when non-nil, is the runner-supplied write target for
-	// connector state that needs to survive across runs (incremental
-	// watermarks + captures rehydration). Set per-extract from opts.Checkpoint;
-	// nil means the extraction is non-resumable and connector state lives only
-	// in memory.
-	commitCheckpoint *integrity.PipelineCheckpoint
+	logger *slog.Logger
 
 	// parentRecords collects each parent record's captured fields so that
 	// child resources can fan out across them. Keyed by parent resource name;
@@ -85,14 +75,20 @@ type Connector struct {
 	resumeWatermarks     map[string]map[string]string
 	incrementalLookbacks map[string]int
 	incrementalResources map[string]bool
+}
 
-	// watermarkReported tracks which resources have already emitted a
-	// EventWatermarkAdvanced event during this extraction. The event is
-	// fired once per resource (on first advance) rather than per record
-	// to keep the event stream sparse — operators just need to know "this
-	// resource is making incremental progress", not the value at every
-	// row.
-	watermarkReported sync.Map // resource name -> struct{}
+type resourceRef struct {
+	Kind string
+	ID   string
+}
+
+type extractOptions struct {
+	EnabledResources     []resourceRef
+	Resources            []string
+	ResumeCursors        map[string]string
+	ResumeWatermarks     map[string]map[string]string
+	IncrementalLookbacks map[string]int
+	IncrementalResources map[string]bool
 }
 
 // SetManifestPath is called by the registry before Configure.
@@ -104,19 +100,6 @@ func (c *Connector) SetManifestData(data []byte) { c.manifestData = data }
 // SetCredentials injects the `config.*` template scope. Built per-source by
 // the registry's CredentialExtractor; the httpapi package stays proto-agnostic.
 func (c *Connector) SetCredentials(m map[string]string) { c.creds = m }
-
-// Spec reports the connector's name, tier, and supported modes.
-func (c *Connector) Spec() pipeline.ConnectorSpec {
-	name := "http"
-	if c.manifest != nil {
-		name = c.manifest.Name
-	}
-	return pipeline.ConnectorSpec{
-		Name:  name,
-		Tier:  pipeline.TierHTTP,
-		Modes: []pipeline.ConnectorMode{pipeline.ModeBatch, pipeline.ModeStream},
-	}
-}
 
 // Validate checks that a manifest path or embedded manifest data is set.
 func (c *Connector) Validate() error {
@@ -179,11 +162,8 @@ func (c *Connector) Configure(ctx context.Context) error {
 	c.streamClient = &http.Client{}
 	c.parentRecords = make(map[string][]Capture)
 
-	// Default observability so any pre-extract code path (Validate, Configure,
-	// Teardown) that logs or reports does so against safe defaults rather than
-	// nil-checking everywhere. Replaced per-extract by extract().
+	// Default logging for pre-extract paths. Replaced per extraction.
 	c.logger = obs.Logger(c.logger)
-	c.reporter = obs.Reporter(c.reporter)
 
 	// ctx is unused: manifest loading is local file IO and auth.Build does no
 	// network work. Kept in the signature for forward compatibility — when

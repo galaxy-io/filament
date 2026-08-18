@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
@@ -21,40 +21,29 @@ import (
 //
 // Reuses fetchPage so auth, rate limiting, retries, and pagination semantics
 // stay identical to extraction.
-func (c *Connector) Discover(ctx context.Context, opts pipeline.DiscoverOptions) (*pipeline.DiscoverResult, error) {
+func (c *Connector) Discover(ctx context.Context) (filament.DiscoverResult, error) {
 	if c.manifest == nil {
-		return nil, fmt.Errorf("connector not configured")
+		return filament.DiscoverResult{}, fmt.Errorf("connector not configured")
 	}
 	if len(c.manifest.Discovery.Resources) == 0 {
-		return &pipeline.DiscoverResult{}, nil
+		return filament.DiscoverResult{}, nil
 	}
 
-	c.logger = obs.Logger(opts.Logger)
-	c.reporter = obs.Reporter(c.reporter)
+	c.logger = obs.Logger(c.logger)
 
-	kindFilter := make(map[string]struct{}, len(opts.Kinds))
-	for _, k := range opts.Kinds {
-		kindFilter[k] = struct{}{}
-	}
-
-	var out []pipeline.Resource
+	var out []filament.Resource
 	for i := range c.manifest.Discovery.Resources {
 		disc := &c.manifest.Discovery.Resources[i]
-		if len(kindFilter) > 0 {
-			if _, ok := kindFilter[disc.Map.Kind]; !ok {
-				continue
-			}
-		}
 		resources, err := c.discoverOne(ctx, disc)
 		if err != nil {
-			return nil, err
+			return filament.DiscoverResult{}, err
 		}
 		out = append(out, resources...)
 	}
-	return &pipeline.DiscoverResult{Resources: out}, nil
+	return filament.DiscoverResult{Resources: out}, nil
 }
 
-func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) ([]pipeline.Resource, error) {
+func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) ([]filament.Resource, error) {
 	res, ok := findResource(c.manifest.Resources, disc.From)
 	if !ok {
 		return nil, fmt.Errorf("discovery.from references unknown resource %q", disc.From)
@@ -71,7 +60,7 @@ func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) (
 		state = pag.Initial()
 	}
 
-	var out []pipeline.Resource
+	var out []filament.Resource
 	for {
 		resp, raw, err := c.fetchPage(ctx, res, nil, state, pag, nil)
 		if err != nil {
@@ -108,31 +97,16 @@ func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) (
 	return out, nil
 }
 
-// projectResource turns one raw record from the Discovery.From stream into a
-// pipeline.Resource via the manifest's ResourceMap. Records missing the id
+// projectResource turns one raw record from the discovery stream into a
+// filament resource via the manifest's ResourceMap. Records missing the id
 // path are skipped (returned ok=false) rather than failing the whole pass —
 // an upstream API quirk should not abort discovery.
-func projectResource(rec map[string]any, m manifest.ResourceMap) (pipeline.Resource, bool) {
+func projectResource(rec map[string]any, m manifest.ResourceMap) (filament.Resource, bool) {
 	id, _, err := paths.AsString(rec, m.IDPath)
 	if err != nil || id == "" {
-		return pipeline.Resource{}, false
+		return filament.Resource{}, false
 	}
 	name := resolveName(rec, m)
-
-	var parent string
-	if m.ParentIDPath != "" {
-		parent, _, _ = paths.AsString(rec, m.ParentIDPath)
-	}
-
-	defaultEnabled := true
-	if m.DefaultEnabled != "" {
-		// v1: treat DefaultEnabled as a JSON path resolving to bool.
-		// Templates (e.g. "{{ not .is_private }}") are not evaluated yet —
-		// follow-up will add template support if needed.
-		if v, err := paths.Bool(rec, m.DefaultEnabled); err == nil {
-			defaultEnabled = v
-		}
-	}
 
 	meta := make(map[string]string, len(m.Metadata))
 	for k, path := range m.Metadata {
@@ -141,19 +115,12 @@ func projectResource(rec map[string]any, m manifest.ResourceMap) (pipeline.Resou
 		}
 	}
 
-	var group string
-	if m.GroupPath != "" {
-		group, _, _ = paths.AsString(rec, m.GroupPath)
-	}
-
-	return pipeline.Resource{
-		Kind:           m.Kind,
-		ID:             id,
-		Name:           name,
-		ParentID:       parent,
-		Group:          group,
-		DefaultEnabled: defaultEnabled,
-		Metadata:       meta,
+	return filament.Resource{
+		Name:        id,
+		Selector:    encodeSelector(m.Kind, id),
+		Selectable:  true,
+		DisplayName: name,
+		Metadata:    meta,
 	}, true
 }
 

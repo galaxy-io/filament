@@ -14,7 +14,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
@@ -296,9 +295,11 @@ func TestIncrementalRecordReducerNeverRegressesFanoutWatermark(t *testing.T) {
 		"messages": {"messages_since": "10"},
 	})
 	for i, value := range []string{"30", "20"} {
-		got, err := reducer.record(pipeline.Record{
-			Resource: "messages", KeyJSON: []byte(`{"id":"x"}`), DataJSON: []byte(`{"id":"x"}`),
-			Watermarks: map[string]string{"messages_since": value},
+		got, err := reducer.record(filament.Record{
+			Resource: "messages",
+			ID:       "x",
+			Data:     []byte(`{"id":"x"}`),
+			Key:      []string{value},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -363,12 +364,13 @@ func TestSourcePlanResourcesKeepsSingleStaticResource(t *testing.T) {
 	}
 }
 
-func TestToIngestionRecordWrapsHTTPAPIPayload(t *testing.T) {
-	rec := toIngestionRecord(pipeline.Record{
-		Resource: "databases",
-		KeyJSON:  []byte(`{"id":"db1"}`),
-		DataJSON: []byte(`{"id":"db1","title":[{"plain_text":"Team Tasks"}]}`),
-	})
+func TestNewHTTPRecordWrapsUnprojectedPayload(t *testing.T) {
+	rec := newHTTPRecord(
+		"databases",
+		[]byte(`{"id":"db1"}`),
+		[]byte(`{"id":"db1","title":[{"plain_text":"Team Tasks"}]}`),
+		false,
+	)
 	var got map[string]json.RawMessage
 	if err := json.Unmarshal(rec.Data, &got); err != nil {
 		t.Fatalf("record data is not json: %v", err)
