@@ -24,7 +24,8 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
-// resolveMode picks the read mode for a table at plan time from the source's read_mode
+// resolveMode picks the physical scan strategy for a table at plan time from
+// the source's scan_strategy
 // config: "bitmap" forces it, "ctid" forces ctid+xmin, "auto" runs the correlation probe
 // (only bitmap and keyset verdicts act on correlation today — ctid+xmin requires explicit
 // opt-in via PKMutable), and anything else stays keyset.

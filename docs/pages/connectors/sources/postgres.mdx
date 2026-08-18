@@ -28,6 +28,10 @@ every resume of the same run, so the shard layout never changes mid-flight —
 see [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints) for why
 that matters.
 
+The optional `scan_strategy` pipeline setting controls this physical choice
+(`auto`, `keyset`, or `bitmap`). It is deliberately named separately from the
+pipeline resource's Full or Incremental read mode.
+
 <Accordion title="What each mode actually does">
   **ModeKeyset** — issues `ORDER BY pk LIMIT` page queries, walking the PK
   index in order. Each page is one contiguous disk read when the heap is

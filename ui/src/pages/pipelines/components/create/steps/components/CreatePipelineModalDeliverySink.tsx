@@ -24,22 +24,18 @@ const SinkNameWrapper = styled.div`
   overflow: hidden;
 `;
 
-interface CreatePipelineModalDeliverySinkProps {
-  sink: CreatePipelineModalSinkRow;
-  onChange: (sinkId: Connection["id"], writeMode: WriteMode) => void;
-}
-
 const CreatePipelineModalDeliverySink = ({
   sink,
   onChange,
-}: CreatePipelineModalDeliverySinkProps) => {
+}: {
+  sink: CreatePipelineModalSinkRow;
+  onChange: (sinkId: Connection["id"], writeMode: WriteMode) => void;
+}) => {
   const options: SelectInputOption[] = sink.writeModeOptions.map((mode) => ({
     id: String(mode),
     label: WRITE_MODE_TO_LABEL_MAP[mode],
     value: mode,
   }));
-
-  const selectedOption = options.find((option) => option.value === sink.writeMode) ?? null;
 
   return (
     <FlexWrapper
@@ -58,7 +54,7 @@ const CreatePipelineModalDeliverySink = ({
       <FlexWrapper direction={FlexDirection.COLUMN} grow={0} shrink={0}>
         <SelectInput
           options={options}
-          value={selectedOption}
+          value={options.find((option) => option.value === sink.writeMode) ?? null}
           onChange={(option) => onChange(sink.connection.id, option.value as WriteMode)}
           size={InputSize.LARGE}
           width={CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH}

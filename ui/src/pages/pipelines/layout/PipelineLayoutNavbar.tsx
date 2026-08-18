@@ -128,8 +128,7 @@ const PipelineLayoutNavbar = () => {
   const validateInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
-        nodes: currentVersion?.graph?.nodes ?? [],
-        edges: currentVersion?.graph?.edges ?? [],
+        graph: currentVersion?.graph,
       }),
     [currentVersion],
   );

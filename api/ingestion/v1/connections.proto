@@ -26,6 +26,9 @@ message Connection {
   string created_by_user_id = 12;
   string updated_by_user_id = 13;
   string deleted_by_user_id = 14;
+  // replication is the effective source behavior derived from the immutable
+  // connection configuration. Sinks report UNSPECIFIED.
+  ReplicationMode replication = 15;
 }
 
 message CreateConnectionRequest {
