@@ -7,6 +7,9 @@ data:
   # Persistence
   PERSISTENCE_PROVIDER: {{ .Values.persistence.type | quote }}
 
+  # Metrics
+  METRICSSTORE_PROVIDER: {{ .Values.metrics.type | quote }}
+
   # Event bus
   EVENTBUS_PROVIDER: {{ .Values.eventBus.type | quote }}
   NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
@@ -26,8 +29,8 @@ data:
 
   # Observability
   {{- with .Values.observability.otel.endpoint }}
-  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   OTEL_SERVICE_NAME: {{ include "filament.server.fullname" $ | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   {{- with $.Values.observability.otel.protocol }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
   {{- end }}

@@ -12,7 +12,7 @@ import FlexWrapper, {
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
 

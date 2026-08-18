@@ -26,7 +26,7 @@ import {
   type ConnectorSpec,
   GetConnectorRequestSchema,
   ValidateConfigRequestSchema,
-} from "@/gen/ingestion/v1/providers_pb";
+} from "@/gen/ingestion/v1/connectors_pb";
 
 import Field from "@/components/fields/Field";
 import {
@@ -162,7 +162,6 @@ const ConnectionForm = ({
         kind: connectorKind,
         connector: connectorName,
         config: state.config,
-        live: true,
         connectionId: connectionId ?? "",
       }),
       {
@@ -405,6 +404,7 @@ const ConnectionForm = ({
         <ConnectionFormHeader
           connectorName={connectorName}
           connectorKind={connectorKind}
+          connectorMaturity={connector.maturity}
           title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
           onClose={onClose}
         />

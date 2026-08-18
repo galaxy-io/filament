@@ -12,9 +12,9 @@ import (
 )
 
 const ensureTenant = `-- name: EnsureTenant :exec
-INSERT INTO tenants (tenant_id, name, updated_at)
+INSERT INTO tenants (id, name, updated_at)
 VALUES ($1, nullif($2::text, ''), now())
-ON CONFLICT (tenant_id) DO UPDATE SET
+ON CONFLICT (id) DO UPDATE SET
     name = coalesce(EXCLUDED.name, tenants.name),
     updated_at = now()
 `
@@ -30,13 +30,13 @@ func (q *Queries) EnsureTenant(ctx context.Context, arg EnsureTenantParams) erro
 }
 
 const listTenants = `-- name: ListTenants :many
-SELECT tenant_id, coalesce(name, '')::text AS name, created_at, updated_at
+SELECT id, coalesce(name, '')::text AS name, created_at, updated_at
 FROM tenants
-ORDER BY tenant_id
+ORDER BY id
 `
 
 type ListTenantsRow struct {
-	TenantID  string
+	ID        string
 	Name      string
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
@@ -52,7 +52,7 @@ func (q *Queries) ListTenants(ctx context.Context) ([]*ListTenantsRow, error) {
 	for rows.Next() {
 		var i ListTenantsRow
 		if err := rows.Scan(
-			&i.TenantID,
+			&i.ID,
 			&i.Name,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -68,13 +68,13 @@ func (q *Queries) ListTenants(ctx context.Context) ([]*ListTenantsRow, error) {
 }
 
 const loadTenant = `-- name: LoadTenant :one
-SELECT tenant_id, coalesce(name, '')::text AS name, created_at, updated_at
+SELECT id, coalesce(name, '')::text AS name, created_at, updated_at
 FROM tenants
-WHERE tenant_id = $1
+WHERE id = $1
 `
 
 type LoadTenantRow struct {
-	TenantID  string
+	ID        string
 	Name      string
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
@@ -84,7 +84,7 @@ func (q *Queries) LoadTenant(ctx context.Context, tenantID string) (*LoadTenantR
 	row := q.db.QueryRow(ctx, loadTenant, tenantID)
 	var i LoadTenantRow
 	err := row.Scan(
-		&i.TenantID,
+		&i.ID,
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,

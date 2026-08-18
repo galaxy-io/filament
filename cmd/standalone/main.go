@@ -15,6 +15,7 @@ import (
 	natsgo "github.com/nats-io/nats.go"
 
 	"github.com/galaxy-io/filament/app"
+	"github.com/galaxy-io/filament/cmd/internal/logger"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
 	secretenv "github.com/galaxy-io/filament/secret/env"
@@ -34,6 +35,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	lg := logger.New()
 	dir := os.Getenv("NATS_STORE_DIR")
 	if dir == "" {
 		dir = filepath.Join(os.TempDir(), "filament-standalone")
@@ -69,6 +71,7 @@ func run(ctx context.Context) error {
 
 	return app.Run(ctx,
 		app.WithBus(bus),
+		app.WithLogger(lg),
 		app.WithSecrets(secretenv.New()),
 		app.WithUI(ui.Handler()),
 	)

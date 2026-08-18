@@ -5,7 +5,7 @@ import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasNode from "@/pages/pipelines/canvas/nodes/PipelineCanvasNode";

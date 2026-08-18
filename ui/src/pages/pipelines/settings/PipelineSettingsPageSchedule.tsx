@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { CalendarIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
@@ -12,13 +11,13 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import {
   CreatePipelineScheduleRequestSchema,
   GetPipelineRequestSchema,
+  type PipelineScheduleConfig,
   UpdatePipelineScheduleRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -45,9 +44,9 @@ const PipelineSettingsPageSchedule = () => {
   const { id: pipelineId } = useParams({ from: "/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id: pipelineId }),
+    input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),
   });
-  const schedule = data.schedule;
+  const schedule = data.pipeline?.schedule;
 
   const { mutate: createSchedule, isPending: isCreating } = useCreatePipelineScheduleMutation();
   const { mutate: updateSchedule, isPending: isUpdating } = useUpdatePipelineScheduleMutation();
@@ -55,7 +54,7 @@ const PipelineSettingsPageSchedule = () => {
   const [state, setState] = useState<PipelineSettingsPageScheduleState>(() => ({
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
     ...mapPipelineScheduleCronToState(schedule?.config?.cron ?? ""),
-    isEnabled: schedule?.config?.enabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
+    isEnabled: schedule?.config?.isEnabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || PIPELINE_SCHEDULE_DEFAULT_STATE.timezone,
   }));
 
@@ -64,10 +63,10 @@ const PipelineSettingsPageSchedule = () => {
   };
 
   const handleSave = () => {
-    const config = {
+    const config: Omit<PipelineScheduleConfig, "$typeName" | "overlapPolicy"> = {
       cron: mapPipelineScheduleStateToCron(state),
       timezone: state.timezone,
-      enabled: state.isEnabled,
+      isEnabled: state.isEnabled,
     };
 
     if (schedule?.config) {
@@ -126,17 +125,10 @@ const PipelineSettingsPageSchedule = () => {
   const canSave = hasChanges && !isDisabledDraft && summary !== null;
 
   return (
-    <Accordion header="Schedule" icon={CalendarIcon} isOpenInitial>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
+    <Accordion header="Schedule" isOpenInitial>
+      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
         <PipelineScheduleFields state={state} onChange={handleScheduleChange} />
-        <FlexWrapper
-          alignItems={AlignItems.CENTER}
-          justifyContent={JustifyContent.SPACE_BETWEEN}
-          fillWidth
-        >
-          <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
-            {state.isEnabled && summary}
-          </Text>
+        <FlexWrapper alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} fillWidth>
           <Button
             label={"Save"}
             isDisabled={!canSave}

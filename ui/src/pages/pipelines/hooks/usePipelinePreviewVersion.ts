@@ -10,10 +10,8 @@ export const usePipelinePreviewVersion = (): PipelineVersion | undefined => {
   const { version: searchVersion } = useSearch({ from: "/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
   });
 
-  return data.versions.find(
-    (item) => item.version !== data.versions[0]?.version && item.version === searchVersion,
-  );
+  return data.pipeline?.versions.find((item) => item.version === searchVersion);
 };

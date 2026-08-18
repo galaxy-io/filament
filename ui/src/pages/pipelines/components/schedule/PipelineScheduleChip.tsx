@@ -15,16 +15,16 @@ interface PipelineScheduleChipProps {
 
 const PipelineScheduleChip = ({ pipelineId }: PipelineScheduleChipProps) => {
   const { data, isLoading } = useGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id: pipelineId }),
+    input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),
     options: { enabled: Boolean(pipelineId) },
   });
-  const schedule = data?.schedule;
+  const schedule = data?.pipeline?.schedule;
 
   if (isLoading) {
     return null;
   }
 
-  if (!schedule?.config?.enabled || !schedule?.nextFireAt || schedule.nextFireAt === 0n) {
+  if (!schedule?.config?.isEnabled || !schedule?.nextFireAt || schedule.nextFireAt === 0n) {
     return null;
   }
 

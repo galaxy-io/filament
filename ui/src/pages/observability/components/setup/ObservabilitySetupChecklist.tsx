@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
-import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/charts/ProgressBar";
 import FlexWrapper, {
   AlignItems,
@@ -11,7 +11,7 @@ import FlexWrapper, {
   FlexGap,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
+import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -90,12 +90,6 @@ const ObservabilitySetupChecklist = () => {
         });
       })
       .with(ObservabilitySetupStep.PIPELINE, () => {
-        if (
-          !completedSteps.has(ObservabilitySetupStep.SOURCE) ||
-          !completedSteps.has(ObservabilitySetupStep.SINK)
-        ) {
-          return;
-        }
         void navigate({
           to: ".",
           search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
@@ -117,7 +111,7 @@ const ObservabilitySetupChecklist = () => {
   return (
     <DotGridBackground dotSize={2} backgroundColor={theme.color.background.primary}>
       <SetupContent>
-        <GalaxyLogomark height={18} />
+        <GalaxyFilamentWordmark height={28} />
         <FlexWrapper
           direction={FlexDirection.COLUMN}
           alignItems={AlignItems.CENTER}
@@ -149,12 +143,7 @@ const ObservabilitySetupChecklist = () => {
           height={4}
           noAnimation
         />
-        <DocsButton
-          label="Read the docs"
-          path="/pipelines"
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.LARGE}
-        />
+        <DocsButton label="Read the docs" path="/pipelines" size={ButtonSize.LARGE} />
       </SetupContent>
     </DotGridBackground>
   );

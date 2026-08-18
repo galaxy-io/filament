@@ -1,23 +1,58 @@
 ---
 title: "Replication Modes"
-description: "How connections, tables, and sinks decide the way data moves."
+description: "How Standard and CDC connections move data."
 icon: "arrows-rotate"
 ---
 
-How data moves is decided by three choices made at two different times.
+Filament exposes two replication modes at connection creation. Standard
+pipelines then choose how each resource is read and how each destination route
+is written.
 
 ## Replication mode
 
-A connection replicates in one of two modes, chosen when the source connection
-is created. Standard connections read with queries. CDC connections stream
-changes from the database's log and need database side preparation, such as
-logical replication on PostgreSQL. APIs are always standard, so they show no
-choice at all.
+A source connection is either **Standard** or **CDC**. Standard connections
+read with queries. CDC connections stream changes from a database log and may
+need database-side preparation, such as logical replication on PostgreSQL.
+Sources without CDC support are always Standard.
 
 Replication is a property of the connection. Pipelines built on a CDC
-connection never ask how to read. There are no cursors to pick and no per
-table options, because the change stream already carries every insert, update,
-and delete in order.
+connection have no editable read or write mode and no cursor. The change stream already
+defines the read and applies ordered inserts, updates, and deletes.
+
+The replication mode is immutable. Create a new connection when changing
+between Standard and CDC so existing pipeline versions cannot silently change
+meaning.
+
+## Standard read and write modes
+
+Read mode is selected per resource. Write mode is selected once per destination
+route and applies to every resource sent from that source to that destination.
+
+| Read mode | Source behavior |
+|---|---|
+| **Full** | Read every selected row on every run |
+| **Incremental** | Backfill once, then read rows after a cursor |
+
+| Write mode | Destination behavior |
+|---|---|
+| **Append** | Preserve every row version Filament extracts |
+| **Replace** | Replace the destination with a full snapshot |
+| **Upsert** | Insert or update one current row per primary key |
+
+Full + Replace is the default. Filament does not automatically choose Incremental
+just because a cursor-like column exists: Incremental changes delete semantics
+and requires an explicit choice.
+
+Incremental requires a usable cursor column. Upsert requires a primary key and
+a sink that can merge by key. A recommended cursor is selected automatically
+when one is safe; otherwise the pipeline editor asks for it. Update cursors do
+not observe hard deletes—use CDC, tombstones, or soft deletes when deletions
+must propagate.
+
+The valid combinations are Full + Append, Full + Replace, Full + Upsert,
+Incremental + Append, and Incremental + Upsert. Replace requires a Full read.
+The server validates the actual source, resource, and sink combination and
+returns supported read modes per resource and supported write modes per route.
 
 ## Incremental write versions
 
@@ -40,25 +75,11 @@ non-null, and advances whenever the source row changes.
   bitmap, and ctid-based scans.
 </Tip>
 
-## Read mode
+## Engine behavior
 
-On a standard connection, each table chooses how it is read. Full rereads the
-whole table every run. Incremental reads only rows past a cursor column and
-needs one to exist. A table with a usable cursor column can go either way, and
-a recommended column is detected automatically when the user does not pick
-one. A table without one must be read in full.
-
-## Write mode
-
-Each sink declares how it can land records. Append keeps the history of every
-load. Replace and upsert keep the current state, with upsert available only on
-sinks that support merging by key and requiring a primary key on the table.
-
-## Derivation
-
-The server compiles these choices into an internal ingestion type stored on
-each pipeline edge. Users never select it. A per resource edge carries its own
-read and write mode, which is how one pipeline mixes fully replicated tables
-with incremental ones. Validation answers with the same vocabulary the user
-chose from, reporting per table which read modes are possible, which cursor
-columns qualify, and what would fail at run time.
+A pipeline edge stores its resource read mode, route write mode, and optional
+per-resource cursor overrides. All edges on a route carry the same write mode.
+For CDC, an edge stores neither lever. The server compiles that intent
+into source read policy, sink write policy, operation handling, and checkpoint
+behavior. Those mechanisms remain internal so every client sees the same small
+model without losing an explicit description of the result.

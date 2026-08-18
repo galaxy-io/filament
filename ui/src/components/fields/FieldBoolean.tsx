@@ -8,6 +8,7 @@ const FieldBoolean = ({
   field,
   value,
   onChange,
+  variant,
   error,
   isDisabled = false,
   label,
@@ -19,6 +20,7 @@ const FieldBoolean = ({
           label={field.help}
           isChecked={(value as boolean) ?? false}
           onChange={(v) => onChange(v)}
+          variant={variant}
           isDisabled={isDisabled}
         />
       </Widget>

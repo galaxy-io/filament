@@ -11,7 +11,7 @@ import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import { useGetConnectorQuery } from "@/api/queries/connectors";
 

@@ -14,7 +14,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
@@ -277,14 +276,32 @@ func TestSourceIncrementalExtractionAppliesRouteLookbackAndDropsPageCursor(t *te
 		t.Fatal(err)
 	}
 	var sink collectSink
-	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}, plan); err != nil {
+	progress := make(chan filament.SourceProgress, 4)
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{
+		Resources:   []string{"items"},
+		Parallelism: 1,
+		Observe:     func(p filament.SourceProgress) { progress <- p },
+	}, plan); err != nil {
 		t.Fatalf("extract incremental: %v", err)
 	}
+	close(progress)
 	if gotSince != "2025-12-31T23:59:00Z" {
 		t.Fatalf("since = %q, want route lookback applied", gotSince)
 	}
 	if len(sink.records) != 1 || len(sink.records[0].Key) != 1 || sink.records[0].Key[0] != "2026-01-02T00:00:00Z" {
 		t.Fatalf("record checkpoint key = %#v, want only durable watermark", sink.records)
+	}
+	var sawPage, sawWatermark bool
+	for event := range progress {
+		switch event.Kind {
+		case filament.SourceProgressPageFetched:
+			sawPage = event.Resource == "items" && event.Records == 1 && event.Bytes > 0
+		case filament.SourceProgressWatermarkAdvanced:
+			sawWatermark = event.Resource == "items" && event.Checkpoint != nil && event.Checkpoint.String("items_since") == "2026-01-02T00:00:00Z"
+		}
+	}
+	if !sawPage || !sawWatermark {
+		t.Fatalf("progress page=%t watermark=%t", sawPage, sawWatermark)
 	}
 }
 
@@ -296,9 +313,11 @@ func TestIncrementalRecordReducerNeverRegressesFanoutWatermark(t *testing.T) {
 		"messages": {"messages_since": "10"},
 	})
 	for i, value := range []string{"30", "20"} {
-		got, err := reducer.record(pipeline.Record{
-			Resource: "messages", KeyJSON: []byte(`{"id":"x"}`), DataJSON: []byte(`{"id":"x"}`),
-			Watermarks: map[string]string{"messages_since": value},
+		got, err := reducer.record(filament.Record{
+			Resource: "messages",
+			ID:       "x",
+			Data:     []byte(`{"id":"x"}`),
+			Key:      []string{value},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -363,12 +382,13 @@ func TestSourcePlanResourcesKeepsSingleStaticResource(t *testing.T) {
 	}
 }
 
-func TestToIngestionRecordWrapsHTTPAPIPayload(t *testing.T) {
-	rec := toIngestionRecord(pipeline.Record{
-		Resource: "databases",
-		KeyJSON:  []byte(`{"id":"db1"}`),
-		DataJSON: []byte(`{"id":"db1","title":[{"plain_text":"Team Tasks"}]}`),
-	})
+func TestNewHTTPRecordWrapsUnprojectedPayload(t *testing.T) {
+	rec := newHTTPRecord(
+		"databases",
+		[]byte(`{"id":"db1"}`),
+		[]byte(`{"id":"db1","title":[{"plain_text":"Team Tasks"}]}`),
+		false,
+	)
 	var got map[string]json.RawMessage
 	if err := json.Unmarshal(rec.Data, &got); err != nil {
 		t.Fatalf("record data is not json: %v", err)
@@ -905,14 +925,28 @@ discovery:
 	defer src.Teardown(ctx)
 
 	var sink collectSink
-	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"children"}}); err != nil {
+	progress := make(chan filament.SourceProgress, 4)
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{
+		Resources: []string{"children"},
+		Observe:   func(p filament.SourceProgress) { progress <- p },
+	}); err != nil {
 		t.Fatalf("extract children: %v", err)
 	}
+	close(progress)
 	if parentRequests != 1 || childRequests != 1 {
 		t.Fatalf("requests parent=%d child=%d, want 1 each", parentRequests, childRequests)
 	}
 	if len(sink.records) != 1 || sink.records[0].Resource != "children" {
 		t.Fatalf("emitted records = %#v, want only selected child", sink.records)
+	}
+	var fanOut filament.SourceProgress
+	for event := range progress {
+		if event.Kind == filament.SourceProgressFanOutStarted {
+			fanOut = event
+		}
+	}
+	if fanOut.Resource != "children" || fanOut.ParentsTotal != 1 {
+		t.Fatalf("fan-out progress = %#v", fanOut)
 	}
 }
 

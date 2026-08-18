@@ -142,7 +142,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	orch := orchestrator.New()
-	apiOpts := []server.Option{server.WithSecrets(secrets), server.WithMetricsStore(metricStore)}
+	apiOpts := []server.Option{server.WithSecrets(secrets), server.WithMetricsStore(metricStore), server.WithLogger(lg)}
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
@@ -157,9 +157,6 @@ func run(ctx context.Context, migrateOnly bool) error {
 	h := host.New(bus)
 	defer func() {
 		_ = h.Close()
-		if c, ok := any(bus).(io.Closer); ok {
-			_ = c.Close()
-		}
 	}()
 	if err := h.Run(ctx, mods...); err != nil {
 		return fmt.Errorf("run host: %w", err)

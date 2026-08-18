@@ -36,7 +36,9 @@ export const usePipelineConnectionMap = () => {
       map.set(
         pipeline.id,
         new Set(
-          (versionResults[index]?.data?.version?.nodes ?? []).map((node) => node.connectionId),
+          (versionResults[index]?.data?.version?.graph?.nodes ?? []).map(
+            (node) => node.connectionId,
+          ),
         ),
       );
     });

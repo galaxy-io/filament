@@ -28,6 +28,10 @@ type (
 	RunPartialEvent struct {
 		Error string `json:"error"`
 	}
+	// RunCanceledEvent marks a run stopped by a cancellation request.
+	RunCanceledEvent struct{}
+	// RunPausedEvent marks a run suspended for a later continuation.
+	RunPausedEvent struct{}
 	// HeartbeatEvent is the worker liveness and resource usage signal: the
 	// pod's cumulative cgroup CPU time and its current/peak working set.
 	HeartbeatEvent struct {
@@ -43,6 +47,11 @@ type (
 		Records int64  `json:"records"`
 		Bytes   int64  `json:"bytes"`
 		URI     string `json:"uri,omitempty"`
+	}
+	// FanOutStartedEvent marks a parent-driven resource beginning concurrent
+	// child extraction.
+	FanOutStartedEvent struct {
+		ParentsTotal int64 `json:"parentsTotal"`
 	}
 	// ResourceCompletedEvent carries a resource's final counters.
 	ResourceCompletedEvent struct {
@@ -107,10 +116,13 @@ var (
 	RunCompleted = define[RunCompletedEvent]("run.completed")
 	RunFailed    = define[RunFailedEvent]("run.failed")
 	RunPartial   = define[RunPartialEvent]("run.partial")
+	RunCanceled  = define[RunCanceledEvent]("run.canceled")
+	RunPaused    = define[RunPausedEvent]("run.paused")
 	Heartbeat    = define[HeartbeatEvent]("run.heartbeat")
 
 	ResourceStarted   = define[ResourceStartedEvent]("resource.started")
 	PageFetched       = define[PageFetchedEvent]("resource.page_fetched")
+	FanOutStarted     = define[FanOutStartedEvent]("resource.fan_out_started")
 	ResourceCompleted = define[ResourceCompletedEvent]("resource.completed")
 	ResourceFailed    = define[ResourceFailedEvent]("resource.failed")
 

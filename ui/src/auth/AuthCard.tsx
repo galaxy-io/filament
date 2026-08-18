@@ -9,12 +9,11 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
 import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-
-import FilamentWordmark from "@/components/FilamentWordmark";
 
 const Page = withTheme(styled.div<PropsWithTheme>`
   position: relative;
@@ -87,7 +86,7 @@ const AuthCard = ({
         >
           <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
             <GalaxyLogomark height={14} />
-            <FilamentWordmark height={22} />
+            <GalaxyFilamentWordmark height={22} />
           </FlexWrapper>
           <Text size={TextSize.BODY_MD} variant={TextVariant.SECONDARY}>
             {subtitle}

@@ -1,8 +1,9 @@
 import { Fragment } from "react";
 
+import Accordion, { AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
 import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
@@ -12,7 +13,7 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliverySink from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySink";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
-import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
+import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 
 interface CreatePipelineModalDeliverySectionProps {
   header: string;
@@ -25,9 +26,7 @@ const CreatePipelineModalDeliverySection = ({
 }: CreatePipelineModalDeliverySectionProps) => (
   <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
     <FlexWrapper direction={FlexDirection.COLUMN} gap={2} fillWidth>
-      <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-        {header}
-      </Text>
+      <Text weight={TextWeight.MEDIUM}>{header}</Text>
     </FlexWrapper>
     {children}
   </FlexWrapper>
@@ -37,25 +36,36 @@ const CreatePipelineModalDeliverySchedule = () => {
   const { schedule } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
-  const summary = formatPipelineScheduleSummary(schedule);
+  return (
+    <PipelineScheduleFields
+      state={schedule}
+      onChange={(partial) =>
+        dispatch({
+          type: CreatePipelineModalActionType.SET_SCHEDULE,
+          payload: partial,
+        })
+      }
+    />
+  );
+};
+
+const CreatePipelineModalDeliveryAdvanced = () => {
+  const { workerConfiguration, workerConfigurationError } = useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-      <PipelineScheduleFields
-        state={schedule}
-        onChange={(partial) =>
+    <Accordion header="Worker configuration" padding="16px" size={AccordionSize.LARGE}>
+      <PipelineWorkerConfigurationEditor
+        value={workerConfiguration}
+        error={workerConfigurationError}
+        onChange={(payload) =>
           dispatch({
-            type: CreatePipelineModalActionType.SET_SCHEDULE,
-            payload: partial,
+            type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION,
+            payload,
           })
         }
       />
-      {schedule.isEnabled && summary && (
-        <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
-          {summary}
-        </Text>
-      )}
-    </FlexWrapper>
+    </Accordion>
   );
 };
 
@@ -89,6 +99,9 @@ const CreatePipelineModalDelivery = () => {
       )}
       <CreatePipelineModalDeliverySection header="Schedule">
         <CreatePipelineModalDeliverySchedule />
+      </CreatePipelineModalDeliverySection>
+      <CreatePipelineModalDeliverySection header="Advanced">
+        <CreatePipelineModalDeliveryAdvanced />
       </CreatePipelineModalDeliverySection>
     </FlexWrapper>
   );

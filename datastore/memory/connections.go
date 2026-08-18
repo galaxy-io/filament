@@ -21,7 +21,10 @@ func (s *Store) CreateConnection(ctx context.Context, c filament.Connection) (fi
 		return filament.Connection{}, fmt.Errorf("connection %q already exists", c.ID)
 	}
 	delete(s.deletedConnections, c.ID)
+	now := time.Now().UnixMilli()
 	c.Version = 1
+	c.CreatedAt = now
+	c.UpdatedAt = now
 	c = cloneConnection(c)
 	s.connections[c.ID] = c
 	return cloneConnection(c), nil
@@ -42,6 +45,7 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 		return filament.Connection{}, fmt.Errorf("connection %q version conflict: %w", c.ID, filament.ErrVersionConflict)
 	}
 	c.Version++
+	c.UpdatedAt = time.Now().UnixMilli()
 	c = cloneConnection(c)
 	s.connections[c.ID] = c
 	return cloneConnection(c), nil

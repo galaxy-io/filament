@@ -4,6 +4,8 @@ import {
   applyNodeChanges as xyflowApplyNodeChanges,
 } from "@xyflow/react";
 
+import { ReadMode } from "@/gen/ingestion/v1/common_pb";
+
 import { PIPELINE_CANVAS_EDGE_TYPE } from "@/pages/pipelines/canvas/constants";
 import {
   canAddSourceNode,
@@ -23,6 +25,7 @@ import {
   type SetEdgeConfigAction,
   type SetNodeConfigAction,
   type SetNodesAction,
+  type SetRouteWriteModeAction,
 } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
@@ -135,6 +138,27 @@ function setEdgeConfig(
   };
 }
 
+function setRouteWriteMode(
+  state: PipelineCanvasState,
+  action: SetRouteWriteModeAction,
+): PipelineCanvasState {
+  return {
+    ...state,
+    edges: state.edges.map((edge) =>
+      edge.source === action.payload.source && edge.target === action.payload.target
+        ? {
+            ...edge,
+            data: {
+              readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
+              writeMode: action.payload.writeMode,
+              cursors: edge.data?.cursors ?? [],
+            },
+          }
+        : edge,
+    ),
+  };
+}
+
 const pipelineCanvasReducer = (
   state: PipelineCanvasState,
   action: PipelineCanvasAction,
@@ -160,6 +184,8 @@ const pipelineCanvasReducer = (
       return setNodeConfig(state, action);
     case PipelineCanvasActionType.SET_EDGE_CONFIG:
       return setEdgeConfig(state, action);
+    case PipelineCanvasActionType.SET_ROUTE_WRITE_MODE:
+      return setRouteWriteMode(state, action);
   }
 };
 

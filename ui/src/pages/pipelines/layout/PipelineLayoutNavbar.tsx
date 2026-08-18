@@ -15,10 +15,7 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, {
-  type SelectInputOption,
-  SelectInputVariant,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -32,8 +29,8 @@ import {
   ListRunsRequestSchema,
   type RunInfo,
   RunPipelineRequestSchema,
+  RunSignal,
   RunStatus,
-  Signal,
   SignalRunRequestSchema,
 } from "@/gen/ingestion/v1/runs_pb";
 
@@ -96,14 +93,14 @@ const PipelineLayoutNavbar = () => {
   const { id } = useParams({ from: "/pipelines/$id" });
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
   });
   const { data: connectionsData } = useSuspenseListConnectionsQuery();
   const previewed = usePipelinePreviewVersion();
 
   const pipeline = pipelineData.pipeline;
-  const currentVersion = pipelineData.currentVersion;
-  const versions = pipelineData.versions;
+  const currentVersion = pipelineData.pipeline?.currentVersion;
+  const versions = pipelineData.pipeline?.versions ?? [];
   const previewVersion = previewed?.version ?? null;
 
   const state = usePipelineCanvasState();
@@ -123,7 +120,7 @@ const PipelineLayoutNavbar = () => {
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
-      pagination: create(PaginationRequestSchema, { total: 1 }),
+      pagination: create(PaginationRequestSchema, { pageSize: 1 }),
     }),
   });
   const activeRun = activeRunsData.runs[0];
@@ -131,8 +128,7 @@ const PipelineLayoutNavbar = () => {
   const validateInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
-        nodes: currentVersion?.nodes ?? [],
-        edges: currentVersion?.edges ?? [],
+        graph: currentVersion?.graph,
       }),
     [currentVersion],
   );
@@ -235,7 +231,7 @@ const PipelineLayoutNavbar = () => {
     });
   };
 
-  const handleSignal = (runId: RunInfo["runId"], signal: Signal) => {
+  const handleSignal = (runId: RunInfo["id"], signal: RunSignal) => {
     signalRun(create(SignalRunRequestSchema, { runId, signal }), {
       onError: (error) => {
         showToast({
@@ -258,7 +254,6 @@ const PipelineLayoutNavbar = () => {
             value={selectedVersionOption}
             onChange={handleVersionChange}
             size={InputSize.SMALL}
-            variant={SelectInputVariant.PRIMARY}
             dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
             isDisabled={hasUnsavedChanges}
           />
@@ -335,8 +330,8 @@ const PipelineLayoutNavbar = () => {
                     isLoading={isSignaling}
                     onClick={() =>
                       handleSignal(
-                        activeRun.runId,
-                        activeRun?.status === RunStatus.PAUSED ? Signal.RESUME : Signal.PAUSE,
+                        activeRun.id,
+                        activeRun?.status === RunStatus.PAUSED ? RunSignal.RESUME : RunSignal.PAUSE,
                       )
                     }
                     isIconFilled
@@ -347,7 +342,7 @@ const PipelineLayoutNavbar = () => {
                     variant={ButtonVariant.ERROR}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
-                    onClick={() => handleSignal(activeRun.runId, Signal.CANCEL)}
+                    onClick={() => handleSignal(activeRun.id, RunSignal.CANCEL)}
                     isIconFilled
                   />
                 </>

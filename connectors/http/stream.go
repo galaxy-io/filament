@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/response"
 	"github.com/galaxy-io/filament/connectors/http/stream"
@@ -23,7 +23,7 @@ import (
 func (c *Connector) streamResource(
 	ctx context.Context,
 	res manifest.Resource,
-	sink *pipeline.RecordSink,
+	sink filament.RecordSink,
 	parent Capture,
 	extractor *response.Extractor,
 	tracker *incremental.Tracker,
@@ -59,20 +59,6 @@ func (c *Connector) streamResource(
 	if err != nil {
 		return 0, err
 	}
-	metadata := map[string]string{
-		"source":   c.manifest.Name,
-		"resource": resourceName,
-	}
-	if parent != nil {
-		if id := parent["id"]; id != "" {
-			metadata["parent_id"] = id
-		}
-	}
-	metaJSON, err := json.Marshal(metadata)
-	if err != nil {
-		return 0, fmt.Errorf("marshal stream metadata: %w", err)
-	}
-
 	var totalRecords int
 	var captured []Capture
 
@@ -102,22 +88,20 @@ func (c *Connector) streamResource(
 		if err != nil {
 			return fmt.Errorf("marshal stream data: %w", err)
 		}
-		wr := pipeline.NewRecord(pipeline.OperationSnapshot, keyJSON, metaJSON, dataJSON)
-		wr.Resource = resourceName
-		wr.Projected = projected
+		wr := newHTTPRecord(resourceName, keyJSON, dataJSON, projected)
 		if tracker != nil {
 			advanced, err := tracker.ObserveChecked(record)
 			if err != nil {
 				return fmt.Errorf("incremental cursor: %w", err)
 			}
 			if advanced {
-				c.reportWatermarkOnce(res.Name, tracker)
+				c.reportWatermarkOnce(resourceName, incremental.CheckpointKey(*res.Incremental), tracker.Current())
 			}
 			if tracker.Current() != "" {
-				wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+				wr.Key = watermarkKey(tracker.Current())
 			}
 		}
-		if err := sink.Send(ctx, wr); err != nil {
+		if err := sink.Push(wr); err != nil {
 			return fmt.Errorf("stream send: %w", err)
 		}
 		totalRecords++
@@ -130,15 +114,14 @@ func (c *Connector) streamResource(
 			}
 			captured = append(captured, fields)
 		}
-
 		if totalRecords%1000 == 0 {
-			c.reporter.Report(pipeline.Event{
-				Type:         pipeline.EventPageFetched,
-				Resource:     res.Name,
-				Connector:    c.manifest.Name,
-				TotalRecords: totalRecords,
+			c.observe.Report(filament.SourceProgress{
+				Kind:     filament.SourceProgressPageFetched,
+				Resource: resourceName,
+				Records:  1000,
 			})
 		}
+
 		return nil
 	}
 
@@ -147,13 +130,6 @@ func (c *Connector) streamResource(
 	}
 
 	c.appendCaptures(res.Name, captured)
-
-	c.reporter.Report(pipeline.Event{
-		Type:         pipeline.EventResourceComplete,
-		Resource:     res.Name,
-		Connector:    c.manifest.Name,
-		TotalRecords: totalRecords,
-	})
 
 	return totalRecords, nil
 }

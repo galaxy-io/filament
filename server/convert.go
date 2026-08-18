@@ -21,17 +21,22 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Version:      spec.Version,
+		Maturity:     connectorMaturityToProto(spec.Maturity),
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),
-		Capabilities: sourceCapabilitiesToProto(spec, spec.SourcePolicies),
 	}
 }
 
-func sourceCapabilitiesToProto(spec filament.ConnectorSpec, policies []filament.SourcePolicy) *ingestionv1.Capabilities {
-	return &ingestionv1.Capabilities{
-		Discoverable:      spec.Resources.Discoverable,
-		PerResourceCursor: spec.Resources.PerResourceCursor,
-		SourcePolicies:    sourcePoliciesToProto(policies),
+func connectorMaturityToProto(maturity filament.ConnectorMaturity) ingestionv1.ConnectorMaturity {
+	switch maturity {
+	case filament.MaturityAlpha:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_ALPHA
+	case filament.MaturityBeta:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA
+	case filament.MaturityStable:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE
+	default:
+		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED
 	}
 }
 
@@ -44,19 +49,9 @@ func sinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Version:      spec.Version,
+		Maturity:     connectorMaturityToProto(spec.Maturity),
 		ConfigSchema: configSchemaToProto(spec.Config),
 		SchemaField:  spec.SchemaField,
-		Capabilities: sinkCapabilitiesToProto(spec.Capabilities),
-	}
-}
-
-func sinkCapabilitiesToProto(caps filament.SinkCapabilities) *ingestionv1.Capabilities {
-	return &ingestionv1.Capabilities{
-		Transactional: caps.Transactional,
-		Upsertable:    caps.Upsertable,
-		Schematized:   caps.Schematized,
-		WritePolicies: writePolicyCapabilitiesToProto(caps.WritePolicies),
-		WriteModes:    sinkWriteModes(caps),
 	}
 }
 
@@ -104,33 +99,6 @@ func fieldConditionToProto(condition *filament.FieldCondition) *ingestionv1.Fiel
 	}
 }
 
-func sourcePoliciesToProto(policies []filament.SourcePolicy) []*ingestionv1.SourcePolicy {
-	out := make([]*ingestionv1.SourcePolicy, 0, len(policies))
-	for _, policy := range policies {
-		out = append(out, &ingestionv1.SourcePolicy{
-			Mode:          modeToProto(policy.Mode),
-			EmitsOps:      operationsToProto(policy.EmitsOps),
-			Ordered:       policy.Ordered,
-			Checkpointing: checkpointPolicyToProto(policy.Checkpointing),
-		})
-	}
-	return out
-}
-
-func writePolicyCapabilitiesToProto(caps []filament.WritePolicyCapability) []*ingestionv1.WritePolicyCapability {
-	out := make([]*ingestionv1.WritePolicyCapability, 0, len(caps))
-	for _, cap := range caps {
-		out = append(out, &ingestionv1.WritePolicyCapability{
-			Mode:          writeModeToProto(cap.Mode),
-			RequiresPk:    cap.RequiresPK,
-			RequiresOrder: cap.RequiresOrder,
-			AcceptsOps:    operationsToProto(cap.AcceptsOps),
-			Atomicity:     writeAtomicityToProto(cap.Atomicity),
-		})
-	}
-	return out
-}
-
 // modesToProto reduces the engine's read mechanisms to the connection-level
 // replication modes a connector supports.
 func modesToProto(modes []filament.ReadMode) []ingestionv1.ReplicationMode {
@@ -152,19 +120,6 @@ func modesToProto(modes []filament.ReadMode) []ingestionv1.ReplicationMode {
 	return out
 }
 
-// modeToProto maps an engine read mechanism onto the per-table read lever;
-// CDC is a stream, not a per-table read, so it has no lever value.
-func modeToProto(mode filament.ReadMode) ingestionv1.ReadMode {
-	switch mode {
-	case filament.ModeFull:
-		return ingestionv1.ReadMode_READ_MODE_FULL
-	case filament.ModeIncremental:
-		return ingestionv1.ReadMode_READ_MODE_INCREMENTAL
-	default:
-		return ingestionv1.ReadMode_READ_MODE_UNSPECIFIED
-	}
-}
-
 func replicationToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMode {
 	if mode == filament.ReplicationCDC {
 		return ingestionv1.ReplicationMode_REPLICATION_MODE_CDC
@@ -172,108 +127,47 @@ func replicationToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMo
 	return ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD
 }
 
-func readModeFromProto(mode ingestionv1.ReadMode) filament.ReadMode {
-	if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
-		return filament.ModeIncremental
-	}
-	return filament.ModeFull
-}
-
-func writeModeFromProto(mode ingestionv1.WriteMode) filament.WriteMode {
+func readModeFromProto(mode ingestionv1.ReadMode) (filament.ReadMode, error) {
 	switch mode {
+	case ingestionv1.ReadMode_READ_MODE_UNSPECIFIED, ingestionv1.ReadMode_READ_MODE_FULL:
+		return filament.ModeFull, nil
+	case ingestionv1.ReadMode_READ_MODE_INCREMENTAL:
+		return filament.ModeIncremental, nil
+	default:
+		return 0, fmt.Errorf("unknown read mode %d", mode)
+	}
+}
+
+func readModeToProto(mode filament.ReadMode) ingestionv1.ReadMode {
+	switch mode {
+	case filament.ModeIncremental:
+		return ingestionv1.ReadMode_READ_MODE_INCREMENTAL
+	default:
+		return ingestionv1.ReadMode_READ_MODE_FULL
+	}
+}
+
+func writeModeFromProto(mode ingestionv1.WriteMode) (filament.WriteMode, error) {
+	switch mode {
+	case ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED, ingestionv1.WriteMode_WRITE_MODE_REPLACE:
+		return filament.WriteReplace, nil
 	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
-		return filament.WriteAppend
-	case ingestionv1.WriteMode_WRITE_MODE_REPLACE:
-		return filament.WriteReplace
+		return filament.WriteAppend, nil
 	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
-		return filament.WriteUpsert
-	case ingestionv1.WriteMode_WRITE_MODE_DELETE:
-		return filament.WriteDelete
-	case ingestionv1.WriteMode_WRITE_MODE_MERGE:
-		return filament.WriteMerge
+		return filament.WriteUpsert, nil
 	default:
-		return ""
+		return "", fmt.Errorf("unknown write mode %d", mode)
 	}
-}
-
-func ingestionTypeToProto(t filament.IngestionType) ingestionv1.IngestionType {
-	switch t.OrDefault() {
-	case filament.IngestionFullReplace:
-		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE
-	case filament.IngestionFullUpsert:
-		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_UPSERT
-	case filament.IngestionFullAppend:
-		return ingestionv1.IngestionType_INGESTION_TYPE_FULL_APPEND
-	case filament.IngestionIncrementalAppend:
-		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_APPEND
-	case filament.IngestionIncrementalUpsert:
-		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_UPSERT
-	case filament.IngestionIncrementalDelete:
-		return ingestionv1.IngestionType_INGESTION_TYPE_INCREMENTAL_DELETE
-	case filament.IngestionCDC:
-		return ingestionv1.IngestionType_INGESTION_TYPE_CDC
-	default:
-		return ingestionv1.IngestionType_INGESTION_TYPE_UNSPECIFIED
-	}
-}
-
-func operationsToProto(ops []filament.Operation) []ingestionv1.Operation {
-	out := make([]ingestionv1.Operation, 0, len(ops))
-	for _, op := range ops {
-		switch op {
-		case filament.OpInsert:
-			out = append(out, ingestionv1.Operation_OPERATION_INSERT)
-		case filament.OpUpdate:
-			out = append(out, ingestionv1.Operation_OPERATION_UPDATE)
-		case filament.OpDelete:
-			out = append(out, ingestionv1.Operation_OPERATION_DELETE)
-		default:
-			out = append(out, ingestionv1.Operation_OPERATION_UNSPECIFIED)
-		}
-	}
-	return out
 }
 
 func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
 	switch mode {
 	case filament.WriteAppend:
 		return ingestionv1.WriteMode_WRITE_MODE_APPEND
-	case filament.WriteReplace:
-		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
 	case filament.WriteUpsert:
 		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
-	case filament.WriteDelete:
-		return ingestionv1.WriteMode_WRITE_MODE_DELETE
-	case filament.WriteMerge:
-		return ingestionv1.WriteMode_WRITE_MODE_MERGE
 	default:
-		return ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED
-	}
-}
-
-func writeAtomicityToProto(atomicity filament.WriteAtomicity) ingestionv1.WriteAtomicity {
-	switch atomicity {
-	case filament.AtomicityBatch:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_BATCH
-	case filament.AtomicityResource:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_RESOURCE
-	case filament.AtomicityRun:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_RUN
-	default:
-		return ingestionv1.WriteAtomicity_WRITE_ATOMICITY_UNSPECIFIED
-	}
-}
-
-func checkpointPolicyToProto(policy filament.CheckpointPolicy) ingestionv1.CheckpointPolicy {
-	switch policy {
-	case filament.CheckpointNone:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_NONE
-	case filament.CheckpointAfterBatch:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_AFTER_BATCH
-	case filament.CheckpointAfterCommit:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_AFTER_COMMIT
-	default:
-		return ingestionv1.CheckpointPolicy_CHECKPOINT_POLICY_UNSPECIFIED
+		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
 	}
 }
 
@@ -363,13 +257,12 @@ func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResour
 	out := make([]*ingestionv1.Resource, 0, len(resources))
 	for _, resource := range resources {
 		out = append(out, &ingestionv1.Resource{
-			Name:          resource.Name,
-			Selectable:    resource.Selectable,
-			PrimaryKey:    resource.PrimaryKey,
-			EstimatedRows: resource.Estimated,
-			Selector:      resource.Selector,
-			DisplayName:   resource.DisplayName,
-			Metadata:      resource.Metadata,
+			Name:         resource.Name,
+			IsSelectable: resource.Selectable,
+			PrimaryKey:   resource.PrimaryKey,
+			Selector:     resource.Selector,
+			DisplayName:  resource.DisplayName,
+			Metadata:     resource.Metadata,
 		})
 	}
 	return &ingestionv1.DiscoverResourcesResponse{Resources: out}
@@ -385,11 +278,11 @@ func epochMillis(t time.Time) int64 {
 
 func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 	var endedAt int64
-	if state.FinishedAt != nil {
-		endedAt = state.FinishedAt.UnixMilli()
+	if state.EndedAt != nil {
+		endedAt = state.EndedAt.UnixMilli()
 	}
 	return &ingestionv1.RunInfo{
-		RunId:              string(state.Run),
+		Id:                 string(state.Run),
 		TenantId:           string(state.Tenant),
 		PipelineId:         state.Request.PipelineID,
 		PipelineVersionId:  state.Request.PipelineVersionID,
@@ -412,14 +305,14 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 
 func eventToProto(f events.Fact, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
-		Type:     f.Name,
-		TenantId: string(f.Tenant),
-		RunId:    string(f.Run),
-		Resource: f.Resource,
-		Seq:      f.Seq,
-		AtUnixMs: f.At.UnixMilli(),
-		Fields:   eventFieldsToProto(f.Data),
-		Replay:   replay,
+		EventType: f.Name,
+		TenantId:  string(f.Tenant),
+		RunId:     string(f.Run),
+		Resource:  f.Resource,
+		Seq:       f.Seq,
+		CreatedAt: f.At.UnixMilli(),
+		Fields:    eventFieldsToProto(f.Data),
+		IsReplay:  replay,
 	}
 }
 
@@ -435,6 +328,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Error = d.Error
 	case events.PageFetchedEvent:
 		fields.Records, fields.Bytes, fields.Uri = d.Records, d.Bytes, d.URI
+	case events.FanOutStartedEvent:
+		fields.ParentsTotal = d.ParentsTotal
 	case events.ResourceCompletedEvent:
 		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.ResourceFailedEvent:
@@ -443,14 +338,35 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.BatchWrittenEvent:
 		fields.Records, fields.Bytes, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
 	case events.IntegrityVerifiedEvent:
 		fields.Crc = d.CRC
 	case events.ChunkDivergenceEvent:
 		fields.Crc, fields.Error = d.CRC, d.Error
+	case events.WatermarkAdvancedEvent:
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
+	case events.CheckpointSavedEvent:
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
+	case events.RateLimitedEvent:
+		fields.RetryAfterMs = d.RetryAfter.Milliseconds()
 	case events.RetryExhaustedEvent:
 		fields.Error = d.Error
 	}
 	return fields
+}
+
+func checkpointToProto(checkpoint *filament.CheckpointData) *structpb.Struct {
+	if checkpoint == nil {
+		return nil
+	}
+	value, err := structpb.NewStruct(map[string]any{
+		"resource": checkpoint.ResourceName,
+		"cursor":   checkpoint.Cursor,
+	})
+	if err != nil {
+		return nil
+	}
+	return value
 }
 
 func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
@@ -459,15 +375,15 @@ func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
 
 func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
-		Type:     runEventType(state.Status),
-		TenantId: string(state.Tenant),
-		RunId:    string(state.Run),
+		EventType: runEventType(state.Status),
+		TenantId:  string(state.Tenant),
+		RunId:     string(state.Run),
 		Fields: &ingestionv1.RunEventFields{
 			Records: state.Records,
 			Bytes:   state.Bytes,
 			Error:   state.Error,
 		},
-		Replay: replay,
+		IsReplay: replay,
 	}
 }
 
@@ -639,7 +555,7 @@ func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
 
 func defaultTenant(tenant string) string {
 	if tenant == "" {
-		return "t1"
+		return string(filament.DefaultTenantID)
 	}
 	return tenant
 }

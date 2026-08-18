@@ -2,6 +2,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { LineChartCurve } from "@galaxy-io/dls/charts/types";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
@@ -68,7 +69,12 @@ const ObservabilityTimeseriesWidget = <View extends string>({
           </Text>,
         ]}
         trailingActions={[
-          <SwitcherInput key="view-switcher" items={switcherItems} selectedId={view} />,
+          <SwitcherInput
+            key="view-switcher"
+            variant={InputVariant.TERTIARY}
+            items={switcherItems}
+            selectedId={view}
+          />,
           <ObservabilityPivotSelect
             key="pivot-selector"
             value={pivot}

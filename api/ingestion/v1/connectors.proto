@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "google/protobuf/struct.proto";
+import "ingestion/v1/common.proto";
+import "ingestion/v1/pagination.proto";
+
+// ConnectorSpec describes one registered source or sink connector.
+message ConnectorSpec {
+  string name = 1;
+  string display_name = 2;
+  ConnectorKind kind = 3;
+  string version = 4;
+  repeated ReplicationMode modes = 5;
+  ConfigSchema config_schema = 6;
+  string description = 8;
+  string dark_logo_url = 9;
+  string light_logo_url = 10;
+  string schema_field = 11;
+  ConnectorMaturity maturity = 12;
+}
+
+enum ConnectorMaturity {
+  CONNECTOR_MATURITY_UNSPECIFIED = 0;
+  CONNECTOR_MATURITY_ALPHA = 1;
+  CONNECTOR_MATURITY_BETA = 2;
+  CONNECTOR_MATURITY_STABLE = 3;
+}
+
+message ListConnectorsRequest {
+  string tenant_id = 1;
+  ConnectorKind kind = 2;
+  PaginationRequest pagination = 3;
+}
+
+message ListConnectorsResponse {
+  repeated ConnectorSpec connectors = 1;
+  PaginationResponse pagination = 2;
+}
+
+message GetConnectorRequest {
+  string tenant_id = 1;
+  string connector = 2;
+  ConnectorKind kind = 3;
+}
+
+message GetConnectorResponse {
+  ConnectorSpec connector = 1;
+}
+
+message ValidateConfigRequest {
+  string tenant_id = 1;
+  ConnectorKind kind = 2;
+  string connector = 3;
+  google.protobuf.Struct config = 4;
+  string connection_id = 6;
+}
+
+message ValidationError {
+  string field = 1;
+  string message = 2;
+}
+
+message ValidateConfigResponse {
+  bool valid = 1;
+  repeated ValidationError errors = 2;
+}
+
+message DiscoverResourcesRequest {
+  string tenant_id = 1;
+  string connector = 2;
+  google.protobuf.Struct config = 3;
+  bool refresh = 4;
+  string connection_id = 5;
+}
+
+message Resource {
+  string name = 1;
+  bool is_selectable = 2;
+  repeated string primary_key = 3;
+  string selector = 5;
+  string display_name = 6;
+  map<string, string> metadata = 7;
+}
+
+message DiscoverResourcesResponse {
+  repeated Resource resources = 1;
+}
+
+message GetResourceColumnsRequest {
+  string tenant_id = 1;
+  string connector = 2;
+  google.protobuf.Struct config = 3;
+  string connection_id = 4;
+  repeated string resources = 5;
+}
+
+message ResourceColumn {
+  string name = 1;
+  string logical_type = 2;
+  string native_type = 3;
+  bool is_nullable = 4;
+  bool is_primary_key = 5;
+  bool is_cursor_eligible = 6;
+  bool is_cursor_recommended = 7;
+  int32 recommendation_rank = 8;
+  string warning = 9;
+  bool is_configurable = 10;
+  bool supports_lookback = 11;
+}
+
+message ResourceColumns {
+  string resource = 1;
+  repeated ResourceColumn columns = 2;
+}
+
+message GetResourceColumnsResponse {
+  repeated ResourceColumns resources = 1;
+}

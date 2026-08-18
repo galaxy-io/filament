@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
 	"github.com/galaxy-io/filament/connectors/http/request"
@@ -38,7 +38,7 @@ import (
 func (c *Connector) paginate(
 	ctx context.Context,
 	res manifest.Resource,
-	sink *pipeline.RecordSink,
+	sink filament.RecordSink,
 	parent Capture,
 	pag pagination.Paginator,
 	extractor *response.Extractor,
@@ -58,6 +58,10 @@ func (c *Connector) paginate(
 	}
 
 	var totalRecords, pageCount int
+	progressResource, err := emittedResourceName(res, parent)
+	if err != nil {
+		return 0, 0, fmt.Errorf("resource name: %w", err)
+	}
 
 	for {
 		resp, raw, err := c.fetchPage(ctx, res, parent, state, pag, tracker)
@@ -83,7 +87,7 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, fmt.Errorf("decode %s: %w", res.Name, err)
 		}
 
-		n, captured, err := c.sendRecords(ctx, res, records, sink, parent, state.Cursor, extractor, tracker)
+		n, captured, err := c.sendRecords(res, records, sink, parent, state.Cursor, extractor, tracker)
 		if err != nil {
 			return totalRecords, pageCount, err
 		}
@@ -91,6 +95,12 @@ func (c *Connector) paginate(
 		pageCount++
 
 		c.appendCaptures(res.Name, captured)
+		c.observe.Report(filament.SourceProgress{
+			Kind:     filament.SourceProgressPageFetched,
+			Resource: progressResource,
+			Records:  int64(n),
+			Bytes:    int64(len(raw)),
+		})
 
 		if pag == nil {
 			// Single-request resource: we're done.
@@ -106,16 +116,6 @@ func (c *Connector) paginate(
 		if err != nil {
 			return totalRecords, pageCount, fmt.Errorf("paginator next on %s: %w", res.Name, err)
 		}
-
-		c.reporter.Report(pipeline.Event{
-			Type:         pipeline.EventPageFetched,
-			Resource:     res.Name,
-			Connector:    c.manifest.Name,
-			Records:      n,
-			TotalRecords: totalRecords,
-			Pages:        pageCount,
-			Cursor:       state.Cursor,
-		})
 
 		if state.Done {
 			return totalRecords, pageCount, nil
@@ -236,8 +236,18 @@ func (c *Connector) doRequest(
 
 		switch {
 		case resp.StatusCode == 429:
-			c.reporter.Report(pipeline.Event{Type: pipeline.EventRateLimited, Resource: resourceName})
-			if err := sleepCtx(ctx, retryAfterDuration(resp, attempt)); err != nil {
+			delay := retryAfterDuration(resp, attempt)
+			c.observe.Report(filament.SourceProgress{
+				Kind:       filament.SourceProgressRateLimited,
+				Resource:   resourceName,
+				RetryAfter: delay,
+			})
+			if attempt+1 >= maxRetries {
+				err := fmt.Errorf("retries exhausted after %d attempts on %s", maxRetries, resourceName)
+				c.reportRetryExhausted(resourceName, err)
+				return nil, nil, err
+			}
+			if err := sleepCtx(ctx, delay); err != nil {
 				return nil, nil, err
 			}
 		case resp.StatusCode >= 500 && serverRetries < maxServerErrRetries:
@@ -248,6 +258,12 @@ func (c *Connector) doRequest(
 			if err := sleepCtx(ctx, retryAfterDuration(resp, serverRetries)); err != nil {
 				return nil, nil, err
 			}
+		case resp.StatusCode >= 500:
+			err := fmt.Errorf("%s %s HTTP %d: %s",
+				resourceName, req.URL.Redacted(),
+				resp.StatusCode, formatHTTPErrorBody(body))
+			c.reportRetryExhausted(resourceName, err)
+			return resp, body, err
 		case resp.StatusCode >= 400:
 			return resp, body, fmt.Errorf("%s %s HTTP %d: %s",
 				resourceName, req.URL.Redacted(),
@@ -256,7 +272,17 @@ func (c *Connector) doRequest(
 			return resp, body, nil
 		}
 	}
-	return nil, nil, fmt.Errorf("retries exhausted after %d attempts on %s", maxRetries, resourceName)
+	err := fmt.Errorf("retries exhausted after %d attempts on %s", maxRetries, resourceName)
+	c.reportRetryExhausted(resourceName, err)
+	return nil, nil, err
+}
+
+func (c *Connector) reportRetryExhausted(resource string, err error) {
+	c.observe.Report(filament.SourceProgress{
+		Kind:     filament.SourceProgressRetryExhausted,
+		Resource: resource,
+		Error:    err.Error(),
+	})
 }
 
 func formatHTTPErrorBody(body []byte) string {
@@ -307,10 +333,9 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 // sendRecords decodes each record into the sink, captures parent fields,
 // and observes watermark fields.
 func (c *Connector) sendRecords(
-	ctx context.Context,
 	res manifest.Resource,
 	records []map[string]any,
-	sink *pipeline.RecordSink,
+	sink filament.RecordSink,
 	parent Capture,
 	cursor string,
 	extractor *response.Extractor,
@@ -333,20 +358,6 @@ func (c *Connector) sendRecords(
 			}
 		}
 		records = filtered
-	}
-
-	metadata := map[string]string{
-		"source":   c.manifest.Name,
-		"resource": resourceName,
-	}
-	if parent != nil {
-		if id := parent["id"]; id != "" {
-			metadata["parent_id"] = id
-		}
-	}
-	metaJSON, err := json.Marshal(metadata)
-	if err != nil {
-		return 0, nil, fmt.Errorf("marshal metadata: %w", err)
 	}
 
 	var captured []Capture
@@ -382,23 +393,23 @@ func (c *Connector) sendRecords(
 		if err != nil {
 			return n, captured, fmt.Errorf("marshal data: %w", err)
 		}
-		wr := pipeline.NewRecord(pipeline.OperationSnapshot, keyJSON, metaJSON, dataJSON)
-		wr.Resource = resourceName
-		wr.Projected = projected
-		wr.Cursor = cursor
+		wr := newHTTPRecord(resourceName, keyJSON, dataJSON, projected)
+		if cursor != "" {
+			wr.Key = []string{cursor}
+		}
 		if tracker != nil {
 			advanced, err := tracker.ObserveChecked(rec)
 			if err != nil {
 				return n, captured, fmt.Errorf("incremental cursor: %w", err)
 			}
 			if advanced {
-				c.reportWatermarkOnce(res.Name, tracker)
+				c.reportWatermarkOnce(resourceName, incremental.CheckpointKey(*res.Incremental), tracker.Current())
 			}
 			if tracker.Current() != "" {
-				wr.Watermarks = map[string]string{tracker.CheckpointKey(): tracker.Current()}
+				wr.Key = watermarkKey(tracker.Current())
 			}
 		}
-		if err := sink.Send(ctx, wr); err != nil {
+		if err := sink.Push(wr); err != nil {
 			return n, captured, err
 		}
 		n++
@@ -407,11 +418,11 @@ func (c *Connector) sendRecords(
 	return n, captured, nil
 }
 
-func extractKey(record map[string]any, primaryKey []string) pipeline.StructuredData {
+func extractKey(record map[string]any, primaryKey []string) map[string]any {
 	if len(primaryKey) == 0 {
 		return nil
 	}
-	key := make(pipeline.StructuredData, len(primaryKey))
+	key := make(map[string]any, len(primaryKey))
 	for _, pk := range primaryKey {
 		key[pk] = record[pk]
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sort"
 	"strconv"
@@ -13,8 +12,8 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
@@ -290,7 +289,7 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 	if s.connector == nil || s.connector.manifest == nil {
 		return filament.DiscoverResult{}, fmt.Errorf("httpapi source: discover before configure")
 	}
-	res, err := s.connector.Discover(ctx, pipeline.DiscoverOptions{Logger: slog.Default()})
+	res, err := s.connector.Discover(ctx)
 	if err != nil {
 		return filament.DiscoverResult{}, err
 	}
@@ -319,21 +318,7 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 		}
 		return filament.DiscoverResult{Resources: out}, nil
 	}
-	out := make([]filament.Resource, 0, len(res.Resources))
-	for _, r := range res.Resources {
-		name := r.ID
-		if name == "" {
-			name = r.Name
-		}
-		out = append(out, filament.Resource{
-			Name:        name,
-			Selector:    encodeSelector(r.Kind, r.ID),
-			Selectable:  true,
-			DisplayName: r.Name,
-			Metadata:    r.Metadata,
-		})
-	}
-	return filament.DiscoverResult{Resources: out}, nil
+	return res, nil
 }
 
 // Extract runs a full extraction into sink.
@@ -443,51 +428,12 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 		return fmt.Errorf("httpapi source: extract before configure")
 	}
 
-	ch := make(chan pipeline.Record, max(1, opts.Parallelism*2))
-	done := make(chan struct{})
-	var once sync.Once
-	var sinkErr error
-	var mu sync.Mutex
-
-	setErr := func(err error) {
-		if err == nil {
-			return
-		}
-		mu.Lock()
-		if sinkErr == nil {
-			sinkErr = err
-		}
-		mu.Unlock()
-		once.Do(func() { close(done) })
+	reducingSink := &incrementalRecordSink{
+		sink:    sink,
+		reducer: newIncrementalRecordReducer(s, resumeWatermarks),
 	}
-	errFn := func() error {
-		mu.Lock()
-		defer mu.Unlock()
-		return sinkErr
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		reducer := newIncrementalRecordReducer(s, resumeWatermarks)
-		for rec := range ch {
-			converted, err := reducer.record(rec)
-			if err != nil {
-				setErr(err)
-				return
-			}
-			if err := sink.Push(converted); err != nil {
-				setErr(err)
-				return
-			}
-		}
-	}()
-
-	err := s.connector.Extract(ctx, pipeline.ExtractOptions{
-		Sink:                 pipeline.NewRecordSink(ch, done, errFn),
-		Logger:               slog.Default(),
-		Reporter:             pipeline.NoopReporter{},
+	return s.connector.Extract(ctx, reducingSink, extractOptions{
+		Observe:              opts.Observe,
 		Resources:            s.connectorResources(opts.Resources),
 		EnabledResources:     enabledResources(opts.Selectors),
 		ResumeCursors:        resumeCursors,
@@ -495,12 +441,6 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 		IncrementalLookbacks: s.incrementalLookbacks,
 		IncrementalResources: s.incrementalResourceSet(),
 	})
-	close(ch)
-	wg.Wait()
-	if err != nil {
-		return err
-	}
-	return errFn()
 }
 
 func (s *Source) incrementalResourceSet() map[string]bool {
@@ -583,7 +523,7 @@ func (s *Source) planResources(resources, selectors []string) ([]string, error) 
 	return out, nil
 }
 
-func (s *Source) syntheticParentsFor(res manifest.Resource, refs []pipeline.ResourceRef) []Capture {
+func (s *Source) syntheticParentsFor(res manifest.Resource, refs []resourceRef) []Capture {
 	if res.Parent == nil {
 		return nil
 	}
@@ -697,11 +637,11 @@ func credentialsFromConfig(cfg filament.Config, specs map[string]manifest.Config
 	return creds
 }
 
-func enabledResources(selectors []string) []pipeline.ResourceRef {
+func enabledResources(selectors []string) []resourceRef {
 	if len(selectors) == 0 {
 		return nil
 	}
-	out := make([]pipeline.ResourceRef, 0, len(selectors))
+	out := make([]resourceRef, 0, len(selectors))
 	for _, selector := range selectors {
 		ref, ok := decodeSelector(selector)
 		if !ok {
@@ -723,34 +663,23 @@ func encodeSelector(kind, id string) string {
 	return string(b)
 }
 
-func decodeSelector(selector string) (pipeline.ResourceRef, bool) {
+func decodeSelector(selector string) (resourceRef, bool) {
 	var token selectorToken
 	if err := json.Unmarshal([]byte(selector), &token); err != nil || token.ID == "" {
-		return pipeline.ResourceRef{}, false
+		return resourceRef{}, false
 	}
-	return pipeline.ResourceRef{Kind: token.Kind, ID: token.ID}, true
+	return resourceRef(token), true
 }
 
-func toIngestionRecord(rec pipeline.Record) filament.Record {
+func newHTTPRecord(resource string, keyJSON, dataJSON []byte, projected bool) filament.Record {
 	out := filament.Record{
-		Resource: rec.Resource,
-		ID:       recordID(rec.KeyJSON),
-		Op:       operationToPkg(rec.Operation),
-		Data:     rec.DataJSON,
+		Resource: resource,
+		ID:       recordID(keyJSON),
+		Op:       filament.OpInsert,
+		Data:     dataJSON,
 	}
-	if !rec.Projected {
-		out.Data = recordData(rec.KeyJSON, rec.DataJSON)
-	}
-	if rec.Cursor != "" || len(rec.Watermarks) > 0 {
-		out.Key = []string{rec.Cursor}
-		keys := make([]string, 0, len(rec.Watermarks))
-		for key := range rec.Watermarks {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			out.Key = append(out.Key, rec.Watermarks[key])
-		}
+	if !projected {
+		out.Data = recordData(keyJSON, dataJSON)
 	}
 	return out
 }
@@ -801,17 +730,6 @@ func recordID(keyJSON []byte) string {
 		}
 	}
 	return string(keyJSON)
-}
-
-func operationToPkg(op pipeline.Operation) filament.Operation {
-	switch op {
-	case pipeline.OperationDelete:
-		return filament.OpDelete
-	case pipeline.OperationUpdate:
-		return filament.OpUpdate
-	default:
-		return filament.OpInsert
-	}
 }
 
 // CursorColumns exposes the manifest-declared watermark as the one durable
@@ -898,7 +816,7 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		s.incrementalResources[resource] = spec
 		lookbacks[resource] = spec.OverlapSeconds
 
-		checkpointKey := incrementalCheckpointKey(spec)
+		checkpointKey := incremental.CheckpointKey(spec)
 		cols := []string{checkpointKey}
 		types := []string{field.Type}
 		seed := spec.Initial
@@ -928,13 +846,6 @@ func incrementalField(resource manifest.Resource) (manifest.FieldSpec, bool) {
 		}
 	}
 	return manifest.FieldSpec{}, false
-}
-
-func incrementalCheckpointKey(spec manifest.IncrementalSpec) string {
-	if spec.CheckpointKey != "" {
-		return spec.CheckpointKey
-	}
-	return spec.CursorField
 }
 
 func watermarkKey(value string) []string {
@@ -969,16 +880,16 @@ func newIncrementalRecordReducer(source *Source, seeds map[string]map[string]str
 	return &incrementalRecordReducer{source: source, seeds: seeds, marks: map[string]*atomicwatermark.Watermark{}}
 }
 
-func (r *incrementalRecordReducer) record(rec pipeline.Record) (filament.Record, error) {
+func (r *incrementalRecordReducer) record(rec filament.Record) (filament.Record, error) {
 	spec, ok := r.source.incrementalResources[rec.Resource]
 	if !ok {
 		base := r.source.baseResourceName(rec.Resource)
 		spec, ok = r.source.incrementalResources[base]
 	}
 	if !ok {
-		return toIngestionRecord(rec), nil
+		return rec, nil
 	}
-	checkpointKey := incrementalCheckpointKey(spec)
+	checkpointKey := incremental.CheckpointKey(spec)
 	mark := r.marks[rec.Resource]
 	if mark == nil {
 		cmp, err := atomicwatermark.ForName(spec.Comparator)
@@ -995,12 +906,43 @@ func (r *incrementalRecordReducer) record(rec pipeline.Record) (filament.Record,
 		}
 		r.marks[rec.Resource] = mark
 	}
-	if value := rec.Watermarks[checkpointKey]; value != "" {
+	if value := firstKey(rec.Key); value != "" {
 		if _, err := mark.Observe(value); err != nil {
 			return filament.Record{}, fmt.Errorf("incremental %q watermark: %w", rec.Resource, err)
 		}
 	}
-	out := toIngestionRecord(rec)
-	out.Key = watermarkKey(mark.Current())
-	return out, nil
+	rec.Key = watermarkKey(mark.Current())
+	return rec, nil
+}
+
+func firstKey(key []string) string {
+	if len(key) == 0 {
+		return ""
+	}
+	return key[0]
+}
+
+type incrementalRecordSink struct {
+	mu      sync.Mutex
+	sink    filament.RecordSink
+	reducer *incrementalRecordReducer
+}
+
+func (s *incrementalRecordSink) Push(rec filament.Record) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	converted, err := s.reducer.record(rec)
+	if err != nil {
+		return err
+	}
+	return s.sink.Push(converted)
+}
+
+func (s *incrementalRecordSink) PushBatch(records []filament.Record) error {
+	for _, rec := range records {
+		if err := s.Push(rec); err != nil {
+			return err
+		}
+	}
+	return nil
 }

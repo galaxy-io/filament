@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -10,32 +9,31 @@ import InfiniteTable, {
   ColumnPin,
   type Row,
 } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
-import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
-import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/PipelineName";
 
 import ObservabilityRunsTableColumnFlow from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnFlow";
 import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP,
+  OBSERVABILITY_RUNS_SCHEDULED_INPUT,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
   OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT,
-  OBSERVABILITY_RUNS_TABLE_LIMIT,
-  OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT,
+  OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
+import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
@@ -52,11 +50,11 @@ import {
 const ObservabilityRunsTable = () => {
   const navigate = useNavigate();
   const {
+    runs: view = ObservabilityRunsView.PAST,
     timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
     statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   } = useSearch({ from: "/_main/observability" });
 
-  const includeScheduled = statuses.includes(RunStatus.SCHEDULED);
   const windowedStatuses = useMemo(
     () => statuses.filter((status) => status !== RunStatus.SCHEDULED),
     [statuses],
@@ -69,27 +67,21 @@ const ObservabilityRunsTable = () => {
     }),
     [timeframe, windowedStatuses],
   );
-  const scheduledInput = useMemo(
-    () =>
-      create(ListRunsRequestSchema, {
-        status: [RunStatus.SCHEDULED],
-        pagination: create(PaginationRequestSchema, { total: OBSERVABILITY_RUNS_TABLE_LIMIT }),
-      }),
-    [],
-  );
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useListRunsInfiniteQuery({
       input,
-      options: { enabled: windowedStatuses.length > 0 },
+      options: {
+        enabled: view === ObservabilityRunsView.PAST && windowedStatuses.length > 0,
+      },
     });
   const { data: scheduledData, isLoading: isLoadingScheduled } = useListRunsQuery({
-    input: scheduledInput,
-    options: { enabled: includeScheduled },
+    input: OBSERVABILITY_RUNS_SCHEDULED_INPUT,
+    options: { enabled: view === ObservabilityRunsView.UPCOMING },
   });
 
-  const columns = useMemo<ColumnDef<RunInfo>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<RunInfo>[]>(() => {
+    const baseColumns: ColumnDef<RunInfo>[] = [
       {
         id: "status",
         header: "Status",
@@ -98,18 +90,6 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
-        ),
-      },
-      {
-        id: "runId",
-        header: "Run",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RUN,
-        pin: ColumnPin.LEFT,
-        cellLoading: () => <TextShimmer width={64} height={18} />,
-        cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace>
-            {row.original.runId}
-          </Text>
         ),
       },
       {
@@ -127,6 +107,30 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
       },
+    ];
+
+    if (view === ObservabilityRunsView.UPCOMING) {
+      return [
+        ...baseColumns,
+        {
+          id: "scheduledAt",
+          header: "Scheduled",
+          size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+          align: ColumnAlign.RIGHT,
+          accessorFn: (run) => Number(run.scheduledAt),
+          enableSorting: true,
+          cellLoading: () => <TextShimmer width={100} height={14} />,
+          cell: ({ row }) => (
+            <Text size={TextSize.BODY_SM} isEllipsis>
+              {formatTimestamp(row.original.scheduledAt)}
+            </Text>
+          ),
+        },
+      ];
+    }
+
+    return [
+      ...baseColumns,
       {
         id: "startedAt",
         header: "Started",
@@ -163,7 +167,7 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.status === RunStatus.SCHEDULED ? "—" : formatCount(row.original.records)}
+            {formatCount(row.original.records)}
           </Text>
         ),
       },
@@ -176,7 +180,7 @@ const ObservabilityRunsTable = () => {
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.status === RunStatus.SCHEDULED ? "—" : formatBytes(row.original.bytes)}
+            {formatBytes(row.original.bytes)}
           </Text>
         ),
       },
@@ -207,17 +211,17 @@ const ObservabilityRunsTable = () => {
           </Text>
         ),
       },
-    ],
-    [],
-  );
+    ];
+  }, [view]);
 
-  const scheduledRuns = includeScheduled ? (scheduledData?.runs ?? []) : [];
+  const scheduledRuns = useMemo(
+    () => [...(scheduledData?.runs ?? [])].sort((a, b) => Number(a.scheduledAt - b.scheduledAt)),
+    [scheduledData],
+  );
   const windowedRuns = windowedStatuses.length
     ? (data?.pages.flatMap((page) => page.runs) ?? [])
     : [];
-
-  const windowedIds = new Set(windowedRuns.map((run) => run.runId));
-  const runs = [...scheduledRuns.filter((run) => !windowedIds.has(run.runId)), ...windowedRuns];
+  const runs = view === ObservabilityRunsView.UPCOMING ? scheduledRuns : windowedRuns;
 
   const handleRowClick = (row: Row<RunInfo>) => {
     navigate({
@@ -225,7 +229,7 @@ const ObservabilityRunsTable = () => {
       params: {
         id: row.original.pipelineId,
       },
-      search: { runId: [row.original.runId] },
+      search: { runId: [row.original.id] },
     });
   };
 
@@ -233,12 +237,12 @@ const ObservabilityRunsTable = () => {
     <InfiniteTable<RunInfo>
       columns={columns}
       data={runs}
-      getRowId={(run) => run.runId}
+      getRowId={(run) => run.id}
       onRowClick={handleRowClick}
       enableSorting
-      isLoading={isLoading || (includeScheduled && isLoadingScheduled)}
+      isLoading={view === ObservabilityRunsView.UPCOMING ? isLoadingScheduled : isLoading}
       loadingRowCount={1}
-      hasNextPage={hasNextPage}
+      hasNextPage={view === ObservabilityRunsView.PAST && hasNextPage}
       isFetchingNextPage={isFetchingNextPage}
       fetchNextPage={fetchNextPage}
       contentWhenEmpty={
@@ -247,13 +251,13 @@ const ObservabilityRunsTable = () => {
           alignItems={AlignItems.CENTER}
           justifyContent={JustifyContent.CENTER}
         >
-          <Text variant={TextVariant.TERTIARY}>No runs in the selected timeframe</Text>
+          <Text variant={TextVariant.TERTIARY}>
+            {OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[view]}
+          </Text>
         </FlexWrapper>
       }
-      maxHeight={OBSERVABILITY_RUNS_TABLE_MAX_HEIGHT}
+      height={OBSERVABILITY_RUNS_TABLE_HEIGHT}
       fillWidth
-      noLastRowPadding
-      noLastRowBorder
     />
   );
 };

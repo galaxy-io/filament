@@ -13,12 +13,12 @@ import (
 // New SaaS connectors are a catalog/<name>.yaml manifest + one line here — no
 // new module, no new dependency.
 func init() {
-	registry.RegisterSource("notion", func() filament.Source { return NewNotion() })
-	registry.RegisterSource("linear", func() filament.Source { return NewLinear() })
-	registry.RegisterSource("attio", func() filament.Source { return NewAttio() })
-	registry.RegisterSource("github", func() filament.Source { return NewGitHub() })
-	registry.RegisterSource("slack", func() filament.Source { return NewSlack() })
-	registry.RegisterSource("resend", func() filament.Source { return NewResend() })
-	registry.RegisterSource("stripe", func() filament.Source { return NewStripe() })
-	registry.RegisterSource("posthog", func() filament.Source { return NewPostHog() })
+	registry.RegisterSource("notion", filament.MaturityBeta, func() filament.Source { return NewNotion() })
+	registry.RegisterSource("linear", filament.MaturityBeta, func() filament.Source { return NewLinear() })
+	registry.RegisterSource("attio", filament.MaturityAlpha, func() filament.Source { return NewAttio() })
+	registry.RegisterSource("github", filament.MaturityBeta, func() filament.Source { return NewGitHub() })
+	registry.RegisterSource("slack", filament.MaturityAlpha, func() filament.Source { return NewSlack() })
+	registry.RegisterSource("resend", filament.MaturityBeta, func() filament.Source { return NewResend() })
+	registry.RegisterSource("stripe", filament.MaturityBeta, func() filament.Source { return NewStripe() })
+	registry.RegisterSource("posthog", filament.MaturityBeta, func() filament.Source { return NewPostHog() })
 }

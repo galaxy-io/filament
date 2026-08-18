@@ -7,13 +7,31 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/events"
 )
+
+func TestWatermarkProgressIsNotPersistedBeforeBatchWrite(t *testing.T) {
+	m := New()
+	m.ds = memory.New()
+	cp := &filament.CheckpointData{ResourceName: "users", Cursor: map[string]any{"updated_at": "2026-08-18T00:00:00Z"}}
+	err := m.apply(context.Background(), events.NewFact(
+		events.WatermarkAdvanced,
+		events.Envelope{Tenant: "tenant", Run: "run", Resource: "users"},
+		events.WatermarkAdvancedEvent{Checkpoint: cp},
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.cp) != 0 {
+		t.Fatalf("observed watermark entered durable accumulator: %#v", m.cp)
+	}
+}
 
 func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
-		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink",
+		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
@@ -48,7 +66,7 @@ func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
-		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink",
+		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDC},
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
@@ -78,7 +96,7 @@ func TestCompletedBackfillPromotesInitialWatermark(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
-		PipelineID: "pipe", PipelineVersionID: 3, CheckpointRoute: "route/source/sink",
+		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {

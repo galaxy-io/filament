@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { useParams } from "@tanstack/react-router";
+import { notFound, useParams } from "@tanstack/react-router";
 
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
@@ -12,6 +12,7 @@ import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
+import PipelineSettingsPageAdvanced from "@/pages/pipelines/settings/PipelineSettingsPageAdvanced";
 import PipelineSettingsPageDanger from "@/pages/pipelines/settings/PipelineSettingsPageDanger";
 import PipelineSettingsPageGeneral from "@/pages/pipelines/settings/PipelineSettingsPageGeneral";
 import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSettingsPageSchedule";
@@ -45,7 +46,7 @@ const PipelineSettingsPage = () => {
   });
 
   if (!data.pipeline) {
-    throw new Error(`Pipeline ${id} not found`);
+    throw notFound();
   }
 
   return (
@@ -57,13 +58,14 @@ const PipelineSettingsPage = () => {
       <ScrollWrapper>
         <FlexWrapper
           direction={FlexDirection.COLUMN}
-          gap={16}
+          gap={12}
           padding={"16px"}
           minWidth={400}
-          maxWidth={600}
+          maxWidth={640}
         >
           <PipelineSettingsPageGeneral />
           <PipelineSettingsPageSchedule />
+          <PipelineSettingsPageAdvanced />
           <PipelineSettingsPageDanger />
         </FlexWrapper>
       </ScrollWrapper>

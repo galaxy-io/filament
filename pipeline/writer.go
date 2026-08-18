@@ -53,6 +53,8 @@ func (p *Pipeline) writer(ctx context.Context) {
 		}
 		p.publish(events.NewFact(events.ChunkDivergence, events.Envelope{Resource: b.Resource},
 			events.ChunkDivergenceEvent{CRC: readCRC}))
+		p.setErr(fmt.Errorf("write %s seq %d: CRC divergence: read %08x, write %08x", b.Resource, b.Seq, readCRC, receipt.WriteCRC))
+		return
 	}
 }
 

@@ -2,43 +2,36 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 
-import { GetConnectionCapabilitiesRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import {
-  ConnectorKind,
-  type ReadMode,
-  ReplicationMode,
-  type WriteMode,
-} from "@/gen/ingestion/v1/common_pb";
+import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
+import { ConnectorKind, ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
-} from "@/gen/ingestion/v1/providers_pb";
+} from "@/gen/ingestion/v1/connectors_pb";
+import {
+  PipelineEdgeSchema,
+  PipelineGraphSchema,
+  PipelineNodeSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
+import { CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE } from "@/pages/pipelines/components/create/constants";
 import {
   buildResourceRowsBySink,
   buildSinkRows,
   getIssuesBySink,
   getSelectedCountBySink,
-  getSinkWriteModes,
 } from "@/pages/pipelines/components/create/rows";
 import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
 
-import { useGetConnectionCapabilitiesQuery } from "@/api/queries/capabilities";
-import {
-  useDiscoverResourcesQuery,
-  useGetResourceColumnsQuery,
-  useListConnectorsQuery,
-} from "@/api/queries/connectors";
+import { useValidatePipelineQuery } from "@/api/queries/capabilities";
+import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
 export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
-  const connectionId = state.sourceConnection?.id ?? "";
-
-  const { data: capabilities, isLoading: isLoadingCapabilities } =
-    useGetConnectionCapabilitiesQuery({
-      input: create(GetConnectionCapabilitiesRequestSchema, { id: connectionId }),
-      options: { ...PROBE_QUERY_OPTIONS, enabled: connectionId !== "" },
-    });
+  const source = state.sourceConnection;
+  const connectionId = source?.id ?? "";
+  const replication = source?.replication ?? ReplicationMode.UNSPECIFIED;
+  const isCdc = replication === ReplicationMode.CDC;
 
   const {
     data: discovered,
@@ -61,41 +54,75 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     options: { ...PROBE_QUERY_OPTIONS, enabled: connectionId !== "" && resourceNames.length > 0 },
   });
 
-  const { data: connectors } = useListConnectorsQuery();
-
-  const replication = capabilities?.replication ?? ReplicationMode.UNSPECIFIED;
-  const isCdc = replication === ReplicationMode.CDC;
-
-  const writeModesByReadMode = useMemo<Partial<Record<ReadMode, WriteMode[]>>>(
+  const validationInput = useMemo(
     () =>
-      Object.fromEntries(
-        (capabilities?.readModeWriteCompatibilities ?? []).map((entry) => [
-          entry.readMode,
-          entry.writeModes,
-        ]),
-      ),
-    [capabilities?.readModeWriteCompatibilities],
+      create(ValidatePipelineRequestSchema, {
+        graph: create(PipelineGraphSchema, {
+          nodes: source
+            ? [
+                create(PipelineNodeSchema, {
+                  id: source.id,
+                  kind: ConnectorKind.SOURCE,
+                  connectionId: source.id,
+                }),
+                ...state.sinkConnections.map((sink) =>
+                  create(PipelineNodeSchema, {
+                    id: sink.id,
+                    kind: ConnectorKind.SINK,
+                    connectionId: sink.id,
+                  }),
+                ),
+              ]
+            : [],
+          edges: source
+            ? state.sinkConnections.map((sink) =>
+                create(PipelineEdgeSchema, {
+                  fromNode: source.id,
+                  toNode: sink.id,
+                  readMode: isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL,
+                  writeMode: isCdc
+                    ? WriteMode.UNSPECIFIED
+                    : (state.sinkWriteModes[sink.id] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE),
+                }),
+              )
+            : [],
+        }),
+      }),
+    [source, state.sinkConnections, state.sinkWriteModes, isCdc],
   );
 
-  const writeModesBySink = useMemo<Record<string, WriteMode[]>>(
+  const { data: validation, isLoading: isLoadingValidation } = useValidatePipelineQuery({
+    input: validationInput,
+    options: {
+      ...PROBE_QUERY_OPTIONS,
+      enabled: connectionId !== "" && state.sinkConnections.length > 0,
+    },
+  });
+
+  const supportedReadModesBySink = useMemo(
     () =>
       Object.fromEntries(
-        state.sinkConnections.map((sink) => [
-          sink.id,
-          getSinkWriteModes(
-            connectors?.connectors.find(
-              (connector) =>
-                connector.name === sink.connector && connector.kind === ConnectorKind.SINK,
-            ),
+        (validation?.edges ?? []).map((edge) => [
+          edge.toNode,
+          Object.fromEntries(
+            edge.resources.map((resource) => [resource.resource, resource.supportedReadModes]),
           ),
         ]),
       ),
-    [state.sinkConnections, connectors?.connectors],
+    [validation?.edges],
+  );
+
+  const supportedWriteModesBySink = useMemo(
+    () =>
+      Object.fromEntries(
+        (validation?.edges ?? []).map((edge) => [edge.toNode, edge.supportedWriteModes]),
+      ),
+    [validation?.edges],
   );
 
   const isLoading =
-    isLoadingCapabilities ||
     isLoadingResources ||
+    isLoadingValidation ||
     (resourceNames.length > 0 && isPendingColumns && !isErrorColumns);
 
   const rowsBySink = useMemo(
@@ -106,21 +133,20 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
             state,
             resources,
             columns,
-            readModes: capabilities?.readModes ?? [],
+            supportedReadModesBySink,
             isCdc,
-            writeModesBySink,
           }),
-    [isLoading, state, resources, columns, capabilities?.readModes, isCdc, writeModesBySink],
+    [isLoading, state, resources, columns, supportedReadModesBySink, isCdc],
   );
 
   const sinks = useMemo(
-    () => buildSinkRows({ state, rowsBySink, isCdc, writeModesBySink, writeModesByReadMode }),
-    [state, rowsBySink, isCdc, writeModesBySink, writeModesByReadMode],
+    () => buildSinkRows({ state, rowsBySink, isCdc, supportedWriteModesBySink }),
+    [state, rowsBySink, isCdc, supportedWriteModesBySink],
   );
 
   const issuesBySink = useMemo(
-    () => (isLoading || discoverError ? {} : getIssuesBySink(rowsBySink)),
-    [rowsBySink, isLoading, discoverError],
+    () => (isLoading || discoverError ? {} : getIssuesBySink(rowsBySink, sinks)),
+    [rowsBySink, sinks, isLoading, discoverError],
   );
   const selectedCountBySink = useMemo(() => getSelectedCountBySink(rowsBySink), [rowsBySink]);
 

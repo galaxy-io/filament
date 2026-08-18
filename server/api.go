@@ -32,6 +32,7 @@ type Server struct {
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
 	identity  identity.Provider
+	log       filament.Logger
 }
 
 // Option configures a Server.
@@ -49,6 +50,9 @@ func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) 
 // document, the same way an unset metrics store leaves MetricsService
 // unimplemented.
 func WithIdentity(p identity.Provider) Option { return func(s *Server) { s.identity = p } }
+
+// WithLogger sets the structured logger used for API diagnostics.
+func WithLogger(log filament.Logger) Option { return func(s *Server) { s.log = log } }
 
 // New returns a Server wired to the given providers.
 func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {

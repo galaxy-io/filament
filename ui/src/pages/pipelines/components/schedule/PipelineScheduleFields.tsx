@@ -6,12 +6,13 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
+import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import SwitcherInput from "@galaxy-io/dls/inputs/SwitcherInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import {
@@ -25,12 +26,19 @@ import {
   PipelineScheduleFrequency,
   type PipelineSettingsPageScheduleState,
 } from "@/pages/pipelines/settings/types";
+import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
-const PIPELINE_SCHEDULE_INPUT_WIDTH = 264;
+const PIPELINE_SCHEDULE_INPUT_WIDTH = 276;
 
-const SwitcherWrapper = styled.div<{ $isDisabled: boolean }>`
-  opacity: ${({ $isDisabled }) => ($isDisabled ? 0.5 : 1)};
-  pointer-events: ${({ $isDisabled }) => ($isDisabled ? "none" : "auto")};
+const CollapsibleContent = styled.div<{ $isOpen: boolean }>`
+  display: grid;
+  grid-template-rows: ${({ $isOpen }) => ($isOpen ? "1fr" : "0fr")};
+  transition: grid-template-rows 0.15s ease-in-out;
+  width: 100%;
+`;
+
+const CollapsibleContentInner = styled.div`
+  overflow: hidden;
 `;
 
 interface PipelineScheduleFieldsProps {
@@ -39,7 +47,7 @@ interface PipelineScheduleFieldsProps {
 }
 
 const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps) => {
-  const isDisabled = !state.isEnabled;
+  const summary = formatPipelineScheduleSummary(state);
 
   const handleEnabledChange = (enabled: boolean) => {
     onChange({ isEnabled: enabled });
@@ -87,107 +95,123 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
     PIPELINE_SCHEDULE_TIMEZONE_OPTIONS.find((option) => option.value === state.timezone) ?? null;
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-      <Widget noHover fillWidth>
+    <Widget noPadding noHover fillWidth>
+      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
         <FlexWrapper
           alignItems={AlignItems.CENTER}
           justifyContent={JustifyContent.SPACE_BETWEEN}
+          padding="16px"
           fillWidth
         >
-          <Text variant={TextVariant.SECONDARY}>Enabled</Text>
-          <ToggleInput value={state.isEnabled} onChange={handleEnabledChange} />
-        </FlexWrapper>
-      </Widget>
-      <Widget noHover fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-          <FlexWrapper
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.SPACE_BETWEEN}
-            fillWidth
-          >
-            <Text variant={TextVariant.SECONDARY}>Frequency</Text>
-            <SwitcherWrapper $isDisabled={isDisabled}>
-              <SwitcherInput
-                items={frequencyItems}
-                size={InputSize.LARGE}
-                selectedId={state.frequency}
-              />
-            </SwitcherWrapper>
+          <Text variant={TextVariant.SECONDARY} weight={TextWeight.MEDIUM}>
+            Enabled
+          </Text>
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+            {state.isEnabled && summary && (
+              <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
+                {summary}
+              </Text>
+            )}
+            <ToggleInput
+              size={InputSize.LARGE}
+              value={state.isEnabled}
+              onChange={handleEnabledChange}
+            />
           </FlexWrapper>
-          {state.frequency === PipelineScheduleFrequency.WEEKLY && (
-            <FlexWrapper
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.SPACE_BETWEEN}
-              fillWidth
-            >
-              <Text variant={TextVariant.SECONDARY}>Run on</Text>
-              <MultiSelectInput
-                options={PIPELINE_SCHEDULE_DAY_OPTIONS}
-                value={selectedDayOptions}
-                onChange={handleDaysChange}
-                size={InputSize.LARGE}
-                width={PIPELINE_SCHEDULE_INPUT_WIDTH}
-                placeholder="Select days"
-                isDisabled={isDisabled}
-              />
-            </FlexWrapper>
-          )}
-          {state.frequency === PipelineScheduleFrequency.MONTHLY && (
-            <FlexWrapper
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.SPACE_BETWEEN}
-              fillWidth
-            >
-              <Text variant={TextVariant.SECONDARY}>On the</Text>
-              <SelectInput
-                options={PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS}
-                value={selectedDayOfMonthOption}
-                onChange={handleDayOfMonthChange}
-                size={InputSize.LARGE}
-                width={PIPELINE_SCHEDULE_INPUT_WIDTH}
-                isDisabled={isDisabled}
-              />
-            </FlexWrapper>
-          )}
-          {state.frequency !== PipelineScheduleFrequency.HOURLY && (
-            <FlexWrapper
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.SPACE_BETWEEN}
-              fillWidth
-            >
-              <Text variant={TextVariant.SECONDARY}>At</Text>
-              <SelectInput
-                options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
-                value={selectedHourOption}
-                onChange={handleHourChange}
-                size={InputSize.LARGE}
-                width={PIPELINE_SCHEDULE_INPUT_WIDTH}
-                isDisabled={isDisabled}
-              />
-            </FlexWrapper>
-          )}
-          {state.frequency !== PipelineScheduleFrequency.HOURLY && (
-            <FlexWrapper
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.SPACE_BETWEEN}
-              fillWidth
-            >
-              <Text variant={TextVariant.SECONDARY}>Timezone</Text>
-              <SelectInput
-                options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
-                value={selectedTimezoneOption}
-                onChange={handleTimezoneChange}
-                onSearch={handleTimezoneSearch}
-                debounceMs={100}
-                size={InputSize.LARGE}
-                width={PIPELINE_SCHEDULE_INPUT_WIDTH}
-                isDisabled={isDisabled}
-              />
-            </FlexWrapper>
-          )}
         </FlexWrapper>
-      </Widget>
-    </FlexWrapper>
+        <CollapsibleContent $isOpen={state.isEnabled}>
+          <CollapsibleContentInner>
+            <HorizontalDivider />
+            <FlexWrapper
+              direction={FlexDirection.COLUMN}
+              gap={FlexGap.MEDIUM}
+              padding="16px"
+              fillWidth
+            >
+              <FlexWrapper
+                alignItems={AlignItems.CENTER}
+                justifyContent={JustifyContent.SPACE_BETWEEN}
+                fillWidth
+              >
+                <Text variant={TextVariant.SECONDARY}>Frequency</Text>
+                <SwitcherInput
+                  items={frequencyItems}
+                  size={InputSize.LARGE}
+                  selectedId={state.frequency}
+                />
+              </FlexWrapper>
+              {state.frequency === PipelineScheduleFrequency.WEEKLY && (
+                <FlexWrapper
+                  alignItems={AlignItems.CENTER}
+                  justifyContent={JustifyContent.SPACE_BETWEEN}
+                  fillWidth
+                >
+                  <Text variant={TextVariant.SECONDARY}>Run on</Text>
+                  <MultiSelectInput
+                    options={PIPELINE_SCHEDULE_DAY_OPTIONS}
+                    value={selectedDayOptions}
+                    onChange={handleDaysChange}
+                    size={InputSize.LARGE}
+                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                    placeholder="Select days"
+                  />
+                </FlexWrapper>
+              )}
+              {state.frequency === PipelineScheduleFrequency.MONTHLY && (
+                <FlexWrapper
+                  alignItems={AlignItems.CENTER}
+                  justifyContent={JustifyContent.SPACE_BETWEEN}
+                  fillWidth
+                >
+                  <Text variant={TextVariant.SECONDARY}>On the</Text>
+                  <SelectInput
+                    options={PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS}
+                    value={selectedDayOfMonthOption}
+                    onChange={handleDayOfMonthChange}
+                    size={InputSize.LARGE}
+                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                  />
+                </FlexWrapper>
+              )}
+              {state.frequency !== PipelineScheduleFrequency.HOURLY && (
+                <FlexWrapper
+                  alignItems={AlignItems.CENTER}
+                  justifyContent={JustifyContent.SPACE_BETWEEN}
+                  fillWidth
+                >
+                  <Text variant={TextVariant.SECONDARY}>At</Text>
+                  <SelectInput
+                    options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
+                    value={selectedHourOption}
+                    onChange={handleHourChange}
+                    size={InputSize.LARGE}
+                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                  />
+                </FlexWrapper>
+              )}
+              {state.frequency !== PipelineScheduleFrequency.HOURLY && (
+                <FlexWrapper
+                  alignItems={AlignItems.CENTER}
+                  justifyContent={JustifyContent.SPACE_BETWEEN}
+                  fillWidth
+                >
+                  <Text variant={TextVariant.SECONDARY}>Timezone</Text>
+                  <SelectInput
+                    options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
+                    value={selectedTimezoneOption}
+                    onChange={handleTimezoneChange}
+                    onSearch={handleTimezoneSearch}
+                    debounceMs={100}
+                    size={InputSize.LARGE}
+                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                  />
+                </FlexWrapper>
+              )}
+            </FlexWrapper>
+          </CollapsibleContentInner>
+        </CollapsibleContent>
+      </FlexWrapper>
+    </Widget>
   );
 };
 

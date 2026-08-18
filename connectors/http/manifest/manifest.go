@@ -108,12 +108,12 @@ type Defaults struct {
 // new HTTP plumbing is required.
 type Discovery struct {
 	From  string      `yaml:"from"`  // name of the Resource that lists togglable items
-	Map   ResourceMap `yaml:"map"`   // projection from a record to a pipeline.Resource
+	Map   ResourceMap `yaml:"map"`   // projection from a record to a discoverable resource
 	Scope ScopeSpec   `yaml:"scope"` // how enabled selections filter extraction
 }
 
-// ResourceMap projects a JSON record (from the Discovery.From stream) to the
-// fields of a pipeline.Resource. Paths are JSONPath-style ($.foo.bar).
+// ResourceMap projects a JSON record (from the Discovery.From stream) to
+// discoverable-resource fields. Paths are JSONPath-style ($.foo.bar).
 type ResourceMap struct {
 	Kind         string `yaml:"kind"` // literal value, e.g. "channel"
 	IDPath       string `yaml:"id"`   // required

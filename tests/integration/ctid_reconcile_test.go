@@ -33,7 +33,7 @@ func TestCtidReconcileHorizon(t *testing.T) {
 	}
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "ctid", "shard_pages": 1})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "scan_strategy": "ctid", "shard_pages": 1})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()
@@ -114,7 +114,7 @@ func TestCtidRewriteGuard(t *testing.T) {
 	}
 
 	src := pgsource.New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "read_mode": "ctid", "shard_pages": 1})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "scan_strategy": "ctid", "shard_pages": 1})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
 	defer func() { _ = src.Teardown(ctx) }()

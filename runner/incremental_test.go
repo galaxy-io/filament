@@ -18,7 +18,7 @@ func TestScheduledCDCLoadsPipelineCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	spec := filament.RunSpec{
-		Run: "run-b", PipelineID: "pipe", PipelineVersionID: 2,
+		Run: "run-b", PipelineID: "pipe", PipelineVersionID: "version-2",
 		CheckpointRoute: "route/source/sink/cdc", Resources: []string{"users"},
 	}
 	key, _ := spec.ResourceCheckpointKey("users")
@@ -103,7 +103,7 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	store := memory.New()
 	plan := filament.IngestionPlan{}
 	base := filament.RunSpec{
-		Run: "run-a", PipelineID: "pipe", PipelineVersionID: 1, CheckpointRoute: "route/source/sink",
+		Run: "run-a", PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink",
 		Source: filament.Ref{Provider: "test"}, Resources: []string{"users"},
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 		CursorConfigs:  map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at", LookbackSeconds: 300}},
@@ -161,5 +161,24 @@ func TestResolveIngestionPlanUsesInsertOrderForSnapshotUpsert(t *testing.T) {
 	}
 	if got := plan.WritePolicies["users"].Version.Strategy; got != filament.VersionInsertOrder {
 		t.Fatalf("version strategy = %q, want %q", got, filament.VersionInsertOrder)
+	}
+}
+
+func TestIncrementalAppendFailureIsNotResumable(t *testing.T) {
+	spec := filament.RunSpec{
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalAppend},
+	}
+	plan := filament.IngestionPlan{WritePolicies: map[string]filament.WritePolicy{
+		"users": filament.WritePolicyForIngestion(filament.IngestionIncrementalAppend),
+	}}
+	if isResumableRun(spec, plan) {
+		t.Fatal("incremental append must abort instead of resuming into preserved append data")
+	}
+
+	spec.IngestionTypes["users"] = filament.IngestionIncrementalUpsert
+	plan.WritePolicies["users"] = filament.WritePolicyForIngestion(filament.IngestionIncrementalUpsert)
+	if !isResumableRun(spec, plan) {
+		t.Fatal("incremental upsert should remain resumable")
 	}
 }

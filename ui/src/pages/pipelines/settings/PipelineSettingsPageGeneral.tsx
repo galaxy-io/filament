@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { SlidersIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
@@ -12,7 +11,7 @@ import FlexWrapper, {
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput, { TextAreaSize } from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -76,11 +75,10 @@ const PipelineSettingsPageGeneral = () => {
 
   const handleSave = () => {
     const request = create(UpdatePipelineRequestSchema, {
-      pipeline: {
-        ...pipeline,
-        name: state.name.trim(),
-        description: state.description.trim(),
-      },
+      tenantId: pipeline.tenantId,
+      pipelineId: pipeline.id,
+      name: state.name.trim(),
+      description: state.description.trim(),
     });
 
     updatePipeline(request, {
@@ -102,7 +100,7 @@ const PipelineSettingsPageGeneral = () => {
   };
 
   return (
-    <Accordion header="General" icon={SlidersIcon} isOpenInitial>
+    <Accordion header="General" isOpenInitial>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
         <TextInput
           value={state.name}
@@ -115,7 +113,7 @@ const PipelineSettingsPageGeneral = () => {
         <TextAreaInput
           value={state.description}
           onChange={handleDescriptionChange}
-          size={TextAreaSize.LARGE}
+          size={InputSize.LARGE}
           placeholder="Optional description"
           label="Description"
           fillWidth

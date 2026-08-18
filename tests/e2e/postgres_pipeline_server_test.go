@@ -112,10 +112,11 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	var edges []*ingestionv1.PipelineEdge
 	for _, r := range resources {
 		edges = append(edges, &ingestionv1.PipelineEdge{
-			FromNode:      "src",
-			ToNode:        "dst",
-			Resource:      r,
-			IngestionType: ingestionv1.IngestionType_INGESTION_TYPE_FULL_REPLACE,
+			FromNode:  "src",
+			ToNode:    "dst",
+			Resource:  r,
+			ReadMode:  ingestionv1.ReadMode_READ_MODE_FULL,
+			WriteMode: ingestionv1.WriteMode_WRITE_MODE_REPLACE,
 		})
 	}
 	created, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
@@ -127,7 +128,8 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	}
 	pipelineID := created.Msg.GetPipeline().GetId()
 	if _, err := api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
-		PipelineId: pipelineID, Nodes: nodes, Edges: edges,
+		PipelineId: pipelineID,
+		Graph:      &ingestionv1.PipelineGraph{Nodes: nodes, Edges: edges},
 	})); err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
@@ -140,15 +142,16 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunPipeline: %v", err)
 	}
-	if len(runResp.Msg.GetRuns()) == 0 {
+	if len(runResp.Msg.GetEdgeRuns()) == 0 {
 		t.Fatal("RunPipeline produced no runs")
 	}
 
-	for _, b := range runResp.Msg.GetRuns() {
-		final := waitRunStatus(t, ctx, store, filament.RunID(b.GetRunId()),
+	for _, er := range runResp.Msg.GetEdgeRuns() {
+		run := er.GetRun().GetId()
+		final := waitRunStatus(t, ctx, store, filament.RunID(run),
 			filament.RunCompleted, filament.RunFailed, filament.RunPartial)
 		if final.Status != filament.RunCompleted {
-			t.Fatalf("run %s status = %v, error = %q", b.GetRunId(), final.Status, final.Error)
+			t.Fatalf("run %s status = %v, error = %q", run, final.Status, final.Error)
 		}
 	}
 

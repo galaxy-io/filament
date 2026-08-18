@@ -1,6 +1,9 @@
 package postgres
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIncrementalCursorRequiresTimestamp(t *testing.T) {
 	for _, typ := range []string{"timestamp with time zone", "timestamp without time zone", "timestamp(3) with time zone", "timestamptz", "timestamptz(6)"} {
@@ -27,5 +30,26 @@ func TestIncrementalBoundsUsesCompoundStrictCursor(t *testing.T) {
 	_, args = incrementalBounds(cols, []string{"2026-07-31T23:55:00Z"}, []string{"2026-08-03T00:00:00Z", "z", "9"})
 	if len(args) != 4 {
 		t.Fatalf("lookback args = %v", args)
+	}
+}
+
+func TestIncrementalPageSQLHonorsConfiguredEncoding(t *testing.T) {
+	cursor := pkColumn{name: "updated_at", typ: "timestamptz"}
+	pks := []pkColumn{{name: "id", typ: "bigint"}}
+	const qualified = `"public"."users"`
+	const where = `t."updated_at" IS NOT NULL`
+	const order = `t."updated_at", t."id"`
+
+	native := incrementalPageSQL(qualified, cursor, pks, &rowEncoder{selectList: `t."id", t."updated_at", t."name"`}, where, order, 1000)
+	if strings.Contains(native, "to_jsonb(t)") || !strings.HasPrefix(native, `SELECT t."id", t."updated_at", t."name"`) {
+		t.Fatalf("native incremental query = %q", native)
+	}
+	if !strings.HasSuffix(native, "LIMIT 1000") {
+		t.Fatalf("native incremental query has no page limit: %q", native)
+	}
+
+	jsonb := incrementalPageSQL(qualified, cursor, pks, nil, where, order, 1000)
+	if !strings.Contains(jsonb, "to_jsonb(t)::text AS data") {
+		t.Fatalf("jsonb incremental query = %q", jsonb)
 	}
 }

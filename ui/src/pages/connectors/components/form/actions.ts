@@ -2,7 +2,7 @@ import type { JsonValue } from "@bufbuild/protobuf";
 
 import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { ValidationError } from "@/gen/ingestion/v1/providers_pb";
+import type { ValidationError } from "@/gen/ingestion/v1/connectors_pb";
 
 import type { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
 

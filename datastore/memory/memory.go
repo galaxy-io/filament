@@ -136,16 +136,6 @@ func (s *Store) saveRunLocked(r filament.RunState) error {
 	if r.Status == filament.RunScheduled {
 		return nil
 	}
-	if p := s.pipelines[r.Request.PipelineID]; p != nil && (p.LastRunAt == 0 || p.LastRunAt <= r.StartedAt.UnixMilli()) {
-		p.LastRunVersionId = r.Request.PipelineVersionID
-		p.LastRunAt = r.StartedAt.UnixMilli()
-		p.LastRunStatus = pipelineRunStatusToProto(r.Status)
-		p.LastRunBytes = r.Bytes
-		p.LastRunEndedAt = 0
-		if r.FinishedAt != nil {
-			p.LastRunEndedAt = r.FinishedAt.UnixMilli()
-		}
-	}
 	return nil
 }
 
@@ -162,8 +152,8 @@ func mergeRunTimes(prev, next filament.RunState) filament.RunState {
 	next.ScheduledAt = firstSet(prev.ScheduledAt, next.ScheduledAt)
 	next.RequestedAt = firstSet(prev.RequestedAt, next.RequestedAt)
 	next.StartedAt = firstSet(prev.StartedAt, next.StartedAt)
-	if prev.FinishedAt != nil {
-		next.FinishedAt = prev.FinishedAt
+	if prev.EndedAt != nil {
+		next.EndedAt = prev.EndedAt
 	}
 	next.UpdatedAt = now
 	return next
@@ -214,6 +204,11 @@ func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.deleteRunLocked(id)
+	return nil
+}
+
+func (s *Store) deleteRunLocked(id filament.RunID) {
 	delete(s.runs, id)
 	delete(s.resources, id)
 	for key := range s.checkpoints {
@@ -221,7 +216,6 @@ func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 			delete(s.checkpoints, key)
 		}
 	}
-	return nil
 }
 
 // ListRuns returns runs matching the filter, newest StartedAt first. A run that

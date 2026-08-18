@@ -10,7 +10,7 @@ import "ingestion/v1/runs.proto";
 // PipelineNode is one source or sink on the canvas. connection_id references the
 // reusable Connection that supplies the connector and connection-scoped config
 // (host/bucket/credentials). config/secret_refs are the per-node PIPELINE-scoped
-// overlay (prefix, path, target table, write mode) shallow-merged over the
+// overlay (prefix, path, target table) shallow-merged over the
 // connection config at run time, with the node overlay winning on key conflicts.
 message PipelineNode {
   string id = 1;
@@ -22,14 +22,14 @@ message PipelineNode {
 
 // PipelineEdge routes from a source node to a sink node. An empty resource routes
 // all enabled resources; a named resource is an additive per-resource route.
-// read_mode and write_mode are the user's two levers; ingestion_type is derived
-// from them (and the source connection's replication mode) by the server at
-// save time — clients never set it. Edges on a CDC connection carry no levers.
+// Standard connections carry a per-resource read mode and a destination-route
+// write mode. All edges on the same source-to-destination route must use the
+// same write mode. CDC connections carry neither lever because the connection
+// implies the complete stream recipe.
 message PipelineEdge {
   string from_node = 1;
   string resource = 2;
   string to_node = 3;
-  IngestionType ingestion_type = 4;
   string selector = 5;
   // cursors contains durable-incremental overrides. An all-resource edge may
   // configure several resources; a resource-specific edge may configure only
@@ -45,29 +45,42 @@ message ResourceCursorConfig {
   int64 lookback_seconds = 3;
 }
 
+message PipelineGraph {
+  repeated PipelineNode nodes = 1;
+  repeated PipelineEdge edges = 2;
+}
+
 message PipelineVersion {
   string id = 1;
   int64 version = 2;
-  repeated PipelineNode nodes = 3;
-  repeated PipelineEdge edges = 4;
   int64 created_at = 5;
+  PipelineGraph graph = 6;
+  int64 updated_at = 7;
+  string created_by_user_id = 8;
+  string updated_by_user_id = 9;
+  string deleted_by_user_id = 10;
 }
 
-// Pipeline is mutable metadata plus a summary of its current graph version and
-// most recent run.
+// Pipeline is mutable metadata plus a pointer to its current graph version.
 message Pipeline {
   string tenant_id = 1;
   string id = 2;
   string name = 3;
   string description = 4;
-  int64 current_version_id = 5;
-  int64 last_run_version_id = 6;
-  int64 last_run_at = 7;
-  RunStatus last_run_status = 8;
-  int64 last_run_bytes = 9;
-  int64 last_run_ended_at = 10;
+  PipelineVersion current_version = 5;
+  repeated PipelineVersion versions = 6;
+  RunInfo last_run = 7;
+  PipelineSchedule schedule = 8;
   int64 created_at = 11;
   int64 deleted_at = 12;
+  int64 updated_at = 13;
+  string created_by_user_id = 14;
+  string updated_by_user_id = 15;
+  string deleted_by_user_id = 16;
+  // worker_configuration shapes this pipeline's runs by default. It lives on
+  // the pipeline rather than the version so editing it cannot mint a version
+  // and orphan the resource checkpoints keyed by the old one.
+  WorkerConfiguration worker_configuration = 17;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -81,7 +94,7 @@ enum PipelineScheduleOverlapPolicy {
 message PipelineScheduleConfig {
   string cron = 1;
   string timezone = 2;
-  bool enabled = 3;
+  bool is_enabled = 3;
   PipelineScheduleOverlapPolicy overlap_policy = 4;
 }
 
@@ -99,6 +112,9 @@ message CreatePipelineRequest {
   string name = 2;
   string description = 3;
   PipelineScheduleConfig schedule = 4;
+  // worker_configuration shapes this pipeline's runs. Omit it to configure the
+  // pipeline's workers later through UpdatePipeline.
+  WorkerConfiguration worker_configuration = 5;
 }
 
 message CreatePipelineResponse {
@@ -126,36 +142,10 @@ message UpdatePipelineScheduleResponse {
   PipelineSchedule schedule = 1;
 }
 
-message DeletePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-}
-
-message DeletePipelineScheduleResponse {}
-
-message PausePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-}
-
-message PausePipelineScheduleResponse {
-  PipelineSchedule schedule = 1;
-}
-
-message ResumePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-}
-
-message ResumePipelineScheduleResponse {
-  PipelineSchedule schedule = 1;
-}
-
 message CreatePipelineVersionRequest {
   string tenant_id = 1;
   string pipeline_id = 2;
-  repeated PipelineNode nodes = 3;
-  repeated PipelineEdge edges = 4;
+  PipelineGraph graph = 5;
 }
 
 message CreatePipelineVersionResponse {
@@ -164,7 +154,10 @@ message CreatePipelineVersionResponse {
 
 message UpdatePipelineRequest {
   string tenant_id = 1;
-  Pipeline pipeline = 2;
+  string pipeline_id = 2;
+  string name = 3;
+  string description = 4;
+  WorkerConfiguration worker_configuration = 5;
 }
 
 message UpdatePipelineResponse {
@@ -174,13 +167,13 @@ message UpdatePipelineResponse {
 message GetPipelineRequest {
   string tenant_id = 1;
   string id = 2;
+  bool include_versions = 3;
+  bool include_last_run = 4;
+  bool include_schedule = 5;
 }
 
 message GetPipelineResponse {
   Pipeline pipeline = 1;
-  PipelineVersion current_version = 2;
-  repeated PipelineVersion versions = 3;
-  PipelineSchedule schedule = 4;
 }
 
 message GetPipelineVersionRequest {
@@ -208,6 +201,9 @@ message ListPipelinesRequest {
   string tenant_id = 1;
   bool include_deleted = 2;
   PaginationRequest pagination = 3;
+  bool include_versions = 4;
+  bool include_last_run = 5;
+  bool include_schedule = 6;
 }
 
 message ListPipelinesResponse {

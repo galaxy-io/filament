@@ -28,7 +28,7 @@ export const mapConnectionIdToFlowConnection = (
 };
 
 export const mapVersionNodesToFlowEndpoints = (
-  nodes: PipelineVersion["nodes"],
+  nodes: NonNullable<PipelineVersion["graph"]>["nodes"],
   connections: Connection[],
 ): PipelineFlowEndpoints => {
   const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));

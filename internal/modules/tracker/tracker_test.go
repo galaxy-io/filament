@@ -74,8 +74,8 @@ func TestTrackerFoldsRunLifecycle(t *testing.T) {
 	if state.Status != filament.RunCompleted {
 		t.Fatalf("status after run.completed = %v, want completed", state.Status)
 	}
-	if state.FinishedAt == nil {
-		t.Fatal("run.completed did not stamp FinishedAt")
+	if state.EndedAt == nil {
+		t.Fatal("run.completed did not stamp EndedAt")
 	}
 }
 
@@ -110,8 +110,8 @@ func TestTrackerTerminalStampIsFirstWriteWins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load run: %v", err)
 	}
-	if state.FinishedAt == nil || !state.FinishedAt.Equal(first) {
-		t.Fatalf("FinishedAt = %v, want first stamp %v", state.FinishedAt, first)
+	if state.EndedAt == nil || !state.EndedAt.Equal(first) {
+		t.Fatalf("EndedAt = %v, want first stamp %v", state.EndedAt, first)
 	}
 }
 

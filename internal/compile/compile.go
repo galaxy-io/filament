@@ -23,8 +23,8 @@ import (
 var ErrPrecondition = errors.New("pipeline not runnable")
 
 // ErrInvalid marks a pipeline definition the compiler rejects: edges with
-// conflicting ingestion types or cursors, references to missing nodes or
-// connections, or a node overlay that violates field scopes.
+// conflicting read modes, route write modes, or cursors; references to missing
+// nodes or connections; or a node overlay that violates field scopes.
 var ErrInvalid = errors.New("invalid pipeline")
 
 // Compiler collapses a pipeline's current version into ready-to-submit run
@@ -43,8 +43,11 @@ type CompiledRun struct {
 }
 
 // Compile loads the pipeline's current version and collapses its edges into
-// per-route run requests. token salts each route's idempotency key.
-func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID) ([]CompiledRun, error) {
+// per-route run requests. token salts each route's idempotency key. workerCfg
+// overrides the pipeline's own worker configuration field by field for this
+// call only; the resolved result is stamped onto every request, so a later edit
+// to the pipeline cannot reshape a run already requested.
+func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration) ([]CompiledRun, error) {
 	pipeline, err := c.Store.LoadPipeline(ctx, pipelineID)
 	if err != nil {
 		return nil, fmt.Errorf("load pipeline %q: %w", pipelineID, err)
@@ -52,7 +55,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
 	}
-	version, err := c.Store.LoadPipelineVersion(ctx, pipeline.GetId(), pipeline.GetCurrentVersionId())
+	version, err := c.Store.LoadPipelineVersion(ctx, pipeline.GetId(), 0)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
 	}
@@ -61,7 +64,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	}
 	nodes := map[string]*ingestionv1.PipelineNode{}
 	connections := map[string]filament.Connection{}
-	for _, node := range version.GetNodes() {
+	for _, node := range version.GetGraph().GetNodes() {
 		nodes[node.GetId()] = node
 		if _, ok := connections[node.GetConnectionId()]; !ok {
 			conn, err := c.Store.LoadConnection(ctx, node.GetConnectionId())
@@ -75,7 +78,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		}
 	}
 
-	groups, err := groupEdges(version.GetEdges(), nodes)
+	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +86,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	if tenant == "" {
 		tenant = c.DefaultTenant
 	}
+	worker := workerCfg.Merge(WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration()))
 	compiled := make([]CompiledRun, 0, len(groups))
 	for _, group := range groups {
 		key := group.key
@@ -106,22 +110,41 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
+		source, err := c.Sources.Resolve(sourceRef.Provider)
+		if err != nil {
+			return nil, err
+		}
+		ingestionTypes := make(map[string]filament.IngestionType, len(group.readModes))
+		if filament.ReplicationOf(source, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC {
+			for resource := range group.readModes {
+				ingestionTypes[resource] = filament.IngestionCDC
+			}
+		} else {
+			for resource, mode := range group.readModes {
+				ingestionType, err := filament.IngestionFor(mode, group.writeMode)
+				if err != nil {
+					return nil, err
+				}
+				ingestionTypes[resource] = ingestionType
+			}
+		}
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
-			Tenant:             filament.TenantID(tenant),
-			PipelineID:         pipeline.GetId(),
-			PipelineVersionID:  version.GetVersion(),
-			IdempotencyKey:     fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:             sourceRef,
-			Sink:               sinkRef,
-			SourceConnectionID: group.source.GetConnectionId(),
-			SinkConnectionID:   group.sink.GetConnectionId(),
-			Resources:          resources,
-			Selectors:          selectors,
-			IngestionTypes:     group.ingestionTypes,
-			CheckpointRoute:    key,
-			CursorConfigs:      group.cursorConfigs,
-			Options:            options,
-			ScheduleID:         scheduleID,
+			Tenant:              filament.TenantID(tenant),
+			PipelineID:          pipeline.GetId(),
+			PipelineVersionID:   version.GetId(),
+			IdempotencyKey:      fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+			Source:              sourceRef,
+			Sink:                sinkRef,
+			SourceConnectionID:  group.source.GetConnectionId(),
+			SinkConnectionID:    group.sink.GetConnectionId(),
+			Resources:           resources,
+			Selectors:           selectors,
+			IngestionTypes:      ingestionTypes,
+			CheckpointRoute:     key,
+			CursorConfigs:       group.cursorConfigs,
+			Options:             options,
+			ScheduleID:          scheduleID,
+			WorkerConfiguration: worker,
 		}})
 	}
 	return compiled, nil

@@ -34,6 +34,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 				Resources:   opts.Resources,
 				Checkpoints: checkpoints,
 				Limit:       opts.Limit,
+				Observe:     opts.Observe,
 			})
 		}, nil
 	}
@@ -157,13 +158,24 @@ func loadChangeCheckpoints(ctx context.Context, ds filament.DataStore, spec fila
 	return out, nil
 }
 
-// isResumableRun reports whether a failure can leave resumable progress: some
-// resource checkpoints and the run is not a CDC catch-up cycle.
+// isResumableRun reports whether a failure can leave progress that is safe to
+// replay into the sink. Append writes preserve already-applied rows, so retrying
+// an incremental append would duplicate them even when the source resumes from
+// its last checkpoint.
 func isResumableRun(spec filament.RunSpec, plan filament.IngestionPlan) bool {
 	if plan.RequiresCDC {
 		return false
 	}
 	incremental, checkpointed := partitionCheckpointing(spec)
+	for _, resource := range incremental {
+		policy, ok := plan.WritePolicies[resource]
+		if !ok {
+			policy, ok = plan.WritePolicies[""]
+		}
+		if !ok || policy.Capability.Mode == filament.WriteAppend {
+			return false
+		}
+	}
 	return len(incremental)+len(checkpointed) > 0
 }
 
