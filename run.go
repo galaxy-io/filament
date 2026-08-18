@@ -489,12 +489,15 @@ func (c WritePolicyCapability) Accepts(op Operation) bool {
 	return slices.Contains(c.AcceptsOps, op)
 }
 
-// ValidateRecords rejects the first record whose operation the policy does
-// not accept.
-func (p WritePolicy) ValidateRecords(resource string, records []Record) error {
-	for _, rec := range records {
-		if !p.Capability.Accepts(rec.Op) {
-			return fmt.Errorf("write policy %q does not accept %s record for resource %q", p.Capability.Mode, OperationName(rec.Op), resource)
+// ValidateOps rejects the first row whose operation the policy does not accept.
+// A nil ops (all inserts) is accepted by every policy.
+func (p WritePolicy) ValidateOps(resource string, ops []Operation) error {
+	if len(p.Capability.AcceptsOps) == 0 {
+		return nil
+	}
+	for _, op := range ops {
+		if !p.Capability.Accepts(op) {
+			return fmt.Errorf("write policy %q does not accept %s row for resource %q", p.Capability.Mode, OperationName(op), resource)
 		}
 	}
 	return nil

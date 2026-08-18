@@ -1,13 +1,9 @@
 // Package stdout implements the filament.Sink interface by printing batches as NDJSON.
-// It is the simplest concrete sink: it serializes each record to its own JSON line,
+// It is the simplest concrete sink: it renders each row as its own JSON line,
 // computes the write-side CRC the engine verifies against the read CRC, and on
 // Commit prints a one-line manifest summarizing the run. It holds no buffering or
 // transactional state beyond per-run accounting, so Abort is a no-op marker — useful
 // as the reference a real object-store sink is checked against.
-//
-// It is a development sink, so it serializes records itself rather than emitting the
-// integrity canonical encoding (which is a hash preimage, not guaranteed valid JSON)
-// — keeping the hot CRC path free of per-record JSON validation.
 package stdout
 
 import (
@@ -19,7 +15,11 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/apache/arrow-go/v18/arrow"
+
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/connectors/internal/ndjson"
 )
 
 // Sink writes batches as NDJSON to an io.Writer (os.Stdout by default).
@@ -28,6 +28,8 @@ type Sink struct {
 	w       io.Writer
 	run     filament.RunID
 	acct    map[string]*resourceAcct
+	enc     map[*arrow.Schema]*ndjson.Encoder
+	buf     []byte
 	aborted bool
 }
 
@@ -46,7 +48,7 @@ func WithWriter(w io.Writer) Option { return func(s *Sink) { s.w = w } }
 
 // New returns a stdout sink. By default it writes to os.Stdout.
 func New(opts ...Option) *Sink {
-	s := &Sink{w: os.Stdout, acct: map[string]*resourceAcct{}}
+	s := &Sink{w: os.Stdout, acct: map[string]*resourceAcct{}, enc: map[*arrow.Schema]*ndjson.Encoder{}}
 	for _, o := range opts {
 		o(s)
 	}
@@ -80,47 +82,48 @@ func (s *Sink) Open(_ context.Context, run filament.RunSpec) error {
 	defer s.mu.Unlock()
 	s.run = run.Run
 	s.acct = map[string]*resourceAcct{}
+	s.enc = map[*arrow.Schema]*ndjson.Encoder{}
 	s.aborted = false
 	return nil
 }
 
-// Write prints each record as one canonical NDJSON line and returns a receipt
-// whose WriteCRC is computed over the same records the batcher hashed for ReadCRC
-// — so the engine's integrity check passes unless the stream write itself failed.
+// Write prints each row as one NDJSON line and returns a receipt whose WriteCRC
+// is computed over the same batch the writer hashed for ReadCRC — so the engine's
+// integrity check passes unless the stream write itself failed.
 func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var nbytes int64
-	for i := range b.Records {
-		line, err := encodeRecord(b.Records[i])
-		if err != nil {
-			return filament.WriteReceipt{}, fmt.Errorf("stdout: encode %s: %w", b.Resource, err)
-		}
-		if _, err := s.w.Write(line); err != nil {
-			return filament.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
-		}
-		if _, err := s.w.Write(newline); err != nil {
-			return filament.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
-		}
-		nbytes += int64(len(line)) + 1
+	enc := s.enc[b.Rows.Schema()]
+	if enc == nil {
+		enc = ndjson.NewEncoder(b.Rows.Schema())
+		s.enc[b.Rows.Schema()] = enc
 	}
+	buf := s.buf[:0]
+	for i := range b.NumRows() {
+		buf = enc.AppendRow(buf, b.Rows, i)
+		buf = append(buf, '\n')
+	}
+	s.buf = buf
+	if _, err := s.w.Write(buf); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
+	}
+	nbytes := int64(len(buf))
 
 	a := s.acct[b.Resource]
 	if a == nil {
 		a = &resourceAcct{}
 		s.acct[b.Resource] = a
 	}
-	a.records += int64(len(b.Records))
+	a.records += int64(b.NumRows())
 	a.bytes += nbytes
 	a.batches++
 
-	crc, _ := filament.CRC32C(b.Records)
 	return filament.WriteReceipt{
 		URI:      fmt.Sprintf("stdout://%s/%s", s.run, b.Resource),
 		Bytes:    nbytes,
-		Rows:     len(b.Records),
-		WriteCRC: crc,
+		Rows:     b.NumRows(),
+		WriteCRC: batch.CRC(b.Rows, b.Ops),
 	}, nil
 }
 
@@ -128,7 +131,7 @@ func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt
 func (s *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteAppend, filament.WriteReplace:
-		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
+		if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("stdout: %w", err)
 		}
 		return s.Write(ctx, b)
@@ -173,31 +176,6 @@ func (s *Sink) Abort(_ context.Context) error {
 	defer s.mu.Unlock()
 	s.aborted = true
 	return nil
-}
-
-var newline = []byte{'\n'}
-
-// recordLine is the dev-readable JSON shape emitted per record.
-type recordLine struct {
-	ID   string          `json:"id"`
-	Op   int             `json:"op"`
-	Data json.RawMessage `json:"data"`
-}
-
-// encodeRecord serializes one record to a JSON line. A payload that is already valid
-// JSON is embedded raw; anything else is emitted as a JSON string so the line is
-// always valid JSON. This is the stdout sink's own concern — the integrity CRC uses
-// the canonical encoding (filament.CRC32C), which does no such validation.
-func encodeRecord(r filament.Record) ([]byte, error) {
-	data := json.RawMessage(r.Data)
-	if !json.Valid(r.Data) {
-		s, err := json.Marshal(string(r.Data))
-		if err != nil {
-			return nil, err
-		}
-		data = s
-	}
-	return json.Marshal(recordLine{ID: r.ID, Op: int(r.Op), Data: data})
 }
 
 // manifest is the commit summary printed to the stream.

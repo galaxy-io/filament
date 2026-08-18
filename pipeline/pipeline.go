@@ -1,15 +1,13 @@
-// Package pipeline implements the batcher → writer → integrity extraction loop.
+// Package pipeline implements the builder → writer → integrity extraction loop.
 //
-// A Source pushes filament.Records into the inlet (Records). A pool of batcher
-// goroutines — sharded by resource so a resource is always handled by the same
-// batcher — accumulates records and, on a row-count threshold or a timer tick,
-// flushes a filament.Batch. A pool of writer goroutines hands each batch to the Sink:
-// the writer computes the read-side CRC and compares it against the Sink's
-// write-side CRC, publishing facts (batch buffered/written, integrity verified,
-// chunk divergence) via an injected emit callback. Computing the read CRC in the
-// (parallel) writers rather than the batcher keeps the per-record batcher work to
-// a map-append. The pipeline owns no bus, sink-format, or orchestration knowledge
-// that lives in the engine that drives it.
+// A Source opens one filament.RowWriter per (resource, part) on the inlet and
+// appends rows into it. The writer is a batch.Builder that flushes a
+// filament.Batch on a row or byte threshold, or at the next row once the flush
+// timer has asked. A pool of writer goroutines hands each batch to the Sink: the
+// writer computes the read-side CRC and compares it against the Sink's write-side
+// CRC, publishing facts (batch buffered/written, integrity verified, chunk
+// divergence) via an injected emit callback. The pipeline owns no bus, sink-format,
+// or orchestration knowledge; that lives in the engine that drives it.
 package pipeline
 
 import (
@@ -19,6 +17,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -53,23 +52,25 @@ type Pipeline struct {
 	sink          filament.Sink
 	emit          func(events.Fact)
 	writePolicies map[string]filament.WritePolicy
-	batchRows     int
+	opts          batch.Options
 	flushIvl      time.Duration
 	writers       int // concurrent sink writers
-	shards        int // batcher goroutines; records route to a shard by resource hash
 	log           filament.Logger
 
-	ingestChs []chan filament.Record // one inlet channel per batcher shard
-	batchCh   chan filament.Batch
+	batchCh chan filament.Batch
 
-	nextSeq   func() uint64 // monotonic fact sequence for (tenant, run) dedup
-	pubMu     sync.Mutex    // serializes publish so concurrent writers emit facts safely
-	cancel    context.CancelFunc
-	done      chan struct{}
-	doneCh    sync.Once
-	batcherWg sync.WaitGroup // batcher shards; batchCh closes once all exit
-	wg        sync.WaitGroup // writer pool; Wait blocks on these
-	errVal    atomic.Pointer[error]
+	buildersMu sync.Mutex
+	builders   []*batch.Builder
+
+	nextSeq  func() uint64 // monotonic fact sequence for (tenant, run) dedup
+	pubMu    sync.Mutex    // serializes publish so concurrent writers emit facts safely
+	cancel   context.CancelFunc
+	done     chan struct{} // closed on cancel or fatal error; releases blocked builders
+	doneCh   sync.Once
+	tickStop chan struct{}
+	tickDone chan struct{}
+	wg       sync.WaitGroup // writer pool; Wait blocks on these
+	errVal   atomic.Pointer[error]
 }
 
 // New builds a Pipeline from cfg, applying defaults. It does not start goroutines.
@@ -85,9 +86,9 @@ func New(cfg Config) *Pipeline {
 	if ivl <= 0 {
 		ivl = defaultFlushInterval
 	}
-	parallelism := cfg.Options.SnapshotParallelism
-	if parallelism <= 0 {
-		parallelism = 1 // single writer + single batcher preserves ordering and the serial path
+	writers := cfg.Options.SnapshotParallelism
+	if writers <= 0 {
+		writers = 1 // a single writer preserves batch order
 	}
 	emit := cfg.Emit
 	if emit == nil {
@@ -98,82 +99,94 @@ func New(cfg Config) *Pipeline {
 		var seq atomic.Uint64
 		nextSeq = func() uint64 { return seq.Add(1) }
 	}
-	ingestChs := make([]chan filament.Record, parallelism)
-	for i := range ingestChs {
-		ingestChs[i] = make(chan filament.Record, rows*4)
-	}
 	return &Pipeline{
 		tenant:        cfg.Tenant,
 		run:           cfg.Run,
 		sink:          cfg.Sink,
 		emit:          emit,
 		writePolicies: cfg.WritePolicies,
-		batchRows:     rows,
+		opts:          batch.Options{MaxRows: rows, MaxBytes: cfg.Options.BatchMaxBytes},
 		flushIvl:      ivl,
-		writers:       parallelism,
-		shards:        parallelism,
+		writers:       writers,
 		log:           cfg.Log,
-		ingestChs:     ingestChs,
-		batchCh:       make(chan filament.Batch, 4),
+		batchCh:       make(chan filament.Batch, 2*writers),
 		nextSeq:       nextSeq,
 		done:          make(chan struct{}),
+		tickStop:      make(chan struct{}),
+		tickDone:      make(chan struct{}),
 	}
 }
 
-// Records returns the inlet a Source pushes into. Safe to call before Start.
-func (p *Pipeline) Records() filament.RecordSink {
-	return &inlet{chs: p.ingestChs, done: p.done, err: p.Err}
-}
+// Records returns the inlet a Source opens its row writers on. Safe to call
+// before Start.
+func (p *Pipeline) Records() filament.RecordSink { return &inlet{p: p} }
 
-// shardFor maps a resource to a batcher shard by FNV-1a hash, so every record of
-// a resource lands in the same batcher (preserving its per-resource chunk seq and
-// keyset order) while distinct resources spread across shards.
-func shardFor(resource string, n int) int {
-	if n <= 1 {
-		return 0
-	}
-	const offset, prime = uint32(2166136261), uint32(16777619)
-	h := offset
-	for i := range len(resource) {
-		h ^= uint32(resource[i])
-		h *= prime
-	}
-	return int(h % uint32(n)) //nolint:gosec // n is a small positive shard count
-}
-
-// Start launches the batcher shards and a pool of writer goroutines. The ctx
-// governs them; cancel it to stop the pipeline. With parallelism > 1 the Sink's
-// Apply is called concurrently (one batch per writer), so a parallel run requires
-// a Sink whose Apply is concurrent-safe.
+// Start launches the flush timer and a pool of writer goroutines. The ctx governs
+// them; cancel it to stop the pipeline. With parallelism > 1 the Sink's Apply is
+// called concurrently (one batch per writer), so a parallel run requires a Sink
+// whose Apply is concurrent-safe.
 func (p *Pipeline) Start(ctx context.Context) {
 	ctx, p.cancel = context.WithCancel(ctx)
 	// Cancellation must also release the inlet, or a Source blocked on a full
-	// shard channel deadlocks the run.
+	// batch channel deadlocks the run.
 	go func() {
 		<-ctx.Done()
 		p.doneCh.Do(func() { close(p.done) })
 	}()
-	p.batcherWg.Add(p.shards)
-	for i := range p.shards {
-		go p.batcher(ctx, i)
-	}
-	go func() { p.batcherWg.Wait(); close(p.batchCh) }()
+	go p.ticker(ctx)
 	p.wg.Add(p.writers)
 	for range p.writers {
 		go p.writer(ctx)
 	}
 }
 
-// CloseIngest signals that the Source has finished pushing. Call exactly once,
-// after Extract returns. Each batcher shard flushes its partial batches and exits.
-func (p *Pipeline) CloseIngest() {
-	for _, ch := range p.ingestChs {
-		close(ch)
+// ticker asks every builder to flush each interval, so a slow source's partial
+// chunks still move.
+func (p *Pipeline) ticker(ctx context.Context) {
+	defer close(p.tickDone)
+	t := time.NewTicker(p.flushIvl)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			p.buildersMu.Lock()
+			for _, b := range p.builders {
+				b.RequestFlush()
+			}
+			p.buildersMu.Unlock()
+		case <-p.tickStop:
+			return
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
-// Wait blocks until the writer pool exits (which happens after every batcher shard
-// has drained and closed batchCh), releases the pipeline context, and returns the
+// CloseIngest signals that the Source has finished pushing; extractErr is what
+// Extract returned. Call exactly once, after Extract returns. A clean finish
+// flushes every builder's remaining rows; a failed one discards them, since the
+// source may have stopped inside a row.
+func (p *Pipeline) CloseIngest(extractErr error) {
+	if p.cancel != nil { // started
+		close(p.tickStop)
+		<-p.tickDone
+	}
+	if extractErr == nil {
+		p.buildersMu.Lock()
+		builders := p.builders
+		p.buildersMu.Unlock()
+		for _, b := range builders {
+			if err := b.Flush(); err != nil {
+				p.setErr(err)
+				break
+			}
+		}
+	}
+	close(p.batchCh)
+}
+
+// Wait blocks until the writer pool exits (which happens after CloseIngest closes
+// the batch channel and it drains), releases the pipeline context, and returns the
 // first fatal error.
 func (p *Pipeline) Wait() error {
 	p.wg.Wait()
@@ -193,12 +206,14 @@ func (p *Pipeline) Err() error {
 func (p *Pipeline) setErr(err error) {
 	p.errVal.CompareAndSwap(nil, &err)
 	p.doneCh.Do(func() { close(p.done) })
-	p.cancel()
+	if p.cancel != nil {
+		p.cancel()
+	}
 }
 
 // publish stamps a fact with the run identity and a monotonic sequence, then
 // hands it to the emit callback. It holds pubMu so concurrent writers (and the
-// batcher) sequence and emit facts without racing the emit callback or the seq.
+// builders) sequence and emit facts without racing the emit callback or the seq.
 func (p *Pipeline) publish(f events.Fact) {
 	p.pubMu.Lock()
 	defer p.pubMu.Unlock()

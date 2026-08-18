@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -24,8 +25,9 @@ func (p *Pipeline) writer(ctx context.Context) {
 			continue
 		}
 
-		readCRC, _ := filament.CRC32C(b.Records)
+		readCRC := batch.CRC(b.Rows, b.Ops)
 		receipt, err := p.writeBatch(ctx, b)
+		b.Rows.Release()
 		if err != nil {
 			p.setErr(fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err))
 			return
@@ -34,7 +36,7 @@ func (p *Pipeline) writer(ctx context.Context) {
 		if receipt.WriteCRC == readCRC {
 			p.publish(events.NewFact(events.BatchWritten, events.Envelope{Resource: b.Resource},
 				events.BatchWrittenEvent{
-					Records: int64(len(b.Records)), Bytes: receipt.Bytes,
+					Records: int64(b.NumRows()), Bytes: receipt.Bytes,
 					URI: receipt.URI, CRC: receipt.WriteCRC,
 					Checkpoint: receiptCheckpoint(receipt, b),
 				}))

@@ -6,8 +6,6 @@ package sample
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"github.com/galaxy-io/filament"
 )
@@ -15,7 +13,7 @@ import (
 // defaultRows is emitted per resource when "rows" is not configured.
 const defaultRows = 3
 
-// Source generates synthetic records. One instance is created per run, then
+// Source generates synthetic rows. One instance is created per run, then
 // Configure sets the per-resource row count from the run's source config.
 type Source struct {
 	rows int
@@ -25,8 +23,9 @@ type Source struct {
 func New() *Source { return &Source{rows: defaultRows} }
 
 var (
-	_ filament.Source       = (*Source)(nil)
-	_ filament.Discoverable = (*Source)(nil)
+	_ filament.Source         = (*Source)(nil)
+	_ filament.Discoverable   = (*Source)(nil)
+	_ filament.SchemaProvider = (*Source)(nil)
 )
 
 // Spec describes the generator's config fields, modes, and write policies.
@@ -67,7 +66,7 @@ func (s *Source) Discover(context.Context, filament.DiscoverOpts) (filament.Disc
 	}}, nil
 }
 
-// Extract emits rows synthetic records for each requested resource (defaulting to
+// Extract emits rows synthetic rows for each requested resource (defaulting to
 // a single "items" resource when none are named), respecting cancellation and
 // pipeline backpressure via the sink.
 func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
@@ -80,17 +79,38 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 		rows = 1
 	}
 	for _, resource := range resources {
-		for i := 0; i < rows; i++ {
+		w, err := sink.Builder(resource, 0, schema(resource))
+		if err != nil {
+			return err
+		}
+		for i := range rows {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			data := fmt.Appendf(nil, `{"resource":%q,"i":%d}`, resource, i)
-			if err := sink.Push(filament.NewRecord(resource, strconv.Itoa(i), data)); err != nil {
+			w.Int64(int64(i))
+			w.String(resource)
+			if err := w.EndRow(filament.RowMeta{}); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// Schema describes a synthetic resource: a row number and the resource name.
+func (s *Source) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
+	return schema(resource), nil
+}
+
+func schema(resource string) filament.RecordSchema {
+	return filament.RecordSchema{
+		Resource:   resource,
+		PrimaryKey: []string{"i"},
+		Fields: []filament.SchemaField{
+			{Name: "i", Logical: filament.LogicalInt64},
+			{Name: "resource", Logical: filament.LogicalString},
+		},
+	}
 }
 
 // Teardown is a no-op; the generator holds no resources.
