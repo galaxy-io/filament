@@ -21,7 +21,7 @@ import {
   RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineHistoryRunInfoResourceColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoResourceColumn";
+import PipelineHistoryRunInfoConnectionColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoConnectionColumn";
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
@@ -32,7 +32,6 @@ import {
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
-import PipelineHistoryRunInfoSinkColumn from "./components/PipelineHistoryRunInfoSinkColumn";
 import { formatBytes, formatCount } from "@/utils/format";
 
 const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -51,6 +50,8 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   const { data, isLoading, isError } = useGetRunQuery({
     input: create(GetRunRequestSchema, { runId }),
   });
+  const sourceConnectionId = data?.snapshot?.run?.sourceConnectionId ?? "";
+  const sinkConnectionId = data?.snapshot?.run?.sinkConnectionId ?? "";
 
   const columns = useMemo<ColumnDef<RunResourceState>[]>(
     () => [
@@ -59,7 +60,10 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         header: "Resource",
         cellLoading: () => <TextShimmer width={160} height={14} />,
         cell: ({ row }) => (
-          <PipelineHistoryRunInfoResourceColumn runId={runId} runResource={row.original} />
+          <PipelineHistoryRunInfoConnectionColumn
+            connectionId={sourceConnectionId}
+            resourceName={row.original.resourceName}
+          />
         ),
       },
       {
@@ -69,7 +73,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION +
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
         cellLoading: () => <TextShimmer width={48} height={14} />,
-        cell: () => <PipelineHistoryRunInfoSinkColumn runId={runId} />,
+        cell: () => <PipelineHistoryRunInfoConnectionColumn connectionId={sinkConnectionId} />,
       },
       {
         id: "records",
@@ -95,7 +99,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         ),
       },
     ],
-    [runId],
+    [sourceConnectionId, sinkConnectionId],
   );
 
   const resources = data?.snapshot?.resources ?? [];

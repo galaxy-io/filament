@@ -1,6 +1,16 @@
 import { useMemo } from "react";
 
-import { MetricGranularity, type TimeseriesPoint } from "@/gen/metrics/v1/metrics_pb";
+import { create } from "@bufbuild/protobuf";
+
+import {
+  type Metric,
+  type MetricDimension,
+  type MetricFilter,
+  MetricGranularity,
+  type QueryTimeseriesRequest,
+  QueryTimeseriesRequestSchema,
+  type TimeseriesPoint,
+} from "@/gen/metrics/v1/metrics_pb";
 
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
@@ -50,6 +60,17 @@ export const createTimeframeSince = (timeframe: ObservabilityTimeframe): bigint 
   const nowMs = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
   return BigInt(nowMs - durationMs);
 };
+
+export const createObservabilityTimeseriesInput = (
+  timeframe: ObservabilityTimeframe,
+  init: { metrics: Metric[]; groupBy: MetricDimension; filters?: MetricFilter[] },
+): QueryTimeseriesRequest =>
+  create(QueryTimeseriesRequestSchema, {
+    ...init,
+    sinceMs: createTimeframeSince(timeframe),
+    granularity: OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].granularity,
+    tzOffsetMinutes: -new Date().getTimezoneOffset(),
+  });
 
 export const useBucketLabelFormatter = (
   timeframe: ObservabilityTimeframe,
