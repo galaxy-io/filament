@@ -127,28 +127,47 @@ func replicationToProto(mode filament.ReplicationMode) ingestionv1.ReplicationMo
 	return ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD
 }
 
-func standardSyncModeFromProto(mode ingestionv1.StandardSyncMode) (filament.StandardSyncMode, error) {
+func readModeFromProto(mode ingestionv1.ReadMode) (filament.ReadMode, error) {
 	switch mode {
-	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED,
-		ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE:
-		return filament.StandardSyncReplace, nil
-	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_APPEND:
-		return filament.StandardSyncAppend, nil
-	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL:
-		return filament.StandardSyncIncremental, nil
+	case ingestionv1.ReadMode_READ_MODE_UNSPECIFIED, ingestionv1.ReadMode_READ_MODE_FULL:
+		return filament.ModeFull, nil
+	case ingestionv1.ReadMode_READ_MODE_INCREMENTAL:
+		return filament.ModeIncremental, nil
 	default:
-		return "", fmt.Errorf("unknown Standard sync mode %d", mode)
+		return 0, fmt.Errorf("unknown read mode %d", mode)
 	}
 }
 
-func standardSyncModeToProto(mode filament.StandardSyncMode) ingestionv1.StandardSyncMode {
+func readModeToProto(mode filament.ReadMode) ingestionv1.ReadMode {
 	switch mode {
-	case filament.StandardSyncAppend:
-		return ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_APPEND
-	case filament.StandardSyncIncremental:
-		return ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL
+	case filament.ModeIncremental:
+		return ingestionv1.ReadMode_READ_MODE_INCREMENTAL
 	default:
-		return ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE
+		return ingestionv1.ReadMode_READ_MODE_FULL
+	}
+}
+
+func writeModeFromProto(mode ingestionv1.WriteMode) (filament.WriteMode, error) {
+	switch mode {
+	case ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED, ingestionv1.WriteMode_WRITE_MODE_REPLACE:
+		return filament.WriteReplace, nil
+	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
+		return filament.WriteAppend, nil
+	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
+		return filament.WriteUpsert, nil
+	default:
+		return "", fmt.Errorf("unknown write mode %d", mode)
+	}
+}
+
+func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
+	switch mode {
+	case filament.WriteAppend:
+		return ingestionv1.WriteMode_WRITE_MODE_APPEND
+	case filament.WriteUpsert:
+		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
+	default:
+		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
 	}
 }
 

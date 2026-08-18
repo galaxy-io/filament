@@ -12,12 +12,9 @@ import (
 	"github.com/galaxy-io/filament/internal/compile"
 )
 
-// ValidatePipeline checks every edge of a graph: the Standard sync modes the
-// source/sink pair supports, whether the chosen mode is among them, and the
-// per-table setup that mode involves. The live source is probed to produce
-// final per-resource mode menus; only modes that read a cursor or write by key
-// produce requirements. Only blocking requirements gate valid — an unset
-// cursor that auto-detection covers is advisory.
+// ValidatePipeline checks every edge of a graph: the per-resource read modes
+// and route-wide write modes the connector pair supports, their selected
+// combination, and any cursor or primary-key requirements.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
@@ -46,9 +43,20 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	}
 	defer probes.teardown(ctx)
 
+	routeWriteModes := map[string]filament.WriteMode{}
 	for _, edge := range edges {
 		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp); err != nil {
 			return nil, err
+		}
+		writeMode, err := writeModeFromProto(edge.GetWriteMode())
+		if err != nil {
+			continue
+		}
+		route := edge.GetFromNode() + "\x00" + edge.GetToNode()
+		if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
+			edgeError(resp.Edges[len(resp.Edges)-1], "write_mode", "all resources on a source-to-destination route must use the same write mode")
+		} else {
+			routeWriteModes[route] = writeMode
 		}
 	}
 
@@ -144,68 +152,77 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	replication := filament.ReplicationOf(source, filament.NewConfig(srcConn.Config))
 	ev.Replication = replicationToProto(replication)
 
-	// A CDC connection implies the complete recipe. Standard edges expose one
-	// destination-oriented mode which compiles to a canonical internal recipe.
+	// A CDC connection implies the complete recipe. Standard edges expose
+	// independent read and write levers which compile to an internal recipe.
 	var chosen filament.IngestionType
+	var supportedReadModes []ingestionv1.ReadMode
 	if replication == filament.ReplicationCDC {
 		chosen = filament.IngestionCDC
-		if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED {
-			edgeError(ev, "standard_sync_mode", "CDC connections do not accept a Standard sync mode")
+		if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED {
+			edgeError(ev, "read_mode", "CDC connections do not accept a read mode")
+		}
+		if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			edgeError(ev, "write_mode", "CDC connections do not accept a write mode")
 		}
 		if len(edge.GetCursors()) > 0 {
 			edgeError(ev, "cursors", "CDC connections manage their stream position automatically")
 		}
 	} else {
-		ev.SupportedModes = supportedStandardSyncModes(srcSpec, snkSpec)
-		mode, err := standardSyncModeFromProto(edge.GetStandardSyncMode())
+		readMode, err := readModeFromProto(edge.GetReadMode())
 		if err != nil {
-			edgeError(ev, "standard_sync_mode", err.Error())
+			edgeError(ev, "read_mode", err.Error())
 			return nil
 		}
-		ev.EffectiveMode = standardSyncModeToProto(mode)
-		chosen = mode.IngestionType()
-		if !containsStandardSyncMode(ev.SupportedModes, ev.EffectiveMode) {
-			edgeError(ev, "standard_sync_mode", fmt.Sprintf("%s is not supported by this source and sink", mode))
+		writeMode, err := writeModeFromProto(edge.GetWriteMode())
+		if err != nil {
+			edgeError(ev, "write_mode", err.Error())
+			return nil
+		}
+		ev.EffectiveReadMode = readModeToProto(readMode)
+		ev.EffectiveWriteMode = writeModeToProto(writeMode)
+		supportedReadModes = supportedReadModesFor(srcSpec)
+		ev.SupportedWriteModes = supportedWriteModesFor(snkSpec)
+		chosen, err = filament.IngestionFor(readMode, writeMode)
+		if err != nil {
+			edgeError(ev, "write_mode", err.Error())
+			return nil
 		}
 	}
 
 	if err := filament.ValidateSourceIngestion(srcSpec, chosen); err != nil {
-		edgeError(ev, "standard_sync_mode", err.Error())
+		edgeError(ev, "read_mode", err.Error())
 	}
 	if err := filament.ValidateSinkIngestion(snkSpec, chosen); err != nil {
-		edgeError(ev, "standard_sync_mode", err.Error())
+		edgeError(ev, "write_mode", err.Error())
 	}
 	if len(ev.Errors) > 0 && replication == filament.ReplicationCDC {
 		return nil
 	}
 
-	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, ev.SupportedModes, probes, ev)
+	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, supportedReadModes, probes, ev)
 	return nil
 }
 
-func supportedStandardSyncModes(source filament.ConnectorSpec, sink filament.SinkSpec) []ingestionv1.StandardSyncMode {
-	modes := []filament.StandardSyncMode{
-		filament.StandardSyncReplace,
-		filament.StandardSyncAppend,
-		filament.StandardSyncIncremental,
-	}
-	out := make([]ingestionv1.StandardSyncMode, 0, len(modes))
-	for _, mode := range modes {
-		ingestionType := mode.IngestionType()
-		if filament.ValidateSourceIngestion(source, ingestionType) == nil && filament.ValidateSinkIngestion(sink, ingestionType) == nil {
-			out = append(out, standardSyncModeToProto(mode))
+func supportedReadModesFor(source filament.ConnectorSpec) []ingestionv1.ReadMode {
+	var out []ingestionv1.ReadMode
+	for _, read := range []filament.ReadMode{filament.ModeFull, filament.ModeIncremental} {
+		ingestionType, _ := filament.IngestionFor(read, filament.WriteAppend)
+		if filament.ValidateSourceIngestion(source, ingestionType) == nil {
+			out = append(out, readModeToProto(read))
 		}
 	}
 	return out
 }
 
-func containsStandardSyncMode(modes []ingestionv1.StandardSyncMode, want ingestionv1.StandardSyncMode) bool {
-	for _, mode := range modes {
-		if mode == want {
-			return true
+func supportedWriteModesFor(sink filament.SinkSpec) []ingestionv1.WriteMode {
+	var out []ingestionv1.WriteMode
+	for _, write := range []filament.WriteMode{filament.WriteAppend, filament.WriteReplace, filament.WriteUpsert} {
+		ingestionType, _ := filament.IngestionFor(filament.ModeFull, write)
+		if filament.ValidateSinkIngestion(sink, ingestionType) == nil {
+			out = append(out, writeModeToProto(write))
 		}
 	}
-	return false
+	return out
 }
 
 // loadEdgeConnection loads one node's connection and verifies its kind. A nil
@@ -234,9 +251,9 @@ func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.Pipel
 	return &conn, nil
 }
 
-// resourceBreakdown narrows the pair-level modes using each table's cursor and
-// primary-key reality, then reports requirements for the selected mode.
-func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, supportedModes []ingestionv1.StandardSyncMode, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+// resourceBreakdown narrows read modes using each table's cursor reality, then
+// reports requirements for the selected read/write combination.
+func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, supportedReadModes []ingestionv1.ReadMode, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
 	needsCursor := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
 	needsPK := chosen.WriteCapability().RequiresPK
 
@@ -292,11 +309,11 @@ func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.Pipeli
 		// When candidates are unknowable stay optimistic; runtime decides.
 		cursorable := cursors[resource] || len(candidates) > 0 ||
 			status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
-		for _, mode := range supportedModes {
-			if mode == ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL && (!cursorable || keyErr != nil || len(keys) == 0) {
+		for _, mode := range supportedReadModes {
+			if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL && !cursorable {
 				continue
 			}
-			rv.SupportedModes = append(rv.SupportedModes, mode)
+			rv.SupportedReadModes = append(rv.SupportedReadModes, mode)
 		}
 		if needsCursor {
 			rv.Requirements = append(rv.Requirements, cursorRequirement(resource, candidates, status, cursors[resource]))

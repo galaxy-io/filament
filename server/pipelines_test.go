@@ -100,9 +100,9 @@ func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 
 func TestValidateCursorConfigs(t *testing.T) {
 	valid := []*ingestionv1.PipelineEdge{{
-		Resource:         "users",
-		StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
-		Cursors:          []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: 300}},
+		Resource: "users",
+		ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+		Cursors:  []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: 300}},
 	}}
 	if err := validateCursorConfigs(valid); err != nil {
 		t.Fatal(err)
@@ -112,11 +112,11 @@ func TestValidateCursorConfigs(t *testing.T) {
 		name string
 		edge *ingestionv1.PipelineEdge
 	}{
-		{"Replace", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE, Cursors: valid[0].Cursors}},
-		{"missing resource", &ingestionv1.PipelineEdge{StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Field: "updated_at"}}}},
-		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}}}},
-		{"missing field", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users"}}}},
-		{"negative lookback", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: -1}}}},
+		{"Full", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, Cursors: valid[0].Cursors}},
+		{"missing resource", &ingestionv1.PipelineEdge{ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Field: "updated_at"}}}},
+		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}}}},
+		{"missing field", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users"}}}},
+		{"negative lookback", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: -1}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -146,7 +146,8 @@ func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
 			Nodes: nodes,
 			Edges: []*ingestionv1.PipelineEdge{{
 				FromNode: "src", ToNode: "snk", Resource: "audit",
-				StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
 			}},
 		},
 	}))
@@ -160,7 +161,8 @@ func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
 			Nodes: nodes,
 			Edges: []*ingestionv1.PipelineEdge{{
 				FromNode: "src", ToNode: "snk", Resource: "orders",
-				StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
 			}},
 		},
 	}))

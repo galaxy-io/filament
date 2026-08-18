@@ -108,13 +108,15 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
 }
 
-// normalizeEdgeModes makes Replace explicit on Standard edges and validates
-// the one public mode against both connector specs. CDC edges carry no mode.
+// normalizeEdgeModes makes Full/Replace defaults explicit on Standard edges,
+// validates both levers, and enforces one write mode per destination route.
+// CDC edges carry neither lever.
 func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
 	byID := make(map[string]*ingestionv1.PipelineNode, len(nodes))
 	for _, node := range nodes {
 		byID[node.GetId()] = node
 	}
+	routeWriteModes := map[string]filament.WriteMode{}
 	for _, edge := range edges {
 		sourceNode := byID[edge.GetFromNode()]
 		if sourceNode == nil {
@@ -143,17 +145,33 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.Pi
 
 		var ingestionType filament.IngestionType
 		if filament.ReplicationOf(source, filament.NewConfig(sourceConn.Config)) == filament.ReplicationCDC {
-			if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED {
-				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a Standard sync mode", edge.GetFromNode(), edge.GetToNode())
+			if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED {
+				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a read mode", edge.GetFromNode(), edge.GetToNode())
+			}
+			if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a write mode", edge.GetFromNode(), edge.GetToNode())
 			}
 			ingestionType = filament.IngestionCDC
 		} else {
-			mode, err := standardSyncModeFromProto(edge.GetStandardSyncMode())
+			readMode, err := readModeFromProto(edge.GetReadMode())
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
-			edge.StandardSyncMode = standardSyncModeToProto(mode)
-			ingestionType = mode.IngestionType()
+			writeMode, err := writeModeFromProto(edge.GetWriteMode())
+			if err != nil {
+				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
+			}
+			route := edge.GetFromNode() + "\x00" + edge.GetToNode()
+			if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
+				return fmt.Errorf("edge %s -> %s: all resources on a route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
+			}
+			routeWriteModes[route] = writeMode
+			edge.ReadMode = readModeToProto(readMode)
+			edge.WriteMode = writeModeToProto(writeMode)
+			ingestionType, err = filament.IngestionFor(readMode, writeMode)
+			if err != nil {
+				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
+			}
 		}
 		if err := filament.ValidateSourceIngestion(source.Spec(), ingestionType); err != nil {
 			return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
@@ -170,8 +188,8 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 		if len(edge.GetCursors()) == 0 {
 			continue
 		}
-		if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL {
-			return fmt.Errorf("cursor configuration requires Incremental sync mode")
+		if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
+			return fmt.Errorf("cursor configuration requires Incremental read mode")
 		}
 		seen := make(map[string]struct{}, len(edge.GetCursors()))
 		for _, cursor := range edge.GetCursors() {
