@@ -34,6 +34,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 				Resources:   opts.Resources,
 				Checkpoints: checkpoints,
 				Limit:       opts.Limit,
+				Observe:     opts.Observe,
 			})
 		}, nil
 	}
