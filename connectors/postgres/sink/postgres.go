@@ -211,14 +211,20 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 		return fmt.Errorf("postgres sink: ensure schema before open")
 	}
 	qualified := pgx.Identifier{t.schema, resource}.Sanitize()
-	same := schema.Engine == engine
+	var builtin map[string]bool
+	if schema.Engine == engine {
+		var err error
+		if builtin, err = t.builtinTypes(ctx, schema); err != nil {
+			return err
+		}
+	}
 
 	cols := make([]string, len(schema.Fields)) // "name" type [NOT NULL] for DDL
 	idents := make([]string, len(schema.Fields))
 	types := make([]string, len(schema.Fields))
 	for i, f := range schema.Fields {
 		idents[i] = pgx.Identifier{f.Name}.Sanitize()
-		types[i] = columnType(f, same)
+		types[i] = columnType(f, builtin[f.Native])
 		cols[i] = idents[i] + " " + types[i]
 		if !f.Nullable {
 			cols[i] += " NOT NULL"
@@ -284,10 +290,42 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 // engine is the source engine whose native type spellings this sink reuses.
 const engine = "postgres"
 
-// columnType picks a destination column type: the source's own spelling when it
-// came from Postgres, else a portable mapping from the logical type.
-func columnType(f filament.SchemaField, sameEngine bool) string {
-	if sameEngine && f.Native != "" {
+// builtinTypes reports which of a same-engine schema's native type spellings
+// are Postgres built-ins (pg_catalog, arrays included). Only those keep their
+// spelling in the destination; a user-defined type — an enum, a domain, an
+// extension type — exists only in the source database, so its column lands as
+// text.
+func (t *Sink) builtinTypes(ctx context.Context, schema filament.RecordSchema) (map[string]bool, error) {
+	natives := make([]string, 0, len(schema.Fields))
+	for _, f := range schema.Fields {
+		if f.Native != "" {
+			natives = append(natives, f.Native)
+		}
+	}
+	const q = `SELECT t, coalesce((SELECT typnamespace = 'pg_catalog'::regnamespace FROM pg_type WHERE oid = to_regtype(t)), false)
+FROM unnest($1::text[]) AS t`
+	rows, err := t.pool.Query(ctx, q, natives)
+	if err != nil {
+		return nil, fmt.Errorf("resolve types: %w", err)
+	}
+	defer rows.Close()
+	builtin := make(map[string]bool, len(natives))
+	for rows.Next() {
+		var native string
+		var ok bool
+		if err := rows.Scan(&native, &ok); err != nil {
+			return nil, fmt.Errorf("resolve types: %w", err)
+		}
+		builtin[native] = ok
+	}
+	return builtin, rows.Err()
+}
+
+// columnType picks a destination column type: the source's own spelling for a
+// built-in type on the same engine (keepNative), else a portable mapping from
+// the logical type.
+func columnType(f filament.SchemaField, keepNative bool) string {
+	if keepNative && f.Native != "" {
 		return f.Native
 	}
 	switch f.Logical {
