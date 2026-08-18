@@ -36,7 +36,7 @@ type keyShard struct {
 	table     string
 	qualified string
 	pks       []pkColumn
-	enc       *rowEncoder // native row encoder; nil on the jsonb fallback path
+	dec       *rowDecoder
 	part      int
 	lo, hi    []string
 	seed      []string
@@ -195,22 +195,23 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 			}
 			for _, sh := range shards {
 				jobs = append(jobs, func(ctx context.Context, q querier) error {
-					return s.extractShard(ctx, sink, q, sh, opts.Limit)
+					err := s.extractShard(ctx, sink, q, sh, opts.Limit)
+					return err
 				})
 			}
 			continue
 		}
 		qualified := pgx.Identifier{s.schema, table}.Sanitize()
-		enc, err := s.encoderFor(ctx, table, ks.Cols)
+		dec, err := s.decoderFor(ctx, table, ks.Cols)
 		if err != nil {
 			return err
 		}
 		if ks.Mode == checkpoint.ModeCtid {
-			jobs = append(jobs, s.ctidJobs(ctx, sink, table, qualified, ks, enc, opts.Limit)...)
+			jobs = append(jobs, s.ctidJobs(ctx, sink, table, qualified, ks, dec, opts.Limit)...)
 			continue
 		}
 		bitmap := ks.Mode == checkpoint.ModeBitmap
-		for i, ksh := range keyShardsFrom(table, qualified, ks, enc) {
+		for i, ksh := range keyShardsFrom(table, qualified, ks, dec) {
 			if bitmap {
 				if ks.Shards[i].Done {
 					continue // already fully read+written in a prior run
@@ -230,111 +231,45 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 
 // keyShardsFrom turns a decoded checkpoint into the table's runnable shards, seeding
 // each with its persisted cursor.
-func keyShardsFrom(table, qualified string, ks checkpoint.KeysetCheckpoint, enc *rowEncoder) []keyShard {
+func keyShardsFrom(table, qualified string, ks checkpoint.KeysetCheckpoint, dec *rowDecoder) []keyShard {
 	pks := make([]pkColumn, len(ks.Cols))
 	for i := range ks.Cols {
 		pks[i] = pkColumn{name: ks.Cols[i], typ: typeAt(ks.Types, i)}
 	}
 	out := make([]keyShard, len(ks.Shards))
 	for i, sh := range ks.Shards {
-		out[i] = keyShard{table: table, qualified: qualified, pks: pks, enc: enc, part: i, lo: sh.Lo, hi: sh.Hi, seed: sh.Key}
+		out[i] = keyShard{table: table, qualified: qualified, pks: pks, dec: dec, part: i, lo: sh.Lo, hi: sh.Hi, seed: sh.Key}
 	}
 	return out
 }
 
 // extractKeysetShard pages one shard out through the sink: WHERE (pk-tuple) is above the
 // cursor (or the shard's lower bound) and below the shard's upper bound, ORDER BY the key,
-// LIMIT a page. Every record is stamped with the shard ordinal and its key so the
-// pipeline can carry the cursor forward.
+// LIMIT a page. Every row carries its key so the pipeline can carry the cursor forward.
 func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
+	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
+	if err != nil {
+		return err
+	}
 	order := keysetOrder(sh.pks)
-	next := keysetRowReader(sh)
 	cur := sh.seed
 	emitted := 0
 	for {
 		where, args := keysetWhere(sh, cur)
-		var sql string
-		if sh.enc != nil {
-			sql = fmt.Sprintf("SELECT %s FROM %s t%s ORDER BY %s LIMIT %d",
-				sh.enc.selectList, sh.qualified, where, order, s.pageSize)
-			args = append([]any{binaryResults}, args...)
-		} else {
-			sql = fmt.Sprintf("SELECT %s AS id, to_jsonb(t)::text AS data, %s FROM %s t%s ORDER BY %s LIMIT %d",
-				keysetIDExpr(sh.pks), keysetKeyProjection(sh.pks), sh.qualified, where, order, s.pageSize)
-		}
-
-		rows, err := q.Query(ctx, sql, args...)
+		sql := fmt.Sprintf("SELECT %s FROM %s t%s ORDER BY %s LIMIT %d",
+			sh.dec.selectList, sh.qualified, where, order, s.pageSize)
+		n, last, err := s.appendPage(ctx, q, sql, w, sh.dec, filament.RowMeta{}, sh.dec.pkIdx, remaining(limit, emitted), args...)
 		if err != nil {
 			return fmt.Errorf("keyset %q: %w", sh.table, err)
 		}
-		n := 0
-		var last []string
-		for rows.Next() {
-			rec, err := next(rows)
-			if err != nil {
-				rows.Close()
-				return fmt.Errorf("keyset scan %q: %w", sh.table, err)
-			}
-			rec.Part = sh.part
-			if err := sink.Push(rec); err != nil {
-				rows.Close()
-				return err
-			}
-			last = rec.Key
-			n++
-			emitted++
-			if limit > 0 && emitted >= limit {
-				rows.Close()
-				return nil
-			}
+		emitted += n
+		if limit > 0 && emitted >= limit {
+			return nil
 		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return err
-		}
-		rows.Close()
 		if n < s.pageSize {
 			return nil // shard exhausted
 		}
 		cur = last
-	}
-}
-
-// keysetRowReader returns the per-row decoder for a keyset page — rowReader
-// plus the Key cursor: native derives it from the pk values' text forms (the
-// same texts that form the id), jsonb scans the server-built k0..kn projection.
-func keysetRowReader(sh keyShard) func(rows pgx.Rows) (filament.Record, error) {
-	if sh.enc != nil {
-		var scratch []byte
-		return func(rows pgx.Rows) (filament.Record, error) {
-			raw := rows.RawValues()
-			keys, err := sh.enc.pkTexts(raw)
-			if err == nil {
-				scratch, err = sh.enc.appendRowData(scratch[:0], raw)
-			}
-			if err != nil {
-				return filament.Record{}, err
-			}
-			rec := filament.NewRecord(sh.table, joinKey(keys), append([]byte(nil), scratch...))
-			rec.Key = keys
-			return rec, nil
-		}
-	}
-	var id string
-	var data []byte
-	keys := make([]string, len(sh.pks))
-	dest := make([]any, 2, 2+len(keys))
-	dest[0], dest[1] = &id, &data
-	for i := range keys {
-		dest = append(dest, &keys[i])
-	}
-	return func(rows pgx.Rows) (filament.Record, error) {
-		if err := rows.Scan(dest...); err != nil {
-			return filament.Record{}, err
-		}
-		rec := filament.NewRecord(sh.table, id, append([]byte(nil), data...))
-		rec.Key = append([]string(nil), keys...)
-		return rec, nil
 	}
 }
 
@@ -383,29 +318,6 @@ func tupleCmp(pks []pkColumn, op string, vals []string, argStart int) (string, [
 		return cols[0] + " " + op + " " + ph[0], args, argStart + 1
 	}
 	return "(" + strings.Join(cols, ", ") + ") " + op + " (" + strings.Join(ph, ", ") + ")", args, argStart + len(pks)
-}
-
-// keysetIDExpr derives the record id from the key columns: the single value as text, or
-// composite columns joined with chr(31) — matching idExprFor's semantics on the ctid path.
-func keysetIDExpr(pks []pkColumn) string {
-	parts := make([]string, len(pks))
-	for i, pk := range pks {
-		parts[i] = "t." + pgx.Identifier{pk.name}.Sanitize() + "::text"
-	}
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	return "concat_ws(chr(31), " + strings.Join(parts, ", ") + ")"
-}
-
-// keysetKeyProjection projects each key column as text (k0, k1, …) so the cursor can be
-// read back from each row.
-func keysetKeyProjection(pks []pkColumn) string {
-	parts := make([]string, len(pks))
-	for i, pk := range pks {
-		parts[i] = fmt.Sprintf("t.%s::text AS k%d", pgx.Identifier{pk.name}.Sanitize(), i)
-	}
-	return strings.Join(parts, ", ")
 }
 
 // keysetOrder is the ORDER BY over the key columns (so each page is an index range scan).

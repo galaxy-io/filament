@@ -122,8 +122,8 @@ func (s *Source) currentFilenode(ctx context.Context, qualified string) (string,
 // by re-delivering rows that churned since the run-start horizon, and (b) tail-scan any heap
 // blocks appended past the run-start size (all such rows are post-horizon). Reconcile/tail
 // rows are plain (no Part/Coarse) — pure idempotent re-deliveries that touch no cursor.
-func (s *Source) ctidJobs(ctx context.Context, sink filament.RecordSink, table, qualified string, ks checkpoint.KeysetCheckpoint, enc *rowEncoder, limit int) []func(context.Context, querier) error {
-	shards := s.ctidShardsFrom(ctx, table, qualified, ks, enc)
+func (s *Source) ctidJobs(ctx context.Context, sink filament.RecordSink, table, qualified string, ks checkpoint.KeysetCheckpoint, dec *rowDecoder, limit int) []func(context.Context, querier) error {
+	shards := s.ctidShardsFrom(ctx, table, qualified, ks, dec)
 	horizon := ks.Meta[metaXminHorizon]
 	unfiltered := s.freezeAdvanced(ctx, qualified, horizon)
 
@@ -161,11 +161,8 @@ func toSlice(s string) []string {
 	return []string{s}
 }
 
-// ctidShardsFrom reconstructs block-range shards (and the pk columns for id projection)
-// from a decoded ctid checkpoint.
-func (s *Source) ctidShardsFrom(ctx context.Context, table, qualified string, ks checkpoint.KeysetCheckpoint, enc *rowEncoder) []shard {
-	pks := pkColumnsFrom(ks)
-	idExpr := idExprFor(pks)
+// ctidShardsFrom reconstructs block-range shards from a decoded ctid checkpoint.
+func (s *Source) ctidShardsFrom(ctx context.Context, table, qualified string, ks checkpoint.KeysetCheckpoint, dec *rowDecoder) []shard {
 	window, err := s.windowBlocks(ctx, qualified)
 	if err != nil || window < 1 {
 		window = 1
@@ -175,8 +172,7 @@ func (s *Source) ctidShardsFrom(ctx context.Context, table, qualified string, ks
 		out[i] = shard{
 			table:        table,
 			qualified:    qualified,
-			idExpr:       idExpr,
-			enc:          enc,
+			dec:          dec,
 			loBlock:      atoiOr(sh.Lo, 0),
 			hiBlock:      atoiOr(sh.Hi, 0),
 			windowBlocks: window,
@@ -204,40 +200,22 @@ func (s *Source) freezeAdvanced(ctx context.Context, qualified, horizon string) 
 // reconcileCtidBlocks re-delivers rows in a block range that churned since the run-start
 // horizon: numeric xid compare age(xmin) <= age(H1) (avoids pg_visible_in_snapshot, which is
 // unsafe with subtransaction xmins). unfiltered re-delivers the whole range (freeze guard, or
-// the append tail). Pushes plain records — idempotent re-deliveries that advance no cursor.
+// the append tail). Rows are plain — idempotent re-deliveries that advance no cursor.
 func (s *Source) reconcileCtidBlocks(ctx context.Context, sink filament.RecordSink, q querier, sh shard, horizon string, unfiltered bool) error {
 	filter := ""
+	var extra []any
 	if !unfiltered && horizon != "" {
 		filter = " AND age(t.xmin) <= age($3::xid)"
+		extra = []any{horizon}
 	}
-	sql := ctidWindowSQL(sh, filter)
-
-	for b := sh.loBlock; b < sh.hiBlock; b += sh.windowBlocks {
-		hi := min(b+sh.windowBlocks, sh.hiBlock)
-		args := []any{fmt.Sprintf("(%d,0)", b), fmt.Sprintf("(%d,0)", hi)}
-		if filter != "" {
-			args = append(args, horizon)
-		}
-		page, err := s.readWindow(ctx, q, sql, sh.table, sh.enc, args...)
-		if err != nil {
-			return fmt.Errorf("reconcile %q: %w", sh.table, err)
-		}
-		for _, rec := range page {
-			if err := sink.Push(rec); err != nil {
-				return err
-			}
-		}
+	w, err := sink.Builder(sh.table, 0, sh.dec.schema)
+	if err != nil {
+		return err
+	}
+	if _, err := s.readBlocks(ctx, w, q, sh, filter, extra, filament.RowMeta{}, 0); err != nil {
+		return fmt.Errorf("reconcile %q: %w", sh.table, err)
 	}
 	return nil
-}
-
-// pkColumnsFrom rebuilds pkColumns from a checkpoint's Cols/Types.
-func pkColumnsFrom(ks checkpoint.KeysetCheckpoint) []pkColumn {
-	pks := make([]pkColumn, len(ks.Cols))
-	for i := range ks.Cols {
-		pks[i] = pkColumn{name: ks.Cols[i], typ: typeAt(ks.Types, i)}
-	}
-	return pks
 }
 
 func atoiOr(s []string, def int) int {
@@ -251,30 +229,20 @@ func atoiOr(s []string, def int) int {
 	return n
 }
 
-// extractCtidShard reads one block range, stamping every row Coarse with the shard ordinal
-// (so the tracker ack-counts completion), then pushes a Drained sentinel on a clean drain.
-// A row-limit truncation suppresses the sentinel so the shard stays resumable.
+// extractCtidShard reads one block range, stamping every row Coarse into the shard's
+// writer (so the tracker ack-counts completion), then drains the writer on a clean read.
+// A row-limit truncation suppresses the marker so the shard stays resumable.
 func (s *Source) extractCtidShard(ctx context.Context, sink filament.RecordSink, q querier, sh shard, part, limit int) error {
-	sql := ctidWindowSQL(sh, "")
-
-	emitted := 0
-	for b := sh.loBlock; b < sh.hiBlock; b += sh.windowBlocks {
-		hi := min(b+sh.windowBlocks, sh.hiBlock)
-		page, err := s.readWindow(ctx, q, sql, sh.table, sh.enc, fmt.Sprintf("(%d,0)", b), fmt.Sprintf("(%d,0)", hi))
-		if err != nil {
-			return err
-		}
-		for _, rec := range page {
-			rec.Part = part
-			rec.Coarse = true
-			if err := sink.Push(rec); err != nil {
-				return err
-			}
-			emitted++
-			if limit > 0 && emitted >= limit {
-				return nil // truncated: no completion sentinel, shard stays resumable
-			}
-		}
+	w, err := sink.Builder(sh.table, part, sh.dec.schema)
+	if err != nil {
+		return err
 	}
-	return sink.Push(filament.Record{Resource: sh.table, Part: part, Coarse: true, Drained: true})
+	n, err := s.readBlocks(ctx, w, q, sh, "", nil, filament.RowMeta{Coarse: true}, limit)
+	if err != nil {
+		return err
+	}
+	if limit > 0 && n >= limit {
+		return nil // truncated: no completion marker, shard stays resumable
+	}
+	return w.Drain(filament.RowMeta{})
 }

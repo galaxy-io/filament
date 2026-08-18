@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -33,23 +32,14 @@ func TestIncrementalBoundsUsesCompoundStrictCursor(t *testing.T) {
 	}
 }
 
-func TestIncrementalPageSQLHonorsConfiguredEncoding(t *testing.T) {
-	cursor := pkColumn{name: "updated_at", typ: "timestamptz"}
-	pks := []pkColumn{{name: "id", typ: "bigint"}}
+func TestIncrementalPageSQL(t *testing.T) {
+	cols := []pkColumn{{name: "updated_at", typ: "timestamptz"}, {name: "id", typ: "bigint"}}
 	const qualified = `"public"."users"`
 	const where = `t."updated_at" IS NOT NULL`
-	const order = `t."updated_at", t."id"`
 
-	native := incrementalPageSQL(qualified, cursor, pks, &rowEncoder{selectList: `t."id", t."updated_at", t."name"`}, where, order, 1000)
-	if strings.Contains(native, "to_jsonb(t)") || !strings.HasPrefix(native, `SELECT t."id", t."updated_at", t."name"`) {
-		t.Fatalf("native incremental query = %q", native)
-	}
-	if !strings.HasSuffix(native, "LIMIT 1000") {
-		t.Fatalf("native incremental query has no page limit: %q", native)
-	}
-
-	jsonb := incrementalPageSQL(qualified, cursor, pks, nil, where, order, 1000)
-	if !strings.Contains(jsonb, "to_jsonb(t)::text AS data") {
-		t.Fatalf("jsonb incremental query = %q", jsonb)
+	q := incrementalPageSQL(qualified, `t."id", t."updated_at", t."name"`, cols, where, 1000)
+	want := `SELECT t."id", t."updated_at", t."name" FROM "public"."users" t WHERE t."updated_at" IS NOT NULL ORDER BY t."updated_at", t."id" LIMIT 1000`
+	if q != want {
+		t.Fatalf("incremental query\n got %q\nwant %q", q, want)
 	}
 }
