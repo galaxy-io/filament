@@ -288,33 +288,6 @@ const (
 	IngestionCDC               IngestionType = "cdc"
 )
 
-// StandardSyncMode is the small, outcome-oriented choice accepted from a
-// standard pipeline edge. It deliberately does not expose the engine's
-// independent read/write policy dimensions.
-type StandardSyncMode string
-
-const (
-	// StandardSyncReplace replaces the destination with a full source snapshot.
-	StandardSyncReplace StandardSyncMode = "replace"
-	// StandardSyncAppend appends a full source snapshot to the destination.
-	StandardSyncAppend StandardSyncMode = "append"
-	// StandardSyncIncremental reads from a cursor and merges rows by key.
-	StandardSyncIncremental StandardSyncMode = "incremental"
-)
-
-// IngestionType compiles a Standard edge choice into its canonical internal
-// recipe. The empty mode is the safe default: a full replacement snapshot.
-func (m StandardSyncMode) IngestionType() IngestionType {
-	switch m {
-	case StandardSyncAppend:
-		return IngestionFullAppend
-	case StandardSyncIncremental:
-		return IngestionIncrementalUpsert
-	default:
-		return IngestionFullReplace
-	}
-}
-
 // OrDefault substitutes IngestionFullReplace for the empty type.
 func (t IngestionType) OrDefault() IngestionType {
 	if t == "" {
@@ -370,6 +343,52 @@ const (
 	WriteDelete  WriteMode = "delete"
 	WriteMerge   WriteMode = "merge"
 )
+
+// IngestionFor compiles the independent read and write levers into the
+// engine's internal ingestion type. Unspecified levers default to a full
+// replacement snapshot, except an incremental read defaults to upsert.
+func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
+	if write == "" {
+		if read == ModeIncremental {
+			write = WriteUpsert
+		} else {
+			write = WriteReplace
+		}
+	}
+	switch read {
+	case ModeFull:
+		switch write {
+		case WriteReplace:
+			return IngestionFullReplace, nil
+		case WriteUpsert:
+			return IngestionFullUpsert, nil
+		case WriteAppend:
+			return IngestionFullAppend, nil
+		}
+	case ModeIncremental:
+		switch write {
+		case WriteAppend:
+			return IngestionIncrementalAppend, nil
+		case WriteUpsert:
+			return IngestionIncrementalUpsert, nil
+		case WriteDelete:
+			return IngestionIncrementalDelete, nil
+		}
+	}
+	return "", fmt.Errorf("read mode %q cannot combine with write mode %q", read, write)
+}
+
+// WriteModesFor returns the user-selectable write modes compatible with read.
+func WriteModesFor(read ReadMode) []WriteMode {
+	switch read {
+	case ModeFull:
+		return []WriteMode{WriteAppend, WriteReplace, WriteUpsert}
+	case ModeIncremental:
+		return []WriteMode{WriteAppend, WriteUpsert}
+	default:
+		return nil
+	}
+}
 
 // String renders a read mode for messages and logs.
 func (m ReadMode) String() string {

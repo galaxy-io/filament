@@ -3,7 +3,7 @@ import { styled } from "@linaria/react";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-import type { StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
+import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -11,8 +11,8 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
-  CREATE_PIPELINE_MODAL_SYNC_MODE_DROPDOWN_WIDTH,
-  STANDARD_SYNC_MODE_TO_LABEL_MAP,
+  CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH,
+  READ_MODE_TO_LABEL_MAP,
 } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
@@ -21,41 +21,36 @@ const CellWrapper = styled.div`
   min-width: 0;
 `;
 
-interface CreatePipelineModalResourcesSyncModeCellProps {
-  row: CreatePipelineModalResourceRow;
-}
-
-const CreatePipelineModalResourcesSyncModeCell = ({
+const CreatePipelineModalResourcesReadModeCell = ({
   row,
-}: CreatePipelineModalResourcesSyncModeCellProps) => {
+}: {
+  row: CreatePipelineModalResourceRow;
+}) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
-
-  const options: SelectInputOption[] = row.syncModeOptions.map((mode) => ({
+  const options: SelectInputOption[] = row.readModeOptions.map((mode) => ({
     id: String(mode),
-    label: STANDARD_SYNC_MODE_TO_LABEL_MAP[mode],
+    label: READ_MODE_TO_LABEL_MAP[mode],
     value: mode,
   }));
-
-  const selectedOption = options.find((option) => option.value === row.syncMode) ?? null;
 
   return (
     <CellWrapper>
       <SelectInput
         options={options}
-        value={selectedOption}
+        value={options.find((option) => option.value === row.readMode) ?? null}
         onChange={(option) =>
           dispatch({
-            type: CreatePipelineModalActionType.SET_RESOURCE_SYNC_MODE,
+            type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
             payload: {
               sinkId: activeSinkId,
               resource: row.name,
-              syncMode: option.value as StandardSyncMode,
+              readMode: option.value as ReadMode,
             },
           })
         }
         variant={InputVariant.TERTIARY}
-        dropdownWidth={CREATE_PIPELINE_MODAL_SYNC_MODE_DROPDOWN_WIDTH}
+        dropdownWidth={CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH}
         isDisabled={!row.isSelected}
         fillWidth
       />
@@ -63,4 +58,4 @@ const CreatePipelineModalResourcesSyncModeCell = ({
   );
 };
 
-export default CreatePipelineModalResourcesSyncModeCell;
+export default CreatePipelineModalResourcesReadModeCell;

@@ -3,14 +3,18 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import { ConnectorKind, ReplicationMode, StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
   type Resource,
   type ResourceColumn,
 } from "@/gen/ingestion/v1/connectors_pb";
-import { PipelineEdgeSchema, PipelineNodeSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  PipelineEdgeSchema,
+  PipelineGraphSchema,
+  PipelineNodeSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
@@ -21,7 +25,7 @@ import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
-const intersectModes = (sets: StandardSyncMode[][]): StandardSyncMode[] => {
+const intersectModes = (sets: ReadMode[][]): ReadMode[] => {
   if (!sets.length) return [];
   return sets
     .slice(1)
@@ -69,30 +73,33 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
   const validationInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
-        nodes:
-          sourceConnection && sinkConnection
-            ? [
-                create(PipelineNodeSchema, {
-                  id: edge.source,
-                  kind: ConnectorKind.SOURCE,
-                  connectionId: sourceConnection.id,
-                }),
-                create(PipelineNodeSchema, {
-                  id: edge.target,
-                  kind: ConnectorKind.SINK,
-                  connectionId: sinkConnection.id,
-                }),
-              ]
-            : [],
-        edges: [
-          create(PipelineEdgeSchema, {
-            fromNode: edge.source,
-            toNode: edge.target,
-            resource: edgeResource,
-            standardSyncMode: edge.data?.standardSyncMode ?? StandardSyncMode.UNSPECIFIED,
-            cursors: edge.data?.cursors ?? [],
-          }),
-        ],
+        graph: create(PipelineGraphSchema, {
+          nodes:
+            sourceConnection && sinkConnection
+              ? [
+                  create(PipelineNodeSchema, {
+                    id: edge.source,
+                    kind: ConnectorKind.SOURCE,
+                    connectionId: sourceConnection.id,
+                  }),
+                  create(PipelineNodeSchema, {
+                    id: edge.target,
+                    kind: ConnectorKind.SINK,
+                    connectionId: sinkConnection.id,
+                  }),
+                ]
+              : [],
+          edges: [
+            create(PipelineEdgeSchema, {
+              fromNode: edge.source,
+              toNode: edge.target,
+              resource: edgeResource,
+              readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
+              writeMode: edge.data?.writeMode ?? WriteMode.UNSPECIFIED,
+              cursors: edge.data?.cursors ?? [],
+            }),
+          ],
+        }),
       }),
     [sourceConnection, sinkConnection, edge, edgeResource],
   );
@@ -133,12 +140,13 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
     [coveredResources, columnsByResource],
   );
 
-  const syncModeOptions = useMemo<StandardSyncMode[]>(() => {
+  const readModeOptions = useMemo<ReadMode[]>(() => {
     const verdict = validation?.edges[0];
     if (!verdict || isCdc) return [];
-    if (!verdict.resources.length) return verdict.supportedModes;
-    return intersectModes(verdict.resources.map((resource) => resource.supportedModes));
+    return intersectModes(verdict.resources.map((resource) => resource.supportedReadModes));
   }, [validation?.edges, isCdc]);
+
+  const verdict = validation?.edges[0];
 
   const isLoading =
     isLoadingValidation ||
@@ -149,7 +157,10 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
     isCdc,
     isLoading,
     coveredResources,
-    syncModeOptions,
+    readModeOptions,
+    writeModeOptions: isCdc ? [] : (verdict?.supportedWriteModes ?? []),
+    effectiveReadMode: verdict?.effectiveReadMode ?? ReadMode.UNSPECIFIED,
+    effectiveWriteMode: verdict?.effectiveWriteMode ?? WriteMode.UNSPECIFIED,
     cursorOptionsByResource,
     recommendedCursorByResource,
   };

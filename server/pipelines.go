@@ -108,13 +108,15 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
 }
 
-// normalizeEdgeModes makes Replace explicit on Standard edges and validates
-// the one public mode against both connector specs. CDC edges carry no mode.
+// normalizeEdgeModes makes Full/Replace defaults explicit on Standard edges,
+// validates both levers, and enforces one write mode per destination route.
+// CDC edges carry neither lever.
 func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
 	byID := make(map[string]*ingestionv1.PipelineNode, len(nodes))
 	for _, node := range nodes {
 		byID[node.GetId()] = node
 	}
+	routeWriteModes := map[string]filament.WriteMode{}
 	for _, edge := range edges {
 		sourceNode := byID[edge.GetFromNode()]
 		if sourceNode == nil {
@@ -143,17 +145,33 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.Pi
 
 		var ingestionType filament.IngestionType
 		if filament.ReplicationOf(source, filament.NewConfig(sourceConn.Config)) == filament.ReplicationCDC {
-			if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED {
-				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a Standard sync mode", edge.GetFromNode(), edge.GetToNode())
+			if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED {
+				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a read mode", edge.GetFromNode(), edge.GetToNode())
+			}
+			if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a write mode", edge.GetFromNode(), edge.GetToNode())
 			}
 			ingestionType = filament.IngestionCDC
 		} else {
-			mode, err := standardSyncModeFromProto(edge.GetStandardSyncMode())
+			readMode, err := readModeFromProto(edge.GetReadMode())
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
-			edge.StandardSyncMode = standardSyncModeToProto(mode)
-			ingestionType = mode.IngestionType()
+			writeMode, err := writeModeFromProto(edge.GetWriteMode())
+			if err != nil {
+				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
+			}
+			route := edge.GetFromNode() + "\x00" + edge.GetToNode()
+			if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
+				return fmt.Errorf("edge %s -> %s: all resources on a route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
+			}
+			routeWriteModes[route] = writeMode
+			edge.ReadMode = readModeToProto(readMode)
+			edge.WriteMode = writeModeToProto(writeMode)
+			ingestionType, err = filament.IngestionFor(readMode, writeMode)
+			if err != nil {
+				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
+			}
 		}
 		if err := filament.ValidateSourceIngestion(source.Spec(), ingestionType); err != nil {
 			return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
@@ -170,8 +188,8 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 		if len(edge.GetCursors()) == 0 {
 			continue
 		}
-		if edge.GetStandardSyncMode() != ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL {
-			return fmt.Errorf("cursor configuration requires Incremental sync mode")
+		if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_INCREMENTAL {
+			return fmt.Errorf("cursor configuration requires Incremental read mode")
 		}
 		seen := make(map[string]struct{}, len(edge.GetCursors()))
 		for _, cursor := range edge.GetCursors() {
@@ -200,12 +218,15 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
 // immutable versions through CreatePipelineVersion.
 func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
-	pipeline := req.Msg.GetPipeline()
-	if pipeline == nil || pipeline.GetId() == "" {
-		return nil, fmt.Errorf("pipeline.id is required")
+	if req.Msg.GetPipelineId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
-	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration())); err != nil {
+	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(req.Msg.GetWorkerConfiguration())); err != nil {
 		return nil, compileError(err)
+	}
+	pipeline := &ingestionv1.Pipeline{
+		Id: req.Msg.GetPipelineId(), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
+		WorkerConfiguration: req.Msg.GetWorkerConfiguration(),
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
 	if errors.Is(err, filament.ErrNotFound) {
@@ -428,7 +449,7 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	for _, c := range compiled {
 		run, err := a.orch.Submit(ctx, c.Req)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		if a.log != nil {
 			a.log.Info("ingestion-api: run submitted",

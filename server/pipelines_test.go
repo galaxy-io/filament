@@ -98,11 +98,47 @@ func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 	}
 }
 
+func TestUpdatePipelineUsesExplicitMutableFields(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{
+		Id: "pipe-1", TenantId: "t1", Name: "old", Description: "old description",
+		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{CpuRequest: "250m"}},
+	}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	version, err := store.CreatePipelineVersion(ctx, "pipe-1", &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+
+	res, err := api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{
+		PipelineId: "pipe-1", Name: "new", Description: "new description",
+		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{CpuRequest: "500m"}},
+	}))
+	if err != nil {
+		t.Fatalf("UpdatePipeline: %v", err)
+	}
+	if got := res.Msg.GetPipeline(); got.GetName() != "new" || got.GetDescription() != "new description" {
+		t.Fatalf("updated pipeline = %+v", got)
+	} else if got.GetWorkerConfiguration().GetResources().GetCpuRequest() != "500m" {
+		t.Fatalf("worker configuration = %+v, want cpu_request 500m", got.GetWorkerConfiguration())
+	} else if got.GetCurrentVersion().GetId() != version.GetId() {
+		t.Fatalf("current version = %q, want %q", got.GetCurrentVersion().GetId(), version.GetId())
+	}
+
+	_, err = api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing pipeline_id error = %v, want invalid argument", err)
+	}
+}
+
 func TestValidateCursorConfigs(t *testing.T) {
 	valid := []*ingestionv1.PipelineEdge{{
-		Resource:         "users",
-		StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
-		Cursors:          []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: 300}},
+		Resource: "users",
+		ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+		Cursors:  []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: 300}},
 	}}
 	if err := validateCursorConfigs(valid); err != nil {
 		t.Fatal(err)
@@ -112,11 +148,11 @@ func TestValidateCursorConfigs(t *testing.T) {
 		name string
 		edge *ingestionv1.PipelineEdge
 	}{
-		{"Replace", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE, Cursors: valid[0].Cursors}},
-		{"missing resource", &ingestionv1.PipelineEdge{StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Field: "updated_at"}}}},
-		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}}}},
-		{"missing field", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users"}}}},
-		{"negative lookback", &ingestionv1.PipelineEdge{Resource: "users", StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: -1}}}},
+		{"Full", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, Cursors: valid[0].Cursors}},
+		{"missing resource", &ingestionv1.PipelineEdge{ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Field: "updated_at"}}}},
+		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}}}},
+		{"missing field", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users"}}}},
+		{"negative lookback", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users", Field: "updated_at", LookbackSeconds: -1}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -146,7 +182,8 @@ func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
 			Nodes: nodes,
 			Edges: []*ingestionv1.PipelineEdge{{
 				FromNode: "src", ToNode: "snk", Resource: "audit",
-				StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
 			}},
 		},
 	}))
@@ -160,7 +197,8 @@ func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
 			Nodes: nodes,
 			Edges: []*ingestionv1.PipelineEdge{{
 				FromNode: "src", ToNode: "snk", Resource: "orders",
-				StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
 			}},
 		},
 	}))

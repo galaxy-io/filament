@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,7 +28,7 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		filter.Limit = int(pageSizeOf(p.GetTotal()))
+		filter.Limit = int(pageSizeOf(p.GetPageSize()))
 		filter.Offset = int(offset)
 	}
 	if req.Msg.GetSinceMs() > 0 {
@@ -38,7 +39,7 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 	}
 	states, total, err := a.store.ListRuns(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	runs := make([]*ingestionv1.RunInfo, 0, len(states))
 	for _, state := range states {
@@ -57,8 +58,11 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 // GetRun returns the run's state and per-resource progress.
 func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.GetRunRequest]) (*connect.Response[ingestionv1.GetRunResponse], error) {
 	state, err := a.store.LoadRun(ctx, filament.RunID(req.Msg.GetRunId()))
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	resources := make([]*ingestionv1.RunResourceState, 0, len(state.Resources))
 	for _, resource := range state.Resources {
@@ -85,20 +89,20 @@ func (a *Server) SignalRun(_ context.Context, req *connect.Request[ingestionv1.S
 // events synthesized from the current snapshot before live facts.
 func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.TailRunRequest], stream *connect.ServerStream[ingestionv1.TailRunResponse]) error {
 	if a.bus == nil {
-		return fmt.Errorf("event bus is not configured")
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
 	}
 	send := stream.Send
 	tenant := filament.TenantID(defaultTenant(req.Msg.GetTenantId()))
 	run := filament.RunID(req.Msg.GetRunId())
 	if run == "" {
-		return fmt.Errorf("run_id is required")
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
 	}
 	if req.Msg.GetShouldReplay() {
 		if err := a.replayRun(ctx, run, send); err != nil {
-			return err
+			return connect.NewError(connect.CodeInternal, err)
 		}
 		if state, ok, err := a.loadRunSnapshot(ctx, run); err != nil {
-			return err
+			return connect.NewError(connect.CodeInternal, err)
 		} else if ok && runStatusTerminal(state.Status) {
 			return nil
 		}
@@ -106,7 +110,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 
 	sub, err := a.bus.Subscribe(events.RunPattern(tenant, run), eventbus.SubOpts{})
 	if err != nil {
-		return err
+		return connect.NewError(connect.CodeInternal, err)
 	}
 	defer func() { _ = sub.Close() }()
 
@@ -120,7 +124,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 		case <-ticker.C:
 			state, ok, err := a.loadRunSnapshot(ctx, run)
 			if err != nil {
-				return err
+				return connect.NewError(connect.CodeInternal, err)
 			}
 			if ok && runStatusTerminal(state.Status) {
 				return send(tailResponse(runSnapshotEvent(state, true)))
@@ -178,10 +182,10 @@ func (a *Server) replayRun(ctx context.Context, run filament.RunID, send func(*i
 func (a *Server) loadRunSnapshot(ctx context.Context, run filament.RunID) (filament.RunState, bool, error) {
 	state, err := a.store.LoadRun(ctx, run)
 	if err != nil {
-		if ctx.Err() != nil {
-			return filament.RunState{}, false, ctx.Err()
+		if errors.Is(err, filament.ErrNotFound) {
+			return filament.RunState{}, false, nil
 		}
-		return filament.RunState{}, false, nil
+		return filament.RunState{}, false, err
 	}
 	return state, true, nil
 }

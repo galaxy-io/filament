@@ -86,7 +86,7 @@ func pageOf[T any](items []T, p *ingestionv1.PaginationRequest) ([]T, *ingestion
 	if err != nil {
 		return nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	size := pageSizeOf(p.GetTotal())
+	size := pageSizeOf(p.GetPageSize())
 	resp := paginationResponse(offset, size, total)
 	if offset >= total {
 		return nil, resp, nil

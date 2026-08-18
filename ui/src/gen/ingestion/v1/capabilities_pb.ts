@@ -4,11 +4,11 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { ReplicationMode, StandardSyncMode } from "./common_pb";
+import type { ReadMode, ReplicationMode, WriteMode } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
 import type { ValidationError } from "./connectors_pb";
 import { file_ingestion_v1_connectors } from "./connectors_pb";
-import type { PipelineEdge, PipelineNode } from "./pipelines_pb";
+import type { PipelineGraph } from "./pipelines_pb";
 import { file_ingestion_v1_pipelines } from "./pipelines_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/capabilities.proto.
  */
 export const file_ingestion_v1_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiggEKF1ZhbGlkYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgVub2RlcxgCIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZU5vZGUSKQoFZWRnZXMYAyADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlIlMKDkNhbmRpZGF0ZVZhbHVlEg0KBXZhbHVlGAEgASgJEhMKC3JlY29tbWVuZGVkGAIgASgIEgwKBHJhbmsYAyABKAUSDwoHd2FybmluZxgEIAEoCSLtAQoLUmVxdWlyZW1lbnQSKwoEa2luZBgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudEtpbmQSEAoIcmVzb3VyY2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIwCgpjYW5kaWRhdGVzGAQgAygLMhwuaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVZhbHVlEhEKCXNhdGlzZmllZBgFIAEoCBIQCghibG9ja2luZxgGIAEoCBI3ChBjYW5kaWRhdGVfc3RhdHVzGAcgASgOMh0uaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVN0YXR1cyKQAQoSUmVzb3VyY2VWYWxpZGF0aW9uEhAKCHJlc291cmNlGAEgASgJEi8KDHJlcXVpcmVtZW50cxgDIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudBI3Cg9zdXBwb3J0ZWRfbW9kZXMYBCADKA4yHi5pbmdlc3Rpb24udjEuU3RhbmRhcmRTeW5jTW9kZSKAAwoORWRnZVZhbGlkYXRpb24SEQoJZnJvbV9ub2RlGAEgASgJEg8KB3RvX25vZGUYAiABKAkSEAoIcmVzb3VyY2UYAyABKAkSLQoGZXJyb3JzGAUgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchIvCgxyZXF1aXJlbWVudHMYBiADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQSMwoJcmVzb3VyY2VzGAcgAygLMiAuaW5nZXN0aW9uLnYxLlJlc291cmNlVmFsaWRhdGlvbhI3Cg9zdXBwb3J0ZWRfbW9kZXMYCSADKA4yHi5pbmdlc3Rpb24udjEuU3RhbmRhcmRTeW5jTW9kZRIyCgtyZXBsaWNhdGlvbhgKIAEoDjIdLmluZ2VzdGlvbi52MS5SZXBsaWNhdGlvbk1vZGUSNgoOZWZmZWN0aXZlX21vZGUYCyABKA4yHi5pbmdlc3Rpb24udjEuU3RhbmRhcmRTeW5jTW9kZSKFAQoYVmFsaWRhdGVQaXBlbGluZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEisKBWVkZ2VzGAIgAygLMhwuaW5nZXN0aW9uLnYxLkVkZ2VWYWxpZGF0aW9uEi0KBmVycm9ycxgDIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3IqeQoPUmVxdWlyZW1lbnRLaW5kEiAKHFJFUVVJUkVNRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIiCh5SRVFVSVJFTUVOVF9LSU5EX0NVUlNPUl9DT0xVTU4QARIgChxSRVFVSVJFTUVOVF9LSU5EX1BSSU1BUllfS0VZEAIqmgEKD0NhbmRpZGF0ZVN0YXR1cxIgChxDQU5ESURBVEVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHwobQ0FORElEQVRFX1NUQVRVU19FTlVNRVJBVEVEEAESIgoeQ0FORElEQVRFX1NUQVRVU19OT1RfU1VQUE9SVEVEEAISIAocQ0FORElEQVRFX1NUQVRVU19VTkFWQUlMQUJMRRADYgZwcm90bzM", [file_ingestion_v1_common, file_ingestion_v1_connectors, file_ingestion_v1_pipelines]);
+  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiWAoXVmFsaWRhdGVQaXBlbGluZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEioKBWdyYXBoGAIgASgLMhsuaW5nZXN0aW9uLnYxLlBpcGVsaW5lR3JhcGgiUwoOQ2FuZGlkYXRlVmFsdWUSDQoFdmFsdWUYASABKAkSEwoLcmVjb21tZW5kZWQYAiABKAgSDAoEcmFuaxgDIAEoBRIPCgd3YXJuaW5nGAQgASgJIu0BCgtSZXF1aXJlbWVudBIrCgRraW5kGAEgASgOMh0uaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50S2luZBIQCghyZXNvdXJjZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEjAKCmNhbmRpZGF0ZXMYBCADKAsyHC5pbmdlc3Rpb24udjEuQ2FuZGlkYXRlVmFsdWUSEQoJc2F0aXNmaWVkGAUgASgIEhAKCGJsb2NraW5nGAYgASgIEjcKEGNhbmRpZGF0ZV9zdGF0dXMYByABKA4yHS5pbmdlc3Rpb24udjEuQ2FuZGlkYXRlU3RhdHVzIo0BChJSZXNvdXJjZVZhbGlkYXRpb24SEAoIcmVzb3VyY2UYASABKAkSLwoMcmVxdWlyZW1lbnRzGAIgAygLMhkuaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50EjQKFHN1cHBvcnRlZF9yZWFkX21vZGVzGAMgAygOMhYuaW5nZXN0aW9uLnYxLlJlYWRNb2RlIrMDCg5FZGdlVmFsaWRhdGlvbhIRCglmcm9tX25vZGUYASABKAkSDwoHdG9fbm9kZRgCIAEoCRIQCghyZXNvdXJjZRgDIAEoCRItCgZlcnJvcnMYBCADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yEi8KDHJlcXVpcmVtZW50cxgFIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudBIzCglyZXNvdXJjZXMYBiADKAsyIC5pbmdlc3Rpb24udjEuUmVzb3VyY2VWYWxpZGF0aW9uEjYKFXN1cHBvcnRlZF93cml0ZV9tb2RlcxgHIAMoDjIXLmluZ2VzdGlvbi52MS5Xcml0ZU1vZGUSMgoLcmVwbGljYXRpb24YCCABKA4yHS5pbmdlc3Rpb24udjEuUmVwbGljYXRpb25Nb2RlEjMKE2VmZmVjdGl2ZV9yZWFkX21vZGUYCSABKA4yFi5pbmdlc3Rpb24udjEuUmVhZE1vZGUSNQoUZWZmZWN0aXZlX3dyaXRlX21vZGUYCiABKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlIoUBChhWYWxpZGF0ZVBpcGVsaW5lUmVzcG9uc2USDQoFdmFsaWQYASABKAgSKwoFZWRnZXMYAiADKAsyHC5pbmdlc3Rpb24udjEuRWRnZVZhbGlkYXRpb24SLQoGZXJyb3JzGAMgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvcip5Cg9SZXF1aXJlbWVudEtpbmQSIAocUkVRVUlSRU1FTlRfS0lORF9VTlNQRUNJRklFRBAAEiIKHlJFUVVJUkVNRU5UX0tJTkRfQ1VSU09SX0NPTFVNThABEiAKHFJFUVVJUkVNRU5UX0tJTkRfUFJJTUFSWV9LRVkQAiqaAQoPQ2FuZGlkYXRlU3RhdHVzEiAKHENBTkRJREFURV9TVEFUVVNfVU5TUEVDSUZJRUQQABIfChtDQU5ESURBVEVfU1RBVFVTX0VOVU1FUkFURUQQARIiCh5DQU5ESURBVEVfU1RBVFVTX05PVF9TVVBQT1JURUQQAhIgChxDQU5ESURBVEVfU1RBVFVTX1VOQVZBSUxBQkxFEANiBnByb3RvMw", [file_ingestion_v1_common, file_ingestion_v1_connectors, file_ingestion_v1_pipelines]);
 
 /**
  * ValidatePipelineRequest carries the graph inline so unsaved canvas state
@@ -31,14 +31,9 @@ export type ValidatePipelineRequest = Message<"ingestion.v1.ValidatePipelineRequ
   tenantId: string;
 
   /**
-   * @generated from field: repeated ingestion.v1.PipelineNode nodes = 2;
+   * @generated from field: ingestion.v1.PipelineGraph graph = 2;
    */
-  nodes: PipelineNode[];
-
-  /**
-   * @generated from field: repeated ingestion.v1.PipelineEdge edges = 3;
-   */
-  edges: PipelineEdge[];
+  graph?: PipelineGraph | undefined;
 };
 
 /**
@@ -83,7 +78,7 @@ export const CandidateValueSchema: GenMessage<CandidateValue> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_capabilities, 1);
 
 /**
- * Requirement is configuration the chosen sync mode involves. It is
+ * Requirement is configuration the chosen read/write combination involves. It is
  * emitted whether or not the value is set so a picker can render from it:
  * satisfied means the value is configured, blocking means the run would fail
  * as-is. Unsatisfied and non-blocking means auto-detection covers it.
@@ -135,9 +130,9 @@ export const RequirementSchema: GenMessage<Requirement> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_capabilities, 2);
 
 /**
- * ResourceValidation is one routed table's verdict: the final Standard modes
- * supported by the source/resource/sink combination and any requirements for
- * the selected mode. CDC resources report no Standard modes.
+ * ResourceValidation reports the read modes a routed resource supports and any
+ * requirements for its selected read/write combination. CDC resources report
+ * no Standard read modes.
  *
  * @generated from message ingestion.v1.ResourceValidation
  */
@@ -148,14 +143,14 @@ export type ResourceValidation = Message<"ingestion.v1.ResourceValidation"> & {
   resource: string;
 
   /**
-   * @generated from field: repeated ingestion.v1.Requirement requirements = 3;
+   * @generated from field: repeated ingestion.v1.Requirement requirements = 2;
    */
   requirements: Requirement[];
 
   /**
-   * @generated from field: repeated ingestion.v1.StandardSyncMode supported_modes = 4;
+   * @generated from field: repeated ingestion.v1.ReadMode supported_read_modes = 3;
    */
-  supportedModes: StandardSyncMode[];
+  supportedReadModes: ReadMode[];
 };
 
 /**
@@ -166,7 +161,8 @@ export const ResourceValidationSchema: GenMessage<ResourceValidation> = /*@__PUR
   messageDesc(file_ingestion_v1_capabilities, 3);
 
 /**
- * EdgeValidation is one edge's authoritative mode and requirement verdict.
+ * EdgeValidation is one edge's authoritative read/write verdict. Write modes
+ * apply to the complete source-to-destination route.
  *
  * @generated from message ingestion.v1.EdgeValidation
  */
@@ -187,34 +183,39 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
   resource: string;
 
   /**
-   * @generated from field: repeated ingestion.v1.ValidationError errors = 5;
+   * @generated from field: repeated ingestion.v1.ValidationError errors = 4;
    */
   errors: ValidationError[];
 
   /**
-   * @generated from field: repeated ingestion.v1.Requirement requirements = 6;
+   * @generated from field: repeated ingestion.v1.Requirement requirements = 5;
    */
   requirements: Requirement[];
 
   /**
-   * @generated from field: repeated ingestion.v1.ResourceValidation resources = 7;
+   * @generated from field: repeated ingestion.v1.ResourceValidation resources = 6;
    */
   resources: ResourceValidation[];
 
   /**
-   * @generated from field: repeated ingestion.v1.StandardSyncMode supported_modes = 9;
+   * @generated from field: repeated ingestion.v1.WriteMode supported_write_modes = 7;
    */
-  supportedModes: StandardSyncMode[];
+  supportedWriteModes: WriteMode[];
 
   /**
-   * @generated from field: ingestion.v1.ReplicationMode replication = 10;
+   * @generated from field: ingestion.v1.ReplicationMode replication = 8;
    */
   replication: ReplicationMode;
 
   /**
-   * @generated from field: ingestion.v1.StandardSyncMode effective_mode = 11;
+   * @generated from field: ingestion.v1.ReadMode effective_read_mode = 9;
    */
-  effectiveMode: StandardSyncMode;
+  effectiveReadMode: ReadMode;
+
+  /**
+   * @generated from field: ingestion.v1.WriteMode effective_write_mode = 10;
+   */
+  effectiveWriteMode: WriteMode;
 };
 
 /**

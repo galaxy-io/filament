@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
-import { ConnectorKind, ReplicationMode, StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
   type CreatePipelineRequest,
@@ -47,9 +47,9 @@ const buildNodes = (
 
 const buildCursors = (
   rows: CreatePipelineModalResourceRow[],
-  syncMode: StandardSyncMode,
+  readMode: ReadMode,
 ): ResourceCursorConfig[] => {
-  if (syncMode !== StandardSyncMode.INCREMENTAL) return [];
+  if (readMode !== ReadMode.INCREMENTAL) return [];
   return rows
     .filter((row) => !!row.cursorField)
     .map((row) =>
@@ -74,35 +74,36 @@ const buildSinkEdges = ({
 }): PipelineEdge[] => {
   const selectable = rows.filter((row) => row.isSelectable);
   const selected = rows.filter((row) => row.isSelected);
-  const syncModes = [
-    ...new Set(selected.map((row) => (isCdc ? StandardSyncMode.UNSPECIFIED : row.syncMode))),
+  const readModes = [
+    ...new Set(selected.map((row) => (isCdc ? ReadMode.UNSPECIFIED : row.readMode))),
   ];
 
   const isCollapsible =
-    !selectable.length || (selected.length === selectable.length && syncModes.length <= 1);
+    !selectable.length || (selected.length === selectable.length && readModes.length <= 1);
 
   if (isCollapsible) {
-    const syncMode =
-      syncModes[0] ?? (isCdc ? StandardSyncMode.UNSPECIFIED : StandardSyncMode.REPLACE);
+    const readMode = readModes[0] ?? (isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL);
     return [
       create(PipelineEdgeSchema, {
         fromNode: sourceId,
         resource: "",
         toNode: sink.connection.id,
-        standardSyncMode: syncMode,
-        cursors: isCdc ? [] : buildCursors(selected, syncMode),
+        readMode,
+        writeMode: isCdc ? WriteMode.UNSPECIFIED : sink.writeMode,
+        cursors: isCdc ? [] : buildCursors(selected, readMode),
       }),
     ];
   }
 
   return selected.map((row) => {
-    const syncMode = isCdc ? StandardSyncMode.UNSPECIFIED : row.syncMode;
+    const readMode = isCdc ? ReadMode.UNSPECIFIED : row.readMode;
     return create(PipelineEdgeSchema, {
       fromNode: sourceId,
       resource: row.name,
       toNode: sink.connection.id,
-      standardSyncMode: syncMode,
-      cursors: isCdc ? [] : buildCursors([row], syncMode),
+      readMode,
+      writeMode: isCdc ? WriteMode.UNSPECIFIED : sink.writeMode,
+      cursors: isCdc ? [] : buildCursors([row], readMode),
     });
   });
 };

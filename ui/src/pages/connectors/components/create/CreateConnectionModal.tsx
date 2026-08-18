@@ -4,7 +4,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
-import CreateConnectionConfigure from "@/pages/connectors/components/create/CreateConnectionConfigure";
+import CreateConnectionConfigure from "@/pages/connectors/components/create/configure/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
 

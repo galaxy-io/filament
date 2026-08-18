@@ -10,11 +10,11 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/pagination.proto.
  */
 export const file_ingestion_v1_pagination: GenFile = /*@__PURE__*/
-  fileDesc("Ch1pbmdlc3Rpb24vdjEvcGFnaW5hdGlvbi5wcm90bxIMaW5nZXN0aW9uLnYxIkIKEVBhZ2luYXRpb25SZXF1ZXN0Eg0KBXRvdGFsGAEgASgFEhMKBmN1cnNvchgCIAEoCUgAiAEBQgkKB19jdXJzb3IifwoSUGFnaW5hdGlvblJlc3BvbnNlEg0KBXRvdGFsGAEgASgFEhwKD3ByZXZpb3VzX2N1cnNvchgCIAEoCUgAiAEBEhgKC25leHRfY3Vyc29yGAMgASgJSAGIAQFCEgoQX3ByZXZpb3VzX2N1cnNvckIOCgxfbmV4dF9jdXJzb3JiBnByb3RvMw");
+  fileDesc("Ch1pbmdlc3Rpb24vdjEvcGFnaW5hdGlvbi5wcm90bxIMaW5nZXN0aW9uLnYxIkYKEVBhZ2luYXRpb25SZXF1ZXN0EhEKCXBhZ2Vfc2l6ZRgBIAEoBRITCgZjdXJzb3IYAiABKAlIAIgBAUIJCgdfY3Vyc29yIn8KElBhZ2luYXRpb25SZXNwb25zZRINCgV0b3RhbBgBIAEoBRIcCg9wcmV2aW91c19jdXJzb3IYAiABKAlIAIgBARIYCgtuZXh0X2N1cnNvchgDIAEoCUgBiAEBQhIKEF9wcmV2aW91c19jdXJzb3JCDgoMX25leHRfY3Vyc29yYgZwcm90bzM");
 
 /**
  * PaginationRequest narrows a List response to one page. Absent means the
- * full result. total is the page size, defaulted and capped server-side;
+ * full result. page_size is defaulted and capped server-side;
  * cursor is an opaque token from a prior response, absent meaning the first
  * page.
  *
@@ -22,9 +22,9 @@ export const file_ingestion_v1_pagination: GenFile = /*@__PURE__*/
  */
 export type PaginationRequest = Message<"ingestion.v1.PaginationRequest"> & {
   /**
-   * @generated from field: int32 total = 1;
+   * @generated from field: int32 page_size = 1;
    */
-  total: number;
+  pageSize: number;
 
   /**
    * @generated from field: optional string cursor = 2;

@@ -13,7 +13,7 @@ interface PipelineWorkerResourcesFieldsProps {
 const FieldsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
   width: 100%;
 
   @media (max-width: 640px) {

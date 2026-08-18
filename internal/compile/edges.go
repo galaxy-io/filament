@@ -8,15 +8,17 @@ import (
 )
 
 // routeGroup is the set of edges that share a source node and sink node, and
-// so collapse into a single run. Each resource carries its own Standard sync mode;
-// the "" entry is the route default set by an all-resources edge.
+// so collapse into a single run. Each resource carries its own read mode while
+// the write mode is shared by the route; the "" read entry is the route default
+// set by an all-resources edge.
 type routeGroup struct {
 	key           string
 	source        *ingestionv1.PipelineNode
 	sink          *ingestionv1.PipelineNode
 	from          string
 	to            string
-	syncModes     map[string]filament.StandardSyncMode
+	readModes     map[string]filament.ReadMode
+	writeMode     filament.WriteMode
 	all           bool
 	resources     map[string]bool
 	selectors     map[string]bool
@@ -25,8 +27,8 @@ type routeGroup struct {
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
 // An edge with no resource marks its group as "all resources". Two edges naming
-// the same resource (or two all-resources edges) with different sync modes
-// conflict.
+// the same resource (or two all-resources edges) with different read modes
+// conflict. All edges in a route must carry the same write mode.
 func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
 	byKey := map[string]*routeGroup{}
 	var ordered []*routeGroup
@@ -36,7 +38,11 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		if source == nil || sink == nil {
 			return nil, fmt.Errorf("%w: edge references missing node", ErrInvalid)
 		}
-		syncMode, err := standardSyncModeFromProto(edge.GetStandardSyncMode())
+		readMode, err := readModeFromProto(edge.GetReadMode())
+		if err != nil {
+			return nil, err
+		}
+		writeMode, err := writeModeFromProto(edge.GetWriteMode())
 		if err != nil {
 			return nil, err
 		}
@@ -49,13 +55,16 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				sink:          sink,
 				from:          edge.GetFromNode(),
 				to:            edge.GetToNode(),
-				syncModes:     map[string]filament.StandardSyncMode{},
+				readModes:     map[string]filament.ReadMode{},
+				writeMode:     writeMode,
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
+		} else if group.writeMode != writeMode {
+			return nil, fmt.Errorf("%w: conflicting write modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
 		}
 		for _, cursor := range edge.GetCursors() {
 			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
@@ -65,13 +74,13 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		resource := edge.GetResource()
-		if previous, exists := group.syncModes[resource]; exists && previous != syncMode {
+		if previous, exists := group.readModes[resource]; exists && previous != readMode {
 			if resource == "" {
-				return nil, fmt.Errorf("%w: conflicting sync modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
+				return nil, fmt.Errorf("%w: conflicting read modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
 			}
-			return nil, fmt.Errorf("%w: conflicting sync modes for resource %q", ErrInvalid, resource)
+			return nil, fmt.Errorf("%w: conflicting read modes for resource %q", ErrInvalid, resource)
 		}
-		group.syncModes[resource] = syncMode
+		group.readModes[resource] = readMode
 		if resource == "" {
 			group.all = true
 			continue
@@ -86,16 +95,26 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 	return ordered, nil
 }
 
-func standardSyncModeFromProto(mode ingestionv1.StandardSyncMode) (filament.StandardSyncMode, error) {
+func readModeFromProto(mode ingestionv1.ReadMode) (filament.ReadMode, error) {
 	switch mode {
-	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED,
-		ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_REPLACE:
-		return filament.StandardSyncReplace, nil
-	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_APPEND:
-		return filament.StandardSyncAppend, nil
-	case ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL:
-		return filament.StandardSyncIncremental, nil
+	case ingestionv1.ReadMode_READ_MODE_UNSPECIFIED, ingestionv1.ReadMode_READ_MODE_FULL:
+		return filament.ModeFull, nil
+	case ingestionv1.ReadMode_READ_MODE_INCREMENTAL:
+		return filament.ModeIncremental, nil
 	default:
-		return "", fmt.Errorf("%w: unknown Standard sync mode %d", ErrInvalid, mode)
+		return 0, fmt.Errorf("%w: unknown read mode %d", ErrInvalid, mode)
+	}
+}
+
+func writeModeFromProto(mode ingestionv1.WriteMode) (filament.WriteMode, error) {
+	switch mode {
+	case ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED, ingestionv1.WriteMode_WRITE_MODE_REPLACE:
+		return filament.WriteReplace, nil
+	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
+		return filament.WriteAppend, nil
+	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
+		return filament.WriteUpsert, nil
+	default:
+		return "", fmt.Errorf("%w: unknown write mode %d", ErrInvalid, mode)
 	}
 }

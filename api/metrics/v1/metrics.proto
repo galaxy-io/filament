@@ -43,7 +43,7 @@ enum MetricGranularity {
 }
 
 // MetricFilter narrows a query; values are dimension values as strings
-// (a RunStatus number, a pipeline id, a provider name).
+// (a RunStatus number or a pipeline id).
 message MetricFilter {
   MetricDimension dimension = 1;
   repeated string values = 2;

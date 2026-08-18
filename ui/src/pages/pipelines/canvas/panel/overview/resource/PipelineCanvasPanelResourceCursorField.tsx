@@ -1,12 +1,9 @@
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 interface PipelineCanvasPanelResourceCursorFieldProps {
-  resource: Resource["name"];
   value: ResourceColumn["name"];
   options: ResourceColumn[];
   isDisabled: boolean;
@@ -14,27 +11,13 @@ interface PipelineCanvasPanelResourceCursorFieldProps {
 }
 
 const PipelineCanvasPanelResourceCursorField = ({
-  resource,
   value,
   options,
   isDisabled,
   onChange,
 }: PipelineCanvasPanelResourceCursorFieldProps) => {
   if (!options.length) {
-    return (
-      <FlexWrapper
-        alignItems={AlignItems.CENTER}
-        justifyContent={JustifyContent.SPACE_BETWEEN}
-        gap={8}
-      >
-        <Text size={TextSize.BODY_SM} isEllipsis>
-          {resource}
-        </Text>
-        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-          Auto
-        </Text>
-      </FlexWrapper>
-    );
+    return null;
   }
 
   const selectOptions: SelectInputOption[] = options.map((column) => ({

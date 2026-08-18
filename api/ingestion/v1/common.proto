@@ -51,17 +51,20 @@ enum ReplicationMode {
   REPLICATION_MODE_CDC = 2;
 }
 
-// StandardSyncMode is the destination outcome for a query-based source.
-// CDC connections do not set this field: their stream and merge behavior is
-// implied by the connection's replication mode.
-enum StandardSyncMode {
-  STANDARD_SYNC_MODE_UNSPECIFIED = 0;
-  // Replace reads every selected row and replaces the destination snapshot.
-  STANDARD_SYNC_MODE_REPLACE = 1;
-  // Append reads every selected row and adds it to the destination.
-  STANDARD_SYNC_MODE_APPEND = 2;
-  // Incremental performs one backfill, then reads a cursor and merges by key.
-  STANDARD_SYNC_MODE_INCREMENTAL = 3;
+// ReadMode is the per-resource read lever on Standard connections.
+enum ReadMode {
+  READ_MODE_UNSPECIFIED = 0;
+  READ_MODE_FULL = 1;
+  READ_MODE_INCREMENTAL = 2;
+}
+
+// WriteMode is the destination-route write lever. Delete and merge are engine
+// mechanisms and are not user-selectable write modes.
+enum WriteMode {
+  WRITE_MODE_UNSPECIFIED = 0;
+  WRITE_MODE_APPEND = 1;
+  WRITE_MODE_REPLACE = 2;
+  WRITE_MODE_UPSERT = 3;
 }
 
 enum FieldScope {

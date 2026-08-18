@@ -10,8 +10,7 @@ import "ingestion/v1/pipelines.proto";
 // validates the same as a persisted version.
 message ValidatePipelineRequest {
   string tenant_id = 1;
-  repeated PipelineNode nodes = 2;
-  repeated PipelineEdge edges = 3;
+  PipelineGraph graph = 2;
 }
 
 enum RequirementKind {
@@ -39,7 +38,7 @@ message CandidateValue {
   string warning = 4;
 }
 
-// Requirement is configuration the chosen sync mode involves. It is
+// Requirement is configuration the chosen read/write combination involves. It is
 // emitted whether or not the value is set so a picker can render from it:
 // satisfied means the value is configured, blocking means the run would fail
 // as-is. Unsatisfied and non-blocking means auto-detection covers it.
@@ -53,26 +52,28 @@ message Requirement {
   CandidateStatus candidate_status = 7;
 }
 
-// ResourceValidation is one routed table's verdict: the final Standard modes
-// supported by the source/resource/sink combination and any requirements for
-// the selected mode. CDC resources report no Standard modes.
+// ResourceValidation reports the read modes a routed resource supports and any
+// requirements for its selected read/write combination. CDC resources report
+// no Standard read modes.
 message ResourceValidation {
   string resource = 1;
-  repeated Requirement requirements = 3;
-  repeated StandardSyncMode supported_modes = 4;
+  repeated Requirement requirements = 2;
+  repeated ReadMode supported_read_modes = 3;
 }
 
-// EdgeValidation is one edge's authoritative mode and requirement verdict.
+// EdgeValidation is one edge's authoritative read/write verdict. Write modes
+// apply to the complete source-to-destination route.
 message EdgeValidation {
   string from_node = 1;
   string to_node = 2;
   string resource = 3;
-  repeated ValidationError errors = 5;
-  repeated Requirement requirements = 6;
-  repeated ResourceValidation resources = 7;
-  repeated StandardSyncMode supported_modes = 9;
-  ReplicationMode replication = 10;
-  StandardSyncMode effective_mode = 11;
+  repeated ValidationError errors = 4;
+  repeated Requirement requirements = 5;
+  repeated ResourceValidation resources = 6;
+  repeated WriteMode supported_write_modes = 7;
+  ReplicationMode replication = 8;
+  ReadMode effective_read_mode = 9;
+  WriteMode effective_write_mode = 10;
 }
 
 message ValidatePipelineResponse {
