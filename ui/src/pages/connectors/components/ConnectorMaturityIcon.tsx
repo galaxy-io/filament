@@ -9,12 +9,12 @@ import {
   CONNECTOR_MATURITY_TO_LABEL_MAP,
 } from "@/pages/connectors/constants";
 
-interface ConnectionKindChipProps {
+interface ConnectorMaturityIconProps {
   maturity: ConnectorMaturity;
   size?: number;
 }
 
-const ConnectionKindChip = ({ maturity, size = 14 }: ConnectionKindChipProps) => {
+const ConnectorMaturityIcon = ({ maturity, size = 14 }: ConnectorMaturityIconProps) => {
   return (
     <Tooltip body={CONNECTOR_MATURITY_TO_LABEL_MAP[maturity]}>
       <Icon
@@ -27,4 +27,4 @@ const ConnectionKindChip = ({ maturity, size = 14 }: ConnectionKindChipProps) =>
   );
 };
 
-export default ConnectionKindChip;
+export default ConnectorMaturityIcon;
