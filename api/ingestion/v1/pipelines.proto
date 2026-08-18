@@ -10,7 +10,7 @@ import "ingestion/v1/runs.proto";
 // PipelineNode is one source or sink on the canvas. connection_id references the
 // reusable Connection that supplies the connector and connection-scoped config
 // (host/bucket/credentials). config/secret_refs are the per-node PIPELINE-scoped
-// overlay (prefix, path, target table, write mode) shallow-merged over the
+// overlay (prefix, path, target table) shallow-merged over the
 // connection config at run time, with the node overlay winning on key conflicts.
 message PipelineNode {
   string id = 1;
@@ -22,8 +22,10 @@ message PipelineNode {
 
 // PipelineEdge routes from a source node to a sink node. An empty resource routes
 // all enabled resources; a named resource is an additive per-resource route.
-// Standard connections carry one destination-oriented sync mode. CDC connections
-// carry no mode because the connection implies the complete stream recipe.
+// Standard connections carry a per-resource read mode and a destination-route
+// write mode. All edges on the same source-to-destination route must use the
+// same write mode. CDC connections carry neither lever because the connection
+// implies the complete stream recipe.
 message PipelineEdge {
   string from_node = 1;
   string resource = 2;
@@ -33,7 +35,8 @@ message PipelineEdge {
   // configure several resources; a resource-specific edge may configure only
   // its own resource. Omitted resources use connector auto-detection.
   repeated ResourceCursorConfig cursors = 6;
-  StandardSyncMode standard_sync_mode = 9;
+  ReadMode read_mode = 7;
+  WriteMode write_mode = 8;
 }
 
 message ResourceCursorConfig {

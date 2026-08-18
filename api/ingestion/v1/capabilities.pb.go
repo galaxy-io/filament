@@ -257,7 +257,7 @@ func (x *CandidateValue) GetWarning() string {
 	return ""
 }
 
-// Requirement is configuration the chosen sync mode involves. It is
+// Requirement is configuration the chosen read/write combination involves. It is
 // emitted whether or not the value is set so a picker can render from it:
 // satisfied means the value is configured, blocking means the run would fail
 // as-is. Unsatisfied and non-blocking means auto-detection covers it.
@@ -353,16 +353,16 @@ func (x *Requirement) GetCandidateStatus() CandidateStatus {
 	return CandidateStatus_CANDIDATE_STATUS_UNSPECIFIED
 }
 
-// ResourceValidation is one routed table's verdict: the final Standard modes
-// supported by the source/resource/sink combination and any requirements for
-// the selected mode. CDC resources report no Standard modes.
+// ResourceValidation reports the read modes a routed resource supports and any
+// requirements for its selected read/write combination. CDC resources report
+// no Standard read modes.
 type ResourceValidation struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Resource       string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
-	Requirements   []*Requirement         `protobuf:"bytes,3,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	SupportedModes []StandardSyncMode     `protobuf:"varint,4,rep,packed,name=supported_modes,json=supportedModes,proto3,enum=ingestion.v1.StandardSyncMode" json:"supported_modes,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Resource           string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	Requirements       []*Requirement         `protobuf:"bytes,2,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	SupportedReadModes []ReadMode             `protobuf:"varint,3,rep,packed,name=supported_read_modes,json=supportedReadModes,proto3,enum=ingestion.v1.ReadMode" json:"supported_read_modes,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ResourceValidation) Reset() {
@@ -409,27 +409,29 @@ func (x *ResourceValidation) GetRequirements() []*Requirement {
 	return nil
 }
 
-func (x *ResourceValidation) GetSupportedModes() []StandardSyncMode {
+func (x *ResourceValidation) GetSupportedReadModes() []ReadMode {
 	if x != nil {
-		return x.SupportedModes
+		return x.SupportedReadModes
 	}
 	return nil
 }
 
-// EdgeValidation is one edge's authoritative mode and requirement verdict.
+// EdgeValidation is one edge's authoritative read/write verdict. Write modes
+// apply to the complete source-to-destination route.
 type EdgeValidation struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	FromNode       string                 `protobuf:"bytes,1,opt,name=from_node,json=fromNode,proto3" json:"from_node,omitempty"`
-	ToNode         string                 `protobuf:"bytes,2,opt,name=to_node,json=toNode,proto3" json:"to_node,omitempty"`
-	Resource       string                 `protobuf:"bytes,3,opt,name=resource,proto3" json:"resource,omitempty"`
-	Errors         []*ValidationError     `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
-	Requirements   []*Requirement         `protobuf:"bytes,6,rep,name=requirements,proto3" json:"requirements,omitempty"`
-	Resources      []*ResourceValidation  `protobuf:"bytes,7,rep,name=resources,proto3" json:"resources,omitempty"`
-	SupportedModes []StandardSyncMode     `protobuf:"varint,9,rep,packed,name=supported_modes,json=supportedModes,proto3,enum=ingestion.v1.StandardSyncMode" json:"supported_modes,omitempty"`
-	Replication    ReplicationMode        `protobuf:"varint,10,opt,name=replication,proto3,enum=ingestion.v1.ReplicationMode" json:"replication,omitempty"`
-	EffectiveMode  StandardSyncMode       `protobuf:"varint,11,opt,name=effective_mode,json=effectiveMode,proto3,enum=ingestion.v1.StandardSyncMode" json:"effective_mode,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	FromNode            string                 `protobuf:"bytes,1,opt,name=from_node,json=fromNode,proto3" json:"from_node,omitempty"`
+	ToNode              string                 `protobuf:"bytes,2,opt,name=to_node,json=toNode,proto3" json:"to_node,omitempty"`
+	Resource            string                 `protobuf:"bytes,3,opt,name=resource,proto3" json:"resource,omitempty"`
+	Errors              []*ValidationError     `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	Requirements        []*Requirement         `protobuf:"bytes,5,rep,name=requirements,proto3" json:"requirements,omitempty"`
+	Resources           []*ResourceValidation  `protobuf:"bytes,6,rep,name=resources,proto3" json:"resources,omitempty"`
+	SupportedWriteModes []WriteMode            `protobuf:"varint,7,rep,packed,name=supported_write_modes,json=supportedWriteModes,proto3,enum=ingestion.v1.WriteMode" json:"supported_write_modes,omitempty"`
+	Replication         ReplicationMode        `protobuf:"varint,8,opt,name=replication,proto3,enum=ingestion.v1.ReplicationMode" json:"replication,omitempty"`
+	EffectiveReadMode   ReadMode               `protobuf:"varint,9,opt,name=effective_read_mode,json=effectiveReadMode,proto3,enum=ingestion.v1.ReadMode" json:"effective_read_mode,omitempty"`
+	EffectiveWriteMode  WriteMode              `protobuf:"varint,10,opt,name=effective_write_mode,json=effectiveWriteMode,proto3,enum=ingestion.v1.WriteMode" json:"effective_write_mode,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *EdgeValidation) Reset() {
@@ -504,9 +506,9 @@ func (x *EdgeValidation) GetResources() []*ResourceValidation {
 	return nil
 }
 
-func (x *EdgeValidation) GetSupportedModes() []StandardSyncMode {
+func (x *EdgeValidation) GetSupportedWriteModes() []WriteMode {
 	if x != nil {
-		return x.SupportedModes
+		return x.SupportedWriteModes
 	}
 	return nil
 }
@@ -518,11 +520,18 @@ func (x *EdgeValidation) GetReplication() ReplicationMode {
 	return ReplicationMode_REPLICATION_MODE_UNSPECIFIED
 }
 
-func (x *EdgeValidation) GetEffectiveMode() StandardSyncMode {
+func (x *EdgeValidation) GetEffectiveReadMode() ReadMode {
 	if x != nil {
-		return x.EffectiveMode
+		return x.EffectiveReadMode
 	}
-	return StandardSyncMode_STANDARD_SYNC_MODE_UNSPECIFIED
+	return ReadMode_READ_MODE_UNSPECIFIED
+}
+
+func (x *EdgeValidation) GetEffectiveWriteMode() WriteMode {
+	if x != nil {
+		return x.EffectiveWriteMode
+	}
+	return WriteMode_WRITE_MODE_UNSPECIFIED
 }
 
 type ValidatePipelineResponse struct {
@@ -609,22 +618,23 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"candidates\x12\x1c\n" +
 	"\tsatisfied\x18\x05 \x01(\bR\tsatisfied\x12\x1a\n" +
 	"\bblocking\x18\x06 \x01(\bR\bblocking\x12H\n" +
-	"\x10candidate_status\x18\a \x01(\x0e2\x1d.ingestion.v1.CandidateStatusR\x0fcandidateStatus\"\xb8\x01\n" +
+	"\x10candidate_status\x18\a \x01(\x0e2\x1d.ingestion.v1.CandidateStatusR\x0fcandidateStatus\"\xb9\x01\n" +
 	"\x12ResourceValidation\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12=\n" +
-	"\frequirements\x18\x03 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12G\n" +
-	"\x0fsupported_modes\x18\x04 \x03(\x0e2\x1e.ingestion.v1.StandardSyncModeR\x0esupportedModes\"\xe9\x03\n" +
+	"\frequirements\x18\x02 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12H\n" +
+	"\x14supported_read_modes\x18\x03 \x03(\x0e2\x16.ingestion.v1.ReadModeR\x12supportedReadModes\"\xb9\x04\n" +
 	"\x0eEdgeValidation\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x17\n" +
 	"\ato_node\x18\x02 \x01(\tR\x06toNode\x12\x1a\n" +
 	"\bresource\x18\x03 \x01(\tR\bresource\x125\n" +
-	"\x06errors\x18\x05 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\x12=\n" +
-	"\frequirements\x18\x06 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12>\n" +
-	"\tresources\x18\a \x03(\v2 .ingestion.v1.ResourceValidationR\tresources\x12G\n" +
-	"\x0fsupported_modes\x18\t \x03(\x0e2\x1e.ingestion.v1.StandardSyncModeR\x0esupportedModes\x12?\n" +
-	"\vreplication\x18\n" +
-	" \x01(\x0e2\x1d.ingestion.v1.ReplicationModeR\vreplication\x12E\n" +
-	"\x0eeffective_mode\x18\v \x01(\x0e2\x1e.ingestion.v1.StandardSyncModeR\reffectiveMode\"\x9b\x01\n" +
+	"\x06errors\x18\x04 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\x12=\n" +
+	"\frequirements\x18\x05 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12>\n" +
+	"\tresources\x18\x06 \x03(\v2 .ingestion.v1.ResourceValidationR\tresources\x12K\n" +
+	"\x15supported_write_modes\x18\a \x03(\x0e2\x17.ingestion.v1.WriteModeR\x13supportedWriteModes\x12?\n" +
+	"\vreplication\x18\b \x01(\x0e2\x1d.ingestion.v1.ReplicationModeR\vreplication\x12F\n" +
+	"\x13effective_read_mode\x18\t \x01(\x0e2\x16.ingestion.v1.ReadModeR\x11effectiveReadMode\x12I\n" +
+	"\x14effective_write_mode\x18\n" +
+	" \x01(\x0e2\x17.ingestion.v1.WriteModeR\x12effectiveWriteMode\"\x9b\x01\n" +
 	"\x18ValidatePipelineResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x122\n" +
 	"\x05edges\x18\x02 \x03(\v2\x1c.ingestion.v1.EdgeValidationR\x05edges\x125\n" +
@@ -665,9 +675,10 @@ var file_ingestion_v1_capabilities_proto_goTypes = []any{
 	(*ValidatePipelineResponse)(nil), // 7: ingestion.v1.ValidatePipelineResponse
 	(*PipelineNode)(nil),             // 8: ingestion.v1.PipelineNode
 	(*PipelineEdge)(nil),             // 9: ingestion.v1.PipelineEdge
-	(StandardSyncMode)(0),            // 10: ingestion.v1.StandardSyncMode
+	(ReadMode)(0),                    // 10: ingestion.v1.ReadMode
 	(*ValidationError)(nil),          // 11: ingestion.v1.ValidationError
-	(ReplicationMode)(0),             // 12: ingestion.v1.ReplicationMode
+	(WriteMode)(0),                   // 12: ingestion.v1.WriteMode
+	(ReplicationMode)(0),             // 13: ingestion.v1.ReplicationMode
 }
 var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
 	8,  // 0: ingestion.v1.ValidatePipelineRequest.nodes:type_name -> ingestion.v1.PipelineNode
@@ -676,20 +687,21 @@ var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
 	3,  // 3: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
 	1,  // 4: ingestion.v1.Requirement.candidate_status:type_name -> ingestion.v1.CandidateStatus
 	4,  // 5: ingestion.v1.ResourceValidation.requirements:type_name -> ingestion.v1.Requirement
-	10, // 6: ingestion.v1.ResourceValidation.supported_modes:type_name -> ingestion.v1.StandardSyncMode
+	10, // 6: ingestion.v1.ResourceValidation.supported_read_modes:type_name -> ingestion.v1.ReadMode
 	11, // 7: ingestion.v1.EdgeValidation.errors:type_name -> ingestion.v1.ValidationError
 	4,  // 8: ingestion.v1.EdgeValidation.requirements:type_name -> ingestion.v1.Requirement
 	5,  // 9: ingestion.v1.EdgeValidation.resources:type_name -> ingestion.v1.ResourceValidation
-	10, // 10: ingestion.v1.EdgeValidation.supported_modes:type_name -> ingestion.v1.StandardSyncMode
-	12, // 11: ingestion.v1.EdgeValidation.replication:type_name -> ingestion.v1.ReplicationMode
-	10, // 12: ingestion.v1.EdgeValidation.effective_mode:type_name -> ingestion.v1.StandardSyncMode
-	6,  // 13: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
-	11, // 14: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	12, // 10: ingestion.v1.EdgeValidation.supported_write_modes:type_name -> ingestion.v1.WriteMode
+	13, // 11: ingestion.v1.EdgeValidation.replication:type_name -> ingestion.v1.ReplicationMode
+	10, // 12: ingestion.v1.EdgeValidation.effective_read_mode:type_name -> ingestion.v1.ReadMode
+	12, // 13: ingestion.v1.EdgeValidation.effective_write_mode:type_name -> ingestion.v1.WriteMode
+	6,  // 14: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
+	11, // 15: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_capabilities_proto_init() }

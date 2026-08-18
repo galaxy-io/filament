@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/common.proto.
  */
 export const file_ingestion_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiZwoPV29ya2VyUmVzb3VyY2VzEhMKC2NwdV9yZXF1ZXN0GAEgASgJEhEKCWNwdV9saW1pdBgCIAEoCRIWCg5tZW1vcnlfcmVxdWVzdBgDIAEoCRIUCgxtZW1vcnlfbGltaXQYBCABKAkiRwoTV29ya2VyQ29uZmlndXJhdGlvbhIwCglyZXNvdXJjZXMYASABKAsyHS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzIssCCgtDb25maWdGaWVsZBIMCgRuYW1lGAEgASgJEiUKBHR5cGUYAiABKA4yFy5pbmdlc3Rpb24udjEuRmllbGRUeXBlEhAKCHJlcXVpcmVkGAMgASgIEicKB2RlZmF1bHQYBCABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJgoEZW51bRgFIAMoCzIYLmluZ2VzdGlvbi52MS5FbnVtT3B0aW9uEgwKBGhlbHAYBiABKAkSJwoFc2NvcGUYByABKA4yGC5pbmdlc3Rpb24udjEuRmllbGRTY29wZRIOCgZzZWNyZXQYCCABKAgSKQoGZmllbGRzGAkgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkEjIKDHZpc2libGVfd2hlbhgKIAEoCzIcLmluZ2VzdGlvbi52MS5GaWVsZENvbmRpdGlvbiIqCgpFbnVtT3B0aW9uEg0KBXZhbHVlGAEgASgJEg0KBWxhYmVsGAIgASgJIi8KDkZpZWxkQ29uZGl0aW9uEg0KBWZpZWxkGAEgASgJEg4KBnZhbHVlcxgCIAMoCSI5CgxDb25maWdTY2hlbWESKQoGZmllbGRzGAEgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkKmMKDUNvbm5lY3RvcktpbmQSHgoaQ09OTkVDVE9SX0tJTkRfVU5TUEVDSUZJRUQQABIZChVDT05ORUNUT1JfS0lORF9TT1VSQ0UQARIXChNDT05ORUNUT1JfS0lORF9TSU5LEAIq2AEKCUZpZWxkVHlwZRIaChZGSUVMRF9UWVBFX1VOU1BFQ0lGSUVEEAASFQoRRklFTERfVFlQRV9TVFJJTkcQARISCg5GSUVMRF9UWVBFX0lOVBACEhMKD0ZJRUxEX1RZUEVfQk9PTBADEhUKEUZJRUxEX1RZUEVfU0VDUkVUEAQSFwoTRklFTERfVFlQRV9EVVJBVElPThAFEhMKD0ZJRUxEX1RZUEVfRU5VTRAGEhUKEUZJRUxEX1RZUEVfT0JKRUNUEAcSEwoPRklFTERfVFlQRV9MSVNUEAgqbAoPUmVwbGljYXRpb25Nb2RlEiAKHFJFUExJQ0FUSU9OX01PREVfVU5TUEVDSUZJRUQQABIdChlSRVBMSUNBVElPTl9NT0RFX1NUQU5EQVJEEAESGAoUUkVQTElDQVRJT05fTU9ERV9DREMQAiqZAQoQU3RhbmRhcmRTeW5jTW9kZRIiCh5TVEFOREFSRF9TWU5DX01PREVfVU5TUEVDSUZJRUQQABIeChpTVEFOREFSRF9TWU5DX01PREVfUkVQTEFDRRABEh0KGVNUQU5EQVJEX1NZTkNfTU9ERV9BUFBFTkQQAhIiCh5TVEFOREFSRF9TWU5DX01PREVfSU5DUkVNRU5UQUwQAypfCgpGaWVsZFNjb3BlEhsKF0ZJRUxEX1NDT1BFX1VOU1BFQ0lGSUVEEAASGgoWRklFTERfU0NPUEVfQ09OTkVDVElPThABEhgKFEZJRUxEX1NDT1BFX1BJUEVMSU5FEAJiBnByb3RvMw", [file_google_protobuf_struct]);
+  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiZwoPV29ya2VyUmVzb3VyY2VzEhMKC2NwdV9yZXF1ZXN0GAEgASgJEhEKCWNwdV9saW1pdBgCIAEoCRIWCg5tZW1vcnlfcmVxdWVzdBgDIAEoCRIUCgxtZW1vcnlfbGltaXQYBCABKAkiRwoTV29ya2VyQ29uZmlndXJhdGlvbhIwCglyZXNvdXJjZXMYASABKAsyHS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzIssCCgtDb25maWdGaWVsZBIMCgRuYW1lGAEgASgJEiUKBHR5cGUYAiABKA4yFy5pbmdlc3Rpb24udjEuRmllbGRUeXBlEhAKCHJlcXVpcmVkGAMgASgIEicKB2RlZmF1bHQYBCABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJgoEZW51bRgFIAMoCzIYLmluZ2VzdGlvbi52MS5FbnVtT3B0aW9uEgwKBGhlbHAYBiABKAkSJwoFc2NvcGUYByABKA4yGC5pbmdlc3Rpb24udjEuRmllbGRTY29wZRIOCgZzZWNyZXQYCCABKAgSKQoGZmllbGRzGAkgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkEjIKDHZpc2libGVfd2hlbhgKIAEoCzIcLmluZ2VzdGlvbi52MS5GaWVsZENvbmRpdGlvbiIqCgpFbnVtT3B0aW9uEg0KBXZhbHVlGAEgASgJEg0KBWxhYmVsGAIgASgJIi8KDkZpZWxkQ29uZGl0aW9uEg0KBWZpZWxkGAEgASgJEg4KBnZhbHVlcxgCIAMoCSI5CgxDb25maWdTY2hlbWESKQoGZmllbGRzGAEgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkKmMKDUNvbm5lY3RvcktpbmQSHgoaQ09OTkVDVE9SX0tJTkRfVU5TUEVDSUZJRUQQABIZChVDT05ORUNUT1JfS0lORF9TT1VSQ0UQARIXChNDT05ORUNUT1JfS0lORF9TSU5LEAIq2AEKCUZpZWxkVHlwZRIaChZGSUVMRF9UWVBFX1VOU1BFQ0lGSUVEEAASFQoRRklFTERfVFlQRV9TVFJJTkcQARISCg5GSUVMRF9UWVBFX0lOVBACEhMKD0ZJRUxEX1RZUEVfQk9PTBADEhUKEUZJRUxEX1RZUEVfU0VDUkVUEAQSFwoTRklFTERfVFlQRV9EVVJBVElPThAFEhMKD0ZJRUxEX1RZUEVfRU5VTRAGEhUKEUZJRUxEX1RZUEVfT0JKRUNUEAcSEwoPRklFTERfVFlQRV9MSVNUEAgqbAoPUmVwbGljYXRpb25Nb2RlEiAKHFJFUExJQ0FUSU9OX01PREVfVU5TUEVDSUZJRUQQABIdChlSRVBMSUNBVElPTl9NT0RFX1NUQU5EQVJEEAESGAoUUkVQTElDQVRJT05fTU9ERV9DREMQAipUCghSZWFkTW9kZRIZChVSRUFEX01PREVfVU5TUEVDSUZJRUQQABISCg5SRUFEX01PREVfRlVMTBABEhkKFVJFQURfTU9ERV9JTkNSRU1FTlRBTBACKm0KCVdyaXRlTW9kZRIaChZXUklURV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRV1JJVEVfTU9ERV9BUFBFTkQQARIWChJXUklURV9NT0RFX1JFUExBQ0UQAhIVChFXUklURV9NT0RFX1VQU0VSVBADKl8KCkZpZWxkU2NvcGUSGwoXRklFTERfU0NPUEVfVU5TUEVDSUZJRUQQABIaChZGSUVMRF9TQ09QRV9DT05ORUNUSU9OEAESGAoURklFTERfU0NPUEVfUElQRUxJTkUQAmIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * WorkerResources sizes the worker that executes a run. Values are Kubernetes
@@ -326,45 +326,66 @@ export const ReplicationModeSchema: GenEnum<ReplicationMode> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 2);
 
 /**
- * StandardSyncMode is the destination outcome for a query-based source.
- * CDC connections do not set this field: their stream and merge behavior is
- * implied by the connection's replication mode.
+ * ReadMode is the per-resource read lever on Standard connections.
  *
- * @generated from enum ingestion.v1.StandardSyncMode
+ * @generated from enum ingestion.v1.ReadMode
  */
-export enum StandardSyncMode {
+export enum ReadMode {
   /**
-   * @generated from enum value: STANDARD_SYNC_MODE_UNSPECIFIED = 0;
+   * @generated from enum value: READ_MODE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * Replace reads every selected row and replaces the destination snapshot.
-   *
-   * @generated from enum value: STANDARD_SYNC_MODE_REPLACE = 1;
+   * @generated from enum value: READ_MODE_FULL = 1;
    */
-  REPLACE = 1,
+  FULL = 1,
 
   /**
-   * Append reads every selected row and adds it to the destination.
-   *
-   * @generated from enum value: STANDARD_SYNC_MODE_APPEND = 2;
+   * @generated from enum value: READ_MODE_INCREMENTAL = 2;
    */
-  APPEND = 2,
-
-  /**
-   * Incremental performs one backfill, then reads a cursor and merges by key.
-   *
-   * @generated from enum value: STANDARD_SYNC_MODE_INCREMENTAL = 3;
-   */
-  INCREMENTAL = 3,
+  INCREMENTAL = 2,
 }
 
 /**
- * Describes the enum ingestion.v1.StandardSyncMode.
+ * Describes the enum ingestion.v1.ReadMode.
  */
-export const StandardSyncModeSchema: GenEnum<StandardSyncMode> = /*@__PURE__*/
+export const ReadModeSchema: GenEnum<ReadMode> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 3);
+
+/**
+ * WriteMode is the destination-route write lever. Delete and merge are engine
+ * mechanisms and are not user-selectable write modes.
+ *
+ * @generated from enum ingestion.v1.WriteMode
+ */
+export enum WriteMode {
+  /**
+   * @generated from enum value: WRITE_MODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: WRITE_MODE_APPEND = 1;
+   */
+  APPEND = 1,
+
+  /**
+   * @generated from enum value: WRITE_MODE_REPLACE = 2;
+   */
+  REPLACE = 2,
+
+  /**
+   * @generated from enum value: WRITE_MODE_UPSERT = 3;
+   */
+  UPSERT = 3,
+}
+
+/**
+ * Describes the enum ingestion.v1.WriteMode.
+ */
+export const WriteModeSchema: GenEnum<WriteMode> = /*@__PURE__*/
+  enumDesc(file_ingestion_v1_common, 4);
 
 /**
  * @generated from enum ingestion.v1.FieldScope
@@ -390,5 +411,5 @@ export enum FieldScope {
  * Describes the enum ingestion.v1.FieldScope.
  */
 export const FieldScopeSchema: GenEnum<FieldScope> = /*@__PURE__*/
-  enumDesc(file_ingestion_v1_common, 4);
+  enumDesc(file_ingestion_v1_common, 5);
 
