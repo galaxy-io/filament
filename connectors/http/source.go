@@ -668,7 +668,7 @@ func decodeSelector(selector string) (resourceRef, bool) {
 	if err := json.Unmarshal([]byte(selector), &token); err != nil || token.ID == "" {
 		return resourceRef{}, false
 	}
-	return resourceRef{Kind: token.Kind, ID: token.ID}, true
+	return resourceRef(token), true
 }
 
 func newHTTPRecord(resource string, keyJSON, dataJSON []byte, projected bool) filament.Record {

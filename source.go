@@ -334,6 +334,7 @@ type RatePolicy struct {
 // only the source can observe directly.
 type SourceProgressKind uint8
 
+// Source progress kinds identify the source-local signals an observer can report.
 const (
 	SourceProgressPageFetched SourceProgressKind = iota + 1
 	SourceProgressFanOutStarted
