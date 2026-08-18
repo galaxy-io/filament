@@ -68,7 +68,7 @@ func (s *Source) extractChangesGTID(ctx context.Context, sink filament.RecordSin
 	run := newCDCRun(sink, opts.Resources, opts.Limit)
 
 	if start.Contain(watermark) {
-		return run.pushStreamMarksLSN(gtidCursor(start))
+		return run.pushStreamMarksLSN(ctx, s, gtidCursor(start))
 	}
 
 	syncer := replication.NewBinlogSyncer(s.binlogConfig())
@@ -138,7 +138,7 @@ func (s *Source) extractChangesGTID(ctx context.Context, sink filament.RecordSin
 		}
 
 		if committed.Contain(watermark) {
-			return run.pushStreamMarksLSN(gtidCursor(committed))
+			return run.pushStreamMarksLSN(ctx, s, gtidCursor(committed))
 		}
 	}
 }

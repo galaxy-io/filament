@@ -3,65 +3,92 @@ package mysql
 import (
 	"testing"
 
+	"github.com/apache/arrow-go/v18/arrow/decimal128"
+
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/batch"
 )
 
-func TestMysqlColumnTypeMapsPortableLogicalTypes(t *testing.T) {
+func TestColumnType(t *testing.T) {
 	tests := []struct {
 		name  string
 		field filament.SchemaField
+		same  bool
 		want  string
 	}{
-		{name: "bool", field: filament.SchemaField{Logical: filament.LogicalBool, Native: "tinyint(1)"}, want: "tinyint(1)"},
-		{name: "int16", field: filament.SchemaField{Logical: filament.LogicalInt16}, want: "smallint"},
-		{name: "int32", field: filament.SchemaField{Logical: filament.LogicalInt32}, want: "int"},
-		{name: "int64", field: filament.SchemaField{Logical: filament.LogicalInt64}, want: "bigint"},
-		{name: "float32", field: filament.SchemaField{Logical: filament.LogicalFloat32}, want: "float"},
-		{name: "float64", field: filament.SchemaField{Logical: filament.LogicalFloat64}, want: "double"},
-		{name: "decimal default", field: filament.SchemaField{Logical: filament.LogicalDecimal}, want: "decimal(38,9)"},
-		{name: "decimal native mysql", field: filament.SchemaField{Logical: filament.LogicalDecimal, Native: "decimal(12,2)"}, want: "decimal(12,2)"},
-		{name: "string default", field: filament.SchemaField{Logical: filament.LogicalString}, want: "longtext"},
-		{name: "string native mysql", field: filament.SchemaField{Logical: filament.LogicalString, Native: "varchar(64)"}, want: "varchar(64)"},
-		{name: "string native foreign", field: filament.SchemaField{Logical: filament.LogicalString, Native: "character varying(20)"}, want: "longtext"},
-		{name: "bytes default", field: filament.SchemaField{Logical: filament.LogicalBytes}, want: "longblob"},
-		{name: "bytes native mysql", field: filament.SchemaField{Logical: filament.LogicalBytes, Native: "varbinary(255)"}, want: "varbinary(255)"},
-		{name: "date", field: filament.SchemaField{Logical: filament.LogicalDate}, want: "date"},
-		{name: "time", field: filament.SchemaField{Logical: filament.LogicalTime}, want: "time(6)"},
-		{name: "timestamp", field: filament.SchemaField{Logical: filament.LogicalTimestamp}, want: "datetime(6)"},
-		{name: "timestamptz avoids 2038 range", field: filament.SchemaField{Logical: filament.LogicalTimestampTZ, Native: "timestamp with time zone"}, want: "datetime(6)"},
-		{name: "json", field: filament.SchemaField{Logical: filament.LogicalJSON, Native: "json"}, want: "json"},
-		{name: "array maps to json", field: filament.SchemaField{Logical: filament.LogicalArray, Native: "text[]"}, want: "json"},
-		{name: "uuid", field: filament.SchemaField{Logical: filament.LogicalUUID}, want: "char(36)"},
-		{name: "unknown default", field: filament.SchemaField{}, want: "longtext"},
-		{name: "unknown native mysql", field: filament.SchemaField{Logical: filament.LogicalUnknown, Native: "year"}, want: "year"},
+		{"bool", filament.SchemaField{Logical: filament.LogicalBool}, false, "tinyint(1)"},
+		{"int16", filament.SchemaField{Logical: filament.LogicalInt16}, false, "smallint"},
+		{"bounded decimal", filament.SchemaField{Logical: filament.LogicalDecimal, Precision: 12, Scale: 2}, false, "decimal(12,2)"},
+		{"unbounded decimal", filament.SchemaField{Logical: filament.LogicalDecimal}, false, "decimal(65,30)"},
+		{"string default", filament.SchemaField{Logical: filament.LogicalString, Native: "character varying(20)"}, false, "longtext"},
+		{"same engine keeps native", filament.SchemaField{Logical: filament.LogicalString, Native: "varchar(64)"}, true, "varchar(64)"},
+		{"timestamptz avoids 2038 range", filament.SchemaField{Logical: filament.LogicalTimestampTZ}, false, "datetime(6)"},
+		{"json", filament.SchemaField{Logical: filament.LogicalJSON}, false, "json"},
+		{"array is literal text", filament.SchemaField{Logical: filament.LogicalArray, Native: "text[]"}, false, "longtext"},
+		{"uuid", filament.SchemaField{Logical: filament.LogicalUUID}, false, "char(36)"},
+		{"unknown", filament.SchemaField{}, false, "longtext"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mysqlColumnType(tt.field); got != tt.want {
-				t.Fatalf("mysqlColumnType() = %q, want %q", got, tt.want)
+			if got := columnType(tt.field, tt.same); got != tt.want {
+				t.Fatalf("columnType() = %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestOnDuplicate(t *testing.T) {
-	schema := filament.RecordSchema{
-		PrimaryKey: []string{"id"},
-		Fields: []filament.SchemaField{
-			{Name: "id"}, {Name: "name"}, {Name: "age"},
-		},
+type collect struct{ chunks []batch.Chunk }
+
+func (c *collect) Chunk(ch batch.Chunk) error          { c.chunks = append(c.chunks, ch); return nil }
+func (c *collect) Drained(filament.RowMeta, int) error { return nil }
+
+func TestLoadPayload(t *testing.T) {
+	rs := filament.RecordSchema{Fields: []filament.SchemaField{
+		{Name: "id", Logical: filament.LogicalInt64},
+		{Name: "name", Logical: filament.LogicalString, Nullable: true},
+		{Name: "amt", Logical: filament.LogicalDecimal, Precision: 10, Scale: 2},
+		{Name: "raw", Logical: filament.LogicalBytes},
+		{Name: "at", Logical: filament.LogicalTimestamp},
+		{Name: "ok", Logical: filament.LogicalBool},
+	}}
+	schema := batch.Schema(rs)
+	c := &collect{}
+	b := batch.New(schema, batch.Options{MaxRows: 4}, c)
+	b.Int64(1)
+	b.String("a\tb\\c\nd")
+	b.Decimal(decimal128.FromI64(150))
+	b.Bytes([]byte{0, '\t', 0xff})
+	b.Timestamp(1704067200_000000)
+	b.Bool(true)
+	if err := b.EndRow(filament.RowMeta{}); err != nil {
+		t.Fatal(err)
 	}
-	if got := onDuplicate(false, schema); got != "" {
-		t.Fatalf("non-upsert clause = %q, want empty", got)
+	b.Int64(2)
+	b.Null()
+	b.Decimal(decimal128.FromI64(-5))
+	b.Bytes(nil)
+	b.Timestamp(0)
+	b.Bool(false)
+	if err := b.EndRow(filament.RowMeta{}); err != nil {
+		t.Fatal(err)
 	}
-	want := " ON DUPLICATE KEY UPDATE `name` = new.`name`, `age` = new.`age`"
-	if got := onDuplicate(true, schema); got != want {
-		t.Fatalf("upsert clause = %q, want %q", got, want)
+	if err := b.Flush(); err != nil {
+		t.Fatal(err)
 	}
-	// PK-only table degrades to a no-op update (MySQL's DO NOTHING idiom).
-	pkOnly := filament.RecordSchema{PrimaryKey: []string{"id"}, Fields: []filament.SchemaField{{Name: "id"}}}
-	want = " ON DUPLICATE KEY UPDATE `id` = new.`id`"
-	if got := onDuplicate(true, pkOnly); got != want {
-		t.Fatalf("pk-only clause = %q, want %q", got, want)
+	rows := c.chunks[0].Rows
+	got := string(newLoader(schema, []int{0, 1, 2, 3, 4, 5}).encode(rows, 0, 2))
+	want := "1\ta\\tb\\\\c\\nd\t1.50\t\\0\\t\xff\t2024-01-01 00:00:00\t1\n" +
+		"2\t\\N\t-0.05\t\t1970-01-01 00:00:00\t0\n"
+	if got != want {
+		t.Fatalf("payload\n got %q\nwant %q", got, want)
+	}
+	keys := string(newLoader(schema, []int{0}).encode(rows, 1, 2))
+	if keys != "2\n" {
+		t.Fatalf("keys payload = %q", keys)
+	}
+	sql := loadSQL("filament-1", "`db`.`t`", []string{"`id`", "`name`", "`doc`"}, []bool{false, false, true}, true)
+	want = "LOAD DATA LOCAL INFILE 'Reader::filament-1' REPLACE INTO TABLE `db`.`t` CHARACTER SET binary FIELDS TERMINATED BY '\\t' ESCAPED BY '\\\\' LINES TERMINATED BY '\\n' (`id`, `name`, @filament_2) SET `doc` = CONVERT(@filament_2 USING utf8mb4)"
+	if sql != want {
+		t.Fatalf("load SQL\n got %s\nwant %s", sql, want)
 	}
 }

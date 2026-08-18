@@ -36,8 +36,8 @@ covering index range scan straight to the cursor.
 ## CDC
 
 Streams the binlog via the replication protocol (ROW format), decoding
-insert/update/delete events into the same JSON row shape the snapshot reader
-produces, so a sink can't tell the two apart. A run has catch-up semantics:
+insert/update/delete events through the same per-type parsers the snapshot
+reader uses, so a sink can't tell the two apart. A run has catch-up semantics:
 it captures the server's current binlog position as a watermark, streams the
 checkpointed position up to it, and returns — continuous CDC is a
 re-request loop, the same mechanism as snapshot resume.

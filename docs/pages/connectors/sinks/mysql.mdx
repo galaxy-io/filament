@@ -7,34 +7,39 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg"
 `connectors/mysql/sink` loads each resource into its own typed table with
 native MySQL columns.
 
-## Typed loading
+## Loading
 
 The engine calls `EnsureSchema` once per resource before extraction, which
 creates the destination table (adding any new columns to an existing one)
-and caches a prebuilt `INSERT` statement. `Write` then casts each batch's
-JSON row payloads into those typed columns server-side via `JSON_TABLE`
-(MySQL 8.0+) — the same role Postgres's sink gives `jsonb_to_recordset`. A
-batch never gets parsed client-side; it's framed as one JSON array and
-handed to MySQL as a single bound parameter.
+and prepares the resource's load and delete statements. Each batch is then
+streamed straight into the table with `LOAD DATA LOCAL INFILE`: the Arrow
+columns are rendered as tab-separated lines and handed to the driver as an
+in-memory reader, so no row is ever parsed as JSON on either side. Because
+`LOCAL` makes the server skip duplicate keys and coerce bad values with a
+warning rather than an error, every load checks the rows landed against
+the rows sent and the session's warnings, and fails on either.
 
-Binary columns round-trip through `TO_BASE64`/`FROM_BASE64` (MySQL JSON has
-no binary representation, matching the source's encoding convention); JSON
-columns pass through unchanged so nested structure survives the round trip.
+The server must allow client-side loads (`local_infile=ON`; the default on
+managed MySQL, off on a stock community server). Binary columns arrive as
+their raw bytes; JSON columns pass through unchanged so nested structure
+survives the round trip. The sink pins its session to UTC, matching the
+source, so a same-engine `timestamp` column round-trips as the same
+instant.
 
 ## Write policies
 
 A resumable ingestion type (`SnapshotUpsert`, `Upsert`, `CDC`) upserts by
-primary key via `ON DUPLICATE KEY UPDATE`, so a re-delivered row from an
+primary key with `LOAD DATA … REPLACE`, so a re-delivered row from an
 at-least-once resume overwrites rather than errors on the unique
-constraint. A non-resumable load skips the upsert clause and truncates the
-table first for full-snapshot replace semantics.
+constraint. A non-resumable load skips `REPLACE` and truncates the table
+first for full-snapshot replace semantics.
 
-CDC batches apply through a different path: consecutive same-op records
+CDC batches apply through a different path: consecutive same-op rows
 (insert/update vs. delete) are split into maximal runs in arrival order —
 so a delete never jumps ahead of the insert it's paired with — and each run
-lands as one statement: inserts/updates through the same upsert `INSERT …
-JSON_TABLE`, deletes through a `JSON_TABLE`-join `DELETE` keyed on the
-batch's primary-key columns.
+lands as one statement inside one transaction: inserts/updates through the
+same `LOAD DATA … REPLACE`, deletes through a per-session temp table of the
+run's keys and a join `DELETE`.
 
 ## Modes
 
