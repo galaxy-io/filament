@@ -154,7 +154,10 @@ message CreatePipelineVersionResponse {
 
 message UpdatePipelineRequest {
   string tenant_id = 1;
-  Pipeline pipeline = 2;
+  string pipeline_id = 2;
+  string name = 3;
+  string description = 4;
+  WorkerConfiguration worker_configuration = 5;
 }
 
 message UpdatePipelineResponse {

@@ -218,12 +218,15 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
 // immutable versions through CreatePipelineVersion.
 func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
-	pipeline := req.Msg.GetPipeline()
-	if pipeline == nil || pipeline.GetId() == "" {
-		return nil, fmt.Errorf("pipeline.id is required")
+	if req.Msg.GetPipelineId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
-	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration())); err != nil {
+	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(req.Msg.GetWorkerConfiguration())); err != nil {
 		return nil, compileError(err)
+	}
+	pipeline := &ingestionv1.Pipeline{
+		Id: req.Msg.GetPipelineId(), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
+		WorkerConfiguration: req.Msg.GetWorkerConfiguration(),
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
 	if errors.Is(err, filament.ErrNotFound) {
@@ -446,7 +449,7 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	for _, c := range compiled {
 		run, err := a.orch.Submit(ctx, c.Req)
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		if a.log != nil {
 			a.log.Info("ingestion-api: run submitted",
