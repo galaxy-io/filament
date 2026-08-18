@@ -67,6 +67,25 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validateCursorConfigs(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetPipelineId())
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if pipeline.GetDeletedAt() != 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipeline.GetId()))
+	}
+	validationCtx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
+	defer cancel()
+	validation, err := a.validatePipelineGraph(validationCtx, pipeline.GetTenantId(), nodes, edges)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if !validation.GetValid() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline graph is invalid: %s", pipelineValidationMessage(validation)))
+	}
 	if err := a.normalizeEdgeModes(ctx, nodes, edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

@@ -14,17 +14,26 @@ import (
 
 // ValidatePipeline checks every edge of a graph: the Standard sync modes the
 // source/sink pair supports, whether the chosen mode is among them, and the
-// per-table setup that mode involves. Replace and Append edges have nothing
-// to configure and skip source probing entirely; types that read a cursor or
-// write by key probe the live source for per-table menus, cursor candidates,
-// and primary keys. Only blocking requirements gate valid — an unset cursor
-// that auto-detection covers is advisory.
+// per-table setup that mode involves. The live source is probed to produce
+// final per-resource mode menus; only modes that read a cursor or write by key
+// produce requirements. Only blocking requirements gate valid — an unset
+// cursor that auto-detection covers is advisory.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
-	nodes := make(map[string]*ingestionv1.PipelineNode, len(req.Msg.GetNodes()))
-	for _, node := range req.Msg.GetNodes() {
+	resp, err := a.validatePipelineGraph(ctx, req.Msg.GetTenantId(), req.Msg.GetNodes(), req.Msg.GetEdges())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// validatePipelineGraph is the shared validation path for the public probe and
+// persisted pipeline versions. Callers own the context deadline.
+func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graphNodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) (*ingestionv1.ValidatePipelineResponse, error) {
+	nodes := make(map[string]*ingestionv1.PipelineNode, len(graphNodes))
+	for _, node := range graphNodes {
 		nodes[node.GetId()] = node
 	}
 
@@ -37,9 +46,9 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 	}
 	defer probes.teardown(ctx)
 
-	for _, edge := range req.Msg.GetEdges() {
-		if err := a.validateEdge(ctx, edge, nodes, req.Msg.GetTenantId(), probes, resp); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
+	for _, edge := range edges {
+		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp); err != nil {
+			return nil, err
 		}
 	}
 
@@ -61,7 +70,35 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 			}
 		}
 	}
-	return connect.NewResponse(resp), nil
+	return resp, nil
+}
+
+func pipelineValidationMessage(resp *ingestionv1.ValidatePipelineResponse) string {
+	for _, validationErr := range resp.GetErrors() {
+		if validationErr.GetMessage() != "" {
+			return validationErr.GetMessage()
+		}
+	}
+	for _, edge := range resp.GetEdges() {
+		for _, validationErr := range edge.GetErrors() {
+			if validationErr.GetMessage() != "" {
+				return validationErr.GetMessage()
+			}
+		}
+		for _, requirement := range edge.GetRequirements() {
+			if requirement.GetBlocking() && requirement.GetMessage() != "" {
+				return requirement.GetMessage()
+			}
+		}
+		for _, resource := range edge.GetResources() {
+			for _, requirement := range resource.GetRequirements() {
+				if requirement.GetBlocking() && requirement.GetMessage() != "" {
+					return requirement.GetMessage()
+				}
+			}
+		}
+	}
+	return "pipeline graph is invalid"
 }
 
 // validateEdge appends the edge's verdict to resp; a non-nil return is an

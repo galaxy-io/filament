@@ -87,3 +87,45 @@ func TestValidateCursorConfigs(t *testing.T) {
 		})
 	}
 }
+
+func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
+	ctx := context.Background()
+	api, ids := leverAPI(t)
+	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "validated"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineID := pipelineResp.Msg.GetPipeline().GetId()
+	nodes := []*ingestionv1.PipelineNode{
+		{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+		{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+	}
+
+	_, err = api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+		PipelineId: pipelineID,
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: nodes,
+			Edges: []*ingestionv1.PipelineEdge{{
+				FromNode: "src", ToNode: "snk", Resource: "audit",
+				StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
+			}},
+		},
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid Incremental resource: got %v, want invalid argument", err)
+	}
+
+	_, err = api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+		PipelineId: pipelineID,
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: nodes,
+			Edges: []*ingestionv1.PipelineEdge{{
+				FromNode: "src", ToNode: "snk", Resource: "orders",
+				StandardSyncMode: ingestionv1.StandardSyncMode_STANDARD_SYNC_MODE_INCREMENTAL,
+			}},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("valid Incremental resource: %v", err)
+	}
+}
