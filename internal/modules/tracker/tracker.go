@@ -206,7 +206,10 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return m.applyCheckpoint(ctx, env, d.Checkpoint)
 
 	case events.WatermarkAdvancedEvent:
-		return m.applyCheckpoint(ctx, env, d.Checkpoint)
+		// Observational only: a source has seen a newer cursor, but the rows
+		// carrying it may not be durable yet. batch.written remains the sole
+		// input to checkpoint persistence.
+		return nil
 
 	default:
 		return nil // facts this module doesn't fold are acked and ignored

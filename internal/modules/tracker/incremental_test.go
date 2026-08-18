@@ -7,7 +7,25 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/events"
 )
+
+func TestWatermarkProgressIsNotPersistedBeforeBatchWrite(t *testing.T) {
+	m := New()
+	m.ds = memory.New()
+	cp := &filament.CheckpointData{ResourceName: "users", Cursor: map[string]any{"updated_at": "2026-08-18T00:00:00Z"}}
+	err := m.apply(context.Background(), events.NewFact(
+		events.WatermarkAdvanced,
+		events.Envelope{Tenant: "tenant", Run: "run", Resource: "users"},
+		events.WatermarkAdvancedEvent{Checkpoint: cp},
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.cp) != 0 {
+		t.Fatalf("observed watermark entered durable accumulator: %#v", m.cp)
+	}
+}
 
 func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
