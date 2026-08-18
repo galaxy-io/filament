@@ -309,6 +309,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Error = d.Error
 	case events.PageFetchedEvent:
 		fields.Records, fields.Bytes, fields.Uri = d.Records, d.Bytes, d.URI
+	case events.FanOutStartedEvent:
+		fields.ParentsTotal = d.ParentsTotal
 	case events.ResourceCompletedEvent:
 		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.ResourceFailedEvent:
@@ -317,14 +319,35 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.BatchWrittenEvent:
 		fields.Records, fields.Bytes, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
 	case events.IntegrityVerifiedEvent:
 		fields.Crc = d.CRC
 	case events.ChunkDivergenceEvent:
 		fields.Crc, fields.Error = d.CRC, d.Error
+	case events.WatermarkAdvancedEvent:
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
+	case events.CheckpointSavedEvent:
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
+	case events.RateLimitedEvent:
+		fields.RetryAfterMs = d.RetryAfter.Milliseconds()
 	case events.RetryExhaustedEvent:
 		fields.Error = d.Error
 	}
 	return fields
+}
+
+func checkpointToProto(checkpoint *filament.CheckpointData) *structpb.Struct {
+	if checkpoint == nil {
+		return nil
+	}
+	value, err := structpb.NewStruct(map[string]any{
+		"resource": checkpoint.ResourceName,
+		"cursor":   checkpoint.Cursor,
+	})
+	if err != nil {
+		return nil
+	}
+	return value
 }
 
 func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
 import "ingestion/v1/pagination.proto";
 
@@ -160,6 +161,10 @@ message RunEventFields {
   string uri = 3;
   uint32 crc = 4;
   string error = 5;
+  int64 retry_after_ms = 6;
+  int64 parents_total = 7;
+  // checkpoint preserves the connector cursor together with its resource.
+  google.protobuf.Struct checkpoint = 8;
 }
 
 // RunEvent is the event envelope forwarded by the run stream. event_type is the

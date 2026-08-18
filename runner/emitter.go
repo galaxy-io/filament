@@ -169,6 +169,13 @@ func sourceObserver(e *emitter) filament.SourceObserver {
 			emit(e, events.RetryExhausted, progress.Resource, events.RetryExhaustedEvent{
 				Error: progress.Error,
 			})
+		default:
+			if e.log != nil {
+				e.log.Warn("runner: unmapped source progress",
+					filament.Field{Key: "kind", Value: progress.Kind},
+					filament.Field{Key: "resource", Value: progress.Resource},
+				)
+			}
 		}
 	}
 }
