@@ -8,7 +8,11 @@ import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
 } from "@/gen/ingestion/v1/connectors_pb";
-import { PipelineEdgeSchema, PipelineNodeSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  PipelineEdgeSchema,
+  PipelineGraphSchema,
+  PipelineNodeSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
 import { CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE } from "@/pages/pipelines/components/create/constants";
 import {
@@ -53,34 +57,36 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const validationInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
-        nodes: source
-          ? [
-              create(PipelineNodeSchema, {
-                id: source.id,
-                kind: ConnectorKind.SOURCE,
-                connectionId: source.id,
-              }),
-              ...state.sinkConnections.map((sink) =>
+        graph: create(PipelineGraphSchema, {
+          nodes: source
+            ? [
                 create(PipelineNodeSchema, {
-                  id: sink.id,
-                  kind: ConnectorKind.SINK,
-                  connectionId: sink.id,
+                  id: source.id,
+                  kind: ConnectorKind.SOURCE,
+                  connectionId: source.id,
                 }),
-              ),
-            ]
-          : [],
-        edges: source
-          ? state.sinkConnections.map((sink) =>
-              create(PipelineEdgeSchema, {
-                fromNode: source.id,
-                toNode: sink.id,
-                readMode: isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL,
-                writeMode: isCdc
-                  ? WriteMode.UNSPECIFIED
-                  : (state.sinkWriteModes[sink.id] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE),
-              }),
-            )
-          : [],
+                ...state.sinkConnections.map((sink) =>
+                  create(PipelineNodeSchema, {
+                    id: sink.id,
+                    kind: ConnectorKind.SINK,
+                    connectionId: sink.id,
+                  }),
+                ),
+              ]
+            : [],
+          edges: source
+            ? state.sinkConnections.map((sink) =>
+                create(PipelineEdgeSchema, {
+                  fromNode: source.id,
+                  toNode: sink.id,
+                  readMode: isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL,
+                  writeMode: isCdc
+                    ? WriteMode.UNSPECIFIED
+                    : (state.sinkWriteModes[sink.id] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE),
+                }),
+              )
+            : [],
+        }),
       }),
     [source, state.sinkConnections, state.sinkWriteModes, isCdc],
   );

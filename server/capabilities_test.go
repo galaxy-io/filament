@@ -170,11 +170,13 @@ func TestValidatePipelineLevers(t *testing.T) {
 	validate := func(sourceConn string, edge *ingestionv1.PipelineEdge) *ingestionv1.ValidatePipelineResponse {
 		edge.FromNode, edge.ToNode = "src", "snk"
 		resp, err := api.ValidatePipeline(context.Background(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
-			Nodes: []*ingestionv1.PipelineNode{
-				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: sourceConn},
-				{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+			Graph: &ingestionv1.PipelineGraph{
+				Nodes: []*ingestionv1.PipelineNode{
+					{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: sourceConn},
+					{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+				},
+				Edges: []*ingestionv1.PipelineEdge{edge},
 			},
-			Edges: []*ingestionv1.PipelineEdge{edge},
 		}))
 		if err != nil {
 			t.Fatal(err)
@@ -289,13 +291,15 @@ func TestValidatePipelineLevers(t *testing.T) {
 func TestValidatePipelineRejectsMixedRouteWriteModes(t *testing.T) {
 	api, ids := leverAPI(t)
 	resp, err := api.ValidatePipeline(context.Background(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
-		Nodes: []*ingestionv1.PipelineNode{
-			{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
-			{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
-		},
-		Edges: []*ingestionv1.PipelineEdge{
-			{FromNode: "src", ToNode: "snk", Resource: "orders", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
-			{FromNode: "src", ToNode: "snk", Resource: "orders", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT},
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: []*ingestionv1.PipelineNode{
+				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+				{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+			},
+			Edges: []*ingestionv1.PipelineEdge{
+				{FromNode: "src", ToNode: "snk", Resource: "orders", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
+				{FromNode: "src", ToNode: "snk", Resource: "orders", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT},
+			},
 		},
 	}))
 	if err != nil {

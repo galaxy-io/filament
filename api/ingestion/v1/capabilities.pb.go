@@ -131,8 +131,7 @@ func (CandidateStatus) EnumDescriptor() ([]byte, []int) {
 type ValidatePipelineRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Nodes         []*PipelineNode        `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
-	Edges         []*PipelineEdge        `protobuf:"bytes,3,rep,name=edges,proto3" json:"edges,omitempty"`
+	Graph         *PipelineGraph         `protobuf:"bytes,2,opt,name=graph,proto3" json:"graph,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -174,16 +173,9 @@ func (x *ValidatePipelineRequest) GetTenantId() string {
 	return ""
 }
 
-func (x *ValidatePipelineRequest) GetNodes() []*PipelineNode {
+func (x *ValidatePipelineRequest) GetGraph() *PipelineGraph {
 	if x != nil {
-		return x.Nodes
-	}
-	return nil
-}
-
-func (x *ValidatePipelineRequest) GetEdges() []*PipelineEdge {
-	if x != nil {
-		return x.Edges
+		return x.Graph
 	}
 	return nil
 }
@@ -599,11 +591,10 @@ var File_ingestion_v1_capabilities_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\n" +
-	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"\x9a\x01\n" +
+	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"i\n" +
 	"\x17ValidatePipelineRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
-	"\x05nodes\x18\x02 \x03(\v2\x1a.ingestion.v1.PipelineNodeR\x05nodes\x120\n" +
-	"\x05edges\x18\x03 \x03(\v2\x1a.ingestion.v1.PipelineEdgeR\x05edges\"v\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x121\n" +
+	"\x05graph\x18\x02 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\"v\n" +
 	"\x0eCandidateValue\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12 \n" +
 	"\vrecommended\x18\x02 \x01(\bR\vrecommended\x12\x12\n" +
@@ -673,35 +664,33 @@ var file_ingestion_v1_capabilities_proto_goTypes = []any{
 	(*ResourceValidation)(nil),       // 5: ingestion.v1.ResourceValidation
 	(*EdgeValidation)(nil),           // 6: ingestion.v1.EdgeValidation
 	(*ValidatePipelineResponse)(nil), // 7: ingestion.v1.ValidatePipelineResponse
-	(*PipelineNode)(nil),             // 8: ingestion.v1.PipelineNode
-	(*PipelineEdge)(nil),             // 9: ingestion.v1.PipelineEdge
-	(ReadMode)(0),                    // 10: ingestion.v1.ReadMode
-	(*ValidationError)(nil),          // 11: ingestion.v1.ValidationError
-	(WriteMode)(0),                   // 12: ingestion.v1.WriteMode
-	(ReplicationMode)(0),             // 13: ingestion.v1.ReplicationMode
+	(*PipelineGraph)(nil),            // 8: ingestion.v1.PipelineGraph
+	(ReadMode)(0),                    // 9: ingestion.v1.ReadMode
+	(*ValidationError)(nil),          // 10: ingestion.v1.ValidationError
+	(WriteMode)(0),                   // 11: ingestion.v1.WriteMode
+	(ReplicationMode)(0),             // 12: ingestion.v1.ReplicationMode
 }
 var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
-	8,  // 0: ingestion.v1.ValidatePipelineRequest.nodes:type_name -> ingestion.v1.PipelineNode
-	9,  // 1: ingestion.v1.ValidatePipelineRequest.edges:type_name -> ingestion.v1.PipelineEdge
-	0,  // 2: ingestion.v1.Requirement.kind:type_name -> ingestion.v1.RequirementKind
-	3,  // 3: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
-	1,  // 4: ingestion.v1.Requirement.candidate_status:type_name -> ingestion.v1.CandidateStatus
-	4,  // 5: ingestion.v1.ResourceValidation.requirements:type_name -> ingestion.v1.Requirement
-	10, // 6: ingestion.v1.ResourceValidation.supported_read_modes:type_name -> ingestion.v1.ReadMode
-	11, // 7: ingestion.v1.EdgeValidation.errors:type_name -> ingestion.v1.ValidationError
-	4,  // 8: ingestion.v1.EdgeValidation.requirements:type_name -> ingestion.v1.Requirement
-	5,  // 9: ingestion.v1.EdgeValidation.resources:type_name -> ingestion.v1.ResourceValidation
-	12, // 10: ingestion.v1.EdgeValidation.supported_write_modes:type_name -> ingestion.v1.WriteMode
-	13, // 11: ingestion.v1.EdgeValidation.replication:type_name -> ingestion.v1.ReplicationMode
-	10, // 12: ingestion.v1.EdgeValidation.effective_read_mode:type_name -> ingestion.v1.ReadMode
-	12, // 13: ingestion.v1.EdgeValidation.effective_write_mode:type_name -> ingestion.v1.WriteMode
-	6,  // 14: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
-	11, // 15: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	8,  // 0: ingestion.v1.ValidatePipelineRequest.graph:type_name -> ingestion.v1.PipelineGraph
+	0,  // 1: ingestion.v1.Requirement.kind:type_name -> ingestion.v1.RequirementKind
+	3,  // 2: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
+	1,  // 3: ingestion.v1.Requirement.candidate_status:type_name -> ingestion.v1.CandidateStatus
+	4,  // 4: ingestion.v1.ResourceValidation.requirements:type_name -> ingestion.v1.Requirement
+	9,  // 5: ingestion.v1.ResourceValidation.supported_read_modes:type_name -> ingestion.v1.ReadMode
+	10, // 6: ingestion.v1.EdgeValidation.errors:type_name -> ingestion.v1.ValidationError
+	4,  // 7: ingestion.v1.EdgeValidation.requirements:type_name -> ingestion.v1.Requirement
+	5,  // 8: ingestion.v1.EdgeValidation.resources:type_name -> ingestion.v1.ResourceValidation
+	11, // 9: ingestion.v1.EdgeValidation.supported_write_modes:type_name -> ingestion.v1.WriteMode
+	12, // 10: ingestion.v1.EdgeValidation.replication:type_name -> ingestion.v1.ReplicationMode
+	9,  // 11: ingestion.v1.EdgeValidation.effective_read_mode:type_name -> ingestion.v1.ReadMode
+	11, // 12: ingestion.v1.EdgeValidation.effective_write_mode:type_name -> ingestion.v1.WriteMode
+	6,  // 13: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
+	10, // 14: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_capabilities_proto_init() }

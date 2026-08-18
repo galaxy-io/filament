@@ -10,7 +10,11 @@ import {
   type Resource,
   type ResourceColumn,
 } from "@/gen/ingestion/v1/connectors_pb";
-import { PipelineEdgeSchema, PipelineNodeSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  PipelineEdgeSchema,
+  PipelineGraphSchema,
+  PipelineNodeSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
@@ -69,31 +73,33 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
   const validationInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
-        nodes:
-          sourceConnection && sinkConnection
-            ? [
-                create(PipelineNodeSchema, {
-                  id: edge.source,
-                  kind: ConnectorKind.SOURCE,
-                  connectionId: sourceConnection.id,
-                }),
-                create(PipelineNodeSchema, {
-                  id: edge.target,
-                  kind: ConnectorKind.SINK,
-                  connectionId: sinkConnection.id,
-                }),
-              ]
-            : [],
-        edges: [
-          create(PipelineEdgeSchema, {
-            fromNode: edge.source,
-            toNode: edge.target,
-            resource: edgeResource,
-            readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
-            writeMode: edge.data?.writeMode ?? WriteMode.UNSPECIFIED,
-            cursors: edge.data?.cursors ?? [],
-          }),
-        ],
+        graph: create(PipelineGraphSchema, {
+          nodes:
+            sourceConnection && sinkConnection
+              ? [
+                  create(PipelineNodeSchema, {
+                    id: edge.source,
+                    kind: ConnectorKind.SOURCE,
+                    connectionId: sourceConnection.id,
+                  }),
+                  create(PipelineNodeSchema, {
+                    id: edge.target,
+                    kind: ConnectorKind.SINK,
+                    connectionId: sinkConnection.id,
+                  }),
+                ]
+              : [],
+          edges: [
+            create(PipelineEdgeSchema, {
+              fromNode: edge.source,
+              toNode: edge.target,
+              resource: edgeResource,
+              readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
+              writeMode: edge.data?.writeMode ?? WriteMode.UNSPECIFIED,
+              cursors: edge.data?.cursors ?? [],
+            }),
+          ],
+        }),
       }),
     [sourceConnection, sinkConnection, edge, edgeResource],
   );

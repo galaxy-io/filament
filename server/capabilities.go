@@ -19,7 +19,8 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
-	resp, err := a.validatePipelineGraph(ctx, req.Msg.GetTenantId(), req.Msg.GetNodes(), req.Msg.GetEdges())
+	graph := req.Msg.GetGraph()
+	resp, err := a.validatePipelineGraph(ctx, req.Msg.GetTenantId(), graph.GetNodes(), graph.GetEdges())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

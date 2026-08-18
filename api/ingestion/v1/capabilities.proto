@@ -10,8 +10,7 @@ import "ingestion/v1/pipelines.proto";
 // validates the same as a persisted version.
 message ValidatePipelineRequest {
   string tenant_id = 1;
-  repeated PipelineNode nodes = 2;
-  repeated PipelineEdge edges = 3;
+  PipelineGraph graph = 2;
 }
 
 enum RequirementKind {
