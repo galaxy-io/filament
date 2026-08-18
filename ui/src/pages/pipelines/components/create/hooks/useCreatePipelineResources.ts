@@ -19,10 +19,7 @@ import {
 import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
-import {
-  useDiscoverResourcesQuery,
-  useGetResourceColumnsQuery,
-} from "@/api/queries/connectors";
+import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
 export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
@@ -76,9 +73,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
               create(PipelineEdgeSchema, {
                 fromNode: source.id,
                 toNode: sink.id,
-                standardSyncMode: isCdc
-                  ? StandardSyncMode.UNSPECIFIED
-                  : StandardSyncMode.REPLACE,
+                standardSyncMode: isCdc ? StandardSyncMode.UNSPECIFIED : StandardSyncMode.REPLACE,
               }),
             )
           : [],

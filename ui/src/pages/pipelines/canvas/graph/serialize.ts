@@ -37,9 +37,7 @@ export const getCanvasEdgeConfig = (
   baseEdge: PipelineEdgeProto | undefined,
 ): PipelineCanvasEdgeData => ({
   standardSyncMode:
-    edge.data?.standardSyncMode ??
-    baseEdge?.standardSyncMode ??
-    StandardSyncMode.UNSPECIFIED,
+    edge.data?.standardSyncMode ?? baseEdge?.standardSyncMode ?? StandardSyncMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
 });
 

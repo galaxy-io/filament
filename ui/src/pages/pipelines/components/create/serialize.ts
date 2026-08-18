@@ -75,9 +75,7 @@ const buildSinkEdges = ({
   const selectable = rows.filter((row) => row.isSelectable);
   const selected = rows.filter((row) => row.isSelected);
   const syncModes = [
-    ...new Set(
-      selected.map((row) => (isCdc ? StandardSyncMode.UNSPECIFIED : row.syncMode)),
-    ),
+    ...new Set(selected.map((row) => (isCdc ? StandardSyncMode.UNSPECIFIED : row.syncMode))),
   ];
 
   const isCollapsible =

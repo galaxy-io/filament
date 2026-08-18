@@ -3,11 +3,7 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import {
-  ConnectorKind,
-  ReplicationMode,
-  StandardSyncMode,
-} from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReplicationMode, StandardSyncMode } from "@/gen/ingestion/v1/common_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
@@ -22,18 +18,14 @@ import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import { getCursorOptions } from "@/pages/pipelines/components/create/rows";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
-import {
-  useDiscoverResourcesQuery,
-  useGetResourceColumnsQuery,
-} from "@/api/queries/connectors";
+import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
 const intersectModes = (sets: StandardSyncMode[][]): StandardSyncMode[] => {
   if (!sets.length) return [];
-  return sets.slice(1).reduce(
-    (common, modes) => common.filter((mode) => modes.includes(mode)),
-    sets[0] ?? [],
-  );
+  return sets
+    .slice(1)
+    .reduce((common, modes) => common.filter((mode) => modes.includes(mode)), sets[0] ?? []);
 };
 
 export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {

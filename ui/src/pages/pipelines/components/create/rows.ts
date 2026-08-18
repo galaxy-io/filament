@@ -143,10 +143,7 @@ export const buildResourceRowsBySink = ({
   state: CreatePipelineModalState;
   resources: Resource[];
   columns: GetResourceColumnsResponse | undefined;
-  supportedModesBySink: Record<
-    Connection["id"],
-    Record<Resource["name"], StandardSyncMode[]>
-  >;
+  supportedModesBySink: Record<Connection["id"], Record<Resource["name"], StandardSyncMode[]>>;
   isCdc: boolean;
 }): Record<Connection["id"], CreatePipelineModalResourceRow[]> =>
   Object.fromEntries(
