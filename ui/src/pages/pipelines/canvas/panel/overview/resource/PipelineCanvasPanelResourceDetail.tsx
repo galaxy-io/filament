@@ -201,7 +201,6 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               coveredResources.map((resourceName) => (
                 <PipelineCanvasPanelResourceCursorField
                   key={resourceName}
-                  resource={resourceName}
                   value={cursorsByResource.get(resourceName) ?? ""}
                   options={cursorOptionsByResource[resourceName] ?? []}
                   isDisabled={isReadOnly || isLoading}
