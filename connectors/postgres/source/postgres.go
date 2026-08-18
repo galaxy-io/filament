@@ -145,6 +145,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: "auto", Label: "Auto"},
 				{Value: "keyset", Label: "Keyset"},
 				{Value: "bitmap", Label: "Bitmap"},
+				{Value: "ctid", Label: "CTID + xmin"},
 			}, Scope: filament.ScopePipeline, Help: "Read strategy"},
 			{Name: "encoding", Type: filament.FieldEnum, Default: encodingNative, Enum: []filament.EnumOption{
 				{Value: encodingNative, Label: "Native"},
