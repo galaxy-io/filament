@@ -8,30 +8,18 @@ func TestIngestionFor(t *testing.T) {
 		read  ReadMode
 		write WriteMode
 		want  IngestionType
-		fails bool
 	}{
-		{"defaults to full refresh", ModeFull, "", IngestionFullReplace, false},
-		{"incremental defaults to upsert", ModeIncremental, "", IngestionIncrementalUpsert, false},
-		{"full replace", ModeFull, WriteReplace, IngestionFullReplace, false},
-		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert, false},
-		{"full append", ModeFull, WriteAppend, IngestionFullAppend, false},
-		{"incremental append", ModeIncremental, WriteAppend, IngestionIncrementalAppend, false},
-		{"incremental upsert", ModeIncremental, WriteUpsert, IngestionIncrementalUpsert, false},
-		{"incremental delete", ModeIncremental, WriteDelete, IngestionIncrementalDelete, false},
-		{"incremental replace is incoherent", ModeIncremental, WriteReplace, "", true},
-		{"full delete is incoherent", ModeFull, WriteDelete, "", true},
-		{"merge is never a lever", ModeFull, WriteMerge, "", true},
-		{"cdc never compiles from levers", ModeCDC, WriteMerge, "", true},
+		{"defaults to full replace", ModeFull, "", IngestionFullReplace},
+		{"full replace", ModeFull, WriteReplace, IngestionFullReplace},
+		{"full append", ModeFull, WriteAppend, IngestionFullAppend},
+		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert},
+		{"incremental defaults to upsert", ModeIncremental, "", IngestionIncrementalUpsert},
+		{"incremental append", ModeIncremental, WriteAppend, IngestionIncrementalAppend},
+		{"incremental upsert", ModeIncremental, WriteUpsert, IngestionIncrementalUpsert},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := IngestionFor(tt.read, tt.write)
-			if tt.fails {
-				if err == nil {
-					t.Fatalf("want error, got %q", got)
-				}
-				return
-			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -39,6 +27,12 @@ func TestIngestionFor(t *testing.T) {
 				t.Fatalf("got %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIngestionForRejectsIncrementalReplace(t *testing.T) {
+	if _, err := IngestionFor(ModeIncremental, WriteReplace); err == nil {
+		t.Fatal("incremental replace must be rejected")
 	}
 }
 

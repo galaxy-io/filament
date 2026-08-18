@@ -123,11 +123,7 @@ export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
   [WriteMode.APPEND]: "Append",
   [WriteMode.REPLACE]: "Replace",
   [WriteMode.UPSERT]: "Upsert",
-  [WriteMode.DELETE]: "Delete",
-  [WriteMode.MERGE]: "Merge",
 };
 
-export const CREATE_PIPELINE_MODAL_FALLBACK_READ_MODES = [ReadMode.FULL];
-export const CREATE_PIPELINE_MODAL_FALLBACK_WRITE_MODES = [WriteMode.APPEND, WriteMode.REPLACE];
-
+export const CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE = ReadMode.FULL;
 export const CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE = WriteMode.REPLACE;

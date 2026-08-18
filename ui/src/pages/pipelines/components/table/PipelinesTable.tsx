@@ -22,12 +22,14 @@ import {
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
+  PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
 import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
 import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
+import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
 import { formatBytes, formatDuration, formatTimeAgo } from "@/utils/format";
 
 const PipelinesTableWrapper = styled.div`
@@ -55,6 +57,13 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
   },
   {
+    id: "recentRuns",
+    header: "Runs",
+    size: PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
+    cellLoading: () => <TextShimmer width={136} height={18} />,
+    cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row.original} />,
+  },
+  {
     id: "status",
     header: "Status",
     size: PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
@@ -75,7 +84,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   },
   {
     id: "lastRun",
-    header: "Last run",
+    header: "Ran",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
     accessorFn: (pipeline) => Number(pipeline.lastRun?.startedAt ?? 0n),
     enableSorting: true,
