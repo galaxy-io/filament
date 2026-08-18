@@ -48,6 +48,11 @@ type (
 		Bytes   int64  `json:"bytes"`
 		URI     string `json:"uri,omitempty"`
 	}
+	// FanOutStartedEvent marks a parent-driven resource beginning concurrent
+	// child extraction.
+	FanOutStartedEvent struct {
+		ParentsTotal int64 `json:"parentsTotal"`
+	}
 	// ResourceCompletedEvent carries a resource's final counters.
 	ResourceCompletedEvent struct {
 		Records int64 `json:"records"`
@@ -117,6 +122,7 @@ var (
 
 	ResourceStarted   = define[ResourceStartedEvent]("resource.started")
 	PageFetched       = define[PageFetchedEvent]("resource.page_fetched")
+	FanOutStarted     = define[FanOutStartedEvent]("resource.fan_out_started")
 	ResourceCompleted = define[ResourceCompletedEvent]("resource.completed")
 	ResourceFailed    = define[ResourceFailedEvent]("resource.failed")
 
