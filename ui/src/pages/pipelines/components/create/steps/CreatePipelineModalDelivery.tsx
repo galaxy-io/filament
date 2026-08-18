@@ -61,7 +61,7 @@ const CreatePipelineModalDeliveryAdvanced = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <Accordion header="Worker resources" size={AccordionSize.LARGE}>
+    <Accordion header="Worker resources" padding="16px" size={AccordionSize.LARGE}>
       <PipelineWorkerResourcesFields
         state={workerResources}
         onChange={(payload) =>

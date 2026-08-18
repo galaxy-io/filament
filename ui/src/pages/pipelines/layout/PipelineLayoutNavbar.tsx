@@ -120,7 +120,7 @@ const PipelineLayoutNavbar = () => {
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
-      pagination: create(PaginationRequestSchema, { total: 1 }),
+      pagination: create(PaginationRequestSchema, { pageSize: 1 }),
     }),
   });
   const activeRun = activeRunsData.runs[0];

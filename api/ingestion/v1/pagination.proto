@@ -3,11 +3,11 @@ syntax = "proto3";
 package ingestion.v1;
 
 // PaginationRequest narrows a List response to one page. Absent means the
-// full result. total is the page size, defaulted and capped server-side;
+// full result. page_size is defaulted and capped server-side;
 // cursor is an opaque token from a prior response, absent meaning the first
 // page.
 message PaginationRequest {
-  int32 total = 1;
+  int32 page_size = 1;
   optional string cursor = 2;
 }
 

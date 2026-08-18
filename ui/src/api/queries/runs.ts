@@ -49,9 +49,6 @@ export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Tran
   });
 };
 
-// Scheduled counts as live for polling — it transitions without user action
-// when the cron fires — but stays out of ACTIVE_RUN_STATUSES, which the
-// canvas navbar uses to gate the Run button.
 const isLiveRunStatus = (status: RunStatus) =>
   ACTIVE_RUN_STATUSES.has(status) || status === RunStatus.SCHEDULED;
 
