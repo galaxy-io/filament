@@ -91,7 +91,7 @@ func (e *emitter) publish(f events.Fact) {
 			fields = append(fields, filament.Field{Key: "error", Value: errMsg})
 		}
 		switch f.Data.(type) {
-		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent:
+		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent, events.PageFetchedEvent:
 			// Debug, not Info: a large run emits one of these per chunk, which
 			// at Info drowns the worker's log.
 			e.log.Debug(f.Name, fields...)
@@ -111,6 +111,8 @@ func factProgress(f events.Fact) (records, bytes int64, errMsg string) {
 		return d.Records, d.Bytes, ""
 	case events.BatchWrittenEvent:
 		return d.Records, d.Bytes, ""
+	case events.PageFetchedEvent:
+		return d.Records, d.Bytes, ""
 	case events.ResourceCompletedEvent:
 		return d.Records, d.Bytes, ""
 	case events.RunCompletedEvent:
@@ -120,6 +122,8 @@ func factProgress(f events.Fact) (records, bytes int64, errMsg string) {
 	case events.RunFailedEvent:
 		return 0, 0, d.Error
 	case events.RunPartialEvent:
+		return 0, 0, d.Error
+	case events.RetryExhaustedEvent:
 		return 0, 0, d.Error
 	default:
 		return 0, 0, ""
@@ -136,6 +140,44 @@ func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 		Seq:      e.next(),
 		At:       time.Now(),
 	}, data))
+}
+
+// sourceObserver translates bus-neutral source progress into run-stamped typed
+// facts. Sources never receive the bus, tenant, run, or sequence allocator.
+func sourceObserver(e *emitter) filament.SourceObserver {
+	return func(progress filament.SourceProgress) {
+		switch progress.Kind {
+		case filament.SourceProgressPageFetched:
+			emit(e, events.PageFetched, progress.Resource, events.PageFetchedEvent{
+				Records: progress.Records,
+				Bytes:   progress.Bytes,
+				URI:     progress.URI,
+			})
+		case filament.SourceProgressFanOutStarted:
+			emit(e, events.FanOutStarted, progress.Resource, events.FanOutStartedEvent{
+				ParentsTotal: progress.ParentsTotal,
+			})
+		case filament.SourceProgressWatermarkAdvanced:
+			emit(e, events.WatermarkAdvanced, progress.Resource, events.WatermarkAdvancedEvent{
+				Checkpoint: progress.Checkpoint,
+			})
+		case filament.SourceProgressRateLimited:
+			emit(e, events.RateLimited, progress.Resource, events.RateLimitedEvent{
+				RetryAfter: progress.RetryAfter,
+			})
+		case filament.SourceProgressRetryExhausted:
+			emit(e, events.RetryExhausted, progress.Resource, events.RetryExhaustedEvent{
+				Error: progress.Error,
+			})
+		default:
+			if e.log != nil {
+				e.log.Warn("runner: unmapped source progress",
+					filament.Field{Key: "kind", Value: progress.Kind},
+					filament.Field{Key: "resource", Value: progress.Resource},
+				)
+			}
+		}
+	}
 }
 
 // failed publishes the run's failure terminals — per-resource obituaries, then

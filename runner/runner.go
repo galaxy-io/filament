@@ -180,6 +180,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 				Resources:   spec.Resources,
 				Selectors:   spec.Selectors,
 				Parallelism: spec.Options.SnapshotParallelism,
+				Observe:     sourceObserver(em),
 			})
 		})
 		p.CloseIngest()
