@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"maps"
+	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -10,47 +11,42 @@ import (
 )
 
 // The Job is the entire contract between dispatch and the worker, so an unset
-// quantity must be absent rather than zero: a zero CPU request is a request,
-// and it would override whatever a namespace LimitRange supplies.
+// map must be absent rather than empty: an empty request list is still a
+// request list, and it would override whatever a namespace LimitRange supplies.
 func TestWorkerResources(t *testing.T) {
-	t.Run("unset resources produce no requirements", func(t *testing.T) {
-		got, err := workerResources(filament.WorkerResources{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(got.Requests) != 0 || len(got.Limits) != 0 {
-			t.Fatalf("got %+v, want empty", got)
-		}
-	})
+	got, err := workerResources(filament.WorkerResources{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Requests != nil || got.Limits != nil {
+		t.Fatalf("empty resources must map to nil lists, got %+v", got)
+	}
 
-	t.Run("partial resources set only what was named", func(t *testing.T) {
-		got, err := workerResources(filament.WorkerResources{CPURequest: "500m", MemoryLimit: "4Gi"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if q, ok := got.Requests[corev1.ResourceCPU]; !ok || q.String() != "500m" {
-			t.Fatalf("cpu request = %v (present %v), want 500m", q.String(), ok)
-		}
-		if _, ok := got.Requests[corev1.ResourceMemory]; ok {
-			t.Fatal("memory request should be absent")
-		}
-		if q, ok := got.Limits[corev1.ResourceMemory]; !ok || q.String() != "4Gi" {
-			t.Fatalf("memory limit = %v (present %v), want 4Gi", q.String(), ok)
-		}
-		if _, ok := got.Limits[corev1.ResourceCPU]; ok {
-			t.Fatal("cpu limit should be absent")
-		}
+	got, err = workerResources(filament.WorkerResources{
+		Requests: map[string]string{"cpu": "500m"},
+		Limits:   map[string]string{"memory": "2Gi", "nvidia.com/gpu": "1"},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q := got.Requests[corev1.ResourceCPU]; q.String() != "500m" {
+		t.Fatalf("cpu request = %q", q.String())
+	}
+	if _, ok := got.Requests[corev1.ResourceMemory]; ok {
+		t.Fatal("unset memory request must be absent")
+	}
+	if q := got.Limits[corev1.ResourceMemory]; q.String() != "2Gi" {
+		t.Fatalf("memory limit = %q", q.String())
+	}
+	if q := got.Limits["nvidia.com/gpu"]; q.String() != "1" {
+		t.Fatalf("gpu limit = %q", q.String())
+	}
 
-	t.Run("unparseable quantity is refused", func(t *testing.T) {
-		if _, err := workerResources(filament.WorkerResources{CPURequest: "half a core"}); err == nil {
-			t.Fatal("want error for an unparseable quantity")
-		}
-	})
+	if _, err := workerResources(filament.WorkerResources{Limits: map[string]string{"cpu": "lots"}}); err == nil {
+		t.Fatal("want error for an unparseable quantity")
+	}
 }
 
-// A selector that finds the Job must find its pods, so the two label sets have
-// to stay identical — they drifted apart when they were written out separately.
 func TestJobAndPodLabelsMatch(t *testing.T) {
 	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament"}}
 	job, err := m.jobForSpec(filament.RunSpec{Tenant: "acme", Run: "run-1"})
@@ -76,7 +72,7 @@ func TestJobForSpecResources(t *testing.T) {
 	spec := filament.RunSpec{
 		Tenant: "acme", Run: "run-1",
 		WorkerConfiguration: filament.WorkerConfiguration{
-			Resources: filament.WorkerResources{CPULimit: "2", MemoryLimit: "8Gi"},
+			Resources: filament.WorkerResources{Limits: map[string]string{"cpu": "2", "memory": "8Gi"}},
 		},
 	}
 	job, err := m.jobForSpec(spec)
@@ -91,8 +87,36 @@ func TestJobForSpecResources(t *testing.T) {
 		t.Fatalf("memory limit = %q, want 8Gi", q.String())
 	}
 
-	spec.WorkerConfiguration.Resources.MemoryLimit = "8 gigabytes"
+	spec.WorkerConfiguration.Resources.Limits["memory"] = "8 gigabytes"
 	if _, err := m.jobForSpec(spec); err == nil {
 		t.Fatal("want error for an unparseable stored quantity")
+	}
+}
+
+func TestJobForSpecPlacement(t *testing.T) {
+	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament"}}
+	spec := filament.RunSpec{Tenant: "acme", Run: "run-1"}
+
+	job, err := m.jobForSpec(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pod := job.Spec.Template.Spec; pod.NodeSelector != nil || pod.Tolerations != nil {
+		t.Fatalf("unplaced run must leave placement off the Job, got selector=%v tolerations=%v", pod.NodeSelector, pod.Tolerations)
+	}
+
+	spec.WorkerConfiguration.NodeSelector = map[string]string{"tier": "workers"}
+	spec.WorkerConfiguration.Tolerations = []filament.WorkerToleration{{Key: "dedicated", Operator: "Equal", Value: "filament", Effect: "NoSchedule"}}
+	job, err = m.jobForSpec(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pod := job.Spec.Template.Spec
+	if !maps.Equal(pod.NodeSelector, spec.WorkerConfiguration.NodeSelector) {
+		t.Fatalf("NodeSelector = %v", pod.NodeSelector)
+	}
+	want := []corev1.Toleration{{Key: "dedicated", Operator: corev1.TolerationOpEqual, Value: "filament", Effect: corev1.TaintEffectNoSchedule}}
+	if !reflect.DeepEqual(pod.Tolerations, want) {
+		t.Fatalf("Tolerations = %+v, want %+v", pod.Tolerations, want)
 	}
 }

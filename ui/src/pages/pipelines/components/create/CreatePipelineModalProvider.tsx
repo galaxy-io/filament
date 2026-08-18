@@ -7,10 +7,7 @@ import {
   useReducer,
 } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { match } from "ts-pattern";
-
-import { WorkerResourcesSchema } from "@/gen/ingestion/v1/common_pb";
 
 import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
 import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
@@ -26,6 +23,10 @@ import {
   type CreatePipelineModalState,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
+import {
+  DEFAULT_WORKER_CONFIGURATION_TEXT,
+  parseWorkerConfiguration,
+} from "@/pages/pipelines/components/worker/utils";
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
@@ -42,7 +43,7 @@ const DEFAULT_STATE: CreatePipelineModalState = {
   isNameTouched: false,
   description: "",
   schedule: PIPELINE_SCHEDULE_DEFAULT_STATE,
-  workerResources: create(WorkerResourcesSchema),
+  workerConfiguration: DEFAULT_WORKER_CONFIGURATION_TEXT,
   isSubmitting: false,
 };
 
@@ -98,13 +99,14 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
 
     const isScheduleValid =
       !state.schedule.isEnabled || formatPipelineScheduleSummary(state.schedule) !== null;
+    const workerConfigurationError = parseWorkerConfiguration(state.workerConfiguration).error;
     const isConnectionsValid = !!state.sourceConnection && state.sinkConnections.length > 0;
     const isResourcesValid = !blockingMessages.length;
 
     const isNextDisabled = match(state.step)
       .with(CreatePipelineModalStep.CONNECTIONS, () => !isConnectionsValid)
       .with(CreatePipelineModalStep.RESOURCES, () => !isResourcesValid)
-      .with(CreatePipelineModalStep.DELIVERY, () => !isScheduleValid)
+      .with(CreatePipelineModalStep.DELIVERY, () => !isScheduleValid || !!workerConfigurationError)
       .with(CreatePipelineModalStep.DETAILS, () => !isNameValid(effectiveName))
       .exhaustive();
 
@@ -115,7 +117,11 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     const stepIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(state.step);
     const blockingHints = blockingMessages.length
       ? blockingMessages
-      : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
+      : state.step === CreatePipelineModalStep.DELIVERY &&
+          isScheduleValid &&
+          workerConfigurationError
+        ? ["Fix the worker configuration to continue"]
+        : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
 
     return {
       ...state,
@@ -130,6 +136,7 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
       discoverError,
       effectiveName,
       nameError: getNameError(effectiveName, state.isNameTouched) ?? undefined,
+      workerConfigurationError,
       isNextDisabled,
       hints: isNextDisabled ? blockingHints : [],
       stepIndex,
