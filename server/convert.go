@@ -484,6 +484,9 @@ func validateConfigField(field filament.ConfigField, cfg filament.Config, path s
 	if field.Required && !cfg.Has(field.Name) {
 		return fmt.Errorf("%s is required", path)
 	}
+	if field.Required && (field.Type == filament.FieldString || field.Type == filament.FieldSecret || field.Type == filament.FieldEnum) && strings.TrimSpace(cfg.String(field.Name)) == "" {
+		return fmt.Errorf("%s is required", path)
+	}
 	if field.Required && field.Type == filament.FieldList && configListLen(cfg.Raw()[field.Name]) == 0 {
 		return fmt.Errorf("%s is required", path)
 	}

@@ -107,6 +107,11 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		if err != nil {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
+		canonicalizeConnectionConfig(source.Spec().Config, config, nil)
+		cfg = filament.NewConfig(config)
+		if err := validateConfigSchema(source.Spec().Config, cfg, filament.ScopeConnection); err != nil {
+			return connect.NewResponse(validationError(err.Error())), nil
+		}
 		if err := source.Validate(cfg); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
@@ -115,13 +120,42 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		if err != nil {
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
+		canonicalizeConnectionConfig(sink.Spec().Config, config, nil)
+		cfg = filament.NewConfig(config)
 		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
+		}
+		if validator, ok := sink.(filament.ConfigValidatable); ok {
+			if err := validator.Validate(cfg); err != nil {
+				return connect.NewResponse(validationError(err.Error())), nil
+			}
 		}
 	default:
 		return connect.NewResponse(validationError("connector kind is required")), nil
 	}
 	return connect.NewResponse(&ingestionv1.ValidateConfigResponse{Valid: true}), nil
+}
+
+func (a *Server) validateConnectionConnectorConfig(kind ingestionv1.ConnectorKind, connector string, cfg filament.Config) error {
+	switch kind {
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
+		source, err := a.sources.Resolve(connector)
+		if err != nil {
+			return err
+		}
+		return source.Validate(cfg)
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
+		sink, err := a.sinks.Resolve(connector)
+		if err != nil {
+			return err
+		}
+		if validator, ok := sink.(filament.ConfigValidatable); ok {
+			return validator.Validate(cfg)
+		}
+		return nil
+	default:
+		return fmt.Errorf("connector kind is required")
+	}
 }
 
 // DiscoverResources configures the source and lists its selectable resources.

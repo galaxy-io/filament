@@ -84,6 +84,48 @@ func TestValidateConfigDoesNotRunLiveSinkProbe(t *testing.T) {
 	}
 }
 
+func TestCanonicalizeDatabaseConnectionConfig(t *testing.T) {
+	schema := filament.ConfigSchema{Fields: []filament.ConfigField{
+		{Name: "connection_method", Type: filament.FieldEnum, Default: "fields", Scope: filament.ScopeConnection},
+		{Name: "dsn", Type: filament.FieldSecret, Scope: filament.ScopeConnection, VisibleWhen: &filament.FieldCondition{Field: "connection_method", Values: []string{"url"}}},
+		{Name: "host", Type: filament.FieldString, Scope: filament.ScopeConnection, VisibleWhen: &filament.FieldCondition{Field: "connection_method", Values: []string{"fields"}}},
+		{Name: "password", Type: filament.FieldSecret, Scope: filament.ScopeConnection, VisibleWhen: &filament.FieldCondition{Field: "connection_method", Values: []string{"fields"}}},
+	}}
+
+	t.Run("legacy dsn infers url", func(t *testing.T) {
+		cfg := map[string]any{"host": "stale"}
+		refs := map[string]string{"dsn": "filament/tenant/connection/id/dsn/v1", "password": "filament/tenant/connection/id/password/v1"}
+		canonicalizeConnectionConfig(schema, cfg, refs)
+		if cfg["connection_method"] != "url" || cfg["host"] != nil || refs["password"] != "" {
+			t.Fatalf("config = %#v, refs = %#v", cfg, refs)
+		}
+	})
+
+	t.Run("new config defaults to fields", func(t *testing.T) {
+		cfg := map[string]any{"host": "localhost", "dsn": "stale"}
+		refs := map[string]string{}
+		canonicalizeConnectionConfig(schema, cfg, refs)
+		// A supplied DSN is a legacy URL configuration even without the selector.
+		if cfg["connection_method"] != "url" {
+			t.Fatalf("method = %v, want url", cfg["connection_method"])
+		}
+		cfg = map[string]any{"host": "localhost"}
+		canonicalizeConnectionConfig(schema, cfg, refs)
+		if cfg["connection_method"] != "fields" || cfg["host"] != "localhost" {
+			t.Fatalf("config = %#v", cfg)
+		}
+	})
+
+	t.Run("explicit fields removes dsn", func(t *testing.T) {
+		cfg := map[string]any{"connection_method": "fields", "host": "localhost", "dsn": "stale"}
+		refs := map[string]string{"dsn": "filament/tenant/connection/id/dsn/v1"}
+		canonicalizeConnectionConfig(schema, cfg, refs)
+		if cfg["dsn"] != nil || refs["dsn"] != "" {
+			t.Fatalf("config = %#v, refs = %#v", cfg, refs)
+		}
+	})
+}
+
 func TestGetConnector(t *testing.T) {
 	sources := registry.NewSources()
 	sources.RegisterWithMaturity("columns", filament.MaturityBeta, func() filament.Source {

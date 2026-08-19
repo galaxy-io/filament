@@ -187,6 +187,13 @@ type LiveValidatable interface {
 	TestConnection(ctx context.Context, cfg Config) error
 }
 
+// ConfigValidatable is the optional contract for connector-specific, pure
+// configuration validation. Unlike LiveValidatable it must not access the
+// network, so the API can safely use it while accepting connection settings.
+type ConfigValidatable interface {
+	Validate(cfg Config) error
+}
+
 // ConnectorSpec is a source's self-description: identity, supported modes and
 // policies, config schema, and resource capabilities. It powers the catalog.
 type ConnectorSpec struct {
