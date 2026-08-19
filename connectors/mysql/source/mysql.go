@@ -24,9 +24,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-sql-driver/mysql"
-
 	"github.com/galaxy-io/filament"
+	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
 )
 
 const (
@@ -94,7 +93,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		Description:  "Widely-used open-source relational database known for speed, reliability, and ease of use.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
-		Version:      "1",
+		Version:      "2",
 		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionFullReplace,
@@ -102,8 +101,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionFullAppend,
 			filament.IngestionCDC,
 		),
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
 			{Name: "replication", Type: filament.FieldEnum, Default: string(filament.ReplicationStandard), Enum: []filament.EnumOption{
 				{Value: string(filament.ReplicationStandard), Label: "Standard"},
 				{Value: string(filament.ReplicationCDC), Label: "Change Data Capture (CDC)"},
@@ -113,7 +111,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "InnoDB pages per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
 			{Name: "server_id", Type: filament.FieldInt, Default: defaultServerID, Scope: filament.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
-		}},
+		}...)},
 		Resources: filament.ResourceCapabilities{Discoverable: true},
 	}
 }
@@ -126,20 +124,14 @@ func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
 	return filament.ReplicationStandard
 }
 
-// Validate rejects a config missing the connection string or one whose DSN names no
-// database when "database" is also unset.
+// Validate rejects an invalid DSN or incomplete individual connection fields.
 func (s *Source) Validate(cfg filament.Config) error {
-	if cfg.String("dsn") == "" {
-		return fmt.Errorf("mysql source: dsn is required")
+	mc, err := mysqlconnection.Resolve(cfg)
+	if err != nil {
+		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
-	if cfg.String("database") == "" {
-		mc, err := mysql.ParseDSN(cfg.Secret("dsn"))
-		if err != nil {
-			return fmt.Errorf("mysql source: parse dsn: %w", err)
-		}
-		if mc.DBName == "" {
-			return fmt.Errorf("mysql source: dsn has no database and \"database\" is unset")
-		}
+	if cfg.String("database") == "" && mc.DBName == "" {
+		return fmt.Errorf("mysql source: connection has no database and \"database\" is unset")
 	}
 	return nil
 }
@@ -149,9 +141,9 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	mc, err := mysql.ParseDSN(cfg.Secret("dsn"))
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql source: parse dsn: %w", err)
+		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
 	if database := cfg.String("database"); database != "" {
 		mc.DBName = database
@@ -174,9 +166,9 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	mc, err := mysql.ParseDSN(cfg.Secret("dsn"))
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql source: parse dsn: %w", err)
+		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
 	s.database = mc.DBName
 	if v := cfg.String("database"); v != "" {
