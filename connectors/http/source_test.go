@@ -822,6 +822,88 @@ resources:
 	}
 }
 
+func TestEmbeddedManifestIsParsedOnceAndReused(t *testing.T) {
+	src := NewManifest("cached", "Cached", []byte(`
+version: 1
+name: cached
+config:
+  token:
+    type: secret
+    required: true
+connection:
+  base_url: https://example.com
+resources:
+  - name: records
+    path: /records
+    records: $
+    primary_key: [id]
+    fields:
+      id: string
+`), filament.ConfigSchema{})
+	if src.manifestErr != nil || src.embeddedManifest == nil {
+		t.Fatalf("constructor manifest = %#v, error = %v", src.embeddedManifest, src.manifestErr)
+	}
+
+	for range 2 {
+		spec := src.Spec()
+		if len(spec.Config.Fields) != 1 || spec.Config.Fields[0].Name != "token" {
+			t.Fatalf("config fields = %#v, want cached token field", spec.Config.Fields)
+		}
+	}
+	cfg := filament.NewConfig(map[string]any{"token": "secret"})
+	if err := src.Validate(cfg); err != nil {
+		t.Fatalf("validate cached config schema: %v", err)
+	}
+
+	c, err := src.connectorForConfig(cfg)
+	if err != nil {
+		t.Fatalf("build connector: %v", err)
+	}
+	if c.manifest != src.embeddedManifest {
+		t.Fatal("connector did not receive the manifest parsed by the source constructor")
+	}
+	if err := c.Configure(context.Background()); err != nil {
+		t.Fatalf("configure with cached manifest: %v", err)
+	}
+	if c.manifest != src.embeddedManifest {
+		t.Fatal("connector replaced the cached manifest during Configure")
+	}
+}
+
+func TestEmbeddedManifestParseErrorIsCached(t *testing.T) {
+	fallback := filament.ConfigSchema{Fields: []filament.ConfigField{{
+		Name: "fallback", Type: filament.FieldString, Required: true,
+	}}}
+	src := NewManifest("broken", "Broken", []byte("version: ["), fallback)
+	if src.manifestErr == nil {
+		t.Fatal("constructor accepted invalid manifest")
+	}
+	if got := src.Spec().Config; len(got.Fields) != 1 || got.Fields[0].Name != "fallback" {
+		t.Fatalf("fallback config = %#v", got)
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{"fallback": "set"})); err == nil || !strings.Contains(err.Error(), "parse manifest") {
+		t.Fatalf("validate error = %v, want cached manifest parse error", err)
+	}
+	if _, err := src.connectorForConfig(filament.NewConfig(nil)); err == nil || !strings.Contains(err.Error(), "parse manifest") {
+		t.Fatalf("connector error = %v, want cached manifest parse error", err)
+	}
+}
+
+func TestManifestPathIsLoadedOncePerConnector(t *testing.T) {
+	path := writeTestManifest(t, "https://example.com")
+	src := New()
+	c, err := src.connectorForConfig(filament.NewConfig(map[string]any{"manifest_path": path}))
+	if err != nil {
+		t.Fatalf("build connector: %v", err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("remove manifest after initial load: %v", err)
+	}
+	if err := c.Configure(context.Background()); err != nil {
+		t.Fatalf("Configure reloaded manifest instead of using parsed value: %v", err)
+	}
+}
+
 func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
 	ctx := context.Background()
 	src := NewGitHub()
