@@ -120,9 +120,9 @@ type ResourceMap struct {
 	NamePath     string `yaml:"name"` // single path OR alias; see NamePaths
 	ParentIDPath string `yaml:"parent_id,omitempty"`
 	// NamePaths is an ordered list of fallback paths; the first non-empty
-	// resolution wins. Use it for shapes like Notion pages where the title
-	// lives under a property whose key varies per database. When set, takes
-	// precedence over NamePath; either field individually is sufficient.
+	// resolution wins. Use it when upstream response variants expose the same
+	// label at different paths. When set, it takes precedence over NamePath;
+	// either field individually is sufficient.
 	NamePaths      []string          `yaml:"name_paths,omitempty"`
 	DefaultEnabled string            `yaml:"default_enabled,omitempty"`
 	Metadata       map[string]string `yaml:"metadata,omitempty"`
