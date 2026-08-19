@@ -18,9 +18,11 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"math"
+	"net"
 	"strconv"
 	"strings"
 
@@ -59,6 +61,7 @@ type Source struct {
 	binlogPort uint16
 	binlogUser string
 	binlogPass string
+	binlogTLS  *tls.Config
 }
 
 // New returns an unconfigured source.
@@ -190,9 +193,20 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 			s.serverID = uint32(n)
 		}
 	}
-	host, port := splitHostPort(mc.Addr)
-	s.binlogHost, s.binlogPort = host, port
+	if mc.Net == "tcp" {
+		host, port, err := splitHostPort(mc.Addr)
+		if err != nil {
+			return fmt.Errorf("mysql source: replication address: %w", err)
+		}
+		s.binlogHost, s.binlogPort = host, port
+	} else if s.Replication(cfg) == filament.ReplicationCDC {
+		return fmt.Errorf("mysql source: CDC requires a TCP connection, got network %q", mc.Net)
+	}
 	s.binlogUser, s.binlogPass = mc.User, mc.Passwd
+	s.binlogTLS = nil
+	if mc.TLS != nil {
+		s.binlogTLS = mc.TLS.Clone()
+	}
 
 	db, err := sql.Open("mysql", mc.FormatDSN())
 	if err != nil {
@@ -442,16 +456,16 @@ func quoteIdent(s string) string {
 
 // splitHostPort splits a go-sql-driver Addr ("host:port", port optional) for the
 // replication client.
-func splitHostPort(addr string) (string, uint16) {
-	host, portStr, ok := strings.Cut(addr, ":")
-	if !ok {
-		return addr, 3306
+func splitHostPort(addr string) (string, uint16, error) {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", 0, fmt.Errorf("split %q: %w", addr, err)
 	}
 	n, err := strconv.ParseUint(portStr, 10, 16)
-	if err != nil {
-		return host, 3306
+	if err != nil || n == 0 {
+		return "", 0, fmt.Errorf("invalid port in %q", addr)
 	}
-	return host, uint16(n)
+	return host, uint16(n), nil
 }
 
 // quoteLiteral renders s as a single-quoted SQL string literal. Used only for
@@ -543,5 +557,6 @@ func (s *Source) Teardown(context.Context) error {
 		_ = s.db.Close()
 		s.db = nil
 	}
+	s.binlogTLS = nil
 	return nil
 }

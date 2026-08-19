@@ -3,6 +3,7 @@ package connection
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -18,7 +19,7 @@ func Fields() []filament.ConfigField {
 	fields := dbconfig.VisibleWhen(dbconfig.MethodFields)
 	return []filament.ConfigField{
 		dbconfig.MethodConfigField(),
-		dbconfig.DSNConfigField("MySQL DSN (user:password@tcp(host:port)/database)"),
+		dbconfig.DSNConfigField("MySQL URL or driver DSN"),
 		{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "MySQL server hostname"},
 		{Name: "port", Type: filament.FieldInt, Default: defaultPort, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "MySQL server port"},
 		{Name: "username", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "MySQL username"},
@@ -43,7 +44,7 @@ func Resolve(cfg filament.Config) (*mysql.Config, error) {
 		if strings.TrimSpace(dsn) == "" {
 			return nil, fmt.Errorf("dsn is required when connection_method is %q", dbconfig.MethodURL)
 		}
-		parsed, err := mysql.ParseDSN(dsn)
+		parsed, err := parseDSN(dsn)
 		if err != nil {
 			return nil, fmt.Errorf("parse dsn: %w", err)
 		}
@@ -90,5 +91,51 @@ func Resolve(cfg filament.Config) (*mysql.Config, error) {
 	resolved.Addr = net.JoinHostPort(host, strconv.Itoa(port))
 	resolved.DBName = database
 	resolved.TLSConfig = tlsMode
-	return resolved, nil
+	return mysql.ParseDSN(resolved.FormatDSN())
+}
+
+// parseDSN accepts both the go-sql-driver native DSN and the conventional
+// mysql:// URL form. The latter is translated to a driver Config before being
+// normalized by ParseDSN so both inputs have identical defaults and TLS state.
+func parseDSN(raw string) (*mysql.Config, error) {
+	lower := strings.ToLower(raw)
+	if strings.HasPrefix(lower, "mysql://") || strings.HasPrefix(lower, "mariadb://") {
+		parsedURL, err := url.Parse(raw)
+		if err != nil {
+			return nil, fmt.Errorf("parse mysql URL: %w", err)
+		}
+		if parsedURL.Hostname() == "" {
+			return nil, fmt.Errorf("mysql URL has no hostname")
+		}
+		if parsedURL.Fragment != "" {
+			return nil, fmt.Errorf("mysql URL must not contain a fragment")
+		}
+		port := parsedURL.Port()
+		if port == "" {
+			port = strconv.Itoa(defaultPort)
+		}
+		portNumber, err := strconv.ParseUint(port, 10, 16)
+		if err != nil || portNumber == 0 {
+			return nil, fmt.Errorf("mysql URL port must be between 1 and 65535")
+		}
+
+		cfg := mysql.NewConfig()
+		cfg.Net = "tcp"
+		cfg.Addr = net.JoinHostPort(parsedURL.Hostname(), port)
+		if parsedURL.User != nil {
+			cfg.User = parsedURL.User.Username()
+			cfg.Passwd, _ = parsedURL.User.Password()
+		}
+		escapedDatabase := strings.TrimPrefix(parsedURL.EscapedPath(), "/")
+		cfg.DBName, err = url.PathUnescape(escapedDatabase)
+		if err != nil {
+			return nil, fmt.Errorf("invalid database name: %w", err)
+		}
+		driverDSN := cfg.FormatDSN()
+		if parsedURL.RawQuery != "" {
+			driverDSN += "?" + parsedURL.RawQuery
+		}
+		return mysql.ParseDSN(driverDSN)
+	}
+	return mysql.ParseDSN(raw)
 }
