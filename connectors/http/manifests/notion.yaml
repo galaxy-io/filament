@@ -1,5 +1,9 @@
 version: 1
 name: notion
+display_name: Notion
+description: All-in-one productivity app for notes, tasks, databases, and knowledge collaboration.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg
 config:
   api_key:
     type: secret

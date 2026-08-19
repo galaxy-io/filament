@@ -10,6 +10,10 @@
 //
 //	version: 1
 //	name: notion
+//	display_name: Notion
+//	description: Workspace knowledge and collaboration
+//	dark_logo_url: https://cdn.example.com/notion-dark.svg
+//	light_logo_url: https://cdn.example.com/notion-light.svg
 //	connection:
 //	  base_url: https://api.notion.com/v1
 //	  auth: { type: bearer, token: "{{ config.api_key }}" }
@@ -59,13 +63,17 @@ const SupportedVersion = 1
 
 // Manifest is the root document describing one HTTP API connector.
 type Manifest struct {
-	Version    int                   `yaml:"version"`
-	Name       string                `yaml:"name"`
-	Config     map[string]ConfigSpec `yaml:"config,omitempty"`
-	Defaults   Defaults              `yaml:"defaults,omitempty"`
-	FieldSets  map[string]FieldList  `yaml:"field_sets,omitempty"`
-	Connection Connection            `yaml:"connection"`
-	Resources  []Resource            `yaml:"resources"`
+	Version      int                   `yaml:"version"`
+	Name         string                `yaml:"name"`
+	DisplayName  string                `yaml:"display_name,omitempty"`
+	Description  string                `yaml:"description,omitempty"`
+	DarkLogoURL  string                `yaml:"dark_logo_url,omitempty"`
+	LightLogoURL string                `yaml:"light_logo_url,omitempty"`
+	Config       map[string]ConfigSpec `yaml:"config,omitempty"`
+	Defaults     Defaults              `yaml:"defaults,omitempty"`
+	FieldSets    map[string]FieldList  `yaml:"field_sets,omitempty"`
+	Connection   Connection            `yaml:"connection"`
+	Resources    []Resource            `yaml:"resources"`
 	// Discovery, when set, lets the connector enumerate user-toggleable
 	// resources by reusing existing extraction streams. Each entry projects a
 	// distinct resource Kind (e.g. notion exposes both "database" and "page"

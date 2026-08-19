@@ -64,22 +64,17 @@ func New() *Source {
 	return &Source{name: providerName, displayName: "HTTP API", config: genericConfig}
 }
 
-// NewManifest returns a Source bound to embedded manifest bytes and a config schema.
-func NewManifest(name, displayName string, manifestData []byte, config filament.ConfigSchema) *Source {
-	return NewManifestWithMetadata(name, displayName, "", "", "", manifestData, config)
-}
-
-// NewManifestWithMetadata returns a Source bound to embedded manifest bytes,
-// frontend catalog metadata, and a config schema.
-func NewManifestWithMetadata(name, displayName, description, darkLogoURL, lightLogoURL string, manifestData []byte, config filament.ConfigSchema) *Source {
+// NewManifest returns a Source whose identity, presentation metadata, and
+// configuration schema are all declared by the embedded manifest.
+func NewManifest(manifestData []byte) *Source {
 	m, err := manifest.Parse(manifestData)
-	if err == nil && len(m.Config) > 0 {
-		config = configSchemaFromManifest(m)
+	if err != nil {
+		return &Source{embeddedManifest: m, manifestErr: err}
 	}
 	return &Source{
-		name: name, displayName: displayName, description: description,
-		darkLogoURL: darkLogoURL, lightLogoURL: lightLogoURL,
-		config: config, embeddedManifest: m, manifestErr: err,
+		name: m.Name, displayName: m.DisplayName, description: m.Description,
+		darkLogoURL: m.DarkLogoURL, lightLogoURL: m.LightLogoURL,
+		config: configSchemaFromManifest(m), embeddedManifest: m,
 	}
 }
 

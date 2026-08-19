@@ -1,5 +1,9 @@
 version: 1
 name: stripe
+display_name: Stripe
+description: Payments platform covering charges, payment intents, invoicing, subscriptions, and the account balance ledger.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-stripe-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-stripe-light.svg
 config:
   api_key:
     type: secret
