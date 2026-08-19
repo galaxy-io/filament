@@ -15,11 +15,13 @@ import (
 
 const defaultPort = 5432
 
+// Resolved contains the PostgreSQL connection string and parsed pool config.
 type Resolved struct {
 	DSN  string
 	Pool *pgxpool.Config
 }
 
+// Fields returns the configuration fields for a PostgreSQL connection.
 func Fields() []filament.ConfigField {
 	fields := dbconfig.VisibleWhen(dbconfig.MethodFields)
 	return []filament.ConfigField{
@@ -41,6 +43,7 @@ func Fields() []filament.ConfigField {
 	}
 }
 
+// Resolve translates connector configuration into a PostgreSQL pool config.
 func Resolve(cfg filament.Config) (Resolved, error) {
 	method, err := dbconfig.Method(cfg)
 	if err != nil {

@@ -10,11 +10,15 @@ import (
 )
 
 const (
+	// MethodField is the config field selecting the connection representation.
 	MethodField = "connection_method"
-	DSNField    = "dsn"
+	// DSNField is the config field containing a connection URL or driver DSN.
+	DSNField = "dsn"
 
+	// MethodFields selects individually configured connection fields.
 	MethodFields = "fields"
-	MethodURL    = "url"
+	// MethodURL selects a connection URL or driver DSN.
+	MethodURL = "url"
 )
 
 // Method returns the selected connection representation. Fields is the default

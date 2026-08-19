@@ -484,9 +484,9 @@ func requiredConfigFieldError(path string) error {
 	return &configValidationError{Field: path, Message: path + " is required"}
 }
 
-func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config, scope filament.FieldScope) error {
+func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config) error {
 	for _, field := range schema.Fields {
-		if field.Scope != scope {
+		if field.Scope != filament.ScopeConnection {
 			continue
 		}
 		if err := validateConfigField(field, cfg, field.Name); err != nil {

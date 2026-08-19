@@ -15,6 +15,7 @@ import (
 
 const defaultPort = 3306
 
+// Fields returns the configuration fields for a MySQL connection.
 func Fields() []filament.ConfigField {
 	fields := dbconfig.VisibleWhen(dbconfig.MethodFields)
 	return []filament.ConfigField{
@@ -34,6 +35,7 @@ func Fields() []filament.ConfigField {
 	}
 }
 
+// Resolve translates connector configuration into a MySQL driver config.
 func Resolve(cfg filament.Config) (*mysql.Config, error) {
 	method, err := dbconfig.Method(cfg)
 	if err != nil {
