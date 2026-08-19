@@ -465,6 +465,25 @@ func validationError(message string) *ingestionv1.ValidateConfigResponse {
 	}
 }
 
+func schemaValidationError(err error) *ingestionv1.ValidateConfigResponse {
+	response := validationError(err.Error())
+	if fieldErr, ok := err.(*configValidationError); ok {
+		response.Errors[0].Field = fieldErr.Field
+	}
+	return response
+}
+
+type configValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *configValidationError) Error() string { return e.Message }
+
+func requiredConfigFieldError(path string) error {
+	return &configValidationError{Field: path, Message: path + " is required"}
+}
+
 func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config, scope filament.FieldScope) error {
 	for _, field := range schema.Fields {
 		if field.Scope != scope {
@@ -482,13 +501,13 @@ func validateConfigField(field filament.ConfigField, cfg filament.Config, path s
 		return nil
 	}
 	if field.Required && !cfg.Has(field.Name) {
-		return fmt.Errorf("%s is required", path)
+		return requiredConfigFieldError(path)
 	}
 	if field.Required && (field.Type == filament.FieldString || field.Type == filament.FieldSecret || field.Type == filament.FieldEnum) && strings.TrimSpace(cfg.String(field.Name)) == "" {
-		return fmt.Errorf("%s is required", path)
+		return requiredConfigFieldError(path)
 	}
 	if field.Required && field.Type == filament.FieldList && configListLen(cfg.Raw()[field.Name]) == 0 {
-		return fmt.Errorf("%s is required", path)
+		return requiredConfigFieldError(path)
 	}
 	if !cfg.Has(field.Name) || len(field.Fields) == 0 {
 		return nil

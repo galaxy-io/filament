@@ -350,19 +350,27 @@ func (a *Server) loadConnectionForTenant(ctx context.Context, id, tenant string)
 	return conn, nil
 }
 
-// overlayConfig shallow-merges overlay over base, like mergeConfig, except a
-// blank string in overlay means "not supplied" and defers to base — so an
-// untouched secret field never clobbers a resolved value with "".
+// overlayConfig recursively merges overlay over base. A blank string at any
+// depth means "not supplied" and defers to base, so an untouched secret field
+// never clobbers a resolved value with "" inside a nested config object.
 func overlayConfig(base, overlay map[string]any) map[string]any {
 	out := make(map[string]any, len(base)+len(overlay))
 	for k, v := range base {
-		out[k] = v
+		out[k] = cloneConfigValue(v)
 	}
 	for k, v := range overlay {
 		if s, ok := v.(string); ok && s == "" {
 			continue
 		}
-		out[k] = v
+		if nestedOverlay, ok := v.(map[string]any); ok {
+			if nestedBase, ok := out[k].(map[string]any); ok {
+				out[k] = overlayConfig(nestedBase, nestedOverlay)
+				continue
+			}
+			out[k] = overlayConfig(nil, nestedOverlay)
+			continue
+		}
+		out[k] = cloneConfigValue(v)
 	}
 	return out
 }
@@ -370,9 +378,16 @@ func overlayConfig(base, overlay map[string]any) map[string]any {
 func cloneConfigMap(in map[string]any) map[string]any {
 	out := make(map[string]any, len(in))
 	for key, value := range in {
-		out[key] = value
+		out[key] = cloneConfigValue(value)
 	}
 	return out
+}
+
+func cloneConfigValue(value any) any {
+	if nested, ok := value.(map[string]any); ok {
+		return cloneConfigMap(nested)
+	}
+	return value
 }
 
 // canonicalizeConnectionConfig materializes the fields-first database selector
