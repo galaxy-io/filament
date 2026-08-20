@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -16,6 +16,7 @@ interface PipelineCanvasPanelHeaderProps {
   tile?: React.ReactNode;
   onBack?: () => void;
   onClose: () => void;
+  onDelete?: () => void;
 }
 
 const PipelineCanvasPanelHeader = ({
@@ -25,6 +26,7 @@ const PipelineCanvasPanelHeader = ({
   tile,
   onBack,
   onClose,
+  onDelete,
 }: PipelineCanvasPanelHeaderProps) => (
   <>
     <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px 12px" shrink={0} fillWidth>
@@ -46,6 +48,18 @@ const PipelineCanvasPanelHeader = ({
           title={title}
           description={description}
           icon={icon}
+          actions={
+            onDelete ? [
+              <Button
+                key="delete"
+                icon={TrashIcon}
+                variant={ButtonVariant.SECONDARY}
+                size={ButtonSize.SMALL}
+                onClick={onDelete}
+                ariaLabel="Delete"
+              />,
+            ] : undefined
+          }
           onClose={onClose}
         />
       </FlexItem>
