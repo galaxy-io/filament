@@ -405,6 +405,9 @@ func matchRun(r filament.RunState, f filament.RunFilter) bool {
 	if !f.Until.IsZero() && (r.StartedAt.IsZero() || !r.StartedAt.Before(f.Until)) {
 		return false
 	}
+	if !f.UpdatedBefore.IsZero() && !r.UpdatedAt.Before(f.UpdatedBefore) {
+		return false
+	}
 	if len(f.Status) > 0 && !slices.Contains(f.Status, r.Status) {
 		return false
 	}
