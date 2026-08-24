@@ -113,7 +113,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Capabilities: filament.SinkCapabilities{
 			Transactional: true,
 			Schematized:   true,
-			WritePolicies: filament.WriteCapabilities(
+			WritePolicies: commitDurableCapabilities(
 				filament.IngestionFullReplace,
 				filament.IngestionFullAppend,
 				filament.IngestionFullUpsert,
@@ -123,6 +123,15 @@ func (s *Sink) Spec() filament.SinkSpec {
 			),
 		},
 	}
+}
+
+func commitDurableCapabilities(types ...filament.IngestionType) []filament.WritePolicyCapability {
+	capabilities := filament.WriteCapabilities(types...)
+	for i := range capabilities {
+		capabilities[i].Durability = filament.DurabilityAfterCommit
+		capabilities[i].Atomicity = filament.AtomicityResource
+	}
+	return capabilities
 }
 
 // Name identifies this sink implementation.

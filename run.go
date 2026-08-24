@@ -450,6 +450,21 @@ const (
 	CheckpointAfterCommit CheckpointPolicy = "after_commit"
 )
 
+// WriteDurability identifies the sink operation after which an acknowledged
+// Apply is recoverable. It is distinct from visibility/atomicity: a sink may
+// make one resource visible at a time while still buffering every Apply until
+// the run's Commit call.
+type WriteDurability string
+
+const (
+	// DurabilityAfterApply means a successful Apply is recoverable without the
+	// run's Commit call.
+	DurabilityAfterApply WriteDurability = "after_apply"
+	// DurabilityAfterCommit means Apply only stages data and checkpoints must
+	// remain tentative until Commit succeeds.
+	DurabilityAfterCommit WriteDurability = "after_commit"
+)
+
 // WritePolicyCapability is what a sink must support to serve a write mode:
 // key/order requirements, accepted operations, and atomicity.
 type WritePolicyCapability struct {
@@ -458,6 +473,7 @@ type WritePolicyCapability struct {
 	RequiresOrder bool
 	AcceptsOps    []Operation
 	Atomicity     WriteAtomicity
+	Durability    WriteDurability
 }
 
 // VersionStrategy selects the ordering value an insert-based upsert sink uses
@@ -556,6 +572,7 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	capability := WritePolicyCapability{
 		AcceptsOps: []Operation{OpInsert},
 		Atomicity:  AtomicityBatch,
+		Durability: DurabilityAfterApply,
 	}
 	checkpoint := CheckpointNone
 

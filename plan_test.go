@@ -1,6 +1,9 @@
 package filament
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestIngestionFor(t *testing.T) {
 	tests := []struct {
@@ -71,5 +74,62 @@ func TestReplicationOf(t *testing.T) {
 	var unaware Source
 	if got := ReplicationOf(unaware, NewConfig(nil)); got != ReplicationStandard {
 		t.Fatalf("unaware source: got %q, want standard", got)
+	}
+}
+
+type durabilityTestSource struct{ Source }
+
+func (durabilityTestSource) Spec() ConnectorSpec {
+	return ConnectorSpec{SourcePolicies: []SourcePolicy{SourcePolicyForIngestion(IngestionFullUpsert)}}
+}
+
+func (durabilityTestSource) Schema(context.Context, string) (RecordSchema, error) {
+	return RecordSchema{PrimaryKey: []string{"id"}}, nil
+}
+
+type durabilityTestSink struct {
+	Sink
+	durability WriteDurability
+}
+
+func (s durabilityTestSink) Spec() SinkSpec {
+	capability := WritePolicyForIngestion(IngestionFullUpsert).Capability
+	capability.Durability = s.durability
+	return SinkSpec{Name: "test", Capabilities: SinkCapabilities{WritePolicies: []WritePolicyCapability{capability}}}
+}
+
+func TestResolveIngestionPlanUsesSinkDurabilityBoundary(t *testing.T) {
+	spec := RunSpec{
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]IngestionType{"users": IngestionFullUpsert},
+	}
+	for _, tt := range []struct {
+		name       string
+		durability WriteDurability
+		want       CheckpointPolicy
+	}{
+		{name: "apply durable", durability: DurabilityAfterApply, want: CheckpointAfterBatch},
+		{name: "commit durable", durability: DurabilityAfterCommit, want: CheckpointAfterCommit},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			plan, err := ResolveIngestionPlan(context.Background(), durabilityTestSource{}, durabilityTestSink{durability: tt.durability}, spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := plan.WritePolicies["users"].Checkpoint; got != tt.want {
+				t.Fatalf("checkpoint policy = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveIngestionPlanRejectsMissingSinkDurability(t *testing.T) {
+	spec := RunSpec{
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]IngestionType{"users": IngestionFullUpsert},
+	}
+	_, err := ResolveIngestionPlan(context.Background(), durabilityTestSource{}, durabilityTestSink{}, spec)
+	if err == nil {
+		t.Fatal("sink capability without durability was accepted")
 	}
 }
