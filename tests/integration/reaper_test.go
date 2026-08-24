@@ -26,7 +26,7 @@ import (
 // terminal by the tracker; one whose Job still has an active pod is held by
 // the Alive probe; deleting that Job lets the next sweep kill it too.
 func TestReaperKillsStaleRuns(t *testing.T) {
-	cluster := testcontainers.K3sCluster(t)
+	cluster := testcontainers.SharedK3s(t)
 	ctx := context.Background()
 
 	const namespace = "default"

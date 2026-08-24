@@ -39,10 +39,7 @@ func (s *snapshotBarrierSink) Push(r filament.Record) error {
 func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	pg := testcontainers.Postgres(t,
-		testcontainers.WithImage("postgres:16-alpine"),
-		testcontainers.WithLogicalReplication(),
-	)
+	pg := testcontainers.SharedPostgresCDC(t)
 	if _, err := pg.Pool().Exec(ctx, `
 		CREATE TABLE cdc_handoff (id bigint PRIMARY KEY, name text NOT NULL);
 		ALTER TABLE cdc_handoff REPLICA IDENTITY FULL;
@@ -106,10 +103,7 @@ func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 
 func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t,
-		testcontainers.WithImage("postgres:16-alpine"),
-		testcontainers.WithLogicalReplication(),
-	)
+	pg := testcontainers.SharedPostgresCDC(t)
 	if _, err := pg.Pool().Exec(ctx, `
 		CREATE TABLE cdc_users (id bigint PRIMARY KEY, name text NOT NULL);
 		ALTER TABLE cdc_users REPLICA IDENTITY FULL;
