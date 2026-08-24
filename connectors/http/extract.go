@@ -144,7 +144,7 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	var tracker *incremental.Tracker
 	if res.Incremental != nil && c.incrementalEnabled(stateResource, res.Name) {
 		spec := *res.Incremental
-		if field, ok := incrementalField(res); ok {
+		if field, ok := manifest.IncrementalCursorField(res); ok {
 			spec.CursorPath = field.Path
 		}
 		if lookback, ok := c.incrementalLookbacks[stateResource]; ok {
@@ -154,9 +154,9 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 		}
 		seed := ""
 		if c.resumeWatermarks != nil {
-			seed = c.resumeWatermarks[stateResource][incremental.CheckpointKey(spec)]
+			seed = c.resumeWatermarks[stateResource][spec.DurableCheckpointKey()]
 			if seed == "" && stateResource != res.Name {
-				seed = c.resumeWatermarks[res.Name][incremental.CheckpointKey(spec)]
+				seed = c.resumeWatermarks[res.Name][spec.DurableCheckpointKey()]
 			}
 		}
 		tracker, err = incremental.New(spec, stateResource, seed)

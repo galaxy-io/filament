@@ -407,7 +407,7 @@ func (c *Connector) sendRecords(
 				return n, captured, fmt.Errorf("incremental cursor: %w", err)
 			}
 			if advanced {
-				c.reportWatermarkOnce(resourceName, incremental.CheckpointKey(*res.Incremental), tracker.Current())
+				c.reportWatermarkOnce(resourceName, res.Incremental.DurableCheckpointKey(), tracker.Current())
 			}
 			if tracker.Current() != "" {
 				wr.Key = watermarkKey(tracker.Current())

@@ -12,7 +12,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
@@ -746,7 +745,7 @@ func (s *Source) CursorColumns(_ context.Context, resource string) ([]filament.C
 	if res.Incremental == nil {
 		return nil, nil
 	}
-	field, ok := incrementalField(res)
+	field, ok := manifest.IncrementalCursorField(res)
 	if !ok {
 		return nil, fmt.Errorf("httpapi source: incremental %q cursor field %q is not projected", resource, res.Incremental.CursorField)
 	}
@@ -789,7 +788,7 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		if res.Incremental == nil {
 			return nil, fmt.Errorf("httpapi source: resource %q has no incremental watermark in its manifest", resource)
 		}
-		field, ok := incrementalField(res)
+		field, ok := manifest.IncrementalCursorField(res)
 		if !ok {
 			return nil, fmt.Errorf("httpapi source: incremental %q cursor field %q is not projected", resource, res.Incremental.CursorField)
 		}
@@ -816,7 +815,7 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		s.incrementalResources[resource] = spec
 		lookbacks[resource] = spec.OverlapSeconds
 
-		checkpointKey := incremental.CheckpointKey(spec)
+		checkpointKey := spec.DurableCheckpointKey()
 		cols := []string{checkpointKey}
 		types := []string{field.Type}
 		seed := spec.Initial
@@ -834,18 +833,6 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 	}
 	s.incrementalLookbacks = lookbacks
 	return plan, nil
-}
-
-func incrementalField(resource manifest.Resource) (manifest.FieldSpec, bool) {
-	if resource.Incremental == nil {
-		return manifest.FieldSpec{}, false
-	}
-	for _, field := range resource.Fields {
-		if field.Name == resource.Incremental.CursorField {
-			return field, true
-		}
-	}
-	return manifest.FieldSpec{}, false
 }
 
 func watermarkKey(value string) []string {
@@ -889,7 +876,7 @@ func (r *incrementalRecordReducer) record(rec filament.Record) (filament.Record,
 	if !ok {
 		return rec, nil
 	}
-	checkpointKey := incremental.CheckpointKey(spec)
+	checkpointKey := spec.DurableCheckpointKey()
 	mark := r.marks[rec.Resource]
 	if mark == nil {
 		cmp, err := atomicwatermark.ForName(spec.Comparator)
