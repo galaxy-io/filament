@@ -417,11 +417,22 @@ func hasConfigField(fields []filament.ConfigField, name string) bool {
 
 func pruneInactiveFields(fields []filament.ConfigField, cfg map[string]any, refs map[string]string, parent string) {
 	config := filament.NewConfig(cfg)
+	// A name may be declared once per conditional branch (e.g. one uri field
+	// per catalog provider); it is inactive only when no declaration is visible.
+	visible := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		if fieldIsVisible(field, config) {
+			visible[field.Name] = true
+		}
+	}
 	for _, field := range fields {
 		path := joinConfigPath(parent, field.Name)
-		if !fieldIsVisible(field, config) {
+		if !visible[field.Name] {
 			delete(cfg, field.Name)
 			delete(refs, path)
+			continue
+		}
+		if !fieldIsVisible(field, config) {
 			continue
 		}
 		nested, ok := cfg[field.Name].(map[string]any)
