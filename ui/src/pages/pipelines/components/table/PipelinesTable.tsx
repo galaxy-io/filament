@@ -30,7 +30,7 @@ import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryR
 
 import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
 import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
-import { formatBytes, formatDuration, formatTimeAgo } from "@/utils/format";
+import { formatCount, formatDuration, formatTimeAgo } from "@/utils/format";
 
 const PipelinesTableWrapper = styled.div`
   width: 100%;
@@ -115,15 +115,15 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   },
   {
     id: "lastVolume",
-    header: "Volume",
+    header: "Records",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
     align: ColumnAlign.RIGHT,
-    accessorFn: (pipeline) => Number(pipeline.lastRun?.bytes ?? 0n),
+    accessorFn: (pipeline) => Number(pipeline.lastRun?.records ?? 0n),
     enableSorting: true,
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.lastRun ? formatBytes(row.original.lastRun.bytes) : "—"}
+        {row.original.lastRun ? formatCount(row.original.lastRun.records) : "—"}
       </Text>
     ),
   },
