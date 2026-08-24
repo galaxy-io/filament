@@ -125,9 +125,8 @@ func projectResource(rec map[string]any, m manifest.ResourceMap) (filament.Resou
 }
 
 // resolveName walks NamePaths in order, then NamePath, returning the first
-// non-empty resolution. For Notion pages where the title property name varies
-// per database, this lets a manifest list every common candidate and the
-// extractor picks whichever exists on the record.
+// non-empty resolution. Name resolution is entirely manifest-driven so the
+// generic engine does not infer provider-specific response shapes.
 func resolveName(rec map[string]any, m manifest.ResourceMap) string {
 	candidates := m.NamePaths
 	if len(candidates) == 0 && m.NamePath != "" {
@@ -136,32 +135,6 @@ func resolveName(rec map[string]any, m manifest.ResourceMap) string {
 	for _, p := range candidates {
 		if s, _, err := paths.AsString(rec, p); err == nil && s != "" {
 			return s
-		}
-	}
-	// Last-resort fallback: scan properties.* for any value whose `type`
-	// is "title" and pull its first plain_text. Works for Notion pages
-	// regardless of which property holds the title (database-defined
-	// title columns can be named anything).
-	if props, ok := rec["properties"].(map[string]any); ok {
-		for _, v := range props {
-			prop, ok := v.(map[string]any)
-			if !ok {
-				continue
-			}
-			if t, _ := prop["type"].(string); t != "title" {
-				continue
-			}
-			arr, ok := prop["title"].([]any)
-			if !ok || len(arr) == 0 {
-				continue
-			}
-			first, ok := arr[0].(map[string]any)
-			if !ok {
-				continue
-			}
-			if s, ok := first["plain_text"].(string); ok && s != "" {
-				return s
-			}
 		}
 	}
 	return ""

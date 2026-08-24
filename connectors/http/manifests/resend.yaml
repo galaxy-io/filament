@@ -1,5 +1,9 @@
 version: 1
 name: resend
+display_name: Resend
+description: Email API for developers covering transactional sends, inbound mail, broadcasts, contacts, and audience management.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-resend-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-resend-light.svg
 config:
   api_key:
     type: secret

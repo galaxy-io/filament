@@ -37,7 +37,8 @@ type Source struct {
 	darkLogoURL      string
 	lightLogoURL     string
 	config           filament.ConfigSchema
-	manifestData     []byte
+	embeddedManifest *manifest.Manifest
+	manifestErr      error
 	dynamicResources map[string]string
 	// incrementalResources is populated by PlanIncremental for the resources in
 	// the current run. It keeps durable watermark extraction distinct from
@@ -63,20 +64,22 @@ func New() *Source {
 	return &Source{name: providerName, displayName: "HTTP API", config: genericConfig}
 }
 
-// NewManifest returns a Source bound to embedded manifest bytes and a config schema.
-func NewManifest(name, displayName string, manifestData []byte, config filament.ConfigSchema) *Source {
-	return NewManifestWithMetadata(name, displayName, "", "", "", manifestData, config)
-}
-
-// NewManifestWithMetadata returns a Source bound to embedded manifest bytes,
-// frontend catalog metadata, and a config schema.
-func NewManifestWithMetadata(name, displayName, description, darkLogoURL, lightLogoURL string, manifestData []byte, config filament.ConfigSchema) *Source {
-	return &Source{name: name, displayName: displayName, description: description, darkLogoURL: darkLogoURL, lightLogoURL: lightLogoURL, manifestData: manifestData, config: config}
+// NewManifest returns a Source whose identity, presentation metadata, and
+// configuration schema are all declared by the embedded manifest.
+func NewManifest(manifestData []byte) *Source {
+	m, err := manifest.Parse(manifestData)
+	if err != nil {
+		return &Source{embeddedManifest: m, manifestErr: err}
+	}
+	return &Source{
+		name: m.Name, displayName: m.DisplayName, description: m.Description,
+		darkLogoURL: m.DarkLogoURL, lightLogoURL: m.LightLogoURL,
+		config: configSchemaFromManifest(m), embeddedManifest: m,
+	}
 }
 
 // Spec reports the source's capabilities and configuration surface.
 func (s *Source) Spec() filament.ConnectorSpec {
-	config := s.configSchema()
 	modes := []filament.ReadMode{filament.ModeFull}
 	policies := []filament.IngestionType{
 		filament.IngestionFullReplace,
@@ -99,7 +102,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		Version:        "1",
 		Modes:          modes,
 		SourcePolicies: filament.SourcePolicies(policies...),
-		Config:         config,
+		Config:         s.config,
 		Resources:      filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
@@ -117,14 +120,15 @@ func (s *Source) canDeclareIncremental() bool {
 		}
 		return false
 	}
-	if len(s.manifestData) == 0 {
+	if s.embeddedManifest == nil {
+		// A nil manifest with no parse error is the generic manifest-path source.
+		// Its capabilities are unknown until it is configured.
+		if s.manifestErr != nil {
+			return false
+		}
 		return true
 	}
-	m, err := manifest.Parse(s.manifestData)
-	if err != nil {
-		return false
-	}
-	for _, resource := range m.Resources {
+	for _, resource := range s.embeddedManifest.Resources {
 		if resource.Incremental != nil {
 			return true
 		}
@@ -134,7 +138,10 @@ func (s *Source) canDeclareIncremental() bool {
 
 // Validate checks that all required config fields are present and non-empty.
 func (s *Source) Validate(cfg filament.Config) error {
-	for _, field := range s.configSchema().Fields {
+	if s.manifestErr != nil {
+		return fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
+	}
+	for _, field := range s.config.Fields {
 		if field.Required && !cfg.Has(field.Name) {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
@@ -170,14 +177,7 @@ func listLen(value any) int {
 	}
 }
 
-func (s *Source) configSchema() filament.ConfigSchema {
-	if len(s.manifestData) == 0 {
-		return s.config
-	}
-	m, err := manifest.Parse(s.manifestData)
-	if err != nil || len(m.Config) == 0 {
-		return s.config
-	}
+func configSchemaFromManifest(m *manifest.Manifest) filament.ConfigSchema {
 	names := make([]string, 0, len(m.Config))
 	for name := range m.Config {
 		names = append(names, name)
@@ -260,26 +260,21 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 
 func (s *Source) connectorForConfig(cfg filament.Config) (*Connector, error) {
 	c := &Connector{}
-	if len(s.manifestData) > 0 {
-		c.SetManifestData(s.manifestData)
-	} else {
-		c.SetManifestPath(cfg.String("manifest_path"))
+	if s.manifestErr != nil {
+		return nil, fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
 	}
-	var configSpecs map[string]manifest.ConfigSpec
-	if len(s.manifestData) > 0 {
-		parsed, err := manifest.Parse(s.manifestData)
-		if err != nil {
-			return nil, fmt.Errorf("%s source: parse manifest: %w", s.name, err)
-		}
-		configSpecs = parsed.Config
-	} else {
-		parsed, err := manifest.Load(cfg.String("manifest_path"))
+	parsed := s.embeddedManifest
+	if parsed == nil {
+		path := cfg.String("manifest_path")
+		var err error
+		parsed, err = manifest.Load(path)
 		if err != nil {
 			return nil, fmt.Errorf("%s source: load manifest: %w", s.name, err)
 		}
-		configSpecs = parsed.Config
+		c.SetManifestPath(path)
 	}
-	c.SetCredentials(credentialsFromConfig(cfg, configSpecs))
+	c.SetManifest(parsed)
+	c.SetCredentials(credentialsFromConfig(cfg, parsed.Config))
 	return c, nil
 }
 

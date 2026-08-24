@@ -25,16 +25,28 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	cfg := structMap(req.Msg.GetConfig())
+	refs := cloneStrings(req.Msg.GetSecretRefs())
+	tenant := defaultTenant(req.Msg.GetTenantId())
+	canonicalizeConnectionConfig(schema, cfg, refs)
+	if err := validateSecretRefTenant(refs, tenant); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	effective := map[string]any{}
+	if err := a.resolveConnectionSecrets(ctx, filament.Connection{ID: "new", Tenant: tenant, SecretRefs: refs}, effective); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	effective = overlayConfig(effective, cfg)
+	if err := validateConfigSchema(schema, filament.NewConfig(effective)); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := a.validateConnectionConnectorConfig(req.Msg.GetKind(), req.Msg.GetConnector(), filament.NewConfig(effective)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	id := uuid.NewString()
-	tenant := defaultTenant(req.Msg.GetTenantId())
-	refs := cloneStrings(req.Msg.GetSecretRefs())
-	if err := validateSecretRefTenant(refs, tenant); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
 	written, err := a.storeSecretFields(ctx, schema, tenant, id, 1, cfg, refs, false)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
@@ -86,7 +98,24 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	cfg := structMap(in.GetConfig())
+	refs := cloneStrings(in.GetSecretRefs())
+	canonicalizeConnectionConfig(schema, cfg, refs)
+	if err := validateSecretRefTenant(refs, stored.Tenant); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	effective := cloneConfigMap(stored.Config)
+	if err := a.resolveConnectionSecrets(ctx, filament.Connection{ID: stored.ID, Tenant: stored.Tenant, SecretRefs: refs}, effective); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	effective = overlayConfig(effective, cfg)
+	canonicalizeConnectionConfig(schema, effective, cloneStrings(refs))
+	if err := validateConfigSchema(schema, filament.NewConfig(effective)); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := a.validateConnectionConnectorConfig(in.GetKind(), in.GetConnector(), filament.NewConfig(effective)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if stored.Kind == filament.ConnectorKindSource {
@@ -99,10 +128,6 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		if before != after {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection replication mode is immutable; create a new connection to change from %s to %s", before, after))
 		}
-	}
-	refs := cloneStrings(in.GetSecretRefs())
-	if err := validateSecretRefTenant(refs, stored.Tenant); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	// A newly submitted value gets a versioned ref. The old value remains active
 	// until the optimistic connection update succeeds.
@@ -159,6 +184,10 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 }
 
 func (a *Server) connectionForResponse(conn filament.Connection) *ingestionv1.Connection {
+	conn.Config = cloneConfigMap(conn.Config)
+	if schema, err := a.schemaFor(connectionKindToProto(conn.Kind), conn.Connector); err == nil {
+		canonicalizeConnectionConfig(schema, conn.Config, cloneStrings(conn.SecretRefs))
+	}
 	out := connectionToProto(conn)
 	if conn.Kind != filament.ConnectorKindSource {
 		return out
@@ -321,21 +350,85 @@ func (a *Server) loadConnectionForTenant(ctx context.Context, id, tenant string)
 	return conn, nil
 }
 
-// overlayConfig shallow-merges overlay over base, like mergeConfig, except a
-// blank string in overlay means "not supplied" and defers to base — so an
-// untouched secret field never clobbers a resolved value with "".
+// overlayConfig recursively merges overlay over base. A blank string at any
+// depth means "not supplied" and defers to base, so an untouched secret field
+// never clobbers a resolved value with "" inside a nested config object.
 func overlayConfig(base, overlay map[string]any) map[string]any {
 	out := make(map[string]any, len(base)+len(overlay))
 	for k, v := range base {
-		out[k] = v
+		out[k] = cloneConfigValue(v)
 	}
 	for k, v := range overlay {
 		if s, ok := v.(string); ok && s == "" {
 			continue
 		}
-		out[k] = v
+		if nestedOverlay, ok := v.(map[string]any); ok {
+			if nestedBase, ok := out[k].(map[string]any); ok {
+				out[k] = overlayConfig(nestedBase, nestedOverlay)
+				continue
+			}
+			out[k] = overlayConfig(nil, nestedOverlay)
+			continue
+		}
+		out[k] = cloneConfigValue(v)
 	}
 	return out
+}
+
+func cloneConfigMap(in map[string]any) map[string]any {
+	out := make(map[string]any, len(in))
+	for key, value := range in {
+		out[key] = cloneConfigValue(value)
+	}
+	return out
+}
+
+func cloneConfigValue(value any) any {
+	if nested, ok := value.(map[string]any); ok {
+		return cloneConfigMap(nested)
+	}
+	return value
+}
+
+// canonicalizeConnectionConfig materializes the fields-first database selector
+// and removes known fields from inactive conditional branches. A missing
+// selector with an existing DSN remains URL mode for legacy connections.
+func canonicalizeConnectionConfig(schema filament.ConfigSchema, cfg map[string]any, refs map[string]string) {
+	if hasConfigField(schema.Fields, "connection_method") {
+		if method, _ := cfg["connection_method"].(string); method == "" {
+			if dsn, _ := cfg["dsn"].(string); dsn != "" || refs["dsn"] != "" {
+				cfg["connection_method"] = "url"
+			} else {
+				cfg["connection_method"] = "fields"
+			}
+		}
+	}
+	pruneInactiveFields(schema.Fields, cfg, refs, "")
+}
+
+func hasConfigField(fields []filament.ConfigField, name string) bool {
+	for _, field := range fields {
+		if field.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func pruneInactiveFields(fields []filament.ConfigField, cfg map[string]any, refs map[string]string, parent string) {
+	config := filament.NewConfig(cfg)
+	for _, field := range fields {
+		path := joinConfigPath(parent, field.Name)
+		if !fieldIsVisible(field, config) {
+			delete(cfg, field.Name)
+			delete(refs, path)
+			continue
+		}
+		nested, ok := cfg[field.Name].(map[string]any)
+		if ok && len(field.Fields) > 0 {
+			pruneInactiveFields(field.Fields, nested, refs, path)
+		}
+	}
 }
 
 func joinConfigPath(parent, field string) string {

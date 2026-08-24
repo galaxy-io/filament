@@ -517,6 +517,7 @@ func (s *Source) binlogConfig() replication.BinlogSyncerConfig {
 		Port:       s.binlogPort,
 		User:       s.binlogUser,
 		Password:   s.binlogPass,
+		TLSConfig:  s.binlogTLS,
 		UseDecimal: true, // decimals as exact decimal values, not lossy float64
 	}
 }
