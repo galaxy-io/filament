@@ -1,8 +1,10 @@
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { match } from "ts-pattern";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { GalaxyTheme } from "@galaxy-io/dls/theme";
+import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 const StyledButton = withTheme(
@@ -40,10 +42,19 @@ const PipelineCanvasEditWidgetButton = ({
   icon,
   isActive,
   onClick,
-}: PipelineCanvasEditWidgetButtonProps) => (
-  <StyledButton $isActive={isActive} onClick={onClick}>
-    <Icon component={icon} variant={isActive ? IconVariant.PRIMARY_ALT : IconVariant.PRIMARY} />
-  </StyledButton>
-);
+}: PipelineCanvasEditWidgetButtonProps) => {
+  const { activeTheme } = useGalaxyTheme();
+
+  const iconVariant = match(activeTheme)
+    .with(GalaxyTheme.LIGHT, () => IconVariant.PRIMARY_ALT)
+    .with(GalaxyTheme.DARK, () => (isActive ? IconVariant.PRIMARY_ALT : IconVariant.PRIMARY))
+    .exhaustive();
+
+  return (
+    <StyledButton $isActive={isActive} onClick={onClick}>
+      <Icon component={icon} variant={iconVariant} />
+    </StyledButton>
+  );
+};
 
 export default PipelineCanvasEditWidgetButton;
