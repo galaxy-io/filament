@@ -52,6 +52,7 @@ func SharedPostgresCDC(t testing.TB) *PG {
 
 func (s *sharedPG) acquire(t testing.TB, opts ...PGOption) *PG {
 	t.Helper()
+	fresh := false
 	s.once.Do(func() {
 		pg := startPostgres(t, opts...)
 		if err := pg.connect(); err != nil {
@@ -61,27 +62,35 @@ func (s *sharedPG) acquire(t testing.TB, opts ...PGOption) *PG {
 			t.Fatalf("shared postgres snapshot: %v", err)
 		}
 		s.pg = pg
+		fresh = true
 	})
 	if s.pg == nil {
 		t.Fatal("shared postgres failed to start in an earlier test")
 	}
-	s.pg.Wipe(t)
+	// A just-booted instance is pristine by construction.
+	if !fresh {
+		s.pg.Wipe(t)
+	}
 	return s.pg
 }
 
 // SharedK3s returns the suite-wide k3s cluster.
 func SharedK3s(t testing.TB) *K3s {
 	t.Helper()
+	fresh := false
 	k3sShared.once.Do(func() {
 		dir, err := os.MkdirTemp("", "filament-k3s")
 		if err != nil {
 			t.Fatalf("shared k3s: %v", err)
 		}
 		k3sShared.cluster = startK3s(t, dir)
+		fresh = true
 	})
 	if k3sShared.cluster == nil {
 		t.Fatal("shared k3s failed to start in an earlier test")
 	}
-	k3sShared.cluster.Wipe(t)
+	if !fresh {
+		k3sShared.cluster.Wipe(t)
+	}
 	return k3sShared.cluster
 }

@@ -37,9 +37,10 @@ func (s *snapshotBarrierSink) Push(r filament.Record) error {
 }
 
 func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
+	pg := testcontainers.SharedPostgresCDC(t)
+	// The timeout budgets the pipeline, not the container boot above it.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	pg := testcontainers.SharedPostgresCDC(t)
 	if _, err := pg.Pool().Exec(ctx, `
 		CREATE TABLE cdc_handoff (id bigint PRIMARY KEY, name text NOT NULL);
 		ALTER TABLE cdc_handoff REPLICA IDENTITY FULL;
