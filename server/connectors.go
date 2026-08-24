@@ -100,7 +100,6 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		}
 		config = overlayConfig(conn.Config, config)
 	}
-	cfg := filament.NewConfig(config)
 	switch req.Msg.GetKind() {
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
 		source, err := a.sources.Resolve(req.Msg.GetConnector())
@@ -108,8 +107,8 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		canonicalizeConnectionConfig(source.Spec().Config, config, nil)
-		cfg = filament.NewConfig(config)
-		if err := validateConfigSchema(source.Spec().Config, cfg, filament.ScopeConnection); err != nil {
+		cfg := filament.NewConfig(config)
+		if err := validateConfigSchema(source.Spec().Config, cfg); err != nil {
 			return connect.NewResponse(schemaValidationError(err)), nil
 		}
 		if err := source.Validate(cfg); err != nil {
@@ -121,8 +120,8 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		canonicalizeConnectionConfig(sink.Spec().Config, config, nil)
-		cfg = filament.NewConfig(config)
-		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
+		cfg := filament.NewConfig(config)
+		if err := validateConfigSchema(sink.Spec().Config, cfg); err != nil {
 			return connect.NewResponse(schemaValidationError(err)), nil
 		}
 		if validator, ok := sink.(filament.ConfigValidatable); ok {

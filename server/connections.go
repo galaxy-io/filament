@@ -39,7 +39,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	effective = overlayConfig(effective, cfg)
-	if err := validateConfigSchema(schema, filament.NewConfig(effective), filament.ScopeConnection); err != nil {
+	if err := validateConfigSchema(schema, filament.NewConfig(effective)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err := a.validateConnectionConnectorConfig(req.Msg.GetKind(), req.Msg.GetConnector(), filament.NewConfig(effective)); err != nil {
@@ -112,7 +112,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	}
 	effective = overlayConfig(effective, cfg)
 	canonicalizeConnectionConfig(schema, effective, cloneStrings(refs))
-	if err := validateConfigSchema(schema, filament.NewConfig(effective), filament.ScopeConnection); err != nil {
+	if err := validateConfigSchema(schema, filament.NewConfig(effective)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err := a.validateConnectionConnectorConfig(in.GetKind(), in.GetConnector(), filament.NewConfig(effective)); err != nil {
