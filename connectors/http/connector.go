@@ -96,39 +96,48 @@ type extractOptions struct {
 }
 
 // SetManifestPath is called by the registry before Configure.
-func (c *Connector) SetManifestPath(path string) { c.manifestPath = path }
+func (c *Connector) SetManifestPath(path string) {
+	c.manifestPath = path
+	c.manifestData = nil
+	c.manifest = nil
+}
 
 // SetManifestData configures the connector from embedded manifest bytes.
-func (c *Connector) SetManifestData(data []byte) { c.manifestData = data }
+func (c *Connector) SetManifestData(data []byte) {
+	c.manifestPath = ""
+	c.manifestData = data
+	c.manifest = nil
+}
+
+// SetManifest configures the connector with an already parsed manifest.
+func (c *Connector) SetManifest(m *manifest.Manifest) { c.manifest = m }
 
 // SetCredentials injects the `config.*` template scope. Built per-source by
 // the registry's CredentialExtractor; the httpapi package stays proto-agnostic.
 func (c *Connector) SetCredentials(m map[string]string) { c.creds = m }
 
-// Validate checks that a manifest path or embedded manifest data is set.
+// Validate checks that a parsed manifest, manifest path, or embedded data is set.
 func (c *Connector) Validate() error {
-	if c.manifestPath == "" && len(c.manifestData) == 0 {
+	if c.manifest == nil && c.manifestPath == "" && len(c.manifestData) == 0 {
 		return fmt.Errorf("manifest_path is required")
 	}
 	return nil
 }
 
-// Configure loads the manifest and builds the auth, rate limiter, and HTTP clients.
+// Configure uses or loads the manifest and builds the auth, rate limiter, and HTTP clients.
 func (c *Connector) Configure(ctx context.Context) error {
-	if c.manifestPath == "" && len(c.manifestData) == 0 {
+	if c.manifest == nil && c.manifestPath == "" && len(c.manifestData) == 0 {
 		return fmt.Errorf("manifest_path not set — call SetManifestPath before Configure")
 	}
 
-	var (
-		m   *manifest.Manifest
-		err error
-	)
-	if len(c.manifestData) > 0 {
+	m := c.manifest
+	var err error
+	if m == nil && len(c.manifestData) > 0 {
 		m, err = manifest.Parse(c.manifestData)
 		if err != nil {
 			return fmt.Errorf("parse manifest: %w", err)
 		}
-	} else {
+	} else if m == nil {
 		m, err = manifest.Load(c.manifestPath)
 		if err != nil {
 			return fmt.Errorf("load manifest: %w", err)
