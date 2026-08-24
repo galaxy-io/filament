@@ -80,6 +80,7 @@ interface ConnectionFormProps {
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
   connectionId?: Connection["id"];
+  secretRefs?: Connection["secretRefs"];
   onSubmit: () => void;
   onClose: () => void;
   onBack?: () => void;
@@ -89,6 +90,7 @@ const ConnectionForm = ({
   connectorName,
   connectorKind,
   connectionId,
+  secretRefs,
   onSubmit,
   onClose,
   onBack,
@@ -261,7 +263,7 @@ const ConnectionForm = ({
               onChange={(value) => handleFieldChange(field.name, value)}
               getError={getFieldError}
               isDisabled={isDisabled}
-              hasStoredSecret={!!connectionId}
+              storedSecretRefs={secretRefs}
             />
           ))}
       </>
