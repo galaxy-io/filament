@@ -30,6 +30,9 @@ type Module struct {
 	since map[ckKey]int
 	every map[filament.RunID]int // cached per-run CheckpointEvery cadence
 	bm    map[ckKey]*bmAccount   // bitmap per-shard ack/want counters
+	// boundary records whether the sink acknowledgement is durable enough to
+	// persist each resource's accumulated cursor.
+	boundary map[ckKey]filament.CheckpointPolicy
 }
 
 // bmAccount counts written rows per bitmap shard against the shard's expected total. A
@@ -52,7 +55,10 @@ type ckKey struct {
 
 // New returns an unmounted tracker. Providers are injected by Mount.
 func New() *Module {
-	return &Module{cp: map[ckKey]filament.Checkpoint{}, since: map[ckKey]int{}, every: map[filament.RunID]int{}, bm: map[ckKey]*bmAccount{}}
+	return &Module{
+		cp: map[ckKey]filament.Checkpoint{}, since: map[ckKey]int{}, every: map[filament.RunID]int{},
+		bm: map[ckKey]*bmAccount{}, boundary: map[ckKey]filament.CheckpointPolicy{},
+	}
 }
 
 // compile-time check that we satisfy the Module contract.
@@ -167,6 +173,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.BatchWrittenEvent:
+		m.rememberBoundary(env, d.CheckpointPolicy)
 		// Incremental progress: accumulate per-resource and run totals as chunks
 		// land, so observers see counts climb before the run finishes.
 		var pipeline string
@@ -253,6 +260,11 @@ func (m *Module) evictRun(run filament.RunID) {
 			delete(m.bm, key)
 		}
 	}
+	for key := range m.boundary {
+		if key.run == run {
+			delete(m.boundary, key)
+		}
+	}
 	delete(m.every, run)
 }
 
@@ -262,6 +274,15 @@ func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *f
 		return nil
 	}
 	return m.saveCheckpoint(ctx, env.Run, cp)
+}
+
+func (m *Module) rememberBoundary(env events.Envelope, policy filament.CheckpointPolicy) {
+	if policy == "" {
+		return
+	}
+	m.mu.Lock()
+	m.boundary[ckKey{run: env.Run, resource: env.Resource}] = policy
+	m.mu.Unlock()
 }
 
 // foldCursor merges a batch.written keyset delta into the resource's accumulated
@@ -366,8 +387,9 @@ func (m *Module) foldBitmap(ctx context.Context, env events.Envelope, part, ack,
 	return merged, true // a completed shard is durable progress — persist immediately
 }
 
-// flushResource persists the resource's latest accumulated cursor immediately,
-// regardless of cadence (called on resource.completed and run termination).
+// flushResource flushes apply-durable progress at resource completion. A
+// commit-gated cursor remains tentative until the completed run fact proves
+// that sink Commit succeeded.
 func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource string) {
 	key := ckKey{run, resource}
 	m.mu.Lock()
@@ -382,7 +404,7 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	m.since[key] = 0
 	m.mu.Unlock()
 	if cp != nil {
-		if err := m.commitCheckpoint(ctx, run, cp); err != nil {
+		if err := m.persistCheckpoint(ctx, run, cp, false); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
 				m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
@@ -440,6 +462,12 @@ func (m *Module) commitCheckpoint(ctx context.Context, run filament.RunID, cp fi
 }
 
 func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint, committed bool) error {
+	m.mu.Lock()
+	boundary := m.boundary[ckKey{run: run, resource: cp.Resource()}]
+	m.mu.Unlock()
+	if boundary == filament.CheckpointAfterCommit && !committed {
+		return nil
+	}
 	state, err := m.ds.LoadRun(ctx, run)
 	if err != nil {
 		return err

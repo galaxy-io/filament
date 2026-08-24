@@ -75,6 +75,7 @@ type (
 		URI        string                   `json:"uri,omitempty"`
 		CRC        uint32                   `json:"crc,omitempty"`
 		Checkpoint *filament.CheckpointData `json:"checkpoint,omitempty"`
+		CheckpointPolicy filament.CheckpointPolicy `json:"checkpointPolicy,omitempty"`
 	}
 	// IntegrityVerifiedEvent marks a batch's CRC re-checked after write.
 	IntegrityVerifiedEvent struct {

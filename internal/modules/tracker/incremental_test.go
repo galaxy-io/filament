@@ -92,7 +92,7 @@ func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	}
 }
 
-func TestCompletedBackfillPromotesInitialWatermark(t *testing.T) {
+func TestCompletedBackfillPromotesInitialWatermarkAfterRunCommit(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	request := filament.RunRequest{
@@ -113,7 +113,17 @@ func TestCompletedBackfillPromotesInitialWatermark(t *testing.T) {
 	}
 	m := New()
 	m.ds = store
+	m.boundary[ckKey{run: "run-a", resource: "users"}] = filament.CheckpointAfterCommit
 	m.flushResource(ctx, "run-a", "users")
+	beforeCommit, err := store.LoadResourceCheckpoint(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforePlan, ok := checkpoint.ParseKeyset(beforeCommit.Checkpoint)
+	if !ok || beforePlan.Mode != checkpoint.ModeIncrementalBackfill {
+		t.Fatalf("resource completion promoted checkpoint before commit: %#v", beforeCommit.Checkpoint.Raw())
+	}
+	m.flushRun(ctx, "run-a", true)
 	stored, err := store.LoadResourceCheckpoint(ctx, key)
 	if err != nil {
 		t.Fatal(err)
