@@ -292,11 +292,14 @@ func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *filame
 	if cp == nil {
 		return nil, false
 	}
-	if part, ack, want, hasWant, ok := checkpoint.CoarseDelta(cp); ok {
-		return m.foldBitmap(ctx, env, part, ack, want, hasWant)
-	}
-	if _, _, ok := checkpoint.ParseStream(cp); ok {
+	delta := checkpoint.DecodeDelta(cp)
+	switch delta.Kind {
+	case checkpoint.DeltaCoarse:
+		return m.foldBitmap(ctx, env, delta.Part, delta.Ack, delta.Want, delta.HasWant)
+	case checkpoint.DeltaStream:
 		return m.foldStream(ctx, env, cp)
+	case checkpoint.DeltaUnknown:
+		return nil, false
 	}
 	key := ckKey{env.Run, env.Resource}
 
