@@ -16,6 +16,12 @@ import (
 type DataStore interface {
 	Ping(ctx context.Context) error // reachability, for readiness probes
 	EnsureTenant(ctx context.Context, id TenantID, name string) error
+	// ResolveTenant maps a provider's organization id onto filament's tenant
+	// id, minting the row on first sight and refreshing the display name.
+	ResolveTenant(ctx context.Context, externalID, name string) (TenantID, error)
+	// EnsureUser creates the user row for a provider subject within a tenant,
+	// or touches it when it exists, and returns filament's id for it.
+	EnsureUser(ctx context.Context, tenant TenantID, externalID string) (UserID, error)
 
 	SaveRun(ctx context.Context, s RunState) error
 	// CreateRun persists a new run row or promotes a pre-created RunScheduled
@@ -481,6 +487,9 @@ type Span interface {
 type (
 	// TenantID identifies a tenant.
 	TenantID string
+	// UserID identifies a user row filament owns; providers map their own
+	// subject onto it through the tenant-scoped external id.
+	UserID string
 	// RunID identifies a run.
 	RunID string
 	// ScheduleID identifies a schedule.

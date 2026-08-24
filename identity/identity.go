@@ -29,9 +29,16 @@ type Provider interface {
 type Caller struct {
 	// UserID is the provider's stable user identifier.
 	UserID string
-	// Tenant is the caller's tenant; a provider maps its own organization
-	// or workspace concept onto it.
+	// ID is filament's own id for the user, minted from UserID within Tenant
+	// on first sight. Providers leave it empty; the server fills it in.
+	ID filament.UserID
+	// Tenant is filament's own id for the caller's tenant, resolved from
+	// TenantExternalID on first sight. Providers leave it empty; the server
+	// fills it in.
 	Tenant filament.TenantID
+	// TenantExternalID is the provider's id for the tenant; a provider maps
+	// its own organization or workspace concept onto it.
+	TenantExternalID string
 	// TenantName is a display name for the tenant when the provider has one.
 	TenantName string
 	Roles      []authv1.Role

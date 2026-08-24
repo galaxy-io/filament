@@ -577,3 +577,70 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("expected current version %q, got %q", second.Id, fetched.GetCurrentVersion().GetId())
 	}
 }
+
+func TestStore_EnsureUserIdempotent(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	first, err := store.EnsureUser(ctx, tenantA, "zitadel-user-1")
+	if err != nil {
+		t.Fatalf("EnsureUser: %v", err)
+	}
+	if first == "" {
+		t.Fatal("EnsureUser returned an empty id")
+	}
+	again, err := store.EnsureUser(ctx, tenantA, "zitadel-user-1")
+	if err != nil {
+		t.Fatalf("EnsureUser again: %v", err)
+	}
+	if again != first {
+		t.Fatalf("EnsureUser minted a second id %q for the same subject, want %q", again, first)
+	}
+	other, err := store.EnsureUser(ctx, tenantA, "zitadel-user-2")
+	if err != nil {
+		t.Fatalf("EnsureUser other: %v", err)
+	}
+	if other == first {
+		t.Fatalf("EnsureUser reused id %q across distinct subjects", first)
+	}
+	if _, err := store.EnsureUser(ctx, tenantA, ""); err == nil {
+		t.Fatal("EnsureUser accepted an empty external id")
+	}
+}
+
+func TestStore_ResolveTenantIdempotent(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	first, err := store.ResolveTenant(ctx, "zitadel-org-1", "Org One")
+	if err != nil {
+		t.Fatalf("ResolveTenant: %v", err)
+	}
+	if first == "" {
+		t.Fatal("ResolveTenant returned an empty id")
+	}
+	again, err := store.ResolveTenant(ctx, "zitadel-org-1", "")
+	if err != nil {
+		t.Fatalf("ResolveTenant again: %v", err)
+	}
+	if again != first {
+		t.Fatalf("ResolveTenant minted a second id %q for the same org, want %q", again, first)
+	}
+	loaded, err := store.LoadTenant(ctx, first)
+	if err != nil {
+		t.Fatalf("LoadTenant: %v", err)
+	}
+	if loaded.Name != "Org One" {
+		t.Fatalf("empty name overwrote %q with %q", "Org One", loaded.Name)
+	}
+	other, err := store.ResolveTenant(ctx, "zitadel-org-2", "Org Two")
+	if err != nil {
+		t.Fatalf("ResolveTenant other: %v", err)
+	}
+	if other == first {
+		t.Fatalf("ResolveTenant reused id %q across distinct orgs", first)
+	}
+	if _, err := store.ResolveTenant(ctx, "", "Nameless"); err == nil {
+		t.Fatal("ResolveTenant accepted an empty external id")
+	}
+}

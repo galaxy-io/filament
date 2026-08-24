@@ -90,6 +90,18 @@ func (s *Store) Ping(context.Context) error { return nil }
 // EnsureTenant is a no-op; the in-memory store keeps no tenant rows.
 func (s *Store) EnsureTenant(context.Context, filament.TenantID, string) error { return nil }
 
+// ResolveTenant keeps no tenant rows; the external id stands in for
+// filament's own so callers still get a stable, non-empty id.
+func (s *Store) ResolveTenant(_ context.Context, externalID, _ string) (filament.TenantID, error) {
+	return filament.TenantID(externalID), nil
+}
+
+// EnsureUser keeps no user rows either; the external id stands in for
+// filament's own so callers still get a stable, non-empty id.
+func (s *Store) EnsureUser(_ context.Context, _ filament.TenantID, externalID string) (filament.UserID, error) {
+	return filament.UserID(externalID), nil
+}
+
 // SaveRun stores the run record. Any Resources carried on it are seeded into the
 // resource index (keyed by run); the stored run keeps no Resources slice — the
 // index is the single source of truth, reattached on read.

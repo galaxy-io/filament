@@ -91,3 +91,24 @@ func (q *Queries) LoadTenant(ctx context.Context, tenantID string) (*LoadTenantR
 	)
 	return &i, err
 }
+
+const resolveTenant = `-- name: ResolveTenant :one
+INSERT INTO tenants (external_id, name, updated_at)
+VALUES ($1::text, nullif($2::text, ''), now())
+ON CONFLICT (external_id) DO UPDATE SET
+    name = coalesce(EXCLUDED.name, tenants.name),
+    updated_at = now()
+RETURNING id
+`
+
+type ResolveTenantParams struct {
+	ExternalID string
+	Name       string
+}
+
+func (q *Queries) ResolveTenant(ctx context.Context, arg ResolveTenantParams) (string, error) {
+	row := q.db.QueryRow(ctx, resolveTenant, arg.ExternalID, arg.Name)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}

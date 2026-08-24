@@ -21,7 +21,7 @@ func (p *Provider) ListMembers(ctx context.Context, _ *connect.Request[authv1.Li
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("unauthenticated"))
 	}
-	orgID := string(caller.Tenant)
+	orgID := caller.TenantExternalID
 
 	users, err := p.api.UserServiceV2().ListUsers(ctx, &userv2.ListUsersRequest{
 		Queries: []*userv2.SearchQuery{
@@ -98,7 +98,7 @@ func (p *Provider) InviteMember(ctx context.Context, req *connect.Request[authv1
 	if roleKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("role is required"))
 	}
-	orgID := string(caller.Tenant)
+	orgID := caller.TenantExternalID
 
 	created, err := p.api.UserServiceV2().CreateUser(ctx, &userv2.CreateUserRequest{
 		OrganizationId: orgID,
@@ -147,7 +147,7 @@ func (p *Provider) SetMemberRole(ctx context.Context, req *connect.Request[authv
 	if roleKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("role is required"))
 	}
-	orgID := string(caller.Tenant)
+	orgID := caller.TenantExternalID
 
 	// Scoping the lookup to the caller's organization is what keeps one
 	// tenant from re-roling another's members.
@@ -194,7 +194,7 @@ func (p *Provider) RemoveMember(ctx context.Context, req *connect.Request[authv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("member not found"))
 	}
-	if target.GetUser().GetDetails().GetResourceOwner() != string(caller.Tenant) {
+	if target.GetUser().GetDetails().GetResourceOwner() != caller.TenantExternalID {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("member not found"))
 	}
 	if _, err := p.api.UserServiceV2().DeleteUser(ctx, &userv2.DeleteUserRequest{UserId: userID}); err != nil {

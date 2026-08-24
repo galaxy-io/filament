@@ -223,6 +223,7 @@ type Tenant struct {
 	DeletedByUserID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+	ExternalID      pgtype.Text
 }
 
 type User struct {

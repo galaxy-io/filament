@@ -43,8 +43,17 @@ var publicProcedures = map[string]bool{
 type authInterceptor struct {
 	provider identity.Provider
 	store    filament.DataStore
-	// seen dedupes EnsureTenant; a tenant only needs its row once per boot.
-	seen sync.Map
+	// tenants caches ResolveTenant by provider organization id; a tenant
+	// only needs its row minted once per boot.
+	tenants sync.Map
+	// users caches EnsureUser by tenant and provider subject; a user only
+	// needs its row minted once per boot.
+	users sync.Map
+}
+
+type userKey struct {
+	tenant filament.TenantID
+	userID string
 }
 
 func (i *authInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
@@ -83,11 +92,27 @@ func (i *authInterceptor) authenticate(ctx context.Context, procedure string, he
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	if _, done := i.seen.Load(caller.Tenant); !done {
-		if err := i.store.EnsureTenant(ctx, caller.Tenant, caller.TenantName); err != nil {
+	if caller.TenantExternalID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("token carries no tenant"))
+	}
+	tenant, ok := i.tenants.Load(caller.TenantExternalID)
+	if !ok {
+		resolved, err := i.store.ResolveTenant(ctx, caller.TenantExternalID, caller.TenantName)
+		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		i.seen.Store(caller.Tenant, struct{}{})
+		tenant, _ = i.tenants.LoadOrStore(caller.TenantExternalID, resolved)
 	}
+	caller.Tenant = tenant.(filament.TenantID)
+	key := userKey{caller.Tenant, caller.UserID}
+	id, ok := i.users.Load(key)
+	if !ok {
+		minted, err := i.store.EnsureUser(ctx, caller.Tenant, caller.UserID)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		id, _ = i.users.LoadOrStore(key, minted)
+	}
+	caller.ID = id.(filament.UserID)
 	return identity.WithCaller(ctx, caller), nil
 }

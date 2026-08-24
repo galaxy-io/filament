@@ -19,7 +19,6 @@ import (
 	zclient "github.com/zitadel/zitadel-go/v3/pkg/client"
 	"github.com/zitadel/zitadel-go/v3/pkg/zitadel"
 
-	"github.com/galaxy-io/filament"
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/identity"
 )
@@ -129,9 +128,9 @@ func (p *Provider) Authenticate(ctx context.Context, bearer string) (identity.Ca
 	userID, _ := claims["sub"].(string)
 
 	caller := identity.Caller{
-		UserID:     userID,
-		Tenant:     filament.TenantID(orgID),
-		TenantName: orgName,
+		UserID:           userID,
+		TenantExternalID: orgID,
+		TenantName:       orgName,
 	}
 	if granted, ok := claims[p.rolesClaim].(map[string]any); ok {
 		caller.Roles = make([]authv1.Role, 0, len(granted))
