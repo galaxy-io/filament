@@ -49,16 +49,18 @@ const PipelineCanvasPanelHeader = ({
           description={description}
           icon={icon}
           actions={
-            onDelete ? [
-              <Button
-                key="delete"
-                icon={TrashIcon}
-                variant={ButtonVariant.SECONDARY}
-                size={ButtonSize.SMALL}
-                onClick={onDelete}
-                ariaLabel="Delete"
-              />,
-            ] : undefined
+            onDelete
+              ? [
+                  <Button
+                    key="delete"
+                    icon={TrashIcon}
+                    variant={ButtonVariant.SECONDARY}
+                    size={ButtonSize.SMALL}
+                    onClick={onDelete}
+                    ariaLabel="Delete"
+                  />,
+                ]
+              : undefined
           }
           onClose={onClose}
         />
