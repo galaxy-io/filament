@@ -27,7 +27,7 @@ func (c *Connector) Extract(ctx context.Context, sink filament.RecordSink, opts 
 }
 
 func (c *Connector) extract(ctx context.Context, sink filament.RecordSink, opts extractOptions) error {
-	c.resumeCursors = opts.ResumeCursors
+	c.resumeStates = opts.ResumeStates
 	c.resumeWatermarks = opts.ResumeWatermarks
 	c.incrementalLookbacks = opts.IncrementalLookbacks
 	c.incrementalResources = opts.IncrementalResources
@@ -124,7 +124,7 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 }
 
 // extractResource runs one resource end-to-end. Top-level resources may resume
-// from the cursor and watermark supplied by the engine. Child resources always
+// from the pagination state and watermark supplied by the engine. Child resources always
 // restart pagination because a resource-wide cursor cannot be applied to each
 // parent independently.
 func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink filament.RecordSink, parent Capture) error {
@@ -174,12 +174,12 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	// out across many parents whose pagination state interleaves into a
 	// single resource-level cursor — replaying that cursor for each parent
 	// is incorrect, so children always restart pagination from scratch.
-	startCursor := ""
-	if res.Parent == nil && c.resumeCursors != nil {
-		startCursor = c.resumeCursors[res.Name]
+	var resumeState pagination.State
+	if res.Parent == nil && c.resumeStates != nil {
+		resumeState = c.resumeStates[res.Name]
 	}
 
-	_, _, err = c.paginate(ctx, res, sink, parent, pag, extractor, tracker, startCursor)
+	_, _, err = c.paginate(ctx, res, sink, parent, pag, extractor, tracker, resumeState)
 	return err
 }
 

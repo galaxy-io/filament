@@ -15,6 +15,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
+	"github.com/galaxy-io/filament/connectors/http/pagination"
 )
 
 const providerName = "httpapi"
@@ -326,7 +327,7 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 // ExtractFrom resumes extraction from per-resource keyset checkpoints,
 // decoding them into resume cursors and watermarks.
 func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
-	resumeCursors := make(map[string]string, len(prev))
+	resumeStates := make(map[string]pagination.State, len(prev))
 	resumeWatermarks := make(map[string]map[string]string, len(prev))
 	for resource, cp := range prev {
 		ks, ok := checkpoint.ParseKeyset(cp)
@@ -346,7 +347,11 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 			}
 			continue
 		}
-		resumeCursors[resource] = key[0]
+		state, err := pagination.ResumeFrom(key[0])
+		if err != nil {
+			return fmt.Errorf("httpapi source: resume %q: %w", resource, err)
+		}
+		resumeStates[resource] = state
 		for i, checkpointKey := range ks.Cols[1:] {
 			if i+1 >= len(key) || key[i+1] == "" {
 				continue
@@ -357,7 +362,7 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 			resumeWatermarks[resource][checkpointKey] = key[i+1]
 		}
 	}
-	return s.extract(ctx, sink, opts, resumeCursors, resumeWatermarks)
+	return s.extract(ctx, sink, opts, resumeStates, resumeWatermarks)
 }
 
 // PlanResources resolves requested resources and selectors to manifest resource names.
@@ -380,7 +385,7 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 	}
 	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, resource := range resources {
-		cols := []string{"cursor"}
+		cols := []string{"pagination_state"}
 		types := make([]string, len(cols))
 		for i := range types {
 			types[i] = "string"
@@ -418,7 +423,7 @@ func (s *Source) Schema(_ context.Context, resource string) (filament.RecordSche
 	return filament.RecordSchema{}, fmt.Errorf("httpapi source: unknown resource %q", resource)
 }
 
-func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, resumeCursors map[string]string, resumeWatermarks map[string]map[string]string) error {
+func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, resumeStates map[string]pagination.State, resumeWatermarks map[string]map[string]string) error {
 	if s.connector == nil || s.connector.manifest == nil {
 		return fmt.Errorf("httpapi source: extract before configure")
 	}
@@ -431,7 +436,7 @@ func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts fil
 		Observe:              opts.Observe,
 		Resources:            s.connectorResources(opts.Resources),
 		EnabledResources:     enabledResources(opts.Selectors),
-		ResumeCursors:        resumeCursors,
+		ResumeStates:         resumeStates,
 		ResumeWatermarks:     resumeWatermarks,
 		IncrementalLookbacks: s.incrementalLookbacks,
 		IncrementalResources: s.incrementalResourceSet(),
