@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,17 +14,10 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/cmd/internal/boot"
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
-	"github.com/galaxy-io/filament/cmd/internal/eventbus"
-	"github.com/galaxy-io/filament/cmd/internal/logger"
-	"github.com/galaxy-io/filament/cmd/internal/otel"
-	"github.com/galaxy-io/filament/cmd/internal/persistence"
-	"github.com/galaxy-io/filament/cmd/internal/secret"
-	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
-	"github.com/galaxy-io/filament/module"
-	"github.com/galaxy-io/filament/registry"
 
 	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
@@ -40,30 +32,11 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	lg := logger.New()
-
-	store, err := persistence.FromEnv(ctx)
+	deps, closeDeps, err := boot.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if c, ok := store.(io.Closer); ok {
-			_ = c.Close()
-		}
-	}()
-	secrets, err := secret.FromEnv(ctx, store)
-	if err != nil {
-		return err
-	}
-	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = otelShutdown(flushCtx)
-	}()
+	defer closeDeps()
 
 	healthMux := http.NewServeMux()
 	healthMux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
@@ -72,7 +45,7 @@ func run(ctx context.Context) error {
 	healthMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		pingCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
-		if err := store.Ping(pingCtx); err != nil {
+		if err := deps.Store.Ping(pingCtx); err != nil {
 			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
 			return
 		}
@@ -89,41 +62,29 @@ func run(ctx context.Context) error {
 		defer cancel()
 		_ = healthSrv.Shutdown(shutCtx)
 	}()
-	bus, err := eventbus.FromEnv()
+
+	bus, closeBus, err := boot.Bus()
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if c, ok := any(bus).(io.Closer); ok {
-			_ = c.Close()
-		}
-	}()
+	defer closeBus()
 
 	dispatcher, err := dispatch.FromEnv()
 	if err != nil {
 		return err
 	}
-	scheduleStore, ok := store.(filament.ScheduleStore)
+	scheduleStore, ok := deps.Store.(filament.ScheduleStore)
 	if !ok {
-		return fmt.Errorf("datastore %q does not support schedules", store.Name())
+		return fmt.Errorf("datastore %q does not support schedules", deps.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Secrets: secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
-		tracker.New(),
-		dispatcher,
-		sched,
-	)
+	h, err := boot.Mount(ctx, deps, bus, tracker.New(), dispatcher, sched)
 	if err != nil {
-		return fmt.Errorf("mount: %w", err)
+		return err
 	}
-	h := host.New(bus)
 	defer func() {
 		_ = h.Close()
 	}()
-	if err := h.Run(ctx, mods...); err != nil {
-		return fmt.Errorf("run host: %w", err)
-	}
 	sched.Start(ctx)
 	for _, name := range h.Mounted() {
 		fmt.Println("mounted:", name)
