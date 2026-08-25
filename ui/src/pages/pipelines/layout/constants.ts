@@ -8,6 +8,7 @@ export const PIPELINE_SIDEBAR_BUTTON_SIZE = 28;
 export const PIPELINE_NAVBAR_HEIGHT = 48;
 export const PIPELINE_PREVIEW_CHIP_Z_INDEX = 1002;
 export const PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH = 200;
+export const PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH = 480;
 
 export const PIPELINE_SIDEBAR_ITEMS: PipelineSidebarItem[] = [
   PipelineSidebarItem.CANVAS,
