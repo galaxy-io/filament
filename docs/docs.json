@@ -1,7 +1,8 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "aspen",
+  "theme": "maple",
   "name": "Filament",
+  "description": "Change data capture and replication, as a single binary or an embeddable Go library.",
   "colors": {
     "primary": "#005EFF",
     "light": "#005EFF",
@@ -9,14 +10,13 @@
   },
   "background": {
     "color": {
-      "light": "#ffffff",
-      "dark": "#131313"
-    },
-    "decoration": "grid"
+      "light": "#FFFFFF",
+      "dark": "#0A0A0A"
+    }
   },
   "appearance": {
     "default": "dark",
-    "strict": true
+    "strict": false
   },
   "logo": {
     "light": "/assets/filament-light.svg",
@@ -40,10 +40,22 @@
     "library": "fontawesome"
   },
   "styling": {
-    "eyebrows": "breadcrumbs",
+    "eyebrows": "section",
     "codeblocks": {
-      "theme": "vitesse-black"
+      "theme": {
+        "light": "github-light-default",
+        "dark": "github-dark-default"
+      }
     }
+  },
+  "interaction": {
+    "drilldown": true
+  },
+  "search": {
+    "prompt": "Search"
+  },
+  "contextual": {
+    "options": ["copy", "view", "claude", "chatgpt", "cursor", "mcp"]
   },
   "navbar": {
     "links": [
@@ -55,14 +67,31 @@
       "href": "https://getgalaxy.com/filament"
     }
   },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/galaxy-io/filament",
+      "website": "https://getgalaxy.io"
+    }
+  },
+  "seo": {
+    "indexing": "navigable"
+  },
+  "thumbnails": {
+    "appearance": "dark"
+  },
+  "errors": {
+    "404": {
+      "redirect": true
+    }
+  },
   "navigation": {
     "tabs": [
       {
         "tab": "Guides",
-        "icon": "rocket",
+        "icon": "book-open",
         "groups": [
           {
-            "group": "Get Started",
+            "group": "Get started",
             "pages": [
               "pages/guides/get-started/introduction",
               "pages/guides/get-started/quickstart",
@@ -105,7 +134,6 @@
           {
             "group": "Sources",
             "pages": [
-              "pages/connectors/sources/overview",
               "pages/connectors/sources/postgres",
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/attio",
@@ -116,23 +144,22 @@
               "pages/connectors/sources/resend",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
-              "pages/connectors/sources/http",
               "pages/connectors/sources/sample"
             ]
           },
           {
             "group": "Sinks",
             "pages": [
-              "pages/connectors/sinks/overview",
               "pages/connectors/sinks/postgres",
               "pages/connectors/sinks/mysql",
+              "pages/connectors/sinks/clickhouse",
               "pages/connectors/sinks/iceberg",
               "pages/connectors/sinks/aws-s3",
               "pages/connectors/sinks/stdout"
             ]
           },
           {
-            "group": "Building a Connector",
+            "group": "Building a connector",
             "pages": [
               "pages/connectors/building-a-connector/writing-a-source",
               "pages/connectors/building-a-connector/writing-a-sink",
@@ -170,7 +197,7 @@
             "pages": ["pages/benchmarks/pipeline/throughput"]
           },
           {
-            "group": "Event Bus",
+            "group": "Event bus",
             "pages": ["pages/benchmarks/event-bus/publish-overhead"]
           }
         ]

@@ -11,8 +11,6 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
-const MAIN_LIST_PAGE_SEARCH_WIDTH = 300;
-
 const MainLayoutListPageScrollArea = styled.div<{ $noPadding?: boolean }>`
   flex: 1;
   width: 100%;
@@ -57,7 +55,7 @@ const MainLayoutListPage = ({
             onChange={handleSearchChange}
             placeholder="Search"
             leading={{ icon: MagnifyingGlassIcon }}
-            width={MAIN_LIST_PAGE_SEARCH_WIDTH}
+            fillWidth
           />,
         ]}
         trailingActions={actions}

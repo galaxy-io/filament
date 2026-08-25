@@ -1,0 +1,53 @@
+/* ------------------------------------------------------------------
+   Theme-aware connector icons.
+   Mintlify renders frontmatter icon URLs as plain <img> tags and keeps
+   the -dark.svg variant hardcoded. In light mode, swap each one for its
+   -light.svg counterpart. (theme-icons.js covers browsers that don't
+   support content replacement on <img>, and client-side navigation.)
+   ------------------------------------------------------------------ */
+
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-github-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-linear-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-notion-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-posthog-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-resend-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-resend-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-stripe-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-stripe-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-s3-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-iceberg-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-stdout-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-stdout-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-clickhouse-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-clickhouse-light.svg");
+}
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-sample-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-sample-light.svg");
+}

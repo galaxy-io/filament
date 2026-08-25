@@ -12,7 +12,7 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -115,10 +115,10 @@ const ObservabilitySetupChecklist = () => {
         <FlexWrapper
           direction={FlexDirection.COLUMN}
           alignItems={AlignItems.CENTER}
-          gap={FlexGap.SMALL}
+          gap={4}
           fillWidth
         >
-          <Text size={TextSize.HEADING_SM}>Set up your first pipeline</Text>
+          <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
           <Text variant={TextVariant.SECONDARY}>Three steps to complete your onboarding</Text>
         </FlexWrapper>
         <SetupCard>
@@ -143,7 +143,7 @@ const ObservabilitySetupChecklist = () => {
           height={4}
           noAnimation
         />
-        <DocsButton label="Read the docs" path="/pipelines" size={ButtonSize.LARGE} />
+        <DocsButton label="Read the docs" size={ButtonSize.LARGE} />
       </SetupContent>
     </DotGridBackground>
   );
