@@ -163,15 +163,5 @@ func sendStreamMark(ctx context.Context, p *Pipeline, key partKey, meta filament
 // tracker sums toward the shard's expected total. A keyset read carries the last
 // record's key. A plain ctid read carries neither → nil.
 func shardCursor(resource string, part int, recs []filament.Record) *filament.CheckpointData {
-	last := recs[len(recs)-1]
-	if last.Meta.LSN != "" {
-		return checkpoint.NewStreamDelta(resource, last.Meta.LSN, last.Meta.Seq)
-	}
-	if last.Coarse {
-		return checkpoint.NewCoarseAck(resource, part, len(recs))
-	}
-	if last.Key == nil {
-		return nil
-	}
-	return checkpoint.NewShardDelta(resource, part, last.Key)
+	return checkpoint.FromRecords(resource, part, recs)
 }

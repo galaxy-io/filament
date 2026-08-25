@@ -30,8 +30,17 @@ type (
 	}
 	// RunCanceledEvent marks a run stopped by a cancellation request.
 	RunCanceledEvent struct{}
-	// RunPausedEvent marks a run suspended for a later continuation.
-	RunPausedEvent struct{}
+	// RunPausedEvent marks a run suspended for a later continuation. Committed
+	// reports whether the sink reached a boundary that can promote checkpoints.
+	RunPausedEvent struct {
+		Committed bool `json:"committed"`
+	}
+	// RunPauseRequestedEvent asks the worker owning a running run to stop
+	// extraction, drain accepted records, and acknowledge with RunPaused.
+	RunPauseRequestedEvent struct{}
+	// RunCancelRequestedEvent asks the worker owning a running run to stop and
+	// abort its sink before acknowledging with RunCanceled.
+	RunCancelRequestedEvent struct{}
 	// HeartbeatEvent is the worker liveness and resource usage signal: the
 	// pod's cumulative cgroup CPU time and its current/peak working set.
 	HeartbeatEvent struct {
@@ -70,11 +79,12 @@ type (
 	}
 	// BatchWrittenEvent marks one batch durably applied to the sink.
 	BatchWrittenEvent struct {
-		Records    int64                    `json:"records"`
-		Bytes      int64                    `json:"bytes"`
-		URI        string                   `json:"uri,omitempty"`
-		CRC        uint32                   `json:"crc,omitempty"`
-		Checkpoint *filament.CheckpointData `json:"checkpoint,omitempty"`
+		Records          int64                     `json:"records"`
+		Bytes            int64                     `json:"bytes"`
+		URI              string                    `json:"uri,omitempty"`
+		CRC              uint32                    `json:"crc,omitempty"`
+		Checkpoint       *filament.CheckpointData  `json:"checkpoint,omitempty"`
+		CheckpointPolicy filament.CheckpointPolicy `json:"checkpointPolicy,omitempty"`
 	}
 	// IntegrityVerifiedEvent marks a batch's CRC re-checked after write.
 	IntegrityVerifiedEvent struct {
@@ -111,14 +121,16 @@ type (
 // The event kinds, one per payload type above; each value is the capability
 // to emit or subscribe to that kind.
 var (
-	RunRequested = define[RunRequestedEvent]("run.requested")
-	RunStarted   = define[RunStartedEvent]("run.started")
-	RunCompleted = define[RunCompletedEvent]("run.completed")
-	RunFailed    = define[RunFailedEvent]("run.failed")
-	RunPartial   = define[RunPartialEvent]("run.partial")
-	RunCanceled  = define[RunCanceledEvent]("run.canceled")
-	RunPaused    = define[RunPausedEvent]("run.paused")
-	Heartbeat    = define[HeartbeatEvent]("run.heartbeat")
+	RunRequested       = define[RunRequestedEvent]("run.requested")
+	RunStarted         = define[RunStartedEvent]("run.started")
+	RunCompleted       = define[RunCompletedEvent]("run.completed")
+	RunFailed          = define[RunFailedEvent]("run.failed")
+	RunPartial         = define[RunPartialEvent]("run.partial")
+	RunCanceled        = define[RunCanceledEvent]("run.canceled")
+	RunPaused          = define[RunPausedEvent]("run.paused")
+	RunPauseRequested  = define[RunPauseRequestedEvent]("run.pause_requested")
+	RunCancelRequested = define[RunCancelRequestedEvent]("run.cancel_requested")
+	Heartbeat          = define[HeartbeatEvent]("run.heartbeat")
 
 	ResourceStarted   = define[ResourceStartedEvent]("resource.started")
 	PageFetched       = define[PageFetchedEvent]("resource.page_fetched")
