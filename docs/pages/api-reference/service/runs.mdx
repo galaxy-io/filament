@@ -14,11 +14,31 @@ pipeline version, dispatched by the control plane and executed by a worker
 | `RunPipeline` | Compile and submit a pipeline for execution |
 | `ListRuns` | List runs |
 | `GetRun` | Fetch one run's state |
-| `SignalRun` | Send a signal to a running run (e.g. cancel) |
+| `SignalRun` | Pause, resume, or cancel a run |
 | `TailRun` | Server-streamed live progress for a run, with optional snapshot replay |
 
 `TailRun` is the one streaming RPC on the service — it's what the UI uses to
 show live run progress without polling.
+
+## Run signals
+
+`SignalRun` applies the same lifecycle rules whether the caller is the UI or
+another API client:
+
+| Signal | Accepted state | Result |
+|---|---|---|
+| `PAUSE` | Requested, running, or paused | Pauses queued work immediately; an active worker stops extraction and reaches a safe sink boundary |
+| `RESUME` | Requested, paused, or partial | Repairs dispatch for queued work or creates a fresh execution of the same logical run using its durable checkpoints |
+| `CANCEL` | Requested, running, paused, partial, or canceled | Aborts active sink work and makes the run terminal |
+
+Pause and cancel wait for acknowledgement from an active worker. Repeating an
+already-applied pause or cancel is safe. A run with a mixture of checkpointable
+and checkpoint-free resources cannot be paused because it has no single safe
+resume policy.
+
+When every resource is checkpointable, a paused run preserves its durable
+progress. When no resource is checkpointable, Filament discards partial sink
+output and restarts those resources from the beginning on resume.
 
 <Info>
   This page is a placeholder for full request/response field documentation,

@@ -1,46 +1,54 @@
+<p align="center"><img src=".github/assets/filament.svg" alt="Filament" width="520"></p>
+
+<p align="center"><a href="https://filament.getgalaxy.io">Documentation</a> · <a href="#getting-started">Getting started</a> · <a href=".github/CONTRIBUTING.md">Contributing</a> · <a href="https://join.slack.com/t/galaxy-filament/shared_invite/zt-486oaagls-WCKm605mP6NCmoB3E7frpQ">Slack</a></p>
+
 # Filament
 
-Filament moves data from sources to sinks with full, incremental, and CDC replication. Every batch is integrity checked on both the read and write side, and interrupted runs resume from checkpoints. It is written in Go, and its major pieces are pluggable. Connectors, the data store, and the event bus are interfaces with swappable implementations.
+Filament is pluggable data replication with checkpointing, batching, and integrity events.
 
-## Architecture
+It moves data from sources to sinks using full, incremental, or change data capture replication. Filament keeps progress durable as data moves, verifies batches on both sides of a write, and safely pauses or resumes runs from their checkpoints.
 
-Filament is three components over a data store and an event bus.
+Sources, sinks, state storage, and event transport are replaceable interfaces. Run Filament as a service with its API and web UI, deploy it to your own infrastructure, or embed the engine in a Go application.
 
-- `server` serves the API and web UI and owns connections, pipelines, and run requests
-- `control-plane` fires schedules, dispatches requested runs, and tracks run state
-- `worker` executes a single run from extraction to verified write
+## Getting started
 
-The data store holds durable state such as connections, pipelines, runs, and checkpoints. The event bus carries the events the components communicate through, rather than the components calling each other. Workers emit events as a run progresses and the control plane folds them into run state. Within a run, the pipeline handles batching, writing, integrity verification, and checkpoint advancement, so interrupted runs resume where they left off.
+One-click deployments for Railway and DigitalOcean are coming soon. Until then, you can run Filament locally or follow the [documentation](https://filament.getgalaxy.io) for more detailed guidance.
 
-## Deploying
-
-Filament runs on Kubernetes through the Helm chart. The chart deploys the server and control plane and can provision the backing data store and event bus or point at existing instances. Each run executes as its own Job. See [charts/filament](charts/filament/README.md) for installation and configuration.
-
-Filament also embeds as a library. Connectors self-register via blank imports.
-
-```go
-import (
-	"github.com/galaxy-io/filament/app"
-
-	_ "github.com/galaxy-io/filament/connectors/postgres"
-	_ "github.com/galaxy-io/filament/connectors/stdout"
-)
-
-func main() { log.Fatal(app.Run(context.Background())) }
-```
-
-## Writing a connector
-
-A source implements `Spec`, `Validate`, `Configure`, `Extract`, and `Teardown` in [source.go](source.go). A sink implements `Spec`, `Open`, `Apply`, `Commit`, and `Abort` in [sink.go](sink.go). Optional interfaces add checkpointed resume, CDC, discovery, rate limits, staged transactions, upserts, and typed DDL. The engine detects them at runtime.
-
-## Contributing
-
-Run `brew bundle` to install the toolchain and make sure Docker is running.
+The local environment requires Go, Docker, `just`, Node.js, and pnpm. On macOS, the repository's `Brewfile` installs the toolchain:
 
 ```sh
-just infra   # local data store + event bus via docker compose
-just dev     # control plane, API server, and UI on port 5173
-just test    # unit tests (just test-integration for e2e, needs Docker)
+brew bundle
 ```
 
-Run `just format`, `just lint`, and `just test` before opening a PR. Filament is pre-1.0 and APIs may change.
+Start PostgreSQL and NATS, then run Filament:
+
+```sh
+just infra
+just dev
+```
+
+Open <http://localhost:5173> to use the web UI.
+
+When you are finished, stop the local infrastructure with:
+
+```sh
+just infra down
+```
+
+## How it works
+
+A Filament pipeline connects a source to a sink and defines how selected resources should be replicated. During a run, Filament extracts records into bounded batches, writes and verifies each batch, and advances durable checkpoints only after successful work.
+
+The runtime is event-driven: the server accepts pipeline and run requests, the control plane schedules and dispatches work, and workers execute individual runs. PostgreSQL stores durable state and NATS JetStream carries lifecycle events between components.
+
+## Developing Filament
+
+Filament is written in Go, with a React and TypeScript web UI. Contributions to the engine, connectors, UI, deployment tooling, tests, and documentation are welcome.
+
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for repository setup, code generation, tests, and pull request guidance.
+
+## Community
+
+- Read the [Filament documentation](https://filament.getgalaxy.io).
+- Ask questions and meet other users in the [Filament Slack community](https://join.slack.com/t/galaxy-filament/shared_invite/zt-486oaagls-WCKm605mP6NCmoB3E7frpQ).
+- Report bugs or propose features through [GitHub Issues](https://github.com/galaxy-io/filament/issues).

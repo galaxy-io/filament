@@ -19,7 +19,7 @@ The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnam
 
 ## Runtime configuration
 
-Filament requires a PostgreSQL DSN, a base64-encoded encryption key, and a NATS URL. Provide them either through `existingSecret` or through chart values so the chart can create the Secret.
+Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
 
 To use an existing Secret:
 
@@ -61,7 +61,7 @@ helm upgrade --install filament . \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Labels added to all Filament resources. |
-| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`, and `NATS_URL`. When set, the chart does not create its own Secret. |
+| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider. When set, the chart does not create its own Secret. |
 
 ## Server parameters
 

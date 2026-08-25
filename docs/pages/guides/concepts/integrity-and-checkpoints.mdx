@@ -35,6 +35,30 @@ the start:
 CDC sources use the same idea with per-resource checkpoints instead of a
 shard plan — see [`ChangeSource`](/pages/connectors/building-a-connector/optional-interfaces).
 
+## Pausing and sink durability
+
+Pausing is cooperative: the worker stops extraction, drains work already in
+the pipeline, and then reaches a sink boundary. What happens to that progress
+depends on the run and sink:
+
+- If every selected resource is checkpointable, Filament commits recoverable
+  progress and a later resume continues from those checkpoints.
+- If no selected resource is checkpointable, Filament aborts partial output;
+  a later resume safely reads the resources again from the beginning.
+- Filament rejects a pause when only some selected resources are
+  checkpointable, because preserving one subset while restarting another does
+  not provide a coherent run boundary.
+
+A checkpoint is only durable when the corresponding sink write is durable.
+Sinks with `after_apply` durability allow the coordinator to persist progress
+after a successful `Apply`. Sinks with `after_commit` durability stage their
+writes, so their checkpoint deltas remain tentative until `Commit` succeeds.
+A failed or canceled run never promotes commit-gated progress.
+
+This distinction is separate from write atomicity: atomicity describes when
+data becomes visible, while durability describes when an acknowledged write
+can survive recovery.
+
 <Note>
   This is why the chosen read strategy for a resumable source is frozen into
   the checkpoint at plan time: the shard layout can't change mid-flight, or

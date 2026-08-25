@@ -48,7 +48,8 @@ syntax). A manifest declares:
   the grammar supports), and connection-wide headers.
 - **`resources`** — one entry per extractable resource: its path, HTTP
   method, primary key, field mappings (each a JSON/GraphQL path plus a
-  type), and how it paginates.
+  type), and how it paginates (`cursor`, `offset`, `page`, `link_header`, or
+  `next_url`).
 - **`for_each` / `capture`** — how resources nest. A child resource
   (`for_each: parent_resource`) runs once per parent record, templating the
   parent's `capture`d fields into its own path, query, or body (`{{
@@ -60,6 +61,14 @@ syntax). A manifest declares:
   cursor, where it's injected on the next request, and how values compare
   (`lex`, `numeric`, or `time`). See
   [Slack](/pages/connectors/sources/slack) for a working example.
+
+The HTTP source checkpoints the complete top-level pagination state, not just
+a cursor string. A resumed run can therefore continue an offset, page number,
+`Link` header, next URL, or cursor strategy without restarting the resource.
+Older cursor-only checkpoints remain readable. Incremental resources persist
+their watermark under `checkpoint_key` when one is declared, otherwise under
+the cursor field name, so renaming a projected field does not have to discard
+an intentionally stable checkpoint route.
 
 <Info>
   This page covers the concepts; `connectors/http/manifest/grammar.v1.json`
