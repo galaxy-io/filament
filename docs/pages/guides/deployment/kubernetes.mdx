@@ -1,61 +1,120 @@
 ---
 title: "Kubernetes"
-description: "Deploy Filament with the Helm chart."
+description: "Deploy Filament with the Helm chart"
 icon: "dharmachakra"
 ---
 
-Filament runs on Kubernetes through its Helm chart. The chart deploys the
-server and control plane, wires up Kubernetes worker dispatch, and can
-provision — or point at — the PostgreSQL and NATS instances Filament needs.
+Filament's Helm chart lives at `charts/filament`. It deploys the server and
+control plane as Deployments, runs database migrations as a hook Job, and
+wires up Kubernetes worker dispatch — the control plane creates one Kubernetes
+Job per run, so there is no long-lived worker Deployment to size or scale.
+
+## Installing
+
+The chart requires three inputs. Everything else has a production-safe
+default.
+
+| Value | Becomes |
+|---|---|
+| `persistence.postgresql.dsn` | `PERSISTENCE_DSN` |
+| `secrets.postgres.encryptionKey` | `ENCRYPTION_KEY` |
+| `eventBus.nats.url` | `NATS_URL` |
+
+Generate an encryption key and install:
+
+```sh
+helm install filament ./charts/filament \
+  --set persistence.postgresql.dsn="postgresql://filament:...@db:5432/filament" \
+  --set secrets.postgres.encryptionKey="$(openssl rand -base64 32)" \
+  --set eventBus.nats.url="nats://nats:4222"
+```
+
+The key must be base64 and decode to 16, 24, or 32 bytes. It is the AES-GCM
+key the default `postgres` secrets provider encrypts connection credentials
+with. Alternatively, set `existingSecret` to the name of a Secret you manage
+yourself containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`, and `NATS_URL`. The
+chart then creates no Secret of its own.
 
 ## What the chart deploys
 
-The chart deploys the Filament server, control plane, Kubernetes worker
-dispatch support, and the configuration needed to connect Filament to
-PostgreSQL and NATS. PostgreSQL and NATS themselves are vendored as optional
-dependencies (disabled by default):
+**Server**: a Deployment (one replica by default) and a Service on port 8080
+serving the API and UI. Optional extras, all off by default:
 
-| Dependency | Chart | Version |
-|---|---|---|
-| PostgreSQL | `bitnami/postgresql` | 18.7.11 |
-| NATS | `nats-io/nats` | 2.14.2 |
+- an Ingress (`server.ingress.enabled`)
+- an HPA (`server.autoscaling.enabled`, 1–10 replicas targeting 80% CPU)
+- a PodDisruptionBudget with `maxUnavailable: 1` when autoscaling is on or
+  replicas exceed one
 
-## Runtime configuration
+**Control plane**: a Deployment (`controlPlane.enabled: true` by default)
+running the scheduler, dispatcher, tracker, and reaper, with health probes on
+port 8081. The chart grants its ServiceAccount a namespaced RBAC Role over
+`batch/jobs` (`create`, `get`, `list`, `watch`, `delete`), the minimum the
+dispatcher needs to create worker Jobs and the reaper needs to clean them up.
 
-Filament requires a PostgreSQL DSN, a base64-encoded encryption key, and a
-NATS URL — provided either via `existingSecret` or chart values.
+**Worker**: no Deployment. The chart ships only a ConfigMap and a
+ServiceAccount that dispatched Jobs consume at runtime. Set IRSA or other
+cloud-identity annotations on `controlPlane.dispatch.worker.serviceAccount.annotations`
+if workers need cloud credentials (for example, the `aws-secrets-manager`
+secrets provider).
 
-**Using an existing Secret:**
+**Migrate Job**: a post-install/post-upgrade hook (`persistence.migrate: true`)
+that runs the server image with `args: ["-migrate"]`, `backoffLimit: 6`, and a
+one-hour TTL. Migrations wait up to five minutes for the database to accept
+connections, so a fresh install with a still-booting database converges
+without intervention.
 
-```sh
-kubectl create secret generic filament-runtime \
-  --from-literal=PERSISTENCE_DSN='postgresql://USER:PASSWORD@HOST:5432/filament?sslmode=require' \
-  --from-literal=ENCRYPTION_KEY="$(openssl rand -base64 32)" \
-  --from-literal=NATS_URL='nats://nats.example.com:4222'
+Both Deployments annotate their pods with checksums of the rendered ConfigMap
+and Secret, so a config change on upgrade triggers a rollout even when the
+image tag is unchanged.
 
-helm upgrade --install filament . \
-  --set existingSecret=filament-runtime
-```
+Both Deployments carry three probes:
 
-**Local or test cluster, with the vendored charts:**
+- startup on `/livez` (5s period, 30 failures allowed)
+- readiness on `/readyz`, which pings PostgreSQL
+- liveness on `/livez`
 
-```sh
-PG_PASSWORD="$(openssl rand -hex 24)"
-ENC_KEY="$(openssl rand -base64 32)"
+## How dispatched worker Jobs look
 
-helm upgrade --install filament . \
-  --set postgresql.enabled=true \
-  --set nats.enabled=true \
-  --set-string postgresql.auth.password="$PG_PASSWORD" \
-  --set-string persistence.postgresql.dsn="postgresql://filament:${PG_PASSWORD}@filament-postgresql:5432/filament?sslmode=disable" \
-  --set-string secrets.postgres.encryptionKey="$ENC_KEY" \
-  --set-string eventBus.nats.url='nats://filament-nats:4222'
-```
+Each run becomes one Kubernetes Job running the worker image. The dispatcher
+injects exactly one environment variable, `RUN_ID`, and everything else
+arrives via `envFrom` of the worker Secret and ConfigMap. Run-specific state
+lives in PostgreSQL, so the Job spec stays identical across runs.
 
-## Full values reference
+Job shape is tuned through chart values that map to the control plane's
+`K8S_JOB_*` and `K8S_WORKER_*` variables:
 
-Server and control-plane parameters — autoscaling, image, ingress, resources,
-worker dispatch — are covered in
-[`charts/filament/README.md`](https://github.com/galaxy-io/filament/blob/main/charts/filament/README.md)
-in the repo. See [Configuration](/pages/guides/deployment/configuration) for how these
-line up with the local (non-Kubernetes) environment variables.
+- `controlPlane.dispatch.job.namePrefix` (default `filament`)
+- `controlPlane.dispatch.job.backoffLimit` (default 1)
+- `controlPlane.dispatch.job.ttlSecondsAfterFinished` (default 3600)
+- `controlPlane.dispatch.worker.restartPolicy` (default `Never`)
+- `controlPlane.dispatch.worker.terminationGraceSeconds`
+- `controlPlane.dispatch.worker.activeDeadlineSeconds`
+
+The full variable set is in the
+[configuration reference](/pages/guides/deployment/configuration).
+
+## Scaling
+
+The server is stateless and scales horizontally. The control plane is also
+safe to run with multiple replicas. Schedule firing claims rows with
+`SELECT FOR UPDATE SKIP LOCKED` under a five-minute lease, so concurrent
+control planes never double-dispatch a scheduled run.
+
+## Vendored PostgreSQL and NATS
+
+The chart vendors two optional subcharts, Bitnami PostgreSQL (8Gi PVC,
+optional daily `pg_dumpall` backup) and NATS (JetStream, 10Gi file store).
+Both are disabled by default.
+
+<Warning>
+The vendored subcharts exist for local and test clusters. Use external,
+managed PostgreSQL and NATS instances in production. The chart's own
+`values.yaml` says the same.
+</Warning>
+
+## CI and images
+
+Images are published to `ghcr.io/galaxy-io/filament/{server,control-plane,worker,standalone}`.
+Every push to main publishes `latest`, and `v*` releases add semver plus SHA
+tags. CI
+lints the chart and renders it in four configurations on every change.

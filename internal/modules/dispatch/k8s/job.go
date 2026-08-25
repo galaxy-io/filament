@@ -12,48 +12,69 @@ import (
 )
 
 // workerResources converts the run's resolved quantities into the worker
-// container's requirements. Each is optional: an unset quantity is left off the
+// container's requirements. Each map is optional: an unset one is left off the
 // Job so a namespace LimitRange can supply it instead. Quantities are validated
 // when written through the API, so a parse failure here means stored data went
 // bad and the run is refused rather than silently sized wrong.
 func workerResources(r filament.WorkerResources) (corev1.ResourceRequirements, error) {
 	var out corev1.ResourceRequirements
-	for _, q := range []struct {
-		field string
-		name  corev1.ResourceName
-		value string
-		into  *corev1.ResourceList
-	}{
-		{"cpu request", corev1.ResourceCPU, r.CPURequest, &out.Requests},
-		{"memory request", corev1.ResourceMemory, r.MemoryRequest, &out.Requests},
-		{"cpu limit", corev1.ResourceCPU, r.CPULimit, &out.Limits},
-		{"memory limit", corev1.ResourceMemory, r.MemoryLimit, &out.Limits},
-	} {
-		if q.value == "" {
-			continue
-		}
-		parsed, err := resource.ParseQuantity(q.value)
-		if err != nil {
-			return corev1.ResourceRequirements{}, fmt.Errorf("k8sdispatch: %s %q: %w", q.field, q.value, err)
-		}
-		if *q.into == nil {
-			*q.into = corev1.ResourceList{}
-		}
-		(*q.into)[q.name] = parsed
+	var err error
+	if out.Requests, err = resourceList("request", r.Requests); err != nil {
+		return corev1.ResourceRequirements{}, err
+	}
+	if out.Limits, err = resourceList("limit", r.Limits); err != nil {
+		return corev1.ResourceRequirements{}, err
 	}
 	return out, nil
+}
+
+func resourceList(kind string, in map[string]string) (corev1.ResourceList, error) {
+	if len(in) == 0 {
+		return nil, nil
+	}
+	out := make(corev1.ResourceList, len(in))
+	for name, value := range in {
+		parsed, err := resource.ParseQuantity(value)
+		if err != nil {
+			return nil, fmt.Errorf("k8sdispatch: %s %s %q: %w", name, kind, value, err)
+		}
+		out[corev1.ResourceName(name)] = parsed
+	}
+	return out, nil
+}
+
+// workerTolerations converts the run's tolerations to their Kubernetes form.
+// Nil in, nil out, so an unplaced run leaves the field off the Job.
+func workerTolerations(in []filament.WorkerToleration) []corev1.Toleration {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]corev1.Toleration, 0, len(in))
+	for _, t := range in {
+		out = append(out, corev1.Toleration{
+			Key:      t.Key,
+			Operator: corev1.TolerationOperator(t.Operator),
+			Value:    t.Value,
+			Effect:   corev1.TaintEffect(t.Effect),
+		})
+	}
+	return out
 }
 
 // jobLabels is the label set for one dispatched run. The Job and its pod
 // template share it: when the two were written out separately the pod template
 // lost the tenant label, so a selector that found the Job missed its pods.
 func (m *Module) jobLabels(spec filament.RunSpec) map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		"app.kubernetes.io/name":      m.appName(),
 		"app.kubernetes.io/component": "worker",
 		"filament.galaxy.io/run-id":   string(spec.Run),
 		"filament.galaxy.io/tenant":   string(spec.Tenant),
 	}
+	if spec.ExecutionID != "" {
+		labels["filament.galaxy.io/execution-id"] = executionToken(spec.ExecutionID)
+	}
+	return labels
 }
 
 // appName is the chart's app name, so Jobs select alongside chart-rendered
@@ -67,7 +88,7 @@ func (m *Module) appName() string {
 }
 
 func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
-	name := jobName(m.cfg.JobNamePrefix, spec.Run)
+	name := jobName(m.cfg.JobNamePrefix, spec.Run, spec.ExecutionID)
 	// All worker configuration arrives through the worker Secret and ConfigMap;
 	// RUN_ID is the only value dispatch itself knows.
 	envFrom := []corev1.EnvFromSource{{
@@ -93,6 +114,8 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 	podSpec := corev1.PodSpec{
 		RestartPolicy:      corev1.RestartPolicy(restartPolicy),
 		ServiceAccountName: m.cfg.WorkerServiceAccount,
+		NodeSelector:       spec.WorkerConfiguration.NodeSelector,
+		Tolerations:        workerTolerations(spec.WorkerConfiguration.Tolerations),
 		Containers: []corev1.Container{{
 			Name:            "worker",
 			Image:           m.cfg.WorkerImage,

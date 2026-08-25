@@ -1,34 +1,109 @@
 ---
-title: "Embedding as a Library"
-description: "Run Filament inside your own Go process."
+title: "Embedding as a library"
+description: "Run Filament inside your own Go process"
 icon: "cube"
 ---
 
-Filament embeds as a library. Connectors self-register via blank imports, so
-a binary only pulls in the connectors it actually uses:
+Filament embeds as a library through `app.Run`. One call mounts the tracker,
+the engine (runs execute in-process), the orchestrator, and the scheduler,
+serves the ConnectRPC API on `INGESTION_ADDR` (default `:8080`), and blocks
+until the context is canceled or a component fails. Connectors self-register
+via blank imports, so a binary pulls in only the connectors it uses.
+
+## Minimal embed
+
+This compiles and runs as-is:
 
 ```go
-import (
-	"github.com/galaxy-io/filament/app"
+package main
 
-	_ "github.com/galaxy-io/filament/connectors/postgres"
-	_ "github.com/galaxy-io/filament/connectors/stdout"
+import (
+    "context"
+    "log"
+
+    "github.com/galaxy-io/filament/app"
+    _ "github.com/galaxy-io/filament/connectors/postgres"
+    _ "github.com/galaxy-io/filament/connectors/stdout"
 )
 
 func main() { log.Fatal(app.Run(context.Background())) }
 ```
 
-## Why blank imports
+With no options, `app.Run` uses an in-process event bus, an in-memory
+datastore, and the default connector registries populated by the blank
+imports.
 
-Each connector package registers itself with the engine on import (see
-`register.go` in any `connectors/*` package). This keeps the core engine
-free of a hardcoded connector list — adding support for a new source or sink
-is purely additive, and a binary's dependency footprint is exactly the
-connectors it imports.
+<Warning>
+The default in-memory datastore is not durable. Connections, pipelines,
+runs, and checkpoints vanish on restart. Swap in the PostgreSQL datastore for
+anything beyond experiments.
+</Warning>
 
-## Choosing connectors
+See the [connector catalog](/pages/connectors/overview/introduction) for what
+is available to import, and
+[writing a source](/pages/connectors/building-a-connector/writing-a-source) to
+add your own.
 
-See [Connectors](/pages/connectors/overview/introduction) for what's available today, split
-into [sources](/pages/connectors/sources/overview) and
-[sinks](/pages/connectors/sinks/overview). To add one that doesn't exist yet, see
-[Building a connector](/pages/connectors/building-a-connector/writing-a-source).
+## Options
+
+Every default is replaceable through an `app.Option`.
+
+| Option | Replaces |
+|---|---|
+| `WithBus` | The in-process event bus |
+| `WithDataStore` | The in-memory datastore |
+| `WithMetricsStore` | The dashboard metrics backend (unimplemented by default) |
+| `WithSecrets` | The secrets provider |
+| `WithSources` | The source registry |
+| `WithSinks` | The sink registry |
+| `WithUI` | The HTTP handler at `/` (e.g. `ui.Handler()`) |
+| `WithLogger` | The logger |
+
+Whatever store you pass to `WithDataStore` must also implement
+`filament.ScheduleStore`, or `Run` returns an error — the scheduler needs it.
+Both the memory and PostgreSQL stores qualify.
+
+## Production embed
+
+A durable embed swaps the bus, store, and secrets for the same implementations
+the shipped binaries use:
+
+```go
+pool, err := postgres.NewPool(ctx, dsn)          // datastore/postgres
+if err != nil {
+    log.Fatal(err)
+}
+bus, err := nats.New(natsURL, events.Codec)      // eventbus/nats
+if err != nil {
+    log.Fatal(err)
+}
+secrets, err := secretpg.NewFromEnv(pool)        // secret/postgres, reads ENCRYPTION_KEY
+if err != nil {
+    log.Fatal(err)
+}
+
+err = app.Run(ctx,
+    app.WithBus(bus),
+    app.WithDataStore(postgres.New(pool)),
+    app.WithSecrets(secrets),
+)
+```
+
+Each swap has a clear role:
+
+- `eventbus/nats` gives you durable, replayable JetStream delivery
+- `datastore/postgres` persists everything Filament tracks
+- secrets can come from `secret/postgres` (AES-GCM, `ENCRYPTION_KEY`),
+  `secret/aws`, or the read-only `secret/env` provider
+
+## The lower layer
+
+When `app.Run` composes too much (you want only some modules, or a single
+run with no server), the pieces underneath are public:
+
+- `module.MountAll` mounts a chosen set of modules against `module.Deps`
+- `eventbus/host` runs them against a bus
+- `runner.RunOne` executes exactly one persisted run and exits, which is what
+  the worker binary does
+
+Most embedders never need this layer.

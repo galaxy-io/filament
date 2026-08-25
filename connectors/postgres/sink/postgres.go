@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
+	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -57,9 +58,10 @@ const defaultSchema = "public"
 func New() *Sink { return &Sink{schema: defaultSchema} }
 
 var (
-	_ filament.Sink            = (*Sink)(nil)
-	_ filament.LiveValidatable = (*Sink)(nil)
-	_ filament.Schematized     = (*Sink)(nil)
+	_ filament.Sink              = (*Sink)(nil)
+	_ filament.ConfigValidatable = (*Sink)(nil)
+	_ filament.LiveValidatable   = (*Sink)(nil)
+	_ filament.Schematized       = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
@@ -70,12 +72,11 @@ func (t *Sink) Spec() filament.SinkSpec {
 		Description:  "Popular open-source relational database management system known for reliability and advanced features.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
-		Version:      "1",
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
+		Version:      "2",
+		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Destination schema. Empty defaults to the normalized source connection name."},
 			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []filament.EnumOption{{Value: "typed", Label: "Typed"}}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
-		}},
+		}...)},
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
 			Schematized: true,
@@ -94,18 +95,22 @@ func (t *Sink) Spec() filament.SinkSpec {
 // Name identifies this sink implementation.
 func (t *Sink) Name() string { return "postgres" }
 
+// Validate checks connection syntax without opening a network connection.
+func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := pgconnection.Resolve(cfg); err != nil {
+		return fmt.Errorf("postgres sink: connection config: %w", err)
+	}
+	return nil
+}
+
 // TestConnection opens a short-lived pool and verifies the configured
 // credentials without creating the destination schema.
 func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
-	dsn := cfg.Secret("dsn")
-	if dsn == "" {
-		return fmt.Errorf("postgres sink: dsn is required")
-	}
-	poolCfg, err := pgxpool.ParseConfig(dsn)
+	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("postgres sink: parse dsn: %w", err)
+		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	pool, err := pgxpool.NewWithConfig(ctx, resolved.Pool)
 	if err != nil {
 		return fmt.Errorf("postgres sink: open pool: %w", err)
 	}
@@ -120,10 +125,11 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
-	t.dsn = cfg.Secret("dsn")
-	if t.dsn == "" {
-		return fmt.Errorf("postgres sink: dsn is required")
+	resolved, err := pgconnection.Resolve(cfg)
+	if err != nil {
+		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
+	t.dsn = resolved.DSN
 	if v := cfg.String("schema"); v != "" {
 		t.schema = v
 	}
@@ -132,10 +138,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
-	poolCfg, err := pgxpool.ParseConfig(t.dsn)
-	if err != nil {
-		return fmt.Errorf("postgres sink: parse dsn: %w", err)
-	}
+	poolCfg := resolved.Pool
 	if n := run.Options.SnapshotParallelism; n > 0 && n <= math.MaxInt32 {
 		poolCfg.MaxConns = max(poolCfg.MaxConns, int32(n))
 	}

@@ -25,8 +25,12 @@ func TestManifests(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read manifest: %v", err)
 			}
-			if _, err := manifest.Parse(data); err != nil {
+			m, err := manifest.Parse(data)
+			if err != nil {
 				t.Fatalf("parse manifest: %v", err)
+			}
+			if m.DisplayName == "" || m.Description == "" || m.DarkLogoURL == "" || m.LightLogoURL == "" {
+				t.Fatalf("catalog metadata must be manifest-owned: %#v", m)
 			}
 		})
 	}

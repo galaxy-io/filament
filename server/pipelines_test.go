@@ -51,7 +51,7 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 	if stampedAt.UnixMilli() != res.Msg.GetPipeline().GetDeletedAt() {
 		t.Fatalf("delete stamp %d disagrees with deleted_at %d", stampedAt.UnixMilli(), res.Msg.GetPipeline().GetDeletedAt())
 	}
-	if len(res.Msg.GetPipeline().GetVersions()) != 0 || res.Msg.GetPipeline().GetCurrentVersion() == nil {
+	if len(res.Msg.GetPipeline().GetVersions()) != 1 || res.Msg.GetPipeline().GetCurrentVersion() == nil {
 		t.Fatalf("expected version history kept, got %+v", res.Msg)
 	}
 
@@ -104,7 +104,7 @@ func TestUpdatePipelineUsesExplicitMutableFields(t *testing.T) {
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{
 		Id: "pipe-1", TenantId: "t1", Name: "old", Description: "old description",
-		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{CpuRequest: "250m"}},
+		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "250m"}}},
 	}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
@@ -115,15 +115,15 @@ func TestUpdatePipelineUsesExplicitMutableFields(t *testing.T) {
 
 	res, err := api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{
 		PipelineId: "pipe-1", Name: "new", Description: "new description",
-		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{CpuRequest: "500m"}},
+		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "500m"}}},
 	}))
 	if err != nil {
 		t.Fatalf("UpdatePipeline: %v", err)
 	}
 	if got := res.Msg.GetPipeline(); got.GetName() != "new" || got.GetDescription() != "new description" {
 		t.Fatalf("updated pipeline = %+v", got)
-	} else if got.GetWorkerConfiguration().GetResources().GetCpuRequest() != "500m" {
-		t.Fatalf("worker configuration = %+v, want cpu_request 500m", got.GetWorkerConfiguration())
+	} else if got.GetWorkerConfiguration().GetResources().GetRequests()["cpu"] != "500m" {
+		t.Fatalf("worker configuration = %+v, want cpu request 500m", got.GetWorkerConfiguration())
 	} else if got.GetCurrentVersion().GetId() != version.GetId() {
 		t.Fatalf("current version = %q, want %q", got.GetCurrentVersion().GetId(), version.GetId())
 	}
@@ -148,7 +148,7 @@ func TestValidateCursorConfigs(t *testing.T) {
 		name string
 		edge *ingestionv1.PipelineEdge
 	}{
-		{"full read", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, Cursors: valid[0].Cursors}},
+		{"Full", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, Cursors: valid[0].Cursors}},
 		{"missing resource", &ingestionv1.PipelineEdge{ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Field: "updated_at"}}}},
 		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}}}},
 		{"missing field", &ingestionv1.PipelineEdge{Resource: "users", ReadMode: ingestionv1.ReadMode_READ_MODE_INCREMENTAL, Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "users"}}}},
@@ -160,5 +160,49 @@ func TestValidateCursorConfigs(t *testing.T) {
 				t.Fatal("expected validation error")
 			}
 		})
+	}
+}
+
+func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
+	ctx := context.Background()
+	api, ids := leverAPI(t)
+	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "validated"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineID := pipelineResp.Msg.GetPipeline().GetId()
+	nodes := []*ingestionv1.PipelineNode{
+		{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+		{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+	}
+
+	_, err = api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+		PipelineId: pipelineID,
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: nodes,
+			Edges: []*ingestionv1.PipelineEdge{{
+				FromNode: "src", ToNode: "snk", Resource: "audit",
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			}},
+		},
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid Incremental resource: got %v, want invalid argument", err)
+	}
+
+	_, err = api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+		PipelineId: pipelineID,
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: nodes,
+			Edges: []*ingestionv1.PipelineEdge{{
+				FromNode: "src", ToNode: "snk", Resource: "orders",
+				ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+				WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			}},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("valid Incremental resource: %v", err)
 	}
 }

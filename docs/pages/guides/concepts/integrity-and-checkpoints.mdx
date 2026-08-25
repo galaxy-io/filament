@@ -1,44 +1,83 @@
 ---
-title: "Integrity & Checkpoints"
-description: "How Filament verifies every batch and resumes interrupted runs."
+title: "Integrity & checkpoints"
+description: "How Filament verifies every batch and persists resumable progress"
 icon: "shield-check"
 ---
 
-Two guarantees run through every Filament pipeline: what gets written is
-verified, and an interrupted run doesn't have to start over.
+Two guarantees run through every Filament pipeline. What the sink wrote is
+verified against what the source produced, and progress is persisted so
+eligible runs resume instead of starting over.
 
 ## Integrity checking
 
-Every batch is integrity checked on both the read and write side. The exact
-verification (e.g. row-count and checksum accounting) lives in the pipeline
-layer between a source's `Extract` and a sink's `Apply`/`Commit`, independent
-of which connector is on either end.
+Verification is a CRC32-C (Castagnoli) checksum, not row counts. Each
+record is hashed over a canonical encoding:
 
-## Checkpointed resume
+```
+{"id":<json-escaped id>,"op":<decimal>,"data":<payload verbatim>}
+```
 
-A source that implements the optional
-[`Resumable`](/pages/connectors/building-a-connector/optional-interfaces) contract
-extracts against a per-resource checkpoint plan instead of reading blind from
-the start:
+with a length prefix per record, so regrouping or reordering records
+changes the result. The encoding is a deterministic, injective hash
+preimage. It is deliberately not guaranteed to be valid JSON.
 
-- **`ResumePlanner`** builds the initial plan for a run — the shard layout
-  (a primary-key split) plus any cursor carried over from a previous
-  attempt. The engine persists this plan *before* extraction starts, so a
-  later resume sees a stable, already-decided shard layout rather than
-  re-deriving it.
-- **`Resumable.ExtractFrom`** reads using that plan, and stamps each record
-  with its shard (`Record.Part`) and keyset position (`Record.Key`) so the
-  pipeline can advance and persist the cursor as it goes.
-- A resource with no primary key can't be resumed — it maps to `nil` in the
-  plan and is simply re-read whole on resume.
+Both sides compute the checksum independently. The pipeline's writer
+computes the read-side CRC over the batch immediately before calling
+`Sink.Apply`. The sink computes the write-side CRC over what it actually
+staged or wrote and returns it in `WriteReceipt.WriteCRC`.
 
-CDC sources use the same idea with per-resource checkpoints instead of a
-shard plan — see [`ChangeSource`](/pages/connectors/building-a-connector/optional-interfaces).
+After `Apply` returns, the writer compares the two. A match publishes
+`batch.written` and `batch.integrity_verified`. A mismatch publishes
+`batch.chunk_divergence` and fails the run fatally. A divergent batch is
+never silently accepted.
 
-<Note>
-  This is why the chosen read strategy for a resumable source is frozen into
-  the checkpoint at plan time: the shard layout can't change mid-flight, or
-  resume would be reading against a plan that no longer matches reality. See
-  [Postgres source](/pages/connectors/sources/postgres) for a concrete example of
-  this in practice.
-</Note>
+## Checkpoints
+
+Two durable stores hold progress:
+
+- **Run-scoped**: within-run resume for checkpointing full reads. A
+  restarted run reloads its own shard plan and cursors.
+- **Cross-run**: durable incremental and CDC progress, keyed by
+  `{PipelineID, PipelineVersionID, Route, Resource}` and shared by every
+  run of one immutable pipeline route. An incremental resource without a
+  versioned pipeline route fails.
+
+Checkpoint data comes in these cursor modes:
+
+- `keyset`: ordered key ranges split into shards
+- `bitmap`: ack-counted coarse reads
+- `ctid`: physical scan position
+- `incremental`: ordered watermark with a full primary-key tie-breaker
+- `incremental_backfill`: a resumable sharded initial snapshot that promotes
+  to its captured start watermark on completion
+- `stream`: a single monotonic replication-log position such as an LSN or
+  binlog offset
+
+### Seeding and advancement
+
+The runner seeds checkpoints before extraction — the one place a run writes
+durable state itself. Each resource shape loads its own prior progress:
+
+- Incremental resources load prior cross-run checkpoints and plan from them
+- Checkpointed full reads load run-scoped state
+- CDC loads per-resource stream positions
+
+Advancement is folded from facts:
+
+- The batcher stamps each flushed batch with a cursor delta
+- The writer carries it on `batch.written` (a sink may override via
+  `WriteReceipt.Checkpoint`)
+- The tracker (the only writer of fact-derived state) folds deltas and
+  persists every `CheckpointEvery` written batches (default 25), flushing
+  immediately on `resource.completed` and at run termination
+
+### Commit gating
+
+Incremental and CDC cursors are tentative until the sink commits. Cross-run
+checkpoint state persists only after `Sink.Commit` succeeds and the run
+completes. A run that fails before commit leaves the durable cursor where
+the last successful run left it, so the next run re-reads rather than
+skipping data.
+
+Which runs can use this progress to resume, and what happens on failure, is
+covered in [Runs and recovery](/pages/guides/concepts/runs-and-recovery).

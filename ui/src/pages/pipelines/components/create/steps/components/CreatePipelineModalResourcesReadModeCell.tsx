@@ -21,29 +21,24 @@ const CellWrapper = styled.div`
   min-width: 0;
 `;
 
-interface CreatePipelineModalResourcesReadModeCellProps {
-  row: CreatePipelineModalResourceRow;
-}
-
 const CreatePipelineModalResourcesReadModeCell = ({
   row,
-}: CreatePipelineModalResourcesReadModeCellProps) => {
+}: {
+  row: CreatePipelineModalResourceRow;
+}) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
-
   const options: SelectInputOption[] = row.readModeOptions.map((mode) => ({
     id: String(mode),
     label: READ_MODE_TO_LABEL_MAP[mode],
     value: mode,
   }));
 
-  const selectedOption = options.find((option) => option.value === row.readMode) ?? null;
-
   return (
     <CellWrapper>
       <SelectInput
         options={options}
-        value={selectedOption}
+        value={options.find((option) => option.value === row.readMode) ?? null}
         onChange={(option) =>
           dispatch({
             type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,

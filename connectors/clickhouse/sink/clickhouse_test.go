@@ -26,18 +26,34 @@ func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
 			t.Fatalf("policy %d mode = %q, want %q", i, policy.Mode, want[i])
 		}
 	}
-	if spec.Version != "1" {
+	if spec.Version != "2" {
 		t.Fatalf("version = %q, want 2", spec.Version)
 	}
 	fields := make(map[string]filament.ConfigField, len(spec.Config.Fields))
 	for _, field := range spec.Config.Fields {
 		fields[field.Name] = field
 	}
-	if _, ok := fields["dsn"]; ok {
-		t.Fatal("spec still exposes removed dsn field")
+	if got := fields["connection_method"].Default; got != "fields" {
+		t.Fatalf("connection_method default = %v, want fields", got)
+	}
+	if fields["dsn"].Type != filament.FieldSecret || !fields["dsn"].Required {
+		t.Fatalf("unexpected dsn field: %+v", fields["dsn"])
 	}
 	if !fields["host"].Required || fields["password"].Type != filament.FieldSecret || !fields["password"].Required {
 		t.Fatalf("unexpected connection fields: %+v", fields)
+	}
+}
+
+func TestConnectionOptionsFromDSN(t *testing.T) {
+	opts, err := connectionOptions(filament.NewConfig(map[string]any{
+		"connection_method": "url",
+		"dsn":               "clickhouse://loader:secret@localhost:9000/analytics?secure=false",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.Addr) != 1 || opts.Addr[0] != "localhost:9000" || opts.Auth.Username != "loader" || opts.Auth.Password != "secret" || opts.Auth.Database != "analytics" {
+		t.Fatalf("options = %#v", opts)
 	}
 }
 

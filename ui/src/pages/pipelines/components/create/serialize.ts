@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
-import { ConnectorKind, ReadMode, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
   type CreatePipelineRequest,
@@ -21,7 +21,7 @@ import type {
   CreatePipelineModalSinkRow,
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
-import { mapWorkerResourcesToWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
+import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 import { mapPipelineScheduleStateToCron } from "@/pages/pipelines/settings/utils";
 
 const buildNodes = (
@@ -89,7 +89,7 @@ const buildSinkEdges = ({
         resource: "",
         toNode: sink.connection.id,
         readMode,
-        writeMode: sink.writeMode,
+        writeMode: isCdc ? WriteMode.UNSPECIFIED : sink.writeMode,
         cursors: isCdc ? [] : buildCursors(selected, readMode),
       }),
     ];
@@ -102,7 +102,7 @@ const buildSinkEdges = ({
       resource: row.name,
       toNode: sink.connection.id,
       readMode,
-      writeMode: sink.writeMode,
+      writeMode: isCdc ? WriteMode.UNSPECIFIED : sink.writeMode,
       cursors: isCdc ? [] : buildCursors([row], readMode),
     });
   });
@@ -170,5 +170,5 @@ export const mapCreatePipelineStateToRequest = (
           isEnabled: true,
         }
       : undefined,
-    workerConfiguration: mapWorkerResourcesToWorkerConfiguration(state.workerResources),
+    workerConfiguration: parseWorkerConfiguration(state.workerConfiguration).configuration,
   });

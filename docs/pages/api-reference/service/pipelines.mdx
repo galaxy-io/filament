@@ -1,26 +1,130 @@
 ---
 title: "Pipelines"
-description: "The persisted node graph connecting a source to a sink."
+description: "Mutable metadata over immutable graph versions, validated per edge, plus schedules"
 ---
 
-Defined in `api/ingestion/v1/pipelines.proto`. A pipeline connects a source
-connection to a sink connection, and is versioned — each edit creates a new
-version rather than mutating in place.
+Defined in `api/ingestion/v1/pipelines.proto` and
+`api/ingestion/v1/capabilities.proto`. A pipeline is two things with different
+lifecycles. The **mutable metadata** (name, description, worker configuration,
+schedule) updates in place. The rest is a history of **immutable graph
+versions**, where each version is a complete node-and-edge graph and only
+creating a new version changes what runs.
+
+## The graph
+
+**Nodes** are the sources and sinks on the canvas. Each node references a
+[connection](/pages/api-reference/service/connections) by `connection_id` for
+the connector and connection-scoped config, and carries its own `config` and
+`secret_refs`. These form the pipeline-scoped overlay (target table, path
+prefix), shallow-merged over the connection's config at run time with the node
+winning on key conflicts.
+
+**Edges** route data from a source node to a sink node. An edge with an empty
+`resource` routes all enabled resources. A named `resource` is an additive
+per-resource route. On standard (query-based) connections an edge carries:
+
+- a per-resource `read_mode` (`FULL` or `INCREMENTAL`)
+- a `write_mode` (`APPEND`, `REPLACE`, or `UPSERT`)
+- optional `cursors`: per-resource cursor column and lookback overrides, with
+  omitted resources falling back to connector auto-detection
+
+Two invariants:
+
+- Every edge on the same source-to-destination route must use the same write
+  mode — the write mode belongs to the route, not the individual edge.
+- Edges over CDC connections carry no read or write mode at all. The
+  connection's change stream implies the complete recipe, and there are no
+  levers to set.
 
 ## RPCs
 
-| RPC | Purpose |
+| RPC | Description |
 |---|---|
-| `CreatePipeline` | Create a new pipeline |
-| `CreatePipelineVersion` | Create a new version of an existing pipeline |
-| `UpdatePipeline` | Update pipeline-level metadata |
-| `GetPipeline` | Fetch a pipeline |
-| `GetPipelineVersion` | Fetch a specific pipeline version |
-| `ListPipelineVersions` | List a pipeline's versions |
-| `ListPipelines` | List pipelines |
-| `DeletePipeline` | Delete a pipeline |
+| `ValidatePipeline` | Validate an inline, unsaved graph edge by edge |
+| `CreatePipeline` | Create the pipeline's metadata shell |
+| `CreatePipelineVersion` | Validate and persist a new immutable graph version |
+| `UpdatePipeline` | Update metadata in place. Never creates a version |
+| `GetPipeline` | Fetch a pipeline with optional expansions |
+| `GetPipelineVersion` | Fetch one version (`0` means current) |
+| `ListPipelineVersions` | List a pipeline's versions, newest first |
+| `ListPipelines` | List pipelines with the same expansion flags |
+| `DeletePipeline` | Soft-delete a pipeline |
+| `CreatePipelineSchedule` | Attach the pipeline's one schedule |
+| `UpdatePipelineSchedule` | Replace the schedule's configuration |
 
-<Info>
-  This page is a placeholder for full request/response field documentation,
-  generated from `pipelines.proto`.
-</Info>
+## ValidatePipeline
+
+Takes the graph inline, so an unsaved editor canvas validates exactly like a
+persisted version. The response is in-band, not an RPC error. It carries a
+top-level `valid` flag, graph-level `errors` (dangling node references, unknown
+connections), and one `EdgeValidation` per edge with its errors, the
+`supported_write_modes` for its route, its `replication` mode, and the
+`effective_read_mode`/`effective_write_mode` after defaulting.
+
+Each edge also reports `requirements`, the configuration its mode combination
+involves, such as a cursor column for incremental reads or a primary key for
+upserts. A requirement carries candidate values with recommendations,
+`satisfied` (a value is configured), and `blocking` (the run would fail
+as-is). Unsatisfied but non-blocking means connector auto-detection covers
+it. Validation runs under a 30-second timeout.
+
+## CreatePipeline
+
+Creates the metadata shell from `name`, `description`, an optional inline
+`schedule`, and an optional `worker_configuration` (a Kubernetes-shaped
+resources/node-selector/tolerations fragment that shapes this pipeline's
+workers). The pipeline has no graph until the first `CreatePipelineVersion`.
+
+## CreatePipelineVersion
+
+The only way to change what a pipeline does. The server:
+
+1. Runs full `ValidatePipeline` semantics on the submitted graph. An invalid
+   graph is rejected with `invalid_argument` and nothing is written.
+2. Normalizes edge modes, making the `FULL`/`REPLACE` defaults explicit on
+   standard edges while CDC edges stay bare.
+3. Defaults each sink node's declared schema field (the connector's
+   `schema_field`) to the normalized name of its upstream source connection,
+   when the node didn't set it explicitly.
+4. Persists the version as the new current version and refreshes the
+   schedule's pre-created scheduled-run rows to point at it.
+
+## UpdatePipeline
+
+Updates `name`, `description`, and `worker_configuration` in place. It
+deliberately never creates a version. Worker configuration lives on the
+pipeline rather than the version precisely so tuning resources cannot mint a
+version and orphan the resource checkpoints keyed by the old one. Renaming a
+pipeline is not an edit to what it runs.
+
+## GetPipeline, ListPipelines, versions
+
+`GetPipeline` and `ListPipelines` return lean objects by default. Opt into
+heavier data with `include_versions`, `include_last_run`, and
+`include_schedule`. `ListPipelines` also takes `include_deleted` and
+[pagination](/pages/api-reference/service/introduction#pagination).
+`GetPipelineVersion` fetches by version number, where `0` returns the current
+version. `ListPipelineVersions` returns newest first. `DeletePipeline` is a
+soft delete.
+
+## Schedules
+
+A pipeline has at most one schedule. Its client-owned config:
+
+- `cron`
+- `timezone`: IANA name, default UTC
+- `is_enabled`
+- `overlap_policy`: `SKIP` (don't fire while a scheduled run of this pipeline
+  is still going) or `ALLOW`
+
+The server owns the schedule's identity and reports `next_fire_at`
+and `last_fired_at`.
+
+`CreatePipelineSchedule` attaches the schedule and returns `already_exists`
+if one exists. `UpdatePipelineSchedule` replaces the config and returns
+`not_found` if none does. There is no delete or standalone disable RPC.
+Pausing is `UpdatePipelineSchedule` with `is_enabled: false`, and the
+schedule is removed only when its pipeline is deleted. The scheduler
+pre-creates a `SCHEDULED` run row for the next fire. See
+[Runs](/pages/api-reference/service/runs#listruns) for how that surfaces in
+listings.

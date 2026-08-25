@@ -7,9 +7,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/go-sql-driver/mysql"
-
 	"github.com/galaxy-io/filament"
+	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -55,9 +54,10 @@ func (t *Sink) resumableFor(resource string) bool {
 func New() *Sink { return &Sink{} }
 
 var (
-	_ filament.Sink            = (*Sink)(nil)
-	_ filament.LiveValidatable = (*Sink)(nil)
-	_ filament.Schematized     = (*Sink)(nil)
+	_ filament.Sink              = (*Sink)(nil)
+	_ filament.ConfigValidatable = (*Sink)(nil)
+	_ filament.LiveValidatable   = (*Sink)(nil)
+	_ filament.Schematized       = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
@@ -68,12 +68,11 @@ func (t *Sink) Spec() filament.SinkSpec {
 		Description:  "Widely-used open-source relational database known for speed, reliability, and ease of use.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
-		Version:      "1",
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+		Version:      "2",
+		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
 			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Destination database. Empty defaults to the normalized source connection name."},
 			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []filament.EnumOption{{Value: "typed", Label: "Typed"}}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
-		}},
+		}...)},
 		SchemaField: "database",
 		Capabilities: filament.SinkCapabilities{
 			Schematized:        true,
@@ -93,17 +92,21 @@ func (t *Sink) Spec() filament.SinkSpec {
 // Name identifies this sink implementation.
 func (t *Sink) Name() string { return "mysql" }
 
+// Validate checks connection syntax without opening a network connection.
+func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := mysqlconnection.Resolve(cfg); err != nil {
+		return fmt.Errorf("mysql sink: connection config: %w", err)
+	}
+	return nil
+}
+
 // TestConnection pings MySQL through a short-lived pool. It intentionally
 // clears the database name so validating a new destination does not require
 // that Open's CREATE DATABASE step has already run.
 func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
-	dsn := cfg.Secret("dsn")
-	if dsn == "" {
-		return fmt.Errorf("mysql sink: dsn is required")
-	}
-	mc, err := mysql.ParseDSN(dsn)
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql sink: parse dsn: %w", err)
+		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
 	mc.DBName = ""
 	db, err := sql.Open("mysql", mc.FormatDSN())
@@ -122,13 +125,9 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
-	dsn := cfg.Secret("dsn")
-	if dsn == "" {
-		return fmt.Errorf("mysql sink: dsn is required")
-	}
-	mc, err := mysql.ParseDSN(dsn)
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql sink: parse dsn: %w", err)
+		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
 	t.database = mc.DBName
 	if v := cfg.String("database"); v != "" {

@@ -17,16 +17,21 @@ func (p *Pipeline) writer(ctx context.Context) {
 	defer p.wg.Done()
 
 	for b := range p.batchCh {
+		policy, err := p.policyFor(b.Resource)
+		if err != nil {
+			p.setErr(err)
+			return
+		}
 		// A bitmap completion marker carries no rows: publish its want delta (the part's
 		// expected ack total) and skip the sink write entirely.
 		if b.Drained {
 			p.publish(events.NewFact(events.BatchWritten, events.Envelope{Resource: b.Resource},
-				events.BatchWrittenEvent{Checkpoint: b.Cursor}))
+				events.BatchWrittenEvent{Checkpoint: b.Cursor, CheckpointPolicy: policy.Checkpoint}))
 			continue
 		}
 
 		readCRC := batch.CRC(b.Rows, b.Ops)
-		receipt, err := p.writeBatch(ctx, b)
+		receipt, err := p.writeBatch(ctx, b, policy)
 		b.Rows.Release()
 		if err != nil {
 			p.setErr(fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err))
@@ -38,7 +43,8 @@ func (p *Pipeline) writer(ctx context.Context) {
 				events.BatchWrittenEvent{
 					Records: int64(b.NumRows()), Bytes: receipt.Bytes,
 					URI: receipt.URI, CRC: receipt.WriteCRC,
-					Checkpoint: receiptCheckpoint(receipt, b),
+					Checkpoint:       receiptCheckpoint(receipt, b),
+					CheckpointPolicy: policy.Checkpoint,
 				}))
 			p.publish(events.NewFact(events.IntegrityVerified, events.Envelope{Resource: b.Resource},
 				events.IntegrityVerifiedEvent{CRC: readCRC}))
@@ -60,11 +66,7 @@ func (p *Pipeline) writer(ctx context.Context) {
 	}
 }
 
-func (p *Pipeline) writeBatch(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
-	policy, err := p.policyFor(b.Resource)
-	if err != nil {
-		return filament.WriteReceipt{}, err
-	}
+func (p *Pipeline) writeBatch(ctx context.Context, b filament.Batch, policy filament.WritePolicy) (filament.WriteReceipt, error) {
 	return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy})
 }
 

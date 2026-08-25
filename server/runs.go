@@ -12,6 +12,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
+	runcommands "github.com/galaxy-io/filament/internal/runs"
 )
 
 // ListRuns returns runs matching the request's tenant, pipeline, version,
@@ -77,12 +78,131 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: runInfoToProto(state), Resources: resources}}), nil
 }
 
-// SignalRun rejects the request; run signals are not configured in this binary.
-func (a *Server) SignalRun(_ context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
+// SignalRun validates transport concerns and delegates lifecycle policy to the
+// shared run command layer.
+func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
 	if req.Msg.GetRunId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
 	}
-	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("run signals are not configured in this ingestion binary"))
+	if a.bus == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
+	}
+	transitions, ok := a.store.(filament.RunTransitionStore)
+	if !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
+	}
+	run := filament.RunID(req.Msg.GetRunId())
+	state, err := a.store.LoadRun(ctx, run)
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if tenant := req.Msg.GetTenantId(); tenant != "" && tenant != string(state.Tenant) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("run %q was not found for tenant", run))
+	}
+	signal, err := runSignalFromProto(req.Msg.GetSignal())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	var ack eventbus.Subscription
+	if state.Status == filament.RunRunning && (signal == filament.SignalPause || signal == filament.SignalCancel) {
+		ack, err = a.bus.Subscribe(events.RunPattern(state.Tenant, state.Run), eventbus.SubOpts{})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
+		defer func() { _ = ack.Close() }()
+	}
+	result, err := runcommands.Signal(ctx, a.bus, transitions, state, signal)
+	if err != nil {
+		return nil, signalRunError(err)
+	}
+	if result.WorkerAcknowledgement {
+		if ack == nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("worker acknowledgement subscription is missing"))
+		}
+		if err := awaitWorkerAcknowledgement(ctx, ack, a.store, state.Run, signal); err != nil {
+			return nil, signalRunError(err)
+		}
+	}
+	return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
+}
+
+func awaitWorkerAcknowledgement(
+	ctx context.Context,
+	sub eventbus.Subscription,
+	store filament.DataStore,
+	run filament.RunID,
+	signal filament.Signal,
+) error {
+	want := events.RunPaused.Name()
+	wantStatus := filament.RunPaused
+	if signal == filament.SignalCancel {
+		want = events.RunCanceled.Name()
+		wantStatus = filament.RunCanceled
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg, ok := <-sub.C():
+			if !ok {
+				return fmt.Errorf("%w: worker acknowledgement stream closed", runcommands.ErrSignalPublish)
+			}
+			fact, err := events.Decode(msg)
+			_ = msg.Ack()
+			if err != nil {
+				continue
+			}
+			if fact.Name == want {
+				return awaitRunStatus(ctx, store, run, wantStatus)
+			}
+			switch fact.Data.(type) {
+			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPartialEvent,
+				events.RunPausedEvent, events.RunCanceledEvent:
+				return fmt.Errorf("%w: worker finished with %s before %s", runcommands.ErrSignalTransition, fact.Name, want)
+			}
+		}
+	}
+}
+
+func awaitRunStatus(ctx context.Context, store filament.DataStore, run filament.RunID, want filament.RunStatus) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		state, err := store.LoadRun(ctx, run)
+		if err != nil {
+			return err
+		}
+		if state.Status == want {
+			return nil
+		}
+		if runStatusTerminal(state.Status) {
+			return fmt.Errorf("%w: run reached %v before %v", runcommands.ErrSignalTransition, state.Status, want)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+func signalRunError(err error) error {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return connect.NewError(connect.CodeCanceled, err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return connect.NewError(connect.CodeDeadlineExceeded, err)
+	case errors.Is(err, runcommands.ErrSignalTransition),
+		errors.Is(err, filament.ErrVersionConflict):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, runcommands.ErrSignalPublish):
+		return connect.NewError(connect.CodeUnavailable, err)
+	default:
+		return connect.NewError(connect.CodeInternal, err)
+	}
 }
 
 // TailRun streams run progress facts to the client, optionally replaying
@@ -142,7 +262,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 				return err
 			}
 			switch f.Data.(type) {
-			case events.RunCompletedEvent, events.RunFailedEvent:
+			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPausedEvent, events.RunCanceledEvent:
 				return nil
 			}
 		}

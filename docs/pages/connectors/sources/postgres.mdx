@@ -1,103 +1,151 @@
 ---
 title: "PostgreSQL"
-description: "Resumable full-snapshot, incremental, and CDC reads from PostgreSQL."
+description: "Resumable full-snapshot, incremental, and CDC reads from PostgreSQL"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
 ---
 
-`connectors/postgres/source` implements resumable reads from a PostgreSQL
-source, with a router that picks a physical read strategy per table rather
-than using one strategy for everything.
+The PostgreSQL source reads tables as resumable full snapshots, incremental
+timestamp-cursor pulls, or logical-replication CDC. It picks a physical read
+strategy per table rather than using one strategy for everything, and every
+strategy checkpoints so an interrupted run resumes instead of restarting.
+The connector is beta.
 
-## How it chooses a read strategy
+## Configuration
 
-At plan time — before the first row is read — the router asks Postgres one
-question (`pg_stats.correlation` for the leading primary-key column: how
-close is the heap to physical key order?) and combines it with a couple of
-facts from the run config:
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `connection_method` | Connection | `fields` | `fields` or `url`. Unset with a `dsn` present implies `url`. |
+| `dsn` | Connection | | Full connection URL. Required in `url` mode. Secret. |
+| `host` | Connection | | Server hostname. Required in `fields` mode. |
+| `port` | Connection | `5432` | Server port. |
+| `username` | Connection | | Required in `fields` mode. |
+| `password` | Connection | | Required in `fields` mode. Secret. |
+| `database_name` | Connection | | Database to connect to. Required in `fields` mode. |
+| `ssl_mode` | Connection | `prefer` | One of `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`. |
+| `replication` | Connection | `standard` | `standard` for snapshot/incremental reads, `cdc` for logical replication. |
+| `schema` | Pipeline | `public` | Schema to read tables from. |
+| `page_size` | Pipeline | `1000` | Rows to target per read page. |
+| `shard_pages` | Pipeline | `16384` | Heap blocks per parallel shard (≈128 MiB at 8 KiB blocks). `0` disables sharding. |
+| `max_conns` | Pipeline | pgx default | Maximum source connections. Set to at least the run's parallelism + 1. |
+| `scan_strategy` | Pipeline | `keyset` | One of `auto`, `keyset`, `bitmap`, `ctid`. See below. |
+| `encoding` | Pipeline | `native` | `native` (typed binary columns, JSON assembled client-side) or `jsonb` (server-side `to_jsonb`). |
+| `publication` | Connection | `filament` | CDC only. Publication name. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
+| `manage_publication` | Connection | `true` | CDC only. Set `false` when an administrator provisions the publication. |
+| `slot_name` | Pipeline | `filament` | Persistent logical replication slot. Use a unique slot per CDC pipeline. |
 
-| Condition | Mode | What it means |
-|---|---|---|
-| CDC run with a logical slot available | `ModeSlot` | Streams committed row changes via WAL replay |
-| Table declared append-only | `ModeCtidAppendOnly` | Physical block reads, no xmin bookkeeping needed |
-| `\|correlation\| >= 0.8` | `ModeKeyset` | Heap is already near key order — walk the PK index in order |
-| Primary key is mutable | `ModeCtidXmin` | Physical block reads plus a reconciliation pass for moved rows |
-| Otherwise (random keys, immutable PK) | `ModeBitmap` | Bitmap heap scan — same correctness as keyset, better I/O pattern |
+## Read strategies
 
-The chosen mode is frozen into the checkpoint at plan time and reused on
-every resume of the same run, so the shard layout never changes mid-flight —
-see [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints) for why
-that matters.
+`scan_strategy` controls how full snapshots read the heap. It is a physical
+choice, deliberately separate from the pipeline's Full/Incremental/CDC mode.
+Large tables split into parallel shards (heap pages divided by `shard_pages`,
+capped at 64), and the chosen strategy and shard layout are frozen into the
+checkpoint at plan time, so a resume never changes the plan mid-flight.
 
-<Accordion title="What each mode actually does">
-  **ModeKeyset** — issues `ORDER BY pk LIMIT` page queries, walking the PK
-  index in order. Each page is one contiguous disk read when the heap is
-  already correlated with the key. Resumable to the exact row.
+### keyset (default)
 
-  **ModeBitmap** — splits the key space into sub-ranges and reads each with
-  a plain range predicate (no `ORDER BY`), letting Postgres collect matching
-  index TIDs, sort by heap block, and read them in ascending order with
-  prefetch. Resume is all-or-nothing per sub-range.
+Walks the primary-key index in order (`WHERE (pk) > cursor ORDER BY pk LIMIT
+page_size`), with the cursor carried in each record's key. Shard boundaries come from
+integer arithmetic over `MIN`/`MAX` when the leading PK column is an integer,
+or from equal-count sampled boundaries via `percentile_disc` for UUID, text,
+and timestamp keys. The bottom and top shards are open-ended. Resumable to
+the exact row.
 
-  **ModeCtidXmin** — divides the table into physical block-range shards
-  (`ctid`) for fast sequential I/O, with three guards for safety across a
-  resume boundary: a rewrite guard (VACUUM FULL / CLUSTER / TRUNCATE
-  invalidates the cursor), horizon-compare reconciliation (re-scans for rows
-  written or moved after run-start), and a freeze guard (falls back to an
-  unfiltered rescan if `relfrozenxid` advanced past the horizon).
+### bitmap
 
-  **ModeCtidAppendOnly** — like `ModeCtidXmin` without the xmin apparatus,
-  since rows never move or update.
+Same shard boundaries as keyset, but each sub-range is read with a plain
+range predicate (no `ORDER BY`, no `LIMIT`), leaving the planner free to
+use a bitmap heap scan. That scan collects matching index TIDs, sorts them by
+heap block, and reads in ascending physical order with prefetch. Better I/O
+on heaps uncorrelated with the key, at the cost of coarse resume. Each
+sub-range is all-or-nothing, and its rows are stamped `Coarse`.
 
-  **ModeSlot** — a logical replication slot pins an LSN so updated or moved
-  rows return via WAL replay; used for CDC.
-</Accordion>
+### ctid
 
-## Modes
+Selected only by an explicit `scan_strategy: ctid`. Divides the table into
+physical block-range shards for fast sequential I/O, and parallel shards
+share one exported snapshot. Each shard records run-start stamps (filenode,
+`relfrozenxid`, xmin horizon, page count) and reconciles on resume. A
+filenode mismatch (`VACUUM FULL`, `CLUSTER`, `TRUNCATE`) re-plans the whole
+table. Horizon reconciliation re-delivers rows whose `xmin` is newer than the
+run-start horizon on completed ranges, and if `relfrozenxid` advanced, the
+rescan runs unfiltered. Blocks appended past the run-start size are delivered
+unfiltered.
 
-Supports `ModeFull`, `ModeIncremental`, and `ModeCDC`. CDC uses the built-in
-`pgoutput` plugin and bounded catch-up cycles, so it can run on a schedule. When
-a selected table has no CDC checkpoint, Filament creates the replication slot
-first, reads the table in full through the slot's exported snapshot, and retains
-WAL from that snapshot's consistent point while the scan runs. It then replays
-through a watermark captured after the scan, including changes committed during
-the snapshot. After the sink commits, the run stores its WAL LSN on the stable
-pipeline route. Later scheduled runs skip the snapshot and resume from that
-per-resource LSN.
+### auto
 
-CDC requires `wal_level=logical`, a primary key on every selected table, and a
-unique persistent `slot_name` per pipeline. By default the connector creates the
-`filament` publication and adds selected tables; set
-`manage_publication=false` when an administrator provisions it. Set `publication`
-and `slot_name` explicitly when more than one CDC pipeline reads the database.
+Probes `pg_stats.correlation` for the leading primary-key column, a measure
+of how close the heap is to physical key order. `|correlation| >= 0.8` picks
+keyset, and anything less picks bitmap. If statistics are missing, the router
+runs `ANALYZE` once and retries. A still-missing statistic is treated as
+random (bitmap). The probe never fails a run. Only this keyset-versus-bitmap
+verdict is acted on today. The router's other modes are internal and not
+reachable from `auto`.
 
-For tables with unchanged toasted columns, use `REPLICA IDENTITY FULL` so updates
-carry enough old-row data to construct a complete change record. See
-[Replication modes](/pages/guides/concepts/replication-modes).
+## Incremental
 
-## Incremental cursor selection
+Incremental mode requires a primary key and a `timestamp`/`timestamptz`
+`NOT NULL` cursor column. Filament auto-ranks conventional names
+(`updated_at`, `modified_at`, `last_modified_at`, `last_updated_at`,
+`updated`, `modified`) and accepts an explicit per-resource override for
+anything else. The application must advance the cursor on every insert and
+update. Static IDs and random UUIDs are not valid watermarks.
 
-Incremental upserts use one watermark per table. Filament ranks conventional
-columns (`updated_at`, `modified_at`, `last_modified_at`, `last_updated_at`,
-`updated`, then `modified`) and the pipeline editor allows an override. Reads
-are ordered and checkpointed by `(cursor_column, primary_key...)`, so rows that
-share a timestamp are not skipped. The first run performs a bounded full
-baseline using the normal primary-key shards; later runs inherit the last
-acknowledged compound watermark. Filament captures that watermark before the
-backfill, so the next run safely replays changes committed while shards were
-running. A five-minute lookback rewinds timestamp cursors by default to absorb
-late commits and clock skew; the resulting duplicates are handled by upsert.
+The watermark is compound, `(cursor, pk...)`, so rows sharing a timestamp are
+never skipped. Each cycle opens a repeatable-read transaction, captures the
+high watermark at the snapshot, and pages `low < key <= high` ordered by
+`(cursor, pk...)`. A default 300-second lookback rewinds the low bound to
+absorb late commits and clock skew. The resulting duplicates are handled by
+upsert.
 
-Cursor overrides are limited to timestamp columns. For a non-conventional
-timestamp, Filament requires an explicit selection because the application must
-advance that value monotonically on every insert and update. Static IDs, random
-UUIDs, and arbitrary text columns are not valid update watermarks.
+The first run captures the high watermark, then performs a keyset backfill in
+`incremental_backfill` mode. On completion it is promoted to steady-state
+incremental, so changes committed during the backfill are replayed rather
+than lost. Hard deletes are not observable through an update watermark. Use
+CDC when deletes must be replicated.
 
-Cursor fields must be `NOT NULL`; otherwise Filament cannot advance a reliable
-watermark. Hard deletes are not observable through an update watermark; use
-CDC, tombstones, or a soft-delete column when deletes must be replicated.
+## CDC
 
-<Info>
-  This page covers the read-strategy routing, which is what makes this
-  connector interesting. A full config reference (DSN, TLS, per-table
-  overrides) belongs here as the connector catalog UI solidifies.
-</Info>
+CDC streams `pgoutput` over a persistent logical replication slot. It
+requires `wal_level=logical` and a primary key on every selected table. By
+default the connector creates the publication and keeps its table list
+current with `publish = 'insert, update, delete'`. Set
+`manage_publication=false` when an administrator provisions it.
+
+When a selected table has no CDC checkpoint, the slot is created with an
+exported snapshot and the table is read in full through that snapshot, so the
+baseline and the change stream share one consistent point. Run row limits do
+not apply to this bootstrap read.
+
+Steady-state runs are bounded catch-up cycles. Each replays from the oldest
+resource LSN to `pg_current_wal_lsn()` at cycle start, then returns.
+Continuous CDC is a re-request loop, so it can run on a schedule.
+Zero-change runs still persist the final LSN per resource. A
+primary-key-changing update is emitted as a delete of the old row plus an
+insert of the new one. Standby status is reported every 10 seconds, and only
+the previously durable cursor is acknowledged.
+
+<Warning>
+  CDC has operational sharp edges:
+
+  - Replication slots are never dropped automatically. An abandoned pipeline's
+    slot retains WAL indefinitely, so drop the slot when you retire a pipeline.
+  - A "slot is active" error means another client holds the slot. Use a
+    unique `slot_name` per pipeline.
+  - A checkpoint older than the slot's confirmed position is a hard error.
+    The WAL was consumed by another client, and the stream cannot be replayed.
+  - `TRUNCATE` of a tracked table fails the run.
+  - An update carrying an unchanged TOAST column with no old value is an
+    error. Set `REPLICA IDENTITY FULL` on that table.
+</Warning>
+
+## Keyless tables
+
+A table without a primary key is still readable in full. It falls back to the
+ctid path with the ctid as the record id. That read is not resumable, so a
+resume re-reads the whole table. Incremental and CDC both reject keyless
+tables, since each requires a primary key.
+
+See [Replication modes](/pages/guides/concepts/replication-modes) for how
+modes map to write policies, and
+[Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints)
+for why plans are frozen at plan time.

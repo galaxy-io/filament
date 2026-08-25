@@ -48,6 +48,25 @@ func TestKeysetCheckpointRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDecodeDeltaKinds(t *testing.T) {
+	tests := []struct {
+		name string
+		cp   filament.Checkpoint
+		kind DeltaKind
+	}{
+		{name: "shard", cp: NewShardDelta("users", 2, []string{"42"}), kind: DeltaShard},
+		{name: "stream", cp: NewStreamDelta("users", "0/16B6C50", 8), kind: DeltaStream},
+		{name: "coarse", cp: NewCoarseDone("users", 2, 10), kind: DeltaCoarse},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := DecodeDelta(tt.cp); got.Kind != tt.kind {
+				t.Fatalf("kind = %v, want %v", got.Kind, tt.kind)
+			}
+		})
+	}
+}
+
 // TestMergeShardDelta advances one shard's cursor without disturbing the layout or other
 // shards, and ignores a delta for an out-of-range part.
 func TestMergeShardDelta(t *testing.T) {

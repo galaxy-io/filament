@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { useSearch } from "@tanstack/react-router";
 
 import LineChart from "@galaxy-io/dls/charts/LineChart";
@@ -13,14 +12,8 @@ import type {
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
 import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
-import {
-  type Metric,
-  MetricDimension,
-  QueryTimeseriesRequestSchema,
-  type Timeseries,
-} from "@/gen/metrics/v1/metrics_pb";
+import { type Metric, MetricDimension, type Timeseries } from "@/gen/metrics/v1/metrics_pb";
 
-import { OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP } from "@/pages/observability/components/runs/constants";
 import {
   OBSERVABILITY_TIMESERIES_CHART_HEIGHT,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
@@ -28,12 +21,14 @@ import {
 import { OBSERVABILITY_PIPELINES_INPUT } from "@/pages/observability/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
-  createTimeframeSince,
+  createObservabilityTimeseriesInput,
   formatBucketKey,
-  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
   useBucketLabelFormatter,
 } from "@/pages/observability/utils";
-import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
+import {
+  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+} from "@/pages/pipelines/history/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
@@ -64,16 +59,14 @@ const ObservabilityTimeseriesChart = ({
 
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
 
-  const input = useMemo(() => {
-    const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-    return create(QueryTimeseriesRequestSchema, {
-      metrics: [metric],
-      sinceMs: createTimeframeSince(timeframe),
-      granularity,
-      tzOffsetMinutes: -new Date().getTimezoneOffset(),
-      groupBy: pivotDimension,
-    });
-  }, [timeframe, metric, pivotDimension]);
+  const input = useMemo(
+    () =>
+      createObservabilityTimeseriesInput(timeframe, {
+        metrics: [metric],
+        groupBy: pivotDimension,
+      }),
+    [timeframe, metric, pivotDimension],
+  );
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });
   const { data: pipelinesData } = useListPipelinesQuery({
@@ -101,7 +94,7 @@ const ObservabilityTimeseriesChart = ({
 
     const keyToColor = (key: Timeseries["key"], index: number) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return OBSERVABILITY_RUN_STATUS_TO_COLOR_MAP[Number(key) as RunStatus];
+        return PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[Number(key) as RunStatus];
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[
@@ -145,6 +138,7 @@ const ObservabilityTimeseriesChart = ({
         curve={curve}
         valueFormatter={valueFormatter}
         labelFormatter={bucketLabelFormatter}
+        tooltipMaxItems={10}
         isLoading={isLoading}
         fillWidth
         fillHeight
