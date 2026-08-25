@@ -3,6 +3,8 @@ package nats
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament/eventbus"
@@ -16,6 +18,15 @@ func (stringCodec) Encode(payload any) ([]byte, error) {
 		return nil, errors.New("expected string")
 	}
 	return []byte(s), nil
+}
+
+func TestDecodeFailureIsLoggedWithoutPayload(t *testing.T) {
+	var line string
+	b := &Bus{logf: func(format string, args ...any) { line = fmt.Sprintf(format, args...) }}
+	b.logDecodeFailure("app.v1.run.t1.r1.started", errors.New("bad frame"))
+	if !strings.Contains(line, "app.v1.run.t1.r1.started") || !strings.Contains(line, "bad frame") || !strings.Contains(line, "terminating") {
+		t.Fatalf("decode log = %q", line)
+	}
 }
 
 func (stringCodec) Decode(data []byte) (any, error) {
