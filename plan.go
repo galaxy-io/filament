@@ -32,7 +32,13 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 		if err := validate(t); err != nil {
 			return IngestionPlan{}, err
 		}
-		policies[""] = WritePolicyForIngestion(t)
+		policy := WritePolicyForIngestion(t)
+		sinkCapability, err := sinkCapabilityForIngestion(snk.Spec(), t)
+		if err != nil {
+			return IngestionPlan{}, err
+		}
+		bindSinkDurability(&policy, sinkCapability)
+		policies[""] = policy
 	}
 	for _, resource := range spec.Resources {
 		t := TypeFor(spec.IngestionTypes, resource)
@@ -40,6 +46,11 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 			return IngestionPlan{}, err
 		}
 		policy := WritePolicyForIngestion(t)
+		sinkCapability, err := sinkCapabilityForIngestion(snk.Spec(), t)
+		if err != nil {
+			return IngestionPlan{}, err
+		}
+		bindSinkDurability(&policy, sinkCapability)
 		policy.Resource = resource
 		if policy.Capability.RequiresPK {
 			keys, err := PrimaryKeyForResource(ctx, src, resource)
@@ -65,6 +76,13 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 		WritePolicies: policies,
 		RequiresCDC:   IsCDC(spec.IngestionTypes),
 	}, nil
+}
+
+func bindSinkDurability(policy *WritePolicy, capability WritePolicyCapability) {
+	policy.Capability.Durability = capability.Durability
+	if policy.Checkpoint != CheckpointNone && capability.Durability == DurabilityAfterCommit {
+		policy.Checkpoint = CheckpointAfterCommit
+	}
 }
 
 // ValidateSourceIngestion reports whether the source spec can serve the
@@ -97,22 +115,30 @@ func ValidateReplication(replication ReplicationMode, t IngestionType) error {
 // policy the ingestion type implies. Any sink may serve append and replace;
 // upsert falls back to the Upsertable capability.
 func ValidateSinkIngestion(spec SinkSpec, t IngestionType) error {
+	_, err := sinkCapabilityForIngestion(spec, t)
+	return err
+}
+
+func sinkCapabilityForIngestion(spec SinkSpec, t IngestionType) (WritePolicyCapability, error) {
 	policy := WritePolicyForIngestion(t)
 	for _, candidate := range spec.Capabilities.WritePolicies {
 		if candidate.Mode == policy.Capability.Mode && (!policy.Capability.RequiresPK || candidate.RequiresPK) &&
 			(!policy.Capability.RequiresOrder || candidate.RequiresOrder) && acceptsOperations(candidate.AcceptsOps, policy.Capability.AcceptsOps) {
-			return nil
+			if candidate.Durability != DurabilityAfterApply && candidate.Durability != DurabilityAfterCommit {
+				return WritePolicyCapability{}, fmt.Errorf("sink %q write policy %q must declare durability as %q or %q", spec.Name, candidate.Mode, DurabilityAfterApply, DurabilityAfterCommit)
+			}
+			return candidate, nil
 		}
 	}
 	switch policy.Capability.Mode {
 	case WriteAppend, WriteReplace:
-		return nil
+		return policy.Capability, nil
 	case WriteUpsert:
 		if spec.Capabilities.Upsertable {
-			return nil
+			return policy.Capability, nil
 		}
 	}
-	return fmt.Errorf("sink %q does not support write policy %q", spec.Name, policy.Capability.Mode)
+	return WritePolicyCapability{}, fmt.Errorf("sink %q does not support write policy %q", spec.Name, policy.Capability.Mode)
 }
 
 // PrimaryKeyForResource resolves a resource's primary key from the source's

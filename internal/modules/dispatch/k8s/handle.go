@@ -38,7 +38,7 @@ func (h runHandle) Wait(ctx context.Context) (filament.RunResult, error) {
 			return filament.RunResult{}, err
 		}
 		switch state.Status {
-		case filament.RunCompleted, filament.RunFailed, filament.RunCanceled:
+		case filament.RunCompleted, filament.RunFailed, filament.RunCanceled, filament.RunPaused, filament.RunPartial:
 			return filament.RunResult{
 				Status:  state.Status,
 				Records: state.Records,

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -97,6 +98,64 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
 	}
 	return nil
+}
+
+// TransitionRun serializes lifecycle commands on the run row and updates it
+// only when the current status belongs to from.
+func (s *Store) TransitionRun(
+	ctx context.Context,
+	id filament.RunID,
+	from []filament.RunStatus,
+	to filament.RunStatus,
+	opts filament.RunTransitionOptions,
+) (filament.RunState, error) {
+	status, err := runStatusValue(to)
+	if err != nil {
+		return filament.RunState{}, err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: begin run transition: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	current, err := q.LockRunStatus(ctx, string(id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return filament.RunState{}, fmt.Errorf("transition run %q: %w", id, filament.ErrNotFound)
+		}
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: lock run transition: %w", err)
+	}
+	if !slices.Contains(from, filament.RunStatus(current)) {
+		return filament.RunState{}, fmt.Errorf("transition run %q from status %d: %w", id, current, filament.ErrVersionConflict)
+	}
+	if opts.ResetExecution {
+		if err := q.ResetRunExecution(ctx, sqlcgen.ResetRunExecutionParams{
+			RunID: string(id), Status: status, PreserveProgress: opts.PreserveProgress,
+		}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset run transition: %w", err)
+		}
+		if err := q.ResetRunResources(ctx, sqlcgen.ResetRunResourcesParams{
+			RunID: string(id), Status: int16(filament.RunRequested), PreserveProgress: opts.PreserveProgress,
+		}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset resource transition: %w", err)
+		}
+	} else {
+		if err := q.TransitionRun(ctx, sqlcgen.TransitionRunParams{RunID: string(id), Status: status}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: run transition: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: commit run transition: %w", err)
+	}
+	return s.LoadRun(ctx, id)
+}
+
+func runStatusValue(status filament.RunStatus) (int16, error) {
+	if status < -1<<15 || status > 1<<15-1 {
+		return 0, fmt.Errorf("datastore/postgres: run status %d is out of range", status)
+	}
+	return int16(status), nil //nolint:gosec // bounds checked above
 }
 
 // CreateRun inserts the run or promotes a pre-created RunScheduled row; a row
@@ -215,9 +274,6 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	}
 	if f.Schedule != "" {
 		q += " AND schedule_id = " + arg(string(f.Schedule))
-	}
-	if f.Source != "" {
-		q += " AND (request->'Source'->>'Provider' = " + arg(f.Source) + " OR request->'Source'->>'ConfigRef' = " + arg(f.Source) + ")"
 	}
 	if !f.Since.IsZero() {
 		q += " AND started_at >= " + arg(f.Since)

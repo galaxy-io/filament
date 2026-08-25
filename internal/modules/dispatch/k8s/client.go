@@ -40,7 +40,19 @@ func restConfig(cfg Config) (*rest.Config, error) {
 
 func (c *client) createJob(ctx context.Context, namespace string, j *batchv1.Job) error {
 	_, err := c.clientset.BatchV1().Jobs(namespace).Create(ctx, j, metav1.CreateOptions{})
-	if err != nil && !apierrors.IsAlreadyExists(err) {
+	if apierrors.IsAlreadyExists(err) {
+		existing, getErr := c.clientset.BatchV1().Jobs(namespace).Get(ctx, j.Name, metav1.GetOptions{})
+		if getErr != nil {
+			return fmt.Errorf("k8sdispatch: inspect existing job %q in %q: %w", j.Name, namespace, getErr)
+		}
+		for _, key := range []string{"filament.galaxy.io/run-id", "filament.galaxy.io/execution-id"} {
+			if existing.Labels[key] != j.Labels[key] {
+				return fmt.Errorf("k8sdispatch: job name collision %q in %q: label %q is %q, want %q", j.Name, namespace, key, existing.Labels[key], j.Labels[key])
+			}
+		}
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("k8sdispatch: create job %q in %q: %w", j.Name, namespace, err)
 	}
 	return nil

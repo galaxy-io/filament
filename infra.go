@@ -62,6 +62,26 @@ type DataStore interface {
 	Name() string
 }
 
+// RunTransitionStore applies lifecycle commands with a compare-and-swap on
+// the current status. It is separate from DataStore so adapters can reject run
+// signaling explicitly instead of emulating an unsafe LoadRun/SaveRun race.
+type RunTransitionStore interface {
+	TransitionRun(
+		ctx context.Context,
+		id RunID,
+		from []RunStatus,
+		to RunStatus,
+		opts RunTransitionOptions,
+	) (RunState, error)
+}
+
+// RunTransitionOptions controls the attempt-local state reset performed by a
+// lifecycle transition.
+type RunTransitionOptions struct {
+	ResetExecution   bool
+	PreserveProgress bool
+}
+
 // ResourceCheckpointKey identifies durable progress shared by runs of one
 // immutable pipeline route. Resource is deliberately part of the key so each
 // table advances independently.
