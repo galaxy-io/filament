@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -97,6 +98,43 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
 	}
 	return nil
+}
+
+// TransitionRun serializes lifecycle commands on the run row and updates it
+// only when the current status belongs to from.
+func (s *Store) TransitionRun(ctx context.Context, id filament.RunID, from []filament.RunStatus, to filament.RunStatus, resetExecution bool) (filament.RunState, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: begin run transition: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	current, err := q.LockRunStatus(ctx, string(id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return filament.RunState{}, fmt.Errorf("transition run %q: %w", id, filament.ErrNotFound)
+		}
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: lock run transition: %w", err)
+	}
+	if !slices.Contains(from, filament.RunStatus(current)) {
+		return filament.RunState{}, fmt.Errorf("transition run %q from status %d: %w", id, current, filament.ErrVersionConflict)
+	}
+	if resetExecution {
+		if err := q.ResetRunExecution(ctx, sqlcgen.ResetRunExecutionParams{RunID: string(id), Status: int16(to)}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset run transition: %w", err)
+		}
+		if err := q.ResetRunResources(ctx, sqlcgen.ResetRunResourcesParams{RunID: string(id), Status: int16(filament.RunRequested)}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset resource transition: %w", err)
+		}
+	} else {
+		if err := q.TransitionRun(ctx, sqlcgen.TransitionRunParams{RunID: string(id), Status: int16(to)}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: run transition: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: commit run transition: %w", err)
+	}
+	return s.LoadRun(ctx, id)
 }
 
 // CreateRun inserts the run or promotes a pre-created RunScheduled row; a row

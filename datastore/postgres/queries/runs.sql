@@ -51,6 +51,26 @@ WHERE runs.status = @from_status;
 -- name: DeleteRun :exec
 DELETE FROM runs WHERE id = @run_id;
 
+-- name: LockRunStatus :one
+SELECT status FROM runs WHERE id = @run_id FOR UPDATE;
+
+-- name: TransitionRun :exec
+UPDATE runs SET status = @status, updated_at = now() WHERE id = @run_id;
+
+-- name: ResetRunExecution :exec
+UPDATE runs SET
+    status = @status,
+    records = 0,
+    bytes = 0,
+    cpu_seconds = 0,
+    memory_peak_bytes = 0,
+    requested_at = now(),
+    started_at = NULL,
+    ended_at = NULL,
+    error = NULL,
+    updated_at = now()
+WHERE id = @run_id;
+
 -- Reaps a pipeline's pre-created scheduled runs by the pipeline_id column:
 -- deleting the schedules row SET-NULLs runs.schedule_id, so schedule-scoped
 -- lookups cannot find these rows once the delete tx is underway.

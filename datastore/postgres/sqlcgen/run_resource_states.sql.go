@@ -52,6 +52,26 @@ func (q *Queries) ListResources(ctx context.Context, runID string) ([]*ListResou
 	return items, nil
 }
 
+const resetRunResources = `-- name: ResetRunResources :exec
+UPDATE run_resource_states SET
+    status = $1,
+    records = 0,
+    bytes = 0,
+    error = NULL,
+    updated_at = now()
+WHERE run_id = $2
+`
+
+type ResetRunResourcesParams struct {
+	Status int16
+	RunID  string
+}
+
+func (q *Queries) ResetRunResources(ctx context.Context, arg ResetRunResourcesParams) error {
+	_, err := q.db.Exec(ctx, resetRunResources, arg.Status, arg.RunID)
+	return err
+}
+
 const upsertResource = `-- name: UpsertResource :exec
 INSERT INTO run_resource_states (run_id, resource_name, tenant_id, status, records, bytes, error, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, nullif($7::text, ''), now())

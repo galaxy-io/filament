@@ -157,6 +157,42 @@ func (q *Queries) LoadRun(ctx context.Context, runID string) (*LoadRunRow, error
 	return &i, err
 }
 
+const lockRunStatus = `-- name: LockRunStatus :one
+SELECT status FROM runs WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockRunStatus(ctx context.Context, runID string) (int16, error) {
+	row := q.db.QueryRow(ctx, lockRunStatus, runID)
+	var status int16
+	err := row.Scan(&status)
+	return status, err
+}
+
+const resetRunExecution = `-- name: ResetRunExecution :exec
+UPDATE runs SET
+    status = $1,
+    records = 0,
+    bytes = 0,
+    cpu_seconds = 0,
+    memory_peak_bytes = 0,
+    requested_at = now(),
+    started_at = NULL,
+    ended_at = NULL,
+    error = NULL,
+    updated_at = now()
+WHERE id = $2
+`
+
+type ResetRunExecutionParams struct {
+	Status int16
+	RunID  string
+}
+
+func (q *Queries) ResetRunExecution(ctx context.Context, arg ResetRunExecutionParams) error {
+	_, err := q.db.Exec(ctx, resetRunExecution, arg.Status, arg.RunID)
+	return err
+}
+
 const saveRun = `-- name: SaveRun :exec
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
 VALUES ($1, $2, nullif($3::text, '')::uuid, nullif($4::text, '')::uuid, nullif($5::text, '')::uuid, $6, $7, $8, $9, $10, $11, $12, $13, nullif($14::text, ''), $15, $16, now())
@@ -221,5 +257,19 @@ func (q *Queries) SaveRun(ctx context.Context, arg SaveRunParams) error {
 		arg.CpuSeconds,
 		arg.MemoryPeakBytes,
 	)
+	return err
+}
+
+const transitionRun = `-- name: TransitionRun :exec
+UPDATE runs SET status = $1, updated_at = now() WHERE id = $2
+`
+
+type TransitionRunParams struct {
+	Status int16
+	RunID  string
+}
+
+func (q *Queries) TransitionRun(ctx context.Context, arg TransitionRunParams) error {
+	_, err := q.db.Exec(ctx, transitionRun, arg.Status, arg.RunID)
 	return err
 }

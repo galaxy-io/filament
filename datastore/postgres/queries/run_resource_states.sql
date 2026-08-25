@@ -12,3 +12,12 @@ ON CONFLICT (run_id, resource_name) DO UPDATE SET
 -- name: ListResources :many
 SELECT run_id, resource_name, tenant_id, status, records, bytes, coalesce(error, '')::text AS error
 FROM run_resource_states WHERE run_id = @run_id ORDER BY resource_name;
+
+-- name: ResetRunResources :exec
+UPDATE run_resource_states SET
+    status = @status,
+    records = 0,
+    bytes = 0,
+    error = NULL,
+    updated_at = now()
+WHERE run_id = @run_id;
