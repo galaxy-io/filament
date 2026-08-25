@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -75,7 +76,9 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 	if !runner.ShouldRun(state) {
 		return nil
 	}
-	_, err = m.Dispatch(ctx, runner.SpecFromState(state))
+	spec := runner.SpecFromState(state)
+	spec.ExecutionID = ev.At.UTC().Format(time.RFC3339Nano)
+	_, err = m.Dispatch(ctx, spec)
 	return err
 }
 

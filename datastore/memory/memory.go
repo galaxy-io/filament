@@ -199,6 +199,56 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
+// TransitionRun atomically changes a run when its current status is admitted.
+// Resume resets attempt-local lifecycle while optionally preserving counters
+// whose sink output and source checkpoints survive into the next attempt.
+func (s *Store) TransitionRun(
+	ctx context.Context,
+	id filament.RunID,
+	from []filament.RunStatus,
+	to filament.RunStatus,
+	opts filament.RunTransitionOptions,
+) (filament.RunState, error) {
+	if err := ctx.Err(); err != nil {
+		return filament.RunState{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state, ok := s.runs[id]
+	if !ok {
+		return filament.RunState{}, fmt.Errorf("transition run %q: %w", id, filament.ErrNotFound)
+	}
+	if !slices.Contains(from, state.Status) {
+		return filament.RunState{}, fmt.Errorf("transition run %q from status %d: %w", id, state.Status, filament.ErrVersionConflict)
+	}
+	state.Status = to
+	state.UpdatedAt = time.Now()
+	if opts.ResetExecution {
+		state.RequestedAt = time.Now()
+		state.StartedAt = time.Time{}
+		state.EndedAt = nil
+		state.Error = ""
+		if !opts.PreserveProgress {
+			state.Records = 0
+			state.Bytes = 0
+		}
+		state.CPUSeconds = 0
+		state.MemoryPeakBytes = 0
+		for resource, rs := range s.resources[id] {
+			rs.Status = filament.RunRequested
+			if !opts.PreserveProgress {
+				rs.Records = 0
+				rs.Bytes = 0
+			}
+			rs.Error = ""
+			s.resources[id][resource] = rs
+		}
+	}
+	s.runs[id] = state
+	state.Resources = s.listResourcesLocked(id)
+	return state, nil
+}
+
 // DeleteRun removes the run with its resources and checkpoints; missing is a no-op.
 func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 	if err := ctx.Err(); err != nil {
@@ -436,11 +486,6 @@ func matchRun(r filament.RunState, f filament.RunFilter) bool {
 		return false
 	}
 	if len(f.Status) > 0 && !slices.Contains(f.Status, r.Status) {
-		return false
-	}
-	if f.Source != "" &&
-		r.Request.Source.ConfigRef != f.Source &&
-		r.Request.Source.Provider != f.Source {
 		return false
 	}
 	return true

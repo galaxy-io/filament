@@ -65,12 +65,16 @@ func workerTolerations(in []filament.WorkerToleration) []corev1.Toleration {
 // template share it: when the two were written out separately the pod template
 // lost the tenant label, so a selector that found the Job missed its pods.
 func (m *Module) jobLabels(spec filament.RunSpec) map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		"app.kubernetes.io/name":      m.appName(),
 		"app.kubernetes.io/component": "worker",
 		"filament.galaxy.io/run-id":   string(spec.Run),
 		"filament.galaxy.io/tenant":   string(spec.Tenant),
 	}
+	if spec.ExecutionID != "" {
+		labels["filament.galaxy.io/execution-id"] = executionToken(spec.ExecutionID)
+	}
+	return labels
 }
 
 // appName is the chart's app name, so Jobs select alongside chart-rendered
@@ -84,7 +88,7 @@ func (m *Module) appName() string {
 }
 
 func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
-	name := jobName(m.cfg.JobNamePrefix, spec.Run)
+	name := jobName(m.cfg.JobNamePrefix, spec.Run, spec.ExecutionID)
 	// All worker configuration arrives through the worker Secret and ConfigMap;
 	// RUN_ID is the only value dispatch itself knows.
 	envFrom := []corev1.EnvFromSource{{

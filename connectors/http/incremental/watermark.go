@@ -154,14 +154,6 @@ func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
 // Current returns the running watermark (max observed or initial).
 func (t *Tracker) Current() string { return t.wm.Current() }
 
-// CheckpointKey resolves the durable storage key for an incremental spec.
-func CheckpointKey(spec manifest.IncrementalSpec) string {
-	if spec.CheckpointKey != "" {
-		return spec.CheckpointKey
-	}
-	return spec.CursorField
-}
-
 // Scope returns a {start_param: effective_start} pair suitable for merging
 // into a template scope's State map. The lower bound is fixed for the entire
 // extraction so paginated requests all scan the same result set.

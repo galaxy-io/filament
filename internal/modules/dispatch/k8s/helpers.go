@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"strconv"
 	"strings"
@@ -8,21 +10,34 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
-func jobName(prefix string, run filament.RunID) string {
+func jobName(prefix string, run filament.RunID, executionID string) string {
 	p := cleanDNS1123(prefix)
 	r := cleanDNS1123(string(run))
-	name := p + "-" + r
+	suffix := ""
+	if executionID != "" {
+		suffix = "-" + executionToken(executionID)
+	}
+	name := p + "-" + r + suffix
 	if len(name) <= 63 {
 		return name
 	}
-	if len(r) > 48 {
-		r = r[:48]
+	maxRun := 63 - len(p) - len(suffix) - 1
+	if maxRun < 1 {
+		maxRun = 1
 	}
-	name = p + "-" + r
+	if len(r) > maxRun {
+		r = r[:maxRun]
+	}
+	name = p + "-" + r + suffix
 	if len(name) > 63 {
 		name = name[:63]
 	}
 	return strings.Trim(name, "-")
+}
+
+func executionToken(executionID string) string {
+	sum := sha256.Sum256([]byte(executionID))
+	return hex.EncodeToString(sum[:6])
 }
 
 func cleanDNS1123(s string) string {
