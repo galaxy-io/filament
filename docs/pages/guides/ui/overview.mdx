@@ -1,0 +1,66 @@
+---
+title: "Overview"
+description: "A tour of the Filament web UI"
+icon: "browser"
+---
+
+The Filament UI is where you set up pipelines and watch them work. It comes
+built into the server, so once Filament is running you open it in a browser
+(`:8080` by default) and everything is there. No separate install.
+
+<Frame caption="The Filament UI">
+  <img className="block dark:hidden" src="/assets/images/filament-light.png" alt="Filament UI in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-dark.png" alt="Filament UI in dark mode" />
+</Frame>
+
+## How it flows
+
+Working in Filament follows a simple arc:
+
+1. Connect the systems you care about on the **Sources** and **Sinks** pages.
+   A source is where data comes from, a sink is where it lands.
+2. Draw a pipeline between them on the **Pipelines** canvas and choose what
+   moves and how.
+3. Run it, or put it on a schedule, then watch it work.
+
+**Observability** is the home page. It shows how everything is doing at a
+glance. Charts of how much data moved, how long runs took, and a feed of
+recent runs across all your pipelines. Pick a timeframe and the whole page
+follows.
+
+<Frame caption="Observability, the landing page">
+  <img className="block dark:hidden" src="/assets/images/filament-observability-light.png" alt="Observability dashboard in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-observability-dark.png" alt="Observability dashboard in dark mode" />
+</Frame>
+
+Read on for [Connections](/pages/guides/ui/connections) and
+[Pipelines](/pages/guides/ui/pipelines).
+
+## Under the hood
+
+For contributors, the UI lives in `ui/` as a React 18 + TypeScript app built
+with Vite:
+
+- **Routing and data.** TanStack Router with file-based routes in
+  `src/routes/`, and TanStack Query for server state. API calls go through
+  ConnectRPC's web transport with `connect-query` bindings, so every request
+  is a typed call against the same API documented in the
+  [API reference](/pages/api-reference/service/introduction).
+- **Generated types.** `src/gen/` holds the protobuf-generated TypeScript.
+  Never edit it by hand. `pnpm codegen` (or `just gen` at the repo root)
+  regenerates it with `buf` after a proto change.
+- **Design system.** Components, tokens, and theming come from
+  [`@galaxy-io/dls`](https://www.npmjs.com/package/@galaxy-io/dls), Galaxy's
+  design language system. The app mounts its stylesheet and
+  `GalaxyThemeProvider` in `main.tsx`. Browse the component catalog at
+  [storybook.getgalaxy.io](https://storybook.getgalaxy.io) before building
+  anything new, since most primitives already exist there.
+- **Styling and the canvas.** Component-local styles use Linaria (zero-runtime
+  CSS-in-JS). The pipeline canvas is built on `@xyflow/react`. Icons are
+  Phosphor, with project SVGs compiled to components via `pnpm assets`.
+- **Formatting.** Biome formats and lints the UI (`just ui-format` and
+  `just ui-lint`, or the `check` variants CI runs).
+
+`just ui` gives you hot reload on `:5173` against a locally running API. See
+[Local development](/pages/guides/contributing/local-development) for the
+rest of the dev workflow.

@@ -1,39 +1,136 @@
 ---
 title: "API reference"
-description: "The IngestionService ConnectRPC API the pipeline UI drives."
+description: "The ConnectRPC surface every Filament client drives, covering protocols, tenancy, errors, and pagination"
 ---
 
-Filament's server exposes `IngestionService`, a ConnectRPC API defined in
-`api/ingestion/v1/`. It's the same surface the built-in web UI is built on —
-there's no separate "internal" API behind it.
+Filament's API is [ConnectRPC](https://connectrpc.com), generated from the
+protobuf definitions in `api/ingestion/v1/` and `api/metrics/v1/`.
+`ingestion.v1.IngestionService` (connectors, connections, pipelines, runs) and
+`metrics.v1.MetricsService` (dashboard aggregations) share one listener. The
+built-in web UI is a client of this same surface — there is no separate
+internal API behind it.
+
+Every RPC is an HTTP POST to `/{package.Service}/{Method}`:
+
+```
+POST /ingestion.v1.IngestionService/CreatePipeline
+POST /metrics.v1.MetricsService/QueryTimeseries
+```
+
+The `server` binary serves both services on `SERVER_ADDR` (default `:8080`).
+The `standalone` binary and the embeddable `app.Run` library serve the same
+surface on `INGESTION_ADDR` (default `:8080`).
+
+## Protocols
+
+The servers listen for HTTP/1.1 in plaintext. That determines which of the
+three ConnectRPC wire protocols work against a default deployment.
+
+| Protocol | Works out of the box |
+|---|---|
+| Connect (JSON or binary) | Yes (plain HTTP/1.1 POST) |
+| gRPC-Web | Yes (HTTP/1.1) |
+| gRPC | No (needs HTTP/2) |
+
+Plain gRPC needs HTTP/2 end to end. The shipped binaries listen plaintext
+without h2c, so a stock gRPC client fails against them directly. If you need
+plain gRPC, terminate TLS with HTTP/2 at a proxy or load balancer in front of
+the server. Connect and gRPC-Web clients need nothing extra.
+
+The Connect protocol is ordinary JSON over POST, so any HTTP client works:
+
+```sh
+curl -X POST http://localhost:8080/ingestion.v1.IngestionService/ListConnectors \
+  -H "Content-Type: application/json" \
+  -d '{"kind": "CONNECTOR_KIND_SOURCE"}'
+```
+
+## Authentication
+
+There is none. The API ships with no authentication, no interceptors, and
+CORS open to any origin. Anyone who can reach the listener can read and write
+everything. Run Filament on a private network and control access at the
+network layer, whether through a VPN, a service mesh, or an authenticating
+reverse proxy in front of the port.
+
+## Tenancy
+
+Every request message carries a `tenant_id`. An empty string resolves to the
+default tenant, the zero UUID `00000000-0000-0000-0000-000000000000`, which
+the server creates at startup. Single-tenant deployments can omit the field
+everywhere and never think about it.
+
+## Errors
+
+Failures are standard [Connect error codes](https://connectrpc.com/docs/protocol#error-codes).
+These are the codes you will actually see.
+
+| Code | When |
+|---|---|
+| `invalid_argument` | Malformed request |
+| `not_found` | No row for the id, or an unknown connector name on `GetConnector` |
+| `failed_precondition` | The operation is valid but the state refuses it |
+| `aborted` | Optimistic-lock conflict on `version` |
+| `already_exists` | `CreatePipelineSchedule` on a pipeline that already has one |
+| `unimplemented` | The RPC or feature is unavailable in this deployment |
+
+Some specifics worth knowing:
+
+- `invalid_argument` covers missing required fields, an invalid graph on
+  `CreatePipelineVersion`, a bad cron expression, and an undecodable
+  pagination cursor.
+- `failed_precondition` covers deleting a connection a pipeline still
+  references, updating a deleted connection, a secret that fails to resolve,
+  and `TailRun` without an event bus.
+- `aborted` means the `version` on an update no longer matches the stored
+  row. Re-read and retry.
+- `unimplemented` covers `SignalRun` (always, today), `MetricsService`
+  without a metrics store, and discovery or column RPCs on connectors that
+  don't support them.
+
+Validation of connector configs is the exception. `ValidateConfig` and
+`ValidatePipeline` report problems in-band in their response bodies, not as
+RPC errors, so a form can render every failure at once.
+
+## Pagination
+
+List RPCs take an optional `PaginationRequest`.
+
+| Field | Behavior |
+|---|---|
+| `page_size` | Default 25 when unset. Values above 1000 are clamped to 1000 |
+| `cursor` | Opaque token from a previous response. Do not construct one |
+
+The response's `PaginationResponse` carries `total` plus `previous_cursor` and
+`next_cursor` when more pages exist in that direction. Omitting `pagination`
+entirely returns every row, which is convenient for scripts but expensive on
+large tables.
+
+## Health
+
+Two plain HTTP endpoints sit beside the RPC routes on the same listener:
+
+- `GET /livez`: always 200 while the process is up
+- `GET /readyz`: 200 once Postgres answers and the default tenant exists
+
+The control plane serves the same pair on `HEALTH_ADDR` (default `:8081`).
 
 ## Surface areas
 
 <CardGroup cols={2}>
-  <Card title="Connections" icon="link" href="/pages/api-reference/service/connections">
-    Reusable, tenant-scoped sources and sinks.
+  <Card title="Connectors" href="/pages/api-reference/service/connectors">
+    The catalog of registered sources and sinks, with config validation and resource discovery.
   </Card>
-  <Card title="Pipelines" icon="diagram-project" href="/pages/api-reference/service/pipelines">
-    The persisted node graph connecting a source to a sink.
+  <Card title="Connections" href="/pages/api-reference/service/connections">
+    Reusable, tenant-scoped sources and sinks with managed secrets.
   </Card>
-  <Card title="Connectors" icon="plug" href="/pages/api-reference/service/connectors">
-    The connector catalog — registered sources, sinks, and their config schemas.
+  <Card title="Pipelines" href="/pages/api-reference/service/pipelines">
+    Mutable metadata over immutable graph versions, plus schedules.
   </Card>
-  <Card title="Runs" icon="play" href="/pages/api-reference/service/runs">
-    Compiling and submitting a pipeline, then tracking or signaling it.
+  <Card title="Runs" href="/pages/api-reference/service/runs">
+    Compiling, listing, and live-tailing pipeline executions.
+  </Card>
+  <Card title="Metrics" href="/pages/api-reference/service/metrics">
+    The read-only aggregation service behind the dashboard.
   </Card>
 </CardGroup>
-
-## Protocol
-
-Generated from `.proto` files via `buf generate` (see `buf.gen.yaml`) into
-Go ConnectRPC stubs — which means the same service also speaks plain gRPC
-and gRPC-Web without any extra gateway.
-
-<Info>
-  This page is a placeholder for a generated reference. Once the API
-  stabilizes, generate this section from the `.proto` files directly (via
-  `mint openapi` / a protobuf-to-OpenAPI step) rather than hand-maintaining
-  it — see the individual RPC pages for what to cover per surface area in
-  the meantime.
-</Info>

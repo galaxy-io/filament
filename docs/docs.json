@@ -103,7 +103,16 @@
             "pages": [
               "pages/guides/concepts/architecture",
               "pages/guides/concepts/replication-modes",
-              "pages/guides/concepts/integrity-and-checkpoints"
+              "pages/guides/concepts/integrity-and-checkpoints",
+              "pages/guides/concepts/runs-and-recovery"
+            ]
+          },
+          {
+            "group": "UI",
+            "pages": [
+              "pages/guides/ui/overview",
+              "pages/guides/ui/connections",
+              "pages/guides/ui/pipelines"
             ]
           },
           {
@@ -155,7 +164,7 @@
               "pages/connectors/sinks/clickhouse",
               "pages/connectors/sinks/iceberg",
               "pages/connectors/sinks/aws-s3",
-              "pages/connectors/sinks/stdout"
+              "pages/connectors/sinks/standard-output"
             ]
           },
           {
@@ -163,7 +172,8 @@
             "pages": [
               "pages/connectors/building-a-connector/writing-a-source",
               "pages/connectors/building-a-connector/writing-a-sink",
-              "pages/connectors/building-a-connector/optional-interfaces"
+              "pages/connectors/building-a-connector/optional-interfaces",
+              "pages/connectors/building-a-connector/http-manifests"
             ]
           }
         ]
@@ -176,10 +186,11 @@
             "group": "Service",
             "pages": [
               "pages/api-reference/service/introduction",
+              "pages/api-reference/service/connectors",
               "pages/api-reference/service/connections",
               "pages/api-reference/service/pipelines",
-              "pages/api-reference/service/connectors",
-              "pages/api-reference/service/runs"
+              "pages/api-reference/service/runs",
+              "pages/api-reference/service/metrics"
             ]
           }
         ]
@@ -189,16 +200,11 @@
         "icon": "gauge",
         "groups": [
           {
-            "group": "Methodology",
-            "pages": ["pages/benchmarks/methodology/introduction"]
-          },
-          {
-            "group": "Pipeline",
-            "pages": ["pages/benchmarks/pipeline/throughput"]
-          },
-          {
-            "group": "Event bus",
-            "pages": ["pages/benchmarks/event-bus/publish-overhead"]
+            "group": "Benchmarks",
+            "pages": [
+              "pages/benchmarks/overview",
+              "pages/benchmarks/micro-benchmarks"
+            ]
           }
         ]
       }
@@ -208,6 +214,30 @@
     {
       "source": "/",
       "destination": "/pages/guides/get-started/introduction"
+    },
+    {
+      "source": "/pages/connectors/sources/http",
+      "destination": "/pages/connectors/building-a-connector/http-manifests"
+    },
+    {
+      "source": "/pages/benchmarks/methodology/introduction",
+      "destination": "/pages/benchmarks/overview"
+    },
+    {
+      "source": "/pages/benchmarks/pipeline/throughput",
+      "destination": "/pages/benchmarks/micro-benchmarks"
+    },
+    {
+      "source": "/pages/benchmarks/event-bus/publish-overhead",
+      "destination": "/pages/benchmarks/micro-benchmarks"
+    },
+    {
+      "source": "/pages/guides/ui/pipelines-and-canvas",
+      "destination": "/pages/guides/ui/pipelines"
+    },
+    {
+      "source": "/pages/connectors/sinks/stdout",
+      "destination": "/pages/connectors/sinks/standard-output"
     }
   ]
 }

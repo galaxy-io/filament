@@ -51,3 +51,48 @@ html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-clickhouse
 html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-sample-dark.svg"] {
   content: url("https://cdn.getgalaxy.io/sources/source-icon-sample-light.svg");
 }
+
+/* ------------------------------------------------------------------
+   Layout: widen the main content column. Maple caps #content-area at
+   max-w-xl (576px), which wraps table cells onto extra lines. 48rem
+   keeps the line length readable while letting reference tables fit.
+   ------------------------------------------------------------------ */
+
+#content-area {
+  max-width: 48rem !important;
+}
+
+/* Mermaid edge labels: drop the renderer's gray chip, color the text to
+   match the electric blue diagram in both themes. */
+
+#content-area svg .labelBkg {
+  background: transparent !important;
+}
+
+#content-area svg span.edgeLabel {
+  color: #005EFF !important;
+}
+
+html.dark #content-area svg span.edgeLabel {
+  color: #7AA5FF !important;
+}
+
+/* Mermaid node labels: subtle-fill nodes need theme-aware text. */
+
+#content-area svg .nodeLabel {
+  color: #0D0D0D !important;
+}
+
+html.dark #content-area svg .nodeLabel {
+  color: #EDEDED !important;
+}
+
+/* Mermaid edge labels: lift above the line instead of sitting on it. */
+
+#content-area svg .edgeLabel foreignObject {
+  overflow: visible;
+}
+
+#content-area svg .edgeLabel .labelBkg {
+  transform: translateY(-0.95em);
+}

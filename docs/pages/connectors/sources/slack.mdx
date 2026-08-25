@@ -1,89 +1,70 @@
 ---
 title: "Slack"
-description: "Read channels, messages, and files from a Slack workspace."
+description: "Read conversations, messages, thread replies, files, and workspace metadata from Slack"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg"
 ---
 
-Slack is a manifest-driven source — `connectors/http/manifests/slack.yaml`
-declares its resources, auth, and pagination against the shared grammar in
-`connectors/http/manifest/`; no Slack-specific Go code exists. See
-[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
-Its message and file streams are useful references for numeric incremental
-cursors at the manifest level.
+Slack is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
+The `connectors/http/manifests/slack.yaml` manifest declares resources
+spanning team info, users and user groups, the conversations the token can
+see, their messages and thread replies, plus files, bookmarks, and pins. The
+connector is **alpha**, so resource coverage and field shapes may still
+change between releases.
 
-## Auth
+## Configuration
 
-A bot or user OAuth token (bearer auth), plus an optional
-`conversation_types` list (default `public_channel`) that controls which
-conversation types `conversations` enumerates. Select `private_channel`,
-`mpim`, or `im` as well if the token has access.
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `token` | Connection | | Required. Secret. Bot or user OAuth token. |
+| `conversation_types` | Connection | `[public_channel]` | Conversation types to include. Any of `public_channel`, `private_channel`, `mpim`, `im`. |
 
 ## Resources
 
-Nine resources, statically discovered:
+`team` is a cardinality-one snapshot of the workspace. `users` and
+`user_groups` are top-level lists. `conversations` uses `users.conversations`
+rather than `conversations.list`. That gives a membership-aware inventory,
+because `conversations.history` rejects channels the bot can discover but has
+not joined. It captures each channel id, and `messages` (one history walk per
+conversation), `bookmarks`, and `pins` fan out from it.
 
-| Resource | Fans out from | Notes |
-|---|---|---|
-| `team` | — | Single record (`cardinality: one`) — workspace metadata |
-| `users` | — | |
-| `user_groups` | — | |
-| `conversations` | — | Channels/DMs the token's identity can see, via `users.conversations` |
-| `messages` | `conversations` | Incremental (see below) |
-| `thread_replies` | `messages` | Only fetched for messages that started a thread |
-| `files` | — | Incremental for newly created files (see below) |
-| `bookmarks` | `conversations` | |
-| `pins` | `conversations` | |
-
-<Info>
-  `conversations` is deliberately membership-aware: it calls
-  `users.conversations` rather than a workspace-wide channel list, because
-  `conversations.history` (used by `messages`) rejects a channel the bot can
-  see but hasn't joined with `not_in_channel`. Enumerating only channels the
-  token is actually a member of keeps discovery and extraction consistent.
-</Info>
-
-## Incremental sync
-
-`messages` checkpoints Slack's per-message timestamp:
-
-```yaml
-incremental:
-  cursor_field: ts
-  start_param: oldest
-  inject_into: query
-  checkpoint_key: messages_since
-  comparator: numeric
-```
-
-Each run reads a channel's messages newer than the last checkpointed `ts`
-(Slack's per-message timestamp, which doubles as a numeric cursor), injects
-it as the `oldest` query parameter on the next run, and checkpoints under
-`messages_since` per conversation.
-
-`files` checkpoints the integer `created` timestamp and injects it into
-Slack's inclusive `ts_from` filter:
-
-```yaml
-incremental:
-  cursor_field: created
-  start_param: ts_from
-  inject_into: query
-  checkpoint_key: files_created
-  comparator: numeric
-```
-
-This captures newly created files. Slack does not expose a corresponding
-updated-since filter, so edits to existing file metadata still require a full
-run.
-
-## Error handling
-
-Slack's Web API returns HTTP 200 even on failure, signaling errors via an
-`error` field in the JSON body. The manifest's connection-wide
-`defaults.response.error` block (`path: error, when_present: true`) makes
-every resource check that field and fail the request instead of silently
-ingesting an error payload as if it were data.
+`thread_replies` fans out from `messages`. The capture is unconditional, so
+it issues one `conversations.replies` request for **every** message, not just
+messages that started a thread. On a busy workspace this dominates the
+request count. `files` is an independent top-level list.
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+Full is always available. A full run checkpoints its pagination cursor per
+top-level resource and resumes from the last completed page. Children
+(`messages`, `thread_replies`, `bookmarks`, `pins`) always restart with their
+parent.
+
+Two resources are incremental.
+
+| Resource | Cursor field | Request parameter | Checkpoint key |
+|---|---|---|---|
+| `messages` | `ts` | `oldest` (query) | `messages_since` |
+| `files` | `created` | `ts_from` (query) | `files_created` |
+
+Both use the `numeric` comparator (Slack timestamps are epoch numbers) and
+declare no overlap window. The cursor field is fixed by the manifest. Only a
+lookback window is user-configurable, which the numeric comparator supports.
+`messages` fans out across conversations but keeps a single aggregate
+watermark for the whole resource, not one per conversation. A message posted
+to a quiet channel while a busier channel was being scanned can land below
+the watermark, so configure a lookback window if late arrivals matter.
+
+## Behavior
+
+- **Auth**: bearer token from `token` on every request.
+- **Errors**: Slack returns HTTP 200 with `{"ok": false, "error": …}` on
+  failure, so the manifest declares an error envelope. Any response carrying
+  an `error` field fails the run with that value as the message.
+- **Pagination**: cursor paging via `response_metadata.next_cursor` for
+  users, conversations, messages, and thread replies. `files.list` is the
+  exception. It uses page-number pagination (`page`/`count`, 100 per page,
+  bounded by `paging.pages`).
+- **Rate limiting**: no client-side limiter is configured. The engine backs
+  off on 429 responses using `Retry-After`.
+- Every resource carries a `raw` remainder column preserving fields the
+  manifest does not project.

@@ -1,40 +1,164 @@
 ---
 title: "Writing a sink"
-description: "The Sink interface and how to implement it."
+description: "The Sink interface, the write lifecycle, and the integrity contract every Apply must honor"
 ---
+
+A sink is a Go type that lands batches of records in a destination. It
+implements one interface, honors one hard contract (return the correct
+write-side CRC), and lets the engine drive everything else, from batching and
+ordering to checkpoint persistence and commit/abort sequencing.
+
+## The Sink interface
 
 A sink implements `Sink`, defined in the repo's root `sink.go`:
 
 ```go
 type Sink interface {
-	Spec() SinkSpec
-	Open(ctx context.Context, run RunSpec) error
-	Apply(ctx context.Context, b Batch, opts ApplyOptions) (WriteReceipt, error)
-	Commit(ctx context.Context) error
-	Abort(ctx context.Context) error
-	Name() string
+    Spec() SinkSpec
+    Open(ctx context.Context, run RunSpec) error
+    Apply(ctx context.Context, b Batch, opts ApplyOptions) (WriteReceipt, error)
+    Commit(ctx context.Context) error
+    Abort(ctx context.Context) error
+    Name() string
 }
 ```
 
-- **`Spec`** is the sink's self-description — identity, config schema, and
-  capabilities (what powers the catalog, same as a source's `Spec`).
-- **`Open`** prepares the sink for one run.
-- **`Apply`** writes a `Batch` under an `ApplyOptions.Policy` (the write
-  policy governing that batch), returning a `WriteReceipt`.
-- **`Commit`** or **`Abort`** finalizes the run.
+- **`Spec`** returns the sink's self-description (identity, config schema, and
+  `SinkCapabilities`). It powers the catalog.
+- **`Open`** prepares the sink for one run by connecting, creating the
+  destination database or bucket layout, and sizing pools. `RunSpec` carries
+  the run's options, including `SnapshotParallelism`.
+- **`Apply`** writes one batch under a write policy and returns a receipt.
+- **`Commit`** finalizes the run, completing uploads, swapping staging tables,
+  performing the atomic publish, and closing connections.
+- **`Abort`** discards whatever a failed run staged.
+- **`Name`** returns the provider name used in facts and logs.
 
-`SinkSpec.SchemaField` names the pipeline-scoped config field that holds
-where output lands — a schema, namespace, database, or key prefix — so the
-server can default it from the source connection's normalized name.
+## Lifecycle
 
-## Optional capabilities
+The runner drives a sink in a fixed order:
 
-A sink can implement staged/transactional writes, key-based upserts, or
-typed DDL (materializing a resource's schema ahead of its records). See
-[Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces).
+1. `Open(ctx, spec)` once per run.
+2. If the sink is `Schematized`, `EnsureSchema(ctx, resource, schema)` per
+   resource before any data moves. This requires the source to be a
+   `SchemaProvider`. The pairing is validated up front, and the run fails
+   otherwise.
+3. `Apply(ctx, batch, opts)` per batch, for the duration of extraction.
+4. On success, `Commit`. If `Commit` fails, the run fails and `Abort` runs.
+5. On failure, `Abort`, with two qualifications. When the failure is
+   resumable (the run holds incremental or checkpointed progress), `Abort` is
+   skipped entirely so staged progress survives for the resume. And when it
+   does run, it runs on a context detached from the canceled run, bounded at
+   30 seconds. Write `Abort` to finish cleanup within that budget.
 
-## Registering it
+## What Apply receives
 
-Same pattern as a source: a `register.go` that registers with the engine,
-then a blank import wherever it should be available — see [Embedding as a
-library](/pages/guides/deployment/embedding-as-a-library).
+```go
+type Batch struct {
+    Tenant   TenantID
+    Run      RunID
+    Resource string
+    Seq      uint64
+    Records  []Record
+    ReadCRC  uint32
+    Part     int
+    Cursor   *CheckpointData
+    Drained  bool
+}
+```
+
+Each batch holds one resource's records in pipeline order, with a per
+`(resource, part)` monotonic `Seq`. Drained batches are checkpoint markers and
+never reach `Apply`.
+
+`ApplyOptions.Policy` is the per-resource `WritePolicy`:
+
+```go
+type WritePolicy struct {
+    Capability WritePolicyCapability // Mode, RequiresPK, RequiresOrder, AcceptsOps, Atomicity
+    Resource   string
+    Keys       []string
+    Version    VersionPolicy // Strategy insert_order|cursor, Field, Logical, Native
+    Checkpoint CheckpointPolicy
+}
+```
+
+`Capability.Mode` is the write mode to honor, one of `append`, `replace`,
+`upsert`, `delete`, or `merge` (CDC runs always bind merge). `Keys` are the
+resource's primary-key columns when the mode needs them. `Version` says how to
+resolve conflicting versions of a key on upsert, either insertion order or
+ordering by an incremental cursor field. Call
+`policy.ValidateRecords(resource, records)` at the top of `Apply`. It rejects
+the first record whose `Op` the capability does not accept.
+
+## The WriteCRC contract
+
+`Apply` returns a `WriteReceipt{URI, Bytes, Rows, WriteCRC, Checkpoint}`.
+
+`WriteCRC` must be `filament.CRC32C` computed over exactly the records the
+sink delivered. Same records, same order, same `ID`/`Op`/`Data` bytes. The
+pipeline's writer computes the read-side CRC over the batch immediately before
+`Apply` and compares it against the receipt after `Apply` returns. A mismatch
+publishes `batch.chunk_divergence` and fails the run fatally. The cheapest
+correct implementation hashes the batch it was handed:
+
+```go
+crc, _ := filament.CRC32C(b.Records)
+```
+
+A sink that reorders, filters, or transforms records before writing must still
+hash what it received — the CRC verifies delivery from source to sink, not the
+destination's on-disk form.
+
+`WriteReceipt.Checkpoint` is optional. When set, it replaces `Batch.Cursor` as
+the checkpoint delta carried on the `batch.written` fact. Most sinks leave it
+nil and let the source-side cursor stand.
+
+## Batch sizing and concurrency
+
+Batch size resolves as `RunOptions.BatchMaxRows`, else the sink's
+`Capabilities.PreferredBatchRows`, else the engine default of 256 rows, with a
+1-second flush ticker so trickling sources still make progress. Set
+`PreferredBatchRows` when your destination has a sweet spot (the MySQL sink
+prefers 4096, ClickHouse 10,000).
+
+When `RunSpec.Options.SnapshotParallelism` is greater than 1, `Apply` is
+called concurrently and must be safe for it. Size connection pools from that
+value in `Open`. Ordered runs (CDC, any incremental resource, any
+checkpointed resource) force parallelism to 1, so a sink can assume serial
+`Apply` calls exactly when ordering matters.
+
+## Capabilities and write policies
+
+`SinkCapabilities.WritePolicies` advertises which ingestion types the sink
+serves. Two fallbacks apply during planning. **Any sink implicitly passes
+`append` and `replace`** without advertising them, and `upsert` passes when
+`Capabilities.Upsertable` is true. Everything else must match an advertised
+policy. Note that `Upsertable` here is a planning flag. The engine never calls
+the optional `Upsert` method, and sinks implement upsert semantics inside
+`Apply` (see [Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces)).
+
+`SinkSpec.SchemaField` names the pipeline-scoped config field that holds the
+landing schema, namespace, database, or key prefix, so the server can default
+it from the source connection's normalized name.
+
+## Registration
+
+Same shape as a source (`register.go`, `init()`, blank import):
+
+```go
+func init() {
+    registry.RegisterSink("mysink", filament.MaturityAlpha, func() filament.Sink { return New() })
+}
+```
+
+`RegisterSink` panics on a nil factory, duplicate name, or invalid maturity.
+The maturity levels are `alpha` (documentation-derived, untested end-to-end),
+`beta` (ran end-to-end), and `stable` (production-ready).
+
+## A minimal sink
+
+`connectors/stdout` is the reference sink. Zero config, NDJSON to standard
+output, a manifest line on `Commit`. It shows the entire contract, including
+a correct `WriteCRC`, in one file. Pair it with the sample source for
+end-to-end wiring without external dependencies.

@@ -1,42 +1,114 @@
 ---
 title: "Optional interfaces"
-description: "The capabilities a source or sink can opt into beyond the base contract."
+description: "The capabilities a source or sink can opt into beyond the base contract"
 ---
 
-Beyond the base `Source` and `Sink` contracts, a connector can implement any
-number of optional interfaces. The engine detects them at runtime via type
-assertion — there's no registry to update.
+Beyond the base `Source` and `Sink` contracts, a connector opts into
+capabilities by implementing small optional interfaces. The engine detects
+them at run time via type assertion — there is no capability registry to
+update. Implement what your backend can genuinely deliver and nothing more.
+An unimplemented capability degrades gracefully (no resume, no discovery, no
+schema) rather than failing.
 
 ## Source capabilities
 
-| Interface | Adds |
-|---|---|
-| `Resumable` | Checkpointed extraction — `ExtractFrom` reads against a per-resource checkpoint plan instead of from scratch. See [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints). |
-| `ChangeSource` | CDC extraction — emits ordered changes from per-resource checkpoints instead of a full read. |
-| `ResourcePlanner` | Translates externally selected resources (selectors stay source-private) into the concrete resource names the engine uses for policy, schema, and checkpoint setup. |
-| `ResumePlanner` | Builds the initial per-resource checkpoint plan for a resumable run — shard layout plus any carried-over cursor. |
-| `Discoverable` | Lets the UI browse a source's available resources before a pipeline is configured. |
-| `RateLimited` | Declares the source's own extraction rate ceiling (`RatePolicy`: requests/sec and burst) rather than relying on a global default. |
-| `LiveValidatable` | Probes connectivity with a candidate config before any run uses it — powers a "Test Connection" button. |
-| `SchemaProvider` | Returns a single resource's column schema, scoped and lighter than `Discoverable`, so the engine can drive a `Schematized` sink's typed DDL. |
+| Interface | Method | What opting in enables |
+|---|---|---|
+| `Resumable` | `ExtractFrom(ctx, sink RecordSink, opts ExtractOpts, prev map[string]Checkpoint) error` | Checkpointed extraction: resume each resource from its cursor in `prev` |
+| `ChangeSource` | `ExtractChanges(ctx, sink RecordSink, opts ChangeExtractOpts) error` | CDC: emit ordered changes from per-resource checkpoints |
+| `ResourcePlanner` | `PlanResources(ctx, resources, selectors []string) ([]string, error)` | Resolve selected resources and selectors into concrete resource names |
+| `ResumePlanner` | `PlanResume(ctx, resources []string, prev map[string]Checkpoint) (map[string]Checkpoint, error)` | Build the initial per-resource plan for a resumable run |
+| `IncrementalPlanner` | `PlanIncremental(ctx, resources []string, prev map[string]Checkpoint, cursors map[string]ResourceCursorConfig) (map[string]Checkpoint, error)` | Build the durable cross-run plan for incremental reads |
+| `CursorColumnProvider` | `CursorColumns(ctx, resource string) ([]CursorColumn, error)` | Describe which columns can serve as durable incremental cursors |
+| `Discoverable` | `Discover(ctx, opts DiscoverOpts) (DiscoverResult, error)` | Browse the source's available resources before a pipeline exists |
+| `SchemaProvider` | `Schema(ctx, resource string) (RecordSchema, error)` | Report one resource's column schema |
+| `RateLimited` | `Limits() RatePolicy` | Declare the source's own extraction rate ceiling |
+| `ReplicationAware` | `Replication(cfg Config) ReplicationMode` | Report whether a config selects `standard` or `cdc` replication |
+
+The details behind those cells:
+
+- `Resumable` reads each resource from the cursor in `prev` instead of from
+  scratch, stamping `Record.Part` and `Record.Key` so progress persists. A
+  resource absent from `prev`, or mapped to nil, is read from the start.
+- `ChangeExtractOpts` carries `Resources`, `Checkpoints`, `Limit`, and
+  `Observe`.
+- `ResourcePlanner` translates externally selected resources and
+  source-private selectors into the concrete resource names the engine uses
+  for policy, schema, and checkpoint setup.
+- The `ResumePlanner` plan is shard layout plus carried-over cursor. The
+  engine persists it before extraction. A nil entry marks a resource
+  non-resumable (re-read whole on resume).
+- `IncrementalPlanner` builds from the previous watermark and the pipeline's
+  cursor configuration.
+- `CursorColumnProvider` also says which columns the connector recommends,
+  and powers cursor selection in the UI and `cursor`-strategy version
+  policies on upsert.
+- `Discover` returns names, selectors, primary keys, optional schemas, and
+  row estimates. `DiscoverOpts.Refresh` bypasses any cached catalog.
+- `SchemaProvider` schemas carry name, nullability, the `Logical` portable
+  type, and the `Native` exact type. The interface is required to feed a
+  `Schematized` sink.
+- `RatePolicy` carries `RequestsPerSecond` and `Burst`.
+- Sources without `ReplicationAware` are always standard. CDC ingestion
+  requires a connection that resolves to `cdc`.
+
+`CursorColumn` embeds `SchemaField` and adds the cursor annotations:
+
+```go
+type CursorColumn struct {
+    SchemaField
+    PrimaryKey       bool
+    Eligible         bool
+    Recommended      bool
+    Rank             int // connector-specific; lower positive values are better
+    Configurable     bool
+    SupportsLookback bool
+    Warning          string
+}
+```
+
+## Sources and sinks
+
+| Interface | Method | What opting in enables |
+|---|---|---|
+| `LiveValidatable` | `TestConnection(ctx, cfg Config) error` | Network probe of a candidate config. Powers connection testing. |
+| `ConfigValidatable` | `Validate(cfg Config) error` | Pure, connector-specific config validation |
+
+Both sources and sinks may implement either. `LiveValidatable` probes a config
+before any run uses it. `ConfigValidatable`, unlike `LiveValidatable`, must
+not touch the network, so the API path can call it safely while accepting
+connection settings.
 
 ## Sink capabilities
 
-| Interface | Adds |
-|---|---|
-| `Transactional` | Staged, atomic writes — `Stage` writes into a staging area, `Promote` makes it visible on success. |
-| `Upsertable` | Key-based merge writes via `Upsert`, instead of plain appends. |
-| `Schematized` | Typed DDL — `EnsureSchema` materializes a resource's schema before its records arrive. |
+| Interface | Method | What opting in enables |
+|---|---|---|
+| `Schematized` | `EnsureSchema(ctx, resource string, schema RecordSchema) error` | Typed DDL: the runner materializes each resource's schema before its records arrive. |
+| `Transactional` | `Stage(ctx) (StageID, error)` and `Promote(ctx, id StageID) error` | Declares staged, atomic run semantics. See the caveat below. |
+| `Upsertable` | `Upsert(ctx, b Batch, keys []string) (WriteReceipt, error)` | Declares key-based merge writes. See the caveat below. |
 
-A sink advertises which of these it supports via `SinkSpec.Capabilities`
-(`SinkCapabilities`), including its write-policy support and preferred batch
-size.
+A `Schematized` sink demands a schema-aware source. If the source does not
+implement `SchemaProvider`, the run fails before any data moves
+("sink %q requires a schema but source %q provides none"). Keep that pairing
+in mind when advertising `Schematized`.
 
-## The portable type system
+<Note>
+The engine does not currently drive `Transactional` or `Upsertable` as
+interfaces. No code calls `Stage`, `Promote`, or `Upsert`. What matters
+today are the `SinkCapabilities` booleans. `Capabilities.Upsertable` lets a
+sink pass upsert validation during planning (any sink passes append and
+replace implicitly), and sinks implement upsert semantics inside `Apply`
+under the bound `WritePolicy`. The Iceberg sink advertises `Transactional`,
+but its atomicity comes from doing all catalog I/O in its own `Commit`, not
+from the engine calling `Stage`/`Promote`.
+</Note>
 
-Schema-aware connectors (`SchemaProvider` sources, `Schematized` sinks)
-exchange columns as `LogicalType` — an engine-independent classification
-(`LogicalString`, `LogicalTimestamp`, `LogicalDecimal`, `LogicalArray`, …)
-defined in the repo's root `schema.go`. A source's native type maps to a
-`LogicalType` for cross-engine portability, while the exact native type is
-preserved separately for same-engine round-trips.
+## How capabilities interact with planning
+
+The interfaces above are behavior. The specs are advertisement. Planning
+matches a run's ingestion types against `ConnectorSpec.SourcePolicies` and
+`SinkSpec.Capabilities.WritePolicies`, resolves primary keys through
+`SchemaProvider` or `Discoverable` where a policy requires them, and binds
+version policies through `CursorColumnProvider`. A capability you implement
+but do not advertise (or vice versa) will surface as a planning error, so keep
+`Spec()` and the implemented interfaces in agreement.
