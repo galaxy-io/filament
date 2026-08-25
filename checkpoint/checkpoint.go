@@ -46,6 +46,7 @@ const (
 // sentinel fields.
 type DeltaKind uint8
 
+// Supported checkpoint delta kinds.
 const (
 	DeltaUnknown DeltaKind = iota
 	DeltaShard

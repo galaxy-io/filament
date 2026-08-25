@@ -455,13 +455,9 @@ func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
 }
 
 // saveCheckpoint persists attempt-local progress. Cross-run incremental and CDC
-// progress remains tentative until the sink commits and commitCheckpoint promotes it.
+// progress remains tentative until flushRun promotes it after the sink commits.
 func (m *Module) saveCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
 	return m.persistCheckpoint(ctx, run, cp, false)
-}
-
-func (m *Module) commitCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
-	return m.persistCheckpoint(ctx, run, cp, true)
 }
 
 func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint, committed bool) error {
