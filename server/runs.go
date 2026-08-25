@@ -12,6 +12,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
+	runcommands "github.com/galaxy-io/filament/internal/runs"
 )
 
 // ListRuns returns runs matching the request's tenant, pipeline, version,
@@ -77,12 +78,51 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: runInfoToProto(state), Resources: resources}}), nil
 }
 
-// SignalRun rejects the request; run signals are not configured in this binary.
-func (a *Server) SignalRun(_ context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
+// SignalRun validates transport concerns and delegates lifecycle policy to the
+// shared run command layer.
+func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
 	if req.Msg.GetRunId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
 	}
-	return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("run signals are not configured in this ingestion binary"))
+	if a.bus == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
+	}
+	transitions, ok := a.store.(filament.RunTransitionStore)
+	if !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
+	}
+	run := filament.RunID(req.Msg.GetRunId())
+	state, err := a.store.LoadRun(ctx, run)
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if tenant := req.Msg.GetTenantId(); tenant != "" && tenant != string(state.Tenant) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("run %q was not found for tenant", run))
+	}
+	signal, err := runSignalFromProto(req.Msg.GetSignal())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := runcommands.Signal(ctx, a.bus, transitions, state, signal); err != nil {
+		return nil, signalRunError(err)
+	}
+	return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
+}
+
+func signalRunError(err error) error {
+	switch {
+	case errors.Is(err, runcommands.ErrWorkerControlUnavailable),
+		errors.Is(err, runcommands.ErrSignalTransition),
+		errors.Is(err, filament.ErrVersionConflict):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, runcommands.ErrSignalPublish):
+		return connect.NewError(connect.CodeUnavailable, err)
+	default:
+		return connect.NewError(connect.CodeInternal, err)
+	}
 }
 
 // TailRun streams run progress facts to the client, optionally replaying

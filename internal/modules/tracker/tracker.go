@@ -144,6 +144,16 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 			r.Error = d.Error
 		})
 
+	case events.RunCanceledEvent:
+		return m.terminal(ctx, env, "canceled", func(r *filament.RunState) {
+			r.Status = filament.RunCanceled
+		})
+
+	case events.RunPausedEvent:
+		return m.terminal(ctx, env, "paused", func(r *filament.RunState) {
+			r.Status = filament.RunPaused
+		})
+
 	case events.ResourceStartedEvent:
 		return m.mutate(ctx, env, func(r *filament.RunState) {
 			rs := resourceRef(r, env.Resource)
