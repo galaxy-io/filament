@@ -16,16 +16,15 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-const snapshotDatabase = "migrated_template"
-
 // PG is an ephemeral Postgres container plus a live pgx pool. Snapshot/Restore
 // give per-test isolation WITHOUT re-seeding: seed once, snap, then Restore
 // between tests — a filesystem-speed CREATE DATABASE … TEMPLATE, not a
 // row-by-row reload.
 type PG struct {
-	Container *postgres.PostgresContainer
-	dsn       string
-	pool      *pgxpool.Pool
+	Container    *postgres.PostgresContainer
+	dsn          string
+	snapshotName string
+	pool         *pgxpool.Pool
 }
 
 // PGOption configures the Postgres container.
@@ -100,7 +99,11 @@ func startPostgres(t testing.TB, opts ...PGOption) *PG {
 	if err != nil {
 		t.Fatalf("connection string: %v", err)
 	}
-	return &PG{Container: ctr, dsn: dsn}
+	return &PG{
+		Container:    ctr,
+		dsn:          dsn,
+		snapshotName: cfg.database + "_filament_snapshot",
+	}
 }
 
 // Pool returns the current live pool. Always re-read after Restore.
@@ -114,7 +117,7 @@ func (p *PG) DSN() string { return p.dsn }
 // call Pool() again afterward. Safe to call from non-test contexts (e.g. CLI).
 func (p *PG) SnapshotCtx(ctx context.Context) error {
 	p.pool.Close()
-	if err := p.Container.Snapshot(ctx); err != nil {
+	if err := p.Container.Snapshot(ctx, postgres.WithSnapshotName(p.snapshotName)); err != nil {
 		return fmt.Errorf("snapshot: %w", err)
 	}
 	pool, err := pgxpool.New(ctx, p.dsn)
@@ -160,7 +163,7 @@ func (p *PG) restoreDatabase(ctx context.Context) error {
 	}
 	defer func() { _ = conn.Close(ctx) }()
 
-	if _, err := conn.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname IN ($1, $2) AND pid <> pg_backend_pid()`, database, snapshotDatabase); err != nil {
+	if _, err := conn.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname IN ($1, $2) AND pid <> pg_backend_pid()`, database, p.snapshotName); err != nil {
 		return fmt.Errorf("terminate database connections: %w", err)
 	}
 	if _, err := conn.Exec(ctx, "DROP DATABASE IF EXISTS "+pgx.Identifier{database}.Sanitize()+" WITH (FORCE)"); err != nil {
@@ -186,7 +189,7 @@ func (p *PG) restoreDatabase(ctx context.Context) error {
 		}
 	}
 
-	_, err = conn.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{database}.Sanitize()+" WITH TEMPLATE "+pgx.Identifier{snapshotDatabase}.Sanitize()+" OWNER "+pgx.Identifier{cfg.User}.Sanitize())
+	_, err = conn.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{database}.Sanitize()+" WITH TEMPLATE "+pgx.Identifier{p.snapshotName}.Sanitize()+" OWNER "+pgx.Identifier{cfg.User}.Sanitize())
 	if err != nil {
 		return fmt.Errorf("create database from snapshot: %w", err)
 	}
