@@ -29,6 +29,7 @@ type signalCommand struct {
 	resetExecution bool
 	publish        bool
 	transition     bool
+	worker         bool
 	err            error
 }
 
@@ -44,7 +45,7 @@ var signalCommands = map[signalKey]signalCommand{
 	},
 	{filament.SignalPause, filament.RunPaused}: {},
 	{filament.SignalPause, filament.RunRunning}: {
-		err: fmt.Errorf("%w: pause requires a cooperative drain barrier", ErrWorkerControlUnavailable),
+		publish: true, worker: true,
 	},
 	{filament.SignalResume, filament.RunRequested}: {publish: true}, // repair dispatch
 	{filament.SignalResume, filament.RunPaused}: {
@@ -69,7 +70,7 @@ var signalCommands = map[signalKey]signalCommand{
 	},
 	{filament.SignalCancel, filament.RunCanceled}: {},
 	{filament.SignalCancel, filament.RunRunning}: {
-		err: fmt.Errorf("%w: cancel requires a cooperative stop barrier", ErrWorkerControlUnavailable),
+		publish: true, worker: true,
 	},
 }
 
@@ -100,7 +101,7 @@ func Signal(
 	if !command.publish {
 		return nil
 	}
-	fact := signalFact(state, signal)
+	fact := signalFact(state, signal, command.worker)
 	if err := events.Publish(ctx, bus, fact); err != nil {
 		return fmt.Errorf("%w: %v", ErrSignalPublish, err)
 	}
@@ -115,14 +116,20 @@ func planSignal(status filament.RunStatus, signal filament.Signal) (signalComman
 	return command, command.err
 }
 
-func signalFact(state filament.RunState, signal filament.Signal) events.Fact {
+func signalFact(state filament.RunState, signal filament.Signal, worker bool) events.Fact {
 	env := events.Envelope{Tenant: state.Tenant, Run: state.Run, At: time.Now()}
 	switch signal {
 	case filament.SignalPause:
+		if worker {
+			return events.NewFact(events.RunPauseRequested, env, events.RunPauseRequestedEvent{})
+		}
 		return events.NewFact(events.RunPaused, env, events.RunPausedEvent{})
 	case filament.SignalResume:
 		return events.NewFact(events.RunRequested, env, events.RunRequestedEvent{})
 	case filament.SignalCancel:
+		if worker {
+			return events.NewFact(events.RunCancelRequested, env, events.RunCancelRequestedEvent{})
+		}
 		return events.NewFact(events.RunCanceled, env, events.RunCanceledEvent{})
 	default:
 		panic("runs: signalFact called with invalid signal")
