@@ -6,6 +6,8 @@ Thanks for helping improve Filament. This guide explains how to set up the proje
 
 For a bug fix, open or link an issue that explains what happened and what you expected. For a large feature or architectural change, open a feature request before you start. This gives us time to agree on the approach.
 
+By participating, you agree to follow our [Code of Conduct](../CODE_OF_CONDUCT.md).
+
 Do not include credentials, customer data, production connection strings, or other secrets in issues, tests, fixtures, logs, or commits.
 
 ## Development setup
