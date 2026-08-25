@@ -16,8 +16,8 @@ FROM run_resource_states WHERE run_id = @run_id ORDER BY resource_name;
 -- name: ResetRunResources :exec
 UPDATE run_resource_states SET
     status = @status,
-    records = 0,
-    bytes = 0,
+    records = CASE WHEN @preserve_progress::boolean THEN records ELSE 0 END,
+    bytes = CASE WHEN @preserve_progress::boolean THEN bytes ELSE 0 END,
     error = NULL,
     updated_at = now()
 WHERE run_id = @run_id;

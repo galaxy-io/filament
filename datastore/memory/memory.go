@@ -200,9 +200,15 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 }
 
 // TransitionRun atomically changes a run when its current status is admitted.
-// Resume resets attempt-local lifecycle and counters while preserving the
-// request and run-scoped checkpoints used to continue extraction.
-func (s *Store) TransitionRun(ctx context.Context, id filament.RunID, from []filament.RunStatus, to filament.RunStatus, resetExecution bool) (filament.RunState, error) {
+// Resume resets attempt-local lifecycle while optionally preserving counters
+// whose sink output and source checkpoints survive into the next attempt.
+func (s *Store) TransitionRun(
+	ctx context.Context,
+	id filament.RunID,
+	from []filament.RunStatus,
+	to filament.RunStatus,
+	opts filament.RunTransitionOptions,
+) (filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.RunState{}, err
 	}
@@ -217,19 +223,23 @@ func (s *Store) TransitionRun(ctx context.Context, id filament.RunID, from []fil
 	}
 	state.Status = to
 	state.UpdatedAt = time.Now()
-	if resetExecution {
+	if opts.ResetExecution {
 		state.RequestedAt = time.Now()
 		state.StartedAt = time.Time{}
 		state.EndedAt = nil
 		state.Error = ""
-		state.Records = 0
-		state.Bytes = 0
+		if !opts.PreserveProgress {
+			state.Records = 0
+			state.Bytes = 0
+		}
 		state.CPUSeconds = 0
 		state.MemoryPeakBytes = 0
 		for resource, rs := range s.resources[id] {
 			rs.Status = filament.RunRequested
-			rs.Records = 0
-			rs.Bytes = 0
+			if !opts.PreserveProgress {
+				rs.Records = 0
+				rs.Bytes = 0
+			}
 			rs.Error = ""
 			s.resources[id][resource] = rs
 		}

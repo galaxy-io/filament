@@ -102,7 +102,13 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 
 // TransitionRun serializes lifecycle commands on the run row and updates it
 // only when the current status belongs to from.
-func (s *Store) TransitionRun(ctx context.Context, id filament.RunID, from []filament.RunStatus, to filament.RunStatus, resetExecution bool) (filament.RunState, error) {
+func (s *Store) TransitionRun(
+	ctx context.Context,
+	id filament.RunID,
+	from []filament.RunStatus,
+	to filament.RunStatus,
+	opts filament.RunTransitionOptions,
+) (filament.RunState, error) {
 	status, err := runStatusValue(to)
 	if err != nil {
 		return filament.RunState{}, err
@@ -123,11 +129,15 @@ func (s *Store) TransitionRun(ctx context.Context, id filament.RunID, from []fil
 	if !slices.Contains(from, filament.RunStatus(current)) {
 		return filament.RunState{}, fmt.Errorf("transition run %q from status %d: %w", id, current, filament.ErrVersionConflict)
 	}
-	if resetExecution {
-		if err := q.ResetRunExecution(ctx, sqlcgen.ResetRunExecutionParams{RunID: string(id), Status: status}); err != nil {
+	if opts.ResetExecution {
+		if err := q.ResetRunExecution(ctx, sqlcgen.ResetRunExecutionParams{
+			RunID: string(id), Status: status, PreserveProgress: opts.PreserveProgress,
+		}); err != nil {
 			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset run transition: %w", err)
 		}
-		if err := q.ResetRunResources(ctx, sqlcgen.ResetRunResourcesParams{RunID: string(id), Status: int16(filament.RunRequested)}); err != nil {
+		if err := q.ResetRunResources(ctx, sqlcgen.ResetRunResourcesParams{
+			RunID: string(id), Status: int16(filament.RunRequested), PreserveProgress: opts.PreserveProgress,
+		}); err != nil {
 			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset resource transition: %w", err)
 		}
 	} else {

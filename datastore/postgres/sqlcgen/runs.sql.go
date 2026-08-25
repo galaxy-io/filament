@@ -171,8 +171,8 @@ func (q *Queries) LockRunStatus(ctx context.Context, runID string) (int16, error
 const resetRunExecution = `-- name: ResetRunExecution :exec
 UPDATE runs SET
     status = $1,
-    records = 0,
-    bytes = 0,
+    records = CASE WHEN $2::boolean THEN records ELSE 0 END,
+    bytes = CASE WHEN $2::boolean THEN bytes ELSE 0 END,
     cpu_seconds = 0,
     memory_peak_bytes = 0,
     requested_at = now(),
@@ -180,16 +180,17 @@ UPDATE runs SET
     ended_at = NULL,
     error = NULL,
     updated_at = now()
-WHERE id = $2
+WHERE id = $3
 `
 
 type ResetRunExecutionParams struct {
-	Status int16
-	RunID  string
+	Status           int16
+	PreserveProgress bool
+	RunID            string
 }
 
 func (q *Queries) ResetRunExecution(ctx context.Context, arg ResetRunExecutionParams) error {
-	_, err := q.db.Exec(ctx, resetRunExecution, arg.Status, arg.RunID)
+	_, err := q.db.Exec(ctx, resetRunExecution, arg.Status, arg.PreserveProgress, arg.RunID)
 	return err
 }
 

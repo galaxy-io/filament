@@ -60,8 +60,8 @@ UPDATE runs SET status = @status, updated_at = now() WHERE id = @run_id;
 -- name: ResetRunExecution :exec
 UPDATE runs SET
     status = @status,
-    records = 0,
-    bytes = 0,
+    records = CASE WHEN @preserve_progress::boolean THEN records ELSE 0 END,
+    bytes = CASE WHEN @preserve_progress::boolean THEN bytes ELSE 0 END,
     cpu_seconds = 0,
     memory_peak_bytes = 0,
     requested_at = now(),

@@ -88,7 +88,11 @@ func Signal(
 		return err
 	}
 	if command.transition {
-		state, err = store.TransitionRun(ctx, state.Run, command.from, command.to, command.resetExecution)
+		preserveProgress := command.resetExecution && state.Status == filament.RunPaused &&
+			filament.CheckpointCoverageFor(state.Request.Resources, state.Request.IngestionTypes) == filament.CheckpointCoverageAll
+		state, err = store.TransitionRun(ctx, state.Run, command.from, command.to, filament.RunTransitionOptions{
+			ResetExecution: command.resetExecution, PreserveProgress: preserveProgress,
+		})
 		if err != nil {
 			return err
 		}

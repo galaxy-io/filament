@@ -55,20 +55,21 @@ func (q *Queries) ListResources(ctx context.Context, runID string) ([]*ListResou
 const resetRunResources = `-- name: ResetRunResources :exec
 UPDATE run_resource_states SET
     status = $1,
-    records = 0,
-    bytes = 0,
+    records = CASE WHEN $2::boolean THEN records ELSE 0 END,
+    bytes = CASE WHEN $2::boolean THEN bytes ELSE 0 END,
     error = NULL,
     updated_at = now()
-WHERE run_id = $2
+WHERE run_id = $3
 `
 
 type ResetRunResourcesParams struct {
-	Status int16
-	RunID  string
+	Status           int16
+	PreserveProgress bool
+	RunID            string
 }
 
 func (q *Queries) ResetRunResources(ctx context.Context, arg ResetRunResourcesParams) error {
-	_, err := q.db.Exec(ctx, resetRunResources, arg.Status, arg.RunID)
+	_, err := q.db.Exec(ctx, resetRunResources, arg.Status, arg.PreserveProgress, arg.RunID)
 	return err
 }
 
