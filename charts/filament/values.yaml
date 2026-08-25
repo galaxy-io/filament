@@ -118,6 +118,12 @@ controlPlane:
     # ConfigMap as `HEALTH_ADDR` and used for the container port and probes.
     port: 8081
 
+  reaper:
+    # -- How often the reaper sweeps for zombie runs, in seconds. Empty uses the binary default (60).
+    intervalSeconds: ""
+    # -- How long a Running run may go without a heartbeat write before the reaper fails it, in seconds. Empty uses the binary default (300).
+    staleAfterSeconds: ""
+
   dispatch:
     # -- Worker dispatch backend.
     mode: kubernetes

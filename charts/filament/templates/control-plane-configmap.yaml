@@ -19,6 +19,14 @@ data:
   # Health
   HEALTH_ADDR: ":{{ .Values.controlPlane.health.port }}"
 
+  # Reaper
+  {{- with .Values.controlPlane.reaper.intervalSeconds }}
+  REAPER_INTERVAL_SECONDS: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.controlPlane.reaper.staleAfterSeconds }}
+  REAPER_STALE_AFTER_SECONDS: {{ . | quote }}
+  {{- end }}
+
   # Observability
   {{- with .Values.observability.otel.endpoint }}
   OTEL_SERVICE_NAME: {{ include "filament.controlPlane.fullname" $ | quote }}

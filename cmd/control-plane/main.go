@@ -16,8 +16,10 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
+	"github.com/galaxy-io/filament/internal/modules/reaper"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
+	"github.com/galaxy-io/filament/module"
 
 	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
@@ -78,7 +80,18 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("datastore %q does not support schedules", deps.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	h, err := boot.Mount(ctx, deps, bus, tracker.New(), dispatcher, sched)
+	mods := []module.Module{tracker.New(), dispatcher, sched}
+	// The reaper mounts only under kubernetes dispatch: staleness means death
+	// only where heartbeats exist, and inproc runs don't emit them. The Alive
+	// probe holds kills for workers that are up but silent.
+	var reap *reaper.Module
+	if alive, ok := dispatcher.(interface {
+		Alive(context.Context, filament.RunID) (bool, error)
+	}); ok {
+		reap = reaper.NewFromEnv(reaper.WithAliveCheck(alive.Alive))
+		mods = append(mods, reap)
+	}
+	h, err := boot.Mount(ctx, deps, bus, mods...)
 	if err != nil {
 		return err
 	}
@@ -86,6 +99,9 @@ func run(ctx context.Context) error {
 		_ = h.Close()
 	}()
 	sched.Start(ctx)
+	if reap != nil {
+		reap.Start(ctx)
+	}
 	for _, name := range h.Mounted() {
 		fmt.Println("mounted:", name)
 	}

@@ -23,7 +23,7 @@ jobs:
           GOOS: linux
         run: cd cmd && go build ./...
 
-  test:
+  unit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,3 +37,23 @@ jobs:
 
       - name: Test
         run: just test
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/go.sum"
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Install duckdb
+        run: |
+          curl -fsSL -o /tmp/duckdb.zip https://github.com/duckdb/duckdb/releases/download/v1.4.1/duckdb_cli-linux-amd64.zip
+          unzip -d /usr/local/bin /tmp/duckdb.zip duckdb
+
+      - name: Integration test
+        run: just test-integration
