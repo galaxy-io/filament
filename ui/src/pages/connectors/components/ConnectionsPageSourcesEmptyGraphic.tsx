@@ -55,10 +55,6 @@ const Slot = withTheme(styled.div<PropsWithTheme<{ $isLive: boolean; $isFilled: 
       opacity: 1;
     }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
 `);
 
 const ConnectionsPageSourcesEmptyGraphic = () => {

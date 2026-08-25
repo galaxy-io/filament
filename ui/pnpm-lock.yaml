@@ -24,8 +24,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.2(@bufbuild/protobuf@2.12.1)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.1))
       '@galaxy-io/dls':
-        specifier: ^1.5.7
-        version: 1.5.7(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
+        specifier: ^1.5.10
+        version: 1.5.10(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
       '@linaria/core':
         specifier: ^7.0.0
         version: 7.0.0
@@ -521,8 +521,8 @@ packages:
   '@emotion/memoize@0.9.0':
     resolution: {integrity: sha512-30FAj7/EoJ5mwVPOWhAyCX+FPfMDrVecJAM+Iw9NRoSl4BBAQeqj4cApHHUXOVvIPgLVDsCFoz/hGD+5QQD1GQ==}
 
-  '@galaxy-io/dls@1.5.7':
-    resolution: {integrity: sha512-dAJ5KQlCS6rD6E4yJchYReFa2niu7B79ZUo6wRd8pp/QAyYNcOkhQmzorQtgJflddRfnoXv5kSyDxHu6UZ7gyw==}
+  '@galaxy-io/dls@1.5.10':
+    resolution: {integrity: sha512-xTdNWPpcLjQZjqqsGcFzf2mW7+SbARhUyPAlGXFVoKXOhHnRY35bKqiwUcafug0QZvBzujRuLETrHjijL+q5sA==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-three/drei': '9'
@@ -3135,7 +3135,7 @@ snapshots:
 
   '@emotion/memoize@0.9.0': {}
 
-  '@galaxy-io/dls@1.5.7(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)':
+  '@galaxy-io/dls@1.5.10(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)':
     dependencies:
       '@callstack/react-theme-provider': 3.0.9(react@18.3.1)
       '@codemirror/autocomplete': 6.20.3
