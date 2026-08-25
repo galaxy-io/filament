@@ -1,10 +1,16 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { PlayIcon } from "@phosphor-icons/react";
+import { PlayIcon, WarningIcon } from "@phosphor-icons/react";
 
+import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { FlexDirection, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
+import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import FlexWrapper, {
+  AlignItems,
+  FlexDirection,
+  JustifyContent,
+} from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { type PropsWithTheme, withTheme } from "@galaxy-io/dls/theme";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
@@ -66,21 +72,35 @@ const PipelineLayoutNavbarRunButton = ({
         contentWhenDropdown={({ close }) => (
           <PipelineLayoutNavbarRunButtonDropdown>
             <FlexWrapper padding="12px">
-              <BaseHeader title="Run configuration" size={BaseHeaderSize.SMALL} />
+              <BaseHeader title="Custom run configuration" size={BaseHeaderSize.SMALL} />
             </FlexWrapper>
             <HorizontalDivider />
             <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="12px">
-              <PipelineWorkerConfigurationEditor
-                value={state.workerConfiguration}
-                onChange={(value) => setState((prev) => ({ ...prev, workerConfiguration: value }))}
-                error={parsed.error}
-                help="Applied to the Kubernetes Job for this run only"
-              />
+              <Accordion header="Worker configuration" isOpenInitial>
+                <PipelineWorkerConfigurationEditor
+                  value={state.workerConfiguration}
+                  onChange={(value) =>
+                    setState((prev) => ({ ...prev, workerConfiguration: value }))
+                  }
+                  help="Applied to the Kubernetes Job for this run only"
+                />
+              </Accordion>
             </FlexWrapper>
             <HorizontalDivider />
-            <FlexWrapper justifyContent={JustifyContent.END} fillWidth padding="8px 12px">
+            <FlexWrapper
+              alignItems={AlignItems.CENTER}
+              justifyContent={JustifyContent.END}
+              gap={8}
+              fillWidth
+              padding="8px 12px"
+            >
+              {parsed.error && (
+                <Tooltip body={parsed.error} position={TooltipPosition.TOP}>
+                  <Chip label="Invalid" icon={WarningIcon} variant={ChipVariant.ERROR} />
+                </Tooltip>
+              )}
               <Button
-                label="Run"
+                label="Run custom"
                 icon={PlayIcon}
                 variant={ButtonVariant.PRIMARY}
                 size={ButtonSize.SMALL}
