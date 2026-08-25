@@ -5,14 +5,10 @@ import { match } from "ts-pattern";
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
 import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/charts/ProgressBar";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
