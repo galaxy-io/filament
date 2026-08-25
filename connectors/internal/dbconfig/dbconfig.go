@@ -45,7 +45,7 @@ func MethodConfigField() filament.ConfigField {
 	return filament.ConfigField{
 		Name: MethodField, Type: filament.FieldEnum, Default: MethodFields,
 		Enum: []filament.EnumOption{
-			{Value: MethodFields, Label: "Details"},
+			{Value: MethodFields, Label: "Fields"},
 			{Value: MethodURL, Label: "URL"},
 		},
 		Scope: filament.ScopeConnection,

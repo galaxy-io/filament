@@ -45,3 +45,11 @@ func (c *client) createJob(ctx context.Context, namespace string, j *batchv1.Job
 	}
 	return nil
 }
+
+func (c *client) listJobs(ctx context.Context, namespace, selector string) ([]batchv1.Job, error) {
+	list, err := c.clientset.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return nil, fmt.Errorf("k8sdispatch: list jobs in %q: %w", namespace, err)
+	}
+	return list.Items, nil
+}

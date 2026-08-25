@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
@@ -49,9 +50,20 @@ func WithImage(img string) PGOption { return func(c *pgConfig) { c.image = img }
 // WithLogicalReplication starts PostgreSQL with wal_level=logical for CDC tests.
 func WithLogicalReplication() PGOption { return func(c *pgConfig) { c.logical = true } }
 
-// Postgres starts a Postgres container, opens a pool, and registers cleanup.
+// Postgres starts an exclusive Postgres container, opens a pool, and registers
+// cleanup. For the suite-wide instance use SharedPostgres.
 // The pool is owned by PG — read it via Pool(); do not cache across Restore.
 func Postgres(t testing.TB, opts ...PGOption) *PG {
+	t.Helper()
+	pg := startPostgres(t, opts...)
+	t.Cleanup(func() { _ = testcontainers.TerminateContainer(pg.Container) })
+	pg.openPool(t)
+	return pg
+}
+
+// startPostgres boots the container with no test-scoped cleanup and no pool:
+// shared instances outlive any one test and are reaped at process exit.
+func startPostgres(t testing.TB, opts ...PGOption) *PG {
 	t.Helper()
 	cfg := &pgConfig{database: "test", username: "test", password: "test"}
 	for _, o := range opts {
@@ -77,16 +89,12 @@ func Postgres(t testing.TB, opts ...PGOption) *PG {
 	if err != nil {
 		t.Fatalf("start postgres container: %v", err)
 	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(ctr) })
 
 	dsn, err := ctr.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		t.Fatalf("connection string: %v", err)
 	}
-
-	pg := &PG{Container: ctr, dsn: dsn}
-	pg.openPool(t)
-	return pg
+	return &PG{Container: ctr, dsn: dsn}
 }
 
 // Pool returns the current live pool. Always re-read after Restore.
@@ -150,10 +158,49 @@ func (p *PG) Restore(t testing.TB) {
 
 func (p *PG) openPool(t testing.TB) {
 	t.Helper()
+	if err := p.connect(); err != nil {
+		t.Fatalf("%v", err)
+	}
+	t.Cleanup(p.pool.Close)
+}
+
+func (p *PG) connect() error {
 	pool, err := pgxpool.New(context.Background(), p.dsn)
 	if err != nil {
-		t.Fatalf("open pool: %v", err)
+		return fmt.Errorf("open pool: %w", err)
 	}
-	t.Cleanup(pool.Close)
 	p.pool = pool
+	return nil
+}
+
+// Wipe returns the database to the pristine snapshot. Replication slots live
+// at the cluster level and block the restore's DROP DATABASE, so any left by
+// a CDC test are dropped first, along with lingering connections.
+func (p *PG) Wipe(t testing.TB) {
+	t.Helper()
+	ctx := context.Background()
+	if err := p.dropReplicationSlots(ctx); err != nil {
+		t.Fatalf("wipe: %v", err)
+	}
+	if _, err := p.pool.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()`); err != nil {
+		t.Fatalf("wipe: terminate connections: %v", err)
+	}
+	if err := p.RestoreCtx(ctx); err != nil {
+		t.Fatalf("wipe: %v", err)
+	}
+}
+
+func (p *PG) dropReplicationSlots(ctx context.Context) error {
+	for attempt := 0; ; attempt++ {
+		_, err := p.pool.Exec(ctx, `SELECT pg_drop_replication_slot(slot_name) FROM pg_replication_slots`)
+		if err == nil {
+			return nil
+		}
+		if attempt >= 4 {
+			return fmt.Errorf("drop replication slots: %w", err)
+		}
+		// An active slot can't be dropped; kill its backend and retry.
+		_, _ = p.pool.Exec(ctx, `SELECT pg_terminate_backend(active_pid) FROM pg_replication_slots WHERE active_pid IS NOT NULL`)
+		time.Sleep(200 * time.Millisecond)
+	}
 }

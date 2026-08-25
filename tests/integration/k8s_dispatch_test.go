@@ -23,7 +23,7 @@ import (
 // It asserts the Job spec the control plane hands the cluster, which is the
 // entire contract between dispatch and the worker.
 func TestK8sDispatchCreatesWorkerJob(t *testing.T) {
-	cluster := testcontainers.K3sCluster(t)
+	cluster := testcontainers.SharedK3s(t)
 	ctx := context.Background()
 
 	const (
@@ -110,7 +110,7 @@ func TestK8sDispatchCreatesWorkerJob(t *testing.T) {
 // the same run.requested fact can arrive twice. Creating the Job again must not
 // fail the handler, or the consumer naks forever.
 func TestK8sDispatchIsIdempotent(t *testing.T) {
-	cluster := testcontainers.K3sCluster(t)
+	cluster := testcontainers.SharedK3s(t)
 	ctx := context.Background()
 
 	dispatcher := k8s.New(k8s.Config{
