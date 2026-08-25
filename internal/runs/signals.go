@@ -12,9 +12,6 @@ import (
 )
 
 var (
-	// ErrWorkerControlUnavailable means the command needs a cooperative worker
-	// drain/stop acknowledgement that is not implemented yet.
-	ErrWorkerControlUnavailable = errors.New("running worker control is unavailable")
 	// ErrSignalTransition means the command is not admitted from the run's
 	// current lifecycle state.
 	ErrSignalTransition = errors.New("run signal is not valid from the current status")
@@ -31,6 +28,11 @@ type signalCommand struct {
 	transition     bool
 	worker         bool
 	err            error
+}
+
+// SignalResult describes work that remains after a command is published.
+type SignalResult struct {
+	WorkerAcknowledgement bool
 }
 
 type signalKey struct {
@@ -83,10 +85,14 @@ func Signal(
 	store filament.RunTransitionStore,
 	state filament.RunState,
 	signal filament.Signal,
-) error {
+) (SignalResult, error) {
 	command, err := planSignal(state.Status, signal)
 	if err != nil {
-		return err
+		return SignalResult{}, err
+	}
+	if command.worker && signal == filament.SignalPause &&
+		filament.CheckpointCoverageFor(state.Request.Resources, state.Request.IngestionTypes) == filament.CheckpointCoverageSome {
+		return SignalResult{}, fmt.Errorf("%w: pause requires either all or no resources to be checkpointable", ErrSignalTransition)
 	}
 	if command.transition {
 		preserveProgress := command.resetExecution && state.Status == filament.RunPaused &&
@@ -95,17 +101,17 @@ func Signal(
 			ResetExecution: command.resetExecution, PreserveProgress: preserveProgress,
 		})
 		if err != nil {
-			return err
+			return SignalResult{}, err
 		}
 	}
 	if !command.publish {
-		return nil
+		return SignalResult{WorkerAcknowledgement: command.worker}, nil
 	}
 	fact := signalFact(state, signal, command.worker)
 	if err := events.Publish(ctx, bus, fact); err != nil {
-		return fmt.Errorf("%w: %v", ErrSignalPublish, err)
+		return SignalResult{}, fmt.Errorf("%w: %v", ErrSignalPublish, err)
 	}
-	return nil
+	return SignalResult{WorkerAcknowledgement: command.worker}, nil
 }
 
 func planSignal(status filament.RunStatus, signal filament.Signal) (signalCommand, error) {

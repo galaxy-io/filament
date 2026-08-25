@@ -11,7 +11,9 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
+	"github.com/galaxy-io/filament/events"
 )
 
 type loadRunErrorStore struct {
@@ -65,21 +67,117 @@ func TestSignalRunPauseResumeAndCancelStateMachine(t *testing.T) {
 	}
 }
 
-func TestSignalRunRejectsUnsafeRunningWorkerCommands(t *testing.T) {
+func TestSignalRunPublishesRunningWorkerCommands(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-1", Tenant: "tenant-1", Status: filament.RunRunning}); err != nil {
 		t.Fatal(err)
 	}
-	api := &Server{store: store, bus: inproc.New()}
-	for _, signal := range []ingestionv1.RunSignal{
-		ingestionv1.RunSignal_RUN_SIGNAL_PAUSE,
-		ingestionv1.RunSignal_RUN_SIGNAL_CANCEL,
-	} {
-		_, err := api.SignalRun(ctx, connect.NewRequest(&ingestionv1.SignalRunRequest{RunId: "run-1", Signal: signal}))
-		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
-			t.Fatalf("signal %v error = %v, want failed precondition", signal, err)
+	bus := inproc.New()
+	sub, err := bus.Subscribe("ingestion.v1.run.tenant-1.run-1.*", eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close() }()
+	api := &Server{store: store, bus: bus}
+	setStatus := func(status filament.RunStatus) error {
+		state, err := store.LoadRun(ctx, "run-1")
+		if err != nil {
+			return err
 		}
+		state.Status = status
+		return store.SaveRun(ctx, state)
+	}
+	for _, test := range []struct {
+		signal ingestionv1.RunSignal
+		want   string
+		ack    func() error
+	}{
+		{ingestionv1.RunSignal_RUN_SIGNAL_PAUSE, "run.pause_requested", func() error {
+			if err := setStatus(filament.RunPaused); err != nil {
+				return err
+			}
+			return events.Emit(ctx, bus, events.RunPaused, events.Envelope{
+				Tenant: "tenant-1", Run: "run-1", At: time.Now(),
+			}, events.RunPausedEvent{})
+		}},
+		{ingestionv1.RunSignal_RUN_SIGNAL_CANCEL, "run.cancel_requested", func() error {
+			if err := setStatus(filament.RunCanceled); err != nil {
+				return err
+			}
+			return events.Emit(ctx, bus, events.RunCanceled, events.Envelope{
+				Tenant: "tenant-1", Run: "run-1", At: time.Now(),
+			}, events.RunCanceledEvent{})
+		}},
+	} {
+		if err := setStatus(filament.RunRunning); err != nil {
+			t.Fatal(err)
+		}
+		errCh := make(chan error, 1)
+		go func() {
+			_, signalErr := api.SignalRun(ctx, connect.NewRequest(&ingestionv1.SignalRunRequest{RunId: "run-1", Signal: test.signal}))
+			errCh <- signalErr
+		}()
+		deadline := time.After(time.Second)
+		published := false
+		for !published {
+			select {
+			case msg := <-sub.C():
+				fact, decodeErr := events.Decode(msg)
+				_ = msg.Ack()
+				if decodeErr == nil && fact.Name == test.want {
+					if err := test.ack(); err != nil {
+						t.Fatal(err)
+					}
+					published = true
+				}
+			case <-deadline:
+				t.Fatalf("signal %v did not publish %q", test.signal, test.want)
+			}
+		}
+		if err := <-errCh; err != nil {
+			t.Fatalf("signal %v: %v", test.signal, err)
+		}
+	}
+	state, err := store.LoadRun(ctx, "run-1")
+	if err != nil || state.Status != filament.RunCanceled {
+		t.Fatalf("worker acknowledgement was not persisted: %#v, %v", state, err)
+	}
+}
+
+func TestSignalRunReportsWhenWorkerAlreadyFinished(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	state := filament.RunState{Run: "run-1", Tenant: "tenant-1", Status: filament.RunRunning}
+	if err := store.SaveRun(ctx, state); err != nil {
+		t.Fatal(err)
+	}
+	bus := inproc.New()
+	commands, err := bus.Subscribe(events.Subject(events.RunCancelRequested, state.Tenant, state.Run), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = commands.Close() }()
+	api := &Server{store: store, bus: bus}
+	errCh := make(chan error, 1)
+	go func() {
+		_, signalErr := api.SignalRun(ctx, connect.NewRequest(&ingestionv1.SignalRunRequest{
+			RunId: "run-1", Signal: ingestionv1.RunSignal_RUN_SIGNAL_CANCEL,
+		}))
+		errCh <- signalErr
+	}()
+	select {
+	case msg := <-commands.C():
+		_ = msg.Ack()
+	case <-time.After(time.Second):
+		t.Fatal("cancel command was not published")
+	}
+	if err := events.Emit(ctx, bus, events.RunCompleted,
+		events.Envelope{Tenant: state.Tenant, Run: state.Run, At: time.Now()}, events.RunCompletedEvent{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-errCh; connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("signal error = %v, want failed precondition", err)
 	}
 }
 
