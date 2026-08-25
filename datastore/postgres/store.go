@@ -275,9 +275,6 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	if f.Schedule != "" {
 		q += " AND schedule_id = " + arg(string(f.Schedule))
 	}
-	if f.Source != "" {
-		q += " AND (request->'Source'->>'Provider' = " + arg(f.Source) + " OR request->'Source'->>'ConfigRef' = " + arg(f.Source) + ")"
-	}
 	if !f.Since.IsZero() {
 		q += " AND started_at >= " + arg(f.Since)
 	}

@@ -27,7 +27,6 @@ type RunSpec struct {
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
-	Checkpoint     *CheckpointData
 	Options        RunOptions
 	WritePolicies  map[string]WritePolicy
 	// WorkerConfiguration is the already-resolved worker shape for this run: the
@@ -283,7 +282,6 @@ type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string
 	PipelineVersionID *string
-	Source            string
 	Status            []RunStatus
 	Schedule          ScheduleID
 	Since             time.Time
