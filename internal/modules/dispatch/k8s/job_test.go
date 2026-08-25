@@ -49,7 +49,7 @@ func TestWorkerResources(t *testing.T) {
 
 func TestJobAndPodLabelsMatch(t *testing.T) {
 	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament"}}
-	job, err := m.jobForSpec(filament.RunSpec{Tenant: "acme", Run: "run-1"})
+	job, err := m.jobForSpec(filament.RunSpec{Tenant: "acme", Run: "run-1", ExecutionID: "attempt-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,6 +62,24 @@ func TestJobAndPodLabelsMatch(t *testing.T) {
 	}
 	if got := pod["filament.galaxy.io/run-id"]; got != "run-1" {
 		t.Fatalf("pod run-id label = %q, want run-1", got)
+	}
+	if got := pod["filament.galaxy.io/execution-id"]; got != executionToken("attempt-1") {
+		t.Fatalf("pod execution-id label = %q", got)
+	}
+}
+
+func TestJobNameIsStablePerExecutionAndChangesOnResume(t *testing.T) {
+	first := jobName("filament", "run-1", "attempt-1")
+	redelivery := jobName("filament", "run-1", "attempt-1")
+	resumed := jobName("filament", "run-1", "attempt-2")
+	if first != redelivery {
+		t.Fatalf("redelivery name = %q, want %q", redelivery, first)
+	}
+	if first == resumed {
+		t.Fatalf("resumed execution reused job name %q", first)
+	}
+	if !isDNS1123Label(resumed) {
+		t.Fatalf("job name %q is not DNS-1123", resumed)
 	}
 }
 

@@ -10,8 +10,12 @@ import (
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Tenant            TenantID
-	Run               RunID
+	Tenant TenantID
+	Run    RunID
+	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
+	// derive it from the run.requested fact so redelivery is idempotent while a
+	// later resume creates fresh worker infrastructure.
+	ExecutionID       string
 	PipelineID        string
 	PipelineVersionID string
 	CheckpointRoute   string
