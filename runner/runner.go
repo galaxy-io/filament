@@ -88,11 +88,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	em.span = span
-	if err := seedEmitterProgress(ctx, deps.DataStore, spec.Run, em); err != nil {
-		em.failed(fmt.Errorf("restore run progress: %w", err), nil, false)
-		return
-	}
-	extractCtx, control, err := newRunControl(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
+	extractCtx, control, err := prepareRunExecution(ctx, deps, spec, em)
 	if err != nil {
 		em.failed(err, nil, false)
 		return
@@ -254,6 +250,18 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		return
 	}
 	em.completed(resources)
+}
+
+func prepareRunExecution(
+	ctx context.Context,
+	deps Deps,
+	spec filament.RunSpec,
+	em *emitter,
+) (context.Context, *runControl, error) {
+	if err := seedEmitterProgress(ctx, deps.DataStore, spec.Run, em); err != nil {
+		return nil, nil, fmt.Errorf("restore run progress: %w", err)
+	}
+	return newRunControl(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 }
 
 func seedEmitterProgress(ctx context.Context, ds filament.DataStore, run filament.RunID, em *emitter) error {

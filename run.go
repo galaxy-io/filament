@@ -657,8 +657,11 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 type CheckpointCoverage uint8
 
 const (
+	// CheckpointCoverageNone means no selected resource has a resumable cursor.
 	CheckpointCoverageNone CheckpointCoverage = iota
+	// CheckpointCoverageSome means only some selected resources have resumable cursors.
 	CheckpointCoverageSome
+	// CheckpointCoverageAll means every selected resource has a resumable cursor.
 	CheckpointCoverageAll
 )
 
@@ -680,10 +683,10 @@ func CheckpointCoverageFor(resources []string, types map[string]IngestionType) C
 			}
 		}
 	}
-	switch {
-	case checkpointed == 0:
+	switch checkpointed {
+	case 0:
 		return CheckpointCoverageNone
-	case checkpointed == total:
+	case total:
 		return CheckpointCoverageAll
 	default:
 		return CheckpointCoverageSome
