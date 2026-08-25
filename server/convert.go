@@ -253,6 +253,19 @@ func runStatusesFromProto(statuses []ingestionv1.RunStatus) []filament.RunStatus
 	return out
 }
 
+func runSignalFromProto(signal ingestionv1.RunSignal) (filament.Signal, error) {
+	switch signal {
+	case ingestionv1.RunSignal_RUN_SIGNAL_PAUSE:
+		return filament.SignalPause, nil
+	case ingestionv1.RunSignal_RUN_SIGNAL_RESUME:
+		return filament.SignalResume, nil
+	case ingestionv1.RunSignal_RUN_SIGNAL_CANCEL:
+		return filament.SignalCancel, nil
+	default:
+		return 0, fmt.Errorf("signal is required")
+	}
+}
+
 func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResourcesResponse {
 	out := make([]*ingestionv1.Resource, 0, len(resources))
 	for _, resource := range resources {
@@ -389,7 +402,7 @@ func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEven
 
 func runStatusTerminal(status filament.RunStatus) bool {
 	switch status {
-	case filament.RunCompleted, filament.RunFailed, filament.RunCanceled, filament.RunPartial:
+	case filament.RunCompleted, filament.RunFailed, filament.RunCanceled, filament.RunPaused, filament.RunPartial:
 		return true
 	default:
 		return false

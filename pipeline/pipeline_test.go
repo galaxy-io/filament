@@ -247,8 +247,9 @@ func TestPipelineWriteErrorIsFatal(t *testing.T) {
 func TestPipelineDispatchesSinkApply(t *testing.T) {
 	sink := &fakeSink{}
 	policy := filament.WritePolicyForIngestion(filament.IngestionFullUpsert)
+	policy.Checkpoint = filament.CheckpointAfterCommit
 	policy.Resource = "users"
-	_, err := runWithPolicies(t, sink, 2, []filament.Record{rec("users", "1", `{}`)}, map[string]filament.WritePolicy{"users": policy})
+	c, err := runWithPolicies(t, sink, 2, []filament.Record{rec("users", "1", `{}`)}, map[string]filament.WritePolicy{"users": policy})
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
@@ -257,6 +258,11 @@ func TestPipelineDispatchesSinkApply(t *testing.T) {
 	}
 	if sink.applied[0].Capability.Mode != filament.WriteUpsert {
 		t.Fatalf("Apply policy mode = %q, want %q", sink.applied[0].Capability.Mode, filament.WriteUpsert)
+	}
+	for _, fact := range c.events() {
+		if written, ok := fact.Data.(events.BatchWrittenEvent); ok && written.CheckpointPolicy != filament.CheckpointAfterCommit {
+			t.Fatalf("batch checkpoint policy = %q, want %q", written.CheckpointPolicy, filament.CheckpointAfterCommit)
+		}
 	}
 }
 

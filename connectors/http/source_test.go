@@ -15,6 +15,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
+	"github.com/galaxy-io/filament/connectors/http/pagination"
 )
 
 func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
@@ -63,8 +64,12 @@ func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 	if sink.records[0].ID != "b" {
 		t.Fatalf("record id = %q, want b", sink.records[0].ID)
 	}
-	if len(sink.records[0].Key) != 1 || sink.records[0].Key[0] != "two" {
-		t.Fatalf("record key = %v, want [two]", sink.records[0].Key)
+	if len(sink.records[0].Key) != 1 {
+		t.Fatalf("record key = %v, want one pagination checkpoint", sink.records[0].Key)
+	}
+	state, err := pagination.ResumeFrom(sink.records[0].Key[0])
+	if err != nil || state.Cursor != "two" {
+		t.Fatalf("record checkpoint = %v (%v), want cursor two", state, err)
 	}
 }
 
@@ -180,7 +185,7 @@ func TestSourceFullResumeDoesNotApplyIncrementalWatermark(t *testing.T) {
 	if !ok {
 		t.Fatal("plan did not parse as keyset")
 	}
-	if got, want := ks.Cols, []string{"cursor"}; len(got) != len(want) || got[0] != want[0] {
+	if got, want := ks.Cols, []string{"pagination_state"}; len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("checkpoint cols = %v, want %v", got, want)
 	}
 
@@ -201,8 +206,8 @@ func TestSourceFullResumeDoesNotApplyIncrementalWatermark(t *testing.T) {
 	if len(sink.records) != 1 {
 		t.Fatalf("records = %d, want 1", len(sink.records))
 	}
-	if sink.records[0].Key != nil {
-		t.Fatalf("record key = %v, want no incremental watermark", sink.records[0].Key)
+	if len(sink.records[0].Key) != 1 {
+		t.Fatalf("record key = %v, want a pagination checkpoint and no incremental watermark", sink.records[0].Key)
 	}
 }
 
