@@ -183,33 +183,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.BatchWrittenEvent:
-		m.rememberBoundary(env, d.CheckpointPolicy)
-		// Incremental progress: accumulate per-resource and run totals as chunks
-		// land, so observers see counts climb before the run finishes.
-		var pipeline string
-		if err := m.mutate(ctx, env, func(r *filament.RunState) {
-			r.Records += d.Records
-			r.Bytes += d.Bytes
-			rs := resourceRef(r, env.Resource)
-			rs.Records += d.Records
-			rs.Bytes += d.Bytes
-			if rs.Status == filament.RunRequested {
-				rs.Status = filament.RunRunning
-			}
-			pipeline = r.Request.PipelineID
-		}); err != nil {
-			return err
-		}
-		m.observeBatch(env, pipeline, d.Records, d.Bytes)
-		if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
-			if err := m.saveCheckpoint(ctx, env.Run, cp); err != nil {
-				m.observeCheckpointFailure()
-				if m.log != nil {
-					m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
-				}
-			}
-		}
-		return nil
+		return m.applyBatchWritten(ctx, env, d)
 
 	case events.HeartbeatEvent:
 		// Usage counters are cumulative (CPU) or high-water (memory), so max
@@ -231,6 +205,36 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	default:
 		return nil // facts this module doesn't fold are acked and ignored
 	}
+}
+
+func (m *Module) applyBatchWritten(ctx context.Context, env events.Envelope, d events.BatchWrittenEvent) error {
+	m.rememberBoundary(env, d.CheckpointPolicy)
+	// Incremental progress: accumulate per-resource and run totals as chunks
+	// land, so observers see counts climb before the run finishes.
+	var pipeline string
+	if err := m.mutate(ctx, env, func(r *filament.RunState) {
+		r.Records += d.Records
+		r.Bytes += d.Bytes
+		rs := resourceRef(r, env.Resource)
+		rs.Records += d.Records
+		rs.Bytes += d.Bytes
+		if rs.Status == filament.RunRequested {
+			rs.Status = filament.RunRunning
+		}
+		pipeline = r.Request.PipelineID
+	}); err != nil {
+		return err
+	}
+	m.observeBatch(env, pipeline, d.Records, d.Bytes)
+	if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
+		if err := m.saveCheckpoint(ctx, env.Run, cp); err != nil {
+			m.observeCheckpointFailure()
+			if m.log != nil {
+				m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
+			}
+		}
+	}
+	return nil
 }
 
 // terminal folds a run's terminal fact: apply the status mutation, stamp the
