@@ -488,10 +488,5 @@ func matchRun(r filament.RunState, f filament.RunFilter) bool {
 	if len(f.Status) > 0 && !slices.Contains(f.Status, r.Status) {
 		return false
 	}
-	if f.Source != "" &&
-		r.Request.Source.ConfigRef != f.Source &&
-		r.Request.Source.Provider != f.Source {
-		return false
-	}
 	return true
 }
