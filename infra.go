@@ -127,6 +127,10 @@ type PipelineFilter struct {
 // ErrVersionConflict indicates an optimistic-lock mismatch.
 var ErrVersionConflict = errors.New("version conflict")
 
+// ScheduleLeaseTTL bounds how long a ClaimDue lease is honored before a
+// schedule is eligible to be reclaimed.
+const ScheduleLeaseTTL = 5 * time.Minute
+
 // ScheduleStore persists schedules and hands out due ones under a claim, so
 // concurrent schedulers never double-fire.
 type ScheduleStore interface {

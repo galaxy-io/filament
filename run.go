@@ -262,15 +262,14 @@ type RunResult struct {
 
 // ResourceState is one resource's persisted progress within a run.
 type ResourceState struct {
-	Run        RunID // owning run — the key a DataStore files this under
-	Tenant     TenantID
-	Resource   string
-	Enabled    bool
-	Status     RunStatus
-	Records    int64
-	Bytes      int64
-	Checkpoint *CheckpointData
-	Error      string
+	Run      RunID // owning run — the key a DataStore files this under
+	Tenant   TenantID
+	Resource string
+	Enabled  bool
+	Status   RunStatus
+	Records  int64
+	Bytes    int64
+	Error    string
 }
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
