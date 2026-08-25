@@ -33,6 +33,7 @@ var (
 
 type sharedPG struct {
 	once sync.Once
+	mu   sync.Mutex
 	pg   *PG
 }
 
@@ -52,6 +53,9 @@ func SharedPostgresCDC(t testing.TB) *PG {
 
 func (s *sharedPG) acquire(t testing.TB, opts ...PGOption) *PG {
 	t.Helper()
+	s.mu.Lock()
+	t.Cleanup(s.mu.Unlock)
+
 	fresh := false
 	s.once.Do(func() {
 		pg := startPostgres(t, opts...)
