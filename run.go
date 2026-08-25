@@ -651,3 +651,41 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 		}
 	}
 }
+
+// CheckpointCoverage describes whether none, some, or all selected resources
+// can resume from a durable source cursor.
+type CheckpointCoverage uint8
+
+const (
+	CheckpointCoverageNone CheckpointCoverage = iota
+	CheckpointCoverageSome
+	CheckpointCoverageAll
+)
+
+// CheckpointCoverageFor returns the read-side checkpoint coverage for a run.
+func CheckpointCoverageFor(resources []string, types map[string]IngestionType) CheckpointCoverage {
+	total, checkpointed := 0, 0
+	if len(resources) > 0 {
+		for _, resource := range resources {
+			total++
+			if SourcePolicyForIngestion(TypeFor(types, resource)).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	} else {
+		for _, ingestionType := range types {
+			total++
+			if SourcePolicyForIngestion(ingestionType).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	}
+	switch {
+	case checkpointed == 0:
+		return CheckpointCoverageNone
+	case checkpointed == total:
+		return CheckpointCoverageAll
+	default:
+		return CheckpointCoverageSome
+	}
+}
