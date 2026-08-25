@@ -4,14 +4,19 @@ package testcontainers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
+
+const snapshotDatabase = "migrated_template"
 
 // PG is an ephemeral Postgres container plus a live pgx pool. Snapshot/Restore
 // give per-test isolation WITHOUT re-seeding: seed once, snap, then Restore
@@ -78,6 +83,7 @@ func startPostgres(t testing.TB, opts ...PGOption) *PG {
 		postgres.WithDatabase(cfg.database),
 		postgres.WithUsername(cfg.username),
 		postgres.WithPassword(cfg.password),
+		postgres.WithSQLDriver("pgx"),
 		postgres.BasicWaitStrategies(),
 	}
 	if cfg.logical {
@@ -124,15 +130,74 @@ func (p *PG) SnapshotCtx(ctx context.Context) error {
 // Safe to call from non-test contexts (e.g. CLI).
 func (p *PG) RestoreCtx(ctx context.Context) error {
 	p.pool.Close()
-	if err := p.Container.Restore(ctx); err != nil {
-		return fmt.Errorf("restore: %w", err)
-	}
+	restoreErr := p.restoreDatabase(ctx)
 	pool, err := pgxpool.New(ctx, p.dsn)
 	if err != nil {
-		return fmt.Errorf("open pool after restore: %w", err)
+		return errors.Join(wrapRestoreError(restoreErr), fmt.Errorf("open pool after restore: %w", err))
 	}
 	p.pool = pool
+	if restoreErr != nil {
+		return fmt.Errorf("restore: %w", restoreErr)
+	}
 	return nil
+}
+
+// restoreDatabase performs the same template restore as testcontainers, but
+// waits for DROP DATABASE to become visible before issuing CREATE DATABASE.
+// PostgreSQL can otherwise briefly report success from a forced drop while a
+// following create still sees the old database.
+func (p *PG) restoreDatabase(ctx context.Context) error {
+	cfg, err := pgx.ParseConfig(p.dsn)
+	if err != nil {
+		return fmt.Errorf("parse postgres dsn: %w", err)
+	}
+	database := cfg.Database
+	cfg.Database = "postgres"
+
+	conn, err := pgx.ConnectConfig(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("connect to postgres admin database: %w", err)
+	}
+	defer func() { _ = conn.Close(ctx) }()
+
+	if _, err := conn.Exec(ctx, `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname IN ($1, $2) AND pid <> pg_backend_pid()`, database, snapshotDatabase); err != nil {
+		return fmt.Errorf("terminate database connections: %w", err)
+	}
+	if _, err := conn.Exec(ctx, "DROP DATABASE IF EXISTS "+pgx.Identifier{database}.Sanitize()+" WITH (FORCE)"); err != nil {
+		return fmt.Errorf("drop database: %w", err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var exists bool
+		if err := conn.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, database).Scan(&exists); err != nil {
+			return fmt.Errorf("check dropped database: %w", err)
+		}
+		if !exists {
+			break
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("database %q still exists after forced drop", database)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+
+	_, err = conn.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{database}.Sanitize()+" WITH TEMPLATE "+pgx.Identifier{snapshotDatabase}.Sanitize()+" OWNER "+pgx.Identifier{cfg.User}.Sanitize())
+	if err != nil {
+		return fmt.Errorf("create database from snapshot: %w", err)
+	}
+	return nil
+}
+
+func wrapRestoreError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("restore: %w", err)
 }
 
 // Snapshot marks the current database state as the restore point. Call once
