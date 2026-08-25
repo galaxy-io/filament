@@ -16,6 +16,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/auth"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
+	"github.com/galaxy-io/filament/connectors/http/pagination"
 	"github.com/galaxy-io/filament/connectors/http/request"
 	"github.com/galaxy-io/filament/connectors/http/response"
 	"github.com/galaxy-io/filament/connectors/http/template"
@@ -73,7 +74,7 @@ type Connector struct {
 	enabledByResource    map[string]map[string]struct{}
 	enabledIDPath        map[string]string
 	enabledResources     map[string]struct{}
-	resumeCursors        map[string]string
+	resumeStates         map[string]pagination.State
 	resumeWatermarks     map[string]map[string]string
 	incrementalLookbacks map[string]int
 	incrementalResources map[string]bool
@@ -89,7 +90,7 @@ type extractOptions struct {
 	Observe              filament.SourceObserver
 	EnabledResources     []resourceRef
 	Resources            []string
-	ResumeCursors        map[string]string
+	ResumeStates         map[string]pagination.State
 	ResumeWatermarks     map[string]map[string]string
 	IncrementalLookbacks map[string]int
 	IncrementalResources map[string]bool

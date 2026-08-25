@@ -126,13 +126,8 @@ const PipelineHistoryPage = () => {
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
   });
   const columns = useMemo(() => {
-    const pipeline = pipelineData.pipeline;
-    const versions = [pipeline?.currentVersion, ...(pipeline?.versions ?? [])];
-    const versionById = new Map(
-      versions
-        .filter((version) => version !== undefined)
-        .map((version) => [version.id, version.version] as const),
-    );
+    const versions = pipelineData.pipeline?.versions ?? [];
+    const versionById = new Map(versions.map((version) => [version.id, version.version] as const));
     return createRunTableColumns(versionById);
   }, [pipelineData.pipeline]);
 

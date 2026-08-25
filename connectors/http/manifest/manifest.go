@@ -493,6 +493,14 @@ type IncrementalSpec struct {
 	OverlapSeconds int `yaml:"overlap_seconds,omitempty"`
 }
 
+// DurableCheckpointKey returns the stable storage key for this watermark.
+func (s IncrementalSpec) DurableCheckpointKey() string {
+	if s.CheckpointKey != "" {
+		return s.CheckpointKey
+	}
+	return s.CursorField
+}
+
 // ParentRef declares a child resource's dependency on a parent. The parent's
 // `capture` block dictates which fields land in the `parent.*` template scope
 // of child requests; ParentRef carries no field list of its own.

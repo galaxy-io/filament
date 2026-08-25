@@ -8,7 +8,7 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
 
-const PipelineLayoutBackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
+const PipelineLayoutNavbarBackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
   height: ${PIPELINE_NAVBAR_HEIGHT}px;
 
@@ -21,7 +21,7 @@ const PipelineLayoutBackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.base};
 `);
 
-const PipelineLayoutBackButton = () => {
+const PipelineLayoutNavbarBackButton = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -29,15 +29,15 @@ const PipelineLayoutBackButton = () => {
   };
 
   return (
-    <PipelineLayoutBackButtonWrapper>
+    <PipelineLayoutNavbarBackButtonWrapper>
       <Button
         variant={ButtonVariant.SECONDARY}
         size={ButtonSize.SMALL}
         icon={ArrowLeftIcon}
         onClick={handleBack}
       />
-    </PipelineLayoutBackButtonWrapper>
+    </PipelineLayoutNavbarBackButtonWrapper>
   );
 };
 
-export default PipelineLayoutBackButton;
+export default PipelineLayoutNavbarBackButton;
