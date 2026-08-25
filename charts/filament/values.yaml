@@ -15,8 +15,9 @@ namespaceOverride: ""
 # -- Labels added to all Filament resources.
 commonLabels: {}
 
-# -- Name of an existing Secret containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`, and `NATS_URL`.
-# When set, the chart does not create its own Secret.
+# -- Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, and
+# `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider. When set,
+# the chart does not create its own Secret.
 existingSecret: ""
 
 server:
