@@ -262,15 +262,14 @@ type RunResult struct {
 
 // ResourceState is one resource's persisted progress within a run.
 type ResourceState struct {
-	Run        RunID // owning run — the key a DataStore files this under
-	Tenant     TenantID
-	Resource   string
-	Enabled    bool
-	Status     RunStatus
-	Records    int64
-	Bytes      int64
-	Checkpoint *CheckpointData
-	Error      string
+	Run      RunID // owning run — the key a DataStore files this under
+	Tenant   TenantID
+	Resource string
+	Enabled  bool
+	Status   RunStatus
+	Records  int64
+	Bytes    int64
+	Error    string
 }
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
@@ -285,8 +284,12 @@ type RunFilter struct {
 	Schedule          ScheduleID
 	Since             time.Time
 	Until             time.Time
-	Limit             int
-	Offset            int
+	// UpdatedBefore matches runs whose last write is older than it — the
+	// staleness probe: heartbeat folds bump UpdatedAt, so a Running run that
+	// stops updating has lost its worker.
+	UpdatedBefore time.Time
+	Limit         int
+	Offset        int
 }
 
 // SyncSnapshot is a consistent read of a run and its resources at bus

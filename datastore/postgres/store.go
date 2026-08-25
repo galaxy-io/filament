@@ -18,10 +18,6 @@ import (
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
-// leaseTTL bounds how long a ClaimDue lease is honored before a schedule is
-// eligible to be reclaimed
-const leaseTTL = 5 * time.Minute
-
 // Store is a Postgres-backed filament.DataStore and filament.ScheduleStore.
 type Store struct {
 	pool *pgxpool.Pool
@@ -228,6 +224,9 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	}
 	if !f.Until.IsZero() {
 		q += " AND started_at < " + arg(f.Until)
+	}
+	if !f.UpdatedBefore.IsZero() {
+		q += " AND updated_at < " + arg(f.UpdatedBefore)
 	}
 	if len(f.Status) > 0 {
 		statuses := make([]int, len(f.Status))
@@ -595,10 +594,10 @@ func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) erro
 // currently under an unexpired lease, and stamps them claimed_at = now() in
 // the same transaction as the SELECT ... FOR UPDATE SKIP LOCKED so a second
 // scheduler replica racing this call cannot pick up the same row: it will
-// either block-and-skip (SKIP LOCKED) or see claimed_at within leaseTTL and
-// filter it out. The lease is released by the next SaveSchedule call
-// or expires after leaseTTL if the scheduler that claimed it crashes
-// before calling SaveSchedule.
+// either block-and-skip (SKIP LOCKED) or see claimed_at within
+// filament.ScheduleLeaseTTL and filter it out. The lease is released by the
+// next SaveSchedule call or expires after the TTL if the scheduler that
+// claimed it crashes before calling SaveSchedule.
 func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filament.ScheduleState, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -609,7 +608,7 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 
 	rows, err := q.ClaimDue(ctx, sqlcgen.ClaimDueParams{
 		Now:         pgtype.Timestamptz{Time: now, Valid: true},
-		LeaseCutoff: pgtype.Timestamptz{Time: now.Add(-leaseTTL), Valid: true},
+		LeaseCutoff: pgtype.Timestamptz{Time: now.Add(-filament.ScheduleLeaseTTL), Valid: true},
 		Lim:         int32(limit), //nolint:gosec // caller-provided small limit
 	})
 	if err != nil {
