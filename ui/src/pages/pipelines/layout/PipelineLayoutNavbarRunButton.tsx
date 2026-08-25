@@ -25,7 +25,6 @@ import {
   parseWorkerConfiguration,
 } from "@/pages/pipelines/components/worker/utils";
 import { PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH } from "@/pages/pipelines/layout/constants";
-import type { PipelineLayoutNavbarRunButtonState } from "@/pages/pipelines/layout/types";
 
 interface PipelineLayoutNavbarRunButtonProps {
   workerConfiguration?: WorkerConfiguration;
@@ -33,6 +32,10 @@ interface PipelineLayoutNavbarRunButtonProps {
   isRunnable: boolean;
   isRunning: boolean;
   onRun: (workerConfiguration?: WorkerConfiguration) => void;
+}
+
+export interface PipelineLayoutNavbarRunButtonState {
+  workerConfiguration: string;
 }
 
 const PipelineLayoutNavbarRunButtonDropdown = withTheme(styled.div<PropsWithTheme>`
