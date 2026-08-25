@@ -1,4 +1,10 @@
-<p align="center"><img src=".github/assets/filament.svg" alt="Filament" width="520"></p>
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/filament-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset=".github/assets/filament-light.svg">
+    <img alt="Filament — pluggable data replication with checkpointing, batching, and integrity events" src=".github/assets/filament-light.svg" width="520">
+  </picture>
+</div>
 
 <p align="center"><a href="https://filament.getgalaxy.io">Documentation</a> · <a href="#getting-started">Getting started</a> · <a href=".github/CONTRIBUTING.md">Contributing</a> · <a href="https://join.slack.com/t/galaxy-filament/shared_invite/zt-486oaagls-WCKm605mP6NCmoB3E7frpQ">Slack</a></p>
 
