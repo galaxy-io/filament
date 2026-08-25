@@ -142,7 +142,7 @@ func TestResumeMatrix(t *testing.T) {
 func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	ctx := context.Background()
 
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 	spec := seed.Default()
 	manifest, err := seedpg.Apply(ctx, pg.Pool(), spec)
 	if err != nil {
