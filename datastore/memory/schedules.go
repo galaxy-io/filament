@@ -109,7 +109,7 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 	for id, schedule := range s.schedules {
 		claimedAt, claimed := s.scheduleClaims[id]
 		if schedule.Enabled && schedule.NextFire != nil && !schedule.NextFire.After(now) &&
-			(!claimed || claimedAt.Before(now.Add(-5*time.Minute))) {
+			(!claimed || claimedAt.Before(now.Add(-filament.ScheduleLeaseTTL))) {
 			out = append(out, schedule)
 		}
 	}

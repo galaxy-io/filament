@@ -256,17 +256,12 @@ func (m *Module) evictRun(run filament.RunID) {
 	delete(m.every, run)
 }
 
-// applyCheckpoint persists a cursor fact's checkpoint and pins it on the resource.
+// applyCheckpoint persists a cursor fact's checkpoint.
 func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *filament.CheckpointData) error {
 	if cp == nil {
 		return nil
 	}
-	if err := m.saveCheckpoint(ctx, env.Run, cp); err != nil {
-		return err
-	}
-	return m.mutate(ctx, env, func(r *filament.RunState) {
-		resourceRef(r, env.Resource).Checkpoint = cp
-	})
+	return m.saveCheckpoint(ctx, env.Run, cp)
 }
 
 // foldCursor merges a batch.written keyset delta into the resource's accumulated

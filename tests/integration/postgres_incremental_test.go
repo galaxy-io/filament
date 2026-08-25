@@ -14,7 +14,7 @@ import (
 
 func TestPostgresIncrementalShardedBackfillAndChanges(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 	_, err := pg.Pool().Exec(ctx, `
 		CREATE TABLE incremental_users (
 			id bigint PRIMARY KEY,
