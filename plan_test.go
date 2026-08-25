@@ -54,6 +54,25 @@ func TestValidateReplication(t *testing.T) {
 	}
 }
 
+func TestCheckpointCoverageFor(t *testing.T) {
+	resources := []string{"users", "audit"}
+	if got := CheckpointCoverageFor(resources, map[string]IngestionType{
+		"users": IngestionFullUpsert,
+		"audit": IngestionFullAppend,
+	}); got != CheckpointCoverageSome {
+		t.Fatalf("mixed coverage = %v, want some", got)
+	}
+	if got := CheckpointCoverageFor(resources, map[string]IngestionType{
+		"users": IngestionFullUpsert,
+		"audit": IngestionIncrementalUpsert,
+	}); got != CheckpointCoverageAll {
+		t.Fatalf("resumable coverage = %v, want all", got)
+	}
+	if got := CheckpointCoverageFor(resources, nil); got != CheckpointCoverageNone {
+		t.Fatalf("default coverage = %v, want none", got)
+	}
+}
+
 type replicationSource struct{ Source }
 
 func (replicationSource) Replication(cfg Config) ReplicationMode {

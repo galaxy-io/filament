@@ -10,8 +10,12 @@ import (
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Tenant            TenantID
-	Run               RunID
+	Tenant TenantID
+	Run    RunID
+	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
+	// derive it from the run.requested fact so redelivery is idempotent while a
+	// later resume creates fresh worker infrastructure.
+	ExecutionID       string
 	PipelineID        string
 	PipelineVersionID string
 	CheckpointRoute   string
@@ -23,7 +27,6 @@ type RunSpec struct {
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
-	Checkpoint     *CheckpointData
 	Options        RunOptions
 	WritePolicies  map[string]WritePolicy
 	// WorkerConfiguration is the already-resolved worker shape for this run: the
@@ -279,7 +282,6 @@ type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string
 	PipelineVersionID *string
-	Source            string
 	Status            []RunStatus
 	Schedule          ScheduleID
 	Since             time.Time
@@ -645,5 +647,46 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			EmitsOps:      []Operation{OpInsert},
 			Checkpointing: CheckpointNone,
 		}
+	}
+}
+
+// CheckpointCoverage describes whether none, some, or all selected resources
+// can resume from a durable source cursor.
+type CheckpointCoverage uint8
+
+const (
+	// CheckpointCoverageNone means no selected resource has a resumable cursor.
+	CheckpointCoverageNone CheckpointCoverage = iota
+	// CheckpointCoverageSome means only some selected resources have resumable cursors.
+	CheckpointCoverageSome
+	// CheckpointCoverageAll means every selected resource has a resumable cursor.
+	CheckpointCoverageAll
+)
+
+// CheckpointCoverageFor returns the read-side checkpoint coverage for a run.
+func CheckpointCoverageFor(resources []string, types map[string]IngestionType) CheckpointCoverage {
+	total, checkpointed := 0, 0
+	if len(resources) > 0 {
+		for _, resource := range resources {
+			total++
+			if SourcePolicyForIngestion(TypeFor(types, resource)).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	} else {
+		for _, ingestionType := range types {
+			total++
+			if SourcePolicyForIngestion(ingestionType).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	}
+	switch checkpointed {
+	case 0:
+		return CheckpointCoverageNone
+	case total:
+		return CheckpointCoverageAll
+	default:
+		return CheckpointCoverageSome
 	}
 }

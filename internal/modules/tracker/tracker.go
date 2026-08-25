@@ -53,6 +53,13 @@ type ckKey struct {
 	resource string
 }
 
+type checkpointReason string
+
+const (
+	checkpointReasonProgress          checkpointReason = "progress"
+	checkpointReasonResourceCompleted checkpointReason = "resource_completed"
+)
+
 // New returns an unmounted tracker. Providers are injected by Mount.
 func New() *Module {
 	return &Module{
@@ -86,8 +93,8 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	return nil
 }
 
-// onFact de-dups then folds the fact into persisted state. Returning nil acks the
-// message; returning an error naks it for redelivery.
+// onFact folds a fact into persisted state. Returning nil acks the message;
+// returning an error naks it for redelivery.
 //
 // Dedup keys on the bus stream sequence (msg.Seq), not the event's embedded Seq:
 // the stream sequence is broker-assigned and unique per message, so facts from
@@ -99,6 +106,15 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	if err != nil {
 		return nil // not a Fact: a foreign publisher on our pattern — skip
 	}
+	// Terminal folds promote checkpoints and are idempotent. Apply them before
+	// advancing the dedup high-water mark so a failed promotion can be retried.
+	if isTerminalFact(f.Data) {
+		if err := m.apply(ctx, f); err != nil {
+			return err
+		}
+		_, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+		return err
+	}
 
 	seen, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
 	if err != nil {
@@ -109,6 +125,16 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	}
 
 	return m.apply(ctx, f)
+}
+
+func isTerminalFact(data any) bool {
+	switch data.(type) {
+	case events.RunCompletedEvent, events.RunFailedEvent, events.RunPartialEvent,
+		events.RunCanceledEvent, events.RunPausedEvent:
+		return true
+	default:
+		return false
+	}
 }
 
 // apply folds one fact into persisted run/resource/checkpoint state. Facts not
@@ -125,7 +151,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.RunCompletedEvent:
-		return m.terminal(ctx, env, "completed", func(r *filament.RunState) {
+		return m.terminal(ctx, env, "completed", true, func(r *filament.RunState) {
 			r.Status = filament.RunCompleted
 			// The terminal fact carries the engine's authoritative totals.
 			r.Records = d.Records
@@ -133,15 +159,25 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.RunFailedEvent:
-		return m.terminal(ctx, env, "failed", func(r *filament.RunState) {
+		return m.terminal(ctx, env, "failed", false, func(r *filament.RunState) {
 			r.Status = filament.RunFailed
 			r.Error = d.Error
 		})
 
 	case events.RunPartialEvent:
-		return m.terminal(ctx, env, "partial", func(r *filament.RunState) {
+		return m.terminal(ctx, env, "partial", false, func(r *filament.RunState) {
 			r.Status = filament.RunPartial
 			r.Error = d.Error
+		})
+
+	case events.RunCanceledEvent:
+		return m.terminal(ctx, env, "canceled", false, func(r *filament.RunState) {
+			r.Status = filament.RunCanceled
+		})
+
+	case events.RunPausedEvent:
+		return m.terminal(ctx, env, "paused", d.Committed, func(r *filament.RunState) {
+			r.Status = filament.RunPaused
 		})
 
 	case events.ResourceStartedEvent:
@@ -173,33 +209,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.BatchWrittenEvent:
-		m.rememberBoundary(env, d.CheckpointPolicy)
-		// Incremental progress: accumulate per-resource and run totals as chunks
-		// land, so observers see counts climb before the run finishes.
-		var pipeline string
-		if err := m.mutate(ctx, env, func(r *filament.RunState) {
-			r.Records += d.Records
-			r.Bytes += d.Bytes
-			rs := resourceRef(r, env.Resource)
-			rs.Records += d.Records
-			rs.Bytes += d.Bytes
-			if rs.Status == filament.RunRequested {
-				rs.Status = filament.RunRunning
-			}
-			pipeline = r.Request.PipelineID
-		}); err != nil {
-			return err
-		}
-		m.observeBatch(env, pipeline, d.Records, d.Bytes)
-		if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
-			if err := m.saveCheckpoint(ctx, env.Run, cp); err != nil {
-				m.observeCheckpointFailure()
-				if m.log != nil {
-					m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
-				}
-			}
-		}
-		return nil
+		return m.applyBatchWritten(ctx, env, d)
 
 	case events.HeartbeatEvent:
 		// Usage counters are cumulative (CPU) or high-water (memory), so max
@@ -223,9 +233,48 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	}
 }
 
-// terminal folds a run's terminal fact: apply the status mutation, stamp the
-// finish time, record the run metrics, and flush the run's cursors.
-func (m *Module) terminal(ctx context.Context, env events.Envelope, status string, fn func(*filament.RunState)) error {
+func (m *Module) applyBatchWritten(ctx context.Context, env events.Envelope, d events.BatchWrittenEvent) error {
+	m.rememberBoundary(env, d.CheckpointPolicy)
+	// Incremental progress: accumulate per-resource and run totals as chunks
+	// land, so observers see counts climb before the run finishes.
+	var pipeline string
+	if err := m.mutate(ctx, env, func(r *filament.RunState) {
+		r.Records += d.Records
+		r.Bytes += d.Bytes
+		rs := resourceRef(r, env.Resource)
+		rs.Records += d.Records
+		rs.Bytes += d.Bytes
+		if rs.Status == filament.RunRequested {
+			rs.Status = filament.RunRunning
+		}
+		pipeline = r.Request.PipelineID
+	}); err != nil {
+		return err
+	}
+	m.observeBatch(env, pipeline, d.Records, d.Bytes)
+	if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
+		if err := m.saveCheckpoint(ctx, env.Run, cp); err != nil {
+			m.observeCheckpointFailure()
+			if m.log != nil {
+				m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
+			}
+		}
+	}
+	return nil
+}
+
+// terminal folds a run's terminal fact: first make its cursors durable, then
+// apply the status mutation, stamp the finish time, and record run metrics.
+func (m *Module) terminal(
+	ctx context.Context,
+	env events.Envelope,
+	status string,
+	promoteCommitGated bool,
+	fn func(*filament.RunState),
+) error {
+	if err := m.flushRunFor(ctx, env.Run, promoteCommitGated, checkpointReason(status)); err != nil {
+		return err
+	}
 	var labels runLabels
 	if err := m.mutate(ctx, env, func(r *filament.RunState) {
 		fn(r)
@@ -235,7 +284,6 @@ func (m *Module) terminal(ctx context.Context, env events.Envelope, status strin
 		return err
 	}
 	m.observeRun(env, status, labels)
-	m.flushRun(ctx, env.Run, status == "completed")
 	m.evictRun(env.Run)
 	return nil
 }
@@ -407,19 +455,24 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	m.since[key] = 0
 	m.mu.Unlock()
 	if cp != nil {
-		if err := m.persistCheckpoint(ctx, run, cp, false); err != nil {
+		if _, err := m.persistCheckpoint(ctx, run, cp, false, checkpointReasonResourceCompleted); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
-				m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
+				m.log.Error("tracker: flush checkpoint", err,
+					filament.Field{Key: "run", Value: string(run)},
+					filament.Field{Key: "resource", Value: resource},
+					filament.Field{Key: "reason", Value: string(checkpointReasonResourceCompleted)},
+				)
 			}
 		}
 	}
 }
 
-// flushRun persists every accumulated cursor for the run. Incremental and CDC
-// cursors become durable only after a successful sink commit; other cursor modes
-// retain their existing attempt-local resume behavior.
-func (m *Module) flushRun(ctx context.Context, run filament.RunID, committed bool) {
+// flushRunFor persists every accumulated cursor for the run. Incremental and CDC
+// cursors become durable only after a terminal fact proves the worker reached a
+// committed pause/completion boundary; other cursor modes retain their existing
+// attempt-local resume behavior.
+func (m *Module) flushRunFor(ctx context.Context, run filament.RunID, promoteCommitGated bool, reason checkpointReason) error {
 	m.mu.Lock()
 	pending := make(map[string]filament.Checkpoint)
 	for key, cp := range m.cp {
@@ -431,14 +484,38 @@ func (m *Module) flushRun(ctx context.Context, run filament.RunID, committed boo
 		}
 	}
 	m.mu.Unlock()
-	for _, cp := range pending {
-		if err := m.persistCheckpoint(ctx, run, cp, committed); err != nil {
+	persisted := 0
+	failed := 0
+	var failures []error
+	for resource, cp := range pending {
+		wrote, err := m.persistCheckpoint(ctx, run, cp, promoteCommitGated, reason)
+		if err != nil {
+			failed++
+			failures = append(failures, err)
 			m.observeCheckpointFailure()
 			if m.log != nil {
-				m.log.Error("tracker: flush checkpoint", err, filament.Field{Key: "run", Value: string(run)})
+				m.log.Error("tracker: flush checkpoint", err,
+					filament.Field{Key: "run", Value: string(run)},
+					filament.Field{Key: "resource", Value: resource},
+					filament.Field{Key: "reason", Value: string(reason)},
+				)
 			}
+		} else if wrote {
+			persisted++
 		}
 	}
+	if m.log != nil {
+		m.log.Info("tracker: checkpoint flush completed",
+			filament.Field{Key: "run", Value: string(run)},
+			filament.Field{Key: "reason", Value: string(reason)},
+			filament.Field{Key: "promote_commit_gated", Value: promoteCommitGated},
+			filament.Field{Key: "pending_checkpoints", Value: len(pending)},
+			filament.Field{Key: "persisted_checkpoints", Value: persisted},
+			filament.Field{Key: "deferred_checkpoints", Value: len(pending) - persisted - failed},
+			filament.Field{Key: "failed_checkpoints", Value: failed},
+		)
+	}
+	return errors.Join(failures...)
 }
 
 // cadence is the run's CheckpointEvery (cached; default when unset).
@@ -457,30 +534,70 @@ func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
 // saveCheckpoint persists attempt-local progress. Cross-run incremental and CDC
 // progress remains tentative until flushRun promotes it after the sink commits.
 func (m *Module) saveCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
-	return m.persistCheckpoint(ctx, run, cp, false)
+	_, err := m.persistCheckpoint(ctx, run, cp, false, checkpointReasonProgress)
+	return err
 }
 
-func (m *Module) persistCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint, committed bool) error {
+func (m *Module) persistCheckpoint(
+	ctx context.Context,
+	run filament.RunID,
+	cp filament.Checkpoint,
+	promoteCommitGated bool,
+	reason checkpointReason,
+) (bool, error) {
 	m.mu.Lock()
 	boundary := m.boundary[ckKey{run: run, resource: cp.Resource()}]
 	m.mu.Unlock()
-	if boundary == filament.CheckpointAfterCommit && !committed {
-		return nil
+	if boundary == filament.CheckpointAfterCommit && !promoteCommitGated {
+		return false, nil
 	}
 	state, err := m.ds.LoadRun(ctx, run)
 	if err != nil {
-		return err
+		return false, err
 	}
 	mode := filament.SourcePolicyForIngestion(filament.TypeFor(state.Request.IngestionTypes, cp.Resource())).Mode
 	if mode == filament.ModeIncremental || mode == filament.ModeCDC {
-		if !committed {
-			return nil
+		if !promoteCommitGated {
+			return false, nil
 		}
 		if key, ok := state.Request.ResourceCheckpointKey(cp.Resource()); ok {
-			return m.ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: run, Checkpoint: cp})
+			if err := m.ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: run, Checkpoint: cp}); err != nil {
+				return false, err
+			}
+			m.logCheckpointPersisted(run, cp, mode, "pipeline", reason)
+			return true, nil
 		}
 	}
-	return m.ds.SaveCheckpoint(ctx, run, cp)
+	if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil {
+		return false, err
+	}
+	m.logCheckpointPersisted(run, cp, mode, "run", reason)
+	return true, nil
+}
+
+func (m *Module) logCheckpointPersisted(
+	run filament.RunID,
+	cp filament.Checkpoint,
+	mode filament.ReadMode,
+	scope string,
+	reason checkpointReason,
+) {
+	if m.log == nil {
+		return
+	}
+	fields := []filament.Field{
+		{Key: "run", Value: string(run)},
+		{Key: "resource", Value: cp.Resource()},
+		{Key: "checkpoint_scope", Value: scope},
+		{Key: "read_mode", Value: mode.String()},
+		{Key: "checkpoint_kind", Value: filament.CheckpointKind(cp)},
+		{Key: "reason", Value: string(reason)},
+	}
+	if reason == checkpointReasonProgress {
+		m.log.Debug("tracker: checkpoint persisted", fields...)
+		return
+	}
+	m.log.Info("tracker: checkpoint persisted", fields...)
 }
 
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.
