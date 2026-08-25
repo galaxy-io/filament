@@ -174,6 +174,17 @@ func (c *CheckpointData) Set(key string, v any) Checkpoint {
 // Raw exposes the underlying cursor map for persistence.
 func (c *CheckpointData) Raw() map[string]any { return c.Cursor }
 
+// CheckpointKind describes a cursor's shape without exposing its value.
+func CheckpointKind(cp Checkpoint) string {
+	if cp == nil {
+		return "none"
+	}
+	if mode, ok := cp.Raw()["mode"].(string); ok && mode != "" {
+		return mode
+	}
+	return "cursor"
+}
+
 // crcTable uses the Castagnoli polynomial, which has hardware acceleration on
 // both ARM64 (CRC32 instructions) and x86 (SSE4.2).
 var crcTable = crc32.MakeTable(crc32.Castagnoli)
