@@ -1,0 +1,57 @@
+---
+title: "Pipelines"
+description: "Drawing pipelines and watching them run"
+icon: "diagram-project"
+---
+
+A pipeline is the path your data takes from a source to a sink. The
+Pipelines page lists all of yours, along with their schedules and how their
+last run went. Open one and you get three views. The canvas, the history,
+and the settings.
+
+<Frame caption="The pipelines list">
+  <img className="block dark:hidden" src="/assets/images/filament-pipelines-light.png" alt="Pipelines list in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipelines-dark.png" alt="Pipelines list in dark mode" />
+</Frame>
+
+## The canvas
+
+The canvas is where you draw the pipeline. Your connections appear as boxes,
+and you link a source to a sink to say "data flows this way." On each link
+you choose what moves (which tables or objects) and how it moves, whether
+every run brings everything or just what changed since last time.
+
+The canvas checks your work as you go. If something needs attention, say a
+table has no primary key or a choice needs one more setting, it flags it on
+the link before you save. Nothing broken gets saved.
+
+Every save keeps the previous version of the pipeline, so runs that are
+already in flight keep the shape they started with.
+
+<Frame caption="The pipeline canvas">
+  <img className="block dark:hidden" src="/assets/images/filament-pipeline-canvas-light.png" alt="Pipeline canvas in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipeline-canvas-dark.png" alt="Pipeline canvas in dark mode" />
+</Frame>
+
+## History
+
+History is every run of the pipeline, newest first, with how much data moved
+and how it ended. Click into an active run and you can watch it live, table
+by table, as it reads and writes. Runs that hit a problem partway keep their
+progress and pick up where they left off on the next attempt.
+
+<Frame caption="Run history">
+  <img className="block dark:hidden" src="/assets/images/filament-pipeline-history-light.png" alt="Pipeline run history in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipeline-history-dark.png" alt="Pipeline run history in dark mode" />
+</Frame>
+
+## Settings
+
+Settings is the housekeeping. The pipeline's name and description, a
+schedule if you want it running on its own, and sizing for the machines that
+do the work.
+
+<Frame caption="Pipeline settings">
+  <img className="block dark:hidden" src="/assets/images/filament-pipeline-settings-light.png" alt="Pipeline settings in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipeline-settings-dark.png" alt="Pipeline settings in dark mode" />
+</Frame>

@@ -1,40 +1,119 @@
 ---
 title: "Architecture"
-description: "The server, control plane, and worker, over a data store and an event bus."
+description: "One execution path, fact-derived state, and pluggable dispatch"
 icon: "sitemap"
 ---
 
-Filament is three components over a data store and an event bus.
+Filament is one execution path surrounded by small modules that decide when
+and where it runs. The code splits along three lines:
 
-| Component | Responsibility |
+- The domain model (sources, sinks, records, plans, runs) lives in the root `filament` package
+- Execution lives in `runner` and `pipeline`
+- Control-plane behaviors are `module.Module` implementations
+
+Processes never call each other. Postgres (state) and NATS (facts) are the
+only shared surfaces.
+
+## The runner
+
+Every run executes through `runner.RunOne`, and it behaves identically
+wherever it is dispatched:
+
+- In-process inside the control plane or standalone binary
+- In your own process via the library
+- In a worker Job on Kubernetes
+
+Where a run executes is a deployment choice and never a behavioral one. The
+full `RunOne` sequence is covered in
+[Runs and recovery](/pages/guides/concepts/runs-and-recovery).
+
+## The pipeline
+
+Inside a run, records flow through fixed stages:
+
+```
+source → inlet → batcher shards → writer pool → sink
+```
+
+- The inlet routes each record to its resource's batcher shard by hash.
+  Shard count equals writer count equals `SnapshotParallelism` (forced to 1
+  whenever ordering matters, as with CDC, incremental, or checkpointed
+  resources).
+- Batchers buffer per `(resource, part)` and flush at `BatchMaxRows` (the
+  sink's `PreferredBatchRows`, else 256) or on a 1s ticker.
+- Writers call `Sink.Apply` and verify each batch's CRC (see
+  [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints)).
+
+Backpressure is blocking. A source's `Push` blocks when channels are full, so
+a slow sink throttles extraction instead of growing memory. A fatal pipeline
+error unblocks the source with the error.
+
+## Facts and derived state
+
+The runner never writes run status. As a run progresses it publishes typed
+facts on the bus, under the subject grammar:
+
+```
+ingestion.v1.<entity>.<tenant>.<run>.<event>
+```
+
+`run.started`, `batch.written`, `resource.completed`, `run.completed`, and
+the rest. The full catalog is in
+[Runs and recovery](/pages/guides/concepts/runs-and-recovery).
+
+Run state is *derived*. The tracker module is the only writer of
+fact-derived state. It consumes durably, dedupes on broker sequence, and
+folds facts idempotently into Postgres. At-least-once delivery plus
+idempotent folds gives exactly-once effect. The one exception is checkpoint
+seeding, which the runner persists itself before extraction begins.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "primaryColor": "#005EFF14",
+  "primaryTextColor": "#0D0D0D",
+  "primaryBorderColor": "#005EFF",
+  "lineColor": "#005EFF",
+  "secondaryColor": "#005EFF14",
+  "tertiaryColor": "#005EFF14",
+  "labelTextColor": "#3D7BFF",
+  "edgeLabelColor": "#3D7BFF",
+  "edgeLabelBackground": "#00000000",
+  "fontFamily": "ABC Diatype, sans-serif"
+}}}%%
+flowchart LR
+    S[server] -- "run.requested" --> B[(NATS)]
+    B --> D[dispatcher]
+    D --> R["runner.RunOne"]
+    R -- facts --> B
+    B --> T[tracker]
+    T --> P[(Postgres)]
+```
+
+## Modules
+
+Modules never reference each other. Each subscribes to facts and reads or
+writes shared state.
+
+| Module | Responsibility |
 |---|---|
-| `server` | Serves the API and web UI; owns connections, pipelines, and run requests |
-| `control-plane` | Dispatches requested runs and tracks run state |
-| `worker` | Executes a single run, from extraction to verified write |
+| orchestrator | Intake. Persists run state and publishes `run.requested` idempotently |
+| scheduler | Fires cron schedules, promoting pre-created scheduled runs to requested |
+| dispatcher | Places each requested run onto an execution backend |
+| engine | In-process dispatch backend. Consumes `run.requested` and calls `runner.RunOne` |
+| tracker | Folds facts into run state, tallies, and checkpoints |
+| reaper | Fails runs whose heartbeats have gone stale (Kubernetes dispatch only) |
 
-## Data store
+## Dispatch backends
 
-Holds durable state: connections, pipelines, runs, and checkpoints. This is
-an interface with swappable implementations, not a hardcoded dependency.
-
-## Event bus
-
-Carries the events the components communicate through, rather than the
-components calling each other directly. Workers emit events as a run
-progresses, and the control plane folds them into run state.
-
-## Inside a run
-
-Within a run, the pipeline handles batching, writing, integrity
-verification, and checkpoint advancement — so an interrupted run resumes
-where it left off rather than starting over. See [Integrity &
-checkpoints](/pages/guides/concepts/integrity-and-checkpoints) for how that works, and
-[Replication modes](/pages/guides/concepts/replication-modes) for the read strategies a
-source can use.
+There are two. The first is the in-process engine module
+(`DISPATCH_MODE=inproc`, and what the standalone binary and library use).
+The second is Kubernetes dispatch, which creates one Job per run — the
+worker binary executes a single run and emits heartbeats. Both call
+`runner.RunOne` on the same persisted run state. The `run.requested` fact
+is only a trigger.
 
 ## Pluggability
 
-Connectors, the data store, and the event bus are all interfaces with
-swappable implementations. A connector self-registers via a blank import —
-see [Building a connector](/pages/connectors/building-a-connector/writing-a-source)
-to add one.
+Connectors, the data store, and the event bus are interfaces with swappable
+implementations. Connectors self-register via blank imports. See
+[Building a connector](/pages/connectors/building-a-connector/writing-a-source).

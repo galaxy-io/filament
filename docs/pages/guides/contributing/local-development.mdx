@@ -1,38 +1,73 @@
 ---
-title: "Local Development"
-description: "Set up the toolchain and run Filament from source."
+title: "Local development"
+description: "Set up the toolchain and run Filament from source"
 icon: "laptop-code"
 ---
 
-## Setup
+## Toolchain
 
-Run `brew bundle` to install the toolchain, and make sure Docker is running
-— local infra depends on it.
-
-## Day to day
-
-```sh
-just infra   # local data store + event bus via docker compose
-just dev     # control plane, API server, and UI on port 5173
-just test    # unit tests (just test-integration for e2e, needs Docker)
-```
-
-`just dev` runs the control plane and API server, waits for the server's
-health check, then starts the UI dev server (Vite, proxying the API on
-`:8080`) — see the `dev` recipe in the repo's `justfile` if you want to run
-components individually (`just server`, `just control-plane`, `just ui`).
-
-## Before opening a PR
+The Brewfile pins the toolchain (`go`, `just`, `golangci-lint`, `buf`, `sqlc`,
+`node@22`, and `pnpm`). You also need Docker, since local infrastructure and
+the integration suite both run in containers.
 
 ```sh
-just format   # gofumpt + goimports across every Go module, plus UI formatting
-just lint     # golangci-lint, plus Biome for the UI package
-just test     # unit tests
+brew bundle
 ```
 
-See [Style & Testing](/pages/guides/contributing/style-and-testing) for what each of
-these actually runs, and the `check` mode CI uses.
+## Workspace layout
 
-<Warning>
-  Filament is pre-1.0 and APIs may change.
-</Warning>
+The repository is a multi-module Go workspace (root, `cmd/`,
+`connectors/iceberg`, `connectors/object`, `secret/aws`, `tests/`, and more
+as they land) stitched together by `go.work` for editing. Builds, tests, and lint all run with
+`GOWORK=off` per module. The justfile handles this, so each module is
+verified against its own `go.mod`, not the workspace.
+
+## The justfile is the dev CLI
+
+Every routine task is a `just` recipe. These are the ones that matter day to
+day.
+
+| Recipe | What it does |
+|---|---|
+| `just infra` | Start PostgreSQL and NATS via docker compose (`down` stops, `volumes` also drops data) |
+| `just migrate` | Run datastore migrations against the local database |
+| `just dev` | Control plane + server in the background, wait for `:8080/livez` and `:8081/livez`, then the UI |
+| `just server` | API server alone (runs `migrate` first) |
+| `just control-plane` | Control plane alone, with `DISPATCH_MODE=inproc` |
+| `just ui` | Vite dev server on `:5173`, proxying the API to `:8080` |
+| `just gen` | Regenerate protobuf/ConnectRPC stubs (`buf generate`) and sqlc code |
+| `just ui-dist` | Build the UI bundle the server embeds |
+| `just build` | `gen` + `ui-dist` + compile every Go module |
+| `just binaries` | Linux release binaries into `bin/filament/` |
+| `just images` | The Docker images |
+| `just docs` | Mintlify docs preview on `:3000` |
+| `just tidy` | `go mod tidy` in every module, then `go work sync` |
+
+Start `just infra` before `just dev`. The `dev` recipe runs migrations
+immediately, so the database must already be healthy.
+
+Formatting and linting take a mode argument, not a hyphenated name:
+
+```sh
+just format check   # verify formatting without writing
+just lint check     # run linters without fixing
+```
+
+`just format` and `just lint` (no argument) fix in place. CI runs the
+granular equivalents (`just go-lint check`, `just go-format check`,
+`just ui-lint check`, and `just ui-format check`). See
+[style and testing](/pages/guides/contributing/style-and-testing) for the
+full lint and test story.
+
+<Note>
+The justfile falls back to a hardcoded `ENCRYPTION_KEY` so `just server` works
+out of the box. It is a published dev credential — never reuse it outside
+local development.
+</Note>
+
+## Building the UI in
+
+`just binaries` builds the server and standalone binaries with `-tags embedui`
+so the compiled UI ships inside them. A plain `go build ./cmd/server` without
+the tag serves a placeholder page at `/`, not the UI. `just ui-dist` produces
+the embeddable bundle on its own.

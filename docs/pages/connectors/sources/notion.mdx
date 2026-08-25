@@ -1,42 +1,65 @@
 ---
 title: "Notion"
-description: "Read databases, pages, and blocks from a Notion workspace."
+description: "Read databases, pages, users, and blocks from a Notion workspace"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg"
 ---
 
-Notion is a manifest-driven source — `connectors/http/manifests/notion.yaml`
-declares its resources, auth, and pagination against the shared grammar in
-`connectors/http/manifest/`; no Notion-specific Go code exists. See
-[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+Notion is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
+The `connectors/http/manifests/notion.yaml` manifest declares its resources,
+which cover databases, the pages inside them, workspace users, and the block
+content of each page. The connector is **beta**. The resource set is stable,
+though field shapes may still be extended.
 
-## Auth
+## Configuration
 
-A Notion integration secret (bearer auth), plus a pinned `Notion-Version`
-header (`2022-06-28`) so a Notion API upgrade can't silently change response
-shapes mid-stream.
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Notion integration secret. |
 
 ## Resources
 
-Four resources, statically discovered:
-
-| Resource | Path | Fans out from | Notes |
-|---|---|---|---|
-| `databases` | `POST /v1/search` | — | Notion has no list-databases endpoint; this filters search results to `object: database` |
-| `pages` | `POST /v1/databases/{database}/query` | `databases` | Incremental on `last_edited_time` |
-| `users` | `GET /v1/users` | — | Workspace members and bots |
-| `blocks` | `GET /v1/blocks/{block}/children` | `pages` | The page's content, one level of children at a time |
-
-All four paginate the same way: a `next_cursor` / `has_more` pair in the
-response, fed back as `start_cursor` on the next request (in the body for the
-two `POST` resources, in the query string for the two `GET` ones).
+`databases` is discovered through `POST /v1/search` filtered to
+`object: database`, and captures each database id. `pages` fans out from it
+(one `POST /v1/databases/{id}/query` walk per database) and captures each page
+id, which `blocks` then fans out over with one `GET /v1/blocks/{id}/children`
+walk per page. `users` is an independent top-level list. The
+databases → pages → blocks chain means block extraction issues at least one
+request per page in the workspace.
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
-`pages` supports incremental extraction using Notion's inclusive
-`last_edited_time.on_or_after` timestamp filter. The manifest keeps a single
-`pages_last_edited_time` checkpoint across database fan-out and re-reads a
-five-minute window to cover edits made while databases are being scanned.
+Full is always available. A full run checkpoints its pagination cursor per
+top-level resource and resumes from the last completed page. Child resources
+(`pages`, `blocks`) always restart with their parent.
 
-`databases`, `users`, and `blocks` remain full extracts because their current
-list endpoints do not expose a compatible last-edited boundary.
+`pages` is the one incremental resource.
+
+| | |
+|---|---|
+| Cursor field | `last_edited_time` |
+| Request parameter | `filter.last_edited_time.on_or_after` (body) |
+| Comparator | `time` |
+| Initial value | `1970-01-01T00:00:00Z` |
+| Checkpoint key | `pages_last_edited_time` |
+| Overlap | 300 seconds |
+
+The cursor field is fixed by the manifest. Only a lookback window is
+user-configurable, and only because the comparator is `time`. Pages fan out
+across databases but share a single durable watermark for the whole resource.
+The 300-second overlap re-reads a window each run to cover databases edited
+while earlier ones were being scanned. `blocks` has no incremental block.
+When it is selected, every page's children are re-read in full.
+
+## Behavior
+
+- **Auth**: bearer token from `api_key` on every request.
+- **API version**: pinned via `Notion-Version: 2022-06-28`, so payload shapes
+  do not drift with Notion's rolling default.
+- **Pagination**: cursor paging throughout. `next_cursor` from each response
+  feeds `start_cursor` in the next request (in the body for the POST
+  endpoints, in the query string for `users` and `blocks`), terminating when
+  `has_more` is false.
+- **Rate limiting**: no client-side limiter is configured. The engine backs
+  off on 429 responses using `Retry-After`.
+- `databases` and `pages` keep the entire response object in `raw`, while
+  `users` and `blocks` keep only unprojected fields as a remainder.
