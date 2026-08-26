@@ -56,8 +56,8 @@ func TestRunSampleToStdout(t *testing.T) {
 	}, filament.RunSpec{
 		Tenant:         "t1",
 		Run:            "r1",
-		Source:         filament.Ref{Provider: "sample", Config: map[string]any{"rows": 5}},
-		Sink:           filament.Ref{Provider: "stdout"},
+		Source:         filament.Ref{Connector: "sample", Config: map[string]any{"rows": 5}},
+		Sink:           filament.Ref{Connector: "stdout"},
 		Resources:      []string{"users", "orders"},
 		Options:        filament.RunOptions{BatchMaxRows: 2},
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullReplace},
