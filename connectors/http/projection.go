@@ -6,34 +6,34 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
-func schemaFields(res manifest.Resource) []filament.SchemaField {
+func schemaFields(res manifest.Resource) []rowmodel.Field {
 	if len(res.Fields) == 0 {
-		fields := make([]filament.SchemaField, 0, len(res.PrimaryKey)+1)
+		fields := make([]rowmodel.Field, 0, len(res.PrimaryKey)+1)
 		for _, key := range res.PrimaryKey {
-			fields = append(fields, filament.SchemaField{
+			fields = append(fields, rowmodel.Field{
 				Name:     key,
 				Nullable: false,
-				Logical:  filament.LogicalString,
+				Logical:  rowmodel.LogicalString,
 				Native:   "string",
 			})
 		}
-		fields = append(fields, filament.SchemaField{
+		fields = append(fields, rowmodel.Field{
 			Name:     "data",
 			Nullable: false,
-			Logical:  filament.LogicalJSON,
+			Logical:  rowmodel.LogicalJSON,
 			Native:   "json",
 		})
 		return fields
 	}
-	fields := make([]filament.SchemaField, 0, len(res.Fields))
+	fields := make([]rowmodel.Field, 0, len(res.Fields))
 	for _, f := range res.Fields {
-		fields = append(fields, filament.SchemaField{
+		fields = append(fields, rowmodel.Field{
 			Name:     f.Name,
 			Nullable: f.Nullable,
 			Logical:  logicalType(f.Type),
@@ -271,35 +271,35 @@ func scalarFloat(value any) (float64, error) {
 	}
 }
 
-func logicalType(fieldType string) filament.LogicalType {
+func logicalType(fieldType string) rowmodel.LogicalType {
 	switch fieldType {
 	case "bool":
-		return filament.LogicalBool
+		return rowmodel.LogicalBool
 	case "int16":
-		return filament.LogicalInt16
+		return rowmodel.LogicalInt16
 	case "int32":
-		return filament.LogicalInt32
+		return rowmodel.LogicalInt32
 	case "int64":
-		return filament.LogicalInt64
+		return rowmodel.LogicalInt64
 	case "float32":
-		return filament.LogicalFloat32
+		return rowmodel.LogicalFloat32
 	case "float64":
-		return filament.LogicalFloat64
+		return rowmodel.LogicalFloat64
 	case "decimal":
-		return filament.LogicalDecimal
+		return rowmodel.LogicalDecimal
 	case "date":
-		return filament.LogicalDate
+		return rowmodel.LogicalDate
 	case "time":
-		return filament.LogicalTime
+		return rowmodel.LogicalTime
 	case "timestamp":
-		return filament.LogicalTimestamp
+		return rowmodel.LogicalTimestamp
 	case "timestamptz":
-		return filament.LogicalTimestampTZ
+		return rowmodel.LogicalTimestampTZ
 	case "json":
-		return filament.LogicalJSON
+		return rowmodel.LogicalJSON
 	case "uuid":
-		return filament.LogicalUUID
+		return rowmodel.LogicalUUID
 	default:
-		return filament.LogicalString
+		return rowmodel.LogicalString
 	}
 }
