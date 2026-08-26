@@ -32,7 +32,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const (
@@ -304,7 +306,7 @@ ORDER BY c.relname`
 // sink. With Parallelism > 1 the shards are read concurrently (bounded by
 // Parallelism) into the shared sink under one exported snapshot; paging within a
 // shard stays sequential. The first shard error cancels the rest and is returned.
-func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts) error {
 	shards, err := s.planShards(ctx, opts.Resources, opts.Parallelism)
 	if err != nil {
 		return err
@@ -443,19 +445,19 @@ type querier interface {
 // bounded TID range scan reading only that window — never the rest of the table.
 // limit > 0 stops the shard after that many rows (best-effort per shard when
 // split).
-func (s *Source) extractShard(ctx context.Context, sink filament.RecordSink, q querier, sh shard, limit int) error {
+func (s *Source) extractShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh shard, limit int) error {
 	w, err := sink.Builder(sh.table, 0, sh.dec.schema)
 	if err != nil {
 		return err
 	}
-	_, err = s.readBlocks(ctx, w, q, sh, "", nil, filament.RowMeta{}, limit)
+	_, err = s.readBlocks(ctx, w, q, sh, "", nil, rowmodel.Meta{}, limit)
 	return err
 }
 
 // readBlocks appends the shard's block windows into w, one bounded TID range scan
 // per window. filter is an extra AND clause on t (or empty) with its args after
 // the two ctid bounds. Returns the rows appended; limit > 0 stops after that many.
-func (s *Source) readBlocks(ctx context.Context, w filament.RowWriter, q querier, sh shard, filter string, extra []any, meta filament.RowMeta, limit int) (int, error) {
+func (s *Source) readBlocks(ctx context.Context, w arrowbatch.RowWriter, q querier, sh shard, filter string, extra []any, meta rowmodel.Meta, limit int) (int, error) {
 	sql := ctidWindowSQL(sh, filter)
 	emitted := 0
 	for b := sh.loBlock; b < sh.hiBlock; b += sh.windowBlocks {
@@ -490,7 +492,7 @@ var binaryResults = pgx.QueryResultFormats{pgx.BinaryFormatCode}
 // (the keyset or incremental cursor); a nil keyIdx ends rows with meta as given.
 // limit > 0 stops after that many rows. Returns the rows appended and the last
 // row's key.
-func (s *Source) appendPage(ctx context.Context, q querier, sql string, w filament.RowWriter, dec *rowDecoder, meta filament.RowMeta, keyIdx []int, limit int, args ...any) (int, []string, error) {
+func (s *Source) appendPage(ctx context.Context, q querier, sql string, w arrowbatch.RowWriter, dec *rowDecoder, meta rowmodel.Meta, keyIdx []int, limit int, args ...any) (int, []string, error) {
 	rows, err := q.Query(ctx, sql, append([]any{binaryResults}, args...)...)
 	if err != nil {
 		return 0, nil, err
@@ -561,7 +563,7 @@ func (sn *snapshot) close(ctx context.Context) {
 
 // extractShardSnapshot reads one shard inside its own transaction that imports the
 // run's exported snapshot, then delegates to the shared page loop.
-func (s *Source) extractShardSnapshot(ctx context.Context, sink filament.RecordSink, snap *snapshot, sh shard, limit int) error {
+func (s *Source) extractShardSnapshot(ctx context.Context, sink arrowbatch.Inlet, snap *snapshot, sh shard, limit int) error {
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("acquire shard conn: %w", err)
@@ -645,14 +647,14 @@ ORDER  BY array_position(i.indkey, a.attnum)`
 // order with its Postgres type (format_type, kept verbatim in Native for a same-engine
 // round-trip and classified into a LogicalType), plus the primary key. It implements
 // filament.SchemaProvider so a Schematized sink can build matching typed tables.
-func (s *Source) Schema(ctx context.Context, resource string) (filament.RecordSchema, error) {
+func (s *Source) Schema(ctx context.Context, resource string) (rowmodel.Schema, error) {
 	cols, err := s.columns(ctx, s.schema, resource)
 	if err != nil {
-		return filament.RecordSchema{}, err
+		return rowmodel.Schema{}, err
 	}
 	pks, err := s.lookupPrimaryKey(ctx, s.schema, resource)
 	if err != nil {
-		return filament.RecordSchema{}, fmt.Errorf("lookup pk: %w", err)
+		return rowmodel.Schema{}, fmt.Errorf("lookup pk: %w", err)
 	}
 	return schemaOf(resource, cols, pkNames(pks)), nil
 }

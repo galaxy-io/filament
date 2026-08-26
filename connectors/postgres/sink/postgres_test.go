@@ -8,22 +8,23 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 func TestColumnType(t *testing.T) {
 	tests := []struct {
 		name  string
-		field filament.SchemaField
+		field rowmodel.Field
 		same  bool
 		want  string
 	}{
-		{"string", filament.SchemaField{Logical: filament.LogicalString, Native: "varchar(20)"}, false, "text"},
-		{"same engine keeps native", filament.SchemaField{Logical: filament.LogicalString, Native: "varchar(20)"}, true, "varchar(20)"},
-		{"json", filament.SchemaField{Logical: filament.LogicalJSON, Native: "json"}, false, "jsonb"},
-		{"bounded decimal", filament.SchemaField{Logical: filament.LogicalDecimal, Precision: 12, Scale: 2}, false, "numeric(12,2)"},
-		{"unbounded decimal", filament.SchemaField{Logical: filament.LogicalDecimal}, false, "numeric"},
-		{"unknown", filament.SchemaField{}, false, "text"},
+		{"string", rowmodel.Field{Logical: rowmodel.LogicalString, Native: "varchar(20)"}, false, "text"},
+		{"same engine keeps native", rowmodel.Field{Logical: rowmodel.LogicalString, Native: "varchar(20)"}, true, "varchar(20)"},
+		{"json", rowmodel.Field{Logical: rowmodel.LogicalJSON, Native: "json"}, false, "jsonb"},
+		{"bounded decimal", rowmodel.Field{Logical: rowmodel.LogicalDecimal, Precision: 12, Scale: 2}, false, "numeric(12,2)"},
+		{"unbounded decimal", rowmodel.Field{Logical: rowmodel.LogicalDecimal}, false, "numeric"},
+		{"unknown", rowmodel.Field{}, false, "text"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -36,6 +37,9 @@ func TestColumnType(t *testing.T) {
 
 func TestStatements(t *testing.T) {
 	spec := New().Spec()
+	if !spec.Capabilities.EncodedIntegrity {
+		t.Fatal("postgres sink does not advertise encoded integrity")
+	}
 	found := false
 	for _, capability := range spec.Capabilities.WritePolicies {
 		if capability.Mode == filament.WriteMerge {
@@ -127,17 +131,17 @@ func TestNumericWire(t *testing.T) {
 	}
 }
 
-type collect struct{ chunks []batch.Chunk }
+type collect struct{ chunks []*arrowbatch.Batch }
 
-func (c *collect) Chunk(ch batch.Chunk) error          { c.chunks = append(c.chunks, ch); return nil }
-func (c *collect) Drained(filament.RowMeta, int) error { return nil }
+func (c *collect) Chunk(ch *arrowbatch.Batch) error { c.chunks = append(c.chunks, ch); return nil }
+func (c *collect) Drained(rowmodel.Meta, int) error { return nil }
 
 func TestCopierPicksFormat(t *testing.T) {
-	rs := filament.RecordSchema{Fields: []filament.SchemaField{
-		{Name: "id", Logical: filament.LogicalInt64},
-		{Name: "tags", Logical: filament.LogicalArray, Native: "text[]"},
+	rs := rowmodel.Schema{Fields: []rowmodel.Field{
+		{Name: "id", Logical: rowmodel.LogicalInt64},
+		{Name: "tags", Logical: rowmodel.LogicalArray, Native: "text[]"},
 	}}
-	schema := batch.Schema(rs)
+	schema := arrowbatch.Schema(rs)
 	c := newCopier(schema, []int{0, 1}, []string{"bigint", "text[]"})
 	if c.binary {
 		t.Fatal("array column must force text COPY")
@@ -147,28 +151,36 @@ func TestCopierPicksFormat(t *testing.T) {
 		t.Fatal("bigint column has a binary form")
 	}
 	col := &collect{}
-	b := batch.New(schema, batch.Options{MaxRows: 4}, col)
+	b := arrowbatch.NewBuilder(schema, nil, arrowbatch.Options{MaxRows: 4}, col)
 	b.Int64(1)
 	b.String("{a,b}")
-	if err := b.EndRow(filament.RowMeta{}); err != nil {
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
 		t.Fatal(err)
 	}
 	b.Int64(2)
 	b.Null()
-	if err := b.EndRow(filament.RowMeta{}); err != nil {
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Flush(); err != nil {
 		t.Fatal(err)
 	}
-	rows := col.chunks[0].Rows
-	text := newCopier(schema, []int{0, 1}, []string{"bigint", "text[]"}).encode(rows, 0, 2, false)
+	defer col.chunks[0].Release()
+	rows := col.chunks[0].Rows()
+	text, textCRC := newCopier(schema, []int{0, 1}, []string{"bigint", "text[]"}).encode(rows, 0, 2, false)
 	if string(text) != "1\t{a,b}\n2\t\\N\n" {
 		t.Fatalf("text payload = %q", text)
 	}
-	bin := newCopier(schema, []int{0}, []string{"bigint"}).encode(rows, 1, 2, false)
+	if err := verifyCopyChecksum(text, textCRC); err != nil {
+		t.Fatalf("text checksum: %v", err)
+	}
+	bin, binCRC := newCopier(schema, []int{0}, []string{"bigint"}).encode(rows, 1, 2, false)
 	want := append(append([]byte{}, copyHeader...), 0, 1, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 2, 0xff, 0xff)
 	if string(bin) != string(want) {
 		t.Fatalf("binary payload = %x want %x", bin, want)
+	}
+	bin[len(bin)-3] ^= 1
+	if err := verifyCopyChecksum(bin, binCRC); err == nil {
+		t.Fatal("checksum accepted mutated binary COPY payload")
 	}
 }

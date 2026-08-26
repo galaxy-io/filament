@@ -7,8 +7,9 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/arrowtext"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 func TestTextForms(t *testing.T) {
@@ -28,9 +29,9 @@ func TestTextForms(t *testing.T) {
 		{textDate, be32(-730119), "0001-01-01"},
 		{textDate, be32(-730120), "0001-12-31 BC"},
 		{textDate, be32(math.MaxInt32), "infinity"},
-		{textTimestamp, be64(batch.MicrosPerDay + 3661_500000), "2000-01-02 01:01:01.5"},
+		{textTimestamp, be64(arrowtext.MicrosPerDay + 3661_500000), "2000-01-02 01:01:01.5"},
 		{textTimestamptz, be64(0), "2000-01-01 00:00:00+00"},
-		{textTime, be64(batch.MicrosPerHour*13 + 5), "13:00:00.000005"},
+		{textTime, be64(arrowtext.MicrosPerHour*13 + 5), "13:00:00.000005"},
 		{textBytea, []byte{0, 255}, `\x00ff`},
 	}
 	for _, c := range cases {
@@ -46,33 +47,34 @@ func TestTextForms(t *testing.T) {
 }
 
 func TestTextDecode(t *testing.T) {
-	rs := filament.RecordSchema{Fields: []filament.SchemaField{
-		{Name: "id", Logical: filament.LogicalInt64},
-		{Name: "amt", Logical: filament.LogicalDecimal, Precision: 10, Scale: 2},
-		{Name: "d", Logical: filament.LogicalDate},
-		{Name: "at", Logical: filament.LogicalTimestampTZ},
-		{Name: "ts", Logical: filament.LogicalTimestamp},
-		{Name: "tm", Logical: filament.LogicalTime},
-		{Name: "raw", Logical: filament.LogicalBytes},
-		{Name: "ok", Logical: filament.LogicalBool},
+	rs := rowmodel.Schema{Fields: []rowmodel.Field{
+		{Name: "id", Logical: rowmodel.LogicalInt64},
+		{Name: "amt", Logical: rowmodel.LogicalDecimal, Precision: 10, Scale: 2},
+		{Name: "d", Logical: rowmodel.LogicalDate},
+		{Name: "at", Logical: rowmodel.LogicalTimestampTZ},
+		{Name: "ts", Logical: rowmodel.LogicalTimestamp},
+		{Name: "tm", Logical: rowmodel.LogicalTime},
+		{Name: "raw", Logical: rowmodel.LogicalBytes},
+		{Name: "ok", Logical: rowmodel.LogicalBool},
 	}}
 	oids := []uint32{pgtype.Int8OID, pgtype.NumericOID, pgtype.DateOID, pgtype.TimestamptzOID, pgtype.TimestampOID, pgtype.TimeOID, pgtype.ByteaOID, pgtype.BoolOID}
 	texts := []string{"42", "1.5", "2024-03-01", "2024-03-01 12:00:00.25+02", "0001-01-01 00:00:00 BC", "23:59:59.999999", `\xdead`, "f"}
 	c := &collect{}
-	b := batch.New(batch.Schema(rs), batch.Options{MaxRows: 10}, c)
+	b := arrowbatch.NewBuilder(arrowbatch.Schema(rs), nil, arrowbatch.Options{MaxRows: 10}, c)
 	for i, f := range rs.Fields {
 		pt, _ := typeFor(oids[i], f)
 		if err := pt.fromText(b, []byte(texts[i])); err != nil {
 			t.Fatalf("%s: %v", f.Name, err)
 		}
 	}
-	if err := b.EndRow(filament.RowMeta{}); err != nil {
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Flush(); err != nil {
 		t.Fatal(err)
 	}
-	rows := c.chunks[0].Rows
+	defer c.chunks[0].Release()
+	rows := c.chunks[0].Rows()
 	if got := rows.Column(1).(*array.Decimal128).Value(0).ToString(2); got != "1.50" {
 		t.Errorf("amt = %s", got)
 	}
@@ -80,15 +82,15 @@ func TestTextDecode(t *testing.T) {
 		t.Errorf("d = %d", got)
 	}
 	// 12:00:00.25 at +02 is 10:00:00.25 UTC.
-	wantAt := (19783*24+10)*batch.MicrosPerHour + 250000
+	wantAt := (19783*24+10)*arrowtext.MicrosPerHour + 250000
 	if got := int64(rows.Column(3).(*array.Timestamp).Value(0)); got != wantAt {
 		t.Errorf("at = %d want %d", got, wantAt)
 	}
 	// 1 BC is proleptic year 0.
-	if got := int64(rows.Column(4).(*array.Timestamp).Value(0)); got != batch.DateToDays(0, 1, 1)*batch.MicrosPerDay {
+	if got := int64(rows.Column(4).(*array.Timestamp).Value(0)); got != arrowtext.DateToDays(0, 1, 1)*arrowtext.MicrosPerDay {
 		t.Errorf("ts = %d", got)
 	}
-	if got := int64(rows.Column(5).(*array.Time64).Value(0)); got != batch.MicrosPerDay-1 {
+	if got := int64(rows.Column(5).(*array.Time64).Value(0)); got != arrowtext.MicrosPerDay-1 {
 		t.Errorf("tm = %d", got)
 	}
 	if got := rows.Column(6).(*array.Binary).Value(0); string(got) != "\xde\xad" {
@@ -125,9 +127,9 @@ func TestDecDecimal(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			rs := filament.RecordSchema{Fields: []filament.SchemaField{{Name: "v", Logical: filament.LogicalDecimal, Precision: 38, Scale: int(c.scale), Nullable: true}}}
+			rs := rowmodel.Schema{Fields: []rowmodel.Field{{Name: "v", Logical: rowmodel.LogicalDecimal, Precision: 38, Scale: int(c.scale), Nullable: true}}}
 			col := &collect{}
-			b := batch.New(batch.Schema(rs), batch.Options{MaxRows: 1}, col)
+			b := arrowbatch.NewBuilder(arrowbatch.Schema(rs), nil, arrowbatch.Options{MaxRows: 1}, col)
 			err := decDecimal(c.scale)(b, c.src)
 			if c.bad {
 				if err == nil {
@@ -138,10 +140,11 @@ func TestDecDecimal(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := b.EndRow(filament.RowMeta{}); err != nil {
+			if err := b.EndRow(rowmodel.Meta{}); err != nil {
 				t.Fatal(err)
 			}
-			arr := col.chunks[0].Rows.Column(0).(*array.Decimal128)
+			defer col.chunks[0].Release()
+			arr := col.chunks[0].Rows().Column(0).(*array.Decimal128)
 			if c.want == "" {
 				if !arr.IsNull(0) {
 					t.Fatalf("want null, got %s", arr.Value(0).ToString(c.scale))

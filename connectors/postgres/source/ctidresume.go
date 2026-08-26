@@ -25,8 +25,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // ctid checkpoint Meta keys (run-start stamps).
@@ -122,7 +123,7 @@ func (s *Source) currentFilenode(ctx context.Context, qualified string) (string,
 // by re-delivering rows that churned since the run-start horizon, and (b) tail-scan any heap
 // blocks appended past the run-start size (all such rows are post-horizon). Reconcile/tail
 // rows are plain (no Part/Coarse) — pure idempotent re-deliveries that touch no cursor.
-func (s *Source) ctidJobs(ctx context.Context, sink filament.RecordSink, table, qualified string, ks checkpoint.KeysetCheckpoint, dec *rowDecoder, limit int) []func(context.Context, querier) error {
+func (s *Source) ctidJobs(ctx context.Context, sink arrowbatch.Inlet, table, qualified string, ks checkpoint.KeysetCheckpoint, dec *rowDecoder, limit int) []func(context.Context, querier) error {
 	shards := s.ctidShardsFrom(ctx, table, qualified, ks, dec)
 	horizon := ks.Meta[metaXminHorizon]
 	unfiltered := s.freezeAdvanced(ctx, qualified, horizon)
@@ -201,7 +202,7 @@ func (s *Source) freezeAdvanced(ctx context.Context, qualified, horizon string) 
 // horizon: numeric xid compare age(xmin) <= age(H1) (avoids pg_visible_in_snapshot, which is
 // unsafe with subtransaction xmins). unfiltered re-delivers the whole range (freeze guard, or
 // the append tail). Rows are plain — idempotent re-deliveries that advance no cursor.
-func (s *Source) reconcileCtidBlocks(ctx context.Context, sink filament.RecordSink, q querier, sh shard, horizon string, unfiltered bool) error {
+func (s *Source) reconcileCtidBlocks(ctx context.Context, sink arrowbatch.Inlet, q querier, sh shard, horizon string, unfiltered bool) error {
 	filter := ""
 	var extra []any
 	if !unfiltered && horizon != "" {
@@ -212,7 +213,7 @@ func (s *Source) reconcileCtidBlocks(ctx context.Context, sink filament.RecordSi
 	if err != nil {
 		return err
 	}
-	if _, err := s.readBlocks(ctx, w, q, sh, filter, extra, filament.RowMeta{}, 0); err != nil {
+	if _, err := s.readBlocks(ctx, w, q, sh, filter, extra, rowmodel.Meta{}, 0); err != nil {
 		return fmt.Errorf("reconcile %q: %w", sh.table, err)
 	}
 	return nil
@@ -232,17 +233,17 @@ func atoiOr(s []string, def int) int {
 // extractCtidShard reads one block range, stamping every row Coarse into the shard's
 // writer (so the tracker ack-counts completion), then drains the writer on a clean read.
 // A row-limit truncation suppresses the marker so the shard stays resumable.
-func (s *Source) extractCtidShard(ctx context.Context, sink filament.RecordSink, q querier, sh shard, part, limit int) error {
+func (s *Source) extractCtidShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh shard, part, limit int) error {
 	w, err := sink.Builder(sh.table, part, sh.dec.schema)
 	if err != nil {
 		return err
 	}
-	n, err := s.readBlocks(ctx, w, q, sh, "", nil, filament.RowMeta{Coarse: true}, limit)
+	n, err := s.readBlocks(ctx, w, q, sh, "", nil, rowmodel.Meta{Coarse: true}, limit)
 	if err != nil {
 		return err
 	}
 	if limit > 0 && n >= limit {
 		return nil // truncated: no completion marker, shard stays resumable
 	}
-	return w.Drain(filament.RowMeta{})
+	return w.Drain(rowmodel.Meta{})
 }
