@@ -9,6 +9,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/datastore/memory"
 	"github.com/galaxy-io/filament/registry"
 )
@@ -50,7 +51,7 @@ type liveProbeSink struct {
 
 func (s *liveProbeSink) Spec() filament.SinkSpec                      { return filament.SinkSpec{Name: "live-sink"} }
 func (s *liveProbeSink) Open(context.Context, filament.RunSpec) error { return nil }
-func (s *liveProbeSink) Apply(context.Context, filament.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *liveProbeSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
 	return filament.WriteReceipt{}, nil
 }
 func (s *liveProbeSink) Commit(context.Context) error { return nil }

@@ -90,6 +90,11 @@ type (
 	IntegrityVerifiedEvent struct {
 		CRC uint32 `json:"crc,omitempty"`
 	}
+	// EncodedIntegrityVerifiedEvent records a sink's verified checksum over the
+	// exact serialized bytes handed to its transport.
+	EncodedIntegrityVerifiedEvent struct {
+		CRC uint32 `json:"crc,omitempty"`
+	}
 	// ChunkDivergenceEvent reports a CRC mismatch between staged and written data.
 	ChunkDivergenceEvent struct {
 		CRC   uint32 `json:"crc,omitempty"`
@@ -138,10 +143,11 @@ var (
 	ResourceCompleted = define[ResourceCompletedEvent]("resource.completed")
 	ResourceFailed    = define[ResourceFailedEvent]("resource.failed")
 
-	BatchBuffered     = define[BatchBufferedEvent]("batch.buffered")
-	BatchWritten      = define[BatchWrittenEvent]("batch.written")
-	IntegrityVerified = define[IntegrityVerifiedEvent]("batch.integrity_verified")
-	ChunkDivergence   = define[ChunkDivergenceEvent]("batch.chunk_divergence")
+	BatchBuffered            = define[BatchBufferedEvent]("batch.buffered")
+	BatchWritten             = define[BatchWrittenEvent]("batch.written")
+	IntegrityVerified        = define[IntegrityVerifiedEvent]("batch.integrity_verified")
+	EncodedIntegrityVerified = define[EncodedIntegrityVerifiedEvent]("batch.encoded_integrity_verified")
+	ChunkDivergence          = define[ChunkDivergenceEvent]("batch.chunk_divergence")
 
 	WatermarkAdvanced = define[WatermarkAdvancedEvent]("cursor.watermark_advanced")
 	CheckpointSaved   = define[CheckpointSavedEvent]("cursor.checkpoint_saved")

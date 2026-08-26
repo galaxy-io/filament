@@ -1,4 +1,4 @@
-package batch
+package arrowtext
 
 // Calendar arithmetic and ISO 8601 text for the Arrow date and time storage
 // units: days since 1970-01-01 (Date32) and microseconds since the Unix epoch
@@ -61,10 +61,10 @@ func FloorDiv(a, b int64) int64 {
 	return q
 }
 
-// AppendDate appends "YYYY-MM-DD" for days since the epoch, with a " BC" suffix
+// AppendDate32 appends "YYYY-MM-DD" for Arrow Date32 days since the epoch, with a " BC" suffix
 // for years before 1 AD.
-func AppendDate(dst []byte, days int64) []byte {
-	y, m, d := DaysToDate(days)
+func AppendDate32(dst []byte, days int32) []byte {
+	y, m, d := DaysToDate(int64(days))
 	bc := y <= 0
 	if bc {
 		y = 1 - y

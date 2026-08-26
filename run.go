@@ -5,6 +5,8 @@ import (
 	"maps"
 	"slices"
 	"time"
+
+	"github.com/galaxy-io/filament/arrowbatch"
 )
 
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
@@ -534,6 +536,21 @@ func (p WritePolicy) ValidateOps(resource string, ops []Operation) error {
 		return nil
 	}
 	for _, op := range ops {
+		if !p.Capability.Accepts(op) {
+			return fmt.Errorf("write policy %q does not accept %s row for resource %q", p.Capability.Mode, OperationName(op), resource)
+		}
+	}
+	return nil
+}
+
+// ValidateBatch rejects the first row whose immutable batch operation the
+// policy does not accept.
+func (p WritePolicy) ValidateBatch(resource string, batch *arrowbatch.Batch) error {
+	if len(p.Capability.AcceptsOps) == 0 {
+		return nil
+	}
+	for i := range batch.NumRows() {
+		op := batch.Op(i)
 		if !p.Capability.Accepts(op) {
 			return fmt.Errorf("write policy %q does not accept %s row for resource %q", p.Capability.Mode, OperationName(op), resource)
 		}

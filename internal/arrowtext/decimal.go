@@ -1,4 +1,4 @@
-package batch
+package arrowtext
 
 import (
 	"math/bits"

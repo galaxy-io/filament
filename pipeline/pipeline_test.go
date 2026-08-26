@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/arrow-go/v18/arrow/memory"
+
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -17,12 +19,14 @@ import (
 // CRC; corrupt flips it to force a divergence, and failOn returns an error on the
 // nth Apply to exercise the fatal path.
 type fakeSink struct {
-	mu      sync.Mutex
-	written []written
-	applied []filament.WritePolicy
-	corrupt bool
-	failOn  int // 1-based Apply index to fail on; 0 = never
-	n       int
+	mu               sync.Mutex
+	written          []written
+	applied          []filament.WritePolicy
+	corrupt          bool
+	failOn           int // 1-based Apply index to fail on; 0 = never
+	encodedIntegrity bool
+	omitEncoded      bool
+	n                int
 }
 
 // written is what the sink keeps of a batch: rows are released after Apply, so
@@ -35,13 +39,15 @@ type written struct {
 	cursor   *filament.CheckpointData
 }
 
-func (f *fakeSink) Spec() filament.SinkSpec                      { return filament.SinkSpec{Name: "fake"} }
+func (f *fakeSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Name: "fake", Capabilities: filament.SinkCapabilities{EncodedIntegrity: f.encodedIntegrity}}
+}
 func (f *fakeSink) Open(context.Context, filament.RunSpec) error { return nil }
 func (f *fakeSink) Commit(context.Context) error                 { return nil }
 func (f *fakeSink) Abort(context.Context) error                  { return nil }
 func (f *fakeSink) Name() string                                 { return "fake" }
 
-func (f *fakeSink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (f *fakeSink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.applied = append(f.applied, opts.Policy)
@@ -49,15 +55,21 @@ func (f *fakeSink) Apply(_ context.Context, b filament.Batch, opts filament.Appl
 	if f.failOn == f.n {
 		return filament.WriteReceipt{}, errors.New("boom")
 	}
-	if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
+	ops := b.Operations()
+	if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 		return filament.WriteReceipt{}, err
 	}
-	f.written = append(f.written, written{b.Resource, b.Seq, b.NumRows(), b.Ops, b.Cursor})
-	crc := batch.CRC(b.Rows, b.Ops)
+	f.written = append(f.written, written{b.Resource, b.Seq, b.NumRows(), ops.Clone(), b.Cursor})
+	crc := b.IntegrityCRC()
 	if f.corrupt {
 		crc = ^crc // flip every bit → guaranteed mismatch
 	}
-	return filament.WriteReceipt{URI: "mem://x", Bytes: batch.Bytes(b.Rows), Rows: b.NumRows(), WriteCRC: crc}, nil
+	receipt := filament.WriteReceipt{URI: "mem://x", Bytes: b.Bytes(), Rows: b.NumRows(), WriteCRC: crc}
+	if f.encodedIntegrity && !f.omitEncoded {
+		encodedCRC := uint32(42)
+		receipt.EncodedCRC = &encodedCRC
+	}
+	return receipt, nil
 }
 
 func (f *fakeSink) batches() []written {
@@ -211,6 +223,31 @@ func TestPipelineHappyPath(t *testing.T) {
 	assertMonotonicSeq(t, c.events())
 }
 
+func TestPipelineRequiresEncodedIntegrityEvidence(t *testing.T) {
+	sink := &fakeSink{encodedIntegrity: true, omitEncoded: true}
+	c, err := run(t, sink, 2, []row{rec("users", 1)})
+	if err == nil || !strings.Contains(err.Error(), "encoded integrity evidence") {
+		t.Fatalf("Wait = %v, want missing encoded integrity evidence", err)
+	}
+	if got := c.count(events.BatchWritten.Name()); got != 0 {
+		t.Fatalf("written facts = %d, want 0", got)
+	}
+	if got := c.count(events.EncodedIntegrityVerified.Name()); got != 0 {
+		t.Fatalf("encoded integrity facts = %d, want 0", got)
+	}
+}
+
+func TestPipelinePublishesEncodedIntegrityEvidence(t *testing.T) {
+	sink := &fakeSink{encodedIntegrity: true}
+	c, err := run(t, sink, 2, []row{rec("users", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.count(events.EncodedIntegrityVerified.Name()); got != 1 {
+		t.Fatalf("encoded integrity facts = %d, want 1", got)
+	}
+}
+
 func TestPipelinePerResourceBatching(t *testing.T) {
 	sink := &fakeSink{}
 	rows := []row{rec("users", 1), rec("orders", 1), rec("users", 2), rec("orders", 2)}
@@ -231,6 +268,102 @@ func TestPipelinePerResourceBatching(t *testing.T) {
 	}
 	if byRes["users"] != 2 || byRes["orders"] != 2 {
 		t.Errorf("rows per resource = %v, want users:2 orders:2", byRes)
+	}
+}
+
+func TestPipelineRejectsDuplicateBuilder(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	in := p.Records()
+	first, err := in.Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	if _, err := in.Builder("users", 0, schema); err == nil || !strings.Contains(err.Error(), "already open") {
+		t.Fatalf("duplicate builder error = %v", err)
+	}
+}
+
+func TestPipelineRejectsSchemaChangeWithinRun(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	in := p.Records()
+	first, err := in.Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	changed := schema
+	changed.Fields = append([]filament.SchemaField(nil), schema.Fields...)
+	changed.Fields[0].Logical = filament.LogicalString
+	if _, err := in.Builder("users", 1, changed); err == nil || !strings.Contains(err.Error(), "schema changed") {
+		t.Fatalf("schema change error = %v", err)
+	}
+}
+
+func TestPipelineRegistryOwnsSchema(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	in := p.Records()
+	supplied := schema
+	supplied.Fields = append([]filament.SchemaField(nil), schema.Fields...)
+	supplied.PrimaryKey = []string{"id"}
+	first, err := in.Builder("users", 0, supplied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+
+	// Mutating connector-owned slices after registration must not alter the
+	// pipeline's canonical schema.
+	supplied.Fields[0].Logical = filament.LogicalString
+	supplied.PrimaryKey[0] = "changed"
+	original := schema
+	original.PrimaryKey = []string{"id"}
+	second, err := in.Builder("users", 1, original)
+	if err != nil {
+		t.Fatalf("builder with original schema after caller mutation: %v", err)
+	}
+	defer second.Close()
+}
+
+func TestPipelineRejectsSchemaForDifferentResource(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	supplied := schema
+	supplied.Resource = "orders"
+	if _, err := p.Records().Builder("users", 0, supplied); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("resource mismatch error = %v", err)
+	}
+}
+
+func TestPipelineAcceptsSourceClosedBuilder(t *testing.T) {
+	sink := &fakeSink{}
+	p := New(Config{
+		Sink:          sink,
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
+		Options:       filament.RunOptions{BatchMaxRows: 10},
+		FlushInterval: time.Hour,
+	})
+	p.Start(context.Background())
+	w, err := p.Records().Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Int64(1)
+	w.Null()
+	if err := w.EndRow(filament.RowMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	p.CloseIngest(nil)
+	if err := p.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(sink.batches()); got != 1 {
+		t.Fatalf("sink batches = %d, want 1", got)
 	}
 }
 
@@ -294,6 +427,34 @@ func TestPipelineWriteErrorIsFatal(t *testing.T) {
 	if !errContains(err, "boom") {
 		t.Errorf("error = %v, want it to wrap \"boom\"", err)
 	}
+}
+
+func TestPipelineWriteErrorReleasesQueuedBatches(t *testing.T) {
+	alloc := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	sink := &fakeSink{failOn: 1}
+	p := New(Config{
+		Sink: sink, Allocator: alloc,
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
+		Options:       filament.RunOptions{BatchMaxRows: 1},
+		FlushInterval: time.Hour,
+	})
+	p.Start(context.Background())
+	w, err := p.Records().Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range 20 {
+		w.Int64(int64(i))
+		w.Null()
+		if err = w.EndRow(filament.RowMeta{}); err != nil {
+			break
+		}
+	}
+	p.CloseIngest(err)
+	if err := p.Wait(); err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("Wait = %v, want write error", err)
+	}
+	alloc.AssertSize(t, 0)
 }
 
 func TestPipelineExtractErrorDiscardsPartialRows(t *testing.T) {
@@ -425,7 +586,7 @@ func TestPipelineDrainPublishesMarker(t *testing.T) {
 // backpressure fills the channel and blocks the builder.
 type stuckSink struct{ fakeSink }
 
-func (s *stuckSink) Apply(ctx context.Context, _ filament.Batch, _ filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *stuckSink) Apply(ctx context.Context, _ *arrowbatch.Batch, _ filament.ApplyOptions) (filament.WriteReceipt, error) {
 	<-ctx.Done()
 	return filament.WriteReceipt{}, ctx.Err()
 }
