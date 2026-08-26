@@ -3,6 +3,7 @@ package httpapi
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament/connectors/http/manifest"
@@ -33,5 +34,19 @@ func TestManifests(t *testing.T) {
 				t.Fatalf("catalog metadata must be manifest-owned: %#v", m)
 			}
 		})
+	}
+}
+
+func TestLinearManifestUsesExclusiveIncrementalBoundary(t *testing.T) {
+	data, err := os.ReadFile("manifests/linear.yaml")
+	if err != nil {
+		t.Fatalf("read Linear manifest: %v", err)
+	}
+	manifestText := string(data)
+	if strings.Contains(manifestText, "updatedAt: { gte: $updatedAfter }") {
+		t.Fatal("Linear incremental queries must not replay the saved watermark boundary")
+	}
+	if got := strings.Count(manifestText, "updatedAt: { gt: $updatedAfter }"); got != 4 {
+		t.Fatalf("exclusive Linear incremental filters = %d, want 4", got)
 	}
 }
