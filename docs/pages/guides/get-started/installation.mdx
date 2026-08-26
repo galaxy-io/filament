@@ -19,7 +19,7 @@ The fastest way to try Filament. One process bundles everything:
 - An embedded NATS JetStream (no ports exposed)
 - An in-memory data store
 - Env-var secrets
-- The embedded web UI
+- The embedded web app
 - A curated connector set (`clickhouse`, `iceberg`, `mysql`, and `postgres`)
 
 Runs execute in-process. It listens on `INGESTION_ADDR`, default `:8080`.
@@ -73,7 +73,7 @@ optional vendored subcharts for evaluation). See
 ## Building from source
 
 `just binaries` builds every binary into `bin/filament/` and compiles
-`server` and `standalone` with the `embedui` build tag so the web UI is
+`server` and `standalone` with the `embedui` build tag so the web app is
 embedded. A plain `go build` of those binaries serves a placeholder page
 instead of the UI, so use `just binaries` (or pass `-tags embedui` yourself)
 when you want the UI in the binary. `just images` builds the container

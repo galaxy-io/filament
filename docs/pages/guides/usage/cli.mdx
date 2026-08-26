@@ -1,0 +1,227 @@
+---
+title: "CLI"
+description: "Configure and run Filament locally from the command line"
+---
+
+<Note>
+  The CLI is in development on the `atterpac/cli` branch. Commands and flags
+  may change before it merges.
+</Note>
+
+The `filament` CLI runs pipelines on your own machine. It reads and writes a
+single YAML file, executes runs in process, and needs no server, no database,
+and no event bus. Everything the web app does through the API, the CLI does
+locally against that file.
+
+There are two ways to work with it:
+
+- **Inline.** Declare a source and sink entirely in flags and run once. Good
+  for scripts, CI, and one-off transfers.
+- **Saved.** Store connections and pipelines in `filament.yaml` and run them
+  by name.
+
+## Building it
+
+The CLI lives in `cmd/filament` and compiles like any other Go binary in the
+repository:
+
+```sh
+go build -o bin/filament ./cmd/filament
+```
+
+Every connector compiled into the binary is available to it. The catalog
+comes from the same registry the server uses, so connector names and config
+fields match the rest of the docs exactly.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `filament run <pipeline>` | Run a saved pipeline |
+| `filament run --source-connector … --sink-connector …` | Run an inline transfer |
+| `filament source <create\|edit\|list\|discover\|delete>` | Manage saved sources |
+| `filament sink <create\|edit\|list\|delete>` | Manage saved sinks |
+| `filament pipeline <create\|edit\|list\|delete>` | Manage saved pipelines |
+| `filament config <path\|validate\|edit>` | Work with the config file |
+
+`--config PATH` overrides the config file location for any command. Add
+`--help` after a command to see its flags. When you also pass a connector
+selection, the help output lists that connector's own flags.
+
+## Connector flags
+
+Connector config fields become flags, prefixed by the side they apply to and
+with underscores turned into hyphens. A source's `database_name` field is
+`--source-database-name`, a sink's `port` is `--sink-port`. Boolean fields
+work as bare flags.
+
+Because the flags come from the connector's schema, `--help` is the
+authoritative reference for any connector:
+
+```sh
+filament source create --source-connector clickhouse --help
+```
+
+## Secrets
+
+Secret fields never have to be typed in plaintext. Any of these work:
+
+- `--source-dsn-env POSTGRES_DSN` names an environment variable
+- `--source-dsn $POSTGRES_DSN` and `--source-dsn ${POSTGRES_DSN}` are
+  recognized as references, not literal values
+- A plaintext value, if you really want one
+
+Saved connections store the reference, not the value. A referenced secret
+lands in the file as `env:POSTGRES_DSN` and resolves at run time, so the
+config file stays safe to read and commit. The file itself is written with
+owner-only permissions.
+
+## Saving connections
+
+```sh
+filament source create production \
+  --source-connector postgres \
+  --source-dsn-env POSTGRES_DSN
+
+filament sink create warehouse \
+  --sink-connector postgres \
+  --sink-dsn-env POSTGRES_SINK_DSN
+```
+
+`filament source list` and `filament sink list` print what you have saved.
+`edit` takes the same flags and changes only what you pass. `delete` asks for
+confirmation unless you pass `--force`, and it refuses to remove a connection
+that a saved pipeline still references.
+
+## Discovering resources
+
+Before building a pipeline, ask a source what it has:
+
+```sh
+filament source discover production
+```
+
+The table lists each resource with its display name, whether it can be
+selected, its primary key, and an estimated row count. Pass `--refresh` to
+bypass any cached view. Discovery also works without saving anything first:
+
+```sh
+filament source discover \
+  --source-connector postgres \
+  --source-dsn $POSTGRES_DSN
+```
+
+## Saving pipelines
+
+```sh
+filament pipeline create users-copy \
+  --source production \
+  --sink warehouse \
+  --resources users,audit,logs \
+  --write-mode replace
+```
+
+`--source` and `--sink` name saved connections. Leaving out `--resources`
+means every resource the source discovers. Pipeline-scoped connector fields
+are set the same way as connection fields, so `--sink-schema filament` targets
+a particular destination schema.
+
+## Running
+
+Run something you saved:
+
+```sh
+filament run users-copy
+```
+
+Or declare the whole thing inline:
+
+```sh
+filament run \
+  --source-connector postgres \
+  --source-dsn $POSTGRES_DSN \
+  --sink-connector stdout
+```
+
+Flags passed alongside a saved pipeline name override its settings for that
+run only, which makes it easy to retarget a schema or narrow the resource
+list without editing the file. The two styles do not mix. A saved pipeline
+name cannot be combined with `--source`, `--sink`, `--source-connector`, or
+`--sink-connector`.
+
+When the run finishes, the CLI reports the records and bytes it moved.
+
+<Warning>
+  Local runs are full reads only. Incremental and CDC modes need the durable
+  checkpoint store that the server provides, so `sync_mode` must be `full`.
+  Write mode can be `append`, `replace`, or `upsert`, subject to what the
+  sink supports.
+</Warning>
+
+## The config file
+
+Everything saved lives in one file, at `~/.config/filament/filament.yaml` or
+under `$XDG_CONFIG_HOME` when that is set. `filament config path` prints the
+resolved location.
+
+```yaml
+version: 1
+
+sources:
+  production:
+    type: postgres
+    config:
+      dsn: env:POSTGRES_DSN
+      replication: standard
+
+sinks:
+  warehouse:
+    type: postgres
+    config:
+      dsn: env:POSTGRES_SINK_DSN
+
+pipelines:
+  users-copy:
+    source:
+      ref: production
+      config:
+        schema: public
+    sink:
+      ref: warehouse
+      config:
+        schema: filament
+    resources:
+      - users
+      - audit
+      - logs
+    sync_mode: full
+    write_mode: replace
+```
+
+The CLI edits this file surgically. Comments and formatting you add by hand
+survive, and writes are atomic, so an interrupted command cannot leave a
+half-written config behind.
+
+Editing by hand is fully supported:
+
+- `filament config validate` checks the file against every connector's schema
+  and reports the first problem it finds
+- `filament config edit` opens it in `$VISUAL` or `$EDITOR`, validates on
+  save, and keeps a recovery copy if what you wrote does not parse
+
+Validation is strict on purpose. Unknown fields, misplaced fields, bad enum
+values, missing required fields, and pipelines pointing at connections that
+do not exist are all caught before a run starts rather than partway through.
+
+## What runs where
+
+A local run executes in your terminal. The CLI wires up an in-process event
+bus and an in-memory state store, then calls the same runner the server and
+worker call. The engine behavior is identical, including batching and
+[integrity checks](/pages/guides/concepts/integrity-and-checkpoints).
+
+What you give up is durability. Nothing is written to Postgres, so runs are
+not recorded and progress is not kept between them. For scheduled runs, run
+history, and resumable incremental or CDC pipelines, use a deployed server
+with the [web app](/pages/guides/usage/web) or the
+[API](/pages/api-reference/service/introduction).
