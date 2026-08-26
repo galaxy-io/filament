@@ -95,63 +95,35 @@
     }
   },
   "navigation": {
-    "tabs": [
+    "groups": [
       {
-        "tab": "Guides",
-        "icon": "book-open",
-        "groups": [
-          {
-            "group": "Get started",
-            "pages": [
-              "pages/guides/get-started/introduction",
-              "pages/guides/get-started/quickstart",
-              "pages/guides/get-started/installation"
-            ]
-          },
-          {
-            "group": "Concepts",
-            "pages": [
-              "pages/guides/concepts/architecture",
-              "pages/guides/concepts/replication-modes",
-              "pages/guides/concepts/integrity-and-checkpoints",
-              "pages/guides/concepts/runs-and-recovery"
-            ]
-          },
-          {
-            "group": "Usage",
-            "pages": [
-              "pages/guides/usage/web",
-              "pages/guides/usage/cli"
-            ]
-          },
-          {
-            "group": "Deployment",
-            "pages": [
-              "pages/guides/deployment/kubernetes",
-              "pages/guides/deployment/railway",
-              "pages/guides/deployment/configuration",
-              "pages/guides/deployment/embedding-as-a-library"
-            ]
-          },
-          {
-            "group": "Contributing",
-            "pages": [
-              "pages/guides/contributing/local-development",
-              "pages/guides/contributing/style-and-testing"
-            ]
-          }
+        "group": "Get started",
+        "pages": [
+          "pages/guides/get-started/introduction",
+          "pages/guides/get-started/quickstart",
+          "pages/guides/get-started/installation"
         ]
       },
       {
-        "tab": "Connectors",
-        "icon": "plug",
-        "groups": [
-          {
-            "group": "Overview",
-            "pages": [
-              "pages/connectors/overview/introduction"
-            ]
-          },
+        "group": "Concepts",
+        "pages": [
+          "pages/guides/concepts/architecture",
+          "pages/guides/concepts/replication-modes",
+          "pages/guides/concepts/integrity-and-checkpoints",
+          "pages/guides/concepts/runs-and-recovery"
+        ]
+      },
+      {
+        "group": "Usage",
+        "pages": [
+          "pages/guides/usage/web",
+          "pages/guides/usage/cli"
+        ]
+      },
+      {
+        "group": "Connectors",
+        "pages": [
+          "pages/connectors/overview/introduction",
           {
             "group": "Sources",
             "pages": [
@@ -191,33 +163,37 @@
         ]
       },
       {
-        "tab": "API Reference",
-        "icon": "code",
-        "groups": [
-          {
-            "group": "Service",
-            "pages": [
-              "pages/api-reference/service/introduction",
-              "pages/api-reference/service/connectors",
-              "pages/api-reference/service/connections",
-              "pages/api-reference/service/pipelines",
-              "pages/api-reference/service/runs",
-              "pages/api-reference/service/metrics"
-            ]
-          }
+        "group": "Deployment",
+        "pages": [
+          "pages/guides/deployment/kubernetes",
+          "pages/guides/deployment/railway",
+          "pages/guides/deployment/configuration",
+          "pages/guides/deployment/embedding-as-a-library"
         ]
       },
       {
-        "tab": "Benchmarks",
-        "icon": "gauge",
-        "groups": [
-          {
-            "group": "Benchmarks",
-            "pages": [
-              "pages/benchmarks/overview",
-              "pages/benchmarks/micro-benchmarks"
-            ]
-          }
+        "group": "API reference",
+        "pages": [
+          "pages/api-reference/service/introduction",
+          "pages/api-reference/service/connectors",
+          "pages/api-reference/service/connections",
+          "pages/api-reference/service/pipelines",
+          "pages/api-reference/service/runs",
+          "pages/api-reference/service/metrics"
+        ]
+      },
+      {
+        "group": "Benchmarks",
+        "pages": [
+          "pages/benchmarks/overview",
+          "pages/benchmarks/micro-benchmarks"
+        ]
+      },
+      {
+        "group": "Contributing",
+        "pages": [
+          "pages/guides/contributing/local-development",
+          "pages/guides/contributing/style-and-testing"
         ]
       }
     ]
