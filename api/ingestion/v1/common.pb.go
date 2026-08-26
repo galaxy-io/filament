@@ -346,15 +346,14 @@ func (FieldScope) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{5}
 }
 
-// WorkerResources sizes the worker that executes a run. Values are Kubernetes
-// quantity strings ("500m", "2Gi"); an empty field is unset and inherits, and
-// only the Kubernetes dispatcher consults them.
+// WorkerResources sizes the worker that executes a run, shaped like a Kubernetes
+// ResourceRequirements: resource name ("cpu", "memory") to quantity string
+// ("500m", "2Gi"). A missing key is unset and inherits, and only the Kubernetes
+// dispatcher consults them.
 type WorkerResources struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CpuRequest    string                 `protobuf:"bytes,1,opt,name=cpu_request,json=cpuRequest,proto3" json:"cpu_request,omitempty"`
-	CpuLimit      string                 `protobuf:"bytes,2,opt,name=cpu_limit,json=cpuLimit,proto3" json:"cpu_limit,omitempty"`
-	MemoryRequest string                 `protobuf:"bytes,3,opt,name=memory_request,json=memoryRequest,proto3" json:"memory_request,omitempty"`
-	MemoryLimit   string                 `protobuf:"bytes,4,opt,name=memory_limit,json=memoryLimit,proto3" json:"memory_limit,omitempty"`
+	Requests      map[string]string      `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Limits        map[string]string      `protobuf:"bytes,2,rep,name=limits,proto3" json:"limits,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -389,47 +388,107 @@ func (*WorkerResources) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WorkerResources) GetCpuRequest() string {
+func (x *WorkerResources) GetRequests() map[string]string {
 	if x != nil {
-		return x.CpuRequest
+		return x.Requests
+	}
+	return nil
+}
+
+func (x *WorkerResources) GetLimits() map[string]string {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+// WorkerToleration mirrors a Kubernetes toleration. Fields are the Kubernetes
+// strings verbatim: operator "Equal" (default) or "Exists"; effect
+// "NoSchedule", "PreferNoSchedule", "NoExecute", or empty to match all.
+type WorkerToleration struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Operator      string                 `protobuf:"bytes,2,opt,name=operator,proto3" json:"operator,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Effect        string                 `protobuf:"bytes,4,opt,name=effect,proto3" json:"effect,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkerToleration) Reset() {
+	*x = WorkerToleration{}
+	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkerToleration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkerToleration) ProtoMessage() {}
+
+func (x *WorkerToleration) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkerToleration.ProtoReflect.Descriptor instead.
+func (*WorkerToleration) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *WorkerToleration) GetKey() string {
+	if x != nil {
+		return x.Key
 	}
 	return ""
 }
 
-func (x *WorkerResources) GetCpuLimit() string {
+func (x *WorkerToleration) GetOperator() string {
 	if x != nil {
-		return x.CpuLimit
+		return x.Operator
 	}
 	return ""
 }
 
-func (x *WorkerResources) GetMemoryRequest() string {
+func (x *WorkerToleration) GetValue() string {
 	if x != nil {
-		return x.MemoryRequest
+		return x.Value
 	}
 	return ""
 }
 
-func (x *WorkerResources) GetMemoryLimit() string {
+func (x *WorkerToleration) GetEffect() string {
 	if x != nil {
-		return x.MemoryLimit
+		return x.Effect
 	}
 	return ""
 }
 
-// WorkerConfiguration is how a pipeline's workers are shaped. It is a container
-// on purpose: resources today, placement (node selectors, tolerations) later,
-// without a migration per knob.
+// WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
+// a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
+// merge per key when a run overrides a pipeline; node_selector and tolerations
+// replace wholesale.
 type WorkerConfiguration struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Resources     *WorkerResources       `protobuf:"bytes,1,opt,name=resources,proto3" json:"resources,omitempty"`
+	NodeSelector  map[string]string      `protobuf:"bytes,2,rep,name=node_selector,json=nodeSelector,proto3" json:"node_selector,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Tolerations   []*WorkerToleration    `protobuf:"bytes,3,rep,name=tolerations,proto3" json:"tolerations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WorkerConfiguration) Reset() {
 	*x = WorkerConfiguration{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	mi := &file_ingestion_v1_common_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -441,7 +500,7 @@ func (x *WorkerConfiguration) String() string {
 func (*WorkerConfiguration) ProtoMessage() {}
 
 func (x *WorkerConfiguration) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[1]
+	mi := &file_ingestion_v1_common_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -454,12 +513,26 @@ func (x *WorkerConfiguration) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkerConfiguration.ProtoReflect.Descriptor instead.
 func (*WorkerConfiguration) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{1}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *WorkerConfiguration) GetResources() *WorkerResources {
 	if x != nil {
 		return x.Resources
+	}
+	return nil
+}
+
+func (x *WorkerConfiguration) GetNodeSelector() map[string]string {
+	if x != nil {
+		return x.NodeSelector
+	}
+	return nil
+}
+
+func (x *WorkerConfiguration) GetTolerations() []*WorkerToleration {
+	if x != nil {
+		return x.Tolerations
 	}
 	return nil
 }
@@ -487,7 +560,7 @@ type ConfigField struct {
 
 func (x *ConfigField) Reset() {
 	*x = ConfigField{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	mi := &file_ingestion_v1_common_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -499,7 +572,7 @@ func (x *ConfigField) String() string {
 func (*ConfigField) ProtoMessage() {}
 
 func (x *ConfigField) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[2]
+	mi := &file_ingestion_v1_common_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -512,7 +585,7 @@ func (x *ConfigField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigField.ProtoReflect.Descriptor instead.
 func (*ConfigField) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{2}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ConfigField) GetName() string {
@@ -596,7 +669,7 @@ type EnumOption struct {
 
 func (x *EnumOption) Reset() {
 	*x = EnumOption{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[3]
+	mi := &file_ingestion_v1_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +681,7 @@ func (x *EnumOption) String() string {
 func (*EnumOption) ProtoMessage() {}
 
 func (x *EnumOption) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[3]
+	mi := &file_ingestion_v1_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +694,7 @@ func (x *EnumOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnumOption.ProtoReflect.Descriptor instead.
 func (*EnumOption) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EnumOption) GetValue() string {
@@ -648,7 +721,7 @@ type FieldCondition struct {
 
 func (x *FieldCondition) Reset() {
 	*x = FieldCondition{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[4]
+	mi := &file_ingestion_v1_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -660,7 +733,7 @@ func (x *FieldCondition) String() string {
 func (*FieldCondition) ProtoMessage() {}
 
 func (x *FieldCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[4]
+	mi := &file_ingestion_v1_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -673,7 +746,7 @@ func (x *FieldCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FieldCondition.ProtoReflect.Descriptor instead.
 func (*FieldCondition) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{4}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *FieldCondition) GetField() string {
@@ -700,7 +773,7 @@ type ConfigSchema struct {
 
 func (x *ConfigSchema) Reset() {
 	*x = ConfigSchema{}
-	mi := &file_ingestion_v1_common_proto_msgTypes[5]
+	mi := &file_ingestion_v1_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -712,7 +785,7 @@ func (x *ConfigSchema) String() string {
 func (*ConfigSchema) ProtoMessage() {}
 
 func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_common_proto_msgTypes[5]
+	mi := &file_ingestion_v1_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -725,7 +798,7 @@ func (x *ConfigSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSchema.ProtoReflect.Descriptor instead.
 func (*ConfigSchema) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{5}
+	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ConfigSchema) GetFields() []*ConfigField {
@@ -739,15 +812,28 @@ var File_ingestion_v1_common_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\n" +
-	"\x19ingestion/v1/common.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x99\x01\n" +
-	"\x0fWorkerResources\x12\x1f\n" +
-	"\vcpu_request\x18\x01 \x01(\tR\n" +
-	"cpuRequest\x12\x1b\n" +
-	"\tcpu_limit\x18\x02 \x01(\tR\bcpuLimit\x12%\n" +
-	"\x0ememory_request\x18\x03 \x01(\tR\rmemoryRequest\x12!\n" +
-	"\fmemory_limit\x18\x04 \x01(\tR\vmemoryLimit\"R\n" +
+	"\x19ingestion/v1/common.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x95\x02\n" +
+	"\x0fWorkerResources\x12G\n" +
+	"\brequests\x18\x01 \x03(\v2+.ingestion.v1.WorkerResources.RequestsEntryR\brequests\x12A\n" +
+	"\x06limits\x18\x02 \x03(\v2).ingestion.v1.WorkerResources.LimitsEntryR\x06limits\x1a;\n" +
+	"\rRequestsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a9\n" +
+	"\vLimitsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"n\n" +
+	"\x10WorkerToleration\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1a\n" +
+	"\boperator\x18\x02 \x01(\tR\boperator\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x16\n" +
+	"\x06effect\x18\x04 \x01(\tR\x06effect\"\xaf\x02\n" +
 	"\x13WorkerConfiguration\x12;\n" +
-	"\tresources\x18\x01 \x01(\v2\x1d.ingestion.v1.WorkerResourcesR\tresources\"\x9a\x03\n" +
+	"\tresources\x18\x01 \x01(\v2\x1d.ingestion.v1.WorkerResourcesR\tresources\x12X\n" +
+	"\rnode_selector\x18\x02 \x03(\v23.ingestion.v1.WorkerConfiguration.NodeSelectorEntryR\fnodeSelector\x12@\n" +
+	"\vtolerations\x18\x03 \x03(\v2\x1e.ingestion.v1.WorkerTolerationR\vtolerations\x1a?\n" +
+	"\x11NodeSelectorEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9a\x03\n" +
 	"\vConfigField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.ingestion.v1.FieldTypeR\x04type\x12\x1a\n" +
@@ -816,7 +902,7 @@ func file_ingestion_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_ingestion_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_ingestion_v1_common_proto_goTypes = []any{
 	(ConnectorKind)(0),          // 0: ingestion.v1.ConnectorKind
 	(FieldType)(0),              // 1: ingestion.v1.FieldType
@@ -825,27 +911,35 @@ var file_ingestion_v1_common_proto_goTypes = []any{
 	(WriteMode)(0),              // 4: ingestion.v1.WriteMode
 	(FieldScope)(0),             // 5: ingestion.v1.FieldScope
 	(*WorkerResources)(nil),     // 6: ingestion.v1.WorkerResources
-	(*WorkerConfiguration)(nil), // 7: ingestion.v1.WorkerConfiguration
-	(*ConfigField)(nil),         // 8: ingestion.v1.ConfigField
-	(*EnumOption)(nil),          // 9: ingestion.v1.EnumOption
-	(*FieldCondition)(nil),      // 10: ingestion.v1.FieldCondition
-	(*ConfigSchema)(nil),        // 11: ingestion.v1.ConfigSchema
-	(*structpb.Value)(nil),      // 12: google.protobuf.Value
+	(*WorkerToleration)(nil),    // 7: ingestion.v1.WorkerToleration
+	(*WorkerConfiguration)(nil), // 8: ingestion.v1.WorkerConfiguration
+	(*ConfigField)(nil),         // 9: ingestion.v1.ConfigField
+	(*EnumOption)(nil),          // 10: ingestion.v1.EnumOption
+	(*FieldCondition)(nil),      // 11: ingestion.v1.FieldCondition
+	(*ConfigSchema)(nil),        // 12: ingestion.v1.ConfigSchema
+	nil,                         // 13: ingestion.v1.WorkerResources.RequestsEntry
+	nil,                         // 14: ingestion.v1.WorkerResources.LimitsEntry
+	nil,                         // 15: ingestion.v1.WorkerConfiguration.NodeSelectorEntry
+	(*structpb.Value)(nil),      // 16: google.protobuf.Value
 }
 var file_ingestion_v1_common_proto_depIdxs = []int32{
-	6,  // 0: ingestion.v1.WorkerConfiguration.resources:type_name -> ingestion.v1.WorkerResources
-	1,  // 1: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
-	12, // 2: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
-	9,  // 3: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
-	5,  // 4: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
-	8,  // 5: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
-	10, // 6: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
-	8,  // 7: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
-	8,  // [8:8] is the sub-list for method output_type
-	8,  // [8:8] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	13, // 0: ingestion.v1.WorkerResources.requests:type_name -> ingestion.v1.WorkerResources.RequestsEntry
+	14, // 1: ingestion.v1.WorkerResources.limits:type_name -> ingestion.v1.WorkerResources.LimitsEntry
+	6,  // 2: ingestion.v1.WorkerConfiguration.resources:type_name -> ingestion.v1.WorkerResources
+	15, // 3: ingestion.v1.WorkerConfiguration.node_selector:type_name -> ingestion.v1.WorkerConfiguration.NodeSelectorEntry
+	7,  // 4: ingestion.v1.WorkerConfiguration.tolerations:type_name -> ingestion.v1.WorkerToleration
+	1,  // 5: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
+	16, // 6: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
+	10, // 7: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
+	5,  // 8: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
+	9,  // 9: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
+	11, // 10: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
+	9,  // 11: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_common_proto_init() }
@@ -859,7 +953,7 @@ func file_ingestion_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_common_proto_rawDesc), len(file_ingestion_v1_common_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   6,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

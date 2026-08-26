@@ -1,22 +1,87 @@
 ---
 title: "Connectors"
-description: "The connector catalog — registered sources, sinks, and their config schemas."
+description: "The connector catalog of registered sources, sinks, config schemas, and live probes"
 ---
 
-Defined in `api/ingestion/v1/connectors.proto`. This is how the UI and other
-clients discover the registered connectors without maintaining a hardcoded
-list.
+Defined in `api/ingestion/v1/connectors.proto`. These RPCs are how a client
+discovers what connectors this deployment registered and what configuration
+each accepts, without a hardcoded list. Three probe RPCs exercise a candidate
+config against the live external system before anything is persisted.
 
 ## RPCs
 
-| RPC | Purpose |
+| RPC | Description |
 |---|---|
-| `ListConnectors` | Catalog registered source and sink connectors and their config schemas |
-| `ValidateConfig` | Validate a candidate config against a connector's schema |
-| `DiscoverResources` | Browse a source's available resources |
-| `GetResourceColumns` | Load column metadata for selected resources |
+| `ListConnectors` | Catalog the registered connectors and their config schemas |
+| `GetConnector` | Fetch one connector's spec by name and kind |
+| `ValidateConfig` | Check a candidate config against the schema and the live system |
+| `DiscoverResources` | List the tables or resources a source config exposes |
+| `GetResourceColumns` | Load per-column metadata for selected resources |
 
-<Info>
-  This page is a placeholder for full request and response field documentation
-  generated from `connectors.proto`.
-</Info>
+The catalog and probe RPCs run under a 5-second server-side timeout.
+`GetResourceColumns` gets 30 seconds because it queries the external system
+per resource. `DiscoverResources` and `GetResourceColumns` return
+`unimplemented` for connectors that don't support discovery or column
+introspection.
+
+## ListConnectors
+
+Filter by `kind` (`CONNECTOR_KIND_SOURCE`, `CONNECTOR_KIND_SINK`, or
+unspecified for both). Supports [pagination](/pages/api-reference/service/introduction#pagination).
+Each `ConnectorSpec` carries:
+
+- `name`, `display_name`, `kind`, and `version`
+- supported replication `modes` (`STANDARD`, `CDC`)
+- its full `config_schema`: fields with types, scopes, defaults, and secret
+  flags, enough to render a form
+- logo URLs and `schema_field`
+- `maturity` (`ALPHA`, `BETA`, `STABLE`)
+
+## GetConnector
+
+Fetches a single spec. Both `connector` (the name) and `kind` are required,
+because some names register as both a source and a sink. An unknown
+combination returns `not_found`.
+
+## ValidateConfig
+
+Runs the submitted `config` through schema validation and the connector's own
+`Validate()`, which typically opens a real connection to the external
+system. Results come back in-band:
+
+```json
+{"valid": false, "errors": [{"field": "port", "message": "port is required"}]}
+```
+
+A failed validation is a successful RPC. The call only errors for transport or
+catalog problems (unknown connector, missing kind), so a client can render
+every field error at once rather than unwrapping one RPC error.
+
+Pass `connection_id` to validate an edit to an existing
+[connection](/pages/api-reference/service/connections). The submitted config
+is overlaid on the stored, secret-resolved config, so the client never needs
+to round-trip secrets it only holds masked.
+
+## DiscoverResources
+
+Lists the tables, streams, and endpoints a source config can read. Accepts
+either an inline `config` or a `connection_id` (same overlay semantics as
+`ValidateConfig`). Set `refresh` to bypass any cached listing. Each resource
+reports `name`, `is_selectable`, its `primary_key` columns, a `selector`,
+`display_name`, and connector-specific `metadata`.
+
+## GetResourceColumns
+
+Returns column metadata for the named `resources`, keyed per resource. Beyond
+the basics (`name`, `logical_type`, `native_type`, `is_nullable`,
+`is_primary_key`), each column carries the cursor-selection fields the
+pipeline editor uses for incremental reads.
+
+| Field | Meaning |
+|---|---|
+| `is_cursor_eligible` | The column can serve as an incremental cursor |
+| `is_cursor_recommended` | The connector suggests it |
+| `recommendation_rank` | Ordering among recommended candidates |
+| `warning` | Why a technically eligible column is a poor choice |
+| `is_configurable` | The user may pick it in the UI |
+| `supports_lookback` | A lookback window can be applied when cursoring on it |

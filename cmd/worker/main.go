@@ -5,19 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/cmd/internal/eventbus"
-	"github.com/galaxy-io/filament/cmd/internal/logger"
-	"github.com/galaxy-io/filament/cmd/internal/otel"
-	"github.com/galaxy-io/filament/cmd/internal/persistence"
-	"github.com/galaxy-io/filament/cmd/internal/secret"
+	"github.com/galaxy-io/filament/cmd/internal/boot"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 
@@ -34,8 +28,6 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	lg := logger.New()
-
 	runID := filament.RunID(os.Getenv("RUN_ID"))
 	if runID == "" {
 		return errors.New("RUN_ID is required")
@@ -44,50 +36,29 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("RUN_ID: %w", err)
 	}
 
-	store, err := persistence.FromEnv(ctx)
+	deps, closeDeps, err := boot.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if c, ok := store.(io.Closer); ok {
-			_ = c.Close()
-		}
-	}()
-	secrets, err := secret.FromEnv(ctx, store)
-	if err != nil {
-		return err
-	}
-	mx, tracer, otelShutdown, err := otel.FromEnv(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = otelShutdown(flushCtx)
-	}()
+	defer closeDeps()
 
-	bus, err := eventbus.FromEnv()
+	bus, closeBus, err := boot.Bus()
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if c, ok := any(bus).(io.Closer); ok {
-			_ = c.Close()
-		}
-	}()
+	defer closeBus()
 
-	state, err := store.LoadRun(ctx, runID)
+	state, err := deps.Store.LoadRun(ctx, runID)
 	if err != nil {
 		return err
 	}
 	if !runner.ShouldRun(state) {
-		lg.Info("worker: nothing to do",
+		deps.Log.Info("worker: nothing to do",
 			filament.Field{Key: "run", Value: string(runID)},
 			filament.Field{Key: "status", Value: int(state.Status)})
 		return nil
 	}
-	lg.Info("worker: executing run",
+	deps.Log.Info("worker: executing run",
 		filament.Field{Key: "run", Value: string(runID)},
 		filament.Field{Key: "pipeline", Value: state.Request.PipelineID},
 		filament.Field{Key: "source", Value: state.Request.Source.Provider},
@@ -96,8 +67,8 @@ func run(ctx context.Context) error {
 
 	hb := &heartbeat{
 		bus:      bus,
-		mx:       mx,
-		log:      lg,
+		mx:       deps.Metrics,
+		log:      deps.Log,
 		tenant:   state.Tenant,
 		run:      state.Run,
 		pipeline: state.Request.PipelineID,
@@ -106,12 +77,12 @@ func run(ctx context.Context) error {
 
 	runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
-		DataStore: store,
-		Log:       lg,
-		Secrets:   secrets,
+		DataStore: deps.Store,
+		Log:       deps.Log,
+		Secrets:   deps.Secrets,
 		Sources:   registry.DefaultSources,
 		Sinks:     registry.DefaultSinks,
-		Tracer:    tracer,
+		Tracer:    deps.Tracer,
 	}, runner.SpecFromState(state))
 	stopHeartbeat()
 	return nil

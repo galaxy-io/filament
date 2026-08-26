@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Source is the connector contract for reading data: describe itself,
@@ -186,6 +187,13 @@ type LiveValidatable interface {
 	TestConnection(ctx context.Context, cfg Config) error
 }
 
+// ConfigValidatable is the optional contract for connector-specific, pure
+// configuration validation. Unlike LiveValidatable it must not access the
+// network, so the API can safely use it while accepting connection settings.
+type ConfigValidatable interface {
+	Validate(cfg Config) error
+}
+
 // ConnectorSpec is a source's self-description: identity, supported modes and
 // policies, config schema, and resource capabilities. It powers the catalog.
 type ConnectorSpec struct {
@@ -291,6 +299,7 @@ type ExtractOpts struct {
 	Selectors   []string
 	Limit       int // 0 = unbounded
 	Parallelism int
+	Observe     SourceObserver
 }
 
 // ChangeExtractOpts scopes one CDC extraction: resources plus the checkpoints
@@ -299,6 +308,7 @@ type ChangeExtractOpts struct {
 	Resources   []string
 	Checkpoints map[string]Checkpoint
 	Limit       int
+	Observe     SourceObserver
 }
 
 // DiscoverOpts controls discovery; Refresh bypasses any cached catalog.
@@ -324,4 +334,45 @@ type Resource struct {
 type RatePolicy struct {
 	RequestsPerSecond float64
 	Burst             int
+}
+
+// SourceProgressKind identifies a non-terminal extraction signal. Run and
+// resource lifecycle state remains runner-owned; these signals describe work
+// only the source can observe directly.
+type SourceProgressKind uint8
+
+// Source progress kinds identify the source-local signals an observer can report.
+const (
+	SourceProgressPageFetched SourceProgressKind = iota + 1
+	SourceProgressFanOutStarted
+	SourceProgressWatermarkAdvanced
+	SourceProgressRateLimited
+	SourceProgressRetryExhausted
+)
+
+// SourceProgress carries source-local extraction progress to the runner. Fields
+// are populated according to Kind. Checkpoint on WatermarkAdvanced describes an
+// observed cursor only; durable checkpoint persistence remains tracker-owned.
+type SourceProgress struct {
+	Kind         SourceProgressKind
+	Resource     string
+	Records      int64
+	Bytes        int64
+	URI          string
+	ParentsTotal int64
+	RetryAfter   time.Duration
+	Checkpoint   *CheckpointData
+	Error        string
+}
+
+// SourceObserver receives progress concurrently when a source extracts more
+// than one resource or fans out. Implementations must be concurrency-safe.
+type SourceObserver func(SourceProgress)
+
+// Report delivers progress when an observer is configured. A nil observer is
+// a safe no-op so sources can report without branching at every call site.
+func (o SourceObserver) Report(progress SourceProgress) {
+	if o != nil {
+		o(progress)
+	}
 }

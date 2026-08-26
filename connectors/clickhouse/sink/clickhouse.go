@@ -18,7 +18,9 @@ import (
 	chdriver "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/connectors/internal/dbconfig"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const (
@@ -74,27 +76,32 @@ type table struct {
 func New() *Sink { return &Sink{} }
 
 var (
-	_ filament.Sink            = (*Sink)(nil)
-	_ filament.LiveValidatable = (*Sink)(nil)
-	_ filament.Schematized     = (*Sink)(nil)
+	_ filament.Sink              = (*Sink)(nil)
+	_ filament.ConfigValidatable = (*Sink)(nil)
+	_ filament.LiveValidatable   = (*Sink)(nil)
+	_ filament.Schematized       = (*Sink)(nil)
 )
 
 // Spec describes the sink's configuration and supported write policies.
 func (s *Sink) Spec() filament.SinkSpec {
+	fields := dbconfig.VisibleWhen(dbconfig.MethodFields)
 	return filament.SinkSpec{
 		Name:         "clickhouse",
 		DisplayName:  "ClickHouse",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-light.svg",
 		Description:  "Column-oriented analytics database with typed batch loading and primary-key upserts.",
-		Version:      "1",
+		Version:      "2",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "ClickHouse server hostname; copied http:// or https:// endpoints are also accepted"},
-			{Name: "port", Type: filament.FieldInt, Default: defaultPort, Scope: filament.ScopeConnection, Help: "ClickHouse server port (9440 for secure native connections)"},
-			{Name: "protocol", Type: filament.FieldEnum, Default: protocolNative, Enum: []filament.EnumOption{{Value: protocolNative, Label: "Native"}, {Value: protocolHTTP, Label: "HTTP"}}, Scope: filament.ScopeConnection, Help: "ClickHouse wire protocol"},
-			{Name: "username", Type: filament.FieldString, Default: defaultUsername, Scope: filament.ScopeConnection, Help: "ClickHouse username"},
-			{Name: "password", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "ClickHouse password"},
-			{Name: "secure", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection, Help: "Connect with TLS (required by ClickHouse Cloud)"},
+			dbconfig.MethodConfigField(),
+			dbconfig.DSNConfigField("ClickHouse connection URL"),
+			{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse server hostname; copied http:// or https:// endpoints are also accepted"},
+			{Name: "port", Type: filament.FieldInt, Default: defaultPort, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse server port (9440 for secure native connections)"},
+			{Name: "protocol", Type: filament.FieldEnum, Default: protocolNative, Enum: []filament.EnumOption{{Value: protocolNative, Label: "Native"}, {Value: protocolHTTP, Label: "HTTP"}}, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse wire protocol"},
+			{Name: "username", Type: filament.FieldString, Default: defaultUsername, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse username"},
+			{Name: "password", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse password"},
+			{Name: "database_name", Type: filament.FieldString, Default: defaultDatabase, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "Database encoded in the connection; pipeline configuration selects the destination database"},
+			{Name: "secure", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "Connect with TLS (required by ClickHouse Cloud)"},
 			{Name: "database", Type: filament.FieldString, Default: defaultDatabase, Scope: filament.ScopePipeline, Help: "Destination database. Empty defaults to the normalized source connection name."},
 		}},
 		SchemaField: "database",
@@ -114,6 +121,14 @@ func (s *Sink) Spec() filament.SinkSpec {
 
 // Name identifies this sink implementation.
 func (s *Sink) Name() string { return "clickhouse" }
+
+// Validate checks connection syntax without opening a network connection.
+func (s *Sink) Validate(cfg filament.Config) error {
+	if _, err := connectionOptions(cfg); err != nil {
+		return fmt.Errorf("clickhouse sink: connection config: %w", err)
+	}
+	return nil
+}
 
 // TestConnection pings ClickHouse through a short-lived connection without
 // creating the configured destination database.
@@ -173,6 +188,25 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 }
 
 func connectionOptions(cfg filament.Config) (*ch.Options, error) {
+	method, err := dbconfig.Method(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if method == dbconfig.MethodURL {
+		dsn := cfg.Secret(dbconfig.DSNField)
+		if strings.TrimSpace(dsn) == "" {
+			return nil, fmt.Errorf("dsn is required when connection_method is %q", dbconfig.MethodURL)
+		}
+		opts, err := ch.ParseDSN(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("parse dsn: %w", err)
+		}
+		if len(opts.Addr) == 0 {
+			return nil, fmt.Errorf("dsn has no server address")
+		}
+		return opts, nil
+	}
+
 	host, err := normalizeHost(cfg.String("host"))
 	if err != nil {
 		return nil, err
@@ -211,7 +245,7 @@ func connectionOptions(cfg filament.Config) (*ch.Options, error) {
 		Addr:     []string{net.JoinHostPort(host, strconv.Itoa(port))},
 		Protocol: driverProtocol,
 		Auth: ch.Auth{
-			Database: defaultDatabase,
+			Database: defaultString(cfg.String("database_name"), defaultDatabase),
 			Username: username,
 			Password: password,
 		},
@@ -224,6 +258,13 @@ func connectionOptions(cfg filament.Config) (*ch.Options, error) {
 		opts.TLS = &tls.Config{MinVersion: tls.VersionTLS12}
 	}
 	return opts, nil
+}
+
+func defaultString(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func normalizeHost(raw string) (string, error) {
@@ -254,7 +295,7 @@ func normalizeHost(raw string) (string, error) {
 }
 
 // EnsureSchema creates or evolves one resource table before records arrive.
-func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
+func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	if s.conn == nil {
 		return fmt.Errorf("clickhouse sink: ensure schema before open")
 	}
@@ -309,7 +350,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	return nil
 }
 
-func (s *Sink) validateTable(ctx context.Context, resource string, schema filament.RecordSchema, upsert bool, version filament.VersionPolicy) error {
+func (s *Sink) validateTable(ctx context.Context, resource string, schema rowmodel.Schema, upsert bool, version filament.VersionPolicy) error {
 	var engine, engineFull string
 	if err := s.conn.QueryRow(ctx,
 		"SELECT engine, engine_full FROM system.tables WHERE database = ? AND name = ?", s.database, resource).Scan(&engine, &engineFull); err != nil {
@@ -362,21 +403,21 @@ func (s *Sink) validateTable(ctx context.Context, resource string, schema filame
 }
 
 // Apply validates the requested write policy and inserts one typed batch.
-func (s *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if want := s.modeFor(b.Resource); opts.Policy.Capability.Mode != want {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: apply policy %q does not match resource policy %q", opts.Policy.Capability.Mode, want)
 	}
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteAppend, filament.WriteReplace:
 		policy := opts.Policy
-		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
-		if err := policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		policy.Capability.AcceptsOps = []rowmodel.Operation{rowmodel.OpInsert}
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: %w", err)
 		}
 	case filament.WriteUpsert:
 		policy := opts.Policy
-		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert, filament.OpUpdate}
-		if err := policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		policy.Capability.AcceptsOps = []rowmodel.Operation{rowmodel.OpInsert, rowmodel.OpUpdate}
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: %w", err)
 		}
 	default:
@@ -385,7 +426,7 @@ func (s *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyO
 	return s.write(ctx, b)
 }
 
-func (s *Sink) write(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
+func (s *Sink) write(ctx context.Context, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
 	if s.conn == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: write before open")
 	}
@@ -399,9 +440,10 @@ func (s *Sink) write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 	}
 	defer func() { _ = batchIn.Close() }()
 
-	cols := b.Rows.Columns()
+	rows := b.Rows()
+	cols := rows.Columns()
 	fns := make([]valueFn, len(cols))
-	for i, f := range b.Rows.Schema().Fields() {
+	for i, f := range rows.Schema().Fields() {
 		fns[i] = valueFor(f)
 	}
 	values := make([]any, len(cols))
@@ -417,13 +459,14 @@ func (s *Sink) write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: append %s seq %d row %d: %w", b.Resource, b.Seq, i, err)
 		}
 	}
+	writeCRC := b.IntegrityCRC()
 	if err := batchIn.Send(); err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: send %s seq %d: %w", b.Resource, b.Seq, err)
 	}
 	s.written.Add(int64(b.NumRows()))
 	return filament.WriteReceipt{
-		URI: fmt.Sprintf("clickhouse://%s.%s", s.database, b.Resource), Bytes: batch.Bytes(b.Rows),
-		Rows: b.NumRows(), WriteCRC: batch.CRC(b.Rows, b.Ops),
+		URI: fmt.Sprintf("clickhouse://%s.%s", s.database, b.Resource), Bytes: arrowbatch.Bytes(rows),
+		Rows: b.NumRows(), WriteCRC: writeCRC,
 	}, nil
 }
 

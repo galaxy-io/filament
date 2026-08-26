@@ -19,7 +19,7 @@ import (
 // out, exercising the sampled non-integer boundaries + the per-shard leading-column bound.
 func TestSourceUUIDKeysetSharded(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 
 	const want = 4000
 	ddl := `
@@ -41,7 +41,7 @@ func TestSourceUUIDKeysetSharded(t *testing.T) {
 // the text boundary casts and the full tuple cursor at sampled range boundaries.
 func TestSourceTextKeysetSharded(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 
 	const nN, vN = 400, 10
 	const want = nN * vN
@@ -69,7 +69,7 @@ func TestSourceTextKeysetSharded(t *testing.T) {
 // unit-tested in TestChooseMode.
 func TestRouteProbe(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 
 	// ordered: serial PK inserted in order → correlation ≈ 1. random: uuid PK → correlation ≈ 0.
 	ddl := `
@@ -107,7 +107,7 @@ func TestRouteProbe(t *testing.T) {
 // them).
 func TestSourceBitmapSharded(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 
 	const want = 4000
 	ddl := `

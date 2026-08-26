@@ -1,21 +1,36 @@
 ---
 title: "Sample"
-description: "Synthetic data for testing pipelines without a real upstream."
-icon: "dice"
+description: "Synthetic data for testing pipelines without a real upstream"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-sample-dark.svg"
 ---
 
-`connectors/sample` generates synthetic data, useful for exercising a
-pipeline — or the engine itself — without needing a real upstream system
-configured. It's the zero-dependency reference source: the counterpart to the
-[Stdout](/pages/connectors/sinks/stdout) sink for end-to-end wiring, demos,
-and tests.
+The Sample source generates synthetic data for exercising a pipeline (or
+the engine itself) with no upstream system configured. It is the
+zero-dependency reference source, the counterpart to the
+[stdout](/pages/connectors/sinks/standard-output) sink for end-to-end wiring, demos,
+and tests. The connector is stable.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `rows` | Pipeline | `3` | Rows to emit per resource. |
 
 ## Resources
 
-Two fixed resources, `users` and `orders`, each emitting a configurable
-number of rows (`rows`, default 3) of `{"resource", "i"}` records with no
-external dependencies.
+Discover returns two fixed selectable resources, `users` and `orders`, each
+with primary key `id`. Extract emits rows for whatever resources the run
+requests. When none are requested it emits a single `items` resource.
+
+Each record's id is its index, with data:
+
+```json
+{"resource": "users", "i": 0}
+```
+
+Setting `rows` to zero or below still emits one row per resource (Discover
+continues to estimate 3).
 
 ## Modes
 
-`ModeFull` only.
+Full only, with `full_replace` as the only write policy.

@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"hash/crc32"
 	"strings"
 	"sync/atomic"
 
-	"github.com/go-sql-driver/mysql"
-
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -63,9 +64,10 @@ func (t *Sink) resumableFor(resource string) bool {
 func New() *Sink { return &Sink{} }
 
 var (
-	_ filament.Sink            = (*Sink)(nil)
-	_ filament.LiveValidatable = (*Sink)(nil)
-	_ filament.Schematized     = (*Sink)(nil)
+	_ filament.Sink              = (*Sink)(nil)
+	_ filament.ConfigValidatable = (*Sink)(nil)
+	_ filament.LiveValidatable   = (*Sink)(nil)
+	_ filament.Schematized       = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
@@ -76,16 +78,16 @@ func (t *Sink) Spec() filament.SinkSpec {
 		Description:  "Widely-used open-source relational database known for speed, reliability, and ease of use.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
-		Version:      "1",
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+		Version:      "2",
+		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
 			{Name: "database", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Destination database. Empty defaults to the normalized source connection name."},
 			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []filament.EnumOption{{Value: "typed", Label: "Typed"}}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
-		}},
+		}...)},
 		SchemaField: "database",
 		Capabilities: filament.SinkCapabilities{
 			Schematized:        true,
 			Upsertable:         true,
+			EncodedIntegrity:   true,
 			PreferredBatchRows: 4096,
 			WritePolicies: filament.WriteCapabilities(
 				filament.IngestionFullReplace,
@@ -101,17 +103,21 @@ func (t *Sink) Spec() filament.SinkSpec {
 // Name identifies this sink implementation.
 func (t *Sink) Name() string { return "mysql" }
 
+// Validate checks connection syntax without opening a network connection.
+func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := mysqlconnection.Resolve(cfg); err != nil {
+		return fmt.Errorf("mysql sink: connection config: %w", err)
+	}
+	return nil
+}
+
 // TestConnection pings MySQL through a short-lived pool. It intentionally
 // clears the database name so validating a new destination does not require
 // that Open's CREATE DATABASE step has already run.
 func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
-	dsn := cfg.Secret("dsn")
-	if dsn == "" {
-		return fmt.Errorf("mysql sink: dsn is required")
-	}
-	mc, err := mysql.ParseDSN(dsn)
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql sink: parse dsn: %w", err)
+		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
 	mc.DBName = ""
 	db, err := sql.Open("mysql", mc.FormatDSN())
@@ -130,13 +136,9 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
-	dsn := cfg.Secret("dsn")
-	if dsn == "" {
-		return fmt.Errorf("mysql sink: dsn is required")
-	}
-	mc, err := mysql.ParseDSN(dsn)
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql sink: parse dsn: %w", err)
+		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
 	t.database = mc.DBName
 	if v := cfg.String("database"); v != "" {
@@ -183,7 +185,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 // Apply validates the batch against the run's write policy, then routes it:
 // replace and append load into the table, upsert loads with REPLACE, merge
 // applies the change stream in order.
-func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if t.db == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: write before open")
 	}
@@ -195,17 +197,17 @@ func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyO
 	case filament.WriteReplace, filament.WriteAppend:
 		policy := opts.Policy
 		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
-		if err := policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
 		}
 		return t.write(ctx, tbl, b, false)
 	case filament.WriteUpsert:
-		if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
 		}
 		return t.write(ctx, tbl, b, true)
 	case filament.WriteMerge:
-		if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
 		}
 		return t.writeMerge(ctx, tbl, b)
@@ -219,7 +221,7 @@ func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyO
 // the resource's load and delete statements. A pre-existing table gains any new
 // columns; an incompatible existing column type surfaces later as a load error
 // (full type-change handling is deferred to schema evolution).
-func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
+func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	if t.db == nil {
 		return fmt.Errorf("mysql sink: ensure schema before open")
 	}
@@ -277,7 +279,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 
 	// The batches' Arrow schema is a pure function of the RecordSchema, so the
 	// renderers are built here once rather than per batch.
-	as := batch.Schema(schema)
+	as := arrowbatch.Schema(schema)
 	all := make([]int, len(schema.Fields))
 	for i := range all {
 		all[i] = i
@@ -341,17 +343,23 @@ type execer interface {
 // into skipped rows and coerced values with a warning, so the load checks the
 // count of rows landed and the session's warnings and fails on either. Returns
 // the rows loaded and payload bytes.
-func (tbl *table) load(ctx context.Context, x execer, b filament.Batch, lo, hi int, replace, keysOnly bool) (int, int64, error) {
-	if int(b.Rows.NumCols()) != len(tbl.idents) {
-		return 0, 0, fmt.Errorf("mysql sink: %s seq %d has %d columns, table has %d", b.Resource, b.Seq, b.Rows.NumCols(), len(tbl.idents))
+func (tbl *table) load(ctx context.Context, x execer, b *arrowbatch.Batch, lo, hi int, replace, keysOnly bool, integrity *writeIntegrity) (int, int64, error) {
+	rows := b.Rows()
+	if int(rows.NumCols()) != len(tbl.idents) {
+		return 0, 0, fmt.Errorf("mysql sink: %s seq %d has %d columns, table has %d", b.Resource, b.Seq, rows.NumCols(), len(tbl.idents))
 	}
 	l, target, idents, json := tbl.rows, tbl.qualified, tbl.idents, tbl.json
 	if keysOnly {
 		l, target, idents, json = tbl.keys, tbl.keysTemp, tbl.keyIdents, nil
 	}
-	payload := l.encode(b.Rows, lo, hi)
+	payload, expectedCRC := l.encode(rows, lo, hi)
+	integrity.arrow = b.IntegrityCRC()
+	integrity.encoded = crc32.Update(integrity.encoded, loadCRCTable, payload)
 	name, done := register(payload)
 	defer done()
+	if err := verifyLoadChecksum(payload, expectedCRC); err != nil {
+		return 0, 0, fmt.Errorf("mysql sink: verify load %s seq %d: %w", b.Resource, b.Seq, err)
+	}
 	res, err := x.ExecContext(ctx, loadSQL(name, target, idents, json, replace))
 	if err != nil {
 		return 0, 0, fmt.Errorf("mysql sink: load %s seq %d: %w", b.Resource, b.Seq, err)
@@ -388,18 +396,19 @@ func firstWarning(ctx context.Context, x execer) error {
 
 // write loads the whole batch; replace makes duplicate keys overwrite, the
 // idempotent upsert an at-least-once resume relies on.
-func (t *Sink) write(ctx context.Context, tbl *table, b filament.Batch, replace bool) (filament.WriteReceipt, error) {
+func (t *Sink) write(ctx context.Context, tbl *table, b *arrowbatch.Batch, replace bool) (filament.WriteReceipt, error) {
 	conn, err := t.db.Conn(ctx)
 	if err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: write %s: %w", b.Resource, err)
 	}
 	defer func() { _ = conn.Close() }()
-	rows, nbytes, err := tbl.load(ctx, conn, b, 0, b.NumRows(), replace, false)
+	var integrity writeIntegrity
+	rows, nbytes, err := tbl.load(ctx, conn, b, 0, b.NumRows(), replace, false, &integrity)
 	if err != nil {
 		return filament.WriteReceipt{}, err
 	}
 	t.written.Add(int64(rows))
-	return t.receipt(b, rows, nbytes), nil
+	return t.receipt(b, rows, nbytes, integrity), nil
 }
 
 // writeMerge applies a CDC batch: rows split into maximal same-kind runs in
@@ -407,7 +416,7 @@ func (t *Sink) write(ctx context.Context, tbl *table, b filament.Batch, replace 
 // run lands as one statement: inserts/updates through LOAD DATA REPLACE, deletes
 // through the keys temp table and a join delete. One transaction on one
 // connection (the temp table is per session) makes the batch atomic.
-func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (filament.WriteReceipt, error) {
+func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
 	if tbl.deleteSQL == "" {
 		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: merge on keyless resource %q", b.Resource)
 	}
@@ -424,11 +433,12 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (fi
 
 	var nbytes int64
 	rows := 0
+	var integrity writeIntegrity
 	n := b.NumRows()
 	for lo := 0; lo < n; {
-		deleting := b.Op(lo) == filament.OpDelete
+		deleting := b.Op(lo) == rowmodel.OpDelete
 		hi := lo + 1
-		for hi < n && (b.Op(hi) == filament.OpDelete) == deleting {
+		for hi < n && (b.Op(hi) == rowmodel.OpDelete) == deleting {
 			hi++
 		}
 		var (
@@ -437,9 +447,9 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (fi
 			err error
 		)
 		if deleting {
-			k, nb, err = t.deleteRange(ctx, tx, tbl, b, lo, hi)
+			k, nb, err = t.deleteRange(ctx, tx, tbl, b, lo, hi, &integrity)
 		} else {
-			k, nb, err = tbl.load(ctx, tx, b, lo, hi, true, false)
+			k, nb, err = tbl.load(ctx, tx, b, lo, hi, true, false, &integrity)
 		}
 		if err != nil {
 			return filament.WriteReceipt{}, err
@@ -452,19 +462,19 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (fi
 		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: commit merge %s seq %d: %w", b.Resource, b.Seq, err)
 	}
 	t.written.Add(int64(rows))
-	return t.receipt(b, rows, nbytes), nil
+	return t.receipt(b, rows, nbytes, integrity), nil
 }
 
 // deleteRange loads the keys of rows [lo, hi) into the session's keys temp table
 // and deletes the matching destination rows.
-func (t *Sink) deleteRange(ctx context.Context, tx *sql.Tx, tbl *table, b filament.Batch, lo, hi int) (int, int64, error) {
+func (t *Sink) deleteRange(ctx context.Context, tx *sql.Tx, tbl *table, b *arrowbatch.Batch, lo, hi int, integrity *writeIntegrity) (int, int64, error) {
 	if _, err := tx.ExecContext(ctx, tbl.keysTempSQL); err != nil {
 		return 0, 0, fmt.Errorf("mysql sink: keys temp table %s: %w", b.Resource, err)
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM "+tbl.keysTemp); err != nil { //nolint:gosec // identifier backtick-quoted via quoteIdent
 		return 0, 0, fmt.Errorf("mysql sink: clear keys %s: %w", b.Resource, err)
 	}
-	k, nb, err := tbl.load(ctx, tx, b, lo, hi, false, true)
+	k, nb, err := tbl.load(ctx, tx, b, lo, hi, false, true, integrity)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -474,12 +484,18 @@ func (t *Sink) deleteRange(ctx context.Context, tx *sql.Tx, tbl *table, b filame
 	return k, nb, nil
 }
 
-func (t *Sink) receipt(b filament.Batch, rows int, nbytes int64) filament.WriteReceipt {
+type writeIntegrity struct {
+	arrow   uint32
+	encoded uint32
+}
+
+func (t *Sink) receipt(b *arrowbatch.Batch, rows int, nbytes int64, integrity writeIntegrity) filament.WriteReceipt {
 	return filament.WriteReceipt{
-		URI:      fmt.Sprintf("mysql://%s.%s", t.database, b.Resource),
-		Bytes:    nbytes,
-		Rows:     rows,
-		WriteCRC: batch.CRC(b.Rows, b.Ops),
+		URI:        fmt.Sprintf("mysql://%s.%s", t.database, b.Resource),
+		Bytes:      nbytes,
+		Rows:       rows,
+		WriteCRC:   integrity.arrow,
+		EncodedCRC: &integrity.encoded,
 	}
 }
 

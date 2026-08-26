@@ -13,41 +13,42 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/shopspring/decimal"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/arrowtext"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // columnType maps a schema field onto a conservative ClickHouse type. JSON,
 // arrays, and unknown source-native types land as their text in String until
 // the portable schema carries enough nested type information to create a
 // lossless ClickHouse JSON/Array declaration.
-func columnType(f filament.SchemaField) string {
+func columnType(f rowmodel.Field) string {
 	var typ string
 	switch f.Logical {
-	case filament.LogicalBool:
+	case rowmodel.LogicalBool:
 		typ = "Bool"
-	case filament.LogicalInt16:
+	case rowmodel.LogicalInt16:
 		typ = "Int16"
-	case filament.LogicalInt32:
+	case rowmodel.LogicalInt32:
 		typ = "Int32"
-	case filament.LogicalInt64:
+	case rowmodel.LogicalInt64:
 		typ = "Int64"
-	case filament.LogicalFloat32:
+	case rowmodel.LogicalFloat32:
 		typ = "Float32"
-	case filament.LogicalFloat64:
+	case rowmodel.LogicalFloat64:
 		typ = "Float64"
-	case filament.LogicalDecimal:
+	case rowmodel.LogicalDecimal:
 		typ = decimalType(f)
-	case filament.LogicalString, filament.LogicalBytes, filament.LogicalTime,
-		filament.LogicalJSON, filament.LogicalArray, filament.LogicalUnknown:
+	case rowmodel.LogicalString, rowmodel.LogicalBytes, rowmodel.LogicalTime,
+		rowmodel.LogicalJSON, rowmodel.LogicalArray, rowmodel.LogicalUnknown:
 		typ = "String"
-	case filament.LogicalDate:
+	case rowmodel.LogicalDate:
 		typ = "Date32"
-	case filament.LogicalTimestamp:
+	case rowmodel.LogicalTimestamp:
 		typ = "DateTime64(6)"
-	case filament.LogicalTimestampTZ:
+	case rowmodel.LogicalTimestampTZ:
 		typ = "DateTime64(6, 'UTC')"
-	case filament.LogicalUUID:
+	case rowmodel.LogicalUUID:
 		typ = "UUID"
 	default:
 		typ = "String"
@@ -60,7 +61,7 @@ func columnType(f filament.SchemaField) string {
 
 // decimalType sizes a Decimal from the field's precision and scale; an
 // unbounded decimal (no precision) lands as Decimal(38, 9).
-func decimalType(f filament.SchemaField) string {
+func decimalType(f rowmodel.Field) string {
 	// ClickHouse Decimal supports precision 1..76 and scale <= precision.
 	if f.Precision < 1 || f.Precision > 76 || f.Scale < 0 || f.Scale > f.Precision {
 		return "Decimal(38, 9)"
@@ -95,7 +96,7 @@ func valueFor(f arrow.Field) valueFn {
 			return decimal.NewFromBigInt(col.(*array.Decimal128).Value(i).BigInt(), -scale)
 		}
 	case arrow.STRING:
-		if batch.LogicalOf(f) == filament.LogicalDecimal { // unbounded numeric text
+		if arrowbatch.LogicalOf(f) == rowmodel.LogicalDecimal { // unbounded numeric text
 			return func(col arrow.Array, i int) any {
 				d, err := decimal.NewFromString(col.(*array.String).Value(i))
 				if err != nil {
@@ -117,7 +118,7 @@ func valueFor(f arrow.Field) valueFn {
 		}
 	case arrow.TIME64:
 		return func(col arrow.Array, i int) any {
-			return string(batch.AppendTimeOfDay(nil, int64(col.(*array.Time64).Value(i))))
+			return string(arrowtext.AppendTimeOfDay(nil, int64(col.(*array.Time64).Value(i))))
 		}
 	case arrow.TIMESTAMP:
 		if f.Type.(*arrow.TimestampType).TimeZone != "" {
@@ -126,7 +127,7 @@ func valueFor(f arrow.Field) valueFn {
 				if us == math.MaxInt64 || us == math.MinInt64 { // Postgres infinity has no ClickHouse form
 					return nil
 				}
-				return time.Unix(us/batch.MicrosPerSecond, us%batch.MicrosPerSecond*1000).UTC()
+				return time.Unix(us/arrowtext.MicrosPerSecond, us%arrowtext.MicrosPerSecond*1000).UTC()
 			}
 		}
 		return func(col arrow.Array, i int) any {
@@ -134,7 +135,7 @@ func valueFor(f arrow.Field) valueFn {
 			if us == math.MaxInt64 || us == math.MinInt64 {
 				return nil
 			}
-			return string(batch.AppendTimestamp(nil, us, ' '))
+			return string(arrowtext.AppendTimestamp(nil, us, ' '))
 		}
 	default:
 		return func(col arrow.Array, i int) any { return col.ValueStr(i) }

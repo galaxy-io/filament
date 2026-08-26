@@ -6,12 +6,12 @@ import (
 	iceberg "github.com/apache/iceberg-go"
 	icetable "github.com/apache/iceberg-go/table"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // buildIcebergSchema maps a RecordSchema to an Iceberg schema, allocating field
 // IDs from one monotonic counter.
-func buildIcebergSchema(schema filament.RecordSchema) *iceberg.Schema {
+func buildIcebergSchema(schema rowmodel.Schema) *iceberg.Schema {
 	var nextID int
 	next := func() int { nextID++; return nextID }
 
@@ -46,7 +46,7 @@ func buildIcebergSchema(schema filament.RecordSchema) *iceberg.Schema {
 // dropped columns are intentionally NOT applied (an Iceberg promote tolerates a
 // superset schema, but a narrowing change could break readers). New column IDs
 // are assigned by iceberg-go.
-func evolveSchema(ctx context.Context, tbl *icetable.Table, schema filament.RecordSchema) error {
+func evolveSchema(ctx context.Context, tbl *icetable.Table, schema rowmodel.Schema) error {
 	existing := tbl.Schema()
 	txn := tbl.NewTransaction()
 	us := txn.UpdateSchema(false, false)

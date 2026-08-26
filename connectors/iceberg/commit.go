@@ -9,7 +9,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/iceberg-go/table"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // writeBuffer streams a resource buffer into the Iceberg table in one
@@ -109,7 +109,7 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 func conformedBatches(rb *recordBuf, schema *arrow.Schema) (iter.Seq2[arrow.RecordBatch, error], *error) {
 	var streamErr error
 	seq := func(yield func(arrow.RecordBatch, error) bool) {
-		streamErr = rb.stream(func(rows arrow.RecordBatch, _ []filament.Operation) error {
+		streamErr = rb.stream(func(rows arrow.RecordBatch, _ []rowmodel.Operation) error {
 			rec, err := conform(rows, schema)
 			if err != nil {
 				return err

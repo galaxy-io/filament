@@ -1,62 +1,70 @@
 ---
 title: "Attio"
-description: "Read CRM records, lists, and activity from Attio."
+description: "Read CRM records, lists, notes, tasks, meetings, and call transcripts from Attio"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg"
 ---
 
-Attio is a manifest-driven source — `connectors/http/manifests/attio.yaml` declares
-its resources, auth, and pagination against the shared grammar in
-`connectors/http/manifest/`; no Attio-specific Go code exists. See
-[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+Attio is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
+The `connectors/http/manifests/attio.yaml` manifest declares resources
+covering the full CRM surface, from objects and their records to lists and
+entries, notes, tasks, meetings, and call transcripts. The connector is
+**alpha**, so resource coverage and field shapes may still change between
+releases.
 
-## Auth
+## Configuration
 
-A single `api_key` (Attio workspace API key, bearer auth). Attio's objects and
-lists are workspace-defined — CRMs commonly extend `people`/`companies`/`deals`
-with custom objects — so the manifest reads the workspace's actual object and
-list definitions rather than assuming a fixed schema.
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Attio workspace API key. |
 
 ## Resources
 
-Twenty-three resources, all statically discovered. Most fan out from a handful
-of top-level resources via `for_each`:
-
-| Resource | Fans out from | Notes |
+| Resource | Parent | Notes |
 |---|---|---|
-| `objects` | — | Every object type defined in the workspace (standard and custom) |
-| `records` | `objects` | All records for each object, via `POST /v2/objects/{object}/records/query` |
-| `object_attributes` | `objects` | Attribute (field) definitions per object |
-| `object_views` | `objects` | Saved views per object |
-| `record_entries` | `records` | List memberships for each record |
-| `threads` | `records` | Comment threads on each record |
-| `files` | `records` | Files attached to each record |
-| `lists` | — | Every list defined in the workspace |
-| `entries` | `lists` | List entries, via `POST /v2/lists/{list}/entries/query` |
-| `list_attributes` | `lists` | Attribute definitions per list |
-| `list_views` | `lists` | Saved views per list |
-| `meetings` | — | Calendar meetings logged in Attio |
-| `call_recordings` | `meetings` | Recordings attached to each meeting |
-| `transcripts` | `call_recordings` | One-to-one with a recording (`cardinality: one`) |
-| `workspace_members`, `notes`, `tasks`, `webhooks` | — | Standalone, no parent |
-| `people`, `companies`, `deals`, `users`, `workspaces` | — | Convenience shortcuts onto `records`, pre-scoped to that standard object |
+| `objects` | | Object definitions. Captures `api_slug` for children |
+| `records` | `objects` | One `POST /records/query` walk per object |
+| `object_attributes` | `objects` | Attribute schema per object |
+| `object_views` | `objects` | Views per object |
+| `record_entries` | `records` | List memberships, one request per record |
+| `files` | `records` | Files attached to a record, one request per record |
+| `threads` | `records` | Comment threads, one request per record |
+| `lists` | | Captures each list's `api_slug` for children |
+| `entries` | `lists` | One `POST /entries/query` walk per list |
+| `list_attributes` | `lists` | Attribute schema per list |
+| `list_views` | `lists` | Views per list |
+| `workspace_members` | | Single unpaginated page |
+| `notes` | | Workspace-wide notes |
+| `tasks` | | Workspace-wide tasks |
+| `meetings` | | Captures `meeting_id` for recordings |
+| `call_recordings` | `meetings` | One request per meeting |
+| `transcripts` | `call_recordings` | One transcript per recording |
+| `webhooks` | | Webhook subscriptions |
+| `people`, `companies`, `deals`, `users`, `workspaces` | | Query the standard objects directly, without the `objects` fan-out |
 
-<Accordion title="Why people/companies/deals/users/workspaces exist alongside records">
-  Attio's standard CRM objects are still just objects — `records` already
-  covers them via the generic `for_each: objects` fan-out. The five shortcut
-  resources reuse `records`' field set (`use_fields: [record]`) with the
-  object slug hardcoded into the path, so a pipeline can select "Companies"
-  directly instead of selecting `records` and filtering to one object
-  afterward.
-</Accordion>
-
-Pagination is per-resource: offset-based for query endpoints (500-record
-pages), cursor-based for list endpoints that return `pagination.next_cursor`,
-and `none` for small unpaginated resources like `objects` and `lists`
-themselves.
+The fan-out runs three levels deep. `objects` feeds `records`, which feed
+`record_entries`, `files`, and `threads`, while `meetings` feed
+`call_recordings`, which feed `transcripts`. Each child issues at least one request per parent
+record, so a workspace with 50,000 records costs at least 150,000 requests
+when the three per-record children are all selected. Select only the
+resources you need.
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http));
-this manifest declares no `incremental:` blocks, so runs are full extracts —
-see [Slack](/pages/connectors/sources/slack) for what an incremental resource
-looks like in the same grammar.
+Full only. The manifest declares no `incremental` blocks, so every run re-reads
+every selected resource from the start. Full runs checkpoint their pagination
+cursor per top-level resource and resume from the last completed page. Child
+resources always restart with their parent.
+
+## Behavior
+
+- **Auth**: bearer token from `api_key` on every request.
+- **Pagination**: offset paging on the query endpoints (injected into the
+  POST body for `records` and `entries`, into the query string for attribute
+  and entry lists), cursor paging with null termination on views, files,
+  meetings, and call recordings, and single-page responses elsewhere.
+- **Rate limiting**: the manifest configures no client-side rate limit. The
+  engine still backs off on 429 responses, honoring `Retry-After` for up to 10
+  attempts, but a deep fan-out drives requests as fast as Attio will accept
+  them. Expect 429 churn on large workspaces.
+- Every resource carries a `raw` remainder column preserving fields the
+  manifest does not project.

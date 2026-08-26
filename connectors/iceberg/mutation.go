@@ -12,7 +12,7 @@ import (
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/google/uuid"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // mutation is a buffer folded by key: the filter selecting every touched key,
@@ -47,7 +47,7 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 	last := map[string]pos{}
 	var expr iceberg.BooleanExpression
 	bi := 0
-	err := rb.stream(func(rows arrow.RecordBatch, _ []filament.Operation) error {
+	err := rb.stream(func(rows arrow.RecordBatch, _ []rowmodel.Operation) error {
 		for i := range int(rows.NumRows()) {
 			k := keyOf(rows, keyIdx, i)
 			if _, seen := last[k]; !seen {
@@ -85,7 +85,7 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 	// survivors (only they need the table's types).
 	m := &mutation{filter: expr}
 	bi = 0
-	err = rb.stream(func(rows arrow.RecordBatch, ops []filament.Operation) error {
+	err = rb.stream(func(rows arrow.RecordBatch, ops []rowmodel.Operation) error {
 		mask := array.NewBooleanBuilder(memory.DefaultAllocator)
 		defer mask.Release()
 		n := int(rows.NumRows())
@@ -93,7 +93,7 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 		kept := 0
 		for i := range n {
 			p := last[keyOf(rows, keyIdx, i)]
-			keep := p.batch == bi && p.row == i && (len(ops) == 0 || ops[i] != filament.OpDelete)
+			keep := p.batch == bi && p.row == i && (len(ops) == 0 || ops[i] != rowmodel.OpDelete)
 			mask.Append(keep)
 			if keep {
 				kept++

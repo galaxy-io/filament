@@ -1,5 +1,9 @@
 version: 1
 name: slack
+display_name: Slack
+description: Messaging and collaboration platform designed for teams to communicate and work together efficiently.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg
 config:
   token:
     type: secret

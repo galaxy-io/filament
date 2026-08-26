@@ -2,11 +2,15 @@ package pipeline
 
 import (
 	"errors"
+	"fmt"
+
+	"github.com/apache/arrow-go/v18/arrow"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // ErrPipelineClosed is returned to a builder when it flushes after the pipeline
@@ -14,20 +18,49 @@ import (
 var ErrPipelineClosed = errors.New("pipeline: closed")
 
 // inlet is the Source's view of the pipeline: a filament.RecordSink that opens
-// one batch.Builder per (resource, part). Each builder's chunks become batches
+// one arrowbatch.Builder per (resource, part). Each builder's chunks become batches
 // on the writer channel; a full channel blocks the source, applying backpressure.
 type inlet struct{ p *Pipeline }
 
-var _ filament.RecordSink = (*inlet)(nil)
+type partKey struct {
+	resource string
+	part     int
+}
+
+type registeredSchema struct {
+	model rowmodel.Schema
+	arrow *arrow.Schema
+}
+
+var _ arrowbatch.Inlet = (*inlet)(nil)
 
 // Builder opens the row writer for one (resource, part). Safe to call from
 // multiple goroutines.
-func (in *inlet) Builder(resource string, part int, schema filament.RecordSchema) (filament.RowWriter, error) {
+func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (arrowbatch.RowWriter, error) {
 	p := in.p
-	b := batch.New(batch.Schema(schema), p.opts, &slot{p: p, resource: resource, part: part})
-	p.buildersMu.Lock()
-	p.builders = append(p.builders, b)
-	p.buildersMu.Unlock()
+	key := partKey{resource: resource, part: part}
+	p.registryMu.Lock()
+	defer p.registryMu.Unlock()
+	schema := supplied.Clone()
+	if schema.Resource == "" {
+		schema.Resource = resource
+	} else if schema.Resource != resource {
+		return nil, fmt.Errorf("pipeline: schema resource %q does not match builder resource %q", schema.Resource, resource)
+	}
+	want := arrowbatch.Schema(schema)
+	if registered, ok := p.schemas[resource]; ok {
+		if !registered.model.Equal(schema) {
+			return nil, fmt.Errorf("pipeline: schema changed for resource %q", resource)
+		}
+		want = registered.arrow
+	} else {
+		p.schemas[resource] = registeredSchema{model: schema, arrow: want}
+	}
+	if _, exists := p.builders[key]; exists {
+		return nil, fmt.Errorf("pipeline: builder already open for %q part %d", resource, part)
+	}
+	b := arrowbatch.NewBuilder(want, p.alloc, p.opts, &slot{p: p, resource: resource, part: part})
+	p.builders[key] = b
 	return b, nil
 }
 
@@ -40,25 +73,18 @@ type slot struct {
 	seq      uint64
 }
 
-var _ batch.Receiver = (*slot)(nil)
+var _ arrowbatch.Receiver = (*slot)(nil)
 
-func (s *slot) Chunk(c batch.Chunk) error {
+func (s *slot) Chunk(b *arrowbatch.Batch) error {
 	seq := s.seq
 	s.seq++
-	rows := int64(c.Rows.NumRows())
-	nbytes := batch.Bytes(c.Rows) // before send: the writer releases the rows after Apply
-	b := filament.Batch{
-		Tenant:   s.p.tenant,
-		Run:      s.p.run,
-		Resource: s.resource,
-		Part:     s.part,
-		Seq:      seq,
-		Rows:     c.Rows,
-		Ops:      c.Ops,
-		Cursor:   cursorOf(s.resource, s.part, c.Last, int(rows)),
-	}
+	rows := int64(b.NumRows())
+	nbytes := b.Bytes()
+	b.Resource = s.resource
+	b.Part = s.part
+	b.Seq = seq
+	b.Cursor = cursorOf(s.resource, s.part, b.Last, int(rows))
 	if err := s.send(b); err != nil {
-		c.Rows.Release()
 		return err
 	}
 	s.p.publish(events.NewFact(events.BatchBuffered, events.Envelope{Resource: s.resource},
@@ -77,20 +103,19 @@ func (s *slot) Drained(meta filament.RowMeta, total int) error {
 	} else {
 		cursor = checkpoint.NewCoarseDone(s.resource, s.part, total)
 	}
-	return s.send(filament.Batch{
-		Tenant:   s.p.tenant,
-		Run:      s.p.run,
-		Resource: s.resource,
-		Part:     s.part,
-		Drained:  true,
-		Cursor:   cursor,
-	})
+	b := arrowbatch.NewMarker()
+	b.Resource, b.Part, b.Cursor = s.resource, s.part, cursor
+	if err := s.send(b); err != nil {
+		b.Release()
+		return err
+	}
+	return nil
 }
 
 // send queues a batch, blocking on backpressure. It returns the pipeline error
 // (or ErrPipelineClosed) once the writer has given up, so a Source stops
 // extracting instead of spinning against a dead pipeline.
-func (s *slot) send(b filament.Batch) error {
+func (s *slot) send(b *arrowbatch.Batch) error {
 	select {
 	case s.p.batchCh <- b:
 		return nil

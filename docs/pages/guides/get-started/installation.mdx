@@ -1,20 +1,58 @@
 ---
 title: "Installation"
-description: "The two ways to run Filament: embed it as a Go library, or deploy it as a service."
+description: "Run Filament as a standalone binary, a Go library, or a Kubernetes deployment"
 ---
 
-Filament runs two ways depending on whether you want it inside your own Go
-process or as a standalone service.
+Filament runs in any of these shapes:
 
-## As a library
+- As a single standalone binary, for evaluation
+- As a library inside your own Go process
+- As a Kubernetes deployment via the Helm chart
 
-Filament embeds directly. Connectors self-register via blank imports, so you
-only pull in the ones you use:
+Container images for every binary are published at
+`ghcr.io/galaxy-io/filament/{server,control-plane,worker,standalone}`.
+
+## Standalone binary
+
+The fastest way to try Filament. One process bundles everything:
+
+- An embedded NATS JetStream (no ports exposed)
+- An in-memory data store
+- Env-var secrets
+- The embedded web app
+- A curated connector set (`clickhouse`, `iceberg`, `mysql`, and `postgres`)
+
+Runs execute in-process. It listens on `INGESTION_ADDR`, default `:8080`.
+
+```sh
+docker run -p 8080:8080 ghcr.io/galaxy-io/filament/standalone
+```
+
+<Warning>
+  The standalone binary keeps all state (connections, pipelines, runs,
+  checkpoints) in memory. Nothing survives a restart. Use it to evaluate,
+  not to operate.
+</Warning>
+
+Secrets come from environment variables. A ref like `postgres-creds/dsn`
+reads the env var `POSTGRES_CREDS_DSN`. JetStream state lands in
+`NATS_STORE_DIR` (default `$TMPDIR/filament-standalone`).
+
+## As a Go library
+
+Filament embeds directly via `app.Run`. Connectors self-register through
+blank imports, so you only pull in the ones you use. The defaults are an
+in-process bus and an in-memory store. The API (and optionally the UI) is
+served on `INGESTION_ADDR` (`:8080`), and runs execute in-process.
 
 ```go
-import (
-	"github.com/galaxy-io/filament/app"
+package main
 
+import (
+	"context"
+	"log"
+
+	"github.com/galaxy-io/filament/app"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
 	_ "github.com/galaxy-io/filament/connectors/stdout"
 )
@@ -22,17 +60,21 @@ import (
 func main() { log.Fatal(app.Run(context.Background())) }
 ```
 
-See [Embedding as a library](/pages/guides/deployment/embedding-as-a-library) for the full picture.
+See [Embedding as a library](/pages/guides/deployment/embedding-as-a-library)
+for swapping in NATS, Postgres, and a real secrets provider.
 
-## As a service, on Kubernetes
+## On Kubernetes
 
-Filament runs on Kubernetes through the Helm chart. The chart deploys the
-server and control plane, dispatches each run as its own Job, and can
-provision or point at existing Postgres and NATS instances.
+The Helm chart deploys the server and control plane, dispatches each run as
+its own Job, and points at your Postgres and NATS instances (or provisions
+optional vendored subcharts for evaluation). See
+[Kubernetes](/pages/guides/deployment/kubernetes) for the install steps.
 
-See [Kubernetes](/pages/guides/deployment/kubernetes) for the install steps.
+## Building from source
 
-<Note>
-  Evaluating locally first? [Quickstart](/pages/guides/get-started/quickstart) runs the
-  whole stack with `just dev` and no Kubernetes required.
-</Note>
+`just binaries` builds every binary into `bin/filament/` and compiles
+`server` and `standalone` with the `embedui` build tag so the web app is
+embedded. A plain `go build` of those binaries serves a placeholder page
+instead of the UI, so use `just binaries` (or pass `-tags embedui` yourself)
+when you want the UI in the binary. `just images` builds the container
+images.
