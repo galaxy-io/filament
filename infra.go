@@ -330,7 +330,7 @@ type SinkRegistry interface {
 	Specs() []SinkSpec
 }
 
-// mapConfig is the concrete Config backing a provider's Ref.Config (a decoded
+// mapConfig is the concrete Config backing a connector's Ref.Config (a decoded
 // map[string]any from YAML/JSON). It reads tolerantly across the numeric forms
 // JSON round-trips produce. Secret resolution is not wired here yet — Secret and
 // SecretRef return the raw value, so a secrets provider can be layered in later.
@@ -403,7 +403,7 @@ func (c mapConfig) Secret(key string) string { return c.String(key) }
 func (c mapConfig) SecretRef(key string) string { return c.String(key) }
 
 // Raw returns the underlying decoded map for callers that need to iterate keys
-// (e.g. passing arbitrary backend properties through to a provider library).
+// (e.g. passing arbitrary backend properties through to a connector library).
 func (c mapConfig) Raw() map[string]any { return c }
 
 // Sub returns a nested Config, or an empty one if the key is absent or not a map.
@@ -543,13 +543,13 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-// Ref names a provider (source, sink, datastore, …) together with its config
+// Ref names a connector (source or sink) together with its config
 // — the indirection a RunRequest carries instead of live instances.
 type Ref struct {
-	Provider  string
+	Connector string
 	ConfigRef string
 	Config    map[string]any
 
-	// SecretRefs maps a provider config field to a Secrets reference
+	// SecretRefs maps a connector config field to a Secrets reference.
 	SecretRefs map[string]string
 }

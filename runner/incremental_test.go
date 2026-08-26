@@ -104,7 +104,7 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	plan := filament.IngestionPlan{}
 	base := filament.RunSpec{
 		Run: "run-a", PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink",
-		Source: filament.Ref{Provider: "test"}, Resources: []string{"users"},
+		Source: filament.Ref{Connector: "test"}, Resources: []string{"users"},
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 		CursorConfigs:  map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at", LookbackSeconds: 300}},
 	}

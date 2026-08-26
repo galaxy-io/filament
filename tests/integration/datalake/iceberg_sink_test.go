@@ -182,12 +182,12 @@ func runPipeline(t *testing.T, ctx context.Context, pg *testcontainers.PG, dl *t
 		Run:       "run1",
 		Resources: resources,
 		Source: filament.Ref{
-			Provider: "postgres",
-			Config:   map[string]any{"dsn": pg.DSN(), "schema": "public"},
+			Connector: "postgres",
+			Config:    map[string]any{"dsn": pg.DSN(), "schema": "public"},
 		},
 		Sink: filament.Ref{
-			Provider: "iceberg",
-			Config:   sinkConfig(t, ctx, dl),
+			Connector: "iceberg",
+			Config:    sinkConfig(t, ctx, dl),
 		},
 		Options: filament.RunOptions{SnapshotParallelism: 1},
 	})

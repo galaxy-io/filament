@@ -16,8 +16,9 @@ import (
 	"mime/multipart"
 	"net/textproto"
 	"net/url"
-	"strconv"
 	"strings"
+
+	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 )
 
 // Encoder serializes a Body template into an io.Reader and reports the
@@ -93,21 +94,11 @@ func (formEncoder) Encode(t any) (io.Reader, string, error) {
 // strconv (not %v) so floats don't pick up scientific notation. Returns an
 // error for non-scalar types so encoders surface bad inputs explicitly.
 func scalarToString(v any) (string, error) {
-	switch x := v.(type) {
-	case nil:
+	if v == nil {
 		return "", nil
-	case string:
-		return x, nil
-	case bool:
-		return strconv.FormatBool(x), nil
-	case int:
-		return strconv.Itoa(x), nil
-	case int32:
-		return strconv.FormatInt(int64(x), 10), nil
-	case int64:
-		return strconv.FormatInt(x, 10), nil
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64), nil
+	}
+	if text, ok := scalar.String(v); ok {
+		return text, nil
 	}
 	return "", fmt.Errorf("non-scalar value of type %T (form/multipart fields must be string|number|bool|null)", v)
 }

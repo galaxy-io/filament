@@ -9,6 +9,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
+	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
@@ -221,20 +222,10 @@ func coerceValue(fieldType string, value any) (any, error) {
 }
 
 func scalarString(value any) (string, error) {
-	switch v := value.(type) {
-	case string:
-		return v, nil
-	case bool:
-		return strconv.FormatBool(v), nil
-	case int:
-		return strconv.Itoa(v), nil
-	case int64:
-		return strconv.FormatInt(v, 10), nil
-	case float64:
-		return strconv.FormatFloat(v, 'f', -1, 64), nil
-	default:
-		return "", fmt.Errorf("%w: expected scalar, got %T", errs.ErrPathType, value)
+	if text, ok := scalar.String(value); ok {
+		return text, nil
 	}
+	return "", fmt.Errorf("%w: expected scalar, got %T", errs.ErrPathType, value)
 }
 
 func scalarInt(value any) (int64, error) {
