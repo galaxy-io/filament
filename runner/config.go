@@ -32,7 +32,7 @@ func resolveSecretRefs(ctx context.Context, secrets filament.Secrets, ref *filam
 		return nil
 	}
 	if secrets == nil {
-		return fmt.Errorf("%s %q has secret refs but no secrets store is configured", role, ref.Provider)
+		return fmt.Errorf("%s %q has secret refs but no secrets store is configured", role, ref.Connector)
 	}
 	if ref.Config == nil {
 		ref.Config = make(map[string]any, len(ref.SecretRefs))
@@ -71,7 +71,7 @@ func resolveRefConfig(ctx context.Context, secrets filament.Secrets, ref *filame
 		return nil
 	}
 	if secrets == nil {
-		return fmt.Errorf("%s %q has config ref %q but no secrets store is configured", role, ref.Provider, ref.ConfigRef)
+		return fmt.Errorf("%s %q has config ref %q but no secrets store is configured", role, ref.Connector, ref.ConfigRef)
 	}
 	if err := filament.ValidateConnectionSecretRef(ref.ConfigRef, tenant); err != nil {
 		return fmt.Errorf("read %s config ref: %w", role, err)

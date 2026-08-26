@@ -65,8 +65,8 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 	if _, err := dispatcher.Dispatch(ctx, filament.RunSpec{
 		Tenant: "acme",
 		Run:    held,
-		Source: filament.Ref{Provider: "postgres"},
-		Sink:   filament.Ref{Provider: "stdout"},
+		Source: filament.Ref{Connector: "postgres"},
+		Sink:   filament.Ref{Connector: "stdout"},
 	}); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}

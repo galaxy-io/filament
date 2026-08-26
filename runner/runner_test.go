@@ -126,8 +126,8 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 	}, filament.RunSpec{
 		Tenant:         "t1",
 		Run:            "r1",
-		Source:         filament.Ref{Provider: "test"},
-		Sink:           filament.Ref{Provider: "test-sink"},
+		Source:         filament.Ref{Connector: "test"},
+		Sink:           filament.Ref{Connector: "test-sink"},
 		Resources:      []string{"users"},
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
 	})
@@ -197,7 +197,7 @@ func TestRunOneCooperativeControl(t *testing.T) {
 				RunOne(context.Background(), Deps{
 					Bus: bus, DataStore: memory.New(), Sources: sources, Sinks: sinks,
 				}, filament.RunSpec{
-					Tenant: "t1", Run: "r1", Source: filament.Ref{Provider: "test"}, Sink: filament.Ref{Provider: "test-sink"},
+					Tenant: "t1", Run: "r1", Source: filament.Ref{Connector: "test"}, Sink: filament.Ref{Connector: "test-sink"},
 					Resources: []string{"users"}, IngestionTypes: map[string]filament.IngestionType{"users": tt.ingestion},
 				})
 			}()
