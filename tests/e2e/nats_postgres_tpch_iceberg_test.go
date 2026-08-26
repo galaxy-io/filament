@@ -91,11 +91,11 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	runID, err := orch.Submit(ctx, filament.RunRequest{
 		Tenant: "t1",
 		Source: filament.Ref{
-			Provider: "postgres",
-			Config:   map[string]any{"dsn": pg.DSN()},
+			Connector: "postgres",
+			Config:    map[string]any{"dsn": pg.DSN()},
 		},
 		Sink: filament.Ref{
-			Provider: "iceberg",
+			Connector: "iceberg",
 			Config: map[string]any{
 				"warehouse": "s3://" + lake.Bucket + "/",
 				"namespace": "tpch_e2e",

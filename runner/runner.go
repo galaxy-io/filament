@@ -82,8 +82,8 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		defer span.End()
 		span.SetAttr("run", string(spec.Run))
 		span.SetAttr("tenant", string(spec.Tenant))
-		span.SetAttr("source", spec.Source.Provider)
-		span.SetAttr("sink", spec.Sink.Provider)
+		span.SetAttr("source", spec.Source.Connector)
+		span.SetAttr("sink", spec.Sink.Connector)
 	}
 
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
@@ -104,16 +104,16 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		return
 	}
 
-	src, err := deps.Sources.Resolve(spec.Source.Provider)
+	src, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
-		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Provider, err), nil, false)
+		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err), nil, false)
 		return
 	}
 	if err := src.Configure(extractCtx, filament.NewConfig(spec.Source.Config)); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return
 		}
-		em.failed(fmt.Errorf("configure source %q: %w", spec.Source.Provider, err), nil, false)
+		em.failed(fmt.Errorf("configure source %q: %w", spec.Source.Connector, err), nil, false)
 		return
 	}
 	defer func() { _ = src.Teardown(ctx) }()
@@ -127,9 +127,9 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	}
 	spec.Resources = plannedResources
 
-	snk, err := deps.Sinks.Resolve(spec.Sink.Provider)
+	snk, err := deps.Sinks.Resolve(spec.Sink.Connector)
 	if err != nil {
-		em.failed(fmt.Errorf("resolve sink %q: %w", spec.Sink.Provider, err), nil, false)
+		em.failed(fmt.Errorf("resolve sink %q: %w", spec.Sink.Connector, err), nil, false)
 		return
 	}
 	plan, err := filament.ResolveIngestionPlan(extractCtx, src, snk, spec)
@@ -151,7 +151,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return
 		}
-		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Provider, err), nil, false)
+		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Connector, err), nil, false)
 		return
 	}
 
@@ -245,7 +245,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		return
 	}
 	if err := snk.Commit(ctx); err != nil {
-		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Provider, err), resources, false)
+		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Connector, err), resources, false)
 		abortSink(ctx, deps, spec, snk)
 		return
 	}
@@ -317,7 +317,7 @@ func finishControlled(
 	committed := plan.RequiresCDC || checkpointCoverage == filament.CheckpointCoverageAll
 	if committed {
 		if err := sink.Commit(ctx); err != nil {
-			em.failed(fmt.Errorf("commit paused sink %q: %w", spec.Sink.Provider, err), resources, false)
+			em.failed(fmt.Errorf("commit paused sink %q: %w", spec.Sink.Connector, err), resources, false)
 			abortSink(ctx, deps, spec, sink)
 			return
 		}

@@ -449,8 +449,8 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 		if a.log != nil {
 			a.log.Info("ingestion-api: run submitted",
 				filament.Field{Key: "route", Value: c.Edge},
-				filament.Field{Key: "source", Value: c.Req.Source.Provider},
-				filament.Field{Key: "sink", Value: c.Req.Sink.Provider},
+				filament.Field{Key: "source", Value: c.Req.Source.Connector},
+				filament.Field{Key: "sink", Value: c.Req.Sink.Connector},
 				filament.Field{Key: "resources", Value: c.Req.Resources},
 				filament.Field{Key: "run", Value: string(run)})
 		}

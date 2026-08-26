@@ -86,8 +86,8 @@ func TestStore_RunLifecycle(t *testing.T) {
 		Status: filament.RunRequested,
 		Request: filament.RunRequest{
 			Tenant:         tenantA,
-			Source:         filament.Ref{Provider: "postgres", Config: map[string]any{"dsn": "ref:pg-dsn"}},
-			Sink:           filament.Ref{Provider: "stdout"},
+			Source:         filament.Ref{Connector: "postgres", Config: map[string]any{"dsn": "ref:pg-dsn"}},
+			Sink:           filament.Ref{Connector: "stdout"},
 			IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullReplace},
 		},
 		Resources: []filament.ResourceState{
@@ -104,7 +104,7 @@ func TestStore_RunLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadRun: %v", err)
 	}
-	if got.Tenant != tenantA || got.Request.Source.Provider != "postgres" {
+	if got.Tenant != tenantA || got.Request.Source.Connector != "postgres" {
 		t.Fatalf("unexpected run: %+v", got)
 	}
 	if len(got.Resources) != 1 || got.Resources[0].Resource != "orders" || got.Resources[0].Records != 10 {

@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
+	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
 )
@@ -609,18 +610,8 @@ func credentialsFromConfig(cfg filament.Config, specs map[string]manifest.Config
 			continue
 		}
 		switch value := v.(type) {
-		case string:
-			creds[k] = value
 		case fmt.Stringer:
 			creds[k] = value.String()
-		case int:
-			creds[k] = strconv.Itoa(value)
-		case int64:
-			creds[k] = strconv.FormatInt(value, 10)
-		case float64:
-			creds[k] = strconv.FormatFloat(value, 'f', -1, 64)
-		case bool:
-			creds[k] = strconv.FormatBool(value)
 		case []string:
 			creds[k] = strings.Join(value, ",")
 		case []any:
@@ -631,6 +622,10 @@ func credentialsFromConfig(cfg filament.Config, specs map[string]manifest.Config
 				}
 			}
 			creds[k] = strings.Join(items, ",")
+		default:
+			if text, ok := scalar.String(value); ok {
+				creds[k] = text
+			}
 		}
 	}
 	return creds
