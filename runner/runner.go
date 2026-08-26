@@ -195,11 +195,11 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	p.Start(ctx)
 
 	// Extract on its own goroutine so the writer can apply backpressure through
-	// the inlet. CloseIngest after Extract returns drains the batcher; Wait then
+	// the inlet. CloseIngest after Extract returns flushes the builders; Wait then
 	// blocks until the writer finishes. A panicking source is contained here.
 	extractErrCh := make(chan error, 1)
 	go func() {
-		extractErrCh <- safeCall(func() error {
+		err := safeCall(func() error {
 			return extractor(extractCtx, p.Records(), filament.ExtractOpts{
 				Resources:   spec.Resources,
 				Selectors:   spec.Selectors,
@@ -207,7 +207,8 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 				Observe:     sourceObserver(em),
 			})
 		})
-		p.CloseIngest()
+		p.CloseIngest(err)
+		extractErrCh <- err
 	}()
 
 	waitErr := p.Wait()

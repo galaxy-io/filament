@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 var cursorNamePriority = []string{
@@ -21,7 +22,7 @@ func (s *Source) CursorColumns(ctx context.Context, table string) ([]filament.Cu
 	return cursorColumnsFromSchema(schema), nil
 }
 
-func cursorColumnsFromSchema(schema filament.RecordSchema) []filament.CursorColumn {
+func cursorColumnsFromSchema(schema rowmodel.Schema) []filament.CursorColumn {
 	pk := make(map[string]bool, len(schema.PrimaryKey))
 	for _, name := range schema.PrimaryKey {
 		pk[name] = true

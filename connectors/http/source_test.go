@@ -10,12 +10,16 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
+	"github.com/galaxy-io/filament/connectors/internal/ndjson"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
@@ -322,7 +326,7 @@ func TestIncrementalRecordReducerNeverRegressesFanoutWatermark(t *testing.T) {
 		"messages": {"messages_since": "10"},
 	})
 	for i, value := range []string{"30", "20"} {
-		got, err := reducer.record(filament.Record{
+		got, err := reducer.record(record{
 			Resource: "messages",
 			ID:       "x",
 			Data:     []byte(`{"id":"x"}`),
@@ -402,8 +406,8 @@ func TestNewHTTPRecordWrapsUnprojectedPayload(t *testing.T) {
 	if err := json.Unmarshal(rec.Data, &got); err != nil {
 		t.Fatalf("record data is not json: %v", err)
 	}
-	if string(got["id"]) != `"db1"` {
-		t.Fatalf("id = %s, want db1", got["id"])
+	if string(got["id"]) != `"db1"` || rec.ID != "db1" {
+		t.Fatalf("id = %s / %q, want db1", got["id"], rec.ID)
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(got["data"], &payload); err != nil {
@@ -411,9 +415,6 @@ func TestNewHTTPRecordWrapsUnprojectedPayload(t *testing.T) {
 	}
 	if payload["id"] != "db1" {
 		t.Fatalf("payload id = %v, want db1", payload["id"])
-	}
-	if rec.ID != "db1" {
-		t.Fatalf("record id = %q, want db1", rec.ID)
 	}
 }
 
@@ -656,9 +657,9 @@ func TestNewAttioSpecAndEmbeddedManifest(t *testing.T) {
 
 func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 	ctx := context.Background()
-	var authorization string
+	var authorization atomic.Value // resources are fetched concurrently
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorization = r.Header.Get("Authorization")
+		authorization.Store(r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/v2/objects":
@@ -682,8 +683,8 @@ func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"objects", "lists"}}); err != nil {
 		t.Fatalf("extract Attio catalog: %v", err)
 	}
-	if authorization != "Bearer attio-key" {
-		t.Fatalf("Authorization = %q, want Bearer attio-key", authorization)
+	if got, _ := authorization.Load().(string); got != "Bearer attio-key" {
+		t.Fatalf("Authorization = %q, want Bearer attio-key", got)
 	}
 	if len(sink.records) != 2 {
 		t.Fatalf("records = %#v, want one Attio object and list", sink.records)
@@ -1175,23 +1176,49 @@ func TestSourceLinearHTTPAPIManifestExtractIssuesWithGraphQLPagination(t *testin
 	}
 }
 
+// testRecord is one row as the tests inspect it: the resource, the primary key
+// value (a single key column's text), the row rendered as JSON, and its cursor.
+type testRecord struct {
+	Resource string
+	ID       string
+	Data     []byte
+	Key      []string
+}
+
+// collectSink is an Arrow inlet that renders every flushed row back to
+// a testRecord.
 type collectSink struct {
-	records []filament.Record
+	records []testRecord
 }
 
-func (s *collectSink) Push(r filament.Record) error {
-	s.records = append(s.records, r)
-	return nil
+func (s *collectSink) Builder(resource string, _ int, schema rowmodel.Schema) (arrowbatch.RowWriter, error) {
+	as := arrowbatch.Schema(schema)
+	return arrowbatch.NewBuilder(as, nil, arrowbatch.Options{MaxRows: 1}, &collectChunks{sink: s, resource: resource, pk: schema.PrimaryKey, enc: ndjson.NewEncoder(as)}), nil
 }
 
-func (s *collectSink) PushBatch(records []filament.Record) error {
-	for _, r := range records {
-		if err := s.Push(r); err != nil {
-			return err
+type collectChunks struct {
+	sink     *collectSink
+	resource string
+	pk       []string
+	enc      *ndjson.Encoder
+}
+
+func (c *collectChunks) Chunk(ch *arrowbatch.Batch) error {
+	defer ch.Release()
+	rows := ch.Rows()
+	for i := range int(rows.NumRows()) {
+		rec := testRecord{Resource: c.resource, Data: c.enc.AppendRow(nil, rows, i), Key: ch.Last.Key}
+		if len(c.pk) == 1 {
+			if idx := rows.Schema().FieldIndices(c.pk[0]); len(idx) == 1 {
+				rec.ID = rows.Column(idx[0]).ValueStr(i)
+			}
 		}
+		c.sink.records = append(c.sink.records, rec)
 	}
 	return nil
 }
+
+func (c *collectChunks) Drained(rowmodel.Meta, int) error { return nil }
 
 func writeTestManifest(t *testing.T, baseURL string) string {
 	t.Helper()
@@ -1700,7 +1727,7 @@ func TestResendWebhookAttemptsInheritWebhookIDThroughEventCapture(t *testing.T) 
 		if data["http_status_code"] != float64(200) {
 			t.Fatalf("http_status_code = %#v, want the delivery status as an integer", data["http_status_code"])
 		}
-		if data["sent_at"] != "2026-08-22T15:33:12.000Z" {
+		if data["sent_at"] != "2026-08-22T15:33:12Z" { // a typed timestamp, rendered without the source's zero millis
 			t.Fatalf("sent_at = %#v, want the ISO-8601 attempt timestamp", data["sent_at"])
 		}
 		seen[data["event_id"].(string)] = true

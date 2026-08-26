@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -38,8 +39,9 @@ type keysetPlan = checkpoint.KeysetCheckpoint
 type keyShard struct {
 	table     string
 	qualified string
-	jsonExpr  string
-	pks       []pkColumn
+	dec       *rowDecoder
+	pks       []pkColumn // the plan's key list, frozen when the shards were laid out; dec.pks is the live catalog's
+	keyIdx    []int      // pks' positions in the decoder's columns
 	part      int
 	lo, hi    []string
 	seed      []string
@@ -176,7 +178,7 @@ func dedupeOrdered(vals []string) []string {
 // ExtractFrom reads each resource from its checkpoint. Keyed resources read via keyset
 // shards (concurrently, like Extract); a resource with no keyset plan (no primary key)
 // falls back to the streaming full scan and is re-read whole.
-func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
+func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		var plan *keysetPlan
@@ -194,30 +196,38 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 
 // keyShardsFrom turns a plan into the table's runnable shards, seeding each with its
 // persisted cursor.
-func keyShardsFrom(table, qualified, jsonExpr string, pks []pkColumn, ks keysetPlan) []keyShard {
+func keyShardsFrom(table, qualified string, dec *rowDecoder, ks keysetPlan) ([]keyShard, error) {
 	// Prefer the plan's column/type list (frozen at plan time) over the live catalog,
 	// so a resumed run pages by exactly the key the boundaries were laid out over.
+	pks := dec.pks
 	if len(ks.Cols) > 0 {
 		pks = make([]pkColumn, len(ks.Cols))
 		for i := range ks.Cols {
 			pks[i] = pkColumn{name: ks.Cols[i], typ: typeAt(ks.Types, i)}
 		}
 	}
+	keyIdx, err := dec.indexOf(pkNames(pks))
+	if err != nil {
+		return nil, err
+	}
 	out := make([]keyShard, len(ks.Shards))
 	for i, sh := range ks.Shards {
-		out[i] = keyShard{table: table, qualified: qualified, jsonExpr: jsonExpr, pks: pks, part: i, lo: sh.Lo, hi: sh.Hi, seed: sh.Key}
+		out[i] = keyShard{table: table, qualified: qualified, dec: dec, pks: pks, keyIdx: keyIdx, part: i, lo: sh.Lo, hi: sh.Hi, seed: sh.Key}
 	}
-	return out
+	return out, nil
 }
 
 // extractKeysetShard pages one shard out through the sink: WHERE (pk-tuple) is above
 // the cursor (or the shard's lower bound) and below the shard's upper bound, ORDER BY
-// the key, LIMIT a page. Every record is stamped with the shard ordinal and its key so
-// the pipeline can carry the cursor forward. Each page is buffered and the result set
-// closed before any Push (a push can block on backpressure while holding a connection).
-func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
-	idSel := keysetIDExpr(sh.pks)
-	keySel, keyCols := keysetKeyProjection(sh.pks)
+// the key, LIMIT a page. Every row carries its key so the pipeline can carry the
+// cursor forward. Rows append while the result set is open; the shard's connection
+// is dedicated for its whole life (withSnapshotTx), so a stall on backpressure
+// holds nothing extra.
+func (s *Source) extractKeysetShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh keyShard, limit int) error {
+	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
+	if err != nil {
+		return err
+	}
 	order := keysetOrder(sh.pks)
 
 	// Every page after the first filters by the full-tuple cursor, so its SQL
@@ -236,8 +246,8 @@ func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSin
 	emitted := 0
 	for {
 		where, args := keysetWhere(sh, cur)
-		query := fmt.Sprintf("SELECT %s AS id, %s AS data, %s FROM %s t%s ORDER BY %s LIMIT %d",
-			idSel, sh.jsonExpr, keySel, sh.qualified, where, order, s.pageSize)
+		query := fmt.Sprintf("SELECT %s FROM %s t%s ORDER BY %s LIMIT %d",
+			sh.dec.selectList, sh.qualified, where, order, s.pageSize)
 
 		var rows *sql.Rows
 		var err error
@@ -254,57 +264,28 @@ func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSin
 		if err != nil {
 			return fmt.Errorf("keyset %q: %w", sh.table, err)
 		}
-		page, err := s.readKeysetPage(rows, sh, keyCols)
+		n, last, err := sh.dec.appendRows(rows, w, sh.keyIdx, remaining(limit, emitted))
+		_ = rows.Close()
 		if err != nil {
 			return fmt.Errorf("keyset %q: %w", sh.table, err)
 		}
-		for _, rec := range page {
-			if err := sink.Push(rec); err != nil {
-				return err
-			}
-			emitted++
-			if limit > 0 && emitted >= limit {
-				return nil
-			}
+		emitted += n
+		if limit > 0 && emitted >= limit {
+			return nil
 		}
-		if len(page) < s.pageSize {
+		if n < s.pageSize {
 			return nil // shard exhausted
 		}
-		cur = page[len(page)-1].Key
+		cur = last
 	}
 }
 
-// readKeysetPage drains one page's rows into records, stamped with shard part
-// and key tuple. The result set is closed before returning so the connection
-// is free before records are pushed.
-func (s *Source) readKeysetPage(rows *sql.Rows, sh keyShard, keyCols int) ([]filament.Record, error) {
-	defer func() { _ = rows.Close() }()
-
-	out := make([]filament.Record, 0, s.pageSize)
-	// Scan destinations are hoisted and reused: database/sql clones the driver's
-	// buffer into freshly allocated id/data/keys values on every row (so each
-	// Record keeps its own backing), while the dest slice is allocated once for
-	// the whole page instead of per row.
-	var (
-		id   string
-		data []byte
-	)
-	keys := make([]string, keyCols)
-	dest := make([]any, 2+keyCols)
-	dest[0], dest[1] = &id, &data
-	for i := range keys {
-		dest[2+i] = &keys[i]
+// remaining returns how many rows a limit still allows; 0 = unlimited.
+func remaining(limit, emitted int) int {
+	if limit <= 0 {
+		return 0
 	}
-	for rows.Next() {
-		if err := rows.Scan(dest...); err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
-		}
-		rec := filament.NewRecord(sh.table, id, data)
-		rec.Part = sh.part
-		rec.Key = append([]string(nil), keys...)
-		out = append(out, rec)
-	}
-	return out, rows.Err()
+	return max(limit-emitted, 0)
 }
 
 // keysetWhere builds the page predicate and its bound args. The lower bound is the
@@ -380,30 +361,6 @@ func castExpr(dataType string) string {
 	default:
 		return "?"
 	}
-}
-
-// keysetIDExpr derives the record id from the key columns: the single value as text,
-// or composite columns joined with CHAR(31) — a separator that cannot appear in
-// normal keys, matching the Postgres reader's convention.
-func keysetIDExpr(pks []pkColumn) string {
-	parts := make([]string, len(pks))
-	for i, pk := range pks {
-		parts[i] = "CAST(t." + quoteIdent(pk.name) + " AS CHAR)"
-	}
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	return "CONCAT_WS(CHAR(31), " + strings.Join(parts, ", ") + ")"
-}
-
-// keysetKeyProjection projects each key column as text (k0, k1, …) so the cursor can
-// be read back from each row; returns the SELECT fragment and the column count.
-func keysetKeyProjection(pks []pkColumn) (string, int) {
-	parts := make([]string, len(pks))
-	for i, pk := range pks {
-		parts[i] = fmt.Sprintf("CAST(t.%s AS CHAR) AS k%d", quoteIdent(pk.name), i)
-	}
-	return strings.Join(parts, ", "), len(pks)
 }
 
 // keysetOrder is the ORDER BY over the key columns (each page is a clustered-index

@@ -20,8 +20,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // resolveMode picks the physical scan strategy for a table at plan time from
@@ -71,54 +72,25 @@ func (s *Source) planBitmap(ctx context.Context, table string, pks []pkColumn) c
 }
 
 // extractBitmapShard reads one sub-range with a bound-only predicate and no ORDER BY/LIMIT,
-// streaming every row stamped Coarse with the shard ordinal. On a clean full drain it pushes
-// a Drained sentinel so the shard can be marked complete; if a row limit truncated the read
+// streaming every row stamped Coarse into the shard's writer. On a clean full drain it
+// drains the writer so the shard can be marked complete; if a row limit truncated the read
 // it does NOT (an incomplete shard must stay resumable).
-func (s *Source) extractBitmapShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
-	where, args := bitmapWhere(sh)
-	var sql string
-	if sh.enc != nil {
-		sql = fmt.Sprintf("SELECT %s FROM %s t%s", sh.enc.selectList, sh.qualified, where)
-		args = append([]any{binaryResults}, args...)
-	} else {
-		sql = fmt.Sprintf("SELECT %s AS id, to_jsonb(t)::text AS data FROM %s t%s", keysetIDExpr(sh.pks), sh.qualified, where)
+func (s *Source) extractBitmapShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh keyShard, limit int) error {
+	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
+	if err != nil {
+		return err
 	}
-
-	rows, err := q.Query(ctx, sql, args...)
+	where, args := bitmapWhere(sh)
+	sql := fmt.Sprintf("SELECT %s FROM %s t%s", sh.dec.selectList, sh.qualified, where)
+	n, _, err := s.appendPage(ctx, q, sql, w, sh.dec, rowmodel.Meta{Coarse: true}, nil, limit, args...)
 	if err != nil {
 		return fmt.Errorf("bitmap %q: %w", sh.table, err)
 	}
-	next := rowReader(sh.table, sh.enc)
-	emitted := 0
-	truncated := false
-	for rows.Next() {
-		rec, err := next(rows)
-		if err != nil {
-			rows.Close()
-			return fmt.Errorf("bitmap scan %q: %w", sh.table, err)
-		}
-		rec.Part = sh.part
-		rec.Coarse = true
-		if err := sink.Push(rec); err != nil {
-			rows.Close()
-			return err
-		}
-		emitted++
-		if limit > 0 && emitted >= limit {
-			truncated = true
-			break
-		}
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	rows.Close()
-	if truncated {
+	if limit > 0 && n >= limit {
 		return nil // partial shard: no completion marker, so resume re-reads it
 	}
-	// Completion sentinel: the pipeline turns it into this shard's expected-row count.
-	return sink.Push(filament.Record{Resource: sh.table, Part: sh.part, Coarse: true, Drained: true})
+	// Completion marker: the pipeline turns it into this shard's expected-row count.
+	return w.Drain(rowmodel.Meta{})
 }
 
 // bitmapWhere builds the sub-range predicate from the shard's leading-column bounds only —

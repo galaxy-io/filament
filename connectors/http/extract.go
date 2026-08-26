@@ -16,7 +16,7 @@ import (
 )
 
 // Extract runs a full extraction across all enabled resources.
-func (c *Connector) Extract(ctx context.Context, sink filament.RecordSink, opts extractOptions) error {
+func (c *Connector) Extract(ctx context.Context, sink recordSink, opts extractOptions) error {
 	c.observe = opts.Observe
 	c.watermarkReported.Clear()
 	defer func() {
@@ -26,7 +26,7 @@ func (c *Connector) Extract(ctx context.Context, sink filament.RecordSink, opts 
 	return c.extract(ctx, sink, opts)
 }
 
-func (c *Connector) extract(ctx context.Context, sink filament.RecordSink, opts extractOptions) error {
+func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOptions) error {
 	c.resumeStates = opts.ResumeStates
 	c.resumeWatermarks = opts.ResumeWatermarks
 	c.incrementalLookbacks = opts.IncrementalLookbacks
@@ -71,7 +71,7 @@ func (c *Connector) extract(ctx context.Context, sink filament.RecordSink, opts 
 	return nil
 }
 
-func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.Resource, sink filament.RecordSink) []error {
+func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.Resource, sink recordSink) []error {
 	outcomes := make([]error, len(resources))
 	var wg sync.WaitGroup
 
@@ -88,7 +88,7 @@ func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.
 	return outcomes
 }
 
-func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink filament.RecordSink) error {
+func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink recordSink) error {
 	parents := c.snapshotCaptures(res.Parent.Resource)
 	if len(parents) == 0 {
 		return nil
@@ -127,7 +127,7 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 // from the pagination state and watermark supplied by the engine. Child resources always
 // restart pagination because a resource-wide cursor cannot be applied to each
 // parent independently.
-func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink filament.RecordSink, parent Capture) error {
+func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
 	pag, err := pagination.New(res.Pagination)
 	if err != nil {
 		return fmt.Errorf("paginator: %w", err)
