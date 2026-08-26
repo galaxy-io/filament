@@ -1,0 +1,124 @@
+package s3
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awscfg "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+)
+
+type completedPart struct {
+	number int32
+	etag   string
+}
+
+// multipartStore is the narrow object-store surface used by a multipart session.
+type multipartStore interface {
+	CreateMultipart(context.Context, string, string, string) (string, error)
+	UploadPart(context.Context, string, string, string, int32, []byte) (string, error)
+	CompleteMultipart(context.Context, string, string, string, []completedPart) error
+	AbortMultipart(context.Context, string, string, string) error
+	PutObject(context.Context, string, string, string, []byte) error
+}
+
+type awsStore struct{ client *s3.Client }
+
+func newAWSStore(ctx context.Context, cfg sinkConfig) (*awsStore, error) {
+	var loadOpts []func(*awscfg.LoadOptions) error
+	if cfg.region != "" {
+		loadOpts = append(loadOpts, awscfg.WithRegion(cfg.region))
+	}
+	if cfg.authMethod == authMethodIAMCredentials {
+		loadOpts = append(loadOpts, awscfg.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(cfg.accessKeyID, cfg.secretAccessKey, cfg.sessionToken),
+		))
+	}
+	awsCfg, err := awscfg.LoadDefaultConfig(ctx, loadOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("s3 sink: load aws config: %w", err)
+	}
+	client := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		if cfg.endpoint != "" {
+			options.BaseEndpoint = aws.String(cfg.endpoint)
+		}
+		options.UsePathStyle = cfg.pathStyle
+	})
+	return &awsStore{client: client}, nil
+}
+
+func (s *awsStore) HeadBucket(ctx context.Context, bucket string) error {
+	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)})
+	return err
+}
+
+func (s *awsStore) CreateMultipart(ctx context.Context, bucket, key, contentType string) (string, error) {
+	t0 := time.Now()
+	out, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(contentType),
+	})
+	s3debugf("CreateMultipartUpload key=%s dur=%s err=%v", key, time.Since(t0), err)
+	if err != nil {
+		return "", err
+	}
+	return aws.ToString(out.UploadId), nil
+}
+
+func (s *awsStore) UploadPart(ctx context.Context, bucket, key, uploadID string, number int32, body []byte) (string, error) {
+	t0 := time.Now()
+	out, err := s.client.UploadPart(ctx, &s3.UploadPartInput{
+		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
+		PartNumber: aws.Int32(number), Body: bytes.NewReader(body), ContentLength: aws.Int64(int64(len(body))),
+	})
+	s3debugf("UploadPart key=%s part=%d bytes=%d dur=%s err=%v", key, number, len(body), time.Since(t0), err)
+	if err != nil {
+		return "", err
+	}
+	return aws.ToString(out.ETag), nil
+}
+
+func (s *awsStore) CompleteMultipart(ctx context.Context, bucket, key, uploadID string, parts []completedPart) error {
+	awsParts := make([]types.CompletedPart, len(parts))
+	for i, part := range parts {
+		awsParts[i] = types.CompletedPart{PartNumber: aws.Int32(part.number), ETag: aws.String(part.etag)}
+	}
+	t0 := time.Now()
+	_, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
+		MultipartUpload: &types.CompletedMultipartUpload{Parts: awsParts},
+	})
+	s3debugf("CompleteMultipartUpload key=%s parts=%d dur=%s err=%v", key, len(parts), time.Since(t0), err)
+	return err
+}
+
+func (s *awsStore) AbortMultipart(ctx context.Context, bucket, key, uploadID string) error {
+	_, err := s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
+	})
+	return err
+}
+
+func (s *awsStore) PutObject(ctx context.Context, bucket, key, contentType string, body []byte) error {
+	t0 := time.Now()
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(contentType),
+		Body: bytes.NewReader(body), ContentLength: aws.Int64(int64(len(body))),
+	})
+	s3debugf("PutObject key=%s bytes=%d dur=%s err=%v", key, len(body), time.Since(t0), err)
+	return err
+}
+
+var s3debug = os.Getenv("S3_SINK_DEBUG") != ""
+
+func s3debugf(format string, args ...any) {
+	if s3debug {
+		log.Printf("s3sink "+format, args...)
+	}
+}
