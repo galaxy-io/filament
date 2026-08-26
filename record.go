@@ -38,15 +38,6 @@ type WriteReceipt struct {
 	Checkpoint *CheckpointData
 }
 
-// IntegrityResult is the outcome of comparing a batch's read and write CRCs.
-type IntegrityResult struct {
-	OK       bool
-	Resource string
-	Seq      uint64
-	ReadCRC  uint32
-	WriteCRC uint32
-}
-
 // CheckpointData is the concrete backing for the Checkpoint interface — a
 // resumable cursor. It implements Checkpoint with value-copy semantics on Set.
 type CheckpointData = rowmodel.CheckpointData
