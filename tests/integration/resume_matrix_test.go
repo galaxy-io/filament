@@ -21,6 +21,7 @@ import (
 	"context"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -140,7 +141,8 @@ func TestResumeMatrix(t *testing.T) {
 // runResumeScenario drives one cell of the matrix: seed → kill mid-extract → run the gap
 // op → resume → assert no row present at run start was lost.
 func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
 
 	pg := testcontainers.SharedPostgres(t)
 	spec := seed.Default()

@@ -81,24 +81,35 @@ collides with Iceberg's reserved metadata names gets a `_` suffix.
 | `string` / `json` | `string` |
 | `bytes` | `binary` |
 | `date` / `time` / `timestamp` / `timestamptz` / `uuid` | corresponding primitives |
-| `array` | `list<string>` |
+| `array` | `string` (source-native literal text) |
 | unknown | `string` |
 
 Primary key fields become the table's identifier fields.
 
+Array columns land as their source's literal text. A table created by an older
+Filament version with a `list` column for the same source column must be
+recreated; commits fail on the type mismatch rather than rewriting the column.
+
 ## Write mechanics and atomicity
 
-`Apply` buffers each record's op and raw JSON per resource, spilling to
-temporary `.jsonl` files once buffers pass `stage_buffer_limit_mb`. Buffering
-also validates ops against the bound mode:
+The sink implements `filament.Transactional`: `Stage` opens a scope and `Apply`
+retains each resource's owned Arrow batches, spilling them to an LZ4 Arrow IPC
+file once the buffer passes `stage_buffer_limit_mb`. `Promote` commits every
+resource in the stage as an Iceberg transaction and drops the stage only after
+all resources succeed. A retry skips resources that already committed. Used
+directly without `Stage`, `Commit` opens and promotes an implicit stage.
+
+Buffering validates operations against the bound mode:
 
 - append rejects updates and deletes
 - replace rejects deletes
 - upsert, delete, and merge require key fields
 
-All I/O happens at `Commit`. Per resource, the sink reloads the table from the
-catalog (picking up freshly vended storage credentials) and opens one Iceberg
-transaction:
+At commit, batches are conformed to the table's Arrow schema (including int16
+to int32, UUID text to UUID, and unbounded numeric text to decimal(38,9)) and
+streamed to the Parquet writer batch by batch. The sink reloads each table from
+the catalog first, picking up freshly vended storage credentials, and opens one
+Iceberg transaction:
 
 - **append**: `txn.Append` of Arrow record batches in 8,192-row chunks.
 - **replace**: `txn.Overwrite` with the run's records. A replace run that

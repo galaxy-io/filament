@@ -132,7 +132,7 @@ func (s *Source) ctidJobs(ctx context.Context, sink arrowbatch.Inlet, table, qua
 	for i, sh := range shards {
 		if ks.Shards[i].Done {
 			jobs = append(jobs, func(ctx context.Context, q querier) error {
-				return s.reconcileCtidBlocks(ctx, sink, q, sh, horizon, unfiltered)
+				return s.reconcileCtidBlocks(ctx, sink, q, sh, i, horizon, unfiltered)
 			})
 			continue
 		}
@@ -148,7 +148,7 @@ func (s *Source) ctidJobs(ctx context.Context, sink arrowbatch.Inlet, table, qua
 			tail := shards[0]
 			tail.loBlock, tail.hiBlock = stamped, cur
 			jobs = append(jobs, func(ctx context.Context, q querier) error {
-				return s.reconcileCtidBlocks(ctx, sink, q, tail, horizon, true)
+				return s.reconcileCtidBlocks(ctx, sink, q, tail, len(shards), horizon, true)
 			})
 		}
 	}
@@ -202,14 +202,14 @@ func (s *Source) freezeAdvanced(ctx context.Context, qualified, horizon string) 
 // horizon: numeric xid compare age(xmin) <= age(H1) (avoids pg_visible_in_snapshot, which is
 // unsafe with subtransaction xmins). unfiltered re-delivers the whole range (freeze guard, or
 // the append tail). Rows are plain — idempotent re-deliveries that advance no cursor.
-func (s *Source) reconcileCtidBlocks(ctx context.Context, sink arrowbatch.Inlet, q querier, sh shard, horizon string, unfiltered bool) error {
+func (s *Source) reconcileCtidBlocks(ctx context.Context, sink arrowbatch.Inlet, q querier, sh shard, part int, horizon string, unfiltered bool) error {
 	filter := ""
 	var extra []any
 	if !unfiltered && horizon != "" {
 		filter = " AND age(t.xmin) <= age($3::xid)"
 		extra = []any{horizon}
 	}
-	w, err := sink.Builder(sh.table, 0, sh.dec.schema)
+	w, err := sink.Builder(sh.table, part, sh.dec.schema)
 	if err != nil {
 		return err
 	}
