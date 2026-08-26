@@ -17,7 +17,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 	"github.com/google/uuid"
 
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/internal/arrowtext"
 )
 
 // baseType normalizes a Postgres type spelling to the name its send function is
@@ -65,7 +65,7 @@ func baseType(pgType string) string {
 // int64 extremes are Postgres infinity and pass through unshifted.
 const (
 	pgEpochDays   = 10957
-	pgEpochMicros = pgEpochDays * batch.MicrosPerDay
+	pgEpochMicros = pgEpochDays * arrowtext.MicrosPerDay
 )
 
 // binaryFor picks the binary send renderer for an Arrow field landing in a
@@ -225,7 +225,7 @@ func textFor(f arrow.Field) valueFn {
 	case arrow.DECIMAL128:
 		scale := int(f.Type.(*arrow.Decimal128Type).Scale)
 		return func(dst []byte, col arrow.Array, i int) []byte {
-			return batch.AppendDecimal(dst, col.(*array.Decimal128).Value(i), scale)
+			return arrowtext.AppendDecimal(dst, col.(*array.Decimal128).Value(i), scale)
 		}
 	case arrow.STRING:
 		return func(dst []byte, col arrow.Array, i int) []byte {
@@ -244,12 +244,12 @@ func textFor(f arrow.Field) valueFn {
 			case math.MinInt32:
 				return append(dst, "-infinity"...)
 			default:
-				return batch.AppendDate(dst, int64(v))
+				return arrowtext.AppendDate32(dst, int32(v))
 			}
 		}
 	case arrow.TIME64:
 		return func(dst []byte, col arrow.Array, i int) []byte {
-			return batch.AppendTimeOfDay(dst, int64(col.(*array.Time64).Value(i)))
+			return arrowtext.AppendTimeOfDay(dst, int64(col.(*array.Time64).Value(i)))
 		}
 	case arrow.TIMESTAMP:
 		utc := f.Type.(*arrow.TimestampType).TimeZone != ""
@@ -260,7 +260,7 @@ func textFor(f arrow.Field) valueFn {
 			case math.MinInt64:
 				return append(dst, "-infinity"...)
 			default:
-				dst = batch.AppendTimestamp(dst, v, ' ')
+				dst = arrowtext.AppendTimestamp(dst, v, ' ')
 				if utc {
 					dst = append(dst, "+00"...)
 				}
@@ -333,7 +333,7 @@ func appendDecimal(dst []byte, v decimal128.Num, scale int) []byte {
 		v = v.Negate()
 	}
 	var buf [40]byte
-	digits := batch.DecimalDigits(buf[:], uint64(v.HighBits()), v.LowBits()) //nolint:gosec // magnitude, sign handled above
+	digits := arrowtext.DecimalDigits(buf[:], uint64(v.HighBits()), v.LowBits()) //nolint:gosec // magnitude, sign handled above
 	return appendNumeric(dst, neg, digits, scale)
 }
 

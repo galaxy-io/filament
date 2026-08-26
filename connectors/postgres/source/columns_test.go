@@ -8,14 +8,14 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
-type collect struct{ chunks []batch.Chunk }
+type collect struct{ chunks []*arrowbatch.Batch }
 
-func (c *collect) Chunk(ch batch.Chunk) error          { c.chunks = append(c.chunks, ch); return nil }
-func (c *collect) Drained(filament.RowMeta, int) error { return nil }
+func (c *collect) Chunk(ch *arrowbatch.Batch) error { c.chunks = append(c.chunks, ch); return nil }
+func (c *collect) Drained(rowmodel.Meta, int) error { return nil }
 
 func be32(v int32) []byte  { return binary.BigEndian.AppendUint32(nil, uint32(v)) }
 func be64(v int64) []byte  { return binary.BigEndian.AppendUint64(nil, uint64(v)) }
@@ -59,11 +59,11 @@ func TestSchemaOf(t *testing.T) {
 	if rs.Engine != "postgres" || len(rs.PrimaryKey) != 1 || rs.PrimaryKey[0] != "id" {
 		t.Fatalf("schema = %+v", rs)
 	}
-	want := map[string]filament.LogicalType{
-		"id": filament.LogicalInt64, "n": filament.LogicalInt16, "ok": filament.LogicalBool, "f": filament.LogicalFloat64,
-		"amt": filament.LogicalDecimal, "big": filament.LogicalDecimal, "s": filament.LogicalString, "u": filament.LogicalUUID,
-		"d": filament.LogicalDate, "at": filament.LogicalTimestampTZ, "doc": filament.LogicalJSON, "tags": filament.LogicalArray,
-		"raw": filament.LogicalBytes,
+	want := map[string]rowmodel.LogicalType{
+		"id": rowmodel.LogicalInt64, "n": rowmodel.LogicalInt16, "ok": rowmodel.LogicalBool, "f": rowmodel.LogicalFloat64,
+		"amt": rowmodel.LogicalDecimal, "big": rowmodel.LogicalDecimal, "s": rowmodel.LogicalString, "u": rowmodel.LogicalUUID,
+		"d": rowmodel.LogicalDate, "at": rowmodel.LogicalTimestampTZ, "doc": rowmodel.LogicalJSON, "tags": rowmodel.LogicalArray,
+		"raw": rowmodel.LogicalBytes,
 	}
 	for _, f := range rs.Fields {
 		if f.Logical != want[f.Name] {
@@ -90,7 +90,7 @@ func TestRowDecoder(t *testing.T) {
 	}
 
 	c := &collect{}
-	b := batch.New(batch.Schema(dec.schema), batch.Options{MaxRows: 10}, c)
+	b := arrowbatch.NewBuilder(arrowbatch.Schema(dec.schema), nil, arrowbatch.Options{MaxRows: 10}, c)
 	uuid := []byte{0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0}
 	raw := [][]byte{
 		be64(42),
@@ -110,7 +110,7 @@ func TestRowDecoder(t *testing.T) {
 	if err := dec.appendRow(b, raw); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.EndRow(filament.RowMeta{}); err != nil {
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
 		t.Fatal(err)
 	}
 	keys, err := dec.texts(raw, dec.pkIdx)
@@ -120,7 +120,8 @@ func TestRowDecoder(t *testing.T) {
 	if err := b.Flush(); err != nil {
 		t.Fatal(err)
 	}
-	rows := c.chunks[0].Rows
+	defer c.chunks[0].Release()
+	rows := c.chunks[0].Rows()
 	if got := rows.Column(0).(*array.Int64).Value(0); got != 42 {
 		t.Errorf("id = %d", got)
 	}

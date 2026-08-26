@@ -21,6 +21,7 @@ const TableRow = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 4px;
+  min-width: 0;
 `;
 
 const TableListShimmer = () => (
@@ -38,6 +39,7 @@ const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
       size={TextSize.BODY_SM}
       variant={table.isConnected ? TextVariant.PRIMARY : TextVariant.TERTIARY}
       isMonospace
+      isEllipsis
     >
       {table.name}
     </Text>

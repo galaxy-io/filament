@@ -40,7 +40,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const isReadOnly = usePipelineCanvasReadOnly();
   const { edges } = usePipelineCanvasState();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
-  const { setEdgeConfig, setRouteWriteMode } = usePipelineCanvasActions();
+  const { setEdgeConfig, setRouteWriteMode, applyEdgeChanges } = usePipelineCanvasActions();
 
   const resource = getCanvasEdgeResource(edge);
 
@@ -140,6 +140,14 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
         icon={FlowArrowIcon}
         onBack={clearSelection}
         onClose={() => setShowPanel(false)}
+        onDelete={
+          isReadOnly
+            ? undefined
+            : () => {
+                applyEdgeChanges([{ id: edge.id, type: "remove" }]);
+                clearSelection();
+              }
+        }
       />
       <PipelineCanvasPanelBody>
         <ConnectionDrawerList>

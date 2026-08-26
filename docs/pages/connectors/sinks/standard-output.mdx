@@ -1,0 +1,47 @@
+---
+title: "Standard output"
+description: "Print records to stdout for local development and debugging"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-stdout-dark.svg"
+---
+
+`connectors/stdout` (registered as `stdout`, **stable**) writes records to
+standard output instead of a real destination. As the reference sink, it is
+the fastest way to see a pipeline run end-to-end, and the simplest complete
+implementation of the
+[sink contract](/pages/connectors/building-a-connector/writing-a-sink) to
+read.
+
+## Configuration
+
+None. The sink has no configuration fields.
+
+## Supported write modes
+
+The sink advertises `full_replace` and `full_append`. See
+[replication modes](/pages/guides/concepts/replication-modes). Since stdout
+has no state to replace, both modes print the same stream.
+
+## Output format
+
+Each record is one NDJSON line, serialized under a mutex so concurrent batches
+never interleave mid-line:
+
+```json
+{"id":"...","op":0,"data":{...}}
+```
+
+`op` is `0` for insert, `1` for update, `2` for delete. Write receipts carry
+URIs of the form `stdout://<run>/<resource>`.
+
+At `Commit`, the sink prints a manifest line prefixed with `#` summarizing the
+run:
+
+```
+# {"sink":"stdout","run":"...","resources":[{"name":"...","uri":"stdout://<run>/<resource>","records":123,"bytes":4567}]}
+```
+
+## Failure behavior
+
+There is nothing to roll back. Lines already printed stay printed, and `Abort`
+is a no-op. A run that fails simply stops producing output and prints no
+manifest.

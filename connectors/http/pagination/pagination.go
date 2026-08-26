@@ -28,6 +28,7 @@
 package pagination
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -38,11 +39,45 @@ import (
 // State carries pagination progress between requests. Strategies populate the
 // fields they care about; others stay zero-valued.
 type State struct {
-	Cursor  string
-	NextURL string // absolute URL — overrides req.URL when non-empty
-	Page    int
-	Offset  int
-	Done    bool
+	Cursor  string `json:"cursor,omitempty"`
+	NextURL string `json:"next_url,omitempty"` // absolute URL — overrides req.URL when non-empty
+	Page    int    `json:"page,omitempty"`
+	Offset  int    `json:"offset,omitempty"`
+	Done    bool   `json:"done,omitempty"`
+}
+
+const stateCheckpointVersion = 1
+
+// Checkpoint encodes the complete paginator position into the record key used
+// by the engine's checkpoint coordinator. Keeping the shape opaque to the
+// engine lets every pagination strategy resume without adding strategy-specific
+// checkpoint columns.
+func (s State) Checkpoint() string {
+	b, _ := json.Marshal(struct {
+		Version int `json:"version"`
+		State
+	}{Version: stateCheckpointVersion, State: s})
+	return string(b)
+}
+
+// ResumeFrom decodes a paginator checkpoint. Plain strings are accepted as
+// legacy cursor-only checkpoints so runs started before complete state was
+// introduced remain resumable.
+func ResumeFrom(value string) (State, error) {
+	if value == "" {
+		return State{}, nil
+	}
+	var encoded struct {
+		Version int `json:"version"`
+		State
+	}
+	if err := json.Unmarshal([]byte(value), &encoded); err != nil {
+		return State{Cursor: value}, nil
+	}
+	if encoded.Version != stateCheckpointVersion {
+		return State{}, fmt.Errorf("pagination: unsupported checkpoint version %d", encoded.Version)
+	}
+	return encoded.State, nil
 }
 
 // Paginator advances through pages of an HTTP API.
@@ -121,6 +156,5 @@ func New(spec manifest.PaginationSpec) (Paginator, error) {
 	return f(spec)
 }
 
-// ResumeWith returns a State pre-seeded with cursor for resumable extraction.
-// Strategies that don't use Cursor ignore it.
+// ResumeWith returns a State pre-seeded with a legacy cursor checkpoint.
 func ResumeWith(cursor string) State { return State{Cursor: cursor} }

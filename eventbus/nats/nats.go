@@ -457,6 +457,7 @@ func (s *subscription) pump() {
 				}
 				payload, derr := s.bus.codec.Decode(msg.Data())
 				if derr != nil {
+					s.bus.logDecodeFailure(msg.Subject(), derr)
 					_ = msg.Term()
 					continue
 				}
@@ -495,6 +496,13 @@ func (s *subscription) pump() {
 		case <-time.After(defaultFetchWait):
 		}
 	}
+}
+
+func (b *Bus) logDecodeFailure(subject string, err error) {
+	if b.logf == nil {
+		return
+	}
+	b.logf("eventbus/nats: decode %q: %v; terminating poison message", subject, err)
 }
 
 type message struct {

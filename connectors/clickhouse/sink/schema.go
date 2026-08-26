@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 func quoteIdent(s string) string {
@@ -15,7 +16,7 @@ func qualified(database, table string) string {
 	return quoteIdent(database) + "." + quoteIdent(table)
 }
 
-func orderBy(schema filament.RecordSchema) string {
+func orderBy(schema rowmodel.Schema) string {
 	if len(schema.PrimaryKey) == 0 {
 		return "tuple()"
 	}
@@ -26,7 +27,7 @@ func orderBy(schema filament.RecordSchema) string {
 	return "(" + strings.Join(ids, ", ") + ")"
 }
 
-func schemaColumns(schema filament.RecordSchema, upsert bool, version filament.VersionPolicy) ([]string, []string, error) {
+func schemaColumns(schema rowmodel.Schema, upsert bool, version filament.VersionPolicy) ([]string, []string, error) {
 	if len(schema.Fields) == 0 {
 		return nil, nil, fmt.Errorf("schema has no fields")
 	}
@@ -61,7 +62,7 @@ func schemaColumns(schema filament.RecordSchema, upsert bool, version filament.V
 	return defs, idents, nil
 }
 
-func versionField(schema filament.RecordSchema, version filament.VersionPolicy) (string, error) {
+func versionField(schema rowmodel.Schema, version filament.VersionPolicy) (string, error) {
 	if version.Strategy == "" || version.Strategy == filament.VersionInsertOrder {
 		return "", nil
 	}
@@ -76,7 +77,7 @@ func versionField(schema filament.RecordSchema, version filament.VersionPolicy) 
 			return "", fmt.Errorf("cursor version field %q must be NOT NULL", field.Name)
 		}
 		switch field.Logical {
-		case filament.LogicalTimestamp, filament.LogicalTimestampTZ:
+		case rowmodel.LogicalTimestamp, rowmodel.LogicalTimestampTZ:
 			return field.Name, nil
 		default:
 			return "", fmt.Errorf("cursor version field %q has unsupported ClickHouse type %q", field.Name, columnType(field))
@@ -85,7 +86,7 @@ func versionField(schema filament.RecordSchema, version filament.VersionPolicy) 
 	return "", fmt.Errorf("cursor version field %q is absent from schema", version.Field)
 }
 
-func createTableDDL(database, table string, schema filament.RecordSchema, upsert bool, version filament.VersionPolicy) (string, []string, error) {
+func createTableDDL(database, table string, schema rowmodel.Schema, upsert bool, version filament.VersionPolicy) (string, []string, error) {
 	defs, idents, err := schemaColumns(schema, upsert, version)
 	if err != nil {
 		return "", nil, err

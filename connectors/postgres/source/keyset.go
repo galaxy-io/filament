@@ -23,7 +23,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // maxKeysetShards caps PK-range fan-out per table, mirroring the ctid reader's cap.
@@ -167,7 +169,7 @@ func dedupeOrdered(vals []string) []string {
 // via keyset shards (concurrently, under one exported snapshot, like Extract);
 // a resource with no keyset plan (no primary key, or a checkpoint-free full
 // read) falls back to the ctid reader and is read whole.
-func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
+func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
 	var incremental, rest []string
 	for _, table := range opts.Resources {
 		if plan, ok := checkpoint.ParseKeyset(prev[table]); ok && plan.Mode == checkpoint.ModeIncremental {
@@ -246,7 +248,7 @@ func keyShardsFrom(table, qualified string, ks checkpoint.KeysetCheckpoint, dec 
 // extractKeysetShard pages one shard out through the sink: WHERE (pk-tuple) is above the
 // cursor (or the shard's lower bound) and below the shard's upper bound, ORDER BY the key,
 // LIMIT a page. Every row carries its key so the pipeline can carry the cursor forward.
-func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
+func (s *Source) extractKeysetShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh keyShard, limit int) error {
 	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
 	if err != nil {
 		return err
@@ -258,7 +260,7 @@ func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSin
 		where, args := keysetWhere(sh, cur)
 		sql := fmt.Sprintf("SELECT %s FROM %s t%s ORDER BY %s LIMIT %d",
 			sh.dec.selectList, sh.qualified, where, order, s.pageSize)
-		n, last, err := s.appendPage(ctx, q, sql, w, sh.dec, filament.RowMeta{}, sh.dec.pkIdx, remaining(limit, emitted), args...)
+		n, last, err := s.appendPage(ctx, q, sql, w, sh.dec, rowmodel.Meta{}, sh.dec.pkIdx, remaining(limit, emitted), args...)
 		if err != nil {
 			return fmt.Errorf("keyset %q: %w", sh.table, err)
 		}

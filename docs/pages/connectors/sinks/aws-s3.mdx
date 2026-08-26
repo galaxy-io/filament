@@ -1,42 +1,76 @@
 ---
 title: "AWS S3"
-description: "Write NDJSON objects to Amazon S3 or any S3-compatible endpoint."
+description: "Write NDJSON objects to Amazon S3 or any S3-compatible endpoint"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"
 ---
 
-`connectors/object` (registered as `s3`) writes each resource to its own
-NDJSON object in an S3-compatible bucket, one record per line — the same
-dev-readable line shape the [Stdout](/pages/connectors/sinks/stdout) sink
-emits.
+`connectors/object` (registered as `s3`, **alpha**, display name "Amazon S3
+(NDJSON)") writes each resource to its own NDJSON object in an S3-compatible
+bucket, the same line shape the [stdout](/pages/connectors/sinks/standard-output) sink
+prints. It is a raw record dump, not a lakehouse format. No Parquet, no
+partitioning, no compression.
 
-## Layout
+## Configuration
 
-A run lands one object per resource at `<prefix>/<run>/<resource>.ndjson`.
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `bucket` | Connection | — | Required. Destination S3 bucket. |
+| `region` | Connection | SDK default | AWS region |
+| `endpoint` | Connection | AWS | Custom S3 endpoint (e.g. MinIO). Setting it forces path-style addressing. |
+| `access_key_id` | Connection | — | Static access key. Secret. |
+| `secret_access_key` | Connection | — | Static secret key. Secret. |
+| `prefix` | Pipeline | — | Key prefix, trailing `/` trimmed |
+| `part_size_mib` | Pipeline | `16` | Multipart part size in MiB, minimum 5. A value under 5 is silently replaced with 16. |
+| `upload_concurrency` | Pipeline | `8` | Maximum in-flight part uploads across all resources |
 
-## Streaming multipart upload
+A `prefix` left empty is defaulted server-side to the normalized source
+connection name.
 
-S3 objects aren't appendable, so each resource streams through its own
-multipart upload: `Write` buffers records into a part, and once the buffer
-crosses the configured part size (default 16 MiB, 5 MiB minimum — S3's
-floor for any non-final part) it's handed to a background goroutine to
-upload while the next part keeps encoding. A sink-wide semaphore
-(`upload_concurrency`, default 8) caps total in-flight parts across every
-resource, backpressuring `Write` once the cap is hit rather than growing
-unboundedly. `Commit` waits out every in-flight part, flushes each
-resource's tail, and completes the multipart uploads in parallel; a
-resource that produced zero records still lands as an empty object (S3
-forbids a zero-part multipart upload, so that path uses a plain
-`PutObject`). `Abort` cancels every in-flight upload so a failed run leaves
-nothing behind.
+`access_key_id` and `secret_access_key` must be set together or not at all.
+With neither set, the sink uses the AWS SDK credential chain (environment,
+shared config, instance role).
 
-## S3-compatible endpoints
+## Supported write modes
 
-Setting `endpoint` points the client at a non-AWS gateway (MinIO and most
-others) and switches to path-style addressing automatically. Static
-`access_key_id`/`secret_access_key` are optional — omitted, the sink falls
-back to the AWS SDK's default credential chain.
+The sink advertises `full_replace` and `full_append`. See
+[replication modes](/pages/guides/concepts/replication-modes). Because every
+run writes to run-scoped keys, **the two modes behave identically here**. Each
+run produces a fresh object set and never touches a previous run's objects.
+There is no stable "current" object per resource, so downstream consumers must
+list runs (or track run IDs) to find the latest.
 
-## Modes
+## Object layout
 
-Supports `Append` and `SnapshotReplace` write policies (see [Replication
-modes](/pages/guides/concepts/replication-modes)).
+One object per resource per run:
+
+```
+<prefix>/<run>/<resource>.ndjson
+```
+
+with `Content-Type: application/x-ndjson`. Each line is one record:
+
+```json
+{"id":"...","op":0,"data":{...}}
+```
+
+`op` is `0` for insert, `1` for update, `2` for delete. There is no table
+management or schema section here. The sink is not schematized and writes raw
+record JSON.
+
+## Write mechanics and atomicity
+
+Each resource streams through a multipart upload. `Apply` appends lines to the
+current part buffer. Full parts upload in the background, gated by a semaphore
+of `upload_concurrency`. `Commit` completes every multipart upload, and a
+resource with zero records becomes a zero-byte `PutObject`. Objects only
+appear in the bucket when their upload completes, so nothing is visible
+mid-run.
+
+Set `S3_SINK_DEBUG=1` to log per-part upload timings.
+
+## Failure behavior
+
+`Abort` waits for in-flight part uploads to finish, then issues
+`AbortMultipartUpload` for every open upload. Incomplete multipart uploads are
+never listed as objects, so **a failed run leaves no objects in the bucket** —
+only complete runs are ever visible.

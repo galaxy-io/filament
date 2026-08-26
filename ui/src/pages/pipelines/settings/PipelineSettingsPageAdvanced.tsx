@@ -14,26 +14,20 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import {
-  WorkerConfigurationSchema,
-  type WorkerResources,
-  WorkerResourcesSchema,
-} from "@/gen/ingestion/v1/common_pb";
-import {
   GetPipelineRequestSchema,
   UpdatePipelineRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
-import PipelineWorkerResourcesFields from "@/pages/pipelines/components/worker/PipelineWorkerResourcesFields";
+import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
+import {
+  formatWorkerConfiguration,
+  parseWorkerConfiguration,
+  workerConfigurationEquals,
+} from "@/pages/pipelines/components/worker/utils";
 
 import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
-
-const workerResourcesEqual = (left: WorkerResources, right: WorkerResources | undefined) =>
-  left.cpuRequest.trim() === (right?.cpuRequest ?? "") &&
-  left.cpuLimit.trim() === (right?.cpuLimit ?? "") &&
-  left.memoryRequest.trim() === (right?.memoryRequest ?? "") &&
-  left.memoryLimit.trim() === (right?.memoryLimit ?? "");
 
 const PipelineSettingsPageAdvanced = () => {
   const { showToast } = useToast();
@@ -43,16 +37,15 @@ const PipelineSettingsPageAdvanced = () => {
   });
   const pipeline = data.pipeline;
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();
-  const [workerResources, setWorkerResources] = useState(() =>
-    create(WorkerResourcesSchema, pipeline?.workerConfiguration?.resources),
+  const [workerConfiguration, setWorkerConfiguration] = useState(() =>
+    formatWorkerConfiguration(pipeline?.workerConfiguration),
   );
 
   if (!pipeline) return null;
 
-  const hasChanges = !workerResourcesEqual(
-    workerResources,
-    pipeline.workerConfiguration?.resources,
-  );
+  const parsed = parseWorkerConfiguration(workerConfiguration);
+  const hasChanges = !workerConfigurationEquals(parsed.configuration, pipeline.workerConfiguration);
+  const canSave = hasChanges && !parsed.error;
 
   const handleSave = () => {
     updatePipeline(
@@ -61,14 +54,7 @@ const PipelineSettingsPageAdvanced = () => {
         pipelineId: pipeline.id,
         name: pipeline.name,
         description: pipeline.description,
-        workerConfiguration: create(WorkerConfigurationSchema, {
-          resources: create(WorkerResourcesSchema, {
-            cpuRequest: workerResources.cpuRequest.trim(),
-            cpuLimit: workerResources.cpuLimit.trim(),
-            memoryRequest: workerResources.memoryRequest.trim(),
-            memoryLimit: workerResources.memoryLimit.trim(),
-          }),
-        }),
+        workerConfiguration: parsed.configuration,
       }),
       {
         onSuccess: () => {
@@ -90,14 +76,15 @@ const PipelineSettingsPageAdvanced = () => {
   };
 
   return (
-    <Accordion header="Worker resources">
+    <Accordion header="Worker configuration">
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-        <PipelineWorkerResourcesFields
-          state={workerResources}
-          onChange={(partial) => setWorkerResources((current) => ({ ...current, ...partial }))}
+        <PipelineWorkerConfigurationEditor
+          value={workerConfiguration}
+          onChange={setWorkerConfiguration}
+          error={parsed.error}
         />
         <FlexWrapper justifyContent={JustifyContent.END} fillWidth>
-          <Button label="Save" isDisabled={!hasChanges} isLoading={isSaving} onClick={handleSave} />
+          <Button label="Save" isDisabled={!canSave} isLoading={isSaving} onClick={handleSave} />
         </FlexWrapper>
       </FlexWrapper>
     </Accordion>
