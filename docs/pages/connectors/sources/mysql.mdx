@@ -46,9 +46,9 @@ row-constructor comparison for an index seek.
 Each shard runs in its own `REPEATABLE READ` transaction opened `WITH
 CONSISTENT SNAPSHOT, READ ONLY`. These are per-shard snapshots, not one
 shared snapshot across the run. Unlike the PostgreSQL source, parallel
-shards may observe the table at slightly different moments. Rows are encoded
-server-side with `JSON_OBJECT(...)`, and binary columns round-trip through
-base64 (`TO_BASE64` on read, decoded by sinks on write).
+shards may observe the table at slightly different moments. Rows are read
+through the driver's text protocol and parsed directly into Arrow-backed row
+writers; binary columns remain raw bytes.
 
 A table without a primary key is read in a single streaming pass with a
 synthetic `ROW_NUMBER()` id. That pass is not resumable, so a resume re-reads

@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 var cursorNamePriority = []string{
@@ -141,7 +143,7 @@ func (s *Source) incrementalCursor(ctx context.Context, table string) (pkColumn,
 	if err != nil {
 		return pkColumn{}, fmt.Errorf("incremental %q schema: %w", table, err)
 	}
-	byName := make(map[string]filament.SchemaField, len(schema.Fields))
+	byName := make(map[string]rowmodel.Field, len(schema.Fields))
 	for _, field := range schema.Fields {
 		byName[strings.ToLower(field.Name)] = field
 	}
@@ -185,7 +187,7 @@ func isTimestampType(native string) bool {
 	return t == "timestamp" || t == "timestamptz" || t == "timestamp without time zone" || t == "timestamp with time zone"
 }
 
-func (s *Source) extractIncremental(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, plans map[string]filament.Checkpoint) error {
+func (s *Source) extractIncremental(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, plans map[string]filament.Checkpoint) error {
 	for _, table := range opts.Resources {
 		ks, ok := checkpoint.ParseKeyset(plans[table])
 		if !ok || ks.Mode != checkpoint.ModeIncremental || len(ks.Cols) < 2 || len(ks.Shards) != 1 {
@@ -198,13 +200,22 @@ func (s *Source) extractIncremental(ctx context.Context, sink filament.RecordSin
 	return nil
 }
 
-func (s *Source) extractIncrementalTable(ctx context.Context, sink filament.RecordSink, table string, ks checkpoint.KeysetCheckpoint, limit int) error {
+func (s *Source) extractIncrementalTable(ctx context.Context, sink arrowbatch.Inlet, table string, ks checkpoint.KeysetCheckpoint, limit int) error {
 	cols := make([]pkColumn, len(ks.Cols))
 	for i := range ks.Cols {
 		cols[i] = pkColumn{name: ks.Cols[i], typ: typeAt(ks.Types, i)}
 	}
 	cursor, pks := cols[0], cols[1:]
-	enc, err := s.encoderFor(ctx, table, pkNames(pks))
+	dec, err := s.decoderFor(ctx, table, pkNames(pks))
+	if err != nil {
+		return err
+	}
+	cursorIdx := dec.index(cursor.name)
+	if cursorIdx < 0 {
+		return fmt.Errorf("incremental %q cursor column %q not in table", table, cursor.name)
+	}
+	keyIdx := append([]int{cursorIdx}, dec.pkIdx...) // each row's key is [watermark, pk...]
+	w, err := sink.Builder(table, 0, dec.schema)
 	if err != nil {
 		return err
 	}
@@ -233,9 +244,10 @@ func (s *Source) extractIncrementalTable(ctx context.Context, sink filament.Reco
 	}
 	for {
 		where, args := incrementalBounds(cols, low, high)
-		n, last, err := s.readIncrementalPageWithKey(ctx, tx, sink, table, qualified, cursor, pks, enc, where, args, s.pageSize, remaining(limit, emitted))
+		sql := incrementalPageSQL(qualified, dec.selectList, cols, where, s.pageSize)
+		n, last, err := s.appendPage(ctx, tx, sql, w, dec, rowmodel.Meta{}, keyIdx, remaining(limit, emitted), args...)
 		if err != nil {
-			return err
+			return fmt.Errorf("incremental %q: %w", table, err)
 		}
 		emitted += n
 		if n == 0 || n < s.pageSize || (limit > 0 && emitted >= limit) {
@@ -296,108 +308,16 @@ func remaining(limit, emitted int) int {
 	return max(limit-emitted, 0)
 }
 
-func (s *Source) readIncrementalPageWithKey(ctx context.Context, qx querier, sink filament.RecordSink, table, qualified string, cursor pkColumn, pks []pkColumn, enc *rowEncoder, where string, args []any, pageSize, limit int) (int, []string, error) {
-	keyCols := append([]pkColumn{cursor}, pks...)
-	order := make([]string, len(keyCols))
-	for i, col := range keyCols {
-		ident := "t." + pgx.Identifier{col.name}.Sanitize()
-		order[i] = ident
+// incrementalPageSQL selects the decoder's projection ordered by the cursor then the
+// key, so each page is a bounded index range scan.
+func incrementalPageSQL(qualified, selectList string, cols []pkColumn, where string, pageSize int) string {
+	order := make([]string, len(cols))
+	for i, col := range cols {
+		order[i] = "t." + pgx.Identifier{col.name}.Sanitize()
 	}
-	q := incrementalPageSQL(qualified, cursor, pks, enc, where, strings.Join(order, ", "), pageSize)
-	if enc != nil {
-		args = append([]any{binaryResults}, args...)
-	}
-	rows, err := qx.Query(ctx, q, args...)
-	if err != nil {
-		return 0, nil, fmt.Errorf("incremental %q query: %w", table, err)
-	}
-	defer rows.Close()
-	next, err := incrementalRowReader(table, cursor, pks, enc)
-	if err != nil {
-		return 0, nil, err
-	}
-	n := 0
-	var last []string
-	for rows.Next() {
-		rec, err := next(rows)
-		if err != nil {
-			return n, last, err
-		}
-		if err := sink.Push(rec); err != nil {
-			return n, last, err
-		}
-		last = append(last[:0], rec.Key...)
-		n++
-		if limit > 0 && n >= limit {
-			break
-		}
-	}
-	return n, last, rows.Err()
-}
-
-func incrementalPageSQL(qualified string, cursor pkColumn, pks []pkColumn, enc *rowEncoder, where, order string, pageSize int) string {
-	var q string
-	if enc != nil {
-		q = fmt.Sprintf("SELECT %s FROM %s t WHERE %s ORDER BY %s", enc.selectList, qualified, where, order)
-	} else {
-		keyCols := append([]pkColumn{cursor}, pks...)
-		projections := make([]string, len(keyCols))
-		for i, col := range keyCols {
-			projections[i] = "t." + pgx.Identifier{col.name}.Sanitize() + "::text"
-		}
-		q = fmt.Sprintf("SELECT %s AS id, to_jsonb(t)::text AS data, %s FROM %s t WHERE %s ORDER BY %s",
-			keysetIDExpr(pks), strings.Join(projections, ", "), qualified, where, order)
-	}
+	q := fmt.Sprintf("SELECT %s FROM %s t WHERE %s ORDER BY %s", selectList, qualified, where, strings.Join(order, ", "))
 	if pageSize > 0 {
 		q += fmt.Sprintf(" LIMIT %d", pageSize)
 	}
 	return q
-}
-
-// incrementalRowReader mirrors keysetRowReader while prefixing the durable
-// record cursor with the incremental watermark. The native path reads the
-// encoder's typed binary projection; nil enc preserves the explicit jsonb
-// compatibility mode.
-func incrementalRowReader(table string, cursor pkColumn, pks []pkColumn, enc *rowEncoder) (func(pgx.Rows) (filament.Record, error), error) {
-	if enc != nil {
-		cursorIdx := slices.Index(enc.names, cursor.name)
-		if cursorIdx < 0 {
-			return nil, fmt.Errorf("incremental %q cursor column %q not in encoder", table, cursor.name)
-		}
-		var scratch []byte
-		return func(rows pgx.Rows) (filament.Record, error) {
-			raw := rows.RawValues()
-			watermark, err := enc.textAt(raw, cursorIdx)
-			if err != nil {
-				return filament.Record{}, err
-			}
-			keys, err := enc.pkTexts(raw)
-			if err == nil {
-				scratch, err = enc.appendRowData(scratch[:0], raw)
-			}
-			if err != nil {
-				return filament.Record{}, err
-			}
-			rec := filament.NewRecord(table, joinKey(keys), append([]byte(nil), scratch...))
-			rec.Key = append([]string{watermark}, keys...)
-			return rec, nil
-		}, nil
-	}
-
-	var id string
-	var data []byte
-	keys := make([]string, 1+len(pks))
-	dest := make([]any, 2, 2+len(keys))
-	dest[0], dest[1] = &id, &data
-	for i := range keys {
-		dest = append(dest, &keys[i])
-	}
-	return func(rows pgx.Rows) (filament.Record, error) {
-		if err := rows.Scan(dest...); err != nil {
-			return filament.Record{}, err
-		}
-		rec := filament.NewRecord(table, id, append([]byte(nil), data...))
-		rec.Key = append([]string(nil), keys...)
-		return rec, nil
-	}, nil
 }

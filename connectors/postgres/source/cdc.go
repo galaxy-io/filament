@@ -11,9 +11,9 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,10 +21,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgproto3"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const standbyStatusInterval = 10 * time.Second
@@ -33,17 +34,32 @@ var replicationNameRE = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
 
 func validReplicationName(name string) bool { return replicationNameRE.MatchString(name) }
 
+// cdcRelation is one relation the stream describes, bound to the resource's
+// schema: cols maps each schema field to its tuple column (-1 = not sent, so
+// null), parsers read each field's text form, keys are the tuple columns of
+// the primary key.
 type cdcRelation struct {
 	message *pglogrepl.RelationMessage
 	tracked bool
+	schema  rowmodel.Schema
+	cols    []int
+	parsers []func(arrowbatch.RowWriter, []byte) error
 	keys    []int
 }
 
+// cdcTable is one tracked resource: its primary key, catalog schema, and the row
+// writer changes are appended into (opened on first use).
+type cdcTable struct {
+	pks    []string
+	schema rowmodel.Schema
+	writer arrowbatch.RowWriter
+}
+
 type pgCDCRun struct {
-	sink      filament.RecordSink
+	sink      arrowbatch.Inlet
 	schema    string
 	resources []string
-	tracked   map[string][]string
+	tracked   map[string]*cdcTable
 	relations map[uint32]*cdcRelation
 	seq       uint64
 	emitted   int
@@ -51,6 +67,19 @@ type pgCDCRun struct {
 	limited   bool
 	inTxn     bool
 	lastLSN   pglogrepl.LSN
+}
+
+// writer returns the resource's row writer, opening it on first use.
+func (r *pgCDCRun) writer(resource string) (arrowbatch.RowWriter, error) {
+	t := r.tracked[resource]
+	if t.writer == nil {
+		w, err := r.sink.Builder(resource, 0, t.schema)
+		if err != nil {
+			return nil, err
+		}
+		t.writer = w
+	}
+	return t.writer, nil
 }
 
 type replicationSlotState struct {
@@ -64,23 +93,23 @@ type replicationSlotState struct {
 // its stable identity is what makes a later catch-up lossless.
 //
 //nolint:gocyclo,funlen // Complex replication protocol handling; refactor deferred.
-func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts) error {
+func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts filament.ChangeExtractOpts) error {
 	if s.pool == nil || s.dsn == "" {
 		return fmt.Errorf("postgres source: extract changes before configure")
 	}
 	if len(opts.Resources) == 0 {
 		return nil
 	}
-	tracked := make(map[string][]string, len(opts.Resources))
+	tracked := make(map[string]*cdcTable, len(opts.Resources))
 	for _, resource := range opts.Resources {
-		pks, err := s.lookupPrimaryKey(ctx, s.schema, resource)
+		schema, err := s.Schema(ctx, resource)
 		if err != nil {
-			return fmt.Errorf("postgres cdc: primary key %q: %w", resource, err)
+			return fmt.Errorf("postgres cdc: schema %q: %w", resource, err)
 		}
-		if len(pks) == 0 {
+		if len(schema.PrimaryKey) == 0 {
 			return fmt.Errorf("postgres cdc: resource %q has no primary key", resource)
 		}
-		tracked[resource] = pkNames(pks)
+		tracked[resource] = &cdcTable{pks: schema.PrimaryKey, schema: schema}
 	}
 	if err := s.ensurePublication(ctx, opts.Resources); err != nil {
 		return err
@@ -332,6 +361,10 @@ func (s *Source) replicationConn(ctx context.Context) (*pgconn.PgConn, error) {
 		cfg.RuntimeParams = map[string]string{}
 	}
 	cfg.RuntimeParams["replication"] = "database"
+	// pgoutput renders tuples with the walsender's output functions; the parsers
+	// in types.go read ISO dates and hex bytea, so pin both for the session.
+	cfg.RuntimeParams["DateStyle"] = "ISO, MDY"
+	cfg.RuntimeParams["bytea_output"] = "hex"
 	conn, err := pgconn.ConnectConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("postgres cdc: connect replication protocol: %w", err)
@@ -411,7 +444,7 @@ func (s *Source) importSnapshot(ctx context.Context, id string) (*snapshot, erro
 // durable stream checkpoint. Snapshot rows are inserts, which the CDC merge
 // policy applies idempotently on retry. Limit deliberately does not apply: a
 // partial snapshot followed by an advanced LSN would permanently skip rows.
-func (s *Source) extractInitialSnapshot(ctx context.Context, sink filament.RecordSink, tx pgx.Tx, shards []shard) error {
+func (s *Source) extractInitialSnapshot(ctx context.Context, sink arrowbatch.Inlet, tx pgx.Tx, shards []shard) error {
 	for _, sh := range shards {
 		if err := s.extractShard(ctx, sink, tx, sh, 0); err != nil {
 			return fmt.Errorf("postgres cdc: initial snapshot %q: %w", sh.table, err)
@@ -495,11 +528,7 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 		if !ok {
 			return 0, nil
 		}
-		rec, err := rel.record(msg.Tuple, nil, filament.OpInsert, walStart)
-		if err != nil {
-			return 0, err
-		}
-		if err := r.push(rec); err != nil {
+		if err := r.push(rel, msg.Tuple, nil, rowmodel.OpInsert, walStart); err != nil {
 			return 0, err
 		}
 	case *pglogrepl.UpdateMessage:
@@ -507,23 +536,25 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 		if !ok {
 			return 0, nil
 		}
-		after, err := rel.record(msg.NewTuple, msg.OldTuple, filament.OpUpdate, walStart)
-		if err != nil {
-			return 0, err
-		}
+		op := rowmodel.OpUpdate
 		if msg.OldTuple != nil {
-			before, err := rel.record(msg.OldTuple, nil, filament.OpDelete, walStart)
+			// A key change is a delete of the old row and an insert of the new one.
+			oldKey, err := rel.keyOf(msg.OldTuple)
 			if err != nil {
 				return 0, err
 			}
-			if before.ID != after.ID {
-				if err := r.push(before); err != nil {
+			newKey, err := rel.keyOf(msg.NewTuple)
+			if err != nil {
+				return 0, err
+			}
+			if !slices.Equal(oldKey, newKey) {
+				if err := r.push(rel, msg.OldTuple, nil, rowmodel.OpDelete, walStart); err != nil {
 					return 0, err
 				}
-				after.Op = filament.OpInsert
+				op = rowmodel.OpInsert
 			}
 		}
-		if err := r.push(after); err != nil {
+		if err := r.push(rel, msg.NewTuple, msg.OldTuple, op, walStart); err != nil {
 			return 0, err
 		}
 	case *pglogrepl.DeleteMessage:
@@ -531,11 +562,7 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 		if !ok {
 			return 0, nil
 		}
-		rec, err := rel.record(msg.OldTuple, nil, filament.OpDelete, walStart)
-		if err != nil {
-			return 0, err
-		}
-		if err := r.push(rec); err != nil {
+		if err := r.push(rel, msg.OldTuple, nil, rowmodel.OpDelete, walStart); err != nil {
 			return 0, err
 		}
 	case *pglogrepl.TruncateMessage:
@@ -550,10 +577,20 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 
 func (r *pgCDCRun) rememberRelation(msg *pglogrepl.RelationMessage) {
 	rel := &cdcRelation{message: msg}
-	pks, tracked := r.tracked[msg.RelationName]
+	t, tracked := r.tracked[msg.RelationName]
 	rel.tracked = tracked && msg.Namespace == r.schema
-	if tracked {
-		for _, pk := range pks {
+	if rel.tracked {
+		rel.schema = t.schema
+		rel.cols = make([]int, len(t.schema.Fields))
+		rel.parsers = make([]func(arrowbatch.RowWriter, []byte) error, len(t.schema.Fields))
+		for i, f := range t.schema.Fields {
+			rel.cols[i] = slices.IndexFunc(msg.Columns, func(c *pglogrepl.RelationMessageColumn) bool { return c.Name == f.Name })
+			if rel.cols[i] >= 0 {
+				pt, _ := typeFor(msg.Columns[rel.cols[i]].DataType, f)
+				rel.parsers[i] = pt.fromText
+			}
+		}
+		for _, pk := range t.pks {
 			for i, col := range msg.Columns {
 				if col.Name == pk {
 					rel.keys = append(rel.keys, i)
@@ -561,7 +598,7 @@ func (r *pgCDCRun) rememberRelation(msg *pglogrepl.RelationMessage) {
 				}
 			}
 		}
-		if len(rel.keys) != len(pks) {
+		if len(rel.keys) != len(t.pks) {
 			rel.tracked = false
 		}
 	}
@@ -573,10 +610,19 @@ func (r *pgCDCRun) relation(id uint32) (*cdcRelation, bool) {
 	return rel, ok && rel.tracked
 }
 
-func (r *pgCDCRun) push(rec filament.Record) error {
+// push appends one change row: the tuple's columns in schema order (a delete
+// carries only its key columns, the rest null), stamped with its operation and
+// stream position.
+func (r *pgCDCRun) push(rel *cdcRelation, tuple, fallback *pglogrepl.TupleData, op rowmodel.Operation, lsn pglogrepl.LSN) error {
+	w, err := r.writer(rel.message.RelationName)
+	if err != nil {
+		return err
+	}
+	if err := rel.appendTuple(w, tuple, fallback, op); err != nil {
+		return err
+	}
 	r.seq++
-	rec.Meta.Seq = r.seq
-	if err := r.sink.Push(rec); err != nil {
+	if err := w.EndRow(rowmodel.Meta{Op: op, LSN: lsn.String(), Seq: r.seq}); err != nil {
 		return err
 	}
 	r.emitted++
@@ -586,114 +632,78 @@ func (r *pgCDCRun) push(rec filament.Record) error {
 	return nil
 }
 
+// pushStreamMarks drains every resource's writer at the cycle's final position,
+// so the next cycle resumes from here even for resources that saw no change.
 func (r *pgCDCRun) pushStreamMarks(lsn pglogrepl.LSN) error {
 	for _, resource := range r.resources {
-		rec := filament.Record{Resource: resource, Drained: true}
-		rec.Meta.LSN = lsn.String()
-		rec.Meta.Seq = r.seq
-		if err := r.sink.Push(rec); err != nil {
+		w, err := r.writer(resource)
+		if err != nil {
+			return err
+		}
+		if err := w.Drain(rowmodel.Meta{LSN: lsn.String(), Seq: r.seq}); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (rel *cdcRelation) record(tuple, fallback *pglogrepl.TupleData, op filament.Operation, lsn pglogrepl.LSN) (filament.Record, error) {
+// complete rejects a tuple that does not carry one value per relation column.
+func (rel *cdcRelation) complete(tuple *pglogrepl.TupleData) error {
 	if tuple == nil || len(tuple.Columns) != len(rel.message.Columns) {
-		return filament.Record{}, fmt.Errorf("postgres cdc: %s.%s tuple has %d columns, want %d", rel.message.Namespace, rel.message.RelationName, tupleColumnCount(tuple), len(rel.message.Columns))
+		return fmt.Errorf("postgres cdc: %s.%s tuple has %d columns, want %d", rel.message.Namespace, rel.message.RelationName, tupleColumnCount(tuple), len(rel.message.Columns))
 	}
-	values := make([]*pglogrepl.TupleDataColumn, len(tuple.Columns))
-	copy(values, tuple.Columns)
-	for i, col := range values {
-		if op == filament.OpDelete && !containsIndex(rel.keys, i) {
-			continue
-		}
-		if col.DataType != pglogrepl.TupleDataTypeToast {
-			continue
-		}
-		if fallback == nil || len(fallback.Columns) != len(values) || fallback.Columns[i].DataType == pglogrepl.TupleDataTypeToast {
-			return filament.Record{}, fmt.Errorf("postgres cdc: unchanged TOAST column %q on %s.%s has no old value; set REPLICA IDENTITY FULL", rel.message.Columns[i].Name, rel.message.Namespace, rel.message.RelationName)
-		}
-		values[i] = fallback.Columns[i]
-	}
-	idParts := make([]string, len(rel.keys))
-	for n, i := range rel.keys {
-		col := values[i]
-		if col.DataType != pglogrepl.TupleDataTypeText {
-			return filament.Record{}, fmt.Errorf("postgres cdc: primary-key column %q is not present in %s tuple", rel.message.Columns[i].Name, filament.OperationName(op))
-		}
-		idParts[n] = string(col.Data)
-	}
-
-	buf := []byte{'{'}
-	written := 0
-	for i, col := range values {
-		if op == filament.OpDelete && !containsIndex(rel.keys, i) {
-			continue
-		}
-		if written > 0 {
-			buf = append(buf, ',')
-		}
-		key, _ := json.Marshal(rel.message.Columns[i].Name)
-		buf = append(buf, key...)
-		buf = append(buf, ':')
-		var err error
-		buf, err = appendPGOutputJSON(buf, col, rel.message.Columns[i].DataType)
-		if err != nil {
-			return filament.Record{}, fmt.Errorf("postgres cdc: encode %s.%s column %q: %w", rel.message.Namespace, rel.message.RelationName, rel.message.Columns[i].Name, err)
-		}
-		written++
-	}
-	buf = append(buf, '}')
-	return filament.Record{Resource: rel.message.RelationName, ID: joinKey(idParts), Op: op, Data: buf, Meta: filament.RecordMeta{LSN: lsn.String()}}, nil
+	return nil
 }
 
-func appendPGOutputJSON(dst []byte, col *pglogrepl.TupleDataColumn, oid uint32) ([]byte, error) {
-	switch col.DataType {
-	case pglogrepl.TupleDataTypeNull:
-		return append(dst, "null"...), nil
-	case pglogrepl.TupleDataTypeText:
-	case pglogrepl.TupleDataTypeBinary:
-		return nil, fmt.Errorf("binary tuple data is not supported")
-	default:
-		return nil, fmt.Errorf("tuple data type %q is not materialized", col.DataType)
-	}
-	raw := col.Data
-	switch oid {
-	case pgtype.BoolOID:
-		if string(raw) == "t" {
-			return append(dst, "true"...), nil
-		}
-		if string(raw) == "f" {
-			return append(dst, "false"...), nil
-		}
-		return nil, fmt.Errorf("invalid boolean %q", raw)
-	case pgtype.Int2OID, pgtype.Int4OID, pgtype.Int8OID, pgtype.OIDOID,
-		pgtype.Float4OID, pgtype.Float8OID, pgtype.NumericOID:
-		lower := strings.ToLower(string(raw))
-		if lower != "nan" && lower != "infinity" && lower != "-infinity" {
-			return append(dst, raw...), nil
-		}
-	case pgtype.JSONOID, pgtype.JSONBOID:
-		if !json.Valid(raw) {
-			return nil, fmt.Errorf("invalid JSON value")
-		}
-		return append(dst, raw...), nil
-	}
-	quoted, err := json.Marshal(string(raw))
-	if err != nil {
+// keyOf returns the tuple's primary-key values as text.
+func (rel *cdcRelation) keyOf(tuple *pglogrepl.TupleData) ([]string, error) {
+	if err := rel.complete(tuple); err != nil {
 		return nil, err
 	}
-	return append(dst, quoted...), nil
+	key := make([]string, len(rel.keys))
+	for n, i := range rel.keys {
+		col := tuple.Columns[i]
+		if col.DataType != pglogrepl.TupleDataTypeText {
+			return nil, fmt.Errorf("postgres cdc: primary-key column %q is not present in tuple", rel.message.Columns[i].Name)
+		}
+		key[n] = string(col.Data)
+	}
+	return key, nil
 }
 
-func containsIndex(indices []int, want int) bool {
-	for _, index := range indices {
-		if index == want {
-			return true
+// appendTuple appends the tuple's values in schema order. An unchanged TOAST
+// column takes its value from fallback (the old tuple); a delete appends only the
+// key columns and nulls the rest.
+func (rel *cdcRelation) appendTuple(w arrowbatch.RowWriter, tuple, fallback *pglogrepl.TupleData, op rowmodel.Operation) error {
+	if err := rel.complete(tuple); err != nil {
+		return err
+	}
+	for f, i := range rel.cols {
+		if i < 0 || (op == rowmodel.OpDelete && !slices.Contains(rel.keys, i)) {
+			w.Null()
+			continue
+		}
+		col := tuple.Columns[i]
+		if col.DataType == pglogrepl.TupleDataTypeToast {
+			if fallback == nil || len(fallback.Columns) != len(tuple.Columns) || fallback.Columns[i].DataType == pglogrepl.TupleDataTypeToast {
+				return fmt.Errorf("postgres cdc: unchanged TOAST column %q on %s.%s has no old value; set REPLICA IDENTITY FULL", rel.message.Columns[i].Name, rel.message.Namespace, rel.message.RelationName)
+			}
+			col = fallback.Columns[i]
+		}
+		switch col.DataType {
+		case pglogrepl.TupleDataTypeNull:
+			w.Null()
+		case pglogrepl.TupleDataTypeText:
+			if err := rel.parsers[f](w, col.Data); err != nil {
+				return fmt.Errorf("postgres cdc: decode %s.%s column %q: %w", rel.message.Namespace, rel.message.RelationName, rel.message.Columns[i].Name, err)
+			}
+		case pglogrepl.TupleDataTypeBinary:
+			return fmt.Errorf("postgres cdc: column %q: binary tuple data is not supported", rel.message.Columns[i].Name)
+		default:
+			return fmt.Errorf("postgres cdc: column %q: tuple data type %q is not materialized", rel.message.Columns[i].Name, col.DataType)
 		}
 	}
-	return false
+	return nil
 }
 
 func tupleColumnCount(tuple *pglogrepl.TupleData) int {
