@@ -38,7 +38,7 @@ import (
 func (c *Connector) paginate(
 	ctx context.Context,
 	res manifest.Resource,
-	sink filament.RecordSink,
+	sink recordSink,
 	parent Capture,
 	pag pagination.Paginator,
 	extractor *response.Extractor,
@@ -339,7 +339,7 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 func (c *Connector) sendRecords(
 	res manifest.Resource,
 	records []map[string]any,
-	sink filament.RecordSink,
+	sink recordSink,
 	parent Capture,
 	cursor string,
 	extractor *response.Extractor,

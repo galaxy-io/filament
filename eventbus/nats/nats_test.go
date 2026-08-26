@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	natsgo "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
+
 	"github.com/galaxy-io/filament/eventbus"
 )
 
@@ -64,5 +67,21 @@ func TestPublishClosed(t *testing.T) {
 	err := b.Publish(context.Background(), "app.v1.run.t1.r1.started", "payload")
 	if !errors.Is(err, eventbus.ErrBusClosed) {
 		t.Fatalf("Publish error = %v, want ErrBusClosed", err)
+	}
+}
+
+func TestConsumerGoneIncludesDeleteRaceNoResponders(t *testing.T) {
+	for _, err := range []error{
+		jetstream.ErrConsumerNotFound,
+		jetstream.ErrConsumerDeleted,
+		natsgo.ErrNoResponders,
+		fmt.Errorf("fetch: %w", natsgo.ErrNoResponders),
+	} {
+		if !consumerGone(err) {
+			t.Errorf("consumerGone(%v) = false, want true", err)
+		}
+	}
+	if consumerGone(errors.New("timeout")) {
+		t.Fatal("ordinary fetch timeout must not recreate the durable")
 	}
 }
