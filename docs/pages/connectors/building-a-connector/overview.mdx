@@ -1,0 +1,53 @@
+---
+title: "Overview"
+description: "How to add a connector, and which of the two paths to take"
+---
+
+A connector is a Go type satisfying either the `Source` or the `Sink`
+interface, registered at package init so the binary can resolve it by name.
+The engine asks nothing else of it. Everything beyond the base contract is an
+optional interface a connector opts into.
+
+## Two paths
+
+Adding a source usually means picking between these.
+
+**A manifest.** If the system is a REST or GraphQL API, you probably do not
+need Go at all. One generic HTTP connector interprets declarative YAML that
+declares endpoints, auth, pagination, field projection, incremental cursors,
+and parent and child relationships. Most SaaS sources ship this way, and
+adding another is a new manifest rather than a new codebase. See
+[HTTP manifests](/pages/connectors/building-a-connector/http-manifests).
+
+**Go.** Databases, replication logs, object stores, and anything needing real
+logic get a Go implementation. That is the path for every sink as well, since
+manifests describe reads only. See
+[Writing a source](/pages/connectors/building-a-connector/writing-a-source)
+and [Writing a sink](/pages/connectors/building-a-connector/writing-a-sink).
+
+## What the engine expects
+
+Both paths land in the same place. Whatever you build declares a
+`ConnectorSpec` or `SinkSpec` describing its name, config schema, and what it
+can do, and the server drives everything from that declaration. The config
+form in the web app, the CLI flags, and validation are all generated from the
+schema you write, so a field declared once shows up everywhere without
+further work.
+
+Beyond the base interface, capabilities are opt-in. Discovery, resumable
+reads, incremental planning, change streams, schema provision, and rate
+limits are separate interfaces the engine type-asserts at run time. Implement
+only what the system supports. See
+[Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces)
+for what each one unlocks.
+
+## Maturity
+
+Registration takes a maturity level, and it is a promise to users rather than
+a formality. The web app and the API both surface it.
+
+- `alpha` is documentation-derived and not yet tested end to end
+- `beta` has run end to end, but is not verified across every supported object
+- `stable` is production-ready across everything it claims to support
+
+Start at alpha. Move it up as coverage arrives.

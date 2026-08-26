@@ -379,12 +379,7 @@ func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipel
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, err)
 		}
-		currentID := pipeline.GetCurrentVersion().GetId()
-		for _, version := range versions {
-			if version.GetId() != currentID {
-				pipeline.Versions = append(pipeline.Versions, version)
-			}
-		}
+		pipeline.Versions = versions
 	}
 	if includeLastRun {
 		states, _, err := a.store.ListRuns(ctx, filament.RunFilter{

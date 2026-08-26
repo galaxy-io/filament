@@ -1,23 +1,43 @@
 ---
 title: "Introduction"
-description: "What Filament is and how its pieces fit together."
+description: "What Filament is and how its pieces fit together"
 ---
 
-Filament moves data from sources to sinks with full, incremental, and CDC
-replication. Every batch is integrity checked on both the read and write
-side, and interrupted runs resume from checkpoints. It is written in Go, and
-its major pieces are pluggable: connectors, the data store, and the event bus
-are interfaces with swappable implementations.
+Filament is a CDC and replication engine written in Go. It:
+
+- Moves data from sources to sinks with full, incremental, and CDC replication
+- Verifies every batch with a CRC32-C checksum computed independently on the read and write side
+- Runs as a single binary or embedded in your own Go process as a library
+
+Connectors, the data store, and the event bus are interfaces with
+swappable implementations.
+
+Runs that carry resumable progress (incremental and checkpointed full reads)
+pick up from their last durable checkpoint instead of starting over. Which run
+shapes qualify, and how resume works, is covered in
+[Runs and recovery](/pages/guides/concepts/runs-and-recovery).
 
 ## How it's put together
 
-Filament is three components over a data store and an event bus.
+Filament's core is one code path, the runner, which executes a run from
+extraction through verified write. Everything around it (API server, control
+plane, dispatch) decides *where* that code path executes, never *how*.
 
-- **`server`** serves the API and web UI and owns connections, pipelines, and run requests.
-- **`control-plane`** dispatches requested runs and tracks run state.
-- **`worker`** executes a single run from extraction to verified write.
+The `server` / `control-plane` / `worker` split you'll see in the deployment
+docs is one deployment shape, built for Kubernetes:
 
-Read more about how these fit together in [Architecture](/pages/guides/concepts/architecture).
+- The server owns connections, pipelines, and run requests
+- The control plane schedules and dispatches
+- Each run executes as its own worker Job
+
+But dispatch is pluggable. The same runs execute in-process inside the
+control plane, inside the standalone binary, or inside your own process when
+you embed Filament as a library. State lives in a data store (Postgres in
+production) and progress flows over an event bus (NATS JetStream) — those
+two are the only surfaces the processes share.
+
+Read [Architecture](/pages/guides/concepts/architecture) for how the modules,
+the pipeline, and the fact-driven state model fit together.
 
 ## Where to go next
 
@@ -26,17 +46,17 @@ Read more about how these fit together in [Architecture](/pages/guides/concepts/
     Get infra, the control plane, API server, and UI running locally.
   </Card>
   <Card title="Architecture" icon="sitemap" href="/pages/guides/concepts/architecture">
-    Understand the server / control-plane / worker split.
+    The runner, the pipeline, and how run state is derived from facts.
   </Card>
   <Card title="Connectors" icon="plug" href="/pages/connectors/overview/introduction">
     See what Filament can read from and write to today.
   </Card>
-  <Card title="Deploy on Kubernetes" icon="dharmachakra" href="/pages/guides/deployment/kubernetes">
-    Install the Helm chart against your own Postgres and NATS.
+  <Card title="Installation" icon="download" href="/pages/guides/get-started/installation">
+    Standalone binary, Go library, or Kubernetes via Helm.
   </Card>
 </CardGroup>
 
 <Note>
-  Filament is pre-1.0. APIs — including the interfaces documented here — may
+  Filament is pre-1.0. APIs, including the interfaces documented here, may
   still change.
 </Note>

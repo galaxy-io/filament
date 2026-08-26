@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/datastore/memory"
 )
@@ -78,7 +79,7 @@ func (*incrementalTestSink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{Name: "test-sink", Capabilities: filament.SinkCapabilities{Upsertable: true}}
 }
 func (*incrementalTestSink) Open(context.Context, filament.RunSpec) error { return nil }
-func (*incrementalTestSink) Apply(context.Context, filament.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (*incrementalTestSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
 	return filament.WriteReceipt{}, nil
 }
 func (*incrementalTestSink) Commit(context.Context) error { return nil }
@@ -109,7 +110,7 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 		CursorConfigs:  map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at", LookbackSeconds: 300}},
 	}
 	first := &incrementalTestSource{}
-	if _, err := resolveExtractor(ctx, store, first, base, plan); err != nil {
+	if _, err := resolveExtractor(ctx, store, first, base, plan, nil); err != nil {
 		t.Fatal(err)
 	}
 	key, _ := base.ResourceCheckpointKey("users")
@@ -125,7 +126,7 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	secondSpec := base
 	secondSpec.Run = "run-b"
 	second := &incrementalTestSource{}
-	if _, err := resolveExtractor(ctx, store, second, secondSpec, plan); err != nil {
+	if _, err := resolveExtractor(ctx, store, second, secondSpec, plan, nil); err != nil {
 		t.Fatal(err)
 	}
 	if second.previous["users"].String("position") != "next-run" {
@@ -180,5 +181,12 @@ func TestIncrementalAppendFailureIsNotResumable(t *testing.T) {
 	plan.WritePolicies["users"] = filament.WritePolicyForIngestion(filament.IngestionIncrementalUpsert)
 	if !isResumableRun(spec, plan) {
 		t.Fatal("incremental upsert should remain resumable")
+	}
+
+	policy := plan.WritePolicies["users"]
+	policy.Checkpoint = filament.CheckpointAfterCommit
+	plan.WritePolicies["users"] = policy
+	if isResumableRun(spec, plan) {
+		t.Fatal("commit-gated progress must fail instead of resuming before commit")
 	}
 }

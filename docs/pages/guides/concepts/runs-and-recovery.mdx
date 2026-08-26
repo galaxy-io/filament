@@ -1,0 +1,111 @@
+---
+title: "Runs and recovery"
+description: "The run lifecycle, which runs resume, and how failures are contained"
+---
+
+A run is one execution of a pipeline route. Its state is derived. The
+runner publishes typed facts as it works, and the tracker folds them into
+run state (see [Architecture](/pages/guides/concepts/architecture)). This
+page covers the lifecycle, resume rules, and failure behavior.
+
+## Run states
+
+| State | Meaning |
+|---|---|
+| `RunScheduled` | Pre-created for a schedule's next occurrence |
+| `RunRequested` | Persisted and published. Waiting for dispatch |
+| `RunRunning` | Executing |
+| `RunCompleted` | Terminal success. Sink committed |
+| `RunFailed` | Terminal failure |
+| `RunPartial` | **Non-terminal**. Failed mid-extract with resumable progress |
+
+`RunScheduled` runs are owned entirely by the control plane. The scheduler
+pre-creates them and promotes them to requested at fire time. A
+`RunPartial` run has its resumable progress persisted, and re-requesting
+the same run resumes it.
+
+`RunCanceled` and `RunPaused` exist in the model and API, but no engine
+code emits them today. `SignalRun` always returns unimplemented, so
+cancel, pause, and resume signals do not work via the API.
+
+## Idempotent intake
+
+Submitting a run with an `IdempotencyKey` derives a deterministic `RunID`
+from (tenant, key). Re-submitting the same pair never re-dispatches a run
+that has progressed. If dispatch itself fails, the orphan row is deleted so
+the caller can retry cleanly.
+
+## What a run does
+
+`runner.RunOne` executes the same sequence everywhere:
+
+- Resolve secret refs into the connector configs (tenant-validated)
+- Configure the source and plan resources
+- Resolve the sink and the ingestion plan, then open the sink
+- Ensure schemas. A schematized sink gets typed DDL from the source's
+  schema before any data moves, and a source that provides none fails the
+  run up front
+- Seed checkpoints
+- Extract through the pipeline
+- Finally, `Commit` on success or `Abort` on failure
+
+## Which runs resume
+
+Not every failed run can pick up where it left off. A run is resumable when
+it has at least one incremental or checkpointed resource, **except**:
+
+- CDC runs: the durable stream cursor already makes every CDC run a
+  continuation, so partial-run resume does not apply.
+- Runs with any incremental resource writing in append mode: retrying
+  would duplicate rows.
+
+A resumable failure lands in `RunPartial` with its checkpoints intact.
+Resume is simply re-emitting `run.requested` for the same `RunID`. The
+runner reloads persisted cursors and hands them back to the source through
+its resume planning. Plain `full_replace` and `full_append` runs restart
+from scratch.
+
+## CDC catch-up cycles
+
+A completed CDC run stays re-runnable. Dispatch treats `RunCompleted` as
+runnable for CDC, and re-requesting it continues the change stream from
+the persisted cursor. The final stream position is persisted even for a
+run that wrote zero rows, so an idle stream still advances.
+
+## Failure containment
+
+- A panicking source is contained and converted into a "source panicked"
+  error. It cannot take the process down.
+- A pipeline (write) error takes precedence as the root cause. The extract
+  error it triggered is treated as its echo.
+- On non-resumable failure the sink's `Abort` runs on a context detached
+  from run cancellation, bounded at 30s. Resumable failures skip `Abort`
+  so staged progress is preserved.
+- Terminal facts publish on a detached context (5s bound), so shutdown
+  cannot strand a run in `RunRunning`.
+
+## Heartbeats and the reaper
+
+Under Kubernetes dispatch, the worker emits `run.heartbeat` every 30s with
+CPU and memory usage. The reaper sweeps every minute and fails any running
+run with no state write for 5 minutes (ten missed heartbeats). Partial
+runs are exempt. They hold resumable checkpoints and are waiting to be
+re-requested, not stuck. In-process dispatch emits no heartbeats and
+mounts no reaper.
+
+## The fact catalog
+
+Everything above is driven by typed facts on
+`ingestion.v1.<entity>.<tenant>.<run>.<event>`:
+
+- `run.*`: `requested`, `started`, `completed`, `failed`, `partial`,
+  `heartbeat`
+- `resource.*`: `started`, `page_fetched`, `fan_out_started`,
+  `completed`, `failed`
+- `batch.*`: `buffered`, `written`, `integrity_verified`,
+  `chunk_divergence`
+- `cursor.*`: `watermark_advanced`, `checkpoint_saved`
+- `pressure.*`: `rate_limited`, `retry_exhausted`
+
+How batches are verified and cursors persisted is covered in
+[Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints).

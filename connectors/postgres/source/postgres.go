@@ -32,6 +32,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
+	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
 )
 
 const (
@@ -113,7 +114,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		Description:  "Popular open-source relational database management system known for reliability and advanced features.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
-		Version:      "1",
+		Version:      "2",
 		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionFullReplace,
@@ -123,8 +124,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionIncrementalUpsert,
 			filament.IngestionCDC,
 		),
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
+		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
 			{Name: "replication", Type: filament.FieldEnum, Default: replicationStandard, Enum: []filament.EnumOption{
 				{Value: replicationStandard, Label: "Standard"},
 				{Value: replicationCDC, Label: "Change Data Capture (CDC)"},
@@ -150,7 +150,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				Help:        "Create the CDC publication and add selected tables when needed",
 			},
 			{Name: "slot_name", Type: filament.FieldString, Default: defaultSlotName, Scope: filament.ScopePipeline, Help: "Persistent logical replication slot; use a unique slot per CDC pipeline"},
-		}},
+		}...)},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
@@ -163,10 +163,10 @@ func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
 	return filament.ReplicationStandard
 }
 
-// Validate rejects a config missing the connection string.
+// Validate rejects an invalid URL or incomplete individual connection fields.
 func (s *Source) Validate(cfg filament.Config) error {
-	if cfg.String("dsn") == "" {
-		return fmt.Errorf("postgres source: dsn is required")
+	if _, err := pgconnection.Resolve(cfg); err != nil {
+		return fmt.Errorf("postgres source: connection config: %w", err)
 	}
 	for field, fallback := range map[string]string{"publication": defaultPublication, "slot_name": defaultSlotName} {
 		value := cfg.String(field)
@@ -185,11 +185,11 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	poolCfg, err := pgxpool.ParseConfig(cfg.Secret("dsn"))
+	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("postgres source: parse dsn: %w", err)
+		return fmt.Errorf("postgres source: connection config: %w", err)
 	}
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	pool, err := pgxpool.NewWithConfig(ctx, resolved.Pool)
 	if err != nil {
 		return fmt.Errorf("postgres source: open pool: %w", err)
 	}
@@ -232,11 +232,12 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if cfg.Has("manage_publication") {
 		s.managePublication = cfg.Bool("manage_publication")
 	}
-	s.dsn = cfg.Secret("dsn")
-	poolCfg, err := pgxpool.ParseConfig(s.dsn)
+	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("postgres source: parse dsn: %w", err)
+		return fmt.Errorf("postgres source: connection config: %w", err)
 	}
+	s.dsn = resolved.DSN
+	poolCfg := resolved.Pool
 	if cfg.Has("max_conns") {
 		if n := cfg.Int("max_conns"); n > 0 && n <= math.MaxInt32 {
 			poolCfg.MaxConns = int32(n)

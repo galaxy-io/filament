@@ -1,8 +1,8 @@
 // Package pipeline implements the builder → writer → integrity extraction loop.
 //
 // A Source opens one filament.RowWriter per (resource, part) on the inlet and
-// appends rows into it. The writer is a batch.Builder that flushes a
-// filament.Batch on a row or byte threshold, or at the next row once the flush
+// appends rows into it. The writer is an arrowbatch.Builder that flushes an
+// owned arrowbatch.Batch on a row or byte threshold, or at the next row once the flush
 // timer has asked. A pool of writer goroutines hands each batch to the Sink: the
 // writer computes the read-side CRC and compares it against the Sink's write-side
 // CRC, publishing facts (batch buffered/written, integrity verified, chunk
@@ -16,8 +16,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/apache/arrow-go/v18/arrow/memory"
+
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -41,26 +44,30 @@ type Config struct {
 	FlushInterval time.Duration   // default 1s
 	Log           filament.Logger // optional
 	NextSeq       func() uint64
+	Allocator     memory.Allocator // optional; defaults to Arrow's allocator
 }
 
 // Pipeline owns the channel-based extraction loop. Construct with New, launch
 // with Start, feed via Records, signal end-of-input with CloseIngest, and block
 // for completion with Wait.
 type Pipeline struct {
-	tenant        filament.TenantID
-	run           filament.RunID
-	sink          filament.Sink
-	emit          func(events.Fact)
-	writePolicies map[string]filament.WritePolicy
-	opts          batch.Options
-	flushIvl      time.Duration
-	writers       int // concurrent sink writers
-	log           filament.Logger
+	tenant           filament.TenantID
+	run              filament.RunID
+	sink             filament.Sink
+	emit             func(events.Fact)
+	writePolicies    map[string]filament.WritePolicy
+	opts             arrowbatch.Options
+	flushIvl         time.Duration
+	writers          int // concurrent sink writers
+	log              filament.Logger
+	encodedIntegrity bool
 
-	batchCh chan filament.Batch
+	batchCh chan *arrowbatch.Batch
 
-	buildersMu sync.Mutex
-	builders   []*batch.Builder
+	registryMu sync.Mutex
+	schemas    map[string]registeredSchema
+	builders   map[partKey]*arrowbatch.Builder
+	alloc      memory.Allocator
 
 	nextSeq  func() uint64 // monotonic fact sequence for (tenant, run) dedup
 	pubMu    sync.Mutex    // serializes publish so concurrent writers emit facts safely
@@ -75,9 +82,13 @@ type Pipeline struct {
 
 // New builds a Pipeline from cfg, applying defaults. It does not start goroutines.
 func New(cfg Config) *Pipeline {
+	var sinkCapabilities filament.SinkCapabilities
+	if cfg.Sink != nil {
+		sinkCapabilities = cfg.Sink.Spec().Capabilities
+	}
 	rows := cfg.Options.BatchMaxRows
-	if rows <= 0 && cfg.Sink != nil {
-		rows = cfg.Sink.Spec().Capabilities.PreferredBatchRows
+	if rows <= 0 {
+		rows = sinkCapabilities.PreferredBatchRows
 	}
 	if rows <= 0 {
 		rows = defaultBatchRows
@@ -100,26 +111,30 @@ func New(cfg Config) *Pipeline {
 		nextSeq = func() uint64 { return seq.Add(1) }
 	}
 	return &Pipeline{
-		tenant:        cfg.Tenant,
-		run:           cfg.Run,
-		sink:          cfg.Sink,
-		emit:          emit,
-		writePolicies: cfg.WritePolicies,
-		opts:          batch.Options{MaxRows: rows, MaxBytes: cfg.Options.BatchMaxBytes},
-		flushIvl:      ivl,
-		writers:       writers,
-		log:           cfg.Log,
-		batchCh:       make(chan filament.Batch, 2*writers),
-		nextSeq:       nextSeq,
-		done:          make(chan struct{}),
-		tickStop:      make(chan struct{}),
-		tickDone:      make(chan struct{}),
+		tenant:           cfg.Tenant,
+		run:              cfg.Run,
+		sink:             cfg.Sink,
+		emit:             emit,
+		writePolicies:    cfg.WritePolicies,
+		opts:             arrowbatch.Options{MaxRows: rows, MaxBytes: cfg.Options.BatchMaxBytes},
+		flushIvl:         ivl,
+		writers:          writers,
+		log:              cfg.Log,
+		encodedIntegrity: sinkCapabilities.EncodedIntegrity,
+		batchCh:          make(chan *arrowbatch.Batch, 2*writers),
+		schemas:          make(map[string]registeredSchema),
+		builders:         make(map[partKey]*arrowbatch.Builder),
+		alloc:            cfg.Allocator,
+		nextSeq:          nextSeq,
+		done:             make(chan struct{}),
+		tickStop:         make(chan struct{}),
+		tickDone:         make(chan struct{}),
 	}
 }
 
 // Records returns the inlet a Source opens its row writers on. Safe to call
 // before Start.
-func (p *Pipeline) Records() filament.RecordSink { return &inlet{p: p} }
+func (p *Pipeline) Records() arrowbatch.Inlet { return &inlet{p: p} }
 
 // Start launches the flush timer and a pool of writer goroutines. The ctx governs
 // them; cancel it to stop the pipeline. With parallelism > 1 the Sink's Apply is
@@ -149,11 +164,11 @@ func (p *Pipeline) ticker(ctx context.Context) {
 	for {
 		select {
 		case <-t.C:
-			p.buildersMu.Lock()
+			p.registryMu.Lock()
 			for _, b := range p.builders {
 				b.RequestFlush()
 			}
-			p.buildersMu.Unlock()
+			p.registryMu.Unlock()
 		case <-p.tickStop:
 			return
 		case <-ctx.Done():
@@ -172,16 +187,27 @@ func (p *Pipeline) CloseIngest(extractErr error) {
 		<-p.tickDone
 	}
 	if extractErr == nil {
-		p.buildersMu.Lock()
-		builders := p.builders
-		p.buildersMu.Unlock()
+		p.registryMu.Lock()
+		builders := make([]*arrowbatch.Builder, 0, len(p.builders))
+		for _, builder := range p.builders {
+			builders = append(builders, builder)
+		}
+		p.registryMu.Unlock()
 		for _, b := range builders {
+			if b.Closed() {
+				continue
+			}
 			if err := b.Flush(); err != nil {
 				p.setErr(err)
 				break
 			}
 		}
 	}
+	p.registryMu.Lock()
+	for _, b := range p.builders {
+		_ = b.Close()
+	}
+	p.registryMu.Unlock()
 	close(p.batchCh)
 }
 

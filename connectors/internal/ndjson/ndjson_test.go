@@ -2,36 +2,37 @@ package ndjson
 
 import (
 	"encoding/json"
+	"hash/crc32"
 	"math"
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
-type collect struct{ chunks []batch.Chunk }
+type collect struct{ chunks []*arrowbatch.Batch }
 
-func (c *collect) Chunk(ch batch.Chunk) error          { c.chunks = append(c.chunks, ch); return nil }
-func (c *collect) Drained(filament.RowMeta, int) error { return nil }
+func (c *collect) Chunk(ch *arrowbatch.Batch) error { c.chunks = append(c.chunks, ch); return nil }
+func (c *collect) Drained(rowmodel.Meta, int) error { return nil }
 
 func TestAppendRow(t *testing.T) {
-	rs := filament.RecordSchema{Fields: []filament.SchemaField{
-		{Name: "id", Logical: filament.LogicalInt64},
-		{Name: "na\"me", Logical: filament.LogicalString, Nullable: true},
-		{Name: "doc", Logical: filament.LogicalJSON, Nullable: true},
-		{Name: "amt", Logical: filament.LogicalDecimal, Precision: 10, Scale: 2},
-		{Name: "f", Logical: filament.LogicalFloat64},
-		{Name: "raw", Logical: filament.LogicalBytes},
-		{Name: "d", Logical: filament.LogicalDate},
-		{Name: "at", Logical: filament.LogicalTimestampTZ},
-		{Name: "t", Logical: filament.LogicalTime},
-		{Name: "ok", Logical: filament.LogicalBool},
+	rs := rowmodel.Schema{Fields: []rowmodel.Field{
+		{Name: "id", Logical: rowmodel.LogicalInt64},
+		{Name: "na\"me", Logical: rowmodel.LogicalString, Nullable: true},
+		{Name: "doc", Logical: rowmodel.LogicalJSON, Nullable: true},
+		{Name: "amt", Logical: rowmodel.LogicalDecimal, Precision: 10, Scale: 2},
+		{Name: "f", Logical: rowmodel.LogicalFloat64},
+		{Name: "raw", Logical: rowmodel.LogicalBytes},
+		{Name: "d", Logical: rowmodel.LogicalDate},
+		{Name: "at", Logical: rowmodel.LogicalTimestampTZ},
+		{Name: "t", Logical: rowmodel.LogicalTime},
+		{Name: "ok", Logical: rowmodel.LogicalBool},
 	}}
-	schema := batch.Schema(rs)
+	schema := arrowbatch.Schema(rs)
 	c := &collect{}
-	b := batch.New(schema, batch.Options{MaxRows: 10}, c)
+	b := arrowbatch.NewBuilder(schema, nil, arrowbatch.Options{MaxRows: 10}, c)
 	b.Int64(7)
 	b.String("a\tbé\x01")
 	b.String(`{"k":[1,2]}`)
@@ -42,7 +43,7 @@ func TestAppendRow(t *testing.T) {
 	b.Timestamp(1704067200_000000 + 123456)
 	b.Time(3600_000000 + 5)
 	b.Bool(true)
-	if err := b.EndRow(filament.RowMeta{}); err != nil {
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
 		t.Fatal(err)
 	}
 	b.Int64(8)
@@ -55,13 +56,14 @@ func TestAppendRow(t *testing.T) {
 	b.Timestamp(0)
 	b.Time(0)
 	b.Bool(false)
-	if err := b.EndRow(filament.RowMeta{}); err != nil {
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Flush(); err != nil {
 		t.Fatal(err)
 	}
-	rows := c.chunks[0].Rows
+	defer c.chunks[0].Release()
+	rows := c.chunks[0].Rows()
 	enc := NewEncoder(schema)
 	got0 := string(enc.AppendRow(nil, rows, 0))
 	got1 := string(enc.AppendRow(nil, rows, 1))
@@ -77,5 +79,16 @@ func TestAppendRow(t *testing.T) {
 		if !json.Valid([]byte(line)) {
 			t.Errorf("invalid JSON: %s", line)
 		}
+	}
+	encoded, got := enc.AppendBatch(nil, rows)
+	if want := crc32.Checksum(encoded, crc32.MakeTable(crc32.Castagnoli)); got != want {
+		t.Fatalf("encoded CRC = %08x, want %08x", got, want)
+	}
+	encoded[len(encoded)-2] ^= 1
+	if mutated := Checksum(encoded); mutated == got {
+		t.Fatalf("mutated encoded CRC = %08x, unexpectedly matched %08x", mutated, got)
+	}
+	if _, err := VerifyChecksum(encoded, got); err == nil {
+		t.Fatal("VerifyChecksum accepted mutated output")
 	}
 }

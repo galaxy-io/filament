@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
 )
 
 // nullSink is a zero-I/O filament.Sink. It recomputes the write-side CRC exactly as a
@@ -23,11 +23,11 @@ func (nullSink) Open(context.Context, filament.RunSpec) error { return nil }
 func (nullSink) Commit(context.Context) error                 { return nil }
 func (nullSink) Abort(context.Context) error                  { return nil }
 
-func (nullSink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
+func (nullSink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 		return filament.WriteReceipt{}, err
 	}
-	return filament.WriteReceipt{WriteCRC: batch.CRC(b.Rows, b.Ops), Bytes: batch.Bytes(b.Rows), Rows: b.NumRows()}, nil
+	return filament.WriteReceipt{WriteCRC: b.IntegrityCRC(), Bytes: b.Bytes(), Rows: b.NumRows()}, nil
 }
 
 var benchSchema = filament.RecordSchema{Fields: []filament.SchemaField{

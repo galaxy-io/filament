@@ -26,7 +26,7 @@ The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnam
 
 ## Runtime configuration
 
-Filament requires a PostgreSQL DSN, a base64-encoded encryption key, and a NATS URL. Provide them either through `existingSecret` or through chart values so the chart can create the Secret.
+Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
 
 To use an existing Secret:
 
