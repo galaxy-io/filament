@@ -6,6 +6,8 @@ package mysql
 
 import (
 	"bytes"
+	"fmt"
+	"hash/crc32"
 	"io"
 	"strconv"
 	"strings"
@@ -26,6 +28,8 @@ type loadCol struct {
 	text valueFn
 }
 
+var loadCRCTable = crc32.MakeTable(crc32.Castagnoli)
+
 // newLoader prepares renderers for the Arrow columns idx of schema.
 func newLoader(schema *arrow.Schema, idx []int) *loader {
 	l := &loader{cols: make([]loadCol, len(idx))}
@@ -36,7 +40,7 @@ func newLoader(schema *arrow.Schema, idx []int) *loader {
 }
 
 // encode renders rows [lo, hi) as one payload.
-func (l *loader) encode(rows arrow.RecordBatch, lo, hi int) []byte {
+func (l *loader) encode(rows arrow.RecordBatch, lo, hi int) ([]byte, uint32) {
 	dst := make([]byte, 0, (hi-lo)*8*len(l.cols))
 	cols := rows.Columns()
 	for i := lo; i < hi; i++ {
@@ -53,7 +57,17 @@ func (l *loader) encode(rows arrow.RecordBatch, lo, hi int) []byte {
 		}
 		dst = append(dst, '\n')
 	}
-	return dst
+	return dst, crc32.Checksum(dst, loadCRCTable)
+}
+
+// verifyLoadChecksum rechecks the exact LOAD DATA payload immediately before
+// the transport write.
+func verifyLoadChecksum(payload []byte, expected uint32) error {
+	actual := crc32.Checksum(payload, loadCRCTable)
+	if actual != expected {
+		return fmt.Errorf("LOAD DATA serialization CRC divergence: encoded %08x, expected %08x", actual, expected)
+	}
+	return nil
 }
 
 // readerSeq numbers the payload readers, whose handler names are process-global.

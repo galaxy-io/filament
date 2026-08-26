@@ -15,38 +15,38 @@ import (
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/google/uuid"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // logicalToIceType maps a schema field to an Iceberg type.
-func logicalToIceType(f filament.SchemaField) iceberg.Type {
+func logicalToIceType(f rowmodel.Field) iceberg.Type {
 	switch f.Logical {
-	case filament.LogicalBool:
+	case rowmodel.LogicalBool:
 		return iceberg.PrimitiveTypes.Bool
-	case filament.LogicalInt16, filament.LogicalInt32:
+	case rowmodel.LogicalInt16, rowmodel.LogicalInt32:
 		return iceberg.PrimitiveTypes.Int32
-	case filament.LogicalInt64:
+	case rowmodel.LogicalInt64:
 		return iceberg.PrimitiveTypes.Int64
-	case filament.LogicalFloat32:
+	case rowmodel.LogicalFloat32:
 		return iceberg.PrimitiveTypes.Float32
-	case filament.LogicalFloat64:
+	case rowmodel.LogicalFloat64:
 		return iceberg.PrimitiveTypes.Float64
-	case filament.LogicalDecimal:
+	case rowmodel.LogicalDecimal:
 		if f.Precision > 0 {
 			return iceberg.DecimalTypeOf(f.Precision, f.Scale)
 		}
 		return iceberg.DecimalTypeOf(defaultDecimalPrec, defaultDecimalScale)
-	case filament.LogicalBytes:
+	case rowmodel.LogicalBytes:
 		return iceberg.PrimitiveTypes.Binary
-	case filament.LogicalDate:
+	case rowmodel.LogicalDate:
 		return iceberg.PrimitiveTypes.Date
-	case filament.LogicalTime:
+	case rowmodel.LogicalTime:
 		return iceberg.PrimitiveTypes.Time
-	case filament.LogicalTimestamp:
+	case rowmodel.LogicalTimestamp:
 		return iceberg.PrimitiveTypes.Timestamp
-	case filament.LogicalTimestampTZ:
+	case rowmodel.LogicalTimestampTZ:
 		return iceberg.PrimitiveTypes.TimestampTz
-	case filament.LogicalUUID:
+	case rowmodel.LogicalUUID:
 		return iceberg.PrimitiveTypes.UUID
 	default:
 		// string, json, array (native literal text), unknown

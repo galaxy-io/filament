@@ -12,44 +12,45 @@ import (
 	"strings"
 	"time"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/arrowtext"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // valueParser appends one field's raw JSON value into the writer.
-type valueParser func(w filament.RowWriter, raw json.RawMessage) error
+type valueParser func(w arrowbatch.RowWriter, raw json.RawMessage) error
 
 // typeFor picks a field's parser from its logical type.
-func typeFor(f filament.SchemaField) valueParser {
+func typeFor(f rowmodel.Field) valueParser {
 	switch f.Logical {
-	case filament.LogicalBool:
+	case rowmodel.LogicalBool:
 		return parseBool
-	case filament.LogicalInt16:
-		return parseInt(16, func(w filament.RowWriter, v int64) { w.Int16(int16(v)) }) //nolint:gosec // parsed at 16 bits
-	case filament.LogicalInt32:
-		return parseInt(32, func(w filament.RowWriter, v int64) { w.Int32(int32(v)) }) //nolint:gosec // parsed at 32 bits
-	case filament.LogicalInt64:
-		return parseInt(64, func(w filament.RowWriter, v int64) { w.Int64(v) })
-	case filament.LogicalFloat32:
-		return parseFloat(32, func(w filament.RowWriter, v float64) { w.Float32(float32(v)) })
-	case filament.LogicalFloat64:
-		return parseFloat(64, func(w filament.RowWriter, v float64) { w.Float64(v) })
-	case filament.LogicalDecimal: // a manifest declares no precision: the digits travel as text
+	case rowmodel.LogicalInt16:
+		return parseInt(16, func(w arrowbatch.RowWriter, v int64) { w.Int16(int16(v)) }) //nolint:gosec // parsed at 16 bits
+	case rowmodel.LogicalInt32:
+		return parseInt(32, func(w arrowbatch.RowWriter, v int64) { w.Int32(int32(v)) }) //nolint:gosec // parsed at 32 bits
+	case rowmodel.LogicalInt64:
+		return parseInt(64, func(w arrowbatch.RowWriter, v int64) { w.Int64(v) })
+	case rowmodel.LogicalFloat32:
+		return parseFloat(32, func(w arrowbatch.RowWriter, v float64) { w.Float32(float32(v)) })
+	case rowmodel.LogicalFloat64:
+		return parseFloat(64, func(w arrowbatch.RowWriter, v float64) { w.Float64(v) })
+	case rowmodel.LogicalDecimal: // a manifest declares no precision: the digits travel as text
 		return parseNumberText
-	case filament.LogicalJSON:
+	case rowmodel.LogicalJSON:
 		return parseJSON
-	case filament.LogicalDate:
+	case rowmodel.LogicalDate:
 		return parseDate
-	case filament.LogicalTime:
+	case rowmodel.LogicalTime:
 		return parseTime
-	case filament.LogicalTimestamp, filament.LogicalTimestampTZ:
+	case rowmodel.LogicalTimestamp, rowmodel.LogicalTimestampTZ:
 		return parseTimestamp
 	default: // string, uuid, unknown
 		return parseString
 	}
 }
 
-func parseBool(w filament.RowWriter, raw json.RawMessage) error {
+func parseBool(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	switch string(raw) {
 	case "true", `"true"`:
 		w.Bool(true)
@@ -73,8 +74,8 @@ func unquoted(raw json.RawMessage) (string, error) {
 	return string(raw), nil
 }
 
-func parseInt(bits int, set func(filament.RowWriter, int64)) valueParser {
-	return func(w filament.RowWriter, raw json.RawMessage) error {
+func parseInt(bits int, set func(arrowbatch.RowWriter, int64)) valueParser {
+	return func(w arrowbatch.RowWriter, raw json.RawMessage) error {
 		s, err := unquoted(raw)
 		if err != nil {
 			return err
@@ -93,8 +94,8 @@ func parseInt(bits int, set func(filament.RowWriter, int64)) valueParser {
 	}
 }
 
-func parseFloat(bits int, set func(filament.RowWriter, float64)) valueParser {
-	return func(w filament.RowWriter, raw json.RawMessage) error {
+func parseFloat(bits int, set func(arrowbatch.RowWriter, float64)) valueParser {
+	return func(w arrowbatch.RowWriter, raw json.RawMessage) error {
 		s, err := unquoted(raw)
 		if err != nil {
 			return err
@@ -111,7 +112,7 @@ func parseFloat(bits int, set func(filament.RowWriter, float64)) valueParser {
 // parseNumberText keeps an unbounded decimal as its digits. A JSON number in
 // exponent form (1e5) is spelled out, since the sinks' numeric parsers take
 // plain digits; at that point it is a float anyway.
-func parseNumberText(w filament.RowWriter, raw json.RawMessage) error {
+func parseNumberText(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	s, err := unquoted(raw)
 	if err != nil {
 		return err
@@ -127,7 +128,7 @@ func parseNumberText(w filament.RowWriter, raw json.RawMessage) error {
 	return nil
 }
 
-func parseString(w filament.RowWriter, raw json.RawMessage) error {
+func parseString(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	s, err := unquoted(raw)
 	if err != nil {
 		return err
@@ -137,17 +138,17 @@ func parseString(w filament.RowWriter, raw json.RawMessage) error {
 }
 
 // parseJSON keeps the value as JSON text (a JSON string stays quoted).
-func parseJSON(w filament.RowWriter, raw json.RawMessage) error {
+func parseJSON(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	w.StringBytes(bytes.TrimSpace(raw))
 	return nil
 }
 
-func parseDate(w filament.RowWriter, raw json.RawMessage) error {
+func parseDate(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	s, err := unquoted(raw)
 	if err != nil {
 		return err
 	}
-	days, rest, err := batch.ReadDate([]byte(s))
+	days, rest, err := arrowtext.ReadDate([]byte(s))
 	if err != nil || len(rest) != 0 {
 		return fmt.Errorf("%q is not a date", s)
 	}
@@ -155,12 +156,12 @@ func parseDate(w filament.RowWriter, raw json.RawMessage) error {
 	return nil
 }
 
-func parseTime(w filament.RowWriter, raw json.RawMessage) error {
+func parseTime(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	s, err := unquoted(raw)
 	if err != nil {
 		return err
 	}
-	us, rest, err := batch.ReadTimeOfDay([]byte(s))
+	us, rest, err := arrowtext.ReadTimeOfDay([]byte(s))
 	if err != nil || len(rest) != 0 {
 		return fmt.Errorf("%q is not a time", s)
 	}
@@ -180,7 +181,7 @@ var timestampLayouts = []string{
 // parseTimestamp reads an ISO 8601 / RFC 3339 instant (or a Unix epoch number,
 // seconds or milliseconds, integer or fractional) as microseconds since the
 // epoch, UTC.
-func parseTimestamp(w filament.RowWriter, raw json.RawMessage) error {
+func parseTimestamp(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	if len(raw) > 0 && raw[0] != '"' {
 		f, err := strconv.ParseFloat(string(raw), 64)
 		if err != nil {

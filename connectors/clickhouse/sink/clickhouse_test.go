@@ -12,7 +12,8 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
@@ -29,18 +30,34 @@ func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
 			t.Fatalf("policy %d mode = %q, want %q", i, policy.Mode, want[i])
 		}
 	}
-	if spec.Version != "1" {
+	if spec.Version != "2" {
 		t.Fatalf("version = %q, want 2", spec.Version)
 	}
 	fields := make(map[string]filament.ConfigField, len(spec.Config.Fields))
 	for _, field := range spec.Config.Fields {
 		fields[field.Name] = field
 	}
-	if _, ok := fields["dsn"]; ok {
-		t.Fatal("spec still exposes removed dsn field")
+	if got := fields["connection_method"].Default; got != "fields" {
+		t.Fatalf("connection_method default = %v, want fields", got)
+	}
+	if fields["dsn"].Type != filament.FieldSecret || !fields["dsn"].Required {
+		t.Fatalf("unexpected dsn field: %+v", fields["dsn"])
 	}
 	if !fields["host"].Required || fields["password"].Type != filament.FieldSecret || !fields["password"].Required {
 		t.Fatalf("unexpected connection fields: %+v", fields)
+	}
+}
+
+func TestConnectionOptionsFromDSN(t *testing.T) {
+	opts, err := connectionOptions(filament.NewConfig(map[string]any{
+		"connection_method": "url",
+		"dsn":               "clickhouse://loader:secret@localhost:9000/analytics?secure=false",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(opts.Addr) != 1 || opts.Addr[0] != "localhost:9000" || opts.Auth.Username != "loader" || opts.Auth.Password != "secret" || opts.Auth.Database != "analytics" {
+		t.Fatalf("options = %#v", opts)
 	}
 }
 
@@ -223,10 +240,10 @@ func TestCreateTableDDLRejectsUnsafeCursorVersion(t *testing.T) {
 	}
 }
 
-type collect struct{ chunks []batch.Chunk }
+type collect struct{ chunks []*arrowbatch.Batch }
 
-func (c *collect) Chunk(ch batch.Chunk) error          { c.chunks = append(c.chunks, ch); return nil }
-func (c *collect) Drained(filament.RowMeta, int) error { return nil }
+func (c *collect) Chunk(ch *arrowbatch.Batch) error { c.chunks = append(c.chunks, ch); return nil }
+func (c *collect) Drained(rowmodel.Meta, int) error { return nil }
 
 func TestValuesPreserveTypes(t *testing.T) {
 	rs := filament.RecordSchema{Fields: []filament.SchemaField{
@@ -242,9 +259,9 @@ func TestValuesPreserveTypes(t *testing.T) {
 		{Name: "tz", Logical: filament.LogicalTimestampTZ},
 		{Name: "optional", Logical: filament.LogicalString, Nullable: true},
 	}}
-	schema := batch.Schema(rs)
+	schema := arrowbatch.Schema(rs)
 	c := &collect{}
-	b := batch.New(schema, batch.Options{MaxRows: 4}, c)
+	b := arrowbatch.NewBuilder(schema, nil, arrowbatch.Options{MaxRows: 4}, c)
 	b.Int64(9223372036854775806)
 	b.String("Ada")
 	b.Bool(true)
@@ -256,13 +273,14 @@ func TestValuesPreserveTypes(t *testing.T) {
 	b.Timestamp(1704067200_000000)
 	b.Timestamp(1704067200_000000)
 	b.Null()
-	if err := b.EndRow(filament.RowMeta{}); err != nil {
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
 		t.Fatal(err)
 	}
 	if err := b.Flush(); err != nil {
 		t.Fatal(err)
 	}
-	rows := c.chunks[0].Rows
+	defer c.chunks[0].Release()
+	rows := c.chunks[0].Rows()
 	values := make([]any, rows.NumCols())
 	for i, f := range schema.Fields() {
 		if rows.Column(i).IsNull(0) {
@@ -340,7 +358,9 @@ func TestApplyRejectsPolicyDifferentFromOpenedMode(t *testing.T) {
 	sink.policies = map[string]filament.WritePolicy{
 		"": {Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend}},
 	}
-	_, err := sink.Apply(context.Background(), filament.Batch{}, filament.ApplyOptions{
+	b := arrowbatch.NewMarker()
+	defer b.Release()
+	_, err := sink.Apply(context.Background(), b, filament.ApplyOptions{
 		Policy: filament.WritePolicy{Capability: filament.WritePolicyCapability{Mode: filament.WriteUpsert}},
 	})
 	if err == nil || !strings.Contains(err.Error(), "does not match") {

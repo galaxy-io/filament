@@ -18,16 +18,19 @@ package mysql
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"math"
+	"net"
 	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/go-sql-driver/mysql"
-
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const (
@@ -61,6 +64,7 @@ type Source struct {
 	binlogPort uint16
 	binlogUser string
 	binlogPass string
+	binlogTLS  *tls.Config
 }
 
 // New returns an unconfigured source.
@@ -95,7 +99,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		Description:  "Widely-used open-source relational database known for speed, reliability, and ease of use.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
-		Version:      "1",
+		Version:      "2",
 		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionFullReplace,
@@ -103,8 +107,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionFullAppend,
 			filament.IngestionCDC,
 		),
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "MySQL connection string (user:pass@tcp(host:port)/dbname)"},
+		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
 			{Name: "replication", Type: filament.FieldEnum, Default: string(filament.ReplicationStandard), Enum: []filament.EnumOption{
 				{Value: string(filament.ReplicationStandard), Label: "Standard"},
 				{Value: string(filament.ReplicationCDC), Label: "Change Data Capture (CDC)"},
@@ -114,7 +117,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "InnoDB pages per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
 			{Name: "server_id", Type: filament.FieldInt, Default: defaultServerID, Scope: filament.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
-		}},
+		}...)},
 		Resources: filament.ResourceCapabilities{Discoverable: true},
 	}
 }
@@ -127,20 +130,14 @@ func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
 	return filament.ReplicationStandard
 }
 
-// Validate rejects a config missing the connection string or one whose DSN names no
-// database when "database" is also unset.
+// Validate rejects an invalid DSN or incomplete individual connection fields.
 func (s *Source) Validate(cfg filament.Config) error {
-	if cfg.String("dsn") == "" {
-		return fmt.Errorf("mysql source: dsn is required")
+	mc, err := mysqlconnection.Resolve(cfg)
+	if err != nil {
+		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
-	if cfg.String("database") == "" {
-		mc, err := mysql.ParseDSN(cfg.Secret("dsn"))
-		if err != nil {
-			return fmt.Errorf("mysql source: parse dsn: %w", err)
-		}
-		if mc.DBName == "" {
-			return fmt.Errorf("mysql source: dsn has no database and \"database\" is unset")
-		}
+	if cfg.String("database") == "" && mc.DBName == "" {
+		return fmt.Errorf("mysql source: connection has no database and \"database\" is unset")
 	}
 	return nil
 }
@@ -150,9 +147,9 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	mc, err := mysql.ParseDSN(cfg.Secret("dsn"))
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql source: parse dsn: %w", err)
+		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
 	if database := cfg.String("database"); database != "" {
 		mc.DBName = database
@@ -175,9 +172,9 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	mc, err := mysql.ParseDSN(cfg.Secret("dsn"))
+	mc, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("mysql source: parse dsn: %w", err)
+		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
 	s.database = mc.DBName
 	if v := cfg.String("database"); v != "" {
@@ -199,9 +196,20 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 			s.serverID = uint32(n)
 		}
 	}
-	host, port := splitHostPort(mc.Addr)
-	s.binlogHost, s.binlogPort = host, port
+	if mc.Net == "tcp" {
+		host, port, err := splitHostPort(mc.Addr)
+		if err != nil {
+			return fmt.Errorf("mysql source: replication address: %w", err)
+		}
+		s.binlogHost, s.binlogPort = host, port
+	} else if s.Replication(cfg) == filament.ReplicationCDC {
+		return fmt.Errorf("mysql source: CDC requires a TCP connection, got network %q", mc.Net)
+	}
 	s.binlogUser, s.binlogPass = mc.User, mc.Passwd
+	s.binlogTLS = nil
+	if mc.TLS != nil {
+		s.binlogTLS = mc.TLS.Clone()
+	}
 
 	// Timestamp columns are read as text in the session zone; pin it so they
 	// decode as UTC, the same instant the binlog reports.
@@ -279,7 +287,7 @@ ORDER BY t.TABLE_NAME`
 // the sink. With Parallelism > 1 the shards are read concurrently (bounded by
 // Parallelism), each inside its own consistent-snapshot transaction; paging within a
 // shard stays sequential. The first shard error cancels the rest and is returned.
-func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts) error {
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		tjobs, err := s.tableJobs(ctx, sink, table, nil, opts.Limit)
@@ -294,7 +302,7 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 // tableJobs plans one table into its shard read jobs: a fresh keyset plan for a keyed
 // table, or a single streaming full scan for a keyless one. prev seeds each keyset
 // shard's cursor when resuming.
-func (s *Source) tableJobs(ctx context.Context, sink filament.RecordSink, table string, ks *keysetPlan, limit int) ([]func(context.Context, querier) error, error) {
+func (s *Source) tableJobs(ctx context.Context, sink arrowbatch.Inlet, table string, ks *keysetPlan, limit int) ([]func(context.Context, querier) error, error) {
 	dec, err := s.decoderFor(ctx, table)
 	if err != nil {
 		return nil, err
@@ -330,7 +338,7 @@ func (s *Source) tableJobs(ctx context.Context, sink filament.RecordSink, table 
 
 // extractKeyless streams a keyless table in one pass. There is no stable key to page
 // or resume by, so the whole table is read in a single query.
-func (s *Source) extractKeyless(ctx context.Context, sink filament.RecordSink, q querier, table, qualified string, dec *rowDecoder, limit int) error {
+func (s *Source) extractKeyless(ctx context.Context, sink arrowbatch.Inlet, q querier, table, qualified string, dec *rowDecoder, limit int) error {
 	w, err := sink.Builder(table, 0, dec.schema)
 	if err != nil {
 		return err
@@ -347,7 +355,7 @@ func (s *Source) extractKeyless(ctx context.Context, sink filament.RecordSink, q
 // rowDecoder appends one scanned row's text-protocol values into a RowWriter.
 // Built once per table, shared read-only by its shards.
 type rowDecoder struct {
-	schema     filament.RecordSchema
+	schema     rowmodel.Schema
 	selectList string
 	types      []mysqlType
 	pks        []pkColumn
@@ -366,7 +374,7 @@ func (s *Source) decoderFor(ctx context.Context, table string) (*rowDecoder, err
 // the parser for each column.
 func newRowDecoder(table string, cols []column, pks []pkColumn) *rowDecoder {
 	d := &rowDecoder{
-		schema: filament.RecordSchema{Resource: table, PrimaryKey: pkNames(pks), Engine: engine},
+		schema: rowmodel.Schema{Resource: table, PrimaryKey: pkNames(pks), Engine: engine},
 		types:  make([]mysqlType, len(cols)),
 		pks:    pks,
 	}
@@ -374,7 +382,7 @@ func newRowDecoder(table string, cols []column, pks []pkColumn) *rowDecoder {
 	for i, c := range cols {
 		t := typeFor(c.dataType, c.fullType)
 		parts[i], d.types[i] = "t."+quoteIdent(c.name), t
-		d.schema.Fields = append(d.schema.Fields, filament.SchemaField{
+		d.schema.Fields = append(d.schema.Fields, rowmodel.Field{
 			Name: c.name, Nullable: c.nullable, Logical: t.logical, Native: c.fullType, Precision: t.precision, Scale: t.scale,
 		})
 	}
@@ -387,7 +395,7 @@ func newRowDecoder(table string, cols []column, pks []pkColumn) *rowDecoder {
 func (d *rowDecoder) indexOf(names []string) ([]int, error) {
 	idx := make([]int, len(names))
 	for n, name := range names {
-		idx[n] = slices.IndexFunc(d.schema.Fields, func(f filament.SchemaField) bool { return f.Name == name })
+		idx[n] = slices.IndexFunc(d.schema.Fields, func(f rowmodel.Field) bool { return f.Name == name })
 		if idx[n] < 0 {
 			return nil, fmt.Errorf("column %q not in table %q", name, d.schema.Resource)
 		}
@@ -400,7 +408,7 @@ func (d *rowDecoder) indexOf(names []string) ([]int, error) {
 // values); binary columns arrive as their raw bytes. keyIdx names the columns
 // whose text becomes each row's RowMeta.Key (nil for a keyless read). limit > 0
 // stops after that many rows. Returns the rows appended and the last row's key.
-func (d *rowDecoder) appendRows(rows *sql.Rows, w filament.RowWriter, keyIdx []int, limit int) (int, []string, error) {
+func (d *rowDecoder) appendRows(rows *sql.Rows, w arrowbatch.RowWriter, keyIdx []int, limit int) (int, []string, error) {
 	raw := make([]sql.RawBytes, len(d.types))
 	dest := make([]any, len(raw))
 	for i := range raw {
@@ -421,7 +429,7 @@ func (d *rowDecoder) appendRows(rows *sql.Rows, w filament.RowWriter, keyIdx []i
 				return n, last, fmt.Errorf("column %q: %w", d.schema.Fields[i].Name, err)
 			}
 		}
-		var meta filament.RowMeta
+		var meta rowmodel.Meta
 		if keyIdx != nil {
 			meta.Key = make([]string, len(keyIdx))
 			for k, i := range keyIdx {
@@ -514,26 +522,26 @@ func quoteIdent(s string) string {
 
 // splitHostPort splits a go-sql-driver Addr ("host:port", port optional) for the
 // replication client.
-func splitHostPort(addr string) (string, uint16) {
-	host, portStr, ok := strings.Cut(addr, ":")
-	if !ok {
-		return addr, 3306
+func splitHostPort(addr string) (string, uint16, error) {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", 0, fmt.Errorf("split %q: %w", addr, err)
 	}
 	n, err := strconv.ParseUint(portStr, 10, 16)
-	if err != nil {
-		return host, 3306
+	if err != nil || n == 0 {
+		return "", 0, fmt.Errorf("invalid port in %q", addr)
 	}
-	return host, uint16(n)
+	return host, uint16(n), nil
 }
 
 // Schema returns the column schema of one table (COLUMN_TYPE kept verbatim in
 // Native for a same-engine round trip, classified into a LogicalType) plus the
 // primary key. It implements filament.SchemaProvider so a Schematized sink can
 // build matching typed tables.
-func (s *Source) Schema(ctx context.Context, resource string) (filament.RecordSchema, error) {
+func (s *Source) Schema(ctx context.Context, resource string) (rowmodel.Schema, error) {
 	cols, pks, err := s.tableMeta(ctx, resource)
 	if err != nil {
-		return filament.RecordSchema{}, err
+		return rowmodel.Schema{}, err
 	}
 	return newRowDecoder(resource, cols, pks).schema, nil
 }
@@ -547,5 +555,6 @@ func (s *Source) Teardown(context.Context) error {
 		_ = s.db.Close()
 		s.db = nil
 	}
+	s.binlogTLS = nil
 	return nil
 }

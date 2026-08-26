@@ -58,6 +58,7 @@ export const mapEdgesToStyledEdges = (
   edges: CanvasEdge[],
   nodes: CanvasNode[],
   theme: Theme,
+  isRunning: boolean,
 ): CanvasEdge[] => {
   const selectedNodeIds = new Set(nodes.filter((node) => node.selected).map((node) => node.id));
 
@@ -69,9 +70,12 @@ export const mapEdgesToStyledEdges = (
     return {
       ...edge,
       zIndex: PIPELINE_CANVAS_EDGE_Z_INDEX,
+      animated: isRunning,
       style: {
-        stroke: isHighlighted ? theme.color.background.galaxy : theme.color.border.primary,
+        stroke:
+          isRunning || isHighlighted ? theme.color.background.galaxy : theme.color.border.primary,
         strokeWidth: edge.selected ? 3 : 2,
+        ...(isRunning && { strokeDasharray: "5 5" }),
       },
     };
   });

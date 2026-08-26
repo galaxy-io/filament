@@ -23,6 +23,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
+import type { WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import {
@@ -57,6 +58,7 @@ import {
   PIPELINE_NAVBAR_HEIGHT,
   PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
 } from "@/pages/pipelines/layout/constants";
+import PipelineLayoutNavbarRunButton from "@/pages/pipelines/layout/PipelineLayoutNavbarRunButton";
 import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
@@ -211,8 +213,8 @@ const PipelineLayoutNavbar = () => {
     });
   };
 
-  const handleRun = () => {
-    runPipeline(create(RunPipelineRequestSchema, { pipelineId: id }), {
+  const handleRun = (workerConfiguration?: WorkerConfiguration) => {
+    runPipeline(create(RunPipelineRequestSchema, { pipelineId: id, workerConfiguration }), {
       onSuccess: () => {
         showActivity();
         showToast({
@@ -303,22 +305,13 @@ const PipelineLayoutNavbar = () => {
             <>
               <PipelineScheduleChip pipelineId={id} />
               {!activeRun ? (
-                <Tooltip
-                  body={runErrors.join("\n")}
-                  position={TooltipPosition.BOTTOM}
-                  isDisabled={runErrors.length === 0}
-                >
-                  <Button
-                    label="Run"
-                    icon={PlayIcon}
-                    variant={ButtonVariant.PRIMARY}
-                    size={ButtonSize.SMALL}
-                    isLoading={isRunning || isValidating}
-                    isDisabled={!isPipelineRunnable(currentVersion) || runErrors.length > 0}
-                    onClick={handleRun}
-                    isIconFilled
-                  />
-                </Tooltip>
+                <PipelineLayoutNavbarRunButton
+                  workerConfiguration={pipeline?.workerConfiguration}
+                  runErrors={runErrors}
+                  isRunnable={isPipelineRunnable(currentVersion)}
+                  isRunning={isRunning || isValidating}
+                  onRun={handleRun}
+                />
               ) : (
                 <>
                   <PipelineHistoryRunStatus status={activeRun.status} />

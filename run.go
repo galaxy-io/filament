@@ -2,15 +2,22 @@ package filament
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"time"
+
+	"github.com/galaxy-io/filament/arrowbatch"
 )
 
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Tenant            TenantID
-	Run               RunID
+	Tenant TenantID
+	Run    RunID
+	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
+	// derive it from the run.requested fact so redelivery is idempotent while a
+	// later resume creates fresh worker infrastructure.
+	ExecutionID       string
 	PipelineID        string
 	PipelineVersionID string
 	CheckpointRoute   string
@@ -22,7 +29,6 @@ type RunSpec struct {
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
-	Checkpoint     *CheckpointData
 	Options        RunOptions
 	WritePolicies  map[string]WritePolicy
 	// WorkerConfiguration is the already-resolved worker shape for this run: the
@@ -123,52 +129,76 @@ type RunOptions struct {
 // RunOptions.CheckpointEvery is unset.
 const DefaultCheckpointEvery = 25
 
-// WorkerResources sizes the worker that executes a run, as Kubernetes quantity
-// strings ("500m", "2Gi"). Empty means unset: the field is left off the Job so
-// a namespace LimitRange can supply it. Only the Kubernetes dispatcher reads
-// them; in-process execution ignores them entirely.
+// WorkerResources sizes the worker that executes a run, shaped like a
+// Kubernetes ResourceRequirements: resource name ("cpu", "memory") to quantity
+// string ("500m", "2Gi"). A missing key is left off the Job so a namespace
+// LimitRange can supply it. Only the Kubernetes dispatcher reads them;
+// in-process execution ignores them entirely.
 type WorkerResources struct {
-	CPURequest    string
-	CPULimit      string
-	MemoryRequest string
-	MemoryLimit   string
+	Requests map[string]string
+	Limits   map[string]string
 }
 
 // IsZero reports whether nothing is set.
-func (w WorkerResources) IsZero() bool { return w == WorkerResources{} }
+func (w WorkerResources) IsZero() bool { return len(w.Requests) == 0 && len(w.Limits) == 0 }
 
-// WorkerConfiguration is how a run's worker is shaped: resources today,
-// placement later. It travels as a whole so adding a knob does not change every
+// Merge overlays w's keys onto base, per map, and returns the result. This is
+// how a per-run override folds over a pipeline's configured default:
+// overriding memory alone leaves the pipeline's CPU in place.
+func (w WorkerResources) Merge(base WorkerResources) WorkerResources {
+	return WorkerResources{
+		Requests: mergeStringMaps(w.Requests, base.Requests),
+		Limits:   mergeStringMaps(w.Limits, base.Limits),
+	}
+}
+
+func mergeStringMaps(over, base map[string]string) map[string]string {
+	if len(over) == 0 && len(base) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(base)+len(over))
+	maps.Copy(out, base)
+	maps.Copy(out, over)
+	return out
+}
+
+// WorkerToleration mirrors a Kubernetes toleration verbatim: Operator is
+// "Equal" (the default when empty) or "Exists"; Effect is "NoSchedule",
+// "PreferNoSchedule", "NoExecute", or empty to match every effect.
+type WorkerToleration struct {
+	Key      string
+	Operator string
+	Value    string
+	Effect   string
+}
+
+// WorkerConfiguration is how a run's worker is shaped, a subset of a Kubernetes
+// pod spec. It travels as a whole so adding a knob does not change every
 // signature that carries it.
 type WorkerConfiguration struct {
-	Resources WorkerResources
+	Resources    WorkerResources
+	NodeSelector map[string]string
+	Tolerations  []WorkerToleration
 }
 
 // IsZero reports whether nothing is set.
-func (w WorkerConfiguration) IsZero() bool { return w == WorkerConfiguration{} }
-
-// Merge overlays w's set fields onto base and returns the result, delegating to
-// each member's own merge so an override touches only what it names.
-func (w WorkerConfiguration) Merge(base WorkerConfiguration) WorkerConfiguration {
-	return WorkerConfiguration{Resources: w.Resources.Merge(base.Resources)}
+func (w WorkerConfiguration) IsZero() bool {
+	return w.Resources.IsZero() && len(w.NodeSelector) == 0 && len(w.Tolerations) == 0
 }
 
-// Merge overlays w's non-empty fields onto base, field by field, and returns
-// the result. This is how a per-run override folds over a pipeline's configured
-// default: overriding memory alone leaves the pipeline's CPU in place.
-func (w WorkerResources) Merge(base WorkerResources) WorkerResources {
-	out := base
-	if w.CPURequest != "" {
-		out.CPURequest = w.CPURequest
+// Merge overlays w onto base and returns the result. Resources merge per key;
+// node selector and tolerations replace wholesale when set, since merging
+// selector keys from two sources would produce a node set neither author asked
+// for.
+func (w WorkerConfiguration) Merge(base WorkerConfiguration) WorkerConfiguration {
+	out := WorkerConfiguration{
+		Resources:    w.Resources.Merge(base.Resources),
+		NodeSelector: base.NodeSelector,
+		Tolerations:  base.Tolerations,
 	}
-	if w.CPULimit != "" {
-		out.CPULimit = w.CPULimit
-	}
-	if w.MemoryRequest != "" {
-		out.MemoryRequest = w.MemoryRequest
-	}
-	if w.MemoryLimit != "" {
-		out.MemoryLimit = w.MemoryLimit
+	if len(w.NodeSelector) > 0 || len(w.Tolerations) > 0 {
+		out.NodeSelector = w.NodeSelector
+		out.Tolerations = w.Tolerations
 	}
 	return out
 }
@@ -237,15 +267,14 @@ type RunResult struct {
 
 // ResourceState is one resource's persisted progress within a run.
 type ResourceState struct {
-	Run        RunID // owning run — the key a DataStore files this under
-	Tenant     TenantID
-	Resource   string
-	Enabled    bool
-	Status     RunStatus
-	Records    int64
-	Bytes      int64
-	Checkpoint *CheckpointData
-	Error      string
+	Run      RunID // owning run — the key a DataStore files this under
+	Tenant   TenantID
+	Resource string
+	Enabled  bool
+	Status   RunStatus
+	Records  int64
+	Bytes    int64
+	Error    string
 }
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
@@ -255,13 +284,16 @@ type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string
 	PipelineVersionID *string
-	Source            string
 	Status            []RunStatus
 	Schedule          ScheduleID
 	Since             time.Time
 	Until             time.Time
-	Limit             int
-	Offset            int
+	// UpdatedBefore matches runs whose last write is older than it — the
+	// staleness probe: heartbeat folds bump UpdatedAt, so a Running run that
+	// stops updating has lost its worker.
+	UpdatedBefore time.Time
+	Limit         int
+	Offset        int
 }
 
 // SyncSnapshot is a consistent read of a run and its resources at bus
@@ -422,6 +454,21 @@ const (
 	CheckpointAfterCommit CheckpointPolicy = "after_commit"
 )
 
+// WriteDurability identifies the sink operation after which an acknowledged
+// Apply is recoverable. It is distinct from visibility/atomicity: a sink may
+// make one resource visible at a time while still buffering every Apply until
+// the run's Commit call.
+type WriteDurability string
+
+const (
+	// DurabilityAfterApply means a successful Apply is recoverable without the
+	// run's Commit call.
+	DurabilityAfterApply WriteDurability = "after_apply"
+	// DurabilityAfterCommit means Apply only stages data and checkpoints must
+	// remain tentative until Commit succeeds.
+	DurabilityAfterCommit WriteDurability = "after_commit"
+)
+
 // WritePolicyCapability is what a sink must support to serve a write mode:
 // key/order requirements, accepted operations, and atomicity.
 type WritePolicyCapability struct {
@@ -430,6 +477,7 @@ type WritePolicyCapability struct {
 	RequiresOrder bool
 	AcceptsOps    []Operation
 	Atomicity     WriteAtomicity
+	Durability    WriteDurability
 }
 
 // VersionStrategy selects the ordering value an insert-based upsert sink uses
@@ -495,6 +543,21 @@ func (p WritePolicy) ValidateOps(resource string, ops []Operation) error {
 	return nil
 }
 
+// ValidateBatch rejects the first row whose immutable batch operation the
+// policy does not accept.
+func (p WritePolicy) ValidateBatch(resource string, batch *arrowbatch.Batch) error {
+	if len(p.Capability.AcceptsOps) == 0 {
+		return nil
+	}
+	for i := range batch.NumRows() {
+		op := batch.Op(i)
+		if !p.Capability.Accepts(op) {
+			return fmt.Errorf("write policy %q does not accept %s row for resource %q", p.Capability.Mode, OperationName(op), resource)
+		}
+	}
+	return nil
+}
+
 // OperationName renders an Operation for error messages and logs.
 func OperationName(op Operation) string {
 	switch op {
@@ -531,6 +594,7 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	capability := WritePolicyCapability{
 		AcceptsOps: []Operation{OpInsert},
 		Atomicity:  AtomicityBatch,
+		Durability: DurabilityAfterApply,
 	}
 	checkpoint := CheckpointNone
 
@@ -603,5 +667,46 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			EmitsOps:      []Operation{OpInsert},
 			Checkpointing: CheckpointNone,
 		}
+	}
+}
+
+// CheckpointCoverage describes whether none, some, or all selected resources
+// can resume from a durable source cursor.
+type CheckpointCoverage uint8
+
+const (
+	// CheckpointCoverageNone means no selected resource has a resumable cursor.
+	CheckpointCoverageNone CheckpointCoverage = iota
+	// CheckpointCoverageSome means only some selected resources have resumable cursors.
+	CheckpointCoverageSome
+	// CheckpointCoverageAll means every selected resource has a resumable cursor.
+	CheckpointCoverageAll
+)
+
+// CheckpointCoverageFor returns the read-side checkpoint coverage for a run.
+func CheckpointCoverageFor(resources []string, types map[string]IngestionType) CheckpointCoverage {
+	total, checkpointed := 0, 0
+	if len(resources) > 0 {
+		for _, resource := range resources {
+			total++
+			if SourcePolicyForIngestion(TypeFor(types, resource)).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	} else {
+		for _, ingestionType := range types {
+			total++
+			if SourcePolicyForIngestion(ingestionType).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	}
+	switch checkpointed {
+	case 0:
+		return CheckpointCoverageNone
+	case total:
+		return CheckpointCoverageAll
+	default:
+		return CheckpointCoverageSome
 	}
 }

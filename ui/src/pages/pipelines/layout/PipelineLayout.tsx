@@ -12,8 +12,8 @@ import {
   PIPELINE_PREVIEW_CHIP_Z_INDEX,
   PIPELINE_SIDEBAR_WIDTH,
 } from "@/pages/pipelines/layout/constants";
-import PipelineLayoutBackButton from "@/pages/pipelines/layout/PipelineLayoutBackButton";
 import PipelineLayoutNavbar from "@/pages/pipelines/layout/PipelineLayoutNavbar";
+import PipelineLayoutNavbarBackButton from "@/pages/pipelines/layout/PipelineLayoutNavbarBackButton";
 import PipelineLayoutSidebar from "@/pages/pipelines/layout/PipelineLayoutSidebar";
 import { PipelineSidebarItem } from "@/pages/pipelines/layout/types";
 
@@ -116,7 +116,7 @@ const PipelineLayout = ({ children }: PropsWithChildren) => {
   return (
     <LayoutWrapper>
       <LeftColumn>
-        <PipelineLayoutBackButton />
+        <PipelineLayoutNavbarBackButton />
         <PipelineLayoutSidebar activeItem={getActiveItem()} onItemClick={handleItemClick} />
       </LeftColumn>
       <RightColumn>

@@ -9,6 +9,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/datastore/memory"
 	"github.com/galaxy-io/filament/registry"
 )
@@ -96,7 +97,7 @@ func (leverSink) Commit(context.Context) error                 { return nil }
 func (leverSink) Abort(context.Context) error                  { return nil }
 func (leverSink) Name() string                                 { return "leversink" }
 
-func (leverSink) Apply(context.Context, filament.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (leverSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
 	return filament.WriteReceipt{}, nil
 }
 

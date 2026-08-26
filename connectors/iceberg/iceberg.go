@@ -28,7 +28,8 @@ import (
 	_ "github.com/apache/iceberg-go/io/gocloud"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const (
@@ -114,7 +115,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Capabilities: filament.SinkCapabilities{
 			Transactional: true,
 			Schematized:   true,
-			WritePolicies: filament.WriteCapabilities(
+			WritePolicies: commitDurableCapabilities(
 				filament.IngestionFullReplace,
 				filament.IngestionFullAppend,
 				filament.IngestionFullUpsert,
@@ -124,6 +125,15 @@ func (s *Sink) Spec() filament.SinkSpec {
 			),
 		},
 	}
+}
+
+func commitDurableCapabilities(types ...filament.IngestionType) []filament.WritePolicyCapability {
+	capabilities := filament.WriteCapabilities(types...)
+	for i := range capabilities {
+		capabilities[i].Durability = filament.DurabilityAfterCommit
+		capabilities[i].Atomicity = filament.AtomicityResource
+	}
+	return capabilities
 }
 
 // Name identifies this sink implementation.
@@ -183,7 +193,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 
 // EnsureSchema creates the Iceberg table if absent, or evolves it by adding any
 // columns not yet present.
-func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
+func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	s.mu.Lock()
 	cat := s.cat
 	s.mu.Unlock()
@@ -251,7 +261,7 @@ func (s *Sink) Stage(_ context.Context) (filament.StageID, error) {
 
 // Apply validates the batch against the run's write policy and buffers it
 // for the resource's table, retaining its rows until commit (or spilling them).
-func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *Sink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]
 	if it == nil {
@@ -269,10 +279,10 @@ func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOpt
 	st := s.activeStageLocked()
 	s.mu.Unlock()
 
-	if err := policy.ValidateOps(b.Resource, b.Ops); err != nil {
+	if err := policy.ValidateBatch(b.Resource, b); err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: %w", err)
 	}
-	nbytes := batch.Bytes(b.Rows)
+	nbytes := arrowbatch.Bytes(b.Rows())
 
 	st.mu.Lock()
 	rb := st.buf[b.Resource]
@@ -284,7 +294,7 @@ func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOpt
 		st.mu.Unlock()
 		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
 	}
-	if err := rb.append(b.Rows, b.Ops, nbytes); err != nil {
+	if err := rb.append(b, nbytes); err != nil {
 		st.mu.Unlock()
 		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
 	}
@@ -294,7 +304,7 @@ func (s *Sink) Apply(_ context.Context, b filament.Batch, opts filament.ApplyOpt
 		URI:      it.tbl.Location(),
 		Bytes:    nbytes,
 		Rows:     b.NumRows(),
-		WriteCRC: batch.CRC(b.Rows, b.Ops),
+		WriteCRC: b.IntegrityCRC(),
 	}, nil
 }
 

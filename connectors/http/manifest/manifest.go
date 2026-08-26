@@ -10,6 +10,10 @@
 //
 //	version: 1
 //	name: notion
+//	display_name: Notion
+//	description: Workspace knowledge and collaboration
+//	dark_logo_url: https://cdn.example.com/notion-dark.svg
+//	light_logo_url: https://cdn.example.com/notion-light.svg
 //	connection:
 //	  base_url: https://api.notion.com/v1
 //	  auth: { type: bearer, token: "{{ config.api_key }}" }
@@ -59,13 +63,17 @@ const SupportedVersion = 1
 
 // Manifest is the root document describing one HTTP API connector.
 type Manifest struct {
-	Version    int                   `yaml:"version"`
-	Name       string                `yaml:"name"`
-	Config     map[string]ConfigSpec `yaml:"config,omitempty"`
-	Defaults   Defaults              `yaml:"defaults,omitempty"`
-	FieldSets  map[string]FieldList  `yaml:"field_sets,omitempty"`
-	Connection Connection            `yaml:"connection"`
-	Resources  []Resource            `yaml:"resources"`
+	Version      int                   `yaml:"version"`
+	Name         string                `yaml:"name"`
+	DisplayName  string                `yaml:"display_name,omitempty"`
+	Description  string                `yaml:"description,omitempty"`
+	DarkLogoURL  string                `yaml:"dark_logo_url,omitempty"`
+	LightLogoURL string                `yaml:"light_logo_url,omitempty"`
+	Config       map[string]ConfigSpec `yaml:"config,omitempty"`
+	Defaults     Defaults              `yaml:"defaults,omitempty"`
+	FieldSets    map[string]FieldList  `yaml:"field_sets,omitempty"`
+	Connection   Connection            `yaml:"connection"`
+	Resources    []Resource            `yaml:"resources"`
 	// Discovery, when set, lets the connector enumerate user-toggleable
 	// resources by reusing existing extraction streams. Each entry projects a
 	// distinct resource Kind (e.g. notion exposes both "database" and "page"
@@ -108,21 +116,21 @@ type Defaults struct {
 // new HTTP plumbing is required.
 type Discovery struct {
 	From  string      `yaml:"from"`  // name of the Resource that lists togglable items
-	Map   ResourceMap `yaml:"map"`   // projection from a record to a pipeline.Resource
+	Map   ResourceMap `yaml:"map"`   // projection from a record to a discoverable resource
 	Scope ScopeSpec   `yaml:"scope"` // how enabled selections filter extraction
 }
 
-// ResourceMap projects a JSON record (from the Discovery.From stream) to the
-// fields of a pipeline.Resource. Paths are JSONPath-style ($.foo.bar).
+// ResourceMap projects a JSON record (from the Discovery.From stream) to
+// discoverable-resource fields. Paths are JSONPath-style ($.foo.bar).
 type ResourceMap struct {
 	Kind         string `yaml:"kind"` // literal value, e.g. "channel"
 	IDPath       string `yaml:"id"`   // required
 	NamePath     string `yaml:"name"` // single path OR alias; see NamePaths
 	ParentIDPath string `yaml:"parent_id,omitempty"`
 	// NamePaths is an ordered list of fallback paths; the first non-empty
-	// resolution wins. Use it for shapes like Notion pages where the title
-	// lives under a property whose key varies per database. When set, takes
-	// precedence over NamePath; either field individually is sufficient.
+	// resolution wins. Use it when upstream response variants expose the same
+	// label at different paths. When set, it takes precedence over NamePath;
+	// either field individually is sufficient.
 	NamePaths      []string          `yaml:"name_paths,omitempty"`
 	DefaultEnabled string            `yaml:"default_enabled,omitempty"`
 	Metadata       map[string]string `yaml:"metadata,omitempty"`
@@ -483,6 +491,14 @@ type IncrementalSpec struct {
 	// OverlapSeconds re-fetches a sliding window before a time or numeric
 	// timestamp cursor to tolerate retroactive updates behind the max.
 	OverlapSeconds int `yaml:"overlap_seconds,omitempty"`
+}
+
+// DurableCheckpointKey returns the stable storage key for this watermark.
+func (s IncrementalSpec) DurableCheckpointKey() string {
+	if s.CheckpointKey != "" {
+		return s.CheckpointKey
+	}
+	return s.CursorField
 }
 
 // ParentRef declares a child resource's dependency on a parent. The parent's

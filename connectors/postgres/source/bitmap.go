@@ -20,8 +20,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // resolveMode picks the physical scan strategy for a table at plan time from
@@ -74,14 +75,14 @@ func (s *Source) planBitmap(ctx context.Context, table string, pks []pkColumn) c
 // streaming every row stamped Coarse into the shard's writer. On a clean full drain it
 // drains the writer so the shard can be marked complete; if a row limit truncated the read
 // it does NOT (an incomplete shard must stay resumable).
-func (s *Source) extractBitmapShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
+func (s *Source) extractBitmapShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh keyShard, limit int) error {
 	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
 	if err != nil {
 		return err
 	}
 	where, args := bitmapWhere(sh)
 	sql := fmt.Sprintf("SELECT %s FROM %s t%s", sh.dec.selectList, sh.qualified, where)
-	n, _, err := s.appendPage(ctx, q, sql, w, sh.dec, filament.RowMeta{Coarse: true}, nil, limit, args...)
+	n, _, err := s.appendPage(ctx, q, sql, w, sh.dec, rowmodel.Meta{Coarse: true}, nil, limit, args...)
 	if err != nil {
 		return fmt.Errorf("bitmap %q: %w", sh.table, err)
 	}
@@ -89,7 +90,7 @@ func (s *Source) extractBitmapShard(ctx context.Context, sink filament.RecordSin
 		return nil // partial shard: no completion marker, so resume re-reads it
 	}
 	// Completion marker: the pipeline turns it into this shard's expected-row count.
-	return w.Drain(filament.RowMeta{})
+	return w.Drain(rowmodel.Meta{})
 }
 
 // bitmapWhere builds the sub-range predicate from the shard's leading-column bounds only —

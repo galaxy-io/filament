@@ -253,6 +253,19 @@ func runStatusesFromProto(statuses []ingestionv1.RunStatus) []filament.RunStatus
 	return out
 }
 
+func runSignalFromProto(signal ingestionv1.RunSignal) (filament.Signal, error) {
+	switch signal {
+	case ingestionv1.RunSignal_RUN_SIGNAL_PAUSE:
+		return filament.SignalPause, nil
+	case ingestionv1.RunSignal_RUN_SIGNAL_RESUME:
+		return filament.SignalResume, nil
+	case ingestionv1.RunSignal_RUN_SIGNAL_CANCEL:
+		return filament.SignalCancel, nil
+	default:
+		return 0, fmt.Errorf("signal is required")
+	}
+}
+
 func resourcesToProto(resources []filament.Resource) *ingestionv1.DiscoverResourcesResponse {
 	out := make([]*ingestionv1.Resource, 0, len(resources))
 	for _, resource := range resources {
@@ -328,6 +341,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Error = d.Error
 	case events.PageFetchedEvent:
 		fields.Records, fields.Bytes, fields.Uri = d.Records, d.Bytes, d.URI
+	case events.FanOutStartedEvent:
+		fields.ParentsTotal = d.ParentsTotal
 	case events.ResourceCompletedEvent:
 		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.ResourceFailedEvent:
@@ -336,14 +351,37 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Records, fields.Bytes = d.Records, d.Bytes
 	case events.BatchWrittenEvent:
 		fields.Records, fields.Bytes, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
 	case events.IntegrityVerifiedEvent:
+		fields.Crc = d.CRC
+	case events.EncodedIntegrityVerifiedEvent:
 		fields.Crc = d.CRC
 	case events.ChunkDivergenceEvent:
 		fields.Crc, fields.Error = d.CRC, d.Error
+	case events.WatermarkAdvancedEvent:
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
+	case events.CheckpointSavedEvent:
+		fields.Checkpoint = checkpointToProto(d.Checkpoint)
+	case events.RateLimitedEvent:
+		fields.RetryAfterMs = d.RetryAfter.Milliseconds()
 	case events.RetryExhaustedEvent:
 		fields.Error = d.Error
 	}
 	return fields
+}
+
+func checkpointToProto(checkpoint *filament.CheckpointData) *structpb.Struct {
+	if checkpoint == nil {
+		return nil
+	}
+	value, err := structpb.NewStruct(map[string]any{
+		"resource": checkpoint.ResourceName,
+		"cursor":   checkpoint.Cursor,
+	})
+	if err != nil {
+		return nil
+	}
+	return value
 }
 
 func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
@@ -366,7 +404,7 @@ func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEven
 
 func runStatusTerminal(status filament.RunStatus) bool {
 	switch status {
-	case filament.RunCompleted, filament.RunFailed, filament.RunCanceled, filament.RunPartial:
+	case filament.RunCompleted, filament.RunFailed, filament.RunCanceled, filament.RunPaused, filament.RunPartial:
 		return true
 	default:
 		return false
@@ -442,9 +480,28 @@ func validationError(message string) *ingestionv1.ValidateConfigResponse {
 	}
 }
 
-func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config, scope filament.FieldScope) error {
+func schemaValidationError(err error) *ingestionv1.ValidateConfigResponse {
+	response := validationError(err.Error())
+	if fieldErr, ok := err.(*configValidationError); ok {
+		response.Errors[0].Field = fieldErr.Field
+	}
+	return response
+}
+
+type configValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *configValidationError) Error() string { return e.Message }
+
+func requiredConfigFieldError(path string) error {
+	return &configValidationError{Field: path, Message: path + " is required"}
+}
+
+func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config) error {
 	for _, field := range schema.Fields {
-		if field.Scope != scope {
+		if field.Scope != filament.ScopeConnection {
 			continue
 		}
 		if err := validateConfigField(field, cfg, field.Name); err != nil {
@@ -459,10 +516,13 @@ func validateConfigField(field filament.ConfigField, cfg filament.Config, path s
 		return nil
 	}
 	if field.Required && !cfg.Has(field.Name) {
-		return fmt.Errorf("%s is required", path)
+		return requiredConfigFieldError(path)
+	}
+	if field.Required && (field.Type == filament.FieldString || field.Type == filament.FieldSecret || field.Type == filament.FieldEnum) && strings.TrimSpace(cfg.String(field.Name)) == "" {
+		return requiredConfigFieldError(path)
 	}
 	if field.Required && field.Type == filament.FieldList && configListLen(cfg.Raw()[field.Name]) == 0 {
-		return fmt.Errorf("%s is required", path)
+		return requiredConfigFieldError(path)
 	}
 	if !cfg.Has(field.Name) || len(field.Fields) == 0 {
 		return nil

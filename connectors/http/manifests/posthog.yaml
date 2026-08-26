@@ -1,5 +1,9 @@
 version: 1
 name: posthog
+display_name: PostHog
+description: Product analytics platform covering people, events, cohorts, feature flags, experiments, and session replay.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-posthog-light.svg
 
 config:
   api_key:

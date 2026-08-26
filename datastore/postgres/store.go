@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -17,10 +18,6 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
-
-// leaseTTL bounds how long a ClaimDue lease is honored before a schedule is
-// eligible to be reclaimed
-const leaseTTL = 5 * time.Minute
 
 // Store is a Postgres-backed filament.DataStore and filament.ScheduleStore.
 type Store struct {
@@ -101,6 +98,64 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
 	}
 	return nil
+}
+
+// TransitionRun serializes lifecycle commands on the run row and updates it
+// only when the current status belongs to from.
+func (s *Store) TransitionRun(
+	ctx context.Context,
+	id filament.RunID,
+	from []filament.RunStatus,
+	to filament.RunStatus,
+	opts filament.RunTransitionOptions,
+) (filament.RunState, error) {
+	status, err := runStatusValue(to)
+	if err != nil {
+		return filament.RunState{}, err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: begin run transition: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	current, err := q.LockRunStatus(ctx, string(id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return filament.RunState{}, fmt.Errorf("transition run %q: %w", id, filament.ErrNotFound)
+		}
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: lock run transition: %w", err)
+	}
+	if !slices.Contains(from, filament.RunStatus(current)) {
+		return filament.RunState{}, fmt.Errorf("transition run %q from status %d: %w", id, current, filament.ErrVersionConflict)
+	}
+	if opts.ResetExecution {
+		if err := q.ResetRunExecution(ctx, sqlcgen.ResetRunExecutionParams{
+			RunID: string(id), Status: status, PreserveProgress: opts.PreserveProgress,
+		}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset run transition: %w", err)
+		}
+		if err := q.ResetRunResources(ctx, sqlcgen.ResetRunResourcesParams{
+			RunID: string(id), Status: int16(filament.RunRequested), PreserveProgress: opts.PreserveProgress,
+		}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset resource transition: %w", err)
+		}
+	} else {
+		if err := q.TransitionRun(ctx, sqlcgen.TransitionRunParams{RunID: string(id), Status: status}); err != nil {
+			return filament.RunState{}, fmt.Errorf("datastore/postgres: run transition: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.RunState{}, fmt.Errorf("datastore/postgres: commit run transition: %w", err)
+	}
+	return s.LoadRun(ctx, id)
+}
+
+func runStatusValue(status filament.RunStatus) (int16, error) {
+	if status < -1<<15 || status > 1<<15-1 {
+		return 0, fmt.Errorf("datastore/postgres: run status %d is out of range", status)
+	}
+	return int16(status), nil //nolint:gosec // bounds checked above
 }
 
 // CreateRun inserts the run or promotes a pre-created RunScheduled row; a row
@@ -220,14 +275,14 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	if f.Schedule != "" {
 		q += " AND schedule_id = " + arg(string(f.Schedule))
 	}
-	if f.Source != "" {
-		q += " AND (request->'Source'->>'Provider' = " + arg(f.Source) + " OR request->'Source'->>'ConfigRef' = " + arg(f.Source) + ")"
-	}
 	if !f.Since.IsZero() {
 		q += " AND started_at >= " + arg(f.Since)
 	}
 	if !f.Until.IsZero() {
 		q += " AND started_at < " + arg(f.Until)
+	}
+	if !f.UpdatedBefore.IsZero() {
+		q += " AND updated_at < " + arg(f.UpdatedBefore)
 	}
 	if len(f.Status) > 0 {
 		statuses := make([]int, len(f.Status))
@@ -595,10 +650,10 @@ func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) erro
 // currently under an unexpired lease, and stamps them claimed_at = now() in
 // the same transaction as the SELECT ... FOR UPDATE SKIP LOCKED so a second
 // scheduler replica racing this call cannot pick up the same row: it will
-// either block-and-skip (SKIP LOCKED) or see claimed_at within leaseTTL and
-// filter it out. The lease is released by the next SaveSchedule call
-// or expires after leaseTTL if the scheduler that claimed it crashes
-// before calling SaveSchedule.
+// either block-and-skip (SKIP LOCKED) or see claimed_at within
+// filament.ScheduleLeaseTTL and filter it out. The lease is released by the
+// next SaveSchedule call or expires after the TTL if the scheduler that
+// claimed it crashes before calling SaveSchedule.
 func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filament.ScheduleState, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -609,7 +664,7 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 
 	rows, err := q.ClaimDue(ctx, sqlcgen.ClaimDueParams{
 		Now:         pgtype.Timestamptz{Time: now, Valid: true},
-		LeaseCutoff: pgtype.Timestamptz{Time: now.Add(-leaseTTL), Valid: true},
+		LeaseCutoff: pgtype.Timestamptz{Time: now.Add(-filament.ScheduleLeaseTTL), Valid: true},
 		Lim:         int32(limit), //nolint:gosec // caller-provided small limit
 	})
 	if err != nil {

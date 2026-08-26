@@ -1,5 +1,9 @@
 version: 1
 name: linear
+display_name: Linear
+description: Modern issue tracking and project management tool built for high-performance teams.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-linear-light.svg
 config:
   api_key:
     type: secret

@@ -1,64 +1,99 @@
 ---
 title: "MySQL"
-description: "Keyset reads and GTID-based CDC from MySQL."
+description: "Keyset snapshot reads and binlog CDC from MySQL 8.0+"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg"
 ---
 
-`connectors/mysql/source` reads from MySQL 8.0+, with separate code paths for
-snapshot reads (`keyset.go`) and change data capture (`cdc.go`,
-`cdc_gtid.go`).
+The MySQL source reads from MySQL 8.0+ in two modes, resumable keyset
+snapshots and binlog CDC. There is no incremental mode. Full and CDC are the
+only options today. The connector is beta.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `connection_method` | Connection | `fields` | `fields` or `url`. Unset with a `dsn` present implies `url`. |
+| `dsn` | Connection | | go-sql-driver DSN or `mysql://`/`mariadb://` URL. Required in `url` mode. Secret. |
+| `host` | Connection | | Server hostname. Required in `fields` mode. |
+| `port` | Connection | `3306` | Server port. |
+| `username` | Connection | | Required in `fields` mode. |
+| `password` | Connection | | Required in `fields` mode. Secret. |
+| `database_name` | Connection | | Database to connect to. Required in `fields` mode. |
+| `tls_mode` | Connection | `preferred` | One of `false`, `preferred`, `true`, `skip-verify`. |
+| `replication` | Connection | `standard` | `standard` for snapshot reads, `cdc` for binlog streaming. |
+| `database` | Pipeline | DSN database | Database to read tables from. Error when neither this nor the DSN sets one. |
+| `page_size` | Pipeline | `1000` | Rows to target per read page. |
+| `shard_pages` | Pipeline | `16384` | InnoDB pages per parallel shard (≈256 MiB at 16 KiB pages). `0` disables sharding. |
+| `max_conns` | Pipeline | | Maximum source connections. |
+| `server_id` | Pipeline | `62347` | Replication client `server_id` for CDC. Must be unique in the replica topology. |
 
 ## Snapshot reads
 
-InnoDB stores rows clustered by primary key, so on MySQL — unlike Postgres —
-key order **is** physical order. That removes the need for a physical
-read tier: every table with a primary key reads via keyset (`WHERE pk >
-cursor ORDER BY pk LIMIT page`), and each page is already a contiguous,
-sequential-I/O range scan of the clustered index.
+InnoDB clusters rows by primary key, so key order is physical order. Every
+table with a primary key reads via keyset (`WHERE pk > cursor ORDER BY pk
+LIMIT page_size`), and each page is a sequential range scan of the clustered
+index. There is no separate physical-scan tier as on PostgreSQL.
 
-A table splits into primary-key range shards so one large table doesn't pin
-a single worker while the rest sit idle, sized off `information_schema`'s
-data-length estimate divided by the configured `shard_pages` (default target:
-~256 MiB per shard, capped at 64 shards):
+Large tables split into primary-key range shards, sized from
+`information_schema.TABLES.DATA_LENGTH` divided by the InnoDB page size and
+the configured `shard_pages`, capped at 64 shards. An integer leading key
+splits arithmetically over `MIN`/`MAX`, while anything else (UUID, varchar,
+datetime) gets equal-count boundaries sampled via a single `ROW_NUMBER()`
+scan. Cursor predicates are written as a disjunctive expansion
+(`a > ? OR (a = ? AND b > ?)`) because MySQL's range optimizer cannot use a
+row-constructor comparison for an index seek.
 
-| Leading key type | Split strategy |
-|---|---|
-| Integer | Arithmetic split over `MIN`/`MAX` — free, no extra query |
-| Anything else (UUID, varchar, datetime) | Sampled equal-count boundaries via a single `ROW_NUMBER()` scan |
-| No primary key | Not shardable — one streaming pass with a synthetic per-snapshot `ROW_NUMBER()` id, re-read whole on resume |
+Each shard runs in its own `REPEATABLE READ` transaction opened `WITH
+CONSISTENT SNAPSHOT, READ ONLY`. These are per-shard snapshots, not one
+shared snapshot across the run. Unlike the PostgreSQL source, parallel
+shards may observe the table at slightly different moments. Rows are read
+through the driver's text protocol and parsed directly into Arrow-backed row
+writers; binary columns remain raw bytes.
 
-Every shard's WHERE clause is written as a disjunctive expansion —
-`a > ? OR (a = ? AND b > ?)` — rather than a row-constructor comparison,
-because MySQL's range optimizer can't use `(a, b) > (?, ?)` for an index
-seek; it degrades to a full scan and filter. The expanded form gets a
-covering index range scan straight to the cursor.
+A table without a primary key is read in a single streaming pass with a
+synthetic `ROW_NUMBER()` id. That pass is not resumable, so a resume re-reads
+the whole table.
 
 ## CDC
 
-Streams the binlog via the replication protocol (ROW format), decoding
-insert/update/delete events through the same per-type parsers the snapshot
-reader uses, so a sink can't tell the two apart. A run has catch-up semantics:
-it captures the server's current binlog position as a watermark, streams the
-checkpointed position up to it, and returns — continuous CDC is a
-re-request loop, the same mechanism as snapshot resume.
+CDC connects as a binlog replica (go-mysql `BinlogSyncer`) and decodes
+insert, update, and delete events into the same row shape the snapshot
+reader produces. Runs have catch-up semantics. Each captures the server's
+current binlog position as a watermark, streams from the checkpoint up to it,
+and returns. Continuous CDC is a re-request loop, so it can run on a schedule.
+No-change runs still persist the watermark.
 
-The cursor is chosen automatically: a **GTID set** when the server runs
-`gtid_mode=ON` (the default on 8.0+, and the preferred path — a GTID set
-survives replica promotion since it's global to the topology, unlike a
-binlog file name and offset), falling back to **file:pos** otherwise. An
-existing file:pos checkpoint keeps that cursor kind even if the server later
-enables GTIDs, so an in-flight stream never jumps cursor kinds mid-run.
+The cursor is a **GTID set** when the server runs `gtid_mode=ON` (preferred,
+since a GTID set survives replica promotion), falling back to **file:pos**
+otherwise. An existing file:pos checkpoint keeps that cursor kind even if the
+server later enables GTIDs. GTID checkpoints record the last committed
+transaction. A crash mid-transaction replays the whole transaction, which the
+sink's idempotent merge absorbs.
 
-<Info>
-  Requires `ROW` binlog format (the 8.0+ default), binlog retention covering
-  the resume window, and `REPLICATION SLAVE`/`REPLICATION CLIENT` privileges.
-  Column names aren't in the binlog itself, so each table's column list is
-  read from `information_schema` and invalidated on any DDL event — a
-  column-count mismatch mid-stream fails the run rather than mis-mapping
-  values into the wrong columns.
-</Info>
+<Warning>
+  MySQL CDC does not snapshot existing rows. The first run starts at the
+  current binlog tail, so rows present before the pipeline was created are
+  never emitted by CDC. To backfill, run a full pipeline against the same
+  tables first, then switch to CDC.
+</Warning>
 
-## Modes
+Requirements:
 
-`ModeFull` (keyset) and `ModeCDC` (GTID or file:pos streaming) — see
-[Replication modes](/pages/guides/concepts/replication-modes).
+- `ROW` binlog format (the 8.0+ default)
+- Binlog retention covering the resume window
+- `REPLICATION SLAVE` and `REPLICATION CLIENT` privileges
+- A TCP connection (unix sockets are rejected for CDC)
+
+Behavior worth knowing:
+
+- A primary-key-changing update is emitted as a delete of the old row plus an
+  insert of the new one.
+- Column names are not in the binlog. Each table's column list is read from
+  `information_schema` (this works with `binlog_row_metadata=MINIMAL`) and
+  the cache is invalidated on any DDL event.
+- A column-count mismatch between a binlog event and the cached schema fails
+  the run rather than mis-mapping values. Re-snapshot the table after
+  incompatible DDL.
+
+See [Replication modes](/pages/guides/concepts/replication-modes) for how
+modes map to write policies.

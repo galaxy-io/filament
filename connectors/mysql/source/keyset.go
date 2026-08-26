@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -177,7 +178,7 @@ func dedupeOrdered(vals []string) []string {
 // ExtractFrom reads each resource from its checkpoint. Keyed resources read via keyset
 // shards (concurrently, like Extract); a resource with no keyset plan (no primary key)
 // falls back to the streaming full scan and is re-read whole.
-func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
+func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		var plan *keysetPlan
@@ -222,7 +223,7 @@ func keyShardsFrom(table, qualified string, dec *rowDecoder, ks keysetPlan) ([]k
 // cursor forward. Rows append while the result set is open; the shard's connection
 // is dedicated for its whole life (withSnapshotTx), so a stall on backpressure
 // holds nothing extra.
-func (s *Source) extractKeysetShard(ctx context.Context, sink filament.RecordSink, q querier, sh keyShard, limit int) error {
+func (s *Source) extractKeysetShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh keyShard, limit int) error {
 	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
 	if err != nil {
 		return err
