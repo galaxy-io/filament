@@ -1,4 +1,4 @@
-package batch
+package arrowbatch
 
 import (
 	"encoding/binary"
@@ -6,8 +6,6 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
-
-	"github.com/galaxy-io/filament"
 )
 
 // crcTable uses the Castagnoli polynomial, which has hardware acceleration on
@@ -20,7 +18,7 @@ var crcTable = crc32.MakeTable(crc32.Castagnoli)
 // regrouping rows or columns changes the result. The pipeline writer computes it
 // before Apply and the sink recomputes it over the same batch for the receipt; it
 // guards the batch in memory, not a re-encoding of it.
-func CRC(rows arrow.RecordBatch, ops []filament.Operation) uint32 {
+func CRC(rows arrow.RecordBatch, ops Operations) uint32 {
 	var buf [8]byte
 	binary.LittleEndian.PutUint32(buf[:4], uint32(rows.NumRows())) //nolint:gosec // batch rows never near 4Gi
 	binary.LittleEndian.PutUint32(buf[4:], uint32(rows.NumCols())) //nolint:gosec // column count
@@ -28,12 +26,16 @@ func CRC(rows arrow.RecordBatch, ops []filament.Operation) uint32 {
 	for _, col := range rows.Columns() {
 		crc = crcArray(crc, col)
 	}
-	for _, op := range ops {
+	for i := range ops.Len() {
+		op := ops.At(i)
 		buf[0] = byte(op)
 		crc = crc32.Update(crc, crcTable, buf[:1])
 	}
 	return crc
 }
+
+// IntegrityCRC computes the in-memory integrity checksum for b.
+func (b *Batch) IntegrityCRC() uint32 { return CRC(b.rows, b.ops) }
 
 func crcArray(crc uint32, a arrow.Array) uint32 {
 	data := a.Data()
@@ -70,17 +72,4 @@ func crcChunk(crc uint32, p []byte) uint32 {
 	binary.LittleEndian.PutUint32(l[:], uint32(len(p))) //nolint:gosec // buffer sizes are far below 4GiB
 	crc = crc32.Update(crc, crcTable, l[:])
 	return crc32.Update(crc, crcTable, p)
-}
-
-// Bytes returns the memory a batch's column buffers occupy.
-func Bytes(rows arrow.RecordBatch) int64 {
-	var n int64
-	for _, col := range rows.Columns() {
-		for _, buf := range col.Data().Buffers() {
-			if buf != nil {
-				n += int64(buf.Len())
-			}
-		}
-	}
-	return n
 }

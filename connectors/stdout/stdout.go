@@ -18,7 +18,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/connectors/internal/ndjson"
 )
 
@@ -66,10 +66,13 @@ func (s *Sink) Spec() filament.SinkSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-stdout-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-stdout-light.svg",
 		Version:      "1",
-		Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(
-			filament.IngestionFullAppend,
-			filament.IngestionFullReplace,
-		)},
+		Capabilities: filament.SinkCapabilities{
+			EncodedIntegrity: true,
+			WritePolicies: filament.WriteCapabilities(
+				filament.IngestionFullAppend,
+				filament.IngestionFullReplace,
+			),
+		},
 	}
 }
 
@@ -90,26 +93,30 @@ func (s *Sink) Open(_ context.Context, run filament.RunSpec) error {
 // Write prints each row as one NDJSON line and returns a receipt whose WriteCRC
 // is computed over the same batch the writer hashed for ReadCRC — so the engine's
 // integrity check passes unless the stream write itself failed.
-func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt, error) {
+func (s *Sink) Write(_ context.Context, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	enc := s.enc[b.Rows.Schema()]
+	rows := b.Rows()
+	enc := s.enc[rows.Schema()]
 	if enc == nil {
-		enc = ndjson.NewEncoder(b.Rows.Schema())
-		s.enc[b.Rows.Schema()] = enc
+		enc = ndjson.NewEncoder(rows.Schema())
+		s.enc[rows.Schema()] = enc
 	}
-	buf := s.buf[:0]
-	for i := range b.NumRows() {
-		buf = enc.AppendRow(buf, b.Rows, i)
-		buf = append(buf, '\n')
+	buf, expectedCRC := enc.AppendBatch(s.buf[:0], rows)
+	// Capture the in-memory checksum at the same final boundary. The pipeline's
+	// earlier checksum detects mutation during handoff; the encoded comparison
+	// below detects mutation introduced by serialization.
+	arrowCRC := b.IntegrityCRC()
+	encodedCRC, err := ndjson.VerifyChecksum(buf, expectedCRC)
+	if err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("stdout: serialize %s: %w", b.Resource, err)
 	}
 	s.buf = buf
 	if _, err := s.w.Write(buf); err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
 	}
 	nbytes := int64(len(buf))
-
 	a := s.acct[b.Resource]
 	if a == nil {
 		a = &resourceAcct{}
@@ -120,18 +127,19 @@ func (s *Sink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt
 	a.batches++
 
 	return filament.WriteReceipt{
-		URI:      fmt.Sprintf("stdout://%s/%s", s.run, b.Resource),
-		Bytes:    nbytes,
-		Rows:     b.NumRows(),
-		WriteCRC: batch.CRC(b.Rows, b.Ops),
+		URI:        fmt.Sprintf("stdout://%s/%s", s.run, b.Resource),
+		Bytes:      nbytes,
+		Rows:       b.NumRows(),
+		WriteCRC:   arrowCRC,
+		EncodedCRC: &encodedCRC,
 	}, nil
 }
 
 // Apply validates the batch against the run's write policy, then delegates to Write.
-func (s *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteAppend, filament.WriteReplace:
-		if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("stdout: %w", err)
 		}
 		return s.Write(ctx, b)

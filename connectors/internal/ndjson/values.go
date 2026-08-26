@@ -1,5 +1,4 @@
-// Package ndjson renders Arrow rows as JSON objects, one per line, for the sinks
-// that write text (stdout, object stores).
+// Value encoders for Arrow-backed NDJSON rows.
 package ndjson
 
 import (
@@ -11,44 +10,12 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/arrowtext"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
-// Encoder renders rows of one Arrow schema. Column keys are pre-escaped once.
-type Encoder struct {
-	keys []string // `"name":` per column
-	vals []valueFn
-}
-
 type valueFn func(dst []byte, col arrow.Array, i int) []byte
-
-// NewEncoder prepares an encoder for schema.
-func NewEncoder(schema *arrow.Schema) *Encoder {
-	e := &Encoder{keys: make([]string, schema.NumFields()), vals: make([]valueFn, schema.NumFields())}
-	for i, f := range schema.Fields() {
-		e.keys[i] = string(appendString(nil, f.Name)) + ":"
-		e.vals[i] = valueFor(f)
-	}
-	return e
-}
-
-// AppendRow appends row i of rows as one JSON object, without a trailing newline.
-func (e *Encoder) AppendRow(dst []byte, rows arrow.RecordBatch, i int) []byte {
-	dst = append(dst, '{')
-	for c, col := range rows.Columns() {
-		if c > 0 {
-			dst = append(dst, ',')
-		}
-		dst = append(dst, e.keys[c]...)
-		if col.IsNull(i) {
-			dst = append(dst, "null"...)
-			continue
-		}
-		dst = e.vals[c](dst, col, i)
-	}
-	return append(dst, '}')
-}
 
 // valueFor picks the renderer for a field from its Arrow storage type and the
 // logical type it carries. json columns are JSON text and embed raw; bytes are
@@ -83,15 +50,15 @@ func valueFor(f arrow.Field) valueFn {
 	case arrow.DECIMAL128:
 		scale := f.Type.(*arrow.Decimal128Type).Scale
 		return func(dst []byte, col arrow.Array, i int) []byte {
-			return append(dst, col.(*array.Decimal128).Value(i).ToString(scale)...)
+			return arrowtext.AppendDecimal(dst, col.(*array.Decimal128).Value(i), int(scale))
 		}
 	case arrow.STRING:
-		switch batch.LogicalOf(f) {
-		case filament.LogicalJSON:
+		switch arrowbatch.LogicalOf(f) {
+		case rowmodel.LogicalJSON:
 			return func(dst []byte, col arrow.Array, i int) []byte {
 				return append(dst, col.(*array.String).Value(i)...)
 			}
-		case filament.LogicalDecimal: // unbounded numeric text: a JSON number unless special
+		case rowmodel.LogicalDecimal: // unbounded numeric text: a JSON number unless special
 			return func(dst []byte, col arrow.Array, i int) []byte {
 				v := col.(*array.String).Value(i)
 				if v != "" && (v[0] == 'N' || v[0] == 'I' || v[0] == '-' && len(v) > 1 && v[1] == 'I') {
@@ -118,14 +85,14 @@ func valueFor(f arrow.Field) valueFn {
 			case math.MinInt32:
 				dst = append(dst, "-infinity"...)
 			default:
-				dst = batch.AppendDate(dst, int64(v))
+				dst = arrowtext.AppendDate32(dst, int32(v))
 			}
 			return append(dst, '"')
 		}
 	case arrow.TIME64:
 		return func(dst []byte, col arrow.Array, i int) []byte {
 			dst = append(dst, '"')
-			dst = batch.AppendTimeOfDay(dst, int64(col.(*array.Time64).Value(i)))
+			dst = arrowtext.AppendTimeOfDay(dst, int64(col.(*array.Time64).Value(i)))
 			return append(dst, '"')
 		}
 	case arrow.TIMESTAMP:
@@ -138,7 +105,7 @@ func valueFor(f arrow.Field) valueFn {
 			case math.MinInt64:
 				dst = append(dst, "-infinity"...)
 			default:
-				dst = batch.AppendTimestamp(dst, v, 'T')
+				dst = arrowtext.AppendTimestamp(dst, v, 'T')
 				if utc {
 					dst = append(dst, 'Z')
 				}

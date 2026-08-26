@@ -1,11 +1,11 @@
-// Package batch turns rows into Arrow record batches: the LogicalType to Arrow
-// mapping, the Builder a source appends into, and the integrity CRC over a batch.
-package batch
+// Package arrowbatch owns Arrow row batches, builders, schema mapping, and
+// in-memory integrity checks.
+package arrowbatch
 
 import (
 	"github.com/apache/arrow-go/v18/arrow"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Field metadata keys carrying the source-side type of each column, so a sink can
@@ -20,7 +20,7 @@ const (
 const maxDecimalPrecision = 38
 
 // Schema maps a RecordSchema to the Arrow schema its rows are built in.
-func Schema(rs filament.RecordSchema) *arrow.Schema {
+func Schema(rs rowmodel.Schema) *arrow.Schema {
 	fields := make([]arrow.Field, len(rs.Fields))
 	for i, f := range rs.Fields {
 		fields[i] = Field(f)
@@ -29,7 +29,7 @@ func Schema(rs filament.RecordSchema) *arrow.Schema {
 }
 
 // Field maps one schema field, keeping its logical and native types as metadata.
-func Field(f filament.SchemaField) arrow.Field {
+func Field(f rowmodel.Field) arrow.Field {
 	return arrow.Field{
 		Name:     f.Name,
 		Type:     Type(f),
@@ -41,34 +41,34 @@ func Field(f filament.SchemaField) arrow.Field {
 // Type maps a field's logical type to Arrow storage. Everything a sink cannot
 // address natively (json, uuid, array, unknown, unbounded decimal) travels as
 // utf8 so it is never reinterpreted in flight.
-func Type(f filament.SchemaField) arrow.DataType {
+func Type(f rowmodel.Field) arrow.DataType {
 	switch f.Logical {
-	case filament.LogicalBool:
+	case rowmodel.LogicalBool:
 		return arrow.FixedWidthTypes.Boolean
-	case filament.LogicalInt16:
+	case rowmodel.LogicalInt16:
 		return arrow.PrimitiveTypes.Int16
-	case filament.LogicalInt32:
+	case rowmodel.LogicalInt32:
 		return arrow.PrimitiveTypes.Int32
-	case filament.LogicalInt64:
+	case rowmodel.LogicalInt64:
 		return arrow.PrimitiveTypes.Int64
-	case filament.LogicalFloat32:
+	case rowmodel.LogicalFloat32:
 		return arrow.PrimitiveTypes.Float32
-	case filament.LogicalFloat64:
+	case rowmodel.LogicalFloat64:
 		return arrow.PrimitiveTypes.Float64
-	case filament.LogicalDecimal:
+	case rowmodel.LogicalDecimal:
 		if f.Precision > 0 && f.Precision <= maxDecimalPrecision {
 			return &arrow.Decimal128Type{Precision: int32(f.Precision), Scale: int32(f.Scale)} //nolint:gosec // bounded above
 		}
 		return arrow.BinaryTypes.String
-	case filament.LogicalBytes:
+	case rowmodel.LogicalBytes:
 		return arrow.BinaryTypes.Binary
-	case filament.LogicalDate:
+	case rowmodel.LogicalDate:
 		return arrow.FixedWidthTypes.Date32
-	case filament.LogicalTime:
+	case rowmodel.LogicalTime:
 		return arrow.FixedWidthTypes.Time64us
-	case filament.LogicalTimestamp:
+	case rowmodel.LogicalTimestamp:
 		return &arrow.TimestampType{Unit: arrow.Microsecond}
-	case filament.LogicalTimestampTZ:
+	case rowmodel.LogicalTimestampTZ:
 		return &arrow.TimestampType{Unit: arrow.Microsecond, TimeZone: "UTC"}
 	default:
 		return arrow.BinaryTypes.String
@@ -76,9 +76,9 @@ func Type(f filament.SchemaField) arrow.DataType {
 }
 
 // LogicalOf returns the logical type a field was built from.
-func LogicalOf(f arrow.Field) filament.LogicalType {
+func LogicalOf(f arrow.Field) rowmodel.LogicalType {
 	v, _ := f.Metadata.GetValue(MetaLogical)
-	return filament.LogicalType(v)
+	return rowmodel.LogicalType(v)
 }
 
 // NativeOf returns the source's native type spelling for a field.

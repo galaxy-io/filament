@@ -121,7 +121,7 @@ func (e *emitter) publish(f events.Fact) {
 			fields = append(fields, filament.Field{Key: "error", Value: errMsg})
 		}
 		switch f.Data.(type) {
-		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent, events.PageFetchedEvent:
+		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent, events.EncodedIntegrityVerifiedEvent, events.PageFetchedEvent:
 			// Debug, not Info: a large run emits one of these per chunk, which
 			// at Info drowns the worker's log.
 			e.log.Debug(f.Name, fields...)

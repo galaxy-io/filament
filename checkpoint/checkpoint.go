@@ -93,26 +93,6 @@ func DecodeDelta(cp filament.Checkpoint) Delta {
 	return Delta{}
 }
 
-// FromRecords constructs the checkpoint delta represented by a written batch.
-// Sources keep describing positions on Record; this function is the sole bridge
-// from those source-facing fields into the coordinator's delta vocabulary.
-func FromRecords(resource string, part int, records []filament.Record) *filament.CheckpointData {
-	if len(records) == 0 {
-		return nil
-	}
-	last := records[len(records)-1]
-	if last.Meta.LSN != "" {
-		return NewStreamDelta(resource, last.Meta.LSN, last.Meta.Seq)
-	}
-	if last.Coarse {
-		return NewCoarseAck(resource, part, len(records))
-	}
-	if last.Key == nil {
-		return nil
-	}
-	return NewShardDelta(resource, part, last.Key)
-}
-
 // KeysetShard is one independently-resumable slice of a resource's primary-key space.
 type KeysetShard struct {
 	Lo  []string

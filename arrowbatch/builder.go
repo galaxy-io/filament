@@ -1,4 +1,4 @@
-package batch
+package arrowbatch
 
 import (
 	"errors"
@@ -10,29 +10,13 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 	"github.com/apache/arrow-go/v18/arrow/memory"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Options bounds the chunks a Builder emits.
 type Options struct {
 	MaxRows  int   // rows per chunk
 	MaxBytes int64 // approximate value bytes per chunk; 0 = unbounded
-}
-
-// Chunk is one flushed group of rows leaving a Builder. Last is the meta of its
-// last row, from which the pipeline derives the chunk's checkpoint delta.
-type Chunk struct {
-	Rows arrow.RecordBatch
-	Ops  []filament.Operation // nil = all inserts
-	Last filament.RowMeta
-}
-
-// Receiver takes what a Builder produces. Chunk is called on the appending
-// goroutine and may block for backpressure. Drained reports that the builder's
-// part is complete after rows rows in total.
-type Receiver interface {
-	Chunk(c Chunk) error
-	Drained(meta filament.RowMeta, rows int) error
 }
 
 // Builder is the filament.RowWriter for one (resource, part): typed column
@@ -43,6 +27,7 @@ type Receiver interface {
 // returns it.
 type Builder struct {
 	schema *arrow.Schema
+	alloc  memory.Allocator
 	opts   Options
 	recv   Receiver
 
@@ -50,25 +35,27 @@ type Builder struct {
 	cur      int   // columns appended to the open row
 	rows     int   // rows in the open chunk
 	bytes    int64 // value bytes in the open chunk
-	ops      []filament.Operation
-	last     filament.RowMeta
+	ops      []rowmodel.Operation
+	last     rowmodel.Meta
 	total    int // rows ever completed, for the coarse completion marker
 	err      error
 	flushReq atomic.Bool
+	closed   atomic.Bool
 }
 
-var _ filament.RowWriter = (*Builder)(nil)
-
-// New returns a builder for schema that hands full chunks to recv.
-func New(schema *arrow.Schema, opts Options, recv Receiver) *Builder {
+// NewBuilder returns a builder for schema that hands owned batches to recv.
+func NewBuilder(schema *arrow.Schema, alloc memory.Allocator, opts Options, recv Receiver) *Builder {
 	if opts.MaxRows <= 0 {
-		panic("batch: MaxRows must be positive")
+		panic("arrowbatch: MaxRows must be positive")
+	}
+	if alloc == nil {
+		alloc = memory.DefaultAllocator
 	}
 	cols := make([]array.Builder, schema.NumFields())
 	for i, f := range schema.Fields() {
-		cols[i] = array.NewBuilder(memory.DefaultAllocator, f.Type)
+		cols[i] = array.NewBuilder(alloc, f.Type)
 	}
-	b := &Builder{schema: schema, opts: opts, recv: recv, cols: cols}
+	b := &Builder{schema: schema, alloc: alloc, opts: opts, recv: recv, cols: cols}
 	b.reserve()
 	return b
 }
@@ -85,6 +72,10 @@ func (b *Builder) reserve() {
 // open returns the column builder the next append targets, or nil once the
 // builder has failed or the row is already full.
 func (b *Builder) open() array.Builder {
+	if b.closed.Load() {
+		b.err = ErrClosed
+		return nil
+	}
 	if b.err != nil {
 		return nil
 	}
@@ -306,7 +297,10 @@ func (b *Builder) Timestamp(micros int64) {
 // EndRow closes the row with its meta and flushes the chunk once it reaches
 // MaxRows or MaxBytes, or a flush was requested. It returns the builder's sticky
 // error, including a row short of columns.
-func (b *Builder) EndRow(meta filament.RowMeta) error {
+func (b *Builder) EndRow(meta rowmodel.Meta) error {
+	if b.closed.Load() {
+		return ErrClosed
+	}
 	if b.err == nil && b.cur != len(b.cols) {
 		b.err = fmt.Errorf("batch: row has %d columns, got %d", len(b.cols), b.cur)
 	}
@@ -314,8 +308,8 @@ func (b *Builder) EndRow(meta filament.RowMeta) error {
 	if b.err != nil {
 		return b.err
 	}
-	if meta.Op != filament.OpInsert && b.ops == nil {
-		b.ops = make([]filament.Operation, b.rows, b.opts.MaxRows)
+	if meta.Op != rowmodel.OpInsert && b.ops == nil {
+		b.ops = make([]rowmodel.Operation, b.rows, b.opts.MaxRows)
 	}
 	if b.ops != nil {
 		b.ops = append(b.ops, meta.Op)
@@ -333,9 +327,15 @@ func (b *Builder) EndRow(meta filament.RowMeta) error {
 // from any goroutine; the pipeline's flush timer uses it.
 func (b *Builder) RequestFlush() { b.flushReq.Store(true) }
 
+// Closed reports whether Close has released the builder's Arrow resources.
+func (b *Builder) Closed() bool { return b.closed.Load() }
+
 // Flush hands the open chunk to the receiver, if it has any rows. A source with an
 // idle stream calls it so buffered rows do not wait for the next one.
 func (b *Builder) Flush() error {
+	if b.closed.Load() {
+		return ErrClosed
+	}
 	if b.err != nil {
 		return b.err
 	}
@@ -344,7 +344,10 @@ func (b *Builder) Flush() error {
 
 // Drain flushes the open chunk and marks the part complete: meta carries a
 // change stream's final position, and the receiver gets the part's total rows.
-func (b *Builder) Drain(meta filament.RowMeta) error {
+func (b *Builder) Drain(meta rowmodel.Meta) error {
+	if b.closed.Load() {
+		return ErrClosed
+	}
 	if b.err != nil {
 		return b.err
 	}
@@ -359,6 +362,26 @@ func (b *Builder) Drain(meta filament.RowMeta) error {
 }
 
 var errMidRow = errors.New("batch: flush inside a row")
+
+// ErrClosed reports use of a closed builder.
+var ErrClosed = errors.New("arrowbatch: builder closed")
+
+// Close releases the column builders. It is idempotent and discards any
+// unflushed or partial row; callers explicitly Flush or Drain before closing
+// when those rows are valid.
+func (b *Builder) Close() error {
+	if b.closed.Swap(true) {
+		return nil
+	}
+	for _, col := range b.cols {
+		col.Release()
+	}
+	b.cols = nil
+	b.ops = nil
+	b.rows = 0
+	b.cur = 0
+	return nil
+}
 
 // flush builds and hands off the open chunk. No row may be open.
 func (b *Builder) flush() error {
@@ -377,12 +400,14 @@ func (b *Builder) flush() error {
 	for _, a := range arrs {
 		a.Release()
 	}
-	chunk := Chunk{Rows: rec, Ops: b.ops, Last: b.last}
+	out := NewBatch(rec, takeOperations(b.ops))
+	out.Last = b.last
 	b.ops = nil
 	b.rows = 0
 	b.bytes = 0
 	b.reserve()
-	if err := b.recv.Chunk(chunk); err != nil {
+	if err := b.recv.Chunk(out); err != nil {
+		out.Release()
 		b.err = err
 		return err
 	}
