@@ -1,0 +1,57 @@
+---
+title: "Overview"
+description: "The deployment shapes Filament supports and how to choose between them"
+---
+
+Filament runs the same engine everywhere. What changes between deployments is
+where a run executes and what state survives it. Pick the shape that matches
+how durable the deployment needs to be.
+
+## The shapes
+
+**Standalone binary.** One process with an embedded NATS JetStream event
+plane, the API, the web app, and the engine, over an in-memory store with
+secrets read from the environment. Nothing needs provisioning, which makes it
+the fastest way to try Filament. State does not survive a restart, so it is
+for evaluation rather than production. See
+[Installation](/pages/guides/get-started/installation).
+
+**Embedded as a library.** `app.Run` mounts the same modules inside your own
+Go process and serves the API from it. The defaults are the in-process bus
+and in-memory store, and you swap in NATS and Postgres when you want the
+deployment to be durable. See
+[Embedding as a library](/pages/guides/deployment/embedding-as-a-library).
+
+**Split services.** The production shape. A server owns connections,
+pipelines, and run requests. A control plane fires schedules, dispatches
+runs, and folds facts back into state. Postgres and NATS are the only
+surfaces those processes share, since they never call each other directly.
+See [Kubernetes](/pages/guides/deployment/kubernetes).
+
+## Where runs execute
+
+In a split deployment the control plane's `DISPATCH_MODE` decides this, and
+it is the setting worth understanding before you deploy.
+
+- `kubernetes`, the default, creates one worker Job per run. Each run gets
+  its own container and its own resource limits, workers heartbeat while they
+  execute, and the reaper fails runs whose heartbeats go stale.
+- `inproc` executes runs inside the control plane process itself. Simpler to
+  operate, and the right choice on platforms without a Jobs API, but runs
+  share the control plane's resources and there are no heartbeats to reap.
+
+Either way the runner behaves identically. Dispatch decides where the code
+path runs, never what it does.
+
+## What a durable deployment needs
+
+- **PostgreSQL** for run state, checkpoints, connections, pipelines, and
+  schedules
+- **NATS JetStream** for the fact stream that progress and derived state are
+  built from
+- **An encryption key** when secrets are stored through the default Postgres
+  provider
+
+Migrations ship with the server binary and can be applied on demand or as an
+install hook. Everything else is configured through environment variables,
+covered in full in [Configuration](/pages/guides/deployment/configuration).

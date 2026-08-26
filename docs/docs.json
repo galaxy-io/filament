@@ -107,6 +107,7 @@
       {
         "group": "Concepts",
         "pages": [
+          "pages/guides/concepts/overview",
           "pages/guides/concepts/architecture",
           "pages/guides/concepts/replication-modes",
           "pages/guides/concepts/integrity-and-checkpoints",
@@ -154,6 +155,7 @@
           {
             "group": "Building a connector",
             "pages": [
+              "pages/connectors/building-a-connector/overview",
               "pages/connectors/building-a-connector/writing-a-source",
               "pages/connectors/building-a-connector/writing-a-sink",
               "pages/connectors/building-a-connector/optional-interfaces",
@@ -165,6 +167,7 @@
       {
         "group": "Deployment",
         "pages": [
+          "pages/guides/deployment/overview",
           "pages/guides/deployment/kubernetes",
           "pages/guides/deployment/railway",
           "pages/guides/deployment/configuration",
