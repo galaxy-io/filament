@@ -40,6 +40,59 @@ const (
 	ModeStream = "stream"
 )
 
+// DeltaKind identifies the progress operation carried by a batch checkpoint.
+// Plans and durable checkpoints remain connector-shaped; deltas use this small
+// typed vocabulary so the pipeline and coordinator do not independently sniff
+// sentinel fields.
+type DeltaKind uint8
+
+// Supported checkpoint delta kinds.
+const (
+	DeltaUnknown DeltaKind = iota
+	DeltaShard
+	DeltaStream
+	DeltaCoarse
+)
+
+// Delta is the decoded progress operation for one written batch.
+type Delta struct {
+	Kind    DeltaKind
+	Part    int
+	Key     []string
+	LSN     string
+	Seq     uint64
+	Ack     int
+	Want    int
+	HasWant bool
+}
+
+// DecodeDelta classifies and decodes a batch checkpoint in one place.
+func DecodeDelta(cp filament.Checkpoint) Delta {
+	if cp == nil {
+		return Delta{}
+	}
+	raw := cp.Raw()
+	switch mode, _ := raw["mode"].(string); mode {
+	case ModeStream:
+		lsn, seq, ok := ParseStream(cp)
+		if ok {
+			return Delta{Kind: DeltaStream, LSN: lsn, Seq: seq}
+		}
+	case coarseDeltaTag:
+		part, ack, want, hasWant, ok := CoarseDelta(cp)
+		if ok {
+			return Delta{Kind: DeltaCoarse, Part: part, Ack: ack, Want: want, HasWant: hasWant}
+		}
+	case ModeKeyset:
+		return Delta{Kind: DeltaShard, Part: anyToInt(raw["part"]), Key: anyToStrs(raw["key"])}
+	}
+	// Legacy stream deltas carried lsn/seq without a mode.
+	if lsn, seq, ok := ParseStream(cp); ok {
+		return Delta{Kind: DeltaStream, LSN: lsn, Seq: seq}
+	}
+	return Delta{}
+}
+
 // KeysetShard is one independently-resumable slice of a resource's primary-key space.
 type KeysetShard struct {
 	Lo  []string

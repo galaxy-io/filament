@@ -1,46 +1,178 @@
 ---
-title: "Writing a Source"
-description: "The Source interface and how to implement it."
+title: "Writing a source"
+description: "The Source interface, the push contract, and what a record carries"
 ---
+
+A source is a Go type that reads data from somewhere (a database, an API, a
+file) and pushes it into the engine as records. It implements one small
+interface, describes itself with a spec, and registers a factory. Everything
+else (batching, integrity checking, checkpoint persistence, fact publishing)
+belongs to the engine. A source never sees the bus, the tenant, the run, or
+the sequence allocator.
+
+## The Source interface
 
 A source implements `Source`, defined in the repo's root `source.go`:
 
 ```go
 type Source interface {
-	Spec() ConnectorSpec
-	Validate(cfg Config) error
-	Configure(ctx context.Context, cfg Config) error
-	Extract(ctx context.Context, sink RecordSink, opts ExtractOpts) error
-	Teardown(ctx context.Context) error
+    Spec() ConnectorSpec
+    Validate(cfg Config) error
+    Configure(ctx context.Context, cfg Config) error
+    Extract(ctx context.Context, sink RecordSink, opts ExtractOpts) error
+    Teardown(ctx context.Context) error
 }
 ```
 
-- **`Spec`** is the connector's self-description — identity, supported
-  [replication modes](/pages/guides/concepts/replication-modes), config schema, and
-  resource capabilities. It's what powers the catalog (see [Connectors
-  overview](/pages/connectors/overview/introduction)).
-- **`Validate`** and **`Configure`** check and apply a `Config` before any
-  extraction runs.
-- **`Extract`** reads into a `RecordSink` under the given `ExtractOpts`
-  (which resources, which mode, how fast).
-- **`Teardown`** releases whatever `Configure` acquired.
+- **`Spec`** returns the connector's self-description (identity, supported
+  [read modes](/pages/guides/concepts/replication-modes), source policies,
+  config schema, and resource capabilities). It powers the catalog.
+- **`Validate`** checks a config without side effects. Reject malformed
+  configs here so failures surface before a run starts.
+- **`Configure`** takes the resolved config (secrets injected) and prepares
+  the source for extraction, parsing settings, building clients, and opening
+  pools.
+- **`Extract`** reads the requested resources and pushes every record into
+  the `RecordSink`. Return `nil` when done. Any error fails the run.
+- **`Teardown`** releases whatever `Configure` acquired. The runner defers it
+  as soon as `Configure` succeeds, so it runs even on failure.
 
-## Describing your config
+The engine creates a fresh instance per run, so a source can keep state in its
+struct fields without worrying about reuse.
 
-`ConnectorSpec.Config` is a `ConfigSchema` — a list of `ConfigField`s, each
-with a type (`FieldString`, `FieldSecret`, `FieldEnum`, `FieldObject`, …), a
-scope (`ScopeConnection` for fields reusable across runs, like a DSN;
-`ScopePipeline` for fields that vary per pipeline, like a table name), and
-optionally a `VisibleWhen` condition for conditional fields in the UI.
+## ExtractOpts
 
-## Optional capabilities
+`Extract` receives `ExtractOpts` scoping the run:
 
-A source can implement none, some, or all of several optional interfaces —
-resumable extraction, CDC, resource discovery, rate limiting, and more. See
+```go
+type ExtractOpts struct {
+    Resources   []string
+    Selectors   []string
+    Limit       int // 0 = unbounded
+    Parallelism int
+    Observe     SourceObserver
+}
+```
+
+There is no mode field. `ExtractOpts` says which resources to read and how
+fast. Read behavior per resource (fresh read, resume from a keyset cursor,
+incremental from a watermark) is carried by the checkpoint plan the engine
+hands to `ExtractFrom`, not by a run-wide mode. A plain `Extract` is always a
+full read. `Observe` is a nil-safe callback for source-local progress
+(`PageFetched`, `FanOutStarted`, `WatermarkAdvanced`, `RateLimited`,
+`RetryExhausted`). Call `opts.Observe.Report(...)` without nil checks.
+
+## Pushing records
+
+`RecordSink` is the engine's inlet:
+
+```go
+type RecordSink interface {
+    Push(r Record) error
+    PushBatch(rs []Record) error
+}
+```
+
+`Push` blocks when the pipeline's buffers are full. Backpressure reaches the
+source as a stalled call, so a source never needs its own flow control. If the
+pipeline dies (a sink write fails, a CRC diverges), the blocked call unblocks
+and returns the fatal error (or `ErrPipelineClosed`). Stop extracting and
+return it. The engine handles batching, ordering per resource, and flushing.
+Push records one at a time or in slices, whichever the read path produces.
+
+## Record anatomy
+
+```go
+type Record struct {
+    Resource string
+    ID       string
+    Op       Operation // OpInsert, OpUpdate, OpDelete
+    Data     []byte
+    Meta     RecordMeta // LSN, Seq, EmittedAt — CDC provenance
+
+    Part    int
+    Key     []string
+    Coarse  bool
+    Drained bool
+}
+```
+
+`ID`, `Op`, and `Data` are the integrity-checked identity of the record. The
+engine computes `filament.CRC32C` over exactly these three fields and compares
+it against what the sink wrote. `Data` is an opaque payload, conventionally
+one JSON object per row. `filament.NewRecord(resource, id, data)` builds the
+common insert case.
+
+The remaining fields are resume metadata, ignored by the CRC:
+
+- **`Part`** and **`Key`** are set by a keyset (`Resumable`) read. `Part` is
+  the shard the record came from, and `Key` is its primary-key value(s) as
+  text. This is the cursor the batcher carries onto the batch so progress can
+  be persisted.
+- **`Coarse`** marks a record from a bitmap or other ack-counted read whose
+  part has no monotonic cursor. The engine checkpoints it by counting written
+  rows instead of advancing a key. Mutually exclusive with a non-nil `Key`.
+- **`Drained`** is a control sentinel, not a data row. It carries `Part` but no
+  `Data`, and signals that the source has pushed every row of that part.
+  Push it after all of the part's data records. The engine turns it into the
+  part's completion marker and never writes or CRCs it. This is how a
+  zero-change CDC cycle still persists its final position.
+
+## ConnectorSpec
+
+`Spec()` returns a `ConnectorSpec`. The parts that matter most:
+
+- **`Modes`**: the `ReadMode`s the source supports (`ModeFull`,
+  `ModeIncremental`, `ModeCDC`). Advertise only what `Extract` (and the
+  [optional interfaces](/pages/connectors/building-a-connector/optional-interfaces))
+  actually deliver.
+- **`SourcePolicies`**: which ingestion types the source serves
+  (`full_replace`, `incremental_upsert`, `cdc`, …). Planning rejects a run
+  whose ingestion type no policy matches.
+- **`Config`**: a `ConfigSchema` of `ConfigField`s. Each field carries a
+  `Scope`. `ScopeConnection` covers settings that establish a reusable
+  connection (host, credentials), and `ScopePipeline` covers settings that
+  vary per pipeline (page size, target schema). Mark credentials
+  `Secret: true` (or type `FieldSecret`). They render masked and are stored as
+  refs, resolved and injected just before `Configure`. `VisibleWhen`
+  conditions a field on a sibling's value.
+- **`Resources`**: `ResourceCapabilities{Discoverable, PerResourceCursor}`.
+
+## Registration
+
+Registration lives in a `register.go` with an `init()`. Consumers enable the
+connector with a blank import:
+
+```go
+package myconnector
+
+import (
+    "github.com/galaxy-io/filament"
+    "github.com/galaxy-io/filament/registry"
+)
+
+func init() {
+    registry.RegisterSource("myconnector", filament.MaturityBeta, func() filament.Source { return New() })
+}
+```
+
+The factory is called once per run to produce a fresh instance.
+`RegisterSource` panics on a nil factory, a duplicate name, or an invalid
+maturity. Maturity is a catalog marker with defined meanings:
+
+- `alpha`: behavior derived from documentation, untested end-to-end
+- `beta`: has run end-to-end but not verified in every configuration
+- `stable`: production-ready
+
+The two-argument `registry.DefaultSources.Register` defaults to alpha.
+
+## A minimal source
+
+`connectors/sample` is the zero-dependency reference source, a synthetic
+generator implementing exactly `Source` plus `Discoverable`, with one optional
+pipeline-scoped `rows` field. Read it first — it is the whole contract in one
+short file, and the counterpart to the [stdout sink](/pages/connectors/building-a-connector/writing-a-sink).
+
+Everything beyond the base contract (resumable reads, CDC, discovery,
+schemas, rate limits) is opt-in. See
 [Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces).
-
-## Registering it
-
-Add a `register.go` that registers your source with the engine, then blank-import
-the package wherever it should be available — see [Embedding as a
-library](/pages/guides/deployment/embedding-as-a-library).

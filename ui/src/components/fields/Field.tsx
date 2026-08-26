@@ -43,7 +43,7 @@ interface FieldProps {
   isDisabled?: boolean;
   path?: string;
   getError?: (path: string) => string | undefined;
-  hasStoredSecret?: boolean;
+  storedSecretRefs?: Record<string, string>;
 }
 
 const Field = ({
@@ -54,7 +54,7 @@ const Field = ({
   isDisabled = false,
   path = field.name,
   getError,
-  hasStoredSecret,
+  storedSecretRefs,
 }: FieldProps) => {
   const label = useMemo(() => formatFieldName(field.name), [field.name]);
 
@@ -87,7 +87,7 @@ const Field = ({
                 isDisabled={isDisabled}
                 path={`${path}.${child.name}`}
                 getError={getError}
-                hasStoredSecret={hasStoredSecret}
+                storedSecretRefs={storedSecretRefs}
               />
             ))}
         </FlexWrapper>
@@ -107,7 +107,7 @@ const Field = ({
       isDisabled={isDisabled}
       variant={variant}
       label={label}
-      hasStoredSecret={hasStoredSecret}
+      hasStoredSecret={Boolean(storedSecretRefs?.[path])}
     />
   );
 };

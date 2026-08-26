@@ -1,0 +1,44 @@
+---
+title: "Overview"
+description: "How Filament is benchmarked, and where the harness and results live"
+---
+
+Filament is benchmarked in the open. The harness, datasets, methodology, and
+results live in a dedicated repository,
+[github.com/galaxy-io/benchmarks](https://github.com/galaxy-io/benchmarks),
+so runs can be reproduced and audited independently of this codebase.
+
+## Data movement
+
+The primary benchmark measures full-load data movement. Complete TPC-H or NYC
+Taxi datasets move between Postgres, MySQL, and Apache Iceberg across a route
+matrix (Postgres or MySQL sources into Postgres, MySQL, or Iceberg sinks).
+Filament runs alongside other movers, including a native dump-and-load
+baseline for the same-engine routes, on identical topologies.
+
+The methodology is strict about fairness:
+
+- One immutable source seed per cohort, loaded, vacuumed, frozen, and analyzed
+  once before the first repetition
+- A fresh sink per repetition, with SQL endpoints rebooted before every timed
+  run
+- A settling period and an autovacuum check before the timer starts
+- A result counts only when every destination table matches the seed's
+  row-count manifest
+
+Each run records timing, effective configuration, endpoint topology, host
+details, image IDs, and per-container CPU, memory, and network use. Remote
+cohorts on RDS also capture database counters and CloudWatch metrics around
+the timed window.
+
+<Info>
+  Results, raw data, and instructions for reproducing a run are in the
+  [benchmarks repository](https://github.com/galaxy-io/benchmarks). This
+  section documents what is measured, not published numbers.
+</Info>
+
+## In-repo micro-benchmarks
+
+The Filament repository also carries a small set of Go micro-benchmarks that
+isolate the engine's own overhead. See
+[Micro-benchmarks](/pages/benchmarks/micro-benchmarks).

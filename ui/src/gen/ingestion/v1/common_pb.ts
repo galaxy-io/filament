@@ -12,35 +12,26 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/common.proto.
  */
 export const file_ingestion_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiZwoPV29ya2VyUmVzb3VyY2VzEhMKC2NwdV9yZXF1ZXN0GAEgASgJEhEKCWNwdV9saW1pdBgCIAEoCRIWCg5tZW1vcnlfcmVxdWVzdBgDIAEoCRIUCgxtZW1vcnlfbGltaXQYBCABKAkiRwoTV29ya2VyQ29uZmlndXJhdGlvbhIwCglyZXNvdXJjZXMYASABKAsyHS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzIssCCgtDb25maWdGaWVsZBIMCgRuYW1lGAEgASgJEiUKBHR5cGUYAiABKA4yFy5pbmdlc3Rpb24udjEuRmllbGRUeXBlEhAKCHJlcXVpcmVkGAMgASgIEicKB2RlZmF1bHQYBCABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSJgoEZW51bRgFIAMoCzIYLmluZ2VzdGlvbi52MS5FbnVtT3B0aW9uEgwKBGhlbHAYBiABKAkSJwoFc2NvcGUYByABKA4yGC5pbmdlc3Rpb24udjEuRmllbGRTY29wZRIOCgZzZWNyZXQYCCABKAgSKQoGZmllbGRzGAkgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkEjIKDHZpc2libGVfd2hlbhgKIAEoCzIcLmluZ2VzdGlvbi52MS5GaWVsZENvbmRpdGlvbiIqCgpFbnVtT3B0aW9uEg0KBXZhbHVlGAEgASgJEg0KBWxhYmVsGAIgASgJIi8KDkZpZWxkQ29uZGl0aW9uEg0KBWZpZWxkGAEgASgJEg4KBnZhbHVlcxgCIAMoCSI5CgxDb25maWdTY2hlbWESKQoGZmllbGRzGAEgAygLMhkuaW5nZXN0aW9uLnYxLkNvbmZpZ0ZpZWxkKmMKDUNvbm5lY3RvcktpbmQSHgoaQ09OTkVDVE9SX0tJTkRfVU5TUEVDSUZJRUQQABIZChVDT05ORUNUT1JfS0lORF9TT1VSQ0UQARIXChNDT05ORUNUT1JfS0lORF9TSU5LEAIq2AEKCUZpZWxkVHlwZRIaChZGSUVMRF9UWVBFX1VOU1BFQ0lGSUVEEAASFQoRRklFTERfVFlQRV9TVFJJTkcQARISCg5GSUVMRF9UWVBFX0lOVBACEhMKD0ZJRUxEX1RZUEVfQk9PTBADEhUKEUZJRUxEX1RZUEVfU0VDUkVUEAQSFwoTRklFTERfVFlQRV9EVVJBVElPThAFEhMKD0ZJRUxEX1RZUEVfRU5VTRAGEhUKEUZJRUxEX1RZUEVfT0JKRUNUEAcSEwoPRklFTERfVFlQRV9MSVNUEAgqbAoPUmVwbGljYXRpb25Nb2RlEiAKHFJFUExJQ0FUSU9OX01PREVfVU5TUEVDSUZJRUQQABIdChlSRVBMSUNBVElPTl9NT0RFX1NUQU5EQVJEEAESGAoUUkVQTElDQVRJT05fTU9ERV9DREMQAipUCghSZWFkTW9kZRIZChVSRUFEX01PREVfVU5TUEVDSUZJRUQQABISCg5SRUFEX01PREVfRlVMTBABEhkKFVJFQURfTU9ERV9JTkNSRU1FTlRBTBACKm0KCVdyaXRlTW9kZRIaChZXUklURV9NT0RFX1VOU1BFQ0lGSUVEEAASFQoRV1JJVEVfTU9ERV9BUFBFTkQQARIWChJXUklURV9NT0RFX1JFUExBQ0UQAhIVChFXUklURV9NT0RFX1VQU0VSVBADKl8KCkZpZWxkU2NvcGUSGwoXRklFTERfU0NPUEVfVU5TUEVDSUZJRUQQABIaChZGSUVMRF9TQ09QRV9DT05ORUNUSU9OEAESGAoURklFTERfU0NPUEVfUElQRUxJTkUQAmIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEi6wEKD1dvcmtlclJlc291cmNlcxI9CghyZXF1ZXN0cxgBIAMoCzIrLmluZ2VzdGlvbi52MS5Xb3JrZXJSZXNvdXJjZXMuUmVxdWVzdHNFbnRyeRI5CgZsaW1pdHMYAiADKAsyKS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzLkxpbWl0c0VudHJ5Gi8KDVJlcXVlc3RzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARotCgtMaW1pdHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIlAKEFdvcmtlclRvbGVyYXRpb24SCwoDa2V5GAEgASgJEhAKCG9wZXJhdG9yGAIgASgJEg0KBXZhbHVlGAMgASgJEg4KBmVmZmVjdBgEIAEoCSL9AQoTV29ya2VyQ29uZmlndXJhdGlvbhIwCglyZXNvdXJjZXMYASABKAsyHS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzEkoKDW5vZGVfc2VsZWN0b3IYAiADKAsyMy5pbmdlc3Rpb24udjEuV29ya2VyQ29uZmlndXJhdGlvbi5Ob2RlU2VsZWN0b3JFbnRyeRIzCgt0b2xlcmF0aW9ucxgDIAMoCzIeLmluZ2VzdGlvbi52MS5Xb3JrZXJUb2xlcmF0aW9uGjMKEU5vZGVTZWxlY3RvckVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiywIKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRImCgRlbnVtGAUgAygLMhguaW5nZXN0aW9uLnYxLkVudW1PcHRpb24SDAoEaGVscBgGIAEoCRInCgVzY29wZRgHIAEoDjIYLmluZ2VzdGlvbi52MS5GaWVsZFNjb3BlEg4KBnNlY3JldBgIIAEoCBIpCgZmaWVsZHMYCSADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQSMgoMdmlzaWJsZV93aGVuGAogASgLMhwuaW5nZXN0aW9uLnYxLkZpZWxkQ29uZGl0aW9uIioKCkVudW1PcHRpb24SDQoFdmFsdWUYASABKAkSDQoFbGFiZWwYAiABKAkiLwoORmllbGRDb25kaXRpb24SDQoFZmllbGQYASABKAkSDgoGdmFsdWVzGAIgAygJIjkKDENvbmZpZ1NjaGVtYRIpCgZmaWVsZHMYASADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQqYwoNQ29ubmVjdG9yS2luZBIeChpDT05ORUNUT1JfS0lORF9VTlNQRUNJRklFRBAAEhkKFUNPTk5FQ1RPUl9LSU5EX1NPVVJDRRABEhcKE0NPTk5FQ1RPUl9LSU5EX1NJTksQAirYAQoJRmllbGRUeXBlEhoKFkZJRUxEX1RZUEVfVU5TUEVDSUZJRUQQABIVChFGSUVMRF9UWVBFX1NUUklORxABEhIKDkZJRUxEX1RZUEVfSU5UEAISEwoPRklFTERfVFlQRV9CT09MEAMSFQoRRklFTERfVFlQRV9TRUNSRVQQBBIXChNGSUVMRF9UWVBFX0RVUkFUSU9OEAUSEwoPRklFTERfVFlQRV9FTlVNEAYSFQoRRklFTERfVFlQRV9PQkpFQ1QQBxITCg9GSUVMRF9UWVBFX0xJU1QQCCpsCg9SZXBsaWNhdGlvbk1vZGUSIAocUkVQTElDQVRJT05fTU9ERV9VTlNQRUNJRklFRBAAEh0KGVJFUExJQ0FUSU9OX01PREVfU1RBTkRBUkQQARIYChRSRVBMSUNBVElPTl9NT0RFX0NEQxACKlQKCFJlYWRNb2RlEhkKFVJFQURfTU9ERV9VTlNQRUNJRklFRBAAEhIKDlJFQURfTU9ERV9GVUxMEAESGQoVUkVBRF9NT0RFX0lOQ1JFTUVOVEFMEAIqbQoJV3JpdGVNb2RlEhoKFldSSVRFX01PREVfVU5TUEVDSUZJRUQQABIVChFXUklURV9NT0RFX0FQUEVORBABEhYKEldSSVRFX01PREVfUkVQTEFDRRACEhUKEVdSSVRFX01PREVfVVBTRVJUEAMqXwoKRmllbGRTY29wZRIbChdGSUVMRF9TQ09QRV9VTlNQRUNJRklFRBAAEhoKFkZJRUxEX1NDT1BFX0NPTk5FQ1RJT04QARIYChRGSUVMRF9TQ09QRV9QSVBFTElORRACYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
- * WorkerResources sizes the worker that executes a run. Values are Kubernetes
- * quantity strings ("500m", "2Gi"); an empty field is unset and inherits, and
- * only the Kubernetes dispatcher consults them.
+ * WorkerResources sizes the worker that executes a run, shaped like a Kubernetes
+ * ResourceRequirements: resource name ("cpu", "memory") to quantity string
+ * ("500m", "2Gi"). A missing key is unset and inherits, and only the Kubernetes
+ * dispatcher consults them.
  *
  * @generated from message ingestion.v1.WorkerResources
  */
 export type WorkerResources = Message<"ingestion.v1.WorkerResources"> & {
   /**
-   * @generated from field: string cpu_request = 1;
+   * @generated from field: map<string, string> requests = 1;
    */
-  cpuRequest: string;
+  requests: { [key: string]: string };
 
   /**
-   * @generated from field: string cpu_limit = 2;
+   * @generated from field: map<string, string> limits = 2;
    */
-  cpuLimit: string;
-
-  /**
-   * @generated from field: string memory_request = 3;
-   */
-  memoryRequest: string;
-
-  /**
-   * @generated from field: string memory_limit = 4;
-   */
-  memoryLimit: string;
+  limits: { [key: string]: string };
 };
 
 /**
@@ -51,9 +42,46 @@ export const WorkerResourcesSchema: GenMessage<WorkerResources> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_common, 0);
 
 /**
- * WorkerConfiguration is how a pipeline's workers are shaped. It is a container
- * on purpose: resources today, placement (node selectors, tolerations) later,
- * without a migration per knob.
+ * WorkerToleration mirrors a Kubernetes toleration. Fields are the Kubernetes
+ * strings verbatim: operator "Equal" (default) or "Exists"; effect
+ * "NoSchedule", "PreferNoSchedule", "NoExecute", or empty to match all.
+ *
+ * @generated from message ingestion.v1.WorkerToleration
+ */
+export type WorkerToleration = Message<"ingestion.v1.WorkerToleration"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string operator = 2;
+   */
+  operator: string;
+
+  /**
+   * @generated from field: string value = 3;
+   */
+  value: string;
+
+  /**
+   * @generated from field: string effect = 4;
+   */
+  effect: string;
+};
+
+/**
+ * Describes the message ingestion.v1.WorkerToleration.
+ * Use `create(WorkerTolerationSchema)` to create a new message.
+ */
+export const WorkerTolerationSchema: GenMessage<WorkerToleration> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 1);
+
+/**
+ * WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
+ * a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
+ * merge per key when a run overrides a pipeline; node_selector and tolerations
+ * replace wholesale.
  *
  * @generated from message ingestion.v1.WorkerConfiguration
  */
@@ -62,6 +90,16 @@ export type WorkerConfiguration = Message<"ingestion.v1.WorkerConfiguration"> & 
    * @generated from field: ingestion.v1.WorkerResources resources = 1;
    */
   resources?: WorkerResources | undefined;
+
+  /**
+   * @generated from field: map<string, string> node_selector = 2;
+   */
+  nodeSelector: { [key: string]: string };
+
+  /**
+   * @generated from field: repeated ingestion.v1.WorkerToleration tolerations = 3;
+   */
+  tolerations: WorkerToleration[];
 };
 
 /**
@@ -69,7 +107,7 @@ export type WorkerConfiguration = Message<"ingestion.v1.WorkerConfiguration"> & 
  * Use `create(WorkerConfigurationSchema)` to create a new message.
  */
 export const WorkerConfigurationSchema: GenMessage<WorkerConfiguration> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 1);
+  messageDesc(file_ingestion_v1_common, 2);
 
 /**
  * ConfigField describes one connector configuration field.
@@ -140,7 +178,7 @@ export type ConfigField = Message<"ingestion.v1.ConfigField"> & {
  * Use `create(ConfigFieldSchema)` to create a new message.
  */
 export const ConfigFieldSchema: GenMessage<ConfigField> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 2);
+  messageDesc(file_ingestion_v1_common, 3);
 
 /**
  * EnumOption is one ordered choice for an enum or list config field.
@@ -164,7 +202,7 @@ export type EnumOption = Message<"ingestion.v1.EnumOption"> & {
  * Use `create(EnumOptionSchema)` to create a new message.
  */
 export const EnumOptionSchema: GenMessage<EnumOption> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 3);
+  messageDesc(file_ingestion_v1_common, 4);
 
 /**
  * @generated from message ingestion.v1.FieldCondition
@@ -186,7 +224,7 @@ export type FieldCondition = Message<"ingestion.v1.FieldCondition"> & {
  * Use `create(FieldConditionSchema)` to create a new message.
  */
 export const FieldConditionSchema: GenMessage<FieldCondition> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 4);
+  messageDesc(file_ingestion_v1_common, 5);
 
 /**
  * ConfigSchema describes the configuration accepted by a connector.
@@ -205,7 +243,7 @@ export type ConfigSchema = Message<"ingestion.v1.ConfigSchema"> & {
  * Use `create(ConfigSchemaSchema)` to create a new message.
  */
 export const ConfigSchemaSchema: GenMessage<ConfigSchema> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 5);
+  messageDesc(file_ingestion_v1_common, 6);
 
 /**
  * ConnectorKind distinguishes a source from a sink in the catalog.

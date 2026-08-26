@@ -1,50 +1,62 @@
 ---
 title: "Linear"
-description: "Read teams, issues, and projects from Linear's GraphQL API."
+description: "Read teams, users, projects, and issues from Linear's GraphQL API"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg"
 ---
 
-Linear is a manifest-driven source — `connectors/http/manifests/linear.yaml`
-declares its resources, auth, and pagination against the shared grammar in
-`connectors/http/manifest/`; no Linear-specific Go code exists. See
-[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+Linear is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
+The `connectors/http/manifests/linear.yaml` manifest declares its resources
+(teams, users, projects, and issues), all read from Linear's GraphQL
+endpoint. The connector is **beta**. The resource set is stable, though
+field shapes may still be extended.
 
-## GraphQL, not REST
+## Configuration
 
-Linear only exposes a GraphQL API, so every resource in this manifest is a
-`POST /graphql` with a different query and variables in its `body.template` —
-the one manifest in the catalog that isn't a plain REST client. `for_each`
-fan-out and pagination still work the same as the REST-backed connectors; the
-difference is entirely in how each request body is built.
-
-## Auth
-
-An API key, sent as a raw `Authorization` header value (`auth.header`) rather
-than the `bearer:` shorthand the other manifests use — Linear's key is not
-prefixed with `Bearer `.
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Linear API key. |
 
 ## Resources
 
-Four resources, all statically discovered, none with a parent:
-
-| Resource | GraphQL query | Notes |
-|---|---|---|
-| `teams` | `Teams($first, $after, $updatedAfter)` | Incremental on `updatedAt` |
-| `users` | `Users($first, $after, $updatedAfter)` | Incremental on `updatedAt` |
-| `projects` | `Projects($first, $after, $updatedAfter)` | Incremental on `updatedAt` |
-| `issues` | `Issues($first, $after, $updatedAfter)` | Incremental on `updatedAt`; denormalizes `team`, `state`, `assignee`, `creator`, and `project` as both a flat `_id` field and a nested `json` object |
-
-Every query pages 100 nodes at a time and reads cursor state from GraphQL's
-standard `pageInfo { hasNextPage, endCursor }` shape — the manifest's cursor
-pagination points at `data.<field>.pageInfo.endCursor` /
-`data.<field>.pageInfo.hasNextPage` and feeds the cursor back in as the
-`after` GraphQL variable.
+All four resources are top level, with no fan-out. Each one issues
+`POST /graphql` with its own query, pages of 100, and `includeArchived: true`
+so archived rows are not silently dropped. `issues` denormalizes its
+relations. `team`, `state`, `assignee`, `creator`, and `project` are projected
+both as flat join keys (`team_id`, `state_id`, …) and as compact JSON objects
+shaped from the GraphQL selection, with the first 50 labels inlined.
 
 ## Modes
 
-All four resources support `ModeFull` and `ModeIncremental` (see
-[HTTP](/pages/connectors/sources/http)). Incremental runs filter Linear's
-GraphQL collections with `updatedAt >= <checkpoint>` and order results by
-`updatedAt`. The queries include archived records, and the users query also
-includes disabled accounts, so those lifecycle transitions remain visible.
-Each resource maintains its own `updated_at` checkpoint.
+Full is always available. A full run checkpoints its pagination cursor per
+resource and resumes from the last completed page.
+
+All four resources are incremental, following the same pattern.
+
+| Resource | Cursor field | Request parameter | Checkpoint key |
+|---|---|---|---|
+| `teams` | `updated_at` | `variables.updatedAfter` (body) | `teams_updated_at` |
+| `users` | `updated_at` | `variables.updatedAfter` (body) | `users_updated_at` |
+| `projects` | `updated_at` | `variables.updatedAfter` (body) | `projects_updated_at` |
+| `issues` | `updated_at` | `variables.updatedAfter` (body) | `issues_updated_at` |
+
+Each uses the `time` comparator with an initial value of
+`1970-01-01T00:00:00Z` (the first incremental run is a full backfill) and no
+overlap window. The watermark feeds the GraphQL `updatedAfter` variable in the
+request body, and each query orders by `updatedAt` so it advances
+monotonically. The cursor field is fixed by the manifest. Only a lookback
+window is user-configurable, and only because the comparator is `time`.
+
+## Behavior
+
+- **Auth**: the API key is sent as a raw `Authorization` header value, with
+  no `Bearer` prefix. This is Linear's personal-key convention.
+- **Pagination**: Relay-style cursors. `pageInfo.endCursor` from each
+  response feeds `variables.after` in the next request body, terminating when
+  `pageInfo.hasNextPage` is false.
+- **Errors**: GraphQL returns HTTP 200 for query failures, so the manifest
+  declares an error envelope. Any response with an `errors` array fails the
+  run with the first error's message.
+- **Rate limiting**: no client-side limiter is configured. The engine backs
+  off on 429 responses using `Retry-After`.
+- Every resource carries a `raw` remainder column preserving fields the
+  manifest does not project.

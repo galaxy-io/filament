@@ -9,6 +9,7 @@ package ingestionv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1187,12 +1188,16 @@ func (x *TailRunRequest) GetShouldReplay() bool {
 
 // RunEventFields contains the optional measurements carried by a run event.
 type RunEventFields struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Records       int64                  `protobuf:"varint,1,opt,name=records,proto3" json:"records,omitempty"`
-	Bytes         int64                  `protobuf:"varint,2,opt,name=bytes,proto3" json:"bytes,omitempty"`
-	Uri           string                 `protobuf:"bytes,3,opt,name=uri,proto3" json:"uri,omitempty"`
-	Crc           uint32                 `protobuf:"varint,4,opt,name=crc,proto3" json:"crc,omitempty"`
-	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Records      int64                  `protobuf:"varint,1,opt,name=records,proto3" json:"records,omitempty"`
+	Bytes        int64                  `protobuf:"varint,2,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Uri          string                 `protobuf:"bytes,3,opt,name=uri,proto3" json:"uri,omitempty"`
+	Crc          uint32                 `protobuf:"varint,4,opt,name=crc,proto3" json:"crc,omitempty"`
+	Error        string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	RetryAfterMs int64                  `protobuf:"varint,6,opt,name=retry_after_ms,json=retryAfterMs,proto3" json:"retry_after_ms,omitempty"`
+	ParentsTotal int64                  `protobuf:"varint,7,opt,name=parents_total,json=parentsTotal,proto3" json:"parents_total,omitempty"`
+	// checkpoint preserves the connector cursor together with its resource.
+	Checkpoint    *structpb.Struct `protobuf:"bytes,8,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1260,6 +1265,27 @@ func (x *RunEventFields) GetError() string {
 		return x.Error
 	}
 	return ""
+}
+
+func (x *RunEventFields) GetRetryAfterMs() int64 {
+	if x != nil {
+		return x.RetryAfterMs
+	}
+	return 0
+}
+
+func (x *RunEventFields) GetParentsTotal() int64 {
+	if x != nil {
+		return x.ParentsTotal
+	}
+	return 0
+}
+
+func (x *RunEventFields) GetCheckpoint() *structpb.Struct {
+	if x != nil {
+		return x.Checkpoint
+	}
+	return nil
 }
 
 // RunEvent is the event envelope forwarded by the run stream. event_type is the
@@ -1413,7 +1439,7 @@ var File_ingestion_v1_runs_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"R\n" +
+	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"R\n" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
@@ -1505,13 +1531,18 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x0eTailRunRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12#\n" +
-	"\rshould_replay\x18\x03 \x01(\bR\fshouldReplay\"z\n" +
+	"\rshould_replay\x18\x03 \x01(\bR\fshouldReplay\"\xfe\x01\n" +
 	"\x0eRunEventFields\x12\x18\n" +
 	"\arecords\x18\x01 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x02 \x01(\x03R\x05bytes\x12\x10\n" +
 	"\x03uri\x18\x03 \x01(\tR\x03uri\x12\x10\n" +
 	"\x03crc\x18\x04 \x01(\rR\x03crc\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\xfd\x01\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12$\n" +
+	"\x0eretry_after_ms\x18\x06 \x01(\x03R\fretryAfterMs\x12#\n" +
+	"\rparents_total\x18\a \x01(\x03R\fparentsTotal\x127\n" +
+	"\n" +
+	"checkpoint\x18\b \x01(\v2\x17.google.protobuf.StructR\n" +
+	"checkpoint\"\xfd\x01\n" +
 	"\bRunEvent\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
@@ -1580,6 +1611,7 @@ var file_ingestion_v1_runs_proto_goTypes = []any{
 	(*WorkerConfiguration)(nil), // 20: ingestion.v1.WorkerConfiguration
 	(*PaginationRequest)(nil),   // 21: ingestion.v1.PaginationRequest
 	(*PaginationResponse)(nil),  // 22: ingestion.v1.PaginationResponse
+	(*structpb.Struct)(nil),     // 23: google.protobuf.Struct
 }
 var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	2,  // 0: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
@@ -1597,13 +1629,14 @@ var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	8,  // 12: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
 	22, // 13: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
 	1,  // 14: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.RunSignal
-	17, // 15: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
-	18, // 16: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	23, // 15: ingestion.v1.RunEventFields.checkpoint:type_name -> google.protobuf.Struct
+	17, // 16: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
+	18, // 17: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_runs_proto_init() }

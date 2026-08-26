@@ -142,14 +142,17 @@ func TestResumeMatrix(t *testing.T) {
 func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	ctx := context.Background()
 
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 	spec := seed.Default()
 	manifest, err := seedpg.Apply(ctx, pg.Pool(), spec)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if _, err := pg.Pool().Exec(ctx, "CREATE SCHEMA dst"); err != nil {
-		t.Fatalf("create dst schema: %v", err)
+	// The shared container's wipe is the reset, but a run that outlives its scenario can
+	// recreate dst behind it. Drop rather than create: a surviving dst would satisfy the
+	// no-loss check with rows this run never delivered. The sink recreates it on Open.
+	if _, err := pg.Pool().Exec(ctx, "DROP SCHEMA IF EXISTS dst CASCADE"); err != nil {
+		t.Fatalf("wipe dst schema: %v", err)
 	}
 
 	resources := make([]string, spec.Tables)

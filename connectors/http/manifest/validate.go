@@ -262,7 +262,7 @@ func (m *Manifest) validateSemantics() error {
 			if err := validateIncrementalInitial(*r.Incremental); err != nil {
 				_ = agg.Addf(path+".incremental.initial", "%v", err)
 			}
-			cursor, found := incrementalCursorField(*r)
+			cursor, found := IncrementalCursorField(*r)
 			if !found {
 				_ = agg.Addf(path+".incremental.cursor_field", "field %q must be declared and projected in fields", r.Incremental.CursorField)
 			} else {
@@ -350,10 +350,7 @@ func (m *Manifest) validateSemantics() error {
 		if r.Incremental == nil {
 			continue
 		}
-		key := r.Incremental.CheckpointKey
-		if key == "" {
-			key = r.Incremental.CursorField
-		}
+		key := r.Incremental.DurableCheckpointKey()
 		if owner, dup := seen[key]; dup {
 			_ = agg.Addf(fmt.Sprintf("resources[%q].incremental.checkpoint_key", r.Name),
 				"key %q collides with resources[%q]", key, owner)
@@ -364,7 +361,10 @@ func (m *Manifest) validateSemantics() error {
 	return agg.AsError()
 }
 
-func incrementalCursorField(resource Resource) (FieldSpec, bool) {
+// IncrementalCursorField resolves the declared, projectable cursor field for a
+// resource. Validation and extraction share this resolver so they cannot
+// disagree about parent-scoped or missing fields.
+func IncrementalCursorField(resource Resource) (FieldSpec, bool) {
 	if resource.Incremental == nil {
 		return FieldSpec{}, false
 	}

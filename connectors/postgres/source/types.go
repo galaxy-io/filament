@@ -19,63 +19,64 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/arrowtext"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // pgType is one Postgres type's behaviour in the source.
 type pgType struct {
-	logical    filament.LogicalType
-	fromBinary func(w filament.RowWriter, src []byte) error  // binary wire value → row
-	toText     func(dst, src []byte) ([]byte, error)         // binary wire value → text form
-	fromText   func(w filament.RowWriter, text []byte) error // text-form value → row
+	logical    rowmodel.LogicalType
+	fromBinary func(w arrowbatch.RowWriter, src []byte) error  // binary wire value → row
+	toText     func(dst, src []byte) ([]byte, error)           // binary wire value → text form
+	fromText   func(w arrowbatch.RowWriter, text []byte) error // text-form value → row
 }
 
 // typeFor returns the behaviour of a column by type OID, sized to the field
 // (numeric needs its scale). wire is false for a type without a binary form:
 // it is projected (col)::text, arrives as text and stays text, logically a
 // string or an array by its native spelling.
-func typeFor(oid uint32, f filament.SchemaField) (t pgType, wire bool) {
+func typeFor(oid uint32, f rowmodel.Field) (t pgType, wire bool) {
 	switch oid {
 	case pgtype.BoolOID:
-		return pgType{filament.LogicalBool, decBool, textBool, parseBool}, true
+		return pgType{rowmodel.LogicalBool, decBool, textBool, parseBool}, true
 	case pgtype.Int2OID:
-		return pgType{filament.LogicalInt16, decInt2, textInt2, parseInt2}, true
+		return pgType{rowmodel.LogicalInt16, decInt2, textInt2, parseInt2}, true
 	case pgtype.Int4OID:
-		return pgType{filament.LogicalInt32, decInt4, textInt4, parseInt4}, true
+		return pgType{rowmodel.LogicalInt32, decInt4, textInt4, parseInt4}, true
 	case pgtype.Int8OID:
-		return pgType{filament.LogicalInt64, decInt8, textInt8, parseInt8}, true
+		return pgType{rowmodel.LogicalInt64, decInt8, textInt8, parseInt8}, true
 	case pgtype.Float4OID:
-		return pgType{filament.LogicalFloat32, decFloat4, textFloat4, parseFloat4}, true
+		return pgType{rowmodel.LogicalFloat32, decFloat4, textFloat4, parseFloat4}, true
 	case pgtype.Float8OID:
-		return pgType{filament.LogicalFloat64, decFloat8, textFloat8, parseFloat8}, true
+		return pgType{rowmodel.LogicalFloat64, decFloat8, textFloat8, parseFloat8}, true
 	case pgtype.NumericOID:
 		if f.Precision > 0 {
-			return pgType{filament.LogicalDecimal, decDecimal(int32(f.Scale)), textNumeric, parseDecimal(int32(f.Precision), int32(f.Scale))}, true //nolint:gosec // <= 38
+			return pgType{rowmodel.LogicalDecimal, decDecimal(int32(f.Scale)), textNumeric, parseDecimal(int32(f.Precision), int32(f.Scale))}, true //nolint:gosec // <= 38
 		}
-		return pgType{filament.LogicalDecimal, decNumericText, textNumeric, decString}, true
+		return pgType{rowmodel.LogicalDecimal, decNumericText, textNumeric, decString}, true
 	case pgtype.TextOID, pgtype.VarcharOID, pgtype.BPCharOID, pgtype.NameOID:
-		return pgType{filament.LogicalString, decString, textRaw, decString}, true
+		return pgType{rowmodel.LogicalString, decString, textRaw, decString}, true
 	case pgtype.ByteaOID:
-		return pgType{filament.LogicalBytes, decBytes, textBytea, parseBytea}, true
+		return pgType{rowmodel.LogicalBytes, decBytes, textBytea, parseBytea}, true
 	case pgtype.UUIDOID:
-		return pgType{filament.LogicalUUID, decUUID, textUUID, decString}, true
+		return pgType{rowmodel.LogicalUUID, decUUID, textUUID, decString}, true
 	case pgtype.DateOID:
-		return pgType{filament.LogicalDate, decDate, textDate, parseDate}, true
+		return pgType{rowmodel.LogicalDate, decDate, textDate, parseDate}, true
 	case pgtype.TimeOID:
-		return pgType{filament.LogicalTime, decTime, textTime, parseTime}, true
+		return pgType{rowmodel.LogicalTime, decTime, textTime, parseTime}, true
 	case pgtype.TimestampOID:
-		return pgType{filament.LogicalTimestamp, decTimestamp, textTimestamp, parseTimestamp}, true
+		return pgType{rowmodel.LogicalTimestamp, decTimestamp, textTimestamp, parseTimestamp}, true
 	case pgtype.TimestamptzOID:
-		return pgType{filament.LogicalTimestampTZ, decTimestamp, textTimestamptz, parseTimestamp}, true
+		return pgType{rowmodel.LogicalTimestampTZ, decTimestamp, textTimestamptz, parseTimestamp}, true
 	case pgtype.JSONOID:
-		return pgType{filament.LogicalJSON, decString, textRaw, decString}, true
+		return pgType{rowmodel.LogicalJSON, decString, textRaw, decString}, true
 	case pgtype.JSONBOID:
-		return pgType{filament.LogicalJSON, decJSONB, textJSONB, decString}, true
+		return pgType{rowmodel.LogicalJSON, decJSONB, textJSONB, decString}, true
 	}
-	t = pgType{filament.LogicalString, decString, textRaw, decString}
+	t = pgType{rowmodel.LogicalString, decString, textRaw, decString}
 	if strings.HasSuffix(f.Native, "[]") {
-		t.logical = filament.LogicalArray
+		t.logical = rowmodel.LogicalArray
 	}
 	return t, false
 }
@@ -100,7 +101,7 @@ func numericPrecScale(typmod int32) (prec, scale int) {
 // sink writes them back as infinity.
 const (
 	pgEpochDays   = 10957
-	pgEpochMicros = pgEpochDays * batch.MicrosPerDay
+	pgEpochMicros = pgEpochDays * arrowtext.MicrosPerDay
 )
 
 func beInt16(b []byte) int16 { return int16(binary.BigEndian.Uint16(b)) } //nolint:gosec // wire value
@@ -116,7 +117,7 @@ func sized(src []byte, n int, what string) error {
 
 // bool
 
-func decBool(w filament.RowWriter, src []byte) error {
+func decBool(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 1, "bool"); err != nil {
 		return err
 	}
@@ -134,7 +135,7 @@ func textBool(dst, src []byte) ([]byte, error) {
 	return append(dst, 'f'), nil
 }
 
-func parseBool(w filament.RowWriter, text []byte) error {
+func parseBool(w arrowbatch.RowWriter, text []byte) error {
 	switch string(text) {
 	case "t":
 		w.Bool(true)
@@ -148,7 +149,7 @@ func parseBool(w filament.RowWriter, text []byte) error {
 
 // integers
 
-func decInt2(w filament.RowWriter, src []byte) error {
+func decInt2(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 2, "int2"); err != nil {
 		return err
 	}
@@ -156,7 +157,7 @@ func decInt2(w filament.RowWriter, src []byte) error {
 	return nil
 }
 
-func decInt4(w filament.RowWriter, src []byte) error {
+func decInt4(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 4, "int4"); err != nil {
 		return err
 	}
@@ -164,7 +165,7 @@ func decInt4(w filament.RowWriter, src []byte) error {
 	return nil
 }
 
-func decInt8(w filament.RowWriter, src []byte) error {
+func decInt8(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 8, "int8"); err != nil {
 		return err
 	}
@@ -193,7 +194,7 @@ func textInt8(dst, src []byte) ([]byte, error) {
 	return strconv.AppendInt(dst, beInt64(src), 10), nil
 }
 
-func parseInt2(w filament.RowWriter, text []byte) error {
+func parseInt2(w arrowbatch.RowWriter, text []byte) error {
 	v, err := strconv.ParseInt(string(text), 10, 16)
 	if err != nil {
 		return err
@@ -202,7 +203,7 @@ func parseInt2(w filament.RowWriter, text []byte) error {
 	return nil
 }
 
-func parseInt4(w filament.RowWriter, text []byte) error {
+func parseInt4(w arrowbatch.RowWriter, text []byte) error {
 	v, err := strconv.ParseInt(string(text), 10, 32)
 	if err != nil {
 		return err
@@ -211,7 +212,7 @@ func parseInt4(w filament.RowWriter, text []byte) error {
 	return nil
 }
 
-func parseInt8(w filament.RowWriter, text []byte) error {
+func parseInt8(w arrowbatch.RowWriter, text []byte) error {
 	v, err := strconv.ParseInt(string(text), 10, 64)
 	if err != nil {
 		return err
@@ -222,7 +223,7 @@ func parseInt8(w filament.RowWriter, text []byte) error {
 
 // floats
 
-func decFloat4(w filament.RowWriter, src []byte) error {
+func decFloat4(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 4, "float4"); err != nil {
 		return err
 	}
@@ -230,7 +231,7 @@ func decFloat4(w filament.RowWriter, src []byte) error {
 	return nil
 }
 
-func decFloat8(w filament.RowWriter, src []byte) error {
+func decFloat8(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 8, "float8"); err != nil {
 		return err
 	}
@@ -266,7 +267,7 @@ func appendFloatText(dst []byte, f float64, bits int) []byte {
 	return strconv.AppendFloat(dst, f, 'g', -1, bits)
 }
 
-func parseFloat4(w filament.RowWriter, text []byte) error {
+func parseFloat4(w arrowbatch.RowWriter, text []byte) error {
 	v, err := strconv.ParseFloat(string(text), 32)
 	if err != nil {
 		return err
@@ -275,7 +276,7 @@ func parseFloat4(w filament.RowWriter, text []byte) error {
 	return nil
 }
 
-func parseFloat8(w filament.RowWriter, text []byte) error {
+func parseFloat8(w arrowbatch.RowWriter, text []byte) error {
 	v, err := strconv.ParseFloat(string(text), 64)
 	if err != nil {
 		return err
@@ -346,8 +347,8 @@ func (n numeric) special() string {
 // 10^scale. Every partial value stays below the final one, so 128-bit arithmetic
 // never overflows for a column of at most 38 digits. NaN has no decimal form
 // and lands as null; ±Infinity is not storable in a bounded column.
-func decDecimal(scale int32) func(filament.RowWriter, []byte) error {
-	return func(w filament.RowWriter, src []byte) error {
+func decDecimal(scale int32) func(arrowbatch.RowWriter, []byte) error {
+	return func(w arrowbatch.RowWriter, src []byte) error {
 		n, err := parseNumeric(src)
 		if err != nil {
 			return err
@@ -395,7 +396,7 @@ func decDecimal(scale int32) func(filament.RowWriter, []byte) error {
 }
 
 // decNumericText renders an unbounded numeric as numeric_out text.
-func decNumericText(w filament.RowWriter, src []byte) error {
+func decNumericText(w arrowbatch.RowWriter, src []byte) error {
 	var buf [64]byte
 	out, err := textNumeric(buf[:0], src)
 	if err != nil {
@@ -424,7 +425,7 @@ func textNumeric(dst, src []byte) ([]byte, error) {
 	} else {
 		dst = strconv.AppendInt(dst, n.digit(0), 10)
 		for i := 1; i <= n.weight; i++ {
-			dst = batch.AppendPadded(dst, n.digit(i), 4)
+			dst = arrowtext.AppendPadded(dst, n.digit(i), 4)
 		}
 	}
 	// Fraction: exactly dscale digits from the groups after the decimal point.
@@ -432,7 +433,7 @@ func textNumeric(dst, src []byte) ([]byte, error) {
 		dst = append(dst, '.')
 		start := len(dst)
 		for i := n.weight + 1; len(dst)-start < n.dscale; i++ {
-			dst = batch.AppendPadded(dst, n.digit(i), 4)
+			dst = arrowtext.AppendPadded(dst, n.digit(i), 4)
 		}
 		dst = dst[:start+n.dscale]
 	}
@@ -441,8 +442,8 @@ func textNumeric(dst, src []byte) ([]byte, error) {
 
 // parseDecimal reads numeric text into decimal128; NaN lands as null, as it
 // does on the binary path.
-func parseDecimal(prec, scale int32) func(filament.RowWriter, []byte) error {
-	return func(w filament.RowWriter, text []byte) error {
+func parseDecimal(prec, scale int32) func(arrowbatch.RowWriter, []byte) error {
+	return func(w arrowbatch.RowWriter, text []byte) error {
 		if string(text) == "NaN" {
 			w.Null()
 			return nil
@@ -458,7 +459,7 @@ func parseDecimal(prec, scale int32) func(filament.RowWriter, []byte) error {
 
 // text, json, jsonb
 
-func decString(w filament.RowWriter, src []byte) error {
+func decString(w arrowbatch.RowWriter, src []byte) error {
 	w.StringBytes(src)
 	return nil
 }
@@ -467,7 +468,7 @@ func textRaw(dst, src []byte) ([]byte, error) { return append(dst, src...), nil 
 
 var errJSONBVersion = errors.New("jsonb version byte")
 
-func decJSONB(w filament.RowWriter, src []byte) error {
+func decJSONB(w arrowbatch.RowWriter, src []byte) error {
 	if len(src) == 0 || src[0] != 1 {
 		return errJSONBVersion
 	}
@@ -484,7 +485,7 @@ func textJSONB(dst, src []byte) ([]byte, error) {
 
 // bytea
 
-func decBytes(w filament.RowWriter, src []byte) error {
+func decBytes(w arrowbatch.RowWriter, src []byte) error {
 	w.Bytes(src)
 	return nil
 }
@@ -495,7 +496,7 @@ func textBytea(dst, src []byte) ([]byte, error) {
 	return hex.AppendEncode(dst, src), nil
 }
 
-func parseBytea(w filament.RowWriter, text []byte) error {
+func parseBytea(w arrowbatch.RowWriter, text []byte) error {
 	if len(text) < 2 || text[0] != '\\' || text[1] != 'x' {
 		return fmt.Errorf("bytea %q is not hex form", text)
 	}
@@ -510,7 +511,7 @@ func parseBytea(w filament.RowWriter, text []byte) error {
 
 // uuid
 
-func decUUID(w filament.RowWriter, src []byte) error {
+func decUUID(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 16, "uuid"); err != nil {
 		return err
 	}
@@ -540,7 +541,7 @@ func appendUUID(dst, src []byte) []byte {
 
 // date
 
-func decDate(w filament.RowWriter, src []byte) error {
+func decDate(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 4, "date"); err != nil {
 		return err
 	}
@@ -563,10 +564,10 @@ func textDate(dst, src []byte) ([]byte, error) {
 	case math.MinInt32:
 		return append(dst, "-infinity"...), nil
 	}
-	return batch.AppendDate(dst, int64(v)+pgEpochDays), nil
+	return arrowtext.AppendDate32(dst, v+pgEpochDays), nil
 }
 
-func parseDate(w filament.RowWriter, text []byte) error {
+func parseDate(w arrowbatch.RowWriter, text []byte) error {
 	switch string(text) {
 	case "infinity":
 		w.Date(math.MaxInt32)
@@ -585,7 +586,7 @@ func parseDate(w filament.RowWriter, text []byte) error {
 
 // time
 
-func decTime(w filament.RowWriter, src []byte) error {
+func decTime(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 8, "time"); err != nil {
 		return err
 	}
@@ -597,11 +598,11 @@ func textTime(dst, src []byte) ([]byte, error) {
 	if err := sized(src, 8, "time"); err != nil {
 		return nil, err
 	}
-	return batch.AppendTimeOfDay(dst, beInt64(src)), nil
+	return arrowtext.AppendTimeOfDay(dst, beInt64(src)), nil
 }
 
-func parseTime(w filament.RowWriter, text []byte) error {
-	us, rest, err := batch.ReadTimeOfDay(text)
+func parseTime(w arrowbatch.RowWriter, text []byte) error {
+	us, rest, err := arrowtext.ReadTimeOfDay(text)
 	if err != nil || len(rest) != 0 {
 		return fmt.Errorf("invalid time %q", text)
 	}
@@ -611,7 +612,7 @@ func parseTime(w filament.RowWriter, text []byte) error {
 
 // timestamp, timestamptz
 
-func decTimestamp(w filament.RowWriter, src []byte) error {
+func decTimestamp(w arrowbatch.RowWriter, src []byte) error {
 	if err := sized(src, 8, "timestamp"); err != nil {
 		return err
 	}
@@ -640,7 +641,7 @@ func appendTimestampText(dst, src []byte, utc bool) ([]byte, error) {
 	case math.MinInt64:
 		return append(dst, "-infinity"...), nil
 	}
-	dst = batch.AppendTimestamp(dst, us+pgEpochMicros, ' ')
+	dst = arrowtext.AppendTimestamp(dst, us+pgEpochMicros, ' ')
 	if utc {
 		dst = append(dst, "+00"...)
 	}
@@ -649,7 +650,7 @@ func appendTimestampText(dst, src []byte, utc bool) ([]byte, error) {
 
 // parseTimestamp reads "YYYY-MM-DD HH:MM:SS[.ffffff][+HH[:MM]][ BC]"; a zone
 // offset is folded into UTC.
-func parseTimestamp(w filament.RowWriter, text []byte) error {
+func parseTimestamp(w arrowbatch.RowWriter, text []byte) error {
 	switch string(text) {
 	case "infinity":
 		w.Timestamp(math.MaxInt64)
@@ -662,11 +663,11 @@ func parseTimestamp(w filament.RowWriter, text []byte) error {
 	if err != nil || len(rest) == 0 || rest[0] != ' ' {
 		return fmt.Errorf("invalid timestamp %q", text)
 	}
-	tod, rest, err := batch.ReadTimeOfDay(rest[1:])
+	tod, rest, err := arrowtext.ReadTimeOfDay(rest[1:])
 	if err != nil {
 		return fmt.Errorf("invalid timestamp %q", text)
 	}
-	us := days*batch.MicrosPerDay + tod
+	us := days*arrowtext.MicrosPerDay + tod
 	if len(rest) > 0 && (rest[0] == '+' || rest[0] == '-') {
 		neg := rest[0] == '-'
 		var off int64
@@ -696,37 +697,37 @@ func era(text []byte) (body []byte, bc bool) {
 // readDate reads "YYYY-MM-DD" and returns days since the Unix epoch and the
 // unread tail. bc flips the year: it parsed as year y AD, and year y BC is 1-y.
 func readDate(text []byte, bc bool) (int64, []byte, error) {
-	days, rest, err := batch.ReadDate(text)
+	days, rest, err := arrowtext.ReadDate(text)
 	if err != nil {
 		return 0, nil, err
 	}
 	if bc {
-		y, m, d := batch.DaysToDate(days)
-		days = batch.DateToDays(1-y, m, d)
+		y, m, d := arrowtext.DaysToDate(days)
+		days = arrowtext.DateToDays(1-y, m, d)
 	}
 	return days, rest, nil
 }
 
 // readOffset reads "HH[:MM[:SS]]" as microseconds.
 func readOffset(text []byte) (int64, []byte, error) {
-	h, rest, ok := batch.Digits(text, 2)
+	h, rest, ok := arrowtext.Digits(text, 2)
 	if !ok {
-		return 0, nil, batch.ErrBadDate
+		return 0, nil, arrowtext.ErrBadDate
 	}
-	off := h * batch.MicrosPerHour
+	off := h * arrowtext.MicrosPerHour
 	if len(rest) > 0 && rest[0] == ':' {
-		m, r, ok := batch.Digits(rest[1:], 2)
+		m, r, ok := arrowtext.Digits(rest[1:], 2)
 		if !ok {
-			return 0, nil, batch.ErrBadDate
+			return 0, nil, arrowtext.ErrBadDate
 		}
-		off += m * batch.MicrosPerMinute
+		off += m * arrowtext.MicrosPerMinute
 		rest = r
 		if len(rest) > 0 && rest[0] == ':' {
-			s, r, ok := batch.Digits(rest[1:], 2)
+			s, r, ok := arrowtext.Digits(rest[1:], 2)
 			if !ok {
-				return 0, nil, batch.ErrBadDate
+				return 0, nil, arrowtext.ErrBadDate
 			}
-			off += s * batch.MicrosPerSecond
+			off += s * arrowtext.MicrosPerSecond
 			rest = r
 		}
 	}

@@ -32,7 +32,9 @@ import (
 	"github.com/go-mysql-org/go-mysql/replication"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // defaultServerID identifies this client in the replica topology; it must differ
@@ -48,7 +50,7 @@ var _ filament.ChangeSource = (*Source)(nil)
 // global to the topology, binlog file offsets are not), file:pos otherwise.
 // Existing file:pos checkpoints keep the file:pos path even on a GTID server,
 // so an in-flight stream never jumps cursors mid-run; a new run id migrates.
-func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts) error {
+func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts filament.ChangeExtractOpts) error {
 	if s.db == nil {
 		return fmt.Errorf("mysql source: extract changes before configure")
 	}
@@ -134,7 +136,7 @@ func (s *Source) chooseGTID(ctx context.Context, cps map[string]filament.Checkpo
 }
 
 type cdcRun struct {
-	sink      filament.RecordSink
+	sink      arrowbatch.Inlet
 	resources []string
 	tracked   map[string]bool
 	tables    map[string]*cdcTable // decoder cache, invalidated on DDL; writers persist
@@ -147,10 +149,10 @@ type cdcRun struct {
 // writer its changes append into.
 type cdcTable struct {
 	dec    *rowDecoder
-	writer filament.RowWriter
+	writer arrowbatch.RowWriter
 }
 
-func newCDCRun(sink filament.RecordSink, resources []string, limit int) *cdcRun {
+func newCDCRun(sink arrowbatch.Inlet, resources []string, limit int) *cdcRun {
 	tracked := make(map[string]bool, len(resources))
 	for _, r := range resources {
 		tracked[r] = true
@@ -198,7 +200,7 @@ func (r *cdcRun) pushStreamMarksLSN(ctx context.Context, s *Source, lsn string) 
 		if err != nil {
 			return err
 		}
-		if err := t.writer.Drain(filament.RowMeta{LSN: lsn, Seq: r.seq}); err != nil {
+		if err := t.writer.Drain(rowmodel.Meta{LSN: lsn, Seq: r.seq}); err != nil {
 			return err
 		}
 	}
@@ -210,26 +212,26 @@ func (r *cdcRun) pushStreamMarksLSN(ctx context.Context, s *Source, lsn string) 
 // the after image; a key-changing update appends OpDelete(before) +
 // OpInsert(after) so the sink's merge keeps exactly one row.
 func (r *cdcRun) pushRows(t *cdcTable, typ replication.EventType, table string, rows [][]any, lsn string) (int, error) {
-	push := func(op filament.Operation, row []any) error {
+	push := func(op rowmodel.Operation, row []any) error {
 		if err := t.dec.appendBinlogRow(t.writer, row); err != nil {
 			return fmt.Errorf("mysql cdc: %s row: %w", table, err)
 		}
 		r.seq++
-		return t.writer.EndRow(filament.RowMeta{Op: op, LSN: lsn, Seq: r.seq})
+		return t.writer.EndRow(rowmodel.Meta{Op: op, LSN: lsn, Seq: r.seq})
 	}
 
 	n := 0
 	switch {
 	case isWriteRows(typ):
 		for _, row := range rows {
-			if err := push(filament.OpInsert, row); err != nil {
+			if err := push(rowmodel.OpInsert, row); err != nil {
 				return n, err
 			}
 			n++
 		}
 	case isDeleteRows(typ):
 		for _, row := range rows {
-			if err := push(filament.OpDelete, row); err != nil {
+			if err := push(rowmodel.OpDelete, row); err != nil {
 				return n, err
 			}
 			n++
@@ -238,16 +240,16 @@ func (r *cdcRun) pushRows(t *cdcTable, typ replication.EventType, table string, 
 		for i := 0; i+1 < len(rows); i += 2 {
 			before, after := rows[i], rows[i+1]
 			if t.dec.keyOf(before) == t.dec.keyOf(after) {
-				if err := push(filament.OpUpdate, after); err != nil {
+				if err := push(rowmodel.OpUpdate, after); err != nil {
 					return n, err
 				}
 				n++
 				continue
 			}
-			if err := push(filament.OpDelete, before); err != nil {
+			if err := push(rowmodel.OpDelete, before); err != nil {
 				return n, err
 			}
-			if err := push(filament.OpInsert, after); err != nil {
+			if err := push(rowmodel.OpInsert, after); err != nil {
 				return n + 1, err
 			}
 			n += 2
@@ -304,7 +306,7 @@ func (r *cdcRun) table(ctx context.Context, s *Source, table string, want int) (
 // is taken in its text form ([]byte, string, or a Stringer such as a decimal;
 // numbers rendered), the same form the query path parses; binary columns are
 // their raw bytes.
-func (d *rowDecoder) appendBinlogRow(w filament.RowWriter, row []any) error {
+func (d *rowDecoder) appendBinlogRow(w arrowbatch.RowWriter, row []any) error {
 	if len(row) < len(d.types) {
 		return fmt.Errorf("row has %d values for %d columns", len(row), len(d.types))
 	}
@@ -467,6 +469,7 @@ func (s *Source) binlogConfig() replication.BinlogSyncerConfig {
 		Port:       s.binlogPort,
 		User:       s.binlogUser,
 		Password:   s.binlogPass,
+		TLSConfig:  s.binlogTLS,
 		UseDecimal: true, // decimals as exact decimal values, not lossy float64
 		// Timestamps render in UTC, matching the query path's pinned session zone.
 		TimestampStringLocation: time.UTC,

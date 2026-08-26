@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 var cursorNamePriority = []string{
@@ -141,7 +143,7 @@ func (s *Source) incrementalCursor(ctx context.Context, table string) (pkColumn,
 	if err != nil {
 		return pkColumn{}, fmt.Errorf("incremental %q schema: %w", table, err)
 	}
-	byName := make(map[string]filament.SchemaField, len(schema.Fields))
+	byName := make(map[string]rowmodel.Field, len(schema.Fields))
 	for _, field := range schema.Fields {
 		byName[strings.ToLower(field.Name)] = field
 	}
@@ -185,7 +187,7 @@ func isTimestampType(native string) bool {
 	return t == "timestamp" || t == "timestamptz" || t == "timestamp without time zone" || t == "timestamp with time zone"
 }
 
-func (s *Source) extractIncremental(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, plans map[string]filament.Checkpoint) error {
+func (s *Source) extractIncremental(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, plans map[string]filament.Checkpoint) error {
 	for _, table := range opts.Resources {
 		ks, ok := checkpoint.ParseKeyset(plans[table])
 		if !ok || ks.Mode != checkpoint.ModeIncremental || len(ks.Cols) < 2 || len(ks.Shards) != 1 {
@@ -198,7 +200,7 @@ func (s *Source) extractIncremental(ctx context.Context, sink filament.RecordSin
 	return nil
 }
 
-func (s *Source) extractIncrementalTable(ctx context.Context, sink filament.RecordSink, table string, ks checkpoint.KeysetCheckpoint, limit int) error {
+func (s *Source) extractIncrementalTable(ctx context.Context, sink arrowbatch.Inlet, table string, ks checkpoint.KeysetCheckpoint, limit int) error {
 	cols := make([]pkColumn, len(ks.Cols))
 	for i := range ks.Cols {
 		cols[i] = pkColumn{name: ks.Cols[i], typ: typeAt(ks.Types, i)}
@@ -243,7 +245,7 @@ func (s *Source) extractIncrementalTable(ctx context.Context, sink filament.Reco
 	for {
 		where, args := incrementalBounds(cols, low, high)
 		sql := incrementalPageSQL(qualified, dec.selectList, cols, where, s.pageSize)
-		n, last, err := s.appendPage(ctx, tx, sql, w, dec, filament.RowMeta{}, keyIdx, remaining(limit, emitted), args...)
+		n, last, err := s.appendPage(ctx, tx, sql, w, dec, rowmodel.Meta{}, keyIdx, remaining(limit, emitted), args...)
 		if err != nil {
 			return fmt.Errorf("incremental %q: %w", table, err)
 		}

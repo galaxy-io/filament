@@ -25,6 +25,7 @@ import (
 	"github.com/go-mysql-org/go-mysql/replication"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -56,7 +57,7 @@ func (s *Source) gtidExecuted(ctx context.Context) (gomysql.GTIDSet, error) {
 
 // extractChangesGTID streams row events from the checkpointed GTID set up to the
 // watermark captured at run start.
-func (s *Source) extractChangesGTID(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts, watermark gomysql.GTIDSet) error {
+func (s *Source) extractChangesGTID(ctx context.Context, sink arrowbatch.Inlet, opts filament.ChangeExtractOpts, watermark gomysql.GTIDSet) error {
 	start, ok, err := startGTID(opts.Checkpoints)
 	if err != nil {
 		return err

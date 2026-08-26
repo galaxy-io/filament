@@ -27,10 +27,7 @@ import {
   PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP,
   PIPELINES_TABLE_RECENT_RUNS_STATUSES,
 } from "@/pages/pipelines/components/table/constants";
-import {
-  PIPELINE_RUN_ERROR_TOOLTIP_MAX_WIDTH,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
+import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
 import { useListRunsQuery } from "@/api/queries/runs";
@@ -73,7 +70,7 @@ const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
   ];
 
   return (
-    <Wrapper minWidth={160} maxWidth={run.error ? PIPELINE_RUN_ERROR_TOOLTIP_MAX_WIDTH : undefined}>
+    <Wrapper minWidth={160}>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isEllipsis>
           {formatTimestamp(run.startedAt)}

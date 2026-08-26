@@ -1,49 +1,62 @@
 ---
 title: "GitHub"
-description: "Read repositories, issues, and pull requests from a GitHub organization."
+description: "Read repositories, issues, and pull requests from a GitHub organization"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"
 ---
 
-GitHub is a manifest-driven source — `connectors/http/manifests/github.yaml`
-declares its resources, auth, and pagination against the shared grammar in
-`connectors/http/manifest/`; no GitHub-specific Go code exists. See
-[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+GitHub is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
+The `connectors/http/manifests/github.yaml` manifest declares resources
+scoped to a single organization, covering its repositories and the issues
+and pull requests in each of them. The connector is **beta**. The resource
+set is stable, though field shapes may still be extended.
 
-## Auth
+## Configuration
 
-A personal access token or GitHub App installation token (bearer auth), plus
-the target `organization` login — every request is scoped to one org.
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `token` | Connection | | Required. Secret. Personal access token or GitHub App installation token. |
+| `organization` | Connection | | Required. GitHub organization login. |
 
 ## Resources
 
-Three resources, all statically discovered:
-
-| Resource | Path | Fans out from |
-|---|---|---|
-| `repositories` | `/orgs/{organization}/repos` | — (every repo in the org) |
-| `issues` | `/repos/{organization}/{repository}/issues` | `repositories` |
-| `pull_requests` | `/repos/{organization}/{repository}/pulls` | `repositories` |
-
-`issues` and `pull_requests` both request `state=all` so closed and merged
-items sync alongside open ones, and both share an `issue_lifecycle` field set
-(`created_at` / `updated_at` / `closed_at`) via `use_fields`. Note that the
-GitHub REST API includes pull requests in the issues endpoint's results —
-`issues` and `pull_requests` will overlap for PRs; dedupe downstream on `id`
-if a pipeline reads both.
-
-Pagination follows GitHub's `Link` response header (`pagination: { link:
-next }` in the manifest's connection-wide `defaults:` block), and every
-request carries `per_page=100` and the pinned API version header
-(`X-GitHub-Api-Version: 2022-11-28`).
+`repositories` lists every repository in the organization (all types, sorted
+by full name) and captures each repository name. `issues` and `pull_requests`
+fan out from it, one paginated walk per repository, with the repository name
+denormalized onto every row. Both request `state: all`. `issues` sorts by
+`updated` ascending so the incremental watermark advances monotonically, and
+each row keeps a `pull_request` marker because GitHub's issues endpoint
+returns pull requests as issues.
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
-`issues` supports incremental extraction on `updated_at`: the checkpoint is
-sent as GitHub's `since` parameter, with results sorted by `updated`, so both
-new issues and later edits are captured. A five-minute overlap covers updates
-that land in repositories already visited during the fan-out scan; configure a
-larger lookback when a complete organization scan routinely takes longer.
+Full is always available. A full run checkpoints its pagination cursor per
+top-level resource and resumes from the last completed page.
 
-`repositories` and `pull_requests` remain full extracts because their list
-endpoints do not expose an updated-since boundary.
+`issues` is the one incremental resource.
+
+| | |
+|---|---|
+| Cursor field | `updated_at` |
+| Request parameter | `since` (query) |
+| Comparator | `time` |
+| Checkpoint key | `issues_updated_at` |
+| Overlap | 300 seconds |
+
+The cursor field is fixed by the manifest. Only a lookback window is
+user-configurable, and only because the comparator is `time`. Issues fan out
+across repositories but share a single durable watermark for the whole
+resource. The 300-second overlap re-reads a window on each run to cover
+repositories that changed while an earlier repository was being scanned.
+`pull_requests` has no incremental block and is always read in full.
+
+## Behavior
+
+- **Auth**: bearer token from `token` on every request.
+- **Pagination**: RFC 5988 `Link` headers (`rel="next"`), with `per_page=100`
+  set as a default query parameter.
+- **API version**: pinned via `X-GitHub-Api-Version: 2022-11-28`, so payload
+  shapes do not drift with GitHub's rolling default.
+- **Rate limiting**: no client-side limiter is configured. The engine backs
+  off on 429 responses using `Retry-After`.
+- Every resource carries a `raw` remainder column preserving fields the
+  manifest does not project.

@@ -3,7 +3,8 @@
 // A Tracker observes records as they flow through the pipeline, tracks the
 // maximum value of a declared cursor field (e.g. `updated_at`), and injects
 // that value into the next run's initial request via query, body, or header.
-// The last observed value persists to the PipelineCheckpoint between runs.
+// The last observed value is attached to emitted records so the engine can
+// persist it in the resource checkpoint between runs.
 //
 // # Comparator
 //
@@ -42,7 +43,6 @@ import (
 
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline/integrity"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
 )
@@ -154,17 +154,6 @@ func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
 // Current returns the running watermark (max observed or initial).
 func (t *Tracker) Current() string { return t.wm.Current() }
 
-// CursorField returns the manifest-declared cursor field name. Used by
-// observability surfaces (Reporter events, structured logs) so dashboards
-// don't have to plumb the spec separately.
-func (t *Tracker) CursorField() string { return t.spec.CursorField }
-
-// CheckpointKey returns the durable storage key for this tracker.
-func (t *Tracker) CheckpointKey() string { return t.checkpointKey() }
-
-// CheckpointKey resolves the durable storage key for an incremental spec.
-func CheckpointKey(spec manifest.IncrementalSpec) string { return checkpointKey(spec) }
-
 // Scope returns a {start_param: effective_start} pair suitable for merging
 // into a template scope's State map. The lower bound is fixed for the entire
 // extraction so paginated requests all scan the same result set.
@@ -228,78 +217,3 @@ func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {
 	}
 	return nil, nil
 }
-
-// Commit persists the current watermark into the checkpoint. Goes through
-// MergeWatermark so concurrent commits from fan-out parents converge on the
-// max watermark per the configured comparator.
-//
-// Returns an error when the comparator can't be resolved, when the current
-// watermark itself fails to parse under that comparator, or when an existing
-// checkpoint value can't be parsed (a stale checkpoint written under a
-// different comparator). Callers must surface the error — silently preferring
-// "the new value" mid-extraction would advance past whatever real watermark
-// the checkpoint held, breaking at-least-once semantics.
-func (t *Tracker) Commit(pc *integrity.PipelineCheckpoint) error {
-	if pc == nil {
-		return nil
-	}
-	current := t.Current()
-	if current == "" {
-		return nil
-	}
-	cmp, err := atomicwatermark.ForName(t.spec.Comparator)
-	if err != nil {
-		return fmt.Errorf("incremental: commit %s: %w", t.resource, err)
-	}
-	// Validate current parses under the comparator before storing — a Tracker
-	// constructed with a bad initial wouldn't have surfaced here otherwise.
-	if _, err := cmp.Less(current, current); err != nil {
-		return fmt.Errorf("incremental: commit %s: current watermark %q invalid under %s: %w",
-			t.resource, current, cmp.Name(), err)
-	}
-	var cmpErr error
-	pc.MergeWatermark(t.resource, t.checkpointKey(), current, func(a, b string) int {
-		// MergeWatermark wants -1/0/1; map "a < b → -1" to atomicwatermark.Less.
-		less, err := cmp.Less(a, b)
-		if err != nil {
-			// Capture and abort the merge: the closure's return value is
-			// ignored once cmpErr is set since MergeWatermark has no error
-			// channel. Returning 0 keeps the existing value, which is the
-			// safer default — a corrupt new value must not overwrite a
-			// previously-good one.
-			cmpErr = fmt.Errorf("incremental: commit %s: comparator %s rejected value: %w",
-				t.resource, cmp.Name(), err)
-			return 0
-		}
-		if less {
-			return -1
-		}
-		eq, _ := cmp.Less(b, a)
-		if !eq {
-			return 0
-		}
-		return 1
-	})
-	return cmpErr
-}
-
-// LoadFrom reads the committed watermark from the checkpoint. Returns "" if
-// none is stored.
-func LoadFrom(pc *integrity.PipelineCheckpoint, resource string, spec manifest.IncrementalSpec) string {
-	if pc == nil {
-		return ""
-	}
-	return pc.GetWatermark(resource, checkpointKey(spec))
-}
-
-// checkpointKey resolves the checkpoint storage key for a spec. Callers that
-// have a Tracker should use Tracker.checkpointKey() to avoid plumbing the
-// spec through.
-func checkpointKey(spec manifest.IncrementalSpec) string {
-	if spec.CheckpointKey != "" {
-		return spec.CheckpointKey
-	}
-	return spec.CursorField
-}
-
-func (t *Tracker) checkpointKey() string { return checkpointKey(t.spec) }

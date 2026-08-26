@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"hash/crc32"
 	"math"
 	"strings"
 	"sync"
@@ -14,7 +15,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
+	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -73,9 +76,10 @@ const defaultSchema = "public"
 func New() *Sink { return &Sink{schema: defaultSchema} }
 
 var (
-	_ filament.Sink            = (*Sink)(nil)
-	_ filament.LiveValidatable = (*Sink)(nil)
-	_ filament.Schematized     = (*Sink)(nil)
+	_ filament.Sink              = (*Sink)(nil)
+	_ filament.ConfigValidatable = (*Sink)(nil)
+	_ filament.LiveValidatable   = (*Sink)(nil)
+	_ filament.Schematized       = (*Sink)(nil)
 )
 
 // Spec describes the sink's config fields and write capabilities.
@@ -86,16 +90,16 @@ func (t *Sink) Spec() filament.SinkSpec {
 		Description:  "Popular open-source relational database management system known for reliability and advanced features.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
-		Version:      "1",
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "dsn", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "PostgreSQL connection string"},
+		Version:      "2",
+		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Destination schema. Empty defaults to the normalized source connection name."},
 			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []filament.EnumOption{{Value: "typed", Label: "Typed"}}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
-		}},
+		}...)},
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
-			Schematized: true,
-			Upsertable:  true,
+			Schematized:      true,
+			Upsertable:       true,
+			EncodedIntegrity: true,
 			WritePolicies: filament.WriteCapabilities(
 				filament.IngestionFullReplace,
 				filament.IngestionFullAppend,
@@ -110,18 +114,22 @@ func (t *Sink) Spec() filament.SinkSpec {
 // Name identifies this sink implementation.
 func (t *Sink) Name() string { return "postgres" }
 
+// Validate checks connection syntax without opening a network connection.
+func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := pgconnection.Resolve(cfg); err != nil {
+		return fmt.Errorf("postgres sink: connection config: %w", err)
+	}
+	return nil
+}
+
 // TestConnection opens a short-lived pool and verifies the configured
 // credentials without creating the destination schema.
 func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
-	dsn := cfg.Secret("dsn")
-	if dsn == "" {
-		return fmt.Errorf("postgres sink: dsn is required")
-	}
-	poolCfg, err := pgxpool.ParseConfig(dsn)
+	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("postgres sink: parse dsn: %w", err)
+		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	pool, err := pgxpool.NewWithConfig(ctx, resolved.Pool)
 	if err != nil {
 		return fmt.Errorf("postgres sink: open pool: %w", err)
 	}
@@ -136,10 +144,11 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
-	t.dsn = cfg.Secret("dsn")
-	if t.dsn == "" {
-		return fmt.Errorf("postgres sink: dsn is required")
+	resolved, err := pgconnection.Resolve(cfg)
+	if err != nil {
+		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
+	t.dsn = resolved.DSN
 	if v := cfg.String("schema"); v != "" {
 		t.schema = v
 	}
@@ -148,10 +157,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	t.written.Store(0)
 	t.tables = map[string]*table{}
 
-	poolCfg, err := pgxpool.ParseConfig(t.dsn)
-	if err != nil {
-		return fmt.Errorf("postgres sink: parse dsn: %w", err)
-	}
+	poolCfg := resolved.Pool
 	if n := run.Options.SnapshotParallelism; n > 0 && n <= math.MaxInt32 {
 		poolCfg.MaxConns = max(poolCfg.MaxConns, int32(n))
 	}
@@ -170,7 +176,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 // Apply validates the batch against the run's write policy, then routes it: replace
 // and append COPY into the table, upsert folds through a temp table, merge applies
 // the change stream in order.
-func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if t.pool == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
 	}
@@ -182,17 +188,17 @@ func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyO
 	case filament.WriteReplace, filament.WriteAppend:
 		policy := opts.Policy
 		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
-		if err := policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
 		return t.write(ctx, tbl, b)
 	case filament.WriteUpsert:
-		if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
 		return t.writeUpsert(ctx, tbl, b)
 	case filament.WriteMerge:
-		if err := opts.Policy.ValidateOps(b.Resource, b.Ops); err != nil {
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
 		return t.writeMerge(ctx, tbl, b)
@@ -206,7 +212,7 @@ func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyO
 // resource's COPY and fold statements. A pre-existing table gains any new columns
 // (ADD COLUMN IF NOT EXISTS); an incompatible existing column type surfaces later as
 // a COPY error (full type-change handling is deferred to schema evolution).
-func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
+func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	if t.pool == nil {
 		return fmt.Errorf("postgres sink: ensure schema before open")
 	}
@@ -295,7 +301,7 @@ const engine = "postgres"
 // spelling in the destination; a user-defined type — an enum, a domain, an
 // extension type — exists only in the source database, so its column lands as
 // text.
-func (t *Sink) builtinTypes(ctx context.Context, schema filament.RecordSchema) (map[string]bool, error) {
+func (t *Sink) builtinTypes(ctx context.Context, schema rowmodel.Schema) (map[string]bool, error) {
 	natives := make([]string, 0, len(schema.Fields))
 	for _, f := range schema.Fields {
 		if f.Native != "" {
@@ -324,41 +330,41 @@ FROM unnest($1::text[]) AS t`
 // columnType picks a destination column type: the source's own spelling for a
 // built-in type on the same engine (keepNative), else a portable mapping from
 // the logical type.
-func columnType(f filament.SchemaField, keepNative bool) string {
+func columnType(f rowmodel.Field, keepNative bool) string {
 	if keepNative && f.Native != "" {
 		return f.Native
 	}
 	switch f.Logical {
-	case filament.LogicalBool:
+	case rowmodel.LogicalBool:
 		return "boolean"
-	case filament.LogicalInt16:
+	case rowmodel.LogicalInt16:
 		return "smallint"
-	case filament.LogicalInt32:
+	case rowmodel.LogicalInt32:
 		return "integer"
-	case filament.LogicalInt64:
+	case rowmodel.LogicalInt64:
 		return "bigint"
-	case filament.LogicalFloat32:
+	case rowmodel.LogicalFloat32:
 		return "real"
-	case filament.LogicalFloat64:
+	case rowmodel.LogicalFloat64:
 		return "double precision"
-	case filament.LogicalDecimal:
+	case rowmodel.LogicalDecimal:
 		if f.Precision > 0 {
 			return fmt.Sprintf("numeric(%d,%d)", f.Precision, f.Scale)
 		}
 		return "numeric"
-	case filament.LogicalBytes:
+	case rowmodel.LogicalBytes:
 		return "bytea"
-	case filament.LogicalDate:
+	case rowmodel.LogicalDate:
 		return "date"
-	case filament.LogicalTime:
+	case rowmodel.LogicalTime:
 		return "time"
-	case filament.LogicalTimestamp:
+	case rowmodel.LogicalTimestamp:
 		return "timestamp"
-	case filament.LogicalTimestampTZ:
+	case rowmodel.LogicalTimestampTZ:
 		return "timestamptz"
-	case filament.LogicalJSON:
+	case rowmodel.LogicalJSON:
 		return "jsonb"
-	case filament.LogicalUUID:
+	case rowmodel.LogicalUUID:
 		return "uuid"
 	default:
 		return "text"
@@ -450,25 +456,31 @@ func (tbl *table) copierFor(rows arrow.RecordBatch, keysOnly bool) *copier {
 }
 
 // write COPYs the whole batch into the table.
-func (t *Sink) write(ctx context.Context, tbl *table, b filament.Batch) (filament.WriteReceipt, error) {
-	c := tbl.copierFor(b.Rows, false)
-	payload := c.encode(b.Rows, 0, b.NumRows(), false)
+func (t *Sink) write(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
+	rows := b.Rows()
+	c := tbl.copierFor(rows, false)
+	payload, expectedCRC := c.encode(rows, 0, b.NumRows(), false)
+	integrity := writeIntegrity{arrow: b.IntegrityCRC()}
 	conn, err := t.pool.Acquire(ctx)
 	if err != nil {
 		return filament.WriteReceipt{}, copyError("acquire", b.Resource, b.Seq, err)
 	}
 	defer conn.Release()
+	integrity.encoded = crc32.Update(integrity.encoded, copyCRCTable, payload)
+	if err := verifyCopyChecksum(payload, expectedCRC); err != nil {
+		return filament.WriteReceipt{}, copyError("verify copy", b.Resource, b.Seq, err)
+	}
 	tag, err := conn.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.qualified, tbl.idents))
 	if err != nil {
 		return filament.WriteReceipt{}, copyError("copy", b.Resource, b.Seq, err)
 	}
 	t.written.Add(tag.RowsAffected())
-	return t.receipt(b, int(tag.RowsAffected()), int64(len(payload))), nil
+	return t.receipt(b, int(tag.RowsAffected()), int64(len(payload)), integrity), nil
 }
 
 // writeUpsert loads the batch into the connection's temp table and folds it into
 // the destination by key, in one transaction.
-func (t *Sink) writeUpsert(ctx context.Context, tbl *table, b filament.Batch) (filament.WriteReceipt, error) {
+func (t *Sink) writeUpsert(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
 	if tbl.upsertSQL == "" {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: upsert on keyless resource %q", b.Resource)
 	}
@@ -477,7 +489,8 @@ func (t *Sink) writeUpsert(ctx context.Context, tbl *table, b filament.Batch) (f
 		return filament.WriteReceipt{}, copyError("begin", b.Resource, b.Seq, err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	rows, nbytes, err := t.upsertRange(ctx, tx, tbl, b, 0, b.NumRows())
+	var integrity writeIntegrity
+	rows, nbytes, err := t.upsertRange(ctx, tx, tbl, b, 0, b.NumRows(), &integrity)
 	if err != nil {
 		return filament.WriteReceipt{}, err
 	}
@@ -485,18 +498,24 @@ func (t *Sink) writeUpsert(ctx context.Context, tbl *table, b filament.Batch) (f
 		return filament.WriteReceipt{}, copyError("commit", b.Resource, b.Seq, err)
 	}
 	t.written.Add(int64(rows))
-	return t.receipt(b, rows, nbytes), nil
+	return t.receipt(b, rows, nbytes, integrity), nil
 }
 
 // upsertRange COPYs rows [lo, hi) into the temp table and folds them into the
 // destination. Returns rows folded and payload bytes.
-func (t *Sink) upsertRange(ctx context.Context, tx pgx.Tx, tbl *table, b filament.Batch, lo, hi int) (int, int64, error) {
+func (t *Sink) upsertRange(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowbatch.Batch, lo, hi int, integrity *writeIntegrity) (int, int64, error) {
 	if _, err := tx.Exec(ctx, tbl.tempSQL); err != nil {
 		return 0, 0, copyError("temp table", b.Resource, b.Seq, err)
 	}
-	c := tbl.copierFor(b.Rows, false)
-	payload := c.encode(b.Rows, lo, hi, true)
+	rows := b.Rows()
+	c := tbl.copierFor(rows, false)
+	payload, expectedCRC := c.encode(rows, lo, hi, true)
+	integrity.arrow = b.IntegrityCRC()
 	idents := append(append(make([]string, 0, len(tbl.idents)+1), tbl.idents...), "_ord")
+	integrity.encoded = crc32.Update(integrity.encoded, copyCRCTable, payload)
+	if err := verifyCopyChecksum(payload, expectedCRC); err != nil {
+		return 0, 0, copyError("verify copy", b.Resource, b.Seq, err)
+	}
 	if _, err := tx.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.temp, idents)); err != nil {
 		return 0, 0, copyError("copy", b.Resource, b.Seq, err)
 	}
@@ -508,13 +527,20 @@ func (t *Sink) upsertRange(ctx context.Context, tx pgx.Tx, tbl *table, b filamen
 
 // deleteRange COPYs the keys of rows [lo, hi) into the keys temp table and deletes
 // the matching destination rows.
-func (t *Sink) deleteRange(ctx context.Context, tx pgx.Tx, tbl *table, b filament.Batch, lo, hi int) (int, int64, error) {
+func (t *Sink) deleteRange(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowbatch.Batch, lo, hi int, integrity *writeIntegrity) (int, int64, error) {
 	if _, err := tx.Exec(ctx, tbl.keysTempSQL); err != nil {
 		return 0, 0, copyError("keys temp table", b.Resource, b.Seq, err)
 	}
-	c := tbl.copierFor(b.Rows, true)
-	payload := c.encode(b.Rows, lo, hi, false)
-	if _, err := tx.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.keysTemp, pick(tbl.idents, tbl.keyIdx))); err != nil {
+	rows := b.Rows()
+	c := tbl.copierFor(rows, true)
+	payload, expectedCRC := c.encode(rows, lo, hi, false)
+	integrity.arrow = b.IntegrityCRC()
+	keyIdents := pick(tbl.idents, tbl.keyIdx)
+	integrity.encoded = crc32.Update(integrity.encoded, copyCRCTable, payload)
+	if err := verifyCopyChecksum(payload, expectedCRC); err != nil {
+		return 0, 0, copyError("verify copy keys", b.Resource, b.Seq, err)
+	}
+	if _, err := tx.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.keysTemp, keyIdents)); err != nil {
 		return 0, 0, copyError("copy keys", b.Resource, b.Seq, err)
 	}
 	if _, err := tx.Exec(ctx, tbl.deleteSQL); err != nil {
@@ -526,7 +552,7 @@ func (t *Sink) deleteRange(ctx context.Context, tx pgx.Tx, tbl *table, b filamen
 // writeMerge applies CDC rows in arrival order. Maximal delete/non-delete runs
 // become one fold each, and one database transaction makes the whole batch atomic
 // before its WAL checkpoint can be committed.
-func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (filament.WriteReceipt, error) {
+func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
 	if tbl.upsertSQL == "" {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge on keyless resource %q", b.Resource)
 	}
@@ -538,11 +564,12 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (fi
 
 	var nbytes int64
 	rows := 0
+	var integrity writeIntegrity
 	n := b.NumRows()
 	for lo := 0; lo < n; {
-		deleting := b.Op(lo) == filament.OpDelete
+		deleting := b.Op(lo) == rowmodel.OpDelete
 		hi := lo + 1
-		for hi < n && (b.Op(hi) == filament.OpDelete) == deleting {
+		for hi < n && (b.Op(hi) == rowmodel.OpDelete) == deleting {
 			hi++
 		}
 		var (
@@ -551,9 +578,9 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (fi
 			err error
 		)
 		if deleting {
-			k, nb, err = t.deleteRange(ctx, tx, tbl, b, lo, hi)
+			k, nb, err = t.deleteRange(ctx, tx, tbl, b, lo, hi, &integrity)
 		} else {
-			k, nb, err = t.upsertRange(ctx, tx, tbl, b, lo, hi)
+			k, nb, err = t.upsertRange(ctx, tx, tbl, b, lo, hi, &integrity)
 		}
 		if err != nil {
 			return filament.WriteReceipt{}, err
@@ -566,15 +593,21 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b filament.Batch) (fi
 		return filament.WriteReceipt{}, copyError("commit merge", b.Resource, b.Seq, err)
 	}
 	t.written.Add(int64(rows))
-	return t.receipt(b, rows, nbytes), nil
+	return t.receipt(b, rows, nbytes, integrity), nil
 }
 
-func (t *Sink) receipt(b filament.Batch, rows int, nbytes int64) filament.WriteReceipt {
+type writeIntegrity struct {
+	arrow   uint32
+	encoded uint32
+}
+
+func (t *Sink) receipt(b *arrowbatch.Batch, rows int, nbytes int64, integrity writeIntegrity) filament.WriteReceipt {
 	return filament.WriteReceipt{
-		URI:      fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource),
-		Bytes:    nbytes,
-		Rows:     rows,
-		WriteCRC: batch.CRC(b.Rows, b.Ops),
+		URI:        fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource),
+		Bytes:      nbytes,
+		Rows:       rows,
+		WriteCRC:   integrity.arrow,
+		EncodedCRC: &integrity.encoded,
 	}
 }
 

@@ -1,0 +1,159 @@
+---
+title: "Web"
+description: "The web app that ships inside the Filament server"
+---
+
+The web app ships inside the server binary and serves at its root, `:8080` by
+default. It is a client of the [ConnectRPC API](/pages/api-reference/service/introduction)
+and nothing else. Every button maps to an RPC you can call yourself, so
+anything you do here is scriptable later.
+
+<Frame caption="The Filament web app">
+  <img className="block dark:hidden" src="/assets/images/filament-light.png" alt="Filament web app in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-dark.png" alt="Filament web app in dark mode" />
+</Frame>
+
+Three objects make up the model, and the navbar follows them:
+
+- A **connection** is a configured connector. Credentials plus connection-scoped
+  settings, saved once and reused.
+- A **pipeline** is a graph of connections. Edges route resources from a source
+  to a sink, each carrying a read mode and a write mode.
+- A **run** is one execution of a pipeline route, tracked from request to
+  verified write.
+
+## Observability
+
+The landing page. Records and bytes moved, run durations, and success rate
+over a timeframe you pick, plus a feed of recent runs across every pipeline.
+The charts come from the metrics service, which aggregates the same run rows
+the rest of the app reads.
+
+<Frame caption="Observability, the landing page">
+  <img className="block dark:hidden" src="/assets/images/filament-observability-light.png" alt="Observability dashboard in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-observability-dark.png" alt="Observability dashboard in dark mode" />
+</Frame>
+
+## Connections
+
+Sources and Sinks each list what you have already connected. A card carries
+the connector it uses, how many pipelines depend on it, and its current
+version, which is the optimistic lock that keeps concurrent edits from
+overwriting each other.
+
+<Frame caption="Saved sources">
+  <img className="block dark:hidden" src="/assets/images/filament-connections-light.png" alt="Saved source connections in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-connections-dark.png" alt="Saved source connections in dark mode" />
+</Frame>
+
+New source opens the connector catalog. What appears is whatever the running
+binary has compiled in, read live from the server, each with a maturity badge
+running alpha through stable.
+
+<Frame caption="The connector catalog">
+  <img className="block dark:hidden" src="/assets/images/filament-connections-create-light.png" alt="Connector catalog in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-connections-create-dark.png" alt="Connector catalog in dark mode" />
+</Frame>
+
+Connecting one generates a form from that connector's config schema. The
+connector declares its fields, types, defaults, and visibility rules, and the
+form renders exactly those. Postgres CDC settings, for example, appear only
+once you set replication to `cdc`.
+
+Two details worth knowing:
+
+- **Scope.** Connections hold connection-scoped fields only, the ones that
+  describe reaching the system. Pipeline-scoped fields like a destination
+  schema are set later, per pipeline.
+- **Secrets.** Secret-typed fields are extracted on save and stored through
+  the configured secrets provider. Reads return them masked, and editing
+  leaves a stored secret in place unless you submit a new value.
+
+Config is validated against the connector before the connection is saved, so
+a bad hostname or password fails here instead of mid-run.
+
+## Pipelines
+
+The list view shows each pipeline with its schedule, recent run outcomes, and
+last duration. Opening one gives you the canvas, the history, and the
+settings.
+
+<Frame caption="The pipelines list">
+  <img className="block dark:hidden" src="/assets/images/filament-pipelines-light.png" alt="Pipelines list in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipelines-dark.png" alt="Pipelines list in dark mode" />
+</Frame>
+
+### Canvas
+
+The canvas edits the pipeline graph. Nodes are connections, edges are routes,
+and each edge carries the levers that decide how data moves. Which resources
+are selected, the read mode (full, incremental, or CDC), the write mode
+(append, replace, upsert, or merge), and a cursor column where incremental
+reads need one. [Replication modes](/pages/guides/concepts/replication-modes)
+covers which combinations are legal and why.
+
+Edits validate live against the server. Unmet requirements surface on the
+edge itself, so a table without a primary key blocks an upsert route before
+you save rather than failing at run time.
+
+Saving mints a new immutable pipeline version. In-flight runs keep executing
+against the version they started with.
+
+<Frame caption="The pipeline canvas">
+  <img className="block dark:hidden" src="/assets/images/filament-pipeline-canvas-light.png" alt="Pipeline canvas in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipeline-canvas-dark.png" alt="Pipeline canvas in dark mode" />
+</Frame>
+
+### History
+
+Every run, newest first, with per-resource record and byte tallies and a
+final status. An active run streams, so progress arrives as the engine
+publishes it rather than on a poll.
+
+Statuses map directly to engine states. A failed run that persisted resumable
+progress lands in `PARTIAL` and continues from its last checkpoint when
+requested again. See
+[Runs and recovery](/pages/guides/concepts/runs-and-recovery).
+
+<Frame caption="Run history">
+  <img className="block dark:hidden" src="/assets/images/filament-pipeline-history-light.png" alt="Pipeline run history in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipeline-history-dark.png" alt="Pipeline run history in dark mode" />
+</Frame>
+
+### Settings
+
+Name and description, a cron schedule with a timezone and an overlap policy,
+and the worker configuration that sizes the machines runs execute on.
+Metadata edits apply in place and never mint a version.
+
+<Frame caption="Pipeline settings">
+  <img className="block dark:hidden" src="/assets/images/filament-pipeline-settings-light.png" alt="Pipeline settings in light mode" />
+  <img className="hidden dark:block" src="/assets/images/filament-pipeline-settings-dark.png" alt="Pipeline settings in dark mode" />
+</Frame>
+
+## Under the hood
+
+For contributors, the web app lives in `ui/` as a React 18 and TypeScript app
+built with Vite:
+
+- **Routing and data.** TanStack Router with file-based routes in
+  `src/routes/`, and TanStack Query for server state. API calls go through
+  ConnectRPC's web transport with `connect-query` bindings.
+- **Generated types.** `src/gen/` holds the protobuf-generated TypeScript.
+  Never edit it by hand. `pnpm codegen` (or `just gen` at the repo root)
+  regenerates it with `buf` after a proto change.
+- **Design system.** Components, tokens, and theming come from
+  [`@galaxy-io/dls`](https://www.npmjs.com/package/@galaxy-io/dls). The app
+  mounts its stylesheet and `GalaxyThemeProvider` in `main.tsx`. Browse the
+  catalog at [storybook.getgalaxy.io](https://storybook.getgalaxy.io) before
+  building anything new.
+- **Styling and the canvas.** Component-local styles use Linaria. The canvas
+  is built on `@xyflow/react`. Icons are Phosphor, with project SVGs compiled
+  by `pnpm assets`.
+- **Formatting.** Biome formats and lints the UI.
+
+The server serves the compiled bundle only when built with the `embedui` tag,
+which `just binaries` and the published images do. For development, `just ui`
+runs Vite on `:5173` against a local API. See
+[Local development](/pages/guides/contributing/local-development) for the
+rest of the workflow.

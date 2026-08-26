@@ -13,7 +13,7 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliverySink from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySink";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
-import PipelineWorkerResourcesFields from "@/pages/pipelines/components/worker/PipelineWorkerResourcesFields";
+import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 
 interface CreatePipelineModalDeliverySectionProps {
   header: string;
@@ -50,16 +50,17 @@ const CreatePipelineModalDeliverySchedule = () => {
 };
 
 const CreatePipelineModalDeliveryAdvanced = () => {
-  const { workerResources } = useCreatePipelineModalState();
+  const { workerConfiguration, workerConfigurationError } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <Accordion header="Worker resources" padding="16px" size={AccordionSize.LARGE}>
-      <PipelineWorkerResourcesFields
-        state={workerResources}
+    <Accordion header="Worker configuration" padding="16px" size={AccordionSize.LARGE}>
+      <PipelineWorkerConfigurationEditor
+        value={workerConfiguration}
+        error={workerConfigurationError}
         onChange={(payload) =>
           dispatch({
-            type: CreatePipelineModalActionType.SET_WORKER_RESOURCES,
+            type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION,
             payload,
           })
         }

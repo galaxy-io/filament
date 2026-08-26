@@ -14,8 +14,8 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
+	"github.com/galaxy-io/filament/connectors/http/pagination"
 )
 
 func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
@@ -64,8 +64,12 @@ func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 	if sink.records[0].ID != "b" {
 		t.Fatalf("record id = %q, want b", sink.records[0].ID)
 	}
-	if len(sink.records[0].Key) != 1 || sink.records[0].Key[0] != "two" {
-		t.Fatalf("record key = %v, want [two]", sink.records[0].Key)
+	if len(sink.records[0].Key) != 1 {
+		t.Fatalf("record key = %v, want one pagination checkpoint", sink.records[0].Key)
+	}
+	state, err := pagination.ResumeFrom(sink.records[0].Key[0])
+	if err != nil || state.Cursor != "two" {
+		t.Fatalf("record checkpoint = %v (%v), want cursor two", state, err)
 	}
 }
 
@@ -88,6 +92,10 @@ func TestSourceTestConnectionMakesOneAuthenticatedRequest(t *testing.T) {
 	data := []byte(fmt.Sprintf(`
 version: 1
 name: probe
+display_name: Probe
+description: Test probe connector.
+dark_logo_url: https://cdn.example.com/probe-dark.svg
+light_logo_url: https://cdn.example.com/probe-light.svg
 config:
   token: {type: secret, required: true}
 connection:
@@ -103,7 +111,7 @@ resources:
         path: error
         when_present: true
 `, api.URL))
-	src := NewManifest("probe", "Probe", data, filament.ConfigSchema{})
+	src := NewManifest(data)
 	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
 		"token": "good-token",
 	})); err != nil {
@@ -177,7 +185,7 @@ func TestSourceFullResumeDoesNotApplyIncrementalWatermark(t *testing.T) {
 	if !ok {
 		t.Fatal("plan did not parse as keyset")
 	}
-	if got, want := ks.Cols, []string{"cursor"}; len(got) != len(want) || got[0] != want[0] {
+	if got, want := ks.Cols, []string{"pagination_state"}; len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("checkpoint cols = %v, want %v", got, want)
 	}
 
@@ -198,8 +206,8 @@ func TestSourceFullResumeDoesNotApplyIncrementalWatermark(t *testing.T) {
 	if len(sink.records) != 1 {
 		t.Fatalf("records = %d, want 1", len(sink.records))
 	}
-	if sink.records[0].Key != nil {
-		t.Fatalf("record key = %v, want no incremental watermark", sink.records[0].Key)
+	if len(sink.records[0].Key) != 1 {
+		t.Fatalf("record key = %v, want a pagination checkpoint and no incremental watermark", sink.records[0].Key)
 	}
 }
 
@@ -277,14 +285,32 @@ func TestSourceIncrementalExtractionAppliesRouteLookbackAndDropsPageCursor(t *te
 		t.Fatal(err)
 	}
 	var sink collectSink
-	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}, plan); err != nil {
+	progress := make(chan filament.SourceProgress, 4)
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{
+		Resources:   []string{"items"},
+		Parallelism: 1,
+		Observe:     func(p filament.SourceProgress) { progress <- p },
+	}, plan); err != nil {
 		t.Fatalf("extract incremental: %v", err)
 	}
+	close(progress)
 	if gotSince != "2025-12-31T23:59:00Z" {
 		t.Fatalf("since = %q, want route lookback applied", gotSince)
 	}
 	if len(sink.records) != 1 || len(sink.records[0].Key) != 1 || sink.records[0].Key[0] != "2026-01-02T00:00:00Z" {
 		t.Fatalf("record checkpoint key = %#v, want only durable watermark", sink.records)
+	}
+	var sawPage, sawWatermark bool
+	for event := range progress {
+		switch event.Kind {
+		case filament.SourceProgressPageFetched:
+			sawPage = event.Resource == "items" && event.Records == 1 && event.Bytes > 0
+		case filament.SourceProgressWatermarkAdvanced:
+			sawWatermark = event.Resource == "items" && event.Checkpoint != nil && event.Checkpoint.String("items_since") == "2026-01-02T00:00:00Z"
+		}
+	}
+	if !sawPage || !sawWatermark {
+		t.Fatalf("progress page=%t watermark=%t", sawPage, sawWatermark)
 	}
 }
 
@@ -296,9 +322,11 @@ func TestIncrementalRecordReducerNeverRegressesFanoutWatermark(t *testing.T) {
 		"messages": {"messages_since": "10"},
 	})
 	for i, value := range []string{"30", "20"} {
-		got, err := reducer.record(pipeline.Record{
-			Resource: "messages", KeyJSON: []byte(`{"id":"x"}`), DataJSON: []byte(`{"id":"x"}`),
-			Watermarks: map[string]string{"messages_since": value},
+		got, err := reducer.record(filament.Record{
+			Resource: "messages",
+			ID:       "x",
+			Data:     []byte(`{"id":"x"}`),
+			Key:      []string{value},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -363,12 +391,13 @@ func TestSourcePlanResourcesKeepsSingleStaticResource(t *testing.T) {
 	}
 }
 
-func TestToIngestionRecordWrapsHTTPAPIPayload(t *testing.T) {
-	rec := toIngestionRecord(pipeline.Record{
-		Resource: "databases",
-		KeyJSON:  []byte(`{"id":"db1"}`),
-		DataJSON: []byte(`{"id":"db1","title":[{"plain_text":"Team Tasks"}]}`),
-	})
+func TestNewHTTPRecordWrapsUnprojectedPayload(t *testing.T) {
+	rec := newHTTPRecord(
+		"databases",
+		[]byte(`{"id":"db1"}`),
+		[]byte(`{"id":"db1","title":[{"plain_text":"Team Tasks"}]}`),
+		false,
+	)
 	var got map[string]json.RawMessage
 	if err := json.Unmarshal(rec.Data, &got); err != nil {
 		t.Fatalf("record data is not json: %v", err)
@@ -643,7 +672,7 @@ func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(attioManifest), "https://api.attio.com", api.URL, 1))
-	src := NewManifest("attio", "Attio", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "attio-key"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -699,7 +728,7 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(slackManifest), "https://slack.com/api", api.URL, 1))
-	src := NewManifest("slack", "Slack", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"token": "xoxb-test"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -775,9 +804,13 @@ func TestCredentialsFromConfigJoinsStringLists(t *testing.T) {
 }
 
 func TestRequiredListConfigRejectsEmptySelection(t *testing.T) {
-	src := NewManifest("list", "List", []byte(`
+	src := NewManifest([]byte(`
 version: 1
 name: list
+display_name: List
+description: Test list connector.
+dark_logo_url: https://cdn.example.com/list-dark.svg
+light_logo_url: https://cdn.example.com/list-light.svg
 config:
   choices:
     type: list
@@ -792,13 +825,93 @@ resources:
     primary_key: [id]
     fields:
       id: string
-`), filament.ConfigSchema{})
+`))
 
 	if err := src.Validate(filament.NewConfig(map[string]any{"choices": []any{}})); err == nil {
 		t.Fatal("empty required list validated successfully")
 	}
 	if err := src.Validate(filament.NewConfig(map[string]any{"choices": []any{"one"}})); err != nil {
 		t.Fatalf("non-empty required list: %v", err)
+	}
+}
+
+func TestEmbeddedManifestIsParsedOnceAndReused(t *testing.T) {
+	src := NewManifest([]byte(`
+version: 1
+name: cached
+display_name: Cached
+description: Test cached connector.
+dark_logo_url: https://cdn.example.com/cached-dark.svg
+light_logo_url: https://cdn.example.com/cached-light.svg
+config:
+  token:
+    type: secret
+    required: true
+connection:
+  base_url: https://example.com
+resources:
+  - name: records
+    path: /records
+    records: $
+    primary_key: [id]
+    fields:
+      id: string
+`))
+	if src.manifestErr != nil || src.embeddedManifest == nil {
+		t.Fatalf("constructor manifest = %#v, error = %v", src.embeddedManifest, src.manifestErr)
+	}
+
+	for range 2 {
+		spec := src.Spec()
+		if len(spec.Config.Fields) != 1 || spec.Config.Fields[0].Name != "token" {
+			t.Fatalf("config fields = %#v, want cached token field", spec.Config.Fields)
+		}
+	}
+	cfg := filament.NewConfig(map[string]any{"token": "secret"})
+	if err := src.Validate(cfg); err != nil {
+		t.Fatalf("validate cached config schema: %v", err)
+	}
+
+	c, err := src.connectorForConfig(cfg)
+	if err != nil {
+		t.Fatalf("build connector: %v", err)
+	}
+	if c.manifest != src.embeddedManifest {
+		t.Fatal("connector did not receive the manifest parsed by the source constructor")
+	}
+	if err := c.Configure(context.Background()); err != nil {
+		t.Fatalf("configure with cached manifest: %v", err)
+	}
+	if c.manifest != src.embeddedManifest {
+		t.Fatal("connector replaced the cached manifest during Configure")
+	}
+}
+
+func TestEmbeddedManifestParseErrorIsCached(t *testing.T) {
+	src := NewManifest([]byte("version: ["))
+	if src.manifestErr == nil {
+		t.Fatal("constructor accepted invalid manifest")
+	}
+	if err := src.Validate(filament.NewConfig(nil)); err == nil || !strings.Contains(err.Error(), "parse manifest") {
+		t.Fatalf("validate error = %v, want cached manifest parse error", err)
+	}
+	if _, err := src.connectorForConfig(filament.NewConfig(nil)); err == nil || !strings.Contains(err.Error(), "parse manifest") {
+		t.Fatalf("connector error = %v, want cached manifest parse error", err)
+	}
+}
+
+func TestManifestPathIsLoadedOncePerConnector(t *testing.T) {
+	path := writeTestManifest(t, "https://example.com")
+	src := New()
+	c, err := src.connectorForConfig(filament.NewConfig(map[string]any{"manifest_path": path}))
+	if err != nil {
+		t.Fatalf("build connector: %v", err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("remove manifest after initial load: %v", err)
+	}
+	if err := c.Configure(context.Background()); err != nil {
+		t.Fatalf("Configure reloaded manifest instead of using parsed value: %v", err)
 	}
 }
 
@@ -866,6 +979,10 @@ func TestStaticDiscoveryChildSelectionScansButDoesNotEmitParents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "static.yaml")
 	data := fmt.Sprintf(`version: 1
 name: static
+display_name: Static
+description: Test static connector.
+dark_logo_url: https://cdn.example.com/static-dark.svg
+light_logo_url: https://cdn.example.com/static-light.svg
 connection:
   base_url: %s
 resources:
@@ -905,14 +1022,28 @@ discovery:
 	defer src.Teardown(ctx)
 
 	var sink collectSink
-	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"children"}}); err != nil {
+	progress := make(chan filament.SourceProgress, 4)
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{
+		Resources: []string{"children"},
+		Observe:   func(p filament.SourceProgress) { progress <- p },
+	}); err != nil {
 		t.Fatalf("extract children: %v", err)
 	}
+	close(progress)
 	if parentRequests != 1 || childRequests != 1 {
 		t.Fatalf("requests parent=%d child=%d, want 1 each", parentRequests, childRequests)
 	}
 	if len(sink.records) != 1 || sink.records[0].Resource != "children" {
 		t.Fatalf("emitted records = %#v, want only selected child", sink.records)
+	}
+	var fanOut filament.SourceProgress
+	for event := range progress {
+		if event.Kind == filament.SourceProgressFanOutStarted {
+			fanOut = event
+		}
+	}
+	if fanOut.Resource != "children" || fanOut.ParentsTotal != 1 {
+		t.Fatalf("fan-out progress = %#v", fanOut)
 	}
 }
 
@@ -1067,6 +1198,10 @@ func writeTestManifest(t *testing.T, baseURL string) string {
 	path := filepath.Join(t.TempDir(), "manifest.yaml")
 	data := fmt.Sprintf(`version: 1
 name: test_http
+display_name: Test HTTP
+description: Test HTTP connector.
+dark_logo_url: https://cdn.example.com/http-dark.svg
+light_logo_url: https://cdn.example.com/http-light.svg
 connection:
   base_url: %s
 resources:
@@ -1093,6 +1228,10 @@ func writeIncrementalTestManifest(t *testing.T, baseURL string) string {
 	path := filepath.Join(t.TempDir(), "manifest.yaml")
 	data := fmt.Sprintf(`version: 1
 name: test_http
+display_name: Test HTTP
+description: Test incremental HTTP connector.
+dark_logo_url: https://cdn.example.com/http-dark.svg
+light_logo_url: https://cdn.example.com/http-light.svg
 connection:
   base_url: %s
 resources:
@@ -1138,6 +1277,10 @@ func writeNotionTestManifest(t *testing.T, baseURL string) string {
 	path := filepath.Join(t.TempDir(), "notion.yaml")
 	data := fmt.Sprintf(`version: 1
 name: notion
+display_name: Notion
+description: Test Notion connector.
+dark_logo_url: https://cdn.example.com/notion-dark.svg
+light_logo_url: https://cdn.example.com/notion-light.svg
 connection:
   base_url: %s
   auth:
@@ -1294,7 +1437,7 @@ func TestResendPaginatesOnLastRecordIDAndSendsBearerToken(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
-	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1350,7 +1493,7 @@ func TestResendTestConnectionProbesEmails(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
-	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
 		"api_key": "re_test_123",
 	})); err != nil {
@@ -1387,7 +1530,7 @@ func TestResendEmailDetailsSingletonFanOutSendsNoListParams(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
-	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1446,7 +1589,7 @@ func TestResendDomainRecordsProjectNestedArrayFromDomainDetail(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
-	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1480,7 +1623,7 @@ func TestResendDomainRecordsProjectNestedArrayFromDomainDetail(t *testing.T) {
 	// A fresh Source: parent captures accumulate for the lifetime of a
 	// configured connector, so reusing the one above would fan the detail
 	// request out once per prior run.
-	settingsSrc := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	settingsSrc := NewManifest(manifestData)
 	if err := settingsSrc.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1529,7 +1672,7 @@ func TestResendWebhookAttemptsInheritWebhookIDThroughEventCapture(t *testing.T) 
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
-	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1596,7 +1739,7 @@ func TestResendTemplateDetailsAcceptArrayReplyTo(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(resendManifest), "https://api.resend.com", api.URL, 1))
-	src := NewManifest("resend", "Resend", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1714,7 +1857,7 @@ func TestStripePaginatesOnLastRecordIDAndSendsBasicAuth(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
-	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1792,7 +1935,7 @@ func TestStripeSubscriptionItemFanOut(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
-	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1861,7 +2004,7 @@ func TestStripeInvoiceLineItemFanOut(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
-	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1924,7 +2067,7 @@ func TestStripeIncrementalInjectsBracketedCreatedFilter(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
-	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
 	}
@@ -1986,7 +2129,7 @@ func TestStripeTestConnectionProbesCustomers(t *testing.T) {
 	defer api.Close()
 
 	manifestData := []byte(strings.Replace(string(stripeManifest), "https://api.stripe.com", api.URL, 1))
-	src := NewManifest("stripe", "Stripe", manifestData, filament.ConfigSchema{})
+	src := NewManifest(manifestData)
 	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
 		"api_key": "rk_test_123",
 	})); err != nil {
@@ -2109,7 +2252,7 @@ func TestPostHogPaginatesViaNextURLAndScopesToProject(t *testing.T) {
 	}))
 	defer api.Close()
 
-	src := NewManifest("posthog", "PostHog", unthrottledPostHogManifest(t), filament.ConfigSchema{})
+	src := NewManifest(unthrottledPostHogManifest(t))
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"api_key":    "phx_test_123",
 		"project_id": "12345",
@@ -2180,7 +2323,7 @@ func TestPostHogEventsIncrementalInjectsAfterMinusOverlap(t *testing.T) {
 	}))
 	defer api.Close()
 
-	src := NewManifest("posthog", "PostHog", posthogManifest, filament.ConfigSchema{})
+	src := NewManifest(posthogManifest)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"api_key":    "phx_test_123",
 		"project_id": "12345",
@@ -2262,7 +2405,7 @@ func TestPostHogIncrementalLeavesServerNextURLUntouched(t *testing.T) {
 	}))
 	defer api.Close()
 
-	src := NewManifest("posthog", "PostHog", unthrottledPostHogManifest(t), filament.ConfigSchema{})
+	src := NewManifest(unthrottledPostHogManifest(t))
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"api_key":    "phx_test_123",
 		"project_id": "12345",

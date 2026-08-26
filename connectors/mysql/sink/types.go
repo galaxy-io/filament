@@ -12,8 +12,8 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/internal/arrowtext"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // engine is the source engine whose native type spellings this sink reuses.
@@ -21,40 +21,40 @@ const engine = "mysql"
 
 // columnType picks a destination column type: the source's own spelling when it
 // came from MySQL, else a portable mapping from the logical type.
-func columnType(f filament.SchemaField, sameEngine bool) string {
+func columnType(f rowmodel.Field, sameEngine bool) string {
 	if sameEngine && f.Native != "" {
 		return f.Native
 	}
 	switch f.Logical {
-	case filament.LogicalBool:
+	case rowmodel.LogicalBool:
 		return "tinyint(1)"
-	case filament.LogicalInt16:
+	case rowmodel.LogicalInt16:
 		return "smallint"
-	case filament.LogicalInt32:
+	case rowmodel.LogicalInt32:
 		return "int"
-	case filament.LogicalInt64:
+	case rowmodel.LogicalInt64:
 		return "bigint"
-	case filament.LogicalFloat32:
+	case rowmodel.LogicalFloat32:
 		return "float"
-	case filament.LogicalFloat64:
+	case rowmodel.LogicalFloat64:
 		return "double"
-	case filament.LogicalDecimal:
+	case rowmodel.LogicalDecimal:
 		if f.Precision > 0 {
 			return "decimal(" + strconv.Itoa(f.Precision) + "," + strconv.Itoa(f.Scale) + ")"
 		}
 		return "decimal(65,30)"
-	case filament.LogicalBytes:
+	case rowmodel.LogicalBytes:
 		return "longblob"
-	case filament.LogicalDate:
+	case rowmodel.LogicalDate:
 		return "date"
-	case filament.LogicalTime:
+	case rowmodel.LogicalTime:
 		return "time(6)"
-	case filament.LogicalTimestamp, filament.LogicalTimestampTZ:
+	case rowmodel.LogicalTimestamp, rowmodel.LogicalTimestampTZ:
 		// timestamp's range stops at 2038; datetime holds any instant (UTC).
 		return "datetime(6)"
-	case filament.LogicalJSON:
+	case rowmodel.LogicalJSON:
 		return "json"
-	case filament.LogicalUUID:
+	case rowmodel.LogicalUUID:
 		return "char(36)"
 	default: // string, array (native literal text), unknown
 		return "longtext"
@@ -64,8 +64,8 @@ func columnType(f filament.SchemaField, sameEngine bool) string {
 // MySQL's calendar runs from 0001-01-01 to 9999-12-31; a value outside it
 // (BC, or a Postgres infinity sentinel) lands as null.
 var (
-	minDays = batch.DateToDays(1, 1, 1)
-	maxDays = batch.DateToDays(9999, 12, 31)
+	minDays = arrowtext.DateToDays(1, 1, 1)
+	maxDays = arrowtext.DateToDays(9999, 12, 31)
 )
 
 // valueFn appends one value's LOAD DATA text.
@@ -104,7 +104,7 @@ func textFor(f arrow.Field) valueFn {
 	case arrow.DECIMAL128:
 		scale := int(f.Type.(*arrow.Decimal128Type).Scale)
 		return func(dst []byte, col arrow.Array, i int) []byte {
-			return batch.AppendDecimal(dst, col.(*array.Decimal128).Value(i), scale)
+			return arrowtext.AppendDecimal(dst, col.(*array.Decimal128).Value(i), scale)
 		}
 	case arrow.STRING:
 		return func(dst []byte, col arrow.Array, i int) []byte {
@@ -120,19 +120,19 @@ func textFor(f arrow.Field) valueFn {
 			if v < minDays || v > maxDays { // BC, past 9999, or Postgres infinity: no MySQL form
 				return append(dst, '\\', 'N')
 			}
-			return batch.AppendDate(dst, v)
+			return arrowtext.AppendDate32(dst, int32(v)) //nolint:gosec // checked against MySQL's Date32 range
 		}
 	case arrow.TIME64:
 		return func(dst []byte, col arrow.Array, i int) []byte {
-			return batch.AppendTimeOfDay(dst, int64(col.(*array.Time64).Value(i)))
+			return arrowtext.AppendTimeOfDay(dst, int64(col.(*array.Time64).Value(i)))
 		}
 	case arrow.TIMESTAMP:
 		return func(dst []byte, col arrow.Array, i int) []byte {
 			v := int64(col.(*array.Timestamp).Value(i))
-			if v < minDays*batch.MicrosPerDay || v >= (maxDays+1)*batch.MicrosPerDay { // BC, past 9999, or Postgres infinity: no MySQL form
+			if v < minDays*arrowtext.MicrosPerDay || v >= (maxDays+1)*arrowtext.MicrosPerDay { // BC, past 9999, or Postgres infinity: no MySQL form
 				return append(dst, '\\', 'N')
 			}
-			return batch.AppendTimestamp(dst, v, ' ')
+			return arrowtext.AppendTimestamp(dst, v, ' ')
 		}
 	default:
 		return func(dst []byte, col arrow.Array, i int) []byte {

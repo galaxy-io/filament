@@ -4,21 +4,33 @@ package ingestion.v1;
 
 import "google/protobuf/struct.proto";
 
-// WorkerResources sizes the worker that executes a run. Values are Kubernetes
-// quantity strings ("500m", "2Gi"); an empty field is unset and inherits, and
-// only the Kubernetes dispatcher consults them.
+// WorkerResources sizes the worker that executes a run, shaped like a Kubernetes
+// ResourceRequirements: resource name ("cpu", "memory") to quantity string
+// ("500m", "2Gi"). A missing key is unset and inherits, and only the Kubernetes
+// dispatcher consults them.
 message WorkerResources {
-  string cpu_request = 1;
-  string cpu_limit = 2;
-  string memory_request = 3;
-  string memory_limit = 4;
+  map<string, string> requests = 1;
+  map<string, string> limits = 2;
 }
 
-// WorkerConfiguration is how a pipeline's workers are shaped. It is a container
-// on purpose: resources today, placement (node selectors, tolerations) later,
-// without a migration per knob.
+// WorkerToleration mirrors a Kubernetes toleration. Fields are the Kubernetes
+// strings verbatim: operator "Equal" (default) or "Exists"; effect
+// "NoSchedule", "PreferNoSchedule", "NoExecute", or empty to match all.
+message WorkerToleration {
+  string key = 1;
+  string operator = 2;
+  string value = 3;
+  string effect = 4;
+}
+
+// WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
+// a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
+// merge per key when a run overrides a pipeline; node_selector and tolerations
+// replace wholesale.
 message WorkerConfiguration {
   WorkerResources resources = 1;
+  map<string, string> node_selector = 2;
+  repeated WorkerToleration tolerations = 3;
 }
 
 // ConnectorKind distinguishes a source from a sink in the catalog.

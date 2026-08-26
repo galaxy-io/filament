@@ -11,6 +11,8 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/memory"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // recordBuf accumulates one resource's batches for a pending commit. It holds
@@ -27,8 +29,8 @@ type recordBuf struct {
 	policy     *filament.WritePolicy
 	schema     *arrow.Schema
 
-	// in-memory path: retained batches
-	mem []arrow.RecordBatch
+	// in-memory path: retained owned batches
+	mem []*arrowbatch.Batch
 
 	// spill path — non-nil once the buffer has exceeded limitBytes
 	file   *os.File
@@ -37,7 +39,7 @@ type recordBuf struct {
 
 	// ops holds each spilled or retained batch's operations, in batch order; nil
 	// entries are all-insert batches.
-	ops [][]filament.Operation
+	ops [][]rowmodel.Operation
 }
 
 func newRecordBuf(limitBytes int64) *recordBuf {
@@ -82,7 +84,9 @@ func (rb *recordBuf) writeMode(fallback writeMode) writeMode {
 
 // append adds one batch, retaining it (the pipeline releases its reference after
 // Apply) or spilling it. Every batch of a buffer must share one Arrow schema.
-func (rb *recordBuf) append(rows arrow.RecordBatch, ops []filament.Operation, nbytes int64) error {
+func (rb *recordBuf) append(b *arrowbatch.Batch, nbytes int64) error {
+	rows := b.Rows()
+	ops := b.Operations().Clone()
 	if rb.schema == nil {
 		rb.schema = rows.Schema()
 	} else if !rb.schema.Equal(rows.Schema()) {
@@ -92,14 +96,11 @@ func (rb *recordBuf) append(rows arrow.RecordBatch, ops []filament.Operation, nb
 	rb.count += int(rows.NumRows())
 	for _, op := range ops {
 		switch op {
-		case filament.OpUpdate:
+		case rowmodel.OpUpdate:
 			rb.hasUpdate = true
-		case filament.OpDelete:
+		case rowmodel.OpDelete:
 			rb.hasDelete = true
 		}
-	}
-	if ops != nil { // the batch's Ops belong to the pipeline; only Rows are ours to retain
-		ops = append([]filament.Operation(nil), ops...)
 	}
 	rb.ops = append(rb.ops, ops)
 
@@ -111,8 +112,7 @@ func (rb *recordBuf) append(rows arrow.RecordBatch, ops []filament.Operation, nb
 	if rb.file != nil {
 		return rb.writer.Write(rows)
 	}
-	rows.Retain()
-	rb.mem = append(rb.mem, rows)
+	rb.mem = append(rb.mem, b.Retain())
 	return nil
 }
 
@@ -151,13 +151,13 @@ func (rb *recordBuf) spill() error {
 	rb.file = f
 	rb.bw = bufio.NewWriterSize(f, 1<<20)
 	rb.writer = ipc.NewWriter(rb.bw, ipc.WithSchema(rb.schema), ipc.WithLZ4(), ipc.WithAllocator(memory.DefaultAllocator))
-	for _, rows := range rb.mem {
-		if err := rb.writer.Write(rows); err != nil {
+	for _, b := range rb.mem {
+		if err := rb.writer.Write(b.Rows()); err != nil {
 			return err // rb.mem still owns every batch; close releases them
 		}
 	}
-	for _, rows := range rb.mem {
-		rows.Release()
+	for _, b := range rb.mem {
+		b.Release()
 	}
 	rb.mem = nil
 	return nil
@@ -167,10 +167,10 @@ func (rb *recordBuf) spill() error {
 // reading a spilled file back lazily so the whole buffer is never resident at
 // once. Each yielded batch belongs to fn for the duration of the call only. It
 // may run more than once (a retried commit); nothing may be appended after it.
-func (rb *recordBuf) stream(fn func(rows arrow.RecordBatch, ops []filament.Operation) error) error {
+func (rb *recordBuf) stream(fn func(rows arrow.RecordBatch, ops []rowmodel.Operation) error) error {
 	if rb.file == nil {
-		for i, rows := range rb.mem {
-			if err := fn(rows, rb.ops[i]); err != nil {
+		for i, b := range rb.mem {
+			if err := fn(b.Rows(), rb.ops[i]); err != nil {
 				return err
 			}
 		}
@@ -205,8 +205,8 @@ func (rb *recordBuf) stream(fn func(rows arrow.RecordBatch, ops []filament.Opera
 
 // close releases retained batches and removes any temp file. Idempotent.
 func (rb *recordBuf) close() {
-	for _, rows := range rb.mem {
-		rows.Release()
+	for _, b := range rb.mem {
+		b.Release()
 	}
 	rb.mem = nil
 	if rb.file != nil {
