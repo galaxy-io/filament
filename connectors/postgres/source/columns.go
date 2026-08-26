@@ -15,7 +15,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // engine names this source in the schemas it reports.
@@ -67,8 +68,8 @@ ORDER  BY a.attnum`
 // field maps a catalog column to its schema field and type behaviour. Logical
 // follows the type OID, so it always agrees with how the column is decoded;
 // binary reports whether the type has a binary form or is read as text.
-func (c column) field() (f filament.SchemaField, t pgType, binary bool) {
-	f = filament.SchemaField{Name: c.name, Nullable: c.nullable, Native: c.native}
+func (c column) field() (f rowmodel.Field, t pgType, binary bool) {
+	f = rowmodel.Field{Name: c.name, Nullable: c.nullable, Native: c.native}
 	if c.oid == pgtype.NumericOID {
 		f.Precision, f.Scale = numericPrecScale(c.typmod)
 	}
@@ -78,18 +79,18 @@ func (c column) field() (f filament.SchemaField, t pgType, binary bool) {
 }
 
 // schemaOf assembles table's RecordSchema from its catalog columns and key names.
-func schemaOf(table string, cols []column, pks []string) filament.RecordSchema {
-	fields := make([]filament.SchemaField, len(cols))
+func schemaOf(table string, cols []column, pks []string) rowmodel.Schema {
+	fields := make([]rowmodel.Field, len(cols))
 	for i, c := range cols {
 		fields[i], _, _ = c.field()
 	}
-	return filament.RecordSchema{Resource: table, Fields: fields, PrimaryKey: pks, Engine: engine}
+	return rowmodel.Schema{Resource: table, Fields: fields, PrimaryKey: pks, Engine: engine}
 }
 
 // rowDecoder appends one scanned row's raw binary column values into a
 // RowWriter. Built once per table, shared read-only by its shards.
 type rowDecoder struct {
-	schema     filament.RecordSchema
+	schema     rowmodel.Schema
 	selectList string   // column projection (no ctid); text-read types wrapped (…)::text
 	types      []pgType // per column
 	pkIdx      []int    // pk column positions in key order
@@ -107,7 +108,7 @@ func (s *Source) decoderFor(ctx context.Context, table string, pks []string) (*r
 
 func newRowDecoder(table string, cols []column, pks []string) (*rowDecoder, error) {
 	d := &rowDecoder{
-		schema: filament.RecordSchema{Resource: table, PrimaryKey: pks, Engine: engine},
+		schema: rowmodel.Schema{Resource: table, PrimaryKey: pks, Engine: engine},
 		types:  make([]pgType, len(cols)),
 	}
 	parts := make([]string, len(cols))
@@ -133,11 +134,11 @@ func newRowDecoder(table string, cols []column, pks []string) (*rowDecoder, erro
 
 // index returns the column position of name, or -1.
 func (d *rowDecoder) index(name string) int {
-	return slices.IndexFunc(d.schema.Fields, func(f filament.SchemaField) bool { return f.Name == name })
+	return slices.IndexFunc(d.schema.Fields, func(f rowmodel.Field) bool { return f.Name == name })
 }
 
 // appendRow appends the row's columns in schema order; the caller ends the row.
-func (d *rowDecoder) appendRow(w filament.RowWriter, raw [][]byte) error {
+func (d *rowDecoder) appendRow(w arrowbatch.RowWriter, raw [][]byte) error {
 	if len(raw) < len(d.types) {
 		return fmt.Errorf("row has %d values, want %d", len(raw), len(d.types))
 	}

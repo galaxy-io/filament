@@ -1,25 +1,87 @@
 ---
 title: "Connections"
-description: "Reusable, tenant-scoped sources and sinks."
+description: "Reusable, tenant-scoped sources and sinks with managed secrets and optimistic locking"
 ---
 
-Defined in `api/ingestion/v1/connections.proto`. A connection is a
-configured, reusable instance of a connector — the connection-scoped config
-fields from that connector's `ConfigSchema` (see [Writing a
-source](/pages/connectors/building-a-connector/writing-a-source)), persisted once
-and referenced by any number of pipelines.
+Defined in `api/ingestion/v1/connections.proto`. A connection is a configured,
+reusable instance of a connector. The host, bucket, and credentials are
+persisted once and referenced by any number of pipeline nodes, instead of
+duplicated inline on each pipeline. Connections are tenant-scoped, carry a `version`
+field used as an optimistic lock, and are soft-deleted.
+
+## Config scoping
+
+Every field in a connector's `ConfigSchema` carries a `FieldScope` that
+decides where its value lives:
+
+- **Connection-scoped** fields (`FIELD_SCOPE_CONNECTION`), such as host,
+  port, and credentials, are stored on the connection. They are what these
+  RPCs manage.
+- **Pipeline-scoped** fields (`FIELD_SCOPE_PIPELINE`), such as target table
+  and path prefix, are stored on the
+  [pipeline node](/pages/api-reference/service/pipelines) that references the
+  connection, and shallow-merged over the connection's config at run time,
+  with the node winning on key conflicts.
+
+Fields marked `secret` in the schema get special handling. On create and
+update the server extracts their values from `config`, stores them through the
+configured secrets provider, and keeps only a reference in `secret_refs`.
+Reads return those fields masked, and the API never echoes a secret back. A
+client can also supply `secret_refs` directly to point at pre-existing
+secrets.
 
 ## RPCs
 
-| RPC | Purpose |
+| RPC | Description |
 |---|---|
-| `CreateConnection` | Create a new connection |
-| `UpdateConnection` | Update an existing connection |
-| `GetConnection` | Fetch one connection |
-| `ListConnections` | List connections |
-| `DeleteConnection` | Delete a connection |
+| `CreateConnection` | Validate and persist a new connection |
+| `UpdateConnection` | Replace a connection, enforcing the version lock |
+| `GetConnection` | Fetch one connection, secrets masked |
+| `ListConnections` | List connections, optionally including deleted ones |
+| `DeleteConnection` | Soft-delete a connection not referenced by any pipeline |
 
-<Info>
-  This page is a placeholder for full request/response field documentation,
-  generated from `connections.proto`.
-</Info>
+## CreateConnection
+
+Takes `kind`, `name`, `connector`, `config`, and optional `secret_refs`. The
+server validates the config against the connector's schema and then runs the
+connector's own `Validate()` against the *effective* config (secrets resolved
+from the provider and merged in), so a connection that persists is one that
+actually connected. A secret reference that fails to resolve returns
+`failed_precondition`.
+
+## UpdateConnection
+
+Takes the full `Connection` object, including `id` and the `version` you last
+read. Semantics:
+
+- A `version` that no longer matches the stored row returns `aborted`.
+  Re-read the connection and retry with the fresh version.
+- `connector` and `kind` are immutable, and so is the replication mode a
+  source's config implies (standard vs CDC). Changing any of them returns
+  `invalid_argument`, so create a new connection instead.
+- Updating a deleted connection returns `failed_precondition`.
+
+Masked secret values round-trip safely. Submit the masked config unchanged and
+the stored secrets stay in place. Submit a new plaintext value and it replaces
+the stored secret.
+
+## GetConnection
+
+Returns the connection with secret fields masked. Sources additionally report
+`replication`, the effective replication mode derived from the stored config.
+Sinks report `REPLICATION_MODE_UNSPECIFIED`.
+
+## ListConnections
+
+Filters by `kind` (unspecified returns both sources and sinks) and supports
+[pagination](/pages/api-reference/service/introduction#pagination). Deleted
+connections are excluded unless `include_deleted` is set.
+
+## DeleteConnection
+
+This is a soft delete. The row is stamped `deleted_at` and its stored secret
+references are removed, but history referring to it stays readable. The call
+refuses with `failed_precondition` while any pipeline's *current* version
+references the connection — remove it from those pipelines (by creating new
+versions without it) first. Only the current version counts. Older versions
+that reference it do not block deletion.

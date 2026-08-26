@@ -1,33 +1,105 @@
 ---
 title: "PostgreSQL"
-description: "Write to PostgreSQL."
+description: "Write typed tables to PostgreSQL"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
 ---
 
-`connectors/postgres/sink` loads each resource into its own typed table with
-native Postgres columns.
+`connectors/postgres/sink` (registered as `postgres`, **beta**) loads each
+resource into its own typed PostgreSQL table. Native column types are derived
+from the source schema, and primary keys and `NOT NULL` constraints are
+preserved. It supports snapshot, incremental, and CDC pipelines against the
+same destination tables.
 
-## Typed loading
+## Configuration
 
-The engine calls `EnsureSchema` once per resource before extraction, which
-creates the destination table (adding any new columns to an existing one via
-`ADD COLUMN IF NOT EXISTS`) and caches a prebuilt `INSERT` statement. `Write`
-then casts each batch's JSON row payloads into those typed columns
-server-side via `jsonb_to_recordset` — the batch is framed as one `jsonb`
-array and expanded in a single statement rather than parsed and bound
-row-by-row from the client.
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `connection_method` | Connection | `fields` | `fields` builds the DSN from the fields below. `url` uses `dsn` directly. |
+| `dsn` | Connection | — | PostgreSQL connection URL. Required when `connection_method` is `url`. Secret. |
+| `host` | Connection | — | Server hostname. Required in `fields` mode. |
+| `port` | Connection | `5432` | Server port |
+| `username` | Connection | — | Required in `fields` mode |
+| `password` | Connection | — | Required in `fields` mode. Secret. |
+| `database_name` | Connection | — | Database to connect to. Required in `fields` mode. |
+| `ssl_mode` | Connection | `prefer` | TLS verification: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` |
+| `schema` | Pipeline | `public` | Destination schema |
+| `mode` | Pipeline | `typed` | Destination table mode. `typed` is the only value. |
 
-## Write policies
+A `schema` left empty is defaulted by the server to the normalized source
+connection name. `Open` sizes a pgx pool to at least the run's snapshot
+parallelism and runs `CREATE SCHEMA IF NOT EXISTS` for the destination schema.
 
-A resumable ingestion type (`SnapshotUpsert`, `Upsert`, or `CDC`) upserts by primary
-key via `ON CONFLICT … DO UPDATE`, so a re-delivered row from an
-at-least-once resume overwrites rather than errors on the unique
-constraint. A non-resumable load truncates the table first and inserts
-plain, for full-snapshot replace semantics.
+## Supported write modes
 
-## Modes
+The sink advertises `full_replace`, `full_append`, `full_upsert`,
+`incremental_upsert`, and `cdc`. See
+[replication modes](/pages/guides/concepts/replication-modes) for how the
+planner picks one. They bind to three write behaviors:
 
-Supports `SnapshotReplace`, `SnapshotUpsert`, `Append`, `Upsert`, and `CDC`
-write policies (see [Replication modes](/pages/guides/concepts/replication-modes)).
-CDC batches preserve arrival order: inserts and updates upsert by primary key,
-deletes match their before-image keys, and each batch commits in one transaction.
+- `full_replace` and `full_append` insert plainly. Both are full-snapshot
+  policies, so the destination table is truncated before each run (see below).
+- `full_upsert` and `incremental_upsert` insert with
+  `ON CONFLICT (pk) DO UPDATE` (`DO NOTHING` when the row is PK-only), so
+  re-runs and retries are idempotent.
+- `cdc` merges changes in arrival order. Inserts and updates upsert, and
+  deletes delete.
+
+## Table management
+
+Before extraction starts, `EnsureSchema` runs per resource:
+
+1. `CREATE TABLE IF NOT EXISTS` with columns from the source schema, a primary
+   key from the source's key fields, and `NOT NULL` from field nullability.
+2. `TRUNCATE` — unless the bound write mode is upsert or merge. This applies to
+   every non-upsert policy, **including `full_append`**. A full-snapshot append
+   run starts from an empty table, it does not accumulate across runs.
+3. `ADD COLUMN IF NOT EXISTS` for each column, so new source fields appear on
+   existing tables. Evolution is add-only. Type changes, dropped columns, and
+   nullability changes are not applied, and an incompatible type change
+   surfaces later as a cast error during writes.
+
+### Type mapping
+
+| Logical type | PostgreSQL type |
+| --- | --- |
+| `bool` | `boolean` |
+| `int16` / `int32` / `int64` | `smallint` / `integer` / `bigint` |
+| `float32` / `float64` | `real` / `double precision` |
+| `decimal` | source-native type if provided, else `numeric` |
+| `string` | `text` |
+| `bytes` | `bytea` |
+| `date` / `time` | `date` / `time` |
+| `timestamp` / `timestamptz` | `timestamp` / `timestamptz` |
+| `json` | `jsonb` |
+| `uuid` | `uuid` |
+| `array` | source-native type if provided, else `text[]` |
+| unknown | source-native type if provided, else `text` |
+
+## Write mechanics and atomicity
+
+Each batch becomes one statement. The records are serialized to a single JSON
+array and expanded server-side with
+
+```sql
+INSERT INTO "schema"."table" (...)
+SELECT ... FROM jsonb_to_recordset($1::jsonb)
+```
+
+so a 256-row batch costs one round trip. CDC batches are split into runs of
+consecutive deletes and non-deletes, applied in arrival order inside **one
+transaction per batch**. Deletes use `DELETE … USING jsonb_to_recordset`. A
+merge delete against a keyless resource is an error.
+
+Batches commit as they are applied (autocommit), so partial data is visible in
+the destination mid-run. Delivery is at-least-once, and upsert and merge modes
+are idempotent through the primary key. `Commit` closes the pool. There is no
+end-of-run atomic swap.
+
+## Failure behavior
+
+On a failed run, `Abort` **truncates every non-resumable table the run
+ensured**. Concretely, a failed `full_replace` or `full_append` run leaves the
+destination tables it touched empty, not partially written and not holding the
+previous run's data. Tables bound to upsert or merge modes (`full_upsert`,
+`incremental_upsert`, `cdc`) are resumable and are preserved, since a retry
+converges through the primary key.

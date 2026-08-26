@@ -1,8 +1,11 @@
-// Package memory implements the filament.DataStore interface on PostgreSQL (default).
+// Package memory implements filament.DataStore and filament.ScheduleStore with
+// in-process maps, mirroring the semantics of datastore/postgres. Nothing
+// survives the process; it is the default store for tests and local runs.
 package memory
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"sort"
@@ -37,7 +40,7 @@ type Store struct {
 	resources           map[filament.RunID]map[string]filament.ResourceState // run → resource → state
 	checkpoints         map[ckey]filament.Checkpoint
 	resourceCheckpoints map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState
-	seen                map[dkey]struct{} // dedup keys already applied
+	seen                map[dkey]uint64 // dedup high-water mark per (tenant, run)
 	connections         map[string]filament.Connection
 	deletedConnections  map[string]filament.Connection
 	pipelines           map[string]*ingestionv1.Pipeline
@@ -55,7 +58,6 @@ type ckey struct {
 type dkey struct {
 	tenant string
 	run    filament.RunID
-	seq    uint64
 }
 
 // New returns a ready-to-use in-memory store.
@@ -65,7 +67,7 @@ func New() *Store {
 		resources:           map[filament.RunID]map[string]filament.ResourceState{},
 		checkpoints:         map[ckey]filament.Checkpoint{},
 		resourceCheckpoints: map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState{},
-		seen:                map[dkey]struct{}{},
+		seen:                map[dkey]uint64{},
 		connections:         map[string]filament.Connection{},
 		deletedConnections:  map[string]filament.Connection{},
 		pipelines:           map[string]*ingestionv1.Pipeline{},
@@ -197,6 +199,56 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
+// TransitionRun atomically changes a run when its current status is admitted.
+// Resume resets attempt-local lifecycle while optionally preserving counters
+// whose sink output and source checkpoints survive into the next attempt.
+func (s *Store) TransitionRun(
+	ctx context.Context,
+	id filament.RunID,
+	from []filament.RunStatus,
+	to filament.RunStatus,
+	opts filament.RunTransitionOptions,
+) (filament.RunState, error) {
+	if err := ctx.Err(); err != nil {
+		return filament.RunState{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state, ok := s.runs[id]
+	if !ok {
+		return filament.RunState{}, fmt.Errorf("transition run %q: %w", id, filament.ErrNotFound)
+	}
+	if !slices.Contains(from, state.Status) {
+		return filament.RunState{}, fmt.Errorf("transition run %q from status %d: %w", id, state.Status, filament.ErrVersionConflict)
+	}
+	state.Status = to
+	state.UpdatedAt = time.Now()
+	if opts.ResetExecution {
+		state.RequestedAt = time.Now()
+		state.StartedAt = time.Time{}
+		state.EndedAt = nil
+		state.Error = ""
+		if !opts.PreserveProgress {
+			state.Records = 0
+			state.Bytes = 0
+		}
+		state.CPUSeconds = 0
+		state.MemoryPeakBytes = 0
+		for resource, rs := range s.resources[id] {
+			rs.Status = filament.RunRequested
+			if !opts.PreserveProgress {
+				rs.Records = 0
+				rs.Bytes = 0
+			}
+			rs.Error = ""
+			s.resources[id][resource] = rs
+		}
+	}
+	s.runs[id] = state
+	state.Resources = s.listResourcesLocked(id)
+	return state, nil
+}
+
 // DeleteRun removes the run with its resources and checkpoints; missing is a no-op.
 func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
 	if err := ctx.Err(); err != nil {
@@ -284,10 +336,29 @@ func (s *Store) SaveCheckpoint(ctx context.Context, id filament.RunID, cp filame
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	stored, err := roundTripCheckpoint(cp)
+	if err != nil {
+		return fmt.Errorf("datastore/memory: save checkpoint: %w", err)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.checkpoints[ckey{run: id, resource: cp.Resource()}] = cp
+	s.checkpoints[ckey{run: id, resource: cp.Resource()}] = stored
 	return nil
+}
+
+// roundTripCheckpoint passes the cursor through JSON so loads return the same
+// shapes the postgres store produces (float64 numbers, *CheckpointData), not
+// the caller's live value.
+func roundTripCheckpoint(cp filament.Checkpoint) (*filament.CheckpointData, error) {
+	raw, err := json.Marshal(cp.Raw())
+	if err != nil {
+		return nil, fmt.Errorf("marshal cursor: %w", err)
+	}
+	var cursor map[string]any
+	if err := json.Unmarshal(raw, &cursor); err != nil {
+		return nil, fmt.Errorf("unmarshal cursor: %w", err)
+	}
+	return &filament.CheckpointData{ResourceName: cp.Resource(), Cursor: cursor}, nil
 }
 
 // LoadCheckpoint returns the saved cursor for (run, resource), or ErrNotFound.
@@ -313,6 +384,11 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 	if state.Checkpoint == nil || state.Checkpoint.Resource() != state.Key.Resource {
 		return fmt.Errorf("save resource checkpoint: resource mismatch")
 	}
+	stored, err := roundTripCheckpoint(state.Checkpoint)
+	if err != nil {
+		return fmt.Errorf("datastore/memory: save resource checkpoint: %w", err)
+	}
+	state.Checkpoint = stored
 	state.UpdatedAt = time.Now()
 	s.mu.Lock()
 	s.resourceCheckpoints[state.Key] = state
@@ -346,19 +422,20 @@ func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.Resou
 	return nil
 }
 
-// DedupSeen reports whether (tenant, run, seq) was already applied, marking it
-// seen on the first call. Lets consumers make fact application idempotent.
+// DedupSeen reports whether seq has already been applied for (tenant, run),
+// advancing the run's high-water mark on the first call to see it — the same
+// contract as postgres's AdvanceDedupSeen: seq only ever increases per run.
 func (s *Store) DedupSeen(ctx context.Context, tenant string, run filament.RunID, seq uint64) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
-	k := dkey{tenant: tenant, run: run, seq: seq}
+	k := dkey{tenant: tenant, run: run}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.seen[k]; ok {
+	if last, ok := s.seen[k]; ok && last >= seq {
 		return true, nil
 	}
-	s.seen[k] = struct{}{}
+	s.seen[k] = seq
 	return false, nil
 }
 
@@ -405,12 +482,10 @@ func matchRun(r filament.RunState, f filament.RunFilter) bool {
 	if !f.Until.IsZero() && (r.StartedAt.IsZero() || !r.StartedAt.Before(f.Until)) {
 		return false
 	}
-	if len(f.Status) > 0 && !slices.Contains(f.Status, r.Status) {
+	if !f.UpdatedBefore.IsZero() && !r.UpdatedAt.Before(f.UpdatedBefore) {
 		return false
 	}
-	if f.Source != "" &&
-		r.Request.Source.ConfigRef != f.Source &&
-		r.Request.Source.Provider != f.Source {
+	if len(f.Status) > 0 && !slices.Contains(f.Status, r.Status) {
 		return false
 	}
 	return true

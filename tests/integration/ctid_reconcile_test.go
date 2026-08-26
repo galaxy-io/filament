@@ -21,7 +21,7 @@ import (
 // proving the age(xmin) <= age(H1) filter selects post-horizon rows, not a full rescan.
 func TestCtidReconcileHorizon(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 
 	const n = 5000
 	ddl := `
@@ -103,7 +103,7 @@ func TestCtidReconcileHorizon(t *testing.T) {
 // is re-read whole, rather than trusting the stale completed ranges.
 func TestCtidRewriteGuard(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 
 	const n = 3000
 	ddl := `

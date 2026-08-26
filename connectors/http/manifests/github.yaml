@@ -1,5 +1,9 @@
 version: 1
 name: github
+display_name: GitHub
+description: Code hosting platform for version control, collaboration, and software development workflows.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-github-light.svg
 config:
   token:
     type: secret

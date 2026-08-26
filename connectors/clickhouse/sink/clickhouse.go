@@ -18,6 +18,7 @@ import (
 	chdriver "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/internal/dbconfig"
 )
 
 const (
@@ -74,27 +75,32 @@ type table struct {
 func New() *Sink { return &Sink{} }
 
 var (
-	_ filament.Sink            = (*Sink)(nil)
-	_ filament.LiveValidatable = (*Sink)(nil)
-	_ filament.Schematized     = (*Sink)(nil)
+	_ filament.Sink              = (*Sink)(nil)
+	_ filament.ConfigValidatable = (*Sink)(nil)
+	_ filament.LiveValidatable   = (*Sink)(nil)
+	_ filament.Schematized       = (*Sink)(nil)
 )
 
 // Spec describes the sink's configuration and supported write policies.
 func (s *Sink) Spec() filament.SinkSpec {
+	fields := dbconfig.VisibleWhen(dbconfig.MethodFields)
 	return filament.SinkSpec{
 		Name:         "clickhouse",
 		DisplayName:  "ClickHouse",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-light.svg",
 		Description:  "Column-oriented analytics database with typed batch loading and primary-key upserts.",
-		Version:      "1",
+		Version:      "2",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "ClickHouse server hostname; copied http:// or https:// endpoints are also accepted"},
-			{Name: "port", Type: filament.FieldInt, Default: defaultPort, Scope: filament.ScopeConnection, Help: "ClickHouse server port (9440 for secure native connections)"},
-			{Name: "protocol", Type: filament.FieldEnum, Default: protocolNative, Enum: []filament.EnumOption{{Value: protocolNative, Label: "Native"}, {Value: protocolHTTP, Label: "HTTP"}}, Scope: filament.ScopeConnection, Help: "ClickHouse wire protocol"},
-			{Name: "username", Type: filament.FieldString, Default: defaultUsername, Scope: filament.ScopeConnection, Help: "ClickHouse username"},
-			{Name: "password", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, Help: "ClickHouse password"},
-			{Name: "secure", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection, Help: "Connect with TLS (required by ClickHouse Cloud)"},
+			dbconfig.MethodConfigField(),
+			dbconfig.DSNConfigField("ClickHouse connection URL"),
+			{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse server hostname; copied http:// or https:// endpoints are also accepted"},
+			{Name: "port", Type: filament.FieldInt, Default: defaultPort, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse server port (9440 for secure native connections)"},
+			{Name: "protocol", Type: filament.FieldEnum, Default: protocolNative, Enum: []filament.EnumOption{{Value: protocolNative, Label: "Native"}, {Value: protocolHTTP, Label: "HTTP"}}, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse wire protocol"},
+			{Name: "username", Type: filament.FieldString, Default: defaultUsername, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse username"},
+			{Name: "password", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "ClickHouse password"},
+			{Name: "database_name", Type: filament.FieldString, Default: defaultDatabase, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "Database encoded in the connection; pipeline configuration selects the destination database"},
+			{Name: "secure", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "Connect with TLS (required by ClickHouse Cloud)"},
 			{Name: "database", Type: filament.FieldString, Default: defaultDatabase, Scope: filament.ScopePipeline, Help: "Destination database. Empty defaults to the normalized source connection name."},
 		}},
 		SchemaField: "database",
@@ -114,6 +120,14 @@ func (s *Sink) Spec() filament.SinkSpec {
 
 // Name identifies this sink implementation.
 func (s *Sink) Name() string { return "clickhouse" }
+
+// Validate checks connection syntax without opening a network connection.
+func (s *Sink) Validate(cfg filament.Config) error {
+	if _, err := connectionOptions(cfg); err != nil {
+		return fmt.Errorf("clickhouse sink: connection config: %w", err)
+	}
+	return nil
+}
 
 // TestConnection pings ClickHouse through a short-lived connection without
 // creating the configured destination database.
@@ -173,6 +187,25 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 }
 
 func connectionOptions(cfg filament.Config) (*ch.Options, error) {
+	method, err := dbconfig.Method(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if method == dbconfig.MethodURL {
+		dsn := cfg.Secret(dbconfig.DSNField)
+		if strings.TrimSpace(dsn) == "" {
+			return nil, fmt.Errorf("dsn is required when connection_method is %q", dbconfig.MethodURL)
+		}
+		opts, err := ch.ParseDSN(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("parse dsn: %w", err)
+		}
+		if len(opts.Addr) == 0 {
+			return nil, fmt.Errorf("dsn has no server address")
+		}
+		return opts, nil
+	}
+
 	host, err := normalizeHost(cfg.String("host"))
 	if err != nil {
 		return nil, err
@@ -211,7 +244,7 @@ func connectionOptions(cfg filament.Config) (*ch.Options, error) {
 		Addr:     []string{net.JoinHostPort(host, strconv.Itoa(port))},
 		Protocol: driverProtocol,
 		Auth: ch.Auth{
-			Database: defaultDatabase,
+			Database: defaultString(cfg.String("database_name"), defaultDatabase),
 			Username: username,
 			Password: password,
 		},
@@ -224,6 +257,13 @@ func connectionOptions(cfg filament.Config) (*ch.Options, error) {
 		opts.TLS = &tls.Config{MinVersion: tls.VersionTLS12}
 	}
 	return opts, nil
+}
+
+func defaultString(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func normalizeHost(raw string) (string, error) {

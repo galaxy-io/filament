@@ -45,7 +45,7 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
   const isReadOnly = usePipelineCanvasReadOnly();
   const state = usePipelineCanvasState();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
-  const { setNodeConfig } = usePipelineCanvasActions();
+  const { setNodeConfig, removeNode } = usePipelineCanvasActions();
   const nodeEdges = state.edges.filter(
     (edge) => edge.source === node.id || edge.target === node.id,
   );
@@ -80,6 +80,14 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
         }
         onBack={clearSelection}
         onClose={() => setShowPanel(false)}
+        onDelete={
+          isReadOnly
+            ? undefined
+            : () => {
+                removeNode(node.id);
+                clearSelection();
+              }
+        }
       />
       <PipelineCanvasPanelBody>
         <ConnectionDrawerList>

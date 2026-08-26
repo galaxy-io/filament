@@ -14,6 +14,7 @@ const ACRONYMS_TO_CAPITALIZE: string[] = [
   "http",
   "ssh",
   "ssl",
+  "tls",
   "dsn",
   "uri",
   "kb",

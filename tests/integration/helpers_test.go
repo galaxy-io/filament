@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/batch"
+	"github.com/galaxy-io/filament/arrowbatch"
 )
 
 // rec is one row (or completion marker) as the tests inspect it: the resource,
@@ -32,14 +32,14 @@ type rec struct {
 type collectSink struct {
 	mu      sync.Mutex
 	recs    []rec
-	batches []filament.Batch
+	batches []*arrowbatch.Batch
 	wrap    func(filament.RowWriter) filament.RowWriter // optional per-writer wrapper
 }
 
 func (s *collectSink) Builder(resource string, part int, schema filament.RecordSchema) (filament.RowWriter, error) {
-	as := batch.Schema(schema)
+	as := arrowbatch.Schema(schema)
 	c := &collectChunks{sink: s, resource: resource, part: part, pk: schema.PrimaryKey}
-	var w filament.RowWriter = batch.New(as, batch.Options{MaxRows: 1}, c) // one batch per row: nothing waits in a builder after Extract
+	var w filament.RowWriter = arrowbatch.NewBuilder(as, nil, arrowbatch.Options{MaxRows: 1}, c) // one batch per row: nothing waits in a builder after Extract
 	if s.wrap != nil {
 		w = s.wrap(w)
 	}
@@ -47,10 +47,10 @@ func (s *collectSink) Builder(resource string, part int, schema filament.RecordS
 }
 
 // batchesFor returns the collected batches of one resource, in flush order.
-func (s *collectSink) batchesFor(resource string) []filament.Batch {
+func (s *collectSink) batchesFor(resource string) []*arrowbatch.Batch {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var out []filament.Batch
+	var out []*arrowbatch.Batch
 	for _, b := range s.batches {
 		if b.Resource == resource {
 			out = append(out, b)
@@ -66,22 +66,23 @@ type collectChunks struct {
 	pk       []string
 }
 
-func (c *collectChunks) Chunk(ch batch.Chunk) error {
-	ch.Rows.Retain()
+func (c *collectChunks) Chunk(ch *arrowbatch.Batch) error {
+	ch.Resource, ch.Part = c.resource, c.part
 	c.sink.mu.Lock()
 	defer c.sink.mu.Unlock()
-	c.sink.batches = append(c.sink.batches, filament.Batch{Resource: c.resource, Part: c.part, Rows: ch.Rows, Ops: ch.Ops})
-	for i := range int(ch.Rows.NumRows()) {
+	c.sink.batches = append(c.sink.batches, ch)
+	rows, ops := ch.Rows(), ch.Operations()
+	for i := range int(rows.NumRows()) {
 		r := rec{Resource: c.resource, Key: ch.Last.Key, Coarse: ch.Last.Coarse, LSN: ch.Last.LSN, Seq: ch.Last.Seq}
-		if ch.Ops != nil {
-			r.Op = ch.Ops[i]
+		if ops.Len() != 0 {
+			r.Op = ops.At(i)
 		}
 		for n, name := range c.pk { // key columns' text, joined with 0x1f
-			if idx := ch.Rows.Schema().FieldIndices(name); len(idx) == 1 {
+			if idx := rows.Schema().FieldIndices(name); len(idx) == 1 {
 				if n > 0 {
 					r.ID += "\x1f"
 				}
-				r.ID += ch.Rows.Column(idx[0]).ValueStr(i)
+				r.ID += rows.Column(idx[0]).ValueStr(i)
 			}
 		}
 		c.sink.recs = append(c.sink.recs, r)
@@ -97,7 +98,7 @@ func (c *collectChunks) Drained(meta filament.RowMeta, _ int) error {
 }
 
 // applyAll replays a resource's collected batches into a sink under one policy.
-func applyAll(ctx context.Context, dst filament.Sink, batches []filament.Batch, policy filament.WritePolicy) error {
+func applyAll(ctx context.Context, dst filament.Sink, batches []*arrowbatch.Batch, policy filament.WritePolicy) error {
 	for _, b := range batches {
 		if _, err := dst.Apply(ctx, b, filament.ApplyOptions{Policy: policy}); err != nil {
 			return err
@@ -112,7 +113,7 @@ type flakySink struct {
 	writes int
 }
 
-func (s *flakySink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *flakySink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.writes++
 	if s.failAt > 0 && s.writes == s.failAt {
 		return filament.WriteReceipt{}, fmt.Errorf("injected write failure at batch %d", s.writes)

@@ -9,6 +9,7 @@ package postgres
 import (
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,8 @@ type copyCol struct {
 }
 
 type valueFn func(dst []byte, col arrow.Array, i int) []byte
+
+var copyCRCTable = crc32.MakeTable(crc32.Castagnoli)
 
 // newCopier prepares renderers for the Arrow columns idx of schema, landing in
 // destination columns of the given Postgres types.
@@ -57,12 +60,24 @@ func (c *copier) sql(qualified string, idents []string) string {
 // encode renders rows [lo, hi) of rows as one complete COPY payload; ordered adds
 // a trailing _ord column holding each row's position in the range, for folds that
 // must keep batch order.
-func (c *copier) encode(rows arrow.RecordBatch, lo, hi int, ordered bool) []byte {
+func (c *copier) encode(rows arrow.RecordBatch, lo, hi int, ordered bool) ([]byte, uint32) {
 	dst := make([]byte, 0, len(copyHeader)+(hi-lo)*8*(len(c.cols)+1))
 	if c.binary {
-		return c.encodeBinary(dst, rows, lo, hi, ordered)
+		dst = c.encodeBinary(dst, rows, lo, hi, ordered)
+	} else {
+		dst = c.encodeText(dst, rows, lo, hi, ordered)
 	}
-	return c.encodeText(dst, rows, lo, hi, ordered)
+	return dst, crc32.Checksum(dst, copyCRCTable)
+}
+
+// verifyCopyChecksum rechecks the exact COPY payload immediately before the
+// transport write.
+func verifyCopyChecksum(payload []byte, expected uint32) error {
+	actual := crc32.Checksum(payload, copyCRCTable)
+	if actual != expected {
+		return fmt.Errorf("COPY serialization CRC divergence: encoded %08x, expected %08x", actual, expected)
+	}
+	return nil
 }
 
 // copyHeader opens a binary COPY stream: signature, flags, extension length.

@@ -1,34 +1,82 @@
 ---
-title: "Style & Testing"
-description: "Formatting, linting, and the two test tiers."
-icon: "flask"
+title: "Style & testing"
+description: "Formatting, linting, and the three test layers"
 ---
 
-## Formatting & linting
+## Formatting and linting
 
-Go code is formatted and linted per-module with `golangci-lint` (gofumpt +
-goimports, configured in `.golangci.yaml`); the UI package uses Biome.
+Go code is formatted with `gofumpt` (extra rules enabled) and `goimports` with
+the repository's local import prefix, both driven through `golangci-lint fmt`.
+The linter set in `.golangci.yaml` includes `staticcheck`, `gosec`,
+`errcheck`, `govet`, `prealloc`, `ineffassign`, `gocritic`, `revive`,
+`misspell`, `gocyclo`, `funlen`, `unused`, and `unparam`. The UI is formatted
+and linted by Biome, and protobuf definitions by `buf format` and `buf lint`.
 
-| Command | What it does |
-|---|---|
-| `just format` | Applies formatting across every Go module, plus UI formatting |
-| `just format-check` | Checks formatting without writing — what CI runs |
-| `just lint` | Runs linters and applies auto-fixes where possible |
-| `just lint-check` | Runs linters without fixing — what CI runs |
+One pair of commands covers all of it. The check variant is a mode argument,
+not a separate recipe:
+
+```sh
+just format          # fix formatting: Go, UI, proto
+just format check    # verify without writing
+just lint            # run linters with --fix
+just lint check      # verify without fixing
+```
+
+CI runs the granular recipes (`just go-lint check`, `just go-format check`,
+`just ui-lint check`, `just ui-format check`) plus `buf lint` and a
+`proto-check` that fails if regenerating stubs would change checked-in files.
 
 ## Testing
 
-Filament has two test tiers:
+There are three layers of tests, run by two commands.
 
-| Command | Scope |
-|---|---|
-| `just test` | Unit tests, run in every Go module except `tests/` |
-| `just test-integration` | The full e2e suite in `tests/` — requires Docker |
+**`just test`** runs the unit tier, which covers every Go module except
+`tests/`, with no build tags and no Docker anywhere. This covers plan compilation, the pipeline
+(batching, divergence and write-error fatality, checkpoint publication, CRC
+regrouping detection), event bus, checkpoint, connector, datastore, runner,
+secret, and server packages.
 
-Run `just format`, `just lint`, and `just test` before opening a PR.
+**`just test-integration`** runs the `tests/` module, which holds both the
+integration and e2e layers, since every file there carries
+`//go:build integration`. It needs Docker (testcontainers spin up PostgreSQL,
+NATS, MinIO, Trino, k3s, and others) and `duckdb` on your PATH. TPC-H seeding
+hard-fails without it.
 
-<Info>
-  This page is a placeholder for deeper testing conventions — table-driven
-  test patterns, how connector conformance is tested, and CI specifics
-  belong here as the contributor base grows.
-</Info>
+<Warning>
+Running `go test ./...` in `tests/` without `-tags integration` matches no
+packages and exits 0 — it passes while testing nothing. Use
+`just test-integration`, which passes the tag.
+</Warning>
+
+### What the suites prove
+
+The integration suite exercises the guarantees the engine claims:
+
+- The resume matrix kills runs mid-extract and injects concurrent writes into
+  the fail-to-resume window, treating any row LOSS as failure and DUPLICATE
+  rows as acceptable (at-least-once).
+- ctid reconcile verifies horizon reconciliation and the rewrite guard.
+- The NATS durable-consumer tests verify consumers survive restarts.
+- The k8s dispatch tests assert the exact worker Job spec and dispatch
+  idempotency against a real API server in a k3s container.
+- The reaper tests verify stale runs get failed.
+- An Iceberg sink test writes from PostgreSQL through a REST catalog to MinIO
+  and verifies the result with an independent Trino reader.
+
+The e2e layer runs two full flows. The first pushes TPC-H data through
+JetStream from PostgreSQL to Iceberg, Trino-verified. The second drives the
+complete control-plane path through the Connect API, with connections,
+pipeline, run, and row-count assertions across two PostgreSQL containers.
+
+## Benchmarks
+
+Go benchmarks exist for the pipeline hot path and the in-process event bus.
+They are manual-only, with no justfile recipe, and never run in CI:
+
+```sh
+go test -bench=. -benchmem ./pipeline/...
+go test -bench=. -benchmem ./eventbus/...
+```
+
+What they measure and how to read them is covered in the
+[Benchmarks](/pages/benchmarks/overview).

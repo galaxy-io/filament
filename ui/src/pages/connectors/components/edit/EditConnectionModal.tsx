@@ -103,6 +103,7 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
       connectorName={connection.connector}
       connectorKind={connection.kind}
       connectionId={connection.id}
+      secretRefs={connection.secretRefs}
       onSubmit={handleUpdateConnection}
       onClose={onClose}
     />

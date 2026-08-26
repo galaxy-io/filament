@@ -1,158 +1,76 @@
 ---
 title: "PostHog"
-description: "Read people, events, cohorts, feature flags, experiments, and session replay metadata from a PostHog project."
+description: "Read people, events, cohorts, feature flags, experiments, and session replay metadata from a PostHog project"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg"
 ---
 
-PostHog is a manifest-driven source — `connectors/http/manifests/posthog.yaml`
-declares its resources, auth, and pagination against the shared grammar in
-`connectors/http/manifest/`; no PostHog-specific Go code exists. See
-[HTTP](/pages/connectors/sources/http) for how the manifest mechanism works.
+PostHog is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
+The `connectors/http/manifests/posthog.yaml` manifest declares resources
+covering a project's analytics surface, from people and events to the CRUD
+objects around them (cohorts, flags, experiments, insights, dashboards,
+actions, annotations, surveys, session recordings). The connector is
+**beta**. The resource set is stable, though field shapes may still be
+extended.
 
-## Auth
+## Configuration
 
-A personal API key (Settings → Personal API keys), sent as a bearer token. Keys
-are scoped, and the key needs read access to each resource extracted:
-`person:read`, `query:read` (for events), `cohort:read`, `feature_flag:read`,
-`experiment:read`, `insight:read`, `dashboard:read`, `action:read`,
-`annotation:read`, `survey:read`, and `session_recording:read`. A key missing
-one of those returns a `403` on that resource and fails the run, so scope the
-key to everything you extract or trim the resource list.
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Personal API key with read scopes for the synced resources. |
+| `project_id` | Connection | | Required. The digits after `/project/` in the app URL. |
+| `host` | Connection | `https://us.posthog.com` | US Cloud, `https://eu.posthog.com`, or a self-hosted origin. |
 
-Two more settings:
-
-- `project_id` — from Settings → Project, the digits after `/project/` in the
-  app URL. Every path is scoped to one project; an organization with several
-  projects needs one connection per project.
-- `host` — defaults to `https://us.posthog.com`. EU Cloud is
-  `https://eu.posthog.com`, and self-hosted installs use their own origin. This
-  is the app host, not the `us.i.posthog.com` ingestion host, which does not
-  serve `/api`.
-
-<Note>
-  PostHog is the first manifest with a templated `base_url`
-  (`"{{ config.host }}"`). Because US Cloud, EU Cloud, and self-hosted are
-  separate hosts with region-isolated data, pinning one would have made the
-  connector unusable for the others. `base_url` renders once at Configure
-  against the `config`/`state`/`env` scopes — the same set auth uses.
-</Note>
+`host` must be the app origin, not the `us.i.posthog.com` ingestion host,
+which does not serve `/api`.
 
 ## Resources
 
-Eleven resources, all statically discovered, all under
-`/api/projects/{project_id}/`.
-
-| Resource | Path | Fans out from |
-|---|---|---|
-| `persons` | `persons/` | — |
-| `events` | `events/` | — |
-| `cohorts` | `cohorts/` | — |
-| `feature_flags` | `feature_flags/` | — |
-| `experiments` | `experiments/` | — |
-| `insights` | `insights/` | — |
-| `dashboards` | `dashboards/` | — |
-| `actions` | `actions/` | — |
-| `annotations` | `annotations/` | — |
-| `surveys` | `surveys/` | — |
-| `session_recordings` | `session_recordings/` | — |
-
-There is no parent/child fan-out: every endpoint is already project-scoped, and
-PostHog exposes no `/api/projects/` collection to iterate (projects are listed
-only under `/api/organizations/{organization_id}/projects/`, which needs an
-extra `organization:read` scope).
-
-Every list endpoint returns Django REST Framework's envelope —
-`{count, next, previous, results}`, with `events` omitting `count` and
-`previous` — so one `defaults:` block covers all eleven. Pagination follows the
-absolute URL in `next` (`pagination: { next_url: next }`), with `"next": null`
-as the terminator. That is preferred over offset arithmetic because PostHog
-builds `next` itself, echoing back every filter, and because the events
-endpoint marks its own `offset` parameter deprecated and fails above 100000.
-Only the first request carries `limit=100`; pages after that use whatever the
-server put in `next`.
-
-Free-form payloads (`properties`, `filters`, `query`, `steps`, `questions`,
-`elements`, `distinct_ids`, `tags`) stay as `json` columns rather than being
-flattened — a property bag has no stable schema to commit to. Four nested
-scalars are promoted because they are join keys: `created_by.id` and
-`created_by.email` on the eight resources that carry an author,
-`feature_flag.id` on experiments, and `person.id` on session recordings. The
-full objects are retained alongside them, and the `raw` remainder column
-carries anything PostHog adds later.
-
-Enum-valued columns are typed `string` even where PostHog's underlying choice
-is an integer (`restriction_level`). A JSON number coerces cleanly into a
-string column, but a string under an integer column aborts the run.
-
-The same asymmetry decides `persons.id`, and the API schema is actively
-misleading here. `PersonRecord.id` is published as `integer` and described as
-"Numeric person ID", but the retrieve endpoint documents the same identifier as
-"Accepts both numeric ID and UUID" — and live instances return the UUID. It is
-therefore typed `string`, which holds both shapes, as is the `person.id` join
-key promoted on `session_recordings`. Every other resource's `id` is
-unambiguous: integer for cohorts, feature flags, experiments, insights,
-dashboards, actions, and annotations; UUID for surveys and session recordings.
-
-### Rate limiting
-
-A static **0.3 requests/second**, which is deliberately slow.
-
-PostHog enforces a per-minute *and* a per-hour ceiling per endpoint class. The
-binding one is the analytics hourly bucket — 1200/hour, shared by `persons`,
-`events`, `insights`, and `session_recordings` — which works out to 0.333 rps
-sustained. One limiter serves the whole run, so the tightest ceiling governs
-everything; the CRUD resources consequently use well under their own 4800/hour
-allowance.
-
-Sizing against the hourly rather than the per-minute limit is the important
-part. Draining an hourly bucket is a run *failure*, not a slowdown: retry
-sleeps are capped at 60 seconds even when PostHog's `Retry-After` says 3600,
-and the connector gives up after ten attempts. Pacing at the 240/min burst
-ceiling instead would drain 1200 requests in five minutes and then fail. PostHog
-publishes no `RateLimit-*` response headers, so there is nothing for a dynamic
-limiter to read.
-
-The practical consequence is a ceiling of roughly 1080 requests — about 108,000
-records — per hour per connection. For bulk event history, PostHog's own advice
-is to use batch exports rather than the API.
+All eleven resources (`persons`, `events`, `cohorts`, `feature_flags`,
+`experiments`, `insights`, `dashboards`, `actions`, `annotations`, `surveys`,
+`session_recordings`) are top-level lists under
+`/api/projects/{project_id}/`, with no fan-out. `persons` is declared
+first, so it doubles as the connection probe. A bad key or wrong `project_id`
+fails at Configure rather than mid-run. Join keys are lifted out of embedded
+objects where useful (`experiments.feature_flag_id`,
+`session_recordings.person_id`), and `persons.id` is typed string because live
+instances return a UUID where the schema claims an integer.
 
 ## Modes
 
-`ModeFull` and `ModeIncremental` (see [HTTP](/pages/connectors/sources/http)).
+Full is always available. A full run checkpoints its pagination cursor per
+resource and resumes from the last completed page.
 
-Two resources declare an `incremental:` block:
+Two resources are incremental.
 
-- `events` watermarks on `timestamp` and injects it as `after`, with a
-  one-hour `overlap_seconds`. Event timestamps are client-supplied and buffered
-  mobile SDKs deliver well behind wall clock, so a watermark set from the last
-  run's maximum would skip late arrivals; the primary key dedupes the re-read.
-- `insights` watermarks on `last_modified_at` and injects it as `date_from`,
-  with a five-minute overlap — that field is server-set, so only clock skew
-  needs covering.
+| Resource | Cursor field | Request parameter | Checkpoint key | Overlap |
+|---|---|---|---|---|
+| `events` | `timestamp` | `after` (query) | `events_timestamp` | 3600 s |
+| `insights` | `last_modified_at` | `date_from` (query) | `insights_last_modified_at` | 300 s |
 
-The other nine always full-refresh. `feature_flags`, `annotations`, and
-`experiments` do carry an `updated_at`, but none of their list endpoints accept
-a matching start parameter, so a watermark there would filter on nothing and
-silently drop rows. `persons` has no updated-since filter at all.
+Both use the `time` comparator. The cursor field is fixed by the manifest.
+Only a lookback window is user-configurable, and only because the comparator
+is `time`. The `events` overlap is a full hour because event timestamps are
+client-supplied. Buffered mobile SDKs deliver events well behind wall clock,
+and the primary key dedupes the re-read. `insights` covers only clock skew,
+since `last_modified_at` is server-set. `persons` has no incremental block.
+The API offers no updated-since filter, so every run is a full snapshot.
 
-<Warning>
-  **The events endpoint is deprecated upstream.** PostHog's own API spec says it
-  "is effectively deprecated and is kept only for backwards compatibility" and
-  points at batch exports for bulk history. It remains the only record-level
-  access to events in the REST API, and its `after` parameter is the cleanest
-  incremental cursor PostHog offers, so it is included — but treat it as
-  load-bearing on an endpoint its owner discourages.
-</Warning>
+## Behavior
 
-<Note>
-  The `raw` remainder column preserves each record's full payload. For
-  `persons` and `events` that includes the complete property bag, which
-  routinely holds emails, IP addresses, and whatever else the SDK was told to
-  set. Treat the landing tables with the same care as the source project.
-</Note>
-
-Not extracted: the definition and administration surface
-(`event_definitions`, `property_definitions`, `groups`, `activity_log`,
-`batch_exports`, `hog_functions`, and the rest). Those describe configuration
-rather than record data. `groups` additionally requires a `group_type_index`
-argument per call, which has no fixed value to declare.
+- **Auth**: bearer token from `api_key` on every request.
+- **Regional base URL**: `base_url` is templated as `{{ config.host }}` and
+  rendered once at Configure, against config only. One manifest serves US
+  Cloud, EU Cloud, and self-hosted instances.
+- **Pagination**: every list endpoint returns a DRF envelope. The manifest
+  follows the absolute `next` URL rather than computing offsets, with
+  `limit=100` per page.
+- **Rate limiting**: a static 0.3 requests/second limiter, sized to the
+  binding constraint (the analytics endpoints share a 1200-requests/hour
+  bucket). Draining an hourly bucket is a run failure, not a slowdown.
+  Retry sleeps cap at 60 seconds, so an hour-long window cannot be waited out.
+  PostHog publishes no rate-limit response headers, so there is no dynamic
+  block.
+- **Timeout**: `timeout_seconds: 120`, double the engine default, because
+  person and session-recording pages carry large embedded property blobs.
+- Every resource carries a `raw` remainder column preserving fields the
+  manifest does not project.

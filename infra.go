@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apache/arrow-go/v18/arrow/decimal128"
-
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // DataStore persists run, resource, checkpoint, and dedup state — the
@@ -62,6 +62,26 @@ type DataStore interface {
 	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string
+}
+
+// RunTransitionStore applies lifecycle commands with a compare-and-swap on
+// the current status. It is separate from DataStore so adapters can reject run
+// signaling explicitly instead of emulating an unsafe LoadRun/SaveRun race.
+type RunTransitionStore interface {
+	TransitionRun(
+		ctx context.Context,
+		id RunID,
+		from []RunStatus,
+		to RunStatus,
+		opts RunTransitionOptions,
+	) (RunState, error)
+}
+
+// RunTransitionOptions controls the attempt-local state reset performed by a
+// lifecycle transition.
+type RunTransitionOptions struct {
+	ResetExecution   bool
+	PreserveProgress bool
 }
 
 // ResourceCheckpointKey identifies durable progress shared by runs of one
@@ -128,6 +148,10 @@ type PipelineFilter struct {
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.
 var ErrVersionConflict = errors.New("version conflict")
+
+// ScheduleLeaseTTL bounds how long a ClaimDue lease is honored before a
+// schedule is eligible to be reclaimed.
+const ScheduleLeaseTTL = 5 * time.Minute
 
 // ScheduleStore persists schedules and hands out due ones under a claim, so
 // concurrent schedulers never double-fire.
@@ -395,14 +419,12 @@ func (c mapConfig) Sub(key string) Config {
 // RecordSink is where a Source pushes extracted rows — the engine's inlet, not a
 // data Sink. A source opens one RowWriter per (resource, part) it reads and
 // appends rows into it; the pipeline turns the writer's flushes into Batches.
-type RecordSink interface {
-	Builder(resource string, part int, schema RecordSchema) (RowWriter, error)
-}
+type RecordSink = arrowbatch.Inlet
 
 // RowWriter is a typed, columnar row appender for one (resource, part). A row is
 // written by calling one Append method per schema field, in schema order, then
 // EndRow; the first append opens the row and EndRow closes it. Each Append must
-// match the field's Arrow type as mapped by batch.Schema: Bool, Int16, Int32,
+// match the field's Arrow type as mapped by arrowbatch.Schema: Bool, Int16, Int32,
 // Int64, Float32, Float64, Decimal (Precision > 0), String (string, json, uuid,
 // array, unknown, unbounded decimal), Bytes, Date (days since epoch), Time
 // (microseconds since midnight), Timestamp (microseconds since epoch, UTC for
@@ -412,44 +434,11 @@ type RecordSink interface {
 // when a chunk is full and, at the next EndRow, when the pipeline's flush timer
 // has asked; a source whose stream goes idle calls Flush itself so buffered rows
 // do not wait for the next one. Drain flushes and then marks the part complete.
-type RowWriter interface {
-	Null()
-	Bool(v bool)
-	Int16(v int16)
-	Int32(v int32)
-	Int64(v int64)
-	Float32(v float32)
-	Float64(v float64)
-	Decimal(v decimal128.Num)
-	String(v string)
-	StringBytes(v []byte)
-	Bytes(v []byte)
-	Date(days int32)
-	Time(micros int64)
-	Timestamp(micros int64)
-	EndRow(meta RowMeta) error
-	Flush() error
-	Drain(meta RowMeta) error
-}
+type RowWriter = arrowbatch.RowWriter
 
 // RowMeta is what a row carries beside its columns: its operation and the resume
 // metadata the pipeline turns into the batch's checkpoint delta.
-type RowMeta struct {
-	Op Operation
-
-	// Key is the row's primary-key value(s) as text, set by a keyset (Resumable)
-	// read; the last row's Key becomes the batch's shard cursor. Coarse marks a
-	// row from a bitmap (or other ack-counted) read whose part has no key cursor,
-	// so the batch is checkpointed by row count. Mutually exclusive.
-	Key    []string
-	Coarse bool
-
-	// LSN and Seq are a change stream's position and per-run sequence; the last
-	// row's position becomes the batch's stream checkpoint. On Drain they carry the
-	// stream's final position, persisted even when nothing was written.
-	LSN string
-	Seq uint64
-}
+type RowMeta = rowmodel.Meta
 
 // Config is typed, tolerant read access to a connector's configuration; every
 // accessor misses to a zero value.
@@ -467,13 +456,7 @@ type Config interface {
 
 // Checkpoint is a resource's resumable cursor: keyed reads plus an immutable
 // Set that returns an updated copy. CheckpointData is the concrete form.
-type Checkpoint interface {
-	Resource() string
-	Int(key string) int
-	String(key string) string
-	Set(key string, v any) Checkpoint
-	Raw() map[string]any
-}
+type Checkpoint = rowmodel.Checkpoint
 
 // Logger is structured leveled logging with field accumulation via With.
 type Logger interface {

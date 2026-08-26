@@ -23,7 +23,9 @@ import (
 	"github.com/jackc/pgx/v5/pgproto3"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const standbyStatusInterval = 10 * time.Second
@@ -39,9 +41,9 @@ func validReplicationName(name string) bool { return replicationNameRE.MatchStri
 type cdcRelation struct {
 	message *pglogrepl.RelationMessage
 	tracked bool
-	schema  filament.RecordSchema
+	schema  rowmodel.Schema
 	cols    []int
-	parsers []func(filament.RowWriter, []byte) error
+	parsers []func(arrowbatch.RowWriter, []byte) error
 	keys    []int
 }
 
@@ -49,12 +51,12 @@ type cdcRelation struct {
 // writer changes are appended into (opened on first use).
 type cdcTable struct {
 	pks    []string
-	schema filament.RecordSchema
-	writer filament.RowWriter
+	schema rowmodel.Schema
+	writer arrowbatch.RowWriter
 }
 
 type pgCDCRun struct {
-	sink      filament.RecordSink
+	sink      arrowbatch.Inlet
 	schema    string
 	resources []string
 	tracked   map[string]*cdcTable
@@ -68,7 +70,7 @@ type pgCDCRun struct {
 }
 
 // writer returns the resource's row writer, opening it on first use.
-func (r *pgCDCRun) writer(resource string) (filament.RowWriter, error) {
+func (r *pgCDCRun) writer(resource string) (arrowbatch.RowWriter, error) {
 	t := r.tracked[resource]
 	if t.writer == nil {
 		w, err := r.sink.Builder(resource, 0, t.schema)
@@ -91,7 +93,7 @@ type replicationSlotState struct {
 // its stable identity is what makes a later catch-up lossless.
 //
 //nolint:gocyclo,funlen // Complex replication protocol handling; refactor deferred.
-func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts) error {
+func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts filament.ChangeExtractOpts) error {
 	if s.pool == nil || s.dsn == "" {
 		return fmt.Errorf("postgres source: extract changes before configure")
 	}
@@ -442,7 +444,7 @@ func (s *Source) importSnapshot(ctx context.Context, id string) (*snapshot, erro
 // durable stream checkpoint. Snapshot rows are inserts, which the CDC merge
 // policy applies idempotently on retry. Limit deliberately does not apply: a
 // partial snapshot followed by an advanced LSN would permanently skip rows.
-func (s *Source) extractInitialSnapshot(ctx context.Context, sink filament.RecordSink, tx pgx.Tx, shards []shard) error {
+func (s *Source) extractInitialSnapshot(ctx context.Context, sink arrowbatch.Inlet, tx pgx.Tx, shards []shard) error {
 	for _, sh := range shards {
 		if err := s.extractShard(ctx, sink, tx, sh, 0); err != nil {
 			return fmt.Errorf("postgres cdc: initial snapshot %q: %w", sh.table, err)
@@ -526,7 +528,7 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 		if !ok {
 			return 0, nil
 		}
-		if err := r.push(rel, msg.Tuple, nil, filament.OpInsert, walStart); err != nil {
+		if err := r.push(rel, msg.Tuple, nil, rowmodel.OpInsert, walStart); err != nil {
 			return 0, err
 		}
 	case *pglogrepl.UpdateMessage:
@@ -534,7 +536,7 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 		if !ok {
 			return 0, nil
 		}
-		op := filament.OpUpdate
+		op := rowmodel.OpUpdate
 		if msg.OldTuple != nil {
 			// A key change is a delete of the old row and an insert of the new one.
 			oldKey, err := rel.keyOf(msg.OldTuple)
@@ -546,10 +548,10 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 				return 0, err
 			}
 			if !slices.Equal(oldKey, newKey) {
-				if err := r.push(rel, msg.OldTuple, nil, filament.OpDelete, walStart); err != nil {
+				if err := r.push(rel, msg.OldTuple, nil, rowmodel.OpDelete, walStart); err != nil {
 					return 0, err
 				}
-				op = filament.OpInsert
+				op = rowmodel.OpInsert
 			}
 		}
 		if err := r.push(rel, msg.NewTuple, msg.OldTuple, op, walStart); err != nil {
@@ -560,7 +562,7 @@ func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, 
 		if !ok {
 			return 0, nil
 		}
-		if err := r.push(rel, msg.OldTuple, nil, filament.OpDelete, walStart); err != nil {
+		if err := r.push(rel, msg.OldTuple, nil, rowmodel.OpDelete, walStart); err != nil {
 			return 0, err
 		}
 	case *pglogrepl.TruncateMessage:
@@ -580,7 +582,7 @@ func (r *pgCDCRun) rememberRelation(msg *pglogrepl.RelationMessage) {
 	if rel.tracked {
 		rel.schema = t.schema
 		rel.cols = make([]int, len(t.schema.Fields))
-		rel.parsers = make([]func(filament.RowWriter, []byte) error, len(t.schema.Fields))
+		rel.parsers = make([]func(arrowbatch.RowWriter, []byte) error, len(t.schema.Fields))
 		for i, f := range t.schema.Fields {
 			rel.cols[i] = slices.IndexFunc(msg.Columns, func(c *pglogrepl.RelationMessageColumn) bool { return c.Name == f.Name })
 			if rel.cols[i] >= 0 {
@@ -611,7 +613,7 @@ func (r *pgCDCRun) relation(id uint32) (*cdcRelation, bool) {
 // push appends one change row: the tuple's columns in schema order (a delete
 // carries only its key columns, the rest null), stamped with its operation and
 // stream position.
-func (r *pgCDCRun) push(rel *cdcRelation, tuple, fallback *pglogrepl.TupleData, op filament.Operation, lsn pglogrepl.LSN) error {
+func (r *pgCDCRun) push(rel *cdcRelation, tuple, fallback *pglogrepl.TupleData, op rowmodel.Operation, lsn pglogrepl.LSN) error {
 	w, err := r.writer(rel.message.RelationName)
 	if err != nil {
 		return err
@@ -620,7 +622,7 @@ func (r *pgCDCRun) push(rel *cdcRelation, tuple, fallback *pglogrepl.TupleData, 
 		return err
 	}
 	r.seq++
-	if err := w.EndRow(filament.RowMeta{Op: op, LSN: lsn.String(), Seq: r.seq}); err != nil {
+	if err := w.EndRow(rowmodel.Meta{Op: op, LSN: lsn.String(), Seq: r.seq}); err != nil {
 		return err
 	}
 	r.emitted++
@@ -638,7 +640,7 @@ func (r *pgCDCRun) pushStreamMarks(lsn pglogrepl.LSN) error {
 		if err != nil {
 			return err
 		}
-		if err := w.Drain(filament.RowMeta{LSN: lsn.String(), Seq: r.seq}); err != nil {
+		if err := w.Drain(rowmodel.Meta{LSN: lsn.String(), Seq: r.seq}); err != nil {
 			return err
 		}
 	}
@@ -672,12 +674,12 @@ func (rel *cdcRelation) keyOf(tuple *pglogrepl.TupleData) ([]string, error) {
 // appendTuple appends the tuple's values in schema order. An unchanged TOAST
 // column takes its value from fallback (the old tuple); a delete appends only the
 // key columns and nulls the rest.
-func (rel *cdcRelation) appendTuple(w filament.RowWriter, tuple, fallback *pglogrepl.TupleData, op filament.Operation) error {
+func (rel *cdcRelation) appendTuple(w arrowbatch.RowWriter, tuple, fallback *pglogrepl.TupleData, op rowmodel.Operation) error {
 	if err := rel.complete(tuple); err != nil {
 		return err
 	}
 	for f, i := range rel.cols {
-		if i < 0 || (op == filament.OpDelete && !slices.Contains(rel.keys, i)) {
+		if i < 0 || (op == rowmodel.OpDelete && !slices.Contains(rel.keys, i)) {
 			w.Null()
 			continue
 		}

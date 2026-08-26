@@ -8,6 +8,8 @@ import (
 	"context"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // defaultRows is emitted per resource when "rows" is not configured.
@@ -72,7 +74,7 @@ func (s *Source) Discover(context.Context, filament.DiscoverOpts) (filament.Disc
 // Extract emits rows synthetic rows for each requested resource (defaulting to
 // a single "items" resource when none are named), respecting cancellation and
 // pipeline backpressure via the sink.
-func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts) error {
 	resources := opts.Resources
 	if len(resources) == 0 {
 		resources = []string{"items"}
@@ -92,7 +94,7 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 			}
 			w.Int64(int64(i))
 			w.String(resource)
-			if err := w.EndRow(filament.RowMeta{}); err != nil {
+			if err := w.EndRow(rowmodel.Meta{}); err != nil {
 				return err
 			}
 		}
@@ -101,17 +103,17 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 }
 
 // Schema describes a synthetic resource: a row number and the resource name.
-func (s *Source) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
+func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
 	return schema(resource), nil
 }
 
-func schema(resource string) filament.RecordSchema {
-	return filament.RecordSchema{
+func schema(resource string) rowmodel.Schema {
+	return rowmodel.Schema{
 		Resource:   resource,
 		PrimaryKey: []string{"i"},
-		Fields: []filament.SchemaField{
-			{Name: "i", Logical: filament.LogicalInt64},
-			{Name: "resource", Logical: filament.LogicalString},
+		Fields: []rowmodel.Field{
+			{Name: "i", Logical: rowmodel.LogicalInt64},
+			{Name: "resource", Logical: rowmodel.LogicalString},
 		},
 	}
 }
