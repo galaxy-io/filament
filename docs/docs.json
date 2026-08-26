@@ -55,11 +55,21 @@
     "prompt": "Search"
   },
   "contextual": {
-    "options": ["copy", "view", "claude", "chatgpt", "cursor", "mcp"]
+    "options": [
+      "copy",
+      "view",
+      "claude",
+      "chatgpt",
+      "cursor",
+      "mcp"
+    ]
   },
   "navbar": {
     "links": [
-      { "type": "github", "href": "https://github.com/galaxy-io/filament" }
+      {
+        "type": "github",
+        "href": "https://github.com/galaxy-io/filament"
+      }
     ],
     "primary": {
       "type": "button",
@@ -108,17 +118,17 @@
             ]
           },
           {
-            "group": "UI",
+            "group": "Usage",
             "pages": [
-              "pages/guides/ui/overview",
-              "pages/guides/ui/connections",
-              "pages/guides/ui/pipelines"
+              "pages/guides/usage/web",
+              "pages/guides/usage/cli"
             ]
           },
           {
             "group": "Deployment",
             "pages": [
               "pages/guides/deployment/kubernetes",
+              "pages/guides/deployment/railway",
               "pages/guides/deployment/configuration",
               "pages/guides/deployment/embedding-as-a-library"
             ]
@@ -138,7 +148,9 @@
         "groups": [
           {
             "group": "Overview",
-            "pages": ["pages/connectors/overview/introduction"]
+            "pages": [
+              "pages/connectors/overview/introduction"
+            ]
           },
           {
             "group": "Sources",
@@ -233,7 +245,27 @@
     },
     {
       "source": "/pages/guides/ui/pipelines-and-canvas",
-      "destination": "/pages/guides/ui/pipelines"
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/ui/overview",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/ui/connections",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/ui/pipelines",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/get-started/web",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/get-started/cli",
+      "destination": "/pages/guides/usage/cli"
     },
     {
       "source": "/pages/connectors/sinks/stdout",
