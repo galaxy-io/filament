@@ -23,7 +23,7 @@ import (
 func (c *Connector) streamResource(
 	ctx context.Context,
 	res manifest.Resource,
-	sink filament.RecordSink,
+	sink recordSink,
 	parent Capture,
 	extractor *response.Extractor,
 	tracker *incremental.Tracker,

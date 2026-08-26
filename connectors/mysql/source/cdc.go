@@ -2,16 +2,16 @@ package mysql
 
 // Change-data-capture via the binlog replication protocol. ExtractChanges connects
 // as a replica (go-mysql BinlogSyncer), decodes ROW-format events for the requested
-// tables, and emits insert/update/delete records encoded in the same JSON shape as
-// the snapshot reader, so sinks cannot tell the two apart.
+// tables, and appends insert/update/delete rows through the same per-type parsers
+// as the snapshot reader, so sinks cannot tell the two apart.
 //
 // A run has catch-up semantics: it captures the server's current binlog position as
 // a watermark, streams from the last checkpointed position up to that watermark, and
 // returns. Re-requesting the run continues from the persisted cursor, so continuous
 // CDC is a re-request loop (the same mechanism as snapshot resume). The cursor is a
 // stream checkpoint (checkpoint.ModeStream): a GTID set on a gtid_mode=ON server
-// (the default — see cdc_gtid.go), else "file:pos". Every record carries it in
-// Meta.LSN and a Drained sentinel persists the final watermark even for a run that
+// (the default — see cdc_gtid.go), else "file:pos". Every row carries it in
+// RowMeta.LSN and draining each writer persists the final watermark even for a run that
 // saw no changes — without it, an idle first run would leave no cursor and the next
 // run would re-capture a later position, silently skipping the gap between them.
 //
@@ -23,17 +23,18 @@ package mysql
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/replication"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // defaultServerID identifies this client in the replica topology; it must differ
@@ -49,7 +50,7 @@ var _ filament.ChangeSource = (*Source)(nil)
 // global to the topology, binlog file offsets are not), file:pos otherwise.
 // Existing file:pos checkpoints keep the file:pos path even on a GTID server,
 // so an in-flight stream never jumps cursors mid-run; a new run id migrates.
-func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, opts filament.ChangeExtractOpts) error {
+func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts filament.ChangeExtractOpts) error {
 	if s.db == nil {
 		return fmt.Errorf("mysql source: extract changes before configure")
 	}
@@ -75,7 +76,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, o
 	run := newCDCRun(sink, opts.Resources, opts.Limit)
 
 	if posCmp(start, watermark) >= 0 {
-		return run.pushStreamMarksLSN(posString(watermark))
+		return run.pushStreamMarksLSN(ctx, s, posString(watermark))
 	}
 
 	syncer := replication.NewBinlogSyncer(s.binlogConfig())
@@ -116,7 +117,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink filament.RecordSink, o
 		}
 
 		if posCmp(pos, watermark) >= 0 {
-			return run.pushStreamMarksLSN(posString(pos))
+			return run.pushStreamMarksLSN(ctx, s, posString(pos))
 		}
 	}
 }
@@ -135,16 +136,23 @@ func (s *Source) chooseGTID(ctx context.Context, cps map[string]filament.Checkpo
 }
 
 type cdcRun struct {
-	sink      filament.RecordSink
+	sink      arrowbatch.Inlet
 	resources []string
 	tracked   map[string]bool
-	tables    map[string][]column // schema cache, invalidated on DDL
+	tables    map[string]*cdcTable // decoder cache, invalidated on DDL; writers persist
 	seq       uint64
 	emitted   int
 	limit     int
 }
 
-func newCDCRun(sink filament.RecordSink, resources []string, limit int) *cdcRun {
+// cdcTable is one tracked table's decoder (from information_schema) and the row
+// writer its changes append into.
+type cdcTable struct {
+	dec    *rowDecoder
+	writer arrowbatch.RowWriter
+}
+
+func newCDCRun(sink arrowbatch.Inlet, resources []string, limit int) *cdcRun {
 	tracked := make(map[string]bool, len(resources))
 	for _, r := range resources {
 		tracked[r] = true
@@ -153,13 +161,18 @@ func newCDCRun(sink filament.RecordSink, resources []string, limit int) *cdcRun 
 		sink:      sink,
 		resources: resources,
 		tracked:   tracked,
-		tables:    map[string][]column{},
+		tables:    map[string]*cdcTable{},
 		limit:     limit,
 	}
 }
 
+// clearSchema drops the cached decoders after a DDL event; the writers stay,
+// so a table whose columns actually changed fails on the next event rather
+// than mis-mapping values.
 func (r *cdcRun) clearSchema() {
-	clear(r.tables)
+	for _, t := range r.tables {
+		t.dec = nil
+	}
 }
 
 func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.EventType, e *replication.RowsEvent, lsn string) (bool, error) {
@@ -167,11 +180,11 @@ func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.E
 	if db != s.database || !r.tracked[table] {
 		return false, nil
 	}
-	cols, err := s.cachedColumns(ctx, r.tables, table, len(e.Table.ColumnType))
+	t, err := r.table(ctx, s, table, len(e.Table.ColumnType))
 	if err != nil {
 		return false, err
 	}
-	n, err := s.pushRowsEventLSN(r.sink, typ, table, cols, e.Rows, lsn, &r.seq)
+	n, err := r.pushRows(t, typ, table, e.Rows, lsn)
 	if err != nil {
 		return false, err
 	}
@@ -179,55 +192,46 @@ func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.E
 	return r.limit > 0 && r.emitted >= r.limit, nil
 }
 
-// pushStreamMarksLSN emits one Drained sentinel per resource carrying the final
-// stream position, so the cursor persists even when a resource saw no changes
-// this run.
-func (r *cdcRun) pushStreamMarksLSN(lsn string) error {
+// pushStreamMarksLSN drains every resource's writer at the final stream
+// position, so the cursor persists even when a resource saw no changes this run.
+func (r *cdcRun) pushStreamMarksLSN(ctx context.Context, s *Source, lsn string) error {
 	for _, resource := range r.resources {
-		rec := filament.Record{Resource: resource, Drained: true}
-		rec.Meta.LSN = lsn
-		rec.Meta.Seq = r.seq
-		if err := r.sink.Push(rec); err != nil {
+		t, err := r.table(ctx, s, resource, -1)
+		if err != nil {
+			return err
+		}
+		if err := t.writer.Drain(rowmodel.Meta{LSN: lsn, Seq: r.seq}); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// pushRowsEventLSN decodes one ROW event into records stamped with the given
-// stream cursor. Updates arrive as (before, after) pairs: an unchanged-key update
-// emits OpUpdate with the after image; a key-changing update emits
-// OpDelete(before) + OpInsert(after) so the sink's merge keeps exactly one row.
-func (s *Source) pushRowsEventLSN(sink filament.RecordSink, typ replication.EventType, table string, cols []column, rows [][]any, lsn string, seq *uint64) (int, error) {
-	push := func(op filament.Operation, row []any) error {
-		data, err := encodeRowJSON(cols, row)
-		if err != nil {
-			return fmt.Errorf("mysql cdc: encode %s row: %w", table, err)
+// pushRows appends one ROW event's rows, stamped with the stream cursor. Updates
+// arrive as (before, after) pairs: an unchanged-key update appends OpUpdate with
+// the after image; a key-changing update appends OpDelete(before) +
+// OpInsert(after) so the sink's merge keeps exactly one row.
+func (r *cdcRun) pushRows(t *cdcTable, typ replication.EventType, table string, rows [][]any, lsn string) (int, error) {
+	push := func(op rowmodel.Operation, row []any) error {
+		if err := t.dec.appendBinlogRow(t.writer, row); err != nil {
+			return fmt.Errorf("mysql cdc: %s row: %w", table, err)
 		}
-		*seq++
-		rec := filament.Record{
-			Resource: table,
-			ID:       rowID(cols, row),
-			Op:       op,
-			Data:     data,
-		}
-		rec.Meta.LSN = lsn
-		rec.Meta.Seq = *seq
-		return sink.Push(rec)
+		r.seq++
+		return t.writer.EndRow(rowmodel.Meta{Op: op, LSN: lsn, Seq: r.seq})
 	}
 
 	n := 0
 	switch {
 	case isWriteRows(typ):
 		for _, row := range rows {
-			if err := push(filament.OpInsert, row); err != nil {
+			if err := push(rowmodel.OpInsert, row); err != nil {
 				return n, err
 			}
 			n++
 		}
 	case isDeleteRows(typ):
 		for _, row := range rows {
-			if err := push(filament.OpDelete, row); err != nil {
+			if err := push(rowmodel.OpDelete, row); err != nil {
 				return n, err
 			}
 			n++
@@ -235,17 +239,17 @@ func (s *Source) pushRowsEventLSN(sink filament.RecordSink, typ replication.Even
 	case isUpdateRows(typ):
 		for i := 0; i+1 < len(rows); i += 2 {
 			before, after := rows[i], rows[i+1]
-			if rowID(cols, before) == rowID(cols, after) {
-				if err := push(filament.OpUpdate, after); err != nil {
+			if t.dec.keyOf(before) == t.dec.keyOf(after) {
+				if err := push(rowmodel.OpUpdate, after); err != nil {
 					return n, err
 				}
 				n++
 				continue
 			}
-			if err := push(filament.OpDelete, before); err != nil {
+			if err := push(rowmodel.OpDelete, before); err != nil {
 				return n, err
 			}
-			if err := push(filament.OpInsert, after); err != nil {
+			if err := push(rowmodel.OpInsert, after); err != nil {
 				return n + 1, err
 			}
 			n += 2
@@ -266,127 +270,77 @@ func isUpdateRows(t replication.EventType) bool {
 	return t == replication.UPDATE_ROWS_EVENTv0 || t == replication.UPDATE_ROWS_EVENTv1 || t == replication.UPDATE_ROWS_EVENTv2
 }
 
-// cachedColumns returns table's ordinal column list, reading through to
-// information_schema on a cache miss. The binlog carries column count but not names
-// (binlog_row_metadata defaults to MINIMAL), so a count mismatch means the catalog
-// and the event disagree — DDL landed between them — and mapping by position would
-// silently put values in wrong columns; fail instead.
-func (s *Source) cachedColumns(ctx context.Context, cache map[string][]column, table string, want int) ([]column, error) {
-	cols, ok := cache[table]
-	if !ok {
-		var err error
-		cols, _, err = s.tableMeta(ctx, table)
+// table returns the tracked table's decoder and writer, reading the decoder
+// through to information_schema on a cache miss and opening the writer on first
+// use. want is the binlog event's column count (-1 for a stream mark): the binlog
+// carries column count but not names (binlog_row_metadata defaults to MINIMAL), so
+// a mismatch means the catalog and the event disagree — DDL landed between them —
+// and mapping by position would silently put values in wrong columns; fail instead.
+func (r *cdcRun) table(ctx context.Context, s *Source, table string, want int) (*cdcTable, error) {
+	t := r.tables[table]
+	if t == nil {
+		t = &cdcTable{}
+		r.tables[table] = t
+	}
+	if t.dec == nil {
+		dec, err := s.decoderFor(ctx, table)
 		if err != nil {
 			return nil, fmt.Errorf("mysql cdc: columns %q: %w", table, err)
 		}
-		cache[table] = cols
+		t.dec = dec
 	}
-	if len(cols) != want {
-		return nil, fmt.Errorf("mysql cdc: %q has %d columns in the catalog but %d in the binlog event (concurrent DDL?); re-snapshot the table", table, len(cols), want)
+	if want >= 0 && len(t.dec.types) != want {
+		return nil, fmt.Errorf("mysql cdc: %q has %d columns in the catalog but %d in the binlog event (concurrent DDL?); re-snapshot the table", table, len(t.dec.types), want)
 	}
-	return cols, nil
+	if t.writer == nil {
+		w, err := r.sink.Builder(table, 0, t.dec.schema)
+		if err != nil {
+			return nil, err
+		}
+		t.writer = w
+	}
+	return t, nil
 }
 
-// rowID renders the primary-key tuple as the record id, columns joined with unit
-// separator 0x1F — the same convention as the snapshot reader's CONCAT_WS(CHAR(31)).
-// A keyless table falls back to the whole row (such tables cannot be merged anyway;
-// policy validation rejects them for CDC ingestion).
-func rowID(cols []column, row []any) string {
-	var parts []string
-	for i, c := range cols {
-		if c.pkOrder > 0 && i < len(row) {
-			parts = append(parts, valueText(row[i]))
+// appendBinlogRow appends one decoded binlog row in column order. Every value
+// is taken in its text form ([]byte, string, or a Stringer such as a decimal;
+// numbers rendered), the same form the query path parses; binary columns are
+// their raw bytes.
+func (d *rowDecoder) appendBinlogRow(w arrowbatch.RowWriter, row []any) error {
+	if len(row) < len(d.types) {
+		return fmt.Errorf("row has %d values for %d columns", len(row), len(d.types))
+	}
+	for i, t := range d.types {
+		if row[i] == nil {
+			w.Null()
+			continue
+		}
+		if err := t.parse(w, valueBytes(row[i])); err != nil {
+			return fmt.Errorf("column %q: %w", d.schema.Fields[i].Name, err)
 		}
 	}
-	if len(parts) == 0 {
-		for i := range row {
-			parts = append(parts, valueText(row[i]))
-		}
-	}
-	return strings.Join(parts, "\x1f")
+	return nil
 }
 
-// valueText renders a binlog value as plain text (for record ids).
-func valueText(v any) string {
-	switch t := v.(type) {
-	case nil:
-		return ""
-	case []byte:
-		return string(t)
-	case string:
-		return t
-	case fmt.Stringer:
-		return t.String()
-	default:
-		return fmt.Sprint(t)
-	}
-}
-
-// encodeRowJSON renders one decoded binlog row as a JSON object in column order,
-// matching the snapshot reader's JSON_OBJECT output: binary columns as base64
-// (TO_BASE64 convention, reversed by the typed sink's FROM_BASE64), JSON columns
-// embedded raw, everything else as JSON scalars.
-func encodeRowJSON(cols []column, row []any) ([]byte, error) {
-	if len(row) < len(cols) {
-		return nil, fmt.Errorf("row has %d values for %d columns", len(row), len(cols))
-	}
-	buf := make([]byte, 0, 64*len(cols))
-	buf = append(buf, '{')
-	for i, c := range cols {
+// keyOf renders the primary-key tuple, columns joined with 0x1F, to compare an
+// update's before and after images.
+func (d *rowDecoder) keyOf(row []any) string {
+	var b strings.Builder
+	for i, pk := range d.pks {
 		if i > 0 {
-			buf = append(buf, ',')
+			b.WriteByte(0x1f)
 		}
-		key, err := json.Marshal(c.name)
-		if err != nil {
-			return nil, err
-		}
-		buf = append(buf, key...)
-		buf = append(buf, ':')
-		buf, err = appendJSONValue(buf, row[i], c)
-		if err != nil {
-			return nil, fmt.Errorf("column %q: %w", c.name, err)
+		for c, f := range d.schema.Fields {
+			if f.Name == pk.name && c < len(row) {
+				b.Write(valueBytes(row[c]))
+			}
 		}
 	}
-	return append(buf, '}'), nil
-}
-
-func appendJSONValue(buf []byte, v any, c column) ([]byte, error) {
-	if v == nil {
-		return append(buf, "null"...), nil
-	}
-	switch t := v.(type) {
-	case int8, int16, int32, int64, int, uint8, uint16, uint32, uint64, uint:
-		return append(buf, fmt.Sprint(t)...), nil
-	case float32:
-		return strconv.AppendFloat(buf, float64(t), 'g', -1, 32), nil
-	case float64:
-		return strconv.AppendFloat(buf, t, 'g', -1, 64), nil
-	case bool:
-		return strconv.AppendBool(buf, t), nil
-	}
-
-	raw := valueBytes(v)
-	switch {
-	case strings.EqualFold(c.dataType, "json"):
-		if json.Valid(raw) {
-			return append(buf, raw...), nil
-		}
-		return nil, fmt.Errorf("invalid JSON payload")
-	case isBinaryType(c.dataType):
-		buf = append(buf, '"')
-		buf = base64.StdEncoding.AppendEncode(buf, raw)
-		return append(buf, '"'), nil
-	default:
-		quoted, err := json.Marshal(string(raw))
-		if err != nil {
-			return nil, err
-		}
-		return append(buf, quoted...), nil
-	}
+	return b.String()
 }
 
 // valueBytes normalizes a binlog value's textual forms ([]byte, string, or a
-// Stringer such as a decimal) to bytes.
+// Stringer such as a decimal) to bytes; numbers are rendered.
 func valueBytes(v any) []byte {
 	switch t := v.(type) {
 	case []byte:
@@ -399,8 +353,6 @@ func valueBytes(v any) []byte {
 		return []byte(fmt.Sprint(t))
 	}
 }
-
-// ── binlog position plumbing ─────────────────────────────────────────────────
 
 // masterPosition reads the server's current binlog write position. MySQL 8.2
 // renamed the statement; try the new spelling first.
@@ -519,5 +471,7 @@ func (s *Source) binlogConfig() replication.BinlogSyncerConfig {
 		Password:   s.binlogPass,
 		TLSConfig:  s.binlogTLS,
 		UseDecimal: true, // decimals as exact decimal values, not lossy float64
+		// Timestamps render in UTC, matching the query path's pinned session zone.
+		TimestampStringLocation: time.UTC,
 	}
 }

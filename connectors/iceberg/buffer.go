@@ -2,46 +2,48 @@ package iceberg
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
+
+	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/apache/arrow-go/v18/arrow/ipc"
+	"github.com/apache/arrow-go/v18/arrow/memory"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
-// recordBuf is a per-resource accumulator that starts in memory and spills to a
-// temp file once its byte count exceeds the configured limit. It is NOT safe for
-// concurrent use; the sink serializes appends per stage.
+// recordBuf accumulates one resource's batches for a pending commit. It holds
+// them in memory until their byte count exceeds the configured limit, then spills
+// every batch to an Arrow IPC file (LZ4) and streams the rest straight to disk.
+// Row operations stay in memory (one byte per row) beside the batches. It is NOT
+// safe for concurrent use; the sink serializes appends per stage.
 type recordBuf struct {
 	limitBytes int64
-	bytes      int64 // total payload bytes appended
-	count      int   // records appended
+	bytes      int64 // Arrow buffer bytes appended
+	count      int   // rows appended
 	hasUpdate  bool
 	hasDelete  bool
 	policy     *filament.WritePolicy
+	schema     *arrow.Schema
 
-	// in-memory path
-	mem []recordEntry
+	// in-memory path: retained owned batches
+	mem []*arrowbatch.Batch
 
 	// spill path — non-nil once the buffer has exceeded limitBytes
 	file   *os.File
-	writer *bufio.Writer // line-delimited JSON (one object per line)
+	bw     *bufio.Writer
+	writer *ipc.Writer
+
+	// ops holds each spilled or retained batch's operations, in batch order; nil
+	// entries are all-insert batches.
+	ops [][]rowmodel.Operation
 }
 
 func newRecordBuf(limitBytes int64) *recordBuf {
 	return &recordBuf{limitBytes: limitBytes}
-}
-
-type recordEntry struct {
-	Op   filament.Operation `json:"op"`
-	Data json.RawMessage    `json:"data"`
-}
-
-// append adds one JSON payload to the buffer, spilling to disk if needed.
-//
-//nolint:unused // kept as the insert-only entry point
-func (rb *recordBuf) append(data json.RawMessage) error {
-	return rb.appendRecord(data, filament.OpInsert)
 }
 
 func (rb *recordBuf) setPolicy(policy filament.WritePolicy) error {
@@ -54,7 +56,7 @@ func (rb *recordBuf) setPolicy(policy filament.WritePolicy) error {
 	if rb.policy.Capability.Mode != policy.Capability.Mode {
 		return fmt.Errorf("mixed write policies %q and %q", rb.policy.Capability.Mode, policy.Capability.Mode)
 	}
-	if !sameStrings(rb.policy.Keys, policy.Keys) {
+	if !slices.Equal(rb.policy.Keys, policy.Keys) {
 		return fmt.Errorf("mixed primary keys %v and %v", rb.policy.Keys, policy.Keys)
 	}
 	return nil
@@ -80,30 +82,37 @@ func (rb *recordBuf) writeMode(fallback writeMode) writeMode {
 	}
 }
 
-func (rb *recordBuf) appendRecord(data json.RawMessage, op filament.Operation) error {
-	rb.bytes += int64(len(data))
-	rb.count++
-	if op == filament.OpUpdate {
-		rb.hasUpdate = true
+// append adds one batch, retaining it (the pipeline releases its reference after
+// Apply) or spilling it. Every batch of a buffer must share one Arrow schema.
+func (rb *recordBuf) append(b *arrowbatch.Batch, nbytes int64) error {
+	rows := b.Rows()
+	ops := b.Operations().Clone()
+	if rb.schema == nil {
+		rb.schema = rows.Schema()
+	} else if !rb.schema.Equal(rows.Schema()) {
+		return fmt.Errorf("batch schema differs from the buffer's")
 	}
-	if op == filament.OpDelete {
-		rb.hasDelete = true
+	rb.bytes += nbytes
+	rb.count += int(rows.NumRows())
+	for _, op := range ops {
+		switch op {
+		case rowmodel.OpUpdate:
+			rb.hasUpdate = true
+		case rowmodel.OpDelete:
+			rb.hasDelete = true
+		}
 	}
+	rb.ops = append(rb.ops, ops)
 
 	if rb.file == nil && rb.bytes > rb.limitBytes {
 		if err := rb.spill(); err != nil {
 			return err
 		}
 	}
-
 	if rb.file != nil {
-		return rb.writeEntry(recordEntry{Op: op, Data: data})
+		return rb.writer.Write(rows)
 	}
-
-	// Copy: the caller's Data slice may be reused after Write returns.
-	cp := make(json.RawMessage, len(data))
-	copy(cp, data)
-	rb.mem = append(rb.mem, recordEntry{Op: op, Data: cp})
+	rb.mem = append(rb.mem, b.Retain())
 	return nil
 }
 
@@ -111,15 +120,15 @@ func (rb *recordBuf) validate(mode writeMode) error {
 	switch mode {
 	case writeModeAppend:
 		if rb.hasUpdate || rb.hasDelete {
-			return fmt.Errorf("append mode does not support update/delete records")
+			return fmt.Errorf("append mode does not support update/delete rows")
 		}
 	case writeModeReplace:
 		if rb.hasDelete {
-			return fmt.Errorf("replace mode does not support delete records")
+			return fmt.Errorf("replace mode does not support delete rows")
 		}
 	case writeModeUpsert:
 		if rb.hasDelete {
-			return fmt.Errorf("upsert mode does not support delete records")
+			return fmt.Errorf("upsert mode does not support delete rows")
 		}
 		if rb.policy == nil || len(rb.policy.Keys) == 0 {
 			return fmt.Errorf("upsert mode requires primary key columns")
@@ -132,105 +141,74 @@ func (rb *recordBuf) validate(mode writeMode) error {
 	return nil
 }
 
-// spill moves in-memory records to a new temp file and switches to disk mode.
+// spill moves the retained batches to a new IPC temp file and switches to disk
+// mode.
 func (rb *recordBuf) spill() error {
-	f, err := os.CreateTemp("", "iceberg-stage-*.jsonl")
+	f, err := os.CreateTemp("", "iceberg-stage-*.arrow")
 	if err != nil {
 		return fmt.Errorf("iceberg sink: spill: %w", err)
 	}
 	rb.file = f
-	rb.writer = bufio.NewWriterSize(f, 1<<20) // 1 MiB write buffer
-
-	for _, entry := range rb.mem {
-		if err := rb.writeEntry(entry); err != nil {
-			return err
+	rb.bw = bufio.NewWriterSize(f, 1<<20)
+	rb.writer = ipc.NewWriter(rb.bw, ipc.WithSchema(rb.schema), ipc.WithLZ4(), ipc.WithAllocator(memory.DefaultAllocator))
+	for _, b := range rb.mem {
+		if err := rb.writer.Write(b.Rows()); err != nil {
+			return err // rb.mem still owns every batch; close releases them
 		}
+	}
+	for _, b := range rb.mem {
+		b.Release()
 	}
 	rb.mem = nil
 	return nil
 }
 
-func (rb *recordBuf) writeEntry(entry recordEntry) error {
-	line, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-	if _, err := rb.writer.Write(line); err != nil {
-		return err
-	}
-	return rb.writer.WriteByte('\n')
-}
-
-// stream yields the buffered payloads in chunks of at most rowsPerChunk records,
+// stream yields the buffered batches with their operations, in append order,
 // reading a spilled file back lazily so the whole buffer is never resident at
-// once. The slice passed to fn is reused between calls — fn must consume it
-// before returning. Must be called before close.
-func (rb *recordBuf) stream(rowsPerChunk int, fn func([]json.RawMessage) error) error {
-	return rb.streamEntries(rowsPerChunk, func(entries []recordEntry) error {
-		recs := make([]json.RawMessage, len(entries))
-		for i := range entries {
-			recs[i] = entries[i].Data
-		}
-		return fn(recs)
-	})
-}
-
-func (rb *recordBuf) streamEntries(rowsPerChunk int, fn func([]recordEntry) error) error {
+// once. Each yielded batch belongs to fn for the duration of the call only. It
+// may run more than once (a retried commit); nothing may be appended after it.
+func (rb *recordBuf) stream(fn func(rows arrow.RecordBatch, ops []rowmodel.Operation) error) error {
 	if rb.file == nil {
-		for i := 0; i < len(rb.mem); i += rowsPerChunk {
-			end := min(i+rowsPerChunk, len(rb.mem))
-			if err := fn(rb.mem[i:end]); err != nil {
+		for i, b := range rb.mem {
+			if err := fn(b.Rows(), rb.ops[i]); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-
-	if err := rb.writer.Flush(); err != nil {
-		return err
+	if rb.writer != nil { // first read: seal the stream
+		if err := rb.writer.Close(); err != nil {
+			return err
+		}
+		if err := rb.bw.Flush(); err != nil {
+			return err
+		}
+		rb.writer = nil
 	}
 	if _, err := rb.file.Seek(0, 0); err != nil {
 		return err
 	}
-	sc := bufio.NewScanner(rb.file)
-	sc.Buffer(make([]byte, 1<<20), 64<<20)
-	chunk := make([]recordEntry, 0, rowsPerChunk)
-	for sc.Scan() {
-		var entry recordEntry
-		if err := json.Unmarshal(sc.Bytes(), &entry); err != nil {
-			return err
-		}
-		if len(chunk) == rowsPerChunk {
-			if err := fn(chunk); err != nil {
-				return err
-			}
-			chunk = chunk[:0]
-		}
-		chunk = append(chunk, entry)
-	}
-	if err := sc.Err(); err != nil {
+	rdr, err := ipc.NewReader(bufio.NewReaderSize(rb.file, 1<<20), ipc.WithAllocator(memory.DefaultAllocator))
+	if err != nil {
 		return err
 	}
-	if len(chunk) > 0 {
-		return fn(chunk)
-	}
-	return nil
-}
-
-func sameStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
+	defer rdr.Release()
+	i := 0
+	for rdr.Next() {
+		if err := fn(rdr.RecordBatch(), rb.ops[i]); err != nil {
+			return err
 		}
+		i++
 	}
-	return true
+	return rdr.Err()
 }
 
-// close removes any temp file. Idempotent.
+// close releases retained batches and removes any temp file. Idempotent.
 func (rb *recordBuf) close() {
+	for _, b := range rb.mem {
+		b.Release()
+	}
+	rb.mem = nil
 	if rb.file != nil {
 		_ = rb.file.Close()
 		_ = os.Remove(rb.file.Name())

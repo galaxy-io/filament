@@ -18,7 +18,9 @@ import (
 	chdriver "github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/connectors/internal/dbconfig"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const (
@@ -68,7 +70,6 @@ type table struct {
 	writeTo   string
 	stage     string
 	insertSQL string
-	schema    filament.RecordSchema
 }
 
 // New returns an unconfigured ClickHouse sink. Open establishes its connection.
@@ -294,7 +295,7 @@ func normalizeHost(raw string) (string, error) {
 }
 
 // EnsureSchema creates or evolves one resource table before records arrive.
-func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
+func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	if s.conn == nil {
 		return fmt.Errorf("clickhouse sink: ensure schema before open")
 	}
@@ -345,12 +346,11 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 	s.tables[resource] = &table{
 		name: resource, qualified: qualified(s.database, resource), writeTo: writeTo,
 		stage: stage, insertSQL: "INSERT INTO " + writeTo + " (" + strings.Join(idents, ", ") + ")",
-		schema: schema,
 	}
 	return nil
 }
 
-func (s *Sink) validateTable(ctx context.Context, resource string, schema filament.RecordSchema, upsert bool, version filament.VersionPolicy) error {
+func (s *Sink) validateTable(ctx context.Context, resource string, schema rowmodel.Schema, upsert bool, version filament.VersionPolicy) error {
 	var engine, engineFull string
 	if err := s.conn.QueryRow(ctx,
 		"SELECT engine, engine_full FROM system.tables WHERE database = ? AND name = ?", s.database, resource).Scan(&engine, &engineFull); err != nil {
@@ -403,30 +403,30 @@ func (s *Sink) validateTable(ctx context.Context, resource string, schema filame
 }
 
 // Apply validates the requested write policy and inserts one typed batch.
-func (s *Sink) Apply(ctx context.Context, batch filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if want := s.modeFor(batch.Resource); opts.Policy.Capability.Mode != want {
+func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if want := s.modeFor(b.Resource); opts.Policy.Capability.Mode != want {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: apply policy %q does not match resource policy %q", opts.Policy.Capability.Mode, want)
 	}
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteAppend, filament.WriteReplace:
 		policy := opts.Policy
-		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
-		if err := policy.ValidateRecords(batch.Resource, batch.Records); err != nil {
+		policy.Capability.AcceptsOps = []rowmodel.Operation{rowmodel.OpInsert}
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: %w", err)
 		}
 	case filament.WriteUpsert:
 		policy := opts.Policy
-		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert, filament.OpUpdate}
-		if err := policy.ValidateRecords(batch.Resource, batch.Records); err != nil {
+		policy.Capability.AcceptsOps = []rowmodel.Operation{rowmodel.OpInsert, rowmodel.OpUpdate}
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: %w", err)
 		}
 	default:
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
-	return s.write(ctx, batch)
+	return s.write(ctx, b)
 }
 
-func (s *Sink) write(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
+func (s *Sink) write(ctx context.Context, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
 	if s.conn == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: write before open")
 	}
@@ -434,30 +434,39 @@ func (s *Sink) write(ctx context.Context, b filament.Batch) (filament.WriteRecei
 	if tbl == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: no schema ensured for resource %q", b.Resource)
 	}
-	batch, err := s.conn.PrepareBatch(ctx, tbl.insertSQL)
+	batchIn, err := s.conn.PrepareBatch(ctx, tbl.insertSQL)
 	if err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: prepare %s seq %d: %w", b.Resource, b.Seq, err)
 	}
-	defer func() { _ = batch.Close() }()
-	var nbytes int64
-	for i := range b.Records {
-		values, err := decodeRecord(tbl.schema, b.Records[i].Data)
-		if err != nil {
-			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: decode %s seq %d row %d: %w", b.Resource, b.Seq, i, err)
+	defer func() { _ = batchIn.Close() }()
+
+	rows := b.Rows()
+	cols := rows.Columns()
+	fns := make([]valueFn, len(cols))
+	for i, f := range rows.Schema().Fields() {
+		fns[i] = valueFor(f)
+	}
+	values := make([]any, len(cols))
+	for i := range b.NumRows() {
+		for c, col := range cols {
+			if col.IsNull(i) {
+				values[c] = nil
+				continue
+			}
+			values[c] = fns[c](col, i)
 		}
-		if err := batch.Append(values...); err != nil {
+		if err := batchIn.Append(values...); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: append %s seq %d row %d: %w", b.Resource, b.Seq, i, err)
 		}
-		nbytes += int64(len(b.Records[i].Data))
 	}
-	if err := batch.Send(); err != nil {
+	writeCRC := b.IntegrityCRC()
+	if err := batchIn.Send(); err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: send %s seq %d: %w", b.Resource, b.Seq, err)
 	}
-	s.written.Add(int64(len(b.Records)))
-	crc, _ := filament.CRC32C(b.Records)
+	s.written.Add(int64(b.NumRows()))
 	return filament.WriteReceipt{
-		URI: fmt.Sprintf("clickhouse://%s.%s", s.database, b.Resource), Bytes: nbytes,
-		Rows: len(b.Records), WriteCRC: crc,
+		URI: fmt.Sprintf("clickhouse://%s.%s", s.database, b.Resource), Bytes: arrowbatch.Bytes(rows),
+		Rows: b.NumRows(), WriteCRC: writeCRC,
 	}, nil
 }
 

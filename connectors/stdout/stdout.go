@@ -103,15 +103,14 @@ func (s *Sink) Write(_ context.Context, b *arrowbatch.Batch) (filament.WriteRece
 		enc = ndjson.NewEncoder(rows.Schema())
 		s.enc[rows.Schema()] = enc
 	}
-	buf, expectedCRC := enc.AppendBatch(s.buf[:0], rows)
-	// Capture the in-memory checksum at the same final boundary. The pipeline's
-	// earlier checksum detects mutation during handoff; the encoded comparison
-	// below detects mutation introduced by serialization.
-	arrowCRC := b.IntegrityCRC()
-	encodedCRC, err := ndjson.VerifyChecksum(buf, expectedCRC)
+	buf, encodedCRC, err := enc.EncodeBatch(s.buf[:0], rows)
 	if err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("stdout: serialize %s: %w", b.Resource, err)
 	}
+	// Capture the in-memory checksum at the same final boundary. The pipeline's
+	// earlier checksum detects mutation during handoff; EncodeBatch independently
+	// verifies the serialized bytes before they reach the writer.
+	arrowCRC := b.IntegrityCRC()
 	s.buf = buf
 	if _, err := s.w.Write(buf); err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("stdout: write %s: %w", b.Resource, err)
