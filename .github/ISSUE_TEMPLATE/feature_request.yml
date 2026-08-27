@@ -1,0 +1,62 @@
+name: Feature request
+description: Suggest an improvement to Filament or its developer experience.
+title: "[feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem first. Understanding the use case helps us evaluate solutions and tradeoffs.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Connector framework
+        - Pipeline engine or runtime
+        - API or control plane
+        - Web UI
+        - Deployment or packaging
+        - Observability
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to accomplish, and what is difficult today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or interface you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: How are you solving this today, if at all?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add examples, sketches, related issues, or implementation constraints.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to help implement this feature.
+
