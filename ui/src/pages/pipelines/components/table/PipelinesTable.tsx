@@ -64,6 +64,19 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row.original} />,
   },
   {
+    id: "lastRun",
+    header: "Ran",
+    size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
+    accessorFn: (pipeline) => Number(pipeline.lastRun?.startedAt ?? 0n),
+    enableSorting: true,
+    cellLoading: () => <TextShimmer width={64} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} isEllipsis>
+        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.startedAt) : "—"}
+      </Text>
+    ),
+  },
+  {
     id: "status",
     header: "Status",
     size: PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
@@ -81,19 +94,6 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
           Never run
         </Text>
       ),
-  },
-  {
-    id: "lastRun",
-    header: "Ran",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
-    accessorFn: (pipeline) => Number(pipeline.lastRun?.startedAt ?? 0n),
-    enableSorting: true,
-    cellLoading: () => <TextShimmer width={64} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isEllipsis>
-        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.startedAt) : "—"}
-      </Text>
-    ),
   },
   {
     id: "lastDuration",

@@ -70,12 +70,7 @@
         "type": "github",
         "href": "https://github.com/galaxy-io/filament"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Talk to us",
-      "href": "https://getgalaxy.com/filament"
-    }
+    ]
   },
   "footer": {
     "socials": {
