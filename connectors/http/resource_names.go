@@ -7,11 +7,11 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/template"
 )
 
-func emittedResourceName(res manifest.Resource, parent Capture) (string, error) {
+func emittedResourceName(res manifest.Resource, parent Capture, env map[string]string) (string, error) {
 	if res.EmitAs == "" {
 		return res.Name, nil
 	}
-	name, err := template.Render(res.EmitAs, template.Scope{Parent: parent})
+	name, err := template.Render(res.EmitAs, template.Scope{Parent: parent, Env: env})
 	if err != nil {
 		return "", fmt.Errorf("render emit_as for resource %q: %w", res.Name, err)
 	}

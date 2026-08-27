@@ -514,7 +514,7 @@ func (s *Source) planResources(resources, selectors []string) ([]string, error) 
 			continue
 		}
 		for _, parent := range s.syntheticParentsFor(res, refs) {
-			name, err := emittedResourceName(res, parent)
+			name, err := emittedResourceName(res, parent, s.connector.env)
 			if err != nil {
 				return nil, err
 			}
