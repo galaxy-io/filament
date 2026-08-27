@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
-	"os"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -60,11 +57,9 @@ func (s *awsStore) HeadBucket(ctx context.Context, bucket string) error {
 }
 
 func (s *awsStore) CreateMultipart(ctx context.Context, bucket, key, contentType string) (string, error) {
-	t0 := time.Now()
 	out, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(contentType),
 	})
-	s3debugf("CreateMultipartUpload key=%s dur=%s err=%v", key, time.Since(t0), err)
 	if err != nil {
 		return "", err
 	}
@@ -72,12 +67,10 @@ func (s *awsStore) CreateMultipart(ctx context.Context, bucket, key, contentType
 }
 
 func (s *awsStore) UploadPart(ctx context.Context, bucket, key, uploadID string, number int32, body []byte) (string, error) {
-	t0 := time.Now()
 	out, err := s.client.UploadPart(ctx, &s3.UploadPartInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
 		PartNumber: aws.Int32(number), Body: bytes.NewReader(body), ContentLength: aws.Int64(int64(len(body))),
 	})
-	s3debugf("UploadPart key=%s part=%d bytes=%d dur=%s err=%v", key, number, len(body), time.Since(t0), err)
 	if err != nil {
 		return "", err
 	}
@@ -89,12 +82,10 @@ func (s *awsStore) CompleteMultipart(ctx context.Context, bucket, key, uploadID 
 	for i, part := range parts {
 		awsParts[i] = types.CompletedPart{PartNumber: aws.Int32(part.number), ETag: aws.String(part.etag)}
 	}
-	t0 := time.Now()
 	_, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
 		MultipartUpload: &types.CompletedMultipartUpload{Parts: awsParts},
 	})
-	s3debugf("CompleteMultipartUpload key=%s parts=%d dur=%s err=%v", key, len(parts), time.Since(t0), err)
 	return err
 }
 
@@ -106,19 +97,9 @@ func (s *awsStore) AbortMultipart(ctx context.Context, bucket, key, uploadID str
 }
 
 func (s *awsStore) PutObject(ctx context.Context, bucket, key, contentType string, body []byte) error {
-	t0 := time.Now()
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(contentType),
 		Body: bytes.NewReader(body), ContentLength: aws.Int64(int64(len(body))),
 	})
-	s3debugf("PutObject key=%s bytes=%d dur=%s err=%v", key, len(body), time.Since(t0), err)
 	return err
-}
-
-var s3debug = os.Getenv("S3_SINK_DEBUG") != ""
-
-func s3debugf(format string, args ...any) {
-	if s3debug {
-		log.Printf("s3sink "+format, args...)
-	}
 }

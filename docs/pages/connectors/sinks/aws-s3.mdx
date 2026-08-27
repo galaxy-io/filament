@@ -88,8 +88,6 @@ Each resource object is atomic, but a group of S3 objects cannot be committed
 atomically. Resource objects may be visible while `Commit` is still running;
 the run becomes valid only when `_SUCCESS.json` is uploaded last.
 
-Set `S3_SINK_DEBUG=1` to log multipart and object upload timings.
-
 ## Failure behavior
 
 `Abort` cancels in-flight work and abandons incomplete multipart uploads. If
