@@ -25,8 +25,8 @@ import (
 	_ "github.com/galaxy-io/filament/connectors/clickhouse"
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
 	_ "github.com/galaxy-io/filament/connectors/mysql"
-	_ "github.com/galaxy-io/filament/connectors/postgres"
 	_ "github.com/galaxy-io/filament/connectors/object"
+	_ "github.com/galaxy-io/filament/connectors/postgres"
 )
 
 func main() {
