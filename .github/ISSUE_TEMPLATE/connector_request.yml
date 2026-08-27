@@ -1,0 +1,85 @@
+name: Connector request
+description: Request support for a new source or destination system.
+title: "[connector]: "
+labels:
+  - connectors
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell us about the system and the data movement you need. Links to official API documentation are especially useful.
+
+  - type: input
+    id: system
+    attributes:
+      label: System name
+      placeholder: Example SaaS or database
+    validations:
+      required: true
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Connector direction
+      options:
+        - Source
+        - Sink
+        - Both source and sink
+    validations:
+      required: true
+
+  - type: input
+    id: docs
+    attributes:
+      label: Official documentation
+      description: Link to the system's API, SDK, or database protocol documentation.
+      placeholder: https://example.com/docs/api
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What data do you need to move, where should it go, and how often?
+    validations:
+      required: true
+
+  - type: textarea
+    id: resources
+    attributes:
+      label: Required resources
+      description: List the highest-priority objects, tables, streams, or endpoints.
+      placeholder: |
+        - Accounts
+        - Events
+        - Users
+    validations:
+      required: true
+
+  - type: textarea
+    id: sync
+    attributes:
+      label: Sync requirements
+      description: Describe full refresh, incremental cursor, CDC, deletion, or upsert requirements.
+
+  - type: textarea
+    id: auth
+    attributes:
+      label: Authentication
+      description: Which supported authentication methods are relevant? Do not include credentials.
+      placeholder: API key, OAuth 2.0, service account, username/password, or mTLS
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: API constraints or references
+      description: Note rate limits, pagination, webhooks, SDKs, existing implementations, or unusual data types.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I can help test this connector.
+        - label: I would be willing to help implement this connector.
