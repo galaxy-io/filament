@@ -12,21 +12,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-type completedPart struct {
-	number int32
-	etag   string
-}
-
-// multipartStore is the narrow object-store surface used by a multipart session.
-type multipartStore interface {
-	CreateMultipart(context.Context, string, string, string) (string, error)
-	UploadPart(context.Context, string, string, string, int32, io.ReadSeeker, int64) (string, error)
-	CompleteMultipart(context.Context, string, string, string, []completedPart) error
-	AbortMultipart(context.Context, string, string, string) error
-	PutObject(context.Context, string, string, string, io.ReadSeeker, int64) error
-}
-
 type awsStore struct{ client *s3.Client }
+
+var _ multipartStore = (*awsStore)(nil)
 
 func newAWSStore(ctx context.Context, cfg sinkConfig) (*awsStore, error) {
 	var loadOpts []func(*awscfg.LoadOptions) error
@@ -80,7 +68,7 @@ func (s *awsStore) UploadPart(ctx context.Context, bucket, key, uploadID string,
 func (s *awsStore) CompleteMultipart(ctx context.Context, bucket, key, uploadID string, parts []completedPart) error {
 	awsParts := make([]types.CompletedPart, len(parts))
 	for i, part := range parts {
-		awsParts[i] = types.CompletedPart{PartNumber: aws.Int32(part.number), ETag: aws.String(part.etag)}
+		awsParts[i] = types.CompletedPart{PartNumber: aws.Int32(part.number), ETag: aws.String(part.token)}
 	}
 	_, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),

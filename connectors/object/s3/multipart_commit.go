@@ -100,11 +100,11 @@ func (s *multipartSession) completeResource(ctx context.Context, upload *objectW
 		if err != nil {
 			return err
 		}
-		etag, err := s.uploadPart(ctx, upload.key, upload.uploadID, number, upload.buffer)
+		token, err := s.uploadPart(ctx, upload.key, upload.uploadID, number, upload.buffer)
 		if err != nil {
 			return fmt.Errorf("upload tail part %d: %w", number, err)
 		}
-		upload.parts = append(upload.parts, completedPart{number: number, etag: etag})
+		upload.parts = append(upload.parts, completedPart{number: number, token: token})
 	}
 	sort.Slice(upload.parts, func(i, j int) bool { return upload.parts[i].number < upload.parts[j].number })
 	if err := s.completeMultipart(ctx, upload.key, upload.uploadID, upload.parts); err != nil {
@@ -125,14 +125,14 @@ func (u *objectWriter) result() resourceResult {
 func (s *multipartSession) uploadPart(ctx context.Context, key, uploadID string, number int32, body *partBuffer) (string, error) {
 	opCtx, done := s.operationContext(ctx)
 	defer done()
-	var etag string
+	var token string
 	size := int64(body.Len())
 	err := s.withSlot(opCtx, func(ctx context.Context) error {
 		var err error
-		etag, err = s.store.UploadPart(ctx, s.bucket, key, uploadID, number, body, size)
+		token, err = s.store.UploadPart(ctx, s.bucket, key, uploadID, number, body, size)
 		return err
 	})
-	return etag, err
+	return token, err
 }
 
 func (s *multipartSession) completeMultipart(ctx context.Context, key, uploadID string, parts []completedPart) error {
