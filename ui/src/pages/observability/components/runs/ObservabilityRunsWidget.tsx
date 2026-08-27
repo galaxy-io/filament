@@ -51,6 +51,8 @@ const ObservabilityRunsWidget = () => {
       search: (prev) => ({
         ...prev,
         runs: nextView,
+        runsBucket: undefined,
+        runsStatus: undefined,
       }),
     });
   };
@@ -61,6 +63,8 @@ const ObservabilityRunsWidget = () => {
       search: (prev) => ({
         ...prev,
         statuses: selected.map((option) => option.value as RunStatus),
+        runsBucket: undefined,
+        runsStatus: undefined,
       }),
     });
   };

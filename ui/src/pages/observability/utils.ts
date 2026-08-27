@@ -55,6 +55,12 @@ export const OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP: Record<
   },
 };
 
+export const OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP: Record<MetricGranularity, bigint> = {
+  [MetricGranularity.UNSPECIFIED]: 0n,
+  [MetricGranularity.HOUR]: BigInt(60 * MINUTE_MS),
+  [MetricGranularity.DAY]: BigInt(DAY_MS),
+};
+
 export const createTimeframeSince = (timeframe: ObservabilityTimeframe): bigint => {
   const { durationMs } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
   const nowMs = Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
