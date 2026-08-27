@@ -3,7 +3,6 @@ package s3
 import (
 	"context"
 	"fmt"
-	"hash/crc32"
 	"sync"
 )
 
@@ -12,8 +11,6 @@ const (
 	maxPooledEncodedBuffer = 4 << 20
 	ndjsonContentType      = "application/x-ndjson"
 )
-
-var crcTable = crc32.MakeTable(crc32.Castagnoli)
 
 // multipartSession owns the bounded buffers and remote state for one sink run.
 // It deliberately knows nothing about Filament batches or write policies.
@@ -84,7 +81,10 @@ func newMultipartSession(
 		ctx:       sessionCtx,
 		cancel:    cancel,
 	}
-	session.encoded.New = func() any { return make([]byte, 0, bufferChunkSize) }
+	session.encoded.New = func() any {
+		buffer := make([]byte, 0, bufferChunkSize)
+		return &buffer
+	}
 	for resource, key := range declared {
 		session.resources[resource] = newObjectWriter(resource, key)
 	}
@@ -189,12 +189,13 @@ func (u *objectWriter) nextPartNumber() (int32, error) {
 }
 
 func (s *multipartSession) takeEncodedBuffer() []byte {
-	return s.encoded.Get().([]byte)[:0]
+	return (*s.encoded.Get().(*[]byte))[:0]
 }
 
 func (s *multipartSession) releaseEncodedBuffer(buffer []byte) {
 	if cap(buffer) <= maxPooledEncodedBuffer {
-		s.encoded.Put(buffer[:0])
+		buffer = buffer[:0]
+		s.encoded.Put(&buffer)
 	}
 }
 

@@ -17,7 +17,10 @@ type bufferPool struct{ chunks sync.Pool }
 
 func newBufferPool() *bufferPool {
 	p := &bufferPool{}
-	p.chunks.New = func() any { return make([]byte, bufferChunkSize) }
+	p.chunks.New = func() any {
+		chunk := make([]byte, bufferChunkSize)
+		return &chunk
+	}
 	return p
 }
 
@@ -29,12 +32,13 @@ func (p *bufferPool) take(size int, small bool) []byte {
 		}
 		return make([]byte, capacity)
 	}
-	return p.chunks.Get().([]byte)
+	return *p.chunks.Get().(*[]byte)
 }
 
 func (p *bufferPool) put(chunk []byte) {
 	if cap(chunk) == bufferChunkSize {
-		p.chunks.Put(chunk[:bufferChunkSize])
+		chunk = chunk[:bufferChunkSize]
+		p.chunks.Put(&chunk)
 	}
 }
 

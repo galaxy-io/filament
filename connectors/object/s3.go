@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/apache/arrow-go/v18/arrow"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/connectors/internal/ndjson"
