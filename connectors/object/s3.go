@@ -117,11 +117,14 @@ func (s *Sink) Write(ctx context.Context, batch *arrowbatch.Batch) (filament.Wri
 	defer s.applyWG.Done()
 
 	rows := batch.Rows()
-	encoded, encodedCRC, err := s.encoderFor(rows.Schema()).EncodeBatch(nil, rows)
+	scratch := session.takeEncodedBuffer()
+	encoded, encodedCRC, err := s.encoderFor(rows.Schema()).EncodeBatch(scratch, rows)
 	if err != nil {
+		session.releaseEncodedBuffer(scratch)
 		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: encode %s: %w", batch.Resource, err)
 	}
-	if err := session.Append(ctx, batch.Resource, key, encoded, batch.NumRows()); err != nil {
+	defer session.releaseEncodedBuffer(encoded)
+	if err := session.Append(ctx, batch.Resource, key, encoded, batch.NumRows(), encodedCRC); err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: stream %s: %w", batch.Resource, err)
 	}
 	return filament.WriteReceipt{

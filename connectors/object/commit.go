@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -49,7 +50,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("s3 sink: encode success manifest: %w", err)
 	}
-	if err := session.PutObject(ctx, successKey(prefix, run), manifestContentType, body); err != nil {
+	if err := session.PutObject(ctx, successKey(prefix, run), manifestContentType, bytes.NewReader(body), int64(len(body))); err != nil {
 		return fmt.Errorf("s3 sink: publish success marker: %w", err)
 	}
 

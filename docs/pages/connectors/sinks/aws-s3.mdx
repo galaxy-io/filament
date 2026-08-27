@@ -23,7 +23,7 @@ partitioning, no compression.
 | `secret_access_key` | Connection | — | Required for IAM Credentials. Secret. |
 | `session_token` | Connection | — | Optional for temporary IAM Credentials. Secret. |
 | `prefix` | Pipeline | — | Key prefix, surrounding `/` trimmed |
-| `part_size_mib` | Pipeline | `16` | Multipart part size in MiB, from 5 through 5120 |
+| `part_size_mib` | Pipeline | `16` | Multipart request size in MiB, from 5 through 5120; with the 10,000-part limit, the default supports objects up to about 156 GiB |
 | `upload_concurrency` | Pipeline | `4` | Concurrent S3 upload operations across resources, from 1 through 32 |
 
 A `prefix` left empty is defaulted server-side to the normalized source
@@ -73,16 +73,19 @@ ignore run prefixes without it.
 
 ## Write mechanics and atomicity
 
-`Apply` encodes NDJSON into one bounded tail buffer per active resource. Every
-full `part_size_mib` buffer uploads immediately as a multipart part, while
+`Apply` encodes NDJSON into one segmented, seekable tail per active resource.
+The tail allocates in small chunks as bytes arrive, rather than reserving an
+entire multipart part for every resource. Every full `part_size_mib` tail
+uploads immediately as a multipart part, while
 `upload_concurrency` limits S3 requests across all resources and backpressures
 the pipeline when saturated. `Commit` waits for those parts, uploads each tail,
 completes the multipart uploads, and uses `PutObject` for resources smaller than
 one part. A declared resource with zero records becomes a zero-byte object.
 
 The sink does not require run-sized temporary disk. Buffered memory is
-approximately one part per active resource plus one part per in-flight upload
-and the batch currently being encoded.
+approximately the actual unflushed bytes across active resources, rounded to
+small chunks, plus in-flight parts and one reusable encoded batch per pipeline
+writer. Objects smaller than one part remain buffered until commit.
 
 Each resource object is atomic, but a group of S3 objects cannot be committed
 atomically. Resource objects may be visible while `Commit` is still running;

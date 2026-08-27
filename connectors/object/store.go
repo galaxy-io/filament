@@ -1,9 +1,9 @@
 package s3
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -20,10 +20,10 @@ type completedPart struct {
 // multipartStore is the narrow object-store surface used by a multipart session.
 type multipartStore interface {
 	CreateMultipart(context.Context, string, string, string) (string, error)
-	UploadPart(context.Context, string, string, string, int32, []byte) (string, error)
+	UploadPart(context.Context, string, string, string, int32, io.ReadSeeker, int64) (string, error)
 	CompleteMultipart(context.Context, string, string, string, []completedPart) error
 	AbortMultipart(context.Context, string, string, string) error
-	PutObject(context.Context, string, string, string, []byte) error
+	PutObject(context.Context, string, string, string, io.ReadSeeker, int64) error
 }
 
 type awsStore struct{ client *s3.Client }
@@ -66,10 +66,10 @@ func (s *awsStore) CreateMultipart(ctx context.Context, bucket, key, contentType
 	return aws.ToString(out.UploadId), nil
 }
 
-func (s *awsStore) UploadPart(ctx context.Context, bucket, key, uploadID string, number int32, body []byte) (string, error) {
+func (s *awsStore) UploadPart(ctx context.Context, bucket, key, uploadID string, number int32, body io.ReadSeeker, size int64) (string, error) {
 	out, err := s.client.UploadPart(ctx, &s3.UploadPartInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
-		PartNumber: aws.Int32(number), Body: bytes.NewReader(body), ContentLength: aws.Int64(int64(len(body))),
+		PartNumber: aws.Int32(number), Body: body, ContentLength: aws.Int64(size),
 	})
 	if err != nil {
 		return "", err
@@ -96,10 +96,10 @@ func (s *awsStore) AbortMultipart(ctx context.Context, bucket, key, uploadID str
 	return err
 }
 
-func (s *awsStore) PutObject(ctx context.Context, bucket, key, contentType string, body []byte) error {
+func (s *awsStore) PutObject(ctx context.Context, bucket, key, contentType string, body io.ReadSeeker, size int64) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(contentType),
-		Body: bytes.NewReader(body), ContentLength: aws.Int64(int64(len(body))),
+		Body: body, ContentLength: aws.Int64(size),
 	})
 	return err
 }

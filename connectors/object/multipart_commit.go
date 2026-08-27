@@ -1,9 +1,11 @@
 package s3
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"sync"
 )
@@ -21,13 +23,13 @@ func (s *multipartSession) Complete(ctx context.Context) ([]resourceResult, erro
 	return results, nil
 }
 
-func (s *multipartSession) completeResources(ctx context.Context, resources []*resourceUpload) error {
+func (s *multipartSession) completeResources(ctx context.Context, resources []*objectWriter) error {
 	if len(resources) == 0 {
 		return nil
 	}
 	type job struct {
 		index  int
-		upload *resourceUpload
+		upload *objectWriter
 	}
 	jobs := make(chan job)
 	errs := make([]error, len(resources))
@@ -70,7 +72,7 @@ sendLoop:
 	return completeCtx.Err()
 }
 
-func (s *multipartSession) completeResource(ctx context.Context, upload *resourceUpload) error {
+func (s *multipartSession) completeResource(ctx context.Context, upload *objectWriter) error {
 	upload.inflight.Wait()
 	upload.mu.Lock()
 	defer upload.mu.Unlock()
@@ -79,15 +81,21 @@ func (s *multipartSession) completeResource(ctx context.Context, upload *resourc
 		return upload.err
 	}
 	if upload.uploadID == "" {
-		if err := s.PutObject(ctx, upload.key, ndjsonContentType, upload.buffer); err != nil {
+		var body io.ReadSeeker = bytes.NewReader(nil)
+		var size int64
+		if upload.buffer != nil {
+			body = upload.buffer
+			size = int64(upload.buffer.Len())
+		}
+		if err := s.PutObject(ctx, upload.key, ndjsonContentType, body, size); err != nil {
 			return err
 		}
 		upload.completed = true
-		s.releaseBuffer(upload.buffer)
+		upload.buffer.Release()
 		upload.buffer = nil
 		return nil
 	}
-	if len(upload.buffer) > 0 {
+	if upload.buffer != nil && upload.buffer.Len() > 0 {
 		number, err := upload.nextPartNumber()
 		if err != nil {
 			return err
@@ -103,24 +111,25 @@ func (s *multipartSession) completeResource(ctx context.Context, upload *resourc
 		return err
 	}
 	upload.completed = true
-	s.releaseBuffer(upload.buffer)
+	upload.buffer.Release()
 	upload.buffer = nil
 	return nil
 }
 
-func (u *resourceUpload) result() resourceResult {
+func (u *objectWriter) result() resourceResult {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	return resourceResult{resource: u.resource, key: u.key, rows: u.rows, bytes: u.bytes, crc32c: u.crc.Sum32()}
+	return resourceResult{resource: u.resource, key: u.key, rows: u.rows, bytes: u.bytes, crc32c: u.crc32c}
 }
 
-func (s *multipartSession) uploadPart(ctx context.Context, key, uploadID string, number int32, body []byte) (string, error) {
+func (s *multipartSession) uploadPart(ctx context.Context, key, uploadID string, number int32, body *partBuffer) (string, error) {
 	opCtx, done := s.operationContext(ctx)
 	defer done()
 	var etag string
+	size := int64(body.Len())
 	err := s.withSlot(opCtx, func(ctx context.Context) error {
 		var err error
-		etag, err = s.store.UploadPart(ctx, s.bucket, key, uploadID, number, body)
+		etag, err = s.store.UploadPart(ctx, s.bucket, key, uploadID, number, body, size)
 		return err
 	})
 	return etag, err
@@ -135,17 +144,17 @@ func (s *multipartSession) completeMultipart(ctx context.Context, key, uploadID 
 }
 
 // PutObject shares the session-wide request limit with multipart operations.
-func (s *multipartSession) PutObject(ctx context.Context, key, contentType string, body []byte) error {
+func (s *multipartSession) PutObject(ctx context.Context, key, contentType string, body io.ReadSeeker, size int64) error {
 	opCtx, done := s.operationContext(ctx)
 	defer done()
 	return s.withSlot(opCtx, func(ctx context.Context) error {
-		return s.store.PutObject(ctx, s.bucket, key, contentType, body)
+		return s.store.PutObject(ctx, s.bucket, key, contentType, body, size)
 	})
 }
 
-func (s *multipartSession) snapshot() []*resourceUpload {
+func (s *multipartSession) snapshot() []*objectWriter {
 	s.mu.Lock()
-	resources := make([]*resourceUpload, 0, len(s.resources))
+	resources := make([]*objectWriter, 0, len(s.resources))
 	for _, upload := range s.resources {
 		resources = append(resources, upload)
 	}
@@ -167,7 +176,7 @@ func (s *multipartSession) Abort(ctx context.Context) error {
 		upload.mu.Lock()
 		upload.closed = true
 		uploadID, completed := upload.uploadID, upload.completed
-		s.releaseBuffer(upload.buffer)
+		upload.buffer.Release()
 		upload.buffer = nil
 		upload.mu.Unlock()
 		if uploadID == "" || completed {

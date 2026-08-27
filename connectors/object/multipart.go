@@ -3,14 +3,14 @@ package s3
 import (
 	"context"
 	"fmt"
-	"hash"
 	"hash/crc32"
 	"sync"
 )
 
 const (
-	maxUploadParts    = 10_000
-	ndjsonContentType = "application/x-ndjson"
+	maxUploadParts         = 10_000
+	maxPooledEncodedBuffer = 4 << 20
+	ndjsonContentType      = "application/x-ndjson"
 )
 
 var crcTable = crc32.MakeTable(crc32.Castagnoli)
@@ -23,34 +23,38 @@ type multipartSession struct {
 	bucket    string
 	partSize  int
 	workers   int
-	resources map[string]*resourceUpload
+	resources map[string]*objectWriter
 	slots     chan struct{}
-	pool      sync.Pool
+	buffers   *bufferPool
+	encoded   sync.Pool
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
 
-type resourceUpload struct {
+// objectWriter owns the ordered byte stream and remote multipart state for one
+// resource. Different objects proceed independently; appends to one object are
+// serialized so part order and the manifest checksum stay deterministic.
+type objectWriter struct {
 	appendMu  sync.Mutex
 	mu        sync.Mutex
 	resource  string
 	key       string
 	uploadID  string
-	buffer    []byte
+	buffer    *partBuffer
 	parts     []completedPart
 	partNum   int32
 	inflight  sync.WaitGroup
 	err       error
 	rows      int64
 	bytes     int64
-	crc       hash.Hash32
+	crc32c    uint32
 	closed    bool
 	completed bool
 }
 
 type uploadPart struct {
 	number int32
-	body   []byte
+	body   *partBuffer
 }
 
 type resourceResult struct {
@@ -74,24 +78,25 @@ func newMultipartSession(
 	sessionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	session := &multipartSession{
 		store: store, bucket: bucket, partSize: int(partSize), workers: workers,
-		resources: make(map[string]*resourceUpload, len(declared)),
+		resources: make(map[string]*objectWriter, len(declared)),
 		slots:     make(chan struct{}, workers),
+		buffers:   newBufferPool(),
 		ctx:       sessionCtx,
 		cancel:    cancel,
 	}
-	session.pool.New = func() any { return make([]byte, 0, session.partSize) }
+	session.encoded.New = func() any { return make([]byte, 0, bufferChunkSize) }
 	for resource, key := range declared {
-		session.resources[resource] = newResourceUpload(resource, key)
+		session.resources[resource] = newObjectWriter(resource, key)
 	}
 	return session
 }
 
-func newResourceUpload(resource, key string) *resourceUpload {
-	return &resourceUpload{resource: resource, key: key, crc: crc32.New(crcTable)}
+func newObjectWriter(resource, key string) *objectWriter {
+	return &objectWriter{resource: resource, key: key}
 }
 
 // Append adds bytes to one resource and hands every full part to an uploader.
-func (s *multipartSession) Append(ctx context.Context, resource, key string, data []byte, rows int) error {
+func (s *multipartSession) Append(ctx context.Context, resource, key string, data []byte, rows int, encodedCRC uint32) error {
 	upload := s.resource(resource, key)
 	upload.appendMu.Lock()
 	defer upload.appendMu.Unlock()
@@ -117,23 +122,22 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 			return err
 		}
 		if upload.buffer == nil {
-			upload.buffer = s.takeBuffer()
+			upload.buffer = newPartBuffer(s.buffers, s.partSize)
 		}
-		count := min(s.partSize-len(upload.buffer), len(data))
-		upload.buffer = append(upload.buffer, data[:count]...)
+		count := upload.buffer.Append(data)
 		data = data[count:]
-		if len(upload.buffer) != s.partSize {
+		if !upload.buffer.Full() {
 			upload.mu.Unlock()
 			continue
 		}
 
 		body := upload.buffer
-		upload.buffer = s.takeBuffer()
+		upload.buffer = newPartBuffer(s.buffers, s.partSize)
 		if upload.uploadID == "" {
 			upload.mu.Unlock()
 			uploadID, err := s.createMultipart(ctx, upload.key)
 			if err != nil {
-				s.releaseBuffer(body)
+				body.Release()
 				upload.mu.Lock()
 				upload.err = fmt.Errorf("create multipart upload: %w", err)
 				err = upload.err
@@ -145,7 +149,7 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 		}
 		number, err := upload.nextPartNumber()
 		if err != nil {
-			s.releaseBuffer(body)
+			body.Release()
 			upload.err = err
 			upload.mu.Unlock()
 			return err
@@ -158,25 +162,25 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 	}
 
 	upload.mu.Lock()
-	_, _ = upload.crc.Write(payload)
+	upload.crc32c = combineCRC32C(upload.crc32c, encodedCRC, int64(len(payload)))
 	upload.rows += int64(rows)
 	upload.bytes += int64(len(payload))
 	upload.mu.Unlock()
 	return nil
 }
 
-func (s *multipartSession) resource(resource, key string) *resourceUpload {
+func (s *multipartSession) resource(resource, key string) *objectWriter {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if upload := s.resources[resource]; upload != nil {
 		return upload
 	}
-	upload := newResourceUpload(resource, key)
+	upload := newObjectWriter(resource, key)
 	s.resources[resource] = upload
 	return upload
 }
 
-func (u *resourceUpload) nextPartNumber() (int32, error) {
+func (u *objectWriter) nextPartNumber() (int32, error) {
 	if u.partNum >= maxUploadParts {
 		return 0, fmt.Errorf("multipart upload exceeds %d parts; increase part_size_mib", maxUploadParts)
 	}
@@ -184,11 +188,13 @@ func (u *resourceUpload) nextPartNumber() (int32, error) {
 	return u.partNum, nil
 }
 
-func (s *multipartSession) takeBuffer() []byte { return s.pool.Get().([]byte)[:0] }
+func (s *multipartSession) takeEncodedBuffer() []byte {
+	return s.encoded.Get().([]byte)[:0]
+}
 
-func (s *multipartSession) releaseBuffer(buffer []byte) {
-	if buffer != nil {
-		s.pool.Put(buffer[:0])
+func (s *multipartSession) releaseEncodedBuffer(buffer []byte) {
+	if cap(buffer) <= maxPooledEncodedBuffer {
+		s.encoded.Put(buffer[:0])
 	}
 }
 
@@ -230,11 +236,11 @@ func (s *multipartSession) createMultipart(ctx context.Context, key string) (str
 	return uploadID, err
 }
 
-func (s *multipartSession) startPartUpload(ctx context.Context, upload *resourceUpload, part uploadPart) error {
+func (s *multipartSession) startPartUpload(ctx context.Context, upload *objectWriter, part uploadPart) error {
 	waitCtx, stopWaiting := s.operationContext(ctx)
 	if err := s.acquireSlot(waitCtx); err != nil {
 		stopWaiting()
-		s.releaseBuffer(part.body)
+		part.body.Release()
 		upload.setError(err)
 		return err
 	}
@@ -254,7 +260,7 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *resource
 		upload.mu.Unlock()
 		<-s.slots
 		stopUpload()
-		s.releaseBuffer(part.body)
+		part.body.Release()
 		return err
 	}
 	uploadID := upload.uploadID
@@ -263,8 +269,9 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *resource
 	upload.inflight.Go(func() {
 		defer stopUpload()
 		defer func() { <-s.slots }()
-		etag, err := s.store.UploadPart(uploadCtx, s.bucket, upload.key, uploadID, part.number, part.body)
-		s.releaseBuffer(part.body)
+		size := int64(part.body.Len())
+		etag, err := s.store.UploadPart(uploadCtx, s.bucket, upload.key, uploadID, part.number, part.body, size)
+		part.body.Release()
 		upload.mu.Lock()
 		defer upload.mu.Unlock()
 		if err != nil {
@@ -278,7 +285,7 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *resource
 	return nil
 }
 
-func (u *resourceUpload) setError(err error) {
+func (u *objectWriter) setError(err error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.err == nil {
