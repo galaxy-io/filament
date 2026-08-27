@@ -23,7 +23,10 @@ const ObservabilityToolbar = () => {
   });
 
   const handleTimeframeChange = (timeframe: ObservabilityTimeframe) => {
-    void navigate({ to: ".", search: (prev) => ({ ...prev, timeframe }) });
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, timeframe, runsBucket: undefined, runsStatus: undefined }),
+    });
   };
 
   const handleRefresh = () => {
