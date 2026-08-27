@@ -106,8 +106,6 @@ export const mapTimeseriesToChartGroups = (
     ],
   }));
 
-// BarChart reports a component key only while the bars are stacked; a single selected
-// status leaves them unstacked and it reports the metric key instead, which is not a status.
 export const mapChartSelectionToRunsFilter = (event: ChartSelectionEvent) => {
   const status = Number(event.seriesKey);
   return {
