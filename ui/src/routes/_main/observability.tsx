@@ -20,6 +20,8 @@ const searchParams = z.object({
   usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
   usagePivot: z.enum(MetricDimension).optional().catch(undefined),
   statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
+  runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
+  runsStatus: z.enum(RunStatus).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_main/observability")({

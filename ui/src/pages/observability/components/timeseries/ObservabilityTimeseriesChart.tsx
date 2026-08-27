@@ -138,7 +138,7 @@ const ObservabilityTimeseriesChart = ({
         curve={curve}
         valueFormatter={valueFormatter}
         labelFormatter={bucketLabelFormatter}
-        tooltipMaxItems={10}
+        tooltipMaxItems={8}
         isLoading={isLoading}
         fillWidth
         fillHeight

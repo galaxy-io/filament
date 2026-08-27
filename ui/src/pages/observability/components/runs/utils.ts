@@ -1,8 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 
-import type { BarChartGroupDatum } from "@galaxy-io/dls/charts/types";
+import type { BarChartGroupDatum, ChartSelectionEvent } from "@galaxy-io/dls/charts/types";
 
-import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { type ListRunsRequest, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import {
   Metric,
   MetricDimension,
@@ -16,7 +16,9 @@ import type { ObservabilityRunMetric } from "@/pages/observability/components/ru
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
   createObservabilityTimeseriesInput,
+  createTimeframeSince,
   formatBucketKey,
+  OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
 import {
@@ -103,3 +105,26 @@ export const mapTimeseriesToChartGroups = (
       },
     ],
   }));
+
+export const mapChartSelectionToRunsFilter = (event: ChartSelectionEvent) => {
+  const status = Number(event.seriesKey);
+  return {
+    runsBucket: BigInt(event.categoryKey),
+    runsStatus: Number.isNaN(status) ? undefined : (status as RunStatus),
+  };
+};
+
+export const createRunsWindowInput = (
+  timeframe: ObservabilityTimeframe,
+  runsBucket: bigint | undefined,
+): Pick<ListRunsRequest, "sinceMs" | "untilMs"> => {
+  const sinceMs = createTimeframeSince(timeframe);
+  if (runsBucket === undefined) {
+    return { sinceMs, untilMs: 0n };
+  }
+  const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
+  return {
+    sinceMs: runsBucket > sinceMs ? runsBucket : sinceMs,
+    untilMs: runsBucket + OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity],
+  };
+};
