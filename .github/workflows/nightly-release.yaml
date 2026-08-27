@@ -2,7 +2,8 @@ name: Nightly Development Release
 
 on:
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "0 3 * * *"
+      timezone: "America/New_York"
   workflow_dispatch:
 
 permissions:
