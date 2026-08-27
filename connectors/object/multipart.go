@@ -231,13 +231,20 @@ func (s *multipartSession) createMultipart(ctx context.Context, key string) (str
 }
 
 func (s *multipartSession) startPartUpload(ctx context.Context, upload *resourceUpload, part uploadPart) error {
-	opCtx, done := s.operationContext(ctx)
-	if err := s.acquireSlot(opCtx); err != nil {
-		done()
+	waitCtx, stopWaiting := s.operationContext(ctx)
+	if err := s.acquireSlot(waitCtx); err != nil {
+		stopWaiting()
 		s.releaseBuffer(part.body)
 		upload.setError(err)
 		return err
 	}
+	stopWaiting()
+
+	// Once Apply has handed a full part off, its request belongs to the run
+	// session. The pipeline cancels its writer context after extraction drains,
+	// before Sink.Commit waits for these requests; inheriting the Apply context
+	// here would cancel valid in-flight parts at that lifecycle boundary.
+	uploadCtx, stopUpload := context.WithCancel(s.ctx)
 
 	// A previous asynchronous part may have failed while this call waited for
 	// capacity. Do not start another request after the resource is poisoned.
@@ -246,7 +253,7 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *resource
 		err := upload.err
 		upload.mu.Unlock()
 		<-s.slots
-		done()
+		stopUpload()
 		s.releaseBuffer(part.body)
 		return err
 	}
@@ -254,9 +261,9 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *resource
 	upload.mu.Unlock()
 
 	upload.inflight.Go(func() {
-		defer done()
+		defer stopUpload()
 		defer func() { <-s.slots }()
-		etag, err := s.store.UploadPart(opCtx, s.bucket, upload.key, uploadID, part.number, part.body)
+		etag, err := s.store.UploadPart(uploadCtx, s.bucket, upload.key, uploadID, part.number, part.body)
 		s.releaseBuffer(part.body)
 		upload.mu.Lock()
 		defer upload.mu.Unlock()
