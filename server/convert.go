@@ -354,6 +354,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Checkpoint = checkpointToProto(d.Checkpoint)
 	case events.IntegrityVerifiedEvent:
 		fields.Crc = d.CRC
+	case events.EncodedIntegrityVerifiedEvent:
+		fields.Crc = d.CRC
 	case events.ChunkDivergenceEvent:
 		fields.Crc, fields.Error = d.CRC, d.Error
 	case events.WatermarkAdvancedEvent:

@@ -50,8 +50,8 @@ func TestK8sDispatchCreatesWorkerJob(t *testing.T) {
 	spec := filament.RunSpec{
 		Tenant: "acme",
 		Run:    "run-dispatch-1",
-		Source: filament.Ref{Provider: "postgres"},
-		Sink:   filament.Ref{Provider: "stdout"},
+		Source: filament.Ref{Connector: "postgres"},
+		Sink:   filament.Ref{Connector: "stdout"},
 	}
 	if _, err := dispatcher.Dispatch(ctx, spec); err != nil {
 		t.Fatalf("dispatch: %v", err)

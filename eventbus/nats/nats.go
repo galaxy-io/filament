@@ -344,7 +344,9 @@ func (b *Bus) ensureConsumer(ctx context.Context, cfg jetstream.ConsumerConfig) 
 }
 
 func consumerGone(err error) bool {
-	return errors.Is(err, jetstream.ErrConsumerNotFound) || errors.Is(err, jetstream.ErrConsumerDeleted)
+	return errors.Is(err, jetstream.ErrConsumerNotFound) ||
+		errors.Is(err, jetstream.ErrConsumerDeleted) ||
+		errors.Is(err, natsgo.ErrNoResponders)
 }
 
 // Close stops the bus and closes active subscriptions.

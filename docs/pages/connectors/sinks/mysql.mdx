@@ -7,8 +7,7 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg"
 `connectors/mysql/sink` (registered as `mysql`, **alpha**, though the MySQL
 source is beta) loads each resource into its own typed MySQL table with native
 column types, primary keys, and `NOT NULL` constraints from the source schema.
-It requires MySQL 8.0 or newer, since batch inserts are expanded server-side
-with `JSON_TABLE`.
+It requires MySQL 8.0 or newer.
 
 ## Configuration
 
@@ -29,6 +28,25 @@ It is an error for both `database` and the DSN database to be empty. Left
 empty server-side, `database` defaults to the normalized source connection
 name.
 
+## Loading
+
+The engine calls `EnsureSchema` once per resource before extraction, which
+creates the destination table (adding any new columns to an existing one)
+and prepares the resource's load and delete statements. Each batch is then
+streamed straight into the table with `LOAD DATA LOCAL INFILE`: the Arrow
+columns are rendered as tab-separated lines and handed to the driver as an
+in-memory reader, so no row is ever parsed as JSON on either side. Because
+`LOCAL` makes the server skip duplicate keys and coerce bad values with a
+warning rather than an error, every load checks the rows landed against
+the rows sent and the session's warnings, and fails on either.
+
+The server must allow client-side loads (`local_infile=ON`; the default on
+managed MySQL, off on a stock community server). Binary columns arrive as
+their raw bytes; JSON columns pass through unchanged so nested structure
+survives the round trip. The sink pins its session to UTC, matching the
+source, so a same-engine `timestamp` column round-trips as the same
+instant.
+
 `Open` runs `CREATE DATABASE IF NOT EXISTS` for the destination through a
 bootstrap connection, then sizes the pool to at least 4 connections (or the
 run's snapshot parallelism, whichever is larger). `TestConnection` clears the
@@ -45,7 +63,7 @@ three behaviors:
 - `full_replace` and `full_append` insert plainly. Both are full-snapshot
   policies, so the destination table is truncated before each run (see below).
 - `full_upsert` and `incremental_upsert` insert with
-  `ON DUPLICATE KEY UPDATE`, making re-runs and retries idempotent.
+  `LOAD DATA … REPLACE`, making re-runs and retries idempotent.
 - `cdc` merges changes in arrival order. Inserts and updates upsert, and
   deletes delete.
 
@@ -84,20 +102,14 @@ are ignored. Only MySQL-native declarations pass through.
 
 ## Write mechanics and atomicity
 
-Each batch is serialized to one JSON array parameter and expanded server-side:
-
-```sql
-INSERT INTO db.tbl (...)
-SELECT ... FROM JSON_TABLE(?, '$[*]' COLUMNS(...)) AS r
-```
-
-Bytes columns are decoded with `FROM_BASE64`. Upserts append
-`ON DUPLICATE KEY UPDATE`. Because MySQL reports 2 affected rows per updated
-row, the receipt reports `min(len(records), RowsAffected)`.
+Each batch is rendered as a tab-separated `LOAD DATA LOCAL INFILE` payload and
+provided to the driver from an in-memory reader. Upserts use `REPLACE`. Binary
+columns are passed as raw bytes, and JSON values are converted to `utf8mb4` at
+the load boundary.
 
 CDC batches are split into runs of consecutive deletes and non-deletes, applied
 in arrival order in **one transaction per batch**. Deletes use a multi-table
-`DELETE` joined against `JSON_TABLE`.
+`DELETE` joined against a per-session temporary table containing the run's keys.
 
 Non-CDC batches commit as they are applied, so partial data is visible mid-run.
 Delivery is at-least-once, and upsert and merge modes converge through the

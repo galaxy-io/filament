@@ -23,7 +23,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 	if plan.RequiresCDC {
 		changes, ok := src.(filament.ChangeSource)
 		if !ok {
-			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Provider)
+			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Connector)
 		}
 		checkpoints, err := loadChangeCheckpoints(ctx, ds, spec)
 		if err != nil {
@@ -49,14 +49,14 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 	}
 	resumable, ok := src.(filament.Resumable)
 	if !ok {
-		return nil, fmt.Errorf("source %q does not support resumable extraction", spec.Source.Provider)
+		return nil, fmt.Errorf("source %q does not support resumable extraction", spec.Source.Connector)
 	}
 	resumePlan := map[string]filament.Checkpoint{}
 	loaded := 0
 	if len(incremental) > 0 {
 		planner, ok := src.(filament.IncrementalPlanner)
 		if !ok {
-			return nil, fmt.Errorf("source %q does not support incremental planning", spec.Source.Provider)
+			return nil, fmt.Errorf("source %q does not support incremental planning", spec.Source.Connector)
 		}
 		prev := make(map[string]filament.Checkpoint, len(incremental))
 		for _, resource := range incremental {
@@ -90,7 +90,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 	if len(checkpointed) > 0 {
 		planner, ok := src.(filament.ResumePlanner)
 		if !ok {
-			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
+			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Connector)
 		}
 		prev := make(map[string]filament.Checkpoint, len(checkpointed))
 		for _, resource := range checkpointed {

@@ -1,24 +1,31 @@
 package postgres
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"hash/crc32"
 	"math"
 	"strings"
+	"sync"
 	"sync/atomic"
 
+	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
 // calls EnsureSchema(resource, schema) up front — Sink builds one typed table per
-// resource — then Write casts each batch's jsonb payloads into those columns
-// server-side via jsonb_to_recordset. It implements filament.Schematized; the engine only
-// runs schema discovery for sinks that do.
+// resource — then each batch is COPYed straight into it (replace, append) or
+// through a per-connection temp table into an upsert or delete (upsert, merge). It
+// implements filament.Schematized; the engine only runs schema discovery for sinks
+// that do.
 type Sink struct {
 	pool     *pgxpool.Pool
 	run      filament.RunID
@@ -32,14 +39,25 @@ type Sink struct {
 	tables map[string]*table
 }
 
-// table is one resource's ensured destination: the sanitized table identifier and the
-// prebuilt INSERT … SELECT … FROM jsonb_to_recordset statement. resumable marks a
-// table whose writes are idempotent by key, so a resume must preserve its rows.
+// table is one resource's ensured destination: its identifiers, column types, the
+// COPY renderers, and the prebuilt statements of the key-based paths. resumable
+// marks a table whose writes are idempotent by key, so a resume must preserve its
+// rows.
 type table struct {
 	qualified string
-	insertSQL string
-	deleteSQL string
+	idents    []string // sanitized column names, schema order
+	types     []string // Postgres column types, schema order
+	keyIdx    []int    // primary-key positions in schema order
 	resumable bool
+
+	mu     sync.Mutex
+	copier map[*arrow.Schema]*copier // per Arrow schema seen; keys copier alongside
+	keys   map[*arrow.Schema]*copier
+
+	// Key-based paths land in a per-connection temp table (rows for the upsert,
+	// keys for the delete) and fold from there; the statements are built once.
+	tempSQL, upsertSQL, keysTempSQL, deleteSQL string
+	temp, keysTemp                             string
 }
 
 // resumableFor reports whether one resource's writes are idempotent by key —
@@ -79,8 +97,9 @@ func (t *Sink) Spec() filament.SinkSpec {
 		}...)},
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
-			Schematized: true,
-			Upsertable:  true,
+			Schematized:      true,
+			Upsertable:       true,
+			EncodedIntegrity: true,
 			WritePolicies: filament.WriteCapabilities(
 				filament.IngestionFullReplace,
 				filament.IngestionFullAppend,
@@ -154,57 +173,69 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// Apply validates the batch against the run's write policy, then delegates to Write.
-func (t *Sink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+// Apply validates the batch against the run's write policy, then routes it: replace
+// and append COPY into the table, upsert folds through a temp table, merge applies
+// the change stream in order.
+func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if t.pool == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
+	}
+	tbl := t.tables[b.Resource]
+	if tbl == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
+	}
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteReplace, filament.WriteAppend:
 		policy := opts.Policy
 		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
-		if err := policy.ValidateRecords(b.Resource, b.Records); err != nil {
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
-		return t.Write(ctx, b)
+		return t.write(ctx, tbl, b)
 	case filament.WriteUpsert:
-		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
-		return t.Write(ctx, b)
+		return t.writeUpsert(ctx, tbl, b)
 	case filament.WriteMerge:
-		if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: %w", err)
 		}
-		return t.writeMerge(ctx, b)
+		return t.writeMerge(ctx, tbl, b)
 	default:
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
 }
 
 // EnsureSchema creates resource's typed table from schema (Postgres column types, NOT
-// NULL, primary key), empties it for full-snapshot replace semantics, and caches the
-// per-resource INSERT statement. A pre-existing table gains any new columns
+// NULL, primary key), empties it for full-snapshot replace semantics, and prepares the
+// resource's COPY and fold statements. A pre-existing table gains any new columns
 // (ADD COLUMN IF NOT EXISTS); an incompatible existing column type surfaces later as
-// a cast error on Write (full type-change handling is deferred to schema evolution).
-func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filament.RecordSchema) error {
+// a COPY error (full type-change handling is deferred to schema evolution).
+func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	if t.pool == nil {
 		return fmt.Errorf("postgres sink: ensure schema before open")
 	}
 	qualified := pgx.Identifier{t.schema, resource}.Sanitize()
-
-	cols := make([]string, len(schema.Fields))      // "name" native [NOT NULL] for DDL
-	idents := make([]string, len(schema.Fields))    // sanitized names for the column list
-	recordset := make([]string, len(schema.Fields)) // "name" native for jsonb_to_recordset
-	for i, f := range schema.Fields {
-		id := pgx.Identifier{f.Name}.Sanitize()
-		typ := postgresColumnType(f)
-		def := id + " " + typ
-		idents[i] = id
-		recordset[i] = id + " " + typ
-		if !f.Nullable {
-			def += " NOT NULL"
+	var builtin map[string]bool
+	if schema.Engine == engine {
+		var err error
+		if builtin, err = t.builtinTypes(ctx, schema); err != nil {
+			return err
 		}
-		cols[i] = def
 	}
 
+	cols := make([]string, len(schema.Fields)) // "name" type [NOT NULL] for DDL
+	idents := make([]string, len(schema.Fields))
+	types := make([]string, len(schema.Fields))
+	for i, f := range schema.Fields {
+		idents[i] = pgx.Identifier{f.Name}.Sanitize()
+		types[i] = columnType(f, builtin[f.Native])
+		cols[i] = idents[i] + " " + types[i]
+		if !f.Nullable {
+			cols[i] += " NOT NULL"
+		}
+	}
 	ddl := "CREATE TABLE IF NOT EXISTS " + qualified + " (\n\t" + strings.Join(cols, ",\n\t")
 	if len(schema.PrimaryKey) > 0 {
 		pk := make([]string, len(schema.PrimaryKey))
@@ -234,236 +265,353 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema filamen
 		}
 	}
 
-	t.tables[resource] = &table{
+	tbl := &table{
 		qualified: qualified,
-		insertSQL: fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM jsonb_to_recordset($1::jsonb) AS x(%s)%s",
-			qualified, strings.Join(idents, ", "), strings.Join(idents, ", "), strings.Join(recordset, ", "),
-			onConflict(upsert, schema)),
-		deleteSQL: deleteUsingSQL(qualified, schema),
+		idents:    idents,
+		types:     types,
 		resumable: resumable,
+		copier:    map[*arrow.Schema]*copier{},
+		keys:      map[*arrow.Schema]*copier{},
 	}
+	for _, k := range schema.PrimaryKey {
+		for i, f := range schema.Fields {
+			if f.Name == k {
+				tbl.keyIdx = append(tbl.keyIdx, i)
+			}
+		}
+	}
+	if len(tbl.keyIdx) > 0 {
+		tbl.temp = pgx.Identifier{"_filament_" + resource}.Sanitize()
+		tbl.keysTemp = pgx.Identifier{"_filament_" + resource + "_keys"}.Sanitize()
+		tbl.tempSQL = tempTableSQL(tbl.temp, idents, types, true)
+		tbl.upsertSQL = upsertSQL(tbl)
+		keyIdents, keyTypes := pick(idents, tbl.keyIdx), pick(types, tbl.keyIdx)
+		tbl.keysTempSQL = tempTableSQL(tbl.keysTemp, keyIdents, keyTypes, false)
+		tbl.deleteSQL = deleteSQL(tbl.qualified, tbl.keysTemp, keyIdents)
+	}
+	t.tables[resource] = tbl
 	return nil
 }
 
-// deleteUsingSQL expands a delete run's before images on primary-key columns
-// only, then deletes matching destination rows in one statement.
-func deleteUsingSQL(qualified string, schema filament.RecordSchema) string {
-	if len(schema.PrimaryKey) == 0 {
-		return ""
+// engine is the source engine whose native type spellings this sink reuses.
+const engine = "postgres"
+
+// builtinTypes reports which of a same-engine schema's native type spellings
+// are Postgres built-ins (pg_catalog, arrays included). Only those keep their
+// spelling in the destination; a user-defined type — an enum, a domain, an
+// extension type — exists only in the source database, so its column lands as
+// text.
+func (t *Sink) builtinTypes(ctx context.Context, schema rowmodel.Schema) (map[string]bool, error) {
+	natives := make([]string, 0, len(schema.Fields))
+	for _, f := range schema.Fields {
+		if f.Native != "" {
+			natives = append(natives, f.Native)
+		}
 	}
-	fields := make(map[string]filament.SchemaField, len(schema.Fields))
-	for _, field := range schema.Fields {
-		fields[field.Name] = field
+	const q = `SELECT t, coalesce((SELECT typnamespace = 'pg_catalog'::regnamespace FROM pg_type WHERE oid = to_regtype(t)), false)
+FROM unnest($1::text[]) AS t`
+	rows, err := t.pool.Query(ctx, q, natives)
+	if err != nil {
+		return nil, fmt.Errorf("resolve types: %w", err)
 	}
-	recordset := make([]string, len(schema.PrimaryKey))
-	where := make([]string, len(schema.PrimaryKey))
-	for i, name := range schema.PrimaryKey {
-		id := pgx.Identifier{name}.Sanitize()
-		recordset[i] = id + " " + postgresColumnType(fields[name])
-		where[i] = "t." + id + " = x." + id
+	defer rows.Close()
+	builtin := make(map[string]bool, len(natives))
+	for rows.Next() {
+		var native string
+		var ok bool
+		if err := rows.Scan(&native, &ok); err != nil {
+			return nil, fmt.Errorf("resolve types: %w", err)
+		}
+		builtin[native] = ok
 	}
-	return fmt.Sprintf("DELETE FROM %s AS t USING jsonb_to_recordset($1::jsonb) AS x(%s) WHERE %s",
-		qualified, strings.Join(recordset, ", "), strings.Join(where, " AND "))
+	return builtin, rows.Err()
 }
 
-func postgresColumnType(f filament.SchemaField) string {
+// columnType picks a destination column type: the source's own spelling for a
+// built-in type on the same engine (keepNative), else a portable mapping from
+// the logical type.
+func columnType(f rowmodel.Field, keepNative bool) string {
+	if keepNative && f.Native != "" {
+		return f.Native
+	}
 	switch f.Logical {
-	case filament.LogicalBool:
+	case rowmodel.LogicalBool:
 		return "boolean"
-	case filament.LogicalInt16:
+	case rowmodel.LogicalInt16:
 		return "smallint"
-	case filament.LogicalInt32:
+	case rowmodel.LogicalInt32:
 		return "integer"
-	case filament.LogicalInt64:
+	case rowmodel.LogicalInt64:
 		return "bigint"
-	case filament.LogicalFloat32:
+	case rowmodel.LogicalFloat32:
 		return "real"
-	case filament.LogicalFloat64:
+	case rowmodel.LogicalFloat64:
 		return "double precision"
-	case filament.LogicalDecimal:
-		if f.Native != "" {
-			return f.Native
+	case rowmodel.LogicalDecimal:
+		if f.Precision > 0 {
+			return fmt.Sprintf("numeric(%d,%d)", f.Precision, f.Scale)
 		}
 		return "numeric"
-	case filament.LogicalString:
-		return "text"
-	case filament.LogicalBytes:
+	case rowmodel.LogicalBytes:
 		return "bytea"
-	case filament.LogicalDate:
+	case rowmodel.LogicalDate:
 		return "date"
-	case filament.LogicalTime:
+	case rowmodel.LogicalTime:
 		return "time"
-	case filament.LogicalTimestamp:
+	case rowmodel.LogicalTimestamp:
 		return "timestamp"
-	case filament.LogicalTimestampTZ:
+	case rowmodel.LogicalTimestampTZ:
 		return "timestamptz"
-	case filament.LogicalJSON:
+	case rowmodel.LogicalJSON:
 		return "jsonb"
-	case filament.LogicalUUID:
+	case rowmodel.LogicalUUID:
 		return "uuid"
-	case filament.LogicalArray:
-		if f.Native != "" {
-			return f.Native
-		}
-		return "text[]"
 	default:
-		if f.Native != "" {
-			return f.Native
-		}
 		return "text"
 	}
 }
 
-// onConflict builds the ON CONFLICT clause that makes a resumable Write idempotent:
-// re-delivered rows (an at-least-once resume re-reads past the last persisted cursor)
-// upsert by primary key instead of erroring on the unique constraint. Non-resumable
-// loads keep plain INSERT semantics (empty clause).
-func onConflict(upsert bool, schema filament.RecordSchema) string {
-	if !upsert {
-		return ""
+// tempTableSQL creates the per-connection scratch table a key-based fold loads
+// into: the given columns, nullable, plus _ord (row order within the batch) when
+// ordered. It is emptied before every load; a merge folds several runs through
+// it inside one transaction.
+func tempTableSQL(name string, idents, types []string, ordered bool) string {
+	cols := make([]string, len(idents), len(idents)+1)
+	for i := range idents {
+		cols[i] = idents[i] + " " + types[i]
 	}
-	pkSet := make(map[string]bool, len(schema.PrimaryKey))
-	pk := make([]string, len(schema.PrimaryKey))
-	for i, c := range schema.PrimaryKey {
-		pk[i] = pgx.Identifier{c}.Sanitize()
-		pkSet[c] = true
+	if ordered {
+		cols = append(cols, "_ord integer")
+	}
+	return "CREATE TEMP TABLE IF NOT EXISTS " + name + " (" + strings.Join(cols, ", ") + "); TRUNCATE " + name
+}
+
+// upsertSQL folds the temp table into the destination: the last row per key wins
+// within the batch, then INSERT … ON CONFLICT DO UPDATE by primary key makes the
+// write idempotent (an at-least-once resume re-delivers rows past the last
+// persisted cursor).
+func upsertSQL(tbl *table) string {
+	keys := pick(tbl.idents, tbl.keyIdx)
+	keySet := map[string]bool{}
+	for _, k := range keys {
+		keySet[k] = true
 	}
 	var sets []string
-	for _, f := range schema.Fields {
-		if pkSet[f.Name] {
-			continue
+	for _, id := range tbl.idents {
+		if !keySet[id] {
+			sets = append(sets, id+" = excluded."+id)
 		}
-		id := pgx.Identifier{f.Name}.Sanitize()
-		sets = append(sets, id+" = excluded."+id)
 	}
+	cols := strings.Join(tbl.idents, ", ")
+	q := fmt.Sprintf("INSERT INTO %s (%s) SELECT DISTINCT ON (%s) %s FROM %s ORDER BY %s, _ord DESC ON CONFLICT (%s) DO ",
+		tbl.qualified, cols, strings.Join(keys, ", "), cols, tbl.temp, strings.Join(keys, ", "), strings.Join(keys, ", "))
 	if len(sets) == 0 {
-		return " ON CONFLICT (" + strings.Join(pk, ", ") + ") DO NOTHING"
+		return q + "NOTHING"
 	}
-	return " ON CONFLICT (" + strings.Join(pk, ", ") + ") DO UPDATE SET " + strings.Join(sets, ", ")
+	return q + "UPDATE SET " + strings.Join(sets, ", ")
 }
 
-// Write casts one batch's jsonb payloads into the resource's typed columns. The
-// batch's record blobs (each already valid JSON from the source) are framed as a
-// single jsonb array and expanded server-side by jsonb_to_recordset, coercing every
-// value to its column type. WriteCRC is over the records, unchanged — the integrity
-// check is identical to the landing sink's.
-func (t *Sink) Write(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
-	if t.pool == nil {
-		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
+// deleteSQL removes every destination row whose key is in the keys temp table.
+func deleteSQL(qualified, keysTemp string, keyIdents []string) string {
+	where := make([]string, len(keyIdents))
+	for i, k := range keyIdents {
+		where[i] = "t." + k + " = k." + k
 	}
-	tbl := t.tables[b.Resource]
-	if tbl == nil {
-		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
-	}
+	return fmt.Sprintf("DELETE FROM %s AS t USING %s AS k WHERE %s", qualified, keysTemp, strings.Join(where, " AND "))
+}
 
-	// Frame the batch as one JSON array: [<data>,<data>,…]. Each Data is already
-	// valid JSON (to_jsonb), so this is pure concatenation.
-	var nbytes int64
-	buf := make([]byte, 0, batchBufHint(b.Records))
-	buf = append(buf, '[')
-	for i := range b.Records {
-		if i > 0 {
-			buf = append(buf, ',')
-		}
-		buf = append(buf, b.Records[i].Data...)
-		nbytes += int64(len(b.Records[i].Data))
+func pick[T any](all []T, idx []int) []T {
+	out := make([]T, len(idx))
+	for n, i := range idx {
+		out[n] = all[i]
 	}
-	buf = append(buf, ']')
+	return out
+}
 
-	tag, err := t.pool.Exec(ctx, tbl.insertSQL, string(buf))
+// copierFor returns the batch's COPY renderer over all columns, built once per
+// Arrow schema (one per source builder). Column order is the schema's; the
+// destination column list is the same order.
+func (tbl *table) copierFor(rows arrow.RecordBatch, keysOnly bool) *copier {
+	schema := rows.Schema()
+	tbl.mu.Lock()
+	defer tbl.mu.Unlock()
+	cache := tbl.copier
+	if keysOnly {
+		cache = tbl.keys
+	}
+	if c := cache[schema]; c != nil {
+		return c
+	}
+	idx := make([]int, schema.NumFields())
+	for i := range idx {
+		idx[i] = i
+	}
+	types := tbl.types
+	if keysOnly {
+		idx, types = tbl.keyIdx, pick(tbl.types, tbl.keyIdx)
+	}
+	c := newCopier(schema, idx, types)
+	cache[schema] = c
+	return c
+}
+
+// write COPYs the whole batch into the table.
+func (t *Sink) write(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
+	rows := b.Rows()
+	c := tbl.copierFor(rows, false)
+	payload, expectedCRC := c.encode(rows, 0, b.NumRows(), false)
+	integrity := writeIntegrity{arrow: b.IntegrityCRC()}
+	conn, err := t.pool.Acquire(ctx)
 	if err != nil {
-		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: load %s seq %d: %w", b.Resource, b.Seq, err)
+		return filament.WriteReceipt{}, copyError("acquire", b.Resource, b.Seq, err)
 	}
-	n := tag.RowsAffected()
-	t.written.Add(n)
-
-	crc, _ := filament.CRC32C(b.Records)
-	return filament.WriteReceipt{
-		URI:      fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource),
-		Bytes:    nbytes,
-		Rows:     int(n),
-		WriteCRC: crc,
-	}, nil
+	defer conn.Release()
+	integrity.encoded = crc32.Update(integrity.encoded, copyCRCTable, payload)
+	if err := verifyCopyChecksum(payload, expectedCRC); err != nil {
+		return filament.WriteReceipt{}, copyError("verify copy", b.Resource, b.Seq, err)
+	}
+	tag, err := conn.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.qualified, tbl.idents))
+	if err != nil {
+		return filament.WriteReceipt{}, copyError("copy", b.Resource, b.Seq, err)
+	}
+	t.written.Add(tag.RowsAffected())
+	return t.receipt(b, int(tag.RowsAffected()), int64(len(payload)), integrity), nil
 }
 
-// writeMerge applies CDC records in arrival order. Maximal delete/non-delete
-// runs become batched statements, and one database transaction makes the whole
-// Filament batch atomic before its WAL checkpoint can be committed.
-func (t *Sink) writeMerge(ctx context.Context, b filament.Batch) (filament.WriteReceipt, error) {
-	if t.pool == nil {
-		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
-	}
-	tbl := t.tables[b.Resource]
-	if tbl == nil {
-		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
+// writeUpsert loads the batch into the connection's temp table and folds it into
+// the destination by key, in one transaction.
+func (t *Sink) writeUpsert(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
+	if tbl.upsertSQL == "" {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: upsert on keyless resource %q", b.Resource)
 	}
 	tx, err := t.pool.Begin(ctx)
 	if err != nil {
-		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: begin merge: %w", err)
+		return filament.WriteReceipt{}, copyError("begin", b.Resource, b.Seq, err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	var integrity writeIntegrity
+	rows, nbytes, err := t.upsertRange(ctx, tx, tbl, b, 0, b.NumRows(), &integrity)
+	if err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.WriteReceipt{}, copyError("commit", b.Resource, b.Seq, err)
+	}
+	t.written.Add(int64(rows))
+	return t.receipt(b, rows, nbytes, integrity), nil
+}
+
+// upsertRange COPYs rows [lo, hi) into the temp table and folds them into the
+// destination. Returns rows folded and payload bytes.
+func (t *Sink) upsertRange(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowbatch.Batch, lo, hi int, integrity *writeIntegrity) (int, int64, error) {
+	if _, err := tx.Exec(ctx, tbl.tempSQL); err != nil {
+		return 0, 0, copyError("temp table", b.Resource, b.Seq, err)
+	}
+	rows := b.Rows()
+	c := tbl.copierFor(rows, false)
+	payload, expectedCRC := c.encode(rows, lo, hi, true)
+	integrity.arrow = b.IntegrityCRC()
+	idents := append(append(make([]string, 0, len(tbl.idents)+1), tbl.idents...), "_ord")
+	integrity.encoded = crc32.Update(integrity.encoded, copyCRCTable, payload)
+	if err := verifyCopyChecksum(payload, expectedCRC); err != nil {
+		return 0, 0, copyError("verify copy", b.Resource, b.Seq, err)
+	}
+	if _, err := tx.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.temp, idents)); err != nil {
+		return 0, 0, copyError("copy", b.Resource, b.Seq, err)
+	}
+	if _, err := tx.Exec(ctx, tbl.upsertSQL); err != nil {
+		return 0, 0, copyError("upsert", b.Resource, b.Seq, err)
+	}
+	return hi - lo, int64(len(payload)), nil
+}
+
+// deleteRange COPYs the keys of rows [lo, hi) into the keys temp table and deletes
+// the matching destination rows.
+func (t *Sink) deleteRange(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowbatch.Batch, lo, hi int, integrity *writeIntegrity) (int, int64, error) {
+	if _, err := tx.Exec(ctx, tbl.keysTempSQL); err != nil {
+		return 0, 0, copyError("keys temp table", b.Resource, b.Seq, err)
+	}
+	rows := b.Rows()
+	c := tbl.copierFor(rows, true)
+	payload, expectedCRC := c.encode(rows, lo, hi, false)
+	integrity.arrow = b.IntegrityCRC()
+	keyIdents := pick(tbl.idents, tbl.keyIdx)
+	integrity.encoded = crc32.Update(integrity.encoded, copyCRCTable, payload)
+	if err := verifyCopyChecksum(payload, expectedCRC); err != nil {
+		return 0, 0, copyError("verify copy keys", b.Resource, b.Seq, err)
+	}
+	if _, err := tx.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.keysTemp, keyIdents)); err != nil {
+		return 0, 0, copyError("copy keys", b.Resource, b.Seq, err)
+	}
+	if _, err := tx.Exec(ctx, tbl.deleteSQL); err != nil {
+		return 0, 0, copyError("delete", b.Resource, b.Seq, err)
+	}
+	return hi - lo, int64(len(payload)), nil
+}
+
+// writeMerge applies CDC rows in arrival order. Maximal delete/non-delete runs
+// become one fold each, and one database transaction makes the whole batch atomic
+// before its WAL checkpoint can be committed.
+func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
+	if tbl.upsertSQL == "" {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge on keyless resource %q", b.Resource)
+	}
+	tx, err := t.pool.Begin(ctx)
+	if err != nil {
+		return filament.WriteReceipt{}, copyError("begin merge", b.Resource, b.Seq, err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 
 	var nbytes int64
 	rows := 0
-	recs := b.Records
-	for len(recs) > 0 {
-		deleting := recs[0].Op == filament.OpDelete
-		n := 1
-		for n < len(recs) && (recs[n].Op == filament.OpDelete) == deleting {
-			n++
+	var integrity writeIntegrity
+	n := b.NumRows()
+	for lo := 0; lo < n; {
+		deleting := b.Op(lo) == rowmodel.OpDelete
+		hi := lo + 1
+		for hi < n && (b.Op(hi) == rowmodel.OpDelete) == deleting {
+			hi++
 		}
-		run := recs[:n]
-		recs = recs[n:]
-		buf, runBytes := frameJSONArray(run)
-		nbytes += runBytes
-		stmt := tbl.insertSQL
+		var (
+			k   int
+			nb  int64
+			err error
+		)
 		if deleting {
-			stmt = tbl.deleteSQL
-			if stmt == "" {
-				return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge delete on keyless resource %q", b.Resource)
-			}
+			k, nb, err = t.deleteRange(ctx, tx, tbl, b, lo, hi, &integrity)
+		} else {
+			k, nb, err = t.upsertRange(ctx, tx, tbl, b, lo, hi, &integrity)
 		}
-		if _, err := tx.Exec(ctx, stmt, string(buf)); err != nil {
-			return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge %s seq %d: %w", b.Resource, b.Seq, err)
+		if err != nil {
+			return filament.WriteReceipt{}, err
 		}
-		rows += len(run)
+		rows += k
+		nbytes += nb
+		lo = hi
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: commit merge %s seq %d: %w", b.Resource, b.Seq, err)
+		return filament.WriteReceipt{}, copyError("commit merge", b.Resource, b.Seq, err)
 	}
 	t.written.Add(int64(rows))
-	crc, _ := filament.CRC32C(b.Records)
+	return t.receipt(b, rows, nbytes, integrity), nil
+}
+
+type writeIntegrity struct {
+	arrow   uint32
+	encoded uint32
+}
+
+func (t *Sink) receipt(b *arrowbatch.Batch, rows int, nbytes int64, integrity writeIntegrity) filament.WriteReceipt {
 	return filament.WriteReceipt{
-		URI: fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource), Bytes: nbytes,
-		Rows: rows, WriteCRC: crc,
-	}, nil
-}
-
-func frameJSONArray(recs []filament.Record) ([]byte, int64) {
-	var nbytes int64
-	buf := make([]byte, 0, batchBufHint(recs))
-	buf = append(buf, '[')
-	for i := range recs {
-		if i > 0 {
-			buf = append(buf, ',')
-		}
-		buf = append(buf, recs[i].Data...)
-		nbytes += int64(len(recs[i].Data))
+		URI:        fmt.Sprintf("postgres://%s.%s", t.schema, b.Resource),
+		Bytes:      nbytes,
+		Rows:       rows,
+		WriteCRC:   integrity.arrow,
+		EncodedCRC: &integrity.encoded,
 	}
-	return append(buf, ']'), nbytes
 }
 
-// batchBufHint sizes the JSON-array scratch: the payload bytes plus separators and
-// brackets, so the common case appends without growing.
-func batchBufHint(recs []filament.Record) int {
-	n := 2 + len(recs) // brackets + commas
-	for i := range recs {
-		n += len(recs[i].Data)
-	}
-	return n
-}
-
-// Commit releases the pool; the INSERTs are already durable.
+// Commit releases the pool; the COPYs are already durable.
 func (t *Sink) Commit(context.Context) error {
 	t.release()
 	return nil

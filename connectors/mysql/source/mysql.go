@@ -11,9 +11,9 @@
 // integer leading key splits by arithmetic over min/max; any other leading key splits
 // by sampled equal-count boundaries.
 //
-// Rows are encoded server-side with JSON_OBJECT over the table's column list and
-// scanned straight into Record.Data, avoiding client-side marshaling. Binary columns
-// are wrapped in TO_BASE64 which gets transported as LogicalBytes type
+// Rows are read as the driver's text-protocol values and parsed straight into
+// the pipeline's row writers by type — see types.go — so no row is ever rendered
+// as JSON on either side.
 package mysql
 
 import (
@@ -23,11 +23,14 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const (
@@ -208,6 +211,13 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		s.binlogTLS = mc.TLS.Clone()
 	}
 
+	// Timestamp columns are read as text in the session zone; pin it so they
+	// decode as UTC, the same instant the binlog reports.
+	if mc.Params == nil {
+		mc.Params = map[string]string{}
+	}
+	mc.Params["time_zone"] = "'+00:00'"
+
 	db, err := sql.Open("mysql", mc.FormatDSN())
 	if err != nil {
 		return fmt.Errorf("mysql source: open: %w", err)
@@ -277,7 +287,7 @@ ORDER BY t.TABLE_NAME`
 // the sink. With Parallelism > 1 the shards are read concurrently (bounded by
 // Parallelism), each inside its own consistent-snapshot transaction; paging within a
 // shard stays sequential. The first shard error cancels the rest and is returned.
-func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts) error {
 	var jobs []func(context.Context, querier) error
 	for _, table := range opts.Resources {
 		tjobs, err := s.tableJobs(ctx, sink, table, nil, opts.Limit)
@@ -292,30 +302,33 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 // tableJobs plans one table into its shard read jobs: a fresh keyset plan for a keyed
 // table, or a single streaming full scan for a keyless one. prev seeds each keyset
 // shard's cursor when resuming.
-func (s *Source) tableJobs(ctx context.Context, sink filament.RecordSink, table string, ks *keysetPlan, limit int) ([]func(context.Context, querier) error, error) {
-	cols, pks, err := s.tableMeta(ctx, table)
+func (s *Source) tableJobs(ctx context.Context, sink arrowbatch.Inlet, table string, ks *keysetPlan, limit int) ([]func(context.Context, querier) error, error) {
+	dec, err := s.decoderFor(ctx, table)
 	if err != nil {
 		return nil, err
 	}
 	qualified := quoteIdent(s.database) + "." + quoteIdent(table)
-	jsonExpr := jsonObjectExpr(cols)
 
-	if len(pks) == 0 {
-		// Keyless: one streaming scan with a synthetic per-snapshot row-number id.
+	if len(dec.pks) == 0 {
+		// Keyless: one streaming scan.
 		return []func(context.Context, querier) error{func(ctx context.Context, q querier) error {
-			return s.extractKeyless(ctx, sink, q, table, qualified, jsonExpr, limit)
+			return s.extractKeyless(ctx, sink, q, table, qualified, dec, limit)
 		}}, nil
 	}
 
 	if ks == nil {
-		fresh, err := s.planKeyset(ctx, table, qualified, pks)
+		fresh, err := s.planKeyset(ctx, table, qualified, dec.pks)
 		if err != nil {
 			return nil, err
 		}
 		ks = &fresh
 	}
+	shards, err := keyShardsFrom(table, qualified, dec, *ks)
+	if err != nil {
+		return nil, err
+	}
 	var jobs []func(context.Context, querier) error
-	for _, sh := range keyShardsFrom(table, qualified, jsonExpr, pks, *ks) {
+	for _, sh := range shards {
 		jobs = append(jobs, func(ctx context.Context, q querier) error {
 			return s.extractKeysetShard(ctx, sink, q, sh, limit)
 		})
@@ -324,35 +337,115 @@ func (s *Source) tableJobs(ctx context.Context, sink filament.RecordSink, table 
 }
 
 // extractKeyless streams a keyless table in one pass. There is no stable key to page
-// or resume by, so the whole table is read in a single query; ROW_NUMBER() supplies a
-// synthetic id unique within the snapshot (the Postgres reader's ctid fallback).
-func (s *Source) extractKeyless(ctx context.Context, sink filament.RecordSink, q querier, table, qualified, jsonExpr string, limit int) error {
-	stmt := fmt.Sprintf("SELECT CAST(ROW_NUMBER() OVER () AS CHAR) AS id, %s AS data FROM %s t", jsonExpr, qualified)
-	rows, err := q.QueryContext(ctx, stmt)
+// or resume by, so the whole table is read in a single query.
+func (s *Source) extractKeyless(ctx context.Context, sink arrowbatch.Inlet, q querier, table, qualified string, dec *rowDecoder, limit int) error {
+	w, err := sink.Builder(table, 0, dec.schema)
+	if err != nil {
+		return err
+	}
+	rows, err := q.QueryContext(ctx, "SELECT "+dec.selectList+" FROM "+qualified+" t")
 	if err != nil {
 		return fmt.Errorf("scan %q: %w", table, err)
 	}
 	defer func() { _ = rows.Close() }()
-	emitted := 0
-	var (
-		id   string
-		data []byte
-	)
-	for rows.Next() {
-		// Scan into *[]byte clones the driver's buffer, so data is freshly
-		// allocated every row — the Record can own it without another copy.
-		if err := rows.Scan(&id, &data); err != nil {
-			return fmt.Errorf("read row: %w", err)
-		}
-		if err := sink.Push(filament.NewRecord(table, id, data)); err != nil {
-			return err
-		}
-		emitted++
-		if limit > 0 && emitted >= limit {
-			return nil
+	_, _, err = dec.appendRows(rows, w, nil, limit)
+	return err
+}
+
+// rowDecoder appends one scanned row's text-protocol values into a RowWriter.
+// Built once per table, shared read-only by its shards.
+type rowDecoder struct {
+	schema     rowmodel.Schema
+	selectList string
+	types      []mysqlType
+	pks        []pkColumn
+}
+
+// decoderFor builds table's row decoder from information_schema.
+func (s *Source) decoderFor(ctx context.Context, table string) (*rowDecoder, error) {
+	cols, pks, err := s.tableMeta(ctx, table)
+	if err != nil {
+		return nil, err
+	}
+	return newRowDecoder(table, cols, pks), nil
+}
+
+// newRowDecoder classifies table's columns once: the RecordSchema it reports and
+// the parser for each column.
+func newRowDecoder(table string, cols []column, pks []pkColumn) *rowDecoder {
+	d := &rowDecoder{
+		schema: rowmodel.Schema{Resource: table, PrimaryKey: pkNames(pks), Engine: engine},
+		types:  make([]mysqlType, len(cols)),
+		pks:    pks,
+	}
+	parts := make([]string, len(cols))
+	for i, c := range cols {
+		t := typeFor(c.dataType, c.fullType)
+		parts[i], d.types[i] = "t."+quoteIdent(c.name), t
+		d.schema.Fields = append(d.schema.Fields, rowmodel.Field{
+			Name: c.name, Nullable: c.nullable, Logical: t.logical, Native: c.fullType, Precision: t.precision, Scale: t.scale,
+		})
+	}
+	d.selectList = strings.Join(parts, ", ")
+	return d
+}
+
+// indexOf returns the positions of the named columns; a name the live table
+// lacks is an error, since a key missing from the cursor would page forever.
+func (d *rowDecoder) indexOf(names []string) ([]int, error) {
+	idx := make([]int, len(names))
+	for n, name := range names {
+		idx[n] = slices.IndexFunc(d.schema.Fields, func(f rowmodel.Field) bool { return f.Name == name })
+		if idx[n] < 0 {
+			return nil, fmt.Errorf("column %q not in table %q", name, d.schema.Resource)
 		}
 	}
-	return rows.Err()
+	return idx, nil
+}
+
+// appendRows drains a result set into w. Every value arrives as text (the
+// driver's text protocol, or its rendering of a prepared statement's typed
+// values); binary columns arrive as their raw bytes. keyIdx names the columns
+// whose text becomes each row's RowMeta.Key (nil for a keyless read). limit > 0
+// stops after that many rows. Returns the rows appended and the last row's key.
+func (d *rowDecoder) appendRows(rows *sql.Rows, w arrowbatch.RowWriter, keyIdx []int, limit int) (int, []string, error) {
+	raw := make([]sql.RawBytes, len(d.types))
+	dest := make([]any, len(raw))
+	for i := range raw {
+		dest[i] = &raw[i]
+	}
+	n := 0
+	var last []string
+	for rows.Next() {
+		if err := rows.Scan(dest...); err != nil {
+			return n, last, fmt.Errorf("scan: %w", err)
+		}
+		for i, t := range d.types {
+			if raw[i] == nil {
+				w.Null()
+				continue
+			}
+			if err := t.parse(w, raw[i]); err != nil {
+				return n, last, fmt.Errorf("column %q: %w", d.schema.Fields[i].Name, err)
+			}
+		}
+		var meta rowmodel.Meta
+		if keyIdx != nil {
+			meta.Key = make([]string, len(keyIdx))
+			for k, i := range keyIdx {
+				meta.Key[k] = string(raw[i])
+			}
+		}
+		if err := w.EndRow(meta); err != nil {
+			return n, last, err
+		}
+		last = meta.Key
+		n++
+		if limit > 0 && n >= limit {
+			break
+		}
+	}
+	return n, last, rows.Err()
 }
 
 // column is one live column of a table: its name and information_schema DATA_TYPE
@@ -422,33 +515,6 @@ ORDER BY c.ORDINAL_POSITION`
 // column type — see castExpr).
 type pkColumn struct{ name, typ string }
 
-// jsonObjectExpr builds the server-side row encoder: JSON_OBJECT('col', t.`col`, …).
-// Binary columns are wrapped in TO_BASE64 — MySQL JSON has no binary representation,
-// and an unwrapped binary value would land as an opaque driver-specific string. The
-// sink pairs this with FROM_BASE64 on the way back in.
-func jsonObjectExpr(cols []column) string {
-	parts := make([]string, 0, len(cols)*2)
-	for _, c := range cols {
-		val := "t." + quoteIdent(c.name)
-		if isBinaryType(c.dataType) {
-			// Strip the newlines TO_BASE64 wraps at 76 chars → canonical unwrapped base64.
-			val = "REPLACE(TO_BASE64(" + val + "), '\\n', '')"
-		}
-		parts = append(parts, quoteLiteral(c.name), val)
-	}
-	return "JSON_OBJECT(" + strings.Join(parts, ", ") + ")"
-}
-
-// isBinaryType reports whether a DATA_TYPE stores raw bytes.
-func isBinaryType(t string) bool {
-	switch strings.ToLower(t) {
-	case "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "bit":
-		return true
-	default:
-		return false
-	}
-}
-
 // quoteIdent renders s as a backtick-quoted MySQL identifier.
 func quoteIdent(s string) string {
 	return "`" + strings.ReplaceAll(s, "`", "``") + "`"
@@ -468,88 +534,20 @@ func splitHostPort(addr string) (string, uint16, error) {
 	return host, uint16(n), nil
 }
 
-// quoteLiteral renders s as a single-quoted SQL string literal. Used only for
-// catalog-sourced column names inlined into a SELECT projection.
-func quoteLiteral(s string) string {
-	return "'" + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), "'", "''") + "'"
-}
-
-// Schema returns the column schema of one table: every column in ordinal order with
-// its MySQL type (COLUMN_TYPE, kept verbatim in Native for a same-engine round-trip
-// and classified into a LogicalType), plus the primary key. It implements
-// filament.SchemaProvider so a Schematized sink can build matching typed tables.
-func (s *Source) Schema(ctx context.Context, resource string) (filament.RecordSchema, error) {
+// Schema returns the column schema of one table (COLUMN_TYPE kept verbatim in
+// Native for a same-engine round trip, classified into a LogicalType) plus the
+// primary key. It implements filament.SchemaProvider so a Schematized sink can
+// build matching typed tables.
+func (s *Source) Schema(ctx context.Context, resource string) (rowmodel.Schema, error) {
 	cols, pks, err := s.tableMeta(ctx, resource)
 	if err != nil {
-		return filament.RecordSchema{}, err
+		return rowmodel.Schema{}, err
 	}
-	fields := make([]filament.SchemaField, len(cols))
-	for i, c := range cols {
-		fields[i] = filament.SchemaField{
-			Name:     c.name,
-			Nullable: c.nullable,
-			Logical:  mysqlTypeToLogical(c.dataType, c.fullType),
-			Native:   c.fullType,
-		}
-	}
-	key := make([]string, len(pks))
-	for i, pk := range pks {
-		key[i] = pk.name
-	}
-	return filament.RecordSchema{Resource: resource, Fields: fields, PrimaryKey: key}, nil
+	return newRowDecoder(resource, cols, pks).schema, nil
 }
 
-// mysqlTypeToLogical classifies an information_schema DATA_TYPE into a portable
-// LogicalType. The exact type (including display width, unsigned, enum values) is
-// kept in SchemaField.Native, so an unknown type degrading to string is harmless for
-// a same-engine (MySQL→MySQL) sink that reuses Native verbatim.
-func mysqlTypeToLogical(dataType, fullType string) filament.LogicalType {
-	t := strings.ToLower(dataType)
-	unsigned := strings.Contains(strings.ToLower(fullType), "unsigned")
-	switch t {
-	case "tinyint":
-		// tinyint(1) is MySQL's boolean idiom.
-		if strings.HasPrefix(strings.ToLower(fullType), "tinyint(1)") && !unsigned {
-			return filament.LogicalBool
-		}
-		return filament.LogicalInt16
-	case "smallint":
-		if unsigned {
-			return filament.LogicalInt32
-		}
-		return filament.LogicalInt16
-	case "mediumint", "int", "integer":
-		if unsigned {
-			return filament.LogicalInt64
-		}
-		return filament.LogicalInt32
-	case "bigint":
-		if unsigned {
-			return filament.LogicalDecimal // may exceed int64
-		}
-		return filament.LogicalInt64
-	case "float":
-		return filament.LogicalFloat32
-	case "double", "real":
-		return filament.LogicalFloat64
-	case "decimal", "numeric":
-		return filament.LogicalDecimal
-	case "json":
-		return filament.LogicalJSON
-	case "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "bit":
-		return filament.LogicalBytes
-	case "date":
-		return filament.LogicalDate
-	case "datetime":
-		return filament.LogicalTimestamp
-	case "timestamp":
-		return filament.LogicalTimestampTZ
-	case "time":
-		return filament.LogicalTime
-	default:
-		return filament.LogicalString
-	}
-}
+// engine names this source in the schemas it reports.
+const engine = "mysql"
 
 // Teardown closes the pool.
 func (s *Source) Teardown(context.Context) error {

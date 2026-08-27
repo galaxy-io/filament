@@ -61,8 +61,8 @@ func run(ctx context.Context) error {
 	deps.Log.Info("worker: executing run",
 		filament.Field{Key: "run", Value: string(runID)},
 		filament.Field{Key: "pipeline", Value: state.Request.PipelineID},
-		filament.Field{Key: "source", Value: state.Request.Source.Provider},
-		filament.Field{Key: "sink", Value: state.Request.Sink.Provider},
+		filament.Field{Key: "source", Value: state.Request.Source.Connector},
+		filament.Field{Key: "sink", Value: state.Request.Sink.Connector},
 		filament.Field{Key: "resources", Value: len(state.Request.Resources)})
 
 	hb := &heartbeat{

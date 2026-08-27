@@ -1,32 +1,36 @@
 package filament
 
-import "context"
+import (
+	"context"
+
+	"github.com/galaxy-io/filament/rowmodel"
+)
 
 // LogicalType is a portable, engine-independent column type. A schema-aware source
 // classifies each column into one of these so a sink can map to its own type system;
 // alongside it SchemaField.Native carries the source's exact type for a same-engine
 // round-trip. Decimal precision/scale and array element types live in Native, not here.
-type LogicalType string
+type LogicalType = rowmodel.LogicalType
 
 // The portable column types.
 const (
-	LogicalUnknown     LogicalType = ""
-	LogicalBool        LogicalType = "bool"
-	LogicalInt16       LogicalType = "int16"
-	LogicalInt32       LogicalType = "int32"
-	LogicalInt64       LogicalType = "int64"
-	LogicalFloat32     LogicalType = "float32"
-	LogicalFloat64     LogicalType = "float64"
-	LogicalDecimal     LogicalType = "decimal"
-	LogicalString      LogicalType = "string"
-	LogicalBytes       LogicalType = "bytes"
-	LogicalDate        LogicalType = "date"
-	LogicalTime        LogicalType = "time"
-	LogicalTimestamp   LogicalType = "timestamp"
-	LogicalTimestampTZ LogicalType = "timestamptz"
-	LogicalJSON        LogicalType = "json"
-	LogicalUUID        LogicalType = "uuid"
-	LogicalArray       LogicalType = "array"
+	LogicalUnknown     = rowmodel.LogicalUnknown
+	LogicalBool        = rowmodel.LogicalBool
+	LogicalInt16       = rowmodel.LogicalInt16
+	LogicalInt32       = rowmodel.LogicalInt32
+	LogicalInt64       = rowmodel.LogicalInt64
+	LogicalFloat32     = rowmodel.LogicalFloat32
+	LogicalFloat64     = rowmodel.LogicalFloat64
+	LogicalDecimal     = rowmodel.LogicalDecimal
+	LogicalString      = rowmodel.LogicalString
+	LogicalBytes       = rowmodel.LogicalBytes
+	LogicalDate        = rowmodel.LogicalDate
+	LogicalTime        = rowmodel.LogicalTime
+	LogicalTimestamp   = rowmodel.LogicalTimestamp
+	LogicalTimestampTZ = rowmodel.LogicalTimestampTZ
+	LogicalJSON        = rowmodel.LogicalJSON
+	LogicalUUID        = rowmodel.LogicalUUID
+	LogicalArray       = rowmodel.LogicalArray
 )
 
 // SchemaProvider is an optional Source capability: it returns the column schema of a
