@@ -60,6 +60,7 @@ const CreateConnectionSelectorHeader = ({
           value={search}
           size={InputSize.LARGE}
           fillWidth
+          autoFocus
         />
       </FlexWrapper>
     </FlexWrapper>
