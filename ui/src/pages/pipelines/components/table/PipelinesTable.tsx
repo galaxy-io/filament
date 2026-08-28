@@ -79,7 +79,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     cellLoading: () => <TextShimmer width={64} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
-        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.startedAt) : "—"}
+        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.requestedAt) : "—"}
       </Text>
     ),
   },
