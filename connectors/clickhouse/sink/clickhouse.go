@@ -114,6 +114,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 				filament.IngestionFullAppend,
 				filament.IngestionFullUpsert,
 				filament.IngestionIncrementalUpsert,
+				filament.IngestionCDCAppend,
 			),
 		},
 	}
@@ -408,10 +409,14 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 		return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: apply policy %q does not match resource policy %q", opts.Policy.Capability.Mode, want)
 	}
 	switch opts.Policy.Capability.Mode {
-	case filament.WriteAppend, filament.WriteReplace:
+	case filament.WriteReplace:
 		policy := opts.Policy
 		policy.Capability.AcceptsOps = []rowmodel.Operation{rowmodel.OpInsert}
 		if err := policy.ValidateBatch(b.Resource, b); err != nil {
+			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: %w", err)
+		}
+	case filament.WriteAppend:
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("clickhouse sink: %w", err)
 		}
 	case filament.WriteUpsert:

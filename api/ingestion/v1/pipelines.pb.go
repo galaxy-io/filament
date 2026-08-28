@@ -158,8 +158,8 @@ func (x *PipelineNode) GetSecretRefs() map[string]string {
 // all enabled resources; a named resource is an additive per-resource route.
 // Standard connections carry a per-resource read mode and a destination-route
 // write mode. All edges on the same source-to-destination route must use the
-// same write mode. CDC connections carry neither lever because the connection
-// implies the complete stream recipe.
+// same write mode. CDC connections carry no read lever and support append
+// (default) or merge writes.
 type PipelineEdge struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	FromNode string                 `protobuf:"bytes,1,opt,name=from_node,json=fromNode,proto3" json:"from_node,omitempty"`

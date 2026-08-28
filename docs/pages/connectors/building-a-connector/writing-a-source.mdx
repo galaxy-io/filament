@@ -127,7 +127,7 @@ The remaining fields are resume metadata, ignored by the CRC:
   [optional interfaces](/pages/connectors/building-a-connector/optional-interfaces))
   actually deliver.
 - **`SourcePolicies`**: which ingestion types the source serves
-  (`full_replace`, `incremental_upsert`, `cdc`, …). Planning rejects a run
+  (`full_replace`, `incremental_upsert`, `cdc_append`, `cdc_merge`, …). Planning rejects a run
   whose ingestion type no policy matches.
 - **`Config`**: a `ConfigSchema` of `ConfigField`s. Each field carries a
   `Scope`. `ScopeConnection` covers settings that establish a reusable

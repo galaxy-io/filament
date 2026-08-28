@@ -101,12 +101,12 @@ func ValidateSourceIngestion(spec ConnectorSpec, t IngestionType) error {
 // ValidateReplication enforces the one rule tying edges to connections: CDC
 // runs happen on CDC connections, everything else on standard ones.
 func ValidateReplication(replication ReplicationMode, t IngestionType) error {
-	isCDC := t.OrDefault() == IngestionCDC
+	isCDC := IsCDCIngestion(t)
 	switch {
 	case isCDC && replication != ReplicationCDC:
 		return fmt.Errorf("CDC requires a connection created with CDC replication")
 	case !isCDC && replication == ReplicationCDC:
-		return fmt.Errorf("a CDC connection replicates from the change stream; edges carry no read or write levers")
+		return fmt.Errorf("a CDC connection replicates from the change stream and requires append or merge write mode")
 	}
 	return nil
 }
@@ -131,7 +131,11 @@ func sinkCapabilityForIngestion(spec SinkSpec, t IngestionType) (WritePolicyCapa
 		}
 	}
 	switch policy.Capability.Mode {
-	case WriteAppend, WriteReplace:
+	case WriteAppend:
+		if acceptsOperations([]Operation{OpInsert}, policy.Capability.AcceptsOps) {
+			return policy.Capability, nil
+		}
+	case WriteReplace:
 		return policy.Capability, nil
 	case WriteUpsert:
 		if spec.Capabilities.Upsertable {

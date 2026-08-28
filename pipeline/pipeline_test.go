@@ -8,11 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/memory"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // fakeSink is an in-memory filament.Sink. By default it echoes a correct write-side
@@ -27,6 +29,33 @@ type fakeSink struct {
 	encodedIntegrity bool
 	omitEncoded      bool
 	n                int
+}
+
+type auditCaptureSink struct {
+	fakeSink
+	row auditRow
+}
+
+type auditRow struct {
+	runID, operation, position string
+	startedAt, sequence        int64
+}
+
+func (s *auditCaptureSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	rows := b.Rows()
+	index := func(name string) int {
+		indices := rows.Schema().FieldIndices(name)
+		if len(indices) != 1 {
+			return -1
+		}
+		return indices[0]
+	}
+	s.row.runID = rows.Column(index(rowmodel.AuditRunIDField)).(*array.String).Value(0)
+	s.row.startedAt = int64(rows.Column(index(rowmodel.AuditRunStartedAtField)).(*array.Timestamp).Value(0))
+	s.row.operation = rows.Column(index(rowmodel.AuditOperationField)).(*array.String).Value(0)
+	s.row.position = rows.Column(index(rowmodel.AuditSourcePositionField)).(*array.String).Value(0)
+	s.row.sequence = rows.Column(index(rowmodel.AuditSequenceField)).(*array.Int64).Value(0)
+	return s.fakeSink.Apply(ctx, b, opts)
 }
 
 // written is what the sink keeps of a batch: rows are released after Apply, so
@@ -221,6 +250,40 @@ func TestPipelineHappyPath(t *testing.T) {
 
 	// Fact sequence is monotonic from 1 — the tracker's dedup key.
 	assertMonotonicSeq(t, c.events())
+}
+
+func TestPipelineMaterializesCDCAuditColumns(t *testing.T) {
+	started := time.Date(2026, time.August, 28, 12, 30, 0, 123000000, time.UTC)
+	sink := &auditCaptureSink{}
+	policy := filament.WritePolicyForIngestion(filament.IngestionCDCMerge)
+	policy.Resource = "users"
+	p := New(Config{
+		Tenant: "t1", Run: "run-7", Sink: sink,
+		WritePolicies: map[string]filament.WritePolicy{"users": policy},
+		Options:       filament.RunOptions{BatchMaxRows: 10}, FlushInterval: time.Hour,
+		Audit: &AuditConfig{RunStartedAt: started, CDC: true},
+	})
+	p.Start(context.Background())
+	w, err := p.Records().Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Int64(1)
+	w.String("x")
+	if err := w.EndRow(filament.RowMeta{Op: filament.OpUpdate, LSN: "0/16B6C50", Seq: 42}); err != nil {
+		t.Fatal(err)
+	}
+	p.CloseIngest(nil)
+	if err := p.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	want := auditRow{
+		runID: "run-7", startedAt: started.UnixMicro(), operation: "update",
+		position: "0/16B6C50", sequence: 42,
+	}
+	if sink.row != want {
+		t.Fatalf("audit row = %#v, want %#v", sink.row, want)
+	}
 }
 
 func TestPipelineRequiresEncodedIntegrityEvidence(t *testing.T) {

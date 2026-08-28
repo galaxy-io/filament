@@ -81,7 +81,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
                   toNode: sink.id,
                   readMode: isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL,
                   writeMode: isCdc
-                    ? WriteMode.UNSPECIFIED
+                    ? (state.sinkWriteModes[sink.id] ?? WriteMode.APPEND)
                     : (state.sinkWriteModes[sink.id] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE),
                 }),
               )

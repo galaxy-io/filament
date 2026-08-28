@@ -113,7 +113,8 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionFullAppend,
 			filament.IngestionIncrementalAppend,
 			filament.IngestionIncrementalUpsert,
-			filament.IngestionCDC,
+			filament.IngestionCDCAppend,
+			filament.IngestionCDCMerge,
 		),
 		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
 			{Name: "replication", Type: filament.FieldEnum, Default: string(filament.ReplicationStandard), Enum: []filament.EnumOption{

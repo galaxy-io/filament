@@ -243,8 +243,8 @@ func (ReadMode) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_common_proto_rawDescGZIP(), []int{3}
 }
 
-// WriteMode is the destination-route write lever. Delete and merge are engine
-// mechanisms and are not user-selectable write modes.
+// WriteMode is the destination-route write lever. Delete remains an internal
+// engine policy; merge is selectable for CDC routes.
 type WriteMode int32
 
 const (
@@ -252,6 +252,7 @@ const (
 	WriteMode_WRITE_MODE_APPEND      WriteMode = 1
 	WriteMode_WRITE_MODE_REPLACE     WriteMode = 2
 	WriteMode_WRITE_MODE_UPSERT      WriteMode = 3
+	WriteMode_WRITE_MODE_MERGE       WriteMode = 4
 )
 
 // Enum value maps for WriteMode.
@@ -261,12 +262,14 @@ var (
 		1: "WRITE_MODE_APPEND",
 		2: "WRITE_MODE_REPLACE",
 		3: "WRITE_MODE_UPSERT",
+		4: "WRITE_MODE_MERGE",
 	}
 	WriteMode_value = map[string]int32{
 		"WRITE_MODE_UNSPECIFIED": 0,
 		"WRITE_MODE_APPEND":      1,
 		"WRITE_MODE_REPLACE":     2,
 		"WRITE_MODE_UPSERT":      3,
+		"WRITE_MODE_MERGE":       4,
 	}
 )
 
@@ -876,12 +879,13 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\bReadMode\x12\x19\n" +
 	"\x15READ_MODE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eREAD_MODE_FULL\x10\x01\x12\x19\n" +
-	"\x15READ_MODE_INCREMENTAL\x10\x02*m\n" +
+	"\x15READ_MODE_INCREMENTAL\x10\x02*\x83\x01\n" +
 	"\tWriteMode\x12\x1a\n" +
 	"\x16WRITE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11WRITE_MODE_APPEND\x10\x01\x12\x16\n" +
 	"\x12WRITE_MODE_REPLACE\x10\x02\x12\x15\n" +
-	"\x11WRITE_MODE_UPSERT\x10\x03*_\n" +
+	"\x11WRITE_MODE_UPSERT\x10\x03\x12\x14\n" +
+	"\x10WRITE_MODE_MERGE\x10\x04*_\n" +
 	"\n" +
 	"FieldScope\x12\x1b\n" +
 	"\x17FIELD_SCOPE_UNSPECIFIED\x10\x00\x12\x1a\n" +

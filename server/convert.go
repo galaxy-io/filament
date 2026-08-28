@@ -155,6 +155,8 @@ func writeModeFromProto(mode ingestionv1.WriteMode) (filament.WriteMode, error) 
 		return filament.WriteAppend, nil
 	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
 		return filament.WriteUpsert, nil
+	case ingestionv1.WriteMode_WRITE_MODE_MERGE:
+		return filament.WriteMerge, nil
 	default:
 		return "", fmt.Errorf("unknown write mode %d", mode)
 	}
@@ -166,6 +168,8 @@ func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
 		return ingestionv1.WriteMode_WRITE_MODE_APPEND
 	case filament.WriteUpsert:
 		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
+	case filament.WriteMerge:
+		return ingestionv1.WriteMode_WRITE_MODE_MERGE
 	default:
 		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
 	}

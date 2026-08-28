@@ -114,6 +114,10 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	if err := s.ensurePublication(ctx, opts.Resources); err != nil {
 		return err
 	}
+	run := &pgCDCRun{
+		sink: sink, schema: s.schema, resources: opts.Resources, tracked: tracked,
+		relations: map[uint32]*cdcRelation{}, limit: opts.Limit,
+	}
 
 	repl, err := s.replicationConn(ctx)
 	if err != nil {
@@ -171,7 +175,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	// and replayed in this same cycle.
 	var watermark pglogrepl.LSN
 	if bootstrapSnapshot != nil {
-		if err := s.extractInitialSnapshot(ctx, sink, bootstrapSnapshot.tx, bootstrapShards); err != nil {
+		if err := s.extractInitialSnapshot(ctx, run, bootstrapSnapshot.tx, bootstrapShards); err != nil {
 			return err
 		}
 		watermark, err = currentLSNFrom(ctx, bootstrapSnapshot.tx)
@@ -199,10 +203,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 		return fmt.Errorf("postgres cdc: acknowledge start %s: %w", start, err)
 	}
 
-	run := &pgCDCRun{
-		sink: sink, schema: s.schema, resources: opts.Resources, tracked: tracked,
-		relations: map[uint32]*cdcRelation{}, seq: seq, limit: opts.Limit,
-	}
+	run.seq = seq
 	if start >= watermark {
 		return run.pushStreamMarks(start)
 	}
@@ -444,9 +445,13 @@ func (s *Source) importSnapshot(ctx context.Context, id string) (*snapshot, erro
 // durable stream checkpoint. Snapshot rows are inserts, which the CDC merge
 // policy applies idempotently on retry. Limit deliberately does not apply: a
 // partial snapshot followed by an advanced LSN would permanently skip rows.
-func (s *Source) extractInitialSnapshot(ctx context.Context, sink arrowbatch.Inlet, tx pgx.Tx, shards []shard) error {
+func (s *Source) extractInitialSnapshot(ctx context.Context, run *pgCDCRun, tx pgx.Tx, shards []shard) error {
 	for _, sh := range shards {
-		if err := s.extractShard(ctx, sink, tx, sh, 0); err != nil {
+		w, err := run.writer(sh.table)
+		if err == nil {
+			_, err = s.readBlocks(ctx, w, tx, sh, "", nil, rowmodel.Meta{}, 0)
+		}
+		if err != nil {
 			return fmt.Errorf("postgres cdc: initial snapshot %q: %w", sh.table, err)
 		}
 	}

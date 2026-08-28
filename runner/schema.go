@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // ensureSchemas drives a Schematized sink's DDL from a SchemaProvider source for
@@ -22,6 +23,14 @@ func ensureSchemas(ctx context.Context, src filament.Source, snk filament.Sink, 
 	}
 	for _, res := range spec.Resources {
 		schema, err := prov.Schema(ctx, res)
+		if err != nil {
+			return fmt.Errorf("schema for %q: %w", res, err)
+		}
+		ingestionType := filament.TypeFor(spec.IngestionTypes, res)
+		if ingestionType == filament.IngestionCDCAppend {
+			schema = rowmodel.AsCDCAppendHistory(schema)
+		}
+		schema, err = rowmodel.WithAuditFields(schema, filament.IsCDCIngestion(ingestionType))
 		if err != nil {
 			return fmt.Errorf("schema for %q: %w", res, err)
 		}

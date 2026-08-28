@@ -82,7 +82,7 @@ func TestRunSampleToStdout(t *testing.T) {
 	if len(data) != 10 {
 		t.Fatalf("data lines = %d, want 10:\n%s", len(data), out.String())
 	}
-	if !strings.Contains(out.String(), `{"i":4,"resource":"orders"}`) {
+	if !strings.Contains(out.String(), `{"i":4,"resource":"orders","_filament_run_id":"r1"`) {
 		t.Fatalf("missing last orders row:\n%s", out.String())
 	}
 	if !strings.HasPrefix(lines[len(lines)-1], "# {") {

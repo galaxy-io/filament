@@ -32,17 +32,17 @@ parallelism and runs `CREATE SCHEMA IF NOT EXISTS` for the destination schema.
 ## Supported write modes
 
 The sink advertises `full_replace`, `full_append`, `full_upsert`,
-`incremental_upsert`, and `cdc`. See
+`incremental_upsert`, `cdc_append`, and `cdc_merge`. See
 [replication modes](/pages/guides/concepts/replication-modes) for how the
 planner picks one. They bind to three write behaviors:
 
-- `full_replace` and `full_append` insert plainly. Both are full-snapshot
-  policies, so the destination table is truncated before each run (see below).
+- `full_replace` replaces the destination; `full_append` inserts without
+  removing existing rows.
 - `full_upsert` and `incremental_upsert` insert with
   `ON CONFLICT (pk) DO UPDATE` (`DO NOTHING` when the row is PK-only), so
   re-runs and retries are idempotent.
-- `cdc` merges changes in arrival order. Inserts and updates upsert, and
-  deletes delete.
+- `cdc_append` retains every change as a history row. `cdc_merge` maintains
+  current state: inserts and updates upsert, and deletes delete.
 
 ## Table management
 
@@ -50,9 +50,8 @@ Before extraction starts, `EnsureSchema` runs per resource:
 
 1. `CREATE TABLE IF NOT EXISTS` with columns from the source schema, a primary
    key from the source's key fields, and `NOT NULL` from field nullability.
-2. `TRUNCATE` — unless the bound write mode is upsert or merge. This applies to
-   every non-upsert policy, **including `full_append`**. A full-snapshot append
-   run starts from an empty table, it does not accumulate across runs.
+2. `TRUNCATE` — only for replace. Append preserves existing rows; upsert and
+   merge preserve resumable state.
 3. `ADD COLUMN IF NOT EXISTS` for each column, so new source fields appear on
    existing tables. Evolution is add-only. Type changes, dropped columns, and
    nullability changes are not applied, and an incompatible type change
@@ -97,9 +96,7 @@ end-of-run atomic swap.
 
 ## Failure behavior
 
-On a failed run, `Abort` **truncates every non-resumable table the run
-ensured**. Concretely, a failed `full_replace` or `full_append` run leaves the
-destination tables it touched empty, not partially written and not holding the
-previous run's data. Tables bound to upsert or merge modes (`full_upsert`,
-`incremental_upsert`, `cdc`) are resumable and are preserved, since a retry
+On a failed run, `Abort` truncates replace tables. Append tables retain rows
+already written. Tables bound to upsert or merge modes (`full_upsert`,
+`incremental_upsert`, `cdc_merge`) are resumable and are preserved, since a retry
 converges through the primary key.

@@ -45,6 +45,15 @@ type Config struct {
 	Log           filament.Logger // optional
 	NextSeq       func() uint64
 	Allocator     memory.Allocator // optional; defaults to Arrow's allocator
+	Audit         *AuditConfig
+}
+
+// AuditConfig enables row-lineage materialization for a run. The run ID comes
+// from Config.Run; CDC adds operation, source-position, and sequence fields.
+type AuditConfig struct {
+	RunStartedAt time.Time
+	CDC          bool
+	CDCAppend    bool
 }
 
 // Pipeline owns the channel-based extraction loop. Construct with New, launch
@@ -68,6 +77,7 @@ type Pipeline struct {
 	schemas    map[string]registeredSchema
 	builders   map[partKey]*arrowbatch.Builder
 	alloc      memory.Allocator
+	audit      *AuditConfig
 
 	nextSeq  func() uint64 // monotonic fact sequence for (tenant, run) dedup
 	pubMu    sync.Mutex    // serializes publish so concurrent writers emit facts safely
@@ -125,6 +135,7 @@ func New(cfg Config) *Pipeline {
 		schemas:          make(map[string]registeredSchema),
 		builders:         make(map[partKey]*arrowbatch.Builder),
 		alloc:            cfg.Allocator,
+		audit:            cfg.Audit,
 		nextSeq:          nextSeq,
 		done:             make(chan struct{}),
 		tickStop:         make(chan struct{}),

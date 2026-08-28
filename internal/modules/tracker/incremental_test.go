@@ -158,7 +158,7 @@ func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	store := memory.New()
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
-		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDC},
+		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDCMerge},
 	}
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
