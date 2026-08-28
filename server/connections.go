@@ -20,13 +20,16 @@ import (
 // config, writes their values to the configured secret provider, and persists
 // only opaque references alongside the non-secret config.
 func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[ingestionv1.CreateConnectionRequest]) (*connect.Response[ingestionv1.CreateConnectionResponse], error) {
+	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	schema, err := a.schemaFor(req.Msg.GetKind(), req.Msg.GetConnector())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	cfg := structMap(req.Msg.GetConfig())
 	refs := cloneStrings(req.Msg.GetSecretRefs())
-	tenant := defaultTenant(req.Msg.GetTenantId())
 	canonicalizeConnectionConfig(schema, cfg, refs)
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -70,6 +73,10 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 
 // UpdateConnection applies changes to an existing connection, enforcing optimistic versioning.
 func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[ingestionv1.UpdateConnectionRequest]) (*connect.Response[ingestionv1.UpdateConnectionResponse], error) {
+	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	in := req.Msg.GetConnection()
 	if in == nil || in.GetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection.id is required"))
@@ -81,17 +88,8 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if stored.DeletedAt != 0 {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is deleted", in.GetId()))
-	}
-	if stored.Version != in.GetVersion() {
-		return nil, connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", in.GetId(), stored.Version, in.GetVersion()))
-	}
-	if stored.Connector != in.GetConnector() {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q connector cannot change from %q to %q", in.GetId(), stored.Connector, in.GetConnector()))
-	}
-	if stored.Kind != connectionKindFromProto(in.GetKind()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q kind cannot change", in.GetId()))
+	if err := validateConnectionUpdateTarget(stored, in); err != nil {
+		return nil, err
 	}
 	schema, err := a.schemaFor(in.GetKind(), in.GetConnector())
 	if err != nil {
@@ -142,9 +140,11 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	}
 	next := connectionFromProto(proto.Clone(in).(*ingestionv1.Connection))
 	next.Config, next.SecretRefs = config.AsMap(), refs
-	if next.Tenant == "" {
-		next.Tenant = stored.Tenant
+	if next.Tenant != "" && next.Tenant != tenant {
+		a.deleteSecretRefs(ctx, written)
+		return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("connection tenant_id does not match authenticated tenant"))
 	}
+	next.Tenant = tenant
 	next, err = a.store.UpdateConnection(ctx, next)
 	if err != nil {
 		a.deleteSecretRefs(ctx, written)
@@ -154,8 +154,30 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: a.connectionForResponse(next)}), nil
 }
 
+// validateConnectionUpdateTarget checks the persisted invariants that must
+// hold before applying mutable connection fields.
+func validateConnectionUpdateTarget(stored filament.Connection, in *ingestionv1.Connection) error {
+	if stored.DeletedAt != 0 {
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("connection %q is deleted", in.GetId()))
+	}
+	if stored.Version != in.GetVersion() {
+		return connect.NewError(connect.CodeAborted, fmt.Errorf("connection %q version conflict: have %d, got %d", in.GetId(), stored.Version, in.GetVersion()))
+	}
+	if stored.Connector != in.GetConnector() {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q connector cannot change from %q to %q", in.GetId(), stored.Connector, in.GetConnector()))
+	}
+	if stored.Kind != connectionKindFromProto(in.GetKind()) {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q kind cannot change", in.GetId()))
+	}
+	return nil
+}
+
 // GetConnection returns the connection with the requested ID.
 func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingestionv1.GetConnectionRequest]) (*connect.Response[ingestionv1.GetConnectionResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	conn, err := a.store.LoadConnection(ctx, req.Msg.GetId())
 	if err != nil {
 		if errors.Is(err, filament.ErrNotFound) {
@@ -168,6 +190,10 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 
 // ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
+	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
 		ingestionv1.SortBy_SORT_BY_NAME:       "name",
 		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
@@ -177,7 +203,7 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 		return nil, err
 	}
 	connections, total, err := a.store.ListConnections(ctx, filament.ConnectionFilter{
-		Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind()),
+		Tenant: tenant, Kind: connectionKindFromProto(req.Msg.GetKind()),
 		IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
 	})
 	if err != nil {
@@ -209,13 +235,17 @@ func (a *Server) connectionForResponse(conn filament.Connection) *ingestionv1.Co
 
 // DeleteConnection removes the connection with the requested ID.
 func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[ingestionv1.DeleteConnectionRequest]) (*connect.Response[ingestionv1.DeleteConnectionResponse], error) {
+	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	id := req.Msg.GetId()
 	conn, loadErr := a.store.LoadConnection(ctx, id)
 	if loadErr != nil && !errors.Is(loadErr, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeInternal, loadErr)
 	}
 
-	pipelines, _, err := a.store.ListPipelines(ctx, filament.PipelineFilter{})
+	pipelines, _, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: tenant})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -341,20 +371,6 @@ func (a *Server) resolveConnectionSecrets(ctx context.Context, conn filament.Con
 		setConfigPath(cfg, field, string(secret.Value))
 	}
 	return nil
-}
-
-// loadConnectionForTenant loads the connection by id and rejects it if tenant
-// does not match, so a caller can never merge or resolve secrets from another
-// tenant's connection just by naming its id.
-func (a *Server) loadConnectionForTenant(ctx context.Context, id, tenant string) (filament.Connection, error) {
-	conn, err := a.store.LoadConnection(ctx, id)
-	if err != nil {
-		return filament.Connection{}, err
-	}
-	if conn.Tenant != defaultTenant(tenant) {
-		return filament.Connection{}, filament.ErrNotFound
-	}
-	return conn, nil
 }
 
 // overlayConfig recursively merges overlay over base. A blank string at any

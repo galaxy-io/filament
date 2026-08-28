@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -35,6 +36,21 @@ var publicProcedures = map[string]bool{
 	authv1connect.AuthServiceLoginProcedure:         true,
 	authv1connect.AuthServiceRegisterProcedure:      true,
 	authv1connect.AuthServiceAcceptInviteProcedure:  true,
+}
+
+// tenantForRequest returns the only tenant an RPC may operate on. When auth
+// is enabled, the caller's resolved tenant is authoritative and a conflicting
+// request value is rejected. Auth-disabled deployments retain their explicit
+// tenant behavior and fall back to the default tenant when none is supplied.
+func tenantForRequest(ctx context.Context, requested string) (string, error) {
+	if tenant, ok := identity.TenantFrom(ctx); ok {
+		authenticated := string(tenant)
+		if requested != "" && requested != authenticated {
+			return "", connect.NewError(connect.CodePermissionDenied, fmt.Errorf("tenant_id does not match authenticated tenant"))
+		}
+		return authenticated, nil
+	}
+	return defaultTenant(requested), nil
 }
 
 // authInterceptor authenticates every RPC except the public session

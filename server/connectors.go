@@ -128,12 +128,16 @@ func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv
 
 // ValidateConfig checks a connector config against its schema.
 func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingestionv1.ValidateConfigRequest]) (*connect.Response[ingestionv1.ValidateConfigResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
 
 	config := structMap(req.Msg.GetConfig())
 	if id := req.Msg.GetConnectionId(); id != "" {
-		conn, err := a.loadConnectionForTenant(ctx, id, req.Msg.GetTenantId())
+		conn, err := a.store.LoadConnection(ctx, id)
 		if err != nil {
 			if errors.Is(err, filament.ErrNotFound) {
 				return nil, connect.NewError(connect.CodeNotFound, err)
@@ -204,13 +208,17 @@ func (a *Server) validateConnectionConnectorConfig(kind ingestionv1.ConnectorKin
 
 // DiscoverResources configures the source and lists its selectable resources.
 func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ingestionv1.DiscoverResourcesRequest]) (*connect.Response[ingestionv1.DiscoverResourcesResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
 
 	connector := req.Msg.GetConnector()
 	config := structMap(req.Msg.GetConfig())
 	if id := req.Msg.GetConnectionId(); id != "" {
-		conn, err := a.loadConnectionForTenant(ctx, id, req.Msg.GetTenantId())
+		conn, err := a.store.LoadConnection(ctx, id)
 		if err != nil {
 			if errors.Is(err, filament.ErrNotFound) {
 				return nil, connect.NewError(connect.CodeNotFound, err)
@@ -250,6 +258,10 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 // GetResourceColumns configures one source and returns schemas for every
 // requested resource, avoiding one connector pool per resource in the editor.
 func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[ingestionv1.GetResourceColumnsRequest]) (*connect.Response[ingestionv1.GetResourceColumnsResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 

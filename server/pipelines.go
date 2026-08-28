@@ -18,12 +18,16 @@ import (
 
 // CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
+	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	id := uuid.NewString()
 	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(req.Msg.GetWorkerConfiguration())); err != nil {
 		return nil, compileError(err)
 	}
 	pipeline := &ingestionv1.Pipeline{
-		Id: id, TenantId: defaultTenant(req.Msg.GetTenantId()), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
+		Id: id, TenantId: tenant, Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: req.Msg.GetWorkerConfiguration(),
 	}
 	var schedule *filament.ScheduleState
@@ -38,7 +42,6 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 		schedule = &state
 	}
 	var created *ingestionv1.Pipeline
-	var err error
 	if a.schedules != nil {
 		created, err = a.schedules.CreatePipelineWithSchedule(ctx, pipeline, schedule)
 	} else {
@@ -56,6 +59,10 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineVersionRequest]) (*connect.Response[ingestionv1.CreatePipelineVersionResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
@@ -229,6 +236,10 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
 // immutable versions through CreatePipelineVersion.
 func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
@@ -251,6 +262,10 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 
 // GetPipelineVersion returns a specific immutable pipeline graph version.
 func (a *Server) GetPipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineVersionRequest]) (*connect.Response[ingestionv1.GetPipelineVersionResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	v, err := a.store.LoadPipelineVersion(ctx, req.Msg.GetPipelineId(), req.Msg.GetVersion())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -263,6 +278,10 @@ func (a *Server) GetPipelineVersion(ctx context.Context, req *connect.Request[in
 
 // ListPipelineVersions returns all of a pipeline's graph versions, newest first.
 func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[ingestionv1.ListPipelineVersionsRequest]) (*connect.Response[ingestionv1.ListPipelineVersionsResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
@@ -282,6 +301,10 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 
 // GetPipeline returns a pipeline with the requested related resources.
 func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -371,6 +394,10 @@ func pipelineScheduleOverlapToProto(policy filament.OverlapPolicy) ingestionv1.P
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
+	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
 		ingestionv1.SortBy_SORT_BY_NAME:       "name",
 		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
@@ -380,7 +407,7 @@ func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingesti
 		return nil, err
 	}
 	pipelines, total, err := a.store.ListPipelines(ctx, filament.PipelineFilter{
-		Tenant: req.Msg.GetTenantId(), IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
+		Tenant: tenant, IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -431,6 +458,10 @@ func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipel
 // DeletePipeline removes the pipeline by id. The store's delete transaction
 // also removes the pipeline's schedules and pending scheduled runs.
 func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	if err := a.store.DeletePipeline(ctx, req.Msg.GetId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -440,6 +471,10 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 // RunPipeline groups the pipeline's edges into per-route runs and submits each
 // to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	edgeRuns, err := a.submitPipeline(ctx, req.Msg)
 	if err != nil {
 		return nil, err

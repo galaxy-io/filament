@@ -18,6 +18,10 @@ import (
 // ListRuns returns runs matching the request's tenant, pipeline, version,
 // statuses, and started_at window.
 func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.ListRunsRequest]) (*connect.Response[ingestionv1.ListRunsResponse], error) {
+	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
 		ingestionv1.SortBy_SORT_BY_NAME:       "name",
 		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
@@ -27,7 +31,7 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 		return nil, err
 	}
 	filter := filament.RunFilter{
-		Tenant:            filament.TenantID(req.Msg.GetTenantId()),
+		Tenant:            filament.TenantID(tenant),
 		PipelineID:        req.Msg.GetPipelineId(),
 		PipelineVersionID: req.Msg.PipelineVersionId,
 		Status:            runStatusesFromProto(req.Msg.GetStatus()),
@@ -59,6 +63,10 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 
 // GetRun returns the run's state and per-resource progress.
 func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.GetRunRequest]) (*connect.Response[ingestionv1.GetRunResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	state, err := a.store.LoadRun(ctx, filament.RunID(req.Msg.GetRunId()))
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -82,6 +90,10 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 // SignalRun validates transport concerns and delegates lifecycle policy to the
 // shared run command layer.
 func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetRunId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
 	}
@@ -209,11 +221,15 @@ func signalRunError(err error) error {
 // TailRun streams run progress facts to the client, optionally replaying
 // events synthesized from the current snapshot before live facts.
 func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.TailRunRequest], stream *connect.ServerStream[ingestionv1.TailRunResponse]) error {
+	tenantValue, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return err
+	}
 	if a.bus == nil {
 		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
 	}
 	send := stream.Send
-	tenant := filament.TenantID(defaultTenant(req.Msg.GetTenantId()))
+	tenant := filament.TenantID(tenantValue)
 	run := filament.RunID(req.Msg.GetRunId())
 	if run == "" {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))

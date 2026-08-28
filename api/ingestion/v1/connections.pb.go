@@ -513,12 +513,10 @@ type ListConnectionsRequest struct {
 	Kind           ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
 	IncludeDeleted bool                   `protobuf:"varint,3,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
 	Pagination     *PaginationRequest     `protobuf:"bytes,4,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	// Case-insensitive substring search over name and connector.
-	Search string `protobuf:"bytes,5,opt,name=search,proto3" json:"search,omitempty"`
-	// Sorting supports NAME, CREATED_AT, and UPDATED_AT.
-	Sorting       *SortingRequest `protobuf:"bytes,6,opt,name=sorting,proto3" json:"sorting,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Search         string                 `protobuf:"bytes,5,opt,name=search,proto3" json:"search,omitempty"`
+	Sorting        *SortingRequest        `protobuf:"bytes,6,opt,name=sorting,proto3" json:"sorting,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ListConnectionsRequest) Reset() {

@@ -13,6 +13,10 @@ import (
 
 // CreatePipelineSchedule attaches the primary schedule to an existing pipeline.
 func (a *Server) CreatePipelineSchedule(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineScheduleRequest]) (*connect.Response[ingestionv1.CreatePipelineScheduleResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	pipeline, err := a.schedulePipeline(ctx, req.Msg.GetPipelineId())
 	if err != nil {
 		return nil, err
@@ -40,6 +44,10 @@ func (a *Server) CreatePipelineSchedule(ctx context.Context, req *connect.Reques
 
 // UpdatePipelineSchedule replaces the writable configuration of a schedule.
 func (a *Server) UpdatePipelineSchedule(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineScheduleRequest]) (*connect.Response[ingestionv1.UpdatePipelineScheduleResponse], error) {
+	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	if err != nil {
+		return nil, err
+	}
 	pipeline, err := a.schedulePipeline(ctx, req.Msg.GetPipelineId())
 	if err != nil {
 		return nil, err
