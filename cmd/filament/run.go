@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/internal/naming"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 )
@@ -85,6 +86,7 @@ func (a *cliApp) directRunSpec(flags map[string][]string) (filament.RunSpec, err
 	if err != nil {
 		return filament.RunSpec{}, err
 	}
+	sinkConfig = applySinkSchemaDefault(sinkConfig, sink, sourceName)
 	if err := rejectUnknownFlags(flags, allowed); err != nil {
 		return filament.RunSpec{}, err
 	}
@@ -140,6 +142,7 @@ func (a *cliApp) savedRunSpec(name string, flags map[string][]string) (filament.
 	if err != nil {
 		return filament.RunSpec{}, fmt.Errorf("sink %q: %w", p.Sink.Ref, err)
 	}
+	sinkConfig = applySinkSchemaDefault(sinkConfig, a.catalog.sinks[sink.Type], p.Source.Ref)
 	return makeRunSpec(name, source.Type, sink.Type, sourceConfig, sinkConfig, p.Resources, p.SyncMode, p.WriteMode)
 }
 
@@ -182,40 +185,35 @@ func directConnectorConfig(kind string, schema filament.ConfigSchema, flags map[
 		}
 	}
 
-	values := cloneMap(config)
-	for _, field := range schema.Fields {
-		if field.Default != nil {
-			if _, present := values[field.Name]; !present {
-				values[field.Name] = field.Default
-			}
-		}
+	config = canonicalizeConfig(schema, config)
+	config, err := resolveConfigSecretReferences(schema, config)
+	if err != nil {
+		return nil, err
 	}
-	for _, field := range schema.Fields {
-		if field.Required && field.Default == nil && fieldVisible(field, values) && isEmpty(config[field.Name]) {
-			name := prefix + strings.ReplaceAll(field.Name, "_", "-")
-			return nil, fmt.Errorf("--%s is required", name)
-		}
+	if err := validateFields(kind+" connector", schema.Fields, config); err != nil {
+		return nil, err
 	}
 	return config, nil
 }
 
 func resolvedConnectionConfig(conn connection, scoped map[string]any, schema filament.ConfigSchema) (map[string]any, error) {
-	config := cloneMap(conn.Config)
-	for _, field := range schema.Fields {
-		if !isSecretField(field) {
-			continue
-		}
-		value, _ := config[field.Name].(string)
-		resolved, err := resolveEnvironmentReference(value)
-		if err != nil {
-			return nil, err
-		}
-		config[field.Name] = resolved
-	}
+	config := cloneConfigMap(conn.Config)
 	for field, value := range scoped {
-		config[field] = value
+		config[field] = cloneConfigValue(value)
 	}
-	return config, nil
+	config = canonicalizeConfig(schema, config)
+	return resolveConfigSecretReferences(schema, config)
+}
+
+func applySinkSchemaDefault(config map[string]any, spec filament.SinkSpec, sourceName string) map[string]any {
+	result := cloneConfigMap(config)
+	if spec.SchemaField == "" || !isEmpty(result[spec.SchemaField]) {
+		return result
+	}
+	if value := naming.Normalize(sourceName); value != "" {
+		result[spec.SchemaField] = value
+	}
+	return result
 }
 
 func makeRunSpec(pipelineID, sourceName, sinkName string, sourceConfig, sinkConfig map[string]any, resources []string, syncName, writeName string) (filament.RunSpec, error) {

@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"text/tabwriter"
+
+	"github.com/galaxy-io/filament"
 )
 
 func (a *cliApp) runPipelineCommand(args []string) error {
@@ -133,10 +136,13 @@ func (a *cliApp) deletePipeline(args []string, doc configDocument, store configS
 
 func (a *cliApp) pipelineFromFlags(name string, existing *pipeline, flags map[string][]string, doc configDocument) (pipeline, error) {
 	p := pipeline{SyncMode: "full", WriteMode: "replace"}
+	oldSourceType, oldSinkType := "", ""
 	if existing != nil {
 		p = *existing
-		p.Source.Config = cloneMap(existing.Source.Config)
-		p.Sink.Config = cloneMap(existing.Sink.Config)
+		p.Source.Config = cloneConfigMap(existing.Source.Config)
+		p.Sink.Config = cloneConfigMap(existing.Sink.Config)
+		oldSourceType = doc.Sources[existing.Source.Ref].Type
+		oldSinkType = doc.Sinks[existing.Sink.Ref].Type
 	}
 	if value := lastFlag(flags, "source"); value != "" {
 		p.Source.Ref = value
@@ -161,6 +167,12 @@ func (a *cliApp) pipelineFromFlags(name string, existing *pipeline, flags map[st
 	if !sourceOK || !sinkOK {
 		return p, fmt.Errorf("pipeline %q: --source and --sink must name saved connections", name)
 	}
+	if existing != nil && oldSourceType != source.Type {
+		p.Source.Config = map[string]any{}
+	}
+	if existing != nil && oldSinkType != sink.Type {
+		p.Sink.Config = map[string]any{}
+	}
 	allowed := map[string]bool{"source": true, "sink": true, "resources": true, "sync-mode": true, "write-mode": true}
 	var err error
 	p.Source.Config, err = overlayScopedFlags(p.Source.Config, "source-", a.catalog.sources[source.Type].Config, flags, allowed)
@@ -170,7 +182,32 @@ func (a *cliApp) pipelineFromFlags(name string, existing *pipeline, flags map[st
 	if err != nil {
 		return p, err
 	}
+	unsetTargets := map[string]func(){}
+	for _, item := range []struct {
+		prefix string
+		schema filament.ConfigSchema
+		config map[string]any
+	}{
+		{prefix: "source-", schema: a.catalog.sources[source.Type].Config, config: p.Source.Config},
+		{prefix: "sink-", schema: a.catalog.sinks[sink.Type].Config, config: p.Sink.Config},
+	} {
+		for _, field := range orderedFields(item.schema, filament.ScopePipeline) {
+			flagName := item.prefix + strings.ReplaceAll(field.Name, "_", "-")
+			config, fieldName := item.config, field.Name
+			unsetTargets[flagName] = func() { delete(config, fieldName) }
+		}
+	}
+	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
+		return p, err
+	}
 	if err := rejectUnknownFlags(flags, allowed); err != nil {
+		return p, err
+	}
+	p.Source.Config, err = normalizeSavedSecretReferences(a.catalog.sources[source.Type].Config, p.Source.Config)
+	if err == nil {
+		p.Sink.Config, err = normalizeSavedSecretReferences(a.catalog.sinks[sink.Type].Config, p.Sink.Config)
+	}
+	if err != nil {
 		return p, err
 	}
 	return p, nil

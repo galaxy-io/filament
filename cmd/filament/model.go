@@ -16,7 +16,6 @@ const configVersion = 1
 var (
 	namePattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 	envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	envRefPattern  = regexp.MustCompile(`^env:[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 type configDocument struct {
@@ -62,15 +61,6 @@ func (d *configDocument) normalize() {
 	}
 	if d.Pipelines == nil {
 		d.Pipelines = map[string]pipeline{}
-	}
-	for name, p := range d.Pipelines {
-		if p.SyncMode == "" {
-			p.SyncMode = "full"
-		}
-		if p.WriteMode == "" {
-			p.WriteMode = "replace"
-		}
-		d.Pipelines[name] = p
 	}
 }
 
@@ -182,56 +172,70 @@ func validateName(kind, name string) error {
 }
 
 func validateConnectionFields(label string, schema filament.ConfigSchema, conn connection) error {
-	if err := validateScopedFields(label, schema, conn.Config, filament.ScopeConnection); err != nil {
-		return err
-	}
-	fields := fieldsForScope(schema, filament.ScopeConnection)
-	for name, field := range fields {
-		if !isSecretField(field) {
-			continue
-		}
-		value, _ := conn.Config[name].(string)
-		if strings.HasPrefix(value, "env:") && !envRefPattern.MatchString(value) {
-			return fmt.Errorf("%s: config.%s must use env:VARIABLE", label, name)
-		}
-	}
-	return nil
+	return validateScopedFields(label, schema, conn.Config, filament.ScopeConnection)
 }
 
 func validateScopedFields(label string, schema filament.ConfigSchema, values map[string]any, scope filament.FieldScope) error {
-	fields := fieldsForScope(schema, scope)
+	fields := orderedFields(schema, scope)
+	canonical := cloneConfigMap(values)
+	if scope == filament.ScopeConnection {
+		canonical = canonicalizeConfig(schema, canonical)
+	} else {
+		pruneInactiveFields(fields, canonical)
+	}
+	return validateFields(label, fields, canonical)
+}
+
+func validateFields(label string, fields []filament.ConfigField, values map[string]any) error {
+	effective := valuesWithDefaults(fields, values)
+	known := make(map[string]bool, len(fields))
+	visible := make(map[string]filament.ConfigField, len(fields))
+	for _, field := range fields {
+		known[field.Name] = true
+		if fieldVisible(field, effective) {
+			visible[field.Name] = field
+		}
+	}
 	for name, value := range values {
-		field, ok := fields[name]
+		field, ok := visible[name]
 		if !ok {
+			if known[name] {
+				return fmt.Errorf("%s: field %q is not active for the selected configuration", label, name)
+			}
 			return fmt.Errorf("%s: unknown or misplaced field %q", label, name)
 		}
 		if err := validateFieldValue(field, value); err != nil {
 			return fmt.Errorf("%s: field %q: %w", label, name, err)
 		}
+		if isSecretField(field) {
+			text, _ := value.(string)
+			if strings.HasPrefix(text, "env:") {
+				if _, valid := environmentReferenceName(text); !valid {
+					return fmt.Errorf("%s: field %q environment reference must use env:VARIABLE", label, name)
+				}
+			}
+		}
+		if len(field.Fields) > 0 {
+			nested, _ := value.(map[string]any)
+			if err := validateFields(label+" "+name, field.Fields, nested); err != nil {
+				return err
+			}
+		}
 	}
-	for name, field := range fields {
-		if !field.Required || field.Default != nil || !fieldVisible(field, values) {
+	requiredSeen := map[string]bool{}
+	for _, field := range fields {
+		if requiredSeen[field.Name] || !fieldVisible(field, effective) {
 			continue
 		}
-		if value, ok := values[name]; !ok || isEmpty(value) {
-			return fmt.Errorf("%s: field %q is required", label, name)
+		requiredSeen[field.Name] = true
+		if !field.Required || field.Default != nil {
+			continue
+		}
+		if value, ok := values[field.Name]; !ok || isEmpty(value) {
+			return fmt.Errorf("%s: field %q is required", label, field.Name)
 		}
 	}
 	return nil
-}
-
-func fieldsForScope(schema filament.ConfigSchema, scope filament.FieldScope) map[string]filament.ConfigField {
-	fields := map[string]filament.ConfigField{}
-	for _, field := range schema.Fields {
-		fieldScope := field.Scope
-		if fieldScope == filament.ScopeUnspecified {
-			fieldScope = filament.ScopeConnection
-		}
-		if fieldScope == scope {
-			fields[field.Name] = field
-		}
-	}
-	return fields
 }
 
 func fieldVisible(field filament.ConfigField, values map[string]any) bool {
@@ -332,7 +336,20 @@ func isSecretField(field filament.ConfigField) bool {
 }
 
 func isEmpty(value any) bool {
-	return value == nil || value == ""
+	switch typed := value.(type) {
+	case nil:
+		return true
+	case string:
+		return typed == ""
+	case []string:
+		return len(typed) == 0
+	case []any:
+		return len(typed) == 0
+	case map[string]any:
+		return len(typed) == 0
+	default:
+		return false
+	}
 }
 
 func containsWriteMode(modes []filament.WriteMode, wanted filament.WriteMode) bool {

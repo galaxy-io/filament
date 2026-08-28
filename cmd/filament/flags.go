@@ -72,7 +72,7 @@ func (a *cliApp) booleanFlags() map[string]bool {
 }
 
 func overlayScopedFlags(current map[string]any, prefix string, schema filament.ConfigSchema, flags map[string][]string, allowed map[string]bool) (map[string]any, error) {
-	result := cloneMap(current)
+	result := cloneConfigMap(current)
 	if result == nil {
 		result = map[string]any{}
 	}
@@ -153,6 +153,24 @@ func rejectUnknownFlags(flags map[string][]string, allowed map[string]bool) erro
 	if len(unknown) > 0 {
 		sort.Strings(unknown)
 		return fmt.Errorf("unknown flag(s): %s", strings.Join(unknown, ", "))
+	}
+	return nil
+}
+
+func applyFieldUnsets(flags map[string][]string, targets map[string]func(), allowed map[string]bool) error {
+	allowed["unset"] = true
+	for _, raw := range flags["unset"] {
+		for _, requested := range splitComma(raw) {
+			requested = strings.TrimPrefix(requested, "--")
+			unset, ok := targets[requested]
+			if !ok {
+				return fmt.Errorf("--unset: unknown or misplaced field %q", requested)
+			}
+			if _, alsoSet := flags[requested]; alsoSet {
+				return fmt.Errorf("--%s and --unset %s cannot be combined", requested, requested)
+			}
+			unset()
+		}
 	}
 	return nil
 }

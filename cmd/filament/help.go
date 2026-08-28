@@ -20,7 +20,8 @@ Usage:
 
 Use --help after a command or operation for its flags. Connector fields always
 use --source-<field> or --sink-<field>. Secret fields accept plaintext values,
-literal $NAME or ${NAME} references, or --<kind>-<field>-env VARIABLE.
+quoted $NAME or ${NAME} references, or --<kind>-<field>-env VARIABLE. Editing
+commands can remove a field with --unset <kind>-<field>.
 `
 
 type helpOutput struct {
@@ -88,13 +89,13 @@ func (a *cliApp) printConnectionHelp(kind string) error {
 
 Usage:
   filament %s create <name> --%s-connector NAME [flags]
-  filament %s edit <name> [flags]
+  filament %s edit <name> [flags] [--unset %s-FIELD]
   filament %s list
 %s  filament %s delete <name> [--force]
 
 Use --help with create, edit, or discover and a connector selection to list
 the connector-derived flags.
-`, strings.ToUpper(kind[:1])+kind[1:], kind, kind, kind, kind, discover, kind)
+`, strings.ToUpper(kind[:1])+kind[1:], kind, kind, kind, kind, kind, discover, kind)
 	return out.err
 }
 
@@ -114,7 +115,7 @@ func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []str
 	case "create":
 		out.printf("Usage: filament %s create <name> --%sconnector NAME [flags]\n", kind, prefix)
 	case "edit":
-		out.printf("Usage: filament %s edit <name> [--%sconnector NAME] [flags]\n", kind, prefix)
+		out.printf("Usage: filament %s edit <name> [--%sconnector NAME] [flags] [--unset %sFIELD]\n", kind, prefix, prefix)
 	case "discover":
 		out.println("Usage: filament source discover [name] [--source-connector NAME] [flags]")
 	case "list":
@@ -276,12 +277,13 @@ const pipelineHelp = `Pipeline commands
 
 Usage:
   filament pipeline create <name> --source NAME --sink NAME [--resources LIST] [flags]
-  filament pipeline edit <name> [flags]
+  filament pipeline edit <name> [flags] [--unset source-FIELD|sink-FIELD]
   filament pipeline list
   filament pipeline delete <name> [--force]
 
 An omitted --resources selection means all resources discovered by the source.
 Connector pipeline fields use --source-<field> and --sink-<field>.
+Repeat --unset to remove optional connector fields from an existing pipeline.
 `
 
 const configHelp = `Configuration commands
@@ -295,7 +297,7 @@ Usage:
 const runHelp = `Run a saved pipeline or an inline source-to-sink transfer.
 
 Usage:
-  filament run <pipeline> [--resources LIST] [--sync-mode full] [--write-mode MODE]
+  filament run <pipeline> [--resources LIST] [--sync-mode full] [--write-mode MODE] [--unset KIND-FIELD]
   filament run --source-connector NAME --sink-connector NAME [flags]
 
 An omitted --resources selection means all resources discovered by the source.

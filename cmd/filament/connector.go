@@ -131,7 +131,7 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 	conn := connection{Config: map[string]any{}}
 	if existing != nil {
 		conn = *existing
-		conn.Config = cloneMap(existing.Config)
+		conn.Config = cloneConfigMap(existing.Config)
 	}
 	prefix := kind + "-"
 	connectorFlag := prefix + "connector"
@@ -161,9 +161,12 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 		schema = spec.Config
 	}
 	allowed := map[string]bool{connectorFlag: true}
+	unsetTargets := map[string]func(){}
 	for _, field := range orderedFields(schema, filament.ScopeConnection) {
 		flagName := prefix + strings.ReplaceAll(field.Name, "_", "-")
 		allowed[flagName] = true
+		fieldName := field.Name
+		unsetTargets[flagName] = func() { delete(conn.Config, fieldName) }
 		if isSecretField(field) {
 			envFlag := flagName + "-env"
 			allowed[envFlag] = true
@@ -200,9 +203,18 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 			conn.Config[field.Name] = value
 		}
 	}
+	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
+		return conn, err
+	}
 	if err := rejectUnknownFlags(flags, allowed); err != nil {
 		return conn, err
 	}
+	conn.Config = canonicalizeConfig(schema, conn.Config)
+	normalized, err := normalizeSavedSecretReferences(schema, conn.Config)
+	if err != nil {
+		return conn, fmt.Errorf("%s %q: %w", kind, name, err)
+	}
+	conn.Config = normalized
 	return conn, nil
 }
 
