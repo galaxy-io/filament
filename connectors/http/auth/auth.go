@@ -70,19 +70,28 @@ func Register(kind string, f Factory) {
 // returns (nil, nil) — the connector treats that as "no auth" and skips
 // Apply. Non-empty unknown kinds error. There is no "none" authenticator.
 //
-// creds populates the `config.*` template scope used to validate templated
-// string params at Build time. A `{{ config.X }}` placeholder that doesn't
-// resolve against creds (and has no `default`) fails fast with a clear
-// error instead of surfacing as a 401 on the first live request.
+// creds populates the config template scope used to validate templated string
+// params at Build time. A placeholder that doesn't resolve (and has no
+// `default`) fails fast with a clear error instead of surfacing as a 401 on
+// the first live request.
 //
-// Pass nil creds to skip Build-time validation entirely — useful in tests
-// that exercise Apply against a runtime-supplied scope. Production callers
-// (the connector) always thread the connector's `config.*` map through.
+// Pass nil creds to skip Build-time validation entirely — useful in tests that
+// exercise Apply against a runtime-supplied scope.
 func Build(kind string, params map[string]any, creds map[string]string) (Authenticator, error) {
+	return build(kind, params, creds, nil)
+}
+
+// BuildWithEnvironment is Build with process environment values available to
+// env.* auth templates during eager validation.
+func BuildWithEnvironment(kind string, params map[string]any, creds, env map[string]string) (Authenticator, error) {
+	return build(kind, params, creds, env)
+}
+
+func build(kind string, params map[string]any, creds, env map[string]string) (Authenticator, error) {
 	if kind == "" {
 		return nil, nil
 	}
-	if err := validateParamTemplates(kind, params, creds); err != nil {
+	if err := validateParamTemplates(kind, params, creds, env); err != nil {
 		return nil, err
 	}
 	mu.RLock()
@@ -113,17 +122,17 @@ func buildSubAuth(kind string, params map[string]any) (Authenticator, error) {
 }
 
 // validateParamTemplates renders every templated string param against the
-// supplied creds. The render result is discarded — Apply re-renders against
-// the per-request scope (which has Config plus state/parent/cursor). The
-// purpose here is to catch missing config keys at Configure time so manifest
-// authors see a startup error, not a runtime 401.
+// supplied config and environment. The render result is discarded — Apply
+// re-renders against the per-request scope. The purpose here is to catch
+// missing keys at Configure time so manifest authors see a startup error, not
+// a runtime 401.
 //
-// nil creds means "skip validation" — see Build's contract.
-func validateParamTemplates(kind string, params map[string]any, creds map[string]string) error {
-	if creds == nil || len(params) == 0 {
+// Both maps nil means "skip validation" — see Build's contract.
+func validateParamTemplates(kind string, params map[string]any, creds, env map[string]string) error {
+	if (creds == nil && env == nil) || len(params) == 0 {
 		return nil
 	}
-	scope := template.Scope{Config: creds}
+	scope := template.Scope{Config: creds, Env: env}
 	for k, v := range params {
 		if err := validateLeaf(kind, k, v, scope); err != nil {
 			return err
