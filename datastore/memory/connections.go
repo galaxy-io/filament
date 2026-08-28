@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -70,10 +71,10 @@ func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connect
 	return cloneConnection(c), nil
 }
 
-// ListConnections returns connections matching the filter, sorted by ID.
-func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter) ([]filament.Connection, error) {
+// ListConnections returns one filtered, sorted page and its pre-page total.
+func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter) ([]filament.Connection, int, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -86,6 +87,9 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 			if f.Kind != filament.ConnectorKindUnspecified && c.Kind != f.Kind {
 				continue
 			}
+			if !matchesSearch(f.Search, c.Name, c.Connector) {
+				continue
+			}
 			out = append(out, cloneConnection(c))
 		}
 	}
@@ -93,8 +97,27 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 	if f.IncludeDeleted {
 		appendMatching(s.deletedConnections)
 	}
-	slices.SortFunc(out, func(a, b filament.Connection) int { return strings.Compare(a.ID, b.ID) })
-	return out, nil
+	slices.SortFunc(out, func(a, b filament.Connection) int {
+		var comparison int
+		switch f.SortBy {
+		case "name":
+			comparison = strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+		case "connector":
+			comparison = strings.Compare(strings.ToLower(a.Connector), strings.ToLower(b.Connector))
+		case "created_at":
+			comparison = cmp.Compare(a.CreatedAt, b.CreatedAt)
+		case "updated_at":
+			comparison = cmp.Compare(a.UpdatedAt, b.UpdatedAt)
+		default:
+			comparison = strings.Compare(a.ID, b.ID)
+		}
+		if comparison == 0 {
+			comparison = strings.Compare(a.ID, b.ID)
+		}
+		return ordered(comparison, f.SortDescending)
+	})
+	total := len(out)
+	return pageSlice(out, f.Offset, f.Limit), total, nil
 }
 
 // DeleteConnection soft-deletes the connection with the given ID; deleting a

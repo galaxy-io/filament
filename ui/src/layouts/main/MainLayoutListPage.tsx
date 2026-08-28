@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import { type PropsWithChildren, type ReactNode, useEffect, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
@@ -7,9 +7,12 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import { useDebouncedValue } from "@galaxy-io/dls/inputs/hooks";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
+
+import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
 
 const MainLayoutListPageScrollArea = styled.div<{ $noPadding?: boolean }>`
   flex: 1;
@@ -29,6 +32,14 @@ interface MainLayoutListPage {
   noPadding?: boolean;
 }
 
+interface MainLayoutListPageState {
+  search: string;
+}
+
+const DEFAULT_STATE: MainLayoutListPageState = {
+  search: "",
+};
+
 const MainLayoutListPage = ({
   actions,
   noPadding = false,
@@ -37,13 +48,26 @@ const MainLayoutListPage = ({
   const navigate = useNavigate();
   const { q = "" } = useSearch({ strict: false });
 
-  const handleSearchChange = (value: string) => {
+  const [state, setState] = useState<MainLayoutListPageState>(() => ({
+    ...DEFAULT_STATE,
+    search: q,
+  }));
+  const debouncedSearch = useDebouncedValue(state.search, LIST_SEARCH_DEBOUNCE_MS);
+
+  const handleSearchChange = (search: string) => {
+    setState((prev) => ({ ...prev, search }));
+  };
+
+  useEffect(() => {
+    if (debouncedSearch === q) {
+      return;
+    }
     void navigate({
       to: ".",
       replace: true,
-      search: (prev) => ({ ...prev, q: value || undefined }),
+      search: (prev) => ({ ...prev, q: debouncedSearch || undefined }),
     });
-  };
+  }, [debouncedSearch, q, navigate]);
 
   return (
     <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
@@ -51,7 +75,7 @@ const MainLayoutListPage = ({
         leadingActions={[
           <TextInput
             key="search"
-            value={q}
+            value={state.search}
             onChange={handleSearchChange}
             placeholder="Search"
             leading={{ icon: MagnifyingGlassIcon }}

@@ -1,9 +1,12 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -21,6 +24,12 @@ const (
 // ListConnectors returns the registered source and sink specs, optionally
 // filtered by kind.
 func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestionv1.ListConnectorsRequest]) (*connect.Response[ingestionv1.ListConnectorsResponse], error) {
+	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
+		ingestionv1.SortBy_SORT_BY_NAME: "name",
+	}, "registry", false)
+	if err != nil {
+		return nil, err
+	}
 	var connectors []*ingestionv1.ConnectorSpec
 	if req.Msg.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED || req.Msg.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE {
 		for _, spec := range a.sources.Specs() {
@@ -32,11 +41,47 @@ func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestio
 			connectors = append(connectors, sinkSpecToProto(spec))
 		}
 	}
-	page, pagination, err := pageOf(connectors, req.Msg.GetPagination())
-	if err != nil {
-		return nil, err
+	search := strings.ToLower(options.Search)
+	connectors = slices.DeleteFunc(connectors, func(spec *ingestionv1.ConnectorSpec) bool {
+		if search == "" {
+			return false
+		}
+		for _, field := range []string{spec.GetName(), spec.GetDisplayName(), spec.GetDescription()} {
+			if strings.Contains(strings.ToLower(field), search) {
+				return false
+			}
+		}
+		return true
+	})
+	slices.SortStableFunc(connectors, func(a, b *ingestionv1.ConnectorSpec) int {
+		var comparison int
+		switch options.SortBy {
+		case "name":
+			comparison = strings.Compare(strings.ToLower(a.GetName()), strings.ToLower(b.GetName()))
+		default:
+			comparison = cmp.Compare(a.GetKind(), b.GetKind())
+		}
+		if comparison == 0 {
+			comparison = strings.Compare(a.GetName(), b.GetName())
+		}
+		if options.SortDescending {
+			return -comparison
+		}
+		return comparison
+	})
+	total := len(connectors)
+	page := connectors
+	if req.Msg.GetPagination() != nil {
+		if options.Offset >= len(page) {
+			page = nil
+		} else {
+			page = page[options.Offset:]
+			if len(page) > options.Limit {
+				page = page[:options.Limit]
+			}
+		}
 	}
-	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: page, Pagination: pagination}), nil
+	return connect.NewResponse(&ingestionv1.ListConnectorsResponse{Connectors: page, Pagination: paginationOf(req.Msg.GetPagination(), options, total)}), nil
 }
 
 // GetConnector returns the spec for one registered connector.

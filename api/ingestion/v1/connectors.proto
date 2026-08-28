@@ -5,6 +5,7 @@ package ingestion.v1;
 import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
 import "ingestion/v1/pagination.proto";
+import "ingestion/v1/sorting.proto";
 
 // ConnectorSpec describes one registered source or sink connector.
 message ConnectorSpec {
@@ -32,6 +33,8 @@ message ListConnectorsRequest {
   string tenant_id = 1;
   ConnectorKind kind = 2;
   PaginationRequest pagination = 3;
+  string search = 4;
+  SortingRequest sorting = 5;
 }
 
 message ListConnectorsResponse {

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+enum SortBy {
+  SORT_BY_UNSPECIFIED = 0;
+  SORT_BY_NAME = 1;
+  SORT_BY_CREATED_AT = 2;
+  SORT_BY_UPDATED_AT = 3;
+}
+
+message SortingRequest {
+  SortOrder sort_order = 1;
+  SortBy sort_by = 2;
+}

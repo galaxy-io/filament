@@ -31,9 +31,10 @@ import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineCo
 
 import { Flow } from "@/routes/__root";
 
-import { useSuspenseListConnectionsInfiniteQuery } from "@/api/queries/connections";
-
-import { isSearchMatch } from "@/utils/search";
+import {
+  createListConnectionsInput,
+  useSuspenseListConnectionsInfiniteQuery,
+} from "@/api/queries/connections";
 
 interface ConnectionsPageProps {
   kind: ConnectorKind.SOURCE | ConnectorKind.SINK;
@@ -67,7 +68,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   };
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useSuspenseListConnectionsInfiniteQuery({ input: { kind } });
+    useSuspenseListConnectionsInfiniteQuery({ input: createListConnectionsInput(kind, { q }) });
   const kindConnections = useMemo(
     () => data.pages.flatMap((page) => page.connections),
     [data.pages],
@@ -84,11 +85,6 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
     return counts;
   }, [connectionIdsByPipelineId]);
 
-  const filteredConnections = useMemo(
-    () => kindConnections.filter((connection) => isSearchMatch(q, connection.name)),
-    [kindConnections, q],
-  );
-
   const handleConnectionClick = (connectionId: Connection["id"]) => {
     void navigate({
       to: ".",
@@ -97,7 +93,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
   };
 
   const renderContent = () => {
-    if (!kindConnections.length) {
+    if (!kindConnections.length && !q) {
       const EmptyGraphic = CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP[kind];
 
       return (
@@ -125,7 +121,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
       );
     }
 
-    if (!filteredConnections.length) {
+    if (!kindConnections.length) {
       return (
         <EmptyLayout
           icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
@@ -140,7 +136,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
           columns={`repeat(auto-fill, minmax(${CONNECTOR_GRID_MIN_COLUMN_WIDTH}px, 1fr))`}
           gap={12}
         >
-          {filteredConnections.map((connection) => (
+          {kindConnections.map((connection) => (
             <ConnectionCard
               key={connection.id}
               connection={connection}

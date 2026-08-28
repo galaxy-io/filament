@@ -26,6 +26,11 @@ import {
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
 import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
+import {
+  PIPELINES_TABLE_COLUMN_ID_PIPELINE,
+  type PipelinesTableSorting,
+  type PipelinesTableSortingChange,
+} from "@/pages/pipelines/components/table/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
 import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
@@ -44,15 +49,17 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     header: "Flow",
     size: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
     pin: ColumnPin.LEFT,
+    enableSorting: false,
     cellLoading: () => <TextShimmer width={120} height={18} />,
     cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
   },
   {
-    id: "pipeline",
+    id: PIPELINES_TABLE_COLUMN_ID_PIPELINE,
     header: "Pipeline",
     minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
     accessorFn: (pipeline) => pipeline.name,
     enableSorting: true,
+    sortDescFirst: false,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
   },
@@ -60,6 +67,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     id: "recentRuns",
     header: "Runs",
     size: PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
+    enableSorting: false,
     cellLoading: () => <TextShimmer width={136} height={18} />,
     cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row.original} />,
   },
@@ -67,12 +75,11 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     id: "lastRun",
     header: "Ran",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
-    accessorFn: (pipeline) => Number(pipeline.lastRun?.startedAt ?? 0n),
-    enableSorting: true,
+    enableSorting: false,
     cellLoading: () => <TextShimmer width={64} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isEllipsis>
-        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.startedAt) : "—"}
+        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.requestedAt) : "—"}
       </Text>
     ),
   },
@@ -80,8 +87,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     id: "status",
     header: "Status",
     size: PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
-    accessorFn: (pipeline) => pipeline.lastRun?.status ?? -1,
-    enableSorting: true,
+    enableSorting: false,
     cellLoading: () => <TextShimmer width={64} height={18} />,
     cell: ({ row }) =>
       row.original.lastRun ? (
@@ -99,11 +105,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     id: "lastDuration",
     header: "Duration",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
-    accessorFn: (pipeline) => {
-      const run = pipeline.lastRun;
-      return run?.startedAt && run.endedAt ? Number(run.endedAt - run.startedAt) : -1;
-    },
-    enableSorting: true,
+    enableSorting: false,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
@@ -118,8 +120,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     header: "Records",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
     align: ColumnAlign.RIGHT,
-    accessorFn: (pipeline) => Number(pipeline.lastRun?.records ?? 0n),
-    enableSorting: true,
+    enableSorting: false,
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
@@ -131,6 +132,8 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
 
 interface PipelinesTableProps {
   pipelines: Pipeline[];
+  sorting: PipelinesTableSorting;
+  onSortingChange: PipelinesTableSortingChange;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
   fetchNextPage?: () => void;
@@ -138,6 +141,8 @@ interface PipelinesTableProps {
 
 const PipelinesTable = ({
   pipelines,
+  sorting,
+  onSortingChange,
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
@@ -168,6 +173,9 @@ const PipelinesTable = ({
         isFetchingNextPage={isFetchingNextPage}
         fetchNextPage={fetchNextPage}
         enableSorting
+        manualSorting
+        sorting={sorting}
+        onSortingChange={onSortingChange}
         fillWidth
         fillHeight
       />

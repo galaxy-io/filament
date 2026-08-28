@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import ObservabilityPage from "@/pages/observability/ObservabilityPage";
@@ -22,6 +23,8 @@ const searchParams = z.object({
   statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
   runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
   runsStatus: z.enum(RunStatus).optional().catch(undefined),
+  sortBy: z.enum(SortBy).optional().catch(undefined),
+  sortOrder: z.enum(SortOrder).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_main/observability")({
