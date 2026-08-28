@@ -18,13 +18,13 @@ import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 import type { WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import { PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH } from "@/layouts/pipeline/constants";
 
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
   formatWorkerConfiguration,
   parseWorkerConfiguration,
 } from "@/pages/pipelines/components/worker/utils";
-import { PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH } from "@/pages/pipelines/layout/constants";
 
 interface PipelineLayoutNavbarRunButtonProps {
   workerConfiguration?: WorkerConfiguration;
