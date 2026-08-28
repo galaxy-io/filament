@@ -168,7 +168,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 			chosen = filament.IngestionCDCAppend
 		case ingestionv1.WriteMode_WRITE_MODE_MERGE:
 			writeMode = filament.WriteMerge
-			chosen = filament.IngestionCDC
+			chosen = filament.IngestionCDCMerge
 		default:
 			edgeError(ev, "write_mode", "CDC connections support append or merge write mode")
 			chosen = filament.IngestionCDCAppend
@@ -221,7 +221,7 @@ func supportedCDCWriteModesFor(sink filament.SinkSpec) []ingestionv1.WriteMode {
 		ingestion filament.IngestionType
 	}{
 		{filament.WriteAppend, filament.IngestionCDCAppend},
-		{filament.WriteMerge, filament.IngestionCDC},
+		{filament.WriteMerge, filament.IngestionCDCMerge},
 	} {
 		if filament.ValidateSinkIngestion(sink, candidate.ingestion) == nil {
 			out = append(out, writeModeToProto(candidate.mode))

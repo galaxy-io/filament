@@ -108,7 +108,7 @@ func IsCDC(types map[string]IngestionType) bool {
 // IsCDCIngestion reports whether an ingestion type reads a change stream.
 func IsCDCIngestion(t IngestionType) bool {
 	switch t.OrDefault() {
-	case IngestionCDC, IngestionCDCAppend:
+	case IngestionCDCMerge, IngestionCDCAppend:
 		return true
 	default:
 		return false
@@ -340,7 +340,7 @@ const (
 	IngestionIncrementalAppend IngestionType = "incremental_append"
 	IngestionIncrementalUpsert IngestionType = "incremental_upsert"
 	IngestionIncrementalDelete IngestionType = "incremental_delete"
-	IngestionCDC               IngestionType = "cdc"
+	IngestionCDCMerge          IngestionType = "cdc_merge"
 	IngestionCDCAppend         IngestionType = "cdc_append"
 )
 
@@ -646,7 +646,7 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 		capability.RequiresPK = true
 		capability.AcceptsOps = []Operation{OpDelete}
 		checkpoint = CheckpointAfterBatch
-	case IngestionCDC:
+	case IngestionCDCMerge:
 		capability.Mode = WriteMerge
 		capability.RequiresPK = true
 		capability.RequiresOrder = true
@@ -671,7 +671,7 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 // ingestion type.
 func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 	switch t.OrDefault() {
-	case IngestionCDC, IngestionCDCAppend:
+	case IngestionCDCMerge, IngestionCDCAppend:
 		return SourcePolicy{
 			Mode:          ModeCDC,
 			EmitsOps:      []Operation{OpInsert, OpUpdate, OpDelete},

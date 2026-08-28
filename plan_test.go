@@ -43,10 +43,10 @@ func TestValidateReplication(t *testing.T) {
 	if err := ValidateReplication(ReplicationStandard, IngestionIncrementalUpsert); err != nil {
 		t.Fatal(err)
 	}
-	if err := ValidateReplication(ReplicationCDC, IngestionCDC); err != nil {
+	if err := ValidateReplication(ReplicationCDC, IngestionCDCMerge); err != nil {
 		t.Fatal(err)
 	}
-	if err := ValidateReplication(ReplicationStandard, IngestionCDC); err == nil {
+	if err := ValidateReplication(ReplicationStandard, IngestionCDCMerge); err == nil {
 		t.Fatal("cdc on a standard connection must fail")
 	}
 	if err := ValidateReplication(ReplicationCDC, IngestionFullReplace); err == nil {

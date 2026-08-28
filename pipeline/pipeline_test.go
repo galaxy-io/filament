@@ -255,7 +255,7 @@ func TestPipelineHappyPath(t *testing.T) {
 func TestPipelineMaterializesCDCAuditColumns(t *testing.T) {
 	started := time.Date(2026, time.August, 28, 12, 30, 0, 123000000, time.UTC)
 	sink := &auditCaptureSink{}
-	policy := filament.WritePolicyForIngestion(filament.IngestionCDC)
+	policy := filament.WritePolicyForIngestion(filament.IngestionCDCMerge)
 	policy.Resource = "users"
 	p := New(Config{
 		Tenant: "t1", Run: "run-7", Sink: sink,

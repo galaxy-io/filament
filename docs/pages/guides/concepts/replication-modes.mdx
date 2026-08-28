@@ -54,7 +54,8 @@ the default when nothing is specified.
 | `full_append` | append | no | batch | none |
 | `incremental_append` | append | no | batch | after each batch |
 | `incremental_upsert` | upsert | yes | batch | after each batch |
-| `cdc` | merge | yes | batch | after commit |
+| `cdc_append` | append | yes | batch | after commit |
+| `cdc_merge` | merge | yes | batch | after commit |
 
 `ResolveIngestionPlan` validates every ingestion type in the run:
 

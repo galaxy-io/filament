@@ -28,7 +28,7 @@ func (leverSource) Spec() filament.ConnectorSpec {
 			filament.IngestionFullAppend,
 			filament.IngestionIncrementalAppend,
 			filament.IngestionIncrementalUpsert,
-			filament.IngestionCDC,
+			filament.IngestionCDCMerge,
 		),
 		Resources: filament.ResourceCapabilities{Discoverable: true},
 	}
@@ -86,7 +86,7 @@ func (leverSink) Spec() filament.SinkSpec {
 				filament.IngestionFullAppend,
 				filament.IngestionIncrementalAppend,
 				filament.IngestionIncrementalUpsert,
-				filament.IngestionCDC,
+				filament.IngestionCDCMerge,
 				filament.IngestionCDCAppend,
 			),
 		},

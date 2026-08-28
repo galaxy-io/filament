@@ -153,7 +153,7 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.Pi
 				ingestionType = filament.IngestionCDCAppend
 			case ingestionv1.WriteMode_WRITE_MODE_MERGE:
 				writeMode = filament.WriteMerge
-				ingestionType = filament.IngestionCDC
+				ingestionType = filament.IngestionCDCMerge
 			default:
 				return fmt.Errorf("edge %s -> %s: CDC connections support append or merge write mode", edge.GetFromNode(), edge.GetToNode())
 			}

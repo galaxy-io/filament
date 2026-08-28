@@ -124,7 +124,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionFullAppend,
 			filament.IngestionIncrementalAppend,
 			filament.IngestionIncrementalUpsert,
-			filament.IngestionCDC,
+			filament.IngestionCDCMerge,
 		),
 		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
 			{Name: "replication", Type: filament.FieldEnum, Default: replicationStandard, Enum: []filament.EnumOption{

@@ -216,7 +216,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	// Exercise the PostgreSQL sink's ordered merge path with the decoded stream.
 	dst := pgsink.New()
 	if err := dst.Open(ctx, filament.RunSpec{
-		Run: "cdc-sink", IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDC},
+		Run: "cdc-sink", IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDCMerge},
 		Sink: filament.Ref{Config: map[string]any{"dsn": pg.DSN(), "schema": "cdc_dst"}},
 	}); err != nil {
 		t.Fatal(err)
@@ -228,7 +228,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	if err := dst.EnsureSchema(ctx, "cdc_users", schema); err != nil {
 		t.Fatal(err)
 	}
-	policy := filament.WritePolicyForIngestion(filament.IngestionCDC)
+	policy := filament.WritePolicyForIngestion(filament.IngestionCDCMerge)
 	policy.Resource = "cdc_users"
 	policy.Keys = []string{"id"}
 	if err := applyAll(ctx, dst, initial.batchesFor("cdc_users"), policy); err != nil {

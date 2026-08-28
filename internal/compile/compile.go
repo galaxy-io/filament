@@ -143,7 +143,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 
 func cdcIngestionFor(writeMode filament.WriteMode) filament.IngestionType {
 	if writeMode == filament.WriteMerge {
-		return filament.IngestionCDC
+		return filament.IngestionCDCMerge
 	}
 	return filament.IngestionCDCAppend
 }

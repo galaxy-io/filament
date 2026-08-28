@@ -56,7 +56,7 @@ catalog and lists namespaces.
 ## Supported write modes
 
 The sink advertises `full_replace`, `full_append`, `full_upsert`,
-`incremental_upsert`, `incremental_delete`, and `cdc`. See
+`incremental_upsert`, `incremental_delete`, `cdc_append`, and `cdc_merge`. See
 [replication modes](/pages/guides/concepts/replication-modes). Delete support
 is real and advertised, so `incremental_delete` pipelines can hard-delete rows
 from Iceberg tables.
