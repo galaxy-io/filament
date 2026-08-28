@@ -1,7 +1,9 @@
-package s3
+// Package object registers the supported object-store connectors.
+package object
 
 import (
 	"github.com/galaxy-io/filament"
+	objects3 "github.com/galaxy-io/filament/connectors/object/s3"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -9,5 +11,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/object"
 func init() {
-	registry.RegisterSink("s3", func() filament.Sink { return New() })
+	registry.RegisterSink("s3", filament.MaturityAlpha, func() filament.Sink { return objects3.New() })
 }

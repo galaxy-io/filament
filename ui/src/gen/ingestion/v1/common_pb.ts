@@ -12,10 +12,105 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/common.proto.
  */
 export const file_ingestion_v1_common: GenFile = /*@__PURE__*/
-  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEiywIKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRImCgRlbnVtGAUgAygLMhguaW5nZXN0aW9uLnYxLkVudW1PcHRpb24SDAoEaGVscBgGIAEoCRInCgVzY29wZRgHIAEoDjIYLmluZ2VzdGlvbi52MS5GaWVsZFNjb3BlEg4KBnNlY3JldBgIIAEoCBIpCgZmaWVsZHMYCSADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQSMgoMdmlzaWJsZV93aGVuGAogASgLMhwuaW5nZXN0aW9uLnYxLkZpZWxkQ29uZGl0aW9uIioKCkVudW1PcHRpb24SDQoFdmFsdWUYASABKAkSDQoFbGFiZWwYAiABKAkiLwoORmllbGRDb25kaXRpb24SDQoFZmllbGQYASABKAkSDgoGdmFsdWVzGAIgAygJIjkKDENvbmZpZ1NjaGVtYRIpCgZmaWVsZHMYASADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQiygEKFVdyaXRlUG9saWN5Q2FwYWJpbGl0eRIlCgRtb2RlGAEgASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRITCgtyZXF1aXJlc19waxgCIAEoCBIWCg5yZXF1aXJlc19vcmRlchgDIAEoCBIsCgthY2NlcHRzX29wcxgEIAMoDjIXLmluZ2VzdGlvbi52MS5PcGVyYXRpb24SLwoJYXRvbWljaXR5GAUgASgOMhwuaW5nZXN0aW9uLnYxLldyaXRlQXRvbWljaXR5IqgBCgxTb3VyY2VQb2xpY3kSJAoEbW9kZRgBIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIqCgllbWl0c19vcHMYAiADKA4yFy5pbmdlc3Rpb24udjEuT3BlcmF0aW9uEg8KB29yZGVyZWQYAyABKAgSNQoNY2hlY2twb2ludGluZxgEIAEoDjIeLmluZ2VzdGlvbi52MS5DaGVja3BvaW50UG9saWN5KmMKDUNvbm5lY3RvcktpbmQSHgoaQ09OTkVDVE9SX0tJTkRfVU5TUEVDSUZJRUQQABIZChVDT05ORUNUT1JfS0lORF9TT1VSQ0UQARIXChNDT05ORUNUT1JfS0lORF9TSU5LEAIq2AEKCUZpZWxkVHlwZRIaChZGSUVMRF9UWVBFX1VOU1BFQ0lGSUVEEAASFQoRRklFTERfVFlQRV9TVFJJTkcQARISCg5GSUVMRF9UWVBFX0lOVBACEhMKD0ZJRUxEX1RZUEVfQk9PTBADEhUKEUZJRUxEX1RZUEVfU0VDUkVUEAQSFwoTRklFTERfVFlQRV9EVVJBVElPThAFEhMKD0ZJRUxEX1RZUEVfRU5VTRAGEhUKEUZJRUxEX1RZUEVfT0JKRUNUEAcSEwoPRklFTERfVFlQRV9MSVNUEAgqbAoPUmVwbGljYXRpb25Nb2RlEiAKHFJFUExJQ0FUSU9OX01PREVfVU5TUEVDSUZJRUQQABIdChlSRVBMSUNBVElPTl9NT0RFX1NUQU5EQVJEEAESGAoUUkVQTElDQVRJT05fTU9ERV9DREMQAipUCghSZWFkTW9kZRIZChVSRUFEX01PREVfVU5TUEVDSUZJRUQQABISCg5SRUFEX01PREVfRlVMTBABEhkKFVJFQURfTU9ERV9JTkNSRU1FTlRBTBACKmgKCU9wZXJhdGlvbhIZChVPUEVSQVRJT05fVU5TUEVDSUZJRUQQABIUChBPUEVSQVRJT05fSU5TRVJUEAESFAoQT1BFUkFUSU9OX1VQREFURRACEhQKEE9QRVJBVElPTl9ERUxFVEUQAyqdAgoNSW5nZXN0aW9uVHlwZRIeChpJTkdFU1RJT05fVFlQRV9VTlNQRUNJRklFRBAAEh8KG0lOR0VTVElPTl9UWVBFX0ZVTExfUkVQTEFDRRABEh4KGklOR0VTVElPTl9UWVBFX0ZVTExfVVBTRVJUEAISHgoaSU5HRVNUSU9OX1RZUEVfRlVMTF9BUFBFTkQQAxIlCiFJTkdFU1RJT05fVFlQRV9JTkNSRU1FTlRBTF9BUFBFTkQQBBIlCiFJTkdFU1RJT05fVFlQRV9JTkNSRU1FTlRBTF9VUFNFUlQQBRIlCiFJTkdFU1RJT05fVFlQRV9JTkNSRU1FTlRBTF9ERUxFVEUQBhIWChJJTkdFU1RJT05fVFlQRV9DREMQByqaAQoJV3JpdGVNb2RlEhoKFldSSVRFX01PREVfVU5TUEVDSUZJRUQQABIVChFXUklURV9NT0RFX0FQUEVORBABEhYKEldSSVRFX01PREVfUkVQTEFDRRACEhUKEVdSSVRFX01PREVfVVBTRVJUEAMSFQoRV1JJVEVfTU9ERV9ERUxFVEUQBBIUChBXUklURV9NT0RFX01FUkdFEAUqgwEKDldyaXRlQXRvbWljaXR5Eh8KG1dSSVRFX0FUT01JQ0lUWV9VTlNQRUNJRklFRBAAEhkKFVdSSVRFX0FUT01JQ0lUWV9CQVRDSBABEhwKGFdSSVRFX0FUT01JQ0lUWV9SRVNPVVJDRRACEhcKE1dSSVRFX0FUT01JQ0lUWV9SVU4QAyqYAQoQQ2hlY2twb2ludFBvbGljeRIhCh1DSEVDS1BPSU5UX1BPTElDWV9VTlNQRUNJRklFRBAAEhoKFkNIRUNLUE9JTlRfUE9MSUNZX05PTkUQARIhCh1DSEVDS1BPSU5UX1BPTElDWV9BRlRFUl9CQVRDSBACEiIKHkNIRUNLUE9JTlRfUE9MSUNZX0FGVEVSX0NPTU1JVBADKl8KCkZpZWxkU2NvcGUSGwoXRklFTERfU0NPUEVfVU5TUEVDSUZJRUQQABIaChZGSUVMRF9TQ09QRV9DT05ORUNUSU9OEAESGAoURklFTERfU0NPUEVfUElQRUxJTkUQAmIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("Chlpbmdlc3Rpb24vdjEvY29tbW9uLnByb3RvEgxpbmdlc3Rpb24udjEi6wEKD1dvcmtlclJlc291cmNlcxI9CghyZXF1ZXN0cxgBIAMoCzIrLmluZ2VzdGlvbi52MS5Xb3JrZXJSZXNvdXJjZXMuUmVxdWVzdHNFbnRyeRI5CgZsaW1pdHMYAiADKAsyKS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzLkxpbWl0c0VudHJ5Gi8KDVJlcXVlc3RzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARotCgtMaW1pdHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIlAKEFdvcmtlclRvbGVyYXRpb24SCwoDa2V5GAEgASgJEhAKCG9wZXJhdG9yGAIgASgJEg0KBXZhbHVlGAMgASgJEg4KBmVmZmVjdBgEIAEoCSL9AQoTV29ya2VyQ29uZmlndXJhdGlvbhIwCglyZXNvdXJjZXMYASABKAsyHS5pbmdlc3Rpb24udjEuV29ya2VyUmVzb3VyY2VzEkoKDW5vZGVfc2VsZWN0b3IYAiADKAsyMy5pbmdlc3Rpb24udjEuV29ya2VyQ29uZmlndXJhdGlvbi5Ob2RlU2VsZWN0b3JFbnRyeRIzCgt0b2xlcmF0aW9ucxgDIAMoCzIeLmluZ2VzdGlvbi52MS5Xb3JrZXJUb2xlcmF0aW9uGjMKEU5vZGVTZWxlY3RvckVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiywIKC0NvbmZpZ0ZpZWxkEgwKBG5hbWUYASABKAkSJQoEdHlwZRgCIAEoDjIXLmluZ2VzdGlvbi52MS5GaWVsZFR5cGUSEAoIcmVxdWlyZWQYAyABKAgSJwoHZGVmYXVsdBgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRImCgRlbnVtGAUgAygLMhguaW5nZXN0aW9uLnYxLkVudW1PcHRpb24SDAoEaGVscBgGIAEoCRInCgVzY29wZRgHIAEoDjIYLmluZ2VzdGlvbi52MS5GaWVsZFNjb3BlEg4KBnNlY3JldBgIIAEoCBIpCgZmaWVsZHMYCSADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQSMgoMdmlzaWJsZV93aGVuGAogASgLMhwuaW5nZXN0aW9uLnYxLkZpZWxkQ29uZGl0aW9uIioKCkVudW1PcHRpb24SDQoFdmFsdWUYASABKAkSDQoFbGFiZWwYAiABKAkiLwoORmllbGRDb25kaXRpb24SDQoFZmllbGQYASABKAkSDgoGdmFsdWVzGAIgAygJIjkKDENvbmZpZ1NjaGVtYRIpCgZmaWVsZHMYASADKAsyGS5pbmdlc3Rpb24udjEuQ29uZmlnRmllbGQqYwoNQ29ubmVjdG9yS2luZBIeChpDT05ORUNUT1JfS0lORF9VTlNQRUNJRklFRBAAEhkKFUNPTk5FQ1RPUl9LSU5EX1NPVVJDRRABEhcKE0NPTk5FQ1RPUl9LSU5EX1NJTksQAirYAQoJRmllbGRUeXBlEhoKFkZJRUxEX1RZUEVfVU5TUEVDSUZJRUQQABIVChFGSUVMRF9UWVBFX1NUUklORxABEhIKDkZJRUxEX1RZUEVfSU5UEAISEwoPRklFTERfVFlQRV9CT09MEAMSFQoRRklFTERfVFlQRV9TRUNSRVQQBBIXChNGSUVMRF9UWVBFX0RVUkFUSU9OEAUSEwoPRklFTERfVFlQRV9FTlVNEAYSFQoRRklFTERfVFlQRV9PQkpFQ1QQBxITCg9GSUVMRF9UWVBFX0xJU1QQCCpsCg9SZXBsaWNhdGlvbk1vZGUSIAocUkVQTElDQVRJT05fTU9ERV9VTlNQRUNJRklFRBAAEh0KGVJFUExJQ0FUSU9OX01PREVfU1RBTkRBUkQQARIYChRSRVBMSUNBVElPTl9NT0RFX0NEQxACKlQKCFJlYWRNb2RlEhkKFVJFQURfTU9ERV9VTlNQRUNJRklFRBAAEhIKDlJFQURfTU9ERV9GVUxMEAESGQoVUkVBRF9NT0RFX0lOQ1JFTUVOVEFMEAIqbQoJV3JpdGVNb2RlEhoKFldSSVRFX01PREVfVU5TUEVDSUZJRUQQABIVChFXUklURV9NT0RFX0FQUEVORBABEhYKEldSSVRFX01PREVfUkVQTEFDRRACEhUKEVdSSVRFX01PREVfVVBTRVJUEAMqXwoKRmllbGRTY29wZRIbChdGSUVMRF9TQ09QRV9VTlNQRUNJRklFRBAAEhoKFkZJRUxEX1NDT1BFX0NPTk5FQ1RJT04QARIYChRGSUVMRF9TQ09QRV9QSVBFTElORRACYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
- * ConfigField mirrors pkg.ConfigField.
+ * WorkerResources sizes the worker that executes a run, shaped like a Kubernetes
+ * ResourceRequirements: resource name ("cpu", "memory") to quantity string
+ * ("500m", "2Gi"). A missing key is unset and inherits, and only the Kubernetes
+ * dispatcher consults them.
+ *
+ * @generated from message ingestion.v1.WorkerResources
+ */
+export type WorkerResources = Message<"ingestion.v1.WorkerResources"> & {
+  /**
+   * @generated from field: map<string, string> requests = 1;
+   */
+  requests: { [key: string]: string };
+
+  /**
+   * @generated from field: map<string, string> limits = 2;
+   */
+  limits: { [key: string]: string };
+};
+
+/**
+ * Describes the message ingestion.v1.WorkerResources.
+ * Use `create(WorkerResourcesSchema)` to create a new message.
+ */
+export const WorkerResourcesSchema: GenMessage<WorkerResources> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 0);
+
+/**
+ * WorkerToleration mirrors a Kubernetes toleration. Fields are the Kubernetes
+ * strings verbatim: operator "Equal" (default) or "Exists"; effect
+ * "NoSchedule", "PreferNoSchedule", "NoExecute", or empty to match all.
+ *
+ * @generated from message ingestion.v1.WorkerToleration
+ */
+export type WorkerToleration = Message<"ingestion.v1.WorkerToleration"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string operator = 2;
+   */
+  operator: string;
+
+  /**
+   * @generated from field: string value = 3;
+   */
+  value: string;
+
+  /**
+   * @generated from field: string effect = 4;
+   */
+  effect: string;
+};
+
+/**
+ * Describes the message ingestion.v1.WorkerToleration.
+ * Use `create(WorkerTolerationSchema)` to create a new message.
+ */
+export const WorkerTolerationSchema: GenMessage<WorkerToleration> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 1);
+
+/**
+ * WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
+ * a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
+ * merge per key when a run overrides a pipeline; node_selector and tolerations
+ * replace wholesale.
+ *
+ * @generated from message ingestion.v1.WorkerConfiguration
+ */
+export type WorkerConfiguration = Message<"ingestion.v1.WorkerConfiguration"> & {
+  /**
+   * @generated from field: ingestion.v1.WorkerResources resources = 1;
+   */
+  resources?: WorkerResources | undefined;
+
+  /**
+   * @generated from field: map<string, string> node_selector = 2;
+   */
+  nodeSelector: { [key: string]: string };
+
+  /**
+   * @generated from field: repeated ingestion.v1.WorkerToleration tolerations = 3;
+   */
+  tolerations: WorkerToleration[];
+};
+
+/**
+ * Describes the message ingestion.v1.WorkerConfiguration.
+ * Use `create(WorkerConfigurationSchema)` to create a new message.
+ */
+export const WorkerConfigurationSchema: GenMessage<WorkerConfiguration> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_common, 2);
+
+/**
+ * ConfigField describes one connector configuration field.
  *
  * @generated from message ingestion.v1.ConfigField
  */
@@ -83,7 +178,7 @@ export type ConfigField = Message<"ingestion.v1.ConfigField"> & {
  * Use `create(ConfigFieldSchema)` to create a new message.
  */
 export const ConfigFieldSchema: GenMessage<ConfigField> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 0);
+  messageDesc(file_ingestion_v1_common, 3);
 
 /**
  * EnumOption is one ordered choice for an enum or list config field.
@@ -107,7 +202,7 @@ export type EnumOption = Message<"ingestion.v1.EnumOption"> & {
  * Use `create(EnumOptionSchema)` to create a new message.
  */
 export const EnumOptionSchema: GenMessage<EnumOption> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 1);
+  messageDesc(file_ingestion_v1_common, 4);
 
 /**
  * @generated from message ingestion.v1.FieldCondition
@@ -129,10 +224,10 @@ export type FieldCondition = Message<"ingestion.v1.FieldCondition"> & {
  * Use `create(FieldConditionSchema)` to create a new message.
  */
 export const FieldConditionSchema: GenMessage<FieldCondition> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 2);
+  messageDesc(file_ingestion_v1_common, 5);
 
 /**
- * ConfigSchema mirrors pkg.ConfigSchema.
+ * ConfigSchema describes the configuration accepted by a connector.
  *
  * @generated from message ingestion.v1.ConfigSchema
  */
@@ -148,79 +243,7 @@ export type ConfigSchema = Message<"ingestion.v1.ConfigSchema"> & {
  * Use `create(ConfigSchemaSchema)` to create a new message.
  */
 export const ConfigSchemaSchema: GenMessage<ConfigSchema> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 3);
-
-/**
- * @generated from message ingestion.v1.WritePolicyCapability
- */
-export type WritePolicyCapability = Message<"ingestion.v1.WritePolicyCapability"> & {
-  /**
-   * @generated from field: ingestion.v1.WriteMode mode = 1;
-   */
-  mode: WriteMode;
-
-  /**
-   * @generated from field: bool requires_pk = 2;
-   */
-  requiresPk: boolean;
-
-  /**
-   * @generated from field: bool requires_order = 3;
-   */
-  requiresOrder: boolean;
-
-  /**
-   * @generated from field: repeated ingestion.v1.Operation accepts_ops = 4;
-   */
-  acceptsOps: Operation[];
-
-  /**
-   * @generated from field: ingestion.v1.WriteAtomicity atomicity = 5;
-   */
-  atomicity: WriteAtomicity;
-};
-
-/**
- * Describes the message ingestion.v1.WritePolicyCapability.
- * Use `create(WritePolicyCapabilitySchema)` to create a new message.
- */
-export const WritePolicyCapabilitySchema: GenMessage<WritePolicyCapability> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 4);
-
-/**
- * @generated from message ingestion.v1.SourcePolicy
- */
-export type SourcePolicy = Message<"ingestion.v1.SourcePolicy"> & {
-  /**
-   * The engine read mechanism; CDC policies report READ_MODE_UNSPECIFIED
-   * since the stream is not a per-table read.
-   *
-   * @generated from field: ingestion.v1.ReadMode mode = 1;
-   */
-  mode: ReadMode;
-
-  /**
-   * @generated from field: repeated ingestion.v1.Operation emits_ops = 2;
-   */
-  emitsOps: Operation[];
-
-  /**
-   * @generated from field: bool ordered = 3;
-   */
-  ordered: boolean;
-
-  /**
-   * @generated from field: ingestion.v1.CheckpointPolicy checkpointing = 4;
-   */
-  checkpointing: CheckpointPolicy;
-};
-
-/**
- * Describes the message ingestion.v1.SourcePolicy.
- * Use `create(SourcePolicySchema)` to create a new message.
- */
-export const SourcePolicySchema: GenMessage<SourcePolicy> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_common, 5);
+  messageDesc(file_ingestion_v1_common, 6);
 
 /**
  * ConnectorKind distinguishes a source from a sink in the catalog.
@@ -251,7 +274,7 @@ export const ConnectorKindSchema: GenEnum<ConnectorKind> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 0);
 
 /**
- * FieldType mirrors pkg.FieldType; drives UI form controls for config fields.
+ * FieldType drives UI form controls for connector configuration fields.
  *
  * @generated from enum ingestion.v1.FieldType
  */
@@ -341,8 +364,7 @@ export const ReplicationModeSchema: GenEnum<ReplicationMode> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 2);
 
 /**
- * ReadMode is the per-table read lever on standard connections: reread the
- * whole table each run, or only rows past a cursor column.
+ * ReadMode is the per-resource read lever on Standard connections.
  *
  * @generated from enum ingestion.v1.ReadMode
  */
@@ -370,95 +392,8 @@ export const ReadModeSchema: GenEnum<ReadMode> = /*@__PURE__*/
   enumDesc(file_ingestion_v1_common, 3);
 
 /**
- * @generated from enum ingestion.v1.Operation
- */
-export enum Operation {
-  /**
-   * @generated from enum value: OPERATION_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: OPERATION_INSERT = 1;
-   */
-  INSERT = 1,
-
-  /**
-   * @generated from enum value: OPERATION_UPDATE = 2;
-   */
-  UPDATE = 2,
-
-  /**
-   * @generated from enum value: OPERATION_DELETE = 3;
-   */
-  DELETE = 3,
-}
-
-/**
- * Describes the enum ingestion.v1.Operation.
- */
-export const OperationSchema: GenEnum<Operation> = /*@__PURE__*/
-  enumDesc(file_ingestion_v1_common, 4);
-
-/**
- * IngestionType is named {read}_{write}: what the source reads crossed with
- * how the sink lands it. Derived by the server from read_mode, write_mode,
- * and the connection's replication mode — never set by clients.
- *
- * @generated from enum ingestion.v1.IngestionType
- */
-export enum IngestionType {
-  /**
-   * @generated from enum value: INGESTION_TYPE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: INGESTION_TYPE_FULL_REPLACE = 1;
-   */
-  FULL_REPLACE = 1,
-
-  /**
-   * @generated from enum value: INGESTION_TYPE_FULL_UPSERT = 2;
-   */
-  FULL_UPSERT = 2,
-
-  /**
-   * @generated from enum value: INGESTION_TYPE_FULL_APPEND = 3;
-   */
-  FULL_APPEND = 3,
-
-  /**
-   * @generated from enum value: INGESTION_TYPE_INCREMENTAL_APPEND = 4;
-   */
-  INCREMENTAL_APPEND = 4,
-
-  /**
-   * @generated from enum value: INGESTION_TYPE_INCREMENTAL_UPSERT = 5;
-   */
-  INCREMENTAL_UPSERT = 5,
-
-  /**
-   * @generated from enum value: INGESTION_TYPE_INCREMENTAL_DELETE = 6;
-   */
-  INCREMENTAL_DELETE = 6,
-
-  /**
-   * @generated from enum value: INGESTION_TYPE_CDC = 7;
-   */
-  CDC = 7,
-}
-
-/**
- * Describes the enum ingestion.v1.IngestionType.
- */
-export const IngestionTypeSchema: GenEnum<IngestionType> = /*@__PURE__*/
-  enumDesc(file_ingestion_v1_common, 5);
-
-/**
- * WriteMode is the sink write lever: append keeps the history of every load;
- * replace, upsert, and append_dedupe manage current state. Delete and merge
- * are engine mechanisms, never offered as levers.
+ * WriteMode is the destination-route write lever. Delete and merge are engine
+ * mechanisms and are not user-selectable write modes.
  *
  * @generated from enum ingestion.v1.WriteMode
  */
@@ -482,85 +417,13 @@ export enum WriteMode {
    * @generated from enum value: WRITE_MODE_UPSERT = 3;
    */
   UPSERT = 3,
-
-  /**
-   * @generated from enum value: WRITE_MODE_DELETE = 4;
-   */
-  DELETE = 4,
-
-  /**
-   * @generated from enum value: WRITE_MODE_MERGE = 5;
-   */
-  MERGE = 5,
 }
 
 /**
  * Describes the enum ingestion.v1.WriteMode.
  */
 export const WriteModeSchema: GenEnum<WriteMode> = /*@__PURE__*/
-  enumDesc(file_ingestion_v1_common, 6);
-
-/**
- * @generated from enum ingestion.v1.WriteAtomicity
- */
-export enum WriteAtomicity {
-  /**
-   * @generated from enum value: WRITE_ATOMICITY_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: WRITE_ATOMICITY_BATCH = 1;
-   */
-  BATCH = 1,
-
-  /**
-   * @generated from enum value: WRITE_ATOMICITY_RESOURCE = 2;
-   */
-  RESOURCE = 2,
-
-  /**
-   * @generated from enum value: WRITE_ATOMICITY_RUN = 3;
-   */
-  RUN = 3,
-}
-
-/**
- * Describes the enum ingestion.v1.WriteAtomicity.
- */
-export const WriteAtomicitySchema: GenEnum<WriteAtomicity> = /*@__PURE__*/
-  enumDesc(file_ingestion_v1_common, 7);
-
-/**
- * @generated from enum ingestion.v1.CheckpointPolicy
- */
-export enum CheckpointPolicy {
-  /**
-   * @generated from enum value: CHECKPOINT_POLICY_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: CHECKPOINT_POLICY_NONE = 1;
-   */
-  NONE = 1,
-
-  /**
-   * @generated from enum value: CHECKPOINT_POLICY_AFTER_BATCH = 2;
-   */
-  AFTER_BATCH = 2,
-
-  /**
-   * @generated from enum value: CHECKPOINT_POLICY_AFTER_COMMIT = 3;
-   */
-  AFTER_COMMIT = 3,
-}
-
-/**
- * Describes the enum ingestion.v1.CheckpointPolicy.
- */
-export const CheckpointPolicySchema: GenEnum<CheckpointPolicy> = /*@__PURE__*/
-  enumDesc(file_ingestion_v1_common, 8);
+  enumDesc(file_ingestion_v1_common, 4);
 
 /**
  * @generated from enum ingestion.v1.FieldScope
@@ -586,5 +449,5 @@ export enum FieldScope {
  * Describes the enum ingestion.v1.FieldScope.
  */
 export const FieldScopeSchema: GenEnum<FieldScope> = /*@__PURE__*/
-  enumDesc(file_ingestion_v1_common, 9);
+  enumDesc(file_ingestion_v1_common, 5);
 

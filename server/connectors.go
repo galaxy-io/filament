@@ -44,25 +44,44 @@ func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv
 	var spec *ingestionv1.ConnectorSpec
 	switch req.Msg.GetKind() {
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
-		source, err := a.sources.Resolve(req.Msg.GetConnector())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, err)
+		if catalog, ok := a.sources.(interface {
+			Spec(string) (filament.ConnectorSpec, error)
+		}); ok {
+			sourceSpec, err := catalog.Spec(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sourceSpecToProto(sourceSpec)
+		} else {
+			source, err := a.sources.Resolve(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sourceSpecToProto(source.Spec())
 		}
-		spec = sourceSpecToProto(source.Spec())
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
-		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, err)
+		if catalog, ok := a.sinks.(interface {
+			Spec(string) (filament.SinkSpec, error)
+		}); ok {
+			sinkSpec, err := catalog.Spec(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sinkSpecToProto(sinkSpec)
+		} else {
+			sink, err := a.sinks.Resolve(req.Msg.GetConnector())
+			if err != nil {
+				return nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			spec = sinkSpecToProto(sink.Spec())
 		}
-		spec = sinkSpecToProto(sink.Spec())
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("connector kind is required"))
 	}
 	return connect.NewResponse(&ingestionv1.GetConnectorResponse{Connector: spec}), nil
 }
 
-// ValidateConfig checks a connector config against its schema, optionally
-// testing the live connection.
+// ValidateConfig checks a connector config against its schema.
 func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingestionv1.ValidateConfigRequest]) (*connect.Response[ingestionv1.ValidateConfigResponse], error) {
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
@@ -81,42 +100,61 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		}
 		config = overlayConfig(conn.Config, config)
 	}
-	cfg := filament.NewConfig(config)
 	switch req.Msg.GetKind() {
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
 		source, err := a.sources.Resolve(req.Msg.GetConnector())
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		canonicalizeConnectionConfig(source.Spec().Config, config, nil)
+		cfg := filament.NewConfig(config)
+		if err := validateConfigSchema(source.Spec().Config, cfg); err != nil {
+			return connect.NewResponse(schemaValidationError(err)), nil
 		}
 		if err := source.Validate(cfg); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
-		if req.Msg.GetLive() {
-			if live, ok := source.(filament.LiveValidatable); ok {
-				if err := live.TestConnection(ctx, cfg); err != nil {
-					return connect.NewResponse(validationError(err.Error())), nil
-				}
-			}
-		}
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
 		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
-		if err := validateConfigSchema(sink.Spec().Config, cfg, filament.ScopeConnection); err != nil {
-			return connect.NewResponse(validationError(err.Error())), nil
+		canonicalizeConnectionConfig(sink.Spec().Config, config, nil)
+		cfg := filament.NewConfig(config)
+		if err := validateConfigSchema(sink.Spec().Config, cfg); err != nil {
+			return connect.NewResponse(schemaValidationError(err)), nil
 		}
-		if req.Msg.GetLive() {
-			if live, ok := sink.(filament.LiveValidatable); ok {
-				if err := live.TestConnection(ctx, cfg); err != nil {
-					return connect.NewResponse(validationError(err.Error())), nil
-				}
+		if validator, ok := sink.(filament.ConfigValidatable); ok {
+			if err := validator.Validate(cfg); err != nil {
+				return connect.NewResponse(validationError(err.Error())), nil
 			}
 		}
 	default:
 		return connect.NewResponse(validationError("connector kind is required")), nil
 	}
 	return connect.NewResponse(&ingestionv1.ValidateConfigResponse{Valid: true}), nil
+}
+
+func (a *Server) validateConnectionConnectorConfig(kind ingestionv1.ConnectorKind, connector string, cfg filament.Config) error {
+	switch kind {
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
+		source, err := a.sources.Resolve(connector)
+		if err != nil {
+			return err
+		}
+		return source.Validate(cfg)
+	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
+		sink, err := a.sinks.Resolve(connector)
+		if err != nil {
+			return err
+		}
+		if validator, ok := sink.(filament.ConfigValidatable); ok {
+			return validator.Validate(cfg)
+		}
+		return nil
+	default:
+		return fmt.Errorf("connector kind is required")
+	}
 }
 
 // DiscoverResources configures the source and lists its selectable resources.
@@ -145,21 +183,21 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 
 	source, err := a.sources.Resolve(connector)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	cfg := filament.NewConfig(config)
 	if err := source.Configure(ctx, cfg); err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	defer func() { _ = source.Teardown(ctx) }()
 
 	discoverable, ok := source.(filament.Discoverable)
 	if !ok {
-		return nil, fmt.Errorf("connector %q does not support discovery", req.Msg.GetConnector())
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not support discovery", connector))
 	}
 	result, err := discoverable.Discover(ctx, filament.DiscoverOpts{Refresh: req.Msg.GetRefresh()})
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(resourcesToProto(result.Resources)), nil
 }
@@ -190,10 +228,10 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 	}
 	source, err := a.sources.Resolve(connector)
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	defer func() { _ = source.Teardown(ctx) }()
 
@@ -219,7 +257,7 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			}
 		}
 		if err != nil {
-			return nil, fmt.Errorf("resource columns %q: %w", resource, err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource columns %q: %w", resource, err))
 		}
 		out := cursorColumnsToProto(columns)
 		response.Resources = append(response.Resources, &ingestionv1.ResourceColumns{Resource: resource, Columns: out})
@@ -232,10 +270,10 @@ func cursorColumnsToProto(columns []filament.CursorColumn) []*ingestionv1.Resour
 	for _, column := range columns {
 		out = append(out, &ingestionv1.ResourceColumn{
 			Name: column.Name, LogicalType: string(column.Logical), NativeType: column.Native,
-			Nullable: column.Nullable, PrimaryKey: column.PrimaryKey,
-			CursorEligible: column.Eligible, CursorRecommended: column.Recommended,
+			IsNullable: column.Nullable, IsPrimaryKey: column.PrimaryKey,
+			IsCursorEligible: column.Eligible, IsCursorRecommended: column.Recommended,
 			RecommendationRank: int32(column.Rank), Warning: column.Warning, //nolint:gosec // tiny rank
-			Configurable: column.Configurable, SupportsLookback: column.SupportsLookback,
+			IsConfigurable: column.Configurable, SupportsLookback: column.SupportsLookback,
 		})
 	}
 	return out

@@ -16,10 +16,21 @@ data:
   # Dispatch
   DISPATCH_MODE: {{ .Values.controlPlane.dispatch.mode | quote }}
 
+  # Health
+  HEALTH_ADDR: ":{{ .Values.controlPlane.health.port }}"
+
+  # Reaper
+  {{- with .Values.controlPlane.reaper.intervalSeconds }}
+  REAPER_INTERVAL_SECONDS: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.controlPlane.reaper.staleAfterSeconds }}
+  REAPER_STALE_AFTER_SECONDS: {{ . | quote }}
+  {{- end }}
+
   # Observability
   {{- with .Values.observability.otel.endpoint }}
-  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   OTEL_SERVICE_NAME: {{ include "filament.controlPlane.fullname" $ | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
   {{- with $.Values.observability.otel.protocol }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
   {{- end }}
@@ -49,6 +60,8 @@ data:
   K8S_WORKER_SERVICE_ACCOUNT: {{ include "filament.worker.serviceAccountName" . | quote }}
   K8S_WORKER_RESTART_POLICY: {{ .Values.controlPlane.dispatch.worker.restartPolicy | quote }}
   K8S_WORKER_SECRET_NAME: {{ include "filament.secretName" . | quote }}
+  K8S_WORKER_CONFIGMAP_NAME: {{ include "filament.worker.fullname" . | quote }}
+  K8S_WORKER_APP_NAME: {{ include "filament.name" . | quote }}
   {{- with .Values.controlPlane.dispatch.worker.terminationGraceSeconds }}
   K8S_WORKER_TERMINATION_GRACE_SECONDS: {{ . | quote }}
   {{- end }}

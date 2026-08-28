@@ -192,7 +192,7 @@ func (MetricGranularity) EnumDescriptor() ([]byte, []int) {
 }
 
 // MetricFilter narrows a query; values are dimension values as strings
-// (a RunStatus number, a pipeline id, a provider name).
+// (a RunStatus number or a pipeline id).
 type MetricFilter struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Dimension     MetricDimension        `protobuf:"varint,1,opt,name=dimension,proto3,enum=metrics.v1.MetricDimension" json:"dimension,omitempty"`

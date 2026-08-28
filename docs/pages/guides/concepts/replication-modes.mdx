@@ -1,64 +1,96 @@
 ---
-title: "Replication Modes"
-description: "How connections, tables, and sinks decide the way data moves."
-icon: "arrows-rotate"
+title: "Replication modes"
+description: "Read modes, write modes, and the ingestion types they compile to"
 ---
 
-How data moves is decided by three choices made at two different times.
+Two levers set Filament's replication behavior. One is how a resource is
+read (full, incremental, or CDC), the other how it is written (append,
+replace, or upsert). The engine compiles each pair into an ingestion type that fixes the
+sink mode, key requirements, atomicity, and checkpoint behavior.
 
-## Replication mode
+## Replication mode is a connection property
 
-A connection replicates in one of two modes, chosen when the source connection
-is created. Standard connections read with queries. CDC connections stream
-changes from the database's log and need database side preparation, such as
-logical replication on PostgreSQL. APIs are always standard, so they show no
-choice at all.
+A source connection is either **standard** or **CDC** (`ReplicationMode`,
+resolved from the connection's config). Sources without CDC support are
+always standard. Standard connections read with queries, while CDC
+connections replicate from the database's change stream. The mode is
+immutable. To switch, create a new connection.
 
-Replication is a property of the connection. Pipelines built on a CDC
-connection never ask how to read. There are no cursors to pick and no per
-table options, because the change stream already carries every insert, update,
-and delete in order.
+Pipelines built on a CDC connection carry no read or write levers. The
+change stream defines the read, and CDC compiles to a `merge` write of
+ordered inserts, updates, and deletes.
 
-## Incremental write versions
+## Read and write modes
 
-For an incremental upsert, Filament resolves the selected read cursor into a
-per-resource `VersionPolicy` on the sink's `WritePolicy`. Sinks with
-insert-based upsert semantics can use that source field to order competing
-values for the same primary key. This is distinct from the durable checkpoint:
-the checkpoint says where the next read resumes, while the version policy says
-which already-written row is newer.
+Read mode is chosen per resource on standard connections:
 
-Snapshot upserts and sources that do not expose a safe row-level cursor use the
-sink's insertion-order conflict semantics; Filament does not synthesize a
-run-level version. A cursor is eligible for versioning only when it is present,
-non-null, and advances whenever the source row changes.
+| Read mode | Source behavior |
+|---|---|
+| `full` | Read every selected row on every run |
+| `incremental` | Backfill once, then read rows past a durable cursor |
 
-<Tip>
-  PostgreSQL is a good example of a source that picks its read strategy
-  dynamically even within a single mode — see [Postgres
-  source](/pages/connectors/sources/postgres) for how it chooses between keyset,
-  bitmap, and ctid-based scans.
-</Tip>
+There are three write modes:
 
-## Read mode
+- `append`: keep every extracted row version
+- `replace`: swap the destination for a fresh snapshot
+- `upsert`: one current row per primary key
 
-On a standard connection, each table chooses how it is read. Full rereads the
-whole table every run. Incremental reads only rows past a cursor column and
-needs one to exist. A table with a usable cursor column can go either way, and
-a recommended column is detected automatically when the user does not pick
-one. A table without one must be read in full.
+A `delete` write mode exists at the engine level (`incremental_delete`) but
+is not user-selectable. When no write mode is chosen, full reads default to
+replace and incremental reads to upsert.
 
-## Write mode
+Incremental cursors do not observe hard deletes — use CDC when deletions
+must propagate.
 
-Each sink declares how it can land records. Append keeps the history of every
-load. Replace and upsert keep the current state, with upsert available only on
-sinks that support merging by key and requiring a primary key on the table.
+## Compiled ingestion types
 
-## Derivation
+Each (read, write) pair compiles to an `IngestionType`. `full_replace` is
+the default when nothing is specified.
 
-The server compiles these choices into an internal ingestion type stored on
-each pipeline edge. Users never select it. A per resource edge carries its own
-read and write mode, which is how one pipeline mixes fully replicated tables
-with incremental ones. Validation answers with the same vocabulary the user
-chose from, reporting per table which read modes are possible, which cursor
-columns qualify, and what would fail at run time.
+| Ingestion type | Sink mode | Requires PK | Atomicity | Checkpoint |
+|---|---|---|---|---|
+| `full_replace` | replace | no | resource | none |
+| `full_upsert` | upsert | yes | batch | after each batch |
+| `full_append` | append | no | batch | none |
+| `incremental_append` | append | no | batch | after each batch |
+| `incremental_upsert` | upsert | yes | batch | after each batch |
+| `cdc` | merge | yes | batch | after commit |
+
+`ResolveIngestionPlan` validates every ingestion type in the run:
+
+- The connection's replication mode must match (CDC ingestion requires a CDC connection and vice versa)
+- The source must advertise a matching `SourcePolicy`
+- The sink must accept the write mode. Any sink can serve append and replace, and upsert falls back to the sink's `Upsertable` capability
+
+Where a primary key is required, it resolves from the source's schema or
+discovery. No key is an error.
+
+## Per-resource model
+
+Ingestion types are per resource. A run request carries an
+`IngestionTypes` map from resource name to type, where the `""` entry is
+the route default. Resources on one route may mix full and incremental
+freely. The one route invariant is CDC purity. Any CDC entry makes the
+whole run CDC, and CDC never mixes with other types on one route.
+
+## Version policy
+
+For upsert writes, the engine binds a `VersionPolicy` that tells the sink
+which of two rows with the same key is newer:
+
+- **`insert_order`**, for full reads (and sources without a usable cursor):
+  the sink's insertion or merge semantics decide conflicts.
+- **`cursor`**, for incremental reads: rows are ordered by the incremental
+  cursor field.
+
+The cursor field comes from the source's `CursorColumnProvider`. It is the
+field configured in `ResourceCursorConfig` (which can also set a lookback
+for sources that support it), or the connector's `Recommended` column when
+none is configured. A configured column that does not exist, or one that is not
+`Eligible`, fails plan resolution, as does having no recommended column
+and no configuration.
+
+This is distinct from the checkpoint. The checkpoint says where the next
+read resumes, and the version policy says which already-written row wins. See
+[Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints)
+for how cursors are persisted.

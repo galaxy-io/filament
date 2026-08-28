@@ -1,7 +1,7 @@
 import type { ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/providers_pb";
 
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
@@ -31,6 +31,7 @@ export interface CreatePipelineModalState {
   isNameTouched: boolean;
   description: Pipeline["description"];
   schedule: PipelineSettingsPageScheduleState;
+  workerConfiguration: string;
   isSubmitting: boolean;
 }
 
@@ -68,6 +69,7 @@ export interface CreatePipelineModalDerivedState {
   discoverError?: Error | null;
   effectiveName: Pipeline["name"];
   nameError?: string;
+  workerConfigurationError?: string;
   isNextDisabled: boolean;
   hints: string[];
   stepIndex: number;

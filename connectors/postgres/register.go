@@ -12,6 +12,6 @@ import (
 )
 
 func init() {
-	registry.RegisterSource("postgres", func() filament.Source { return source.New() })
-	registry.RegisterSink("postgres", func() filament.Sink { return sink.New() })
+	registry.RegisterSource("postgres", filament.MaturityBeta, func() filament.Source { return source.New() })
+	registry.RegisterSink("postgres", filament.MaturityBeta, func() filament.Sink { return sink.New() })
 }

@@ -16,7 +16,7 @@ import type {
   GetResourceColumnsResponse,
   ListConnectorsRequest,
   ListConnectorsResponse,
-} from "@/gen/ingestion/v1/providers_pb";
+} from "@/gen/ingestion/v1/connectors_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 export const useListConnectorsQuery = ({

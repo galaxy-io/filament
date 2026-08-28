@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { createClient, type Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createInfiniteQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useInfiniteQuery,
@@ -49,9 +50,6 @@ export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Tran
   });
 };
 
-// Scheduled counts as live for polling — it transitions without user action
-// when the cron fires — but stays out of ACTIVE_RUN_STATUSES, which the
-// canvas navbar uses to gate the Run button.
 const isLiveRunStatus = (status: RunStatus) =>
   ACTIVE_RUN_STATUSES.has(status) || status === RunStatus.SCHEDULED;
 
@@ -86,6 +84,20 @@ export const useSuspenseListRunsQuery = ({ input }: { input?: ListRunsRequest } 
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
   });
+};
+
+export const createListRunsInfiniteQueryOptions = ({
+  input,
+  transport,
+}: {
+  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
+  transport: Transport;
+}) => {
+  return createInfiniteQueryOptions(
+    IngestionService.method.listRuns,
+    { ...input, pagination: INITIAL_PAGE_PARAM },
+    { transport, pageParamKey: "pagination", getNextPageParam },
+  );
 };
 
 export const useListRunsInfiniteQuery = ({
@@ -165,11 +177,11 @@ export const createTailRunQueryKey = (input?: TailRunRequest) => {
   return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
 };
 
-export const useTailRunsStream = (runIds: RunInfo["runId"][]) => {
+export const useTailRunsStream = (runIds: RunInfo["id"][]) => {
   const transport = useTransport();
   const results = useQueries({
     queries: runIds.map((runId) => {
-      const input = create(TailRunRequestSchema, { runId, replay: true });
+      const input = create(TailRunRequestSchema, { runId, shouldReplay: true });
       return {
         queryKey: createTailRunQueryKey(input),
         queryFn: experimental_streamedQuery({

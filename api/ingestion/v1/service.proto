@@ -4,10 +4,9 @@ package ingestion.v1;
 
 import "ingestion/v1/capabilities.proto";
 import "ingestion/v1/connections.proto";
+import "ingestion/v1/connectors.proto";
 import "ingestion/v1/pipelines.proto";
-import "ingestion/v1/providers.proto";
 import "ingestion/v1/runs.proto";
-import "ingestion/v1/secrets.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
 service IngestionService {
@@ -20,10 +19,6 @@ service IngestionService {
   rpc DiscoverResources(DiscoverResourcesRequest) returns (DiscoverResourcesResponse);
   rpc GetResourceColumns(GetResourceColumnsRequest) returns (GetResourceColumnsResponse);
 
-  // Secrets; write-only values referenced by name from configs.
-  rpc PutSecret(PutSecretRequest) returns (PutSecretResponse);
-  rpc DeleteSecret(DeleteSecretRequest) returns (DeleteSecretResponse);
-
   // Connections; reusable, tenant-scoped sources and sinks.
   rpc CreateConnection(CreateConnectionRequest) returns (CreateConnectionResponse);
   rpc UpdateConnection(UpdateConnectionRequest) returns (UpdateConnectionResponse);
@@ -31,8 +26,7 @@ service IngestionService {
   rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
   rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse);
 
-  // Capabilities; what a connection supports and whether a graph can run.
-  rpc GetConnectionCapabilities(GetConnectionCapabilitiesRequest) returns (GetConnectionCapabilitiesResponse);
+  // Pipeline options and validation are resolved for the complete graph.
   rpc ValidatePipeline(ValidatePipelineRequest) returns (ValidatePipelineResponse);
 
   // Pipelines; the persisted node graph.
@@ -45,12 +39,11 @@ service IngestionService {
   rpc ListPipelines(ListPipelinesRequest) returns (ListPipelinesResponse);
   rpc DeletePipeline(DeletePipelineRequest) returns (DeletePipelineResponse);
 
-  // Pipeline schedules; one primary schedule per pipeline.
+  // Pipeline schedules; one primary schedule per pipeline. Enable/disable is
+  // expressed through PipelineScheduleConfig.is_enabled on update; a schedule
+  // is removed only by deleting its pipeline.
   rpc CreatePipelineSchedule(CreatePipelineScheduleRequest) returns (CreatePipelineScheduleResponse);
   rpc UpdatePipelineSchedule(UpdatePipelineScheduleRequest) returns (UpdatePipelineScheduleResponse);
-  rpc DeletePipelineSchedule(DeletePipelineScheduleRequest) returns (DeletePipelineScheduleResponse);
-  rpc PausePipelineSchedule(PausePipelineScheduleRequest) returns (PausePipelineScheduleResponse);
-  rpc ResumePipelineSchedule(ResumePipelineScheduleRequest) returns (ResumePipelineScheduleResponse);
 
   // Runs; compile + submit a pipeline, then list / snapshot / signal.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);

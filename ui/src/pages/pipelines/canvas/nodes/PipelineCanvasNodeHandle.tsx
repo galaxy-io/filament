@@ -19,6 +19,7 @@ import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/ca
 const HandleSlot = styled.div`
   width: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
   height: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
+  flex-shrink: 0;
 
   display: flex;
   align-items: center;

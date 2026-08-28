@@ -41,6 +41,32 @@ func newEmitter(ctx context.Context, bus eventbus.Bus, log filament.Logger, tena
 	return &emitter{ctx: ctx, bus: bus, log: log, tenant: tenant, run: run, res: map[string]*tally{}}
 }
 
+// seedProgress carries durable progress from a prior paused attempt into this
+// attempt's terminal totals. Checkpoint-free resumes reset these counters in the
+// datastore, so they naturally start from zero.
+func (e *emitter) seedProgress(state filament.RunState) {
+	e.mu.Lock()
+	e.runRecords = state.Records
+	e.runBytes = state.Bytes
+	progressedResources := 0
+	for _, resource := range state.Resources {
+		if resource.Records == 0 && resource.Bytes == 0 {
+			continue
+		}
+		e.res[resource.Resource] = &tally{records: resource.Records, bytes: resource.Bytes}
+		progressedResources++
+	}
+	e.mu.Unlock()
+	if e.log != nil && (state.Records > 0 || state.Bytes > 0) {
+		e.log.Info("runner: progress restored",
+			filament.Field{Key: "run", Value: string(e.run)},
+			filament.Field{Key: "records", Value: state.Records},
+			filament.Field{Key: "bytes", Value: state.Bytes},
+			filament.Field{Key: "progressed_resources", Value: progressedResources},
+		)
+	}
+}
+
 // next returns the run's next fact sequence. Shared with the pipeline so run
 // lifecycle facts and pipeline facts never collide on (tenant, run, seq).
 func (e *emitter) next() uint64 { return e.seq.Add(1) }
@@ -80,18 +106,22 @@ func (e *emitter) publish(f events.Fact) {
 		e.mu.Unlock()
 	}
 	if e.log != nil {
-		records, bytes, errMsg := factProgress(f)
+		records, bytes, errMsg, hasProgress := factProgress(f)
 		fields := []filament.Field{
 			{Key: "run", Value: string(f.Run)},
 			{Key: "resource", Value: f.Resource},
-			{Key: "records", Value: records},
-			{Key: "bytes", Value: bytes},
+		}
+		if hasProgress {
+			fields = append(fields,
+				filament.Field{Key: "records", Value: records},
+				filament.Field{Key: "bytes", Value: bytes},
+			)
 		}
 		if errMsg != "" {
 			fields = append(fields, filament.Field{Key: "error", Value: errMsg})
 		}
 		switch f.Data.(type) {
-		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent:
+		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent, events.EncodedIntegrityVerifiedEvent, events.PageFetchedEvent:
 			// Debug, not Info: a large run emits one of these per chunk, which
 			// at Info drowns the worker's log.
 			e.log.Debug(f.Name, fields...)
@@ -105,24 +135,28 @@ func (e *emitter) publish(f events.Fact) {
 }
 
 // factProgress flattens a typed payload's progress counters and error for logging.
-func factProgress(f events.Fact) (records, bytes int64, errMsg string) {
+func factProgress(f events.Fact) (records, bytes int64, errMsg string, hasProgress bool) {
 	switch d := f.Data.(type) {
 	case events.BatchBufferedEvent:
-		return d.Records, d.Bytes, ""
+		return d.Records, d.Bytes, "", true
 	case events.BatchWrittenEvent:
-		return d.Records, d.Bytes, ""
+		return d.Records, d.Bytes, "", true
+	case events.PageFetchedEvent:
+		return d.Records, d.Bytes, "", true
 	case events.ResourceCompletedEvent:
-		return d.Records, d.Bytes, ""
+		return d.Records, d.Bytes, "", true
 	case events.RunCompletedEvent:
-		return d.Records, d.Bytes, ""
+		return d.Records, d.Bytes, "", true
 	case events.ResourceFailedEvent:
-		return 0, 0, d.Error
+		return 0, 0, d.Error, false
 	case events.RunFailedEvent:
-		return 0, 0, d.Error
+		return 0, 0, d.Error, false
 	case events.RunPartialEvent:
-		return 0, 0, d.Error
+		return 0, 0, d.Error, false
+	case events.RetryExhaustedEvent:
+		return 0, 0, d.Error, false
 	default:
-		return 0, 0, ""
+		return 0, 0, "", false
 	}
 }
 
@@ -136,6 +170,44 @@ func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 		Seq:      e.next(),
 		At:       time.Now(),
 	}, data))
+}
+
+// sourceObserver translates bus-neutral source progress into run-stamped typed
+// facts. Sources never receive the bus, tenant, run, or sequence allocator.
+func sourceObserver(e *emitter) filament.SourceObserver {
+	return func(progress filament.SourceProgress) {
+		switch progress.Kind {
+		case filament.SourceProgressPageFetched:
+			emit(e, events.PageFetched, progress.Resource, events.PageFetchedEvent{
+				Records: progress.Records,
+				Bytes:   progress.Bytes,
+				URI:     progress.URI,
+			})
+		case filament.SourceProgressFanOutStarted:
+			emit(e, events.FanOutStarted, progress.Resource, events.FanOutStartedEvent{
+				ParentsTotal: progress.ParentsTotal,
+			})
+		case filament.SourceProgressWatermarkAdvanced:
+			emit(e, events.WatermarkAdvanced, progress.Resource, events.WatermarkAdvancedEvent{
+				Checkpoint: progress.Checkpoint,
+			})
+		case filament.SourceProgressRateLimited:
+			emit(e, events.RateLimited, progress.Resource, events.RateLimitedEvent{
+				RetryAfter: progress.RetryAfter,
+			})
+		case filament.SourceProgressRetryExhausted:
+			emit(e, events.RetryExhausted, progress.Resource, events.RetryExhaustedEvent{
+				Error: progress.Error,
+			})
+		default:
+			if e.log != nil {
+				e.log.Warn("runner: unmapped source progress",
+					filament.Field{Key: "kind", Value: progress.Kind},
+					filament.Field{Key: "resource", Value: progress.Resource},
+				)
+			}
+		}
+	}
 }
 
 // failed publishes the run's failure terminals — per-resource obituaries, then
@@ -166,6 +238,29 @@ func (e *emitter) completed(resources []string) {
 	}
 	records, bytes := e.runTotals()
 	emit(e, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes})
+}
+
+func (e *emitter) controlled(signal controlSignal) bool {
+	switch signal {
+	case controlPause:
+		e.paused(false)
+		return true
+	case controlCancel:
+		e.canceled()
+		return true
+	default:
+		return false
+	}
+}
+
+func (e *emitter) paused(committed bool) {
+	defer e.finish()()
+	emit(e, events.RunPaused, "", events.RunPausedEvent{Committed: committed})
+}
+
+func (e *emitter) canceled() {
+	defer e.finish()()
+	emit(e, events.RunCanceled, "", events.RunCanceledEvent{})
 }
 
 func (e *emitter) fail(err error) {

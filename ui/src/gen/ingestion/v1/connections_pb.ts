@@ -5,7 +5,7 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { ConnectorKind } from "./common_pb";
+import type { ConnectorKind, ReplicationMode } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
 import type { PaginationRequest, PaginationResponse } from "./pagination_pb";
 import { file_ingestion_v1_pagination } from "./pagination_pb";
@@ -15,7 +15,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/connections.proto.
  */
 export const file_ingestion_v1_connections: GenFile = /*@__PURE__*/
-  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSK3AgoKQ29ubmVjdGlvbhIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxISCgpkZWxldGVkX2F0GAkgASgDGjEKD1NlY3JldFJlZnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqACChdDcmVhdGVDb25uZWN0aW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSKQoEa2luZBgCIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYAyABKAkSEQoJY29ubmVjdG9yGAQgASgJEicKBmNvbmZpZxgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSSgoLc2VjcmV0X3JlZnMYBiADKAsyNS5pbmdlc3Rpb24udjEuQ3JlYXRlQ29ubmVjdGlvblJlcXVlc3QuU2VjcmV0UmVmc0VudHJ5GjEKD1NlY3JldFJlZnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkgKGENyZWF0ZUNvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iWgoXVXBkYXRlQ29ubmVjdGlvblJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEiwKCmNvbm5lY3Rpb24YAiABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJIChhVcGRhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIjUKFEdldENvbm5lY3Rpb25SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCSJFChVHZXRDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIqQBChZMaXN0Q29ubmVjdGlvbnNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFwoPaW5jbHVkZV9kZWxldGVkGAMgASgIEjMKCnBhZ2luYXRpb24YBCABKAsyHy5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlcXVlc3QifgoXTGlzdENvbm5lY3Rpb25zUmVzcG9uc2USLQoLY29ubmVjdGlvbnMYASADKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbhI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSI4ChdEZWxldGVDb25uZWN0aW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination]);
+  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSLnAwoKQ29ubmVjdGlvbhIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxISCgpkZWxldGVkX2F0GAkgASgDEhIKCmNyZWF0ZWRfYXQYCiABKAMSEgoKdXBkYXRlZF9hdBgLIAEoAxIaChJjcmVhdGVkX2J5X3VzZXJfaWQYDCABKAkSGgoSdXBkYXRlZF9ieV91c2VyX2lkGA0gASgJEhoKEmRlbGV0ZWRfYnlfdXNlcl9pZBgOIAEoCRIyCgtyZXBsaWNhdGlvbhgPIAEoDjIdLmluZ2VzdGlvbi52MS5SZXBsaWNhdGlvbk1vZGUaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEioAIKF0NyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSDAoEbmFtZRgDIAEoCRIRCgljb25uZWN0b3IYBCABKAkSJwoGY29uZmlnGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJKCgtzZWNyZXRfcmVmcxgGIAMoCzI1LmluZ2VzdGlvbi52MS5DcmVhdGVDb25uZWN0aW9uUmVxdWVzdC5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSAoYQ3JlYXRlQ29ubmVjdGlvblJlc3BvbnNlEiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJaChdVcGRhdGVDb25uZWN0aW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSLAoKY29ubmVjdGlvbhgCIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkgKGFVwZGF0ZUNvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iNQoUR2V0Q29ubmVjdGlvblJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJIkUKFUdldENvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24ipAEKFkxpc3RDb25uZWN0aW9uc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIXCg9pbmNsdWRlX2RlbGV0ZWQYAyABKAgSMwoKcGFnaW5hdGlvbhgEIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdCJ+ChdMaXN0Q29ubmVjdGlvbnNSZXNwb25zZRItCgtjb25uZWN0aW9ucxgBIAMoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIjgKF0RlbGV0ZUNvbm5lY3Rpb25SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCSIaChhEZWxldGVDb25uZWN0aW9uUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination]);
 
 /**
  * Connection is a reusable, tenant-scoped source or sink. It holds the
@@ -73,6 +73,39 @@ export type Connection = Message<"ingestion.v1.Connection"> & {
    * @generated from field: int64 deleted_at = 9;
    */
   deletedAt: bigint;
+
+  /**
+   * @generated from field: int64 created_at = 10;
+   */
+  createdAt: bigint;
+
+  /**
+   * @generated from field: int64 updated_at = 11;
+   */
+  updatedAt: bigint;
+
+  /**
+   * @generated from field: string created_by_user_id = 12;
+   */
+  createdByUserId: string;
+
+  /**
+   * @generated from field: string updated_by_user_id = 13;
+   */
+  updatedByUserId: string;
+
+  /**
+   * @generated from field: string deleted_by_user_id = 14;
+   */
+  deletedByUserId: string;
+
+  /**
+   * replication is the effective source behavior derived from the immutable
+   * connection configuration. Sinks report UNSPECIFIED.
+   *
+   * @generated from field: ingestion.v1.ReplicationMode replication = 15;
+   */
+  replication: ReplicationMode;
 };
 
 /**

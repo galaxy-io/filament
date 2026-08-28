@@ -1,6 +1,9 @@
 package filament
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestIngestionFor(t *testing.T) {
 	tests := []struct {
@@ -8,30 +11,18 @@ func TestIngestionFor(t *testing.T) {
 		read  ReadMode
 		write WriteMode
 		want  IngestionType
-		fails bool
 	}{
-		{"defaults to full refresh", ModeFull, "", IngestionFullReplace, false},
-		{"incremental defaults to upsert", ModeIncremental, "", IngestionIncrementalUpsert, false},
-		{"full replace", ModeFull, WriteReplace, IngestionFullReplace, false},
-		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert, false},
-		{"full append", ModeFull, WriteAppend, IngestionFullAppend, false},
-		{"incremental append", ModeIncremental, WriteAppend, IngestionIncrementalAppend, false},
-		{"incremental upsert", ModeIncremental, WriteUpsert, IngestionIncrementalUpsert, false},
-		{"incremental delete", ModeIncremental, WriteDelete, IngestionIncrementalDelete, false},
-		{"incremental replace is incoherent", ModeIncremental, WriteReplace, "", true},
-		{"full delete is incoherent", ModeFull, WriteDelete, "", true},
-		{"merge is never a lever", ModeFull, WriteMerge, "", true},
-		{"cdc never compiles from levers", ModeCDC, WriteMerge, "", true},
+		{"defaults to full replace", ModeFull, "", IngestionFullReplace},
+		{"full replace", ModeFull, WriteReplace, IngestionFullReplace},
+		{"full append", ModeFull, WriteAppend, IngestionFullAppend},
+		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert},
+		{"incremental defaults to upsert", ModeIncremental, "", IngestionIncrementalUpsert},
+		{"incremental append", ModeIncremental, WriteAppend, IngestionIncrementalAppend},
+		{"incremental upsert", ModeIncremental, WriteUpsert, IngestionIncrementalUpsert},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := IngestionFor(tt.read, tt.write)
-			if tt.fails {
-				if err == nil {
-					t.Fatalf("want error, got %q", got)
-				}
-				return
-			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -39,6 +30,12 @@ func TestIngestionFor(t *testing.T) {
 				t.Fatalf("got %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIngestionForRejectsIncrementalReplace(t *testing.T) {
+	if _, err := IngestionFor(ModeIncremental, WriteReplace); err == nil {
+		t.Fatal("incremental replace must be rejected")
 	}
 }
 
@@ -54,6 +51,25 @@ func TestValidateReplication(t *testing.T) {
 	}
 	if err := ValidateReplication(ReplicationCDC, IngestionFullReplace); err == nil {
 		t.Fatal("levers on a cdc connection must fail")
+	}
+}
+
+func TestCheckpointCoverageFor(t *testing.T) {
+	resources := []string{"users", "audit"}
+	if got := CheckpointCoverageFor(resources, map[string]IngestionType{
+		"users": IngestionFullUpsert,
+		"audit": IngestionFullAppend,
+	}); got != CheckpointCoverageSome {
+		t.Fatalf("mixed coverage = %v, want some", got)
+	}
+	if got := CheckpointCoverageFor(resources, map[string]IngestionType{
+		"users": IngestionFullUpsert,
+		"audit": IngestionIncrementalUpsert,
+	}); got != CheckpointCoverageAll {
+		t.Fatalf("resumable coverage = %v, want all", got)
+	}
+	if got := CheckpointCoverageFor(resources, nil); got != CheckpointCoverageNone {
+		t.Fatalf("default coverage = %v, want none", got)
 	}
 }
 
@@ -77,5 +93,62 @@ func TestReplicationOf(t *testing.T) {
 	var unaware Source
 	if got := ReplicationOf(unaware, NewConfig(nil)); got != ReplicationStandard {
 		t.Fatalf("unaware source: got %q, want standard", got)
+	}
+}
+
+type durabilityTestSource struct{ Source }
+
+func (durabilityTestSource) Spec() ConnectorSpec {
+	return ConnectorSpec{SourcePolicies: []SourcePolicy{SourcePolicyForIngestion(IngestionFullUpsert)}}
+}
+
+func (durabilityTestSource) Schema(context.Context, string) (RecordSchema, error) {
+	return RecordSchema{PrimaryKey: []string{"id"}}, nil
+}
+
+type durabilityTestSink struct {
+	Sink
+	durability WriteDurability
+}
+
+func (s durabilityTestSink) Spec() SinkSpec {
+	capability := WritePolicyForIngestion(IngestionFullUpsert).Capability
+	capability.Durability = s.durability
+	return SinkSpec{Name: "test", Capabilities: SinkCapabilities{WritePolicies: []WritePolicyCapability{capability}}}
+}
+
+func TestResolveIngestionPlanUsesSinkDurabilityBoundary(t *testing.T) {
+	spec := RunSpec{
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]IngestionType{"users": IngestionFullUpsert},
+	}
+	for _, tt := range []struct {
+		name       string
+		durability WriteDurability
+		want       CheckpointPolicy
+	}{
+		{name: "apply durable", durability: DurabilityAfterApply, want: CheckpointAfterBatch},
+		{name: "commit durable", durability: DurabilityAfterCommit, want: CheckpointAfterCommit},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			plan, err := ResolveIngestionPlan(context.Background(), durabilityTestSource{}, durabilityTestSink{durability: tt.durability}, spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := plan.WritePolicies["users"].Checkpoint; got != tt.want {
+				t.Fatalf("checkpoint policy = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveIngestionPlanRejectsMissingSinkDurability(t *testing.T) {
+	spec := RunSpec{
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]IngestionType{"users": IngestionFullUpsert},
+	}
+	_, err := ResolveIngestionPlan(context.Background(), durabilityTestSource{}, durabilityTestSink{}, spec)
+	if err == nil {
+		t.Fatal("sink capability without durability was accepted")
 	}
 }

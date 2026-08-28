@@ -10,3 +10,11 @@ sql:
         sql_package: "pgx/v5"
         emit_json_tags: false
         emit_result_struct_pointers: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "string"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/jackc/pgx/v5/pgtype"
+              type: "Text"

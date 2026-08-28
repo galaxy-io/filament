@@ -20,12 +20,11 @@ func (s *Store) CreateConnection(ctx context.Context, c filament.Connection) (fi
 	if err != nil {
 		return filament.Connection{}, err
 	}
-	err = s.q.CreateConnection(ctx, sqlcgen.CreateConnectionParams{ConnectionID: c.ID, TenantID: c.Tenant, Kind: connectionKindToDB(c.Kind), Name: c.Name, Provider: c.Connector, Config: configJSON, SecretRefs: refsJSON})
+	err = s.q.CreateConnection(ctx, sqlcgen.CreateConnectionParams{ConnectionID: c.ID, TenantID: c.Tenant, Kind: connectionKindToDB(c.Kind), Name: c.Name, Connector: c.Connector, Config: configJSON, SecretRefs: refsJSON})
 	if err != nil {
 		return filament.Connection{}, fmt.Errorf("datastore/postgres: create connection: %w", err)
 	}
-	c.Version = 1
-	return c, nil
+	return s.LoadConnection(ctx, c.ID)
 }
 
 // UpdateConnection replaces a stored connection, enforcing optimistic version matching.
@@ -37,7 +36,7 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 	if err != nil {
 		return filament.Connection{}, err
 	}
-	newVersion, err := s.q.UpdateConnection(ctx, sqlcgen.UpdateConnectionParams{Name: c.Name, Provider: c.Connector, Config: configJSON, SecretRefs: refsJSON, ConnectionID: c.ID, ExpectedVersion: c.Version})
+	newVersion, err := s.q.UpdateConnection(ctx, sqlcgen.UpdateConnectionParams{Name: c.Name, Connector: c.Connector, Config: configJSON, SecretRefs: refsJSON, ConnectionID: c.ID, ExpectedVersion: c.Version})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.Connection{}, fmt.Errorf("update connection %q at version %d: %w", c.ID, c.Version, filament.ErrVersionConflict)
@@ -45,7 +44,7 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 		return filament.Connection{}, fmt.Errorf("datastore/postgres: update connection: %w", err)
 	}
 	c.Version = newVersion
-	return c, nil
+	return s.LoadConnection(ctx, c.ID)
 }
 
 // LoadConnection returns the connection with the given ID, including
@@ -59,14 +58,14 @@ func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connect
 		}
 		return filament.Connection{}, fmt.Errorf("datastore/postgres: get connection: %w", err)
 	}
-	return connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version, row.DeletedAt)
+	return connectionFromRow(row.ID, row.TenantID, row.Kind, row.Name, row.Connector, row.Config, row.SecretRefs, row.Version, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
 }
 
 // ListConnections returns connections matching the filter, sorted by ID.
 func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter) ([]filament.Connection, error) {
-	kind := sqlcgen.NullConnectionKind{}
+	kind := sqlcgen.NullConnectorKind{}
 	if f.Kind != filament.ConnectorKindUnspecified {
-		kind = sqlcgen.NullConnectionKind{ConnectionKind: connectionKindToDB(f.Kind), Valid: true}
+		kind = sqlcgen.NullConnectorKind{ConnectorKind: connectionKindToDB(f.Kind), Valid: true}
 	}
 	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{TenantID: f.Tenant, Kind: kind, IncludeDeleted: f.IncludeDeleted})
 	if err != nil {
@@ -74,7 +73,7 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 	}
 	out := make([]filament.Connection, len(rows))
 	for i, row := range rows {
-		c, err := connectionFromRow(row.ConnectionID, row.TenantID, row.Kind, row.Name, row.Provider, row.Config, row.SecretRefs, row.Version, row.DeletedAt)
+		c, err := connectionFromRow(row.ID, row.TenantID, row.Kind, row.Name, row.Connector, row.Config, row.SecretRefs, row.Version, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
 		if err != nil {
 			return nil, err
 		}

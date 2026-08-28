@@ -2,11 +2,6 @@
 # supply-chain quarantine.
 minimumReleaseAgeExclude:
   - "@galaxy-io/*"
-  # same-day backport of the GHSA-mh99-v99m-4gvg OOM fix
-  - "brace-expansion@2.1.3"
-
-overrides:
-  "brace-expansion@^2": 2.1.3
 
 allowBuilds:
   "@bufbuild/buf": true

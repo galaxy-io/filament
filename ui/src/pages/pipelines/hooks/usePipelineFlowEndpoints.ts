@@ -18,14 +18,14 @@ export const usePipelineFlowEndpoints = (pipelineId: Pipeline["id"]) => {
   });
 
   const { source, sinks } = mapVersionNodesToFlowEndpoints(
-    versionData?.version?.nodes ?? [],
+    versionData?.version?.graph?.nodes ?? [],
     connectionsData?.connections ?? [],
   );
 
   return {
     source,
     sinks,
-    hasEdges: (versionData?.version?.edges ?? []).length > 0,
+    hasEdges: (versionData?.version?.graph?.edges ?? []).length > 0,
     isLoading: isVersionLoading || isConnectionsLoading,
   };
 };

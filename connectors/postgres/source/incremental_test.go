@@ -1,6 +1,8 @@
 package postgres
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestIncrementalCursorRequiresTimestamp(t *testing.T) {
 	for _, typ := range []string{"timestamp with time zone", "timestamp without time zone", "timestamp(3) with time zone", "timestamptz", "timestamptz(6)"} {
@@ -27,5 +29,17 @@ func TestIncrementalBoundsUsesCompoundStrictCursor(t *testing.T) {
 	_, args = incrementalBounds(cols, []string{"2026-07-31T23:55:00Z"}, []string{"2026-08-03T00:00:00Z", "z", "9"})
 	if len(args) != 4 {
 		t.Fatalf("lookback args = %v", args)
+	}
+}
+
+func TestIncrementalPageSQL(t *testing.T) {
+	cols := []pkColumn{{name: "updated_at", typ: "timestamptz"}, {name: "id", typ: "bigint"}}
+	const qualified = `"public"."users"`
+	const where = `t."updated_at" IS NOT NULL`
+
+	q := incrementalPageSQL(qualified, `t."id", t."updated_at", t."name"`, cols, where, 1000)
+	want := `SELECT t."id", t."updated_at", t."name" FROM "public"."users" t WHERE t."updated_at" IS NOT NULL ORDER BY t."updated_at", t."id" LIMIT 1000`
+	if q != want {
+		t.Fatalf("incremental query\n got %q\nwant %q", q, want)
 	}
 }

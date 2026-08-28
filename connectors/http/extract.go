@@ -4,116 +4,62 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline"
-	"github.com/galaxy-io/filament/connectors/http/internal/pipeline/integrity"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
-	"github.com/galaxy-io/filament/connectors/http/obs"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
 	"github.com/galaxy-io/filament/connectors/http/response"
 	"github.com/galaxy-io/filament/connectors/http/template"
 )
 
 // Extract runs a full extraction across all enabled resources.
-func (c *Connector) Extract(ctx context.Context, opts pipeline.ExtractOptions) error {
-	return c.extract(ctx, opts, nil)
+func (c *Connector) Extract(ctx context.Context, sink recordSink, opts extractOptions) error {
+	c.observe = opts.Observe
+	c.watermarkReported.Clear()
+	defer func() {
+		c.observe = nil
+		c.watermarkReported.Clear()
+	}()
+	return c.extract(ctx, sink, opts)
 }
 
-// ExtractFrom resumes an extraction from a previous checkpoint, skipping
-// resources it records as complete.
-func (c *Connector) ExtractFrom(ctx context.Context, opts pipeline.ExtractOptions, prev *integrity.PipelineCheckpoint) error {
-	return c.extract(ctx, opts, prev)
-}
-
-type resourceOutcome struct {
-	Resource string
-	Err      error
-}
-
-func (c *Connector) extract(ctx context.Context, opts pipeline.ExtractOptions, prev *integrity.PipelineCheckpoint) error {
-	c.logger = obs.Logger(opts.Logger)
-	c.reporter = obs.Reporter(opts.Reporter)
-	c.commitCheckpoint = opts.Checkpoint
-	c.resumeCursors = opts.ResumeCursors
+func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOptions) error {
+	c.resumeStates = opts.ResumeStates
 	c.resumeWatermarks = opts.ResumeWatermarks
 	c.incrementalLookbacks = opts.IncrementalLookbacks
 	c.incrementalResources = opts.IncrementalResources
 	c.buildEnabledFilter(opts.EnabledResources)
 	c.buildResourceFilter(opts.Resources)
 
-	sink := opts.Sink
-
 	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
 
-	pending := topLevel
-	if prev != nil {
-		pending = pending[:0]
-		for _, res := range topLevel {
-			if prev.IsResourceComplete(res.Name) {
-				// Rehydrate captured parent records from the stored
-				// checkpoint so child resources can still fan out across
-				// them on resume (otherwise the child silently no-ops).
-				//
-				// Validate persisted shape against the current capture spec
-				// first — manifests can change between runs, and a stale
-				// checkpoint with mismatched keys would silently template
-				// child requests with wrong/missing fields.
-				if err := c.rehydrateCaptures(res, prev); err != nil {
-					c.logger.Warn("checkpoint captures stale, re-extracting resource",
-						"resource", res.Name, "error", err)
-					pending = append(pending, res)
-					continue
-				}
-				c.logger.Info("skipping completed resource", "resource", res.Name)
-				continue
-			}
-			pending = append(pending, res)
-		}
-	}
-
-	outcomes := c.extractConcurrent(ctx, pending, sink, prev)
+	outcomes := c.extractConcurrent(ctx, topLevel, sink)
 
 	var succeeded int
 	var firstErr error
-	for _, o := range outcomes {
-		if o.Err != nil {
-			c.reporter.Report(pipeline.Event{
-				Type:      pipeline.EventResourceFailed,
-				Resource:  o.Resource,
-				Connector: c.manifest.Name,
-				Error:     o.Err,
-			})
+	for _, err := range outcomes {
+		if err != nil {
 			if firstErr == nil {
-				firstErr = o.Err
+				firstErr = err
 			}
 		} else {
 			succeeded++
 		}
 	}
 	if firstErr != nil {
-		return fmt.Errorf("extraction failed (%d/%d resources succeeded): %w", succeeded, len(pending), firstErr)
+		return fmt.Errorf("extraction failed (%d/%d resources succeeded): %w", succeeded, len(topLevel), firstErr)
 	}
 
 	sortedChildren := manifest.SortResources(children)
 	var childErr error
 	for _, res := range sortedChildren {
-		if prev != nil && prev.IsResourceComplete(res.Name) {
-			continue
-		}
 		if len(c.snapshotCaptures(res.Parent.Resource)) == 0 {
 			continue
 		}
-		if err := c.extractChildResource(ctx, res, sink, prev); err != nil {
-			c.reporter.Report(pipeline.Event{
-				Type:      pipeline.EventResourceFailed,
-				Resource:  res.Name,
-				Connector: c.manifest.Name,
-				Error:     err,
-			})
+		if err := c.extractChildResource(ctx, res, sink); err != nil {
 			if childErr == nil {
 				childErr = err
 			}
@@ -125,31 +71,16 @@ func (c *Connector) extract(ctx context.Context, opts pipeline.ExtractOptions, p
 	return nil
 }
 
-func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.Resource, sink *pipeline.RecordSink, prev *integrity.PipelineCheckpoint) []resourceOutcome {
-	outcomes := make([]resourceOutcome, len(resources))
+func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.Resource, sink recordSink) []error {
+	outcomes := make([]error, len(resources))
 	var wg sync.WaitGroup
 
 	for i, res := range resources {
 		wg.Add(1)
 		go func(idx int, res manifest.Resource) {
 			defer wg.Done()
-			c.reporter.Report(pipeline.Event{
-				Type:      pipeline.EventResourceStart,
-				Resource:  res.Name,
-				Connector: c.manifest.Name,
-			})
-
-			n, pages, err := c.extractResource(ctx, res, sink, nil, prev)
-			if err == nil {
-				c.reporter.Report(pipeline.Event{
-					Type:         pipeline.EventResourceComplete,
-					Resource:     res.Name,
-					Connector:    c.manifest.Name,
-					TotalRecords: n,
-					Pages:        pages,
-				})
-			}
-			outcomes[idx] = resourceOutcome{Resource: res.Name, Err: err}
+			err := c.extractResource(ctx, res, sink, nil)
+			outcomes[idx] = err
 		}(i, res)
 	}
 
@@ -157,7 +88,7 @@ func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.
 	return outcomes
 }
 
-func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink *pipeline.RecordSink, prev *integrity.PipelineCheckpoint) error {
+func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink recordSink) error {
 	parents := c.snapshotCaptures(res.Parent.Resource)
 	if len(parents) == 0 {
 		return nil
@@ -167,34 +98,21 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 	if concurrency <= 0 {
 		concurrency = defaultChildConcurrency
 	}
-
-	c.reporter.Report(pipeline.Event{
-		Type:         pipeline.EventResourceStart,
+	c.observe.Report(filament.SourceProgress{
+		Kind:         filament.SourceProgressFanOutStarted,
 		Resource:     res.Name,
-		Connector:    c.manifest.Name,
-		ParentsTotal: len(parents),
-	})
-	c.reporter.Report(pipeline.Event{
-		Type:         pipeline.EventFanOutStart,
-		Resource:     res.Name,
-		Connector:    c.manifest.Name,
-		ParentsTotal: len(parents),
+		ParentsTotal: int64(len(parents)),
 	})
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(concurrency)
 
-	var totalRecords atomic.Int64
-	var parentsDone atomic.Int64
-
 	for _, parent := range parents {
 		g.Go(func() error {
-			n, _, err := c.extractResource(ctx, res, sink, parent, prev)
+			err := c.extractResource(ctx, res, sink, parent)
 			if err != nil {
 				return fmt.Errorf("parent %v: %w", parent, err)
 			}
-			totalRecords.Add(int64(n))
-			parentsDone.Add(1)
 			return nil
 		})
 	}
@@ -202,34 +120,17 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 		return err
 	}
 
-	c.reporter.Report(pipeline.Event{
-		Type:         pipeline.EventResourceComplete,
-		Resource:     res.Name,
-		Connector:    c.manifest.Name,
-		TotalRecords: int(totalRecords.Load()),
-		ParentsDone:  int(parentsDone.Load()),
-		ParentsTotal: len(parents),
-	})
 	return nil
 }
 
-// extractResource runs one resource end-to-end.
-//
-// # Nil-guard invariants
-//
-//   - parent == nil   → top-level resource. Watermark commit + capture
-//     persistence both fire. Cursor resume is honoured when prev != nil.
-//   - parent != nil   → child resource fanned out across that parent. No
-//     watermark commit (children don't own watermarks). No cursor resume
-//     (a resource-wide cursor can't be re-applied per-parent — see
-//     LastVerifiedCursor godoc).
-//   - prev == nil     → non-resumable run. No checkpoint reads, no
-//     captures rehydration.
-//   - res.Incremental == nil → no tracker is built; commitWatermark is a no-op.
-func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink *pipeline.RecordSink, parent Capture, prev *integrity.PipelineCheckpoint) (int, int, error) {
+// extractResource runs one resource end-to-end. Top-level resources may resume
+// from the pagination state and watermark supplied by the engine. Child resources always
+// restart pagination because a resource-wide cursor cannot be applied to each
+// parent independently.
+func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
 	pag, err := pagination.New(res.Pagination)
 	if err != nil {
-		return 0, 0, fmt.Errorf("paginator: %w", err)
+		return fmt.Errorf("paginator: %w", err)
 	}
 	extractor := response.New(res.Response)
 
@@ -237,13 +138,13 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	if parent != nil && res.EmitAs != "" {
 		stateResource, err = emittedResourceName(res, parent)
 		if err != nil {
-			return 0, 0, fmt.Errorf("resource name: %w", err)
+			return fmt.Errorf("resource name: %w", err)
 		}
 	}
 	var tracker *incremental.Tracker
 	if res.Incremental != nil && c.incrementalEnabled(stateResource, res.Name) {
 		spec := *res.Incremental
-		if field, ok := incrementalField(res); ok {
+		if field, ok := manifest.IncrementalCursorField(res); ok {
 			spec.CursorPath = field.Path
 		}
 		if lookback, ok := c.incrementalLookbacks[stateResource]; ok {
@@ -251,49 +152,35 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 		} else if lookback, ok := c.incrementalLookbacks[res.Name]; ok {
 			spec.OverlapSeconds = lookback
 		}
-		seed := incremental.LoadFrom(prev, stateResource, spec)
-		if seed == "" && c.resumeWatermarks != nil {
-			seed = c.resumeWatermarks[stateResource][incremental.CheckpointKey(spec)]
+		seed := ""
+		if c.resumeWatermarks != nil {
+			seed = c.resumeWatermarks[stateResource][spec.DurableCheckpointKey()]
 			if seed == "" && stateResource != res.Name {
-				seed = c.resumeWatermarks[res.Name][incremental.CheckpointKey(spec)]
+				seed = c.resumeWatermarks[res.Name][spec.DurableCheckpointKey()]
 			}
 		}
 		tracker, err = incremental.New(spec, stateResource, seed)
 		if err != nil {
-			return 0, 0, fmt.Errorf("incremental: %w", err)
+			return fmt.Errorf("incremental: %w", err)
 		}
 	}
 
 	if res.Mode == "stream" {
-		n, err := c.streamResource(ctx, res, sink, parent, extractor, tracker)
-		if err == nil {
-			if cerr := c.commitWatermark(tracker); cerr != nil {
-				return n, 0, cerr
-			}
-			c.persistCapturesIfTopLevel(res, parent)
-		}
-		return n, 0, err
+		_, err := c.streamResource(ctx, res, sink, parent, extractor, tracker)
+		return err
 	}
 
 	// Cursor resume only applies to top-level resources. Child resources fan
 	// out across many parents whose pagination state interleaves into a
 	// single resource-level cursor — replaying that cursor for each parent
 	// is incorrect, so children always restart pagination from scratch.
-	startCursor := ""
-	if prev != nil && res.Parent == nil {
-		startCursor = prev.LastVerifiedCursor(res.Name)
-	} else if res.Parent == nil && c.resumeCursors != nil {
-		startCursor = c.resumeCursors[res.Name]
+	var resumeState pagination.State
+	if res.Parent == nil && c.resumeStates != nil {
+		resumeState = c.resumeStates[res.Name]
 	}
 
-	n, pages, err := c.paginate(ctx, res, sink, parent, pag, extractor, tracker, startCursor)
-	if err == nil {
-		if cerr := c.commitWatermark(tracker); cerr != nil {
-			return n, pages, cerr
-		}
-		c.persistCapturesIfTopLevel(res, parent)
-	}
-	return n, pages, err
+	_, _, err = c.paginate(ctx, res, sink, parent, pag, extractor, tracker, resumeState)
+	return err
 }
 
 func (c *Connector) incrementalEnabled(resource, base string) bool {
@@ -303,33 +190,21 @@ func (c *Connector) incrementalEnabled(resource, base string) bool {
 	return c.incrementalResources[resource] || c.incrementalResources[base]
 }
 
-// persistCapturesIfTopLevel writes the captured parent records to the runner-
-// supplied checkpoint so that child resources can fan out across already-
-// completed parents on resume. No-op for child resources, no-op when no
-// checkpoint is supplied.
-func (c *Connector) persistCapturesIfTopLevel(res manifest.Resource, parent Capture) {
-	if parent != nil || c.commitCheckpoint == nil {
+func (c *Connector) reportWatermarkOnce(resource, key, value string) {
+	if value == "" {
 		return
 	}
-	captured := c.snapshotCaptures(res.Name)
-	if len(captured) == 0 {
+	if _, loaded := c.watermarkReported.LoadOrStore(resource, struct{}{}); loaded {
 		return
 	}
-	c.commitCheckpoint.AppendCaptures(res.Name, captured)
-}
-
-// commitWatermark persists the tracker's current watermark to the runner-
-// supplied checkpoint. No-op when no tracker, no checkpoint, or no advance.
-//
-// Commit failures (corrupt comparator state, unparseable existing checkpoint
-// value) are surfaced as an error rather than warn-logged: silently
-// preferring the new value would advance past whatever real watermark the
-// checkpoint held, breaking at-least-once semantics on the next run.
-func (c *Connector) commitWatermark(tracker *incremental.Tracker) error {
-	if tracker == nil || c.commitCheckpoint == nil {
-		return nil
-	}
-	return tracker.Commit(c.commitCheckpoint)
+	c.observe.Report(filament.SourceProgress{
+		Kind:     filament.SourceProgressWatermarkAdvanced,
+		Resource: resource,
+		Checkpoint: &filament.CheckpointData{
+			ResourceName: resource,
+			Cursor:       map[string]any{key: value},
+		},
+	})
 }
 
 // scopeFor builds the per-request template scope.
@@ -343,26 +218,6 @@ func (c *Connector) scopeFor(parent Capture, cursor string, tracker *incremental
 		scope.State = tracker.Scope()
 	}
 	return scope
-}
-
-// reportWatermarkOnce emits EventWatermarkAdvanced the first time the
-// tracker advances on this resource during the current extraction. Further
-// advances are silent — one event per resource conveys "making incremental
-// progress" without flooding the stream.
-func (c *Connector) reportWatermarkOnce(resource string, tracker *incremental.Tracker) {
-	if tracker == nil {
-		return
-	}
-	if _, loaded := c.watermarkReported.LoadOrStore(resource, struct{}{}); loaded {
-		return
-	}
-	c.reporter.Report(pipeline.Event{
-		Type:      pipeline.EventWatermarkAdvanced,
-		Resource:  resource,
-		Connector: c.manifest.Name,
-		Cursor:    tracker.Current(),
-		Field:     tracker.CursorField(),
-	})
 }
 
 // snapshotCaptures returns a defensive copy of the captured parent records
@@ -395,33 +250,6 @@ func (c *Connector) appendCaptures(name string, captured []Capture) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.parentRecords[name] = append(c.parentRecords[name], captured...)
-}
-
-// rehydrateCaptures pulls a previously-completed resource's captured parent
-// records from the checkpoint into in-memory parentRecords so child fan-out
-// works on resume.
-//
-// Validates that every persisted capture map carries the same key set as the
-// current res.Capture spec. A mismatch means the manifest changed (or the
-// checkpoint is from a different connector version) and silently re-using the
-// stale data would template child requests with wrong fields. The caller
-// treats a non-nil error as "re-extract this resource".
-//
-// Returns nil (no-op) when the resource declares no Capture block — there's
-// nothing for children to consume so persisted captures are immaterial.
-func (c *Connector) rehydrateCaptures(res manifest.Resource, prev *integrity.PipelineCheckpoint) error {
-	if len(res.Capture) == 0 {
-		return nil
-	}
-	persisted := prev.GetCaptures(res.Name)
-	if len(persisted) == 0 {
-		return nil
-	}
-	if err := validateCaptureShape(res.Capture, persisted); err != nil {
-		return err
-	}
-	c.appendCaptures(res.Name, persisted)
-	return nil
 }
 
 func (c *Connector) buildResourceFilter(resources []string) {
@@ -471,7 +299,7 @@ func (c *Connector) filteredResources(resources []manifest.Resource) []manifest.
 // onto manifest resource names via the Discovery spec, so sendRecords can do
 // id-level pushdown filtering by resource name. Empty input clears the
 // filter — nil means "extract everything".
-func (c *Connector) buildEnabledFilter(refs []pipeline.ResourceRef) {
+func (c *Connector) buildEnabledFilter(refs []resourceRef) {
 	c.enabledByResource = nil
 	c.enabledIDPath = nil
 	if len(refs) == 0 || c.manifest == nil || len(c.manifest.Discovery.Resources) == 0 {
@@ -502,27 +330,4 @@ func (c *Connector) buildEnabledFilter(refs []pipeline.ResourceRef) {
 			c.enabledIDPath[d.From] = d.Map.IDPath
 		}
 	}
-}
-
-// validateCaptureShape errors when any persisted capture map's key set does
-// not match the resource's current Capture spec. Catches a manifest change
-// between runs (added/removed/renamed capture fields) that would otherwise
-// silently propagate stale field shapes into child requests.
-func validateCaptureShape(spec map[string]string, persisted []Capture) error {
-	expected := make(map[string]struct{}, len(spec))
-	for k := range spec {
-		expected[k] = struct{}{}
-	}
-	for i, cap := range persisted {
-		if len(cap) != len(expected) {
-			return fmt.Errorf("capture[%d]: persisted has %d fields, spec declares %d",
-				i, len(cap), len(expected))
-		}
-		for k := range cap {
-			if _, ok := expected[k]; !ok {
-				return fmt.Errorf("capture[%d]: persisted field %q not in current spec", i, k)
-			}
-		}
-	}
-	return nil
 }

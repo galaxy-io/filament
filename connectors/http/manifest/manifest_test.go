@@ -5,10 +5,39 @@ import (
 	"testing"
 )
 
+func TestParseCatalogMetadata(t *testing.T) {
+	m, err := Parse([]byte(`
+version: 1
+name: example
+display_name: Example API
+description: Example connector used to verify manifest-owned catalog metadata.
+dark_logo_url: https://cdn.example.com/example-dark.svg
+light_logo_url: https://cdn.example.com/example-light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: records
+    path: /records
+`))
+	if err != nil {
+		t.Fatalf("parse manifest metadata: %v", err)
+	}
+	if m.DisplayName != "Example API" ||
+		m.Description != "Example connector used to verify manifest-owned catalog metadata." ||
+		m.DarkLogoURL != "https://cdn.example.com/example-dark.svg" ||
+		m.LightLogoURL != "https://cdn.example.com/example-light.svg" {
+		t.Fatalf("catalog metadata = %#v", m)
+	}
+}
+
 func TestParseConciseSyntaxNormalizesToRuntimeModel(t *testing.T) {
 	m, err := Parse([]byte(`
 version: 1
 name: concise
+display_name: Concise
+description: Test concise manifest.
+dark_logo_url: https://cdn.example.com/concise-dark.svg
+light_logo_url: https://cdn.example.com/concise-light.svg
 config:
   token:
     type: secret
@@ -105,6 +134,10 @@ func TestParseListConfig(t *testing.T) {
 	m, err := Parse([]byte(`
 version: 1
 name: list-config
+display_name: List Config
+description: Test list configuration manifest.
+dark_logo_url: https://cdn.example.com/list-dark.svg
+light_logo_url: https://cdn.example.com/list-light.svg
 config:
   kinds:
     type: list
@@ -133,6 +166,10 @@ func TestParseRejectsListConfigWithoutOptions(t *testing.T) {
 	_, err := Parse([]byte(`
 version: 1
 name: list-config
+display_name: List Config
+description: Test invalid list configuration manifest.
+dark_logo_url: https://cdn.example.com/list-dark.svg
+light_logo_url: https://cdn.example.com/list-light.svg
 config:
   kinds:
     type: list
@@ -162,7 +199,7 @@ func TestParseRejectsInvalidIncrementalContracts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Parse([]byte("version: 1\nname: test\nconnection:\n  base_url: https://example.com\nresources:\n  - name: items\n    path: /items\n    fields:\n      " + tt.field + "\n    " + tt.pagination + "\n    incremental:\n      " + tt.incremental + "\n"))
+			_, err := Parse([]byte("version: 1\nname: test\ndisplay_name: Test\ndescription: Test invalid incremental manifest.\ndark_logo_url: https://cdn.example.com/test-dark.svg\nlight_logo_url: https://cdn.example.com/test-light.svg\nconnection:\n  base_url: https://example.com\nresources:\n  - name: items\n    path: /items\n    fields:\n      " + tt.field + "\n    " + tt.pagination + "\n    incremental:\n      " + tt.incremental + "\n"))
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("error = %v, want %q", err, tt.want)
 			}
@@ -174,6 +211,10 @@ func TestParseConciseBasicAuth(t *testing.T) {
 	m, err := Parse([]byte(`
 version: 1
 name: basic
+display_name: Basic
+description: Test basic authentication manifest.
+dark_logo_url: https://cdn.example.com/basic-dark.svg
+light_logo_url: https://cdn.example.com/basic-light.svg
 config:
   email:
     type: string
@@ -203,6 +244,10 @@ resources:
 	m, err = Parse([]byte(`
 version: 1
 name: basic-no-pass
+display_name: Basic No Password
+description: Test basic authentication without a password.
+dark_logo_url: https://cdn.example.com/basic-dark.svg
+light_logo_url: https://cdn.example.com/basic-light.svg
 config:
   api_key:
     type: secret
@@ -228,6 +273,10 @@ func TestParseConciseFieldRejectsUnknownType(t *testing.T) {
 	_, err := Parse([]byte(`
 version: 1
 name: invalid
+display_name: Invalid
+description: Test invalid authentication manifest.
+dark_logo_url: https://cdn.example.com/invalid-dark.svg
+light_logo_url: https://cdn.example.com/invalid-light.svg
 connection:
   base_url: https://example.com
 resources:
@@ -248,6 +297,10 @@ func TestParseAcceptsTemplatedBaseURL(t *testing.T) {
 	m, err := Parse([]byte(`
 version: 1
 name: regional
+display_name: Regional
+description: Test regional host manifest.
+dark_logo_url: https://cdn.example.com/regional-dark.svg
+light_logo_url: https://cdn.example.com/regional-light.svg
 config:
   host:
     type: string
@@ -270,6 +323,10 @@ func TestParseRejectsBaseURLWithUnresolvableScope(t *testing.T) {
 	_, err := Parse([]byte(`
 version: 1
 name: regional
+display_name: Regional
+description: Test invalid regional host manifest.
+dark_logo_url: https://cdn.example.com/regional-dark.svg
+light_logo_url: https://cdn.example.com/regional-light.svg
 connection:
   base_url: "{{ parent.host }}"
 resources:

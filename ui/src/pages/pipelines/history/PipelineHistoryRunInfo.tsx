@@ -9,7 +9,7 @@ import InfiniteTable, {
   type ColumnDef,
   TableVariant,
 } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -18,12 +18,10 @@ import {
   GetRunRequestSchema,
   type RunInfo,
   type RunResourceState,
+  RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
-import ErrorLayout from "@/layouts/ErrorLayout";
-
-import PipelineHistoryRunInfoResourceColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoResourceColumn";
+import PipelineHistoryRunInfoConnectionColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoConnectionColumn";
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
@@ -34,7 +32,6 @@ import {
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
-import PipelineHistoryRunInfoSinkColumn from "./components/PipelineHistoryRunInfoSinkColumn";
 import { formatBytes, formatCount } from "@/utils/format";
 
 const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -46,13 +43,15 @@ const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
 `);
 
 interface PipelineHistoryRunInfoProps {
-  runId: RunInfo["runId"];
+  runId: RunInfo["id"];
 }
 
 const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   const { data, isLoading, isError } = useGetRunQuery({
     input: create(GetRunRequestSchema, { runId }),
   });
+  const sourceConnectionId = data?.snapshot?.run?.sourceConnectionId ?? "";
+  const sinkConnectionId = data?.snapshot?.run?.sinkConnectionId ?? "";
 
   const columns = useMemo<ColumnDef<RunResourceState>[]>(
     () => [
@@ -61,7 +60,10 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         header: "Resource",
         cellLoading: () => <TextShimmer width={160} height={14} />,
         cell: ({ row }) => (
-          <PipelineHistoryRunInfoResourceColumn runId={runId} runResource={row.original} />
+          <PipelineHistoryRunInfoConnectionColumn
+            connectionId={sourceConnectionId}
+            resourceName={row.original.resourceName}
+          />
         ),
       },
       {
@@ -71,7 +73,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION +
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
         cellLoading: () => <TextShimmer width={48} height={14} />,
-        cell: () => <PipelineHistoryRunInfoSinkColumn runId={runId} />,
+        cell: () => <PipelineHistoryRunInfoConnectionColumn connectionId={sinkConnectionId} />,
       },
       {
         id: "records",
@@ -97,7 +99,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         ),
       },
     ],
-    [runId],
+    [sourceConnectionId, sinkConnectionId],
   );
 
   const resources = data?.snapshot?.resources ?? [];
@@ -107,7 +109,17 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     return (
       <ResourceTableWrapper>
         <FlexWrapper padding={"16px"} fillWidth>
-          <ErrorLayout message="Failed to load run details." />
+          <Text variant={TextVariant.ERROR}>Failed to load run details.</Text>
+        </FlexWrapper>
+      </ResourceTableWrapper>
+    );
+  }
+
+  if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
+    return (
+      <ResourceTableWrapper>
+        <FlexWrapper padding={"16px"} fillWidth>
+          <Text variant={TextVariant.TERTIARY}>The run is scheduled and has not started yet.</Text>
         </FlexWrapper>
       </ResourceTableWrapper>
     );
@@ -117,7 +129,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     return (
       <ResourceTableWrapper>
         <FlexWrapper padding={"16px"} fillWidth>
-          <EmptyLayout message="The run did not record any resource activity." />
+          <Text variant={TextVariant.TERTIARY}>The run did not record any resource activity.</Text>
         </FlexWrapper>
       </ResourceTableWrapper>
     );
@@ -129,7 +141,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         variant={TableVariant.TERTIARY}
         columns={columns}
         data={resources}
-        getRowId={(resource) => resource.resource}
+        getRowId={(resource) => resource.resourceName}
         isLoading={isLoading}
         loadingRowCount={PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT}
         noLastRowPadding

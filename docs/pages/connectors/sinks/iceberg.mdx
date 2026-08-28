@@ -1,57 +1,130 @@
 ---
 title: "Iceberg"
-description: "Write to Apache Iceberg tables."
+description: "Write Parquet data files to Apache Iceberg tables"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg"
 ---
 
-`connectors/iceberg` writes records as Parquet data files into Iceberg
-tables, via any catalog backend registered with
-[iceberg-go](https://github.com/apache/iceberg-go).
+`connectors/iceberg` (registered as `iceberg`, **alpha**) writes records as
+Parquet data files into Apache Iceberg tables through a REST or
+[iceberg-go](https://github.com/apache/iceberg-go)-registered catalog. It is
+the engine's only transactional sink. `Apply` calls only buffer, and every
+catalog and object-store write happens at `Commit` — one Iceberg transaction
+per resource, so readers never see a half-written run.
 
-## Catalog backends
+## Configuration
 
-Configured through a `catalog.provider` field, which switches which config
-fields are shown:
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `catalog` | Connection | — | Required. Catalog connection object. See below. |
+| `catalog.provider` | Connection | — | Required. `generic`, `rest`, `polaris`, or `lakekeeper`. |
+| `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
+| `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
+| `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before spilling to temp files |
 
-| Provider | Use case |
-|---|---|
-| `generic` | Any iceberg-go-registered catalog type (`sql`, `hive`, `glue`, …) by name, or by URI scheme |
-| `rest` | A generic Iceberg REST catalog endpoint |
-| `polaris` | Apache Polaris specifically — same REST protocol as `rest`, but requires a `warehouse` (Polaris's catalog name, not a storage path) |
-| `lakekeeper` | Lakekeeper specifically — requires its `/catalog` REST endpoint and the name of a warehouse registered in Lakekeeper |
+A `namespace` left empty is defaulted server-side to the normalized source
+connection name.
 
-## Write modes
+Per provider, inside `catalog`:
 
-`write_mode` controls how each commit applies a resource's staged records:
-`auto` (the default) resolves to `replace` for a full-mode run or `append`
-otherwise, or it can be pinned explicitly to `append`, `replace`, `upsert`,
-`delete`, or `merge`.
+| Provider | Fields |
+| --- | --- |
+| `generic` | `type` or `uri` (either is required). Optional `warehouse`, `properties`. |
+| `rest` | `uri` required. Optional `warehouse`, `auth`, `properties`. |
+| `polaris` | `uri` and `warehouse` required, plus `auth` |
+| `lakekeeper` | `uri` and `warehouse` required, plus `auth` |
 
-## Staged, transactional commits
+For `generic`, `type` is an iceberg-go catalog type (`sql`, `hive`, `glue`, …)
+and `properties` is free-form, passed to iceberg-go. For `polaris`, `uri` is
+the REST endpoint (typically ending `/api/catalog`) and `warehouse` is the
+catalog name in Polaris. For `lakekeeper`, `uri` ends in `/catalog`.
 
-The sink implements `filament.Transactional`: `Stage` opens a scope, `Write`
-buffers each resource's records into it (spilling to disk past a configured
-byte threshold), and `Promote` commits every resource in the stage as
-Iceberg transactions — dropping the stage only once every resource
-succeeds, so a retry after a partial failure skips whatever already
-committed. Used directly (no explicit `Stage` call), `Commit` opens and
-promotes an implicit stage itself.
+REST-style providers share an `auth` object:
 
-Row buffers are parsed and streamed to the Iceberg writer in bounded
-8192-row chunks (via Arrow record batches) rather than materialized as one
-giant table in memory, so a large resource doesn't require a matching
-memory footprint.
+| Field | Default | Description |
+| --- | --- | --- |
+| `auth.type` | `none` | `none`, `bearer`, or `client_credentials` |
+| `auth.token` | — | Bearer token. Required for `bearer`. Secret. |
+| `auth.client_id` / `auth.client_secret` | — | Required for `client_credentials`. `client_secret` is secret. |
+| `auth.token_uri` | — | OAuth token endpoint. Empty uses the catalog's default. |
+| `auth.scope` | — | Optional OAuth scope (Polaris commonly uses `PRINCIPAL_ROLE:ALL`) |
+| `auth.audience` / `auth.resource` | — | Optional OAuth audience and resource indicators |
 
-## Schema evolution
+Data files go to the table's storage via the catalog's FileIO. The `s3`/`s3a`/
+`s3n`, `gs`, and `azure` schemes are supported. `TestConnection` loads the
+catalog and lists namespaces.
 
-`EnsureSchema` is **add-only**: a source column not yet on the table gets
-added, but type changes, nullability changes, and dropped columns are never
-applied automatically. Iceberg tolerates a reader seeing a superset schema;
-a narrowing change could silently break something reading the table, so it's
-left to a deliberate migration instead.
+## Supported write modes
 
-## Modes
+The sink advertises `full_replace`, `full_append`, `full_upsert`,
+`incremental_upsert`, `incremental_delete`, and `cdc`. See
+[replication modes](/pages/guides/concepts/replication-modes). Delete support
+is real and advertised, so `incremental_delete` pipelines can hard-delete rows
+from Iceberg tables.
 
-Supports `SnapshotReplace`, `Append`, `SnapshotUpsert`, `Upsert`, `Delete`,
-and `CDC` write policies (see [Replication
-modes](/pages/guides/concepts/replication-modes)).
+## Table management
+
+`EnsureSchema` creates the namespace and the table with
+`write.format.default=parquet`. For an existing table, evolution is
+**add-only**. New fields are appended to the schema, while type changes,
+nullability changes, and drops are never applied. A resource whose name
+collides with Iceberg's reserved metadata names gets a `_` suffix.
+
+### Type mapping
+
+| Logical type | Iceberg type |
+| --- | --- |
+| `bool` | `boolean` |
+| `int16` / `int32` | `int` |
+| `int64` | `long` |
+| `float32` / `float64` | `float` / `double` |
+| `decimal` | `decimal(p,s)` (default 38,9) |
+| `string` / `json` | `string` |
+| `bytes` | `binary` |
+| `date` / `time` / `timestamp` / `timestamptz` / `uuid` | corresponding primitives |
+| `array` | `string` (source-native literal text) |
+| unknown | `string` |
+
+Primary key fields become the table's identifier fields.
+
+Array columns land as their source's literal text. A table created by an older
+Filament version with a `list` column for the same source column must be
+recreated; commits fail on the type mismatch rather than rewriting the column.
+
+## Write mechanics and atomicity
+
+The sink implements `filament.Transactional`: `Stage` opens a scope and `Apply`
+retains each resource's owned Arrow batches, spilling them to an LZ4 Arrow IPC
+file once the buffer passes `stage_buffer_limit_mb`. `Promote` commits every
+resource in the stage as an Iceberg transaction and drops the stage only after
+all resources succeed. A retry skips resources that already committed. Used
+directly without `Stage`, `Commit` opens and promotes an implicit stage.
+
+Buffering validates operations against the bound mode:
+
+- append rejects updates and deletes
+- replace rejects deletes
+- upsert, delete, and merge require key fields
+
+At commit, batches are conformed to the table's Arrow schema (including int16
+to int32, UUID text to UUID, and unbounded numeric text to decimal(38,9)) and
+streamed to the Parquet writer batch by batch. The sink reloads each table from
+the catalog first, picking up freshly vended storage credentials, and opens one
+Iceberg transaction:
+
+- **append**: `txn.Append` of Arrow record batches in 8,192-row chunks.
+- **replace**: `txn.Overwrite` with the run's records. A replace run that
+  produced **zero records still overwrites the table to empty**. An empty
+  source empties the destination.
+- **upsert / delete / merge**: records are collapsed to the latest entry per
+  key (later ops win), then applied as `txn.Delete` or `txn.Overwrite` with a
+  key filter.
+
+Nothing is visible to readers until each resource's transaction commits, so
+per-run visibility is effectively exactly-once. `Commit` is retry-safe.
+Resources that already committed are skipped on a retried commit.
+
+## Failure behavior
+
+`Abort` discards the in-memory buffers and temporary spill files. No catalog
+or object-store state was written before `Commit`, so a failed run leaves
+every destination table exactly as it was.

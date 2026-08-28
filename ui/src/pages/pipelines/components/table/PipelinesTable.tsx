@@ -22,13 +22,15 @@ import {
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
+  PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
 import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
 import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
-import { formatBytes, formatDuration, formatTimeAgo } from "@/utils/format";
+import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
+import { formatCount, formatDuration, formatTimeAgo } from "@/utils/format";
 
 const PipelinesTableWrapper = styled.div`
   width: 100%;
@@ -55,15 +57,38 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
     cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
   },
   {
+    id: "recentRuns",
+    header: "Runs",
+    size: PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
+    cellLoading: () => <TextShimmer width={136} height={18} />,
+    cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row.original} />,
+  },
+  {
+    id: "lastRun",
+    header: "Ran",
+    size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
+    accessorFn: (pipeline) => Number(pipeline.lastRun?.startedAt ?? 0n),
+    enableSorting: true,
+    cellLoading: () => <TextShimmer width={64} height={14} />,
+    cell: ({ row }) => (
+      <Text size={TextSize.BODY_SM} isEllipsis>
+        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.startedAt) : "—"}
+      </Text>
+    ),
+  },
+  {
     id: "status",
     header: "Status",
     size: PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
-    accessorFn: (pipeline) => pipeline.lastRunStatus,
+    accessorFn: (pipeline) => pipeline.lastRun?.status ?? -1,
     enableSorting: true,
     cellLoading: () => <TextShimmer width={64} height={18} />,
     cell: ({ row }) =>
-      row.original.lastRunAt > 0n ? (
-        <PipelineHistoryRunStatus status={row.original.lastRunStatus} />
+      row.original.lastRun ? (
+        <PipelineHistoryRunStatus
+          status={row.original.lastRun.status}
+          error={row.original.lastRun.error}
+        />
       ) : (
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
           Never run
@@ -71,45 +96,34 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
       ),
   },
   {
-    id: "lastRun",
-    header: "Last run",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
-    accessorFn: (pipeline) => Number(pipeline.lastRunAt),
-    enableSorting: true,
-    cellLoading: () => <TextShimmer width={64} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isEllipsis>
-        {row.original.lastRunAt > 0n ? formatTimeAgo(row.original.lastRunAt) : "—"}
-      </Text>
-    ),
-  },
-  {
     id: "lastDuration",
     header: "Duration",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
-    accessorFn: (pipeline) =>
-      pipeline.lastRunAt && pipeline.lastRunEndedAt
-        ? Number(pipeline.lastRunEndedAt - pipeline.lastRunAt)
-        : -1,
+    accessorFn: (pipeline) => {
+      const run = pipeline.lastRun;
+      return run?.startedAt && run.endedAt ? Number(run.endedAt - run.startedAt) : -1;
+    },
     enableSorting: true,
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {formatDuration(row.original.lastRunAt, row.original.lastRunEndedAt)}
+        {row.original.lastRun
+          ? formatDuration(row.original.lastRun.startedAt, row.original.lastRun.endedAt)
+          : "—"}
       </Text>
     ),
   },
   {
     id: "lastVolume",
-    header: "Volume",
+    header: "Records",
     size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
     align: ColumnAlign.RIGHT,
-    accessorFn: (pipeline) => Number(pipeline.lastRunBytes),
+    accessorFn: (pipeline) => Number(pipeline.lastRun?.records ?? 0n),
     enableSorting: true,
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.lastRunAt > 0n ? formatBytes(row.original.lastRunBytes) : "—"}
+        {row.original.lastRun ? formatCount(row.original.lastRun.records) : "—"}
       </Text>
     ),
   },

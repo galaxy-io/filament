@@ -50,6 +50,27 @@ func TestUnmarshalUnknownType(t *testing.T) {
 	}
 }
 
+func TestRunControlEventsAreCataloged(t *testing.T) {
+	for _, event := range []struct {
+		name string
+		data any
+	}{
+		{name: RunCanceled.Name(), data: RunCanceledEvent{}},
+		{name: RunPaused.Name(), data: RunPausedEvent{}},
+		{name: RunPauseRequested.Name(), data: RunPauseRequestedEvent{}},
+		{name: RunCancelRequested.Name(), data: RunCancelRequestedEvent{}},
+	} {
+		b, err := Marshal(Fact{Envelope: env(), Name: event.name, Data: event.data})
+		if err != nil {
+			t.Fatalf("marshal %s: %v", event.name, err)
+		}
+		fact, err := Unmarshal(b)
+		if err != nil || fact.Name != event.name {
+			t.Fatalf("round trip %s = %#v, %v", event.name, fact, err)
+		}
+	}
+}
+
 func TestCodecRoundTrip(t *testing.T) {
 	in := Fact{Envelope: env(), Name: RunFailed.Name(), Data: RunFailedEvent{Error: "boom"}}
 	b, err := Codec.Encode(in)

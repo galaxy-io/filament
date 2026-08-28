@@ -10,11 +10,11 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
+import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
 
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import PipelineLayout from "@/pages/pipelines/layout/PipelineLayout";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
@@ -27,7 +27,7 @@ const PipelinePage = () => {
   });
 
   const pipeline = pipelineData.pipeline;
-  const version = pipelineData.currentVersion;
+  const version = pipelineData.pipeline?.currentVersion;
 
   const previewed = usePipelinePreviewVersion();
 

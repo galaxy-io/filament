@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
+import { useParams } from "@tanstack/react-router";
 import {
   Background,
   BackgroundVariant,
@@ -19,6 +21,9 @@ import "@xyflow/react/dist/style.css";
 
 import type { PropsWithTheme } from "@galaxy-io/dls/theme";
 
+import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
+import { ListRunsRequestSchema } from "@/gen/ingestion/v1/runs_pb";
+
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
   PIPELINE_CANVAS_PAN_ON_DRAG,
@@ -33,6 +38,7 @@ import PipelineCanvasNodeSink from "@/pages/pipelines/canvas/nodes/PipelineCanva
 import PipelineCanvasNodeSource from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
+import PipelineCanvasSelectionReveal from "@/pages/pipelines/canvas/PipelineCanvasSelectionReveal";
 import PipelineCanvasPanel from "@/pages/pipelines/canvas/panel/PipelineCanvasPanel";
 import {
   usePipelineCanvasActions,
@@ -46,6 +52,9 @@ import {
   mapEdgesToStyledEdges,
   mapElementsToSelected,
 } from "@/pages/pipelines/canvas/utils";
+
+import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { useListRunsQuery } from "@/api/queries/runs";
 
 const filterSelectionChanges = <T extends { type: string }>(changes: T[]): T[] =>
   changes.filter((change) => change.type !== "select");
@@ -99,6 +108,7 @@ const PipelineCanvasPageWrapper = withTheme(styled.div<PropsWithTheme>`
 
 const PipelineCanvasPage = () => {
   const theme = useTheme();
+  const { id } = useParams({ from: "/pipelines/$id" });
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();
   const isReadOnly = usePipelineCanvasReadOnly();
@@ -172,9 +182,18 @@ const PipelineCanvasPage = () => {
 
   const fitViewOptions = useMemo(() => getPipelineCanvasFitViewOptions(showPanel), [showPanel]);
 
+  const { data: activeRunsData } = useListRunsQuery({
+    input: create(ListRunsRequestSchema, {
+      pipelineId: id,
+      status: [...ACTIVE_RUN_STATUSES],
+      pagination: create(PaginationRequestSchema, { pageSize: 1 }),
+    }),
+  });
+  const isRunning = (activeRunsData?.runs.length ?? 0) > 0;
+
   const styledEdges = useMemo(
-    () => mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme),
-    [selectedEdges, selectedNodes, theme],
+    () => mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme, isRunning),
+    [selectedEdges, selectedNodes, theme, isRunning],
   );
 
   return (
@@ -211,6 +230,7 @@ const PipelineCanvasPage = () => {
           bgColor={theme.color.background.base}
         />
         <PipelineCanvasControls />
+        <PipelineCanvasSelectionReveal />
         <MiniMap
           nodeColor={(node) => {
             if (node.type === PipelineCanvasNodeType.PLACEHOLDER) return "transparent";

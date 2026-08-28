@@ -5,7 +5,7 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/providers_pb";
+import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import Field from "@/components/fields/Field";
 import {
@@ -45,7 +45,7 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
   const isReadOnly = usePipelineCanvasReadOnly();
   const state = usePipelineCanvasState();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
-  const { setNodeConfig } = usePipelineCanvasActions();
+  const { setNodeConfig, removeNode } = usePipelineCanvasActions();
   const nodeEdges = state.edges.filter(
     (edge) => edge.source === node.id || edge.target === node.id,
   );
@@ -80,6 +80,14 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
         }
         onBack={clearSelection}
         onClose={() => setShowPanel(false)}
+        onDelete={
+          isReadOnly
+            ? undefined
+            : () => {
+                removeNode(node.id);
+                clearSelection();
+              }
+        }
       />
       <PipelineCanvasPanelBody>
         <ConnectionDrawerList>

@@ -5,7 +5,7 @@ Ephemeral backing-service containers for integration tests, seed operations, and
 ## Requirements
 
 - Docker (running)
-- Go 1.25+
+- Go 1.26.4+
 - `duckdb` on PATH for TPC-H seeds (`brew install duckdb`)
 
 ## Image pinning
@@ -19,14 +19,18 @@ REDIS_IMAGE=redis:7
 MINIO_IMAGE=minio/minio:latest
 TRINO_IMAGE=trinodb/trino:latest
 ICEBERG_REST_IMAGE=apache/iceberg-rest-fixture:latest
+K3S_IMAGE=rancher/k3s:v1.31.2-k3s1
 ```
 
-This keeps testcontainers and your dev compose stack on the same versions — bump a tag once and both pick it up. Fallback defaults (`postgres:latest`, etc.) are used when the file is absent or missing a key.
+Where supported, the test helpers and long-lived `container` package read the same pins. Fallback defaults (`postgres:latest`, etc.) are used when the file is absent or missing a key.
 
 ## Running integration tests
 
+From the repository root:
+
 ```sh
-go test -tags integration ./...
+cd tests
+GOWORK=off go test -tags integration ./...
 ```
 
 Containers start, run, and are terminated automatically via `t.Cleanup`. No manual teardown needed.
@@ -89,17 +93,7 @@ dsn := ch.DSN // native clickhouse:// DSN on the mapped host port
 ```
 
 The helper uses a pinned ClickHouse LTS image and terminates the container with
-`t.Cleanup`. The TPC-H integration test replicates all eight tables from the
-Postgres testcontainer and verifies insertion-order retries and cursor-ordered
-incremental upserts.
-It defaults to scale factor 0.01 for a fast complete-schema check; set
-`FILAMENT_TPCH_SCALE=1` (or another positive scale) for a larger run.
-
-```sh
-cd tests
-GOWORK=off go test -tags integration ./integration \
-  -run '^TestPostgresTPCHToClickHouse$' -v
-```
+`t.Cleanup`.
 
 ### NATS
 
@@ -108,6 +102,17 @@ n := testcontainers.NATSContainer(t)
 n.URL   // "nats://localhost:<port>"
 n.Conn  // *nats.Conn (connected, closed on cleanup)
 ```
+
+### Kubernetes (k3s)
+
+```go
+k := testcontainers.K3sCluster(t)
+k.KubeconfigPath // temporary kubeconfig for the cluster
+k.Clientset      // connected kubernetes.Interface
+```
+
+The k3s container runs privileged and is heavier than the other helpers. Prefer
+one cluster per test package.
 
 ### Redis
 
@@ -153,13 +158,13 @@ The `seed` package defines a `Spec` (shape + size) and a registry of named scena
 
 ### Built-in scenarios
 
-| Name | Backend | Tables | Rows/table |
-|------|---------|--------|------------|
-| `multitenant-sm` | postgres | 2 | 1,000 |
-| `multitenant-lg` | postgres | 10 | 100,000 |
-| `tpch-sf0.1` | postgres | 8 | ~75K avg |
-| `tpch-sf1` | postgres | 8 | ~750K avg |
-| `tpch-sf5` | postgres | 8 | ~3.75M avg |
+| Name | Backend | Tables | Approximate total rows |
+|------|---------|--------|------------------------|
+| `multitenant-sm` | postgres | 2 | 2,000 |
+| `multitenant-lg` | postgres | 10 | 1,000,000 |
+| `tpch-sf0.1` | postgres | 8 | ~867K |
+| `tpch-sf1` | postgres | 8 | ~8.7M |
+| `tpch-sf5` | postgres | 8 | ~43.3M |
 
 Activate built-in scenarios with a blank import:
 

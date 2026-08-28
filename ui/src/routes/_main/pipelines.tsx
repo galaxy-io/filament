@@ -14,6 +14,8 @@ const searchParams = z.object({
 export const Route = createFileRoute("/_main/pipelines")({
   validateSearch: searchParams,
   loader: () =>
-    queryClient.ensureInfiniteQueryData(createListPipelinesInfiniteQueryOptions({ transport })),
+    queryClient.ensureInfiniteQueryData(
+      createListPipelinesInfiniteQueryOptions({ input: { includeLastRun: true }, transport }),
+    ),
   component: PipelinesPage,
 });

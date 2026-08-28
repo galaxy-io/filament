@@ -19,6 +19,7 @@ import {
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
+import { createListRunsQueryKey } from "@/api/queries/runs";
 
 export const createGetPipelineVersionQueryKey = (
   input?: GetPipelineVersionRequest,
@@ -84,6 +85,9 @@ export const useCreatePipelineVersionMutation = (
         queryKey: createGetPipelineVersionQueryKey(
           create(GetPipelineVersionRequestSchema, { pipelineId: variables.pipelineId }),
         ),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListRunsQueryKey(),
       });
       return options.onSettled?.(...args);
     },

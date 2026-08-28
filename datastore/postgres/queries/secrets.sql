@@ -1,7 +1,7 @@
 -- name: WriteSecret :exec
-INSERT INTO secrets (ref, ciphertext, nonce, key_id, metadata, updated_at)
-VALUES (@ref, @ciphertext, @nonce, @key_id, @metadata, now())
-ON CONFLICT (ref) DO UPDATE SET
+INSERT INTO secrets (tenant_id, ref, ciphertext, nonce, key_id, metadata, updated_at)
+VALUES (@tenant_id, @ref, @ciphertext, @nonce, @key_id, @metadata, now())
+ON CONFLICT (tenant_id, ref) DO UPDATE SET
     ciphertext = EXCLUDED.ciphertext,
     nonce = EXCLUDED.nonce,
     key_id = EXCLUDED.key_id,

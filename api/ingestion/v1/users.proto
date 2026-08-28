@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+message User {
+  string id = 1;
+  string tenant_id = 2;
+  string external_id = 3;
+  int64 created_at = 4;
+  int64 updated_at = 5;
+  string created_by_user_id = 6;
+  string updated_by_user_id = 7;
+  string deleted_by_user_id = 8;
+}

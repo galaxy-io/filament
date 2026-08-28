@@ -1,42 +1,60 @@
 ---
 title: "Quickstart"
-description: "Run Filament locally in three commands."
+description: "Run Filament locally in three commands"
 ---
 
 ## Prerequisites
 
-Run `brew bundle` from the repo root to install the toolchain, and make sure
-Docker is running — local infra comes up via `docker compose`.
+You need:
+
+- Docker running (local infra comes up via Docker Compose)
+- Go
+- `just`
+- Node with pnpm for the UI
+
+Run `brew bundle` from the repo root to install the whole toolchain from the
+Brewfile.
 
 ## Run it
 
 <Steps>
   <Step title="Start local infra">
-    Brings up the data store and event bus via Docker Compose.
+    Brings up Postgres 16 and NATS with JetStream via Docker Compose. Wait
+    for both containers to report healthy. The next step runs database
+    migrations against this Postgres.
 
     ```sh
     just infra
     ```
   </Step>
   <Step title="Run the app">
-    Starts the control plane, API server, and web UI together.
+    This command:
+
+    - Runs migrations
+    - Starts the control plane (in-process dispatch) and the API server in the background
+    - Waits until both `:8080/livez` and `:8081/livez` answer
+    - Finally starts the UI dev server
 
     ```sh
     just dev
     ```
 
-    The UI is served on `localhost:5173`; the API server listens on `:8080`.
+    Once up:
+
+    - The API listens on `:8080`
+    - The control plane serves its health endpoints on `:8081`
+    - The UI dev server runs on `localhost:5173`, proxying API calls to `:8080`
   </Step>
   <Step title="Run the tests (optional)">
     ```sh
     just test               # unit tests
-    just test-integration   # e2e — needs Docker
+    just test-integration   # e2e via testcontainers — needs Docker
     ```
   </Step>
 </Steps>
 
 ## Next steps
 
-Head to [Architecture](/pages/guides/concepts/architecture) to see how these pieces
-relate, or [Connectors](/pages/connectors/overview/introduction) to see what you can plug in as
-a source or sink.
+Head to [Architecture](/pages/guides/concepts/architecture) to see how these
+pieces relate, or [Connectors](/pages/connectors/overview/introduction) to see
+what you can plug in as a source or sink.

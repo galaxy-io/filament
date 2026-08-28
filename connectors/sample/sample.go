@@ -6,16 +6,16 @@ package sample
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // defaultRows is emitted per resource when "rows" is not configured.
 const defaultRows = 3
 
-// Source generates synthetic records. One instance is created per run, then
+// Source generates synthetic rows. One instance is created per run, then
 // Configure sets the per-resource row count from the run's source config.
 type Source struct {
 	rows int
@@ -25,8 +25,9 @@ type Source struct {
 func New() *Source { return &Source{rows: defaultRows} }
 
 var (
-	_ filament.Source       = (*Source)(nil)
-	_ filament.Discoverable = (*Source)(nil)
+	_ filament.Source         = (*Source)(nil)
+	_ filament.Discoverable   = (*Source)(nil)
+	_ filament.SchemaProvider = (*Source)(nil)
 )
 
 // Spec describes the generator's config fields, modes, and write policies.
@@ -34,6 +35,9 @@ func (s *Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name:           "sample",
 		DisplayName:    "Sample Generator",
+		Description:    "Synthetic data generator that emits configurable rows per resource for demos, testing, and end-to-end pipeline wiring.",
+		DarkLogoURL:    "https://cdn.getgalaxy.io/sources/source-icon-sample-dark.svg",
+		LightLogoURL:   "https://cdn.getgalaxy.io/sources/source-icon-sample-light.svg",
 		Version:        "1",
 		Modes:          []filament.ReadMode{filament.ModeFull},
 		SourcePolicies: filament.SourcePolicies(filament.IngestionFullReplace),
@@ -67,10 +71,10 @@ func (s *Source) Discover(context.Context, filament.DiscoverOpts) (filament.Disc
 	}}, nil
 }
 
-// Extract emits rows synthetic records for each requested resource (defaulting to
+// Extract emits rows synthetic rows for each requested resource (defaulting to
 // a single "items" resource when none are named), respecting cancellation and
 // pipeline backpressure via the sink.
-func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts) error {
 	resources := opts.Resources
 	if len(resources) == 0 {
 		resources = []string{"items"}
@@ -80,17 +84,38 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 		rows = 1
 	}
 	for _, resource := range resources {
-		for i := 0; i < rows; i++ {
+		w, err := sink.Builder(resource, 0, schema(resource))
+		if err != nil {
+			return err
+		}
+		for i := range rows {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			data := fmt.Appendf(nil, `{"resource":%q,"i":%d}`, resource, i)
-			if err := sink.Push(filament.NewRecord(resource, strconv.Itoa(i), data)); err != nil {
+			w.Int64(int64(i))
+			w.String(resource)
+			if err := w.EndRow(rowmodel.Meta{}); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// Schema describes a synthetic resource: a row number and the resource name.
+func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
+	return schema(resource), nil
+}
+
+func schema(resource string) rowmodel.Schema {
+	return rowmodel.Schema{
+		Resource:   resource,
+		PrimaryKey: []string{"i"},
+		Fields: []rowmodel.Field{
+			{Name: "i", Logical: rowmodel.LogicalInt64},
+			{Name: "resource", Logical: rowmodel.LogicalString},
+		},
+	}
 }
 
 // Teardown is a no-op; the generator holds no resources.

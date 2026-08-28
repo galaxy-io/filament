@@ -13,7 +13,7 @@ import (
 )
 
 // DefaultTenantID is the tenant seeded by migrations and used by POC commands.
-const DefaultTenantID = "t1"
+const DefaultTenantID = string(filament.DefaultTenantID)
 
 // Tenant is a control-plane tenant row.
 type Tenant struct {
@@ -46,7 +46,7 @@ func (s *Store) LoadTenant(ctx context.Context, id filament.TenantID) (Tenant, e
 		}
 		return Tenant{}, fmt.Errorf("datastore/postgres: load tenant: %w", err)
 	}
-	return tenantFromRow(row.TenantID, row.Name, fromTimestamptz(row.CreatedAt), fromTimestamptz(row.UpdatedAt)), nil
+	return tenantFromRow(row.ID, row.Name, fromTimestamptz(row.CreatedAt), fromTimestamptz(row.UpdatedAt)), nil
 }
 
 // ListTenants returns all tenant rows ordered by id.
@@ -57,7 +57,7 @@ func (s *Store) ListTenants(ctx context.Context) ([]Tenant, error) {
 	}
 	out := make([]Tenant, len(rows))
 	for i, row := range rows {
-		out[i] = tenantFromRow(row.TenantID, row.Name, fromTimestamptz(row.CreatedAt), fromTimestamptz(row.UpdatedAt))
+		out[i] = tenantFromRow(row.ID, row.Name, fromTimestamptz(row.CreatedAt), fromTimestamptz(row.UpdatedAt))
 	}
 	return out, nil
 }

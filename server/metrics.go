@@ -26,11 +26,11 @@ func (a *Server) QueryAggregate(ctx context.Context, req *connect.Request[metric
 	m := req.Msg
 	metrics, err := metricsFromProto(m.GetMetrics())
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	filters, err := metricFiltersFromProto(m.GetFilters())
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	groupBy := metricDimensionFromProto(m.GetGroupBy())
 
@@ -43,7 +43,7 @@ func (a *Server) QueryAggregate(ctx context.Context, req *connect.Request[metric
 		Filters: filters,
 	})
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	out := make([]*metricsv1.AggregateRow, len(rows))
@@ -67,15 +67,15 @@ func (a *Server) QueryTimeseries(ctx context.Context, req *connect.Request[metri
 	m := req.Msg
 	metrics, err := metricsFromProto(m.GetMetrics())
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	granularity, err := metricGranularityFromProto(m.GetGranularity())
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	filters, err := metricFiltersFromProto(m.GetFilters())
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	groupBy := metricDimensionFromProto(m.GetGroupBy())
 
@@ -90,7 +90,7 @@ func (a *Server) QueryTimeseries(ctx context.Context, req *connect.Request[metri
 		Filters:         filters,
 	})
 	if err != nil {
-		return nil, err
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	out := make([]*metricsv1.Timeseries, len(series))

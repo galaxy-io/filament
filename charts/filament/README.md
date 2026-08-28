@@ -19,7 +19,7 @@ The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnam
 
 ## Runtime configuration
 
-Filament requires a PostgreSQL DSN, a base64-encoded encryption key, and a NATS URL. Provide them either through `existingSecret` or through chart values so the chart can create the Secret.
+Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
 
 To use an existing Secret:
 
@@ -61,7 +61,7 @@ helm upgrade --install filament . \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Labels added to all Filament resources. |
-| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`, and `NATS_URL`. When set, the chart does not create its own Secret. |
+| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider. When set, the chart does not create its own Secret. |
 
 ## Server parameters
 
@@ -101,6 +101,7 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.job.ttlSecondsAfterFinished | int | `3600` | Seconds to retain completed dispatched worker Jobs. |
 | controlPlane.dispatch.mode | string | `"kubernetes"` | Worker dispatch backend. |
 | controlPlane.dispatch.worker.activeDeadlineSeconds | string | `""` | Worker Job active deadline in seconds. Leave empty for no deadline. |
+| controlPlane.dispatch.worker.heartbeatSeconds | int | `30` | Interval in seconds between worker heartbeats, stored in the worker ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default. |
 | controlPlane.dispatch.worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
 | controlPlane.dispatch.worker.image.pullSecrets | list | `[]` | Image pull secrets for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs. |
@@ -110,6 +111,7 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
 | controlPlane.dispatch.worker.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
+| controlPlane.health.port | int | `8081` | Port the control plane serves `/livez` and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |
 | controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Control plane image pull policy. |
 | controlPlane.image.pullSecrets | list | `[]` | Image pull secrets for the control plane Deployment. |
 | controlPlane.image.repository | string | `"ghcr.io/galaxy-io/filament/control-plane"` | Control plane image repository. |
@@ -123,6 +125,7 @@ helm upgrade --install filament . \
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| metrics.type | string | `"postgresql"` | Metrics backend for the dashboard query API, stored in the server ConfigMap as `METRICSSTORE_PROVIDER`. `postgresql` answers from the datastore's own pool. |
 
 ## Persistence parameters
 

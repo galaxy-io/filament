@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/datastore/memory"
 )
@@ -18,7 +19,7 @@ func TestScheduledCDCLoadsPipelineCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
 	spec := filament.RunSpec{
-		Run: "run-b", PipelineID: "pipe", PipelineVersionID: 2,
+		Run: "run-b", PipelineID: "pipe", PipelineVersionID: "version-2",
 		CheckpointRoute: "route/source/sink/cdc", Resources: []string{"users"},
 	}
 	key, _ := spec.ResourceCheckpointKey("users")
@@ -78,7 +79,7 @@ func (*incrementalTestSink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{Name: "test-sink", Capabilities: filament.SinkCapabilities{Upsertable: true}}
 }
 func (*incrementalTestSink) Open(context.Context, filament.RunSpec) error { return nil }
-func (*incrementalTestSink) Apply(context.Context, filament.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (*incrementalTestSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
 	return filament.WriteReceipt{}, nil
 }
 func (*incrementalTestSink) Commit(context.Context) error { return nil }
@@ -103,13 +104,13 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	store := memory.New()
 	plan := filament.IngestionPlan{}
 	base := filament.RunSpec{
-		Run: "run-a", PipelineID: "pipe", PipelineVersionID: 1, CheckpointRoute: "route/source/sink",
-		Source: filament.Ref{Provider: "test"}, Resources: []string{"users"},
+		Run: "run-a", PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink",
+		Source: filament.Ref{Connector: "test"}, Resources: []string{"users"},
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 		CursorConfigs:  map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at", LookbackSeconds: 300}},
 	}
 	first := &incrementalTestSource{}
-	if _, err := resolveExtractor(ctx, store, first, base, plan); err != nil {
+	if _, err := resolveExtractor(ctx, store, first, base, plan, nil); err != nil {
 		t.Fatal(err)
 	}
 	key, _ := base.ResourceCheckpointKey("users")
@@ -125,7 +126,7 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	secondSpec := base
 	secondSpec.Run = "run-b"
 	second := &incrementalTestSource{}
-	if _, err := resolveExtractor(ctx, store, second, secondSpec, plan); err != nil {
+	if _, err := resolveExtractor(ctx, store, second, secondSpec, plan, nil); err != nil {
 		t.Fatal(err)
 	}
 	if second.previous["users"].String("position") != "next-run" {
@@ -161,5 +162,31 @@ func TestResolveIngestionPlanUsesInsertOrderForSnapshotUpsert(t *testing.T) {
 	}
 	if got := plan.WritePolicies["users"].Version.Strategy; got != filament.VersionInsertOrder {
 		t.Fatalf("version strategy = %q, want %q", got, filament.VersionInsertOrder)
+	}
+}
+
+func TestIncrementalAppendFailureIsNotResumable(t *testing.T) {
+	spec := filament.RunSpec{
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalAppend},
+	}
+	plan := filament.IngestionPlan{WritePolicies: map[string]filament.WritePolicy{
+		"users": filament.WritePolicyForIngestion(filament.IngestionIncrementalAppend),
+	}}
+	if isResumableRun(spec, plan) {
+		t.Fatal("incremental append must abort instead of resuming into preserved append data")
+	}
+
+	spec.IngestionTypes["users"] = filament.IngestionIncrementalUpsert
+	plan.WritePolicies["users"] = filament.WritePolicyForIngestion(filament.IngestionIncrementalUpsert)
+	if !isResumableRun(spec, plan) {
+		t.Fatal("incremental upsert should remain resumable")
+	}
+
+	policy := plan.WritePolicies["users"]
+	policy.Checkpoint = filament.CheckpointAfterCommit
+	plan.WritePolicies["users"] = policy
+	if isResumableRun(spec, plan) {
+		t.Fatal("commit-gated progress must fail instead of resuming before commit")
 	}
 }

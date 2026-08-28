@@ -3,47 +3,14 @@ syntax = "proto3";
 package ingestion.v1;
 
 import "ingestion/v1/common.proto";
+import "ingestion/v1/connectors.proto";
 import "ingestion/v1/pipelines.proto";
-import "ingestion/v1/providers.proto";
-
-message GetConnectionCapabilitiesRequest {
-  string tenant_id = 1;
-  string id = 2;
-}
-
-// ReadModeWriteCompatibility is one read mode crossed with the write modes
-// it can compile with. Delete and merge are engine mechanisms, never offered
-// as read or write modes.
-message ReadModeWriteCompatibility {
-  ReadMode read_mode = 1;
-  repeated WriteMode write_modes = 2;
-}
-
-message GetConnectionCapabilitiesResponse {
-  string connector = 1;
-  ConnectorKind kind = 2;
-  // Flags and the connection's effective policies, narrowed by its config.
-  Capabilities capabilities = 3;
-  // The connection's replication mode, resolved from its stored config.
-  // Sinks report UNSPECIFIED.
-  ReplicationMode replication = 4;
-  // Source: the per-table read modes this connection offers. Empty on a CDC
-  // connection — replication is understood, there is no read mode.
-  repeated ReadMode read_modes = 5;
-  // Sink: the write modes this sink offers.
-  repeated WriteMode write_modes = 6;
-  // Source: for each offered read mode, the write modes it combines with —
-  // the IngestionFor matrix scoped to this connection. Empty on sinks and CDC
-  // connections.
-  repeated ReadModeWriteCompatibility read_mode_write_compatibilities = 7;
-}
 
 // ValidatePipelineRequest carries the graph inline so unsaved canvas state
 // validates the same as a persisted version.
 message ValidatePipelineRequest {
   string tenant_id = 1;
-  repeated PipelineNode nodes = 2;
-  repeated PipelineEdge edges = 3;
+  PipelineGraph graph = 2;
 }
 
 enum RequirementKind {
@@ -71,7 +38,7 @@ message CandidateValue {
   string warning = 4;
 }
 
-// Requirement is configuration the chosen ingestion type involves. It is
+// Requirement is configuration the chosen read/write combination involves. It is
 // emitted whether or not the value is set so a picker can render from it:
 // satisfied means the value is configured, blocking means the run would fail
 // as-is. Unsatisfied and non-blocking means auto-detection covers it.
@@ -85,29 +52,28 @@ message Requirement {
   CandidateStatus candidate_status = 7;
 }
 
-// ResourceValidation is one routed table's verdict under the edge: the read
-// modes this table can actually serve given its cursor reality, plus
-// requirements for the edge's chosen levers. Populated when the chosen levers
-// need per-table setup; full-read append/replace edges have nothing to
-// configure.
+// ResourceValidation reports the read modes a routed resource supports and any
+// requirements for its selected read/write combination. CDC resources report
+// no Standard read modes.
 message ResourceValidation {
   string resource = 1;
-  repeated ReadMode supported_read_modes = 2;
-  repeated Requirement requirements = 3;
+  repeated Requirement requirements = 2;
+  repeated ReadMode supported_read_modes = 3;
 }
 
-// EdgeValidation is one edge's verdict: the write levers the sink offers, the
-// ingestion type the server derived from the edge's levers, hard errors,
-// edge-scoped requirements, and the per-table breakdown.
+// EdgeValidation is one edge's authoritative read/write verdict. Write modes
+// apply to the complete source-to-destination route.
 message EdgeValidation {
   string from_node = 1;
   string to_node = 2;
   string resource = 3;
-  repeated WriteMode supported_write_modes = 4;
-  repeated ValidationError errors = 5;
-  repeated Requirement requirements = 6;
-  repeated ResourceValidation resources = 7;
-  IngestionType ingestion_type = 8;
+  repeated ValidationError errors = 4;
+  repeated Requirement requirements = 5;
+  repeated ResourceValidation resources = 6;
+  repeated WriteMode supported_write_modes = 7;
+  ReplicationMode replication = 8;
+  ReadMode effective_read_mode = 9;
+  WriteMode effective_write_mode = 10;
 }
 
 message ValidatePipelineResponse {

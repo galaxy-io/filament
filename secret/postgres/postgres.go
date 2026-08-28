@@ -64,6 +64,9 @@ func New(pool *pgxpool.Pool, keyID string, key []byte) (*Provider, error) {
 func (p *Provider) Name() string { return "postgres" }
 
 func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret) error {
+	if secret.Tenant == "" {
+		return fmt.Errorf("secret/postgres: tenant is required")
+	}
 	nonce := make([]byte, p.gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return fmt.Errorf("secret/postgres: nonce: %w", err)
@@ -72,7 +75,7 @@ func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret
 	if err != nil {
 		return fmt.Errorf("secret/postgres: marshal metadata: %w", err)
 	}
-	err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{Ref: ref, Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce, KeyID: p.keyID, Metadata: meta})
+	err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{TenantID: string(secret.Tenant), Ref: ref, Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce, KeyID: p.keyID, Metadata: meta})
 	if err != nil {
 		return fmt.Errorf("secret/postgres: write: %w", err)
 	}

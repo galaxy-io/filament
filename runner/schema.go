@@ -18,7 +18,7 @@ func ensureSchemas(ctx context.Context, src filament.Source, snk filament.Sink, 
 	}
 	prov, ok := src.(filament.SchemaProvider)
 	if !ok {
-		return fmt.Errorf("sink %q requires a schema but source %q provides none", spec.Sink.Provider, spec.Source.Provider)
+		return fmt.Errorf("sink %q requires a schema but source %q provides none", spec.Sink.Connector, spec.Source.Connector)
 	}
 	for _, res := range spec.Resources {
 		schema, err := prov.Schema(ctx, res)

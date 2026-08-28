@@ -74,8 +74,8 @@ func TestTrackerFoldsRunLifecycle(t *testing.T) {
 	if state.Status != filament.RunCompleted {
 		t.Fatalf("status after run.completed = %v, want completed", state.Status)
 	}
-	if state.FinishedAt == nil {
-		t.Fatal("run.completed did not stamp FinishedAt")
+	if state.EndedAt == nil {
+		t.Fatal("run.completed did not stamp EndedAt")
 	}
 }
 
@@ -110,8 +110,8 @@ func TestTrackerTerminalStampIsFirstWriteWins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load run: %v", err)
 	}
-	if state.FinishedAt == nil || !state.FinishedAt.Equal(first) {
-		t.Fatalf("FinishedAt = %v, want first stamp %v", state.FinishedAt, first)
+	if state.EndedAt == nil || !state.EndedAt.Equal(first) {
+		t.Fatalf("EndedAt = %v, want first stamp %v", state.EndedAt, first)
 	}
 }
 
@@ -132,9 +132,50 @@ func TestTrackerEvictsAccumulatorsOnTerminal(t *testing.T) {
 
 	deliver(t, m, 2, events.RunCompleted, env, events.RunCompletedEvent{Records: 5, Bytes: 100})
 	m.mu.Lock()
-	leaked := len(m.cp) + len(m.since) + len(m.bm) + len(m.every)
+	leaked := len(m.cp) + len(m.since) + len(m.bm) + len(m.every) + len(m.boundary)
 	m.mu.Unlock()
 	if leaked != 0 {
 		t.Fatalf("accumulator entries after terminal = %d, want 0", leaked)
+	}
+}
+
+func TestTrackerDefersCommitGatedCheckpoint(t *testing.T) {
+	m, ds := mounted(t)
+	ctx := context.Background()
+	run := filament.RunID("r1")
+	request := filament.RunRequest{IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionFullUpsert}}
+	if err := ds.SaveRun(ctx, filament.RunState{Run: run, Tenant: "t1", Status: filament.RunRunning, Request: request}); err != nil {
+		t.Fatal(err)
+	}
+	plan := checkpoint.KeysetCheckpoint{
+		Cols: []string{"id"}, Types: []string{"bigint"}, Shards: []checkpoint.KeysetShard{{}},
+	}.ToCheckpoint("users")
+	if err := ds.SaveCheckpoint(ctx, run, plan); err != nil {
+		t.Fatal(err)
+	}
+	resource := events.Envelope{Tenant: "t1", Run: run, Resource: "users", At: time.Now()}
+	deliver(t, m, 1, events.BatchWritten, resource, events.BatchWrittenEvent{
+		Records: 1, Checkpoint: checkpoint.NewShardDelta("users", 0, []string{"42"}),
+		CheckpointPolicy: filament.CheckpointAfterCommit,
+	})
+	deliver(t, m, 2, events.ResourceCompleted, resource, events.ResourceCompletedEvent{Records: 1})
+	stored, err := ds.LoadCheckpoint(ctx, run, "users")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, _ := checkpoint.ParseKeyset(stored)
+	if len(before.Shards[0].Key) != 0 {
+		t.Fatalf("checkpoint before commit = %v, want initial plan", before.Shards[0].Key)
+	}
+
+	runEnv := events.Envelope{Tenant: "t1", Run: run, At: time.Now()}
+	deliver(t, m, 3, events.RunCompleted, runEnv, events.RunCompletedEvent{Records: 1})
+	stored, err = ds.LoadCheckpoint(ctx, run, "users")
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, _ := checkpoint.ParseKeyset(stored)
+	if len(after.Shards[0].Key) != 1 || after.Shards[0].Key[0] != "42" {
+		t.Fatalf("checkpoint after commit = %v, want [42]", after.Shards[0].Key)
 	}
 }
