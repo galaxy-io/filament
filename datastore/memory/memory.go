@@ -271,9 +271,10 @@ func (s *Store) deleteRunLocked(id filament.RunID) {
 	}
 }
 
-// ListRuns returns runs matching the filter, newest StartedAt first. A run that
-// has not started sorts before every started run, mirroring postgres's
-// started_at DESC NULLS FIRST: pending work belongs at the top.
+// ListRuns returns runs matching the filter, newest first by effective time:
+// StartedAt, falling back to RequestedAt then CreatedAt, mirroring postgres's
+// COALESCE ordering. A run that never starts (e.g. cancelled while pending)
+// keeps its chronological slot instead of pinning to the top.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, 0, err
@@ -340,13 +341,11 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 			}
 			return a.Before(b)
 		}
-		if out[i].StartedAt.Equal(out[j].StartedAt) {
+		a, b := effectiveRunTime(out[i]), effectiveRunTime(out[j])
+		if a.Equal(b) {
 			return out[i].Run > out[j].Run
 		}
-		if out[i].StartedAt.IsZero() || out[j].StartedAt.IsZero() {
-			return out[i].StartedAt.IsZero()
-		}
-		return out[i].StartedAt.After(out[j].StartedAt)
+		return a.After(b)
 	})
 	total := len(out)
 	if f.Offset > 0 {
@@ -359,6 +358,18 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		out = out[:f.Limit]
 	}
 	return out, total, nil
+}
+
+// effectiveRunTime is the sort stamp for the default run ordering: StartedAt,
+// falling back to RequestedAt then CreatedAt for runs that never started.
+func effectiveRunTime(r filament.RunState) time.Time {
+	if !r.StartedAt.IsZero() {
+		return r.StartedAt
+	}
+	if !r.RequestedAt.IsZero() {
+		return r.RequestedAt
+	}
+	return r.CreatedAt
 }
 
 // UpsertResource records (or replaces) a resource's state under its run.
