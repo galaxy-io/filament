@@ -17,6 +17,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -64,7 +65,10 @@ func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[st
 		}
 		// Resume: reuse the persisted layout verbatim (stable boundaries and advanced
 		// keys) — the keyset cursor is a key-space position, valid across runs.
-		if prevKs, ok := checkpoint.ParseKeyset(prev[table]); ok && len(prevKs.Shards) > 0 {
+		if prevKs, ok := checkpoint.ParseKeyset(prev[table]); ok && len(prevKs.Shards) > 0 && slices.Equal(prevKs.Cols, pkNames(pks)) {
+			// Refresh types from the live catalog. Older MySQL plans stored bare
+			// DATA_TYPE values and therefore lost the UNSIGNED qualifier.
+			prevKs.Types = pkTypes(pks)
 			plan[table] = prevKs.ToCheckpoint(table)
 			continue
 		}
@@ -89,7 +93,7 @@ func (s *Source) planKeyset(ctx context.Context, table, qualified string, pks []
 	ks := keysetPlan{Cols: pkNames(pks), Types: pkTypes(pks)}
 	k := s.keyShardCount(ctx, table)
 
-	if isIntType(pks[0].typ) {
+	if isIntType(pks[0].typ) && !isUnsignedType(pks[0].typ) {
 		lo, hi, ok, err := s.intMinMax(ctx, qualified, pks[0].name) // leading column only
 		if err != nil {
 			return ks, fmt.Errorf("min/max %q: %w", table, err)
@@ -103,7 +107,7 @@ func (s *Source) planKeyset(ctx context.Context, table, qualified string, pks []
 		// boundaries so the table parallelizes like an integer one. Sampler failure or
 		// too few distinct boundaries degrades to a single open shard — never fail a
 		// run over a plan heuristic.
-		if bounds, err := s.sampleBoundaries(ctx, qualified, pks[0].name, k); err == nil && len(bounds) > 0 {
+		if bounds, err := s.sampleBoundaries(ctx, qualified, pks[0], k); err == nil && len(bounds) > 0 {
 			ks.Shards = splitFromBoundaries(bounds)
 			return ks, nil
 		}
@@ -118,7 +122,7 @@ func (s *Source) planKeyset(ctx context.Context, table, qualified string, pks []
 // positions (one ordered scan of the leading key column, paid once at plan time and
 // frozen into the persisted checkpoint). Drift between the two queries under
 // concurrent writes only skews shard balance, never correctness.
-func (s *Source) sampleBoundaries(ctx context.Context, qualified, col string, k int) ([]string, error) {
+func (s *Source) sampleBoundaries(ctx context.Context, qualified string, pk pkColumn, k int) ([]string, error) {
 	if k <= 1 {
 		return nil, nil
 	}
@@ -133,9 +137,9 @@ func (s *Source) sampleBoundaries(ctx context.Context, qualified, col string, k 
 	for i := 1; i < k; i++ {
 		positions = append(positions, strconv.FormatInt(n*int64(i)/int64(k), 10))
 	}
-	c := quoteIdent(col)
+	c := quoteIdent(pk.name)
 	q := fmt.Sprintf( //nolint:gosec // identifiers backtick-quoted via quoteIdent; positions are formatted int64s
-		"SELECT CAST(v AS CHAR) FROM (SELECT %s AS v, ROW_NUMBER() OVER (ORDER BY %s) AS rn FROM %s) d WHERE d.rn IN (%s) ORDER BY d.rn",
+		"SELECT v FROM (SELECT %s AS v, ROW_NUMBER() OVER (ORDER BY %s) AS rn FROM %s) d WHERE d.rn IN (%s) ORDER BY d.rn",
 		c, c, qualified, strings.Join(positions, ","))
 	rows, err := s.db.QueryContext(ctx, q)
 	if err != nil {
@@ -144,13 +148,11 @@ func (s *Source) sampleBoundaries(ctx context.Context, qualified, col string, k 
 	defer func() { _ = rows.Close() }()
 	var bounds []string
 	for rows.Next() {
-		var v sql.NullString
+		var v sql.RawBytes
 		if err := rows.Scan(&v); err != nil {
 			return nil, err
 		}
-		if v.Valid {
-			bounds = append(bounds, v.String)
-		}
+		bounds = append(bounds, pk.checkpointValue(v))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -175,12 +177,28 @@ func dedupeOrdered(vals []string) []string {
 	return out
 }
 
-// ExtractFrom reads each resource from its checkpoint. Keyed resources read via keyset
-// shards (concurrently, like Extract); a resource with no keyset plan (no primary key)
-// falls back to the streaming full scan and is re-read whole.
+// ExtractFrom reads each resource according to its checkpoint mode. Incremental
+// plans read by timestamp watermark; keyset and incremental-backfill plans read
+// via PK shards; a resource with no keyset plan falls back to a full scan.
 func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
-	var jobs []func(context.Context, querier) error
+	var incremental, rest []string
 	for _, table := range opts.Resources {
+		if plan, ok := checkpoint.ParseKeyset(prev[table]); ok && plan.Mode == checkpoint.ModeIncremental {
+			incremental = append(incremental, table)
+		} else {
+			rest = append(rest, table)
+		}
+	}
+	if len(incremental) > 0 {
+		incrementalOpts := opts
+		incrementalOpts.Resources = incremental
+		if err := s.extractIncremental(ctx, sink, incrementalOpts, prev); err != nil {
+			return err
+		}
+	}
+
+	var jobs []func(context.Context, querier) error
+	for _, table := range rest {
 		var plan *keysetPlan
 		if ks, ok := checkpoint.ParseKeyset(prev[table]); ok && len(ks.Cols) > 0 {
 			plan = &ks
@@ -264,7 +282,7 @@ func (s *Source) extractKeysetShard(ctx context.Context, sink arrowbatch.Inlet, 
 		if err != nil {
 			return fmt.Errorf("keyset %q: %w", sh.table, err)
 		}
-		n, last, err := sh.dec.appendRows(rows, w, sh.keyIdx, remaining(limit, emitted))
+		n, last, err := sh.dec.appendRows(rows, w, sh.keyIdx, sh.pks, remaining(limit, emitted))
 		_ = rows.Close()
 		if err != nil {
 			return fmt.Errorf("keyset %q: %w", sh.table, err)
@@ -331,10 +349,11 @@ func tupleCmp(pks []pkColumn, op string, vals []string) (string, []any) {
 		col := "t." + quoteIdent(pks[i].name)
 		ph := castExpr(pks[i].typ)
 		if i == len(pks)-1 {
-			args = append(args, vals[i])
+			args = append(args, pks[i].bindValue(vals[i]))
 			return col + " " + op + " " + ph
 		}
-		args = append(args, vals[i], vals[i])
+		value := pks[i].bindValue(vals[i])
+		args = append(args, value, value)
 		return "(" + col + " " + strict + " " + ph + " OR (" + col + " = " + ph + " AND " + expand(i+1) + "))"
 	}
 	return expand(0), args
@@ -345,8 +364,19 @@ func tupleCmp(pks []pkColumn, op string, vals []string) (string, []any) {
 // from column type names; anything unmapped compares as a plain string placeholder,
 // which is exact for character keys.
 func castExpr(dataType string) string {
-	switch strings.ToLower(dataType) {
+	full := strings.ToLower(strings.TrimSpace(dataType))
+	t := full
+	if i := strings.IndexByte(t, '('); i >= 0 {
+		t = strings.TrimSpace(t[:i])
+	}
+	if fields := strings.Fields(t); len(fields) > 0 {
+		t = fields[0]
+	}
+	switch t {
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint":
+		if strings.Contains(full, "unsigned") {
+			return "CAST(? AS UNSIGNED)"
+		}
 		return "CAST(? AS SIGNED)"
 	case "decimal", "numeric":
 		return "CAST(? AS DECIMAL(65,30))"
@@ -512,12 +542,36 @@ func splitFromBoundaries(bounds []string) []checkpoint.KeysetShard {
 
 // isIntType reports whether a MySQL DATA_TYPE is an integer the splitter can range over.
 func isIntType(t string) bool {
-	switch strings.ToLower(strings.TrimSpace(t)) {
+	switch baseType(t) {
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint":
 		return true
 	default:
 		return false
 	}
+}
+
+func isUnsignedType(t string) bool {
+	return strings.Contains(strings.ToLower(t), "unsigned")
+}
+
+func isBinaryType(t string) bool {
+	switch baseType(t) {
+	case "binary", "varbinary":
+		return true
+	default:
+		return false
+	}
+}
+
+func baseType(t string) string {
+	t = strings.ToLower(strings.TrimSpace(t))
+	if i := strings.IndexByte(t, '('); i >= 0 {
+		t = strings.TrimSpace(t[:i])
+	}
+	if fields := strings.Fields(t); len(fields) > 0 {
+		return fields[0]
+	}
+	return t
 }
 
 func pkNames(pks []pkColumn) []string {
