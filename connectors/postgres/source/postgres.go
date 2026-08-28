@@ -366,6 +366,7 @@ func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 // qualified and dec are precomputed so the window loop is pure string formatting.
 type shard struct {
 	table        string      // raw table name, used as the record resource
+	part         int         // stable per-table shard identity for the pipeline builder
 	qualified    string      // sanitized "schema"."table" for the FROM clause
 	dec          *rowDecoder // row decoder, shared read-only by the table's shards
 	loBlock      int         // inclusive first heap block
@@ -407,7 +408,7 @@ func (s *Source) planShards(ctx context.Context, tables []string, parallelism in
 				hi = pages // exact end; rows live in blocks [0, pages)
 			}
 			shards = append(shards, shard{
-				table: table, qualified: qualified, dec: dec,
+				table: table, part: i, qualified: qualified, dec: dec,
 				loBlock: lo, hiBlock: hi, windowBlocks: window,
 			})
 		}
@@ -446,7 +447,7 @@ type querier interface {
 // limit > 0 stops the shard after that many rows (best-effort per shard when
 // split).
 func (s *Source) extractShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh shard, limit int) error {
-	w, err := sink.Builder(sh.table, 0, sh.dec.schema)
+	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
 	if err != nil {
 		return err
 	}

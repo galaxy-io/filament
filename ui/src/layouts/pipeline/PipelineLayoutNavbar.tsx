@@ -37,6 +37,12 @@ import {
 
 import PipelineName from "@/components/PipelineName";
 
+import {
+  PIPELINE_NAVBAR_HEIGHT,
+  PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
+} from "@/layouts/pipeline/constants";
+import PipelineLayoutNavbarRunButton from "@/layouts/pipeline/PipelineLayoutNavbarRunButton";
+
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
 import { getPipelineGraphConflicts } from "@/pages/pipelines/canvas/graph/rules";
 import {
@@ -54,11 +60,6 @@ import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import {
-  PIPELINE_NAVBAR_HEIGHT,
-  PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
-} from "@/pages/pipelines/layout/constants";
-import PipelineLayoutNavbarRunButton from "@/pages/pipelines/layout/PipelineLayoutNavbarRunButton";
 import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";

@@ -120,9 +120,6 @@ the worker through its Secret and ConfigMap. The default
 The standalone binary uses an in-memory datastore (state does not survive a
 restart) and reads secrets from environment variables via the `env` provider.
 
-`S3_SINK_DEBUG` enables verbose logging in the S3 object sink, in whichever
-process executes runs. It is off by default.
-
 ## Secret providers
 
 The `postgres` provider (default) encrypts secret values with AES-GCM under
