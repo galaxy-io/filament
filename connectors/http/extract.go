@@ -136,7 +136,7 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 
 	stateResource := res.Name
 	if parent != nil && res.EmitAs != "" {
-		stateResource, err = emittedResourceName(res, parent)
+		stateResource, err = emittedResourceName(res, parent, c.env)
 		if err != nil {
 			return fmt.Errorf("resource name: %w", err)
 		}
@@ -212,6 +212,7 @@ func (c *Connector) scopeFor(parent Capture, cursor string, tracker *incremental
 	scope := template.Scope{
 		Config: c.creds,
 		Parent: parent,
+		Env:    c.env,
 		Cursor: cursor,
 	}
 	if tracker != nil {
