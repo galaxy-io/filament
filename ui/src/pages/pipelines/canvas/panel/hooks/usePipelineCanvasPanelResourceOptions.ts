@@ -158,7 +158,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
     isLoading,
     coveredResources,
     readModeOptions,
-    writeModeOptions: isCdc ? [] : (verdict?.supportedWriteModes ?? []),
+    writeModeOptions: verdict?.supportedWriteModes ?? [],
     effectiveReadMode: verdict?.effectiveReadMode ?? ReadMode.UNSPECIFIED,
     effectiveWriteMode: verdict?.effectiveWriteMode ?? WriteMode.UNSPECIFIED,
     cursorOptionsByResource,

@@ -54,6 +54,23 @@ func TestValidateReplication(t *testing.T) {
 	}
 }
 
+func TestCDCAppendPolicy(t *testing.T) {
+	policy := WritePolicyForIngestion(IngestionCDCAppend)
+	if policy.Capability.Mode != WriteAppend {
+		t.Fatalf("mode = %q, want append", policy.Capability.Mode)
+	}
+	if !policy.Capability.RequiresOrder || !policy.Capability.RequiresPK {
+		t.Fatalf("CDC append capability = %+v", policy.Capability)
+	}
+	want := []Operation{OpInsert, OpUpdate, OpDelete}
+	if !acceptsOperations(policy.Capability.AcceptsOps, want) {
+		t.Fatalf("accepted operations = %v, want %v", policy.Capability.AcceptsOps, want)
+	}
+	if policy.Checkpoint != CheckpointAfterCommit {
+		t.Fatalf("checkpoint = %q, want after commit", policy.Checkpoint)
+	}
+}
+
 func TestCheckpointCoverageFor(t *testing.T) {
 	resources := []string{"users", "audit"}
 	if got := CheckpointCoverageFor(resources, map[string]IngestionType{

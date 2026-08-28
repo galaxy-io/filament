@@ -114,19 +114,10 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
-		ingestionTypes := make(map[string]filament.IngestionType, len(group.readModes))
-		if filament.ReplicationOf(source, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC {
-			for resource := range group.readModes {
-				ingestionTypes[resource] = filament.IngestionCDC
-			}
-		} else {
-			for resource, mode := range group.readModes {
-				ingestionType, err := filament.IngestionFor(mode, group.writeMode)
-				if err != nil {
-					return nil, err
-				}
-				ingestionTypes[resource] = ingestionType
-			}
+		cdc := filament.ReplicationOf(source, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC
+		ingestionTypes, err := compileIngestionTypes(group, cdc)
+		if err != nil {
+			return nil, err
 		}
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
 			Tenant:              filament.TenantID(tenant),
@@ -148,6 +139,29 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		}})
 	}
 	return compiled, nil
+}
+
+func cdcIngestionFor(writeMode filament.WriteMode) filament.IngestionType {
+	if writeMode == filament.WriteMerge {
+		return filament.IngestionCDC
+	}
+	return filament.IngestionCDCAppend
+}
+
+func compileIngestionTypes(group *routeGroup, cdc bool) (map[string]filament.IngestionType, error) {
+	types := make(map[string]filament.IngestionType, len(group.readModes))
+	for resource, readMode := range group.readModes {
+		if cdc {
+			types[resource] = cdcIngestionFor(group.writeMode)
+			continue
+		}
+		ingestionType, err := filament.IngestionFor(readMode, group.writeMode)
+		if err != nil {
+			return nil, err
+		}
+		types[resource] = ingestionType
+	}
+	return types, nil
 }
 
 // resolveNodeRef builds the run-time Ref for a pipeline node from the reusable

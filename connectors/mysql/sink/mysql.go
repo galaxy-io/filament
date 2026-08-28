@@ -53,11 +53,16 @@ type table struct {
 // resumableFor reports whether one resource's writes are idempotent by key —
 // an upsert or CDC merge under its bound write policy.
 func (t *Sink) resumableFor(resource string) bool {
+	mode := t.modeFor(resource)
+	return mode == filament.WriteUpsert || mode == filament.WriteMerge
+}
+
+func (t *Sink) modeFor(resource string) filament.WriteMode {
 	p, ok := t.policies[resource]
 	if !ok {
 		p = t.policies[""]
 	}
-	return p.Capability.Mode == filament.WriteUpsert || p.Capability.Mode == filament.WriteMerge
+	return p.Capability.Mode
 }
 
 // New returns an unconfigured sink. Open wires it to the database.
@@ -95,6 +100,7 @@ func (t *Sink) Spec() filament.SinkSpec {
 				filament.IngestionFullUpsert,
 				filament.IngestionIncrementalUpsert,
 				filament.IngestionCDC,
+				filament.IngestionCDCAppend,
 			),
 		},
 	}
@@ -194,10 +200,15 @@ func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: no schema ensured for resource %q", b.Resource)
 	}
 	switch opts.Policy.Capability.Mode {
-	case filament.WriteReplace, filament.WriteAppend:
+	case filament.WriteReplace:
 		policy := opts.Policy
 		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
 		if err := policy.ValidateBatch(b.Resource, b); err != nil {
+			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
+		}
+		return t.write(ctx, tbl, b, false)
+	case filament.WriteAppend:
+		if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("mysql sink: %w", err)
 		}
 		return t.write(ctx, tbl, b, false)
@@ -255,9 +266,9 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	// A resumable table upserts by key and must preserve any partial load from a prior
 	// attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot dedup:
 	// a non-resumable table, or a keyless table that re-reads whole on resume).
+	mode := t.modeFor(resource)
 	resumable := t.resumableFor(resource)
-	upsert := resumable && len(schema.PrimaryKey) > 0
-	if !upsert {
+	if mode == filament.WriteReplace {
 		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
 		if _, err := t.db.ExecContext(ctx, "TRUNCATE "+qualified); err != nil {
 			return fmt.Errorf("truncate %s: %w", qualified, err)
@@ -284,7 +295,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	for i := range all {
 		all[i] = i
 	}
-	tbl := &table{qualified: qualified, idents: idents, resumable: resumable, rows: newLoader(as, all), json: make([]bool, len(types))}
+	tbl := &table{qualified: qualified, idents: idents, resumable: resumable || mode == filament.WriteAppend, rows: newLoader(as, all), json: make([]bool, len(types))}
 	for i, typ := range types {
 		tbl.json[i] = strings.EqualFold(strings.TrimSpace(typ), "json")
 	}

@@ -70,13 +70,14 @@ enum ReadMode {
   READ_MODE_INCREMENTAL = 2;
 }
 
-// WriteMode is the destination-route write lever. Delete and merge are engine
-// mechanisms and are not user-selectable write modes.
+// WriteMode is the destination-route write lever. Delete remains an internal
+// engine policy; merge is selectable for CDC routes.
 enum WriteMode {
   WRITE_MODE_UNSPECIFIED = 0;
   WRITE_MODE_APPEND = 1;
   WRITE_MODE_REPLACE = 2;
   WRITE_MODE_UPSERT = 3;
+  WRITE_MODE_MERGE = 4;
 }
 
 enum FieldScope {

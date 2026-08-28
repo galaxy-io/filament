@@ -14,6 +14,9 @@ import (
 type RunSpec struct {
 	Tenant TenantID
 	Run    RunID
+	// StartedAt is the logical run's first start time. A zero value is stamped by
+	// the runner; resumed executions retain the original value.
+	StartedAt time.Time
 	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
 	// derive it from the run.requested fact so redelivery is idempotent while a
 	// later resume creates fresh worker infrastructure.
@@ -95,7 +98,27 @@ func TypeFor(types map[string]IngestionType, resource string) IngestionType {
 // with other types on one route, so any CDC entry means the whole run is CDC.
 func IsCDC(types map[string]IngestionType) bool {
 	for _, t := range types {
-		if t == IngestionCDC {
+		if IsCDCIngestion(t) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsCDCIngestion reports whether an ingestion type reads a change stream.
+func IsCDCIngestion(t IngestionType) bool {
+	switch t.OrDefault() {
+	case IngestionCDC, IngestionCDCAppend:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsCDCAppend reports whether any resource retains the change stream as history.
+func IsCDCAppend(types map[string]IngestionType) bool {
+	for _, t := range types {
+		if t == IngestionCDCAppend {
 			return true
 		}
 	}
@@ -318,6 +341,7 @@ const (
 	IngestionIncrementalUpsert IngestionType = "incremental_upsert"
 	IngestionIncrementalDelete IngestionType = "incremental_delete"
 	IngestionCDC               IngestionType = "cdc"
+	IngestionCDCAppend         IngestionType = "cdc_append"
 )
 
 // OrDefault substitutes IngestionFullReplace for the empty type.
@@ -628,6 +652,12 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 		capability.RequiresOrder = true
 		capability.AcceptsOps = []Operation{OpInsert, OpUpdate, OpDelete}
 		checkpoint = CheckpointAfterCommit
+	case IngestionCDCAppend:
+		capability.Mode = WriteAppend
+		capability.RequiresPK = true
+		capability.RequiresOrder = true
+		capability.AcceptsOps = []Operation{OpInsert, OpUpdate, OpDelete}
+		checkpoint = CheckpointAfterCommit
 	}
 
 	policy := WritePolicy{Capability: capability, Checkpoint: checkpoint}
@@ -641,7 +671,7 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 // ingestion type.
 func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 	switch t.OrDefault() {
-	case IngestionCDC:
+	case IngestionCDC, IngestionCDCAppend:
 		return SourcePolicy{
 			Mode:          ModeCDC,
 			EmitsOps:      []Operation{OpInsert, OpUpdate, OpDelete},

@@ -24,7 +24,7 @@ func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
 	if spec.Capabilities.PreferredBatchRows != 10_000 {
 		t.Fatalf("preferred rows = %d", spec.Capabilities.PreferredBatchRows)
 	}
-	want := []filament.WriteMode{filament.WriteReplace, filament.WriteAppend, filament.WriteUpsert, filament.WriteUpsert}
+	want := []filament.WriteMode{filament.WriteReplace, filament.WriteAppend, filament.WriteUpsert, filament.WriteUpsert, filament.WriteAppend}
 	for i, policy := range spec.Capabilities.WritePolicies {
 		if policy.Mode != want[i] {
 			t.Fatalf("policy %d mode = %q, want %q", i, policy.Mode, want[i])

@@ -122,6 +122,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 				filament.IngestionIncrementalUpsert,
 				filament.IngestionIncrementalDelete,
 				filament.IngestionCDC,
+				filament.IngestionCDCAppend,
 			),
 		},
 	}

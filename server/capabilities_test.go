@@ -87,6 +87,7 @@ func (leverSink) Spec() filament.SinkSpec {
 				filament.IngestionIncrementalAppend,
 				filament.IngestionIncrementalUpsert,
 				filament.IngestionCDC,
+				filament.IngestionCDCAppend,
 			),
 		},
 	}
@@ -274,7 +275,7 @@ func TestValidatePipelineLevers(t *testing.T) {
 		}
 	})
 
-	t.Run("CDC connection carries no Standard mode", func(t *testing.T) {
+	t.Run("CDC connection defaults to Append", func(t *testing.T) {
 		resp := validate(ids["cdc"], &ingestionv1.PipelineEdge{})
 		ev := resp.GetEdges()[0]
 		if ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
@@ -282,6 +283,12 @@ func TestValidatePipelineLevers(t *testing.T) {
 		}
 		if got := byResource(ev, "orders").GetSupportedReadModes(); len(got) != 0 {
 			t.Fatalf("CDC read modes = %v, want none", got)
+		}
+		if ev.GetEffectiveWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+			t.Fatalf("CDC write mode = %v, want Append", ev.GetEffectiveWriteMode())
+		}
+		if got := ev.GetSupportedWriteModes(); len(got) != 2 || got[0] != ingestionv1.WriteMode_WRITE_MODE_APPEND || got[1] != ingestionv1.WriteMode_WRITE_MODE_MERGE {
+			t.Fatalf("CDC write modes = %v, want Append and Merge", got)
 		}
 		if resp.GetValid() {
 			t.Fatal("valid = true, want blocked by audit's missing primary key")
@@ -348,7 +355,7 @@ func TestNormalizeEdgeModes(t *testing.T) {
 	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
-	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
 		t.Fatalf("CDC modes = %v/%v", edge.GetReadMode(), edge.GetWriteMode())
 	}
 

@@ -49,7 +49,8 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp); err != nil {
 			return nil, err
 		}
-		writeMode, err := writeModeFromProto(edge.GetWriteMode())
+		ev := resp.Edges[len(resp.Edges)-1]
+		writeMode, err := writeModeFromProto(ev.GetEffectiveWriteMode())
 		if err != nil {
 			continue
 		}
@@ -153,18 +154,27 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	replication := filament.ReplicationOf(source, filament.NewConfig(srcConn.Config))
 	ev.Replication = replicationToProto(replication)
 
-	// A CDC connection implies the complete recipe. Standard edges expose
-	// independent read and write levers which compile to an internal recipe.
+	// CDC connections fix the read side to the change stream and expose append
+	// (the history-preserving default) or merge. Standard edges expose both.
 	var chosen filament.IngestionType
 	var supportedReadModes []ingestionv1.ReadMode
 	if replication == filament.ReplicationCDC {
-		chosen = filament.IngestionCDC
 		if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED {
 			edgeError(ev, "read_mode", "CDC connections do not accept a read mode")
 		}
-		if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-			edgeError(ev, "write_mode", "CDC connections do not accept a write mode")
+		writeMode := filament.WriteAppend
+		switch edge.GetWriteMode() {
+		case ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED, ingestionv1.WriteMode_WRITE_MODE_APPEND:
+			chosen = filament.IngestionCDCAppend
+		case ingestionv1.WriteMode_WRITE_MODE_MERGE:
+			writeMode = filament.WriteMerge
+			chosen = filament.IngestionCDC
+		default:
+			edgeError(ev, "write_mode", "CDC connections support append or merge write mode")
+			chosen = filament.IngestionCDCAppend
 		}
+		ev.EffectiveWriteMode = writeModeToProto(writeMode)
+		ev.SupportedWriteModes = supportedCDCWriteModesFor(snkSpec)
 		if len(edge.GetCursors()) > 0 {
 			edgeError(ev, "cursors", "CDC connections manage their stream position automatically")
 		}
@@ -202,6 +212,22 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, supportedReadModes, probes, ev)
 	return nil
+}
+
+func supportedCDCWriteModesFor(sink filament.SinkSpec) []ingestionv1.WriteMode {
+	var out []ingestionv1.WriteMode
+	for _, candidate := range []struct {
+		mode      filament.WriteMode
+		ingestion filament.IngestionType
+	}{
+		{filament.WriteAppend, filament.IngestionCDCAppend},
+		{filament.WriteMerge, filament.IngestionCDC},
+	} {
+		if filament.ValidateSinkIngestion(sink, candidate.ingestion) == nil {
+			out = append(out, writeModeToProto(candidate.mode))
+		}
+	}
+	return out
 }
 
 func supportedReadModesFor(source filament.ConnectorSpec) []ingestionv1.ReadMode {

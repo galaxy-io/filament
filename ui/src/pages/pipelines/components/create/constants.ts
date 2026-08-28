@@ -123,6 +123,7 @@ export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
   [WriteMode.APPEND]: "Append",
   [WriteMode.REPLACE]: "Replace",
   [WriteMode.UPSERT]: "Upsert",
+  [WriteMode.MERGE]: "Merge",
 };
 
 export const CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE = ReadMode.FULL;

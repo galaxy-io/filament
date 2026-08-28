@@ -94,3 +94,21 @@ This is distinct from the checkpoint. The checkpoint says where the next
 read resumes, and the version policy says which already-written row wins. See
 [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints)
 for how cursors are persisted.
+
+## Row lineage columns
+
+Filament reserves the `_filament_` column namespace and appends lineage to
+every newly replicated row:
+
+- `_filament_run_id`: the logical run that materialized the row
+- `_filament_run_started_at`: that run's first start time in UTC
+
+CDC rows also carry:
+
+- `_filament_operation`: `insert`, `update`, or `delete`
+- `_filament_source_position`: the source LSN, binlog position, or equivalent
+- `_filament_sequence`: deterministic ordering within the change stream
+
+The columns are nullable so existing destination tables can evolve without a
+rewrite; rows written before the columns were introduced remain null. A source
+schema that already uses a reserved name is rejected rather than overwritten.

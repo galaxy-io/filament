@@ -206,17 +206,20 @@ export const buildSinkRows = ({
           .map((row) => row.readMode),
       ),
     ];
-    const compatible = getCompatibleWriteModes(readModes);
     const supported = supportedWriteModesBySink[connection.id] ?? [];
-    const writeModeOptions = supported.filter((mode) => compatible.includes(mode));
-    const stored = state.sinkWriteModes[connection.id] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE;
+    const writeModeOptions = isCdc
+      ? supported
+      : supported.filter((mode) => getCompatibleWriteModes(readModes).includes(mode));
+    const stored =
+      state.sinkWriteModes[connection.id] ??
+      (isCdc ? WriteMode.APPEND : CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE);
     const writeMode = writeModeOptions.includes(stored)
       ? stored
       : (writeModeOptions[0] ?? WriteMode.UNSPECIFIED);
     return {
       connection,
-      writeMode: isCdc ? WriteMode.UNSPECIFIED : writeMode,
-      writeModeOptions: isCdc ? [] : writeModeOptions,
+      writeMode,
+      writeModeOptions,
     };
   });
 

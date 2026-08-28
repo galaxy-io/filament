@@ -62,6 +62,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 			EncodedIntegrity: true,
 			WritePolicies: commitDurableCapabilities(
 				filament.IngestionFullAppend,
+				filament.IngestionCDCAppend,
 				filament.IngestionFullReplace,
 			),
 		},

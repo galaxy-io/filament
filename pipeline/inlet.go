@@ -47,6 +47,16 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 	} else if schema.Resource != resource {
 		return nil, fmt.Errorf("pipeline: schema resource %q does not match builder resource %q", schema.Resource, resource)
 	}
+	if p.audit != nil {
+		var err error
+		if p.audit.CDCAppend {
+			schema = rowmodel.AsCDCAppendHistory(schema)
+		}
+		schema, err = rowmodel.WithAuditFields(schema, p.audit.CDC)
+		if err != nil {
+			return nil, fmt.Errorf("pipeline: %w", err)
+		}
+	}
 	want := arrowbatch.Schema(schema)
 	if registered, ok := p.schemas[resource]; ok {
 		if !registered.model.Equal(schema) {
@@ -61,7 +71,33 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 	}
 	b := arrowbatch.NewBuilder(want, p.alloc, p.opts, &slot{p: p, resource: resource, part: part})
 	p.builders[key] = b
-	return b, nil
+	if p.audit == nil {
+		return b, nil
+	}
+	return &auditWriter{RowWriter: b, run: p.run, audit: *p.audit}, nil
+}
+
+// auditWriter appends run lineage after the source has supplied its own fields.
+type auditWriter struct {
+	arrowbatch.RowWriter
+	run   filament.RunID
+	audit AuditConfig
+}
+
+func (w *auditWriter) EndRow(meta rowmodel.Meta) error {
+	w.String(string(w.run))
+	w.Timestamp(w.audit.RunStartedAt.UnixMicro())
+	if w.audit.CDC {
+		w.String(filament.OperationName(meta.Op))
+		if meta.LSN == "" {
+			w.Null()
+			w.Null()
+		} else {
+			w.String(meta.LSN)
+			w.Int64(int64(meta.Seq)) //nolint:gosec // stream sequence is persisted as int64 elsewhere
+		}
+	}
+	return w.RowWriter.EndRow(meta)
 }
 
 // slot receives one builder's chunks: it sequences them per (resource, part),

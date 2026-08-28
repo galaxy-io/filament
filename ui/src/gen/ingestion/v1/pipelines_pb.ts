@@ -71,8 +71,8 @@ export const PipelineNodeSchema: GenMessage<PipelineNode> = /*@__PURE__*/
  * all enabled resources; a named resource is an additive per-resource route.
  * Standard connections carry a per-resource read mode and a destination-route
  * write mode. All edges on the same source-to-destination route must use the
- * same write mode. CDC connections carry neither lever because the connection
- * implies the complete stream recipe.
+ * same write mode. CDC connections carry no read lever and support append
+ * (default) or merge writes.
  *
  * @generated from message ingestion.v1.PipelineEdge
  */

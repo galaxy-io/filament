@@ -163,12 +163,16 @@ func factProgress(f events.Fact) (records, bytes int64, errMsg string, hasProgre
 // emit stamps and publishes a run-originated fact for a run or resource.
 // (A free function: Go methods cannot take type parameters.)
 func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
+	emitAt(e, t, resource, time.Now(), data)
+}
+
+func emitAt[T any](e *emitter, t events.EventType[T], resource string, at time.Time, data T) {
 	e.publish(events.NewFact(t, events.Envelope{
 		Tenant:   e.tenant,
 		Run:      e.run,
 		Resource: resource,
 		Seq:      e.next(),
-		At:       time.Now(),
+		At:       at,
 	}, data))
 }
 
