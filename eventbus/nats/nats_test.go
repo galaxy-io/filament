@@ -3,7 +3,12 @@ package nats
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
+
+	natsgo "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament/eventbus"
 )
@@ -16,6 +21,15 @@ func (stringCodec) Encode(payload any) ([]byte, error) {
 		return nil, errors.New("expected string")
 	}
 	return []byte(s), nil
+}
+
+func TestDecodeFailureIsLoggedWithoutPayload(t *testing.T) {
+	var line string
+	b := &Bus{logf: func(format string, args ...any) { line = fmt.Sprintf(format, args...) }}
+	b.logDecodeFailure("app.v1.run.t1.r1.started", errors.New("bad frame"))
+	if !strings.Contains(line, "app.v1.run.t1.r1.started") || !strings.Contains(line, "bad frame") || !strings.Contains(line, "terminating") {
+		t.Fatalf("decode log = %q", line)
+	}
 }
 
 func (stringCodec) Decode(data []byte) (any, error) {
@@ -53,5 +67,21 @@ func TestPublishClosed(t *testing.T) {
 	err := b.Publish(context.Background(), "app.v1.run.t1.r1.started", "payload")
 	if !errors.Is(err, eventbus.ErrBusClosed) {
 		t.Fatalf("Publish error = %v, want ErrBusClosed", err)
+	}
+}
+
+func TestConsumerGoneIncludesDeleteRaceNoResponders(t *testing.T) {
+	for _, err := range []error{
+		jetstream.ErrConsumerNotFound,
+		jetstream.ErrConsumerDeleted,
+		natsgo.ErrNoResponders,
+		fmt.Errorf("fetch: %w", natsgo.ErrNoResponders),
+	} {
+		if !consumerGone(err) {
+			t.Errorf("consumerGone(%v) = false, want true", err)
+		}
+	}
+	if consumerGone(errors.New("timeout")) {
+		t.Fatal("ordinary fetch timeout must not recreate the durable")
 	}
 }

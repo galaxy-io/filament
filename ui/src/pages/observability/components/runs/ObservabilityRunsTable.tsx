@@ -33,8 +33,8 @@ import {
   OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT,
   OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
+import { createRunsWindowInput } from "@/pages/observability/components/runs/utils";
 import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
-import { createTimeframeSince } from "@/pages/observability/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
 import { useListRunsInfiniteQuery, useListRunsQuery } from "@/api/queries/runs";
@@ -53,6 +53,8 @@ const ObservabilityRunsTable = () => {
     runs: view = ObservabilityRunsView.PAST,
     timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
     statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+    runsBucket,
+    runsStatus,
   } = useSearch({ from: "/_main/observability" });
 
   const windowedStatuses = useMemo(
@@ -62,10 +64,10 @@ const ObservabilityRunsTable = () => {
 
   const input = useMemo(
     () => ({
-      status: windowedStatuses,
-      sinceMs: createTimeframeSince(timeframe),
+      status: runsStatus === undefined ? windowedStatuses : [runsStatus],
+      ...createRunsWindowInput(timeframe, runsBucket),
     }),
-    [timeframe, windowedStatuses],
+    [timeframe, windowedStatuses, runsBucket, runsStatus],
   );
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =

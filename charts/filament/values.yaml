@@ -15,9 +15,10 @@ namespaceOverride: ""
 # -- Labels added to all Filament resources.
 commonLabels: {}
 
-# -- Name of an existing Secret containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`,
-# `NATS_URL`, and `AUTH_PAT` when auth is enabled.
-# When set, the chart does not create its own Secret.
+# -- Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`,
+# `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider, and
+# `AUTH_PAT` when auth is enabled. When set, the chart does not create its own
+# Secret.
 existingSecret: ""
 
 server:
@@ -118,6 +119,12 @@ controlPlane:
     # -- Port the control plane serves `/livez` and `/readyz` on, stored in the
     # ConfigMap as `HEALTH_ADDR` and used for the container port and probes.
     port: 8081
+
+  reaper:
+    # -- How often the reaper sweeps for zombie runs, in seconds. Empty uses the binary default (60).
+    intervalSeconds: ""
+    # -- How long a Running run may go without a heartbeat write before the reaper fails it, in seconds. Empty uses the binary default (300).
+    staleAfterSeconds: ""
 
   dispatch:
     # -- Worker dispatch backend.

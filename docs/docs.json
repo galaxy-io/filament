@@ -1,7 +1,8 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "aspen",
+  "theme": "maple",
   "name": "Filament",
+  "description": "Change data capture and replication, as a single binary or an embeddable Go library.",
   "colors": {
     "primary": "#005EFF",
     "light": "#005EFF",
@@ -9,14 +10,13 @@
   },
   "background": {
     "color": {
-      "light": "#ffffff",
-      "dark": "#131313"
-    },
-    "decoration": "grid"
+      "light": "#FFFFFF",
+      "dark": "#0A0A0A"
+    }
   },
   "appearance": {
     "default": "dark",
-    "strict": true
+    "strict": false
   },
   "logo": {
     "light": "/assets/filament-light.svg",
@@ -40,72 +40,89 @@
     "library": "fontawesome"
   },
   "styling": {
-    "eyebrows": "breadcrumbs",
+    "eyebrows": "section",
     "codeblocks": {
-      "theme": "vitesse-black"
+      "theme": {
+        "light": "github-light-default",
+        "dark": "github-dark-default"
+      }
     }
+  },
+  "interaction": {
+    "drilldown": true
+  },
+  "search": {
+    "prompt": "Search"
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "claude",
+      "chatgpt",
+      "cursor",
+      "mcp"
+    ]
   },
   "navbar": {
     "links": [
-      { "type": "github", "href": "https://github.com/galaxy-io/filament" }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Talk to us",
-      "href": "https://getgalaxy.com/filament"
+      {
+        "type": "github",
+        "href": "https://github.com/galaxy-io/filament"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/galaxy-io/filament",
+      "website": "https://getgalaxy.io"
+    }
+  },
+  "seo": {
+    "indexing": "navigable"
+  },
+  "thumbnails": {
+    "appearance": "dark"
+  },
+  "errors": {
+    "404": {
+      "redirect": true
     }
   },
   "navigation": {
-    "tabs": [
+    "groups": [
       {
-        "tab": "Guides",
-        "icon": "rocket",
-        "groups": [
-          {
-            "group": "Get Started",
-            "pages": [
-              "pages/guides/get-started/introduction",
-              "pages/guides/get-started/quickstart",
-              "pages/guides/get-started/installation"
-            ]
-          },
-          {
-            "group": "Concepts",
-            "pages": [
-              "pages/guides/concepts/architecture",
-              "pages/guides/concepts/replication-modes",
-              "pages/guides/concepts/integrity-and-checkpoints"
-            ]
-          },
-          {
-            "group": "Deployment",
-            "pages": [
-              "pages/guides/deployment/kubernetes",
-              "pages/guides/deployment/configuration",
-              "pages/guides/deployment/embedding-as-a-library"
-            ]
-          },
-          {
-            "group": "Contributing",
-            "pages": [
-              "pages/guides/contributing/local-development",
-              "pages/guides/contributing/style-and-testing"
-            ]
-          }
+        "group": "Get started",
+        "pages": [
+          "pages/guides/get-started/introduction",
+          "pages/guides/get-started/quickstart",
+          "pages/guides/get-started/installation"
         ]
       },
       {
-        "tab": "Connectors",
-        "icon": "plug",
-        "groups": [
-          {
-            "group": "Overview",
-            "pages": ["pages/connectors/overview/introduction"]
-          },
+        "group": "Concepts",
+        "pages": [
+          "pages/guides/concepts/overview",
+          "pages/guides/concepts/architecture",
+          "pages/guides/concepts/replication-modes",
+          "pages/guides/concepts/integrity-and-checkpoints",
+          "pages/guides/concepts/runs-and-recovery"
+        ]
+      },
+      {
+        "group": "Usage",
+        "pages": [
+          "pages/guides/usage/web",
+          "pages/guides/usage/cli"
+        ]
+      },
+      {
+        "group": "Connectors",
+        "pages": [
+          "pages/connectors/overview/introduction",
           {
             "group": "Sources",
             "pages": [
-              "pages/connectors/sources/overview",
               "pages/connectors/sources/postgres",
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/attio",
@@ -116,63 +133,65 @@
               "pages/connectors/sources/resend",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
-              "pages/connectors/sources/http",
               "pages/connectors/sources/sample"
             ]
           },
           {
             "group": "Sinks",
             "pages": [
-              "pages/connectors/sinks/overview",
               "pages/connectors/sinks/postgres",
               "pages/connectors/sinks/mysql",
+              "pages/connectors/sinks/clickhouse",
               "pages/connectors/sinks/iceberg",
               "pages/connectors/sinks/aws-s3",
-              "pages/connectors/sinks/stdout"
+              "pages/connectors/sinks/standard-output"
             ]
           },
           {
-            "group": "Building a Connector",
+            "group": "Building a connector",
             "pages": [
+              "pages/connectors/building-a-connector/overview",
               "pages/connectors/building-a-connector/writing-a-source",
               "pages/connectors/building-a-connector/writing-a-sink",
-              "pages/connectors/building-a-connector/optional-interfaces"
+              "pages/connectors/building-a-connector/optional-interfaces",
+              "pages/connectors/building-a-connector/http-manifests"
             ]
           }
         ]
       },
       {
-        "tab": "API Reference",
-        "icon": "code",
-        "groups": [
-          {
-            "group": "Service",
-            "pages": [
-              "pages/api-reference/service/introduction",
-              "pages/api-reference/service/connections",
-              "pages/api-reference/service/pipelines",
-              "pages/api-reference/service/connectors",
-              "pages/api-reference/service/runs"
-            ]
-          }
+        "group": "Deployment",
+        "pages": [
+          "pages/guides/deployment/overview",
+          "pages/guides/deployment/kubernetes",
+          "pages/guides/deployment/railway",
+          "pages/guides/deployment/configuration",
+          "pages/guides/deployment/embedding-as-a-library"
         ]
       },
       {
-        "tab": "Benchmarks",
-        "icon": "gauge",
-        "groups": [
-          {
-            "group": "Methodology",
-            "pages": ["pages/benchmarks/methodology/introduction"]
-          },
-          {
-            "group": "Pipeline",
-            "pages": ["pages/benchmarks/pipeline/throughput"]
-          },
-          {
-            "group": "Event Bus",
-            "pages": ["pages/benchmarks/event-bus/publish-overhead"]
-          }
+        "group": "API reference",
+        "pages": [
+          "pages/api-reference/service/introduction",
+          "pages/api-reference/service/connectors",
+          "pages/api-reference/service/connections",
+          "pages/api-reference/service/pipelines",
+          "pages/api-reference/service/runs",
+          "pages/api-reference/service/metrics"
+        ]
+      },
+      {
+        "group": "Benchmarks",
+        "pages": [
+          "pages/benchmarks/overview",
+          "pages/benchmarks/micro-benchmarks"
+        ]
+      },
+      {
+        "group": "Contributing",
+        "pages": [
+          "pages/guides/contributing/local-development",
+          "pages/guides/contributing/style-and-testing"
         ]
       }
     ]
@@ -181,6 +200,50 @@
     {
       "source": "/",
       "destination": "/pages/guides/get-started/introduction"
+    },
+    {
+      "source": "/pages/connectors/sources/http",
+      "destination": "/pages/connectors/building-a-connector/http-manifests"
+    },
+    {
+      "source": "/pages/benchmarks/methodology/introduction",
+      "destination": "/pages/benchmarks/overview"
+    },
+    {
+      "source": "/pages/benchmarks/pipeline/throughput",
+      "destination": "/pages/benchmarks/micro-benchmarks"
+    },
+    {
+      "source": "/pages/benchmarks/event-bus/publish-overhead",
+      "destination": "/pages/benchmarks/micro-benchmarks"
+    },
+    {
+      "source": "/pages/guides/ui/pipelines-and-canvas",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/ui/overview",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/ui/connections",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/ui/pipelines",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/get-started/web",
+      "destination": "/pages/guides/usage/web"
+    },
+    {
+      "source": "/pages/guides/get-started/cli",
+      "destination": "/pages/guides/usage/cli"
+    },
+    {
+      "source": "/pages/connectors/sinks/stdout",
+      "destination": "/pages/connectors/sinks/standard-output"
     }
   ]
 }

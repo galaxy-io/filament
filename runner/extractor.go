@@ -19,17 +19,19 @@ type extractorFunc func(context.Context, filament.RecordSink, filament.ExtractOp
 // carry no plan entry, which sources read whole. Seeding those cursors is the
 // one place a run writes durable state itself; every other transition is
 // folded from facts by the tracker.
-func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.Source, spec filament.RunSpec, plan filament.IngestionPlan) (extractorFunc, error) {
+func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.Source, spec filament.RunSpec, plan filament.IngestionPlan, log filament.Logger) (extractorFunc, error) {
 	if plan.RequiresCDC {
 		changes, ok := src.(filament.ChangeSource)
 		if !ok {
-			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Provider)
+			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Connector)
 		}
 		checkpoints, err := loadChangeCheckpoints(ctx, ds, spec)
 		if err != nil {
 			return nil, err
 		}
+		logLoadedCheckpoints(log, spec, checkpoints)
 		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+			logExtractionStart(log, spec, "cdc", len(checkpoints), len(checkpoints))
 			return changes.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{
 				Resources:   opts.Resources,
 				Checkpoints: checkpoints,
@@ -41,18 +43,20 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 	incremental, checkpointed := partitionCheckpointing(spec)
 	if len(incremental) == 0 && len(checkpointed) == 0 {
 		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+			logExtractionStart(log, spec, "full", 0, 0)
 			return src.Extract(ctx, sink, opts)
 		}, nil
 	}
 	resumable, ok := src.(filament.Resumable)
 	if !ok {
-		return nil, fmt.Errorf("source %q does not support resumable extraction", spec.Source.Provider)
+		return nil, fmt.Errorf("source %q does not support resumable extraction", spec.Source.Connector)
 	}
 	resumePlan := map[string]filament.Checkpoint{}
+	loaded := 0
 	if len(incremental) > 0 {
 		planner, ok := src.(filament.IncrementalPlanner)
 		if !ok {
-			return nil, fmt.Errorf("source %q does not support incremental planning", spec.Source.Provider)
+			return nil, fmt.Errorf("source %q does not support incremental planning", spec.Source.Connector)
 		}
 		prev := make(map[string]filament.Checkpoint, len(incremental))
 		for _, resource := range incremental {
@@ -63,6 +67,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 			state, err := ds.LoadResourceCheckpoint(ctx, key)
 			if err == nil {
 				prev[resource] = state.Checkpoint
+				noteLoadedCheckpoint(log, spec, resource, "pipeline", state.Checkpoint, &loaded)
 			} else if !errors.Is(err, filament.ErrNotFound) {
 				return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 			}
@@ -85,13 +90,14 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 	if len(checkpointed) > 0 {
 		planner, ok := src.(filament.ResumePlanner)
 		if !ok {
-			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Provider)
+			return nil, fmt.Errorf("source %q does not support resumable planning", spec.Source.Connector)
 		}
 		prev := make(map[string]filament.Checkpoint, len(checkpointed))
 		for _, resource := range checkpointed {
 			cp, err := ds.LoadCheckpoint(ctx, spec.Run, resource)
 			if err == nil {
 				prev[resource] = cp
+				noteLoadedCheckpoint(log, spec, resource, "run", cp, &loaded)
 			} else if !errors.Is(err, filament.ErrNotFound) {
 				return nil, fmt.Errorf("load checkpoint %q: %w", resource, err)
 			}
@@ -111,8 +117,67 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 		}
 	}
 	return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+		logExtractionStart(log, spec, "resumable", len(resumePlan), loaded)
 		return resumable.ExtractFrom(ctx, sink, opts, resumePlan)
 	}, nil
+}
+
+// Checkpoint logs intentionally describe cursor shape and scope without logging
+// raw cursor values, which may contain database positions, URLs, or opaque tokens.
+func logCheckpointLoaded(log filament.Logger, spec filament.RunSpec, resource, scope string, cp filament.Checkpoint) {
+	if log == nil {
+		return
+	}
+	mode := filament.SourcePolicyForIngestion(filament.TypeFor(spec.IngestionTypes, resource)).Mode.String()
+	log.Info("runner: checkpoint loaded",
+		filament.Field{Key: "run", Value: string(spec.Run)},
+		filament.Field{Key: "resource", Value: resource},
+		filament.Field{Key: "checkpoint_scope", Value: scope},
+		filament.Field{Key: "read_mode", Value: mode},
+		filament.Field{Key: "checkpoint_kind", Value: filament.CheckpointKind(cp)},
+	)
+}
+
+func logLoadedCheckpoints(log filament.Logger, spec filament.RunSpec, checkpoints map[string]filament.Checkpoint) {
+	for _, resource := range spec.Resources {
+		if cp := checkpoints[resource]; cp != nil {
+			logCheckpointLoaded(log, spec, resource, checkpointScope(spec, resource), cp)
+		}
+	}
+}
+
+func noteLoadedCheckpoint(
+	log filament.Logger,
+	spec filament.RunSpec,
+	resource, scope string,
+	cp filament.Checkpoint,
+	loaded *int,
+) {
+	if cp == nil {
+		return
+	}
+	(*loaded)++
+	logCheckpointLoaded(log, spec, resource, scope, cp)
+}
+
+func logExtractionStart(log filament.Logger, spec filament.RunSpec, strategy string, checkpointResources, loadedCheckpoints int) {
+	if log == nil {
+		return
+	}
+	log.Info("runner: extraction starting",
+		filament.Field{Key: "run", Value: string(spec.Run)},
+		filament.Field{Key: "strategy", Value: strategy},
+		filament.Field{Key: "resources", Value: len(spec.Resources)},
+		filament.Field{Key: "checkpoint_resources", Value: checkpointResources},
+		filament.Field{Key: "loaded_checkpoints", Value: loadedCheckpoints},
+	)
+}
+
+func checkpointScope(spec filament.RunSpec, resource string) string {
+	if _, ok := spec.ResourceCheckpointKey(resource); ok {
+		return "pipeline"
+	}
+	return "run"
 }
 
 // partitionCheckpointing splits the run's resources by their type's read-side
@@ -158,21 +223,25 @@ func loadChangeCheckpoints(ctx context.Context, ds filament.DataStore, spec fila
 	return out, nil
 }
 
-// isResumableRun reports whether a failure can leave progress that is safe to
-// replay into the sink. Append writes preserve already-applied rows, so retrying
-// an incremental append would duplicate them even when the source resumes from
-// its last checkpoint.
+// isResumableRun reports whether every resource has progress that is durable
+// before Commit and safe to replay. Commit-gated and append progress cannot be
+// resumed after a failed attempt without losing or duplicating rows.
 func isResumableRun(spec filament.RunSpec, plan filament.IngestionPlan) bool {
 	if plan.RequiresCDC {
 		return false
 	}
+	if filament.CheckpointCoverageFor(spec.Resources, spec.IngestionTypes) != filament.CheckpointCoverageAll {
+		return false
+	}
 	incremental, checkpointed := partitionCheckpointing(spec)
-	for _, resource := range incremental {
+	resumeResources := append(append([]string(nil), incremental...), checkpointed...)
+	for _, resource := range resumeResources {
 		policy, ok := plan.WritePolicies[resource]
 		if !ok {
 			policy, ok = plan.WritePolicies[""]
 		}
-		if !ok || policy.Capability.Mode == filament.WriteAppend {
+		if !ok || policy.Checkpoint == filament.CheckpointAfterCommit ||
+			policy.Capability.Mode == filament.WriteAppend {
 			return false
 		}
 	}

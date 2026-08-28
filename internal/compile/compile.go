@@ -110,7 +110,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
-		source, err := c.Sources.Resolve(sourceRef.Provider)
+		source, err := c.Sources.Resolve(sourceRef.Connector)
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +166,7 @@ func (c *Compiler) resolveNodeRef(node *ingestionv1.PipelineNode, connections ma
 		}
 	}
 	return filament.Ref{
-		Provider:   conn.Connector,
+		Connector:  conn.Connector,
 		Config:     MergeConfig(conn.Config, overlay),
 		SecretRefs: mergeStrings(conn.SecretRefs, node.GetSecretRefs()),
 	}, nil

@@ -1,5 +1,9 @@
 version: 1
 name: linear
+display_name: Linear
+description: Modern issue tracking and project management tool built for high-performance teams.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-linear-light.svg
 config:
   api_key:
     type: secret
@@ -34,7 +38,7 @@ resources:
       template:
         query: |
           query Teams($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
-            teams(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
+            teams(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gt: $updatedAfter } }) {
               nodes { id key name createdAt updatedAt }
               pageInfo { hasNextPage endCursor }
             }
@@ -74,7 +78,7 @@ resources:
       template:
         query: |
           query Users($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
-            users(first: $first, after: $after, includeArchived: true, includeDisabled: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
+            users(first: $first, after: $after, includeArchived: true, includeDisabled: true, orderBy: updatedAt, filter: { updatedAt: { gt: $updatedAfter } }) {
               nodes { id name displayName email createdAt updatedAt }
               pageInfo { hasNextPage endCursor }
             }
@@ -114,7 +118,7 @@ resources:
       template:
         query: |
           query Projects($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
-            projects(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
+            projects(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gt: $updatedAfter } }) {
               nodes { id name description url createdAt updatedAt }
               pageInfo { hasNextPage endCursor }
             }
@@ -205,7 +209,7 @@ resources:
       template:
         query: |
           query Issues($first: Int!, $after: String, $updatedAfter: DateTimeOrDuration!) {
-            issues(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gte: $updatedAfter } }) {
+            issues(first: $first, after: $after, includeArchived: true, orderBy: updatedAt, filter: { updatedAt: { gt: $updatedAfter } }) {
               nodes {
                 id identifier number title description priority estimate url branchName
                 createdAt updatedAt completedAt archivedAt canceledAt

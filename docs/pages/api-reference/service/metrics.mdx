@@ -1,0 +1,80 @@
+---
+title: "Metrics"
+description: "The read-only aggregation service behind the dashboard, serving timeseries and windowed aggregates over runs"
+---
+
+Defined in `api/metrics/v1/metrics.proto`. `metrics.v1.MetricsService` is a
+read-only aggregation surface with exactly two query primitives, a bucketed
+timeseries and a windowed aggregate, parameterized by metric and dimension
+enums. New metrics are enum additions, and the RPC surface never changes. This
+is what the built-in dashboard queries.
+
+The service is backed by the same runs table the
+[ingestion API](/pages/api-reference/service/runs) writes, through the store
+selected by `METRICSSTORE_PROVIDER` (default `postgres`). When no metrics
+store is configured, both RPCs return `unimplemented`.
+
+## RPCs
+
+| RPC | Description |
+|---|---|
+| `QueryTimeseries` | Metrics bucketed by hour or day over a time window |
+| `QueryAggregate` | The same metrics as single values per group over a window |
+
+## Metrics
+
+| Metric | Aggregation |
+|---|---|
+| `METRIC_RUN_COUNT` | Sum of runs |
+| `METRIC_RUN_RECORDS` | Sum of records moved |
+| `METRIC_RUN_BYTES` | Sum of bytes moved |
+| `METRIC_RUN_DURATION` | Mean duration in milliseconds over terminal runs |
+| `METRIC_RUN_MEMORY_USAGE` | Mean peak working set in bytes |
+| `METRIC_RUN_CPU_USAGE` | Mean CPU seconds |
+
+Usage metrics exclude runs that reported nothing (for example, runs executed
+outside a cgroup) rather than averaging in zeros.
+
+## QueryTimeseries
+
+The request takes:
+
+- `tenant_id`: `""` matches every tenant, mirroring `ListRuns`
+- `metrics`: a repeated list computed together per bucket
+- `since_ms`/`until_ms`: the time window, inclusive / exclusive (`until_ms`
+  unset means now)
+- `granularity`: `HOUR` or `DAY`
+- `tz_offset_minutes`: the viewer's offset east of UTC, which shifts bucket
+  boundaries so `DAY` buckets match the local calendar day
+
+`group_by` splits the result into one series per value of a dimension
+(`TENANT_ID`, `PIPELINE_ID`, or `STATUS`). Unspecified returns a single total
+series with key `""`. `filters` narrow the input rows, with values given as
+dimension-value strings (a pipeline id, or a `RunStatus` enum number such as
+`"3"` for `COMPLETED`). When a filter covers the `group_by` dimension, the
+response returns one series per requested value in request order.
+
+The response is built for direct charting. Every series is **dense** (every
+bucket in the window is present, zero-filled, in ascending order), and all
+series in a response are index-aligned, so `series[i].points[j]` and
+`series[k].points[j]` are always the same bucket. Within a point, `values[i]`
+corresponds positionally to `request.metrics[i]`.
+
+```sh
+curl -X POST http://localhost:8080/metrics.v1.MetricsService/QueryTimeseries \
+  -H "Content-Type: application/json" \
+  -d '{
+    "metrics": ["METRIC_RUN_COUNT", "METRIC_RUN_BYTES"],
+    "sinceMs": 1755561600000,
+    "granularity": "METRIC_GRANULARITY_DAY",
+    "tzOffsetMinutes": -420,
+    "groupBy": "METRIC_DIMENSION_STATUS"
+  }'
+```
+
+## QueryAggregate
+
+The same request shape minus `granularity` and `tz_offset_minutes`. It returns
+one `AggregateRow` per group over the whole window, with `values` aligned to
+the requested metrics. Use it for stat tiles and totals where bucketing is
+noise.

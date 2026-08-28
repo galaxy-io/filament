@@ -16,7 +16,7 @@ import (
 )
 
 // Extract runs a full extraction across all enabled resources.
-func (c *Connector) Extract(ctx context.Context, sink filament.RecordSink, opts extractOptions) error {
+func (c *Connector) Extract(ctx context.Context, sink recordSink, opts extractOptions) error {
 	c.observe = opts.Observe
 	c.watermarkReported.Clear()
 	defer func() {
@@ -26,8 +26,8 @@ func (c *Connector) Extract(ctx context.Context, sink filament.RecordSink, opts 
 	return c.extract(ctx, sink, opts)
 }
 
-func (c *Connector) extract(ctx context.Context, sink filament.RecordSink, opts extractOptions) error {
-	c.resumeCursors = opts.ResumeCursors
+func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOptions) error {
+	c.resumeStates = opts.ResumeStates
 	c.resumeWatermarks = opts.ResumeWatermarks
 	c.incrementalLookbacks = opts.IncrementalLookbacks
 	c.incrementalResources = opts.IncrementalResources
@@ -71,7 +71,7 @@ func (c *Connector) extract(ctx context.Context, sink filament.RecordSink, opts 
 	return nil
 }
 
-func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.Resource, sink filament.RecordSink) []error {
+func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.Resource, sink recordSink) []error {
 	outcomes := make([]error, len(resources))
 	var wg sync.WaitGroup
 
@@ -88,7 +88,7 @@ func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.
 	return outcomes
 }
 
-func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink filament.RecordSink) error {
+func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink recordSink) error {
 	parents := c.snapshotCaptures(res.Parent.Resource)
 	if len(parents) == 0 {
 		return nil
@@ -124,10 +124,10 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 }
 
 // extractResource runs one resource end-to-end. Top-level resources may resume
-// from the cursor and watermark supplied by the engine. Child resources always
+// from the pagination state and watermark supplied by the engine. Child resources always
 // restart pagination because a resource-wide cursor cannot be applied to each
 // parent independently.
-func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink filament.RecordSink, parent Capture) error {
+func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
 	pag, err := pagination.New(res.Pagination)
 	if err != nil {
 		return fmt.Errorf("paginator: %w", err)
@@ -144,7 +144,7 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	var tracker *incremental.Tracker
 	if res.Incremental != nil && c.incrementalEnabled(stateResource, res.Name) {
 		spec := *res.Incremental
-		if field, ok := incrementalField(res); ok {
+		if field, ok := manifest.IncrementalCursorField(res); ok {
 			spec.CursorPath = field.Path
 		}
 		if lookback, ok := c.incrementalLookbacks[stateResource]; ok {
@@ -154,9 +154,9 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 		}
 		seed := ""
 		if c.resumeWatermarks != nil {
-			seed = c.resumeWatermarks[stateResource][incremental.CheckpointKey(spec)]
+			seed = c.resumeWatermarks[stateResource][spec.DurableCheckpointKey()]
 			if seed == "" && stateResource != res.Name {
-				seed = c.resumeWatermarks[res.Name][incremental.CheckpointKey(spec)]
+				seed = c.resumeWatermarks[res.Name][spec.DurableCheckpointKey()]
 			}
 		}
 		tracker, err = incremental.New(spec, stateResource, seed)
@@ -174,12 +174,12 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	// out across many parents whose pagination state interleaves into a
 	// single resource-level cursor — replaying that cursor for each parent
 	// is incorrect, so children always restart pagination from scratch.
-	startCursor := ""
-	if res.Parent == nil && c.resumeCursors != nil {
-		startCursor = c.resumeCursors[res.Name]
+	var resumeState pagination.State
+	if res.Parent == nil && c.resumeStates != nil {
+		resumeState = c.resumeStates[res.Name]
 	}
 
-	_, _, err = c.paginate(ctx, res, sink, parent, pag, extractor, tracker, startCursor)
+	_, _, err = c.paginate(ctx, res, sink, parent, pag, extractor, tracker, resumeState)
 	return err
 }
 

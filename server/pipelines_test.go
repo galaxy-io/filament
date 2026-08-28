@@ -51,7 +51,7 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 	if stampedAt.UnixMilli() != res.Msg.GetPipeline().GetDeletedAt() {
 		t.Fatalf("delete stamp %d disagrees with deleted_at %d", stampedAt.UnixMilli(), res.Msg.GetPipeline().GetDeletedAt())
 	}
-	if len(res.Msg.GetPipeline().GetVersions()) != 0 || res.Msg.GetPipeline().GetCurrentVersion() == nil {
+	if len(res.Msg.GetPipeline().GetVersions()) != 1 || res.Msg.GetPipeline().GetCurrentVersion() == nil {
 		t.Fatalf("expected version history kept, got %+v", res.Msg)
 	}
 

@@ -1,77 +1,121 @@
 ---
 title: "ClickHouse"
-description: "Write typed analytical tables to ClickHouse."
+description: "Write typed analytical tables to ClickHouse"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-dark.svg"
 ---
 
-`connectors/clickhouse/sink` writes each resource to its own typed ClickHouse
-table using the official Go driver's native batch interface. Both native TCP and
-HTTP(S), including ClickHouse Cloud, are accepted through the connection DSN.
+`connectors/clickhouse/sink` (registered as `clickhouse`, **alpha**) writes
+each resource to its own typed ClickHouse table through the official Go
+driver's native batch interface. Snapshot replacement is atomic per resource.
+The run writes into a staging table and swaps it into place only at `Commit`.
+It works against self-hosted ClickHouse and ClickHouse Cloud.
 
 ## Configuration
 
-| Field | Scope | Description |
-|---|---|---|
-| `dsn` | Connection | Secret ClickHouse DSN, such as `clickhouse://user:pass@host:9440/default?secure=true` |
-| `database` | Pipeline | Destination database; defaults from the normalized source connection name when omitted |
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `connection_method` | Connection | `fields` | `fields` builds the connection from the fields below. `url` uses `dsn` directly. |
+| `dsn` | Connection | — | ClickHouse connection URL. Required when `connection_method` is `url`. Secret. |
+| `host` | Connection | — | Server hostname. A pasted `http(s)://` endpoint is normalized. Required in `fields` mode. |
+| `port` | Connection | `9440` | Server port (9440 is the secure native port) |
+| `protocol` | Connection | `native` | Wire protocol: `native` or `http`. Native connections use LZ4 compression. |
+| `username` | Connection | `default` | ClickHouse username |
+| `password` | Connection | — | Required. Secret. |
+| `database_name` | Connection | `default` | Database encoded in the connection. The pipeline `database` selects the destination. |
+| `secure` | Connection | `true` | Connect with TLS 1.2+ (required by ClickHouse Cloud) |
+| `database` | Pipeline | `default` | Destination database |
 
-## Local Docker Compose
+A `database` left empty is defaulted by the server to the normalized source
+connection name. The sink always authenticates against the `default` database and runs
+`CREATE DATABASE IF NOT EXISTS` for the destination from there, so the
+configured user needs access to `default` even when writing elsewhere. The
+sink prefers batches of 10,000 rows.
 
-The repository's Compose stack includes a persistent ClickHouse instance:
+## Supported write modes
 
-```sh
-docker compose up -d --wait clickhouse
-```
+The sink advertises `full_replace`, `full_append`, `full_upsert`, and
+`incremental_upsert`. See
+[replication modes](/pages/guides/concepts/replication-modes). It does **not**
+support `cdc` or `incremental_delete`. ClickHouse has no efficient row-level
+delete, so CDC pipelines cannot target this sink.
 
-Use `clickhouse://filament:filament@localhost:9000/filament` as the native DSN,
-or connect to the HTTP interface on `http://localhost:8123`. Data is retained in
-the `clickhouse-data` named volume across container restarts and `docker compose
-down`; delete that volume explicitly when you want to reset the local data.
+- `full_replace` writes into a run-scoped staging table and swaps it in at
+  `Commit`.
+- `full_append` inserts into a live `MergeTree` table.
+- `full_upsert` and `incremental_upsert` insert into a `ReplacingMergeTree`
+  table keyed on the primary key. ClickHouse deduplicates at merge time.
 
-## Write policies
+## Table management
 
-Append loads use `MergeTree`. Snapshot replacement loads into a run-scoped
-staging table and promotes it on commit, so a failed snapshot never truncates the
-live destination. Replacing an existing table uses ClickHouse's `EXCHANGE TABLES`
-and therefore requires an `Atomic` database engine (the ClickHouse default).
+`EnsureSchema` behavior depends on the write mode.
 
-Snapshot-upsert and incremental-upsert loads use `ReplacingMergeTree` with the
-complete source primary key as the `ORDER BY` key. The version column depends on
-the resolved write policy:
+For **replace**, the run creates a staging table named
+`__filament_stage_<hex8>` (run-scoped) and leaves the destination untouched
+until `Commit`.
 
-- Incremental upserts use the selected source cursor column, such as
-  `ReplacingMergeTree(updated_at)`. This orders competing rows by when the
-  source says they changed, even when runs overlap or arrive out of order.
-- Snapshot upserts and sources without row-level cursor metadata use
-  parameterless `ReplacingMergeTree()`. Retries of identical rows collapse, but
-  competing values are resolved by ClickHouse insertion and merge order rather
-  than a Filament-generated version.
-
-Filament does not add a synthetic version column. Cursor versioning currently
-requires a non-null timestamp cursor that is
-present on every row and advances on every insert and update. Tables created
-with one version strategy are not silently converted to the other; rebuild or
-migrate an existing table before changing its version strategy.
-
-ClickHouse resolves duplicate versions during background merges. Query with
-`FINAL` when a current-state result must include replacements immediately:
+For **append and upsert**, the live table is created if missing:
 
 ```sql
-SELECT * FROM database.resource FINAL;
+CREATE TABLE db.tbl (...) ENGINE = MergeTree() ORDER BY (pk...)
 ```
 
-Upsert requires a discovered primary key. An existing destination must already
-use `ReplacingMergeTree` with the resolved version column and the same
-sorting-key columns; the sink rejects an incompatible table rather than silently
-changing its semantics.
+with `tuple()` as the sorting key for keyless resources. Upsert modes use
+`ReplacingMergeTree()` under the `insert_order` version strategy, or
+`ReplacingMergeTree(<cursor field>)` under the `cursor` strategy. The version
+field must exist in the schema, be `NOT NULL`, and be a `timestamp` or
+`timestamptz`.
 
-## Types
+A pre-existing live table is validated, and mismatches are hard errors:
 
-Primitive numeric, decimal, date, timestamp, UUID, string, and binary fields map
-to typed ClickHouse columns. JSON, arrays, standalone time values, and unknown
-source-native types are stored losslessly as JSON/text in `String` columns until
-Filament's portable schema includes nested element type information.
+- The engine must be `MergeTree` for append or `ReplacingMergeTree` for upsert
+  (`Shared*` cloud variants are accepted).
+- A `ReplacingMergeTree` version argument must match the resolved version
+  policy exactly.
+- The table's sorting key must equal the sorted source primary key.
 
-## Modes
+Missing columns are added to live tables with `ADD COLUMN IF NOT EXISTS`.
+Evolution is add-only.
 
-Supports `SnapshotReplace`, `Append`, `SnapshotUpsert`, and `Upsert`. Delete and
-CDC tombstone handling are not yet implemented.
+### Type mapping
+
+| Logical type | ClickHouse type |
+| --- | --- |
+| `bool` | `Bool` |
+| `int16` / `int32` / `int64` | `Int16` / `Int32` / `Int64` |
+| `float32` / `float64` | `Float32` / `Float64` |
+| `decimal` | `Decimal(p,s)` from the native declaration, else `Decimal(38,9)` |
+| `string` / `bytes` / `time` / `json` / `array` / unknown | `String` |
+| `date` | `Date32` |
+| `timestamp` | `DateTime64(6)` |
+| `timestamptz` | `DateTime64(6, 'UTC')` |
+| `uuid` | `UUID` |
+
+Nullable fields are wrapped in `Nullable()`.
+
+## Write mechanics and atomicity
+
+Records are decoded client-side into typed values and appended through the
+driver's `PrepareBatch`/`Append`/`Send` path. Parsing is tolerant (string
+integers, `NaN`/`Inf`, decimal strings, `T`-separated timestamps, and hex or
+base64 bytes all decode), but a missing or null value in a non-nullable column
+is an error.
+
+Append and upsert modes write directly to the live table, so partial data is
+**visible mid-run**. Replace mode is invisible until `Commit`, which per staged
+resource runs `RENAME TABLE` when the destination does not exist yet, or
+`EXCHANGE TABLES` followed by `DROP TABLE` of the stage. The exchange is
+atomic and requires the destination database to use the `Atomic` engine (the
+default).
+
+<Note>
+`ReplacingMergeTree` deduplicates at background merge time, not on insert.
+Until parts merge, a key can have multiple rows — query with `SELECT … FROM
+tbl FINAL` to read the current state.
+</Note>
+
+## Failure behavior
+
+`Abort` drops the run's staging tables and nothing else. Failed replace runs
+leave the destination exactly as it was. Failed append or upsert runs can
+leave partial rows in live tables, which upsert re-runs converge through the
+primary key.

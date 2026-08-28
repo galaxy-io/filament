@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        description: Type of release to create
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: Mark the GitHub release as a prerelease
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Determine release version
+        id: version
+        shell: bash
+        env:
+          RELEASE_TYPE: ${{ inputs.type }}
+        run: |
+          stable_tag=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort --version-sort | tail -n 1)
+          if [[ -z "$stable_tag" ]]; then
+            echo "No stable version tag found"
+            exit 1
+          fi
+
+          IFS=. read -r major minor patch <<< "${stable_tag#v}"
+
+          case "$RELEASE_TYPE" in
+            patch)
+              tag="v${major}.${minor}.$((patch + 1))"
+              ;;
+            minor)
+              tag="v${major}.$((minor + 1)).0"
+              ;;
+            major)
+              tag="v$((major + 1)).0.0"
+              ;;
+            *)
+              echo "Unsupported release type: $RELEASE_TYPE"
+              exit 1
+              ;;
+          esac
+
+          if git rev-parse --verify --quiet "refs/tags/$tag"; then
+            echo "Tag already exists: $tag"
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Creating $tag from $(git rev-parse HEAD)"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          target_sha=$(git rev-parse HEAD)
+          args=("$TAG" --target "$target_sha" --generate-notes --title "$TAG")
+          if [[ "$PRERELEASE" == true ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${args[@]}"
+
+  images:
+    needs: release
+    uses: ./.github/workflows/images.yaml
+    with:
+      ref: ${{ needs.release.outputs.tag }}
+      tag: ${{ needs.release.outputs.tag }}
+      publish: true
+      prerelease: ${{ inputs.prerelease }}
+    secrets: inherit

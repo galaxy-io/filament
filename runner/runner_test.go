@@ -31,6 +31,60 @@ type commitFailSink struct {
 func (s *commitFailSink) Commit(context.Context) error { return errors.New("commit boom") }
 func (s *commitFailSink) Abort(context.Context) error  { s.aborts.Add(1); return nil }
 
+type controlledTestSource struct {
+	commitTestSource
+	started chan struct{}
+}
+
+func (s *controlledTestSource) wait(ctx context.Context) error {
+	close(s.started)
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (s *controlledTestSource) Extract(ctx context.Context, _ filament.RecordSink, _ filament.ExtractOpts) error {
+	return s.wait(ctx)
+}
+
+func (s *controlledTestSource) ExtractFrom(
+	ctx context.Context,
+	_ filament.RecordSink,
+	_ filament.ExtractOpts,
+	_ map[string]filament.Checkpoint,
+) error {
+	return s.wait(ctx)
+}
+
+type controlledTestSink struct {
+	incrementalTestSink
+	commits atomic.Int32
+	aborts  atomic.Int32
+}
+
+func (s *controlledTestSink) Commit(context.Context) error { s.commits.Add(1); return nil }
+func (s *controlledTestSink) Abort(context.Context) error  { s.aborts.Add(1); return nil }
+
+type progressLoadErrorStore struct {
+	filament.DataStore
+}
+
+func (progressLoadErrorStore) LoadRun(context.Context, filament.RunID) (filament.RunState, error) {
+	return filament.RunState{}, errors.New("database unavailable")
+}
+
+func TestRunOneFailsWhenProgressCannotBeRestored(t *testing.T) {
+	bus := inproc.New()
+	facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = facts.Close() }()
+	RunOne(context.Background(), Deps{
+		Bus: bus, DataStore: progressLoadErrorStore{DataStore: memory.New()},
+	}, filament.RunSpec{Tenant: "tenant", Run: "run"})
+	waitForFact(t, facts, events.RunFailed.Name())
+}
+
 func TestRunOneCommitFailureAborts(t *testing.T) {
 	bus := inproc.New()
 	facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
@@ -72,8 +126,8 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 	}, filament.RunSpec{
 		Tenant:         "t1",
 		Run:            "r1",
-		Source:         filament.Ref{Provider: "test"},
-		Sink:           filament.Ref{Provider: "test-sink"},
+		Source:         filament.Ref{Connector: "test"},
+		Sink:           filament.Ref{Connector: "test-sink"},
 		Resources:      []string{"users"},
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
 	})
@@ -96,5 +150,136 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 	}
 	if got := sink.aborts.Load(); got != 1 {
 		t.Fatalf("Abort calls = %d, want 1", got)
+	}
+}
+
+func TestRunOneCooperativeControl(t *testing.T) {
+	tests := []struct {
+		name        string
+		cancel      bool
+		ingestion   filament.IngestionType
+		terminal    string
+		wantCommits int32
+		wantAborts  int32
+	}{
+		{
+			name:      "pause checkpointed run commits drained progress",
+			ingestion: filament.IngestionFullUpsert, terminal: events.RunPaused.Name(), wantCommits: 1,
+		},
+		{
+			name:      "pause checkpoint-free run aborts partial output",
+			ingestion: filament.IngestionFullReplace, terminal: events.RunPaused.Name(), wantAborts: 1,
+		},
+		{
+			name: "cancel aborts", cancel: true,
+			ingestion: filament.IngestionFullUpsert, terminal: events.RunCanceled.Name(), wantAborts: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bus := inproc.New()
+			facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = facts.Close() }()
+
+			source := &controlledTestSource{started: make(chan struct{})}
+			sink := &controlledTestSink{}
+			sources := registry.NewSources()
+			sources.Register("test", func() filament.Source { return source })
+			sinks := registry.NewSinks()
+			sinks.Register("test-sink", func() filament.Sink { return sink })
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				RunOne(context.Background(), Deps{
+					Bus: bus, DataStore: memory.New(), Sources: sources, Sinks: sinks,
+				}, filament.RunSpec{
+					Tenant: "t1", Run: "r1", Source: filament.Ref{Connector: "test"}, Sink: filament.Ref{Connector: "test-sink"},
+					Resources: []string{"users"}, IngestionTypes: map[string]filament.IngestionType{"users": tt.ingestion},
+				})
+			}()
+
+			select {
+			case <-source.started:
+			case <-time.After(5 * time.Second):
+				t.Fatal("source did not start")
+			}
+			env := events.Envelope{Tenant: "t1", Run: "r1", At: time.Now()}
+			if tt.cancel {
+				err = events.Emit(context.Background(), bus, events.RunCancelRequested, env, events.RunCancelRequestedEvent{})
+			} else {
+				err = events.Emit(context.Background(), bus, events.RunPauseRequested, env, events.RunPauseRequestedEvent{})
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			waitForFact(t, facts, tt.terminal)
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("controlled run did not stop")
+			}
+			if got := sink.commits.Load(); got != tt.wantCommits {
+				t.Fatalf("Commit calls = %d, want %d", got, tt.wantCommits)
+			}
+			if got := sink.aborts.Load(); got != tt.wantAborts {
+				t.Fatalf("Abort calls = %d, want %d", got, tt.wantAborts)
+			}
+		})
+	}
+}
+
+func waitForFact(t *testing.T, sub eventbus.Subscription, name string) {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for {
+		select {
+		case msg := <-sub.C():
+			fact, err := events.Decode(msg)
+			_ = msg.Ack()
+			if err != nil {
+				continue
+			}
+			if fact.Name == name {
+				return
+			}
+			if _, failed := fact.Data.(events.RunFailedEvent); failed {
+				t.Fatalf("run failed while waiting for %s: %#v", name, fact.Data)
+			}
+		case <-deadline:
+			t.Fatalf("no %s fact published", name)
+		}
+	}
+}
+
+func TestEmitterSeedsResumedProgress(t *testing.T) {
+	em := newEmitter(context.Background(), inproc.New(), nil, "tenant", "run")
+	em.seedProgress(filament.RunState{
+		Run: "run", Records: 125, Bytes: 500,
+		Resources: []filament.ResourceState{{Resource: "users", Records: 125, Bytes: 500}},
+	})
+	if records, bytes := em.runTotals(); records != 125 || bytes != 500 {
+		t.Fatalf("run totals = %d/%d, want 125/500", records, bytes)
+	}
+	if records, bytes := em.resourceTally("users"); records != 125 || bytes != 500 {
+		t.Fatalf("resource totals = %d/%d, want 125/500", records, bytes)
+	}
+}
+
+func TestSeedEmitterProgressIgnoresPartialAttemptCounters(t *testing.T) {
+	store := memory.New()
+	state := filament.RunState{Run: "run", Status: filament.RunPartial, Records: 125, Bytes: 500}
+	if err := store.SaveRun(context.Background(), state); err != nil {
+		t.Fatal(err)
+	}
+	em := newEmitter(context.Background(), inproc.New(), nil, "tenant", "run")
+	if err := seedEmitterProgress(context.Background(), store, state.Run, em); err != nil {
+		t.Fatal(err)
+	}
+	if records, bytes := em.runTotals(); records != 0 || bytes != 0 {
+		t.Fatalf("partial totals = %d/%d, want 0/0", records, bytes)
 	}
 }

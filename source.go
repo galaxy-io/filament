@@ -20,8 +20,8 @@ type Source interface {
 // Resumable is the optional source contract for checkpointed extraction. prev maps
 // each resource to the cursor to resume from (a plan produced by ResumePlanner,
 // carrying any progress from a prior run); a resource absent from prev — or mapped
-// to nil — is read from the start. ExtractFrom stamps each Record with its shard
-// (Record.Part) and keyset position (Record.Key) so the pipeline can advance and
+// to nil — is read from the start. ExtractFrom opens one RowWriter per shard and
+// stamps each row's keyset position (RowMeta.Key) so the pipeline can advance and
 // persist the cursor.
 type Resumable interface {
 	ExtractFrom(ctx context.Context, sink RecordSink, opts ExtractOpts, prev map[string]Checkpoint) error
@@ -185,6 +185,13 @@ func ReplicationOf(src Source, cfg Config) ReplicationMode {
 // config before any run uses it. Both sources and sinks may implement it.
 type LiveValidatable interface {
 	TestConnection(ctx context.Context, cfg Config) error
+}
+
+// ConfigValidatable is the optional contract for connector-specific, pure
+// configuration validation. Unlike LiveValidatable it must not access the
+// network, so the API can safely use it while accepting connection settings.
+type ConfigValidatable interface {
+	Validate(cfg Config) error
 }
 
 // ConnectorSpec is a source's self-description: identity, supported modes and

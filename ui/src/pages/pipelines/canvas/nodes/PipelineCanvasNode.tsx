@@ -136,10 +136,14 @@ const PipelineCanvasNode = ({
             isConnected={isConnected}
           />
         )}
-        <FlexItem grow={1} shrink={0}>
+        <FlexItem grow={1} minWidth={0}>
           <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
-            <ConnectorTile connector={connector} kind={kind} />
-            <Text size={TextSize.BODY_SM}>{label}</Text>
+            <FlexItem shrink={0}>
+              <ConnectorTile connector={connector} kind={kind} />
+            </FlexItem>
+            <Text size={TextSize.BODY_SM} isEllipsis>
+              {label}
+            </Text>
           </FlexWrapper>
         </FlexItem>
         {kind === ConnectorKind.SOURCE && (

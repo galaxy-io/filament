@@ -23,7 +23,7 @@ import (
 func (c *Connector) streamResource(
 	ctx context.Context,
 	res manifest.Resource,
-	sink filament.RecordSink,
+	sink recordSink,
 	parent Capture,
 	extractor *response.Extractor,
 	tracker *incremental.Tracker,
@@ -95,7 +95,7 @@ func (c *Connector) streamResource(
 				return fmt.Errorf("incremental cursor: %w", err)
 			}
 			if advanced {
-				c.reportWatermarkOnce(resourceName, incremental.CheckpointKey(*res.Incremental), tracker.Current())
+				c.reportWatermarkOnce(resourceName, res.Incremental.DurableCheckpointKey(), tracker.Current())
 			}
 			if tracker.Current() != "" {
 				wr.Key = watermarkKey(tracker.Current())

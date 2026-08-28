@@ -15,6 +15,9 @@ import (
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
+// snapshotBarrierSink blocks the source at its first snapshot row (a row with no
+// stream position) until released, so the test can commit changes while the
+// bootstrap snapshot is still open.
 type snapshotBarrierSink struct {
 	collectSink
 	once    sync.Once
@@ -23,26 +26,31 @@ type snapshotBarrierSink struct {
 }
 
 func newSnapshotBarrierSink() *snapshotBarrierSink {
-	return &snapshotBarrierSink{reached: make(chan struct{}), release: make(chan struct{})}
+	s := &snapshotBarrierSink{reached: make(chan struct{}), release: make(chan struct{})}
+	s.wrap = func(w filament.RowWriter) filament.RowWriter { return &barrierWriter{RowWriter: w, sink: s} }
+	return s
 }
 
-func (s *snapshotBarrierSink) Push(r filament.Record) error {
-	if !r.Drained && r.Meta.LSN == "" {
-		s.once.Do(func() {
-			close(s.reached)
-			<-s.release
+type barrierWriter struct {
+	filament.RowWriter
+	sink *snapshotBarrierSink
+}
+
+func (w *barrierWriter) EndRow(meta filament.RowMeta) error {
+	if meta.LSN == "" {
+		w.sink.once.Do(func() {
+			close(w.sink.reached)
+			<-w.sink.release
 		})
 	}
-	return s.collectSink.Push(r)
+	return w.RowWriter.EndRow(meta)
 }
 
 func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
+	pg := testcontainers.SharedPostgresCDC(t)
+	// The timeout budgets the pipeline, not the container boot above it.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	pg := testcontainers.Postgres(t,
-		testcontainers.WithImage("postgres:16-alpine"),
-		testcontainers.WithLogicalReplication(),
-	)
 	if _, err := pg.Pool().Exec(ctx, `
 		CREATE TABLE cdc_handoff (id bigint PRIMARY KEY, name text NOT NULL);
 		ALTER TABLE cdc_handoff REPLICA IDENTITY FULL;
@@ -88,17 +96,17 @@ func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	records := dataRecords(sink.recs)
+	records := dataRecs(sink.recs)
 	if len(records) != 3 {
 		t.Fatalf("snapshot/WAL records = %#v, want baseline insert, WAL update, WAL insert", records)
 	}
-	if records[0].ID != "1" || records[0].Op != filament.OpInsert || records[0].Meta.LSN != "" {
+	if records[0].ID != "1" || records[0].Op != filament.OpInsert || records[0].LSN != "" {
 		t.Fatalf("first record = %#v, want snapshot insert for row 1", records[0])
 	}
-	if records[1].ID != "1" || records[1].Op != filament.OpUpdate || records[1].Meta.LSN == "" {
+	if records[1].ID != "1" || records[1].Op != filament.OpUpdate || records[1].LSN == "" {
 		t.Fatalf("second record = %#v, want WAL update for row 1", records[1])
 	}
-	if records[2].ID != "2" || records[2].Op != filament.OpInsert || records[2].Meta.LSN == "" {
+	if records[2].ID != "2" || records[2].Op != filament.OpInsert || records[2].LSN == "" {
 		t.Fatalf("third record = %#v, want WAL insert for row 2", records[2])
 	}
 	_ = streamCheckpointFromRecords(t, sink.recs, "cdc_handoff")
@@ -106,10 +114,7 @@ func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 
 func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	ctx := context.Background()
-	pg := testcontainers.Postgres(t,
-		testcontainers.WithImage("postgres:16-alpine"),
-		testcontainers.WithLogicalReplication(),
-	)
+	pg := testcontainers.SharedPostgresCDC(t)
 	if _, err := pg.Pool().Exec(ctx, `
 		CREATE TABLE cdc_users (id bigint PRIMARY KEY, name text NOT NULL);
 		ALTER TABLE cdc_users REPLICA IDENTITY FULL;
@@ -130,7 +135,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	if err := src.ExtractChanges(ctx, initial, filament.ChangeExtractOpts{Resources: []string{"cdc_users"}}); err != nil {
 		t.Fatal(err)
 	}
-	initialData := dataRecords(initial.recs)
+	initialData := dataRecs(initial.recs)
 	if len(initialData) != 1 || initialData[0].ID != "10" || initialData[0].Op != filament.OpInsert {
 		t.Fatalf("initial CDC snapshot = %#v, want existing row 10", initialData)
 	}
@@ -142,7 +147,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	if err := src.ExtractChanges(ctx, retry, filament.ChangeExtractOpts{Resources: []string{"cdc_users"}}); err != nil {
 		t.Fatal(err)
 	}
-	retryData := dataRecords(retry.recs)
+	retryData := dataRecs(retry.recs)
 	if len(retryData) != 1 || retryData[0].ID != "10" {
 		t.Fatalf("retried CDC snapshot = %#v, want existing row 10", retryData)
 	}
@@ -194,10 +199,10 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	policy := filament.WritePolicyForIngestion(filament.IngestionCDC)
 	policy.Resource = "cdc_users"
 	policy.Keys = []string{"id"}
-	if _, err := dst.Apply(ctx, filament.Batch{Resource: "cdc_users", Records: initialData}, filament.ApplyOptions{Policy: policy}); err != nil {
+	if err := applyAll(ctx, dst, initial.batchesFor("cdc_users"), policy); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := dst.Apply(ctx, filament.Batch{Resource: "cdc_users", Records: dataRecords(changes.recs)}, filament.ApplyOptions{Policy: policy}); err != nil {
+	if err := applyAll(ctx, dst, changes.batchesFor("cdc_users"), policy); err != nil {
 		t.Fatal(err)
 	}
 	if err := dst.Commit(ctx); err != nil {
@@ -225,21 +230,21 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	}
 }
 
-func dataRecords(records []filament.Record) []filament.Record {
-	out := make([]filament.Record, 0, len(records))
-	for _, rec := range records {
-		if !rec.Drained {
-			out = append(out, rec)
+func dataRecs(records []rec) []rec {
+	out := make([]rec, 0, len(records))
+	for _, r := range records {
+		if !r.Drained {
+			out = append(out, r)
 		}
 	}
 	return out
 }
 
-func streamCheckpointFromRecords(t *testing.T, records []filament.Record, resource string) filament.Checkpoint {
+func streamCheckpointFromRecords(t *testing.T, records []rec, resource string) filament.Checkpoint {
 	t.Helper()
 	for i := len(records) - 1; i >= 0; i-- {
-		if records[i].Resource == resource && records[i].Drained && records[i].Meta.LSN != "" {
-			return checkpoint.NewStreamDelta(resource, records[i].Meta.LSN, records[i].Meta.Seq)
+		if records[i].Resource == resource && records[i].Drained && records[i].LSN != "" {
+			return checkpoint.NewStreamDelta(resource, records[i].LSN, records[i].Seq)
 		}
 	}
 	t.Fatalf("no stream marker for %q in %#v", resource, records)

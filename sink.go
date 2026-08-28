@@ -1,13 +1,19 @@
 package filament
 
-import "context"
+import (
+	"context"
+
+	"github.com/galaxy-io/filament/arrowbatch"
+)
 
 // Sink is the connector contract for writing data: open for a run, apply
-// batches under a write policy, then commit or abort.
+// batches under a write policy, then commit or abort. Apply borrows b for the
+// duration of the call; a sink that keeps it afterward must Retain it and
+// eventually Release that reference.
 type Sink interface {
 	Spec() SinkSpec // identity + config schema + capabilities (powers the catalog)
 	Open(ctx context.Context, run RunSpec) error
-	Apply(ctx context.Context, b Batch, opts ApplyOptions) (WriteReceipt, error)
+	Apply(ctx context.Context, b *arrowbatch.Batch, opts ApplyOptions) (WriteReceipt, error)
 	Commit(ctx context.Context) error
 	Abort(ctx context.Context) error
 	Name() string
@@ -27,7 +33,7 @@ type Transactional interface {
 
 // Upsertable is the optional sink contract for key-based merge writes.
 type Upsertable interface {
-	Upsert(ctx context.Context, b Batch, keys []string) (WriteReceipt, error)
+	Upsert(ctx context.Context, b *arrowbatch.Batch, keys []string) (WriteReceipt, error)
 }
 
 // Schematized is the optional sink contract for typed DDL: materialize a
@@ -62,7 +68,10 @@ type SinkCapabilities struct {
 	Transactional bool
 	Upsertable    bool
 	Schematized   bool
-	WritePolicies []WritePolicyCapability
+	// EncodedIntegrity requires Apply to verify the final serialized bytes at
+	// its write boundary and return the resulting EncodedCRC as evidence.
+	EncodedIntegrity bool
+	WritePolicies    []WritePolicyCapability
 	// PreferredBatchRows is the sink's preferred rows per Apply, used when the
 	// run does not set Options.BatchMaxRows.
 	// 0 defers to the engine default.

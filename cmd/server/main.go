@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,17 +19,12 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/boot"
 	"github.com/galaxy-io/filament/cmd/internal/identity"
-	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
-	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
-	"github.com/galaxy-io/filament/cmd/internal/secret"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
-	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
-	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
@@ -49,36 +43,16 @@ func main() {
 	}
 }
 
-//nolint:funlen // startup wiring reads better linear
 func run(ctx context.Context, migrateOnly bool) error {
 	if migrateOnly {
 		return persistence.MigrateFromEnv(ctx)
 	}
 
-	lg := logger.New()
-
-	store, err := persistence.FromEnv(ctx)
+	deps, closeDeps, err := boot.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if c, ok := store.(io.Closer); ok {
-			_ = c.Close()
-		}
-	}()
-	secrets, err := secret.FromEnv(ctx, store)
-	if err != nil {
-		return err
-	}
-	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = otelShutdown(flushCtx)
-	}()
+	defer closeDeps()
 
 	// A nil provider means auth is disabled: the API stays unauthenticated
 	// and the UI renders without a session.
@@ -91,7 +65,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	// probes (local dev) still gets one; readyz retries until it lands when
 	// the database is still starting.
 	var tenantEnsured atomic.Bool
-	if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+	if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
 		log.Printf("default tenant not ensured yet: %v", err)
 	} else {
 		tenantEnsured.Store(true)
@@ -110,12 +84,12 @@ func run(ctx context.Context, migrateOnly bool) error {
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
-		if err := store.Ping(ctx); err != nil {
+		if err := deps.Store.Ping(ctx); err != nil {
 			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
 			return
 		}
 		if !tenantEnsured.Load() {
-			if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+			if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
 				http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
 				return
 			}
@@ -127,40 +101,33 @@ func run(ctx context.Context, migrateOnly bool) error {
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 
-	bus, err := eventbus.FromEnv()
+	bus, closeBus, err := boot.Bus()
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if c, ok := any(bus).(io.Closer); ok {
-			_ = c.Close()
-		}
-	}()
+	defer closeBus()
 
-	metricStore, err := metricsstore.FromEnv(ctx, store)
+	metricStore, err := metricsstore.FromEnv(ctx, deps.Store)
 	if err != nil {
 		return err
 	}
 	orch := orchestrator.New()
-	apiOpts := []server.Option{server.WithSecrets(secrets), server.WithMetricsStore(metricStore), server.WithLogger(lg)}
+	apiOpts := []server.Option{
+		server.WithSecrets(deps.Secrets),
+		server.WithMetricsStore(metricStore),
+		server.WithLogger(deps.Log),
+	}
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
-	api := server.New(registry.DefaultSources, registry.DefaultSinks, store, orch, bus, apiOpts...)
-	mods, err := module.MountAll(ctx,
-		module.Deps{Bus: bus, DataStore: store, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: lg, Metrics: metrics, Tracer: tracer},
-		orch,
-	)
+	api := server.New(registry.DefaultSources, registry.DefaultSinks, deps.Store, orch, bus, apiOpts...)
+	h, err := boot.Mount(ctx, deps, bus, orch)
 	if err != nil {
-		return fmt.Errorf("mount: %w", err)
+		return err
 	}
-	h := host.New(bus)
 	defer func() {
 		_ = h.Close()
 	}()
-	if err := h.Run(ctx, mods...); err != nil {
-		return fmt.Errorf("run host: %w", err)
-	}
 
 	api.Mount(mux)
 	mux.Handle("/", ui.Handler())

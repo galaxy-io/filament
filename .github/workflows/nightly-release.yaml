@@ -1,0 +1,73 @@
+name: Nightly Development Release
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+      timezone: "America/New_York"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.version.outputs.created }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Determine nightly version
+        id: version
+        shell: bash
+        run: |
+          stable_tag=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort --version-sort | tail -n 1)
+          if [[ -z "$stable_tag" ]]; then
+            echo "No stable version tag found"
+            exit 1
+          fi
+
+          latest_dev=$(git tag --list "${stable_tag}-dev.*" | grep -E "^${stable_tag}-dev\.[0-9]+$" | sort --version-sort | tail -n 1)
+          comparison_tag=${latest_dev:-$stable_tag}
+
+          if git diff --quiet "${comparison_tag}...HEAD"; then
+            echo "No changes since ${comparison_tag}"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -n "$latest_dev" ]]; then
+            counter=$((${latest_dev##*-dev.} + 1))
+          else
+            counter=1
+          fi
+
+          tag="${stable_tag}-dev.${counter}"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Creating $tag from $comparison_tag"
+
+      - name: Create nightly prerelease
+        if: steps.version.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          target_sha=$(git rev-parse HEAD)
+          gh release create "$TAG" --target "$target_sha" --prerelease --generate-notes --title "$TAG: Nightly Development Release"
+
+  images:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    uses: ./.github/workflows/images.yaml
+    with:
+      ref: ${{ needs.release.outputs.tag }}
+      tag: ${{ needs.release.outputs.tag }}
+      publish: true
+      prerelease: true
+    secrets: inherit

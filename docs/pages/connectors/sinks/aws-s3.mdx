@@ -1,42 +1,101 @@
 ---
 title: "AWS S3"
-description: "Write NDJSON objects to Amazon S3 or any S3-compatible endpoint."
+description: "Write NDJSON objects to Amazon S3 or any S3-compatible endpoint"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"
 ---
 
-`connectors/object` (registered as `s3`) writes each resource to its own
-NDJSON object in an S3-compatible bucket, one record per line — the same
-dev-readable line shape the [Stdout](/pages/connectors/sinks/stdout) sink
-emits.
+`connectors/object` (registered as `s3`, **alpha**, display name "Amazon S3
+(NDJSON)") writes each resource to its own NDJSON object in an S3-compatible
+bucket, the same line shape the [stdout](/pages/connectors/sinks/standard-output) sink
+prints. It is a raw record dump, not a lakehouse format. No Parquet, no
+partitioning, no compression.
 
-## Layout
+## Configuration
 
-A run lands one object per resource at `<prefix>/<run>/<resource>.ndjson`.
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `bucket` | Connection | — | Required. Destination S3 bucket. |
+| `region` | Connection | SDK default | AWS region |
+| `endpoint` | Connection | AWS | Custom S3 endpoint (e.g. MinIO) |
+| `path_style` | Connection | `true` for custom endpoints | Use path-style bucket addressing |
+| `auth_method` | Connection | `instance_profile` | `instance_profile` or `iam_credentials` |
+| `access_key_id` | Connection | — | Required for IAM Credentials. Secret. |
+| `secret_access_key` | Connection | — | Required for IAM Credentials. Secret. |
+| `session_token` | Connection | — | Optional for temporary IAM Credentials. Secret. |
+| `prefix` | Pipeline | — | Key prefix, surrounding `/` trimmed |
+| `part_size_mib` | Pipeline | `16` | Multipart request size in MiB, from 5 through 5120; with the 10,000-part limit, the default supports objects up to about 156 GiB |
+| `upload_concurrency` | Pipeline | `4` | Concurrent S3 upload operations across resources, from 1 through 32 |
 
-## Streaming multipart upload
+A `prefix` left empty is defaulted server-side to the normalized source
+connection name.
 
-S3 objects aren't appendable, so each resource streams through its own
-multipart upload: `Write` buffers records into a part, and once the buffer
-crosses the configured part size (default 16 MiB, 5 MiB minimum — S3's
-floor for any non-final part) it's handed to a background goroutine to
-upload while the next part keeps encoding. A sink-wide semaphore
-(`upload_concurrency`, default 8) caps total in-flight parts across every
-resource, backpressuring `Write` once the cap is hit rather than growing
-unboundedly. `Commit` waits out every in-flight part, flushes each
-resource's tail, and completes the multipart uploads in parallel; a
-resource that produced zero records still lands as an empty object (S3
-forbids a zero-part multipart upload, so that path uses a plain
-`PutObject`). `Abort` cancels every in-flight upload so a failed run leaves
-nothing behind.
+**Instance Profile** is the default. It uses the AWS SDK default credential
+chain, including EC2 instance profiles and container or workload roles. Choose
+**IAM Credentials** to provide `access_key_id` and `secret_access_key`; add
+`session_token` when using temporary credentials.
 
-## S3-compatible endpoints
+`TestConnection` performs a read-only `HeadBucket` request. On AWS this
+requires `s3:ListBucket`; it does not prove that the identity can write. Runs
+also need object-write and multipart-upload permissions for the configured
+prefix.
 
-Setting `endpoint` points the client at a non-AWS gateway (MinIO and most
-others) and switches to path-style addressing automatically. Static
-`access_key_id`/`secret_access_key` are optional — omitted, the sink falls
-back to the AWS SDK's default credential chain.
+## Supported write modes
 
-## Modes
+The sink advertises `full_replace` and `full_append`. See
+[replication modes](/pages/guides/concepts/replication-modes). Because every
+run writes to run-scoped keys, **the two modes behave identically here**. Each
+run produces a fresh object set and never touches a previous run's objects.
+There is no stable "current" object per resource, so downstream consumers must
+list runs (or track run IDs) to find the latest.
 
-Supports `Append` and `SnapshotReplace` write policies (see [Replication
-modes](/pages/guides/concepts/replication-modes)).
+## Object layout
+
+Each successful run contains one object per resource and a success manifest:
+
+```
+<prefix>/<run>/<resource>.ndjson
+<prefix>/<run>/_SUCCESS.json
+```
+
+with `Content-Type: application/x-ndjson`. Each line is one source row, using
+the source field names and JSON-compatible values:
+
+```json
+{"id":1,"name":"Ada"}
+```
+
+There is no table management or schema section here. The sink is not
+schematized and writes the Arrow batch rows as JSON objects.
+
+The success manifest lists every resource's key, URI, rows, bytes, and object
+CRC32C. Consumers must treat `_SUCCESS.json` as the visibility boundary and
+ignore run prefixes without it.
+
+## Write mechanics and atomicity
+
+`Apply` encodes NDJSON into one segmented, seekable tail per active resource.
+The tail allocates in small chunks as bytes arrive, rather than reserving an
+entire multipart part for every resource. Every full `part_size_mib` tail
+uploads immediately as a multipart part, while
+`upload_concurrency` limits S3 requests across all resources and backpressures
+the pipeline when saturated. `Commit` waits for those parts, uploads each tail,
+completes the multipart uploads, and uses `PutObject` for resources smaller than
+one part. A declared resource with zero records becomes a zero-byte object.
+
+The sink does not require run-sized temporary disk. Buffered memory is
+approximately the actual unflushed bytes across active resources, rounded to
+small chunks, plus in-flight parts and one reusable encoded batch per pipeline
+writer. Objects smaller than one part remain buffered until commit.
+
+Each resource object is atomic, but a group of S3 objects cannot be committed
+atomically. Resource objects may be visible while `Commit` is still running;
+the run becomes valid only when `_SUCCESS.json` is uploaded last.
+
+## Failure behavior
+
+`Abort` cancels in-flight work and abandons incomplete multipart uploads. If
+`Commit` fails after some resources complete, those objects may remain under
+the run prefix, but no `_SUCCESS.json` is published, so the prefix is not a
+valid run. Configure an S3 lifecycle rule to expire abandoned run prefixes and
+incomplete multipart uploads. Multipart state is not resumed across worker
+attempts; durability remains commit-gated.

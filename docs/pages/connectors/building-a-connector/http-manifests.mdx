@@ -1,0 +1,199 @@
+---
+title: "HTTP manifests"
+description: "Declarative YAML manifests that drive the generic HTTP API source"
+---
+
+`connectors/http` is one generic Go source driven by declarative v1 YAML
+manifests, not one Go package per API. Every shipped SaaS source in the
+catalog (Notion, Linear, Attio, GitHub, Slack, Resend, Stripe, PostHog) is a
+manifest embedded in that single connector. Onboarding a new API means writing
+YAML, not Go.
+
+You can also run a manifest of your own without recompiling. The generic
+`httpapi` source is registered alongside the catalog, and its only config
+field is `manifest_path` (string, required, connection scope), the path to a
+v1 manifest file. Point a connection at a custom manifest and it behaves
+exactly like an embedded catalog source.
+
+## Manifest anatomy
+
+A manifest declares config, one connection, and a list of resources. A
+compact example in the shape of the shipped GitHub manifest:
+
+```yaml
+version: 1
+name: github
+display_name: GitHub
+config:
+  token:
+    type: secret
+    required: true
+    help: Personal access token
+  organization:
+    type: string
+    required: true
+defaults:
+  method: GET
+  query: { per_page: "100" }
+  response:
+    records: $
+    pagination: { link: next }
+connection:
+  base_url: https://api.github.com
+  auth:
+    bearer: config.token
+  headers:
+    X-GitHub-Api-Version: "2022-11-28"
+resources:
+  - name: repositories
+    path: /orgs/{organization}/repos
+    params: { organization: config.organization }
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      description: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture: { repository: name }
+  - name: issues
+    path: /repos/{organization}/{repository}/issues
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string
+      updated_at: timestamptz
+    incremental:
+      cursor_field: updated_at
+      start_param: since
+      inject_into: query
+      checkpoint_key: issues_updated_at
+      comparator: time
+      overlap_seconds: 300
+```
+
+### Config
+
+`config` maps field names to `{type, required, default, enum, help, scope}`.
+Secrets (`type: secret`) render masked and are stored as refs. Config values
+are referenced elsewhere in the manifest as `config.<name>`.
+
+### Connection
+
+- `base_url` is templatable and rendered **once at `Configure`, against config
+  only**, not per request (PostHog uses this for `host`).
+- In YAML, `auth` accepts exactly the forms `none`, `bearer: <ref>`,
+  `header {name, value, scheme}`, `basic {username, password}` (an empty
+  password is legal, and Stripe authenticates with the API key as username),
+  and `oauth2 {token_url, client_id, client_secret, scope}` with token
+  caching. The runtime auth registry also implements query, HMAC, and chained
+  schemes, but they are not expressible in YAML today.
+- `rate_limit` sets a static `requests_per_second`, optionally with a
+  `dynamic` block that follows the API's rate-limit headers, shaped as
+  `{remaining_header, reset_header, reset_format: unix_seconds |
+  seconds_from_now | http_date, min_floor_rps}`. One limiter is shared per
+  connection.
+- `timeout_seconds` defaults to 60.
+
+### Resources
+
+Each resource is one endpoint. `path` takes `{param}` placeholders bound in
+`params:` to config values or parent captures. `primary_key` lists key fields
+(a composite key becomes a JSON key object). Projection uses `fields:`, either
+the shorthand `name: type?` (`?` marks nullable) or the expanded
+`{path, type, shape, mode, nullable}` form. `mode: remainder` collects
+everything not otherwise projected, and `mode: raw` keeps a subtree verbatim.
+`records:` (or the expanded `response {root, records_path, cardinality,
+error, pagination}`) locates records in the response, and `cardinality: one`
+marks a single-object endpoint. `body` templates request bodies
+(`encoding: json | form | multipart | raw | none`). This is how the
+GraphQL-only Linear manifest works.
+
+**Pagination** styles, alongside `none`:
+
+- `link: <rel>` (RFC 5988 headers, default rel `next`)
+- `next_url: <path>` (whole-URL envelopes like Django REST Framework)
+- `cursor {response, request: query.X|body.X|header.X, more, null_terminates}`
+- `offset {offset, limit, page_size}` (stops on a short page)
+- `page {number, size, page_size, total_pages}`
+
+**Fan-out**: `for_each: <parent>` (or `parent {resource, concurrency}`) runs
+the resource once per parent record, with values exposed to the child via the
+parent's `capture:` block. Fan-out concurrency defaults to 5. Chains can
+nest (Resend's webhooks → events → attempts).
+
+### Incremental
+
+An `incremental` block turns a resource into an incremental read:
+
+- `cursor_field`: the record field carrying the watermark. It must be
+  projected.
+- `start_param` + `inject_into: query | body | header`: where the lower
+  bound goes on the request.
+- `initial`: the first-run lower bound.
+- `checkpoint_key`: the durable key (defaults to `cursor_field`).
+- `comparator: lex (default) | numeric | time`.
+- `overlap_seconds` rewinds the lower bound for a lookback window and is
+  valid for `time` **or** `numeric` comparators.
+
+The lower bound is fixed for the whole extraction. The watermark advances as
+the maximum cursor value observed. A record missing its cursor value (or one
+that fails to parse) fails the run, by design. A silently skipped watermark
+would corrupt the cursor.
+
+### Discovery and streaming
+
+`discovery` supports `mode: static | dynamic`, though every shipped manifest
+is static. A `stream` mode (`ndjson | sse | chunked_array`) exists per
+resource as an alternative to pagination. No shipped manifest uses it.
+
+## Runtime behavior
+
+**Modes.** Every manifest source advertises `ModeFull`. `ModeIncremental` is
+advertised only when at least one resource declares an `incremental` block —
+which is why Attio and Resend are full-only. The cursor field is fixed by the
+manifest. Per-pipeline cursor configuration can adjust only the lookback.
+
+**Full-mode resume.** Top-level resources checkpoint their pagination cursor
+per page, so an interrupted full run resumes mid-listing. Child (fan-out)
+resources always restart from the beginning. A resumed cursor the API no
+longer honors falls back to a full read with a warning rather than failing.
+
+**Fan-out watermarks.** Children share one aggregate watermark per resource
+across all parents. There is no per-parent checkpoint. If parents progress
+at different speeds (say, per-repository issues), a run can advance the
+watermark past rows in slower parents. Set `overlap_seconds` generously to
+re-read the window and let an upsert write mode absorb the duplicates.
+
+**Retries and limits.** Responses are handled by status:
+
+- HTTP 429 is retried up to 10 attempts, honoring `Retry-After` capped at 60
+  seconds and reported as `pressure.rate_limited`
+- 5xx responses are retried 3 times
+- other 4xx responses are fatal
+
+Responses are capped at 100 MB. Top-level resources extract concurrently,
+children after their parents.
+
+**Connection testing.** `TestConnection` probes the first top-level
+non-stream resource with a single request.
+
+**Validation.** Loading a manifest runs a four-stage gate, reporting every
+grammar violation at once rather than the first:
+
+- grammar validation against the embedded v1 meta-grammar (required objects,
+  field types, enum membership)
+- strict YAML decoding that rejects unknown fields
+- normalization (defaults folded in, shorthands expanded)
+- semantic checks for cross-field rules such as parent cycles and unprojected
+  cursor fields
+
+## Maturity
+
+Manifest-driven integrations start at `alpha`. Their behavior is derived from
+API documentation, and schema validation plus mocked HTTP tests prove internal
+consistency, not fidelity to the live API. They graduate to `beta` once run
+end-to-end against the real service.

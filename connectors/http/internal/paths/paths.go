@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
+	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 )
 
 // kind classifies the resolved value's runtime type.
@@ -72,21 +73,11 @@ type value struct {
 }
 
 func (v value) asString() (string, bool, error) {
-	switch x := v.raw.(type) {
-	case string:
-		return x, true, nil
-	case nil:
+	if v.raw == nil {
 		return "", false, nil
-	case bool:
-		return strconv.FormatBool(x), true, nil
-	case int:
-		return strconv.Itoa(x), true, nil
-	case int32:
-		return strconv.FormatInt(int64(x), 10), true, nil
-	case int64:
-		return strconv.FormatInt(x, 10), true, nil
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64), true, nil
+	}
+	if text, ok := scalar.String(v.raw); ok {
+		return text, true, nil
 	}
 	return "", false, typeErr("scalar", v.kind)
 }

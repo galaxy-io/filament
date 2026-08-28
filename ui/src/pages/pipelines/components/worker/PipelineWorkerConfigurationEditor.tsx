@@ -8,23 +8,24 @@ interface PipelineWorkerConfigurationEditorProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  label?: string;
+  help?: string;
 }
 
 const PipelineWorkerConfigurationEditor = ({
   value,
   onChange,
   error,
+  label = "Pod template",
+  help = "Applied to the Kubernetes Job for every run of this pipeline",
 }: PipelineWorkerConfigurationEditorProps) => (
-  <FieldWrapper
-    label="Pod template"
-    help="Applied to the Kubernetes Job for every run of this pipeline"
-    error={error}
-  >
+  <FieldWrapper label={label} help={help} error={error}>
     <CodeEditor
       content={value}
       onChange={onChange}
-      placeholder={DEFAULT_WORKER_CONFIGURATION_TEXT}
       lang="json"
+      placeholder={DEFAULT_WORKER_CONFIGURATION_TEXT}
+      borderRadius={4}
       noLineNumbers
     />
   </FieldWrapper>

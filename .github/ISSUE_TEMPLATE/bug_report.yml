@@ -1,0 +1,85 @@
+name: Bug report
+description: Report reproducible behavior that is not working as expected.
+title: "[bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Filament. Please search existing issues before filing a new report and remove secrets from logs and configuration. Report security vulnerabilities privately as described in our [security policy](https://github.com/galaxy-io/filament/security/policy).
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Source connector
+        - Sink connector
+        - Pipeline engine or runtime
+        - API or control plane
+        - Web UI
+        - Deployment or packaging
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Filament version
+      description: Provide a release version, image tag, or commit SHA.
+      placeholder: v0.0.25
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what impact did it have?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest configuration or sequence that reliably reproduces the problem.
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Remove credentials, tokens, connection strings, and customer data.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include relevant deployment details, connector names, screenshots, or links.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for duplicates.
+          required: true
+        - label: I removed secrets and sensitive data from this report.
+          required: true

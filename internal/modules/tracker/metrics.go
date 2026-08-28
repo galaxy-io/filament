@@ -19,8 +19,8 @@ type runLabels struct {
 func labelsFor(r *filament.RunState) runLabels {
 	return runLabels{
 		pipeline:  r.Request.PipelineID,
-		source:    r.Request.Source.Provider,
-		sink:      r.Request.Sink.Provider,
+		source:    r.Request.Source.Connector,
+		sink:      r.Request.Sink.Connector,
 		startedAt: r.StartedAt,
 	}
 }

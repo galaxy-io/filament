@@ -11,10 +11,13 @@ import (
 	"sync"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
+	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
+	"github.com/galaxy-io/filament/connectors/http/pagination"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const providerName = "httpapi"
@@ -37,7 +40,8 @@ type Source struct {
 	darkLogoURL      string
 	lightLogoURL     string
 	config           filament.ConfigSchema
-	manifestData     []byte
+	embeddedManifest *manifest.Manifest
+	manifestErr      error
 	dynamicResources map[string]string
 	// incrementalResources is populated by PlanIncremental for the resources in
 	// the current run. It keeps durable watermark extraction distinct from
@@ -63,20 +67,22 @@ func New() *Source {
 	return &Source{name: providerName, displayName: "HTTP API", config: genericConfig}
 }
 
-// NewManifest returns a Source bound to embedded manifest bytes and a config schema.
-func NewManifest(name, displayName string, manifestData []byte, config filament.ConfigSchema) *Source {
-	return NewManifestWithMetadata(name, displayName, "", "", "", manifestData, config)
-}
-
-// NewManifestWithMetadata returns a Source bound to embedded manifest bytes,
-// frontend catalog metadata, and a config schema.
-func NewManifestWithMetadata(name, displayName, description, darkLogoURL, lightLogoURL string, manifestData []byte, config filament.ConfigSchema) *Source {
-	return &Source{name: name, displayName: displayName, description: description, darkLogoURL: darkLogoURL, lightLogoURL: lightLogoURL, manifestData: manifestData, config: config}
+// NewManifest returns a Source whose identity, presentation metadata, and
+// configuration schema are all declared by the embedded manifest.
+func NewManifest(manifestData []byte) *Source {
+	m, err := manifest.Parse(manifestData)
+	if err != nil {
+		return &Source{embeddedManifest: m, manifestErr: err}
+	}
+	return &Source{
+		name: m.Name, displayName: m.DisplayName, description: m.Description,
+		darkLogoURL: m.DarkLogoURL, lightLogoURL: m.LightLogoURL,
+		config: configSchemaFromManifest(m), embeddedManifest: m,
+	}
 }
 
 // Spec reports the source's capabilities and configuration surface.
 func (s *Source) Spec() filament.ConnectorSpec {
-	config := s.configSchema()
 	modes := []filament.ReadMode{filament.ModeFull}
 	policies := []filament.IngestionType{
 		filament.IngestionFullReplace,
@@ -99,7 +105,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		Version:        "1",
 		Modes:          modes,
 		SourcePolicies: filament.SourcePolicies(policies...),
-		Config:         config,
+		Config:         s.config,
 		Resources:      filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
@@ -117,14 +123,15 @@ func (s *Source) canDeclareIncremental() bool {
 		}
 		return false
 	}
-	if len(s.manifestData) == 0 {
+	if s.embeddedManifest == nil {
+		// A nil manifest with no parse error is the generic manifest-path source.
+		// Its capabilities are unknown until it is configured.
+		if s.manifestErr != nil {
+			return false
+		}
 		return true
 	}
-	m, err := manifest.Parse(s.manifestData)
-	if err != nil {
-		return false
-	}
-	for _, resource := range m.Resources {
+	for _, resource := range s.embeddedManifest.Resources {
 		if resource.Incremental != nil {
 			return true
 		}
@@ -134,7 +141,10 @@ func (s *Source) canDeclareIncremental() bool {
 
 // Validate checks that all required config fields are present and non-empty.
 func (s *Source) Validate(cfg filament.Config) error {
-	for _, field := range s.configSchema().Fields {
+	if s.manifestErr != nil {
+		return fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
+	}
+	for _, field := range s.config.Fields {
 		if field.Required && !cfg.Has(field.Name) {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
@@ -170,14 +180,7 @@ func listLen(value any) int {
 	}
 }
 
-func (s *Source) configSchema() filament.ConfigSchema {
-	if len(s.manifestData) == 0 {
-		return s.config
-	}
-	m, err := manifest.Parse(s.manifestData)
-	if err != nil || len(m.Config) == 0 {
-		return s.config
-	}
+func configSchemaFromManifest(m *manifest.Manifest) filament.ConfigSchema {
 	names := make([]string, 0, len(m.Config))
 	for name := range m.Config {
 		names = append(names, name)
@@ -260,26 +263,21 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 
 func (s *Source) connectorForConfig(cfg filament.Config) (*Connector, error) {
 	c := &Connector{}
-	if len(s.manifestData) > 0 {
-		c.SetManifestData(s.manifestData)
-	} else {
-		c.SetManifestPath(cfg.String("manifest_path"))
+	if s.manifestErr != nil {
+		return nil, fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
 	}
-	var configSpecs map[string]manifest.ConfigSpec
-	if len(s.manifestData) > 0 {
-		parsed, err := manifest.Parse(s.manifestData)
-		if err != nil {
-			return nil, fmt.Errorf("%s source: parse manifest: %w", s.name, err)
-		}
-		configSpecs = parsed.Config
-	} else {
-		parsed, err := manifest.Load(cfg.String("manifest_path"))
+	parsed := s.embeddedManifest
+	if parsed == nil {
+		path := cfg.String("manifest_path")
+		var err error
+		parsed, err = manifest.Load(path)
 		if err != nil {
 			return nil, fmt.Errorf("%s source: load manifest: %w", s.name, err)
 		}
-		configSpecs = parsed.Config
+		c.SetManifestPath(path)
 	}
-	c.SetCredentials(credentialsFromConfig(cfg, configSpecs))
+	c.SetManifest(parsed)
+	c.SetCredentials(credentialsFromConfig(cfg, parsed.Config))
 	return c, nil
 }
 
@@ -322,7 +320,7 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 }
 
 // Extract runs a full extraction into sink.
-func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts) error {
 	s.incrementalResources = nil
 	s.incrementalLookbacks = nil
 	return s.extract(ctx, sink, opts, nil, nil)
@@ -330,8 +328,8 @@ func (s *Source) Extract(ctx context.Context, sink filament.RecordSink, opts fil
 
 // ExtractFrom resumes extraction from per-resource keyset checkpoints,
 // decoding them into resume cursors and watermarks.
-func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
-	resumeCursors := make(map[string]string, len(prev))
+func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
+	resumeStates := make(map[string]pagination.State, len(prev))
 	resumeWatermarks := make(map[string]map[string]string, len(prev))
 	for resource, cp := range prev {
 		ks, ok := checkpoint.ParseKeyset(cp)
@@ -351,7 +349,11 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 			}
 			continue
 		}
-		resumeCursors[resource] = key[0]
+		state, err := pagination.ResumeFrom(key[0])
+		if err != nil {
+			return fmt.Errorf("httpapi source: resume %q: %w", resource, err)
+		}
+		resumeStates[resource] = state
 		for i, checkpointKey := range ks.Cols[1:] {
 			if i+1 >= len(key) || key[i+1] == "" {
 				continue
@@ -362,7 +364,7 @@ func (s *Source) ExtractFrom(ctx context.Context, sink filament.RecordSink, opts
 			resumeWatermarks[resource][checkpointKey] = key[i+1]
 		}
 	}
-	return s.extract(ctx, sink, opts, resumeCursors, resumeWatermarks)
+	return s.extract(ctx, sink, opts, resumeStates, resumeWatermarks)
 }
 
 // PlanResources resolves requested resources and selectors to manifest resource names.
@@ -385,7 +387,7 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 	}
 	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, resource := range resources {
-		cols := []string{"cursor"}
+		cols := []string{"pagination_state"}
 		types := make([]string, len(cols))
 		for i := range types {
 			types[i] = "string"
@@ -409,34 +411,34 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 }
 
 // Schema returns the declared record schema for a resource.
-func (s *Source) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
+func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
 	if s.connector == nil || s.connector.manifest == nil {
-		return filament.RecordSchema{}, fmt.Errorf("httpapi source: schema before configure")
+		return rowmodel.Schema{}, fmt.Errorf("httpapi source: schema before configure")
 	}
 	base := s.baseResourceName(resource)
 	for _, res := range s.connector.manifest.Resources {
 		if res.Name != base {
 			continue
 		}
-		return filament.RecordSchema{Resource: resource, Fields: schemaFields(res), PrimaryKey: append([]string(nil), res.PrimaryKey...)}, nil
+		return rowmodel.Schema{Resource: resource, Fields: schemaFields(res), PrimaryKey: append([]string(nil), res.PrimaryKey...)}, nil
 	}
-	return filament.RecordSchema{}, fmt.Errorf("httpapi source: unknown resource %q", resource)
+	return rowmodel.Schema{}, fmt.Errorf("httpapi source: unknown resource %q", resource)
 }
 
-func (s *Source) extract(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts, resumeCursors map[string]string, resumeWatermarks map[string]map[string]string) error {
+func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, resumeStates map[string]pagination.State, resumeWatermarks map[string]map[string]string) error {
 	if s.connector == nil || s.connector.manifest == nil {
 		return fmt.Errorf("httpapi source: extract before configure")
 	}
 
 	reducingSink := &incrementalRecordSink{
-		sink:    sink,
+		sink:    newRowSink(ctx, s, sink),
 		reducer: newIncrementalRecordReducer(s, resumeWatermarks),
 	}
 	return s.connector.Extract(ctx, reducingSink, extractOptions{
 		Observe:              opts.Observe,
 		Resources:            s.connectorResources(opts.Resources),
 		EnabledResources:     enabledResources(opts.Selectors),
-		ResumeCursors:        resumeCursors,
+		ResumeStates:         resumeStates,
 		ResumeWatermarks:     resumeWatermarks,
 		IncrementalLookbacks: s.incrementalLookbacks,
 		IncrementalResources: s.incrementalResourceSet(),
@@ -610,18 +612,8 @@ func credentialsFromConfig(cfg filament.Config, specs map[string]manifest.Config
 			continue
 		}
 		switch value := v.(type) {
-		case string:
-			creds[k] = value
 		case fmt.Stringer:
 			creds[k] = value.String()
-		case int:
-			creds[k] = strconv.Itoa(value)
-		case int64:
-			creds[k] = strconv.FormatInt(value, 10)
-		case float64:
-			creds[k] = strconv.FormatFloat(value, 'f', -1, 64)
-		case bool:
-			creds[k] = strconv.FormatBool(value)
 		case []string:
 			creds[k] = strings.Join(value, ",")
 		case []any:
@@ -632,6 +624,10 @@ func credentialsFromConfig(cfg filament.Config, specs map[string]manifest.Config
 				}
 			}
 			creds[k] = strings.Join(items, ",")
+		default:
+			if text, ok := scalar.String(value); ok {
+				creds[k] = text
+			}
 		}
 	}
 	return creds
@@ -671,11 +667,11 @@ func decodeSelector(selector string) (resourceRef, bool) {
 	return resourceRef(token), true
 }
 
-func newHTTPRecord(resource string, keyJSON, dataJSON []byte, projected bool) filament.Record {
-	out := filament.Record{
+func newHTTPRecord(resource string, keyJSON, dataJSON []byte, projected bool) record {
+	out := record{
 		Resource: resource,
 		ID:       recordID(keyJSON),
-		Op:       filament.OpInsert,
+		Op:       rowmodel.OpInsert,
 		Data:     dataJSON,
 	}
 	if !projected {
@@ -732,6 +728,77 @@ func recordID(keyJSON []byte) string {
 	return string(keyJSON)
 }
 
+// rowSink converts the connector's private JSON records into typed Arrow rows.
+type rowSink struct {
+	ctx     context.Context
+	source  *Source
+	sink    arrowbatch.Inlet
+	writers map[string]*resourceWriter
+}
+
+// resourceWriter is one resource's writer with its schema-ordered field parsers.
+type resourceWriter struct {
+	w       arrowbatch.RowWriter
+	fields  []rowmodel.Field
+	parsers []valueParser
+}
+
+func newRowSink(ctx context.Context, source *Source, sink arrowbatch.Inlet) *rowSink {
+	return &rowSink{ctx: ctx, source: source, sink: sink, writers: map[string]*resourceWriter{}}
+}
+
+func (r *rowSink) writer(resource string) (*resourceWriter, error) {
+	if rw := r.writers[resource]; rw != nil {
+		return rw, nil
+	}
+	schema, err := r.source.Schema(r.ctx, resource)
+	if err != nil {
+		return nil, err
+	}
+	w, err := r.sink.Builder(resource, 0, schema)
+	if err != nil {
+		return nil, err
+	}
+	rw := &resourceWriter{w: w, fields: schema.Fields, parsers: make([]valueParser, len(schema.Fields))}
+	for i, f := range schema.Fields {
+		rw.parsers[i] = typeFor(f)
+	}
+	r.writers[resource] = rw
+	return rw, nil
+}
+
+// Push parses one connector record according to its resource schema.
+func (r *rowSink) Push(rec record) error {
+	rw, err := r.writer(rec.Resource)
+	if err != nil {
+		return err
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(rec.Data, &obj); err != nil {
+		return fmt.Errorf("httpapi %q: record is not a JSON object: %w", rec.Resource, err)
+	}
+	for i, f := range rw.fields {
+		raw, ok := obj[f.Name]
+		if !ok || len(raw) == 0 || string(raw) == "null" {
+			rw.w.Null()
+			continue
+		}
+		if err := rw.parsers[i](rw.w, raw); err != nil {
+			return fmt.Errorf("httpapi %q field %q: %w", rec.Resource, f.Name, err)
+		}
+	}
+	return rw.w.EndRow(rowmodel.Meta{Op: rec.Op, Key: rec.Key})
+}
+
+func (r *rowSink) PushBatch(records []record) error {
+	for _, rec := range records {
+		if err := r.Push(rec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CursorColumns exposes the manifest-declared watermark as the one durable
 // cursor for a resource. HTTP cursor selection is declarative rather than
 // inferred: changing it requires changing the manifest contract.
@@ -746,12 +813,12 @@ func (s *Source) CursorColumns(_ context.Context, resource string) ([]filament.C
 	if res.Incremental == nil {
 		return nil, nil
 	}
-	field, ok := incrementalField(res)
+	field, ok := manifest.IncrementalCursorField(res)
 	if !ok {
 		return nil, fmt.Errorf("httpapi source: incremental %q cursor field %q is not projected", resource, res.Incremental.CursorField)
 	}
 	return []filament.CursorColumn{{
-		SchemaField: filament.SchemaField{
+		SchemaField: rowmodel.Field{
 			Name: field.Name, Nullable: field.Nullable,
 			Logical: logicalType(field.Type), Native: field.Type,
 		},
@@ -789,7 +856,7 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		if res.Incremental == nil {
 			return nil, fmt.Errorf("httpapi source: resource %q has no incremental watermark in its manifest", resource)
 		}
-		field, ok := incrementalField(res)
+		field, ok := manifest.IncrementalCursorField(res)
 		if !ok {
 			return nil, fmt.Errorf("httpapi source: incremental %q cursor field %q is not projected", resource, res.Incremental.CursorField)
 		}
@@ -816,7 +883,7 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		s.incrementalResources[resource] = spec
 		lookbacks[resource] = spec.OverlapSeconds
 
-		checkpointKey := incremental.CheckpointKey(spec)
+		checkpointKey := spec.DurableCheckpointKey()
 		cols := []string{checkpointKey}
 		types := []string{field.Type}
 		seed := spec.Initial
@@ -834,18 +901,6 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 	}
 	s.incrementalLookbacks = lookbacks
 	return plan, nil
-}
-
-func incrementalField(resource manifest.Resource) (manifest.FieldSpec, bool) {
-	if resource.Incremental == nil {
-		return manifest.FieldSpec{}, false
-	}
-	for _, field := range resource.Fields {
-		if field.Name == resource.Incremental.CursorField {
-			return field, true
-		}
-	}
-	return manifest.FieldSpec{}, false
 }
 
 func watermarkKey(value string) []string {
@@ -880,7 +935,7 @@ func newIncrementalRecordReducer(source *Source, seeds map[string]map[string]str
 	return &incrementalRecordReducer{source: source, seeds: seeds, marks: map[string]*atomicwatermark.Watermark{}}
 }
 
-func (r *incrementalRecordReducer) record(rec filament.Record) (filament.Record, error) {
+func (r *incrementalRecordReducer) record(rec record) (record, error) {
 	spec, ok := r.source.incrementalResources[rec.Resource]
 	if !ok {
 		base := r.source.baseResourceName(rec.Resource)
@@ -889,12 +944,12 @@ func (r *incrementalRecordReducer) record(rec filament.Record) (filament.Record,
 	if !ok {
 		return rec, nil
 	}
-	checkpointKey := incremental.CheckpointKey(spec)
+	checkpointKey := spec.DurableCheckpointKey()
 	mark := r.marks[rec.Resource]
 	if mark == nil {
 		cmp, err := atomicwatermark.ForName(spec.Comparator)
 		if err != nil {
-			return filament.Record{}, err
+			return record{}, err
 		}
 		seed := r.seeds[rec.Resource][checkpointKey]
 		if seed == "" {
@@ -902,13 +957,13 @@ func (r *incrementalRecordReducer) record(rec filament.Record) (filament.Record,
 		}
 		mark, err = atomicwatermark.New(cmp, seed)
 		if err != nil {
-			return filament.Record{}, err
+			return record{}, err
 		}
 		r.marks[rec.Resource] = mark
 	}
 	if value := firstKey(rec.Key); value != "" {
 		if _, err := mark.Observe(value); err != nil {
-			return filament.Record{}, fmt.Errorf("incremental %q watermark: %w", rec.Resource, err)
+			return record{}, fmt.Errorf("incremental %q watermark: %w", rec.Resource, err)
 		}
 	}
 	rec.Key = watermarkKey(mark.Current())
@@ -924,11 +979,11 @@ func firstKey(key []string) string {
 
 type incrementalRecordSink struct {
 	mu      sync.Mutex
-	sink    filament.RecordSink
+	sink    recordSink
 	reducer *incrementalRecordReducer
 }
 
-func (s *incrementalRecordSink) Push(rec filament.Record) error {
+func (s *incrementalRecordSink) Push(rec record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	converted, err := s.reducer.record(rec)
@@ -938,7 +993,7 @@ func (s *incrementalRecordSink) Push(rec filament.Record) error {
 	return s.sink.Push(converted)
 }
 
-func (s *incrementalRecordSink) PushBatch(records []filament.Record) error {
+func (s *incrementalRecordSink) PushBatch(records []record) error {
 	for _, rec := range records {
 		if err := s.Push(rec); err != nil {
 			return err

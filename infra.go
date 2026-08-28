@@ -8,7 +8,9 @@ import (
 	"time"
 
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // DataStore persists run, resource, checkpoint, and dedup state — the
@@ -66,6 +68,26 @@ type DataStore interface {
 	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string
+}
+
+// RunTransitionStore applies lifecycle commands with a compare-and-swap on
+// the current status. It is separate from DataStore so adapters can reject run
+// signaling explicitly instead of emulating an unsafe LoadRun/SaveRun race.
+type RunTransitionStore interface {
+	TransitionRun(
+		ctx context.Context,
+		id RunID,
+		from []RunStatus,
+		to RunStatus,
+		opts RunTransitionOptions,
+	) (RunState, error)
+}
+
+// RunTransitionOptions controls the attempt-local state reset performed by a
+// lifecycle transition.
+type RunTransitionOptions struct {
+	ResetExecution   bool
+	PreserveProgress bool
 }
 
 // ResourceCheckpointKey identifies durable progress shared by runs of one
@@ -132,6 +154,10 @@ type PipelineFilter struct {
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.
 var ErrVersionConflict = errors.New("version conflict")
+
+// ScheduleLeaseTTL bounds how long a ClaimDue lease is honored before a
+// schedule is eligible to be reclaimed.
+const ScheduleLeaseTTL = 5 * time.Minute
 
 // ScheduleStore persists schedules and hands out due ones under a claim, so
 // concurrent schedulers never double-fire.
@@ -312,7 +338,7 @@ type SinkRegistry interface {
 	Specs() []SinkSpec
 }
 
-// mapConfig is the concrete Config backing a provider's Ref.Config (a decoded
+// mapConfig is the concrete Config backing a connector's Ref.Config (a decoded
 // map[string]any from YAML/JSON). It reads tolerantly across the numeric forms
 // JSON round-trips produce. Secret resolution is not wired here yet — Secret and
 // SecretRef return the raw value, so a secrets provider can be layered in later.
@@ -385,7 +411,7 @@ func (c mapConfig) Secret(key string) string { return c.String(key) }
 func (c mapConfig) SecretRef(key string) string { return c.String(key) }
 
 // Raw returns the underlying decoded map for callers that need to iterate keys
-// (e.g. passing arbitrary backend properties through to a provider library).
+// (e.g. passing arbitrary backend properties through to a connector library).
 func (c mapConfig) Raw() map[string]any { return c }
 
 // Sub returns a nested Config, or an empty one if the key is absent or not a map.
@@ -396,12 +422,29 @@ func (c mapConfig) Sub(key string) Config {
 	return mapConfig(nil)
 }
 
-// RecordSink is where a Source pushes extracted records — the engine's inlet,
-// not a data Sink.
-type RecordSink interface {
-	Push(r Record) error
-	PushBatch(rs []Record) error
-}
+// RecordSink is where a Source pushes extracted rows — the engine's inlet, not a
+// data Sink. A source opens one RowWriter per (resource, part) it reads and
+// appends rows into it; the pipeline turns the writer's flushes into Batches.
+type RecordSink = arrowbatch.Inlet
+
+// RowWriter is a typed, columnar row appender for one (resource, part). A row is
+// written by calling one Append method per schema field, in schema order, then
+// EndRow; the first append opens the row and EndRow closes it. Each Append must
+// match the field's Arrow type as mapped by arrowbatch.Schema: Bool, Int16, Int32,
+// Int64, Float32, Float64, Decimal (Precision > 0), String (string, json, uuid,
+// array, unknown, unbounded decimal), Bytes, Date (days since epoch), Time
+// (microseconds since midnight), Timestamp (microseconds since epoch, UTC for
+// timestamptz). Null is valid for any field.
+//
+// A writer belongs to the one goroutine that appends to it. It flushes on its own
+// when a chunk is full and, at the next EndRow, when the pipeline's flush timer
+// has asked; a source whose stream goes idle calls Flush itself so buffered rows
+// do not wait for the next one. Drain flushes and then marks the part complete.
+type RowWriter = arrowbatch.RowWriter
+
+// RowMeta is what a row carries beside its columns: its operation and the resume
+// metadata the pipeline turns into the batch's checkpoint delta.
+type RowMeta = rowmodel.Meta
 
 // Config is typed, tolerant read access to a connector's configuration; every
 // accessor misses to a zero value.
@@ -419,13 +462,7 @@ type Config interface {
 
 // Checkpoint is a resource's resumable cursor: keyed reads plus an immutable
 // Set that returns an updated copy. CheckpointData is the concrete form.
-type Checkpoint interface {
-	Resource() string
-	Int(key string) int
-	String(key string) string
-	Set(key string, v any) Checkpoint
-	Raw() map[string]any
-}
+type Checkpoint = rowmodel.Checkpoint
 
 // Logger is structured leveled logging with field accumulation via With.
 type Logger interface {
@@ -528,13 +565,13 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-// Ref names a provider (source, sink, datastore, …) together with its config
+// Ref names a connector (source or sink) together with its config
 // — the indirection a RunRequest carries instead of live instances.
 type Ref struct {
-	Provider  string
+	Connector string
 	ConfigRef string
 	Config    map[string]any
 
-	// SecretRefs maps a provider config field to a Secrets reference
+	// SecretRefs maps a connector config field to a Secrets reference.
 	SecretRefs map[string]string
 }

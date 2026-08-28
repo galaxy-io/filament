@@ -21,6 +21,7 @@ import (
 	"context"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -140,16 +141,20 @@ func TestResumeMatrix(t *testing.T) {
 // runResumeScenario drives one cell of the matrix: seed → kill mid-extract → run the gap
 // op → resume → assert no row present at run start was lost.
 func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
 
-	pg := testcontainers.Postgres(t)
+	pg := testcontainers.SharedPostgres(t)
 	spec := seed.Default()
 	manifest, err := seedpg.Apply(ctx, pg.Pool(), spec)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if _, err := pg.Pool().Exec(ctx, "CREATE SCHEMA dst"); err != nil {
-		t.Fatalf("create dst schema: %v", err)
+	// The shared container's wipe is the reset, but a run that outlives its scenario can
+	// recreate dst behind it. Drop rather than create: a surviving dst would satisfy the
+	// no-loss check with rows this run never delivered. The sink recreates it on Open.
+	if _, err := pg.Pool().Exec(ctx, "DROP SCHEMA IF EXISTS dst CASCADE"); err != nil {
+		t.Fatalf("wipe dst schema: %v", err)
 	}
 
 	resources := make([]string, spec.Tables)
@@ -197,8 +202,8 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	}
 	id, err := orch.Submit(ctx, filament.RunRequest{
 		Tenant:         "t1",
-		Source:         filament.Ref{Provider: "postgres", Config: srcCfg},
-		Sink:           filament.Ref{Provider: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
+		Source:         filament.Ref{Connector: "postgres", Config: srcCfg},
+		Sink:           filament.Ref{Connector: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
 		Resources:      resources,
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
 		Options:        mode.opts,

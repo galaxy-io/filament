@@ -31,19 +31,19 @@ import (
 //   - tracker == nil  → resource declares no incremental block. Watermark
 //     observation and Apply are skipped.
 //   - parent == nil  → top-level resource (no parent fan-out).
-//   - startCursor == ""  → fresh extraction (no cursor resume).
+//   - resumeState is zero → fresh extraction (no pagination resume).
 //
 // Any combination of the above is valid. The for-loop never panics on a nil
 // pag because every pag-touching call site checks first.
 func (c *Connector) paginate(
 	ctx context.Context,
 	res manifest.Resource,
-	sink filament.RecordSink,
+	sink recordSink,
 	parent Capture,
 	pag pagination.Paginator,
 	extractor *response.Extractor,
 	tracker *incremental.Tracker,
-	startCursor string,
+	resumeState pagination.State,
 ) (int, int, error) {
 	// pag == nil means the resource declares no pagination — issue one
 	// request, process it, return. No Apply/Next calls happen because there
@@ -51,9 +51,9 @@ func (c *Connector) paginate(
 	var state pagination.State
 	if pag != nil {
 		state = pag.Initial()
-		if startCursor != "" {
-			state = pagination.ResumeWith(startCursor)
-			c.logger.Info("resuming from cursor", "resource", res.Name, "cursor", startCursor)
+		if resumeState != (pagination.State{}) {
+			state = resumeState
+			c.logger.Info("resuming from pagination checkpoint", "resource", res.Name)
 		}
 	}
 
@@ -68,11 +68,11 @@ func (c *Connector) paginate(
 		if err != nil {
 			// Stale-cursor fallback: if we resumed and the first request fails,
 			// retry from scratch.
-			if pag != nil && startCursor != "" && pageCount == 0 {
+			if pag != nil && resumeState != (pagination.State{}) && pageCount == 0 {
 				c.logger.Warn("stale cursor, falling back to full extraction",
-					"resource", res.Name, "cursor", startCursor, "error", err)
+					"resource", res.Name, "error", err)
 				state = pag.Initial()
-				startCursor = ""
+				resumeState = pagination.State{}
 				continue
 			}
 			return totalRecords, pageCount, err
@@ -87,7 +87,11 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, fmt.Errorf("decode %s: %w", res.Name, err)
 		}
 
-		n, captured, err := c.sendRecords(res, records, sink, parent, state.Cursor, extractor, tracker)
+		checkpointValue := ""
+		if pag != nil {
+			checkpointValue = state.Checkpoint()
+		}
+		n, captured, err := c.sendRecords(res, records, sink, parent, checkpointValue, extractor, tracker)
 		if err != nil {
 			return totalRecords, pageCount, err
 		}
@@ -335,7 +339,7 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 func (c *Connector) sendRecords(
 	res manifest.Resource,
 	records []map[string]any,
-	sink filament.RecordSink,
+	sink recordSink,
 	parent Capture,
 	cursor string,
 	extractor *response.Extractor,
@@ -403,7 +407,7 @@ func (c *Connector) sendRecords(
 				return n, captured, fmt.Errorf("incremental cursor: %w", err)
 			}
 			if advanced {
-				c.reportWatermarkOnce(resourceName, incremental.CheckpointKey(*res.Incremental), tracker.Current())
+				c.reportWatermarkOnce(resourceName, res.Incremental.DurableCheckpointKey(), tracker.Current())
 			}
 			if tracker.Current() != "" {
 				wr.Key = watermarkKey(tracker.Current())

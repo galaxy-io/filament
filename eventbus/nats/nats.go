@@ -344,7 +344,9 @@ func (b *Bus) ensureConsumer(ctx context.Context, cfg jetstream.ConsumerConfig) 
 }
 
 func consumerGone(err error) bool {
-	return errors.Is(err, jetstream.ErrConsumerNotFound) || errors.Is(err, jetstream.ErrConsumerDeleted)
+	return errors.Is(err, jetstream.ErrConsumerNotFound) ||
+		errors.Is(err, jetstream.ErrConsumerDeleted) ||
+		errors.Is(err, natsgo.ErrNoResponders)
 }
 
 // Close stops the bus and closes active subscriptions.
@@ -457,6 +459,7 @@ func (s *subscription) pump() {
 				}
 				payload, derr := s.bus.codec.Decode(msg.Data())
 				if derr != nil {
+					s.bus.logDecodeFailure(msg.Subject(), derr)
 					_ = msg.Term()
 					continue
 				}
@@ -495,6 +498,13 @@ func (s *subscription) pump() {
 		case <-time.After(defaultFetchWait):
 		}
 	}
+}
+
+func (b *Bus) logDecodeFailure(subject string, err error) {
+	if b.logf == nil {
+		return
+	}
+	b.logf("eventbus/nats: decode %q: %v; terminating poison message", subject, err)
 }
 
 type message struct {

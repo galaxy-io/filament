@@ -5,13 +5,19 @@ import (
 	"maps"
 	"slices"
 	"time"
+
+	"github.com/galaxy-io/filament/arrowbatch"
 )
 
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Tenant            TenantID
-	Run               RunID
+	Tenant TenantID
+	Run    RunID
+	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
+	// derive it from the run.requested fact so redelivery is idempotent while a
+	// later resume creates fresh worker infrastructure.
+	ExecutionID       string
 	PipelineID        string
 	PipelineVersionID string
 	CheckpointRoute   string
@@ -23,7 +29,6 @@ type RunSpec struct {
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
-	Checkpoint     *CheckpointData
 	Options        RunOptions
 	WritePolicies  map[string]WritePolicy
 	// WorkerConfiguration is the already-resolved worker shape for this run: the
@@ -262,15 +267,14 @@ type RunResult struct {
 
 // ResourceState is one resource's persisted progress within a run.
 type ResourceState struct {
-	Run        RunID // owning run — the key a DataStore files this under
-	Tenant     TenantID
-	Resource   string
-	Enabled    bool
-	Status     RunStatus
-	Records    int64
-	Bytes      int64
-	Checkpoint *CheckpointData
-	Error      string
+	Run      RunID // owning run — the key a DataStore files this under
+	Tenant   TenantID
+	Resource string
+	Enabled  bool
+	Status   RunStatus
+	Records  int64
+	Bytes    int64
+	Error    string
 }
 
 // RunFilter narrows a DataStore run listing; zero fields match everything.
@@ -280,13 +284,16 @@ type RunFilter struct {
 	Tenant            TenantID
 	PipelineID        string
 	PipelineVersionID *string
-	Source            string
 	Status            []RunStatus
 	Schedule          ScheduleID
 	Since             time.Time
 	Until             time.Time
-	Limit             int
-	Offset            int
+	// UpdatedBefore matches runs whose last write is older than it — the
+	// staleness probe: heartbeat folds bump UpdatedAt, so a Running run that
+	// stops updating has lost its worker.
+	UpdatedBefore time.Time
+	Limit         int
+	Offset        int
 }
 
 // SyncSnapshot is a consistent read of a run and its resources at bus
@@ -447,6 +454,21 @@ const (
 	CheckpointAfterCommit CheckpointPolicy = "after_commit"
 )
 
+// WriteDurability identifies the sink operation after which an acknowledged
+// Apply is recoverable. It is distinct from visibility/atomicity: a sink may
+// make one resource visible at a time while still buffering every Apply until
+// the run's Commit call.
+type WriteDurability string
+
+const (
+	// DurabilityAfterApply means a successful Apply is recoverable without the
+	// run's Commit call.
+	DurabilityAfterApply WriteDurability = "after_apply"
+	// DurabilityAfterCommit means Apply only stages data and checkpoints must
+	// remain tentative until Commit succeeds.
+	DurabilityAfterCommit WriteDurability = "after_commit"
+)
+
 // WritePolicyCapability is what a sink must support to serve a write mode:
 // key/order requirements, accepted operations, and atomicity.
 type WritePolicyCapability struct {
@@ -455,6 +477,7 @@ type WritePolicyCapability struct {
 	RequiresOrder bool
 	AcceptsOps    []Operation
 	Atomicity     WriteAtomicity
+	Durability    WriteDurability
 }
 
 // VersionStrategy selects the ordering value an insert-based upsert sink uses
@@ -506,12 +529,30 @@ func (c WritePolicyCapability) Accepts(op Operation) bool {
 	return slices.Contains(c.AcceptsOps, op)
 }
 
-// ValidateRecords rejects the first record whose operation the policy does
-// not accept.
-func (p WritePolicy) ValidateRecords(resource string, records []Record) error {
-	for _, rec := range records {
-		if !p.Capability.Accepts(rec.Op) {
-			return fmt.Errorf("write policy %q does not accept %s record for resource %q", p.Capability.Mode, OperationName(rec.Op), resource)
+// ValidateOps rejects the first row whose operation the policy does not accept.
+// A nil ops (all inserts) is accepted by every policy.
+func (p WritePolicy) ValidateOps(resource string, ops []Operation) error {
+	if len(p.Capability.AcceptsOps) == 0 {
+		return nil
+	}
+	for _, op := range ops {
+		if !p.Capability.Accepts(op) {
+			return fmt.Errorf("write policy %q does not accept %s row for resource %q", p.Capability.Mode, OperationName(op), resource)
+		}
+	}
+	return nil
+}
+
+// ValidateBatch rejects the first row whose immutable batch operation the
+// policy does not accept.
+func (p WritePolicy) ValidateBatch(resource string, batch *arrowbatch.Batch) error {
+	if len(p.Capability.AcceptsOps) == 0 {
+		return nil
+	}
+	for i := range batch.NumRows() {
+		op := batch.Op(i)
+		if !p.Capability.Accepts(op) {
+			return fmt.Errorf("write policy %q does not accept %s row for resource %q", p.Capability.Mode, OperationName(op), resource)
 		}
 	}
 	return nil
@@ -553,6 +594,7 @@ func WritePolicyForIngestion(t IngestionType) WritePolicy {
 	capability := WritePolicyCapability{
 		AcceptsOps: []Operation{OpInsert},
 		Atomicity:  AtomicityBatch,
+		Durability: DurabilityAfterApply,
 	}
 	checkpoint := CheckpointNone
 
@@ -625,5 +667,46 @@ func SourcePolicyForIngestion(t IngestionType) SourcePolicy {
 			EmitsOps:      []Operation{OpInsert},
 			Checkpointing: CheckpointNone,
 		}
+	}
+}
+
+// CheckpointCoverage describes whether none, some, or all selected resources
+// can resume from a durable source cursor.
+type CheckpointCoverage uint8
+
+const (
+	// CheckpointCoverageNone means no selected resource has a resumable cursor.
+	CheckpointCoverageNone CheckpointCoverage = iota
+	// CheckpointCoverageSome means only some selected resources have resumable cursors.
+	CheckpointCoverageSome
+	// CheckpointCoverageAll means every selected resource has a resumable cursor.
+	CheckpointCoverageAll
+)
+
+// CheckpointCoverageFor returns the read-side checkpoint coverage for a run.
+func CheckpointCoverageFor(resources []string, types map[string]IngestionType) CheckpointCoverage {
+	total, checkpointed := 0, 0
+	if len(resources) > 0 {
+		for _, resource := range resources {
+			total++
+			if SourcePolicyForIngestion(TypeFor(types, resource)).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	} else {
+		for _, ingestionType := range types {
+			total++
+			if SourcePolicyForIngestion(ingestionType).Checkpointing != CheckpointNone {
+				checkpointed++
+			}
+		}
+	}
+	switch checkpointed {
+	case 0:
+		return CheckpointCoverageNone
+	case total:
+		return CheckpointCoverageAll
+	default:
+		return CheckpointCoverageSome
 	}
 }

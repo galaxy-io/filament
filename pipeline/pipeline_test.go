@@ -3,13 +3,15 @@ package pipeline
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/apache/arrow-go/v18/arrow/memory"
+
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -17,50 +19,63 @@ import (
 // CRC; corrupt flips it to force a divergence, and failOn returns an error on the
 // nth Apply to exercise the fatal path.
 type fakeSink struct {
-	mu      sync.Mutex
-	written []filament.Batch
-	applied []filament.WritePolicy
-	corrupt bool
-	failOn  int // 1-based Apply index to fail on; 0 = never
-	n       int
+	mu               sync.Mutex
+	written          []written
+	applied          []filament.WritePolicy
+	corrupt          bool
+	failOn           int // 1-based Apply index to fail on; 0 = never
+	encodedIntegrity bool
+	omitEncoded      bool
+	n                int
 }
 
-func (f *fakeSink) Spec() filament.SinkSpec                      { return filament.SinkSpec{Name: "fake"} }
+// written is what the sink keeps of a batch: rows are released after Apply, so
+// the sink copies what it asserts on.
+type written struct {
+	resource string
+	seq      uint64
+	rows     int
+	ops      []filament.Operation
+	cursor   *filament.CheckpointData
+}
+
+func (f *fakeSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Name: "fake", Capabilities: filament.SinkCapabilities{EncodedIntegrity: f.encodedIntegrity}}
+}
 func (f *fakeSink) Open(context.Context, filament.RunSpec) error { return nil }
 func (f *fakeSink) Commit(context.Context) error                 { return nil }
 func (f *fakeSink) Abort(context.Context) error                  { return nil }
 func (f *fakeSink) Name() string                                 { return "fake" }
 
-func (f *fakeSink) Write(_ context.Context, b filament.Batch) (filament.WriteReceipt, error) {
+func (f *fakeSink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.written = append(f.written, b)
-	crc, nbytes := filament.CRC32C(b.Records)
+	f.applied = append(f.applied, opts.Policy)
+	f.n++
+	if f.failOn == f.n {
+		return filament.WriteReceipt{}, errors.New("boom")
+	}
+	ops := b.Operations()
+	if err := opts.Policy.ValidateBatch(b.Resource, b); err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	f.written = append(f.written, written{b.Resource, b.Seq, b.NumRows(), ops.Clone(), b.Cursor})
+	crc := b.IntegrityCRC()
 	if f.corrupt {
 		crc = ^crc // flip every bit → guaranteed mismatch
 	}
-	return filament.WriteReceipt{URI: "mem://x", Bytes: nbytes, Rows: len(b.Records), WriteCRC: crc}, nil
+	receipt := filament.WriteReceipt{URI: "mem://x", Bytes: b.Bytes(), Rows: b.NumRows(), WriteCRC: crc}
+	if f.encodedIntegrity && !f.omitEncoded {
+		encodedCRC := uint32(42)
+		receipt.EncodedCRC = &encodedCRC
+	}
+	return receipt, nil
 }
 
-func (f *fakeSink) Apply(ctx context.Context, b filament.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	f.mu.Lock()
-	f.applied = append(f.applied, opts.Policy)
-	f.n++
-	fail := f.failOn == f.n
-	f.mu.Unlock()
-	if fail {
-		return filament.WriteReceipt{}, errors.New("boom")
-	}
-	if err := opts.Policy.ValidateRecords(b.Resource, b.Records); err != nil {
-		return filament.WriteReceipt{}, err
-	}
-	return f.Write(ctx, b)
-}
-
-func (f *fakeSink) batches() []filament.Batch {
+func (f *fakeSink) batches() []written {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return append([]filament.Batch(nil), f.written...)
+	return append([]written(nil), f.written...)
 }
 
 // collector accumulates emitted facts for assertions.
@@ -91,19 +106,51 @@ func (c *collector) count(name string) int {
 	return n
 }
 
-func rec(resource, id, data string) filament.Record {
-	return filament.NewRecord(resource, id, []byte(data))
+var schema = filament.RecordSchema{Fields: []filament.SchemaField{
+	{Name: "id", Logical: filament.LogicalInt64},
+	{Name: "n", Logical: filament.LogicalString, Nullable: true},
+}}
+
+// row is one test row: resource, id, and its meta.
+type row struct {
+	resource string
+	id       int64
+	meta     filament.RowMeta
 }
 
-// run pushes records through a pipeline and blocks for completion. A long flush
+func rec(resource string, id int64) row { return row{resource: resource, id: id} }
+
+// push writes rows through the inlet, one builder per resource, and returns the
+// first error.
+func push(in filament.RecordSink, rows []row) error {
+	writers := map[string]filament.RowWriter{}
+	for _, r := range rows {
+		w, ok := writers[r.resource]
+		if !ok {
+			var err error
+			if w, err = in.Builder(r.resource, 0, schema); err != nil {
+				return err
+			}
+			writers[r.resource] = w
+		}
+		w.Int64(r.id)
+		w.String("x")
+		if err := w.EndRow(r.meta); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// run pushes rows through a pipeline and blocks for completion. A long flush
 // interval keeps the timer out of the way so batching is driven by row count and
 // the close-flush, making counts deterministic.
-func run(t *testing.T, sink filament.Sink, rows int, recs []filament.Record) (*collector, error) {
+func run(t *testing.T, sink filament.Sink, maxRows int, rows []row) (*collector, error) {
 	t.Helper()
-	return runWithPolicies(t, sink, rows, recs, defaultWritePolicies(recs))
+	return runWithPolicies(t, sink, maxRows, rows, defaultWritePolicies(rows))
 }
 
-func runWithPolicies(t *testing.T, sink filament.Sink, rows int, recs []filament.Record, policies map[string]filament.WritePolicy) (*collector, error) {
+func runWithPolicies(t *testing.T, sink filament.Sink, maxRows int, rows []row, policies map[string]filament.WritePolicy) (*collector, error) {
 	t.Helper()
 	c := &collector{}
 	p := New(Config{
@@ -112,41 +159,32 @@ func runWithPolicies(t *testing.T, sink filament.Sink, rows int, recs []filament
 		Sink:          sink,
 		Emit:          c.emit,
 		WritePolicies: policies,
-		Options:       filament.RunOptions{BatchMaxRows: rows},
+		Options:       filament.RunOptions{BatchMaxRows: maxRows},
 		FlushInterval: time.Hour,
 	})
 	p.Start(context.Background())
-	in := p.Records()
-	for _, r := range recs {
-		if err := in.Push(r); err != nil {
-			break // pipeline failed mid-push; Wait reports the cause
-		}
-	}
-	p.CloseIngest()
+	err := push(p.Records(), rows)
+	p.CloseIngest(err)
 	return c, p.Wait()
 }
 
-func defaultWritePolicies(recs []filament.Record) map[string]filament.WritePolicy {
+func defaultWritePolicies(rows []row) map[string]filament.WritePolicy {
 	policies := map[string]filament.WritePolicy{}
-	for _, rec := range recs {
-		if _, ok := policies[rec.Resource]; ok {
+	for _, r := range rows {
+		if _, ok := policies[r.resource]; ok {
 			continue
 		}
 		policy := filament.WritePolicyForIngestion(filament.IngestionFullReplace)
-		policy.Resource = rec.Resource
-		policies[rec.Resource] = policy
+		policy.Resource = r.resource
+		policies[r.resource] = policy
 	}
 	return policies
 }
 
 func TestPipelineHappyPath(t *testing.T) {
 	sink := &fakeSink{}
-	recs := []filament.Record{
-		rec("users", "1", `{"n":"a"}`),
-		rec("users", "2", `{"n":"b"}`),
-		rec("users", "3", `{"n":"c"}`),
-	}
-	c, err := run(t, sink, 2, recs) // rows=2 → batches of [2,1]
+	rows := []row{rec("users", 1), rec("users", 2), rec("users", 3)}
+	c, err := run(t, sink, 2, rows) // maxRows=2 → batches of [2,1]
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
@@ -167,15 +205,15 @@ func TestPipelineHappyPath(t *testing.T) {
 		t.Errorf("divergence facts = %d, want 0", got)
 	}
 
-	// Total records across batches is preserved, and chunk seqs are 0,1.
+	// Total rows across batches is preserved, and chunk seqs are 0,1.
 	var total int
 	seqs := map[uint64]bool{}
 	for _, b := range sink.batches() {
-		total += len(b.Records)
-		seqs[b.Seq] = true
+		total += b.rows
+		seqs[b.seq] = true
 	}
 	if total != 3 {
-		t.Errorf("records across batches = %d, want 3", total)
+		t.Errorf("rows across batches = %d, want 3", total)
 	}
 	if !seqs[0] || !seqs[1] {
 		t.Errorf("chunk seqs = %v, want {0,1}", seqs)
@@ -185,16 +223,36 @@ func TestPipelineHappyPath(t *testing.T) {
 	assertMonotonicSeq(t, c.events())
 }
 
+func TestPipelineRequiresEncodedIntegrityEvidence(t *testing.T) {
+	sink := &fakeSink{encodedIntegrity: true, omitEncoded: true}
+	c, err := run(t, sink, 2, []row{rec("users", 1)})
+	if err == nil || !strings.Contains(err.Error(), "encoded integrity evidence") {
+		t.Fatalf("Wait = %v, want missing encoded integrity evidence", err)
+	}
+	if got := c.count(events.BatchWritten.Name()); got != 0 {
+		t.Fatalf("written facts = %d, want 0", got)
+	}
+	if got := c.count(events.EncodedIntegrityVerified.Name()); got != 0 {
+		t.Fatalf("encoded integrity facts = %d, want 0", got)
+	}
+}
+
+func TestPipelinePublishesEncodedIntegrityEvidence(t *testing.T) {
+	sink := &fakeSink{encodedIntegrity: true}
+	c, err := run(t, sink, 2, []row{rec("users", 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.count(events.EncodedIntegrityVerified.Name()); got != 1 {
+		t.Fatalf("encoded integrity facts = %d, want 1", got)
+	}
+}
+
 func TestPipelinePerResourceBatching(t *testing.T) {
 	sink := &fakeSink{}
-	recs := []filament.Record{
-		rec("users", "1", `{}`),
-		rec("orders", "1", `{}`),
-		rec("users", "2", `{}`),
-		rec("orders", "2", `{}`),
-	}
-	// rows large + long timer → each resource flushes once at close.
-	c, err := run(t, sink, 100, recs)
+	rows := []row{rec("users", 1), rec("orders", 1), rec("users", 2), rec("orders", 2)}
+	// maxRows large + long timer → each resource flushes once at close.
+	_, err := run(t, sink, 100, rows)
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
@@ -203,21 +261,149 @@ func TestPipelinePerResourceBatching(t *testing.T) {
 	}
 	byRes := map[string]int{}
 	for _, b := range sink.batches() {
-		byRes[b.Resource] += len(b.Records)
-		if b.Seq != 0 {
-			t.Errorf("%s first chunk seq = %d, want 0", b.Resource, b.Seq)
+		byRes[b.resource] += b.rows
+		if b.seq != 0 {
+			t.Errorf("%s first chunk seq = %d, want 0", b.resource, b.seq)
 		}
 	}
 	if byRes["users"] != 2 || byRes["orders"] != 2 {
-		t.Errorf("records per resource = %v, want users:2 orders:2", byRes)
+		t.Errorf("rows per resource = %v, want users:2 orders:2", byRes)
 	}
-	_ = c
+}
+
+func TestPipelineRejectsDuplicateBuilder(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	in := p.Records()
+	first, err := in.Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	if _, err := in.Builder("users", 0, schema); err == nil || !strings.Contains(err.Error(), "already open") {
+		t.Fatalf("duplicate builder error = %v", err)
+	}
+}
+
+func TestPipelineRejectsSchemaChangeWithinRun(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	in := p.Records()
+	first, err := in.Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	changed := schema
+	changed.Fields = append([]filament.SchemaField(nil), schema.Fields...)
+	changed.Fields[0].Logical = filament.LogicalString
+	if _, err := in.Builder("users", 1, changed); err == nil || !strings.Contains(err.Error(), "schema changed") {
+		t.Fatalf("schema change error = %v", err)
+	}
+}
+
+func TestPipelineRegistryOwnsSchema(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	in := p.Records()
+	supplied := schema
+	supplied.Fields = append([]filament.SchemaField(nil), schema.Fields...)
+	supplied.PrimaryKey = []string{"id"}
+	first, err := in.Builder("users", 0, supplied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+
+	// Mutating connector-owned slices after registration must not alter the
+	// pipeline's canonical schema.
+	supplied.Fields[0].Logical = filament.LogicalString
+	supplied.PrimaryKey[0] = "changed"
+	original := schema
+	original.PrimaryKey = []string{"id"}
+	second, err := in.Builder("users", 1, original)
+	if err != nil {
+		t.Fatalf("builder with original schema after caller mutation: %v", err)
+	}
+	defer second.Close()
+}
+
+func TestPipelineRejectsSchemaForDifferentResource(t *testing.T) {
+	p := New(Config{Sink: &fakeSink{}, Options: filament.RunOptions{BatchMaxRows: 10}})
+	supplied := schema
+	supplied.Resource = "orders"
+	if _, err := p.Records().Builder("users", 0, supplied); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("resource mismatch error = %v", err)
+	}
+}
+
+func TestPipelineAcceptsSourceClosedBuilder(t *testing.T) {
+	sink := &fakeSink{}
+	p := New(Config{
+		Sink:          sink,
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
+		Options:       filament.RunOptions{BatchMaxRows: 10},
+		FlushInterval: time.Hour,
+	})
+	p.Start(context.Background())
+	w, err := p.Records().Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Int64(1)
+	w.Null()
+	if err := w.EndRow(filament.RowMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	p.CloseIngest(nil)
+	if err := p.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(sink.batches()); got != 1 {
+		t.Fatalf("sink batches = %d, want 1", got)
+	}
+}
+
+func TestPipelineTimerFlushesPartialChunk(t *testing.T) {
+	sink := &fakeSink{}
+	c := &collector{}
+	p := New(Config{
+		Tenant: "t1", Run: "r1", Sink: sink, Emit: c.emit,
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
+		Options:       filament.RunOptions{BatchMaxRows: 100},
+		FlushInterval: 10 * time.Millisecond,
+	})
+	p.Start(context.Background())
+	w, _ := p.Records().Builder("users", 0, schema)
+	w.Int64(1)
+	w.String("a")
+	if err := w.EndRow(filament.RowMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond) // the tick lands; the next EndRow carries the flush
+	for i := int64(2); i <= 3; i++ {
+		w.Int64(i)
+		w.String("b")
+		if err := w.EndRow(filament.RowMeta{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p.CloseIngest(nil)
+	if err := p.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	got := sink.batches()
+	if len(got) != 2 || got[0].rows != 2 || got[1].rows != 1 {
+		t.Fatalf("batches = %+v, want rows [2 1] (timer flush at row 2, close flush)", got)
+	}
 }
 
 func TestPipelineDivergenceIsFatal(t *testing.T) {
 	sink := &fakeSink{corrupt: true}
-	recs := []filament.Record{rec("users", "1", `{}`), rec("users", "2", `{}`)}
-	c, err := run(t, sink, 2, recs)
+	c, err := run(t, sink, 2, []row{rec("users", 1), rec("users", 2)})
 	if err == nil || !errContains(err, "CRC divergence") {
 		t.Fatalf("Wait error = %v, want CRC divergence", err)
 	}
@@ -234,8 +420,7 @@ func TestPipelineDivergenceIsFatal(t *testing.T) {
 
 func TestPipelineWriteErrorIsFatal(t *testing.T) {
 	sink := &fakeSink{failOn: 1}
-	recs := []filament.Record{rec("users", "1", `{}`), rec("users", "2", `{}`)}
-	_, err := run(t, sink, 2, recs)
+	_, err := run(t, sink, 2, []row{rec("users", 1), rec("users", 2)})
 	if err == nil {
 		t.Fatal("Wait: want error from failed write, got nil")
 	}
@@ -244,11 +429,61 @@ func TestPipelineWriteErrorIsFatal(t *testing.T) {
 	}
 }
 
+func TestPipelineWriteErrorReleasesQueuedBatches(t *testing.T) {
+	alloc := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	sink := &fakeSink{failOn: 1}
+	p := New(Config{
+		Sink: sink, Allocator: alloc,
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
+		Options:       filament.RunOptions{BatchMaxRows: 1},
+		FlushInterval: time.Hour,
+	})
+	p.Start(context.Background())
+	w, err := p.Records().Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range 20 {
+		w.Int64(int64(i))
+		w.Null()
+		if err = w.EndRow(filament.RowMeta{}); err != nil {
+			break
+		}
+	}
+	p.CloseIngest(err)
+	if err := p.Wait(); err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("Wait = %v, want write error", err)
+	}
+	alloc.AssertSize(t, 0)
+}
+
+func TestPipelineExtractErrorDiscardsPartialRows(t *testing.T) {
+	sink := &fakeSink{}
+	c := &collector{}
+	p := New(Config{
+		Tenant: "t1", Run: "r1", Sink: sink, Emit: c.emit,
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
+		Options:       filament.RunOptions{BatchMaxRows: 100},
+		FlushInterval: time.Hour,
+	})
+	p.Start(context.Background())
+	w, _ := p.Records().Builder("users", 0, schema)
+	w.Int64(1) // the source dies inside this row
+	p.CloseIngest(errors.New("source died"))
+	if err := p.Wait(); err != nil {
+		t.Fatalf("Wait: %v (the extract error is the runner's to report)", err)
+	}
+	if got := len(sink.batches()); got != 0 {
+		t.Fatalf("batches = %d, want 0", got)
+	}
+}
+
 func TestPipelineDispatchesSinkApply(t *testing.T) {
 	sink := &fakeSink{}
 	policy := filament.WritePolicyForIngestion(filament.IngestionFullUpsert)
+	policy.Checkpoint = filament.CheckpointAfterCommit
 	policy.Resource = "users"
-	_, err := runWithPolicies(t, sink, 2, []filament.Record{rec("users", "1", `{}`)}, map[string]filament.WritePolicy{"users": policy})
+	c, err := runWithPolicies(t, sink, 2, []row{rec("users", 1)}, map[string]filament.WritePolicy{"users": policy})
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
@@ -258,58 +493,105 @@ func TestPipelineDispatchesSinkApply(t *testing.T) {
 	if sink.applied[0].Capability.Mode != filament.WriteUpsert {
 		t.Fatalf("Apply policy mode = %q, want %q", sink.applied[0].Capability.Mode, filament.WriteUpsert)
 	}
+	for _, fact := range c.events() {
+		if written, ok := fact.Data.(events.BatchWrittenEvent); ok && written.CheckpointPolicy != filament.CheckpointAfterCommit {
+			t.Fatalf("batch checkpoint policy = %q, want %q", written.CheckpointPolicy, filament.CheckpointAfterCommit)
+		}
+	}
 }
 
-func TestPipelineRejectsLegacyMutationRecords(t *testing.T) {
+func TestPipelineRejectsMutationsUnderReplace(t *testing.T) {
 	sink := &fakeSink{}
-	row := rec("users", "1", `{}`)
-	row.Op = filament.OpUpdate
-	_, err := run(t, sink, 2, []filament.Record{row})
+	r := rec("users", 1)
+	r.meta.Op = filament.OpUpdate
+	_, err := run(t, sink, 2, []row{r})
 	if err == nil {
-		t.Fatal("Wait: want legacy mutation rejection, got nil")
+		t.Fatal("Wait: want mutation rejection, got nil")
 	}
-	if !errContains(err, "write policy \"replace\" does not accept update record") {
+	if !errContains(err, "write policy \"replace\" does not accept update row") {
 		t.Fatalf("error = %v, want operation rejection", err)
 	}
 }
 
-func TestPipelinePublishesLSNCheckpointFromRecordMeta(t *testing.T) {
+func TestPipelineCursorsFromRowMeta(t *testing.T) {
 	sink := &fakeSink{}
-	row := rec("users", "1", `{}`)
-	row.Meta.LSN = "0/16B6C50"
-	row.Meta.Seq = 42
-	c, err := run(t, sink, 2, []filament.Record{row})
+	stream := rec("users", 1)
+	stream.meta.LSN, stream.meta.Seq = "0/16B6C50", 42
+	keyed := rec("orders", 1)
+	keyed.meta.Key = []string{"7"}
+	coarse := rec("items", 1)
+	coarse.meta.Coarse = true
+	_, err := run(t, sink, 2, []row{stream, keyed, coarse})
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
-	var checkpoint *filament.CheckpointData
-	for _, f := range c.events() {
-		if d, ok := f.Data.(events.BatchWrittenEvent); ok {
-			checkpoint = d.Checkpoint
-			break
+	for _, b := range sink.batches() {
+		switch b.resource {
+		case "users":
+			if b.cursor.String("lsn") != "0/16B6C50" || b.cursor.Int("seq") != 42 {
+				t.Fatalf("stream cursor = %v", b.cursor.Raw())
+			}
+		case "orders":
+			if b.cursor.String("mode") != "keyset" || b.cursor.Int("part") != 0 {
+				t.Fatalf("keyset cursor = %v", b.cursor.Raw())
+			}
+		case "items":
+			if b.cursor.Int("ack") != 1 {
+				t.Fatalf("coarse cursor = %v", b.cursor.Raw())
+			}
 		}
 	}
-	if checkpoint == nil {
-		t.Fatal("batch written checkpoint is nil")
+}
+
+func TestPipelineDrainPublishesMarker(t *testing.T) {
+	sink := &fakeSink{}
+	c := &collector{}
+	p := New(Config{
+		Tenant: "t1", Run: "r1", Sink: sink, Emit: c.emit,
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
+		Options:       filament.RunOptions{BatchMaxRows: 100},
+		FlushInterval: time.Hour,
+	})
+	p.Start(context.Background())
+	w, _ := p.Records().Builder("users", 3, schema)
+	for i := range 2 {
+		w.Int64(int64(i))
+		w.Null()
+		if err := w.EndRow(filament.RowMeta{Coarse: true}); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if got := checkpoint.String("lsn"); got != "0/16B6C50" {
-		t.Fatalf("checkpoint lsn = %q, want 0/16B6C50", got)
+	if err := w.Drain(filament.RowMeta{}); err != nil {
+		t.Fatal(err)
 	}
-	if got := checkpoint.Int("seq"); got != 42 {
-		t.Fatalf("checkpoint seq = %d, want 42", got)
+	p.CloseIngest(nil)
+	if err := p.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(sink.batches()); got != 1 {
+		t.Fatalf("sink writes = %d, want 1 (the marker is not written)", got)
+	}
+	var want int
+	for _, f := range c.events() {
+		if d, ok := f.Data.(events.BatchWrittenEvent); ok && d.Records == 0 && d.Checkpoint != nil {
+			want = d.Checkpoint.Int("want")
+		}
+	}
+	if want != 2 {
+		t.Fatalf("marker want = %d, want 2", want)
 	}
 }
 
 // stuckSink wedges Apply until the pipeline context is cancelled, so
-// backpressure fills the channels and blocks the inlet.
+// backpressure fills the channel and blocks the builder.
 type stuckSink struct{ fakeSink }
 
-func (s *stuckSink) Apply(ctx context.Context, _ filament.Batch, _ filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *stuckSink) Apply(ctx context.Context, _ *arrowbatch.Batch, _ filament.ApplyOptions) (filament.WriteReceipt, error) {
 	<-ctx.Done()
 	return filament.WriteReceipt{}, ctx.Err()
 }
 
-func TestPipelineCancelReleasesBlockedPush(t *testing.T) {
+func TestPipelineCancelReleasesBlockedSource(t *testing.T) {
 	sink := &stuckSink{}
 	c := &collector{}
 	p := New(Config{
@@ -317,7 +599,7 @@ func TestPipelineCancelReleasesBlockedPush(t *testing.T) {
 		Run:           "r1",
 		Sink:          sink,
 		Emit:          c.emit,
-		WritePolicies: defaultWritePolicies([]filament.Record{rec("users", "0", `{}`)}),
+		WritePolicies: defaultWritePolicies([]row{rec("users", 0)}),
 		Options:       filament.RunOptions{BatchMaxRows: 1},
 		FlushInterval: time.Hour,
 	})
@@ -326,9 +608,11 @@ func TestPipelineCancelReleasesBlockedPush(t *testing.T) {
 
 	pushed := make(chan error, 1)
 	go func() {
-		in := p.Records()
+		w, _ := p.Records().Builder("users", 0, schema)
 		for i := 0; ; i++ {
-			if err := in.Push(rec("users", strconv.Itoa(i), `{}`)); err != nil {
+			w.Int64(int64(i))
+			w.Null()
+			if err := w.EndRow(filament.RowMeta{}); err != nil {
 				pushed <- err
 				return
 			}
@@ -338,39 +622,23 @@ func TestPipelineCancelReleasesBlockedPush(t *testing.T) {
 	time.Sleep(50 * time.Millisecond) // let the source wedge on a full pipeline
 	cancel()
 
+	var perr error
 	select {
-	case err := <-pushed:
-		if err == nil {
-			t.Fatal("Push returned nil after cancel")
+	case perr = <-pushed:
+		if perr == nil {
+			t.Fatal("EndRow returned nil after cancel")
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("Push still blocked 5s after cancel")
+		t.Fatal("source still blocked 5s after cancel")
 	}
 
-	p.CloseIngest()
+	p.CloseIngest(perr)
 	waited := make(chan error, 1)
 	go func() { waited <- p.Wait() }()
 	select {
 	case <-waited:
 	case <-time.After(5 * time.Second):
 		t.Fatal("Wait still blocked 5s after cancel")
-	}
-}
-
-func TestCRC32CDetectsRegrouping(t *testing.T) {
-	// Two records, two groupings of the same bytes must not collide — the
-	// length-prefix guards reordering/regrouping ambiguity.
-	a := []filament.Record{rec("r", "1", `{"x":1}`), rec("r", "2", `{"y":2}`)}
-	b := []filament.Record{rec("r", "12", `{"x":1}`)} // different id/shape
-	ca, _ := filament.CRC32C(a)
-	cb, _ := filament.CRC32C(b)
-	if ca == cb {
-		t.Errorf("CRC collision across distinct record sets: %08x", ca)
-	}
-	// Identical input is stable.
-	ca2, _ := filament.CRC32C(a)
-	if ca != ca2 {
-		t.Errorf("CRC not deterministic: %08x vs %08x", ca, ca2)
 	}
 }
 

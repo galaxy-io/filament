@@ -8,9 +8,15 @@
     "check": "mint broken-links"
   },
   "devDependencies": {
-    "mint": "^4.2.762"
+    "mint": "^4.2.835"
   },
   "engines": {
     "node": ">=20.17.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "qs": "^6.15.2",
+      "sharp": "^0.35.0"
+    }
   }
 }
