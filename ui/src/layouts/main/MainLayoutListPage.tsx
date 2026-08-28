@@ -32,6 +32,14 @@ interface MainLayoutListPage {
   noPadding?: boolean;
 }
 
+interface MainLayoutListPageState {
+  search: string;
+}
+
+const DEFAULT_STATE: MainLayoutListPageState = {
+  search: "",
+};
+
 const MainLayoutListPage = ({
   actions,
   noPadding = false,
@@ -40,8 +48,15 @@ const MainLayoutListPage = ({
   const navigate = useNavigate();
   const { q = "" } = useSearch({ strict: false });
 
-  const [search, setSearch] = useState(q);
-  const debouncedSearch = useDebouncedValue(search, LIST_SEARCH_DEBOUNCE_MS);
+  const [state, setState] = useState<MainLayoutListPageState>(() => ({
+    ...DEFAULT_STATE,
+    search: q,
+  }));
+  const debouncedSearch = useDebouncedValue(state.search, LIST_SEARCH_DEBOUNCE_MS);
+
+  const handleSearchChange = (search: string) => {
+    setState((prev) => ({ ...prev, search }));
+  };
 
   useEffect(() => {
     if (debouncedSearch === q) {
@@ -60,8 +75,8 @@ const MainLayoutListPage = ({
         leadingActions={[
           <TextInput
             key="search"
-            value={search}
-            onChange={setSearch}
+            value={state.search}
+            onChange={handleSearchChange}
             placeholder="Search"
             leading={{ icon: MagnifyingGlassIcon }}
             fillWidth

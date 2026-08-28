@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -14,6 +14,14 @@ import { CREATE_CONNECTION_MODAL_SELECTOR_WIDTH } from "@/pages/connectors/const
 
 import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
 
+interface CreateConnectionSelectorState {
+  search: string;
+}
+
+const DEFAULT_STATE: CreateConnectionSelectorState = {
+  search: "",
+};
+
 const CreateConnectionSelector = ({
   onClose,
   onConnectorSelect,
@@ -21,8 +29,15 @@ const CreateConnectionSelector = ({
   const navigate = useNavigate();
   const { connectorSearch = "" } = useSearch({ from: "__root__" });
 
-  const [search, setSearch] = useState(connectorSearch);
-  const debouncedSearch = useDebouncedValue(search, LIST_SEARCH_DEBOUNCE_MS);
+  const [state, setState] = useState<CreateConnectionSelectorState>(() => ({
+    ...DEFAULT_STATE,
+    search: connectorSearch,
+  }));
+  const debouncedSearch = useDebouncedValue(state.search, LIST_SEARCH_DEBOUNCE_MS);
+
+  const handleSearchChange = useCallback((search: string) => {
+    setState((prev) => ({ ...prev, search }));
+  }, []);
 
   useEffect(() => {
     if (debouncedSearch === connectorSearch) {
@@ -39,8 +54,8 @@ const CreateConnectionSelector = ({
     <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_SELECTOR_WIDTH}>
       <FlexItem grow={0} shrink={0}>
         <CreateConnectionSelectorHeader
-          search={search}
-          onSearchChange={setSearch}
+          search={state.search}
+          onSearchChange={handleSearchChange}
           onClose={onClose}
         />
       </FlexItem>
