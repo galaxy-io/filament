@@ -146,19 +146,9 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 	if existing != nil && existing.Type != typeName {
 		conn.Config = map[string]any{}
 	}
-	var schema filament.ConfigSchema
-	if kind == "source" {
-		spec, ok := a.catalog.sources[typeName]
-		if !ok {
-			return conn, fmt.Errorf("unknown source connector %q", typeName)
-		}
-		schema = spec.Config
-	} else {
-		spec, ok := a.catalog.sinks[typeName]
-		if !ok {
-			return conn, fmt.Errorf("unknown sink connector %q", typeName)
-		}
-		schema = spec.Config
+	schema, err := a.connectionSchema(kind, typeName)
+	if err != nil {
+		return conn, err
 	}
 	allowed := map[string]bool{connectorFlag: true}
 	unsetTargets := map[string]func(){}
@@ -216,6 +206,21 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 	}
 	conn.Config = normalized
 	return conn, nil
+}
+
+func (a *cliApp) connectionSchema(kind, typeName string) (filament.ConfigSchema, error) {
+	if kind == "source" {
+		spec, ok := a.catalog.sources[typeName]
+		if !ok {
+			return filament.ConfigSchema{}, fmt.Errorf("unknown source connector %q", typeName)
+		}
+		return spec.Config, nil
+	}
+	spec, ok := a.catalog.sinks[typeName]
+	if !ok {
+		return filament.ConfigSchema{}, fmt.Errorf("unknown sink connector %q", typeName)
+	}
+	return spec.Config, nil
 }
 
 func (a *cliApp) listConnections(kind string, doc configDocument) error {
