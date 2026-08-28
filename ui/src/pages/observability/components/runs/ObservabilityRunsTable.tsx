@@ -21,6 +21,7 @@ import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP,
   OBSERVABILITY_RUNS_SCHEDULED_INPUT,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
@@ -33,11 +34,17 @@ import {
   OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT,
   OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
-import { createRunsWindowInput } from "@/pages/observability/components/runs/utils";
+import {
+  createObservabilityRunsSorting,
+  createObservabilityRunsSortSearch,
+  createRunsWindowInput,
+  type ObservabilityRunsTableSortingChange,
+} from "@/pages/observability/components/runs/utils";
 import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
 import { useListRunsInfiniteQuery, useListRunsQuery } from "@/api/queries/runs";
+import { createListSortingInput } from "@/api/utils";
 
 import {
   formatBytes,
@@ -55,6 +62,8 @@ const ObservabilityRunsTable = () => {
     statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
     runsBucket,
     runsStatus,
+    sortBy,
+    sortOrder,
   } = useSearch({ from: "/_main/observability" });
 
   const windowedStatuses = useMemo(
@@ -66,8 +75,9 @@ const ObservabilityRunsTable = () => {
     () => ({
       status: runsStatus === undefined ? windowedStatuses : [runsStatus],
       ...createRunsWindowInput(timeframe, runsBucket),
+      ...(sortBy === undefined ? {} : { sorting: createListSortingInput({ sortBy, sortOrder }) }),
     }),
-    [timeframe, windowedStatuses, runsBucket, runsStatus],
+    [timeframe, windowedStatuses, runsBucket, runsStatus, sortBy, sortOrder],
   );
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
@@ -89,6 +99,7 @@ const ObservabilityRunsTable = () => {
         header: "Status",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
         pin: ColumnPin.LEFT,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
@@ -99,6 +110,7 @@ const ObservabilityRunsTable = () => {
         header: "Flow",
         minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
         pin: ColumnPin.LEFT,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={120} height={18} />,
         cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row.original} />,
       },
@@ -106,6 +118,7 @@ const ObservabilityRunsTable = () => {
         id: "pipeline",
         header: "Pipeline",
         minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={120} height={14} />,
         cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
       },
@@ -119,8 +132,7 @@ const ObservabilityRunsTable = () => {
           header: "Scheduled",
           size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
           align: ColumnAlign.RIGHT,
-          accessorFn: (run) => Number(run.scheduledAt),
-          enableSorting: true,
+          enableSorting: false,
           cellLoading: () => <TextShimmer width={100} height={14} />,
           cell: ({ row }) => (
             <Text size={TextSize.BODY_SM} isEllipsis>
@@ -134,11 +146,12 @@ const ObservabilityRunsTable = () => {
     return [
       ...baseColumns,
       {
-        id: "startedAt",
+        id: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
         header: "Started",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
         accessorFn: (run) => Number(run.startedAt),
         enableSorting: true,
+        sortDescFirst: true,
         cellLoading: () => <TextShimmer width={100} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isEllipsis>
@@ -150,9 +163,7 @@ const ObservabilityRunsTable = () => {
         id: "duration",
         header: "Duration",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
-        accessorFn: (run) =>
-          run.startedAt && run.endedAt ? Number(run.endedAt - run.startedAt) : -1,
-        enableSorting: true,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={60} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isEllipsis>
@@ -164,8 +175,7 @@ const ObservabilityRunsTable = () => {
         id: "records",
         header: "Records",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
-        accessorFn: (run) => Number(run.records),
-        enableSorting: true,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
@@ -177,8 +187,7 @@ const ObservabilityRunsTable = () => {
         id: "volume",
         header: "Volume",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-        accessorFn: (run) => Number(run.bytes),
-        enableSorting: true,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
@@ -190,8 +199,7 @@ const ObservabilityRunsTable = () => {
         id: "cpu",
         header: "CPU",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
-        accessorFn: (run) => run.cpuSeconds,
-        enableSorting: true,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={48} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
@@ -204,8 +212,7 @@ const ObservabilityRunsTable = () => {
         header: "Memory",
         size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
         align: ColumnAlign.RIGHT,
-        accessorFn: (run) => Number(run.memoryPeakBytes),
-        enableSorting: true,
+        enableSorting: false,
         cellLoading: () => <TextShimmer width={52} height={14} />,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} isMonospace>
@@ -225,6 +232,20 @@ const ObservabilityRunsTable = () => {
     : [];
   const runs = view === ObservabilityRunsView.UPCOMING ? scheduledRuns : windowedRuns;
 
+  const sorting = useMemo(
+    () => createObservabilityRunsSorting({ sortBy, sortOrder }),
+    [sortBy, sortOrder],
+  );
+
+  const handleSortingChange: ObservabilityRunsTableSortingChange = (updater) => {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    void navigate({
+      to: ".",
+      replace: true,
+      search: (prev) => ({ ...prev, ...createObservabilityRunsSortSearch(next) }),
+    });
+  };
+
   const handleRowClick = (row: Row<RunInfo>) => {
     navigate({
       to: "/pipelines/$id/history",
@@ -242,6 +263,9 @@ const ObservabilityRunsTable = () => {
       getRowId={(run) => run.id}
       onRowClick={handleRowClick}
       enableSorting
+      manualSorting
+      sorting={sorting}
+      onSortingChange={handleSortingChange}
       isLoading={view === ObservabilityRunsView.UPCOMING ? isLoadingScheduled : isLoading}
       loadingRowCount={1}
       hasNextPage={view === ObservabilityRunsView.PAST && hasNextPage}

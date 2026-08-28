@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import { type PropsWithChildren, type ReactNode, useEffect, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
@@ -7,9 +7,12 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import { useDebouncedValue } from "@galaxy-io/dls/inputs/hooks";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
+
+import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
 
 const MainLayoutListPageScrollArea = styled.div<{ $noPadding?: boolean }>`
   flex: 1;
@@ -37,13 +40,19 @@ const MainLayoutListPage = ({
   const navigate = useNavigate();
   const { q = "" } = useSearch({ strict: false });
 
-  const handleSearchChange = (value: string) => {
+  const [search, setSearch] = useState(q);
+  const debouncedSearch = useDebouncedValue(search, LIST_SEARCH_DEBOUNCE_MS);
+
+  useEffect(() => {
+    if (debouncedSearch === q) {
+      return;
+    }
     void navigate({
       to: ".",
       replace: true,
-      search: (prev) => ({ ...prev, q: value || undefined }),
+      search: (prev) => ({ ...prev, q: debouncedSearch || undefined }),
     });
-  };
+  }, [debouncedSearch, q, navigate]);
 
   return (
     <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
@@ -51,8 +60,8 @@ const MainLayoutListPage = ({
         leadingActions={[
           <TextInput
             key="search"
-            value={q}
-            onChange={handleSearchChange}
+            value={search}
+            onChange={setSearch}
             placeholder="Search"
             leading={{ icon: MagnifyingGlassIcon }}
             fillWidth

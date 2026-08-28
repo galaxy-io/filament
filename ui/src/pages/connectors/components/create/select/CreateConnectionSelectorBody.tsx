@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
@@ -9,7 +11,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
+import { type ConnectorSpec, ListConnectorsRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import CreateConnectionSelectorCard, {
   CreateConnectionSelectorEmptyCard,
@@ -20,11 +22,9 @@ import {
 } from "@/pages/connectors/constants";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
-
-import { isSearchMatch } from "@/utils/search";
+import { MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
 
 interface CreateConnectionSelectorBodyProps {
-  search: string;
   onConnectorSelect: (connector: ConnectorSpec) => void;
 }
 
@@ -48,25 +48,23 @@ const GhostCard = withTheme(styled.div<PropsWithTheme>`
   background-color: ${({ theme }) => theme.color.background.primary};
 `);
 
-const CreateConnectionSelectorBody = ({
-  search,
-  onConnectorSelect,
-}: CreateConnectionSelectorBodyProps) => {
-  const { connectorKind } = useSearch({ from: "__root__" });
+const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSelectorBodyProps) => {
+  const { connectorKind, connectorSearch = "" } = useSearch({ from: "__root__" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
-  const { data, isLoading } = useListConnectorsQuery();
+  const { data, isLoading } = useListConnectorsQuery({
+    input: create(ListConnectorsRequestSchema, {
+      search: connectorSearch.trim().slice(0, MAX_LIST_SEARCH_LENGTH),
+    }),
+    options: { placeholderData: keepPreviousData },
+  });
 
   const filteredConnectors = useMemo(
     () =>
       (data?.connectors ?? [])
-        .filter(
-          (connector) =>
-            (kind === ConnectorKind.UNSPECIFIED || connector.kind === kind) &&
-            isSearchMatch(search, connector.name, connector.displayName, connector.description),
-        )
+        .filter((connector) => kind === ConnectorKind.UNSPECIFIED || connector.kind === kind)
         .sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name)),
-    [data?.connectors, search, kind],
+    [data?.connectors, kind],
   );
 
   if (isLoading) {
