@@ -5,6 +5,7 @@ package ingestion.v1;
 import "google/protobuf/struct.proto";
 import "ingestion/v1/common.proto";
 import "ingestion/v1/pagination.proto";
+import "ingestion/v1/sorting.proto";
 
 // RunStatus is the persisted lifecycle state of a run.
 enum RunStatus {
@@ -131,6 +132,8 @@ message ListRunsRequest {
   // millis); 0 means unbounded. Runs that never started are excluded.
   int64 since_ms = 6;
   int64 until_ms = 7;
+  string search = 8;
+  SortingRequest sorting = 9;
 }
 
 message ListRunsResponse {

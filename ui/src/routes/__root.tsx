@@ -35,6 +35,7 @@ const searchParams = z.object({
   flow: z.enum(Flow).optional().catch(undefined),
   connectorKind: z.enum(ConnectorKind).optional().catch(undefined),
   connector: z.string().optional().catch(undefined),
+  connectorSearch: z.string().optional().catch(undefined),
   settings: z.enum(SettingsPanel).optional().catch(undefined),
   teamView: z.enum(TeamSettingsView).optional().catch(undefined),
   inviteToken: z.string().optional().catch(undefined),
@@ -85,7 +86,7 @@ function RootComponent() {
     void navigate({
       to: ".",
       search: (prev) => {
-        const { flow: _, connector: __, connectorKind: ___, ...rest } = prev;
+        const { flow: _, connector: __, connectorKind: ___, connectorSearch: ____, ...rest } = prev;
         return rest;
       },
     });

@@ -300,7 +300,7 @@ func TestStore_ConnectionSoftDelete(t *testing.T) {
 	if stampedAt.UnixMilli() != loaded.DeletedAt {
 		t.Fatalf("delete stamp %d disagrees with deleted_at %d", stampedAt.UnixMilli(), loaded.DeletedAt)
 	}
-	listed, err := store.ListConnections(ctx, filament.ConnectionFilter{Tenant: tenantA})
+	listed, _, err := store.ListConnections(ctx, filament.ConnectionFilter{Tenant: tenantA})
 	if err != nil {
 		t.Fatalf("ListConnections: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestStore_ConnectionSoftDelete(t *testing.T) {
 		t.Fatalf("expected deleted connection excluded from list, got %+v", listed)
 	}
 
-	withDeleted, err := store.ListConnections(ctx, filament.ConnectionFilter{Tenant: tenantA, IncludeDeleted: true})
+	withDeleted, _, err := store.ListConnections(ctx, filament.ConnectionFilter{Tenant: tenantA, IncludeDeleted: true})
 	if err != nil {
 		t.Fatalf("ListConnections with IncludeDeleted: %v", err)
 	}
@@ -320,6 +320,30 @@ func TestStore_ConnectionSoftDelete(t *testing.T) {
 	conn.ID = connectionTwo
 	if _, err := store.CreateConnection(ctx, conn); err != nil {
 		t.Fatalf("CreateConnection with reused name: %v", err)
+	}
+}
+
+func TestStore_ListConnectionsSearchSortAndPage(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	for _, connection := range []filament.Connection{
+		{ID: connectionOne, Tenant: tenantA, Kind: filament.ConnectorKindSource, Name: "Alpha Warehouse", Connector: "postgres"},
+		{ID: connectionTwo, Tenant: tenantA, Kind: filament.ConnectorKindSource, Name: "Zulu Warehouse", Connector: "postgres"},
+	} {
+		if _, err := store.CreateConnection(ctx, connection); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	connections, total, err := store.ListConnections(ctx, filament.ConnectionFilter{
+		Tenant: tenantA, Kind: filament.ConnectorKindSource,
+		ListOptions: filament.ListOptions{Search: "ware", SortBy: "name", SortDescending: true, Limit: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || len(connections) != 1 || connections[0].Name != "Zulu Warehouse" {
+		t.Fatalf("connections = %+v, total = %d", connections, total)
 	}
 }
 
@@ -373,7 +397,7 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	if stampedAt.UnixMilli() != loaded.GetDeletedAt() {
 		t.Fatalf("delete stamp %d disagrees with deleted_at %d", stampedAt.UnixMilli(), loaded.GetDeletedAt())
 	}
-	pipelines, err := store.ListPipelines(ctx, filament.PipelineFilter{Tenant: tenantA})
+	pipelines, _, err := store.ListPipelines(ctx, filament.PipelineFilter{Tenant: tenantA})
 	if err != nil {
 		t.Fatalf("ListPipelines: %v", err)
 	}
@@ -381,7 +405,7 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 		t.Fatalf("expected deleted pipeline excluded from list, got %+v", pipelines)
 	}
 
-	withDeleted, err := store.ListPipelines(ctx, filament.PipelineFilter{Tenant: tenantA, IncludeDeleted: true})
+	withDeleted, _, err := store.ListPipelines(ctx, filament.PipelineFilter{Tenant: tenantA, IncludeDeleted: true})
 	if err != nil {
 		t.Fatalf("ListPipelines with IncludeDeleted: %v", err)
 	}
@@ -399,7 +423,7 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	}
 
 	// History survives for run views.
-	versions, err := store.ListPipelineVersions(ctx, pipelineDeleted)
+	versions, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: pipelineDeleted})
 	if err != nil {
 		t.Fatalf("ListPipelineVersions: %v", err)
 	}
@@ -536,7 +560,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("expected version 2, got %d", second.Version)
 	}
 
-	versions, err := store.ListPipelineVersions(ctx, created.Id)
+	versions, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: created.Id})
 	if err != nil {
 		t.Fatalf("ListPipelineVersions: %v", err)
 	}
@@ -549,7 +573,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	if versions[0].CreatedAt == 0 {
 		t.Fatalf("expected nonzero CreatedAt")
 	}
-	unknown, err := store.ListPipelineVersions(ctx, missingPipeline)
+	unknown, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: missingPipeline})
 	if err != nil {
 		t.Fatalf("ListPipelineVersions unknown: %v", err)
 	}

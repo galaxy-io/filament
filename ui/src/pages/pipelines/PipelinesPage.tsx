@@ -12,28 +12,40 @@ import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
 import PipelinesPageEmptyGraphic from "@/pages/pipelines/components/PipelinesPageEmptyGraphic";
 import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
+import {
+  createPipelinesTableSorting,
+  createPipelinesTableSortSearch,
+  type PipelinesTableSortingChange,
+} from "@/pages/pipelines/components/table/utils";
 
 import { Flow } from "@/routes/__root";
 
-import { useSuspenseListPipelinesInfiniteQuery } from "@/api/queries/pipelines";
-
-import { isSearchMatch } from "@/utils/search";
+import {
+  createListPipelinesInput,
+  useSuspenseListPipelinesInfiniteQuery,
+} from "@/api/queries/pipelines";
 
 const PipelinesPage = () => {
   const navigate = useNavigate();
-  const { q = "" } = useSearch({ from: "/_main/pipelines" });
+  const search = useSearch({ from: "/_main/pipelines" });
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useSuspenseListPipelinesInfiniteQuery({
-      input: { includeLastRun: true },
+      input: createListPipelinesInput(search),
     });
 
   const pipelines = useMemo(() => data.pages.flatMap((page) => page.pipelines), [data.pages]);
 
-  const visiblePipelines = useMemo(
-    () => pipelines.filter((item) => isSearchMatch(q, item.name, item.id)),
-    [pipelines, q],
-  );
+  const sorting = useMemo(() => createPipelinesTableSorting(search), [search]);
+
+  const handleSortingChange: PipelinesTableSortingChange = (updater) => {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    void navigate({
+      to: ".",
+      replace: true,
+      search: (prev) => ({ ...prev, ...createPipelinesTableSortSearch(next) }),
+    });
+  };
 
   const handleNewPipeline = () => {
     void navigate({
@@ -43,7 +55,7 @@ const PipelinesPage = () => {
   };
 
   const renderContent = () => {
-    if (!pipelines.length) {
+    if (!pipelines.length && !search.q) {
       return (
         <PipelinesPageEmptyGraphic
           actions={
@@ -64,7 +76,9 @@ const PipelinesPage = () => {
 
     return (
       <PipelinesTable
-        pipelines={visiblePipelines}
+        pipelines={pipelines}
+        sorting={sorting}
+        onSortingChange={handleSortingChange}
         hasNextPage={hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
         fetchNextPage={fetchNextPage}

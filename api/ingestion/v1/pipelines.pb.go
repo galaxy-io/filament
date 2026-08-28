@@ -1563,6 +1563,7 @@ type ListPipelineVersionsRequest struct {
 	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	PipelineId    string                 `protobuf:"bytes,2,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	Pagination    *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Sorting       *SortingRequest        `protobuf:"bytes,4,opt,name=sorting,proto3" json:"sorting,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1614,6 +1615,13 @@ func (x *ListPipelineVersionsRequest) GetPipelineId() string {
 func (x *ListPipelineVersionsRequest) GetPagination() *PaginationRequest {
 	if x != nil {
 		return x.Pagination
+	}
+	return nil
+}
+
+func (x *ListPipelineVersionsRequest) GetSorting() *SortingRequest {
+	if x != nil {
+		return x.Sorting
 	}
 	return nil
 }
@@ -1678,6 +1686,8 @@ type ListPipelinesRequest struct {
 	IncludeVersions bool                   `protobuf:"varint,4,opt,name=include_versions,json=includeVersions,proto3" json:"include_versions,omitempty"`
 	IncludeLastRun  bool                   `protobuf:"varint,5,opt,name=include_last_run,json=includeLastRun,proto3" json:"include_last_run,omitempty"`
 	IncludeSchedule bool                   `protobuf:"varint,6,opt,name=include_schedule,json=includeSchedule,proto3" json:"include_schedule,omitempty"`
+	Search          string                 `protobuf:"bytes,7,opt,name=search,proto3" json:"search,omitempty"`
+	Sorting         *SortingRequest        `protobuf:"bytes,8,opt,name=sorting,proto3" json:"sorting,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1752,6 +1762,20 @@ func (x *ListPipelinesRequest) GetIncludeSchedule() bool {
 		return x.IncludeSchedule
 	}
 	return false
+}
+
+func (x *ListPipelinesRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *ListPipelinesRequest) GetSorting() *SortingRequest {
+	if x != nil {
+		return x.Sorting
+	}
+	return nil
 }
 
 type ListPipelinesResponse struct {
@@ -1898,7 +1922,7 @@ var File_ingestion_v1_pipelines_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\n" +
-	"\x1cingestion/v1/pipelines.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x17ingestion/v1/runs.proto\"\xb1\x02\n" +
+	"\x1cingestion/v1/pipelines.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x17ingestion/v1/runs.proto\x1a\x1aingestion/v1/sorting.proto\"\xb1\x02\n" +
 	"\fPipelineNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12#\n" +
@@ -2023,19 +2047,20 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"pipelineId\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\x03R\aversion\"U\n" +
 	"\x1aGetPipelineVersionResponse\x127\n" +
-	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\x9c\x01\n" +
+	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\xd4\x01\n" +
 	"\x1bListPipelineVersionsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
 	"pipelineId\x12?\n" +
 	"\n" +
 	"pagination\x18\x03 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
-	"pagination\"\x9b\x01\n" +
+	"pagination\x126\n" +
+	"\asorting\x18\x04 \x01(\v2\x1c.ingestion.v1.SortingRequestR\asorting\"\x9b\x01\n" +
 	"\x1cListPipelineVersionsResponse\x129\n" +
 	"\bversions\x18\x01 \x03(\v2\x1d.ingestion.v1.PipelineVersionR\bversions\x12@\n" +
 	"\n" +
 	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
-	"pagination\"\x9d\x02\n" +
+	"pagination\"\xed\x02\n" +
 	"\x14ListPipelinesRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0finclude_deleted\x18\x02 \x01(\bR\x0eincludeDeleted\x12?\n" +
@@ -2044,7 +2069,9 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"pagination\x12)\n" +
 	"\x10include_versions\x18\x04 \x01(\bR\x0fincludeVersions\x12(\n" +
 	"\x10include_last_run\x18\x05 \x01(\bR\x0eincludeLastRun\x12)\n" +
-	"\x10include_schedule\x18\x06 \x01(\bR\x0fincludeSchedule\"\x8f\x01\n" +
+	"\x10include_schedule\x18\x06 \x01(\bR\x0fincludeSchedule\x12\x16\n" +
+	"\x06search\x18\a \x01(\tR\x06search\x126\n" +
+	"\asorting\x18\b \x01(\v2\x1c.ingestion.v1.SortingRequestR\asorting\"\x8f\x01\n" +
 	"\x15ListPipelinesResponse\x124\n" +
 	"\tpipelines\x18\x01 \x03(\v2\x16.ingestion.v1.PipelineR\tpipelines\x12@\n" +
 	"\n" +
@@ -2112,7 +2139,8 @@ var file_ingestion_v1_pipelines_proto_goTypes = []any{
 	(*RunInfo)(nil),                        // 34: ingestion.v1.RunInfo
 	(*WorkerConfiguration)(nil),            // 35: ingestion.v1.WorkerConfiguration
 	(*PaginationRequest)(nil),              // 36: ingestion.v1.PaginationRequest
-	(*PaginationResponse)(nil),             // 37: ingestion.v1.PaginationResponse
+	(*SortingRequest)(nil),                 // 37: ingestion.v1.SortingRequest
+	(*PaginationResponse)(nil),             // 38: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
 	30, // 0: ingestion.v1.PipelineNode.kind:type_name -> ingestion.v1.ConnectorKind
@@ -2146,16 +2174,18 @@ var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
 	6,  // 28: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
 	5,  // 29: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
 	36, // 30: ingestion.v1.ListPipelineVersionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	5,  // 31: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	37, // 32: ingestion.v1.ListPipelineVersionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	36, // 33: ingestion.v1.ListPipelinesRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	6,  // 34: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
-	37, // 35: ingestion.v1.ListPipelinesResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	36, // [36:36] is the sub-list for method output_type
-	36, // [36:36] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	37, // 31: ingestion.v1.ListPipelineVersionsRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	5,  // 32: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	38, // 33: ingestion.v1.ListPipelineVersionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	36, // 34: ingestion.v1.ListPipelinesRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	37, // 35: ingestion.v1.ListPipelinesRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	6,  // 36: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
+	38, // 37: ingestion.v1.ListPipelinesResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	38, // [38:38] is the sub-list for method output_type
+	38, // [38:38] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_pipelines_proto_init() }
@@ -2166,6 +2196,7 @@ func file_ingestion_v1_pipelines_proto_init() {
 	file_ingestion_v1_common_proto_init()
 	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_runs_proto_init()
+	file_ingestion_v1_sorting_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

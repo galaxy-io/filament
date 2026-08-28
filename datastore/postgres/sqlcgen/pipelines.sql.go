@@ -11,6 +11,40 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countPipelineVersions = `-- name: CountPipelineVersions :one
+SELECT count(*) FROM pipeline_versions
+WHERE pipeline_id = $1
+`
+
+func (q *Queries) CountPipelineVersions(ctx context.Context, pipelineID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countPipelineVersions, pipelineID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countPipelines = `-- name: CountPipelines :one
+SELECT count(*) FROM pipelines
+WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
+  AND ($2::boolean OR NOT is_deleted)
+  AND (nullif($3::text, '') IS NULL
+       OR name ILIKE '%' || $3 || '%' ESCAPE '\'
+       OR description ILIKE '%' || $3 || '%' ESCAPE '\')
+`
+
+type CountPipelinesParams struct {
+	TenantID       string
+	IncludeDeleted bool
+	Search         string
+}
+
+func (q *Queries) CountPipelines(ctx context.Context, arg CountPipelinesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countPipelines, arg.TenantID, arg.IncludeDeleted, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPipeline = `-- name: CreatePipeline :one
 INSERT INTO pipelines (id, tenant_id, name, description, worker_configuration, updated_at)
 VALUES ($1, $2, $3, $4, COALESCE($5::jsonb, '{}'::jsonb), now())
@@ -176,8 +210,27 @@ func (q *Queries) GetPipelineVersion(ctx context.Context, arg GetPipelineVersion
 const listPipelineVersions = `-- name: ListPipelineVersions :many
 SELECT id, pipeline_id, version, graph, created_at, updated_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id FROM pipeline_versions
-WHERE pipeline_id = $1 ORDER BY version DESC
+WHERE pipeline_id = $1
+ORDER BY
+  CASE WHEN $2::text IN ('', 'version') AND NOT $3::boolean THEN version END ASC,
+  CASE WHEN $2::text IN ('', 'version') AND $3::boolean THEN version END DESC,
+  CASE WHEN $2::text = 'created_at' AND NOT $3::boolean THEN created_at END ASC,
+  CASE WHEN $2::text = 'created_at' AND $3::boolean THEN created_at END DESC,
+  CASE WHEN $2::text = 'updated_at' AND NOT $3::boolean THEN updated_at END ASC,
+  CASE WHEN $2::text = 'updated_at' AND $3::boolean THEN updated_at END DESC,
+  CASE WHEN NOT $3::boolean THEN id END ASC,
+  CASE WHEN $3::boolean THEN id END DESC
+LIMIT NULLIF($5::int, 0)
+OFFSET $4::int
 `
+
+type ListPipelineVersionsParams struct {
+	PipelineID string
+	SortBy     string
+	SortDesc   bool
+	OffsetRows int32
+	Lim        int32
+}
 
 type ListPipelineVersionsRow struct {
 	ID              string
@@ -191,8 +244,14 @@ type ListPipelineVersionsRow struct {
 	DeletedByUserID pgtype.Text
 }
 
-func (q *Queries) ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ListPipelineVersionsRow, error) {
-	rows, err := q.db.Query(ctx, listPipelineVersions, pipelineID)
+func (q *Queries) ListPipelineVersions(ctx context.Context, arg ListPipelineVersionsParams) ([]*ListPipelineVersionsRow, error) {
+	rows, err := q.db.Query(ctx, listPipelineVersions,
+		arg.PipelineID,
+		arg.SortBy,
+		arg.SortDesc,
+		arg.OffsetRows,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -228,12 +287,32 @@ SELECT id, tenant_id, name, description, current_version_id, worker_configuratio
 FROM pipelines
 WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
   AND ($2::boolean OR NOT is_deleted)
-ORDER BY id
+  AND (nullif($3::text, '') IS NULL
+       OR name ILIKE '%' || $3 || '%' ESCAPE '\'
+       OR description ILIKE '%' || $3 || '%' ESCAPE '\')
+ORDER BY
+  CASE WHEN $4::text IN ('', 'id') AND NOT $5::boolean THEN id END ASC,
+  CASE WHEN $4::text IN ('', 'id') AND $5::boolean THEN id END DESC,
+  CASE WHEN $4::text = 'name' AND NOT $5::boolean THEN lower(name) END ASC,
+  CASE WHEN $4::text = 'name' AND $5::boolean THEN lower(name) END DESC,
+  CASE WHEN $4::text = 'created_at' AND NOT $5::boolean THEN created_at END ASC,
+  CASE WHEN $4::text = 'created_at' AND $5::boolean THEN created_at END DESC,
+  CASE WHEN $4::text = 'updated_at' AND NOT $5::boolean THEN updated_at END ASC,
+  CASE WHEN $4::text = 'updated_at' AND $5::boolean THEN updated_at END DESC,
+  CASE WHEN NOT $5::boolean THEN id END ASC,
+  CASE WHEN $5::boolean THEN id END DESC
+LIMIT NULLIF($7::int, 0)
+OFFSET $6::int
 `
 
 type ListPipelinesParams struct {
 	TenantID       string
 	IncludeDeleted bool
+	Search         string
+	SortBy         string
+	SortDesc       bool
+	OffsetRows     int32
+	Lim            int32
 }
 
 type ListPipelinesRow struct {
@@ -252,7 +331,15 @@ type ListPipelinesRow struct {
 }
 
 func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([]*ListPipelinesRow, error) {
-	rows, err := q.db.Query(ctx, listPipelines, arg.TenantID, arg.IncludeDeleted)
+	rows, err := q.db.Query(ctx, listPipelines,
+		arg.TenantID,
+		arg.IncludeDeleted,
+		arg.Search,
+		arg.SortBy,
+		arg.SortDesc,
+		arg.OffsetRows,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}

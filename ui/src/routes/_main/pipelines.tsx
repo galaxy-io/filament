@@ -1,21 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
-import z from "zod";
 
 import PipelinesPage from "@/pages/pipelines/PipelinesPage";
 
-import { createListPipelinesInfiniteQueryOptions } from "@/api/queries/pipelines";
+import {
+  createListPipelinesInfiniteQueryOptions,
+  createListPipelinesInput,
+} from "@/api/queries/pipelines";
 import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
-
-const searchParams = z.object({
-  q: z.string().optional().catch(undefined),
-});
+import { listSearchParamsSchema } from "@/api/utils";
 
 export const Route = createFileRoute("/_main/pipelines")({
-  validateSearch: searchParams,
-  loader: () =>
+  validateSearch: listSearchParamsSchema,
+  loaderDeps: ({ search: { q, sortBy, sortOrder } }) => ({ q, sortBy, sortOrder }),
+  loader: ({ deps }) =>
     queryClient.ensureInfiniteQueryData(
-      createListPipelinesInfiniteQueryOptions({ input: { includeLastRun: true }, transport }),
+      createListPipelinesInfiniteQueryOptions({
+        input: createListPipelinesInput(deps),
+        transport,
+      }),
     ),
   component: PipelinesPage,
 });

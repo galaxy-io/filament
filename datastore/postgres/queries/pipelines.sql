@@ -42,7 +42,22 @@ WHERE pipeline_id = sqlc.arg(pipeline_id)
 -- name: ListPipelineVersions :many
 SELECT id, pipeline_id, version, graph, created_at, updated_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id FROM pipeline_versions
-WHERE pipeline_id = @pipeline_id ORDER BY version DESC;
+WHERE pipeline_id = @pipeline_id
+ORDER BY
+  CASE WHEN @sort_by::text IN ('', 'version') AND NOT @sort_desc::boolean THEN version END ASC,
+  CASE WHEN @sort_by::text IN ('', 'version') AND @sort_desc::boolean THEN version END DESC,
+  CASE WHEN @sort_by::text = 'created_at' AND NOT @sort_desc::boolean THEN created_at END ASC,
+  CASE WHEN @sort_by::text = 'created_at' AND @sort_desc::boolean THEN created_at END DESC,
+  CASE WHEN @sort_by::text = 'updated_at' AND NOT @sort_desc::boolean THEN updated_at END ASC,
+  CASE WHEN @sort_by::text = 'updated_at' AND @sort_desc::boolean THEN updated_at END DESC,
+  CASE WHEN NOT @sort_desc::boolean THEN id END ASC,
+  CASE WHEN @sort_desc::boolean THEN id END DESC
+LIMIT NULLIF(@lim::int, 0)
+OFFSET @offset_rows::int;
+
+-- name: CountPipelineVersions :one
+SELECT count(*) FROM pipeline_versions
+WHERE pipeline_id = @pipeline_id;
 
 -- name: ListPipelines :many
 SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
@@ -51,7 +66,30 @@ SELECT id, tenant_id, name, description, current_version_id, worker_configuratio
 FROM pipelines
 WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
   AND (@include_deleted::boolean OR NOT is_deleted)
-ORDER BY id;
+  AND (nullif(@search::text, '') IS NULL
+       OR name ILIKE '%' || @search || '%' ESCAPE '\'
+       OR description ILIKE '%' || @search || '%' ESCAPE '\')
+ORDER BY
+  CASE WHEN @sort_by::text IN ('', 'id') AND NOT @sort_desc::boolean THEN id END ASC,
+  CASE WHEN @sort_by::text IN ('', 'id') AND @sort_desc::boolean THEN id END DESC,
+  CASE WHEN @sort_by::text = 'name' AND NOT @sort_desc::boolean THEN lower(name) END ASC,
+  CASE WHEN @sort_by::text = 'name' AND @sort_desc::boolean THEN lower(name) END DESC,
+  CASE WHEN @sort_by::text = 'created_at' AND NOT @sort_desc::boolean THEN created_at END ASC,
+  CASE WHEN @sort_by::text = 'created_at' AND @sort_desc::boolean THEN created_at END DESC,
+  CASE WHEN @sort_by::text = 'updated_at' AND NOT @sort_desc::boolean THEN updated_at END ASC,
+  CASE WHEN @sort_by::text = 'updated_at' AND @sort_desc::boolean THEN updated_at END DESC,
+  CASE WHEN NOT @sort_desc::boolean THEN id END ASC,
+  CASE WHEN @sort_desc::boolean THEN id END DESC
+LIMIT NULLIF(@lim::int, 0)
+OFFSET @offset_rows::int;
+
+-- name: CountPipelines :one
+SELECT count(*) FROM pipelines
+WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
+  AND (@include_deleted::boolean OR NOT is_deleted)
+  AND (nullif(@search::text, '') IS NULL
+       OR name ILIKE '%' || @search || '%' ESCAPE '\'
+       OR description ILIKE '%' || @search || '%' ESCAPE '\');
 
 -- name: DeletePipeline :exec
 UPDATE pipelines SET
