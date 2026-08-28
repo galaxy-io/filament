@@ -177,23 +177,25 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
         </ConnectionDrawerList>
         <PipelineCanvasPanelSection
           header="Configuration"
-          isEmpty={isCdc}
-          emptyHeader="Managed automatically"
-          emptyMessage="This connection applies inserts, updates, and deletes through CDC."
+          isEmpty={false}
+          emptyHeader="No configuration"
+          emptyMessage="No configuration options are available for this resource."
           padding="12px"
         >
           <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
-            <SelectInput
-              label="Read mode"
-              options={readModeSelectOptions}
-              value={readModeSelectOptions.find((option) => option.value === readMode) ?? null}
-              onChange={(option) => handleReadModeChange(option.value as ReadMode)}
-              variant={InputVariant.TERTIARY}
-              placeholder="Select a read mode..."
-              size={InputSize.LARGE}
-              isDisabled={isReadOnly || isLoading}
-              fillWidth
-            />
+            {!isCdc && (
+              <SelectInput
+                label="Read mode"
+                options={readModeSelectOptions}
+                value={readModeSelectOptions.find((option) => option.value === readMode) ?? null}
+                onChange={(option) => handleReadModeChange(option.value as ReadMode)}
+                variant={InputVariant.TERTIARY}
+                placeholder="Select a read mode..."
+                size={InputSize.LARGE}
+                isDisabled={isReadOnly || isLoading}
+                fillWidth
+              />
+            )}
             <SelectInput
               label="Write mode"
               options={writeModeSelectOptions}

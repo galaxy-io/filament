@@ -108,9 +108,8 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
 }
 
-// normalizeEdgeModes makes Full/Replace defaults explicit on Standard edges,
-// validates both levers, and enforces one write mode per destination route.
-// CDC edges carry neither lever.
+// normalizeEdgeModes makes defaults explicit, validates the available levers,
+// and enforces one write mode per destination route. CDC defaults to append.
 func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
 	byID := make(map[string]*ingestionv1.PipelineNode, len(nodes))
 	for _, node := range nodes {
@@ -148,10 +147,22 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.Pi
 			if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED {
 				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a read mode", edge.GetFromNode(), edge.GetToNode())
 			}
-			if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a write mode", edge.GetFromNode(), edge.GetToNode())
+			writeMode := filament.WriteAppend
+			switch edge.GetWriteMode() {
+			case ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED, ingestionv1.WriteMode_WRITE_MODE_APPEND:
+				ingestionType = filament.IngestionCDCAppend
+			case ingestionv1.WriteMode_WRITE_MODE_MERGE:
+				writeMode = filament.WriteMerge
+				ingestionType = filament.IngestionCDCMerge
+			default:
+				return fmt.Errorf("edge %s -> %s: CDC connections support append or merge write mode", edge.GetFromNode(), edge.GetToNode())
 			}
-			ingestionType = filament.IngestionCDC
+			route := edge.GetFromNode() + "\x00" + edge.GetToNode()
+			if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
+				return fmt.Errorf("edge %s -> %s: all resources on a route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
+			}
+			routeWriteModes[route] = writeMode
+			edge.WriteMode = writeModeToProto(writeMode)
 		} else {
 			readMode, err := readModeFromProto(edge.GetReadMode())
 			if err != nil {

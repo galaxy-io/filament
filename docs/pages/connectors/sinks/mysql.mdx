@@ -56,25 +56,24 @@ validates. The sink prefers batches of 4,096 rows.
 ## Supported write modes
 
 The sink advertises `full_replace`, `full_append`, `full_upsert`,
-`incremental_upsert`, and `cdc`. See
+`incremental_upsert`, `cdc_append`, and `cdc_merge`. See
 [replication modes](/pages/guides/concepts/replication-modes). They bind to
 three behaviors:
 
-- `full_replace` and `full_append` insert plainly. Both are full-snapshot
-  policies, so the destination table is truncated before each run (see below).
+- `full_replace` replaces the destination; `full_append` inserts without
+  removing existing rows.
 - `full_upsert` and `incremental_upsert` insert with
   `LOAD DATA … REPLACE`, making re-runs and retries idempotent.
-- `cdc` merges changes in arrival order. Inserts and updates upsert, and
-  deletes delete.
+- `cdc_append` retains every change as a history row. `cdc_merge` maintains
+  current state: inserts and updates upsert, and deletes delete.
 
 ## Table management
 
 Before extraction, `EnsureSchema` runs per resource:
 
 1. `CREATE TABLE IF NOT EXISTS` with typed columns and a primary key.
-2. `TRUNCATE` — unless the bound write mode is upsert or merge. This applies to
-   every non-upsert policy, **including `full_append`**. A full-snapshot append
-   run starts from an empty table.
+2. `TRUNCATE` — only for replace. Append preserves existing rows; upsert and
+   merge preserve resumable state.
 3. Missing columns are added by checking `information_schema.columns` and
    issuing `ALTER TABLE … ADD COLUMN` for each absent one (MySQL has no
    `ADD COLUMN IF NOT EXISTS`). Evolution is add-only. Incompatible type
@@ -117,8 +116,7 @@ primary key.
 
 ## Failure behavior
 
-On a failed run, `Abort` **truncates every non-resumable table the run
-ensured**. A failed `full_replace` or `full_append` run leaves the destination
-tables it touched empty. Tables bound to upsert or merge modes (`full_upsert`,
-`incremental_upsert`, `cdc`) are preserved, since a retry converges through the
+On a failed run, `Abort` truncates replace tables. Append tables retain rows
+already written. Tables bound to upsert or merge modes (`full_upsert`,
+`incremental_upsert`, `cdc_merge`) are preserved, since a retry converges through the
 primary key.

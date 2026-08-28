@@ -70,12 +70,12 @@ const CreatePipelineModalDeliveryAdvanced = () => {
 };
 
 const CreatePipelineModalDelivery = () => {
-  const { sinks, isCdc } = useCreatePipelineModalState();
+  const { sinks } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
-      {!isCdc && sinks.length > 0 && (
+      {sinks.length > 0 && (
         <CreatePipelineModalDeliverySection header="Destinations">
           <Widget noPadding noHover fillWidth>
             <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>

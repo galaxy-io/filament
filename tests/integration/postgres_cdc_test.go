@@ -4,6 +4,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,37 @@ import (
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
+
+// duplicateRejectingSink matches the pipeline inlet's one-builder-per-part
+// contract, which catches bootstrap code that bypasses the CDC writer cache.
+type duplicateRejectingSink struct {
+	collectSink
+	buildersMu sync.Mutex
+	builders   map[struct {
+		resource string
+		part     int
+	}]struct{}
+}
+
+func (s *duplicateRejectingSink) Builder(resource string, part int, schema filament.RecordSchema) (filament.RowWriter, error) {
+	s.buildersMu.Lock()
+	defer s.buildersMu.Unlock()
+	key := struct {
+		resource string
+		part     int
+	}{resource: resource, part: part}
+	if _, exists := s.builders[key]; exists {
+		return nil, fmt.Errorf("builder already open for %q part %d", resource, part)
+	}
+	if s.builders == nil {
+		s.builders = make(map[struct {
+			resource string
+			part     int
+		}]struct{})
+	}
+	s.builders[key] = struct{}{}
+	return s.collectSink.Builder(resource, part, schema)
+}
 
 // snapshotBarrierSink blocks the source at its first snapshot row (a row with no
 // stream position) until released, so the test can commit changes while the
@@ -131,7 +163,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	}
 	defer func() { _ = src.Teardown(ctx) }()
 
-	initial := &collectSink{}
+	initial := &duplicateRejectingSink{}
 	if err := src.ExtractChanges(ctx, initial, filament.ChangeExtractOpts{Resources: []string{"cdc_users"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +216,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	// Exercise the PostgreSQL sink's ordered merge path with the decoded stream.
 	dst := pgsink.New()
 	if err := dst.Open(ctx, filament.RunSpec{
-		Run: "cdc-sink", IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDC},
+		Run: "cdc-sink", IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDCMerge},
 		Sink: filament.Ref{Config: map[string]any{"dsn": pg.DSN(), "schema": "cdc_dst"}},
 	}); err != nil {
 		t.Fatal(err)
@@ -196,7 +228,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	if err := dst.EnsureSchema(ctx, "cdc_users", schema); err != nil {
 		t.Fatal(err)
 	}
-	policy := filament.WritePolicyForIngestion(filament.IngestionCDC)
+	policy := filament.WritePolicyForIngestion(filament.IngestionCDCMerge)
 	policy.Resource = "cdc_users"
 	policy.Keys = []string{"id"}
 	if err := applyAll(ctx, dst, initial.batchesFor("cdc_users"), policy); err != nil {

@@ -42,7 +42,7 @@ type Deps struct {
 func SpecFromState(s filament.RunState) filament.RunSpec {
 	r := s.Request
 	return filament.RunSpec{
-		Tenant: r.Tenant, Run: s.Run,
+		Tenant: r.Tenant, Run: s.Run, StartedAt: s.StartedAt,
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
 		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
@@ -94,7 +94,8 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		return
 	}
 	defer control.close()
-	emit(em, events.RunStarted, "", events.RunStartedEvent{})
+	runStartedAt := startedAtFor(spec)
+	emitAt(em, events.RunStarted, "", runStartedAt, events.RunStartedEvent{})
 
 	if err := ResolveConfigRefs(extractCtx, deps.Secrets, &spec); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
@@ -191,6 +192,11 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		WritePolicies: plan.WritePolicies,
 		Options:       spec.Options,
 		Log:           deps.Log,
+		Audit: &pipeline.AuditConfig{
+			RunStartedAt: runStartedAt,
+			CDC:          plan.RequiresCDC,
+			CDCAppend:    filament.IsCDCAppend(spec.IngestionTypes),
+		},
 	})
 	p.Start(ctx)
 
@@ -251,6 +257,13 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 		return
 	}
 	em.completed(resources)
+}
+
+func startedAtFor(spec filament.RunSpec) time.Time {
+	if !spec.StartedAt.IsZero() {
+		return spec.StartedAt
+	}
+	return time.Now().UTC()
 }
 
 func prepareRunExecution(
