@@ -58,7 +58,7 @@ func (c *Connector) paginate(
 	}
 
 	var totalRecords, pageCount int
-	progressResource, err := emittedResourceName(res, parent)
+	progressResource, err := emittedResourceName(res, parent, c.env)
 	if err != nil {
 		return 0, 0, fmt.Errorf("resource name: %w", err)
 	}
@@ -345,7 +345,7 @@ func (c *Connector) sendRecords(
 	extractor *response.Extractor,
 	tracker *incremental.Tracker,
 ) (int, []Capture, error) {
-	resourceName, err := emittedResourceName(res, parent)
+	resourceName, err := emittedResourceName(res, parent, c.env)
 	if err != nil {
 		return 0, nil, err
 	}

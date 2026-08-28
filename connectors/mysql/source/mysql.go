@@ -1,5 +1,5 @@
-// Package mysql implements the filament.Source interface as a full-snapshot
-// (ModeFull) reader for MySQL (8.0+).
+// Package mysql implements the filament.Source interface as a full-snapshot,
+// incremental-watermark, and CDC reader for MySQL (8.0+).
 //
 // Each requested resource is a table name. InnoDB stores rows clustered by primary
 // key, so key order is physical order: a keyset read (WHERE pk > cursor ORDER BY pk
@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"net"
@@ -57,6 +58,10 @@ type Source struct {
 	pageSize   int
 	shardPages int
 
+	// Per-resource incremental settings populated by PlanIncremental.
+	cursorColumns   map[string]string
+	cursorLookbacks map[string]int
+
 	// Replication-client identity and endpoint for the CDC path (see cdc.go),
 	// captured from the DSN at Configure.
 	serverID   uint32
@@ -87,6 +92,7 @@ var (
 	_ filament.LiveValidatable      = (*Source)(nil)
 	_ filament.SchemaProvider       = (*Source)(nil)
 	_ filament.CursorColumnProvider = (*Source)(nil)
+	_ filament.IncrementalPlanner   = (*Source)(nil)
 	_ filament.Resumable            = (*Source)(nil)
 	_ filament.ResumePlanner        = (*Source)(nil)
 )
@@ -100,11 +106,13 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
 		Version:      "2",
-		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeCDC},
+		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionFullReplace,
 			filament.IngestionFullUpsert,
 			filament.IngestionFullAppend,
+			filament.IngestionIncrementalAppend,
+			filament.IngestionIncrementalUpsert,
 			filament.IngestionCDC,
 		),
 		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
@@ -118,7 +126,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
 			{Name: "server_id", Type: filament.FieldInt, Default: defaultServerID, Scope: filament.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
 		}...)},
-		Resources: filament.ResourceCapabilities{Discoverable: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }
 
@@ -348,7 +356,7 @@ func (s *Source) extractKeyless(ctx context.Context, sink arrowbatch.Inlet, q qu
 		return fmt.Errorf("scan %q: %w", table, err)
 	}
 	defer func() { _ = rows.Close() }()
-	_, _, err = dec.appendRows(rows, w, nil, limit)
+	_, _, err = dec.appendRows(rows, w, nil, nil, limit)
 	return err
 }
 
@@ -405,10 +413,10 @@ func (d *rowDecoder) indexOf(names []string) ([]int, error) {
 
 // appendRows drains a result set into w. Every value arrives as text (the
 // driver's text protocol, or its rendering of a prepared statement's typed
-// values); binary columns arrive as their raw bytes. keyIdx names the columns
-// whose text becomes each row's RowMeta.Key (nil for a keyless read). limit > 0
-// stops after that many rows. Returns the rows appended and the last row's key.
-func (d *rowDecoder) appendRows(rows *sql.Rows, w arrowbatch.RowWriter, keyIdx []int, limit int) (int, []string, error) {
+// values); binary columns arrive as their raw bytes. keyIdx/keyCols name and type
+// the columns encoded into each row's RowMeta.Key (nil for a keyless read).
+// limit > 0 stops after that many rows. Returns the rows appended and last key.
+func (d *rowDecoder) appendRows(rows *sql.Rows, w arrowbatch.RowWriter, keyIdx []int, keyCols []pkColumn, limit int) (int, []string, error) {
 	raw := make([]sql.RawBytes, len(d.types))
 	dest := make([]any, len(raw))
 	for i := range raw {
@@ -431,9 +439,12 @@ func (d *rowDecoder) appendRows(rows *sql.Rows, w arrowbatch.RowWriter, keyIdx [
 		}
 		var meta rowmodel.Meta
 		if keyIdx != nil {
+			if len(keyIdx) != len(keyCols) {
+				return n, last, fmt.Errorf("checkpoint key has %d columns but %d types", len(keyIdx), len(keyCols))
+			}
 			meta.Key = make([]string, len(keyIdx))
 			for k, i := range keyIdx {
-				meta.Key[k] = string(raw[i])
+				meta.Key[k] = keyCols[k].checkpointValue(raw[i])
 			}
 		}
 		if err := w.EndRow(meta); err != nil {
@@ -503,17 +514,54 @@ ORDER BY c.ORDINAL_POSITION`
 	for ord := 1; ord <= maxOrder; ord++ {
 		for _, c := range cols {
 			if c.pkOrder == ord {
-				pks = append(pks, pkColumn{name: c.name, typ: c.dataType})
+				// Keep COLUMN_TYPE rather than bare DATA_TYPE: unsigned integer
+				// cursors must bind as UNSIGNED, and binary details are part of the
+				// durable checkpoint's comparison contract.
+				pks = append(pks, pkColumn{name: c.name, typ: c.fullType})
 			}
 		}
 	}
 	return cols, pks, nil
 }
 
-// pkColumn is one primary-key column: its raw name (bound into the id projection) and
-// its information_schema DATA_TYPE (used to cast a text resume cursor back to the
-// column type — see castExpr).
+// pkColumn is one primary-key column: its raw name and information_schema
+// COLUMN_TYPE, including qualifiers such as UNSIGNED and binary width. The type
+// controls durable checkpoint encoding and SQL resume binding.
 type pkColumn struct{ name, typ string }
+
+const binaryCheckpointPrefix = "b64:"
+
+// checkpointValue renders raw key bytes into a JSON-safe durable cursor. Textual
+// MySQL keys already arrive in their comparison form; binary keys need an explicit
+// encoding because encoding/json replaces invalid UTF-8 bytes in Go strings.
+func (p pkColumn) checkpointValue(raw []byte) string {
+	if isBinaryType(p.typ) {
+		return binaryCheckpointPrefix + base64.RawStdEncoding.EncodeToString(raw)
+	}
+	return string(raw)
+}
+
+// bindValue reverses checkpointValue for SQL comparisons. A legacy binary
+// checkpoint without the prefix is bound as its original bytes when possible.
+func (p pkColumn) bindValue(value string) any {
+	if isIntType(p.typ) && isUnsignedType(p.typ) {
+		if n, err := strconv.ParseUint(value, 10, 64); err == nil {
+			// Bind an actual uint64. MySQL's binary prepared-statement protocol
+			// otherwise gives a string parameter signed comparison semantics at
+			// values above MaxInt64 even inside CAST(... AS UNSIGNED).
+			return n
+		}
+	}
+	if !isBinaryType(p.typ) {
+		return value
+	}
+	if encoded, ok := strings.CutPrefix(value, binaryCheckpointPrefix); ok {
+		if decoded, err := base64.RawStdEncoding.DecodeString(encoded); err == nil {
+			return decoded
+		}
+	}
+	return []byte(value)
+}
 
 // quoteIdent renders s as a backtick-quoted MySQL identifier.
 func quoteIdent(s string) string {
