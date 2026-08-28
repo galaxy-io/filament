@@ -10,8 +10,8 @@ import {
   PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP,
   PIPELINE_SIDEBAR_ITEMS,
   PIPELINE_SIDEBAR_WIDTH,
-} from "@/pages/pipelines/layout/constants";
-import type { PipelineSidebarItem } from "@/pages/pipelines/layout/types";
+} from "@/layouts/pipeline/constants";
+import type { PipelineSidebarItem } from "@/layouts/pipeline/types";
 
 const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
   width: ${PIPELINE_SIDEBAR_WIDTH}px;
