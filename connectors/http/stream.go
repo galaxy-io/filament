@@ -55,7 +55,7 @@ func (c *Connector) streamResource(
 			resp.StatusCode, errs.FormatTruncated(string(body)))
 	}
 
-	resourceName, err := emittedResourceName(res, parent)
+	resourceName, err := emittedResourceName(res, parent, c.env)
 	if err != nil {
 		return 0, err
 	}

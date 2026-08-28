@@ -1,4 +1,4 @@
-name: Nightly Development Release
+name: "CD: Nightly Release"
 
 on:
   schedule:
@@ -26,13 +26,13 @@ jobs:
         id: version
         shell: bash
         run: |
-          stable_tag=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort --version-sort | tail -n 1)
+          stable_tag=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort --version-sort | tail -n 1 || true)
           if [[ -z "$stable_tag" ]]; then
             echo "No stable version tag found"
             exit 1
           fi
 
-          latest_dev=$(git tag --list "${stable_tag}-dev.*" | grep -E "^${stable_tag}-dev\.[0-9]+$" | sort --version-sort | tail -n 1)
+          latest_dev=$(git tag --list "${stable_tag}-dev.*" | grep -E "^${stable_tag}-dev\.[0-9]+$" | sort --version-sort | tail -n 1 || true)
           comparison_tag=${latest_dev:-$stable_tag}
 
           if git diff --quiet "${comparison_tag}...HEAD"; then
