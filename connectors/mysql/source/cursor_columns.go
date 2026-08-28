@@ -19,10 +19,14 @@ func (s *Source) CursorColumns(ctx context.Context, table string) ([]filament.Cu
 	if err != nil {
 		return nil, err
 	}
-	return cursorColumnsFromSchema(schema), nil
+	explicit := ""
+	if s.cursorColumns != nil {
+		explicit = s.cursorColumns[table]
+	}
+	return cursorColumnsFromSchema(schema, explicit), nil
 }
 
-func cursorColumnsFromSchema(schema rowmodel.Schema) []filament.CursorColumn {
+func cursorColumnsFromSchema(schema rowmodel.Schema, explicit string) []filament.CursorColumn {
 	pk := make(map[string]bool, len(schema.PrimaryKey))
 	for _, name := range schema.PrimaryKey {
 		pk[name] = true
@@ -35,13 +39,18 @@ func cursorColumnsFromSchema(schema rowmodel.Schema) []filament.CursorColumn {
 	out := make([]filament.CursorColumn, 0, len(schema.Fields))
 	best := 0
 	for _, field := range schema.Fields {
-		rank := priority[strings.ToLower(field.Name)]
-		eligible := isTimestampCursorType(field.Native)
-		warning := ""
-		if eligible && field.Nullable {
-			warning = "NULL cursor values cannot advance a durable watermark"
+		conventionalRank := priority[strings.ToLower(field.Name)]
+		rank := conventionalRank
+		if explicit != "" && strings.EqualFold(explicit, field.Name) {
+			rank = 1
 		}
-		if eligible && rank == 0 {
+		isTimestamp := isTimestampCursorType(field.Native)
+		eligible := isTimestamp && !field.Nullable
+		warning := ""
+		if isTimestamp && field.Nullable {
+			warning = "Durable cursor columns must be NOT NULL"
+		}
+		if eligible && conventionalRank == 0 {
 			warning = joinCursorWarning(warning, "Use only if this timestamp advances on every insert and update")
 		}
 		out = append(out, filament.CursorColumn{

@@ -1,12 +1,11 @@
 ---
 title: "MySQL"
-description: "Keyset snapshot reads and binlog CDC from MySQL 8.0+"
+description: "Keyset snapshot, incremental watermark, and binlog CDC reads from MySQL 8.0+"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg"
 ---
 
-The MySQL source reads from MySQL 8.0+ in two modes, resumable keyset
-snapshots and binlog CDC. There is no incremental mode. Full and CDC are the
-only options today. The connector is beta.
+The MySQL source reads from MySQL 8.0+ with resumable keyset snapshots,
+timestamp-watermark incremental reads, and binlog CDC. The connector is beta.
 
 ## Configuration
 
@@ -20,7 +19,7 @@ only options today. The connector is beta.
 | `password` | Connection | | Required in `fields` mode. Secret. |
 | `database_name` | Connection | | Database to connect to. Required in `fields` mode. |
 | `tls_mode` | Connection | `preferred` | One of `false`, `preferred`, `true`, `skip-verify`. |
-| `replication` | Connection | `standard` | `standard` for snapshot reads, `cdc` for binlog streaming. |
+| `replication` | Connection | `standard` | `standard` for query-based full and incremental reads, `cdc` for binlog streaming. |
 | `database` | Pipeline | DSN database | Database to read tables from. Error when neither this nor the DSN sets one. |
 | `page_size` | Pipeline | `1000` | Rows to target per read page. |
 | `shard_pages` | Pipeline | `16384` | InnoDB pages per parallel shard (≈256 MiB at 16 KiB pages). `0` disables sharding. |
@@ -50,9 +49,33 @@ shards may observe the table at slightly different moments. Rows are read
 through the driver's text protocol and parsed directly into Arrow-backed row
 writers; binary columns remain raw bytes.
 
-A table without a primary key is read in a single streaming pass with a
-synthetic `ROW_NUMBER()` id. That pass is not resumable, so a resume re-reads
-the whole table.
+A table without a primary key is read in a single streaming pass. That pass is
+not resumable, so a resume re-reads the whole table.
+
+## Incremental reads
+
+Incremental resources require both a primary key and a non-null `DATETIME` or
+`TIMESTAMP` cursor column. Conventional names such as `updated_at`,
+`modified_at`, and `last_modified_at` are recommended automatically; a cursor
+can also be selected per pipeline resource. The column must advance on every
+insert and update that the pipeline needs to observe.
+
+The first incremental run captures the current `(cursor, primary key...)`
+high watermark, then performs a resumable primary-key backfill. After that
+backfill completes, scheduled runs page by the compound watermark, which keeps
+rows sharing the same timestamp deterministic. Each run bounds itself at a
+high watermark inside a consistent-snapshot transaction.
+
+The default lookback is zero, so incremental append does not duplicate an
+overlap window. Configure a positive per-resource lookback to catch late commits;
+when a lookback is enabled, incremental upsert is the recommended write policy
+because recent rows are deliberately re-read. For large tables, an index
+beginning with the cursor and followed by the primary-key columns avoids an
+incremental filesort, for example:
+
+```sql
+CREATE INDEX users_incremental_idx ON users (updated_at, id);
+```
 
 ## CDC
 
