@@ -7,15 +7,16 @@ import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 import {
   PIPELINE_PREVIEW_CHIP_Z_INDEX,
   PIPELINE_SIDEBAR_WIDTH,
-} from "@/pages/pipelines/layout/constants";
-import PipelineLayoutNavbar from "@/pages/pipelines/layout/PipelineLayoutNavbar";
-import PipelineLayoutNavbarBackButton from "@/pages/pipelines/layout/PipelineLayoutNavbarBackButton";
-import PipelineLayoutSidebar from "@/pages/pipelines/layout/PipelineLayoutSidebar";
-import { PipelineSidebarItem } from "@/pages/pipelines/layout/types";
+} from "@/layouts/pipeline/constants";
+import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
+import PipelineLayoutNavbarBackButton from "@/layouts/pipeline/PipelineLayoutNavbarBackButton";
+import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
+import { PipelineSidebarItem } from "@/layouts/pipeline/types";
+
+import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
 

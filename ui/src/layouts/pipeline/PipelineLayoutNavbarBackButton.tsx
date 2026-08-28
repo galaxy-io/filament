@@ -6,7 +6,7 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { PIPELINE_NAVBAR_HEIGHT } from "@/pages/pipelines/layout/constants";
+import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
 
 const PipelineLayoutNavbarBackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
