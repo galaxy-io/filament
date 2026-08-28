@@ -6,7 +6,7 @@
 //	{{ config.<key> }}   — credentials / settings injected by registry
 //	{{ parent.<key> }}   — captured fields from parent record (child resources)
 //	{{ state.<key> }}    — watermark / checkpoint values
-//	{{ env.<key> }}      — process environment (opt-in per manifest, future)
+//	{{ env.<key> }}      — process environment captured at connector configuration
 //	{{ cursor }}         — current pagination cursor (no sub-key)
 //
 // Default values: {{ config.key | default "fallback" }}

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,6 +49,7 @@ type Connector struct {
 	manifestPath string
 	manifestData []byte
 	creds        map[string]string
+	env          map[string]string
 
 	manifest *manifest.Manifest
 	builder  *request.Builder
@@ -145,8 +148,9 @@ func (c *Connector) Configure(ctx context.Context) error {
 		}
 	}
 	c.manifest = m
+	c.env = processEnvironment()
 
-	authn, err := buildAuth(m.Connection.Auth, c.creds)
+	authn, err := buildAuth(m.Connection.Auth, c.creds, c.env)
 	if err != nil {
 		return fmt.Errorf("build auth: %w", err)
 	}
@@ -156,7 +160,7 @@ func (c *Connector) Configure(ctx context.Context) error {
 	// from config (`base_url: "{{ config.host }}"`) instead of pinning one
 	// cloud. Literal base URLs pass through untouched — Render short-circuits
 	// when there is no template.
-	baseURL, err := template.Render(m.Connection.BaseURL, template.Scope{Config: c.creds})
+	baseURL, err := template.Render(m.Connection.BaseURL, template.Scope{Config: c.creds, Env: c.env})
 	if err != nil {
 		return fmt.Errorf("render base_url: %w", err)
 	}
@@ -208,7 +212,7 @@ func (c *Connector) TestConnection(ctx context.Context) error {
 	}
 
 	build := func(ctx context.Context) (*http.Request, error) {
-		return c.builder.Build(ctx, *probe, template.Scope{Config: c.creds})
+		return c.builder.Build(ctx, *probe, template.Scope{Config: c.creds, Env: c.env})
 	}
 	_, body, err := c.doRequest(ctx, build, probe.Name)
 	if err != nil {
@@ -236,11 +240,23 @@ func (c *Connector) Teardown(_ context.Context) error {
 // validate their own required keys. Static credential fields can use the
 // `{{ config.* }}` template (resolved per-request inside Apply).
 //
-// creds threads the connector's `config.*` scope into auth.Build so missing
-// config keys referenced by auth params surface as Configure errors, not
+// creds and env thread their template scopes into auth.BuildWithEnvironment so
+// missing keys referenced by auth params surface as Configure errors, not
 // first-request 401s.
-func buildAuth(spec manifest.AuthSpec, creds map[string]string) (auth.Authenticator, error) {
-	return auth.Build(spec.Type, spec.Params, creds)
+func buildAuth(spec manifest.AuthSpec, creds, env map[string]string) (auth.Authenticator, error) {
+	return auth.BuildWithEnvironment(spec.Type, spec.Params, creds, env)
+}
+
+func processEnvironment() map[string]string {
+	environ := os.Environ()
+	values := make(map[string]string, len(environ))
+	for _, entry := range environ {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[key] = value
+		}
+	}
+	return values
 }
 
 // buildLimiter constructs a Limiter from the manifest's RateLimit. Static

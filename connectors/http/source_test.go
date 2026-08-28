@@ -133,6 +133,57 @@ resources:
 	}
 }
 
+func TestConnectorPopulatesEnvironmentTemplateScope(t *testing.T) {
+	t.Setenv("FILAMENT_HTTP_BASE_URL", "https://api.example.com")
+	t.Setenv("FILAMENT_HTTP_TOKEN", "secret=value")
+	t.Setenv("FILAMENT_HTTP_PATH", "environment-items")
+	t.Setenv("FILAMENT_HTTP_HEADER", "from-environment")
+
+	m, err := manifest.Parse([]byte(`
+version: 1
+name: environment
+display_name: Environment
+description: Environment template scope test.
+dark_logo_url: https://cdn.example.com/environment-dark.svg
+light_logo_url: https://cdn.example.com/environment-light.svg
+connection:
+  base_url: "{{ env.FILAMENT_HTTP_BASE_URL }}"
+  auth:
+    bearer: "{{ env.FILAMENT_HTTP_TOKEN }}"
+  headers:
+    X-Environment: "{{ env.FILAMENT_HTTP_HEADER }}"
+resources:
+  - name: items
+    path: "/{{ env.FILAMENT_HTTP_PATH }}"
+    response:
+      records: $.items
+`))
+	if err != nil {
+		t.Fatalf("parse manifest: %v", err)
+	}
+
+	c := &Connector{}
+	c.SetManifest(m)
+	if err := c.Configure(context.Background()); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer c.Teardown(context.Background())
+
+	req, err := c.builder.Build(context.Background(), m.Resources[0], c.scopeFor(nil, "", nil))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	if got, want := req.URL.String(), "https://api.example.com/environment-items"; got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+	if got, want := req.Header.Get("Authorization"), "Bearer secret=value"; got != want {
+		t.Fatalf("Authorization = %q, want %q", got, want)
+	}
+	if got, want := req.Header.Get("X-Environment"), "from-environment"; got != want {
+		t.Fatalf("X-Environment = %q, want %q", got, want)
+	}
+}
+
 func TestSourcePlanResumeExpandsManifestResources(t *testing.T) {
 	ctx := context.Background()
 	api := httptest.NewServer(http.NotFoundHandler())
