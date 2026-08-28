@@ -1,24 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import z from "zod";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import ConnectionsPage from "@/pages/connectors/ConnectionsPage";
 
-import { createListConnectionsInfiniteQueryOptions } from "@/api/queries/connections";
+import {
+  createListConnectionsInfiniteQueryOptions,
+  createListConnectionsInput,
+} from "@/api/queries/connections";
 import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
+import { listSearchParamsSchema } from "@/api/utils";
 
-const searchParams = z.object({
-  q: z.string().optional().catch(undefined),
-});
+const searchParams = listSearchParamsSchema.pick({ q: true });
 
 export const Route = createFileRoute("/_main/sources")({
   validateSearch: searchParams,
-  loader: () =>
+  loaderDeps: ({ search: { q } }) => ({ q }),
+  loader: ({ deps }) =>
     queryClient.ensureInfiniteQueryData(
       createListConnectionsInfiniteQueryOptions({
-        input: { kind: ConnectorKind.SOURCE },
+        input: createListConnectionsInput(ConnectorKind.SOURCE, deps),
         transport,
       }),
     ),

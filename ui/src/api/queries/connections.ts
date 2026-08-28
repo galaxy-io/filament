@@ -13,6 +13,7 @@ import {
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type {
   GetConnectionRequest,
   GetConnectionResponse,
@@ -23,11 +24,18 @@ import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { createDiscoverResourcesQueryKey } from "@/api/queries/connectors";
 import {
+  createListSearchInput,
   getNextPageParam,
   INITIAL_PAGE_PARAM,
   type InfiniteQueryInput,
+  type ListSearchParams,
   type UseInfiniteQueryOptions,
 } from "@/api/utils";
+
+export const createListConnectionsInput = (kind: ConnectorKind, search: ListSearchParams) => ({
+  kind,
+  ...createListSearchInput(search),
+});
 
 export const createListConnectionsQueryKey = (
   input?: ListConnectionsRequest,
