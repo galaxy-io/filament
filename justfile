@@ -92,6 +92,7 @@ binaries: ui-dist
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
 # build docker images
 images: binaries
