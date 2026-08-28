@@ -366,7 +366,7 @@ func listRunsQuery(f filament.RunFilter) (string, []any) {
 			q += " ORDER BY r.updated_at ASC, r.id ASC"
 		}
 	default:
-		q += " ORDER BY r.started_at DESC NULLS FIRST, r.id DESC"
+		q += " ORDER BY COALESCE(r.started_at, r.requested_at, r.created_at) DESC, r.id DESC"
 	}
 	if f.Limit > 0 {
 		q += " LIMIT " + arg(f.Limit)
