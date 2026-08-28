@@ -128,25 +128,12 @@ func (a *cliApp) deleteConnection(kind string, args []string, doc configDocument
 }
 
 func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, flags map[string][]string) (connection, error) {
-	conn := connection{Config: map[string]any{}}
-	if existing != nil {
-		conn = *existing
-		conn.Config = cloneConfigMap(existing.Config)
+	conn, prefix, err := initializeConnection(kind, name, existing, flags)
+	if err != nil {
+		return conn, err
 	}
-	prefix := kind + "-"
 	connectorFlag := prefix + "connector"
-	typeName := lastFlag(flags, connectorFlag)
-	if typeName == "" {
-		typeName = conn.Type
-	}
-	if typeName == "" {
-		return conn, fmt.Errorf("%s %q: --%s is required", kind, name, connectorFlag)
-	}
-	conn.Type = typeName
-	if existing != nil && existing.Type != typeName {
-		conn.Config = map[string]any{}
-	}
-	schema, err := a.connectionSchema(kind, typeName)
+	schema, err := a.connectionSchema(kind, conn.Type)
 	if err != nil {
 		return conn, err
 	}
@@ -206,6 +193,28 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 	}
 	conn.Config = normalized
 	return conn, nil
+}
+
+func initializeConnection(kind, name string, existing *connection, flags map[string][]string) (connection, string, error) {
+	conn := connection{Config: map[string]any{}}
+	if existing != nil {
+		conn = *existing
+		conn.Config = cloneConfigMap(existing.Config)
+	}
+	prefix := kind + "-"
+	connectorFlag := prefix + "connector"
+	typeName := lastFlag(flags, connectorFlag)
+	if typeName == "" {
+		typeName = conn.Type
+	}
+	if typeName == "" {
+		return conn, prefix, fmt.Errorf("%s %q: --%s is required", kind, name, connectorFlag)
+	}
+	conn.Type = typeName
+	if existing != nil && existing.Type != typeName {
+		conn.Config = map[string]any{}
+	}
+	return conn, prefix, nil
 }
 
 func (a *cliApp) connectionSchema(kind, typeName string) (filament.ConfigSchema, error) {
