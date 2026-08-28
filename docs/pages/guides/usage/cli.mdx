@@ -3,15 +3,12 @@ title: "CLI"
 description: "Configure and run Filament locally from the command line"
 ---
 
-<Note>
-  The CLI is in development on the `atterpac/cli` branch. Commands and flags
-  may change before it merges.
-</Note>
-
 The `filament` CLI runs pipelines on your own machine. It reads and writes a
 single YAML file, executes runs in process, and needs no server, no database,
-and no event bus. Everything the web app does through the API, the CLI does
-locally against that file.
+and no external event bus. It covers local connection management, discovery,
+pipeline configuration, and full-read execution against that file. Features
+that require durable server state are described under [What runs
+where](#what-runs-where).
 
 There are two ways to work with it:
 
@@ -26,8 +23,11 @@ The CLI lives in `cmd/filament` and compiles like any other Go binary in the
 repository:
 
 ```sh
-go build -o bin/filament ./cmd/filament
+mkdir -p bin/filament
+go build -o bin/filament/filament ./cmd/filament
 ```
+
+`just binaries` includes the CLI with the other Linux release binaries.
 
 Every connector compiled into the binary is available to it. The catalog
 comes from the same registry the server uses, so connector names and config
@@ -62,13 +62,18 @@ authoritative reference for any connector:
 filament source create --source-connector clickhouse --help
 ```
 
+Conditional configuration is explicit. Database URL configuration requires
+`--source-connection-method url` or `--sink-connection-method url`; supplying a
+DSN alone does not select URL mode.
+
 ## Secrets
 
 Secret fields never have to be typed in plaintext. Any of these work:
 
 - `--source-dsn-env POSTGRES_DSN` names an environment variable
-- `--source-dsn $POSTGRES_DSN` and `--source-dsn ${POSTGRES_DSN}` are
-  recognized as references, not literal values
+- `--source-dsn '$POSTGRES_DSN'` and `--source-dsn '${POSTGRES_DSN}'` are
+  recognized as references, not literal values. The quotes prevent your shell
+  from expanding the variable before Filament sees it.
 - A plaintext value, if you really want one
 
 Saved connections store the reference, not the value. A referenced secret
@@ -76,22 +81,30 @@ lands in the file as `env:POSTGRES_DSN` and resolves at run time, so the
 config file stays safe to read and commit. The file itself is written with
 owner-only permissions.
 
+References also work in nested JSON configuration. For example, a nested
+secret value of `"$CATALOG_TOKEN"` is stored as `env:CATALOG_TOKEN` and resolved
+recursively at run time.
+
 ## Saving connections
 
 ```sh
 filament source create production \
   --source-connector postgres \
+  --source-connection-method url \
   --source-dsn-env POSTGRES_DSN
 
 filament sink create warehouse \
   --sink-connector postgres \
+  --sink-connection-method url \
   --sink-dsn-env POSTGRES_SINK_DSN
 ```
 
 `filament source list` and `filament sink list` print what you have saved.
-`edit` takes the same flags and changes only what you pass. `delete` asks for
-confirmation unless you pass `--force`, and it refuses to remove a connection
-that a saved pipeline still references.
+`edit` takes the same flags and changes only what you pass. Use `--unset
+source-FIELD` or `--unset sink-FIELD` to remove an optional field; repeat the
+flag to remove more than one. `delete` asks for confirmation unless you pass
+`--force`, and it refuses to remove a connection that a saved pipeline still
+references.
 
 ## Discovering resources
 
@@ -108,7 +121,8 @@ bypass any cached view. Discovery also works without saving anything first:
 ```sh
 filament source discover \
   --source-connector postgres \
-  --source-dsn $POSTGRES_DSN
+  --source-connection-method url \
+  --source-dsn-env POSTGRES_DSN
 ```
 
 ## Saving pipelines
@@ -124,7 +138,12 @@ filament pipeline create users-copy \
 `--source` and `--sink` name saved connections. Leaving out `--resources`
 means every resource the source discovers. Pipeline-scoped connector fields
 are set the same way as connection fields, so `--sink-schema filament` targets
-a particular destination schema.
+a particular destination schema. When a sink declares a schema, namespace,
+database, or key-prefix field and you leave it empty, the CLI defaults it to
+the normalized source connection name.
+Editing a pipeline also accepts repeatable `--unset source-FIELD` and `--unset
+sink-FIELD` flags. Switching to a different connector automatically removes
+fields that belonged to the previous connector.
 
 ## Running
 
@@ -139,7 +158,8 @@ Or declare the whole thing inline:
 ```sh
 filament run \
   --source-connector postgres \
-  --source-dsn $POSTGRES_DSN \
+  --source-connection-method url \
+  --source-dsn-env POSTGRES_DSN \
   --sink-connector stdout
 ```
 
@@ -171,6 +191,7 @@ sources:
   production:
     type: postgres
     config:
+      connection_method: url
       dsn: env:POSTGRES_DSN
       replication: standard
 
@@ -178,6 +199,7 @@ sinks:
   warehouse:
     type: postgres
     config:
+      connection_method: url
       dsn: env:POSTGRES_SINK_DSN
 
 pipelines:
