@@ -291,9 +291,12 @@ type RunFilter struct {
 	// UpdatedBefore matches runs whose last write is older than it — the
 	// staleness probe: heartbeat folds bump UpdatedAt, so a Running run that
 	// stops updating has lost its worker.
-	UpdatedBefore time.Time
-	Limit         int
-	Offset        int
+	UpdatedBefore  time.Time
+	Limit          int
+	Offset         int
+	Search         string
+	SortBy         string
+	SortDescending bool
 }
 
 // SyncSnapshot is a consistent read of a run and its resources at bus

@@ -168,19 +168,26 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 
 // ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
-	connections, err := a.store.ListConnections(ctx, filament.ConnectionFilter{Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind()), IncludeDeleted: req.Msg.GetIncludeDeleted()})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	page, pagination, err := pageOf(connections, req.Msg.GetPagination())
+	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
+		ingestionv1.SortBy_SORT_BY_NAME:       "name",
+		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
+		ingestionv1.SortBy_SORT_BY_UPDATED_AT: "updated_at",
+	}, "id", false)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*ingestionv1.Connection, len(page))
-	for i, c := range page {
+	connections, total, err := a.store.ListConnections(ctx, filament.ConnectionFilter{
+		Tenant: req.Msg.GetTenantId(), Kind: connectionKindFromProto(req.Msg.GetKind()),
+		IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := make([]*ingestionv1.Connection, len(connections))
+	for i, c := range connections {
 		out[i] = a.connectionForResponse(c)
 	}
-	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out, Pagination: pagination}), nil
+	return connect.NewResponse(&ingestionv1.ListConnectionsResponse{Connections: out, Pagination: paginationOf(req.Msg.GetPagination(), options, total)}), nil
 }
 
 func (a *Server) connectionForResponse(conn filament.Connection) *ingestionv1.Connection {
@@ -208,7 +215,7 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeInternal, loadErr)
 	}
 
-	pipelines, err := a.store.ListPipelines(ctx, filament.PipelineFilter{})
+	pipelines, _, err := a.store.ListPipelines(ctx, filament.PipelineFilter{})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

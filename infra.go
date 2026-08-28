@@ -48,7 +48,7 @@ type DataStore interface {
 	CreateConnection(ctx context.Context, c Connection) (Connection, error)
 	UpdateConnection(ctx context.Context, c Connection) (Connection, error)
 	LoadConnection(ctx context.Context, id string) (Connection, error)
-	ListConnections(ctx context.Context, f ConnectionFilter) ([]Connection, error)
+	ListConnections(ctx context.Context, f ConnectionFilter) ([]Connection, int, error)
 	DeleteConnection(ctx context.Context, id string) error
 
 	CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
@@ -58,8 +58,8 @@ type DataStore interface {
 	// mutating or running one.
 	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
 	LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
-	ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error)
-	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, error)
+	ListPipelineVersions(ctx context.Context, f PipelineVersionFilter) ([]*ingestionv1.PipelineVersion, int, error)
+	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, int, error)
 	DeletePipeline(ctx context.Context, id string) error
 	Name() string
 }
@@ -138,12 +138,30 @@ type ConnectionFilter struct {
 	Tenant         string
 	Kind           ConnectorKind
 	IncludeDeleted bool
+	ListOptions
 }
 
 // PipelineFilter narrows a pipeline listing by tenant.
 type PipelineFilter struct {
 	Tenant         string
 	IncludeDeleted bool
+	ListOptions
+}
+
+// PipelineVersionFilter narrows a pipeline version listing.
+type PipelineVersionFilter struct {
+	PipelineID string
+	ListOptions
+}
+
+// ListOptions controls search, deterministic ordering, and offset pagination
+// for datastore-backed collection RPCs.
+type ListOptions struct {
+	Search         string
+	SortBy         string
+	SortDescending bool
+	Limit          int
+	Offset         int
 }
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.

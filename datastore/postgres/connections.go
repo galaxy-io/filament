@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -61,25 +62,36 @@ func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connect
 	return connectionFromRow(row.ID, row.TenantID, row.Kind, row.Name, row.Connector, row.Config, row.SecretRefs, row.Version, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
 }
 
-// ListConnections returns connections matching the filter, sorted by ID.
-func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter) ([]filament.Connection, error) {
+// ListConnections returns one filtered, sorted page and its pre-page total.
+func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter) ([]filament.Connection, int, error) {
 	kind := sqlcgen.NullConnectorKind{}
 	if f.Kind != filament.ConnectorKindUnspecified {
 		kind = sqlcgen.NullConnectorKind{ConnectorKind: connectionKindToDB(f.Kind), Valid: true}
 	}
-	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{TenantID: f.Tenant, Kind: kind, IncludeDeleted: f.IncludeDeleted})
+	search := escapeLikePattern(strings.TrimSpace(f.Search))
+	count, err := s.q.CountConnections(ctx, sqlcgen.CountConnectionsParams{
+		TenantID: f.Tenant, Kind: kind, IncludeDeleted: f.IncludeDeleted, Search: search,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("datastore/postgres: list connections: %w", err)
+		return nil, 0, fmt.Errorf("datastore/postgres: count connections: %w", err)
+	}
+	rows, err := s.q.ListConnections(ctx, sqlcgen.ListConnectionsParams{
+		TenantID: f.Tenant, Kind: kind, IncludeDeleted: f.IncludeDeleted, Search: search,
+		SortBy: f.SortBy, SortDesc: f.SortDescending,
+		Lim: int32(f.Limit), OffsetRows: int32(f.Offset), //nolint:gosec // API pagination is capped
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("datastore/postgres: list connections: %w", err)
 	}
 	out := make([]filament.Connection, len(rows))
 	for i, row := range rows {
 		c, err := connectionFromRow(row.ID, row.TenantID, row.Kind, row.Name, row.Connector, row.Config, row.SecretRefs, row.Version, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out[i] = c
 	}
-	return out, nil
+	return out, int(count), nil
 }
 
 // DeleteConnection soft-deletes the connection with the given ID; deleting a

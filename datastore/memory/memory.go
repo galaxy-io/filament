@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -279,16 +280,66 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	}
 	s.mu.RLock()
 	var out []filament.RunState
+	pipelineNames := make(map[string]string)
 	for id, r := range s.runs {
 		if !matchRun(r, f) {
 			continue
 		}
+		pipelineID := r.Request.PipelineID
+		pipeline := s.pipelines[pipelineID]
+		if pipeline == nil {
+			pipeline = s.deletedPipelines[pipelineID]
+		}
+		pipelineName, pipelineDescription := "", ""
+		if pipeline != nil {
+			pipelineName, pipelineDescription = pipeline.GetName(), pipeline.GetDescription()
+		}
+		if !matchesSearch(f.Search, string(r.Run), pipelineID, pipelineName, pipelineDescription) {
+			continue
+		}
+		pipelineNames[pipelineID] = pipelineName
 		r.Resources = s.listResourcesLocked(id)
 		out = append(out, r)
 	}
 	s.mu.RUnlock()
 
-	sort.Slice(out, func(i, j int) bool {
+	sort.SliceStable(out, func(i, j int) bool {
+		if f.SortBy == "name" {
+			a := strings.ToLower(pipelineNames[out[i].Request.PipelineID])
+			b := strings.ToLower(pipelineNames[out[j].Request.PipelineID])
+			if a == "" && b != "" {
+				return false
+			}
+			if a != "" && b == "" {
+				return true
+			}
+			if a == b {
+				if f.SortDescending {
+					return out[i].Run > out[j].Run
+				}
+				return out[i].Run < out[j].Run
+			}
+			if f.SortDescending {
+				return a > b
+			}
+			return a < b
+		}
+		if f.SortBy == "created_at" || f.SortBy == "updated_at" {
+			a, b := out[i].CreatedAt, out[j].CreatedAt
+			if f.SortBy == "updated_at" {
+				a, b = out[i].UpdatedAt, out[j].UpdatedAt
+			}
+			if a.Equal(b) {
+				if f.SortDescending {
+					return out[i].Run > out[j].Run
+				}
+				return out[i].Run < out[j].Run
+			}
+			if f.SortDescending {
+				return a.After(b)
+			}
+			return a.Before(b)
+		}
 		if out[i].StartedAt.Equal(out[j].StartedAt) {
 			return out[i].Run > out[j].Run
 		}

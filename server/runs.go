@@ -18,19 +18,24 @@ import (
 // ListRuns returns runs matching the request's tenant, pipeline, version,
 // statuses, and started_at window.
 func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.ListRunsRequest]) (*connect.Response[ingestionv1.ListRunsResponse], error) {
+	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
+		ingestionv1.SortBy_SORT_BY_NAME:       "name",
+		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
+		ingestionv1.SortBy_SORT_BY_UPDATED_AT: "updated_at",
+	}, "started_at", true)
+	if err != nil {
+		return nil, err
+	}
 	filter := filament.RunFilter{
 		Tenant:            filament.TenantID(req.Msg.GetTenantId()),
 		PipelineID:        req.Msg.GetPipelineId(),
 		PipelineVersionID: req.Msg.PipelineVersionId,
 		Status:            runStatusesFromProto(req.Msg.GetStatus()),
-	}
-	if p := req.Msg.GetPagination(); p != nil {
-		offset, err := decodeCursor(p.GetCursor())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
-		filter.Limit = int(pageSizeOf(p.GetPageSize()))
-		filter.Offset = int(offset)
+		Search:            options.Search,
+		SortBy:            options.SortBy,
+		SortDescending:    options.SortDescending,
+		Limit:             options.Limit,
+		Offset:            options.Offset,
 	}
 	if req.Msg.GetSinceMs() > 0 {
 		filter.Since = time.UnixMilli(req.Msg.GetSinceMs())
@@ -46,13 +51,9 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 	for _, state := range states {
 		runs = append(runs, runInfoToProto(state))
 	}
-	pagination := &ingestionv1.PaginationResponse{Total: int32(total)} //nolint:gosec // row counts fit int32
-	if req.Msg.GetPagination() != nil {
-		pagination = paginationResponse(int32(filter.Offset), int32(filter.Limit), int32(total)) //nolint:gosec // filter and row counts fit int32
-	}
 	return connect.NewResponse(&ingestionv1.ListRunsResponse{
 		Runs:       runs,
-		Pagination: pagination,
+		Pagination: paginationOf(req.Msg.GetPagination(), options, total),
 	}), nil
 }
 

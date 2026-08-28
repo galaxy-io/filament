@@ -1,23 +1,14 @@
 -- +goose Up
--- B-tree indexes cover the common list orders. GIN and PostgreSQL's built-in
--- full-text search provide word-oriented search without any extension.
+-- B-tree indexes cover the common list orders. Literal substring search uses
+-- ILIKE and intentionally has no index: accelerating a leading-wildcard match
+-- would require an extension such as pg_trgm.
 CREATE INDEX connections_list_name_idx
   ON connections (tenant_id, kind, lower(name), id)
   WHERE NOT is_deleted;
 
-CREATE INDEX connections_search_idx
-  ON connections USING gin (
-    to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(connector, ''))
-  );
-
 CREATE INDEX pipelines_list_name_idx
   ON pipelines (tenant_id, lower(name), id)
   WHERE NOT is_deleted;
-
-CREATE INDEX pipelines_search_idx
-  ON pipelines USING gin (
-    to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(description, ''))
-  );
 
 CREATE INDEX pipeline_versions_created_idx
   ON pipeline_versions (pipeline_id, created_at, id);
@@ -32,7 +23,5 @@ CREATE INDEX runs_pipeline_started_idx
 DROP INDEX runs_pipeline_started_idx;
 DROP INDEX runs_tenant_started_idx;
 DROP INDEX pipeline_versions_created_idx;
-DROP INDEX pipelines_search_idx;
 DROP INDEX pipelines_list_name_idx;
-DROP INDEX connections_search_idx;
 DROP INDEX connections_list_name_idx;

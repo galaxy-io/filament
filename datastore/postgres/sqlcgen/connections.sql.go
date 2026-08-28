@@ -11,6 +11,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countConnections = `-- name: CountConnections :one
+SELECT count(*) FROM connections
+WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
+  AND ($2::connector_kind IS NULL OR kind = $2)
+  AND ($3::boolean OR NOT is_deleted)
+  AND (nullif($4::text, '') IS NULL
+       OR name ILIKE '%' || $4 || '%' ESCAPE '\'
+       OR connector ILIKE '%' || $4 || '%' ESCAPE '\')
+`
+
+type CountConnectionsParams struct {
+	TenantID       string
+	Kind           NullConnectorKind
+	IncludeDeleted bool
+	Search         string
+}
+
+func (q *Queries) CountConnections(ctx context.Context, arg CountConnectionsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countConnections,
+		arg.TenantID,
+		arg.Kind,
+		arg.IncludeDeleted,
+		arg.Search,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createConnection = `-- name: CreateConnection :exec
 INSERT INTO connections (id, tenant_id, kind, name, connector, config, secret_refs, version, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, 1, now())
@@ -106,13 +135,33 @@ FROM connections
 WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
   AND ($2::connector_kind IS NULL OR kind = $2)
   AND ($3::boolean OR NOT is_deleted)
-ORDER BY id
+  AND (nullif($4::text, '') IS NULL
+       OR name ILIKE '%' || $4 || '%' ESCAPE '\'
+       OR connector ILIKE '%' || $4 || '%' ESCAPE '\')
+ORDER BY
+  CASE WHEN $5::text IN ('', 'id') AND NOT $6::boolean THEN id END ASC,
+  CASE WHEN $5::text IN ('', 'id') AND $6::boolean THEN id END DESC,
+  CASE WHEN $5::text = 'name' AND NOT $6::boolean THEN lower(name) END ASC,
+  CASE WHEN $5::text = 'name' AND $6::boolean THEN lower(name) END DESC,
+  CASE WHEN $5::text = 'created_at' AND NOT $6::boolean THEN created_at END ASC,
+  CASE WHEN $5::text = 'created_at' AND $6::boolean THEN created_at END DESC,
+  CASE WHEN $5::text = 'updated_at' AND NOT $6::boolean THEN updated_at END ASC,
+  CASE WHEN $5::text = 'updated_at' AND $6::boolean THEN updated_at END DESC,
+  CASE WHEN NOT $6::boolean THEN id END ASC,
+  CASE WHEN $6::boolean THEN id END DESC
+LIMIT NULLIF($8::int, 0)
+OFFSET $7::int
 `
 
 type ListConnectionsParams struct {
 	TenantID       string
 	Kind           NullConnectorKind
 	IncludeDeleted bool
+	Search         string
+	SortBy         string
+	SortDesc       bool
+	OffsetRows     int32
+	Lim            int32
 }
 
 type ListConnectionsRow struct {
@@ -133,7 +182,16 @@ type ListConnectionsRow struct {
 }
 
 func (q *Queries) ListConnections(ctx context.Context, arg ListConnectionsParams) ([]*ListConnectionsRow, error) {
-	rows, err := q.db.Query(ctx, listConnections, arg.TenantID, arg.Kind, arg.IncludeDeleted)
+	rows, err := q.db.Query(ctx, listConnections,
+		arg.TenantID,
+		arg.Kind,
+		arg.IncludeDeleted,
+		arg.Search,
+		arg.SortBy,
+		arg.SortDesc,
+		arg.OffsetRows,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
