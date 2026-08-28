@@ -23,7 +23,13 @@ import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { createListRunsQueryKey } from "@/api/queries/runs";
-import { getNextPageParam, INITIAL_PAGE_PARAM, type InfiniteQueryInput } from "@/api/utils";
+import {
+  createListSearchInput,
+  getNextPageParam,
+  INITIAL_PAGE_PARAM,
+  type InfiniteQueryInput,
+  type ListSearchParams,
+} from "@/api/utils";
 
 const LIST_PIPELINES_REFETCH_INTERVAL = 3 * 1000;
 
@@ -34,6 +40,11 @@ const getListPipelinesRefetchInterval = (pipelines: Pipeline[] | undefined) => {
     ? LIST_PIPELINES_REFETCH_INTERVAL
     : false;
 };
+
+export const createListPipelinesInput = (search: ListSearchParams) => ({
+  includeLastRun: true,
+  ...createListSearchInput(search),
+});
 
 export const createListPipelinesQueryKey = (
   input?: ListPipelinesRequest,

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -255,50 +256,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 // resource states attached. Runs that have not started sort first: a pending
 // scheduled run and one still spinning up are both upcoming work.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
-	q := `SELECT id, tenant_id, coalesce(schedule_id::text, ''), status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, ''), cpu_seconds, memory_peak_bytes, count(*) OVER ()
-	      FROM runs WHERE 1=1`
-	args := []any{}
-	arg := func(v any) string {
-		args = append(args, v)
-		return fmt.Sprintf("$%d", len(args))
-	}
-	if f.Tenant != "" {
-		q += " AND tenant_id = " + arg(string(f.Tenant))
-	}
-	// pipeline_id and pipeline_version_id are indexed foreign-key columns.
-	if f.PipelineID != "" {
-		q += " AND pipeline_id = " + arg(f.PipelineID)
-	}
-	if f.PipelineVersionID != nil {
-		q += " AND pipeline_version_id = " + arg(*f.PipelineVersionID)
-	}
-	if f.Schedule != "" {
-		q += " AND schedule_id = " + arg(string(f.Schedule))
-	}
-	if !f.Since.IsZero() {
-		q += " AND started_at >= " + arg(f.Since)
-	}
-	if !f.Until.IsZero() {
-		q += " AND started_at < " + arg(f.Until)
-	}
-	if !f.UpdatedBefore.IsZero() {
-		q += " AND updated_at < " + arg(f.UpdatedBefore)
-	}
-	if len(f.Status) > 0 {
-		statuses := make([]int, len(f.Status))
-		for i, st := range f.Status {
-			statuses[i] = int(st)
-		}
-		q += " AND status = ANY(" + arg(statuses) + ")"
-	}
-	q += " ORDER BY started_at DESC NULLS FIRST, id DESC"
-	if f.Limit > 0 {
-		q += " LIMIT " + arg(f.Limit)
-	}
-	if f.Offset > 0 {
-		q += " OFFSET " + arg(f.Offset)
-	}
-
+	q, args := listRunsQuery(f)
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("datastore/postgres: list runs: %w", err)
@@ -342,6 +300,87 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		out[i].Resources = resources
 	}
 	return out, total, nil
+}
+
+func listRunsQuery(f filament.RunFilter) (string, []any) {
+	q := `SELECT r.id, r.tenant_id, coalesce(r.schedule_id::text, ''), r.status, r.request, r.records, r.bytes, r.created_at, r.scheduled_at, r.requested_at, r.started_at, r.ended_at, r.updated_at, coalesce(r.error, ''), r.cpu_seconds, r.memory_peak_bytes, count(*) OVER ()
+	      FROM runs r LEFT JOIN pipelines p ON p.id = r.pipeline_id WHERE 1=1`
+	args := []any{}
+	arg := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	if f.Tenant != "" {
+		q += " AND r.tenant_id = " + arg(string(f.Tenant))
+	}
+	// pipeline_id and pipeline_version_id are indexed foreign-key columns.
+	if f.PipelineID != "" {
+		q += " AND r.pipeline_id = " + arg(f.PipelineID)
+	}
+	if f.PipelineVersionID != nil {
+		q += " AND r.pipeline_version_id = " + arg(*f.PipelineVersionID)
+	}
+	if f.Schedule != "" {
+		q += " AND r.schedule_id = " + arg(string(f.Schedule))
+	}
+	if !f.Since.IsZero() {
+		q += " AND r.started_at >= " + arg(f.Since)
+	}
+	if !f.Until.IsZero() {
+		q += " AND r.started_at < " + arg(f.Until)
+	}
+	if !f.UpdatedBefore.IsZero() {
+		q += " AND r.updated_at < " + arg(f.UpdatedBefore)
+	}
+	if len(f.Status) > 0 {
+		statuses := make([]int, len(f.Status))
+		for i, st := range f.Status {
+			statuses[i] = int(st)
+		}
+		q += " AND r.status = ANY(" + arg(statuses) + ")"
+	}
+	if search := strings.TrimSpace(f.Search); search != "" {
+		exactPlaceholder := arg(search)
+		likePlaceholder := arg(escapeLikePattern(search))
+		q += " AND (r.id::text = " + exactPlaceholder + " OR r.pipeline_id::text = " + exactPlaceholder +
+			" OR p.name ILIKE '%' || " + likePlaceholder + " || '%' ESCAPE '\\'" +
+			" OR p.description ILIKE '%' || " + likePlaceholder + " || '%' ESCAPE '\\')"
+	}
+	switch f.SortBy {
+	case "name":
+		if f.SortDescending {
+			q += " ORDER BY lower(p.name) DESC NULLS LAST, r.id DESC"
+		} else {
+			q += " ORDER BY lower(p.name) ASC NULLS LAST, r.id ASC"
+		}
+	case "created_at":
+		if f.SortDescending {
+			q += " ORDER BY r.created_at DESC, r.id DESC"
+		} else {
+			q += " ORDER BY r.created_at ASC, r.id ASC"
+		}
+	case "updated_at":
+		if f.SortDescending {
+			q += " ORDER BY r.updated_at DESC, r.id DESC"
+		} else {
+			q += " ORDER BY r.updated_at ASC, r.id ASC"
+		}
+	default:
+		q += " ORDER BY COALESCE(r.started_at, r.requested_at, r.created_at) DESC, r.id DESC"
+	}
+	if f.Limit > 0 {
+		q += " LIMIT " + arg(f.Limit)
+	}
+	if f.Offset > 0 {
+		q += " OFFSET " + arg(f.Offset)
+	}
+	return q, args
+}
+
+// escapeLikePattern makes user input literal when placed between the wildcards
+// used by list search. PostgreSQL otherwise treats %, _, and \ as pattern syntax.
+func escapeLikePattern(value string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(value)
 }
 
 // runTimes groups a run row's lifecycle stamps so they travel as a named set

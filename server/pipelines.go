@@ -266,15 +266,18 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
-	versions, err := a.store.ListPipelineVersions(ctx, req.Msg.GetPipelineId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	page, pagination, err := pageOf(versions, req.Msg.GetPagination())
+	options, err := listOptionsOf(req.Msg.GetPagination(), "", req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
+		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
+		ingestionv1.SortBy_SORT_BY_UPDATED_AT: "updated_at",
+	}, "version", true)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: page, Pagination: pagination}), nil
+	versions, total, err := a.store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: req.Msg.GetPipelineId(), ListOptions: options})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&ingestionv1.ListPipelineVersionsResponse{Versions: versions, Pagination: paginationOf(req.Msg.GetPagination(), options, total)}), nil
 }
 
 // GetPipeline returns a pipeline with the requested related resources.
@@ -368,25 +371,31 @@ func pipelineScheduleOverlapToProto(policy filament.OverlapPolicy) ingestionv1.P
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
-	pipelines, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: req.Msg.GetTenantId(), IncludeDeleted: req.Msg.GetIncludeDeleted()})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	page, pagination, err := pageOf(pipelines, req.Msg.GetPagination())
+	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
+		ingestionv1.SortBy_SORT_BY_NAME:       "name",
+		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
+		ingestionv1.SortBy_SORT_BY_UPDATED_AT: "updated_at",
+	}, "id", false)
 	if err != nil {
 		return nil, err
 	}
-	for _, pipeline := range page {
+	pipelines, total, err := a.store.ListPipelines(ctx, filament.PipelineFilter{
+		Tenant: req.Msg.GetTenantId(), IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	for _, pipeline := range pipelines {
 		if err := a.expandPipeline(ctx, pipeline, req.Msg.GetIncludeVersions(), req.Msg.GetIncludeLastRun(), req.Msg.GetIncludeSchedule()); err != nil {
 			return nil, err
 		}
 	}
-	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: page, Pagination: pagination}), nil
+	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines, Pagination: paginationOf(req.Msg.GetPagination(), options, total)}), nil
 }
 
 func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipeline, includeVersions, includeLastRun, includeSchedule bool) error {
 	if includeVersions {
-		versions, err := a.store.ListPipelineVersions(ctx, pipeline.GetId())
+		versions, _, err := a.store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: pipeline.GetId(), ListOptions: filament.ListOptions{SortBy: "version", SortDescending: true}})
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, err)
 		}

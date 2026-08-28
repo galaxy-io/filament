@@ -200,10 +200,14 @@ func (x *ConnectorSpec) GetMaturity() ConnectorMaturity {
 }
 
 type ListConnectorsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Pagination    *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	TenantId   string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind       ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Pagination *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	// Case-insensitive search over name, display_name, and description.
+	Search string `protobuf:"bytes,4,opt,name=search,proto3" json:"search,omitempty"`
+	// Sorting supports NAME; created/updated timestamps do not exist for catalog entries.
+	Sorting       *SortingRequest `protobuf:"bytes,5,opt,name=sorting,proto3" json:"sorting,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -255,6 +259,20 @@ func (x *ListConnectorsRequest) GetKind() ConnectorKind {
 func (x *ListConnectorsRequest) GetPagination() *PaginationRequest {
 	if x != nil {
 		return x.Pagination
+	}
+	return nil
+}
+
+func (x *ListConnectorsRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *ListConnectorsRequest) GetSorting() *SortingRequest {
+	if x != nil {
+		return x.Sorting
 	}
 	return nil
 }
@@ -1099,7 +1117,7 @@ var File_ingestion_v1_connectors_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\n" +
-	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"\xd3\x03\n" +
+	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\xd3\x03\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -1112,13 +1130,15 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\x0elight_logo_url\x18\n" +
 	" \x01(\tR\flightLogoUrl\x12!\n" +
 	"\fschema_field\x18\v \x01(\tR\vschemaField\x12;\n" +
-	"\bmaturity\x18\f \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\"\xa6\x01\n" +
+	"\bmaturity\x18\f \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\"\xf6\x01\n" +
 	"\x15ListConnectorsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
 	"\n" +
 	"pagination\x18\x03 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
-	"pagination\"\x97\x01\n" +
+	"pagination\x12\x16\n" +
+	"\x06search\x18\x04 \x01(\tR\x06search\x126\n" +
+	"\asorting\x18\x05 \x01(\v2\x1c.ingestion.v1.SortingRequestR\asorting\"\x97\x01\n" +
 	"\x16ListConnectorsResponse\x12;\n" +
 	"\n" +
 	"connectors\x18\x01 \x03(\v2\x1b.ingestion.v1.ConnectorSpecR\n" +
@@ -1232,8 +1252,9 @@ var file_ingestion_v1_connectors_proto_goTypes = []any{
 	(ReplicationMode)(0),               // 18: ingestion.v1.ReplicationMode
 	(*ConfigSchema)(nil),               // 19: ingestion.v1.ConfigSchema
 	(*PaginationRequest)(nil),          // 20: ingestion.v1.PaginationRequest
-	(*PaginationResponse)(nil),         // 21: ingestion.v1.PaginationResponse
-	(*structpb.Struct)(nil),            // 22: google.protobuf.Struct
+	(*SortingRequest)(nil),             // 21: ingestion.v1.SortingRequest
+	(*PaginationResponse)(nil),         // 22: ingestion.v1.PaginationResponse
+	(*structpb.Struct)(nil),            // 23: google.protobuf.Struct
 }
 var file_ingestion_v1_connectors_proto_depIdxs = []int32{
 	17, // 0: ingestion.v1.ConnectorSpec.kind:type_name -> ingestion.v1.ConnectorKind
@@ -1242,24 +1263,25 @@ var file_ingestion_v1_connectors_proto_depIdxs = []int32{
 	0,  // 3: ingestion.v1.ConnectorSpec.maturity:type_name -> ingestion.v1.ConnectorMaturity
 	17, // 4: ingestion.v1.ListConnectorsRequest.kind:type_name -> ingestion.v1.ConnectorKind
 	20, // 5: ingestion.v1.ListConnectorsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	1,  // 6: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
-	21, // 7: ingestion.v1.ListConnectorsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	17, // 8: ingestion.v1.GetConnectorRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	1,  // 9: ingestion.v1.GetConnectorResponse.connector:type_name -> ingestion.v1.ConnectorSpec
-	17, // 10: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
-	22, // 11: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
-	7,  // 12: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
-	22, // 13: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
-	16, // 14: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
-	10, // 15: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
-	22, // 16: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
-	13, // 17: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
-	14, // 18: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	21, // 6: ingestion.v1.ListConnectorsRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	1,  // 7: ingestion.v1.ListConnectorsResponse.connectors:type_name -> ingestion.v1.ConnectorSpec
+	22, // 8: ingestion.v1.ListConnectorsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	17, // 9: ingestion.v1.GetConnectorRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	1,  // 10: ingestion.v1.GetConnectorResponse.connector:type_name -> ingestion.v1.ConnectorSpec
+	17, // 11: ingestion.v1.ValidateConfigRequest.kind:type_name -> ingestion.v1.ConnectorKind
+	23, // 12: ingestion.v1.ValidateConfigRequest.config:type_name -> google.protobuf.Struct
+	7,  // 13: ingestion.v1.ValidateConfigResponse.errors:type_name -> ingestion.v1.ValidationError
+	23, // 14: ingestion.v1.DiscoverResourcesRequest.config:type_name -> google.protobuf.Struct
+	16, // 15: ingestion.v1.Resource.metadata:type_name -> ingestion.v1.Resource.MetadataEntry
+	10, // 16: ingestion.v1.DiscoverResourcesResponse.resources:type_name -> ingestion.v1.Resource
+	23, // 17: ingestion.v1.GetResourceColumnsRequest.config:type_name -> google.protobuf.Struct
+	13, // 18: ingestion.v1.ResourceColumns.columns:type_name -> ingestion.v1.ResourceColumn
+	14, // 19: ingestion.v1.GetResourceColumnsResponse.resources:type_name -> ingestion.v1.ResourceColumns
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_connectors_proto_init() }
@@ -1269,6 +1291,7 @@ func file_ingestion_v1_connectors_proto_init() {
 	}
 	file_ingestion_v1_common_proto_init()
 	file_ingestion_v1_pagination_proto_init()
+	file_ingestion_v1_sorting_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

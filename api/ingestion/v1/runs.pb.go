@@ -891,8 +891,10 @@ type ListRunsRequest struct {
 	Pagination        *PaginationRequest     `protobuf:"bytes,5,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	// since_ms/until_ms window on started_at (inclusive/exclusive, epoch
 	// millis); 0 means unbounded. Runs that never started are excluded.
-	SinceMs       int64 `protobuf:"varint,6,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
-	UntilMs       int64 `protobuf:"varint,7,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
+	SinceMs       int64           `protobuf:"varint,6,opt,name=since_ms,json=sinceMs,proto3" json:"since_ms,omitempty"`
+	UntilMs       int64           `protobuf:"varint,7,opt,name=until_ms,json=untilMs,proto3" json:"until_ms,omitempty"`
+	Search        string          `protobuf:"bytes,8,opt,name=search,proto3" json:"search,omitempty"`
+	Sorting       *SortingRequest `protobuf:"bytes,9,opt,name=sorting,proto3" json:"sorting,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -974,6 +976,20 @@ func (x *ListRunsRequest) GetUntilMs() int64 {
 		return x.UntilMs
 	}
 	return 0
+}
+
+func (x *ListRunsRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *ListRunsRequest) GetSorting() *SortingRequest {
+	if x != nil {
+		return x.Sorting
+	}
+	return nil
 }
 
 type ListRunsResponse struct {
@@ -1439,7 +1455,7 @@ var File_ingestion_v1_runs_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\"R\n" +
+	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"R\n" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
@@ -1505,7 +1521,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"G\n" +
 	"\x0eGetRunResponse\x125\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\xc4\x02\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x19.ingestion.v1.RunSnapshotR\bsnapshot\"\x94\x03\n" +
 	"\x0fListRunsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x02 \x01(\tR\n" +
@@ -1516,7 +1532,9 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"pagination\x18\x05 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
 	"pagination\x12\x19\n" +
 	"\bsince_ms\x18\x06 \x01(\x03R\asinceMs\x12\x19\n" +
-	"\buntil_ms\x18\a \x01(\x03R\auntilMsB\x16\n" +
+	"\buntil_ms\x18\a \x01(\x03R\auntilMs\x12\x16\n" +
+	"\x06search\x18\b \x01(\tR\x06search\x126\n" +
+	"\asorting\x18\t \x01(\v2\x1c.ingestion.v1.SortingRequestR\asortingB\x16\n" +
 	"\x14_pipeline_version_id\"\x7f\n" +
 	"\x10ListRunsResponse\x12)\n" +
 	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\x12@\n" +
@@ -1610,8 +1628,9 @@ var file_ingestion_v1_runs_proto_goTypes = []any{
 	(*TailRunResponse)(nil),     // 19: ingestion.v1.TailRunResponse
 	(*WorkerConfiguration)(nil), // 20: ingestion.v1.WorkerConfiguration
 	(*PaginationRequest)(nil),   // 21: ingestion.v1.PaginationRequest
-	(*PaginationResponse)(nil),  // 22: ingestion.v1.PaginationResponse
-	(*structpb.Struct)(nil),     // 23: google.protobuf.Struct
+	(*SortingRequest)(nil),      // 22: ingestion.v1.SortingRequest
+	(*PaginationResponse)(nil),  // 23: ingestion.v1.PaginationResponse
+	(*structpb.Struct)(nil),     // 24: google.protobuf.Struct
 }
 var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	2,  // 0: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
@@ -1626,17 +1645,18 @@ var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	9,  // 9: ingestion.v1.GetRunResponse.snapshot:type_name -> ingestion.v1.RunSnapshot
 	0,  // 10: ingestion.v1.ListRunsRequest.status:type_name -> ingestion.v1.RunStatus
 	21, // 11: ingestion.v1.ListRunsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	8,  // 12: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
-	22, // 13: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	1,  // 14: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.RunSignal
-	23, // 15: ingestion.v1.RunEventFields.checkpoint:type_name -> google.protobuf.Struct
-	17, // 16: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
-	18, // 17: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	22, // 12: ingestion.v1.ListRunsRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	8,  // 13: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
+	23, // 14: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	1,  // 15: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.RunSignal
+	24, // 16: ingestion.v1.RunEventFields.checkpoint:type_name -> google.protobuf.Struct
+	17, // 17: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
+	18, // 18: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_runs_proto_init() }
@@ -1646,6 +1666,7 @@ func file_ingestion_v1_runs_proto_init() {
 	}
 	file_ingestion_v1_common_proto_init()
 	file_ingestion_v1_pagination_proto_init()
+	file_ingestion_v1_sorting_proto_init()
 	file_ingestion_v1_runs_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -28,6 +28,7 @@ const searchParams = z.object({
   flow: z.enum(Flow).optional().catch(undefined),
   connectorKind: z.enum(ConnectorKind).optional().catch(undefined),
   connector: z.string().optional().catch(undefined),
+  connectorSearch: z.string().optional().catch(undefined),
 });
 
 export const Route = createRootRoute({
@@ -72,7 +73,7 @@ function RootComponent() {
     void navigate({
       to: ".",
       search: (prev) => {
-        const { flow: _, connector: __, connectorKind: ___, ...rest } = prev;
+        const { flow: _, connector: __, connectorKind: ___, connectorSearch: ____, ...rest } = prev;
         return rest;
       },
     });

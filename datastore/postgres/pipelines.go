@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -148,27 +149,47 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 
 // ListPipelineVersions returns all of a pipeline's graph versions, newest
 // first. An unknown pipeline yields an empty slice.
-func (s *Store) ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error) {
-	rows, err := s.q.ListPipelineVersions(ctx, pipelineID)
+func (s *Store) ListPipelineVersions(ctx context.Context, f filament.PipelineVersionFilter) ([]*ingestionv1.PipelineVersion, int, error) {
+	if f.SortBy == "" {
+		f.SortBy = "version"
+		f.SortDescending = true
+	}
+	count, err := s.q.CountPipelineVersions(ctx, f.PipelineID)
 	if err != nil {
-		return nil, fmt.Errorf("datastore/postgres: list pipeline versions: %w", err)
+		return nil, 0, fmt.Errorf("datastore/postgres: count pipeline versions: %w", err)
+	}
+	rows, err := s.q.ListPipelineVersions(ctx, sqlcgen.ListPipelineVersionsParams{
+		PipelineID: f.PipelineID, SortBy: f.SortBy, SortDesc: f.SortDescending,
+		Lim: int32(f.Limit), OffsetRows: int32(f.Offset), //nolint:gosec // API pagination is capped
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("datastore/postgres: list pipeline versions: %w", err)
 	}
 	out := make([]*ingestionv1.PipelineVersion, len(rows))
 	for i, row := range rows {
 		graph, err := unmarshalGraph(row.Graph)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		out[i] = &ingestionv1.PipelineVersion{Id: row.ID, Version: row.Version, Graph: graph, CreatedAt: timestampMillis(row.CreatedAt), UpdatedAt: timestampMillis(row.UpdatedAt), CreatedByUserId: row.CreatedByUserID.String, UpdatedByUserId: row.UpdatedByUserID.String, DeletedByUserId: row.DeletedByUserID.String}
 	}
-	return out, nil
+	return out, int(count), nil
 }
 
 // ListPipelines returns pipelines matching the filter.
-func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([]*ingestionv1.Pipeline, error) {
-	rows, err := s.q.ListPipelines(ctx, sqlcgen.ListPipelinesParams{TenantID: f.Tenant, IncludeDeleted: f.IncludeDeleted})
+func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([]*ingestionv1.Pipeline, int, error) {
+	search := escapeLikePattern(strings.TrimSpace(f.Search))
+	count, err := s.q.CountPipelines(ctx, sqlcgen.CountPipelinesParams{TenantID: f.Tenant, IncludeDeleted: f.IncludeDeleted, Search: search})
 	if err != nil {
-		return nil, fmt.Errorf("datastore/postgres: list pipelines: %w", err)
+		return nil, 0, fmt.Errorf("datastore/postgres: count pipelines: %w", err)
+	}
+	rows, err := s.q.ListPipelines(ctx, sqlcgen.ListPipelinesParams{
+		TenantID: f.Tenant, IncludeDeleted: f.IncludeDeleted, Search: search,
+		SortBy: f.SortBy, SortDesc: f.SortDescending,
+		Lim: int32(f.Limit), OffsetRows: int32(f.Offset), //nolint:gosec // API pagination is capped
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("datastore/postgres: list pipelines: %w", err)
 	}
 	out := make([]*ingestionv1.Pipeline, len(rows))
 	for i, row := range rows {
@@ -176,7 +197,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 		if row.CurrentVersionID.Valid {
 			out[i].CurrentVersion, err = s.LoadPipelineVersion(ctx, row.ID, 0)
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 		}
 		out[i].CreatedAt = timestampMillis(row.CreatedAt)
@@ -186,10 +207,10 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 		out[i].UpdatedByUserId = row.UpdatedByUserID.String
 		out[i].DeletedByUserId = row.DeletedByUserID.String
 		if out[i].WorkerConfiguration, err = unmarshalWorkerConfiguration(row.WorkerConfiguration); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
-	return out, nil
+	return out, int(count), nil
 }
 
 func timestampMillis(ts pgtype.Timestamptz) int64 {

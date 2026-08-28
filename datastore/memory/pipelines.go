@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -147,33 +148,50 @@ func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, vers
 
 // ListPipelineVersions returns all of a pipeline's graph versions, newest
 // first. An unknown pipeline yields an empty slice.
-func (s *Store) ListPipelineVersions(ctx context.Context, pipelineID string) ([]*ingestionv1.PipelineVersion, error) {
+func (s *Store) ListPipelineVersions(ctx context.Context, f filament.PipelineVersionFilter) ([]*ingestionv1.PipelineVersion, int, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if f.SortBy == "" {
+		f.SortBy = "version"
+		f.SortDescending = true
+	}
 	var out []*ingestionv1.PipelineVersion
-	for _, v := range s.pipelineVersions[pipelineID] {
+	for _, v := range s.pipelineVersions[f.PipelineID] {
 		out = append(out, clonePipelineVersion(v))
 	}
 	slices.SortFunc(out, func(a, b *ingestionv1.PipelineVersion) int {
-		return int(b.GetVersion() - a.GetVersion())
+		var comparison int
+		switch f.SortBy {
+		case "created_at":
+			comparison = cmp.Compare(a.GetCreatedAt(), b.GetCreatedAt())
+		case "updated_at":
+			comparison = cmp.Compare(a.GetUpdatedAt(), b.GetUpdatedAt())
+		default:
+			comparison = cmp.Compare(a.GetVersion(), b.GetVersion())
+		}
+		if comparison == 0 {
+			comparison = strings.Compare(a.GetId(), b.GetId())
+		}
+		return ordered(comparison, f.SortDescending)
 	})
-	return out, nil
+	total := len(out)
+	return pageSlice(out, f.Offset, f.Limit), total, nil
 }
 
 // ListPipelines returns pipelines matching the filter.
-func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([]*ingestionv1.Pipeline, error) {
+func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([]*ingestionv1.Pipeline, int, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var out []*ingestionv1.Pipeline
 	appendMatching := func(pipelines map[string]*ingestionv1.Pipeline) {
 		for _, p := range pipelines {
-			if f.Tenant == "" || p.GetTenantId() == f.Tenant {
+			if (f.Tenant == "" || p.GetTenantId() == f.Tenant) && matchesSearch(f.Search, p.GetName(), p.GetDescription()) {
 				out = append(out, clonePipeline(p))
 			}
 		}
@@ -182,8 +200,25 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	if f.IncludeDeleted {
 		appendMatching(s.deletedPipelines)
 	}
-	slices.SortFunc(out, func(a, b *ingestionv1.Pipeline) int { return strings.Compare(a.GetId(), b.GetId()) })
-	return out, nil
+	slices.SortFunc(out, func(a, b *ingestionv1.Pipeline) int {
+		var comparison int
+		switch f.SortBy {
+		case "name":
+			comparison = strings.Compare(strings.ToLower(a.GetName()), strings.ToLower(b.GetName()))
+		case "created_at":
+			comparison = cmp.Compare(a.GetCreatedAt(), b.GetCreatedAt())
+		case "updated_at":
+			comparison = cmp.Compare(a.GetUpdatedAt(), b.GetUpdatedAt())
+		default:
+			comparison = strings.Compare(a.GetId(), b.GetId())
+		}
+		if comparison == 0 {
+			comparison = strings.Compare(a.GetId(), b.GetId())
+		}
+		return ordered(comparison, f.SortDescending)
+	})
+	total := len(out)
+	return pageSlice(out, f.Offset, f.Limit), total, nil
 }
 
 // DeletePipeline soft-deletes a pipeline and removes its schedules and pending

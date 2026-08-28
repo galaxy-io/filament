@@ -44,6 +44,18 @@ func (s *columnSource) CursorColumns(_ context.Context, resource string) ([]fila
 	}}, nil
 }
 
+type catalogSource struct{ name, displayName, description string }
+
+func (s *catalogSource) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{Name: s.name, DisplayName: s.displayName, Description: s.description}
+}
+func (s *catalogSource) Validate(filament.Config) error                   { return nil }
+func (s *catalogSource) Configure(context.Context, filament.Config) error { return nil }
+func (s *catalogSource) Extract(context.Context, filament.RecordSink, filament.ExtractOpts) error {
+	return nil
+}
+func (s *catalogSource) Teardown(context.Context) error { return nil }
+
 type liveProbeSink struct {
 	probes *atomic.Int32
 	err    error
@@ -182,6 +194,34 @@ func TestListConnectorsIncludesConnectorMaturity(t *testing.T) {
 	}
 	if got := response.Msg.GetConnectors()[0].GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE {
 		t.Fatalf("connector maturity = %v, want stable", got)
+	}
+}
+
+func TestListConnectorsSearchSortAndPage(t *testing.T) {
+	sources := registry.NewSources()
+	for _, spec := range []catalogSource{
+		{name: "alpha", displayName: "Alpha Warehouse", description: "loads orders"},
+		{name: "zulu", displayName: "Zulu Warehouse", description: "loads customers"},
+		{name: "other", displayName: "Other", description: "billing"},
+	} {
+		spec := spec
+		sources.Register(spec.name, func() filament.Source { return &spec })
+	}
+	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+
+	response, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
+		Kind:       ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+		Search:     "ware",
+		Pagination: &ingestionv1.PaginationRequest{PageSize: 1},
+		Sorting: &ingestionv1.SortingRequest{
+			SortBy: ingestionv1.SortBy_SORT_BY_NAME, SortOrder: ingestionv1.SortOrder_SORT_ORDER_DESC,
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetPagination().GetTotal() != 2 || len(response.Msg.GetConnectors()) != 1 || response.Msg.GetConnectors()[0].GetName() != "zulu" {
+		t.Fatalf("response = %+v", response.Msg)
 	}
 }
 
