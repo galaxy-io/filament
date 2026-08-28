@@ -233,8 +233,8 @@ func makeRunSpec(pipelineID, sourceName, sinkName string, sourceConfig, sinkConf
 		Tenant:         "local",
 		Run:            runID,
 		PipelineID:     pipelineID,
-		Source:         filament.Ref{Provider: sourceName, Config: sourceConfig},
-		Sink:           filament.Ref{Provider: sinkName, Config: sinkConfig},
+		Source:         filament.Ref{Connector: sourceName, Config: sourceConfig},
+		Sink:           filament.Ref{Connector: sinkName, Config: sinkConfig},
 		Resources:      append([]string(nil), resources...),
 		IngestionTypes: map[string]filament.IngestionType{"": ingestionType},
 	}, nil
