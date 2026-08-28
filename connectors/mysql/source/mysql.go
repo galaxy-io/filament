@@ -105,6 +105,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionFullReplace,
 			filament.IngestionFullUpsert,
 			filament.IngestionFullAppend,
+			filament.IngestionCDCAppend,
 			filament.IngestionCDCMerge,
 		),
 		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{

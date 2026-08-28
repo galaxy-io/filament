@@ -124,6 +124,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionFullAppend,
 			filament.IngestionIncrementalAppend,
 			filament.IngestionIncrementalUpsert,
+			filament.IngestionCDCAppend,
 			filament.IngestionCDCMerge,
 		),
 		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
