@@ -175,7 +175,13 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
             }
           />
         </ConnectionDrawerList>
-        <PipelineCanvasPanelSection header="Configuration" isEmpty={false} padding="12px">
+        <PipelineCanvasPanelSection
+          header="Configuration"
+          isEmpty={false}
+          emptyHeader="No configuration"
+          emptyMessage="No configuration options are available for this resource."
+          padding="12px"
+        >
           <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
             {!isCdc && (
               <SelectInput
