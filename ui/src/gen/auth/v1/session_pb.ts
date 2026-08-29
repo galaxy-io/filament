@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file auth/v1/session.proto.
  */
 export const file_auth_v1_session: GenFile = /*@__PURE__*/
-  fileDesc("ChVhdXRoL3YxL3Nlc3Npb24ucHJvdG8SB2F1dGgudjEiFgoUR2V0QXV0aENvbmZpZ1JlcXVlc3QiOgoVR2V0QXV0aENvbmZpZ1Jlc3BvbnNlEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkiTQoMTG9naW5SZXF1ZXN0EhcKD2F1dGhfcmVxdWVzdF9pZBgBIAEoCRISCgpsb2dpbl9uYW1lGAIgASgJEhAKCHBhc3N3b3JkGAMgASgJIiUKDUxvZ2luUmVzcG9uc2USFAoMY2FsbGJhY2tfdXJsGAEgASgJIm0KD1JlZ2lzdGVyUmVxdWVzdBIQCghvcmdfbmFtZRgBIAEoCRISCgpnaXZlbl9uYW1lGAIgASgJEhMKC2ZhbWlseV9uYW1lGAMgASgJEg0KBWVtYWlsGAQgASgJEhAKCHBhc3N3b3JkGAUgASgJIiUKEFJlZ2lzdGVyUmVzcG9uc2USEQoJdGVuYW50X2lkGAEgASgJIkYKE0FjY2VwdEludml0ZVJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRIMCgRjb2RlGAIgASgJEhAKCHBhc3N3b3JkGAMgASgJIhYKFEFjY2VwdEludml0ZVJlc3BvbnNlYgZwcm90bzM");
+  fileDesc("ChVhdXRoL3YxL3Nlc3Npb24ucHJvdG8SB2F1dGgudjEiFgoUR2V0QXV0aENvbmZpZ1JlcXVlc3QiWgoVR2V0QXV0aENvbmZpZ1Jlc3BvbnNlEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSHgoWc2VydmljZV9hY2NvdW50X3Njb3BlcxgDIAMoCSJNCgxMb2dpblJlcXVlc3QSFwoPYXV0aF9yZXF1ZXN0X2lkGAEgASgJEhIKCmxvZ2luX25hbWUYAiABKAkSEAoIcGFzc3dvcmQYAyABKAkiJQoNTG9naW5SZXNwb25zZRIUCgxjYWxsYmFja191cmwYASABKAkibQoPUmVnaXN0ZXJSZXF1ZXN0EhAKCG9yZ19uYW1lGAEgASgJEhIKCmdpdmVuX25hbWUYAiABKAkSEwoLZmFtaWx5X25hbWUYAyABKAkSDQoFZW1haWwYBCABKAkSEAoIcGFzc3dvcmQYBSABKAkiJQoQUmVnaXN0ZXJSZXNwb25zZRIRCgl0ZW5hbnRfaWQYASABKAkiRgoTQWNjZXB0SW52aXRlUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEgwKBGNvZGUYAiABKAkSEAoIcGFzc3dvcmQYAyABKAkiFgoUQWNjZXB0SW52aXRlUmVzcG9uc2ViBnByb3RvMw");
 
 /**
  * @generated from message auth.v1.GetAuthConfigRequest
@@ -26,9 +26,9 @@ export const GetAuthConfigRequestSchema: GenMessage<GetAuthConfigRequest> = /*@_
   messageDesc(file_auth_v1_session, 0);
 
 /**
- * GetAuthConfigResponse tells the UI how to start the OIDC flow. An empty
- * issuer means no provider is configured: the UI renders without a session
- * and every other AuthService RPC is unimplemented.
+ * GetAuthConfigResponse tells clients how to authenticate. An empty issuer
+ * means no provider is configured: the UI renders without a session and every
+ * other AuthService RPC is unimplemented.
  *
  * @generated from message auth.v1.GetAuthConfigResponse
  */
@@ -42,6 +42,15 @@ export type GetAuthConfigResponse = Message<"auth.v1.GetAuthConfigResponse"> & {
    * @generated from field: string client_id = 2;
    */
   clientId: string;
+
+  /**
+   * service_account_scopes are requested by non-interactive clients. The
+   * provider owns these values so clients do not need provider-specific
+   * project IDs or reserved scope knowledge.
+   *
+   * @generated from field: repeated string service_account_scopes = 3;
+   */
+  serviceAccountScopes: string[];
 };
 
 /**

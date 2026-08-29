@@ -13,6 +13,7 @@ import { ToastProvider } from "@galaxy-io/dls/toast/ToastProvider";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
+import ServiceAccountsModal from "@/components/settings/ServiceAccountsModal";
 import TeamSettingsModal from "@/components/settings/TeamSettingsModal";
 import { SettingsPanel, TeamSettingsView } from "@/components/settings/types";
 
@@ -65,6 +66,8 @@ function RootComponent() {
   const { connectionId, flow, settings, teamView, inviteToken } = useSearch({ from: "__root__" });
   const isIdentitySettingsEnabled = session.isAuthEnabled && !!session.accessToken;
   const isTeamSettingsOpen = isIdentitySettingsEnabled && settings === SettingsPanel.TEAM;
+  const isServiceAccountsOpen =
+    isIdentitySettingsEnabled && settings === SettingsPanel.SERVICE_ACCOUNTS;
 
   const handleCloseDrawer = useCallback(() => {
     void navigate({
@@ -176,6 +179,11 @@ function RootComponent() {
               onInviteCreated={handleInviteCreated}
               onClose={handleCloseSettings}
             />
+          )}
+        </Modal>
+        <Modal open={isServiceAccountsOpen} onClose={handleCloseSettings}>
+          {isServiceAccountsOpen && (
+            <ServiceAccountsModal session={session} onClose={handleCloseSettings} />
           )}
         </Modal>
       </OverlayProvider>

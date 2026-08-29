@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { AuthService } from "@/gen/auth/v1/service_pb";
 
-import { createListMembersQueryKey } from "@/api/queries/auth";
+import { createListMembersQueryKey, createListServiceAccountsQueryKey } from "@/api/queries/auth";
 
 export const useLoginMutation = (
   options: UseMutationOptions<
@@ -93,6 +93,56 @@ export const useRemoveMemberMutation = (
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({ queryKey: createListMembersQueryKey() });
+      return options.onSettled?.(...args);
+    },
+  });
+};
+
+export const useCreateServiceAccountMutation = (
+  options: UseMutationOptions<
+    typeof AuthService.method.createServiceAccount.input,
+    typeof AuthService.method.createServiceAccount.output
+  > = {},
+) => {
+  const queryClient = useQueryClient();
+  return useMutation<
+    typeof AuthService.method.createServiceAccount.input,
+    typeof AuthService.method.createServiceAccount.output
+  >(AuthService.method.createServiceAccount, {
+    ...options,
+    onSettled: (...args) => {
+      void queryClient.invalidateQueries({ queryKey: createListServiceAccountsQueryKey() });
+      return options.onSettled?.(...args);
+    },
+  });
+};
+
+export const useRotateServiceAccountSecretMutation = (
+  options: UseMutationOptions<
+    typeof AuthService.method.rotateServiceAccountSecret.input,
+    typeof AuthService.method.rotateServiceAccountSecret.output
+  > = {},
+) => {
+  return useMutation<
+    typeof AuthService.method.rotateServiceAccountSecret.input,
+    typeof AuthService.method.rotateServiceAccountSecret.output
+  >(AuthService.method.rotateServiceAccountSecret, options);
+};
+
+export const useRemoveServiceAccountMutation = (
+  options: UseMutationOptions<
+    typeof AuthService.method.removeServiceAccount.input,
+    typeof AuthService.method.removeServiceAccount.output
+  > = {},
+) => {
+  const queryClient = useQueryClient();
+  return useMutation<
+    typeof AuthService.method.removeServiceAccount.input,
+    typeof AuthService.method.removeServiceAccount.output
+  >(AuthService.method.removeServiceAccount, {
+    ...options,
+    onSettled: (...args) => {
+      void queryClient.invalidateQueries({ queryKey: createListServiceAccountsQueryKey() });
       return options.onSettled?.(...args);
     },
   });

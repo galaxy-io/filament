@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { styled } from "@linaria/react";
-import { GearFineIcon, PlusIcon, SignOutIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import { PlusIcon, ShieldStarIcon, SignOutIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "react-oidc-context";
 
@@ -23,7 +23,6 @@ import type { Role } from "@/gen/auth/v1/members_pb";
 
 import { roleLabel } from "@/components/settings/constants";
 import { SettingsPanel, TeamSettingsView } from "@/components/settings/types";
-import TooltipIconButton from "@/components/TooltipIconButton";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 
@@ -75,6 +74,31 @@ const ThemeSwitcherWrapper = styled.div`
   min-width: 0;
   flex-shrink: 0;
 `;
+
+const SettingsAvatarButton = withTheme(styled.button<PropsWithTheme>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color 100ms ease;
+
+  &:hover,
+  &:focus-visible {
+    background-color: ${({ theme }) => theme.color.background.tertiary};
+  }
+
+  &:focus-visible {
+    outline: 1px solid ${({ theme }) => theme.color.border.secondary};
+    outline-offset: 2px;
+  }
+`);
 
 const SettingsMenuItem = withTheme(styled.button<PropsWithTheme>`
   display: flex;
@@ -130,6 +154,7 @@ interface SettingsDropdownMenuProps {
   canManageTeam: boolean;
   isTeamActionsPending: boolean;
   onOpenTeamSettings: () => void;
+  onOpenServiceAccounts: () => void;
   onOpenInvite: () => void;
   onLogout: () => void;
   themeItems: SwitcherInputItem[];
@@ -144,6 +169,7 @@ const SettingsDropdownMenu = ({
   canManageTeam,
   isTeamActionsPending,
   onOpenTeamSettings,
+  onOpenServiceAccounts,
   onOpenInvite,
   onLogout,
   themeItems,
@@ -208,6 +234,14 @@ const SettingsDropdownMenu = ({
           </SettingsMenuIconWrapper>
           <Text weight={TextWeight.MEDIUM}>Manage team</Text>
         </SettingsMenuItem>
+        {canManageTeam && (
+          <SettingsMenuItem type="button" onClick={onOpenServiceAccounts}>
+            <SettingsMenuIconWrapper>
+              <Icon component={ShieldStarIcon} size={14} variant={IconVariant.TERTIARY} />
+            </SettingsMenuIconWrapper>
+            <Text weight={TextWeight.MEDIUM}>Service accounts</Text>
+          </SettingsMenuItem>
+        )}
       </SettingsMenuSection>
       {shouldShowInvite && (
         <>
@@ -307,6 +341,17 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
     });
   }, [navigate]);
 
+  const handleOpenServiceAccounts = useCallback(() => {
+    setSettingsOpen(false);
+    void navigate({
+      to: ".",
+      search: (prev) => ({
+        ...prev,
+        settings: SettingsPanel.SERVICE_ACCOUNTS,
+      }),
+    });
+  }, [navigate]);
+
   const handleLogout = useCallback(() => {
     setSettingsOpen(false);
     void auth.signoutRedirect();
@@ -329,6 +374,7 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
           canManageTeam={canManageTeam}
           isTeamActionsPending={isTeamActionsPending}
           onOpenTeamSettings={handleOpenTeamSettings}
+          onOpenServiceAccounts={handleOpenServiceAccounts}
           onOpenInvite={handleOpenInvite}
           onLogout={handleLogout}
           themeItems={themeItems}
@@ -336,18 +382,19 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
         />
       }
     >
-      <TooltipIconButton
-        label="Settings"
-        icon={GearFineIcon}
+      <SettingsAvatarButton
+        type="button"
+        title="Account settings"
+        aria-label="Account settings"
         onClick={() => {
           setSettingsOpen((isOpen) => !isOpen);
         }}
-        isIconFilled
-        isTooltipDisabled={settingsOpen}
-        ariaExpanded={settingsOpen}
-        ariaControls={SETTINGS_DROPDOWN_ID}
-        ariaHasPopup
-      />
+        aria-expanded={settingsOpen}
+        aria-controls={SETTINGS_DROPDOWN_ID}
+        aria-haspopup="menu"
+      >
+        <Avatar img={session.avatarUrl} size={20} seed={profileEmail || profileName} />
+      </SettingsAvatarButton>
     </Dropdown>
   );
 };

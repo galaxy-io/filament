@@ -24,7 +24,7 @@ var File_auth_v1_service_proto protoreflect.FileDescriptor
 
 const file_auth_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x15auth/v1/service.proto\x12\aauth.v1\x1a\x15auth/v1/members.proto\x1a\x15auth/v1/session.proto2\xd7\x04\n" +
+	"\x15auth/v1/service.proto\x12\aauth.v1\x1a\x15auth/v1/members.proto\x1a\x1eauth/v1/service_accounts.proto\x1a\x15auth/v1/session.proto2\xfa\a\n" +
 	"\vAuthService\x12N\n" +
 	"\rGetAuthConfig\x12\x1d.auth.v1.GetAuthConfigRequest\x1a\x1e.auth.v1.GetAuthConfigResponse\x126\n" +
 	"\x05Login\x12\x15.auth.v1.LoginRequest\x1a\x16.auth.v1.LoginResponse\x12?\n" +
@@ -33,26 +33,38 @@ const file_auth_v1_service_proto_rawDesc = "" +
 	"\vListMembers\x12\x1b.auth.v1.ListMembersRequest\x1a\x1c.auth.v1.ListMembersResponse\x12K\n" +
 	"\fInviteMember\x12\x1c.auth.v1.InviteMemberRequest\x1a\x1d.auth.v1.InviteMemberResponse\x12N\n" +
 	"\rSetMemberRole\x12\x1d.auth.v1.SetMemberRoleRequest\x1a\x1e.auth.v1.SetMemberRoleResponse\x12K\n" +
-	"\fRemoveMember\x12\x1c.auth.v1.RemoveMemberRequest\x1a\x1d.auth.v1.RemoveMemberResponseB\x8a\x01\n" +
+	"\fRemoveMember\x12\x1c.auth.v1.RemoveMemberRequest\x1a\x1d.auth.v1.RemoveMemberResponse\x12`\n" +
+	"\x13ListServiceAccounts\x12#.auth.v1.ListServiceAccountsRequest\x1a$.auth.v1.ListServiceAccountsResponse\x12c\n" +
+	"\x14CreateServiceAccount\x12$.auth.v1.CreateServiceAccountRequest\x1a%.auth.v1.CreateServiceAccountResponse\x12u\n" +
+	"\x1aRotateServiceAccountSecret\x12*.auth.v1.RotateServiceAccountSecretRequest\x1a+.auth.v1.RotateServiceAccountSecretResponse\x12c\n" +
+	"\x14RemoveServiceAccount\x12$.auth.v1.RemoveServiceAccountRequest\x1a%.auth.v1.RemoveServiceAccountResponseB\x8a\x01\n" +
 	"\vcom.auth.v1B\fServiceProtoP\x01Z0github.com/galaxy-io/filament/api/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var file_auth_v1_service_proto_goTypes = []any{
-	(*GetAuthConfigRequest)(nil),  // 0: auth.v1.GetAuthConfigRequest
-	(*LoginRequest)(nil),          // 1: auth.v1.LoginRequest
-	(*RegisterRequest)(nil),       // 2: auth.v1.RegisterRequest
-	(*AcceptInviteRequest)(nil),   // 3: auth.v1.AcceptInviteRequest
-	(*ListMembersRequest)(nil),    // 4: auth.v1.ListMembersRequest
-	(*InviteMemberRequest)(nil),   // 5: auth.v1.InviteMemberRequest
-	(*SetMemberRoleRequest)(nil),  // 6: auth.v1.SetMemberRoleRequest
-	(*RemoveMemberRequest)(nil),   // 7: auth.v1.RemoveMemberRequest
-	(*GetAuthConfigResponse)(nil), // 8: auth.v1.GetAuthConfigResponse
-	(*LoginResponse)(nil),         // 9: auth.v1.LoginResponse
-	(*RegisterResponse)(nil),      // 10: auth.v1.RegisterResponse
-	(*AcceptInviteResponse)(nil),  // 11: auth.v1.AcceptInviteResponse
-	(*ListMembersResponse)(nil),   // 12: auth.v1.ListMembersResponse
-	(*InviteMemberResponse)(nil),  // 13: auth.v1.InviteMemberResponse
-	(*SetMemberRoleResponse)(nil), // 14: auth.v1.SetMemberRoleResponse
-	(*RemoveMemberResponse)(nil),  // 15: auth.v1.RemoveMemberResponse
+	(*GetAuthConfigRequest)(nil),               // 0: auth.v1.GetAuthConfigRequest
+	(*LoginRequest)(nil),                       // 1: auth.v1.LoginRequest
+	(*RegisterRequest)(nil),                    // 2: auth.v1.RegisterRequest
+	(*AcceptInviteRequest)(nil),                // 3: auth.v1.AcceptInviteRequest
+	(*ListMembersRequest)(nil),                 // 4: auth.v1.ListMembersRequest
+	(*InviteMemberRequest)(nil),                // 5: auth.v1.InviteMemberRequest
+	(*SetMemberRoleRequest)(nil),               // 6: auth.v1.SetMemberRoleRequest
+	(*RemoveMemberRequest)(nil),                // 7: auth.v1.RemoveMemberRequest
+	(*ListServiceAccountsRequest)(nil),         // 8: auth.v1.ListServiceAccountsRequest
+	(*CreateServiceAccountRequest)(nil),        // 9: auth.v1.CreateServiceAccountRequest
+	(*RotateServiceAccountSecretRequest)(nil),  // 10: auth.v1.RotateServiceAccountSecretRequest
+	(*RemoveServiceAccountRequest)(nil),        // 11: auth.v1.RemoveServiceAccountRequest
+	(*GetAuthConfigResponse)(nil),              // 12: auth.v1.GetAuthConfigResponse
+	(*LoginResponse)(nil),                      // 13: auth.v1.LoginResponse
+	(*RegisterResponse)(nil),                   // 14: auth.v1.RegisterResponse
+	(*AcceptInviteResponse)(nil),               // 15: auth.v1.AcceptInviteResponse
+	(*ListMembersResponse)(nil),                // 16: auth.v1.ListMembersResponse
+	(*InviteMemberResponse)(nil),               // 17: auth.v1.InviteMemberResponse
+	(*SetMemberRoleResponse)(nil),              // 18: auth.v1.SetMemberRoleResponse
+	(*RemoveMemberResponse)(nil),               // 19: auth.v1.RemoveMemberResponse
+	(*ListServiceAccountsResponse)(nil),        // 20: auth.v1.ListServiceAccountsResponse
+	(*CreateServiceAccountResponse)(nil),       // 21: auth.v1.CreateServiceAccountResponse
+	(*RotateServiceAccountSecretResponse)(nil), // 22: auth.v1.RotateServiceAccountSecretResponse
+	(*RemoveServiceAccountResponse)(nil),       // 23: auth.v1.RemoveServiceAccountResponse
 }
 var file_auth_v1_service_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.AuthService.GetAuthConfig:input_type -> auth.v1.GetAuthConfigRequest
@@ -63,16 +75,24 @@ var file_auth_v1_service_proto_depIdxs = []int32{
 	5,  // 5: auth.v1.AuthService.InviteMember:input_type -> auth.v1.InviteMemberRequest
 	6,  // 6: auth.v1.AuthService.SetMemberRole:input_type -> auth.v1.SetMemberRoleRequest
 	7,  // 7: auth.v1.AuthService.RemoveMember:input_type -> auth.v1.RemoveMemberRequest
-	8,  // 8: auth.v1.AuthService.GetAuthConfig:output_type -> auth.v1.GetAuthConfigResponse
-	9,  // 9: auth.v1.AuthService.Login:output_type -> auth.v1.LoginResponse
-	10, // 10: auth.v1.AuthService.Register:output_type -> auth.v1.RegisterResponse
-	11, // 11: auth.v1.AuthService.AcceptInvite:output_type -> auth.v1.AcceptInviteResponse
-	12, // 12: auth.v1.AuthService.ListMembers:output_type -> auth.v1.ListMembersResponse
-	13, // 13: auth.v1.AuthService.InviteMember:output_type -> auth.v1.InviteMemberResponse
-	14, // 14: auth.v1.AuthService.SetMemberRole:output_type -> auth.v1.SetMemberRoleResponse
-	15, // 15: auth.v1.AuthService.RemoveMember:output_type -> auth.v1.RemoveMemberResponse
-	8,  // [8:16] is the sub-list for method output_type
-	0,  // [0:8] is the sub-list for method input_type
+	8,  // 8: auth.v1.AuthService.ListServiceAccounts:input_type -> auth.v1.ListServiceAccountsRequest
+	9,  // 9: auth.v1.AuthService.CreateServiceAccount:input_type -> auth.v1.CreateServiceAccountRequest
+	10, // 10: auth.v1.AuthService.RotateServiceAccountSecret:input_type -> auth.v1.RotateServiceAccountSecretRequest
+	11, // 11: auth.v1.AuthService.RemoveServiceAccount:input_type -> auth.v1.RemoveServiceAccountRequest
+	12, // 12: auth.v1.AuthService.GetAuthConfig:output_type -> auth.v1.GetAuthConfigResponse
+	13, // 13: auth.v1.AuthService.Login:output_type -> auth.v1.LoginResponse
+	14, // 14: auth.v1.AuthService.Register:output_type -> auth.v1.RegisterResponse
+	15, // 15: auth.v1.AuthService.AcceptInvite:output_type -> auth.v1.AcceptInviteResponse
+	16, // 16: auth.v1.AuthService.ListMembers:output_type -> auth.v1.ListMembersResponse
+	17, // 17: auth.v1.AuthService.InviteMember:output_type -> auth.v1.InviteMemberResponse
+	18, // 18: auth.v1.AuthService.SetMemberRole:output_type -> auth.v1.SetMemberRoleResponse
+	19, // 19: auth.v1.AuthService.RemoveMember:output_type -> auth.v1.RemoveMemberResponse
+	20, // 20: auth.v1.AuthService.ListServiceAccounts:output_type -> auth.v1.ListServiceAccountsResponse
+	21, // 21: auth.v1.AuthService.CreateServiceAccount:output_type -> auth.v1.CreateServiceAccountResponse
+	22, // 22: auth.v1.AuthService.RotateServiceAccountSecret:output_type -> auth.v1.RotateServiceAccountSecretResponse
+	23, // 23: auth.v1.AuthService.RemoveServiceAccount:output_type -> auth.v1.RemoveServiceAccountResponse
+	12, // [12:24] is the sub-list for method output_type
+	0,  // [0:12] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -84,6 +104,7 @@ func file_auth_v1_service_proto_init() {
 		return
 	}
 	file_auth_v1_members_proto_init()
+	file_auth_v1_service_accounts_proto_init()
 	file_auth_v1_session_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

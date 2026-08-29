@@ -826,15 +826,11 @@ export type ListPipelinesRequest = Message<"ingestion.v1.ListPipelinesRequest"> 
   includeSchedule: boolean;
 
   /**
-   * Full-text search over name and description.
-   *
    * @generated from field: string search = 7;
    */
   search: string;
 
   /**
-   * Sorting supports NAME, CREATED_AT, and UPDATED_AT.
-   *
    * @generated from field: ingestion.v1.SortingRequest sorting = 8;
    */
   sorting?: SortingRequest | undefined;

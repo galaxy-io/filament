@@ -1,5 +1,6 @@
 export enum SettingsPanel {
   TEAM = "TEAM",
+  SERVICE_ACCOUNTS = "SERVICE_ACCOUNTS",
 }
 
 export enum TeamSettingsView {

@@ -6,6 +6,8 @@ import type { GenFile, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { InviteMemberRequestSchema, InviteMemberResponseSchema, ListMembersRequestSchema, ListMembersResponseSchema, RemoveMemberRequestSchema, RemoveMemberResponseSchema, SetMemberRoleRequestSchema, SetMemberRoleResponseSchema } from "./members_pb";
 import { file_auth_v1_members } from "./members_pb";
+import type { CreateServiceAccountRequestSchema, CreateServiceAccountResponseSchema, ListServiceAccountsRequestSchema, ListServiceAccountsResponseSchema, RemoveServiceAccountRequestSchema, RemoveServiceAccountResponseSchema, RotateServiceAccountSecretRequestSchema, RotateServiceAccountSecretResponseSchema } from "./service_accounts_pb";
+import { file_auth_v1_service_accounts } from "./service_accounts_pb";
 import type { AcceptInviteRequestSchema, AcceptInviteResponseSchema, GetAuthConfigRequestSchema, GetAuthConfigResponseSchema, LoginRequestSchema, LoginResponseSchema, RegisterRequestSchema, RegisterResponseSchema } from "./session_pb";
 import { file_auth_v1_session } from "./session_pb";
 
@@ -13,7 +15,7 @@ import { file_auth_v1_session } from "./session_pb";
  * Describes the file auth/v1/service.proto.
  */
 export const file_auth_v1_service: GenFile = /*@__PURE__*/
-  fileDesc("ChVhdXRoL3YxL3NlcnZpY2UucHJvdG8SB2F1dGgudjEy1wQKC0F1dGhTZXJ2aWNlEk4KDUdldEF1dGhDb25maWcSHS5hdXRoLnYxLkdldEF1dGhDb25maWdSZXF1ZXN0Gh4uYXV0aC52MS5HZXRBdXRoQ29uZmlnUmVzcG9uc2USNgoFTG9naW4SFS5hdXRoLnYxLkxvZ2luUmVxdWVzdBoWLmF1dGgudjEuTG9naW5SZXNwb25zZRI/CghSZWdpc3RlchIYLmF1dGgudjEuUmVnaXN0ZXJSZXF1ZXN0GhkuYXV0aC52MS5SZWdpc3RlclJlc3BvbnNlEksKDEFjY2VwdEludml0ZRIcLmF1dGgudjEuQWNjZXB0SW52aXRlUmVxdWVzdBodLmF1dGgudjEuQWNjZXB0SW52aXRlUmVzcG9uc2USSAoLTGlzdE1lbWJlcnMSGy5hdXRoLnYxLkxpc3RNZW1iZXJzUmVxdWVzdBocLmF1dGgudjEuTGlzdE1lbWJlcnNSZXNwb25zZRJLCgxJbnZpdGVNZW1iZXISHC5hdXRoLnYxLkludml0ZU1lbWJlclJlcXVlc3QaHS5hdXRoLnYxLkludml0ZU1lbWJlclJlc3BvbnNlEk4KDVNldE1lbWJlclJvbGUSHS5hdXRoLnYxLlNldE1lbWJlclJvbGVSZXF1ZXN0Gh4uYXV0aC52MS5TZXRNZW1iZXJSb2xlUmVzcG9uc2USSwoMUmVtb3ZlTWVtYmVyEhwuYXV0aC52MS5SZW1vdmVNZW1iZXJSZXF1ZXN0Gh0uYXV0aC52MS5SZW1vdmVNZW1iZXJSZXNwb25zZWIGcHJvdG8z", [file_auth_v1_members, file_auth_v1_session]);
+  fileDesc("ChVhdXRoL3YxL3NlcnZpY2UucHJvdG8SB2F1dGgudjEy+gcKC0F1dGhTZXJ2aWNlEk4KDUdldEF1dGhDb25maWcSHS5hdXRoLnYxLkdldEF1dGhDb25maWdSZXF1ZXN0Gh4uYXV0aC52MS5HZXRBdXRoQ29uZmlnUmVzcG9uc2USNgoFTG9naW4SFS5hdXRoLnYxLkxvZ2luUmVxdWVzdBoWLmF1dGgudjEuTG9naW5SZXNwb25zZRI/CghSZWdpc3RlchIYLmF1dGgudjEuUmVnaXN0ZXJSZXF1ZXN0GhkuYXV0aC52MS5SZWdpc3RlclJlc3BvbnNlEksKDEFjY2VwdEludml0ZRIcLmF1dGgudjEuQWNjZXB0SW52aXRlUmVxdWVzdBodLmF1dGgudjEuQWNjZXB0SW52aXRlUmVzcG9uc2USSAoLTGlzdE1lbWJlcnMSGy5hdXRoLnYxLkxpc3RNZW1iZXJzUmVxdWVzdBocLmF1dGgudjEuTGlzdE1lbWJlcnNSZXNwb25zZRJLCgxJbnZpdGVNZW1iZXISHC5hdXRoLnYxLkludml0ZU1lbWJlclJlcXVlc3QaHS5hdXRoLnYxLkludml0ZU1lbWJlclJlc3BvbnNlEk4KDVNldE1lbWJlclJvbGUSHS5hdXRoLnYxLlNldE1lbWJlclJvbGVSZXF1ZXN0Gh4uYXV0aC52MS5TZXRNZW1iZXJSb2xlUmVzcG9uc2USSwoMUmVtb3ZlTWVtYmVyEhwuYXV0aC52MS5SZW1vdmVNZW1iZXJSZXF1ZXN0Gh0uYXV0aC52MS5SZW1vdmVNZW1iZXJSZXNwb25zZRJgChNMaXN0U2VydmljZUFjY291bnRzEiMuYXV0aC52MS5MaXN0U2VydmljZUFjY291bnRzUmVxdWVzdBokLmF1dGgudjEuTGlzdFNlcnZpY2VBY2NvdW50c1Jlc3BvbnNlEmMKFENyZWF0ZVNlcnZpY2VBY2NvdW50EiQuYXV0aC52MS5DcmVhdGVTZXJ2aWNlQWNjb3VudFJlcXVlc3QaJS5hdXRoLnYxLkNyZWF0ZVNlcnZpY2VBY2NvdW50UmVzcG9uc2USdQoaUm90YXRlU2VydmljZUFjY291bnRTZWNyZXQSKi5hdXRoLnYxLlJvdGF0ZVNlcnZpY2VBY2NvdW50U2VjcmV0UmVxdWVzdBorLmF1dGgudjEuUm90YXRlU2VydmljZUFjY291bnRTZWNyZXRSZXNwb25zZRJjChRSZW1vdmVTZXJ2aWNlQWNjb3VudBIkLmF1dGgudjEuUmVtb3ZlU2VydmljZUFjY291bnRSZXF1ZXN0GiUuYXV0aC52MS5SZW1vdmVTZXJ2aWNlQWNjb3VudFJlc3BvbnNlYgZwcm90bzM", [file_auth_v1_members, file_auth_v1_service_accounts, file_auth_v1_session]);
 
 /**
  * AuthService is filament's identity surface. It is optional: with no
@@ -95,6 +97,41 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof RemoveMemberRequestSchema;
     output: typeof RemoveMemberResponseSchema;
+  },
+  /**
+   * Service accounts; authenticated tenant administration. Secrets are only
+   * returned by create and rotate and cannot be retrieved later.
+   *
+   * @generated from rpc auth.v1.AuthService.ListServiceAccounts
+   */
+  listServiceAccounts: {
+    methodKind: "unary";
+    input: typeof ListServiceAccountsRequestSchema;
+    output: typeof ListServiceAccountsResponseSchema;
+  },
+  /**
+   * @generated from rpc auth.v1.AuthService.CreateServiceAccount
+   */
+  createServiceAccount: {
+    methodKind: "unary";
+    input: typeof CreateServiceAccountRequestSchema;
+    output: typeof CreateServiceAccountResponseSchema;
+  },
+  /**
+   * @generated from rpc auth.v1.AuthService.RotateServiceAccountSecret
+   */
+  rotateServiceAccountSecret: {
+    methodKind: "unary";
+    input: typeof RotateServiceAccountSecretRequestSchema;
+    output: typeof RotateServiceAccountSecretResponseSchema;
+  },
+  /**
+   * @generated from rpc auth.v1.AuthService.RemoveServiceAccount
+   */
+  removeServiceAccount: {
+    methodKind: "unary";
+    input: typeof RemoveServiceAccountRequestSchema;
+    output: typeof RemoveServiceAccountResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_auth_v1_service, 0);

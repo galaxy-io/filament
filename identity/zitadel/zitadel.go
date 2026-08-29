@@ -148,6 +148,12 @@ func (p *Provider) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.Ge
 	return connect.NewResponse(&authv1.GetAuthConfigResponse{
 		Issuer:   p.issuer,
 		ClientId: p.clientID,
+		ServiceAccountScopes: []string{
+			"openid",
+			"urn:zitadel:iam:user:resourceowner",
+			"urn:zitadel:iam:org:project:id:" + p.project.id + ":aud",
+			"urn:zitadel:iam:org:projects:roles",
+		},
 	}), nil
 }
 

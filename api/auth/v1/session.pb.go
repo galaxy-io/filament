@@ -57,15 +57,19 @@ func (*GetAuthConfigRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_session_proto_rawDescGZIP(), []int{0}
 }
 
-// GetAuthConfigResponse tells the UI how to start the OIDC flow. An empty
-// issuer means no provider is configured: the UI renders without a session
-// and every other AuthService RPC is unimplemented.
+// GetAuthConfigResponse tells clients how to authenticate. An empty issuer
+// means no provider is configured: the UI renders without a session and every
+// other AuthService RPC is unimplemented.
 type GetAuthConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Issuer        string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Issuer   string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	ClientId string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	// service_account_scopes are requested by non-interactive clients. The
+	// provider owns these values so clients do not need provider-specific
+	// project IDs or reserved scope knowledge.
+	ServiceAccountScopes []string `protobuf:"bytes,3,rep,name=service_account_scopes,json=serviceAccountScopes,proto3" json:"service_account_scopes,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *GetAuthConfigResponse) Reset() {
@@ -110,6 +114,13 @@ func (x *GetAuthConfigResponse) GetClientId() string {
 		return x.ClientId
 	}
 	return ""
+}
+
+func (x *GetAuthConfigResponse) GetServiceAccountScopes() []string {
+	if x != nil {
+		return x.ServiceAccountScopes
+	}
+	return nil
 }
 
 // LoginRequest carries the credentials filament's own login page collected.
@@ -444,10 +455,11 @@ var File_auth_v1_session_proto protoreflect.FileDescriptor
 const file_auth_v1_session_proto_rawDesc = "" +
 	"\n" +
 	"\x15auth/v1/session.proto\x12\aauth.v1\"\x16\n" +
-	"\x14GetAuthConfigRequest\"L\n" +
+	"\x14GetAuthConfigRequest\"\x82\x01\n" +
 	"\x15GetAuthConfigResponse\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
-	"\tclient_id\x18\x02 \x01(\tR\bclientId\"q\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x124\n" +
+	"\x16service_account_scopes\x18\x03 \x03(\tR\x14serviceAccountScopes\"q\n" +
 	"\fLoginRequest\x12&\n" +
 	"\x0fauth_request_id\x18\x01 \x01(\tR\rauthRequestId\x12\x1d\n" +
 	"\n" +

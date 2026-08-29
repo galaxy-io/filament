@@ -436,16 +436,11 @@ export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
   untilMs: bigint;
 
   /**
-   * Search by run ID, pipeline ID, or pipeline name/description.
-   *
    * @generated from field: string search = 8;
    */
   search: string;
 
   /**
-   * NAME orders by the owning pipeline name; CREATED_AT and UPDATED_AT order
-   * by the corresponding run timestamps.
-   *
    * @generated from field: ingestion.v1.SortingRequest sorting = 9;
    */
   sorting?: SortingRequest | undefined;

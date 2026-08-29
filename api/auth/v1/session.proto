@@ -4,12 +4,16 @@ package auth.v1;
 
 message GetAuthConfigRequest {}
 
-// GetAuthConfigResponse tells the UI how to start the OIDC flow. An empty
-// issuer means no provider is configured: the UI renders without a session
-// and every other AuthService RPC is unimplemented.
+// GetAuthConfigResponse tells clients how to authenticate. An empty issuer
+// means no provider is configured: the UI renders without a session and every
+// other AuthService RPC is unimplemented.
 message GetAuthConfigResponse {
   string issuer = 1;
   string client_id = 2;
+  // service_account_scopes are requested by non-interactive clients. The
+  // provider owns these values so clients do not need provider-specific
+  // project IDs or reserved scope knowledge.
+  repeated string service_account_scopes = 3;
 }
 
 // LoginRequest carries the credentials filament's own login page collected.
