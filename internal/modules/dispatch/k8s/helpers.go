@@ -7,6 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
+
 	"github.com/galaxy-io/filament"
 )
 
@@ -38,6 +42,30 @@ func jobName(prefix string, run filament.RunID, executionID string) string {
 func executionToken(executionID string) string {
 	sum := sha256.Sum256([]byte(executionID))
 	return hex.EncodeToString(sum[:6])
+}
+
+// jobFinished reports whether the Job controller has stamped a terminal
+// condition. Pod counters can read zero mid-reconcile, so this is the boundary
+// the reaper's Alive probe trusts.
+func jobFinished(j *batchv1.Job) bool {
+	for _, condition := range j.Status.Conditions {
+		if condition.Status != corev1.ConditionTrue {
+			continue
+		}
+		if condition.Type == batchv1.JobComplete || condition.Type == batchv1.JobFailed {
+			return true
+		}
+	}
+	return false
+}
+
+// k8sLabelValue returns value when it is a valid label value, else a stable
+// token derived from it.
+func k8sLabelValue(value string) string {
+	if len(validation.IsValidLabelValue(value)) == 0 {
+		return value
+	}
+	return executionToken(value)
 }
 
 func cleanDNS1123(s string) string {

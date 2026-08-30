@@ -110,9 +110,10 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 	return runHandle{run: spec.Run, ds: m.ds}, nil
 }
 
-// Alive reports whether the run's worker Job still has active pods. The reaper
-// consults it before killing a stale run: an active Job means the worker may
-// be alive but silent (heartbeats lost, not the worker), so the kill is held.
+// Alive reports whether Kubernetes still considers any Job for the run
+// unfinished. Job status can briefly report zero active pods while the
+// controller is reconciling, so absence of a terminal condition—not the active
+// counter—is the safe boundary for the reaper.
 func (m *Module) Alive(ctx context.Context, run filament.RunID) (bool, error) {
 	if m.client == nil {
 		return false, errors.New("k8sdispatch: module is not mounted")
@@ -122,7 +123,7 @@ func (m *Module) Alive(ctx context.Context, run filament.RunID) (bool, error) {
 		return false, err
 	}
 	for _, j := range jobs {
-		if j.Status.Active > 0 {
+		if !jobFinished(&j) {
 			return true, nil
 		}
 	}
