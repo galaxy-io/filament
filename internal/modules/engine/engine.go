@@ -66,6 +66,5 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 	if !runner.ShouldRun(state) {
 		return nil // already running or finished — ack and ignore
 	}
-	runner.RunOne(ctx, m.deps, runner.SpecFromState(state))
-	return nil
+	return runner.RunOne(ctx, m.deps, runner.SpecFromState(state))
 }

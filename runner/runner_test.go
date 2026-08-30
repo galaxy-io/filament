@@ -72,6 +72,36 @@ func (progressLoadErrorStore) LoadRun(context.Context, filament.RunID) (filament
 	return filament.RunState{}, errors.New("database unavailable")
 }
 
+type publishErrorBus struct{ eventbus.Bus }
+
+func (publishErrorBus) Publish(context.Context, string, any) error {
+	return errors.New("broker unavailable")
+}
+
+func TestRunOneDoesNotExecuteWithoutPublishedStart(t *testing.T) {
+	base := inproc.New()
+	defer func() { _ = base.Close() }()
+	store := memory.New()
+	state := filament.RunState{Run: "r1", Tenant: "t1", Status: filament.RunRequested}
+	if err := store.SaveRun(context.Background(), state); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RunOne(context.Background(), Deps{
+		Bus: publishErrorBus{Bus: base}, DataStore: store,
+	}, filament.RunSpec{Tenant: state.Tenant, Run: state.Run})
+	if err == nil || !strings.Contains(err.Error(), "publish run.started") {
+		t.Fatalf("RunOne error = %v, want run.started publication failure", err)
+	}
+	got, err := store.LoadRun(context.Background(), state.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != filament.RunRequested {
+		t.Fatalf("status = %v, want Requested", got.Status)
+	}
+}
+
 func TestRunOneFailsWhenProgressCannotBeRestored(t *testing.T) {
 	bus := inproc.New()
 	facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})

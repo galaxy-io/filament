@@ -1,8 +1,9 @@
 // Package reaper is the zombie-run janitor: on each tick it finds runs stuck
-// in Running whose heartbeats stopped — a lost pod, an OOM-killed worker, a
-// crashed engine — and emits run.failed so the tracker folds them terminal.
-// Disaster recovery only; it plays no part in the normal lifecycle. Partial
-// runs are left alone: they hold resumable checkpoints.
+// in Requested or Running with no write in the staleness window — a worker
+// that never got admitted, a lost pod, an OOM-killed worker, a crashed engine
+// — and emits run.failed so the tracker folds them terminal. Disaster recovery
+// only; it plays no part in the normal lifecycle. Partial runs are left alone:
+// they hold resumable checkpoints.
 package reaper
 
 import (
@@ -123,13 +124,16 @@ func (m *Module) Start(ctx context.Context) {
 	}()
 }
 
-// reap fails every Running run with no write inside the staleness window. The
-// kill travels the bus as an ordinary run.failed fact, so the tracker remains
-// the only writer of terminal state. One run's emit failure doesn't stop the
-// sweep; the next tick retries anything still stale.
+// reap fails every Requested or Running run with no write inside the staleness
+// window. Requested covers a run whose worker exhausted its attempts before
+// publishing run.started; nothing else re-dispatches it, and while it sits
+// there it counts as active for the scheduler. The kill travels the bus as an
+// ordinary run.failed fact, so the tracker remains the only writer of terminal
+// state. One run's emit failure doesn't stop the sweep; the next tick retries
+// anything still stale.
 func (m *Module) reap(ctx context.Context, now time.Time) error {
 	stale, _, err := m.ds.ListRuns(ctx, filament.RunFilter{
-		Status:        []filament.RunStatus{filament.RunRunning},
+		Status:        []filament.RunStatus{filament.RunRequested, filament.RunRunning},
 		UpdatedBefore: now.Add(-m.staleAfter),
 	})
 	if err != nil {

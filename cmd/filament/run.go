@@ -255,12 +255,14 @@ func executeLocalRun(ctx context.Context, spec filament.RunSpec) (runResult, err
 		return runResult{}, err
 	}
 
-	runner.RunOne(ctx, runner.Deps{
+	if err := runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
 		DataStore: memory.New(),
 		Sources:   registry.DefaultSources,
 		Sinks:     registry.DefaultSinks,
-	}, spec)
+	}, spec); err != nil {
+		return runResult{}, err
+	}
 
 	select {
 	case message := <-completed.C():
