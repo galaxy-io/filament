@@ -20,15 +20,17 @@ type RunSpec struct {
 	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
 	// derive it from the run.requested fact so redelivery is idempotent while a
 	// later resume creates fresh worker infrastructure.
-	ExecutionID       string
-	PipelineID        string
-	PipelineVersionID string
-	CheckpointRoute   string
-	CursorConfigs     map[string]ResourceCursorConfig
-	Source            Ref
-	Sink              Ref
-	Resources         []string
-	Selectors         []string
+	ExecutionID        string
+	PipelineID         string
+	PipelineVersionID  string
+	SourceConnectionID string
+	SinkConnectionID   string
+	CheckpointRoute    string
+	CursorConfigs      map[string]ResourceCursorConfig
+	Source             Ref
+	Sink               Ref
+	Resources          []string
+	Selectors          []string
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType

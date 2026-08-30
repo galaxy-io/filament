@@ -106,6 +106,7 @@ var (
 	_ filament.IncrementalPlanner   = (*Source)(nil)
 	_ filament.CursorColumnProvider = (*Source)(nil)
 	_ filament.ChangeSource         = (*Source)(nil)
+	_ filament.ChangeAcknowledger   = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.

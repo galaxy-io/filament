@@ -44,6 +44,7 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 	return filament.RunSpec{
 		Tenant: r.Tenant, Run: s.Run, StartedAt: s.StartedAt,
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
+		SourceConnectionID: r.SourceConnectionID, SinkConnectionID: r.SinkConnectionID,
 		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
 		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
@@ -74,72 +75,70 @@ func ShouldRun(state filament.RunState) bool {
 // run.started first and exactly one terminal fact (run.completed | run.failed |
 // run.partial | run.paused | run.canceled).
 //
+// A non-nil return means execution was not admitted (see admit). Once
+// admitted, outcomes travel as terminal facts and RunOne returns nil.
+//
 //nolint:funlen // the run lifecycle reads best as one sequence
-func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
-	var span filament.Span
-	if deps.Tracer != nil {
-		ctx, span = deps.Tracer.Start(ctx, "filament.run")
-		defer span.End()
-		span.SetAttr("run", string(spec.Run))
-		span.SetAttr("tenant", string(spec.Tenant))
-		span.SetAttr("source", spec.Source.Connector)
-		span.SetAttr("sink", spec.Sink.Connector)
-	}
+func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
+	ctx, span, endSpan := startRunSpan(ctx, deps, spec)
+	defer endSpan()
 
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	em.span = span
 	extractCtx, control, err := prepareRunExecution(ctx, deps, spec, em)
 	if err != nil {
 		em.failed(err, nil, false)
-		return
+		return nil
 	}
 	defer control.close()
 	runStartedAt := startedAtFor(spec)
-	emitAt(em, events.RunStarted, "", runStartedAt, events.RunStartedEvent{})
+	if err := admit(em, runStartedAt); err != nil {
+		return err
+	}
 
 	if err := ResolveConfigRefs(extractCtx, deps.Secrets, &spec); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return
+			return nil
 		}
 		em.failed(err, nil, false)
-		return
+		return nil
 	}
 
 	src, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
 		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err), nil, false)
-		return
+		return nil
 	}
 	if err := src.Configure(extractCtx, filament.NewConfig(spec.Source.Config)); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return
+			return nil
 		}
 		em.failed(fmt.Errorf("configure source %q: %w", spec.Source.Connector, err), nil, false)
-		return
+		return nil
 	}
 	defer func() { _ = src.Teardown(ctx) }()
 	plannedResources, err := PlanResources(extractCtx, src, spec.Resources, spec.Selectors)
 	if err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return
+			return nil
 		}
 		em.failed(fmt.Errorf("plan resources: %w", err), nil, false)
-		return
+		return nil
 	}
 	spec.Resources = plannedResources
 
 	snk, err := deps.Sinks.Resolve(spec.Sink.Connector)
 	if err != nil {
 		em.failed(fmt.Errorf("resolve sink %q: %w", spec.Sink.Connector, err), nil, false)
-		return
+		return nil
 	}
 	plan, err := filament.ResolveIngestionPlan(extractCtx, src, snk, spec)
 	if err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return
+			return nil
 		}
 		em.failed(err, nil, false)
-		return
+		return nil
 	}
 	spec.WritePolicies = plan.WritePolicies
 	// Ordered reads (incremental cursors, CDC streams, checkpointed resume)
@@ -150,10 +149,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	}
 	if err := snk.Open(extractCtx, spec); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return
+			return nil
 		}
 		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Connector, err), nil, false)
-		return
+		return nil
 	}
 
 	// A schema-aware sink needs typed DDL before any write. When the source can
@@ -162,10 +161,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	if err := ensureSchemas(extractCtx, src, snk, spec); err != nil {
 		abortSink(ctx, deps, spec, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return
+			return nil
 		}
 		em.failed(fmt.Errorf("ensure schema: %w", err), nil, false)
-		return
+		return nil
 	}
 
 	// Announce the resources this run will touch (when known up front).
@@ -177,17 +176,17 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	if err != nil {
 		abortSink(ctx, deps, spec, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return
+			return nil
 		}
 		em.failed(err, spec.Resources, false)
-		return
+		return nil
 	}
 
 	p := pipeline.New(pipeline.Config{
 		Tenant:        spec.Tenant,
 		Run:           spec.Run,
 		Sink:          snk,
-		Emit:          em.publish,
+		Emit:          func(f events.Fact) { _ = em.publish(f) },
 		NextSeq:       em.next,
 		WritePolicies: plan.WritePolicies,
 		Options:       spec.Options,
@@ -231,32 +230,61 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) {
 	resources := resolveResources(spec.Resources, em.seenResources())
 	if waitErr == nil && stoppedByControl(extractCtx, extractErr, control.requested()) {
 		finishControlled(ctx, deps, spec, plan, snk, em, resources, control.seal())
-		return
+		return nil
 	}
 
 	if runErr != nil {
 		resumable := isResumableRun(spec, plan)
 		em.failed(runErr, resources, resumable)
 		if resumable {
-			return
+			return nil
 		}
 		// Abort after the obituary, on its own detached context: cleanup must
 		// not eat the terminal publish window, and a slow sink must not strand
 		// the row in RunRunning.
 		abortSink(ctx, deps, spec, snk)
-		return
+		return nil
 	}
 
 	if signal := control.seal(); signal != controlNone {
 		finishControlled(ctx, deps, spec, plan, snk, em, resources, signal)
-		return
+		return nil
 	}
 	if err := snk.Commit(ctx); err != nil {
 		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Connector, err), resources, false)
 		abortSink(ctx, deps, spec, snk)
-		return
+		return nil
 	}
 	em.completed(resources)
+	acknowledgeDurableChanges(ctx, deps, spec, src, em.streamCheckpoints())
+	return nil
+}
+
+// startRunSpan opens the run's trace span when a tracer is configured. Without
+// one the span is nil, which the emitter tolerates, and endSpan is a no-op.
+func startRunSpan(ctx context.Context, deps Deps, spec filament.RunSpec) (_ context.Context, span filament.Span, endSpan func()) {
+	if deps.Tracer == nil {
+		return ctx, nil, func() {}
+	}
+	ctx, span = deps.Tracer.Start(ctx, "filament.run")
+	span.SetAttr("run", string(spec.Run))
+	span.SetAttr("tenant", string(spec.Tenant))
+	span.SetAttr("source", spec.Source.Connector)
+	span.SetAttr("sink", spec.Sink.Connector)
+	return ctx, span, span.End
+}
+
+// admit publishes run.started, the one fact that gates execution. On failure
+// it leaves a best-effort run.failed obituary: the broker may have stored the
+// fact despite the failed ack, and a Running row with no worker behind it
+// would otherwise wait on the reaper.
+func admit(em *emitter, startedAt time.Time) error {
+	if err := emitAt(em, events.RunStarted, "", startedAt, events.RunStartedEvent{}); err != nil {
+		notAdmitted := fmt.Errorf("publish run.started: %w", err)
+		em.failed(notAdmitted, nil, false)
+		return notAdmitted
+	}
+	return nil
 }
 
 func startedAtFor(spec filament.RunSpec) time.Time {
