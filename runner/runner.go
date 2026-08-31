@@ -181,6 +181,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		em.failed(err, spec.Resources, false)
 		return nil
 	}
+	// Everything already in the checkpoint store is durable, so release stream
+	// retention up to it now; this repeats any acknowledgement the previous
+	// run could not complete.
+	acknowledgeDurableChanges(ctx, deps, spec, src, nil)
 
 	p := pipeline.New(pipeline.Config{
 		Tenant:        spec.Tenant,
@@ -275,14 +279,13 @@ func startRunSpan(ctx context.Context, deps Deps, spec filament.RunSpec) (_ cont
 }
 
 // admit publishes run.started, the one fact that gates execution. On failure
-// it leaves a best-effort run.failed obituary: the broker may have stored the
-// fact despite the failed ack, and a Running row with no worker behind it
-// would otherwise wait on the reaper.
+// the run is left as it was, Requested, so the dispatcher's retry executes it.
+// No obituary is published: it would turn a transient broker fault into a
+// terminal run. A fact the broker stored despite a failed ack leaves a
+// Running row with no worker, which the reaper resolves.
 func admit(em *emitter, startedAt time.Time) error {
 	if err := emitAt(em, events.RunStarted, "", startedAt, events.RunStartedEvent{}); err != nil {
-		notAdmitted := fmt.Errorf("publish run.started: %w", err)
-		em.failed(notAdmitted, nil, false)
-		return notAdmitted
+		return fmt.Errorf("publish run.started: %w", err)
 	}
 	return nil
 }

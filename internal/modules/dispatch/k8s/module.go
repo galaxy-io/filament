@@ -110,22 +110,24 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 	return runHandle{run: spec.Run, ds: m.ds}, nil
 }
 
-// Alive reports whether Kubernetes still considers any Job for the run
-// unfinished. Job status can briefly report zero active pods while the
-// controller is reconciling, so absence of a terminal condition—not the active
-// counter—is the safe boundary for the reaper.
-func (m *Module) Alive(ctx context.Context, run filament.RunID) (bool, error) {
+// Workload reports the run's Job state for the reaper. A Job without a
+// terminal condition is Active even when its pod counter reads zero, which
+// happens briefly while the controller reconciles; a Job with one is Finished;
+// no Job at all is Absent.
+func (m *Module) Workload(ctx context.Context, run filament.RunID) (filament.Workload, error) {
 	if m.client == nil {
-		return false, errors.New("k8sdispatch: module is not mounted")
+		return filament.WorkloadAbsent, errors.New("k8sdispatch: module is not mounted")
 	}
 	jobs, err := m.client.listJobs(ctx, m.cfg.Namespace, "filament.galaxy.io/run-id="+string(run))
 	if err != nil {
-		return false, err
+		return filament.WorkloadAbsent, err
 	}
+	workload := filament.WorkloadAbsent
 	for _, j := range jobs {
 		if !jobFinished(&j) {
-			return true, nil
+			return filament.WorkloadActive, nil
 		}
+		workload = filament.WorkloadFinished
 	}
-	return false, nil
+	return workload, nil
 }

@@ -36,6 +36,53 @@ func (q *Queries) DeleteResourceCheckpoint(ctx context.Context, arg DeleteResour
 	return err
 }
 
+const listResourceCheckpoints = `-- name: ListResourceCheckpoints :many
+SELECT resource_name, cursor, last_run_id, updated_at
+FROM pipeline_resource_checkpoints
+WHERE pipeline_id = $1
+  AND pipeline_version_id = $2
+  AND route_key = $3
+ORDER BY resource_name
+`
+
+type ListResourceCheckpointsParams struct {
+	PipelineID        string
+	PipelineVersionID string
+	RouteKey          string
+}
+
+type ListResourceCheckpointsRow struct {
+	ResourceName string
+	Cursor       []byte
+	LastRunID    string
+	UpdatedAt    pgtype.Timestamptz
+}
+
+func (q *Queries) ListResourceCheckpoints(ctx context.Context, arg ListResourceCheckpointsParams) ([]*ListResourceCheckpointsRow, error) {
+	rows, err := q.db.Query(ctx, listResourceCheckpoints, arg.PipelineID, arg.PipelineVersionID, arg.RouteKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ListResourceCheckpointsRow
+	for rows.Next() {
+		var i ListResourceCheckpointsRow
+		if err := rows.Scan(
+			&i.ResourceName,
+			&i.Cursor,
+			&i.LastRunID,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const loadResourceCheckpoint = `-- name: LoadResourceCheckpoint :one
 SELECT cursor, last_run_id, updated_at
 FROM pipeline_resource_checkpoints

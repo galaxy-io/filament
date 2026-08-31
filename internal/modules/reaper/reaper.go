@@ -26,8 +26,8 @@ const (
 	defaultStaleAfter = 5 * time.Minute
 )
 
-// AliveCheck reports whether the dispatched workload for a run still exists.
-type AliveCheck func(ctx context.Context, run filament.RunID) (bool, error)
+// WorkloadProbe reports what the dispatcher can prove about a run's worker.
+type WorkloadProbe func(ctx context.Context, run filament.RunID) (filament.Workload, error)
 
 // Module is the staleness sweep over the run store.
 type Module struct {
@@ -35,7 +35,7 @@ type Module struct {
 	bus   eventbus.Bus
 	log   filament.Logger
 	mx    filament.Metrics
-	alive AliveCheck
+	probe WorkloadProbe
 
 	interval   time.Duration
 	staleAfter time.Duration
@@ -51,10 +51,12 @@ func WithInterval(d time.Duration) Option { return func(m *Module) { m.interval 
 // is declared dead (default 5m).
 func WithStaleAfter(d time.Duration) Option { return func(m *Module) { m.staleAfter = d } }
 
-// WithAliveCheck sets a dispatcher probe consulted before each kill: a stale
-// run whose workload is still up is held, since the worker may be alive with
-// its heartbeats lost. Without one, staleness alone decides.
-func WithAliveCheck(f AliveCheck) Option { return func(m *Module) { m.alive = f } }
+// WithWorkloadProbe sets the dispatcher probe consulted before each kill. A
+// stale run whose workload is still up is held, since the worker may be alive
+// with its heartbeats lost, and a Requested run is only judged dead once the
+// probe proves its workload ran and finished. Without one, staleness alone
+// decides and only Running runs are swept.
+func WithWorkloadProbe(f WorkloadProbe) Option { return func(m *Module) { m.probe = f } }
 
 // New returns an unmounted reaper; providers are injected by Mount and the
 // timer is launched by Start.
@@ -124,40 +126,45 @@ func (m *Module) Start(ctx context.Context) {
 	}()
 }
 
-// reap fails every Requested or Running run with no write inside the staleness
-// window. Requested covers a run whose worker exhausted its attempts before
-// publishing run.started; nothing else re-dispatches it, and while it sits
-// there it counts as active for the scheduler. The kill travels the bus as an
-// ordinary run.failed fact, so the tracker remains the only writer of terminal
-// state. One run's emit failure doesn't stop the sweep; the next tick retries
-// anything still stale.
+// reap fails every stale run the workload evidence says is dead. The kill
+// travels the bus as an ordinary run.failed fact, so the tracker remains the
+// only writer of terminal state. One run's emit failure doesn't stop the
+// sweep; the next tick retries anything still stale.
 func (m *Module) reap(ctx context.Context, now time.Time) error {
+	statuses := []filament.RunStatus{filament.RunRunning}
+	if m.probe != nil {
+		// A Requested run can only be judged with dispatch evidence.
+		statuses = append(statuses, filament.RunRequested)
+	}
 	stale, _, err := m.ds.ListRuns(ctx, filament.RunFilter{
-		Status:        []filament.RunStatus{filament.RunRequested, filament.RunRunning},
+		Status:        statuses,
 		UpdatedBefore: now.Add(-m.staleAfter),
 	})
 	if err != nil {
 		return err
 	}
 	for _, r := range stale {
-		if m.alive != nil {
-			alive, err := m.alive(ctx, r.Run)
+		workload := filament.WorkloadAbsent
+		if m.probe != nil {
+			workload, err = m.probe(ctx, r.Run)
 			if err != nil {
 				// Can't prove the workload is gone — hold the kill and let the
 				// next tick retry rather than fail a run that may still be live.
 				if m.log != nil {
-					m.log.Error("reaper: alive check", err, filament.Field{Key: "run", Value: string(r.Run)})
+					m.log.Error("reaper: workload probe", err, filament.Field{Key: "run", Value: string(r.Run)})
 				}
 				continue
 			}
-			if alive {
-				if m.log != nil {
-					m.log.Info("reaper: stale run's workload still up; holding",
-						filament.Field{Key: "run", Value: string(r.Run)},
-						filament.Field{Key: "stale_since", Value: r.UpdatedAt.UTC().Format(time.RFC3339)})
-				}
-				continue
+		}
+		if !dead(r.Status, workload) {
+			if m.log != nil {
+				m.log.Info("reaper: stale run held",
+					filament.Field{Key: "run", Value: string(r.Run)},
+					filament.Field{Key: "status", Value: int(r.Status)},
+					filament.Field{Key: "workload", Value: workload.String()},
+					filament.Field{Key: "stale_since", Value: r.UpdatedAt.UTC().Format(time.RFC3339)})
 			}
+			continue
 		}
 		err := events.Emit(ctx, m.bus, events.RunFailed,
 			events.Envelope{Tenant: r.Tenant, Run: r.Run, At: now},
@@ -179,4 +186,20 @@ func (m *Module) reap(ctx context.Context, now time.Time) error {
 		}
 	}
 	return nil
+}
+
+// dead decides whether a stale run's workload evidence warrants the kill.
+// Running dies unless its workload is provably still up; Absent there means
+// the platform already collected it. Requested dies only once the workload
+// provably ran and finished, because Absent may simply mean not dispatched
+// yet.
+func dead(status filament.RunStatus, workload filament.Workload) bool {
+	switch status {
+	case filament.RunRunning:
+		return workload != filament.WorkloadActive
+	case filament.RunRequested:
+		return workload == filament.WorkloadFinished
+	default:
+		return false
+	}
 }

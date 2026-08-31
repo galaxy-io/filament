@@ -10,13 +10,22 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
-const durableChangeAckWait = 5 * time.Second
+// durableChangeAckWait bounds one acknowledgement. It must outlast both a
+// lagging tracker promotion and the source's own wait for a peer to release
+// the stream.
+const durableChangeAckWait = 30 * time.Second
 
-// acknowledgeDurableChanges releases source-side stream retention once the
-// tracker has promoted every final cursor into the cross-run checkpoint store.
-// Failure is deliberately non-terminal: the sink is already committed, and the
-// next CDC cycle retries the acknowledgement. Detached from run cancellation so
-// shutdown cannot skip it, bounded so a lagging tracker cannot hang the worker.
+// acknowledgeDurableChanges releases source-side stream retention up to the
+// route floor: the oldest durable cursor of every resource under the run's
+// checkpoint route, not only this run's. A run covering a subset of the
+// route's resources must never advance past the ones it left out.
+//
+// Called at run start, when everything in the store is already durable, and
+// at run end once the tracker has promoted this run's final cursors (targets).
+// An acknowledgement skipped at the end of one run is therefore repeated at
+// the start of the next. Failure is non-terminal: the sink is already
+// committed. Detached from run cancellation so shutdown cannot skip it,
+// bounded so a lagging tracker cannot hang the worker.
 func acknowledgeDurableChanges(
 	ctx context.Context,
 	deps Deps,
@@ -25,14 +34,18 @@ func acknowledgeDurableChanges(
 	targets map[string]filament.Checkpoint,
 ) {
 	ack, ok := src.(filament.ChangeAcknowledger)
-	if !ok || deps.DataStore == nil || len(targets) == 0 {
+	if !ok || deps.DataStore == nil {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), durableChangeAckWait)
 	defer cancel()
-	durable, err := waitForDurableStreamCheckpoints(ctx, deps.DataStore, spec, targets)
+	err := waitForDurableStreamCheckpoints(ctx, deps.DataStore, spec, targets)
+	var floor map[string]filament.Checkpoint
 	if err == nil {
-		err = ack.AcknowledgeChanges(ctx, durable)
+		floor, err = routeStreamCheckpoints(ctx, deps.DataStore, spec)
+	}
+	if err == nil && len(floor) > 0 {
+		err = ack.AcknowledgeChanges(ctx, floor)
 	}
 	if err != nil && deps.Log != nil {
 		deps.Log.Warn("runner: acknowledge durable change checkpoint",
@@ -41,45 +54,66 @@ func acknowledgeDurableChanges(
 	}
 }
 
+// waitForDurableStreamCheckpoints blocks until the store holds a cursor at or
+// beyond each target, i.e. until the tracker has promoted this run's progress.
 func waitForDurableStreamCheckpoints(
 	ctx context.Context,
 	ds filament.DataStore,
 	spec filament.RunSpec,
 	targets map[string]filament.Checkpoint,
-) (map[string]filament.Checkpoint, error) {
+) error {
+	if len(targets) == 0 {
+		return nil
+	}
 	ticker := time.NewTicker(25 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		durable := make(map[string]filament.Checkpoint, len(targets))
 		ready := true
 		for resource, target := range targets {
 			key, ok := spec.ResourceCheckpointKey(resource)
 			if !ok {
-				return nil, fmt.Errorf("CDC resource %q has no durable checkpoint route", resource)
+				return fmt.Errorf("CDC resource %q has no durable checkpoint route", resource)
 			}
 			state, err := ds.LoadResourceCheckpoint(ctx, key)
-			if err != nil {
-				if errors.Is(err, filament.ErrNotFound) {
-					ready = false
-					break
-				}
-				return nil, err
-			}
-			if !streamCheckpointReached(state.Checkpoint, target) {
+			if errors.Is(err, filament.ErrNotFound) || (err == nil && !streamCheckpointReached(state.Checkpoint, target)) {
 				ready = false
 				break
 			}
-			durable[resource] = state.Checkpoint
+			if err != nil {
+				return err
+			}
 		}
 		if ready {
-			return durable, nil
+			return nil
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return ctx.Err()
 		case <-ticker.C:
 		}
 	}
+}
+
+// routeStreamCheckpoints returns every durable stream cursor under the run's
+// checkpoint route, keyed by resource. Cursors of other shapes (incremental
+// columns) share the route but not the stream and are left out.
+func routeStreamCheckpoints(ctx context.Context, ds filament.DataStore, spec filament.RunSpec) (map[string]filament.Checkpoint, error) {
+	if spec.PipelineID == "" || spec.PipelineVersionID == "" || spec.CheckpointRoute == "" {
+		return nil, nil
+	}
+	states, err := ds.ListResourceCheckpoints(ctx, filament.ResourceCheckpointRoute{
+		PipelineID: spec.PipelineID, PipelineVersionID: spec.PipelineVersionID, Route: spec.CheckpointRoute,
+	})
+	if err != nil {
+		return nil, err
+	}
+	floor := make(map[string]filament.Checkpoint, len(states))
+	for _, state := range states {
+		if _, _, ok := checkpoint.ParseStream(state.Checkpoint); ok {
+			floor[state.Key.Resource] = state.Checkpoint
+		}
+	}
+	return floor, nil
 }
 
 func streamCheckpointReached(durable, target filament.Checkpoint) bool {

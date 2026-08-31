@@ -233,10 +233,10 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	}); err != nil {
 		return fmt.Errorf("postgres cdc: start slot %q at %s: %w", s.slotName, start, err)
 	}
-	// Only acknowledge the cursor which was durable before this extraction began.
-	// The final watermark is acknowledged by the next cycle, after the sink and
-	// tracker have committed it.
-	if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: start}); err != nil {
+	// Standby replies confirm the slot's own position, a no-op that keeps the
+	// walsender satisfied. The slot advances in exactly one place,
+	// AcknowledgeChanges, once the runner has proven the cursors durable.
+	if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: slot.start}); err != nil {
 		return fmt.Errorf("postgres cdc: acknowledge start %s: %w", start, err)
 	}
 
@@ -252,7 +252,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 		cancel()
 		if recvErr != nil {
 			if pgconn.Timeout(recvErr) {
-				if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: start}); err != nil {
+				if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: slot.start}); err != nil {
 					return fmt.Errorf("postgres cdc: standby status: %w", err)
 				}
 				nextStatus = time.Now().Add(standbyStatusInterval)
@@ -274,7 +274,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 					return fmt.Errorf("postgres cdc: keepalive: %w", err)
 				}
 				if keepalive.ReplyRequested {
-					if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: start}); err != nil {
+					if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: slot.start}); err != nil {
 						return fmt.Errorf("postgres cdc: keepalive reply: %w", err)
 					}
 					nextStatus = time.Now().Add(standbyStatusInterval)

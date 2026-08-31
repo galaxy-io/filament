@@ -102,6 +102,86 @@ func TestRunOneDoesNotExecuteWithoutPublishedStart(t *testing.T) {
 	}
 }
 
+// publishFailOnceBus fails the first publish only, the shape of a transient
+// broker fault at worker start.
+type publishFailOnceBus struct {
+	eventbus.Bus
+	failed atomic.Bool
+}
+
+func (b *publishFailOnceBus) Publish(ctx context.Context, subject string, payload any) error {
+	if b.failed.CompareAndSwap(false, true) {
+		return errors.New("broker unavailable")
+	}
+	return b.Bus.Publish(ctx, subject, payload)
+}
+
+func TestRunOneRetriesAfterTransientStartPublishFailure(t *testing.T) {
+	base := inproc.New()
+	defer func() { _ = base.Close() }()
+	facts, err := base.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = facts.Close() }()
+	completed := make(chan struct{}, 1)
+	obituary := make(chan string, 1)
+	go func() {
+		for msg := range facts.C() {
+			f, decodeErr := events.Decode(msg)
+			_ = msg.Ack()
+			if decodeErr != nil {
+				continue
+			}
+			switch d := f.Data.(type) {
+			case events.RunCompletedEvent:
+				completed <- struct{}{}
+			case events.RunFailedEvent:
+				obituary <- d.Error
+			}
+		}
+	}()
+
+	sources := registry.NewSources()
+	sources.Register("test", func() filament.Source { return &commitTestSource{} })
+	sinks := registry.NewSinks()
+	sinks.Register("test-sink", func() filament.Sink { return &controlledTestSink{} })
+	store := memory.New()
+	state := filament.RunState{Run: "r1", Tenant: "t1", Status: filament.RunRequested}
+	if err := store.SaveRun(context.Background(), state); err != nil {
+		t.Fatal(err)
+	}
+	deps := Deps{Bus: &publishFailOnceBus{Bus: base}, DataStore: store, Sources: sources, Sinks: sinks}
+	spec := filament.RunSpec{
+		Tenant: state.Tenant, Run: state.Run,
+		Source: filament.Ref{Connector: "test"}, Sink: filament.Ref{Connector: "test-sink"},
+		Resources:      []string{"users"},
+		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
+	}
+
+	err = RunOne(context.Background(), deps, spec)
+	if err == nil || !strings.Contains(err.Error(), "publish run.started") {
+		t.Fatalf("first RunOne error = %v, want run.started publication failure", err)
+	}
+	select {
+	case msg := <-obituary:
+		t.Fatalf("admission failure published run.failed %q; the retry could never execute", msg)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if got, _ := store.LoadRun(context.Background(), state.Run); got.Status != filament.RunRequested {
+		t.Fatalf("status after failed admission = %v, want Requested", got.Status)
+	}
+
+	if err := RunOne(context.Background(), deps, spec); err != nil {
+		t.Fatalf("retry RunOne error = %v", err)
+	}
+	select {
+	case <-completed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("retry did not publish run.completed")
+	}
+}
+
 func TestRunOneFailsWhenProgressCannotBeRestored(t *testing.T) {
 	bus := inproc.New()
 	facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
