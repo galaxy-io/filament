@@ -19,12 +19,16 @@ import (
 // CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
 	id := uuid.NewString()
-	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(req.Msg.GetWorkerConfiguration())); err != nil {
+	workerConfiguration := req.Msg.GetWorkerConfiguration()
+	if workerConfiguration == nil {
+		workerConfiguration = defaultWorkerConfiguration()
+	}
+	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(workerConfiguration)); err != nil {
 		return nil, compileError(err)
 	}
 	pipeline := &ingestionv1.Pipeline{
 		Id: id, TenantId: defaultTenant(req.Msg.GetTenantId()), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
-		WorkerConfiguration: req.Msg.GetWorkerConfiguration(),
+		WorkerConfiguration: workerConfiguration,
 	}
 	var schedule *filament.ScheduleState
 	if config := req.Msg.GetSchedule(); config != nil {
@@ -52,6 +56,16 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 		res.Schedule = pipelineScheduleToProto(*schedule)
 	}
 	return connect.NewResponse(res), nil
+}
+
+// defaultWorkerConfiguration is persisted when a create request omits worker
+// sizing. Keeping the default at the API boundary means every client gets the
+// same behavior, and future default changes do not resize existing pipelines.
+func defaultWorkerConfiguration() *ingestionv1.WorkerConfiguration {
+	return &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{
+		Requests: map[string]string{"cpu": "500m", "memory": "256Mi"},
+		Limits:   map[string]string{"cpu": "1000m", "memory": "512Mi"},
+	}}
 }
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.

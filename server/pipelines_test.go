@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -14,6 +15,28 @@ import (
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/registry"
 )
+
+func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+
+	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "defaults"}))
+	if err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	want := defaultWorkerConfiguration()
+	if got := res.Msg.GetPipeline().GetWorkerConfiguration(); !proto.Equal(got, want) {
+		t.Fatalf("response worker configuration = %+v, want %+v", got, want)
+	}
+	stored, err := store.LoadPipeline(ctx, res.Msg.GetPipeline().GetId())
+	if err != nil {
+		t.Fatalf("LoadPipeline: %v", err)
+	}
+	if got := stored.GetWorkerConfiguration(); !proto.Equal(got, want) {
+		t.Fatalf("stored worker configuration = %+v, want %+v", got, want)
+	}
+}
 
 // TestGetPipelineIncludesDeleted covers the soft-delete read path: a deleted
 // pipeline stays readable by id — with its versions and deleted_at — while
