@@ -62,13 +62,12 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 	return nil
 }
 
-type unavailableTargetError struct {
-	context string
-	kind    contexts.Kind
+type unimplementedTargetError struct {
+	kind contexts.Kind
 }
 
-func (e *unavailableTargetError) Error() string {
-	return fmt.Sprintf("context %q selects a %s target, but %s target support is not available yet", e.context, e.kind, e.kind)
+func (e *unimplementedTargetError) Error() string {
+	return fmt.Sprintf("%s target is not implemented", e.kind)
 }
 
 func (a *cliApp) initializeTarget() error {
@@ -91,7 +90,7 @@ func (a *cliApp) initializeTarget() error {
 	}
 	a.target = selected
 	if selected.Target.Kind != contexts.KindLocal {
-		return &unavailableTargetError{context: selected.Name, kind: selected.Target.Kind}
+		return &unimplementedTargetError{kind: selected.Target.Kind}
 	}
 	a.configPath = selected.Target.ConfigPath
 	a.initializeQueries()
