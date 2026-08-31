@@ -73,6 +73,7 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 
 	if p.log != nil {
 		p.log.Warn("chunk divergence",
+			filament.Field{Key: "event.name", Value: "pipeline.chunk.divergence"},
 			filament.Field{Key: "resource", Value: b.Resource},
 			filament.Field{Key: "seq", Value: b.Seq},
 			filament.Field{Key: "read_crc", Value: readCRC},
