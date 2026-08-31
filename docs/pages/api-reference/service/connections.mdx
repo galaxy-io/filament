@@ -3,7 +3,7 @@ title: "Connections"
 description: "Reusable, tenant-scoped sources and sinks with managed secrets and optimistic locking"
 ---
 
-Defined in `api/ingestion/v1/connections.proto`. A connection is a configured,
+Defined in `protos/ingestion/v1/connections.proto`. A connection is a configured,
 reusable instance of a connector. The host, bucket, and credentials are
 persisted once and referenced by any number of pipeline nodes, instead of
 duplicated inline on each pipeline. Connections are tenant-scoped, carry a `version`

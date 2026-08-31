@@ -200,14 +200,12 @@ func (x *ConnectorSpec) GetMaturity() ConnectorMaturity {
 }
 
 type ListConnectorsRequest struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	TenantId   string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind       ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Pagination *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	// Case-insensitive search over name, display_name, and description.
-	Search string `protobuf:"bytes,4,opt,name=search,proto3" json:"search,omitempty"`
-	// Sorting supports NAME; created/updated timestamps do not exist for catalog entries.
-	Sorting       *SortingRequest `protobuf:"bytes,5,opt,name=sorting,proto3" json:"sorting,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Pagination    *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Search        string                 `protobuf:"bytes,4,opt,name=search,proto3" json:"search,omitempty"`
+	Sorting       *SortingRequest        `protobuf:"bytes,5,opt,name=sorting,proto3" json:"sorting,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
