@@ -9,10 +9,11 @@ import (
 	"github.com/galaxy-io/filament"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 	"github.com/galaxy-io/filament/registry"
 )
 
-func (a *cliApp) discoverSource(ctx context.Context, args []string, doc configDocument) error {
+func (a *cliApp) discoverSource(ctx context.Context, args []string, doc localtarget.Document) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err

@@ -12,21 +12,10 @@ import (
 	"github.com/galaxy-io/filament/registry"
 )
 
-const configVersion = localtarget.ConfigVersion
-
 var (
 	namePattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 	envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
-
-type configDocument = localtarget.Document
-type connection = localtarget.Connection
-type pipeline = localtarget.Pipeline
-type pipelineNode = localtarget.PipelineNode
-
-func newDocument() configDocument {
-	return localtarget.NewDocument()
-}
 
 type connectorCatalog struct {
 	sources map[string]filament.ConnectorSpec
@@ -69,9 +58,9 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-func validateDocument(d configDocument, catalog connectorCatalog) error {
-	if d.Version != configVersion {
-		return fmt.Errorf("version: got %d, want %d", d.Version, configVersion)
+func validateDocument(d localtarget.Document, catalog connectorCatalog) error {
+	if d.Version != localtarget.ConfigVersion {
+		return fmt.Errorf("version: got %d, want %d", d.Version, localtarget.ConfigVersion)
 	}
 	for _, name := range sortedKeys(d.Sources) {
 		if err := validateName("source", name); err != nil {
@@ -145,7 +134,7 @@ func validateName(kind, name string) error {
 	return nil
 }
 
-func validateConnectionFields(label string, schema filament.ConfigSchema, conn connection) error {
+func validateConnectionFields(label string, schema filament.ConfigSchema, conn localtarget.Connection) error {
 	return validateScopedFields(label, schema, conn.Config, filament.ScopeConnection)
 }
 

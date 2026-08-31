@@ -2,6 +2,20 @@
 // target adapters, and presentation adapters.
 package model
 
+// ContextList is the result of listing configured CLI contexts.
+type ContextList struct {
+	Items []ContextSummary
+}
+
+// ContextSummary describes one secret-free local or remote CLI context.
+type ContextSummary struct {
+	Name     string
+	Current  bool
+	Kind     string
+	Location string
+	Tenant   string
+}
+
 // ConnectionList is the result of listing saved connections of one kind.
 type ConnectionList struct {
 	Kind  string

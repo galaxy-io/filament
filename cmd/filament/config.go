@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,13 +21,13 @@ func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: filament config <path|validate|edit>")
 	}
-	store := configStore{path: a.configPath}
+	store := localtarget.Store{Path: a.configPath}
 	switch args[0] {
 	case "path":
 		_, err := fmt.Fprintln(a.stdout, a.configPath)
 		return err
 	case "validate":
-		doc, _, err := store.load()
+		doc, _, err := store.Load()
 		if err != nil {
 			return err
 		}
@@ -42,15 +43,15 @@ func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
 	}
 }
 
-func (a *cliApp) editConfig(ctx context.Context, store configStore) error {
-	doc, root, err := store.load()
+func (a *cliApp) editConfig(ctx context.Context, store localtarget.Store) error {
+	doc, root, err := store.Load()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(store.path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(store.Path), 0o700); err != nil {
 		return err
 	}
-	recovery, err := os.CreateTemp(filepath.Dir(store.path), "filament-recovery-*.yaml")
+	recovery, err := os.CreateTemp(filepath.Dir(store.Path), "filament-recovery-*.yaml")
 	if err != nil {
 		return err
 	}
@@ -98,10 +99,10 @@ func (a *cliApp) editConfig(ctx context.Context, store configStore) error {
 	if err := yaml.Unmarshal(data, &editedRoot); err != nil {
 		return err
 	}
-	if err := store.write(&editedRoot); err != nil {
+	if err := store.Write(&editedRoot); err != nil {
 		return fmt.Errorf("recovery file kept at %s: %w", recoveryPath, err)
 	}
 	_ = os.Remove(recoveryPath)
-	_, err = fmt.Fprintf(a.statusWriter(), "Updated %s.\n", store.path)
+	_, err = fmt.Fprintf(a.statusWriter(), "Updated %s.\n", store.Path)
 	return err
 }

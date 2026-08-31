@@ -7,6 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
 func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []string) error {
@@ -14,10 +15,10 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 		return a.printConnectionHelp(kind)
 	}
 	if helpRequested(args[1:]) && rawFlagValue(args[1:], kind+"-connector") != "" {
-		return a.printConnectionOperationHelp(kind, args[0], args[1:], newDocument())
+		return a.printConnectionOperationHelp(kind, args[0], args[1:], localtarget.NewDocument())
 	}
 	if args[0] == "list" && helpRequested(args[1:]) {
-		return a.printConnectionOperationHelp(kind, args[0], args[1:], newDocument())
+		return a.printConnectionOperationHelp(kind, args[0], args[1:], localtarget.NewDocument())
 	}
 	if args[0] == "list" {
 		if len(args) != 1 {
@@ -29,8 +30,8 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 		}
 		return textoutput.Connections(a.stdout, result)
 	}
-	store := configStore{path: a.configPath}
-	doc, _, err := store.load()
+	store := localtarget.Store{Path: a.configPath}
+	doc, _, err := store.Load()
 	if err != nil {
 		return err
 	}
@@ -52,13 +53,13 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 	}
 }
 
-func (a *cliApp) changeConnection(operation, kind string, args []string, doc configDocument, store configStore) error {
+func (a *cliApp) changeConnection(operation, kind string, args []string, doc localtarget.Document, store localtarget.Store) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
 	}
 	name := firstPositional(parsed)
-	var existing *connection
+	var existing *localtarget.Connection
 	if operation == "edit" {
 		if name == "" {
 			return fmt.Errorf("usage: filament %s edit <name> [flags]", kind)
@@ -91,13 +92,13 @@ func (a *cliApp) changeConnection(operation, kind string, args []string, doc con
 	if err := validateDocument(testDoc, a.catalog); err != nil {
 		return err
 	}
-	if err := store.put(kind+"s", name, conn); err != nil {
+	if err := store.Put(kind+"s", name, conn); err != nil {
 		return err
 	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s %s", pastTense(operation), name, kind))
 }
 
-func (a *cliApp) deleteConnection(kind string, args []string, doc configDocument, store configStore) error {
+func (a *cliApp) deleteConnection(kind string, args []string, doc localtarget.Document, store localtarget.Store) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -128,14 +129,14 @@ func (a *cliApp) deleteConnection(kind string, args []string, doc configDocument
 			return nil
 		}
 	}
-	if err := store.delete(kind+"s", name); err != nil {
+	if err := store.Delete(kind+"s", name); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(a.statusWriter(), "Deleted %s %q.\n", kind, name)
 	return err
 }
 
-func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, flags map[string][]string) (connection, error) {
+func (a *cliApp) connectionFromFlags(kind, name string, existing *localtarget.Connection, flags map[string][]string) (localtarget.Connection, error) {
 	conn, prefix, err := initializeConnection(kind, name, existing, flags)
 	if err != nil {
 		return conn, err
@@ -203,8 +204,8 @@ func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, fl
 	return conn, nil
 }
 
-func initializeConnection(kind, name string, existing *connection, flags map[string][]string) (connection, string, error) {
-	conn := connection{Config: map[string]any{}}
+func initializeConnection(kind, name string, existing *localtarget.Connection, flags map[string][]string) (localtarget.Connection, string, error) {
+	conn := localtarget.Connection{Config: map[string]any{}}
 	if existing != nil {
 		conn = *existing
 		conn.Config = cloneConfigMap(existing.Config)
@@ -240,14 +241,14 @@ func (a *cliApp) connectionSchema(kind, typeName string) (filament.ConfigSchema,
 	return spec.Config, nil
 }
 
-func connectionMap(kind string, doc configDocument) map[string]connection {
+func connectionMap(kind string, doc localtarget.Document) map[string]localtarget.Connection {
 	if kind == "sink" {
 		return doc.Sinks
 	}
 	return doc.Sources
 }
 
-func ensureConnectionUnreferenced(kind, name string, doc configDocument) error {
+func ensureConnectionUnreferenced(kind, name string, doc localtarget.Document) error {
 	for pipelineName, p := range doc.Pipelines {
 		if (kind == "source" && p.Source.Ref == name) || (kind == "sink" && p.Sink.Ref == name) {
 			return fmt.Errorf("%s %q is referenced by pipeline %q; delete or edit that pipeline first", kind, name, pipelineName)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
 func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
@@ -15,7 +16,7 @@ func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
 		return err
 	}
 	if args[0] == "list" && helpRequested(args[1:]) {
-		return a.printPipelineOperationHelp(args[0], args[1:], newDocument())
+		return a.printPipelineOperationHelp(args[0], args[1:], localtarget.NewDocument())
 	}
 	if args[0] == "list" {
 		if len(args) != 1 {
@@ -27,8 +28,8 @@ func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
 		}
 		return textoutput.Pipelines(a.stdout, result)
 	}
-	store := configStore{path: a.configPath}
-	doc, _, err := store.load()
+	store := localtarget.Store{Path: a.configPath}
+	doc, _, err := store.Load()
 	if err != nil {
 		return err
 	}
@@ -45,13 +46,13 @@ func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
 	}
 }
 
-func (a *cliApp) changePipeline(operation string, args []string, doc configDocument, store configStore) error {
+func (a *cliApp) changePipeline(operation string, args []string, doc localtarget.Document, store localtarget.Store) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
 	}
 	name := firstPositional(parsed)
-	var existing *pipeline
+	var existing *localtarget.Pipeline
 	if operation == "edit" {
 		if name == "" {
 			return fmt.Errorf("usage: filament pipeline edit <name> [flags]")
@@ -79,13 +80,13 @@ func (a *cliApp) changePipeline(operation string, args []string, doc configDocum
 	if err := validateDocument(testDoc, a.catalog); err != nil {
 		return err
 	}
-	if err := store.put("pipelines", name, p); err != nil {
+	if err := store.Put("pipelines", name, p); err != nil {
 		return err
 	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s pipeline", pastTense(operation), name))
 }
 
-func (a *cliApp) deletePipeline(args []string, doc configDocument, store configStore) error {
+func (a *cliApp) deletePipeline(args []string, doc localtarget.Document, store localtarget.Store) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -113,15 +114,15 @@ func (a *cliApp) deletePipeline(args []string, doc configDocument, store configS
 			return nil
 		}
 	}
-	if err := store.delete("pipelines", name); err != nil {
+	if err := store.Delete("pipelines", name); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(a.statusWriter(), "Deleted pipeline %q.\n", name)
 	return err
 }
 
-func (a *cliApp) pipelineFromFlags(name string, existing *pipeline, flags map[string][]string, doc configDocument) (pipeline, error) {
-	p := pipeline{SyncMode: "full", WriteMode: "replace"}
+func (a *cliApp) pipelineFromFlags(name string, existing *localtarget.Pipeline, flags map[string][]string, doc localtarget.Document) (localtarget.Pipeline, error) {
+	p := localtarget.Pipeline{SyncMode: "full", WriteMode: "replace"}
 	oldSourceType, oldSinkType := "", ""
 	if existing != nil {
 		p = *existing

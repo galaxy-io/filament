@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 	"github.com/galaxy-io/filament/datastore/memory"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
@@ -108,7 +109,7 @@ func (a *cliApp) savedRunSpec(name string, flags map[string][]string) (filament.
 		}
 	}
 
-	doc, _, err := (configStore{path: a.configPath}).load()
+	doc, _, err := (localtarget.Store{Path: a.configPath}).Load()
 	if err != nil {
 		return filament.RunSpec{}, err
 	}
@@ -196,7 +197,7 @@ func directConnectorConfig(kind string, schema filament.ConfigSchema, flags map[
 	return config, nil
 }
 
-func resolvedConnectionConfig(conn connection, scoped map[string]any, schema filament.ConfigSchema) (map[string]any, error) {
+func resolvedConnectionConfig(conn localtarget.Connection, scoped map[string]any, schema filament.ConfigSchema) (map[string]any, error) {
 	config := cloneConfigMap(conn.Config)
 	for field, value := range scoped {
 		config[field] = cloneConfigValue(value)

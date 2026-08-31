@@ -6,17 +6,19 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
-var rootHelp = `Filament local CLI
+var rootHelp = `Filament CLI
 
 Usage:
-  filament [--config PATH] source <create|edit|list|discover|delete>
-  filament [--config PATH] sink <create|edit|list|delete>
-  filament [--config PATH] pipeline <create|edit|list|delete>
-  filament [--config PATH] config <path|validate|edit>
-  filament [--config PATH] run <pipeline> [flags]
+  filament [--context NAME] [--config PATH] source <create|edit|list|discover|delete>
+  filament [--context NAME] [--config PATH] sink <create|edit|list|delete>
+  filament [--context NAME] [--config PATH] pipeline <create|edit|list|delete>
+  filament [--context NAME] [--config PATH] config <path|validate|edit>
+  filament [--context NAME] [--config PATH] run <pipeline> [flags]
   filament run --source-connector NAME --sink-connector NAME [flags]
+  filament context <list|current|use>
 
 Use --help after a command or operation for its flags. Connector fields always
 use --source-<field> or --sink-<field>. Secret fields accept plaintext values,
@@ -99,7 +101,7 @@ the connector-derived flags.
 	return out.err
 }
 
-func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []string, doc configDocument) error {
+func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []string, doc localtarget.Document) error {
 	out := &helpOutput{w: a.stdout}
 	prefix := kind + "-"
 	connectorName := rawFlagValue(args, prefix+"connector")
@@ -163,7 +165,7 @@ func (a *cliApp) printRunHelp(args []string) error {
 	}
 	parsed, _ := a.parseCommandArgs(removeHelp(args))
 	if name := firstPositional(parsed); name != "" {
-		if doc, _, err := (configStore{path: a.configPath}).load(); err == nil {
+		if doc, _, err := (localtarget.Store{Path: a.configPath}).Load(); err == nil {
 			if p, ok := doc.Pipelines[name]; ok {
 				for _, item := range []struct{ kind, ref string }{{"source", p.Source.Ref}, {"sink", p.Sink.Ref}} {
 					kind, ref := item.kind, item.ref
@@ -186,7 +188,7 @@ func (a *cliApp) printRunHelp(args []string) error {
 	return out.err
 }
 
-func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc configDocument) error {
+func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc localtarget.Document) error {
 	out := &helpOutput{w: a.stdout}
 	out.print(pipelineHelp)
 	parsed, _ := a.parseCommandArgs(removeHelp(args))

@@ -11,6 +11,30 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
+// Contexts renders configured contexts as a terminal table.
+func Contexts(w io.Writer, result model.ContextList) error {
+	table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	if _, err := fmt.Fprintln(table, "Current\tName\tKind\tLocation\tTenant"); err != nil {
+		return err
+	}
+	for _, item := range result.Items {
+		current := ""
+		if item.Current {
+			current = "*"
+		}
+		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", current, item.Name, item.Kind, item.Location, item.Tenant); err != nil {
+			return err
+		}
+	}
+	return table.Flush()
+}
+
+// CurrentContext renders the effective context name.
+func CurrentContext(w io.Writer, name string) error {
+	_, err := fmt.Fprintln(w, name)
+	return err
+}
+
 // Connections renders a connection list as a terminal table.
 func Connections(w io.Writer, result model.ConnectionList) error {
 	if len(result.Items) == 0 {

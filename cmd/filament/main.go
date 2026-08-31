@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
@@ -22,11 +23,12 @@ func runMain() int {
 		return 1
 	}
 	cli := &cliApp{
-		stdin:      os.Stdin,
-		stdout:     os.Stdout,
-		stderr:     os.Stderr,
-		configPath: path,
-		catalog:    loadCatalog(),
+		stdin:       os.Stdin,
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		configPath:  path,
+		contextPath: filepath.Join(filepath.Dir(path), "contexts.yaml"),
+		catalog:     loadCatalog(),
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
