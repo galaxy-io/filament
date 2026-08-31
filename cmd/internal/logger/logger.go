@@ -4,19 +4,56 @@
 package logger
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/galaxy-io/filament"
 )
 
-// New returns a Logger writing JSON to stdout. It also installs the underlying
+// LevelTrace is finer grained than slog's built-in Debug level.
+const LevelTrace = slog.LevelDebug - 4
+
+// New returns a Logger writing JSON to stdout at LOG_LEVEL (INFO by default).
+// Valid levels are INFO, DEBUG, and TRACE. It also installs the underlying
 // slog.Logger as the process default, so library logs (e.g. iceberg-go) come
 // out in the same format.
-func New() filament.Logger {
-	l := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+func New() (filament.Logger, error) {
+	level, err := levelFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return newLogger(os.Stdout, level), nil
+}
+
+func newLogger(w io.Writer, level slog.Level) filament.Logger {
+	l := slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
+		Level: level,
+		ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
+			if len(groups) == 0 && attr.Key == slog.LevelKey && attr.Value.Any() == LevelTrace {
+				attr.Value = slog.StringValue("TRACE")
+			}
+			return attr
+		},
+	}))
 	slog.SetDefault(l)
 	return adapter{l: l}
+}
+
+func levelFromEnv() (slog.Level, error) {
+	switch level := strings.ToUpper(strings.TrimSpace(os.Getenv("LOG_LEVEL"))); level {
+	case "", "INFO":
+		return slog.LevelInfo, nil
+	case "DEBUG":
+		return slog.LevelDebug, nil
+	case "TRACE":
+		return LevelTrace, nil
+	default:
+		return 0, fmt.Errorf("LOG_LEVEL %q is invalid (INFO, DEBUG, TRACE)", level)
+	}
 }
 
 type adapter struct {
@@ -24,6 +61,10 @@ type adapter struct {
 }
 
 var _ filament.Logger = adapter{}
+
+func (a adapter) Trace(msg string, kv ...filament.Field) {
+	a.l.Log(context.Background(), LevelTrace, msg, args(kv)...)
+}
 
 func (a adapter) Debug(msg string, kv ...filament.Field) { a.l.Debug(msg, args(kv)...) }
 func (a adapter) Info(msg string, kv ...filament.Field)  { a.l.Info(msg, args(kv)...) }

@@ -490,6 +490,7 @@ type Checkpoint = rowmodel.Checkpoint
 
 // Logger is structured leveled logging with field accumulation via With.
 type Logger interface {
+	Trace(msg string, kv ...Field)
 	Debug(msg string, kv ...Field)
 	Info(msg string, kv ...Field)
 	Warn(msg string, kv ...Field)

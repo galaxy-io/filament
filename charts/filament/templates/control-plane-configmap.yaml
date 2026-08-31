@@ -29,6 +29,7 @@ data:
   {{- end }}
 
   # Observability
+  LOG_LEVEL: {{ .Values.controlPlane.logLevel | quote }}
   {{- with .Values.observability.otel.endpoint }}
   OTEL_SERVICE_NAME: {{ include "filament.controlPlane.fullname" $ | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
