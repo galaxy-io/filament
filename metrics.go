@@ -6,7 +6,7 @@ import "time"
 // are sums; RunDuration is the mean duration over terminal runs;
 // RunMemoryUsage/RunCPUUsage are the mean peak working-set bytes / CPU seconds
 // over runs that reported usage. Mirrors metrics.v1.Metric
-// (api/metrics/v1/metrics.proto).
+// (protos/metrics/v1/metrics.proto).
 type Metric int
 
 // Metric values, mirroring metrics.v1.Metric's real (non-UNSPECIFIED) entries.
