@@ -6,12 +6,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -40,7 +42,10 @@ func main() {
 	err := run(ctx, *migrateOnly)
 	stop()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("server exited",
+			"event.name", "server.exited",
+			"error", err)
+		os.Exit(1)
 	}
 }
 
@@ -54,13 +59,16 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	defer closeDeps()
+	serverLog := deps.Log.With(filament.Field{Key: "component", Value: "server"})
 
 	// Ensure the default tenant up front so a deployment with no readiness
 	// probes (local dev) still gets one; readyz retries until it lands when
 	// the database is still starting.
 	var tenantEnsured atomic.Bool
 	if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-		log.Printf("default tenant not ensured yet: %v", err)
+		serverLog.Warn("default tenant not ensured; readiness will retry",
+			filament.Field{Key: "event.name", Value: "server.default_tenant.ensure_deferred"},
+			filament.Field{Key: "error", Value: err.Error()})
 	} else {
 		tenantEnsured.Store(true)
 	}
@@ -97,6 +105,28 @@ func run(ctx context.Context, migrateOnly bool) error {
 	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
+	var shutdownOnce sync.Once
+	var shutdownErr error
+	started := false
+	shutdown := func() error {
+		shutdownOnce.Do(func() {
+			healthState.MarkStopping()
+			shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			shutdownErr = srv.Shutdown(shutCtx)
+			if shutdownErr != nil {
+				serverLog.Error("server shutdown failed", shutdownErr,
+					filament.Field{Key: "event.name", Value: "server.shutdown_failed"})
+				return
+			}
+			if started {
+				serverLog.Info("server stopped",
+					filament.Field{Key: "event.name", Value: "server.stopped"})
+			}
+		})
+		return shutdownErr
+	}
+	defer func() { _ = shutdown() }()
 
 	eventBus, closeBus, err := boot.Bus()
 	if err != nil {
@@ -116,22 +146,32 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	defer func() {
-		_ = h.Close()
+		if err := h.Close(); err != nil {
+			serverLog.Warn("server host close failed",
+				filament.Field{Key: "event.name", Value: "server.host.close_failed"},
+				filament.Field{Key: "error", Value: err.Error()})
+		}
 	}()
 
 	api.Mount(mux)
 	mux.Handle("/", ui.Handler())
 	healthState.MarkStarted()
-	fmt.Println("server:", "http://localhost"+addr)
+	started = true
+	serverLog.Info("server started",
+		filament.Field{Key: "event.name", Value: "server.started"},
+		filament.Field{Key: "address", Value: addr},
+		filament.Field{Key: "modules", Value: h.Mounted()})
 
 	select {
 	case err := <-errCh:
-		return err
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("server listener: %w", err)
 	case <-ctx.Done():
-		healthState.MarkStopping()
-		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return srv.Shutdown(shutCtx)
+		serverLog.Info("server stopping",
+			filament.Field{Key: "event.name", Value: "server.stopping"})
+		return shutdown()
 	}
 }
 
