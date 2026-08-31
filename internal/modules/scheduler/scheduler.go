@@ -77,12 +77,9 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	return nil
 }
 
-// Start launches the claim timer; it runs until ctx is cancelled. Before the
-// first tick it reconciles every schedule's pre-created RunScheduled rows,
-// healing any left stale by a reconcile that failed or crashed mid-flight.
+// Start launches the claim timer; it runs until ctx is cancelled.
 func (m *Module) Start(ctx context.Context) {
 	go func() {
-		m.reconcileAllScheduledRuns(ctx)
 		ticker := time.NewTicker(m.interval)
 		defer ticker.Stop()
 		for {
@@ -227,22 +224,6 @@ func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.Schedul
 		if m.log != nil {
 			m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
 		}
-	}
-}
-
-// reconcileAllScheduledRuns sweeps every schedule through reconcile once.
-// ReconcileScheduled drops-and-recreates per schedule, so the sweep also
-// clears pending rows of schedules that were disabled while down.
-func (m *Module) reconcileAllScheduledRuns(ctx context.Context) {
-	schedules, err := m.store.ListSchedules(ctx, filament.ScheduleFilter{})
-	if err != nil {
-		if m.log != nil {
-			m.log.Error("scheduler: list schedules for startup reconcile", err)
-		}
-		return
-	}
-	for _, st := range schedules {
-		m.reconcileScheduledRuns(ctx, st)
 	}
 }
 
