@@ -3,6 +3,8 @@ import { useState } from "react";
 import { styled } from "@linaria/react";
 import {
   ArrowsClockwiseIcon,
+  CheckIcon,
+  CopyIcon,
   DotsThreeVerticalIcon,
   PlusIcon,
   TrashIcon,
@@ -17,11 +19,11 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
-import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Modal from "@galaxy-io/dls/modal/Modal";
 import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
-import Paragraph from "@galaxy-io/dls/text/Paragraph";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -29,14 +31,16 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import type { ServiceAccount } from "@/gen/auth/v1/service_accounts_pb";
 
+import ConfirmDialog from "@/components/ConfirmDialog";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import {
-  INVITE_DEFAULT_ROLE,
   optionRole,
-  ROLE_OPTIONS,
-  roleLabel,
+  SERVICE_ACCOUNT_DEFAULT_ROLE,
+  SERVICE_ACCOUNT_ROLE_OPTIONS,
+  serviceAccountRoleLabel,
 } from "@/components/settings/constants";
 
-import BaseHeader from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
 import {
   useCreateServiceAccountMutation,
@@ -45,29 +49,118 @@ import {
 } from "@/api/mutations/auth";
 import { useListServiceAccountsQuery } from "@/api/queries/auth";
 
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+
 import type { AppSession } from "@/auth/session";
 import { getErrorMessage } from "@/utils/errors";
 
-const DialogWrapper = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  flex-direction: column;
-  width: 720px;
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-radius: 8px;
-`);
+const DialogWrapper = withTheme(
+  styled.div<PropsWithTheme<{ $compact?: boolean; $panel?: boolean }>>`
+    display: flex;
+    flex-direction: column;
+    width: ${({ $compact, $panel }) => ($panel ? "100%" : `${$compact ? 560 : 720}px`)};
+    max-width: ${({ $panel }) => ($panel ? "none" : "calc(100vw - 32px)")};
+    height: auto;
+    background-color: ${({ theme, $panel }) =>
+      $panel ? "transparent" : theme.color.background.primary};
+    border: ${({ theme, $panel }) =>
+      $panel ? "none" : `0.5px solid ${theme.color.border.primary}`};
+    border-radius: ${({ $panel }) => ($panel ? 0 : 8)}px;
+    overflow: hidden;
+  `,
+);
 
-const BodyWrapper = styled.div`
+const BodyWrapper = withTheme(styled.div<PropsWithTheme<{ $panel?: boolean }>>`
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
-`;
+  padding: ${({ $panel }) => ($panel ? "20px 0 0" : "16px")};
+  background-color: ${({ theme, $panel }) =>
+    $panel ? "transparent" : theme.color.background.base};
+`);
 
-const TableWrapper = withTheme(styled.div<PropsWithTheme>`
+const TableWrapper = withTheme(styled.div<PropsWithTheme<{ $fill?: boolean }>>`
   width: 100%;
+  flex: ${({ $fill }) => ($fill ? 1 : "initial")};
+  min-height: 0;
   border: 0.5px solid ${({ theme }) => theme.color.border.primary};
   border-radius: 5px;
+`);
+
+const CredentialsContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 520px;
+`;
+
+const FormContent = styled.div`
+  width: 100%;
+  max-width: 520px;
+`;
+
+const CredentialCard = withTheme(styled.div<PropsWithTheme>`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: ${({ theme }) => theme.color.background.primary};
+  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border-radius: 6px;
+  overflow: hidden;
+`);
+
+const CredentialRow = withTheme(styled.div<PropsWithTheme>`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+
+  &:not(:last-child) {
+    border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  }
+`);
+
+const CredentialValue = withTheme(styled.div<PropsWithTheme>`
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  background-color: ${({ theme }) => theme.color.background.secondary};
+  border-radius: 4px;
+
+  p {
+    overflow-wrap: anywhere;
+  }
+`);
+
+const CopyCredentialButton = withTheme(styled.button<PropsWithTheme>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: ${({ theme }) => theme.color.text.secondary};
+  background-color: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    color: ${({ theme }) => theme.color.text.primary};
+    background-color: ${({ theme }) => theme.color.background.tertiary};
+  }
+
+  &:focus {
+    background-color: transparent;
+  }
+
+  &:focus-visible {
+    outline: 1px solid ${({ theme }) => theme.color.border.secondary};
+    outline-offset: 1px;
+  }
 `);
 
 const AccountIdentity = styled.div`
@@ -151,19 +244,90 @@ interface Credentials {
   clientSecret: string;
 }
 
+type CredentialsResult = "created" | "rotated";
+
+const CopyCredentialRow = ({
+  label,
+  description,
+  value,
+}: {
+  label: string;
+  description?: string;
+  value: string;
+}) => {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(value).then(() => {
+      setIsCopied(true);
+      window.setTimeout(() => setIsCopied(false), 2000);
+    });
+  };
+
+  return (
+    <CredentialRow>
+      <FlexWrapper
+        alignItems={AlignItems.CENTER}
+        justifyContent={JustifyContent.SPACE_BETWEEN}
+        gap={12}
+        fillWidth
+      >
+        <FlexWrapper direction={FlexDirection.COLUMN} gap={2} minWidth={0}>
+          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM}>
+            {label}
+          </Text>
+          {description && (
+            <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY}>
+              {description}
+            </Text>
+          )}
+        </FlexWrapper>
+        <CopyCredentialButton
+          type="button"
+          aria-label={isCopied ? `${label} copied` : `Copy ${label}`}
+          title={isCopied ? "Copied" : `Copy ${label}`}
+          onClick={handleCopy}
+        >
+          <Icon
+            component={isCopied ? CheckIcon : CopyIcon}
+            size={isCopied ? 16 : 14}
+            variant={isCopied ? IconVariant.SUCCESS : IconVariant.SECONDARY}
+          />
+        </CopyCredentialButton>
+      </FlexWrapper>
+      <CredentialValue>
+        <Text size={TextSize.BODY_SM} isMonospace isSelectable>
+          {value}
+        </Text>
+      </CredentialValue>
+    </CredentialRow>
+  );
+};
+
 interface ServiceAccountsModalProps {
   session: AppSession;
-  onClose: () => void;
+  onClose?: () => void;
+  onCreate?: () => void;
+  isPanel?: boolean;
+  defaultToCreate?: boolean;
 }
 
-const ServiceAccountsModal = ({ session, onClose }: ServiceAccountsModalProps) => {
-  const [isCreating, setIsCreating] = useState(false);
+const ServiceAccountsModal = ({
+  session,
+  onClose,
+  onCreate,
+  isPanel = false,
+  defaultToCreate = false,
+}: ServiceAccountsModalProps) => {
+  const [isCreating, setIsCreating] = useState(defaultToCreate);
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [role, setRole] = useState<SelectInputOption>(INVITE_DEFAULT_ROLE);
+  const [role, setRole] = useState<SelectInputOption>(SERVICE_ACCOUNT_DEFAULT_ROLE);
   const [credentials, setCredentials] = useState<Credentials>();
+  const [credentialsResult, setCredentialsResult] = useState<CredentialsResult>("created");
   const [error, setError] = useState<string>();
   const [openActionsFor, setOpenActionsFor] = useState<string>();
+  const [accountToRotate, setAccountToRotate] = useState<ServiceAccount>();
+  const [accountToRemove, setAccountToRemove] = useState<ServiceAccount>();
 
   const accountsQuery = useListServiceAccountsQuery({
     options: { enabled: !!session.accessToken },
@@ -173,21 +337,44 @@ const ServiceAccountsModal = ({ session, onClose }: ServiceAccountsModalProps) =
   const { mutate: removeAccount, isPending: isRemoving } = useRemoveServiceAccountMutation();
   const canManage = accountsQuery.data?.canManage === true;
 
-  const showCredentials = (next: Credentials) => {
+  const accountDeleteConfirm = useDeleteConfirm({
+    entityLabel: "Service account",
+    entityName: accountToRemove?.name ?? "",
+    onDelete: ({ onSuccess, onError }) => {
+      if (!accountToRemove) return;
+      removeAccount({ userId: accountToRemove.userId }, { onSuccess, onError });
+    },
+    onDeleted: () => setAccountToRemove(undefined),
+  });
+
+  const showCredentials = (next: Credentials, result: CredentialsResult = "created") => {
     setCredentials(next);
+    setCredentialsResult(result);
     setIsCreating(false);
     setError(undefined);
   };
 
+  const handleCredentialsDone = () => {
+    setCredentials(undefined);
+    setName("");
+    setRole(SERVICE_ACCOUNT_DEFAULT_ROLE);
+    if (defaultToCreate) onClose?.();
+  };
+
   const handleCreate = () => {
+    const accountName = name.trim();
     const accountRole = optionRole(role);
-    if (name.trim() === "" || accountRole === undefined) {
+    if (accountName === "" || accountRole === undefined) {
       setError("Name and role are required");
       return;
     }
     setError(undefined);
     createAccount(
-      { name: name.trim(), description: description.trim(), role: accountRole },
+      {
+        name: accountName,
+        description: `Filament service account: ${accountName}`,
+        role: accountRole,
+      },
       {
         onSuccess: ({ serviceAccount, clientSecret }) => {
           if (serviceAccount) {
@@ -200,34 +387,28 @@ const ServiceAccountsModal = ({ session, onClose }: ServiceAccountsModalProps) =
   };
 
   const handleRotate = (account: ServiceAccount) => {
-    if (
-      !window.confirm(
-        `Rotate the secret for ${account.name}? The current secret will stop working.`,
-      )
-    ) {
-      return;
-    }
     setError(undefined);
+    setAccountToRotate(account);
+  };
+
+  const handleRotateConfirm = () => {
+    if (!accountToRotate) return;
     rotateSecret(
-      { userId: account.userId },
+      { userId: accountToRotate.userId },
       {
-        onSuccess: ({ clientId, clientSecret }) => showCredentials({ clientId, clientSecret }),
+        onSuccess: ({ clientId, clientSecret }) => {
+          setAccountToRotate(undefined);
+          showCredentials({ clientId, clientSecret }, "rotated");
+        },
         onError: (err) => setError(getErrorMessage(err, "Could not rotate client secret")),
       },
     );
   };
 
   const handleRemove = (account: ServiceAccount) => {
-    if (!window.confirm(`Remove ${account.name}? Its credentials will stop working immediately.`)) {
-      return;
-    }
     setError(undefined);
-    removeAccount(
-      { userId: account.userId },
-      {
-        onError: (err) => setError(getErrorMessage(err, "Could not remove service account")),
-      },
-    );
+    setAccountToRemove(account);
+    accountDeleteConfirm.handleOpen();
   };
 
   const columns: ColumnDef<ServiceAccount>[] = [
@@ -239,34 +420,29 @@ const ServiceAccountsModal = ({ session, onClose }: ServiceAccountsModalProps) =
       cell: ({ row }) => (
         <AccountIdentity>
           <StatusDot />
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={2} minWidth={0}>
-            <Text weight={TextWeight.MEDIUM} isEllipsis>
-              {row.original.name}
-            </Text>
-            <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isEllipsis>
-              {row.original.clientId}
-            </Text>
-          </FlexWrapper>
+          <Text weight={TextWeight.MEDIUM} isEllipsis>
+            {row.original.name}
+          </Text>
         </AccountIdentity>
       ),
     },
     {
-      id: "description",
-      header: "Description",
-      accessorFn: (account) => account.description,
-      size: 180,
-      cellLoading: () => <TextShimmer width={100} height={16} />,
+      id: "clientId",
+      header: "Client ID",
+      accessorFn: (account) => account.clientId,
+      size: 220,
+      cellLoading: () => <TextShimmer width={140} height={16} />,
       cell: ({ row }) => (
-        <Text variant={TextVariant.SECONDARY} isEllipsis>
-          {row.original.description || "—"}
+        <Text variant={TextVariant.SECONDARY} isMonospace isEllipsis>
+          {row.original.clientId}
         </Text>
       ),
     },
     {
       id: "role",
-      header: "Role",
-      size: 90,
-      cell: ({ row }) => <Text>{roleLabel(row.original.role) ?? "None"}</Text>,
+      header: "Permissions",
+      size: 140,
+      cell: ({ row }) => <Text>{serviceAccountRoleLabel(row.original.role) ?? "None"}</Text>,
     },
     {
       id: "actions",
@@ -275,7 +451,7 @@ const ServiceAccountsModal = ({ session, onClose }: ServiceAccountsModalProps) =
       size: 44,
       cell: ({ row }) => (
         <Dropdown
-          position={DropdownPosition.BOTTOM_END}
+          position={DropdownPosition.RIGHT_START}
           minWidth={160}
           noPadding
           isOpen={openActionsFor === row.original.userId}
@@ -329,135 +505,229 @@ const ServiceAccountsModal = ({ session, onClose }: ServiceAccountsModalProps) =
       : undefined);
 
   return (
-    <DialogWrapper>
-      <FlexWrapper padding="16px">
-        <BaseHeader title="Service accounts" onClose={onClose} />
-      </FlexWrapper>
-      <HorizontalDivider />
-      <BodyWrapper>
-        {credentials ? (
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
-            <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-              Save these credentials now
+    <>
+      <DialogWrapper $compact={(!isPanel && !!credentials) || isCreating} $panel={isPanel}>
+        <FlexWrapper padding={isPanel ? "0" : "16px"}>
+          <BaseHeader
+            title={
+              credentials
+                ? credentialsResult === "rotated"
+                  ? "Client secret rotated"
+                  : "Service account created"
+                : isCreating
+                  ? "Create service account"
+                  : "Service accounts"
+            }
+            description={
+              credentials
+                ? "Copy these credentials now. The client secret is only shown once."
+                : isCreating
+                  ? "Create a machine identity for CLI, CI, and automation"
+                  : "Manage machine access to your organization"
+            }
+            size={isPanel ? BaseHeaderSize.LARGE : undefined}
+            actions={
+              isPanel && !isCreating && canManage
+                ? [
+                    <Button
+                      key="create-service-account"
+                      label="Create service account"
+                      icon={PlusIcon}
+                      onClick={() => (onCreate ? onCreate() : setIsCreating(true))}
+                    />,
+                  ]
+                : undefined
+            }
+            onClose={isPanel ? undefined : onClose}
+          />
+        </FlexWrapper>
+        {!isPanel && <HorizontalDivider />}
+        <BodyWrapper $panel={isPanel}>
+          {credentials && !isPanel ? (
+            <CredentialsContent>
+              <CredentialCard>
+                <CopyCredentialRow label="Client ID" value={credentials.clientId} />
+                <CopyCredentialRow label="Client secret" value={credentials.clientSecret} />
+                <CopyCredentialRow
+                  label="CLI command"
+                  description="Run this command, then enter the client secret when prompted."
+                  value={`filament auth login --server ${window.location.origin} --client-id ${credentials.clientId}`}
+                />
+              </CredentialCard>
+            </CredentialsContent>
+          ) : isCreating ? (
+            <FormContent>
+              <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+                <TextInput
+                  label="Name"
+                  value={name}
+                  onChange={setName}
+                  fillWidth
+                  isRequired
+                  autoFocus
+                />
+                <SelectInput
+                  label="Role"
+                  options={SERVICE_ACCOUNT_ROLE_OPTIONS}
+                  value={role}
+                  onChange={setRole}
+                  fillWidth
+                  isRequired
+                />
+              </FlexWrapper>
+            </FormContent>
+          ) : (
+            <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+              {!isPanel && (
+                <FlexWrapper
+                  alignItems={AlignItems.CENTER}
+                  justifyContent={JustifyContent.SPACE_BETWEEN}
+                  fillWidth
+                >
+                  <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                    Create and revoke machine identities for your organization
+                  </Text>
+                  {canManage && (
+                    <Button
+                      label="Create service account"
+                      icon={PlusIcon}
+                      onClick={() => (onCreate ? onCreate() : setIsCreating(true))}
+                    />
+                  )}
+                </FlexWrapper>
+              )}
+              <TableWrapper>
+                <InfiniteTable<ServiceAccount>
+                  columns={columns}
+                  data={accountsQuery.data?.serviceAccounts ?? []}
+                  getRowId={(account) => account.userId}
+                  isLoading={accountsQuery.isLoading}
+                  loadingRowCount={2}
+                  contentWhenEmpty={
+                    <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                      No service accounts yet
+                    </Text>
+                  }
+                  noLastRowBorder
+                  noLastRowPadding
+                />
+              </TableWrapper>
+            </FlexWrapper>
+          )}
+          {displayError && (
+            <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
+              {displayError}
             </Text>
-            <Paragraph variant={TextVariant.SECONDARY}>
-              The client secret is shown once and cannot be retrieved later. Store it in your
-              password manager or CI secret store.
-            </Paragraph>
-            <CopyInput label="Client ID" value={credentials.clientId} fillWidth isMonospace />
-            <CopyInput
-              label="Client secret"
-              value={credentials.clientSecret}
-              fillWidth
-              isMonospace
-            />
-            <CopyInput
-              label="CLI command"
-              value={`filament auth login --server ${window.location.origin} --client-id ${credentials.clientId}`}
-              fillWidth
-              isMonospace
-            />
-          </FlexWrapper>
-        ) : isCreating ? (
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
-            <TextInput label="Name" value={name} onChange={setName} fillWidth autoFocus />
-            <TextInput
-              label="Description"
-              value={description}
-              onChange={setDescription}
-              fillWidth
-            />
-            <SelectInput
-              label="Role"
-              options={ROLE_OPTIONS}
-              value={role}
-              onChange={setRole}
-              fillWidth
-            />
-          </FlexWrapper>
-        ) : (
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+          )}
+        </BodyWrapper>
+        {((credentials && !isPanel) || isCreating) && (
+          <>
+            {!isPanel && (
+              <FlexItem grow={0} shrink={0}>
+                <HorizontalDivider />
+              </FlexItem>
+            )}
             <FlexWrapper
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.SPACE_BETWEEN}
+              justifyContent={JustifyContent.END}
+              padding={isPanel ? "16px 0 0" : "16px"}
+              gap={8}
               fillWidth
             >
-              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-                Credentials for the CLI, CI, and other automation
-              </Text>
-              {canManage && (
-                <Button
-                  label="Create service account"
-                  icon={PlusIcon}
-                  size={ButtonSize.SMALL}
-                  onClick={() => setIsCreating(true)}
-                />
+              {credentials ? (
+                <Button size={ButtonSize.LARGE} label="Done" onClick={handleCredentialsDone} />
+              ) : (
+                <>
+                  <Button
+                    size={ButtonSize.LARGE}
+                    label="Cancel"
+                    variant={ButtonVariant.SECONDARY}
+                    onClick={() => (defaultToCreate ? onClose?.() : setIsCreating(false))}
+                    isDisabled={isCreatingAccount}
+                  />
+                  <Button
+                    size={ButtonSize.LARGE}
+                    label="Create"
+                    onClick={handleCreate}
+                    isLoading={isCreatingAccount}
+                    isDisabled={!canManage}
+                  />
+                </>
               )}
             </FlexWrapper>
-            <TableWrapper>
-              <InfiniteTable<ServiceAccount>
-                columns={columns}
-                data={accountsQuery.data?.serviceAccounts ?? []}
-                getRowId={(account) => account.userId}
-                height={132}
-                isLoading={accountsQuery.isLoading}
-                loadingRowCount={2}
-                contentWhenEmpty={
-                  <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-                    No service accounts yet
-                  </Text>
-                }
-                noLastRowBorder
-                noLastRowPadding
-              />
-            </TableWrapper>
+          </>
+        )}
+      </DialogWrapper>
+      <Modal
+        open={!!accountToRotate}
+        onClose={() => {
+          if (!isRotating) setAccountToRotate(undefined);
+        }}
+      >
+        <ConfirmDialog
+          title="Rotate client secret"
+          description={`Generate a new credential for ${accountToRotate?.name ?? "this service account"}`}
+          bodyTitle="Current secret will be revoked"
+          body="Any clients using the existing secret will immediately lose access and must be updated with the new secret."
+          confirmLabel="Rotate secret"
+          confirmVariant={ButtonVariant.ERROR}
+          onClose={() => setAccountToRotate(undefined)}
+          onConfirm={handleRotateConfirm}
+          isPending={isRotating}
+        />
+      </Modal>
+      <Modal open={isPanel && !!credentials} onClose={handleCredentialsDone}>
+        <DialogWrapper $compact>
+          <FlexWrapper padding="16px">
+            <BaseHeader
+              title="Client secret rotated"
+              description="Copy the new credentials now. The client secret is only shown once."
+              onClose={handleCredentialsDone}
+            />
           </FlexWrapper>
-        )}
-        {displayError && (
-          <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
-            {displayError}
-          </Text>
-        )}
-      </BodyWrapper>
-      {(credentials || isCreating) && (
-        <>
-          <FlexItem grow={0} shrink={0}>
-            <HorizontalDivider />
-          </FlexItem>
-          <FlexWrapper justifyContent={JustifyContent.END} padding="16px" gap={8} fillWidth>
-            {credentials ? (
-              <Button
-                size={ButtonSize.LARGE}
-                label="Done"
-                onClick={() => {
-                  setCredentials(undefined);
-                  setName("");
-                  setDescription("");
-                  setRole(INVITE_DEFAULT_ROLE);
-                }}
-              />
-            ) : (
-              <>
-                <Button
-                  size={ButtonSize.LARGE}
-                  label="Cancel"
-                  variant={ButtonVariant.SECONDARY}
-                  onClick={() => setIsCreating(false)}
-                  isDisabled={isCreatingAccount}
-                />
-                <Button
-                  size={ButtonSize.LARGE}
-                  label="Create"
-                  onClick={handleCreate}
-                  isLoading={isCreatingAccount}
-                  isDisabled={!canManage}
-                />
-              </>
+          <HorizontalDivider />
+          <BodyWrapper>
+            {credentials && (
+              <CredentialsContent>
+                <CredentialCard>
+                  <CopyCredentialRow label="Client ID" value={credentials.clientId} />
+                  <CopyCredentialRow label="Client secret" value={credentials.clientSecret} />
+                  <CopyCredentialRow
+                    label="CLI command"
+                    description="Run this command, then enter the client secret when prompted."
+                    value={`filament auth login --server ${window.location.origin} --client-id ${credentials.clientId}`}
+                  />
+                </CredentialCard>
+              </CredentialsContent>
             )}
+          </BodyWrapper>
+          <HorizontalDivider />
+          <FlexWrapper justifyContent={JustifyContent.END} padding="16px" fillWidth>
+            <Button label="Done" onClick={handleCredentialsDone} />
           </FlexWrapper>
-        </>
-      )}
-    </DialogWrapper>
+        </DialogWrapper>
+      </Modal>
+      <Modal
+        open={accountDeleteConfirm.isOpen}
+        onClose={() => {
+          accountDeleteConfirm.handleClose();
+          setAccountToRemove(undefined);
+        }}
+      >
+        <DeleteConfirmDialog
+          open={accountDeleteConfirm.isOpen}
+          onClose={() => {
+            accountDeleteConfirm.handleClose();
+            setAccountToRemove(undefined);
+          }}
+          onConfirm={accountDeleteConfirm.handleConfirm}
+          title="Delete service account"
+          body="This service account will be deleted and its credentials will stop working immediately."
+          confirmationPhrase={accountToRemove?.name ?? ""}
+          confirmLabel="Delete service account"
+          isPending={isRemoving}
+        />
+      </Modal>
+    </>
   );
 };
 

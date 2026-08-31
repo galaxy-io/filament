@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MainRouteRouteImport } from './routes/_main/route'
 import { Route as MainIndexRouteImport } from './routes/_main/index'
 import { Route as PipelinesIdRouteImport } from './routes/pipelines/$id'
@@ -21,6 +22,11 @@ import { Route as PipelinesIdSettingsRouteImport } from './routes/pipelines/$id/
 import { Route as PipelinesIdHistoryRouteImport } from './routes/pipelines/$id/history'
 import { Route as PipelinesIdCanvasRouteImport } from './routes/pipelines/$id/canvas'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MainRouteRoute = MainRouteRouteImport.update({
   id: '/_main',
   getParentRoute: () => rootRouteImport,
@@ -78,6 +84,7 @@ const PipelinesIdCanvasRoute = PipelinesIdCanvasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof MainIndexRoute
+  '/settings': typeof SettingsRoute
   '/observability': typeof MainObservabilityRoute
   '/pipelines': typeof MainPipelinesRoute
   '/sinks': typeof MainSinksRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/pipelines/$id/': typeof PipelinesIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/settings': typeof SettingsRoute
   '/observability': typeof MainObservabilityRoute
   '/pipelines': typeof MainPipelinesRoute
   '/sinks': typeof MainSinksRoute
@@ -102,6 +110,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_main': typeof MainRouteRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/_main/observability': typeof MainObservabilityRoute
   '/_main/pipelines': typeof MainPipelinesRoute
   '/_main/sinks': typeof MainSinksRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/settings'
     | '/observability'
     | '/pipelines'
     | '/sinks'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/pipelines/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/settings'
     | '/observability'
     | '/pipelines'
     | '/sinks'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_main'
+    | '/settings'
     | '/_main/observability'
     | '/_main/pipelines'
     | '/_main/sinks'
@@ -154,11 +166,19 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   MainRouteRoute: typeof MainRouteRouteWithChildren
+  SettingsRoute: typeof SettingsRoute
   PipelinesIdRoute: typeof PipelinesIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_main': {
       id: '/_main'
       path: ''
@@ -279,6 +299,7 @@ const PipelinesIdRouteWithChildren = PipelinesIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   MainRouteRoute: MainRouteRouteWithChildren,
+  SettingsRoute: SettingsRoute,
   PipelinesIdRoute: PipelinesIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport

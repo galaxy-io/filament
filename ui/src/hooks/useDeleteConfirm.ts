@@ -47,6 +47,7 @@ export const useDeleteConfirm = ({
           subheader: `${entityName} has been deleted successfully.`,
           variant: ToastVariant.SUCCESS,
         });
+        handleClose();
         onDeleted();
       },
       onError: (error) => {

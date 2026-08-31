@@ -320,35 +320,32 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   const handleOpenTeamSettings = useCallback(() => {
     setSettingsOpen(false);
     void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
+      to: "/settings",
+      search: {
         settings: SettingsPanel.TEAM,
         teamView: TeamSettingsView.MEMBERS,
-      }),
+      },
     });
   }, [navigate]);
 
   const handleOpenInvite = useCallback(() => {
     setSettingsOpen(false);
     void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
+      to: "/settings",
+      search: {
         settings: SettingsPanel.TEAM,
         teamView: TeamSettingsView.INVITE,
-      }),
+      },
     });
   }, [navigate]);
 
   const handleOpenServiceAccounts = useCallback(() => {
     setSettingsOpen(false);
     void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
+      to: "/settings",
+      search: {
         settings: SettingsPanel.SERVICE_ACCOUNTS,
-      }),
+      },
     });
   }, [navigate]);
 
