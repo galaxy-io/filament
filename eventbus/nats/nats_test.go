@@ -71,6 +71,21 @@ func TestPublishClosed(t *testing.T) {
 	}
 }
 
+func TestReadyRejectsClosedAndDisconnectedBus(t *testing.T) {
+	t.Run("closed", func(t *testing.T) {
+		b := &Bus{}
+		b.closed.Store(true)
+		if err := b.Ready(context.Background()); !errors.Is(err, eventbus.ErrBusClosed) {
+			t.Fatalf("Ready error = %v, want ErrBusClosed", err)
+		}
+	})
+	t.Run("disconnected", func(t *testing.T) {
+		if err := (&Bus{}).Ready(context.Background()); err == nil {
+			t.Fatal("Ready error = nil, want disconnected error")
+		}
+	})
+}
+
 func TestConsumerGoneIncludesDeleteRaceNoResponders(t *testing.T) {
 	for _, err := range []error{
 		jetstream.ErrConsumerNotFound,

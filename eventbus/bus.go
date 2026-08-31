@@ -33,6 +33,12 @@ type Bus interface {
 	Name() string
 }
 
+// ReadinessChecker is an optional transport capability used by serving
+// processes to stop accepting work when their event bus is unavailable.
+type ReadinessChecker interface {
+	Ready(context.Context) error
+}
+
 // Subscription is a live stream of matching messages. Close unsubscribes and
 // closes C.
 type Subscription interface {

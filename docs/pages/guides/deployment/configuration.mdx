@@ -58,7 +58,7 @@ regardless of OTel.
 
 | Variable | Default | Description |
 |---|---|---|
-| `SERVER_ADDR` | `:8080` | API, UI, `/livez`, and `/readyz` listen address |
+| `SERVER_ADDR` | `:8080` | API, UI, `/livez`, `/startupz`, and `/readyz` listen address |
 | `METRICSSTORE_PROVIDER` | `postgres` | Backs the dashboard `MetricsService`. Other values leave it unimplemented |
 | `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant applied when requests omit `tenant_id` |
 
@@ -66,7 +66,7 @@ regardless of OTel.
 
 | Variable | Default | Description |
 |---|---|---|
-| `HEALTH_ADDR` | `:8081` | `/livez` and `/readyz` listen address |
+| `HEALTH_ADDR` | `:8081` | `/livez`, `/startupz`, and `/readyz` listen address |
 | `DISPATCH_MODE` | `kubernetes` | How runs execute (`kubernetes` or `inproc`) |
 | `REAPER_INTERVAL_SECONDS` | `60` | How often the reaper sweeps for stale runs |
 | `REAPER_STALE_AFTER_SECONDS` | `300` | Heartbeat silence before a run is failed |
