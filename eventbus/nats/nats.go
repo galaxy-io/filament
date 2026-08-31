@@ -23,6 +23,7 @@ const (
 	defaultAckWait     = 30 * time.Second
 	defaultFetchWait   = 250 * time.Millisecond
 	defaultRequestWait = 5 * time.Second
+	defaultTTL         = 7 * 24 * time.Hour
 
 	// nakRedeliveryDelay spaces redeliveries of a nak'd message. A plain NAK
 	// redelivers immediately and the consumer BackOff schedule applies only to
@@ -61,6 +62,7 @@ type config struct {
 	buffer       int
 	batch        int
 	requestWait  time.Duration
+	ttl          time.Duration
 	createStream bool
 	logf         func(format string, args ...any)
 }
@@ -98,6 +100,12 @@ func WithRequestWait(d time.Duration) Option {
 	return func(c *config) { c.requestWait = d }
 }
 
+// WithTTL sets the maximum age of messages retained by the JetStream stream.
+// Zero disables age-based expiration.
+func WithTTL(d time.Duration) Option {
+	return func(c *config) { c.ttl = d }
+}
+
 // WithCreateStream controls whether New creates the stream if it is missing.
 func WithCreateStream(ok bool) Option {
 	return func(c *config) { c.createStream = ok }
@@ -123,6 +131,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		buffer:       defaultBuffer,
 		batch:        defaultBatch,
 		requestWait:  defaultRequestWait,
+		ttl:          defaultTTL,
 		createStream: true,
 	}
 	for _, opt := range opts {
@@ -142,6 +151,9 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 	}
 	if cfg.requestWait <= 0 {
 		cfg.requestWait = defaultRequestWait
+	}
+	if cfg.ttl < 0 {
+		return nil, errors.New("eventbus/nats: ttl must be non-negative")
 	}
 
 	nc := cfg.conn
@@ -195,7 +207,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		subs:        make(map[*subscription]struct{}),
 	}
 	if cfg.createStream {
-		if err := b.ensureStream(context.Background(), b.stream, cfg.subjects); err != nil {
+		if err := b.ensureStream(context.Background(), b.stream, cfg.subjects, cfg.ttl); err != nil {
 			if ownConn {
 				nc.Close()
 			}
@@ -218,13 +230,22 @@ func (b *Bus) Resolve(pattern string) (eventbus.Route, error) {
 	return eventbus.PassthroughResolver{}.Resolve(pattern)
 }
 
-// ensureStream creates the named JetStream stream capturing subjects if it does
-// not already exist. It is idempotent: an existing stream is left untouched.
-func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string) error {
+// ensureStream creates the named JetStream stream or reconciles its message TTL
+// when it already exists. Other existing stream settings remain untouched.
+func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string, ttl time.Duration) error {
 	if len(subjects) == 0 {
 		subjects = []string{eventbus.TailWildcard}
 	}
-	if _, err := b.js.Stream(ctx, name); err == nil {
+	if stream, err := b.js.Stream(ctx, name); err == nil {
+		info := stream.CachedInfo()
+		if info.Config.MaxAge == ttl {
+			return nil
+		}
+		cfg := info.Config
+		cfg.MaxAge = ttl
+		if _, err := b.js.UpdateStream(ctx, cfg); err != nil {
+			return fmt.Errorf("eventbus/nats: update stream %q ttl: %w", name, err)
+		}
 		return nil
 	} else if !errors.Is(err, jetstream.ErrStreamNotFound) {
 		return fmt.Errorf("eventbus/nats: stream info %q: %w", name, err)
@@ -234,6 +255,7 @@ func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string) 
 		Subjects:  subjects,
 		Retention: jetstream.LimitsPolicy,
 		Storage:   jetstream.FileStorage,
+		MaxAge:    ttl,
 	}); err != nil {
 		return fmt.Errorf("eventbus/nats: add stream %q: %w", name, err)
 	}

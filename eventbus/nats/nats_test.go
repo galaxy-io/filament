@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -83,5 +85,68 @@ func TestConsumerGoneIncludesDeleteRaceNoResponders(t *testing.T) {
 	}
 	if consumerGone(errors.New("timeout")) {
 		t.Fatal("ordinary fetch timeout must not recreate the durable")
+	}
+}
+
+func TestStreamTTLIsCreatedAndReconciled(t *testing.T) {
+	ns, err := natsserver.NewServer(&natsserver.Options{
+		DontListen: true,
+		JetStream:  true,
+		StoreDir:   t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+	go ns.Start()
+	t.Cleanup(ns.Shutdown)
+	if !ns.ReadyForConnections(10 * time.Second) {
+		t.Fatal("nats server not ready")
+	}
+
+	nc, err := natsgo.Connect("", natsgo.InProcessServer(ns))
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(nc.Close)
+
+	const streamName = "TTL_TEST"
+	bus, err := New("", stringCodec{},
+		WithConn(nc),
+		WithStream(streamName),
+		WithSubjects("ttl.test.>"),
+	)
+	if err != nil {
+		t.Fatalf("create bus: %v", err)
+	}
+	t.Cleanup(func() { _ = bus.Close() })
+	assertStreamTTL(t, bus, streamName, defaultTTL)
+
+	reconciled, err := New("", stringCodec{},
+		WithConn(nc),
+		WithStream(streamName),
+		WithSubjects("ttl.test.>"),
+		WithTTL(2*time.Hour),
+	)
+	if err != nil {
+		t.Fatalf("reconcile bus: %v", err)
+	}
+	t.Cleanup(func() { _ = reconciled.Close() })
+	assertStreamTTL(t, reconciled, streamName, 2*time.Hour)
+}
+
+func assertStreamTTL(t *testing.T, bus *Bus, streamName string, want time.Duration) {
+	t.Helper()
+	stream, err := bus.js.Stream(context.Background(), streamName)
+	if err != nil {
+		t.Fatalf("load stream: %v", err)
+	}
+	if got := stream.CachedInfo().Config.MaxAge; got != want {
+		t.Fatalf("stream MaxAge = %v, want %v", got, want)
+	}
+}
+
+func TestNegativeTTLIsRejected(t *testing.T) {
+	if _, err := New("", stringCodec{}, WithTTL(-time.Second)); err == nil {
+		t.Fatal("New accepted a negative TTL")
 	}
 }
