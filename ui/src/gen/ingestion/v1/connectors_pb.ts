@@ -108,15 +108,11 @@ export type ListConnectorsRequest = Message<"ingestion.v1.ListConnectorsRequest"
   pagination?: PaginationRequest | undefined;
 
   /**
-   * Case-insensitive search over name, display_name, and description.
-   *
    * @generated from field: string search = 4;
    */
   search: string;
 
   /**
-   * Sorting supports NAME; created/updated timestamps do not exist for catalog entries.
-   *
    * @generated from field: ingestion.v1.SortingRequest sorting = 5;
    */
   sorting?: SortingRequest | undefined;

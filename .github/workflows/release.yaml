@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       type:
-        description: Type of release to create
+        description: Release Type
         required: true
         default: patch
         type: choice
@@ -13,7 +13,7 @@ on:
           - minor
           - major
       prerelease:
-        description: Mark the GitHub release as a prerelease
+        description: Prerelease
         required: false
         default: false
         type: boolean

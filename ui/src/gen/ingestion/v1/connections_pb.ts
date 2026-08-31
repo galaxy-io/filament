@@ -282,15 +282,11 @@ export type ListConnectionsRequest = Message<"ingestion.v1.ListConnectionsReques
   pagination?: PaginationRequest | undefined;
 
   /**
-   * Full-text search over name and connector.
-   *
    * @generated from field: string search = 5;
    */
   search: string;
 
   /**
-   * Sorting supports NAME, CREATED_AT, and UPDATED_AT.
-   *
    * @generated from field: ingestion.v1.SortingRequest sorting = 6;
    */
   sorting?: SortingRequest | undefined;

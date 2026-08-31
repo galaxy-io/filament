@@ -267,7 +267,7 @@ const ObservabilityRunsTable = () => {
       sorting={sorting}
       onSortingChange={handleSortingChange}
       isLoading={view === ObservabilityRunsView.UPCOMING ? isLoadingScheduled : isLoading}
-      loadingRowCount={1}
+      loadingRowCount={10}
       hasNextPage={view === ObservabilityRunsView.PAST && hasNextPage}
       isFetchingNextPage={isFetchingNextPage}
       fetchNextPage={fetchNextPage}

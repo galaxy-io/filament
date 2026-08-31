@@ -236,6 +236,10 @@ func (s *Store) TransitionRun(
 	}
 	state.Status = to
 	state.UpdatedAt = time.Now()
+	if opts.Ended && state.EndedAt == nil {
+		now := time.Now()
+		state.EndedAt = &now
+	}
 	if opts.ResetExecution {
 		state.RequestedAt = time.Now()
 		state.StartedAt = time.Time{}
@@ -284,9 +288,10 @@ func (s *Store) deleteRunLocked(id filament.RunID) {
 }
 
 // ListRuns returns runs matching the filter, newest first by effective time:
-// StartedAt, falling back to RequestedAt then CreatedAt, mirroring postgres's
-// COALESCE ordering. A run that never starts (e.g. cancelled while pending)
-// keeps its chronological slot instead of pinning to the top.
+// StartedAt, falling back to RequestedAt, ScheduledAt, then CreatedAt,
+// mirroring postgres's COALESCE ordering. A run cancelled while pending keeps
+// its chronological slot; a pending scheduled run sorts by its future fire
+// time and so pins above finished work until promoted.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, 0, err
@@ -355,9 +360,15 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 		}
 		a, b := effectiveRunTime(out[i]), effectiveRunTime(out[j])
 		if a.Equal(b) {
-			return out[i].Run > out[j].Run
+			if f.SortDescending {
+				return out[i].Run > out[j].Run
+			}
+			return out[i].Run < out[j].Run
 		}
-		return a.After(b)
+		if f.SortDescending {
+			return a.After(b)
+		}
+		return a.Before(b)
 	})
 	total := len(out)
 	if f.Offset > 0 {
@@ -373,13 +384,17 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 }
 
 // effectiveRunTime is the sort stamp for the default run ordering: StartedAt,
-// falling back to RequestedAt then CreatedAt for runs that never started.
+// falling back to RequestedAt, then ScheduledAt so a pending scheduled run
+// sorts by its future fire time, then CreatedAt.
 func effectiveRunTime(r filament.RunState) time.Time {
 	if !r.StartedAt.IsZero() {
 		return r.StartedAt
 	}
 	if !r.RequestedAt.IsZero() {
 		return r.RequestedAt
+	}
+	if !r.ScheduledAt.IsZero() {
+		return r.ScheduledAt
 	}
 	return r.CreatedAt
 }
@@ -482,6 +497,26 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 		return filament.ResourceCheckpointState{}, fmt.Errorf("load resource checkpoint %q/%q: %w", key.Route, key.Resource, ErrNotFound)
 	}
 	return state, nil
+}
+
+// ListResourceCheckpoints returns every durable cursor under one route,
+// ordered by resource.
+func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	var states []filament.ResourceCheckpointState
+	for key, state := range s.resourceCheckpoints {
+		if key.PipelineID == route.PipelineID && key.PipelineVersionID == route.PipelineVersionID && key.Route == route.Route {
+			states = append(states, state)
+		}
+	}
+	s.mu.RUnlock()
+	slices.SortFunc(states, func(a, b filament.ResourceCheckpointState) int {
+		return strings.Compare(a.Key.Resource, b.Key.Resource)
+	})
+	return states, nil
 }
 
 // DeleteResourceCheckpoint clears durable progress so the next run starts a

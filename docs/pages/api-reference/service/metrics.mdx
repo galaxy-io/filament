@@ -3,7 +3,7 @@ title: "Metrics"
 description: "The read-only aggregation service behind the dashboard, serving timeseries and windowed aggregates over runs"
 ---
 
-Defined in `api/metrics/v1/metrics.proto`. `metrics.v1.MetricsService` is a
+Defined in `protos/metrics/v1/metrics.proto`. `metrics.v1.MetricsService` is a
 read-only aggregation surface with exactly two query primitives, a bucketed
 timeseries and a windowed aggregate, parameterized by metric and dimension
 enums. New metrics are enum additions, and the RPC surface never changes. This

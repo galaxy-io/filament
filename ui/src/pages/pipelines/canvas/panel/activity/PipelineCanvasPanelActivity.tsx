@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { PulseIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -15,9 +16,13 @@ import EmptyLayout from "@/layouts/EmptyLayout";
 
 import { PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS } from "@/pages/pipelines/canvas/panel/activity/constants";
 import PipelineCanvasPanelActivityLine from "@/pages/pipelines/canvas/panel/activity/PipelineCanvasPanelActivityLine";
+import { getRunEventKey } from "@/pages/pipelines/canvas/panel/activity/utils";
 
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useListRunsQuery, useTailRunsStream } from "@/api/queries/runs";
+
+const ESTIMATED_LINE_HEIGHT = 18;
+const LINE_GAP = 2;
 
 const ActivityBody = styled.div`
   flex: 1;
@@ -26,9 +31,22 @@ const ActivityBody = styled.div`
 
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${LINE_GAP}px;
 
   overflow-y: auto;
+`;
+
+const ActivityList = styled.div`
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+`;
+
+const ActivityListLine = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
 `;
 
 const PipelineCanvasPanelActivity = () => {
@@ -51,6 +69,15 @@ const PipelineCanvasPanelActivity = () => {
 
   const { events, isStreaming } = useTailRunsStream(runIds);
 
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
+    count: events.length,
+    getScrollElement: () => bodyRef.current,
+    estimateSize: () => ESTIMATED_LINE_HEIGHT,
+    getItemKey: (index) => getRunEventKey(events[index]),
+    gap: LINE_GAP,
+  });
+
   if (runIds.length === 0) {
     return (
       <ActivityBody>
@@ -63,11 +90,19 @@ const PipelineCanvasPanelActivity = () => {
   }
 
   return (
-    <ActivityBody>
-      {events.map((event, index) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: append-only feed without stable identity
-        <PipelineCanvasPanelActivityLine key={index} event={event} />
-      ))}
+    <ActivityBody ref={bodyRef}>
+      <ActivityList style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((item) => (
+          <ActivityListLine
+            key={item.key}
+            ref={virtualizer.measureElement}
+            data-index={item.index}
+            style={{ transform: `translateY(${item.start}px)` }}
+          >
+            <PipelineCanvasPanelActivityLine event={events[item.index]} />
+          </ActivityListLine>
+        ))}
+      </ActivityList>
       {isStreaming && (
         <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
           <Flash>Listening...</Flash>

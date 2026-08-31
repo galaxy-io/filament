@@ -11,6 +11,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -29,6 +30,42 @@ import (
 )
 
 const standbyStatusInterval = 10 * time.Second
+
+// slotReleaseWait bounds how long a cycle waits for a peer to let go of the
+// slot: the previous cycle's walsender still exiting after Close, or its
+// pg_replication_slot_advance still decoding toward the acknowledged cursor.
+const (
+	slotReleaseWait = 10 * time.Second
+	slotReleasePoll = 100 * time.Millisecond
+)
+
+// errSlotHeld marks a slot operation refused because another backend holds
+// the slot right now; untilSlotReleased retries such operations.
+var errSlotHeld = errors.New("slot is held by another backend")
+
+// slotHeldByPeer reports whether a server error is PostgreSQL refusing to
+// acquire an active slot (SQLSTATE 55006, object_in_use).
+func slotHeldByPeer(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "55006"
+}
+
+// untilSlotReleased runs op until it stops reporting errSlotHeld or
+// slotReleaseWait elapses, returning op's last error.
+func untilSlotReleased(ctx context.Context, op func() error) error {
+	deadline := time.Now().Add(slotReleaseWait)
+	for {
+		err := op()
+		if !errors.Is(err, errSlotHeld) || time.Now().After(deadline) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(slotReleasePoll):
+		}
+	}
+}
 
 var replicationNameRE = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
 
@@ -196,10 +233,10 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	}); err != nil {
 		return fmt.Errorf("postgres cdc: start slot %q at %s: %w", s.slotName, start, err)
 	}
-	// Only acknowledge the cursor which was durable before this extraction began.
-	// The final watermark is acknowledged by the next cycle, after the sink and
-	// tracker have committed it.
-	if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: start}); err != nil {
+	// Standby replies confirm the slot's own position, a no-op that keeps the
+	// walsender satisfied. The slot advances in exactly one place,
+	// AcknowledgeChanges, once the runner has proven the cursors durable.
+	if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: slot.start}); err != nil {
 		return fmt.Errorf("postgres cdc: acknowledge start %s: %w", start, err)
 	}
 
@@ -215,7 +252,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 		cancel()
 		if recvErr != nil {
 			if pgconn.Timeout(recvErr) {
-				if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: start}); err != nil {
+				if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: slot.start}); err != nil {
 					return fmt.Errorf("postgres cdc: standby status: %w", err)
 				}
 				nextStatus = time.Now().Add(standbyStatusInterval)
@@ -237,7 +274,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 					return fmt.Errorf("postgres cdc: keepalive: %w", err)
 				}
 				if keepalive.ReplyRequested {
-					if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: start}); err != nil {
+					if err := pglogrepl.SendStandbyStatusUpdate(ctx, repl, pglogrepl.StandbyStatusUpdate{WALWritePosition: slot.start}); err != nil {
 						return fmt.Errorf("postgres cdc: keepalive reply: %w", err)
 					}
 					nextStatus = time.Now().Add(standbyStatusInterval)
@@ -376,9 +413,21 @@ func (s *Source) replicationConn(ctx context.Context) (*pgconn.PgConn, error) {
 func (s *Source) ensureReplicationSlot(ctx context.Context, conn *pgconn.PgConn) (replicationSlotState, error) {
 	var plugin, database string
 	var confirmed, restart *string
-	var active bool
-	err := s.pool.QueryRow(ctx, `SELECT plugin, database, active, confirmed_flush_lsn::text, restart_lsn::text
-		FROM pg_replication_slots WHERE slot_name=$1`, s.slotName).Scan(&plugin, &database, &active, &confirmed, &restart)
+	err := untilSlotReleased(ctx, func() error {
+		var active bool
+		err := s.pool.QueryRow(ctx, `SELECT plugin, database, active, confirmed_flush_lsn::text, restart_lsn::text
+			FROM pg_replication_slots WHERE slot_name=$1`, s.slotName).Scan(&plugin, &database, &active, &confirmed, &restart)
+		if err != nil {
+			return err
+		}
+		if active {
+			return fmt.Errorf("postgres cdc: slot %q is already active; use a unique slot per pipeline (%w)", s.slotName, errSlotHeld)
+		}
+		return nil
+	})
+	if errors.Is(err, errSlotHeld) {
+		return replicationSlotState{}, err
+	}
 	if err != nil && err != pgx.ErrNoRows {
 		return replicationSlotState{}, fmt.Errorf("postgres cdc: inspect slot %q: %w", s.slotName, err)
 	}
@@ -403,9 +452,6 @@ func (s *Source) ensureReplicationSlot(ctx context.Context, conn *pgconn.PgConn)
 	if database != currentDB {
 		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot %q belongs to database %q, want %q", s.slotName, database, currentDB)
 	}
-	if active {
-		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot %q is already active; use a unique slot per pipeline", s.slotName)
-	}
 	position := confirmed
 	if position == nil || *position == "" {
 		position = restart
@@ -418,6 +464,33 @@ func (s *Source) ensureReplicationSlot(ctx context.Context, conn *pgconn.PgConn)
 		return replicationSlotState{}, fmt.Errorf("postgres cdc: slot position %q: %w", *position, err)
 	}
 	return replicationSlotState{start: lsn}, nil
+}
+
+// AcknowledgeChanges advances the logical slot to the oldest checkpoint the
+// runner has verified durable after sink commit. ExtractChanges cannot do this
+// itself: at extraction return time the sink and tracker may still fail. The
+// standby replies sent while streaming only confirm a flush position; advancing
+// decodes the retained WAL so restart_lsn moves and the server can recycle it.
+func (s *Source) AcknowledgeChanges(ctx context.Context, checkpoints map[string]filament.Checkpoint) error {
+	target, _, found, err := startPostgresLSN(checkpoints)
+	if err != nil || !found {
+		return err
+	}
+	// GREATEST keeps the call monotonic: a target behind confirmed_flush_lsn
+	// is a no-op rather than an error.
+	err = untilSlotReleased(ctx, func() error {
+		var endLSN string
+		err := s.pool.QueryRow(ctx, `SELECT (pg_replication_slot_advance(slot_name, GREATEST(confirmed_flush_lsn, $2::pg_lsn))).end_lsn::text
+			FROM pg_replication_slots WHERE slot_name=$1`, s.slotName, target.String()).Scan(&endLSN)
+		if slotHeldByPeer(err) {
+			return fmt.Errorf("%w: %w", errSlotHeld, err)
+		}
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("postgres cdc: advance slot %q to %s: %w", s.slotName, target, err)
+	}
+	return nil
 }
 
 // importSnapshot opens a read-only transaction over the snapshot exported by

@@ -3,8 +3,8 @@ title: "Pipelines"
 description: "Mutable metadata over immutable graph versions, validated per edge, plus schedules"
 ---
 
-Defined in `api/ingestion/v1/pipelines.proto` and
-`api/ingestion/v1/capabilities.proto`. A pipeline is two things with different
+Defined in `protos/ingestion/v1/pipelines.proto` and
+`protos/ingestion/v1/capabilities.proto`. A pipeline is two things with different
 lifecycles. The **mutable metadata** (name, description, worker configuration,
 schedule) updates in place. The rest is a history of **immutable graph
 versions**, where each version is a complete node-and-edge graph and only

@@ -23,8 +23,8 @@ import (
 
 // TestReaperKillsStaleRuns drives the reaper against a real API server. A
 // stale Running run with no worker Job is failed through the bus and folded
-// terminal by the tracker; one whose Job still has an active pod is held by
-// the Alive probe; deleting that Job lets the next sweep kill it too.
+// terminal by the tracker; one whose Job is still unfinished is held by the
+// workload probe; deleting that Job lets the next sweep kill it too.
 func TestReaperKillsStaleRuns(t *testing.T) {
 	cluster := testcontainers.SharedK3s(t)
 	ctx := context.Background()
@@ -38,8 +38,8 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 		WorkerImage:      "ghcr.io/galaxy-io/filament/worker:test",
 		WorkerSecretName: "filament-secret",
 		// The default ServiceAccount, so the Job controller can actually create
-		// the pod: Alive needs Status.Active > 0, and a pod stuck pulling a
-		// nonexistent image still counts as active.
+		// the pod; a pod stuck pulling a nonexistent image keeps the Job
+		// unfinished, which is what holds the run.
 		WorkerServiceAccount: "default",
 		JobNamePrefix:        "filament",
 		Kubeconfig:           cluster.KubeconfigPath,
@@ -75,7 +75,7 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 	reap := reaper.New(
 		reaper.WithInterval(250*time.Millisecond),
 		reaper.WithStaleAfter(2*time.Second),
-		reaper.WithAliveCheck(dispatcher.Alive),
+		reaper.WithWorkloadProbe(dispatcher.Workload),
 	)
 	mods, err := module.MountAll(ctx, module.Deps{Bus: bus, DataStore: ds}, tracker.New(), reap)
 	if err != nil {
@@ -98,7 +98,7 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 	}
 
 	// Several more sweeps pass; the held run stays Running because its Job
-	// still has an active pod.
+	// is still unfinished.
 	time.Sleep(time.Second)
 	if st, err := ds.LoadRun(ctx, held); err != nil || st.Status != filament.RunRunning {
 		t.Fatalf("held run: status %v err %v, want still running", st.Status, err)
