@@ -86,13 +86,19 @@ func (s *Store) ListSchedules(ctx context.Context, filter filament.ScheduleFilte
 	return out, nil
 }
 
-// DeleteSchedule removes a schedule by ID.
+// DeleteSchedule removes a schedule by ID along with its pre-created scheduled
+// runs, so nothing lingers as upcoming work.
 func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for runID, r := range s.runs {
+		if r.ScheduleID == id && r.Status == filament.RunScheduled {
+			s.deleteRunLocked(runID)
+		}
+	}
 	delete(s.schedules, id)
 	delete(s.scheduleClaims, id)
 	return nil

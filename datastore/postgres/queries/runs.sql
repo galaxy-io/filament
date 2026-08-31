@@ -55,7 +55,11 @@ DELETE FROM runs WHERE id = @run_id;
 SELECT status FROM runs WHERE id = @run_id FOR UPDATE;
 
 -- name: TransitionRun :exec
-UPDATE runs SET status = @status, updated_at = now() WHERE id = @run_id;
+UPDATE runs SET
+    status = @status,
+    ended_at = CASE WHEN @stamp_ended::boolean THEN coalesce(ended_at, now()) ELSE ended_at END,
+    updated_at = now()
+WHERE id = @run_id;
 
 -- name: ResetRunExecution :exec
 UPDATE runs SET
@@ -76,6 +80,11 @@ WHERE id = @run_id;
 -- lookups cannot find these rows once the delete tx is underway.
 -- name: DeletePipelineScheduledRuns :exec
 DELETE FROM runs WHERE pipeline_id = @pipeline_id AND status = @status;
+
+-- Reaps a schedule's pre-created scheduled runs; must run before the schedules
+-- row is deleted, since that delete SET-NULLs runs.schedule_id.
+-- name: DeleteScheduleScheduledRuns :exec
+DELETE FROM runs WHERE schedule_id = @schedule_id AND status = @status;
 
 -- name: LoadRun :one
 SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes

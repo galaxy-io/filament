@@ -77,9 +77,12 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	return nil
 }
 
-// Start launches the claim timer; it runs until ctx is cancelled.
+// Start launches the claim timer; it runs until ctx is cancelled. Before the
+// first tick it reconciles every schedule's pre-created RunScheduled rows,
+// healing any left stale by a reconcile that failed or crashed mid-flight.
 func (m *Module) Start(ctx context.Context) {
 	go func() {
+		m.reconcileAllScheduledRuns(ctx)
 		ticker := time.NewTicker(m.interval)
 		defer ticker.Stop()
 		for {
@@ -213,11 +216,33 @@ func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now tim
 }
 
 // reconcileScheduledRuns refreshes the schedule's RunScheduled bookkeeping.
-// Failures are logged, not returned: the rows are a visibility artifact and
-// must never fail a fire.
+// Failures are logged and counted, not returned: the rows are a visibility
+// artifact and must never fail a fire; the counter is what surfaces a
+// persistently failing reconcile.
 func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.ScheduleState) {
-	if err := runs.ReconcileScheduled(ctx, m.ds, m.compiler, st); err != nil && m.log != nil {
-		m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+	if err := runs.ReconcileScheduled(ctx, m.ds, m.compiler, st); err != nil {
+		if m.mx != nil {
+			m.mx.Counter("filament_schedule_reconcile_failures_total").Inc()
+		}
+		if m.log != nil {
+			m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+		}
+	}
+}
+
+// reconcileAllScheduledRuns sweeps every schedule through reconcile once.
+// ReconcileScheduled drops-and-recreates per schedule, so the sweep also
+// clears pending rows of schedules that were disabled while down.
+func (m *Module) reconcileAllScheduledRuns(ctx context.Context) {
+	schedules, err := m.store.ListSchedules(ctx, filament.ScheduleFilter{})
+	if err != nil {
+		if m.log != nil {
+			m.log.Error("scheduler: list schedules for startup reconcile", err)
+		}
+		return
+	}
+	for _, st := range schedules {
+		m.reconcileScheduledRuns(ctx, st)
 	}
 }
 

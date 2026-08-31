@@ -29,6 +29,16 @@ const (
 	missingPipeline  = "40000000-0000-4000-8000-000000000099"
 	connectionOne    = "50000000-0000-4000-8000-000000000001"
 	connectionTwo    = "50000000-0000-4000-8000-000000000002"
+	runSortCompleted = "20000000-0000-4000-8000-000000000011"
+	runSortRunning   = "20000000-0000-4000-8000-000000000012"
+	runSortCancelled = "20000000-0000-4000-8000-000000000013"
+	runSortScheduled = "20000000-0000-4000-8000-000000000014"
+	runCancelStamp   = "20000000-0000-4000-8000-000000000015"
+	runPauseStamp    = "20000000-0000-4000-8000-000000000016"
+	runPending       = "20000000-0000-4000-8000-000000000017"
+	runPromoted      = "20000000-0000-4000-8000-000000000018"
+	schedulePruned   = "30000000-0000-4000-8000-000000000004"
+	pipelinePruned   = "40000000-0000-4000-8000-000000000005"
 )
 
 // testDSN returns the DSN from FILAMENT_TEST_POSTGRES_DSN, or skips the test.
@@ -599,5 +609,170 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	}
 	if fetched.GetCurrentVersion().GetId() != second.Id {
 		t.Fatalf("expected current version %q, got %q", second.Id, fetched.GetCurrentVersion().GetId())
+	}
+}
+
+// TestStore_ListRunsDefaultSortEffectiveTime pins the default ordering to
+// effective time — started_at, then requested_at, then scheduled_at, then
+// created_at — so a pre-created scheduled row sorts by its future fire time
+// instead of sinking to the moment it was reconciled into existence.
+func TestStore_ListRunsDefaultSortEffectiveTime(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	now := time.Now().Truncate(time.Microsecond)
+	ended := now.Add(-time.Hour)
+	for _, run := range []filament.RunState{
+		{Run: runSortCompleted, Tenant: tenantA, Status: filament.RunCompleted, StartedAt: now.Add(-2 * time.Hour), EndedAt: &ended},
+		{Run: runSortRunning, Tenant: tenantA, Status: filament.RunRunning, StartedAt: now.Add(-5 * time.Minute)},
+		{Run: runSortCancelled, Tenant: tenantA, Status: filament.RunCanceled, RequestedAt: now.Add(-time.Hour), EndedAt: &ended},
+		{Run: runSortScheduled, Tenant: tenantA, Status: filament.RunScheduled, ScheduledAt: now.Add(time.Hour)},
+	} {
+		if err := store.SaveRun(ctx, run); err != nil {
+			t.Fatalf("SaveRun %s: %v", run.Run, err)
+		}
+	}
+	// Recreate the regression shape: the scheduled row was pre-created hours
+	// before the other runs started. created_at is not settable through
+	// SaveRun (DEFAULT now()), so backdate it directly.
+	pool, err := postgres.NewPool(ctx, testDSN(t))
+	if err != nil {
+		t.Fatalf("NewPool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, "UPDATE runs SET created_at = now() - interval '3 hours' WHERE id = $1", runSortScheduled); err != nil {
+		t.Fatalf("backdate created_at: %v", err)
+	}
+
+	runs, total, err := store.ListRuns(ctx, filament.RunFilter{Tenant: tenantA, SortDescending: true})
+	if err != nil {
+		t.Fatalf("ListRuns descending: %v", err)
+	}
+	want := []filament.RunID{runSortScheduled, runSortRunning, runSortCancelled, runSortCompleted}
+	if total != len(want) || len(runs) != len(want) {
+		t.Fatalf("runs = %d, total = %d, want %d", len(runs), total, len(want))
+	}
+	for i, id := range want {
+		if runs[i].Run != id {
+			t.Fatalf("descending order[%d] = %s, want %s", i, runs[i].Run, id)
+		}
+	}
+
+	runs, _, err = store.ListRuns(ctx, filament.RunFilter{Tenant: tenantA})
+	if err != nil {
+		t.Fatalf("ListRuns ascending: %v", err)
+	}
+	for i, id := range want {
+		if runs[len(want)-1-i].Run != id {
+			t.Fatalf("ascending order[%d] = %s, want %s", len(want)-1-i, runs[len(want)-1-i].Run, id)
+		}
+	}
+}
+
+// TestStore_TransitionRunCancelStampsEndedAt pins the synchronous ended_at
+// stamp on cancel: the row must carry an end time even if the async
+// run.canceled fact never folds, and a later save must not move the stamp.
+func TestStore_TransitionRunCancelStampsEndedAt(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	requested := time.Now().Truncate(time.Microsecond)
+	for _, id := range []string{runCancelStamp, runPauseStamp} {
+		if err := store.SaveRun(ctx, filament.RunState{
+			Run: filament.RunID(id), Tenant: tenantA, Status: filament.RunRequested, RequestedAt: requested,
+		}); err != nil {
+			t.Fatalf("SaveRun %s: %v", id, err)
+		}
+	}
+
+	cancelled, err := store.TransitionRun(ctx, runCancelStamp,
+		[]filament.RunStatus{filament.RunRequested}, filament.RunCanceled, filament.RunTransitionOptions{Ended: true})
+	if err != nil {
+		t.Fatalf("TransitionRun cancel: %v", err)
+	}
+	if cancelled.EndedAt == nil || !cancelled.StartedAt.IsZero() {
+		t.Fatalf("expected ended_at stamped and started_at empty, got %+v", cancelled)
+	}
+	stamp := *cancelled.EndedAt
+
+	later := stamp.Add(time.Hour)
+	cancelled.EndedAt = &later
+	if err := store.SaveRun(ctx, cancelled); err != nil {
+		t.Fatalf("SaveRun after cancel: %v", err)
+	}
+	got, err := store.LoadRun(ctx, runCancelStamp)
+	if err != nil {
+		t.Fatalf("LoadRun: %v", err)
+	}
+	if got.EndedAt == nil || !got.EndedAt.Equal(stamp) {
+		t.Fatalf("expected ended_at first-write-wins at %v, got %v", stamp, got.EndedAt)
+	}
+
+	paused, err := store.TransitionRun(ctx, runPauseStamp,
+		[]filament.RunStatus{filament.RunRequested}, filament.RunPaused, filament.RunTransitionOptions{})
+	if err != nil {
+		t.Fatalf("TransitionRun pause: %v", err)
+	}
+	if paused.EndedAt != nil {
+		t.Fatalf("expected no ended_at on pause, got %v", paused.EndedAt)
+	}
+}
+
+// TestStore_DeleteScheduleReapsScheduledRuns pins the schedule delete against
+// the runs.schedule_id ON DELETE SET NULL foreign key: the delete transaction
+// itself must remove pending RunScheduled rows before the schedules row goes,
+// or they are orphaned forever. Promoted runs are history and must survive.
+func TestStore_DeleteScheduleReapsScheduledRuns(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelinePruned, TenantId: tenantA, Name: "pruned"}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	version, err := store.CreatePipelineVersion(ctx, pipelinePruned, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+	fire := time.Now().Add(time.Hour).Truncate(time.Microsecond)
+	if err := store.SaveSchedule(ctx, filament.ScheduleState{
+		ID:        schedulePruned,
+		Spec:      filament.ScheduleSpec{Tenant: tenantA, PipelineID: pipelinePruned, Cron: "0 * * * *", Timezone: "UTC", Enabled: true},
+		Enabled:   true,
+		NextFire:  &fire,
+		CreatedAt: time.Now().Truncate(time.Microsecond),
+	}); err != nil {
+		t.Fatalf("SaveSchedule: %v", err)
+	}
+	for _, run := range []filament.RunState{
+		{Run: runPending, Tenant: tenantA, Status: filament.RunScheduled, ScheduleID: schedulePruned, ScheduledAt: fire,
+			Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelinePruned, PipelineVersionID: version.GetId(), ScheduleID: schedulePruned}},
+		{Run: runPromoted, Tenant: tenantA, Status: filament.RunRequested, ScheduleID: schedulePruned, RequestedAt: time.Now().Truncate(time.Microsecond),
+			Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelinePruned, PipelineVersionID: version.GetId(), ScheduleID: schedulePruned}},
+	} {
+		if err := store.CreateRun(ctx, run); err != nil {
+			t.Fatalf("CreateRun %s: %v", run.Run, err)
+		}
+	}
+
+	if err := store.DeleteSchedule(ctx, schedulePruned); err != nil {
+		t.Fatalf("DeleteSchedule: %v", err)
+	}
+
+	pending, _, err := store.ListRuns(ctx, filament.RunFilter{Tenant: tenantA, Status: []filament.RunStatus{filament.RunScheduled}})
+	if err != nil {
+		t.Fatalf("ListRuns pending: %v", err)
+	}
+	if len(pending) != 0 {
+		t.Fatalf("expected pending scheduled runs reaped on schedule delete, got %+v", pending)
+	}
+	promoted, err := store.LoadRun(ctx, runPromoted)
+	if err != nil {
+		t.Fatalf("LoadRun promoted: %v", err)
+	}
+	if promoted.Status != filament.RunRequested {
+		t.Fatalf("expected promoted run to survive schedule delete, got %+v", promoted)
+	}
+	if _, err := store.LoadSchedule(ctx, schedulePruned); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("expected schedule removed, got %v", err)
 	}
 }

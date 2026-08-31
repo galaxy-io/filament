@@ -5,6 +5,7 @@ import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import { ObservabilityRunsView } from "@/pages/observability/types";
@@ -65,6 +66,7 @@ export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
 
 export const OBSERVABILITY_RUNS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
+  sorting: create(SortingRequestSchema, { sortOrder: SortOrder.ASC }),
 });
 
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT = "startedAt";

@@ -32,7 +32,7 @@ import {
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount } from "@/utils/format";
+import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
 
 const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -120,6 +120,21 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
       <ResourceTableWrapper>
         <FlexWrapper padding={"16px"} fillWidth>
           <Text variant={TextVariant.TERTIARY}>The run is scheduled and has not started yet.</Text>
+        </FlexWrapper>
+      </ResourceTableWrapper>
+    );
+  }
+
+  if (data?.snapshot?.run?.status === RunStatus.CANCELED && !data.snapshot.run.startedAt) {
+    const cancelledAt = data.snapshot.run.endedAt;
+    return (
+      <ResourceTableWrapper>
+        <FlexWrapper padding={"16px"} fillWidth>
+          <Text variant={TextVariant.TERTIARY}>
+            {cancelledAt
+              ? `The run was cancelled at ${formatTimestamp(cancelledAt)}, before it started.`
+              : "The run was cancelled before it started."}
+          </Text>
         </FlexWrapper>
       </ResourceTableWrapper>
     );

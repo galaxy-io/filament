@@ -408,7 +408,8 @@ func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipel
 				filament.RunRequested, filament.RunRunning, filament.RunCompleted,
 				filament.RunFailed, filament.RunCanceled, filament.RunPaused, filament.RunPartial,
 			},
-			Limit: 1,
+			SortDescending: true,
+			Limit:          1,
 		})
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, err)

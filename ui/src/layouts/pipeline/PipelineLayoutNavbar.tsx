@@ -66,8 +66,9 @@ import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { useGetPipelineQuery, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import {
+  getActiveRunsRefetchInterval,
   useRunPipelineMutation,
   useSignalRunMutation,
   useSuspenseListRunsQuery,
@@ -119,12 +120,21 @@ const PipelineLayoutNavbar = () => {
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
   const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
 
+  const { data: schedulePipelineData } = useGetPipelineQuery({
+    input: create(GetPipelineRequestSchema, { id, includeSchedule: true }),
+  });
+  const schedule = schedulePipelineData?.pipeline?.schedule;
+  const nextFireAt = schedule?.config?.isEnabled ? schedule.nextFireAt : undefined;
+
   const { data: activeRunsData } = useSuspenseListRunsQuery({
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
       pagination: create(PaginationRequestSchema, { pageSize: 1 }),
     }),
+    options: {
+      refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
+    },
   });
   const activeRun = activeRunsData.runs[0];
 
@@ -304,7 +314,7 @@ const PipelineLayoutNavbar = () => {
             </>
           ) : (
             <>
-              <PipelineScheduleChip pipelineId={id} />
+              {!activeRun && <PipelineScheduleChip pipelineId={id} />}
               {!activeRun ? (
                 <PipelineLayoutNavbarRunButton
                   workerConfiguration={pipeline?.workerConfiguration}

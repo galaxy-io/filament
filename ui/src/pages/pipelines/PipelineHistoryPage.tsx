@@ -7,7 +7,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -25,13 +25,15 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/history/constants";
+import PipelineHistoryRunDuration from "@/pages/pipelines/history/PipelineHistoryRunDuration";
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
+import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
+import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -65,11 +67,18 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     id: "startedAt",
     header: "Started",
     cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isEllipsis>
-        {formatTimestamp(row.original.startedAt)}
-      </Text>
-    ),
+    cell: ({ row }) => {
+      const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row.original);
+      return (
+        <Text
+          size={TextSize.BODY_SM}
+          variant={isStarted ? TextVariant.PRIMARY : TextVariant.TERTIARY}
+          isEllipsis
+        >
+          {formatTimestamp(timestamp)}
+        </Text>
+      );
+    },
   },
   {
     id: "version",
@@ -87,9 +96,11 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
     cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isEllipsis>
-        {formatDuration(row.original.startedAt, row.original.endedAt)}
-      </Text>
+      <PipelineHistoryRunDuration
+        status={row.original.status}
+        startedAt={row.original.startedAt}
+        endedAt={row.original.endedAt}
+      />
     ),
   },
   {
@@ -99,7 +110,7 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     cellLoading: () => <TextShimmer width={48} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.records ? formatCount(row.original.records) : "—"}
+        {row.original.startedAt ? formatCount(row.original.records) : "—"}
       </Text>
     ),
   },
@@ -111,7 +122,7 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     cellLoading: () => <TextShimmer width={52} height={14} />,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.bytes ? formatBytes(row.original.bytes) : "—"}
+        {row.original.startedAt ? formatBytes(row.original.bytes) : "—"}
       </Text>
     ),
   },
@@ -137,7 +148,16 @@ const PipelineHistoryPage = () => {
     },
   );
 
-  const runs = data.pages.flatMap((page) => page.runs);
+  const runs = useMemo(() => {
+    const seen = new Set<string>();
+    return data.pages
+      .flatMap((page) => page.runs)
+      .filter((run) => {
+        if (seen.has(run.id)) return false;
+        seen.add(run.id);
+        return true;
+      });
+  }, [data.pages]);
 
   const handleExpandedChange = (expandedRowIds: string[]) => {
     void navigate({
