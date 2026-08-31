@@ -45,7 +45,7 @@ const PipelineSettingsPageDanger = () => {
     <>
       <DangerZone
         title="Delete pipeline"
-        description="This will permanently delete this pipeline and all of its data."
+        description="This will permanently delete this pipeline."
         onDelete={handleOpen}
       />
       <Modal open={isOpen} onClose={handleClose}>
@@ -54,7 +54,7 @@ const PipelineSettingsPageDanger = () => {
           onClose={handleClose}
           onConfirm={handleConfirm}
           title="Delete pipeline"
-          body="This will permanently delete this pipeline and all associated data."
+          body="Are you sure you want to delete this pipeline? This is a destructive action and cannot be undone."
           confirmationPhrase={formatPipelineName(pipeline)}
           confirmLabel="Delete pipeline"
           isPending={isDeleting}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/memory"
@@ -17,6 +18,7 @@ func TestPlanSignal(t *testing.T) {
 		signal     filament.Signal
 		to         filament.RunStatus
 		transition bool
+		ended      bool
 		publish    bool
 		worker     bool
 		wantErr    error
@@ -27,9 +29,12 @@ func TestPlanSignal(t *testing.T) {
 		{name: "resume paused", status: filament.RunPaused, signal: filament.SignalResume, to: filament.RunRequested, transition: true, publish: true},
 		{name: "resume partial", status: filament.RunPartial, signal: filament.SignalResume, to: filament.RunRequested, transition: true, publish: true},
 		{name: "resume requested repairs dispatch", status: filament.RunRequested, signal: filament.SignalResume, publish: true},
-		{name: "cancel requested", status: filament.RunRequested, signal: filament.SignalCancel, to: filament.RunCanceled, transition: true, publish: true},
+		{name: "cancel requested", status: filament.RunRequested, signal: filament.SignalCancel, to: filament.RunCanceled, transition: true, ended: true, publish: true},
+		{name: "cancel paused", status: filament.RunPaused, signal: filament.SignalCancel, to: filament.RunCanceled, transition: true, ended: true, publish: true},
+		{name: "cancel partial", status: filament.RunPartial, signal: filament.SignalCancel, to: filament.RunCanceled, transition: true, ended: true, publish: true},
 		{name: "cancel idempotent", status: filament.RunCanceled, signal: filament.SignalCancel},
 		{name: "cancel running", status: filament.RunRunning, signal: filament.SignalCancel, publish: true, worker: true},
+		{name: "cancel scheduled rejected", status: filament.RunScheduled, signal: filament.SignalCancel, wantErr: ErrSignalTransition},
 		{name: "resume completed rejected", status: filament.RunCompleted, signal: filament.SignalResume, wantErr: ErrSignalTransition},
 	}
 	for _, tt := range tests {
@@ -41,10 +46,44 @@ func TestPlanSignal(t *testing.T) {
 			if tt.wantErr != nil {
 				return
 			}
-			if got.to != tt.to || got.transition != tt.transition || got.publish != tt.publish || got.worker != tt.worker {
+			if got.to != tt.to || got.transition != tt.transition || got.ended != tt.ended || got.publish != tt.publish || got.worker != tt.worker {
 				t.Fatalf("command = %#v", got)
 			}
 		})
+	}
+}
+
+func TestCancelStampsEndedAt(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	cancelled := filament.RunState{Run: "run-cancel", Tenant: "tenant", Status: filament.RunRequested, RequestedAt: time.Now()}
+	paused := filament.RunState{Run: "run-pause", Tenant: "tenant", Status: filament.RunRequested, RequestedAt: time.Now()}
+	for _, state := range []filament.RunState{cancelled, paused} {
+		if err := store.SaveRun(ctx, state); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := Signal(ctx, inproc.New(), store, cancelled, filament.SignalCancel); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.LoadRun(ctx, cancelled.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != filament.RunCanceled || got.EndedAt == nil || !got.StartedAt.IsZero() {
+		t.Fatalf("cancel = status %d, ended %v, started %v; want cancelled with ended_at stamped and no start", got.Status, got.EndedAt, got.StartedAt)
+	}
+
+	if _, err := Signal(ctx, inproc.New(), store, paused, filament.SignalPause); err != nil {
+		t.Fatal(err)
+	}
+	got, err = store.LoadRun(ctx, paused.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != filament.RunPaused || got.EndedAt != nil {
+		t.Fatalf("pause = status %d, ended %v; want paused with no ended_at", got.Status, got.EndedAt)
 	}
 }
 

@@ -104,3 +104,46 @@ func TestListRunsSearchesAndSortsByPipelineName(t *testing.T) {
 		t.Fatalf("runs = %+v, total = %d", runs, total)
 	}
 }
+
+func TestListRunsDefaultSortEffectiveTime(t *testing.T) {
+	ctx := context.Background()
+	store := New()
+	now := time.Now()
+	ended := now.Add(-time.Hour)
+	for _, run := range []filament.RunState{
+		{Run: "r-completed", Tenant: "t-1", Status: filament.RunCompleted, StartedAt: now.Add(-2 * time.Hour), CreatedAt: now.Add(-2 * time.Hour)},
+		{Run: "r-running", Tenant: "t-1", Status: filament.RunRunning, StartedAt: now.Add(-5 * time.Minute), CreatedAt: now.Add(-5 * time.Minute)},
+		{Run: "r-cancelled", Tenant: "t-1", Status: filament.RunCanceled, RequestedAt: now.Add(-time.Hour), EndedAt: &ended, CreatedAt: now.Add(-time.Hour)},
+		// The regression shape: pre-created hours ago, firing in the future. It
+		// must sort by its fire time, not sink to its creation time.
+		{Run: "r-scheduled", Tenant: "t-1", Status: filament.RunScheduled, ScheduledAt: now.Add(time.Hour), CreatedAt: now.Add(-3 * time.Hour)},
+	} {
+		if err := store.SaveRun(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	runs, total, err := store.ListRuns(ctx, filament.RunFilter{Tenant: "t-1", SortDescending: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []filament.RunID{"r-scheduled", "r-running", "r-cancelled", "r-completed"}
+	if total != len(want) || len(runs) != len(want) {
+		t.Fatalf("runs = %+v, total = %d", runs, total)
+	}
+	for i, id := range want {
+		if runs[i].Run != id {
+			t.Fatalf("descending order[%d] = %s, want %s", i, runs[i].Run, id)
+		}
+	}
+
+	runs, _, err = store.ListRuns(ctx, filament.RunFilter{Tenant: "t-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, id := range want {
+		if runs[len(want)-1-i].Run != id {
+			t.Fatalf("ascending order[%d] = %s, want %s", len(want)-1-i, runs[len(want)-1-i].Run, id)
+		}
+	}
+}

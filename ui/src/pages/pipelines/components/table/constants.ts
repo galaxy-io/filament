@@ -27,12 +27,12 @@ export const PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP: Record<
   (theme: Theme) => string
 > = {
   [RunStatus.UNSPECIFIED]: (theme) => theme.color.border.primary,
-  [RunStatus.REQUESTED]: (theme) => theme.color.icon.lime,
+  [RunStatus.REQUESTED]: (theme) => theme.color.icon.orange,
   [RunStatus.RUNNING]: (theme) => theme.color.icon.blue,
   [RunStatus.COMPLETED]: (theme) => theme.color.icon.success,
   [RunStatus.FAILED]: (theme) => theme.color.icon.error,
-  [RunStatus.CANCELED]: (theme) => theme.color.icon.purple,
-  [RunStatus.PAUSED]: (theme) => theme.color.icon.warning,
+  [RunStatus.CANCELED]: (theme) => theme.color.icon.secondary,
+  [RunStatus.PAUSED]: (theme) => theme.color.icon.teal,
   [RunStatus.PARTIAL]: (theme) => theme.color.icon.pink,
   [RunStatus.SCHEDULED]: (theme) => theme.color.icon.yellow,
 };

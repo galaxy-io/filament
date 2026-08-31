@@ -213,11 +213,17 @@ func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now tim
 }
 
 // reconcileScheduledRuns refreshes the schedule's RunScheduled bookkeeping.
-// Failures are logged, not returned: the rows are a visibility artifact and
-// must never fail a fire.
+// Failures are logged and counted, not returned: the rows are a visibility
+// artifact and must never fail a fire; the counter is what surfaces a
+// persistently failing reconcile.
 func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.ScheduleState) {
-	if err := runs.ReconcileScheduled(ctx, m.ds, m.compiler, st); err != nil && m.log != nil {
-		m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+	if err := runs.ReconcileScheduled(ctx, m.ds, m.compiler, st); err != nil {
+		if m.mx != nil {
+			m.mx.Counter("filament_schedule_reconcile_failures_total").Inc()
+		}
+		if m.log != nil {
+			m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+		}
 	}
 }
 
