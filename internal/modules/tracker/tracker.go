@@ -170,11 +170,6 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	return m.apply(ctx, f)
 }
 
-func isTerminalFact(data any) bool {
-	_, ok := terminalFactStatus(data)
-	return ok
-}
-
 func terminalFactStatus(data any) (string, bool) {
 	switch data.(type) {
 	case events.RunCompletedEvent:

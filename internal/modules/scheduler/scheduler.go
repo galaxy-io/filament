@@ -115,11 +115,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 		return 0, err
 	}
 	if len(due) == 0 {
-		if m.log != nil {
-			m.log.Trace("scheduler tick completed",
-				filament.Field{Key: "event.name", Value: "scheduler.tick.completed"},
-				filament.Field{Key: "claimed_schedules", Value: 0})
-		}
+		m.logEmptyTick()
 		return 0, nil
 	}
 	fired := 0
@@ -214,15 +210,29 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 				filament.Field{Key: "occurrence", Value: occurrence})
 		}
 	}
-	if m.log != nil {
-		m.log.Debug("scheduler tick completed",
-			filament.Field{Key: "event.name", Value: "scheduler.tick.completed"},
-			filament.Field{Key: "claimed_schedules", Value: len(due)},
-			filament.Field{Key: "fired_schedules", Value: fired},
-			filament.Field{Key: "skipped_schedules", Value: skipped},
-			filament.Field{Key: "failed_schedules", Value: failed})
-	}
+	m.logTickCompleted(len(due), fired, skipped, failed)
 	return fired, errors.Join(errs...)
+}
+
+func (m *Module) logEmptyTick() {
+	if m.log == nil {
+		return
+	}
+	m.log.Trace("scheduler tick completed",
+		filament.Field{Key: "event.name", Value: "scheduler.tick.completed"},
+		filament.Field{Key: "claimed_schedules", Value: 0})
+}
+
+func (m *Module) logTickCompleted(claimed, fired, skipped, failed int) {
+	if m.log == nil {
+		return
+	}
+	m.log.Debug("scheduler tick completed",
+		filament.Field{Key: "event.name", Value: "scheduler.tick.completed"},
+		filament.Field{Key: "claimed_schedules", Value: claimed},
+		filament.Field{Key: "fired_schedules", Value: fired},
+		filament.Field{Key: "skipped_schedules", Value: skipped},
+		filament.Field{Key: "failed_schedules", Value: failed})
 }
 
 // fire compiles the schedule's pipeline for one claimed occurrence and submits
