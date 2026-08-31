@@ -744,10 +744,14 @@ func TestStore_DeleteScheduleReapsScheduledRuns(t *testing.T) {
 		t.Fatalf("SaveSchedule: %v", err)
 	}
 	for _, run := range []filament.RunState{
-		{Run: runPending, Tenant: tenantA, Status: filament.RunScheduled, ScheduleID: schedulePruned, ScheduledAt: fire,
-			Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelinePruned, PipelineVersionID: version.GetId(), ScheduleID: schedulePruned}},
-		{Run: runPromoted, Tenant: tenantA, Status: filament.RunRequested, ScheduleID: schedulePruned, RequestedAt: time.Now().Truncate(time.Microsecond),
-			Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelinePruned, PipelineVersionID: version.GetId(), ScheduleID: schedulePruned}},
+		{
+			Run: runPending, Tenant: tenantA, Status: filament.RunScheduled, ScheduleID: schedulePruned, ScheduledAt: fire,
+			Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelinePruned, PipelineVersionID: version.GetId(), ScheduleID: schedulePruned},
+		},
+		{
+			Run: runPromoted, Tenant: tenantA, Status: filament.RunRequested, ScheduleID: schedulePruned, RequestedAt: time.Now().Truncate(time.Microsecond),
+			Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelinePruned, PipelineVersionID: version.GetId(), ScheduleID: schedulePruned},
+		},
 	} {
 		if err := store.CreateRun(ctx, run); err != nil {
 			t.Fatalf("CreateRun %s: %v", run.Run, err)
