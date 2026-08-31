@@ -2,9 +2,27 @@ import { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import type { RunEvent } from "@/gen/ingestion/v1/runs_pb";
 
+const runEventTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
 export const formatRunEventTime = (event: RunEvent): string => {
-  const date = new Date(Number(event.createdAt));
-  return date.toLocaleTimeString("en-US", { hour12: false });
+  return runEventTimeFormatter.format(new Date(Number(event.createdAt)));
+};
+
+const runEventKeys = new WeakMap<RunEvent, number>();
+let nextRunEventKey = 0;
+
+export const getRunEventKey = (event: RunEvent): number => {
+  let key = runEventKeys.get(event);
+  if (key === undefined) {
+    key = nextRunEventKey++;
+    runEventKeys.set(event, key);
+  }
+  return key;
 };
 
 export const formatRunEventDetail = (event: RunEvent): string => {

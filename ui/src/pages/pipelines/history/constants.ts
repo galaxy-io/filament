@@ -6,11 +6,11 @@ import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 export const PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT = 1;
 
-export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS = 110;
+export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS = 120;
 export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION = 120;
-export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS = 100;
-export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME = 100;
-export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION = 100;
+export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS = 110;
+export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME = 120;
+export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION = 110;
 
 export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.UNSPECIFIED]: "Unknown",
@@ -18,7 +18,7 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.RUNNING]: "Running",
   [RunStatus.COMPLETED]: "Completed",
   [RunStatus.FAILED]: "Failed",
-  [RunStatus.CANCELED]: "Canceled",
+  [RunStatus.CANCELED]: "Cancelled",
   [RunStatus.PAUSED]: "Paused",
   [RunStatus.PARTIAL]: "Partial",
   [RunStatus.SCHEDULED]: "Scheduled",
@@ -26,12 +26,12 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
 
 export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> = {
   [RunStatus.UNSPECIFIED]: BeaconVariant.SECONDARY,
-  [RunStatus.REQUESTED]: BeaconVariant.LIME,
+  [RunStatus.REQUESTED]: BeaconVariant.ORANGE,
   [RunStatus.RUNNING]: BeaconVariant.BLUE,
   [RunStatus.COMPLETED]: BeaconVariant.SUCCESS,
   [RunStatus.FAILED]: BeaconVariant.ERROR,
-  [RunStatus.CANCELED]: BeaconVariant.PURPLE,
-  [RunStatus.PAUSED]: BeaconVariant.WARNING,
+  [RunStatus.CANCELED]: BeaconVariant.SECONDARY,
+  [RunStatus.PAUSED]: BeaconVariant.TEAL,
   [RunStatus.PARTIAL]: BeaconVariant.PINK,
   [RunStatus.SCHEDULED]: BeaconVariant.YELLOW,
 };
@@ -42,21 +42,21 @@ export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP: Record<RunStatus, ChartPa
     [RunStatus.COMPLETED]: ChartPalette.GREEN,
     [RunStatus.FAILED]: ChartPalette.RED,
     [RunStatus.RUNNING]: ChartPalette.BLUE,
-    [RunStatus.REQUESTED]: ChartPalette.LIME,
+    [RunStatus.REQUESTED]: ChartPalette.ORANGE,
     [RunStatus.SCHEDULED]: ChartPalette.YELLOW,
-    [RunStatus.CANCELED]: ChartPalette.PURPLE,
-    [RunStatus.PAUSED]: ChartPalette.ORANGE,
+    [RunStatus.CANCELED]: ChartPalette.SECONDARY,
+    [RunStatus.PAUSED]: ChartPalette.TEAL,
     [RunStatus.PARTIAL]: ChartPalette.PINK,
   };
 
 export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVariant> = {
   [RunStatus.UNSPECIFIED]: TextVariant.SECONDARY,
-  [RunStatus.REQUESTED]: TextVariant.LIME,
+  [RunStatus.REQUESTED]: TextVariant.ORANGE,
   [RunStatus.RUNNING]: TextVariant.BLUE,
   [RunStatus.COMPLETED]: TextVariant.SUCCESS,
   [RunStatus.FAILED]: TextVariant.ERROR,
-  [RunStatus.CANCELED]: TextVariant.PURPLE,
-  [RunStatus.PAUSED]: TextVariant.WARNING,
+  [RunStatus.CANCELED]: TextVariant.SECONDARY,
+  [RunStatus.PAUSED]: TextVariant.TEAL,
   [RunStatus.PARTIAL]: TextVariant.PINK,
   [RunStatus.SCHEDULED]: TextVariant.YELLOW,
 };

@@ -20,6 +20,7 @@ export const formatTimeAgo = (unixMillis: bigint): string => {
 export const formatTimeUntil = (unixMillis: bigint): string => {
   if (!unixMillis) return "—";
   const remainingMs = Number(unixMillis) - Date.now();
+  if (remainingMs < 0) return "soon";
   const minutes = Math.floor(remainingMs / 60_000);
   if (minutes < 1) return "in <1m";
   if (minutes < 60) return `in ${minutes}m`;

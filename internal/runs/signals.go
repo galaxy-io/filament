@@ -24,6 +24,7 @@ type signalCommand struct {
 	from           []filament.RunStatus
 	to             filament.RunStatus
 	resetExecution bool
+	ended          bool
 	publish        bool
 	transition     bool
 	worker         bool
@@ -60,15 +61,15 @@ var signalCommands = map[signalKey]signalCommand{
 	},
 	{filament.SignalCancel, filament.RunRequested}: {
 		from: []filament.RunStatus{filament.RunRequested, filament.RunPaused, filament.RunPartial},
-		to:   filament.RunCanceled, transition: true, publish: true,
+		to:   filament.RunCanceled, transition: true, ended: true, publish: true,
 	},
 	{filament.SignalCancel, filament.RunPaused}: {
 		from: []filament.RunStatus{filament.RunRequested, filament.RunPaused, filament.RunPartial},
-		to:   filament.RunCanceled, transition: true, publish: true,
+		to:   filament.RunCanceled, transition: true, ended: true, publish: true,
 	},
 	{filament.SignalCancel, filament.RunPartial}: {
 		from: []filament.RunStatus{filament.RunRequested, filament.RunPaused, filament.RunPartial},
-		to:   filament.RunCanceled, transition: true, publish: true,
+		to:   filament.RunCanceled, transition: true, ended: true, publish: true,
 	},
 	{filament.SignalCancel, filament.RunCanceled}: {},
 	{filament.SignalCancel, filament.RunRunning}: {
@@ -98,7 +99,7 @@ func Signal(
 		preserveProgress := command.resetExecution && state.Status == filament.RunPaused &&
 			filament.CheckpointCoverageFor(state.Request.Resources, state.Request.IngestionTypes) == filament.CheckpointCoverageAll
 		state, err = store.TransitionRun(ctx, state.Run, command.from, command.to, filament.RunTransitionOptions{
-			ResetExecution: command.resetExecution, PreserveProgress: preserveProgress,
+			ResetExecution: command.resetExecution, PreserveProgress: preserveProgress, Ended: command.ended,
 		})
 		if err != nil {
 			return SignalResult{}, err

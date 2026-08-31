@@ -79,10 +79,13 @@ type RunTransitionStore interface {
 }
 
 // RunTransitionOptions controls the attempt-local state reset performed by a
-// lifecycle transition.
+// lifecycle transition. Ended stamps ended_at (first-write-wins) at transition
+// time; set it only on transitions into terminal states, so the row carries an
+// end time even if the async fact fold never lands.
 type RunTransitionOptions struct {
 	ResetExecution   bool
 	PreserveProgress bool
+	Ended            bool
 }
 
 // ResourceCheckpointKey identifies durable progress shared by runs of one
