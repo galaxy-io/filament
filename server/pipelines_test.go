@@ -41,6 +41,39 @@ func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 	}
 }
 
+func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
+	ctx := context.Background()
+	store := memory.New()
+	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+
+	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
+		Name: "partial worker configuration",
+		WorkerConfiguration: &ingestionv1.WorkerConfiguration{
+			Resources:    &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "750m"}},
+			NodeSelector: map[string]string{"pool": "batch"},
+			Tolerations:  []*ingestionv1.WorkerToleration{{Key: "dedicated", Value: "batch"}},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+
+	got := res.Msg.GetPipeline().GetWorkerConfiguration()
+	if got.GetResources().GetRequests()["cpu"] != "750m" || got.GetResources().GetRequests()["memory"] != "256Mi" {
+		t.Fatalf("merged requests = %v, want cpu override and default memory", got.GetResources().GetRequests())
+	}
+	if !proto.Equal(got, &ingestionv1.WorkerConfiguration{
+		Resources: &ingestionv1.WorkerResources{
+			Requests: map[string]string{"cpu": "750m", "memory": "256Mi"},
+			Limits:   map[string]string{"cpu": "1000m", "memory": "512Mi"},
+		},
+		NodeSelector: map[string]string{"pool": "batch"},
+		Tolerations:  []*ingestionv1.WorkerToleration{{Key: "dedicated", Value: "batch"}},
+	}) {
+		t.Fatalf("merged worker configuration = %+v", got)
+	}
+}
+
 // TestGetPipelineIncludesDeleted covers the soft-delete read path: a deleted
 // pipeline stays readable by id — with its versions and deleted_at — while
 // running it is refused.

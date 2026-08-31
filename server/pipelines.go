@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -19,9 +20,9 @@ import (
 // CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
 	id := uuid.NewString()
-	workerConfiguration := req.Msg.GetWorkerConfiguration()
-	if workerConfiguration == nil {
-		workerConfiguration = defaultWorkerConfiguration()
+	workerConfiguration := defaultWorkerConfiguration()
+	if supplied := req.Msg.GetWorkerConfiguration(); supplied != nil {
+		proto.Merge(workerConfiguration, supplied)
 	}
 	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(workerConfiguration)); err != nil {
 		return nil, compileError(err)
