@@ -28,6 +28,7 @@ import {
   PIPELINES_TABLE_RECENT_RUNS_STATUSES,
 } from "@/pages/pipelines/components/table/constants";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
+import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
 import { useListRunsQuery } from "@/api/queries/runs";
@@ -73,7 +74,7 @@ const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
     <Wrapper minWidth={160}>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isEllipsis>
-          {formatTimestamp(run.startedAt)}
+          {formatTimestamp(getPipelineHistoryRunTimestamp(run).timestamp)}
         </Text>
         {run.error ? (
           <Text size={TextSize.CAPTION} isMonospace isSelectable>
