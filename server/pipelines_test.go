@@ -26,6 +26,9 @@ func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
 	want := defaultWorkerConfiguration()
+	if want.NodeSelector == nil || want.Tolerations == nil {
+		t.Fatalf("default worker configuration must include empty node selector and tolerations: %+v", want)
+	}
 	if got := res.Msg.GetPipeline().GetWorkerConfiguration(); !proto.Equal(got, want) {
 		t.Fatalf("response worker configuration = %+v, want %+v", got, want)
 	}

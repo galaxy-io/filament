@@ -62,10 +62,14 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 // sizing. Keeping the default at the API boundary means every client gets the
 // same behavior, and future default changes do not resize existing pipelines.
 func defaultWorkerConfiguration() *ingestionv1.WorkerConfiguration {
-	return &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{
-		Requests: map[string]string{"cpu": "500m", "memory": "256Mi"},
-		Limits:   map[string]string{"cpu": "1000m", "memory": "512Mi"},
-	}}
+	return &ingestionv1.WorkerConfiguration{
+		Resources: &ingestionv1.WorkerResources{
+			Requests: map[string]string{"cpu": "500m", "memory": "256Mi"},
+			Limits:   map[string]string{"cpu": "1000m", "memory": "512Mi"},
+		},
+		NodeSelector: map[string]string{},
+		Tolerations:  []*ingestionv1.WorkerToleration{},
+	}
 }
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
