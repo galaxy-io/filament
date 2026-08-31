@@ -180,7 +180,7 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
           onClose={handleClose}
           onConfirm={handleConfirm}
           title="Delete connection"
-          body="This will permanently delete this connection and all associated data."
+          body="Are you sure you want to delete this connection? This is a destructive action and cannot be undone."
           confirmationPhrase={connection.name || ""}
           confirmLabel="Delete connection"
           isPending={isDeleting}

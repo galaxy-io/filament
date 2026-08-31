@@ -230,6 +230,8 @@ eventBus:
     stream: EVENTBUS
     # -- NATS subject filter consumed by Filament.
     subjects: "ingestion.v1.>"
+    # -- Maximum age of messages retained in the NATS stream, in seconds. Set to 0 to disable age-based expiration.
+    ttlSeconds: 604800
 
   # @ignore
   kafka: {}

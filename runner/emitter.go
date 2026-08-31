@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 )
@@ -30,6 +31,9 @@ type emitter struct {
 	runRecords int64
 	runBytes   int64
 	res        map[string]*tally
+	// latestStream is the newest stream checkpoint seen per resource, merged
+	// from batch.written; it is what the run asks the source to acknowledge.
+	latestStream map[string]filament.Checkpoint
 }
 
 type tally struct {
@@ -38,7 +42,10 @@ type tally struct {
 }
 
 func newEmitter(ctx context.Context, bus eventbus.Bus, log filament.Logger, tenant filament.TenantID, run filament.RunID) *emitter {
-	return &emitter{ctx: ctx, bus: bus, log: log, tenant: tenant, run: run, res: map[string]*tally{}}
+	return &emitter{
+		ctx: ctx, bus: bus, log: log, tenant: tenant, run: run,
+		res: map[string]*tally{}, latestStream: map[string]filament.Checkpoint{},
+	}
 }
 
 // seedProgress carries durable progress from a prior paused attempt into this
@@ -91,7 +98,10 @@ func (e *emitter) finish() context.CancelFunc {
 // cancellation because RunOne detaches the emitter first (see finish). Safe to
 // call concurrently — the pipeline's writer goroutine publishes batch facts
 // while the run goroutine publishes lifecycle facts.
-func (e *emitter) publish(f events.Fact) {
+//
+// The transport error is returned for the one fact that gates execution,
+// run.started; every other caller treats publishing as best-effort.
+func (e *emitter) publish(f events.Fact) error {
 	if d, ok := f.Data.(events.BatchWrittenEvent); ok {
 		e.mu.Lock()
 		e.runRecords += d.Records
@@ -103,6 +113,11 @@ func (e *emitter) publish(f events.Fact) {
 		}
 		t.records += d.Records
 		t.bytes += d.Bytes
+		if d.Checkpoint != nil {
+			if _, _, ok := checkpoint.ParseStream(d.Checkpoint); ok {
+				e.latestStream[f.Resource] = checkpoint.MergeStream(e.latestStream[f.Resource], d.Checkpoint)
+			}
+		}
 		e.mu.Unlock()
 	}
 	if e.log != nil {
@@ -129,9 +144,24 @@ func (e *emitter) publish(f events.Fact) {
 			e.log.Info(f.Name, fields...)
 		}
 	}
-	if err := events.Publish(e.ctx, e.bus, f); err != nil && e.log != nil {
-		e.log.Error("runner: publish fact", err, filament.Field{Key: "type", Value: f.Name})
+	if err := events.Publish(e.ctx, e.bus, f); err != nil {
+		if e.log != nil {
+			e.log.Error("runner: publish fact", err, filament.Field{Key: "type", Value: f.Name})
+		}
+		return err
 	}
+	return nil
+}
+
+// streamCheckpoints returns a copy of the newest stream checkpoint per resource.
+func (e *emitter) streamCheckpoints() map[string]filament.Checkpoint {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	out := make(map[string]filament.Checkpoint, len(e.latestStream))
+	for resource, cp := range e.latestStream {
+		out[resource] = cp
+	}
+	return out
 }
 
 // factProgress flattens a typed payload's progress counters and error for logging.
@@ -163,11 +193,11 @@ func factProgress(f events.Fact) (records, bytes int64, errMsg string, hasProgre
 // emit stamps and publishes a run-originated fact for a run or resource.
 // (A free function: Go methods cannot take type parameters.)
 func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
-	emitAt(e, t, resource, time.Now(), data)
+	_ = emitAt(e, t, resource, time.Now(), data)
 }
 
-func emitAt[T any](e *emitter, t events.EventType[T], resource string, at time.Time, data T) {
-	e.publish(events.NewFact(t, events.Envelope{
+func emitAt[T any](e *emitter, t events.EventType[T], resource string, at time.Time, data T) error {
+	return e.publish(events.NewFact(t, events.Envelope{
 		Tenant:   e.tenant,
 		Run:      e.run,
 		Resource: resource,

@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -23,7 +25,13 @@ const (
 	defaultAckWait     = 30 * time.Second
 	defaultFetchWait   = 250 * time.Millisecond
 	defaultRequestWait = 5 * time.Second
+	defaultTTL         = 7 * 24 * time.Hour
 
+	// nakRedeliveryDelay spaces redeliveries of a nak'd message. A plain NAK
+	// redelivers immediately and the consumer BackOff schedule applies only to
+	// AckWait expiry, so without it a handler failing on a broken dependency
+	// spins the consumer.
+	nakRedeliveryDelay = time.Second
 	// ephemeralInactiveThreshold lets the server garbage-collect ephemeral
 	// consumers abandoned by a crashed process; live ones stay active by
 	// fetching and clean ones are deleted explicitly on Close.
@@ -138,6 +146,10 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 	if cfg.requestWait <= 0 {
 		cfg.requestWait = defaultRequestWait
 	}
+	ttl, err := ttlFromEnv()
+	if err != nil {
+		return nil, err
+	}
 
 	nc := cfg.conn
 	ownConn := false
@@ -190,7 +202,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		subs:        make(map[*subscription]struct{}),
 	}
 	if cfg.createStream {
-		if err := b.ensureStream(context.Background(), b.stream, cfg.subjects); err != nil {
+		if err := b.ensureStream(context.Background(), b.stream, cfg.subjects, ttl); err != nil {
 			if ownConn {
 				nc.Close()
 			}
@@ -198,6 +210,21 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		}
 	}
 	return b, nil
+}
+
+// ttlFromEnv returns the process-wide NATS retention setting. Empty uses the
+// seven-day default; zero explicitly disables age-based expiration.
+func ttlFromEnv() (time.Duration, error) {
+	raw := os.Getenv("NATS_TTL_SECONDS")
+	if raw == "" {
+		return defaultTTL, nil
+	}
+	seconds, err := strconv.ParseInt(raw, 10, 64)
+	const maxDurationSeconds = int64((1<<63 - 1) / int64(time.Second))
+	if err != nil || seconds < 0 || seconds > maxDurationSeconds {
+		return 0, fmt.Errorf("eventbus/nats: NATS_TTL_SECONDS must be a non-negative integer, got %q", raw)
+	}
+	return time.Duration(seconds) * time.Second, nil
 }
 
 var (
@@ -213,13 +240,22 @@ func (b *Bus) Resolve(pattern string) (eventbus.Route, error) {
 	return eventbus.PassthroughResolver{}.Resolve(pattern)
 }
 
-// ensureStream creates the named JetStream stream capturing subjects if it does
-// not already exist. It is idempotent: an existing stream is left untouched.
-func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string) error {
+// ensureStream creates the named JetStream stream or reconciles its message TTL
+// when it already exists. Other existing stream settings remain untouched.
+func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string, ttl time.Duration) error {
 	if len(subjects) == 0 {
 		subjects = []string{eventbus.TailWildcard}
 	}
-	if _, err := b.js.Stream(ctx, name); err == nil {
+	if stream, err := b.js.Stream(ctx, name); err == nil {
+		info := stream.CachedInfo()
+		if info.Config.MaxAge == ttl {
+			return nil
+		}
+		cfg := info.Config
+		cfg.MaxAge = ttl
+		if _, err := b.js.UpdateStream(ctx, cfg); err != nil {
+			return fmt.Errorf("eventbus/nats: update stream %q ttl: %w", name, err)
+		}
 		return nil
 	} else if !errors.Is(err, jetstream.ErrStreamNotFound) {
 		return fmt.Errorf("eventbus/nats: stream info %q: %w", name, err)
@@ -229,6 +265,7 @@ func (b *Bus) ensureStream(ctx context.Context, name string, subjects []string) 
 		Subjects:  subjects,
 		Retention: jetstream.LimitsPolicy,
 		Storage:   jetstream.FileStorage,
+		MaxAge:    ttl,
 	}); err != nil {
 		return fmt.Errorf("eventbus/nats: add stream %q: %w", name, err)
 	}
@@ -424,6 +461,15 @@ func (s *subscription) consumer() jetstream.Consumer {
 	return s.cons
 }
 
+func (s *subscription) stopped() bool {
+	select {
+	case <-s.done:
+		return true
+	default:
+		return false
+	}
+}
+
 // recreate rebuilds the server-side consumer after it disappeared. A durable
 // recreated this way resumes per its deliver policy (DeliverAll replays and
 // relies on the consumer's dedup; DeliverNew tails).
@@ -444,10 +490,8 @@ func (s *subscription) pump() {
 	defer s.wg.Done()
 	var lastErr string
 	for {
-		select {
-		case <-s.done:
+		if s.stopped() {
 			return
-		default:
 		}
 
 		batch, err := s.consumer().Fetch(s.batch, jetstream.FetchMaxWait(defaultFetchWait))
@@ -481,6 +525,9 @@ func (s *subscription) pump() {
 			}
 		}
 
+		if s.stopped() {
+			return
+		}
 		if err.Error() != lastErr {
 			lastErr = err.Error()
 			s.bus.logf("eventbus/nats: fetch %q (durable %q): %v", s.route.Target, s.cfg.Durable, err)
@@ -520,7 +567,7 @@ func (m *message) Subject() string { return m.subject }
 func (m *message) Payload() any    { return m.payload }
 func (m *message) Seq() uint64     { return m.seq }
 func (m *message) Ack() error      { return m.msg.Ack() }
-func (m *message) Nak() error      { return m.msg.Nak() }
+func (m *message) Nak() error      { return m.msg.NakWithDelay(nakRedeliveryDelay) }
 
 func maxInFlight(opt, fallback int) int {
 	if opt > 0 {

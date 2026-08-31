@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { styled } from "@linaria/react";
 
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -34,7 +36,7 @@ interface PipelineCanvasPanelActivityLineProps {
   event: RunEvent;
 }
 
-const PipelineCanvasPanelActivityLine = ({ event }: PipelineCanvasPanelActivityLineProps) => {
+const PipelineCanvasPanelActivityLine = memo(({ event }: PipelineCanvasPanelActivityLineProps) => {
   const detail = formatRunEventDetail(event);
 
   return (
@@ -55,6 +57,6 @@ const PipelineCanvasPanelActivityLine = ({ event }: PipelineCanvasPanelActivityL
       </Detail>
     </LineWrapper>
   );
-};
+});
 
 export default PipelineCanvasPanelActivityLine;

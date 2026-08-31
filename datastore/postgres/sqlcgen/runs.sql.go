@@ -109,6 +109,22 @@ func (q *Queries) DeleteRun(ctx context.Context, runID string) error {
 	return err
 }
 
+const deleteScheduleScheduledRuns = `-- name: DeleteScheduleScheduledRuns :exec
+DELETE FROM runs WHERE schedule_id = $1 AND status = $2
+`
+
+type DeleteScheduleScheduledRunsParams struct {
+	ScheduleID pgtype.Text
+	Status     int16
+}
+
+// Reaps a schedule's pre-created scheduled runs; must run before the schedules
+// row is deleted, since that delete SET-NULLs runs.schedule_id.
+func (q *Queries) DeleteScheduleScheduledRuns(ctx context.Context, arg DeleteScheduleScheduledRunsParams) error {
+	_, err := q.db.Exec(ctx, deleteScheduleScheduledRuns, arg.ScheduleID, arg.Status)
+	return err
+}
+
 const loadRun = `-- name: LoadRun :one
 SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
 FROM runs WHERE id = $1
@@ -262,15 +278,20 @@ func (q *Queries) SaveRun(ctx context.Context, arg SaveRunParams) error {
 }
 
 const transitionRun = `-- name: TransitionRun :exec
-UPDATE runs SET status = $1, updated_at = now() WHERE id = $2
+UPDATE runs SET
+    status = $1,
+    ended_at = CASE WHEN $2::boolean THEN coalesce(ended_at, now()) ELSE ended_at END,
+    updated_at = now()
+WHERE id = $3
 `
 
 type TransitionRunParams struct {
-	Status int16
-	RunID  string
+	Status     int16
+	StampEnded bool
+	RunID      string
 }
 
 func (q *Queries) TransitionRun(ctx context.Context, arg TransitionRunParams) error {
-	_, err := q.db.Exec(ctx, transitionRun, arg.Status, arg.RunID)
+	_, err := q.db.Exec(ctx, transitionRun, arg.Status, arg.StampEnded, arg.RunID)
 	return err
 }

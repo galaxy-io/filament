@@ -20,15 +20,17 @@ type RunSpec struct {
 	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
 	// derive it from the run.requested fact so redelivery is idempotent while a
 	// later resume creates fresh worker infrastructure.
-	ExecutionID       string
-	PipelineID        string
-	PipelineVersionID string
-	CheckpointRoute   string
-	CursorConfigs     map[string]ResourceCursorConfig
-	Source            Ref
-	Sink              Ref
-	Resources         []string
-	Selectors         []string
+	ExecutionID        string
+	PipelineID         string
+	PipelineVersionID  string
+	SourceConnectionID string
+	SinkConnectionID   string
+	CheckpointRoute    string
+	CursorConfigs      map[string]ResourceCursorConfig
+	Source             Ref
+	Sink               Ref
+	Resources          []string
+	Selectors          []string
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
@@ -278,6 +280,34 @@ const (
 	// it to RunRequested at fire; nothing downstream ever sees it.
 	RunScheduled
 )
+
+// Workload is what a dispatcher can prove about the worker it launched for a
+// run. The reaper reads it to tell a dead run from one that is slow to start
+// or alive but silent.
+type Workload int
+
+// Workload states, from least to most evidence of a completed attempt.
+const (
+	// WorkloadAbsent means no workload exists for the run: it was never
+	// dispatched, or the platform has already garbage-collected it.
+	WorkloadAbsent Workload = iota
+	// WorkloadActive means the workload exists and has not finished.
+	WorkloadActive
+	// WorkloadFinished means the workload ran to a terminal outcome.
+	WorkloadFinished
+)
+
+func (w Workload) String() string {
+	switch w {
+	case WorkloadAbsent:
+		return "absent"
+	case WorkloadActive:
+		return "active"
+	case WorkloadFinished:
+		return "finished"
+	}
+	return "unknown"
+}
 
 // RunResult is the terminal outcome of a run as reported by a RunHandle.
 type RunResult struct {

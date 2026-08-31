@@ -142,7 +142,7 @@ func (s *Store) TransitionRun(
 			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset resource transition: %w", err)
 		}
 	} else {
-		if err := q.TransitionRun(ctx, sqlcgen.TransitionRunParams{RunID: string(id), Status: status}); err != nil {
+		if err := q.TransitionRun(ctx, sqlcgen.TransitionRunParams{RunID: string(id), Status: status, StampEnded: opts.Ended}); err != nil {
 			return filament.RunState{}, fmt.Errorf("datastore/postgres: run transition: %w", err)
 		}
 	}
@@ -252,9 +252,11 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 	return r, nil
 }
 
-// ListRuns returns runs matching the filter, newest StartedAt first, each with
-// resource states attached. Runs that have not started sort first: a pending
-// scheduled run and one still spinning up are both upcoming work.
+// ListRuns returns runs matching the filter, newest effective time first, each
+// with resource states attached. Effective time is StartedAt, falling back to
+// RequestedAt, ScheduledAt, then CreatedAt: a pending scheduled run sorts by
+// its future fire time (pinning it above finished work) and slides into
+// chronological place once promoted.
 func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.RunState, int, error) {
 	q, args := listRunsQuery(f)
 	rows, err := s.pool.Query(ctx, q, args...)
@@ -366,7 +368,11 @@ func listRunsQuery(f filament.RunFilter) (string, []any) {
 			q += " ORDER BY r.updated_at ASC, r.id ASC"
 		}
 	default:
-		q += " ORDER BY COALESCE(r.started_at, r.requested_at, r.created_at) DESC, r.id DESC"
+		if f.SortDescending {
+			q += " ORDER BY COALESCE(r.started_at, r.requested_at, r.scheduled_at, r.created_at) DESC, r.id DESC"
+		} else {
+			q += " ORDER BY COALESCE(r.started_at, r.requested_at, r.scheduled_at, r.created_at) ASC, r.id ASC"
+		}
 	}
 	if f.Limit > 0 {
 		q += " LIMIT " + arg(f.Limit)
@@ -566,6 +572,33 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 	}, nil
 }
 
+// ListResourceCheckpoints returns every durable cursor under one route,
+// ordered by resource.
+func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
+	rows, err := s.q.ListResourceCheckpoints(ctx, sqlcgen.ListResourceCheckpointsParams{
+		PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID, RouteKey: route.Route,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("datastore/postgres: list resource checkpoints: %w", err)
+	}
+	states := make([]filament.ResourceCheckpointState, 0, len(rows))
+	for _, row := range rows {
+		var raw map[string]any
+		if err := json.Unmarshal(row.Cursor, &raw); err != nil {
+			return nil, fmt.Errorf("datastore/postgres: unmarshal resource checkpoint: %w", err)
+		}
+		key := filament.ResourceCheckpointKey{
+			PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID,
+			Route: route.Route, Resource: row.ResourceName,
+		}
+		states = append(states, filament.ResourceCheckpointState{
+			Key: key, Run: filament.RunID(row.LastRunID), UpdatedAt: row.UpdatedAt.Time,
+			Checkpoint: &filament.CheckpointData{ResourceName: row.ResourceName, Cursor: raw},
+		})
+	}
+	return states, nil
+}
+
 // DeleteResourceCheckpoint resets durable progress for one route/resource.
 func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {
 	err := s.q.DeleteResourceCheckpoint(ctx, sqlcgen.DeleteResourceCheckpointParams{
@@ -677,10 +710,28 @@ func (s *Store) ListSchedules(ctx context.Context, f filament.ScheduleFilter) ([
 	return out, nil
 }
 
-// DeleteSchedule removes a schedule by id.
+// DeleteSchedule removes a schedule by id along with its pre-created scheduled
+// runs, so nothing lingers as upcoming work. The runs reap goes first: deleting
+// the schedules row SET-NULLs runs.schedule_id, after which the rows are
+// unreachable by schedule id even inside this transaction.
 func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) error {
-	if err := s.q.DeleteSchedule(ctx, string(id)); err != nil {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("datastore/postgres: begin schedule delete: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	if err := q.DeleteScheduleScheduledRuns(ctx, sqlcgen.DeleteScheduleScheduledRunsParams{
+		ScheduleID: toText(string(id)),
+		Status:     int16(filament.RunScheduled), //nolint:gosec // small enum
+	}); err != nil {
+		return fmt.Errorf("datastore/postgres: delete schedule scheduled runs: %w", err)
+	}
+	if err := q.DeleteSchedule(ctx, string(id)); err != nil {
 		return fmt.Errorf("datastore/postgres: delete schedule: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("datastore/postgres: commit schedule delete: %w", err)
 	}
 	return nil
 }

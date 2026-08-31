@@ -5,10 +5,31 @@ import (
 	"reflect"
 	"testing"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/galaxy-io/filament"
 )
+
+func TestJobFinishedRequiresTerminalCondition(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		job  batchv1.Job
+		want bool
+	}{
+		{name: "controller gap", job: batchv1.Job{}, want: false},
+		{name: "active", job: batchv1.Job{Status: batchv1.JobStatus{Active: 1}}, want: false},
+		{name: "complete", job: batchv1.Job{Status: batchv1.JobStatus{Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, LastTransitionTime: metav1.Now()}}}}, want: true},
+		{name: "failed", job: batchv1.Job{Status: batchv1.JobStatus{Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, LastTransitionTime: metav1.Now()}}}}, want: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := jobFinished(&tt.job); got != tt.want {
+				t.Fatalf("jobFinished() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 // The Job is the entire contract between dispatch and the worker, so an unset
 // map must be absent rather than empty: an empty request list is still a
@@ -49,7 +70,10 @@ func TestWorkerResources(t *testing.T) {
 
 func TestJobAndPodLabelsMatch(t *testing.T) {
 	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament"}}
-	job, err := m.jobForSpec(filament.RunSpec{Tenant: "acme", Run: "run-1", ExecutionID: "attempt-1"})
+	job, err := m.jobForSpec(filament.RunSpec{
+		Tenant: "acme", Run: "run-1", ExecutionID: "attempt-1",
+		SourceConnectionID: "source-connection", SinkConnectionID: "sink-connection",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,6 +89,20 @@ func TestJobAndPodLabelsMatch(t *testing.T) {
 	}
 	if got := pod["filament.galaxy.io/execution-id"]; got != executionToken("attempt-1") {
 		t.Fatalf("pod execution-id label = %q", got)
+	}
+	if got := pod["filament.galaxy.io/source-connection-id"]; got != "source-connection" {
+		t.Fatalf("pod source connection label = %q", got)
+	}
+	if got := pod["filament.galaxy.io/sink-connection-id"]; got != "sink-connection" {
+		t.Fatalf("pod sink connection label = %q", got)
+	}
+}
+
+func TestInvalidConnectionIDUsesStableLabelToken(t *testing.T) {
+	value := "connection/id/that/is/not/a/kubernetes/label/value"
+	got := k8sLabelValue(value)
+	if got != executionToken(value) {
+		t.Fatalf("label value = %q, want stable token", got)
 	}
 }
 

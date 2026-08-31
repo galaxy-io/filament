@@ -4,7 +4,7 @@ description: "The ConnectRPC surface every Filament client drives, covering prot
 ---
 
 Filament's API is [ConnectRPC](https://connectrpc.com), generated from the
-protobuf definitions in `api/ingestion/v1/` and `api/metrics/v1/`.
+protobuf definitions in `protos/ingestion/v1/` and `protos/metrics/v1/`.
 `ingestion.v1.IngestionService` (connectors, connections, pipelines, runs) and
 `metrics.v1.MetricsService` (dashboard aggregations) share one listener. The
 built-in web app is a client of this same surface — there is no separate

@@ -152,6 +152,7 @@ helm upgrade --install filament . \
 |-----|------|---------|-------------|
 | eventBus.nats.stream | string | `"EVENTBUS"` | NATS stream used by Filament. |
 | eventBus.nats.subjects | string | `"ingestion.v1.>"` | NATS subject filter consumed by Filament. |
+| eventBus.nats.ttlSeconds | int | `604800` | Maximum age of messages retained in the NATS stream, in seconds. Set to 0 to disable age-based expiration. |
 | eventBus.nats.url | string | required | NATS connection URL stored in the chart-created Secret as `NATS_URL`. Required unless `existingSecret` is set. |
 | eventBus.type | string | `"nats"` | Event bus provider. |
 

@@ -47,6 +47,7 @@ type DataStore interface {
 	LoadCheckpoint(ctx context.Context, id RunID, resource string) (Checkpoint, error)
 	SaveResourceCheckpoint(ctx context.Context, state ResourceCheckpointState) error
 	LoadResourceCheckpoint(ctx context.Context, key ResourceCheckpointKey) (ResourceCheckpointState, error)
+	ListResourceCheckpoints(ctx context.Context, route ResourceCheckpointRoute) ([]ResourceCheckpointState, error)
 	DeleteResourceCheckpoint(ctx context.Context, key ResourceCheckpointKey) error
 
 	DedupSeen(ctx context.Context, tenant string, run RunID, seq uint64) (bool, error)
@@ -84,10 +85,13 @@ type RunTransitionStore interface {
 }
 
 // RunTransitionOptions controls the attempt-local state reset performed by a
-// lifecycle transition.
+// lifecycle transition. Ended stamps ended_at (first-write-wins) at transition
+// time; set it only on transitions into terminal states, so the row carries an
+// end time even if the async fact fold never lands.
 type RunTransitionOptions struct {
 	ResetExecution   bool
 	PreserveProgress bool
+	Ended            bool
 }
 
 // ResourceCheckpointKey identifies durable progress shared by runs of one
@@ -98,6 +102,14 @@ type ResourceCheckpointKey struct {
 	PipelineVersionID string
 	Route             string
 	Resource          string
+}
+
+// ResourceCheckpointRoute identifies every resource cursor one pipeline
+// version keeps for one source-to-sink route.
+type ResourceCheckpointRoute struct {
+	PipelineID        string
+	PipelineVersionID string
+	Route             string
 }
 
 // ResourceCheckpointState is the durable cursor plus its most recent writer.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -83,5 +84,32 @@ func TestConsumerGoneIncludesDeleteRaceNoResponders(t *testing.T) {
 	}
 	if consumerGone(errors.New("timeout")) {
 		t.Fatal("ordinary fetch timeout must not recreate the durable")
+	}
+}
+
+func TestTTLFromEnv(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		want    time.Duration
+		wantErr bool
+	}{
+		{name: "default", want: defaultTTL},
+		{name: "disabled", value: "0"},
+		{name: "configured", value: "7200", want: 2 * time.Hour},
+		{name: "invalid", value: "forever", wantErr: true},
+		{name: "negative", value: "-1", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("NATS_TTL_SECONDS", tt.value)
+			got, err := ttlFromEnv()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ttlFromEnv() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && got != tt.want {
+				t.Fatalf("ttlFromEnv() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
