@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -62,7 +64,6 @@ type config struct {
 	buffer       int
 	batch        int
 	requestWait  time.Duration
-	ttl          time.Duration
 	createStream bool
 	logf         func(format string, args ...any)
 }
@@ -100,12 +101,6 @@ func WithRequestWait(d time.Duration) Option {
 	return func(c *config) { c.requestWait = d }
 }
 
-// WithTTL sets the maximum age of messages retained by the JetStream stream.
-// Zero disables age-based expiration.
-func WithTTL(d time.Duration) Option {
-	return func(c *config) { c.ttl = d }
-}
-
 // WithCreateStream controls whether New creates the stream if it is missing.
 func WithCreateStream(ok bool) Option {
 	return func(c *config) { c.createStream = ok }
@@ -131,7 +126,6 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		buffer:       defaultBuffer,
 		batch:        defaultBatch,
 		requestWait:  defaultRequestWait,
-		ttl:          defaultTTL,
 		createStream: true,
 	}
 	for _, opt := range opts {
@@ -152,8 +146,9 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 	if cfg.requestWait <= 0 {
 		cfg.requestWait = defaultRequestWait
 	}
-	if cfg.ttl < 0 {
-		return nil, errors.New("eventbus/nats: ttl must be non-negative")
+	ttl, err := ttlFromEnv()
+	if err != nil {
+		return nil, err
 	}
 
 	nc := cfg.conn
@@ -207,7 +202,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		subs:        make(map[*subscription]struct{}),
 	}
 	if cfg.createStream {
-		if err := b.ensureStream(context.Background(), b.stream, cfg.subjects, cfg.ttl); err != nil {
+		if err := b.ensureStream(context.Background(), b.stream, cfg.subjects, ttl); err != nil {
 			if ownConn {
 				nc.Close()
 			}
@@ -215,6 +210,21 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		}
 	}
 	return b, nil
+}
+
+// ttlFromEnv returns the process-wide NATS retention setting. Empty uses the
+// seven-day default; zero explicitly disables age-based expiration.
+func ttlFromEnv() (time.Duration, error) {
+	raw := os.Getenv("NATS_TTL_SECONDS")
+	if raw == "" {
+		return defaultTTL, nil
+	}
+	seconds, err := strconv.ParseInt(raw, 10, 64)
+	const maxDurationSeconds = int64((1<<63 - 1) / int64(time.Second))
+	if err != nil || seconds < 0 || seconds > maxDurationSeconds {
+		return 0, fmt.Errorf("eventbus/nats: NATS_TTL_SECONDS must be a non-negative integer, got %q", raw)
+	}
+	return time.Duration(seconds) * time.Second, nil
 }
 
 var (
