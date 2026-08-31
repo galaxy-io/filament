@@ -14,6 +14,7 @@ data:
   EVENTBUS_PROVIDER: {{ .Values.eventBus.type | quote }}
   NATS_STREAM: {{ .Values.eventBus.nats.stream | quote }}
   NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
+  NATS_TTL_SECONDS: {{ .Values.eventBus.nats.ttlSeconds | quote }}
 
   # Ingestion
   SERVER_ADDR: ":{{ .Values.server.service.port }}"

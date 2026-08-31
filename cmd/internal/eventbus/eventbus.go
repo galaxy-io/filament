@@ -14,7 +14,7 @@ import (
 
 // FromEnv selects the transport per EVENTBUS_PROVIDER; nats is the default.
 // nats connects to NATS_URL and applies NATS_STREAM and NATS_SUBJECTS when
-// set.
+// set. The NATS provider reads the process-wide NATS_TTL_SECONDS setting.
 func FromEnv() (bus.Bus, error) {
 	switch provider := os.Getenv("EVENTBUS_PROVIDER"); provider {
 	case "", "nats":
