@@ -16,6 +16,14 @@ WHERE pipeline_id = @pipeline_id
   AND route_key = @route_key
   AND resource_name = @resource_name;
 
+-- name: ListResourceCheckpoints :many
+SELECT resource_name, cursor, last_run_id, updated_at
+FROM pipeline_resource_checkpoints
+WHERE pipeline_id = @pipeline_id
+  AND pipeline_version_id = @pipeline_version_id
+  AND route_key = @route_key
+ORDER BY resource_name;
+
 -- name: DeleteResourceCheckpoint :exec
 DELETE FROM pipeline_resource_checkpoints
 WHERE pipeline_id = @pipeline_id

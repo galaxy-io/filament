@@ -487,6 +487,26 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 	return state, nil
 }
 
+// ListResourceCheckpoints returns every durable cursor under one route,
+// ordered by resource.
+func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	var states []filament.ResourceCheckpointState
+	for key, state := range s.resourceCheckpoints {
+		if key.PipelineID == route.PipelineID && key.PipelineVersionID == route.PipelineVersionID && key.Route == route.Route {
+			states = append(states, state)
+		}
+	}
+	s.mu.RUnlock()
+	slices.SortFunc(states, func(a, b filament.ResourceCheckpointState) int {
+		return strings.Compare(a.Key.Resource, b.Key.Resource)
+	})
+	return states, nil
+}
+
 // DeleteResourceCheckpoint clears durable progress so the next run starts a
 // fresh backfill.
 func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {

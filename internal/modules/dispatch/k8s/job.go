@@ -74,6 +74,12 @@ func (m *Module) jobLabels(spec filament.RunSpec) map[string]string {
 	if spec.ExecutionID != "" {
 		labels["filament.galaxy.io/execution-id"] = executionToken(spec.ExecutionID)
 	}
+	if spec.SourceConnectionID != "" {
+		labels["filament.galaxy.io/source-connection-id"] = k8sLabelValue(spec.SourceConnectionID)
+	}
+	if spec.SinkConnectionID != "" {
+		labels["filament.galaxy.io/sink-connection-id"] = k8sLabelValue(spec.SinkConnectionID)
+	}
 	return labels
 }
 

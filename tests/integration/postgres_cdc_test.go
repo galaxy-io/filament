@@ -249,6 +249,25 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	}
 
 	next := streamCheckpointFromRecords(t, changes.recs, "cdc_users")
+	// The runner invokes this only after the sink commit and tracker promotion.
+	// Advancing here verifies the source releases WAL for the final completed
+	// cycle instead of waiting for another extraction to start.
+	if err := src.AcknowledgeChanges(ctx, map[string]filament.Checkpoint{"cdc_users": next}); err != nil {
+		t.Fatal(err)
+	}
+	nextLSN, _, ok := checkpoint.ParseStream(next)
+	if !ok {
+		t.Fatalf("next checkpoint is not a stream cursor: %#v", next)
+	}
+	var acknowledged bool
+	if err := pg.Pool().QueryRow(ctx, `SELECT confirmed_flush_lsn >= $2::pg_lsn
+		FROM pg_replication_slots WHERE slot_name=$1`, "filament_test_cdc", nextLSN).Scan(&acknowledged); err != nil {
+		t.Fatal(err)
+	}
+	if !acknowledged {
+		t.Fatalf("slot confirmed_flush_lsn is behind acknowledged checkpoint %s", nextLSN)
+	}
+
 	idle := &collectSink{}
 	if err := src.ExtractChanges(ctx, idle, filament.ChangeExtractOpts{
 		Resources: []string{"cdc_users"}, Checkpoints: map[string]filament.Checkpoint{"cdc_users": next},

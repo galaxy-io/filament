@@ -75,7 +75,7 @@ func run(ctx context.Context) error {
 	}
 	stopHeartbeat := hb.start(ctx, heartbeatInterval())
 
-	runner.RunOne(ctx, runner.Deps{
+	err = runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
 		DataStore: deps.Store,
 		Log:       deps.Log,
@@ -85,5 +85,5 @@ func run(ctx context.Context) error {
 		Tracer:    deps.Tracer,
 	}, runner.SpecFromState(state))
 	stopHeartbeat()
-	return nil
+	return err
 }

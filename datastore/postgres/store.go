@@ -572,6 +572,33 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 	}, nil
 }
 
+// ListResourceCheckpoints returns every durable cursor under one route,
+// ordered by resource.
+func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
+	rows, err := s.q.ListResourceCheckpoints(ctx, sqlcgen.ListResourceCheckpointsParams{
+		PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID, RouteKey: route.Route,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("datastore/postgres: list resource checkpoints: %w", err)
+	}
+	states := make([]filament.ResourceCheckpointState, 0, len(rows))
+	for _, row := range rows {
+		var raw map[string]any
+		if err := json.Unmarshal(row.Cursor, &raw); err != nil {
+			return nil, fmt.Errorf("datastore/postgres: unmarshal resource checkpoint: %w", err)
+		}
+		key := filament.ResourceCheckpointKey{
+			PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID,
+			Route: route.Route, Resource: row.ResourceName,
+		}
+		states = append(states, filament.ResourceCheckpointState{
+			Key: key, Run: filament.RunID(row.LastRunID), UpdatedAt: row.UpdatedAt.Time,
+			Checkpoint: &filament.CheckpointData{ResourceName: row.ResourceName, Cursor: raw},
+		})
+	}
+	return states, nil
+}
+
 // DeleteResourceCheckpoint resets durable progress for one route/resource.
 func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {
 	err := s.q.DeleteResourceCheckpoint(ctx, sqlcgen.DeleteResourceCheckpointParams{
