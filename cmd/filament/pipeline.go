@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
-	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
 func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
@@ -16,20 +16,19 @@ func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
 		return err
 	}
 	if args[0] == "list" && helpRequested(args[1:]) {
-		return a.printPipelineOperationHelp(args[0], args[1:], localtarget.NewDocument())
+		return a.printPipelineOperationHelp(args[0], args[1:], climodel.NewDocument())
 	}
 	if args[0] == "list" {
 		if len(args) != 1 {
 			return fmt.Errorf("usage: filament pipeline list")
 		}
-		result, err := a.queries.Pipelines(ctx)
+		result, err := a.service.Pipelines(ctx)
 		if err != nil {
 			return err
 		}
 		return textrenderer.Pipelines(a.stdout, result)
 	}
-	store := localtarget.Store{Path: a.configPath}
-	doc, _, err := store.Load()
+	doc, err := a.service.Configuration(ctx)
 	if err != nil {
 		return err
 	}
@@ -38,21 +37,21 @@ func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
 	}
 	switch args[0] {
 	case "create", "edit":
-		return a.changePipeline(args[0], args[1:], doc, store)
+		return a.changePipeline(ctx, args[0], args[1:], doc)
 	case "delete":
-		return a.deletePipeline(args[1:], doc, store)
+		return a.deletePipeline(ctx, args[1:], doc)
 	default:
 		return fmt.Errorf("unknown pipeline operation %q", args[0])
 	}
 }
 
-func (a *cliApp) changePipeline(operation string, args []string, doc localtarget.Document, store localtarget.Store) error {
+func (a *cliApp) changePipeline(ctx context.Context, operation string, args []string, doc climodel.Document) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
 	}
 	name := firstPositional(parsed)
-	var existing *localtarget.Pipeline
+	var existing *climodel.Pipeline
 	if operation == "edit" {
 		if name == "" {
 			return fmt.Errorf("usage: filament pipeline edit <name> [flags]")
@@ -80,13 +79,13 @@ func (a *cliApp) changePipeline(operation string, args []string, doc localtarget
 	if err := validateDocument(testDoc, a.catalog); err != nil {
 		return err
 	}
-	if err := store.Put("pipelines", name, p); err != nil {
+	if err := a.service.PutPipeline(ctx, name, p); err != nil {
 		return err
 	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s pipeline", pastTense(operation), name))
 }
 
-func (a *cliApp) deletePipeline(args []string, doc localtarget.Document, store localtarget.Store) error {
+func (a *cliApp) deletePipeline(ctx context.Context, args []string, doc climodel.Document) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -114,15 +113,15 @@ func (a *cliApp) deletePipeline(args []string, doc localtarget.Document, store l
 			return nil
 		}
 	}
-	if err := store.Delete("pipelines", name); err != nil {
+	if err := a.service.DeletePipeline(ctx, name); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(a.statusWriter(), "Deleted pipeline %q.\n", name)
 	return err
 }
 
-func (a *cliApp) pipelineFromFlags(name string, existing *localtarget.Pipeline, flags map[string][]string, doc localtarget.Document) (localtarget.Pipeline, error) {
-	p := localtarget.Pipeline{SyncMode: "full", WriteMode: "replace"}
+func (a *cliApp) pipelineFromFlags(name string, existing *climodel.Pipeline, flags map[string][]string, doc climodel.Document) (climodel.Pipeline, error) {
+	p := climodel.Pipeline{SyncMode: "full", WriteMode: "replace"}
 	oldSourceType, oldSinkType := "", ""
 	if existing != nil {
 		p = *existing
@@ -162,9 +161,9 @@ func (a *cliApp) pipelineFromFlags(name string, existing *localtarget.Pipeline, 
 	}
 	allowed := map[string]bool{"source": true, "sink": true, "resources": true, "sync-mode": true, "write-mode": true}
 	var err error
-	p.Source.Config, err = overlayScopedFlags(p.Source.Config, "source-", a.catalog.sources[source.Type].Config, flags, allowed)
+	p.Source.Config, err = overlayScopedFlags(p.Source.Config, "source-", a.catalog.Sources[source.Type].Config, flags, allowed)
 	if err == nil {
-		p.Sink.Config, err = overlayScopedFlags(p.Sink.Config, "sink-", a.catalog.sinks[sink.Type].Config, flags, allowed)
+		p.Sink.Config, err = overlayScopedFlags(p.Sink.Config, "sink-", a.catalog.Sinks[sink.Type].Config, flags, allowed)
 	}
 	if err != nil {
 		return p, err
@@ -175,8 +174,8 @@ func (a *cliApp) pipelineFromFlags(name string, existing *localtarget.Pipeline, 
 		schema filament.ConfigSchema
 		config map[string]any
 	}{
-		{prefix: "source-", schema: a.catalog.sources[source.Type].Config, config: p.Source.Config},
-		{prefix: "sink-", schema: a.catalog.sinks[sink.Type].Config, config: p.Sink.Config},
+		{prefix: "source-", schema: a.catalog.Sources[source.Type].Config, config: p.Source.Config},
+		{prefix: "sink-", schema: a.catalog.Sinks[sink.Type].Config, config: p.Sink.Config},
 	} {
 		for _, field := range orderedFields(item.schema, filament.ScopePipeline) {
 			flagName := item.prefix + strings.ReplaceAll(field.Name, "_", "-")
@@ -190,9 +189,9 @@ func (a *cliApp) pipelineFromFlags(name string, existing *localtarget.Pipeline, 
 	if err := rejectUnknownFlags(flags, allowed); err != nil {
 		return p, err
 	}
-	p.Source.Config, err = normalizeSavedSecretReferences(a.catalog.sources[source.Type].Config, p.Source.Config)
+	p.Source.Config, err = normalizeSavedSecretReferences(a.catalog.Sources[source.Type].Config, p.Source.Config)
 	if err == nil {
-		p.Sink.Config, err = normalizeSavedSecretReferences(a.catalog.sinks[sink.Type].Config, p.Sink.Config)
+		p.Sink.Config, err = normalizeSavedSecretReferences(a.catalog.Sinks[sink.Type].Config, p.Sink.Config)
 	}
 	if err != nil {
 		return p, err

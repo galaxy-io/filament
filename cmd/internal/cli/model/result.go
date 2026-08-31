@@ -2,6 +2,30 @@
 // target adapters, and presentation adapters.
 package model
 
+// DiscoverRequest describes target-side resource discovery.
+type DiscoverRequest struct {
+	Connector string
+	Source    string
+	Config    map[string]any
+	Refresh   bool
+}
+
+// RunResult summarizes a completed run.
+type RunResult struct {
+	Records int64
+	Bytes   int64
+}
+
+// RunEvent is a target-neutral resource progress update.
+type RunEvent struct {
+	Resource string
+	Status   string
+	Records  int64
+	Bytes    int64
+	Final    bool
+	Error    string
+}
+
 // ContextList is the result of listing configured CLI contexts.
 type ContextList struct {
 	Items []ContextSummary

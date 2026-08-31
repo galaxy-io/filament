@@ -54,14 +54,14 @@ func (a *cliApp) parseCommandArgs(args []string) (commandArgs, error) {
 
 func (a *cliApp) booleanFlags() map[string]bool {
 	result := map[string]bool{"force": true, "refresh": true, "help": true}
-	for _, spec := range a.catalog.sources {
+	for _, spec := range a.catalog.Sources {
 		for _, field := range spec.Config.Fields {
 			if field.Type == filament.FieldBool {
 				result["source-"+strings.ReplaceAll(field.Name, "_", "-")] = true
 			}
 		}
 	}
-	for _, spec := range a.catalog.sinks {
+	for _, spec := range a.catalog.Sinks {
 		for _, field := range spec.Config.Fields {
 			if field.Type == filament.FieldBool {
 				result["sink-"+strings.ReplaceAll(field.Name, "_", "-")] = true

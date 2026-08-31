@@ -8,26 +8,13 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
-	"github.com/galaxy-io/filament/datastore/memory"
-	"github.com/galaxy-io/filament/eventbus"
-	"github.com/galaxy-io/filament/eventbus/inproc"
-	"github.com/galaxy-io/filament/events"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/internal/naming"
-	"github.com/galaxy-io/filament/registry"
-	"github.com/galaxy-io/filament/runner"
 )
-
-type runResult struct {
-	records int64
-	bytes   int64
-}
-
-type runExecutor func(context.Context, filament.RunSpec) (runResult, error)
 
 func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 	if len(args) == 0 || helpRequested(args) {
-		return a.printRunHelp(args)
+		return a.printRunHelp(ctx, args)
 	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
@@ -39,21 +26,17 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 	if name == "" {
 		spec, err = a.directRunSpec(parsed.flags)
 	} else {
-		spec, err = a.savedRunSpec(name, parsed.flags)
+		spec, err = a.savedRunSpec(ctx, name, parsed.flags)
 	}
 	if err != nil {
 		return err
 	}
 
-	execute := a.executeRun
-	if execute == nil {
-		execute = executeLocalRun
-	}
-	result, err := execute(ctx, spec)
+	result, err := a.service.Run(ctx, spec, nil)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(a.statusWriter(), "Run %s completed: %d records, %d bytes.\n", spec.Run, result.records, result.bytes)
+	_, err = fmt.Fprintf(a.statusWriter(), "Run %s completed: %d records, %d bytes.\n", spec.Run, result.Records, result.Bytes)
 	return err
 }
 
@@ -63,11 +46,11 @@ func (a *cliApp) directRunSpec(flags map[string][]string) (filament.RunSpec, err
 	if sourceName == "" || sinkName == "" {
 		return filament.RunSpec{}, fmt.Errorf("--source-connector and --sink-connector are required; example: filament run --source-connector postgres --source-dsn postgres://... --sink-connector stdout")
 	}
-	source, sourceOK := a.catalog.sources[sourceName]
+	source, sourceOK := a.catalog.Sources[sourceName]
 	if !sourceOK {
 		return filament.RunSpec{}, fmt.Errorf("unknown source connector %q", sourceName)
 	}
-	sink, sinkOK := a.catalog.sinks[sinkName]
+	sink, sinkOK := a.catalog.Sinks[sinkName]
 	if !sinkOK {
 		return filament.RunSpec{}, fmt.Errorf("unknown sink connector %q", sinkName)
 	}
@@ -102,14 +85,14 @@ func (a *cliApp) directRunSpec(flags map[string][]string) (filament.RunSpec, err
 	return makeRunSpec("", sourceName, sinkName, sourceConfig, sinkConfig, resources, lastFlag(flags, "sync-mode"), lastFlag(flags, "write-mode"))
 }
 
-func (a *cliApp) savedRunSpec(name string, flags map[string][]string) (filament.RunSpec, error) {
+func (a *cliApp) savedRunSpec(ctx context.Context, name string, flags map[string][]string) (filament.RunSpec, error) {
 	for _, topologyFlag := range []string{"source", "sink", "source-connector", "sink-connector"} {
 		if _, present := flags[topologyFlag]; present {
 			return filament.RunSpec{}, fmt.Errorf("named pipeline %q cannot be combined with --%s", name, topologyFlag)
 		}
 	}
 
-	doc, _, err := (localtarget.Store{Path: a.configPath}).Load()
+	doc, err := a.service.Configuration(ctx)
 	if err != nil {
 		return filament.RunSpec{}, err
 	}
@@ -135,15 +118,15 @@ func (a *cliApp) savedRunSpec(name string, flags map[string][]string) (filament.
 
 	source := doc.Sources[p.Source.Ref]
 	sink := doc.Sinks[p.Sink.Ref]
-	sourceConfig, err := resolvedConnectionConfig(source, p.Source.Config, a.catalog.sources[source.Type].Config)
+	sourceConfig, err := resolvedConnectionConfig(source, p.Source.Config, a.catalog.Sources[source.Type].Config)
 	if err != nil {
 		return filament.RunSpec{}, fmt.Errorf("source %q: %w", p.Source.Ref, err)
 	}
-	sinkConfig, err := resolvedConnectionConfig(sink, p.Sink.Config, a.catalog.sinks[sink.Type].Config)
+	sinkConfig, err := resolvedConnectionConfig(sink, p.Sink.Config, a.catalog.Sinks[sink.Type].Config)
 	if err != nil {
 		return filament.RunSpec{}, fmt.Errorf("sink %q: %w", p.Sink.Ref, err)
 	}
-	sinkConfig = applySinkSchemaDefault(sinkConfig, a.catalog.sinks[sink.Type], p.Source.Ref)
+	sinkConfig = applySinkSchemaDefault(sinkConfig, a.catalog.Sinks[sink.Type], p.Source.Ref)
 	return makeRunSpec(name, source.Type, sink.Type, sourceConfig, sinkConfig, p.Resources, p.SyncMode, p.WriteMode)
 }
 
@@ -197,7 +180,7 @@ func directConnectorConfig(kind string, schema filament.ConfigSchema, flags map[
 	return config, nil
 }
 
-func resolvedConnectionConfig(conn localtarget.Connection, scoped map[string]any, schema filament.ConfigSchema) (map[string]any, error) {
+func resolvedConnectionConfig(conn climodel.Connection, scoped map[string]any, schema filament.ConfigSchema) (map[string]any, error) {
 	config := cloneConfigMap(conn.Config)
 	for field, value := range scoped {
 		config[field] = cloneConfigValue(value)
@@ -237,58 +220,4 @@ func makeRunSpec(pipelineID, sourceName, sinkName string, sourceConfig, sinkConf
 		Resources:      append([]string(nil), resources...),
 		IngestionTypes: map[string]filament.IngestionType{"": ingestionType},
 	}, nil
-}
-
-func executeLocalRun(ctx context.Context, spec filament.RunSpec) (runResult, error) {
-	bus := inproc.New()
-	defer func() { _ = bus.Close() }()
-
-	completed, err := bus.Subscribe(events.SubjectPattern(events.RunCompleted), eventbus.SubOpts{})
-	if err != nil {
-		return runResult{}, err
-	}
-	failed, err := bus.Subscribe(events.SubjectPattern(events.RunFailed), eventbus.SubOpts{})
-	if err != nil {
-		return runResult{}, err
-	}
-	partial, err := bus.Subscribe(events.SubjectPattern(events.RunPartial), eventbus.SubOpts{})
-	if err != nil {
-		return runResult{}, err
-	}
-
-	if err := runner.RunOne(ctx, runner.Deps{
-		Bus:       bus,
-		DataStore: memory.New(),
-		Sources:   registry.DefaultSources,
-		Sinks:     registry.DefaultSinks,
-	}, spec); err != nil {
-		return runResult{}, err
-	}
-
-	select {
-	case message := <-completed.C():
-		fact, decodeErr := events.Decode(message)
-		_ = message.Ack()
-		if decodeErr != nil {
-			return runResult{}, decodeErr
-		}
-		result := fact.Data.(events.RunCompletedEvent)
-		return runResult{records: result.Records, bytes: result.Bytes}, nil
-	case message := <-failed.C():
-		fact, decodeErr := events.Decode(message)
-		_ = message.Ack()
-		if decodeErr != nil {
-			return runResult{}, decodeErr
-		}
-		return runResult{}, fmt.Errorf("run failed: %s", fact.Data.(events.RunFailedEvent).Error)
-	case message := <-partial.C():
-		fact, decodeErr := events.Decode(message)
-		_ = message.Ack()
-		if decodeErr != nil {
-			return runResult{}, decodeErr
-		}
-		return runResult{}, fmt.Errorf("run partial: %s", fact.Data.(events.RunPartialEvent).Error)
-	case <-ctx.Done():
-		return runResult{}, ctx.Err()
-	}
 }

@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/galaxy-io/filament"
-	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 var rootHelp = `Filament CLI
@@ -101,7 +102,7 @@ the connector-derived flags.
 	return out.err
 }
 
-func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []string, doc localtarget.Document) error {
+func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []string, doc climodel.Document) error {
 	out := &helpOutput{w: a.stdout}
 	prefix := kind + "-"
 	connectorName := rawFlagValue(args, prefix+"connector")
@@ -146,7 +147,7 @@ func (a *cliApp) printConnectionOperationHelp(kind, operation string, args []str
 	return out.err
 }
 
-func (a *cliApp) printRunHelp(args []string) error {
+func (a *cliApp) printRunHelp(ctx context.Context, args []string) error {
 	out := &helpOutput{w: a.stdout}
 	out.print(runHelp)
 	printed := map[string]bool{}
@@ -165,7 +166,7 @@ func (a *cliApp) printRunHelp(args []string) error {
 	}
 	parsed, _ := a.parseCommandArgs(removeHelp(args))
 	if name := firstPositional(parsed); name != "" {
-		if doc, _, err := (localtarget.Store{Path: a.configPath}).Load(); err == nil {
+		if doc, err := a.service.Configuration(ctx); err == nil {
 			if p, ok := doc.Pipelines[name]; ok {
 				for _, item := range []struct{ kind, ref string }{{"source", p.Source.Ref}, {"sink", p.Sink.Ref}} {
 					kind, ref := item.kind, item.ref
@@ -188,7 +189,7 @@ func (a *cliApp) printRunHelp(args []string) error {
 	return out.err
 }
 
-func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc localtarget.Document) error {
+func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc climodel.Document) error {
 	out := &helpOutput{w: a.stdout}
 	out.print(pipelineHelp)
 	parsed, _ := a.parseCommandArgs(removeHelp(args))
@@ -225,17 +226,17 @@ func (a *cliApp) printPipelineOperationHelp(_ string, args []string, doc localta
 
 func (a *cliApp) connectorNames(kind string) []string {
 	if kind == "sink" {
-		return a.catalog.sinkNames()
+		return a.catalog.SinkNames()
 	}
-	return a.catalog.sourceNames()
+	return a.catalog.SourceNames()
 }
 
 func (a *cliApp) connectorSchema(kind, name string) (filament.ConfigSchema, bool) {
 	if kind == "sink" {
-		spec, ok := a.catalog.sinks[name]
+		spec, ok := a.catalog.Sinks[name]
 		return spec.Config, ok
 	}
-	spec, ok := a.catalog.sources[name]
+	spec, ok := a.catalog.Sources[name]
 	return spec.Config, ok
 }
 

@@ -12,6 +12,7 @@ import (
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
@@ -22,9 +23,8 @@ type cliApp struct {
 	configPath     string
 	contextPath    string
 	contextName    string
-	catalog        connectorCatalog
-	executeRun     runExecutor
-	queries        *cliapp.Queries
+	catalog        climodel.Catalog
+	service        *cliapp.Service
 	configOverride bool
 	target         contexts.NamedTarget
 }
@@ -46,7 +46,7 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], rootHelp)
 	}
-	if err := a.initializeTarget(); err != nil {
+	if err := a.initializeTarget(ctx); err != nil {
 		return err
 	}
 	switch args[0] {
@@ -70,7 +70,7 @@ func (e *unimplementedTargetError) Error() string {
 	return fmt.Sprintf("%s target is not implemented", e.kind)
 }
 
-func (a *cliApp) initializeTarget() error {
+func (a *cliApp) initializeTarget(ctx context.Context) error {
 	selected := contexts.NamedTarget{
 		Name:   "local",
 		Target: contexts.Target{Kind: contexts.KindLocal, ConfigPath: a.configPath},
@@ -93,18 +93,14 @@ func (a *cliApp) initializeTarget() error {
 		return &unimplementedTargetError{kind: selected.Target.Kind}
 	}
 	a.configPath = selected.Target.ConfigPath
-	a.initializeQueries()
-	return nil
-}
-
-func (a *cliApp) initializeQueries() {
-	if a.queries != nil {
-		return
+	target := localtarget.NewTarget(localtarget.Store{Path: a.configPath}, a.catalog)
+	a.service = cliapp.NewService(target)
+	catalog, err := a.service.Catalog(ctx)
+	if err != nil {
+		return err
 	}
-	a.queries = cliapp.NewQueries(localtarget.NewQueries(
-		localtarget.Store{Path: a.configPath},
-		a.catalog,
-	))
+	a.catalog = catalog
+	return nil
 }
 
 func (a *cliApp) extractGlobalFlags(args []string) ([]string, error) {

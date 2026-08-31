@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"gopkg.in/yaml.v3"
 )
 
@@ -17,8 +18,8 @@ type Store struct {
 }
 
 // Load reads the typed document and its comment-preserving YAML tree.
-func (s Store) Load() (Document, *yaml.Node, error) {
-	doc := NewDocument()
+func (s Store) Load() (model.Document, *yaml.Node, error) {
+	doc := model.NewDocument()
 	data, err := os.ReadFile(s.Path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return doc, emptyYAMLDocument(), nil
@@ -117,7 +118,7 @@ func emptyYAMLDocument() *yaml.Node {
 	root := &yaml.Node{Kind: yaml.DocumentNode}
 	mapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	root.Content = []*yaml.Node{mapping}
-	setMappingValue(mapping, "version", scalarNode(ConfigVersion))
+	setMappingValue(mapping, "version", scalarNode(model.ConfigVersion))
 	setMappingValue(mapping, "sources", mappingNode())
 	setMappingValue(mapping, "sinks", mappingNode())
 	setMappingValue(mapping, "pipelines", mappingNode())

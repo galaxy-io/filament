@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
-	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,49 +20,45 @@ func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: filament config <path|validate|edit>")
 	}
-	store := localtarget.Store{Path: a.configPath}
+	location := a.service.ConfigurationLocation()
 	switch args[0] {
 	case "path":
-		_, err := fmt.Fprintln(a.stdout, a.configPath)
+		_, err := fmt.Fprintln(a.stdout, location)
 		return err
 	case "validate":
-		doc, _, err := store.Load()
+		doc, err := a.service.Configuration(ctx)
 		if err != nil {
 			return err
 		}
 		if err := validateDocument(doc, a.catalog); err != nil {
 			return err
 		}
-		_, err = fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", a.configPath)
+		_, err = fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", location)
 		return err
 	case "edit":
-		return a.editConfig(ctx, store)
+		return a.editConfig(ctx)
 	default:
 		return fmt.Errorf("unknown config operation %q", args[0])
 	}
 }
 
-func (a *cliApp) editConfig(ctx context.Context, store localtarget.Store) error {
-	doc, root, err := store.Load()
+func (a *cliApp) editConfig(ctx context.Context) error {
+	data, err := a.service.ReadConfiguration(ctx)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(store.Path), 0o700); err != nil {
-		return err
-	}
-	recovery, err := os.CreateTemp(filepath.Dir(store.Path), "filament-recovery-*.yaml")
+	recovery, err := os.CreateTemp("", "filament-recovery-*.yaml")
 	if err != nil {
 		return err
 	}
 	recoveryPath := recovery.Name()
-	encoder := yaml.NewEncoder(recovery)
-	encoder.SetIndent(2)
-	if err := encoder.Encode(root); err != nil {
+	if _, err := recovery.Write(data); err != nil {
 		_ = recovery.Close()
 		return err
 	}
-	_ = encoder.Close()
-	_ = recovery.Close()
+	if err := recovery.Close(); err != nil {
+		return err
+	}
 	editor := os.Getenv("VISUAL")
 	if editor == "" {
 		editor = os.Getenv("EDITOR")
@@ -82,12 +77,13 @@ func (a *cliApp) editConfig(ctx context.Context, store localtarget.Store) error 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("editor failed; recovery file kept at %s: %w", recoveryPath, err)
 	}
-	data, err := os.ReadFile(recoveryPath)
+	data, err = os.ReadFile(recoveryPath)
 	if err != nil {
 		return err
 	}
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
+	doc := climodel.NewDocument()
 	if err := decoder.Decode(&doc); err != nil {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
@@ -95,14 +91,10 @@ func (a *cliApp) editConfig(ctx context.Context, store localtarget.Store) error 
 	if err := validateDocument(doc, a.catalog); err != nil {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
-	var editedRoot yaml.Node
-	if err := yaml.Unmarshal(data, &editedRoot); err != nil {
-		return err
-	}
-	if err := store.Write(&editedRoot); err != nil {
+	if err := a.service.WriteConfiguration(ctx, data); err != nil {
 		return fmt.Errorf("recovery file kept at %s: %w", recoveryPath, err)
 	}
 	_ = os.Remove(recoveryPath)
-	_, err = fmt.Fprintf(a.statusWriter(), "Updated %s.\n", store.Path)
+	_, err = fmt.Fprintf(a.statusWriter(), "Updated %s.\n", a.service.ConfigurationLocation())
 	return err
 }

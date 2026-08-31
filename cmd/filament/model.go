@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -17,36 +17,18 @@ var (
 	envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
-type connectorCatalog struct {
-	sources map[string]filament.ConnectorSpec
-	sinks   map[string]filament.SinkSpec
-}
-
-func loadCatalog() connectorCatalog {
-	c := connectorCatalog{
-		sources: map[string]filament.ConnectorSpec{},
-		sinks:   map[string]filament.SinkSpec{},
+func loadCatalog() climodel.Catalog {
+	c := climodel.Catalog{
+		Sources: map[string]filament.ConnectorSpec{},
+		Sinks:   map[string]filament.SinkSpec{},
 	}
 	for _, spec := range registry.DefaultSources.Specs() {
-		c.sources[spec.Name] = spec
+		c.Sources[spec.Name] = spec
 	}
 	for _, spec := range registry.DefaultSinks.Specs() {
-		c.sinks[spec.Name] = spec
+		c.Sinks[spec.Name] = spec
 	}
 	return c
-}
-
-func (c connectorCatalog) sourceNames() []string { return sortedKeys(c.sources) }
-func (c connectorCatalog) sinkNames() []string   { return sortedKeys(c.sinks) }
-
-// Description returns connector help text for a source or sink connector.
-func (c connectorCatalog) Description(kind, connector string) (string, bool) {
-	if kind == "sink" {
-		spec, ok := c.sinks[connector]
-		return spec.Description, ok
-	}
-	spec, ok := c.sources[connector]
-	return spec.Description, ok
 }
 
 func sortedKeys[V any](m map[string]V) []string {
@@ -58,16 +40,16 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-func validateDocument(d localtarget.Document, catalog connectorCatalog) error {
-	if d.Version != localtarget.ConfigVersion {
-		return fmt.Errorf("version: got %d, want %d", d.Version, localtarget.ConfigVersion)
+func validateDocument(d climodel.Document, catalog climodel.Catalog) error {
+	if d.Version != climodel.ConfigVersion {
+		return fmt.Errorf("version: got %d, want %d", d.Version, climodel.ConfigVersion)
 	}
 	for _, name := range sortedKeys(d.Sources) {
 		if err := validateName("source", name); err != nil {
 			return err
 		}
 		conn := d.Sources[name]
-		spec, ok := catalog.sources[conn.Type]
+		spec, ok := catalog.Sources[conn.Type]
 		if !ok {
 			return fmt.Errorf("source %q: unknown connector %q", name, conn.Type)
 		}
@@ -80,7 +62,7 @@ func validateDocument(d localtarget.Document, catalog connectorCatalog) error {
 			return err
 		}
 		conn := d.Sinks[name]
-		spec, ok := catalog.sinks[conn.Type]
+		spec, ok := catalog.Sinks[conn.Type]
 		if !ok {
 			return fmt.Errorf("sink %q: unknown connector %q", name, conn.Type)
 		}
@@ -113,11 +95,11 @@ func validateDocument(d localtarget.Document, catalog connectorCatalog) error {
 		if !containsWriteMode(filament.WriteModesFor(filament.ModeFull), write) {
 			return fmt.Errorf("pipeline %q: write_mode %q is not compatible with full reads", name, p.WriteMode)
 		}
-		sinkSpec := catalog.sinks[sink.Type]
+		sinkSpec := catalog.Sinks[sink.Type]
 		if !sinkSupports(sinkSpec, write) {
 			return fmt.Errorf("pipeline %q: sink %q does not support write_mode %q", name, p.Sink.Ref, write)
 		}
-		if err := validateScopedFields("pipeline "+name+" source", catalog.sources[source.Type].Config, p.Source.Config, filament.ScopePipeline); err != nil {
+		if err := validateScopedFields("pipeline "+name+" source", catalog.Sources[source.Type].Config, p.Source.Config, filament.ScopePipeline); err != nil {
 			return err
 		}
 		if err := validateScopedFields("pipeline "+name+" sink", sinkSpec.Config, p.Sink.Config, filament.ScopePipeline); err != nil {
@@ -134,7 +116,7 @@ func validateName(kind, name string) error {
 	return nil
 }
 
-func validateConnectionFields(label string, schema filament.ConfigSchema, conn localtarget.Connection) error {
+func validateConnectionFields(label string, schema filament.ConfigSchema, conn climodel.Connection) error {
 	return validateScopedFields(label, schema, conn.Config, filament.ScopeConnection)
 }
 
