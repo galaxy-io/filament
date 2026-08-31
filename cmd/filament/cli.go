@@ -9,6 +9,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
 type cliApp struct {
@@ -18,6 +21,7 @@ type cliApp struct {
 	configPath string
 	catalog    connectorCatalog
 	executeRun runExecutor
+	queries    *cliapp.Queries
 }
 
 func (a *cliApp) run(ctx context.Context, args []string) error {
@@ -29,11 +33,12 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 		_, err := fmt.Fprint(a.stdout, rootHelp)
 		return err
 	}
+	a.initializeQueries()
 	switch args[0] {
 	case "source", "sink":
 		return a.runConnectionCommand(ctx, args[0], args[1:])
 	case "pipeline":
-		return a.runPipelineCommand(args[1:])
+		return a.runPipelineCommand(ctx, args[1:])
 	case "config":
 		return a.runConfigCommand(ctx, args[1:])
 	case "run":
@@ -41,6 +46,16 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], rootHelp)
 	}
+}
+
+func (a *cliApp) initializeQueries() {
+	if a.queries != nil {
+		return
+	}
+	a.queries = cliapp.NewQueries(localtarget.NewQueries(
+		localtarget.Store{Path: a.configPath},
+		a.catalog,
+	))
 }
 
 func (a *cliApp) extractGlobalFlags(args []string) ([]string, error) {

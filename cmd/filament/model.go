@@ -8,60 +8,24 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 	"github.com/galaxy-io/filament/registry"
 )
 
-const configVersion = 1
+const configVersion = localtarget.ConfigVersion
 
 var (
 	namePattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 	envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
-type configDocument struct {
-	Version   int                   `yaml:"version"`
-	Sources   map[string]connection `yaml:"sources,omitempty"`
-	Sinks     map[string]connection `yaml:"sinks,omitempty"`
-	Pipelines map[string]pipeline   `yaml:"pipelines,omitempty"`
-}
-
-type connection struct {
-	Type   string         `yaml:"type"`
-	Config map[string]any `yaml:"config,omitempty"`
-}
-
-type pipeline struct {
-	Source    pipelineNode `yaml:"source"`
-	Sink      pipelineNode `yaml:"sink"`
-	Resources []string     `yaml:"resources,omitempty"`
-	SyncMode  string       `yaml:"sync_mode"`
-	WriteMode string       `yaml:"write_mode"`
-}
-
-type pipelineNode struct {
-	Ref    string         `yaml:"ref"`
-	Config map[string]any `yaml:"config,omitempty"`
-}
+type configDocument = localtarget.Document
+type connection = localtarget.Connection
+type pipeline = localtarget.Pipeline
+type pipelineNode = localtarget.PipelineNode
 
 func newDocument() configDocument {
-	return configDocument{
-		Version:   configVersion,
-		Sources:   map[string]connection{},
-		Sinks:     map[string]connection{},
-		Pipelines: map[string]pipeline{},
-	}
-}
-
-func (d *configDocument) normalize() {
-	if d.Sources == nil {
-		d.Sources = map[string]connection{}
-	}
-	if d.Sinks == nil {
-		d.Sinks = map[string]connection{}
-	}
-	if d.Pipelines == nil {
-		d.Pipelines = map[string]pipeline{}
-	}
+	return localtarget.NewDocument()
 }
 
 type connectorCatalog struct {
@@ -85,6 +49,16 @@ func loadCatalog() connectorCatalog {
 
 func (c connectorCatalog) sourceNames() []string { return sortedKeys(c.sources) }
 func (c connectorCatalog) sinkNames() []string   { return sortedKeys(c.sinks) }
+
+// Description returns connector help text for a source or sink connector.
+func (c connectorCatalog) Description(kind, connector string) (string, bool) {
+	if kind == "sink" {
+		spec, ok := c.sinks[connector]
+		return spec.Description, ok
+	}
+	spec, ok := c.sources[connector]
+	return spec.Description, ok
+}
 
 func sortedKeys[V any](m map[string]V) []string {
 	keys := make([]string, 0, len(m))

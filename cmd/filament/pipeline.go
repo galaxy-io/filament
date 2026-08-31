@@ -1,18 +1,31 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/galaxy-io/filament"
-	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
 )
 
-func (a *cliApp) runPipelineCommand(args []string) error {
+func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		_, err := fmt.Fprint(a.stdout, pipelineHelp)
 		return err
+	}
+	if args[0] == "list" && helpRequested(args[1:]) {
+		return a.printPipelineOperationHelp(args[0], args[1:], newDocument())
+	}
+	if args[0] == "list" {
+		if len(args) != 1 {
+			return fmt.Errorf("usage: filament pipeline list")
+		}
+		result, err := a.queries.Pipelines(ctx)
+		if err != nil {
+			return err
+		}
+		return textoutput.Pipelines(a.stdout, result)
 	}
 	store := configStore{path: a.configPath}
 	doc, _, err := store.load()
@@ -23,8 +36,6 @@ func (a *cliApp) runPipelineCommand(args []string) error {
 		return a.printPipelineOperationHelp(args[0], args[1:], doc)
 	}
 	switch args[0] {
-	case "list":
-		return a.listPipelines(args, doc)
 	case "create", "edit":
 		return a.changePipeline(args[0], args[1:], doc, store)
 	case "delete":
@@ -32,26 +43,6 @@ func (a *cliApp) runPipelineCommand(args []string) error {
 	default:
 		return fmt.Errorf("unknown pipeline operation %q", args[0])
 	}
-}
-
-func (a *cliApp) listPipelines(args []string, doc configDocument) error {
-	if len(args) != 1 {
-		return fmt.Errorf("usage: filament pipeline list")
-	}
-	result := climodel.PipelineList{Items: make([]climodel.PipelineSummary, 0, len(doc.Pipelines))}
-	for _, name := range sortedKeys(doc.Pipelines) {
-		p := doc.Pipelines[name]
-		result.Items = append(result.Items, climodel.PipelineSummary{
-			Name:          name,
-			Source:        p.Source.Ref,
-			Sink:          p.Sink.Ref,
-			ResourceCount: len(p.Resources),
-			AllResources:  len(p.Resources) == 0,
-			SyncMode:      p.SyncMode,
-			WriteMode:     p.WriteMode,
-		})
-	}
-	return textoutput.Pipelines(a.stdout, result)
 }
 
 func (a *cliApp) changePipeline(operation string, args []string, doc configDocument, store configStore) error {

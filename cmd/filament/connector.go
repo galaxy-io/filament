@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
-	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
 )
 
@@ -16,6 +15,19 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 	}
 	if helpRequested(args[1:]) && rawFlagValue(args[1:], kind+"-connector") != "" {
 		return a.printConnectionOperationHelp(kind, args[0], args[1:], newDocument())
+	}
+	if args[0] == "list" && helpRequested(args[1:]) {
+		return a.printConnectionOperationHelp(kind, args[0], args[1:], newDocument())
+	}
+	if args[0] == "list" {
+		if len(args) != 1 {
+			return fmt.Errorf("usage: filament %s list", kind)
+		}
+		result, err := a.queries.Connections(ctx, kind)
+		if err != nil {
+			return err
+		}
+		return textoutput.Connections(a.stdout, result)
 	}
 	store := configStore{path: a.configPath}
 	doc, _, err := store.load()
@@ -31,11 +43,6 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 			return fmt.Errorf("discover is only available for sources")
 		}
 		return a.discoverSource(ctx, args[1:], doc)
-	case "list":
-		if len(args) != 1 {
-			return fmt.Errorf("usage: filament %s list", kind)
-		}
-		return a.listConnections(kind, doc)
 	case "create", "edit":
 		return a.changeConnection(args[0], kind, args[1:], doc, store)
 	case "delete":
@@ -231,26 +238,6 @@ func (a *cliApp) connectionSchema(kind, typeName string) (filament.ConfigSchema,
 		return filament.ConfigSchema{}, fmt.Errorf("unknown sink connector %q", typeName)
 	}
 	return spec.Config, nil
-}
-
-func (a *cliApp) listConnections(kind string, doc configDocument) error {
-	connections := connectionMap(kind, doc)
-	result := climodel.ConnectionList{Kind: kind, Items: make([]climodel.ConnectionSummary, 0, len(connections))}
-	for _, name := range sortedKeys(connections) {
-		conn := connections[name]
-		description := ""
-		if kind == "source" {
-			if spec, ok := a.catalog.sources[conn.Type]; ok {
-				description = spec.Description
-			}
-		} else if spec, ok := a.catalog.sinks[conn.Type]; ok {
-			description = spec.Description
-		}
-		result.Items = append(result.Items, climodel.ConnectionSummary{
-			Name: name, Connector: conn.Type, Description: description,
-		})
-	}
-	return textoutput.Connections(a.stdout, result)
 }
 
 func connectionMap(kind string, doc configDocument) map[string]connection {

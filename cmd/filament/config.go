@@ -90,7 +90,7 @@ func (a *cliApp) editConfig(ctx context.Context, store configStore) error {
 	if err := decoder.Decode(&doc); err != nil {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
-	doc.normalize()
+	doc.Normalize()
 	if err := validateDocument(doc, a.catalog); err != nil {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
