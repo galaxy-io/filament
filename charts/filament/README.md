@@ -111,7 +111,7 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
 | controlPlane.dispatch.worker.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
-| controlPlane.health.port | int | `8081` | Port the control plane serves `/livez` and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |
+| controlPlane.health.port | int | `8081` | Port the control plane serves `/livez`, `/startupz`, and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |
 | controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Control plane image pull policy. |
 | controlPlane.image.pullSecrets | list | `[]` | Image pull secrets for the control plane Deployment. |
 | controlPlane.image.repository | string | `"ghcr.io/galaxy-io/filament/control-plane"` | Control plane image repository. |

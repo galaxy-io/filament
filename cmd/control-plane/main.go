@@ -16,6 +16,8 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
+	"github.com/galaxy-io/filament/cmd/internal/health"
+	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/reaper"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
@@ -41,18 +43,17 @@ func run(ctx context.Context) error {
 	defer closeDeps()
 
 	healthMux := http.NewServeMux()
-	healthMux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	healthMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		pingCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if err := deps.Store.Ping(pingCtx); err != nil {
-			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	})
+	var eventBus eventbus.Bus
+	healthState := health.New(2*time.Second,
+		deps.Store.Ping,
+		func(ctx context.Context) error {
+			if checker, ok := eventBus.(eventbus.ReadinessChecker); ok {
+				return checker.Ready(ctx)
+			}
+			return nil
+		},
+	)
+	healthState.Mount(healthMux)
 	healthAddr := os.Getenv("HEALTH_ADDR")
 	if healthAddr == "" {
 		healthAddr = ":8081"
@@ -65,7 +66,7 @@ func run(ctx context.Context) error {
 		_ = healthSrv.Shutdown(shutCtx)
 	}()
 
-	bus, closeBus, err := boot.Bus()
+	eventBus, closeBus, err := boot.Bus()
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func run(ctx context.Context) error {
 		reap = reaper.NewFromEnv(reaper.WithWorkloadProbe(prober.Workload))
 		mods = append(mods, reap)
 	}
-	h, err := boot.Mount(ctx, deps, bus, mods...)
+	h, err := boot.Mount(ctx, deps, eventBus, mods...)
 	if err != nil {
 		return err
 	}
@@ -103,10 +104,12 @@ func run(ctx context.Context) error {
 	if reap != nil {
 		reap.Start(ctx)
 	}
+	healthState.MarkStarted()
 	for _, name := range h.Mounted() {
 		fmt.Println("mounted:", name)
 	}
 
 	<-ctx.Done()
+	healthState.MarkStopping()
 	return nil
 }

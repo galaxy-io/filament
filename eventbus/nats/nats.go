@@ -25,6 +25,7 @@ const (
 	defaultAckWait     = 30 * time.Second
 	defaultFetchWait   = 250 * time.Millisecond
 	defaultRequestWait = 5 * time.Second
+	defaultConnectWait = 90 * time.Second
 	defaultTTL         = 7 * 24 * time.Hour
 
 	// nakRedeliveryDelay spaces redeliveries of a nak'd message. A plain NAK
@@ -167,7 +168,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 			return nil, fmt.Errorf("eventbus/nats: connect: %w", err)
 		}
 		ownConn = true
-		deadline := time.Now().Add(5 * time.Minute)
+		deadline := time.Now().Add(defaultConnectWait)
 		for !nc.IsConnected() {
 			if time.Now().After(deadline) {
 				nc.Close()
@@ -228,12 +229,33 @@ func ttlFromEnv() (time.Duration, error) {
 }
 
 var (
-	_ eventbus.Bus        = (*Bus)(nil)
-	_ eventbus.Replayable = (*Bus)(nil)
+	_ eventbus.Bus              = (*Bus)(nil)
+	_ eventbus.ReadinessChecker = (*Bus)(nil)
+	_ eventbus.Replayable       = (*Bus)(nil)
 )
 
 // Name identifies this bus implementation.
 func (b *Bus) Name() string { return "nats" }
+
+// Ready verifies both the NATS connection and the JetStream control plane.
+func (b *Bus) Ready(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if b.closed.Load() {
+		return eventbus.ErrBusClosed
+	}
+	if b.nc == nil || !b.nc.IsConnected() {
+		return errors.New("eventbus/nats: disconnected")
+	}
+	if b.js == nil {
+		return errors.New("eventbus/nats: jetstream unavailable")
+	}
+	if _, err := b.js.AccountInfo(ctx); err != nil {
+		return fmt.Errorf("eventbus/nats: readiness: %w", err)
+	}
+	return nil
+}
 
 // Resolve maps eventbus patterns directly to NATS subjects.
 func (b *Bus) Resolve(pattern string) (eventbus.Route, error) {

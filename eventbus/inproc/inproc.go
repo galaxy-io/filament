@@ -78,12 +78,26 @@ func New(opts ...Option) *Bus {
 }
 
 var (
-	_ eventbus.Bus        = (*Bus)(nil)
-	_ eventbus.Replayable = (*Bus)(nil)
+	_ eventbus.Bus              = (*Bus)(nil)
+	_ eventbus.ReadinessChecker = (*Bus)(nil)
+	_ eventbus.Replayable       = (*Bus)(nil)
 )
 
 // Name identifies this bus implementation.
 func (b *Bus) Name() string { return "inproc" }
+
+// Ready reports whether the in-process bus is still accepting work.
+func (b *Bus) Ready(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.closed {
+		return eventbus.ErrBusClosed
+	}
+	return nil
+}
 
 // Publish assigns a monotonic sequence, logs the payload for replay, and fans
 // it out to every matching subscription. The subject is split once and reused

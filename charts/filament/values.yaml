@@ -115,8 +115,9 @@ controlPlane:
   resources: {}
 
   health:
-    # -- Port the control plane serves `/livez` and `/readyz` on, stored in the
-    # ConfigMap as `HEALTH_ADDR` and used for the container port and probes.
+    # -- Port the control plane serves `/livez`, `/startupz`, and `/readyz` on,
+    # stored in the ConfigMap as `HEALTH_ADDR` and used for the container port
+    # and probes.
     port: 8081
 
   reaper:
@@ -277,6 +278,17 @@ postgresql:
     persistence:
       # -- PVC size for the vendored PostgreSQL primary.
       size: 8Gi
+    # Protect cold starts and crash recovery from liveness restarts for up to
+    # five minutes. Readiness still removes an unhealthy primary promptly.
+    startupProbe:
+      enabled: true
+      initialDelaySeconds: 0
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 30
+      successThreshold: 1
+    readinessProbe:
+      failureThreshold: 2
   backup:
     # -- Enable daily logical dumps (`pg_dumpall`) of the vendored PostgreSQL
     # to a dedicated PVC. See `backup.cronjob.*` in the upstream chart for

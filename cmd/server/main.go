@@ -20,9 +20,11 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
+	"github.com/galaxy-io/filament/cmd/internal/health"
 	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
+	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
@@ -70,30 +72,33 @@ func run(ctx context.Context, migrateOnly bool) error {
 		addr = ":8080"
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if err := deps.Store.Ping(ctx); err != nil {
-			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
-			return
-		}
-		if !tenantEnsured.Load() {
-			if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-				http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
-				return
+	var eventBus eventbus.Bus
+	healthState := health.New(2*time.Second,
+		func(ctx context.Context) error {
+			if err := deps.Store.Ping(ctx); err != nil {
+				return err
 			}
-			tenantEnsured.Store(true)
-		}
-		w.WriteHeader(http.StatusOK)
-	})
+			if !tenantEnsured.Load() {
+				if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+					return err
+				}
+				tenantEnsured.Store(true)
+			}
+			return nil
+		},
+		func(ctx context.Context) error {
+			if checker, ok := eventBus.(eventbus.ReadinessChecker); ok {
+				return checker.Ready(ctx)
+			}
+			return nil
+		},
+	)
+	healthState.Mount(mux)
 	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 
-	bus, closeBus, err := boot.Bus()
+	eventBus, closeBus, err := boot.Bus()
 	if err != nil {
 		return err
 	}
@@ -104,9 +109,9 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	orch := orchestrator.New()
-	api := server.New(registry.DefaultSources, registry.DefaultSinks, deps.Store, orch, bus,
+	api := server.New(registry.DefaultSources, registry.DefaultSinks, deps.Store, orch, eventBus,
 		server.WithSecrets(deps.Secrets), server.WithMetricsStore(metricStore), server.WithLogger(deps.Log))
-	h, err := boot.Mount(ctx, deps, bus, orch)
+	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
 		return err
 	}
@@ -116,12 +121,14 @@ func run(ctx context.Context, migrateOnly bool) error {
 
 	api.Mount(mux)
 	mux.Handle("/", ui.Handler())
+	healthState.MarkStarted()
 	fmt.Println("server:", "http://localhost"+addr)
 
 	select {
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
+		healthState.MarkStopping()
 		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		return srv.Shutdown(shutCtx)
