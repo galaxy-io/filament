@@ -33,6 +33,14 @@ type ChangeSource interface {
 	ExtractChanges(ctx context.Context, sink RecordSink, opts ChangeExtractOpts) error
 }
 
+// ChangeAcknowledger lets a CDC source release upstream stream retention after
+// the sink commit and the final per-resource checkpoints are both durable.
+// The runner calls it only after observing those checkpoints in the DataStore;
+// implementations must never advance beyond the supplied positions.
+type ChangeAcknowledger interface {
+	AcknowledgeChanges(ctx context.Context, checkpoints map[string]Checkpoint) error
+}
+
 // ResourcePlanner lets a source translate externally selected resources into the
 // concrete resource names it will emit. Selectors remain source-private; the
 // returned names are used by the engine for policy, schema, and checkpoint setup.

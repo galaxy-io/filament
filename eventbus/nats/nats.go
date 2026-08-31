@@ -24,6 +24,11 @@ const (
 	defaultFetchWait   = 250 * time.Millisecond
 	defaultRequestWait = 5 * time.Second
 
+	// nakRedeliveryDelay spaces redeliveries of a nak'd message. A plain NAK
+	// redelivers immediately and the consumer BackOff schedule applies only to
+	// AckWait expiry, so without it a handler failing on a broken dependency
+	// spins the consumer.
+	nakRedeliveryDelay = time.Second
 	// ephemeralInactiveThreshold lets the server garbage-collect ephemeral
 	// consumers abandoned by a crashed process; live ones stay active by
 	// fetching and clean ones are deleted explicitly on Close.
@@ -424,6 +429,15 @@ func (s *subscription) consumer() jetstream.Consumer {
 	return s.cons
 }
 
+func (s *subscription) stopped() bool {
+	select {
+	case <-s.done:
+		return true
+	default:
+		return false
+	}
+}
+
 // recreate rebuilds the server-side consumer after it disappeared. A durable
 // recreated this way resumes per its deliver policy (DeliverAll replays and
 // relies on the consumer's dedup; DeliverNew tails).
@@ -444,10 +458,8 @@ func (s *subscription) pump() {
 	defer s.wg.Done()
 	var lastErr string
 	for {
-		select {
-		case <-s.done:
+		if s.stopped() {
 			return
-		default:
 		}
 
 		batch, err := s.consumer().Fetch(s.batch, jetstream.FetchMaxWait(defaultFetchWait))
@@ -481,6 +493,9 @@ func (s *subscription) pump() {
 			}
 		}
 
+		if s.stopped() {
+			return
+		}
 		if err.Error() != lastErr {
 			lastErr = err.Error()
 			s.bus.logf("eventbus/nats: fetch %q (durable %q): %v", s.route.Target, s.cfg.Durable, err)
@@ -520,7 +535,7 @@ func (m *message) Subject() string { return m.subject }
 func (m *message) Payload() any    { return m.payload }
 func (m *message) Seq() uint64     { return m.seq }
 func (m *message) Ack() error      { return m.msg.Ack() }
-func (m *message) Nak() error      { return m.msg.Nak() }
+func (m *message) Nak() error      { return m.msg.NakWithDelay(nakRedeliveryDelay) }
 
 func maxInFlight(opt, fallback int) int {
 	if opt > 0 {

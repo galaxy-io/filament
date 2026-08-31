@@ -82,13 +82,14 @@ func run(ctx context.Context) error {
 	sched := scheduler.New(scheduleStore)
 	mods := []module.Module{tracker.New(), dispatcher, sched}
 	// The reaper mounts only under kubernetes dispatch: staleness means death
-	// only where heartbeats exist, and inproc runs don't emit them. The Alive
-	// probe holds kills for workers that are up but silent.
+	// only where heartbeats exist, and inproc runs don't emit them. The
+	// workload probe holds kills for workers that are up but silent and for
+	// Requested runs that were never dispatched.
 	var reap *reaper.Module
-	if alive, ok := dispatcher.(interface {
-		Alive(context.Context, filament.RunID) (bool, error)
+	if prober, ok := dispatcher.(interface {
+		Workload(context.Context, filament.RunID) (filament.Workload, error)
 	}); ok {
-		reap = reaper.NewFromEnv(reaper.WithAliveCheck(alive.Alive))
+		reap = reaper.NewFromEnv(reaper.WithWorkloadProbe(prober.Workload))
 		mods = append(mods, reap)
 	}
 	h, err := boot.Mount(ctx, deps, bus, mods...)
