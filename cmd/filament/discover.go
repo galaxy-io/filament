@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
-	"text/tabwriter"
 
 	"github.com/galaxy-io/filament"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
+	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -89,27 +89,18 @@ func (a *cliApp) discoverSource(ctx context.Context, args []string, doc configDo
 	if err != nil {
 		return fmt.Errorf("discover source %q: %w", label, err)
 	}
-	if len(result.Resources) == 0 {
-		_, err := fmt.Fprintf(a.stdout, "No resources discovered for source %q.\n", label)
-		return err
-	}
 	sort.Slice(result.Resources, func(i, j int) bool {
 		return result.Resources[i].Name < result.Resources[j].Name
 	})
-
-	table := tabwriter.NewWriter(a.stdout, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Resource\tDisplay name\tSelectable\tPrimary key\tEstimated rows"); err != nil {
-		return err
-	}
+	resources := climodel.ResourceList{Source: label, Items: make([]climodel.ResourceSummary, 0, len(result.Resources))}
 	for _, resource := range result.Resources {
-		selectable := "no"
-		if resource.Selectable {
-			selectable = "yes"
-		}
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\n",
-			resource.Name, resource.DisplayName, selectable, strings.Join(resource.PrimaryKey, ","), resource.Estimated); err != nil {
-			return err
-		}
+		resources.Items = append(resources.Items, climodel.ResourceSummary{
+			Name:          resource.Name,
+			DisplayName:   resource.DisplayName,
+			Selectable:    resource.Selectable,
+			PrimaryKey:    append([]string(nil), resource.PrimaryKey...),
+			EstimatedRows: resource.Estimated,
+		})
 	}
-	return table.Flush()
+	return textoutput.Resources(a.stdout, resources)
 }

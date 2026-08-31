@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/galaxy-io/filament"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
+	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
 )
 
 func (a *cliApp) runPipelineCommand(args []string) error {
@@ -38,25 +38,20 @@ func (a *cliApp) listPipelines(args []string, doc configDocument) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: filament pipeline list")
 	}
-	if len(doc.Pipelines) == 0 {
-		_, err := fmt.Fprintln(a.stdout, "No saved pipelines.")
-		return err
-	}
-	table := tabwriter.NewWriter(a.stdout, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Name\tSource\tSink\tResources\tSync mode\tWrite mode"); err != nil {
-		return err
-	}
+	result := climodel.PipelineList{Items: make([]climodel.PipelineSummary, 0, len(doc.Pipelines))}
 	for _, name := range sortedKeys(doc.Pipelines) {
 		p := doc.Pipelines[name]
-		resourceCount := "all"
-		if len(p.Resources) > 0 {
-			resourceCount = strconv.Itoa(len(p.Resources))
-		}
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", name, p.Source.Ref, p.Sink.Ref, resourceCount, p.SyncMode, p.WriteMode); err != nil {
-			return err
-		}
+		result.Items = append(result.Items, climodel.PipelineSummary{
+			Name:          name,
+			Source:        p.Source.Ref,
+			Sink:          p.Sink.Ref,
+			ResourceCount: len(p.Resources),
+			AllResources:  len(p.Resources) == 0,
+			SyncMode:      p.SyncMode,
+			WriteMode:     p.WriteMode,
+		})
 	}
-	return table.Flush()
+	return textoutput.Pipelines(a.stdout, result)
 }
 
 func (a *cliApp) changePipeline(operation string, args []string, doc configDocument, store configStore) error {

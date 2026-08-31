@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/galaxy-io/filament"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
+	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
 )
 
 func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []string) error {
@@ -234,14 +235,7 @@ func (a *cliApp) connectionSchema(kind, typeName string) (filament.ConfigSchema,
 
 func (a *cliApp) listConnections(kind string, doc configDocument) error {
 	connections := connectionMap(kind, doc)
-	if len(connections) == 0 {
-		_, err := fmt.Fprintf(a.stdout, "No saved %ss.\n", kind)
-		return err
-	}
-	table := tabwriter.NewWriter(a.stdout, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Name\tConnector\tDescription"); err != nil {
-		return err
-	}
+	result := climodel.ConnectionList{Kind: kind, Items: make([]climodel.ConnectionSummary, 0, len(connections))}
 	for _, name := range sortedKeys(connections) {
 		conn := connections[name]
 		description := ""
@@ -252,11 +246,11 @@ func (a *cliApp) listConnections(kind string, doc configDocument) error {
 		} else if spec, ok := a.catalog.sinks[conn.Type]; ok {
 			description = spec.Description
 		}
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\n", name, conn.Type, description); err != nil {
-			return err
-		}
+		result.Items = append(result.Items, climodel.ConnectionSummary{
+			Name: name, Connector: conn.Type, Description: description,
+		})
 	}
-	return table.Flush()
+	return textoutput.Connections(a.stdout, result)
 }
 
 func connectionMap(kind string, doc configDocument) map[string]connection {
