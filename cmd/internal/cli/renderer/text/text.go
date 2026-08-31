@@ -1,4 +1,4 @@
-// Package text renders target-neutral CLI results for a plain terminal.
+// Package text renders target-neutral CLI results as plain terminal text.
 package text
 
 import (

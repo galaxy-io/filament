@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
-	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
@@ -28,7 +28,7 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 		if err != nil {
 			return err
 		}
-		return textoutput.Connections(a.stdout, result)
+		return textrenderer.Connections(a.stdout, result)
 	}
 	store := localtarget.Store{Path: a.configPath}
 	doc, _, err := store.Load()

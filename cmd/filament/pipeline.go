@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
-	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
@@ -26,7 +26,7 @@ func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		return textoutput.Pipelines(a.stdout, result)
+		return textrenderer.Pipelines(a.stdout, result)
 	}
 	store := localtarget.Store{Path: a.configPath}
 	doc, _, err := store.Load()

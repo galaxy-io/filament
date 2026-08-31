@@ -5,7 +5,7 @@ import (
 
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 const contextHelp = `Context commands
@@ -39,7 +39,7 @@ func (a *cliApp) runContextCommand(args []string) error {
 		if err != nil {
 			return err
 		}
-		return textoutput.CurrentContext(a.stdout, current.Name)
+		return textrenderer.CurrentContext(a.stdout, current.Name)
 	case "use":
 		if len(args) != 2 {
 			return fmt.Errorf("usage: filament context use <name>")
@@ -82,7 +82,7 @@ func (a *cliApp) listContexts(registry *contexts.Registry) error {
 			Location: location, Tenant: item.Target.Tenant,
 		})
 	}
-	return textoutput.Contexts(a.stdout, result)
+	return textrenderer.Contexts(a.stdout, result)
 }
 
 func (a *cliApp) contextRegistry() *contexts.Registry {

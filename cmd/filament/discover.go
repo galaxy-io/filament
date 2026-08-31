@@ -8,7 +8,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	textoutput "github.com/galaxy-io/filament/cmd/internal/cli/output/text"
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 	"github.com/galaxy-io/filament/registry"
 )
@@ -103,5 +103,5 @@ func (a *cliApp) discoverSource(ctx context.Context, args []string, doc localtar
 			EstimatedRows: resource.Estimated,
 		})
 	}
-	return textoutput.Resources(a.stdout, resources)
+	return textrenderer.Resources(a.stdout, resources)
 }
