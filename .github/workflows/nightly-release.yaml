@@ -73,3 +73,13 @@ jobs:
       publish: true
       prerelease: true
     secrets: inherit
+
+  cli:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    uses: ./.github/workflows/cli.yaml
+    with:
+      ref: ${{ needs.release.outputs.tag }}
+      tag: ${{ needs.release.outputs.tag }}
+      prerelease: true
+    secrets: inherit

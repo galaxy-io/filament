@@ -38,6 +38,8 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 		return a.runConfigCommand(ctx, args[1:])
 	case "run":
 		return a.runCommand(ctx, args[1:])
+	case "version":
+		return a.runVersionCommand()
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], rootHelp)
 	}
