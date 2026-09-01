@@ -3,7 +3,7 @@ module github.com/galaxy-io/filament/cmd
 go 1.26.4
 
 require (
-	github.com/atterpac/dado v0.0.0
+	github.com/atterpac/dado v0.2.12
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
@@ -24,8 +24,6 @@ require (
 	golang.org/x/term v0.45.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/atterpac/dado => ../../tui/dado
 
 require (
 	atomicgo.dev/cursor v0.2.0 // indirect
