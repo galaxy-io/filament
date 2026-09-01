@@ -202,3 +202,7 @@ func notifyRunObserver(observe func(model.RunEvent), event model.RunEvent) {
 		observe(event)
 	}
 }
+
+// ExecutesInProcess marks the local target as compiling and executing run
+// specs itself rather than delegating to a deployment.
+func (t *Target) ExecutesInProcess() {}

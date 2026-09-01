@@ -15,7 +15,11 @@ func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (model.Run
 	if err != nil {
 		return model.RunSubmission{}, err
 	}
+	_, inProcess := s.target.(InProcessTarget)
 	if request.Inline != nil {
+		if !inProcess {
+			return model.RunSubmission{}, fmt.Errorf("this target runs saved pipelines; create the pipeline first")
+		}
 		spec, prepareErr := prepareInlineRun(*request.Inline, catalog)
 		return model.RunSubmission{Spec: spec}, prepareErr
 	}
@@ -49,6 +53,18 @@ func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (model.Run
 	}
 	source := document.Sources[pipeline.Source.Ref]
 	sink := document.Sinks[pipeline.Sink.Ref]
+	if !inProcess {
+		return model.RunSubmission{
+			Pipeline: &model.EntityReference{Name: request.Pipeline, Metadata: pipeline.Metadata},
+			Spec: filament.RunSpec{
+				PipelineID: request.Pipeline,
+				Source:     filament.Ref{Connector: source.Type},
+				Sink:       filament.Ref{Connector: sink.Type},
+				Resources:  append([]string(nil), pipeline.Resources...),
+			},
+			Override: override,
+		}, nil
+	}
 	sourceConfig, err := ResolvedConnectionConfig(source, pipeline.Source.Config, catalog.Sources[source.Type].Config)
 	if err != nil {
 		return model.RunSubmission{}, fmt.Errorf("source %q: %w", pipeline.Source.Ref, err)

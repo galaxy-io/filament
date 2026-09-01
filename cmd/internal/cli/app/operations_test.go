@@ -11,6 +11,9 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
+// memoryTarget models an in-process target like the local adapter.
+func (t *memoryTarget) ExecutesInProcess() {}
+
 type memoryTarget struct {
 	document  model.Document
 	catalog   model.Catalog

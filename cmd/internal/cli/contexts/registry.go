@@ -111,6 +111,19 @@ func (r *Registry) Resolve(name string) (NamedTarget, error) {
 	return NamedTarget{Name: name, Current: name == doc.Current, Target: target}, nil
 }
 
+// Set validates and upserts a context without changing the selection.
+func (r *Registry) Set(name string, target Target) error {
+	if err := validate(name, target); err != nil {
+		return err
+	}
+	doc, err := r.load()
+	if err != nil {
+		return err
+	}
+	doc.Contexts[name] = target
+	return r.store.Write(doc)
+}
+
 // Use persists name as the active context.
 func (r *Registry) Use(name string) (NamedTarget, error) {
 	doc, err := r.load()

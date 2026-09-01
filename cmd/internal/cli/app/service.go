@@ -58,6 +58,15 @@ type Target interface {
 	RunTarget
 }
 
+// InProcessTarget is an optional target capability: the target executes
+// connector work in-process and needs run configuration fully compiled
+// client-side. Targets without it validate and execute runs on their own
+// deployment, so preparation stops at the pipeline reference and the fields
+// presentation needs.
+type InProcessTarget interface {
+	ExecutesInProcess()
+}
+
 // RawConfigurationTarget is an optional target capability for byte-preserving
 // configuration editing. Remote targets do not need to expose it.
 type RawConfigurationTarget interface {
