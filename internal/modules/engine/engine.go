@@ -21,6 +21,7 @@ import (
 type Module struct {
 	deps runner.Deps
 	ds   filament.DataStore
+	log  filament.Logger
 }
 
 // New returns an unmounted engine. Providers are injected by Mount.
@@ -42,6 +43,9 @@ func (m *Module) Subscriptions() []host.Subscription {
 // Mount captures the providers this module uses. Cheap, no I/O.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.ds = d.DataStore
+	if d.Log != nil {
+		m.log = d.Log.With(filament.Field{Key: "component", Value: "dispatch"})
+	}
 	m.deps = runner.Deps{
 		Bus:       d.Bus,
 		DataStore: d.DataStore,
@@ -59,11 +63,24 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 // redelivery; a run that fails for any other reason is reported as a fact and
 // acked — blindly re-running a whole extraction would duplicate work.
 func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunRequestedEvent]) error {
+	if m.log != nil {
+		m.log.Trace("run request received",
+			filament.Field{Key: "event.name", Value: "dispatch.run_request.received"},
+			filament.Field{Key: "tenant_id", Value: string(ev.Tenant)},
+			filament.Field{Key: "run_id", Value: string(ev.Run)})
+	}
 	state, err := m.ds.LoadRun(ctx, ev.Run)
 	if err != nil {
 		return fmt.Errorf("engine: load run %q: %w", ev.Run, err)
 	}
 	if !runner.ShouldRun(state) {
+		if m.log != nil {
+			m.log.Debug("run dispatch skipped",
+				filament.Field{Key: "event.name", Value: "dispatch.run.skipped"},
+				filament.Field{Key: "run_id", Value: string(ev.Run)},
+				filament.Field{Key: "status", Value: int(state.Status)},
+				filament.Field{Key: "reason", Value: "not_runnable"})
+		}
 		return nil // already running or finished — ack and ignore
 	}
 	return runner.RunOne(ctx, m.deps, runner.SpecFromState(state))

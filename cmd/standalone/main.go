@@ -36,7 +36,10 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	lg := logger.New()
+	lg, err := logger.New()
+	if err != nil {
+		return err
+	}
 	dir := os.Getenv("NATS_STORE_DIR")
 	if dir == "" {
 		dir = filepath.Join(os.TempDir(), "filament-standalone")

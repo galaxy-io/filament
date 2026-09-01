@@ -38,8 +38,9 @@ type Runnable interface {
 
 // Host subscribes Runnables to a bus and pumps deliveries to their handlers.
 type Host struct {
-	bus  eventbus.Bus
-	logf func(format string, args ...any)
+	bus          eventbus.Bus
+	logf         func(format string, args ...any)
+	handlerError func(module, pattern, durable string, seq uint64, err error)
 
 	mu   sync.Mutex
 	mods []Runnable
@@ -57,6 +58,12 @@ func WithLogf(f func(format string, args ...any)) Option {
 			h.logf = f
 		}
 	}
+}
+
+// WithHandlerError sets a structured sink for handler failures. When unset,
+// handler failures continue through WithLogf for backward compatibility.
+func WithHandlerError(f func(module, pattern, durable string, seq uint64, err error)) Option {
+	return func(h *Host) { h.handlerError = f }
 }
 
 // New returns a Host bound to bus.
@@ -107,7 +114,11 @@ func (h *Host) pump(ctx context.Context, m Runnable, s Subscription, sub eventbu
 				return
 			}
 			if err := s.Handler(ctx, msg); err != nil {
-				h.logf("module %q handler error on %q: %v", m.Name(), s.Pattern, err)
+				if h.handlerError != nil {
+					h.handlerError(m.Name(), s.Pattern, s.Durable, msg.Seq(), err)
+				} else {
+					h.logf("module %q handler error on %q: %v", m.Name(), s.Pattern, err)
+				}
 				_ = msg.Nak()
 				continue
 			}

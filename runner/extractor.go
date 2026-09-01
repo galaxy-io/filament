@@ -129,8 +129,8 @@ func logCheckpointLoaded(log filament.Logger, spec filament.RunSpec, resource, s
 		return
 	}
 	mode := filament.SourcePolicyForIngestion(filament.TypeFor(spec.IngestionTypes, resource)).Mode.String()
-	log.Info("runner: checkpoint loaded",
-		filament.Field{Key: "run", Value: string(spec.Run)},
+	log.Debug("checkpoint loaded",
+		filament.Field{Key: "event.name", Value: "runner.checkpoint.loaded"},
 		filament.Field{Key: "resource", Value: resource},
 		filament.Field{Key: "checkpoint_scope", Value: scope},
 		filament.Field{Key: "read_mode", Value: mode},
@@ -164,10 +164,10 @@ func logExtractionStart(log filament.Logger, spec filament.RunSpec, strategy str
 	if log == nil {
 		return
 	}
-	log.Info("runner: extraction starting",
-		filament.Field{Key: "run", Value: string(spec.Run)},
+	log.Debug("extraction starting",
+		filament.Field{Key: "event.name", Value: "runner.extraction.started"},
 		filament.Field{Key: "strategy", Value: strategy},
-		filament.Field{Key: "resources", Value: len(spec.Resources)},
+		filament.Field{Key: "resource_count", Value: len(spec.Resources)},
 		filament.Field{Key: "checkpoint_resources", Value: checkpointResources},
 		filament.Field{Key: "loaded_checkpoints", Value: loadedCheckpoints},
 	)

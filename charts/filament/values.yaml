@@ -21,6 +21,9 @@ commonLabels: {}
 existingSecret: ""
 
 server:
+  # -- Minimum server log level. Valid values: INFO, DEBUG, TRACE.
+  logLevel: INFO
+
   image:
     # -- Server image repository.
     repository: ghcr.io/galaxy-io/filament/server
@@ -80,6 +83,9 @@ controlPlane:
   # -- Deploy the Filament control plane.
   enabled: true
 
+  # -- Minimum control-plane log level. Valid values: INFO, DEBUG, TRACE.
+  logLevel: INFO
+
   image:
     # -- Control plane image repository.
     repository: ghcr.io/galaxy-io/filament/control-plane
@@ -131,6 +137,9 @@ controlPlane:
     mode: kubernetes
 
     worker:
+      # -- Minimum worker log level. Valid values: INFO, DEBUG, TRACE.
+      logLevel: INFO
+
       image:
         # -- Worker image repository used for dispatched Jobs.
         repository: ghcr.io/galaxy-io/filament/worker
