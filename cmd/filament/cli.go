@@ -13,6 +13,7 @@ import (
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
+	dadorenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/dado"
 	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 )
 
@@ -33,6 +34,20 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 	args, err := a.extractGlobalFlags(args)
 	if err != nil {
 		return err
+	}
+	interactive := dadorenderer.New(dadorenderer.Options{
+		Stdin: a.stdin, Stdout: a.stdout, Stderr: a.statusWriter(),
+	})
+	if interactive.CanHandle(args) {
+		if err := a.initializeTarget(ctx); err != nil {
+			return err
+		}
+		interactive = dadorenderer.New(dadorenderer.Options{
+			Stdin: a.stdin, Stdout: a.stdout, Stderr: a.statusWriter(),
+			Service: a.service, Catalog: a.catalog, OpenConfigurationEditor: a.editConfig,
+			TargetName: a.target.Name,
+		})
+		return interactive.Run(ctx, args)
 	}
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		_, err := fmt.Fprint(a.stdout, rootHelp)
