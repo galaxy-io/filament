@@ -5,10 +5,12 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/atterpac/dado/inline"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 func TestInteractiveEntryRoutes(t *testing.T) {
@@ -25,7 +27,7 @@ func TestInteractiveEntryRoutes(t *testing.T) {
 		{args: []string{"source", "create"}, section: "source", operation: "create", routed: true},
 		{args: []string{"pipeline", "list"}, section: "pipeline", operation: "list", routed: true},
 		{args: []string{"config"}, section: "config", routed: true},
-		{args: []string{"run"}},
+		{args: []string{"run"}, section: "run", routed: true},
 		{args: []string{"source", "create", "production"}},
 		{args: []string{"source", "discover"}},
 		{args: []string{"source", "--help"}},
@@ -94,6 +96,67 @@ func TestSchemaWizardProducesTypedPatch(t *testing.T) {
 	}
 	if len(patch.Unset) != 1 || patch.Unset[0] != "label" {
 		t.Fatalf("unset = %#v", patch.Unset)
+	}
+}
+
+func TestResourceProgressTracksRecords(t *testing.T) {
+	t.Parallel()
+	progress := inline.NewMultiProgress("Run")
+	states := map[string]*resourceProgressState{}
+	add := func(name string, estimated int64) error {
+		if _, exists := states[name]; !exists {
+			states[name] = &resourceProgressState{estimated: estimated}
+			return progress.Add(name, name, estimated)
+		}
+		return nil
+	}
+	if err := add("users", 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyResourceProgress(progress, states, add, resourceProgressUpdate{
+		resource: "users", status: "running", records: 4, bytes: 128,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyResourceProgress(progress, states, add, resourceProgressUpdate{
+		resource: "users", status: "complete", records: 10, bytes: 320, final: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tasks := progress.Tasks()
+	if len(tasks) != 1 || tasks[0].State != inline.TaskComplete || tasks[0].Current != 10 {
+		t.Fatalf("tasks = %#v", tasks)
+	}
+	if !strings.Contains(tasks[0].Detail, "10 records") {
+		t.Fatalf("detail = %q", tasks[0].Detail)
+	}
+}
+
+func TestRunSummaryShowsPerformance(t *testing.T) {
+	t.Parallel()
+	frame := (runSummaryView{
+		pipeline: "daily-sync", source: "postgres", sink: "stdout", resources: 3,
+		result:  model.RunResult{Records: 350025, Bytes: 8 * 1024 * 1024},
+		elapsed: 2 * time.Second,
+	}).Frame(80)
+	lines := make([]string, frame.Height())
+	for y := 0; y < frame.Height(); y++ {
+		var line strings.Builder
+		for x := 0; x < frame.Width(); {
+			value, _, width := frame.Cell(x, y)
+			if width < 1 {
+				width = 1
+			}
+			line.WriteString(value)
+			x += width
+		}
+		lines[y] = strings.TrimRight(line.String(), " ")
+	}
+	text := strings.Join(lines, "\n")
+	for _, expected := range []string{"Run completed", "daily-sync", "postgres → stdout", "350,025", "8.0 MiB"} {
+		if !strings.Contains(text, expected) {
+			t.Fatalf("summary missing %q:\n%s", expected, text)
+		}
 	}
 }
 

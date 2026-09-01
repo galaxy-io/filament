@@ -53,6 +53,7 @@ func (r *Renderer) managePipelines(ctx context.Context) error {
 func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Document) error {
 	pipeline := doc.Pipelines[name]
 	action, err := r.chooseInteractive(ctx, name, fmt.Sprintf("%s → %s", pipeline.Source.Ref, pipeline.Sink.Ref), []interactiveOption{
+		{label: "Run", value: "run"},
 		{label: "View", value: "view"},
 		{label: "Edit", value: "edit"},
 		{label: "Delete", value: "delete"},
@@ -62,6 +63,8 @@ func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Do
 		return err
 	}
 	switch action {
+	case "run":
+		return r.runInteractivePipeline(ctx, name)
 	case "view":
 		return r.showInteractiveMessage(ctx, name, pipelineDescription(pipeline))
 	case "edit":

@@ -37,7 +37,7 @@ func interactiveEntryForArgs(args []string) (interactiveEntry, bool) {
 	}
 	if len(args) == 1 {
 		switch args[0] {
-		case "source", "sink", "pipeline", "config":
+		case "source", "sink", "pipeline", "config", "run":
 			return interactiveEntry{section: args[0]}, true
 		}
 		return interactiveEntry{}, false
@@ -80,6 +80,7 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			description = r.targetName + " target"
 		}
 		action, err := r.chooseInteractive(ctx, "Filament", description, []interactiveOption{
+			{label: "Run a pipeline", value: "run"},
 			{label: "Sources", value: "sources"},
 			{label: "Sinks", value: "sinks"},
 			{label: "Pipelines", value: "pipelines"},
@@ -97,6 +98,8 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 		}
 
 		switch action {
+		case "run":
+			err = r.interactiveRun(ctx)
 		case "sources":
 			err = r.manageConnections(ctx, "source")
 		case "sinks":
@@ -140,6 +143,8 @@ func (r *Renderer) runInteractiveEntry(ctx context.Context, entry interactiveEnt
 		return r.managePipelines(ctx)
 	case "config":
 		return r.manageInteractiveConfig(ctx)
+	case "run":
+		return r.interactiveRun(ctx)
 	default:
 		return nil
 	}
