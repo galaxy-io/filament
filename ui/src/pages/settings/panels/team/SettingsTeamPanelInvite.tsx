@@ -7,8 +7,7 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Paragraph from "@galaxy-io/dls/text/Paragraph";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import type { InviteMemberRequest } from "@/gen/auth/v1/members_pb";
 
@@ -121,7 +120,6 @@ const SettingsTeamPanelInvite = ({
       <Dialog
         open={open}
         title="Invite created"
-        description="Share this link with your new teammate"
         onClose={onClose}
         footer={
           <>
@@ -136,13 +134,7 @@ const SettingsTeamPanelInvite = ({
         }
       >
         <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>
-          <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-            Data is a team sport
-          </Text>
-          <Paragraph variant={TextVariant.SECONDARY}>
-            Send {state.givenName || "your teammate"} their invite and start shipping pipelines
-            together.
-          </Paragraph>
+          <Text variant={TextVariant.SECONDARY}>Share this link with your new teammate</Text>
         </FlexWrapper>
         {inviteLink && <CopyInput value={inviteLink} fillWidth isMonospace />}
       </Dialog>
