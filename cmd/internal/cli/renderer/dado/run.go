@@ -114,7 +114,7 @@ func (r *Renderer) announceDiscovery(discoverErr error) error {
 	if discoverErr != nil {
 		status = p.Muted("Unavailable")
 	}
-	return r.interactiveRenderer.Println(style.Indent + p.Label("Resources… ") + status)
+	return r.interactiveRenderer.Println(style.Indent + p.Label("Discovering Resources… ") + status)
 }
 
 func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.RunSubmission, discovered []model.ResourceSummary) (model.RunResult, error) {
