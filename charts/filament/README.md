@@ -1,6 +1,7 @@
 # Filament Helm Chart
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
+![Chart](https://img.shields.io/github/v/tag/galaxy-io/filament?filter=helm-chart-*&label=chart)
+![App](https://img.shields.io/github/v/tag/galaxy-io/filament?filter=v*&sort=semver&label=app)
 
 A Helm chart for Filament
 
@@ -17,6 +18,15 @@ This chart deploys Filament server, control plane, Kubernetes worker dispatch su
 
 The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) and [NATS chart](https://artifacthub.io/packages/helm/nats/nats) documentation for their full configuration surfaces.
 
+## Installing
+
+The chart is published as an OCI artifact with a build provenance attestation.
+
+```sh
+helm install filament oci://ghcr.io/galaxy-io/charts/filament --version 0.0.26
+gh attestation verify --owner galaxy-io oci://ghcr.io/galaxy-io/charts/filament:0.0.26
+```
+
 ## Runtime configuration
 
 Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
@@ -29,7 +39,9 @@ kubectl create secret generic filament-runtime \
   --from-literal=ENCRYPTION_KEY="$(openssl rand -base64 32)" \
   --from-literal=NATS_URL='nats://nats.example.com:4222'
 
-helm upgrade --install filament . \
+helm upgrade --install filament \
+  oci://ghcr.io/galaxy-io/charts/filament \
+  --version 0.0.26 \
   --set existingSecret=filament-runtime
 ```
 
@@ -39,7 +51,9 @@ For a local or test cluster with the vendored PostgreSQL and NATS charts:
 PG_PASSWORD="$(openssl rand -hex 24)"
 ENC_KEY="$(openssl rand -base64 32)"
 
-helm upgrade --install filament . \
+helm upgrade --install filament \
+  oci://ghcr.io/galaxy-io/charts/filament \
+  --version 0.0.26 \
   --set postgresql.enabled=true \
   --set nats.enabled=true \
   --set-string postgresql.auth.password="$PG_PASSWORD" \
@@ -116,6 +130,8 @@ helm upgrade --install filament . \
 | controlPlane.image.pullSecrets | list | `[]` | Image pull secrets for the control plane Deployment. |
 | controlPlane.image.repository | string | `"ghcr.io/galaxy-io/filament/control-plane"` | Control plane image repository. |
 | controlPlane.image.tag | string | `""` (defaults to chart appVersion) | Control plane image tag. |
+| controlPlane.reaper.intervalSeconds | string | `""` | How often the reaper sweeps for zombie runs, in seconds. Empty uses the binary default (60). |
+| controlPlane.reaper.staleAfterSeconds | string | `""` | How long a Running run may go without a heartbeat write before the reaper fails it, in seconds. Empty uses the binary default (300). |
 | controlPlane.replicas | int | `1` | Number of control plane replicas. Ignored when `controlPlane.autoscaling.enabled` is true. |
 | controlPlane.resources | object | `{}` (See [values.yaml]) | Control plane resource requests and limits. |
 | controlPlane.serviceAccount.annotations | object | `{}` | Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN. |
@@ -174,7 +190,14 @@ helm upgrade --install filament . \
 | postgresql.enabled | bool | `false` | Enable the vendored Bitnami PostgreSQL chart for local or test clusters. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) for additional configuration. |
 | postgresql.fullnameOverride | string | `"filament-postgresql"` | Full name override for the vendored PostgreSQL release. |
 | postgresql.primary.persistence.size | string | `"8Gi"` | PVC size for the vendored PostgreSQL primary. |
+| postgresql.primary.readinessProbe.failureThreshold | int | `2` |  |
 | postgresql.primary.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Resources for the vendored PostgreSQL primary. Overrides the upstream `nano` preset (192Mi memory limit), which risks OOM kills and unclean shutdowns under real load. |
+| postgresql.primary.startupProbe.enabled | bool | `true` |  |
+| postgresql.primary.startupProbe.failureThreshold | int | `30` |  |
+| postgresql.primary.startupProbe.initialDelaySeconds | int | `0` |  |
+| postgresql.primary.startupProbe.periodSeconds | int | `10` |  |
+| postgresql.primary.startupProbe.successThreshold | int | `1` |  |
+| postgresql.primary.startupProbe.timeoutSeconds | int | `5` |  |
 
 ## Vendored NATS parameters
 
