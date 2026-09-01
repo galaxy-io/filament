@@ -8,38 +8,55 @@ import (
 	"os/exec"
 	"strings"
 
-	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" || helpRequested(args[1:]) {
-		_, err := fmt.Fprint(a.stdout, configHelp)
-		return err
+func (a *cliApp) configCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "config",
+		Short:             "Work with the configuration file",
+		PersistentPreRunE: a.prepareTarget,
 	}
-	if len(args) != 1 {
-		return fmt.Errorf("usage: filament config <path|validate|edit>")
-	}
-	location := a.service.ConfigurationLocation()
-	switch args[0] {
-	case "path":
-		_, err := fmt.Fprintln(a.stdout, location)
-		return err
-	case "validate":
-		doc, err := a.service.Configuration(ctx)
-		if err != nil {
-			return err
-		}
-		if err := validateDocument(doc, a.catalog); err != nil {
-			return err
-		}
-		_, err = fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", location)
-		return err
-	case "edit":
-		return a.editConfig(ctx)
-	default:
-		return fmt.Errorf("unknown config operation %q", args[0])
-	}
+	cmd.AddCommand(
+		&cobra.Command{
+			Use:   "path",
+			Short: "Print the configuration file path",
+			Args:  cobra.NoArgs,
+			RunE: func(*cobra.Command, []string) error {
+				location := a.service.ConfigurationLocation()
+				if location == "" {
+					return cliapp.ErrRawConfigurationUnsupported
+				}
+				_, err := fmt.Fprintln(a.stdout, location)
+				return err
+			},
+		},
+		&cobra.Command{
+			Use:   "validate",
+			Short: "Check the configuration file",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				if err := a.service.ValidateConfiguration(cmd.Context()); err != nil {
+					return err
+				}
+				_, err := fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", a.service.ConfigurationLocation())
+				return err
+			},
+		},
+		&cobra.Command{
+			Use:   "edit",
+			Short: "Open the configuration file in $EDITOR",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				return a.editConfig(cmd.Context())
+			},
+		},
+	)
+	return cmd
 }
 
 func (a *cliApp) editConfig(ctx context.Context) error {
@@ -88,7 +105,7 @@ func (a *cliApp) editConfig(ctx context.Context) error {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
 	doc.Normalize()
-	if err := validateDocument(doc, a.catalog); err != nil {
+	if err := cliapp.ValidateDocument(doc, a.catalog); err != nil {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
 	if err := a.service.WriteConfiguration(ctx, data); err != nil {

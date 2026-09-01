@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 )
 
 type commandArgs struct {
@@ -71,53 +70,47 @@ func (a *cliApp) booleanFlags() map[string]bool {
 	return result
 }
 
-func overlayScopedFlags(current map[string]any, prefix string, schema filament.ConfigSchema, flags map[string][]string, allowed map[string]bool) (map[string]any, error) {
-	result := cloneConfigMap(current)
-	if result == nil {
-		result = map[string]any{}
-	}
-	for _, field := range orderedFields(schema, filament.ScopePipeline) {
-		name := prefix + strings.ReplaceAll(field.Name, "_", "-")
-		allowed[name] = true
-		if raw, ok := flagValue(flags, name); ok {
-			value, err := parseFlagValue(field, raw)
-			if err != nil {
-				return nil, fmt.Errorf("--%s: %w", name, err)
-			}
-			result[field.Name] = value
-		}
-	}
-	return result, nil
+func configPatchFromFlags(schema filament.ConfigSchema, scope filament.FieldScope, prefix string, flags map[string][]string, allowed map[string]bool, secretEnvironmentFlags bool) (cliapp.ConfigPatch, map[string]string, error) {
+	return configPatchFromFieldList(cliapp.OrderedFields(schema, scope), prefix, flags, allowed, secretEnvironmentFlags)
 }
 
-func parseFlagValue(field filament.ConfigField, raw string) (any, error) {
-	switch field.Type {
-	case filament.FieldInt:
-		value, err := strconv.Atoi(raw)
-		if err != nil {
-			return nil, fmt.Errorf("must be an integer")
+func configPatchFromAllFlags(schema filament.ConfigSchema, prefix string, flags map[string][]string, allowed map[string]bool, secretEnvironmentFlags bool) (cliapp.ConfigPatch, map[string]string, error) {
+	return configPatchFromFieldList(schema.Fields, prefix, flags, allowed, secretEnvironmentFlags)
+}
+
+func configPatchFromFieldList(fields []filament.ConfigField, prefix string, flags map[string][]string, allowed map[string]bool, secretEnvironmentFlags bool) (cliapp.ConfigPatch, map[string]string, error) {
+	patch := cliapp.ConfigPatch{Values: map[string]any{}}
+	unsetNames := map[string]string{}
+	for _, field := range fields {
+		name := prefix + strings.ReplaceAll(field.Name, "_", "-")
+		allowed[name] = true
+		unsetNames[name] = field.Name
+		raw, direct := flagValue(flags, name)
+		if cliapp.IsSecretField(field) && secretEnvironmentFlags {
+			environmentFlag := name + "-env"
+			allowed[environmentFlag] = true
+			environmentName, fromEnvironment := flagValue(flags, environmentFlag)
+			if direct && fromEnvironment {
+				return patch, nil, fmt.Errorf("--%s and --%s cannot be combined", name, environmentFlag)
+			}
+			if fromEnvironment {
+				normalized, err := cliapp.NormalizeEnvironmentName(environmentName)
+				if err != nil {
+					return patch, nil, fmt.Errorf("--%s: %w", environmentFlag, err)
+				}
+				patch.Values[field.Name] = "env:" + normalized
+				continue
+			}
 		}
-		return value, nil
-	case filament.FieldBool:
-		value, err := strconv.ParseBool(raw)
-		if err != nil {
-			return nil, fmt.Errorf("must be true or false")
+		if direct {
+			value, err := cliapp.ParseFieldValue(field, raw)
+			if err != nil {
+				return patch, nil, fmt.Errorf("--%s: %w", name, err)
+			}
+			patch.Values[field.Name] = value
 		}
-		return value, nil
-	case filament.FieldObject:
-		var value map[string]any
-		if err := json.Unmarshal([]byte(raw), &value); err != nil {
-			return nil, fmt.Errorf("must be a JSON object")
-		}
-		return value, nil
-	case filament.FieldList:
-		return splitComma(raw), nil
-	default:
-		if err := validateFieldValue(field, raw); err != nil {
-			return nil, err
-		}
-		return raw, nil
 	}
+	return patch, unsetNames, nil
 }
 
 func firstPositional(args commandArgs) string {
@@ -175,20 +168,6 @@ func applyFieldUnsets(flags map[string][]string, targets map[string]func(), allo
 	return nil
 }
 
-func orderedFields(schema filament.ConfigSchema, scope filament.FieldScope) []filament.ConfigField {
-	result := []filament.ConfigField{}
-	for _, field := range schema.Fields {
-		actual := field.Scope
-		if actual == filament.ScopeUnspecified {
-			actual = filament.ScopeConnection
-		}
-		if actual == scope {
-			result = append(result, field)
-		}
-	}
-	return result
-}
-
 func splitComma(value string) []string {
 	seen := map[string]bool{}
 	result := []string{}
@@ -198,14 +177,6 @@ func splitComma(value string) []string {
 			seen[item] = true
 			result = append(result, item)
 		}
-	}
-	return result
-}
-
-func cloneMap[V any](source map[string]V) map[string]V {
-	result := make(map[string]V, len(source))
-	for key, value := range source {
-		result[key] = value
 	}
 	return result
 }

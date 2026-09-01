@@ -2,14 +2,16 @@ package local
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 
-	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"gopkg.in/yaml.v3"
+
+	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 // Store reads and atomically updates a local YAML configuration document.
@@ -19,35 +21,65 @@ type Store struct {
 
 // Load reads the typed document and its comment-preserving YAML tree.
 func (s Store) Load() (model.Document, *yaml.Node, error) {
+	doc, root, _, err := s.LoadSnapshot()
+	return doc, root, err
+}
+
+// LoadSnapshot reads the document together with an opaque revision of the
+// bytes from which it was decoded.
+func (s Store) LoadSnapshot() (model.Document, *yaml.Node, string, error) {
 	doc := model.NewDocument()
 	data, err := os.ReadFile(s.Path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return doc, emptyYAMLDocument(), nil
+		return doc, emptyYAMLDocument(), revision(nil), nil
 	}
 	if err != nil {
-		return doc, nil, fmt.Errorf("read config: %w", err)
+		return doc, nil, "", fmt.Errorf("read config: %w", err)
 	}
 	var root yaml.Node
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&doc); err != nil {
-		return doc, nil, fmt.Errorf("parse %s: %w", s.Path, err)
+		return doc, nil, "", fmt.Errorf("parse %s: %w", s.Path, err)
 	}
 	if err := yaml.Unmarshal(data, &root); err != nil {
-		return doc, nil, fmt.Errorf("parse YAML tree: %w", err)
+		return doc, nil, "", fmt.Errorf("parse YAML tree: %w", err)
 	}
 	doc.Normalize()
-	return doc, &root, nil
+	return doc, &root, revision(data), nil
 }
 
-// Put adds or replaces one named value in a top-level document section.
-func (s Store) Put(section, name string, value any) error {
-	_, root, err := s.Load()
+// Create adds a named value only when it does not already exist.
+func (s Store) Create(section, name string, value any) error {
+	_, root, _, err := s.LoadSnapshot()
 	if err != nil {
 		return err
 	}
 	top := root.Content[0]
 	sectionNode := ensureMapping(top, section)
+	if mappingContains(sectionNode, name) {
+		return fmt.Errorf("%s %q already exists", singular(section), name)
+	}
+	return s.set(section, name, value, root, sectionNode)
+}
+
+// Update replaces an existing named value when its revision is current.
+func (s Store) Update(section, name string, value any, expectedRevision string) error {
+	_, root, currentRevision, err := s.LoadSnapshot()
+	if err != nil {
+		return err
+	}
+	sectionNode := ensureMapping(root.Content[0], section)
+	if !mappingContains(sectionNode, name) {
+		return fmt.Errorf("%s %q does not exist", singular(section), name)
+	}
+	if err := checkRevision(expectedRevision, currentRevision); err != nil {
+		return err
+	}
+	return s.set(section, name, value, root, sectionNode)
+}
+
+func (s Store) set(section, name string, value any, root, sectionNode *yaml.Node) error {
 	encoded := &yaml.Node{}
 	if err := encoded.Encode(value); err != nil {
 		return fmt.Errorf("encode %s %q: %w", section, name, err)
@@ -57,9 +89,12 @@ func (s Store) Put(section, name string, value any) error {
 }
 
 // Delete removes one named value from a top-level document section.
-func (s Store) Delete(section, name string) error {
-	_, root, err := s.Load()
+func (s Store) Delete(section, name, expectedRevision string) error {
+	_, root, currentRevision, err := s.LoadSnapshot()
 	if err != nil {
+		return err
+	}
+	if err := checkRevision(expectedRevision, currentRevision); err != nil {
 		return err
 	}
 	sectionNode := ensureMapping(root.Content[0], section)
@@ -70,6 +105,21 @@ func (s Store) Delete(section, name string) error {
 		}
 	}
 	return fmt.Errorf("%s %q does not exist", singular(section), name)
+}
+
+func checkRevision(expected, current string) error {
+	if expected == "" {
+		return fmt.Errorf("entity revision is required")
+	}
+	if expected != current {
+		return fmt.Errorf("entity changed since it was read; reload and retry")
+	}
+	return nil
+}
+
+func revision(data []byte) string {
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("local:%x", sum[:])
 }
 
 // Write atomically replaces the local document while preserving owner-only
@@ -156,6 +206,15 @@ func setMappingValue(parent *yaml.Node, key string, value *yaml.Node) {
 	}
 	parent.Content = append(parent.Content,
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, value)
+}
+
+func mappingContains(parent *yaml.Node, key string) bool {
+	for i := 0; i+1 < len(parent.Content); i += 2 {
+		if parent.Content[i].Value == key {
+			return true
+		}
+	}
+	return false
 }
 
 func mappingNode() *yaml.Node {
