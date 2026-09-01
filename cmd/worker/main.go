@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,7 +23,11 @@ func main() {
 	err := run(ctx)
 	stop()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("worker exited",
+			"event.name", "worker.exited",
+			"run_id", os.Getenv("RUN_ID"),
+			"error", err)
+		os.Exit(1)
 	}
 }
 
@@ -41,6 +45,10 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer closeDeps()
+	workerLog := deps.Log.With(
+		filament.Field{Key: "component", Value: "worker"},
+		filament.Field{Key: "run_id", Value: string(runID)},
+	)
 
 	bus, closeBus, err := boot.Bus()
 	if err != nil {
@@ -53,22 +61,27 @@ func run(ctx context.Context) error {
 		return err
 	}
 	if !runner.ShouldRun(state) {
-		deps.Log.Info("worker: nothing to do",
-			filament.Field{Key: "run", Value: string(runID)},
-			filament.Field{Key: "status", Value: int(state.Status)})
+		workerLog.Info("worker run skipped",
+			filament.Field{Key: "event.name", Value: "worker.run.skipped"},
+			filament.Field{Key: "status", Value: int(state.Status)},
+			filament.Field{Key: "reason", Value: "not_runnable"})
 		return nil
 	}
-	deps.Log.Info("worker: executing run",
-		filament.Field{Key: "run", Value: string(runID)},
-		filament.Field{Key: "pipeline", Value: state.Request.PipelineID},
-		filament.Field{Key: "source", Value: state.Request.Source.Connector},
-		filament.Field{Key: "sink", Value: state.Request.Sink.Connector},
-		filament.Field{Key: "resources", Value: len(state.Request.Resources)})
+	workerLog.Debug("worker initialized",
+		filament.Field{Key: "event.name", Value: "worker.initialized"},
+		filament.Field{Key: "tenant_id", Value: string(state.Tenant)},
+		filament.Field{Key: "pipeline_id", Value: state.Request.PipelineID},
+		filament.Field{Key: "source_connector", Value: state.Request.Source.Connector},
+		filament.Field{Key: "sink_connector", Value: state.Request.Sink.Connector},
+		filament.Field{Key: "resource_count", Value: len(state.Request.Resources)})
 
 	hb := &heartbeat{
-		bus:      bus,
-		mx:       deps.Metrics,
-		log:      deps.Log,
+		bus: bus,
+		mx:  deps.Metrics,
+		log: deps.Log.With(
+			filament.Field{Key: "component", Value: "heartbeat"},
+			filament.Field{Key: "run_id", Value: string(runID)},
+		),
 		tenant:   state.Tenant,
 		run:      state.Run,
 		pipeline: state.Request.PipelineID,

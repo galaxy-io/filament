@@ -34,7 +34,10 @@ type Deps struct {
 // The event bus is deliberately separate (Bus) so binaries can start health
 // listeners before the connect wait.
 func FromEnv(ctx context.Context) (Deps, func(), error) {
-	lg := logger.New()
+	lg, err := logger.New()
+	if err != nil {
+		return Deps{}, nil, err
+	}
 	store, err := persistence.FromEnv(ctx)
 	if err != nil {
 		return Deps{}, nil, err
@@ -92,7 +95,19 @@ func Mount(ctx context.Context, d Deps, b bus.Bus, mods ...module.Module) (*host
 	if err != nil {
 		return nil, fmt.Errorf("mount: %w", err)
 	}
-	h := host.New(b)
+	h := host.New(b, host.WithHandlerError(func(module, pattern, durable string, seq uint64, err error) {
+		if d.Log == nil {
+			return
+		}
+		d.Log.Error("event handler failed", err,
+			filament.Field{Key: "event.name", Value: "eventbus.handler.failed"},
+			filament.Field{Key: "component", Value: "eventbus"},
+			filament.Field{Key: "module", Value: module},
+			filament.Field{Key: "subject_pattern", Value: pattern},
+			filament.Field{Key: "durable", Value: durable},
+			filament.Field{Key: "stream_sequence", Value: seq},
+		)
+	}))
 	if err := h.Run(ctx, rs...); err != nil {
 		_ = h.Close()
 		return nil, fmt.Errorf("run host: %w", err)

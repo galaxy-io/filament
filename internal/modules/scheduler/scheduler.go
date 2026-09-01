@@ -71,7 +71,9 @@ func (m *Module) Subscriptions() []host.Subscription { return nil }
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore
-	m.log = d.Log
+	if d.Log != nil {
+		m.log = d.Log.With(filament.Field{Key: "component", Value: "scheduler"})
+	}
 	m.mx = d.Metrics
 	m.compiler = &compile.Compiler{Store: d.DataStore, Sources: d.Sources, Sinks: d.Sinks, DefaultTenant: m.defaultTenant}
 	return nil
@@ -92,7 +94,8 @@ func (m *Module) Start(ctx context.Context) {
 						m.mx.Counter("filament_schedule_tick_failures_total").Inc()
 					}
 					if m.log != nil {
-						m.log.Error("scheduler: tick", err)
+						m.log.Error("scheduler tick failed", err,
+							filament.Field{Key: "event.name", Value: "scheduler.tick.failed"})
 					}
 				}
 			}
@@ -111,12 +114,19 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	if len(due) == 0 {
+		m.logEmptyTick()
+		return 0, nil
+	}
 	fired := 0
+	skipped := 0
+	failed := 0
 	var errs []error
 	for _, st := range due {
 		if st.Spec.Overlap == filament.OverlapSkip {
 			active, err := m.hasActiveRuns(ctx, st.ID)
 			if err != nil {
+				failed++
 				// Can't prove the last occurrence finished — hold the fire and
 				// release the claim so the next tick retries, rather than risk
 				// an overlapping run.
@@ -130,7 +140,20 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 				if m.mx != nil {
 					m.mx.Counter("filament_schedule_overlap_skips_total").Inc()
 				}
+				occurrence := ""
+				if st.NextFire != nil {
+					occurrence = st.NextFire.UTC().Format(time.RFC3339Nano)
+				}
 				m.reconcileScheduledRuns(ctx, m.advance(ctx, st, now))
+				skipped++
+				if m.log != nil {
+					m.log.Info("scheduled occurrence skipped",
+						filament.Field{Key: "event.name", Value: "schedule.occurrence.skipped"},
+						filament.Field{Key: "schedule_id", Value: string(st.ID)},
+						filament.Field{Key: "pipeline_id", Value: st.Spec.PipelineID},
+						filament.Field{Key: "occurrence", Value: occurrence},
+						filament.Field{Key: "reason", Value: "overlap"})
+				}
 				continue
 			}
 		}
@@ -140,12 +163,11 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 		}
 		runID, err := m.fire(ctx, st, occurrence)
 		if err != nil {
+			failed++
 			if m.mx != nil {
 				m.mx.Counter("filament_schedule_submit_failures_total").Inc()
 			}
-			if m.log != nil {
-				m.log.Error("scheduler: submit", err, filament.Field{Key: "schedule", Value: string(st.ID)})
-			}
+			errs = append(errs, fmt.Errorf("submit schedule %q: %w", st.ID, err))
 			if err := m.store.ReleaseScheduleClaim(ctx, st.ID); err != nil {
 				errs = append(errs, fmt.Errorf("release claim %q: %w", st.ID, err))
 			}
@@ -158,6 +180,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 			st.NextFire = next
 		}
 		if err := m.store.SaveSchedule(ctx, st); err != nil {
+			failed++
 			// The fire happened; a stale NextFire is only re-claimed after the
 			// lease expires, and the occurrence token dedupes a double fire.
 			errs = append(errs, fmt.Errorf("advance %q: %w", st.ID, err))
@@ -169,14 +192,47 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 
 		if err := events.Emit(ctx, m.bus, events.ScheduleFired,
 			events.Envelope{Tenant: st.Spec.Tenant, Run: runID, At: now}, events.ScheduleFiredEvent{}); err != nil && m.log != nil {
-			m.log.Error("scheduler: emit schedule.fired", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+			m.log.Error("schedule fired event publish failed", err,
+				filament.Field{Key: "event.name", Value: "schedule.fired.publish_failed"},
+				filament.Field{Key: "schedule_id", Value: string(st.ID)},
+				filament.Field{Key: "run_id", Value: string(runID)})
 		}
 		if m.mx != nil {
 			m.mx.Counter("filament_schedule_fires_total").Inc()
 		}
 		fired++
+		if m.log != nil {
+			m.log.Info("scheduled occurrence fired",
+				filament.Field{Key: "event.name", Value: "schedule.occurrence.fired"},
+				filament.Field{Key: "schedule_id", Value: string(st.ID)},
+				filament.Field{Key: "pipeline_id", Value: st.Spec.PipelineID},
+				filament.Field{Key: "run_id", Value: string(runID)},
+				filament.Field{Key: "occurrence", Value: occurrence})
+		}
 	}
+	m.logTickCompleted(len(due), fired, skipped, failed)
 	return fired, errors.Join(errs...)
+}
+
+func (m *Module) logEmptyTick() {
+	if m.log == nil {
+		return
+	}
+	m.log.Trace("scheduler tick completed",
+		filament.Field{Key: "event.name", Value: "scheduler.tick.completed"},
+		filament.Field{Key: "claimed_schedules", Value: 0})
+}
+
+func (m *Module) logTickCompleted(claimed, fired, skipped, failed int) {
+	if m.log == nil {
+		return
+	}
+	m.log.Debug("scheduler tick completed",
+		filament.Field{Key: "event.name", Value: "scheduler.tick.completed"},
+		filament.Field{Key: "claimed_schedules", Value: claimed},
+		filament.Field{Key: "fired_schedules", Value: fired},
+		filament.Field{Key: "skipped_schedules", Value: skipped},
+		filament.Field{Key: "failed_schedules", Value: failed})
 }
 
 // fire compiles the schedule's pipeline for one claimed occurrence and submits
@@ -206,7 +262,9 @@ func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now tim
 	if next, err := scheduledomain.NextFire(st.Spec, now); err == nil {
 		st.NextFire = next
 		if err := m.store.SaveSchedule(ctx, st); err != nil && m.log != nil {
-			m.log.Error("scheduler: advance", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+			m.log.Error("schedule advance failed", err,
+				filament.Field{Key: "event.name", Value: "schedule.advance.failed"},
+				filament.Field{Key: "schedule_id", Value: string(st.ID)})
 		}
 	}
 	return st
@@ -222,7 +280,9 @@ func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.Schedul
 			m.mx.Counter("filament_schedule_reconcile_failures_total").Inc()
 		}
 		if m.log != nil {
-			m.log.Error("scheduler: reconcile scheduled runs", err, filament.Field{Key: "schedule", Value: string(st.ID)})
+			m.log.Error("scheduled run reconciliation failed", err,
+				filament.Field{Key: "event.name", Value: "schedule.reconcile.failed"},
+				filament.Field{Key: "schedule_id", Value: string(st.ID)})
 		}
 	}
 }

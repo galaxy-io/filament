@@ -96,6 +96,7 @@ helm upgrade --install filament \
 | server.ingress.path | string | `"/"` | Path served by the Ingress. |
 | server.ingress.pathType | string | `"Prefix"` | PathType for the path. |
 | server.ingress.tls | list | `[]` | Ingress TLS configuration, passed through verbatim. |
+| server.logLevel | string | `"INFO"` | Minimum server log level. Valid values: INFO, DEBUG, TRACE. |
 | server.replicas | int | `1` | Number of server replicas. Ignored when `server.autoscaling.enabled` is true. |
 | server.resources | object | `{}` (See [values.yaml]) | Server resource requests and limits. |
 | server.service.port | int | `8080` | Server service and container port. |
@@ -120,6 +121,7 @@ helm upgrade --install filament \
 | controlPlane.dispatch.worker.image.pullSecrets | list | `[]` | Image pull secrets for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs. |
 | controlPlane.dispatch.worker.image.tag | string | `""` (defaults to chart appVersion) | Worker image tag. |
+| controlPlane.dispatch.worker.logLevel | string | `"INFO"` | Minimum worker log level. Valid values: INFO, DEBUG, TRACE. |
 | controlPlane.dispatch.worker.restartPolicy | string | `"Never"` | Restart policy for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.serviceAccount.annotations | object | `{}` | Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN. |
 | controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
@@ -130,6 +132,7 @@ helm upgrade --install filament \
 | controlPlane.image.pullSecrets | list | `[]` | Image pull secrets for the control plane Deployment. |
 | controlPlane.image.repository | string | `"ghcr.io/galaxy-io/filament/control-plane"` | Control plane image repository. |
 | controlPlane.image.tag | string | `""` (defaults to chart appVersion) | Control plane image tag. |
+| controlPlane.logLevel | string | `"INFO"` | Minimum control-plane log level. Valid values: INFO, DEBUG, TRACE. |
 | controlPlane.reaper.intervalSeconds | string | `""` | How often the reaper sweeps for zombie runs, in seconds. Empty uses the binary default (60). |
 | controlPlane.reaper.staleAfterSeconds | string | `""` | How long a Running run may go without a heartbeat write before the reaper fails it, in seconds. Empty uses the binary default (300). |
 | controlPlane.replicas | int | `1` | Number of control plane replicas. Ignored when `controlPlane.autoscaling.enabled` is true. |
