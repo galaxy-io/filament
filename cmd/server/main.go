@@ -105,27 +105,8 @@ func run(ctx context.Context, migrateOnly bool) error {
 	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
-	var shutdownOnce sync.Once
-	var shutdownErr error
 	started := false
-	shutdown := func() error {
-		shutdownOnce.Do(func() {
-			healthState.MarkStopping()
-			shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			shutdownErr = srv.Shutdown(shutCtx)
-			if shutdownErr != nil {
-				serverLog.Error("server shutdown failed", shutdownErr,
-					filament.Field{Key: "event.name", Value: "server.shutdown_failed"})
-				return
-			}
-			if started {
-				serverLog.Info("server stopped",
-					filament.Field{Key: "event.name", Value: "server.stopped"})
-			}
-		})
-		return shutdownErr
-	}
+	shutdown := serverShutdown(srv, healthState, serverLog, &started)
 	defer func() { _ = shutdown() }()
 
 	eventBus, closeBus, err := boot.Bus()
@@ -172,6 +153,29 @@ func run(ctx context.Context, migrateOnly bool) error {
 		serverLog.Info("server stopping",
 			filament.Field{Key: "event.name", Value: "server.stopping"})
 		return shutdown()
+	}
+}
+
+func serverShutdown(srv *http.Server, healthState *health.State, log filament.Logger, started *bool) func() error {
+	var once sync.Once
+	var shutdownErr error
+	return func() error {
+		once.Do(func() {
+			healthState.MarkStopping()
+			shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			shutdownErr = srv.Shutdown(shutCtx)
+			if shutdownErr != nil {
+				log.Error("server shutdown failed", shutdownErr,
+					filament.Field{Key: "event.name", Value: "server.shutdown_failed"})
+				return
+			}
+			if *started {
+				log.Info("server stopped",
+					filament.Field{Key: "event.name", Value: "server.stopped"})
+			}
+		})
+		return shutdownErr
 	}
 }
 
