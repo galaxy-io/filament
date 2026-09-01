@@ -28,14 +28,19 @@ Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
 			return a.changePipeline(ctx, operation, args)
 		}
 	}
+	help := func(operation string) func(context.Context, []string) error {
+		return func(ctx context.Context, args []string) error {
+			return a.printPipelineOperationHelp(ctx, operation, args)
+		}
+	}
 	cmd.AddCommand(
 		a.dynamicCommand(
 			"create <name> --source NAME --sink NAME [--resources LIST] [flags]",
-			"Save a pipeline", a.printPipelineOperationHelp, change("create"),
+			"Save a pipeline", help("create"), change("create"),
 		),
 		a.dynamicCommand(
 			"edit <name> [flags] [--unset source-FIELD|sink-FIELD]",
-			"Change a saved pipeline", a.printPipelineOperationHelp, change("edit"),
+			"Change a saved pipeline", help("edit"), change("edit"),
 		),
 		&cobra.Command{
 			Use:   "list",
