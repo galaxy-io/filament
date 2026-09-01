@@ -3,7 +3,6 @@ import { useCallback, useMemo, useState } from "react";
 import { styled } from "@linaria/react";
 import { PlusIcon, SignOutIcon, UsersThreeIcon, WrenchIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
-import { useAuth } from "react-oidc-context";
 
 import Avatar from "@galaxy-io/dls/avatar/Avatar";
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
@@ -34,6 +33,7 @@ import { roleLabel } from "@/pages/settings/utils";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 
+import { useSignOut } from "@/auth/hooks/useSignOut";
 import { useAppSession } from "@/auth/session";
 import type { AppSession } from "@/auth/types";
 
@@ -283,7 +283,7 @@ const MainLayoutSettingsButtonMenu = ({
 
 const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   const navigate = useNavigate();
-  const { signoutRedirect } = useAuth();
+  const signOut = useSignOut();
   const { selectedTheme, setTheme } = useGalaxyTheme();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -356,8 +356,8 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
 
   const handleLogout = useCallback(() => {
     setIsOpen(false);
-    void signoutRedirect();
-  }, [signoutRedirect]);
+    void signOut();
+  }, [signOut]);
 
   return (
     <Dropdown

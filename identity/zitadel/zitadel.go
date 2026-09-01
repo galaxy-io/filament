@@ -50,6 +50,9 @@ type Provider struct {
 	project  projectRef
 	// rolesClaim is precomputed; every authenticated request reads it.
 	rolesClaim string
+	// secureCookies marks the remembered-session cookie Secure when the UI
+	// is served over https.
+	secureCookies bool
 	// projectGrants caches org id -> project grant id.
 	projectGrants sync.Map
 }
@@ -74,7 +77,7 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		return nil, fmt.Errorf("zitadel: connect %s: %w", issuer, err)
 	}
 
-	p := &Provider{issuer: issuer, api: api}
+	p := &Provider{issuer: issuer, api: api, secureCookies: strings.HasPrefix(opts.UIOrigin, "https://")}
 	if err := p.bootstrap(ctx, opts.UIOrigin); err != nil {
 		_ = api.Close()
 		return nil, fmt.Errorf("zitadel bootstrap: %w", err)

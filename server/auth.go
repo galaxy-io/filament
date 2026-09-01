@@ -34,6 +34,8 @@ func (disabledAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.G
 var publicProcedures = map[string]bool{
 	authv1connect.AuthServiceGetAuthConfigProcedure: true,
 	authv1connect.AuthServiceLoginProcedure:         true,
+	authv1connect.AuthServiceResumeLoginProcedure:   true,
+	authv1connect.AuthServiceLogoutProcedure:        true,
 	authv1connect.AuthServiceRegisterProcedure:      true,
 	authv1connect.AuthServiceAcceptInviteProcedure:  true,
 }

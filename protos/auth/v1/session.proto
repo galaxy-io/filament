@@ -30,6 +30,23 @@ message LoginResponse {
   string callback_url = 1;
 }
 
+// ResumeLoginRequest finishes a pending authorization with the session the
+// browser remembers from an earlier sign-in, so a new tab needs no
+// credentials. The session travels in an HttpOnly cookie Login sets.
+message ResumeLoginRequest {
+  string auth_request_id = 1;
+}
+
+message ResumeLoginResponse {
+  string callback_url = 1;
+}
+
+// LogoutRequest ends the remembered session and clears its cookie. The
+// browser follows up with the provider's own end-session redirect.
+message LogoutRequest {}
+
+message LogoutResponse {}
+
 // RegisterRequest creates a tenant and its first admin.
 message RegisterRequest {
   string org_name = 1;

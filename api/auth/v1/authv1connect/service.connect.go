@@ -38,6 +38,10 @@ const (
 	AuthServiceGetAuthConfigProcedure = "/auth.v1.AuthService/GetAuthConfig"
 	// AuthServiceLoginProcedure is the fully-qualified name of the AuthService's Login RPC.
 	AuthServiceLoginProcedure = "/auth.v1.AuthService/Login"
+	// AuthServiceResumeLoginProcedure is the fully-qualified name of the AuthService's ResumeLogin RPC.
+	AuthServiceResumeLoginProcedure = "/auth.v1.AuthService/ResumeLogin"
+	// AuthServiceLogoutProcedure is the fully-qualified name of the AuthService's Logout RPC.
+	AuthServiceLogoutProcedure = "/auth.v1.AuthService/Logout"
 	// AuthServiceRegisterProcedure is the fully-qualified name of the AuthService's Register RPC.
 	AuthServiceRegisterProcedure = "/auth.v1.AuthService/Register"
 	// AuthServiceAcceptInviteProcedure is the fully-qualified name of the AuthService's AcceptInvite
@@ -73,6 +77,8 @@ type AuthServiceClient interface {
 	// Session; pre-token, public. An empty issuer means auth is disabled.
 	GetAuthConfig(context.Context, *connect.Request[v1.GetAuthConfigRequest]) (*connect.Response[v1.GetAuthConfigResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	ResumeLogin(context.Context, *connect.Request[v1.ResumeLoginRequest]) (*connect.Response[v1.ResumeLoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
 	// Members; authenticated tenant administration.
@@ -109,6 +115,18 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+AuthServiceLoginProcedure,
 			connect.WithSchema(authServiceMethods.ByName("Login")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeLogin: connect.NewClient[v1.ResumeLoginRequest, v1.ResumeLoginResponse](
+			httpClient,
+			baseURL+AuthServiceResumeLoginProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ResumeLogin")),
+			connect.WithClientOptions(opts...),
+		),
+		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
+			httpClient,
+			baseURL+AuthServiceLogoutProcedure,
+			connect.WithSchema(authServiceMethods.ByName("Logout")),
 			connect.WithClientOptions(opts...),
 		),
 		register: connect.NewClient[v1.RegisterRequest, v1.RegisterResponse](
@@ -178,6 +196,8 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 type authServiceClient struct {
 	getAuthConfig              *connect.Client[v1.GetAuthConfigRequest, v1.GetAuthConfigResponse]
 	login                      *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	resumeLogin                *connect.Client[v1.ResumeLoginRequest, v1.ResumeLoginResponse]
+	logout                     *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 	register                   *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
 	acceptInvite               *connect.Client[v1.AcceptInviteRequest, v1.AcceptInviteResponse]
 	listMembers                *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
@@ -198,6 +218,16 @@ func (c *authServiceClient) GetAuthConfig(ctx context.Context, req *connect.Requ
 // Login calls auth.v1.AuthService.Login.
 func (c *authServiceClient) Login(ctx context.Context, req *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
 	return c.login.CallUnary(ctx, req)
+}
+
+// ResumeLogin calls auth.v1.AuthService.ResumeLogin.
+func (c *authServiceClient) ResumeLogin(ctx context.Context, req *connect.Request[v1.ResumeLoginRequest]) (*connect.Response[v1.ResumeLoginResponse], error) {
+	return c.resumeLogin.CallUnary(ctx, req)
+}
+
+// Logout calls auth.v1.AuthService.Logout.
+func (c *authServiceClient) Logout(ctx context.Context, req *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return c.logout.CallUnary(ctx, req)
 }
 
 // Register calls auth.v1.AuthService.Register.
@@ -255,6 +285,8 @@ type AuthServiceHandler interface {
 	// Session; pre-token, public. An empty issuer means auth is disabled.
 	GetAuthConfig(context.Context, *connect.Request[v1.GetAuthConfigRequest]) (*connect.Response[v1.GetAuthConfigResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	ResumeLogin(context.Context, *connect.Request[v1.ResumeLoginRequest]) (*connect.Response[v1.ResumeLoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
 	// Members; authenticated tenant administration.
@@ -287,6 +319,18 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		AuthServiceLoginProcedure,
 		svc.Login,
 		connect.WithSchema(authServiceMethods.ByName("Login")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceResumeLoginHandler := connect.NewUnaryHandler(
+		AuthServiceResumeLoginProcedure,
+		svc.ResumeLogin,
+		connect.WithSchema(authServiceMethods.ByName("ResumeLogin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceLogoutHandler := connect.NewUnaryHandler(
+		AuthServiceLogoutProcedure,
+		svc.Logout,
+		connect.WithSchema(authServiceMethods.ByName("Logout")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authServiceRegisterHandler := connect.NewUnaryHandler(
@@ -355,6 +399,10 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceGetAuthConfigHandler.ServeHTTP(w, r)
 		case AuthServiceLoginProcedure:
 			authServiceLoginHandler.ServeHTTP(w, r)
+		case AuthServiceResumeLoginProcedure:
+			authServiceResumeLoginHandler.ServeHTTP(w, r)
+		case AuthServiceLogoutProcedure:
+			authServiceLogoutHandler.ServeHTTP(w, r)
 		case AuthServiceRegisterProcedure:
 			authServiceRegisterHandler.ServeHTTP(w, r)
 		case AuthServiceAcceptInviteProcedure:
@@ -390,6 +438,14 @@ func (UnimplementedAuthServiceHandler) GetAuthConfig(context.Context, *connect.R
 
 func (UnimplementedAuthServiceHandler) Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.Login is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ResumeLogin(context.Context, *connect.Request[v1.ResumeLoginRequest]) (*connect.Response[v1.ResumeLoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.ResumeLogin is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.Logout is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error) {
