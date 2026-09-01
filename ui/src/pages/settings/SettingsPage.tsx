@@ -24,6 +24,7 @@ import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 
+import { useAppSession } from "@/auth/session";
 import type { AppSession } from "@/auth/types";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -123,12 +124,9 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
   );
 };
 
-interface SettingsPageProps {
-  session: AppSession;
-}
-
-const SettingsPage = ({ session }: SettingsPageProps) => {
+const SettingsPage = () => {
   const navigate = useNavigate();
+  const session = useAppSession();
   const { flow, settings, teamView, inviteToken } = useSearch({ from: "/_app" });
 
   const isSettingsOpen = session.isAuthenticated && flow === Flow.SETTINGS;

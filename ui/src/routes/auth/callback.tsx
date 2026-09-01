@@ -1,15 +1,20 @@
 import { BugIcon } from "@phosphor-icons/react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { hasAuthParams, useAuth } from "react-oidc-context";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
+import PendingLayout from "@/layouts/PendingLayout";
 
-import { completeSignIn } from "@/auth/oidc";
-
-const AuthCallbackErrorComponent = ({ error }: { error: Error }) => {
+const AuthCallbackPage = () => {
   const navigate = useNavigate();
+  const { error } = useAuth();
+
+  if (!error) {
+    return <PendingLayout />;
+  }
 
   return (
     <ErrorLayout
@@ -23,20 +28,10 @@ const AuthCallbackErrorComponent = ({ error }: { error: Error }) => {
 };
 
 export const Route = createFileRoute("/auth/callback")({
-  pendingMs: 0,
-  pendingMinMs: 0,
   beforeLoad: ({ context }) => {
-    if (!context.authConfig.issuer) {
+    if (!context.userManager || !hasAuthParams()) {
       throw redirect({ to: "/" });
     }
   },
-  loader: async () => {
-    const user = await completeSignIn();
-    const returnTo = (user?.state as { returnTo?: string } | undefined)?.returnTo;
-    if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) {
-      throw redirect({ href: returnTo, replace: true });
-    }
-    throw redirect({ to: "/", replace: true });
-  },
-  errorComponent: AuthCallbackErrorComponent,
+  component: AuthCallbackPage,
 });

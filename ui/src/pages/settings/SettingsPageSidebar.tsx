@@ -6,7 +6,7 @@ import {
   UsersThreeIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { useAuth } from "react-oidc-context";
 
 import Avatar from "@galaxy-io/dls/avatar/Avatar";
 import FlexWrapper, {
@@ -41,7 +41,7 @@ const SettingsPageSidebar = ({
   canManageTeam,
   onPanelChange,
 }: SettingsPageSidebarProps) => {
-  const navigate = useNavigate();
+  const { signoutRedirect } = useAuth();
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },
   });
@@ -68,7 +68,7 @@ const SettingsPageSidebar = ({
         fillWidth
         minWidth={0}
       >
-        <Avatar img={session.avatarUrl} size={24} seed={profileEmail || profileName} />
+        <Avatar img={session.avatarUrl} size={26} seed={session.userId} />
         <FlexWrapper direction={FlexDirection.COLUMN} gap={1} minWidth={0}>
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isEllipsis>
             {profileName}
@@ -129,7 +129,7 @@ const SettingsPageSidebar = ({
         <SettingsNavigationItem
           label="Logout"
           icon={SignOutIcon}
-          onClick={() => void navigate({ to: "/logout" })}
+          onClick={() => void signoutRedirect()}
         />
       </FlexWrapper>
     </FlexWrapper>

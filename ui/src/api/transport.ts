@@ -6,8 +6,8 @@ import { API_URL, IS_DEBUG, IS_PRODUCTION } from "@/constants";
 import { getAccessToken } from "@/auth/oidc";
 
 export function createAuthInterceptor(): Interceptor {
-  return (next) => (req) => {
-    const token = getAccessToken();
+  return (next) => async (req) => {
+    const token = await getAccessToken();
     if (token) {
       req.header.set("Authorization", `Bearer ${token}`);
     }

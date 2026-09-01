@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback } from "react";
 
 import { Outlet, useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -14,28 +14,9 @@ import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import SettingsPage from "@/pages/settings/SettingsPage";
 
-import { getSessionUser, subscribeToSession } from "@/auth/oidc";
-import { AppSessionProvider } from "@/auth/session";
-import type { AppSession } from "@/auth/types";
-
 const AppLayout = () => {
   const navigate = useNavigate();
   const { connectionId, flow } = useSearch({ from: "/_app" });
-  const user = useSyncExternalStore(subscribeToSession, getSessionUser);
-
-  const session = useMemo<AppSession>(
-    () =>
-      user
-        ? {
-            isAuthenticated: true,
-            userId: user.profile.sub,
-            name: user.profile.name,
-            email: user.profile.email,
-            avatarUrl: user.profile.picture,
-          }
-        : { isAuthenticated: false },
-    [user],
-  );
 
   const handleCloseDrawer = useCallback(() => {
     void navigate({
@@ -64,7 +45,7 @@ const AppLayout = () => {
   }, [navigate]);
 
   return (
-    <AppSessionProvider value={session}>
+    <>
       <Outlet />
       <Drawer open={!!connectionId} onClose={handleCloseDrawer} width={CONNECTOR_DRAWER_WIDTH}>
         {connectionId && <ConnectionDrawer onClose={handleCloseDrawer} />}
@@ -78,8 +59,8 @@ const AppLayout = () => {
       <Modal open={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow}>
         <CreatePipelineModal onClose={handleCloseFlow} />
       </Modal>
-      <SettingsPage session={session} />
-    </AppSessionProvider>
+      <SettingsPage />
+    </>
   );
 };
 

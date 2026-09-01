@@ -1,6 +1,10 @@
+import { useCallback } from "react";
+
 import { styled } from "@linaria/react";
 import { BugIcon } from "@phosphor-icons/react";
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
+import type { User } from "oidc-client-ts";
+import { AuthProvider } from "react-oidc-context";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -16,6 +20,8 @@ import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
 
 import { initOidc } from "@/auth/oidc";
+import { AppSessionProvider } from "@/auth/session";
+import { resolveReturnTo } from "@/auth/utils";
 
 const RootComponentWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -45,11 +51,29 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
 };
 
 const RootComponent = () => {
+  const { userManager } = Route.useRouteContext();
+  const router = useRouter();
+
+  const handleSigninCallback = useCallback(
+    (user: User | undefined) => {
+      void router.navigate({ href: resolveReturnTo(user), replace: true });
+    },
+    [router],
+  );
+
   return (
     <ToastProvider>
       <OverlayProvider>
         <RootComponentWrapper>
-          <Outlet />
+          {userManager ? (
+            <AuthProvider userManager={userManager} onSigninCallback={handleSigninCallback}>
+              <AppSessionProvider>
+                <Outlet />
+              </AppSessionProvider>
+            </AuthProvider>
+          ) : (
+            <Outlet />
+          )}
         </RootComponentWrapper>
       </OverlayProvider>
     </ToastProvider>
@@ -61,10 +85,8 @@ export const Route = createRootRoute({
     const authConfig = await queryClient.ensureQueryData(
       createGetAuthConfigQueryOptions({ transport }),
     );
-    if (authConfig.issuer) {
-      initOidc(authConfig);
-    }
-    return { authConfig };
+    const userManager = authConfig.issuer ? initOidc(authConfig) : null;
+    return { authConfig, userManager };
   },
   errorComponent: RootErrorComponent,
   component: RootComponent,

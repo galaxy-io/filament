@@ -59,6 +59,9 @@ importers:
       react-intersection-observer:
         specifier: ^10.1.0
         version: 10.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-oidc-context:
+        specifier: ^3.3.1
+        version: 3.3.1(oidc-client-ts@3.5.0)(react@18.3.1)
       ts-pattern:
         specifier: ^5.9.0
         version: 5.9.0
@@ -2179,6 +2182,13 @@ packages:
     peerDependencies:
       '@types/react': '>=18'
       react: '>=18'
+
+  react-oidc-context@3.3.1:
+    resolution: {integrity: sha512-/Azvm9W4DhhOtSDBE73kFInh1b6zZRRfILKbgmk2syExMF0PCYJOn/dGdOOi2BFX8x0rCeUe45NXHU+/+xDcrQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      oidc-client-ts: ^3.1.0
+      react: '>=16.14.0'
 
   react-syntax-highlighter@16.1.1:
     resolution: {integrity: sha512-PjVawBGy80C6YbC5DDZJeUjBmC7skaoEUdvfFQediQHgCL7aKyVHe57SaJGfQsloGDac+gCpTfRdtxzWWKmCXA==}
@@ -5181,6 +5191,11 @@ snapshots:
       vfile: 6.0.3
     transitivePeerDependencies:
       - supports-color
+
+  react-oidc-context@3.3.1(oidc-client-ts@3.5.0)(react@18.3.1):
+    dependencies:
+      oidc-client-ts: 3.5.0
+      react: 18.3.1
 
   react-syntax-highlighter@16.1.1(react@18.3.1):
     dependencies:

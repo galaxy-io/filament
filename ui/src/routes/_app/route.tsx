@@ -1,14 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useLocation } from "@tanstack/react-router";
+import { useAutoSignin } from "react-oidc-context";
 import { z } from "zod";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import AppLayout from "@/layouts/app/AppLayout";
 import { Flow } from "@/layouts/app/types";
+import PendingLayout from "@/layouts/PendingLayout";
 
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
-import { ensureSession, redirectToSignIn } from "@/auth/oidc";
+import type { SigninState } from "@/auth/types";
 
 const searchParams = z.object({
   connectionId: z.string().optional().catch(undefined),
@@ -21,19 +23,22 @@ const searchParams = z.object({
   inviteToken: z.string().optional().catch(undefined),
 });
 
+const AuthenticatedAppLayout = () => {
+  const { href } = useLocation();
+  const { isAuthenticated } = useAutoSignin({
+    signinArgs: { state: { returnTo: href } satisfies SigninState },
+  });
+
+  return isAuthenticated ? <AppLayout /> : <PendingLayout />;
+};
+
+const AppRoute = () => {
+  const { userManager } = Route.useRouteContext();
+
+  return userManager ? <AuthenticatedAppLayout /> : <AppLayout />;
+};
+
 export const Route = createFileRoute("/_app")({
   validateSearch: searchParams,
-  beforeLoad: async ({ context, location, preload }) => {
-    if (!context.authConfig.issuer) {
-      return;
-    }
-    if (await ensureSession()) {
-      return;
-    }
-    if (preload) {
-      throw new Error("Unauthenticated");
-    }
-    await redirectToSignIn(location.href);
-  },
-  component: AppLayout,
+  component: AppRoute,
 });

@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
-import { Route as LogoutRouteImport } from './routes/logout'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
@@ -30,11 +29,6 @@ import { Route as AppPipelinesIdCanvasRouteImport } from './routes/_app/pipeline
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LogoutRoute = LogoutRouteImport.update({
-  id: '/logout',
-  path: '/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -114,7 +108,6 @@ const AppPipelinesIdCanvasRoute = AppPipelinesIdCanvasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppMainIndexRoute
   '/login': typeof LoginRoute
-  '/logout': typeof LogoutRoute
   '/register': typeof RegisterRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -131,7 +124,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppMainIndexRoute
   '/login': typeof LoginRoute
-  '/logout': typeof LogoutRoute
   '/register': typeof RegisterRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/invite/$token': typeof InviteTokenRoute
@@ -148,7 +140,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteRouteWithChildren
   '/login': typeof LoginRoute
-  '/logout': typeof LogoutRoute
   '/register': typeof RegisterRoute
   '/_app/_main': typeof AppMainRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -169,7 +160,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/logout'
     | '/register'
     | '/auth/callback'
     | '/invite/$token'
@@ -186,7 +176,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/logout'
     | '/register'
     | '/auth/callback'
     | '/invite/$token'
@@ -202,7 +191,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
-    | '/logout'
     | '/register'
     | '/_app/_main'
     | '/auth/callback'
@@ -222,7 +210,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRouteRoute: typeof AppRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
-  LogoutRoute: typeof LogoutRoute
   RegisterRoute: typeof RegisterRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   InviteTokenRoute: typeof InviteTokenRoute
@@ -235,13 +222,6 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/logout': {
-      id: '/logout'
-      path: '/logout'
-      fullPath: '/logout'
-      preLoaderRoute: typeof LogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -407,7 +387,6 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AppRouteRoute: AppRouteRouteWithChildren,
   LoginRoute: LoginRoute,
-  LogoutRoute: LogoutRoute,
   RegisterRoute: RegisterRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   InviteTokenRoute: InviteTokenRoute,

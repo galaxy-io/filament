@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { styled } from "@linaria/react";
 import { PlusIcon, SignOutIcon, UsersThreeIcon, WrenchIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
+import { useAuth } from "react-oidc-context";
 
 import Avatar from "@galaxy-io/dls/avatar/Avatar";
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
@@ -47,8 +48,8 @@ const AvatarButton = withTheme(styled.button<PropsWithTheme>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -109,6 +110,7 @@ interface MainLayoutSettingsButtonMenuProps {
   name: string;
   email?: string;
   avatarUrl?: string;
+  seed?: string;
   role?: Role;
   canManageTeam: boolean;
   isTeamActionsPending: boolean;
@@ -124,6 +126,7 @@ const MainLayoutSettingsButtonMenu = ({
   name,
   email,
   avatarUrl,
+  seed,
   role,
   canManageTeam,
   isTeamActionsPending,
@@ -161,7 +164,7 @@ const MainLayoutSettingsButtonMenu = ({
             fillWidth
             minWidth={0}
           >
-            <Avatar img={avatarUrl} size={36} seed={email || name} />
+            <Avatar img={avatarUrl} size={36} seed={seed} />
             <FlexWrapper
               direction={FlexDirection.COLUMN}
               alignItems={AlignItems.CENTER}
@@ -280,6 +283,7 @@ const MainLayoutSettingsButtonMenu = ({
 
 const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   const navigate = useNavigate();
+  const { signoutRedirect } = useAuth();
   const { selectedTheme, setTheme } = useGalaxyTheme();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -352,8 +356,8 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
 
   const handleLogout = useCallback(() => {
     setIsOpen(false);
-    void navigate({ to: "/logout" });
-  }, [navigate]);
+    void signoutRedirect();
+  }, [signoutRedirect]);
 
   return (
     <Dropdown
@@ -368,6 +372,7 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
           name={profileName}
           email={profileEmail}
           avatarUrl={session.avatarUrl}
+          seed={session.userId}
           role={currentMember?.role}
           canManageTeam={canManageTeam}
           isTeamActionsPending={isTeamActionsPending}
@@ -387,7 +392,7 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
           setIsOpen((isDropdownOpen) => !isDropdownOpen);
         }}
       >
-        <Avatar img={session.avatarUrl} size={20} seed={profileEmail || profileName} />
+        <Avatar img={session.avatarUrl} size={26} seed={session.userId} />
       </AvatarButton>
     </Dropdown>
   );
