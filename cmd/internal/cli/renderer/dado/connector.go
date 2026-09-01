@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/atterpac/dado/inline"
 
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 type schemaWizard struct {
@@ -44,10 +46,14 @@ func (r *Renderer) manageConnections(ctx context.Context, kind string) error {
 			rows := make([][]string, 0, len(listed.Items))
 			values := make([]string, 0, len(listed.Items))
 			for _, connection := range listed.Items {
-				rows = append(rows, []string{connection.Name, connection.Connector})
+				rows = append(rows, []string{
+					connection.Name, connection.Connector,
+					infoValue(textrenderer.TitleCase(connection.Replication)),
+					textrenderer.Stamp(connection.CreatedAt), textrenderer.Stamp(connection.UpdatedAt),
+				})
 				values = append(values, connection.Name)
 			}
-			options = append(options, boxedMenu([]string{"Name", "Connector"}, rows, values)...)
+			options = append(options, boxedMenu([]string{"Name", "Connector", "Replication", "Created", "Updated"}, rows, values)...)
 		}
 		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 		selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
@@ -578,9 +584,34 @@ func schemaWizardValueEmpty(value any) bool {
 	}
 }
 
+func infoValue(value string) string {
+	if value == "" {
+		return "–"
+	}
+	return value
+}
+
+func infoStamp(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.Local().Format("2006-01-02 15:04")
+}
+
 func connectionPairs(connection model.Connection, schema filament.ConfigSchema) [][2]string {
-	pairs := make([][2]string, 0, len(connection.Config)+1)
+	pairs := make([][2]string, 0, len(connection.Config)+4)
 	pairs = append(pairs, [2]string{"Connector", connection.Type})
+	if info := connection.Info; info.Replication != "" || !info.CreatedAt.IsZero() {
+		replication := info.Replication
+		if replication != "" {
+			replication = strings.ToUpper(replication[:1]) + replication[1:]
+		}
+		pairs = append(pairs,
+			[2]string{"Replication", infoValue(replication)},
+			[2]string{"Created", infoValue(infoStamp(info.CreatedAt))},
+			[2]string{"Updated", infoValue(infoStamp(info.UpdatedAt))},
+		)
+	}
 	fields := make(map[string]filament.ConfigField)
 	for _, field := range cliapp.OrderedFields(schema, filament.ScopeConnection) {
 		fields[field.Name] = field

@@ -11,6 +11,7 @@ import (
 	"github.com/atterpac/dado/inline"
 	"golang.org/x/term"
 
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
 
@@ -92,6 +93,7 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 	renderer := inline.NewRenderer(inline.WithOutput(r.statusWriter()))
 	r.interactiveRenderer = renderer
 	defer func() {
+		r.flushNotice()
 		runErr = errors.Join(runErr, renderer.Clear(), renderer.Close())
 		r.interactiveRenderer = nil
 	}()
@@ -116,15 +118,12 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 	}
 
 	for {
-		description := "Selected target"
-		if r.targetName != "" {
-			description = r.targetName + " target"
-		}
-		action, err := r.chooseInteractive(ctx, "Filament", description, []interactiveOption{
+		action, err := r.chooseInteractive(ctx, r.titled("Filament"), "", []interactiveOption{
 			{label: "Run", value: "run"},
 			{label: "Sources", value: "sources"},
 			{label: "Sinks", value: "sinks"},
 			{label: "Pipelines", value: "pipelines"},
+			{label: "Runs", value: "runs"},
 			{label: "Configuration", value: "config"},
 			{label: "Exit", value: interactiveBack},
 		})
@@ -147,6 +146,8 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			err = r.manageConnections(ctx, "sink")
 		case "pipelines":
 			err = r.managePipelines(ctx)
+		case "runs":
+			err = r.showRuns(ctx)
 		case "config":
 			err = r.manageInteractiveConfig(ctx)
 		}
@@ -201,6 +202,47 @@ func (r *Renderer) acknowledgeInteractiveError(err error) error {
 	return r.notice(false, err.Error())
 }
 
+// titled appends the target name to a menu title so the header stays one line.
+func (r *Renderer) titled(base string) string {
+	if r.targetName == "" {
+		return base
+	}
+	return base + " (" + r.targetName + ")"
+}
+
+// menuHeader is the heading above a menu form: an accent title and, when an
+// operation just finished, its outcome line.
+type menuHeader struct {
+	theme    inline.InlineTheme
+	title    string
+	notice   string
+	noticeOK bool
+	// gap appends a blank row so a following field label is not glued to
+	// the heading.
+	gap bool
+}
+
+func (h menuHeader) Frame(width int) *inline.Frame {
+	height := 1
+	if h.notice != "" {
+		height++
+	}
+	if h.gap {
+		height++
+	}
+	frame := inline.NewFrame(max(width, 0), height)
+	draw(frame, 0, 0, h.title, h.theme.Accent.Bold(true))
+	if h.notice != "" {
+		marker, tone := "✗", h.theme.Error
+		if h.noticeOK {
+			marker, tone = "✓", h.theme.Success
+		}
+		x := draw(frame, 0, 1, marker+" ", tone)
+		draw(frame, x, 1, h.notice, h.theme.Text)
+	}
+	return frame
+}
+
 func (r *Renderer) chooseInteractive(ctx context.Context, title, description string, options []interactiveOption) (string, error) {
 	if len(options) == 0 {
 		return "", fmt.Errorf("%s has no available options", title)
@@ -215,15 +257,39 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 			Disabled:    option.disabled,
 		})
 	}
-	form := inline.NewForm(title).Add(
-		inline.NewSelectField("selection", description, choices...).Required(),
-	)
+	field := inline.NewSelectField("selection", description, choices...).Required()
+	// Every menu renders its heading as a header frame: it keeps the layout
+	// compact and gives a queued outcome line a stable home under the title.
+	notice, noticeOK := r.takeNotice()
+	header := menuHeader{theme: r.theme, title: title, notice: notice, noticeOK: noticeOK, gap: description != ""}
+	form := inline.NewForm("").SetHeader(header).Add(field)
 	result, err := r.runInteractiveForm(ctx, form)
 	if err != nil {
 		return "", err
 	}
 	selected, _ := result["selection"].(string)
 	return selected, nil
+}
+
+// showRuns keeps the target's run history table in scrollback.
+func (r *Renderer) showRuns(ctx context.Context) error {
+	result, err := r.service.Runs(ctx, "")
+	if err != nil {
+		return r.notice(false, err.Error())
+	}
+	var rendered strings.Builder
+	if err := textrenderer.Runs(&rendered, result, r.targetName); err != nil {
+		return err
+	}
+	if r.interactiveRenderer == nil {
+		return nil
+	}
+	for line := range strings.SplitSeq(strings.TrimRight(rendered.String(), "\n"), "\n") {
+		if err := r.interactiveRenderer.Println(line); err != nil {
+			return err
+		}
+	}
+	return r.interactiveRenderer.Println("")
 }
 
 // showInteractiveMessage keeps a titled block in scrollback and returns to the menu.
@@ -242,15 +308,35 @@ func (r *Renderer) showInteractiveMessage(_ context.Context, title, description 
 }
 
 // notice keeps one status line in scrollback: a green check or a red cross.
+// notice queues an outcome line. The next menu renders it inside its header
+// instead of scattering it through scrollback; a session that exits first
+// flushes it so direct operations still report.
 func (r *Renderer) notice(ok bool, message string) error {
 	if r.interactiveRenderer == nil {
 		return nil
 	}
-	p := r.painter()
-	if ok {
-		return r.interactiveRenderer.Println(p.Success("✓") + " " + message)
+	r.noticeText, r.noticeOK = message, ok
+	return nil
+}
+
+// takeNotice consumes the pending notice.
+func (r *Renderer) takeNotice() (string, bool) {
+	text, ok := r.noticeText, r.noticeOK
+	r.noticeText, r.noticeOK = "", false
+	return text, ok
+}
+
+func (r *Renderer) flushNotice() {
+	text, ok := r.takeNotice()
+	if text == "" || r.interactiveRenderer == nil {
+		return
 	}
-	return r.interactiveRenderer.Println(p.Error("✗") + " " + message)
+	p := r.painter()
+	marker := p.Error("✗")
+	if ok {
+		marker = p.Success("✓")
+	}
+	_ = r.interactiveRenderer.Println(marker + " " + text)
 }
 
 func (r *Renderer) confirmInteractive(ctx context.Context, title, description string) (bool, error) {

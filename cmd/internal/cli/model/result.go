@@ -2,7 +2,11 @@
 // target adapters, and presentation adapters.
 package model
 
-import "github.com/galaxy-io/filament"
+import (
+	"time"
+
+	"github.com/galaxy-io/filament"
+)
 
 // DiscoverRequest describes target-side resource discovery.
 type DiscoverRequest struct {
@@ -79,11 +83,15 @@ type ConnectionList struct {
 }
 
 // ConnectionSummary is the presentation-neutral subset of a connection used
-// by list surfaces.
+// by list surfaces. Replication and UpdatedAt are target-owned and blank on
+// targets that do not track them.
 type ConnectionSummary struct {
 	Name        string
 	Connector   string
 	Description string
+	Replication string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // PipelineList is the result of listing saved pipelines.
@@ -101,6 +109,28 @@ type PipelineSummary struct {
 	AllResources  bool
 	SyncMode      string
 	WriteMode     string
+	Schedule      string
+	LastRunStatus string
+	LastRunAt     time.Time
+	UpdatedAt     time.Time
+}
+
+// RunList is the result of listing a target's run history.
+type RunList struct {
+	Items []RunSummary
+}
+
+// RunSummary describes one historical run.
+type RunSummary struct {
+	ID        string
+	Pipeline  string
+	Version   string
+	Status    string
+	Records   int64
+	Bytes     int64
+	StartedAt time.Time
+	EndedAt   time.Time
+	Error     string
 }
 
 // ResourceList is the result of discovering resources for a source.

@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -213,6 +214,24 @@ func Count(value int64) string {
 
 func trimZero(text string) string {
 	return strings.TrimSuffix(text, ".0")
+}
+
+// Bytes renders a byte count in 1024-based units for table cells.
+func Bytes(value int64) string {
+	if value <= 0 {
+		return "–"
+	}
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	amount := float64(value)
+	unit := 0
+	for amount >= 1024 && unit < len(units)-1 {
+		amount /= 1024
+		unit++
+	}
+	if unit == 0 {
+		return strconv.FormatInt(value, 10) + " B"
+	}
+	return strconv.FormatFloat(amount, 'f', 1, 64) + " " + units[unit]
 }
 
 // Elapsed renders a duration the way a status line wants it: 12ms, 1.3s, 39s.

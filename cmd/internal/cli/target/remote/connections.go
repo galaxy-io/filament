@@ -140,7 +140,25 @@ func (t *Target) connectionNamesByID(ctx context.Context) (map[string]string, er
 func connectionFromProto(item *ingestionv1.Connection) model.Connection {
 	return model.Connection{
 		Metadata: model.EntityMetadata{ID: item.GetId(), Revision: revisionOf(item.GetVersion())},
-		Type:     item.GetConnector(),
-		Config:   configMap(item.GetConfig()),
+		Info: model.ConnectionInfo{
+			Replication: replicationString(item.GetReplication()),
+			CreatedAt:   timeFromMillis(item.GetCreatedAt()),
+			UpdatedAt:   timeFromMillis(item.GetUpdatedAt()),
+		},
+		Type:   item.GetConnector(),
+		Config: configMap(item.GetConfig()),
+	}
+}
+
+func replicationString(mode ingestionv1.ReplicationMode) string {
+	switch mode {
+	case ingestionv1.ReplicationMode_REPLICATION_MODE_STANDARD:
+		return "standard"
+	case ingestionv1.ReplicationMode_REPLICATION_MODE_CDC:
+		return "cdc"
+	case ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED:
+		return ""
+	default:
+		return ""
 	}
 }

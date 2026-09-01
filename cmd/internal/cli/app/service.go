@@ -58,6 +58,12 @@ type Target interface {
 	RunTarget
 }
 
+// RunHistoryTarget is an optional target capability: the target retains run
+// history that can be listed. In-process targets keep none.
+type RunHistoryTarget interface {
+	ListRuns(ctx context.Context, pipeline string) (model.RunList, error)
+}
+
 // InProcessTarget is an optional target capability: the target executes
 // connector work in-process and needs run configuration fully compiled
 // client-side. Targets without it validate and execute runs on their own
@@ -138,9 +144,20 @@ func (s *Service) Connections(ctx context.Context, kind string) (model.Connectio
 		description, _ := catalog.Description(kind, item.Connection.Type)
 		result.Items = append(result.Items, model.ConnectionSummary{
 			Name: item.Name, Connector: item.Connection.Type, Description: description,
+			Replication: item.Connection.Info.Replication,
+			CreatedAt:   item.Connection.Info.CreatedAt, UpdatedAt: item.Connection.Info.UpdatedAt,
 		})
 	}
 	return result, nil
+}
+
+// Runs lists the selected target's run history, optionally for one pipeline.
+func (s *Service) Runs(ctx context.Context, pipeline string) (model.RunList, error) {
+	target, ok := s.target.(RunHistoryTarget)
+	if !ok {
+		return model.RunList{}, errors.New("this target keeps no run history")
+	}
+	return target.ListRuns(ctx, pipeline)
 }
 
 // Pipelines lists pipelines from the selected target.
@@ -156,6 +173,8 @@ func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
 			Name: item.Name, Source: pipeline.Source.Ref, Sink: pipeline.Sink.Ref,
 			ResourceCount: len(pipeline.Resources), AllResources: len(pipeline.Resources) == 0,
 			SyncMode: pipeline.SyncMode, WriteMode: pipeline.WriteMode,
+			Schedule: pipeline.Info.Schedule, LastRunStatus: pipeline.Info.LastRunStatus,
+			LastRunAt: pipeline.Info.LastRunAt, UpdatedAt: pipeline.Info.UpdatedAt,
 		})
 	}
 	return result, nil

@@ -23,6 +23,13 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		return a.printRunHelp(ctx, args)
 	}
+	if args[0] == "ls" || args[0] == "list" {
+		pipeline := ""
+		if len(args) > 1 {
+			pipeline = args[1]
+		}
+		return a.listRuns(ctx, pipeline)
+	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err

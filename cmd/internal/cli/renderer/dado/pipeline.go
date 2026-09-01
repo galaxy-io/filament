@@ -3,6 +3,7 @@ package dado
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/atterpac/dado/inline"
@@ -10,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 func (r *Renderer) managePipelines(ctx context.Context) error {
@@ -317,7 +319,8 @@ func pipelineDescription(pipeline model.Pipeline) string {
 		pipeline.Source.Ref, pipeline.Sink.Ref, resources, pipeline.SyncMode, pipeline.WriteMode)
 }
 
-// pipelineMenuOptions lists pipelines as the boxed Name, Source, Sink table.
+// pipelineMenuOptions lists pipelines as a boxed table matching the flag
+// surface's columns.
 func pipelineMenuOptions(items []model.PipelineSummary) []interactiveOption {
 	if len(items) == 0 {
 		return nil
@@ -325,8 +328,17 @@ func pipelineMenuOptions(items []model.PipelineSummary) []interactiveOption {
 	rows := make([][]string, 0, len(items))
 	values := make([]string, 0, len(items))
 	for _, pipeline := range items {
-		rows = append(rows, []string{pipeline.Name, pipeline.Source, pipeline.Sink})
+		resources := strconv.Itoa(pipeline.ResourceCount)
+		if pipeline.AllResources {
+			resources = "All"
+		}
+		rows = append(rows, []string{
+			pipeline.Name, pipeline.Source, pipeline.Sink, resources,
+			infoValue(textrenderer.TitleCase(pipeline.SyncMode)), infoValue(textrenderer.TitleCase(pipeline.WriteMode)),
+			infoValue(pipeline.Schedule), textrenderer.LastRunCell(pipeline.LastRunStatus, pipeline.LastRunAt),
+			textrenderer.Stamp(pipeline.UpdatedAt),
+		})
 		values = append(values, pipeline.Name)
 	}
-	return boxedMenu([]string{"Name", "Source", "Sink"}, rows, values)
+	return boxedMenu([]string{"Name", "Source", "Sink", "Resources", "Sync", "Write", "Schedule", "Last run", "Updated"}, rows, values)
 }

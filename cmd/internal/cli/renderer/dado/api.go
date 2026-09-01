@@ -32,6 +32,8 @@ type Renderer struct {
 	interactiveRenderer     *inline.Renderer
 	theme                   inline.InlineTheme
 	paint                   style.Painter
+	noticeText              string
+	noticeOK                bool
 }
 
 // Options configures an interactive renderer.

@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // ConfigVersion is the current configuration document version.
 const ConfigVersion = 1
 
@@ -23,8 +25,17 @@ type EntityMetadata struct {
 // Connection is a persisted source or sink configuration.
 type Connection struct {
 	Metadata EntityMetadata `json:"-" yaml:"-"`
+	Info     ConnectionInfo `json:"-" yaml:"-"`
 	Type     string         `json:"type" yaml:"type"`
 	Config   map[string]any `json:"config,omitempty" yaml:"config,omitempty"`
+}
+
+// ConnectionInfo carries target-owned descriptive metadata. Local targets
+// leave it zero; remote targets fill it from the deployment.
+type ConnectionInfo struct {
+	Replication string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // NamedConnection identifies a connection returned by a target query.
@@ -37,11 +48,22 @@ type NamedConnection struct {
 // Pipeline is a persisted source-to-sink pipeline.
 type Pipeline struct {
 	Metadata  EntityMetadata `json:"-" yaml:"-"`
+	Info      PipelineInfo   `json:"-" yaml:"-"`
 	Source    PipelineNode   `json:"source" yaml:"source"`
 	Sink      PipelineNode   `json:"sink" yaml:"sink"`
 	Resources []string       `json:"resources,omitempty" yaml:"resources,omitempty"`
 	SyncMode  string         `json:"sync_mode" yaml:"sync_mode"`
 	WriteMode string         `json:"write_mode" yaml:"write_mode"`
+}
+
+// PipelineInfo carries target-owned descriptive metadata. Local targets
+// leave it zero; remote targets fill it from the deployment.
+type PipelineInfo struct {
+	Schedule      string
+	LastRunStatus string
+	LastRunAt     time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // NamedPipeline identifies a pipeline returned by a target query.

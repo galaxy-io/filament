@@ -40,6 +40,7 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		a.connectionCommand("sink"),
 		a.pipelineCommand(),
 		a.runCommandDefinition(),
+		a.runsCommand(),
 		a.configCommand(),
 		a.contextCommand(),
 		a.authCommand(),

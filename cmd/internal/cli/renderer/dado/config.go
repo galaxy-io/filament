@@ -6,7 +6,7 @@ import (
 
 func (r *Renderer) manageInteractiveConfig(ctx context.Context) error {
 	for {
-		description := r.configPath
+		title, description := "Configuration", r.configPath
 		options := []interactiveOption{{label: "Validate", value: "validate"}}
 		if r.configPath != "" && r.openConfigurationEditor != nil {
 			options = append(options,
@@ -14,10 +14,10 @@ func (r *Renderer) manageInteractiveConfig(ctx context.Context) error {
 				interactiveOption{label: "Show path", value: "path"},
 			)
 		} else {
-			description = r.targetName + " target"
+			title, description = r.titled("Configuration"), ""
 		}
 		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-		action, err := r.chooseInteractive(ctx, "Configuration", description, options)
+		action, err := r.chooseInteractive(ctx, title, description, options)
 		if err != nil || action == interactiveBack {
 			return err
 		}

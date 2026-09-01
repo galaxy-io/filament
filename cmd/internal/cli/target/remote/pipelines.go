@@ -35,9 +35,9 @@ var writeModeFromString = map[string]ingestionv1.WriteMode{
 
 // ListPipelines returns every pipeline flattened to the CLI shape.
 func (t *Target) ListPipelines(ctx context.Context) ([]model.NamedPipeline, error) {
-	response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{}))
+	response, err := t.listPipelines(ctx)
 	if err != nil {
-		return nil, t.rpcError(err)
+		return nil, err
 	}
 	names, err := t.connectionNamesByID(ctx)
 	if err != nil {
@@ -129,10 +129,20 @@ func (t *Target) DeletePipeline(ctx context.Context, name string, metadata model
 	return t.rpcError(err)
 }
 
-func (t *Target) findPipeline(ctx context.Context, name string) (*ingestionv1.Pipeline, error) {
-	response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{}))
+func (t *Target) listPipelines(ctx context.Context) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
+	response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{
+		IncludeLastRun: true, IncludeSchedule: true,
+	}))
 	if err != nil {
 		return nil, t.rpcError(err)
+	}
+	return response, nil
+}
+
+func (t *Target) findPipeline(ctx context.Context, name string) (*ingestionv1.Pipeline, error) {
+	response, err := t.listPipelines(ctx)
+	if err != nil {
+		return nil, err
 	}
 	for _, item := range response.Msg.GetPipelines() {
 		if item.GetName() == name {
@@ -200,6 +210,13 @@ func pipelineFromProto(item *ingestionv1.Pipeline, names map[string]string) mode
 		Metadata: model.EntityMetadata{
 			ID:       item.GetId(),
 			Revision: revisionOf(item.GetCurrentVersion().GetVersion()),
+		},
+		Info: model.PipelineInfo{
+			Schedule:      item.GetSchedule().GetConfig().GetCron(),
+			LastRunStatus: runStatusString(item.GetLastRun().GetStatus()),
+			LastRunAt:     timeFromMillis(item.GetLastRun().GetStartedAt()),
+			CreatedAt:     timeFromMillis(item.GetCreatedAt()),
+			UpdatedAt:     timeFromMillis(item.GetUpdatedAt()),
 		},
 	}
 	graph := item.GetCurrentVersion().GetGraph()
