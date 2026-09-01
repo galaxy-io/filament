@@ -80,12 +80,12 @@ func NewService(target Target) *Service {
 	return &Service{target: target}
 }
 
-// Catalog returns the connectors the target supports.
+// Catalog returns connector metadata from the selected target.
 func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 	return s.target.Catalog(ctx)
 }
 
-// Configuration assembles the saved connections and pipelines into one document.
+// Configuration assembles the selected target's connections and pipelines.
 func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 	document := model.NewDocument()
 	for _, kind := range []string{"source", "sink"} {
@@ -152,7 +152,7 @@ func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
 	return result, nil
 }
 
-// Discover lists the resources a connector configuration exposes.
+// Discover returns resources available for a connector request.
 func (s *Service) Discover(ctx context.Context, request model.DiscoverRequest) (model.ResourceList, error) {
 	return s.target.Discover(ctx, request)
 }
@@ -172,7 +172,7 @@ func (s *Service) SignalRun(ctx context.Context, run model.RunRef, signal filame
 	return s.target.SignalRun(ctx, run, signal)
 }
 
-// ConfigurationLocation returns the configuration file path, or empty when the target has none.
+// ConfigurationLocation returns the raw configuration path when supported.
 func (s *Service) ConfigurationLocation() string {
 	if target, ok := s.target.(RawConfigurationTarget); ok {
 		return target.ConfigurationLocation()
@@ -180,7 +180,7 @@ func (s *Service) ConfigurationLocation() string {
 	return ""
 }
 
-// ReadConfiguration returns the raw configuration for targets that expose one.
+// ReadConfiguration returns the raw configuration when supported.
 func (s *Service) ReadConfiguration(ctx context.Context) ([]byte, error) {
 	target, ok := s.target.(RawConfigurationTarget)
 	if !ok {
@@ -189,7 +189,7 @@ func (s *Service) ReadConfiguration(ctx context.Context) ([]byte, error) {
 	return target.ReadConfiguration(ctx)
 }
 
-// WriteConfiguration replaces the raw configuration for targets that expose one.
+// WriteConfiguration replaces the raw configuration when supported.
 func (s *Service) WriteConfiguration(ctx context.Context, data []byte) error {
 	target, ok := s.target.(RawConfigurationTarget)
 	if !ok {
