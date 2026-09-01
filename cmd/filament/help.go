@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
@@ -255,7 +256,7 @@ func printSchemaFlags(out *helpOutput, prefix string, schema filament.ConfigSche
 			required = " (required)"
 		}
 		out.printf("  %-32s %s%s\n", name+" "+fieldTypeName(field.Type), field.Help, required)
-		if isSecretField(field) {
+		if cliapp.IsSecretField(field) {
 			out.printf("  %-32s environment-variable reference (NAME, $NAME, or ${NAME})\n", name+"-env VARIABLE")
 		}
 	}

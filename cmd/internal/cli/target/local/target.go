@@ -43,49 +43,6 @@ func (t *Target) Configuration(_ context.Context) (model.Document, error) {
 	return doc, err
 }
 
-// ListConnections lists locally saved source or sink connections.
-func (t *Target) ListConnections(_ context.Context, kind string) (model.ConnectionList, error) {
-	doc, _, err := t.store.Load()
-	if err != nil {
-		return model.ConnectionList{}, err
-	}
-	connections, err := connectionsOfKind(doc, kind)
-	if err != nil {
-		return model.ConnectionList{}, err
-	}
-	result := model.ConnectionList{Kind: kind, Items: make([]model.ConnectionSummary, 0, len(connections))}
-	for _, name := range sortedKeys(connections) {
-		connection := connections[name]
-		description, _ := t.catalog.Description(kind, connection.Type)
-		result.Items = append(result.Items, model.ConnectionSummary{
-			Name: name, Connector: connection.Type, Description: description,
-		})
-	}
-	return result, nil
-}
-
-// ListPipelines lists locally saved pipelines.
-func (t *Target) ListPipelines(_ context.Context) (model.PipelineList, error) {
-	doc, _, err := t.store.Load()
-	if err != nil {
-		return model.PipelineList{}, err
-	}
-	result := model.PipelineList{Items: make([]model.PipelineSummary, 0, len(doc.Pipelines))}
-	for _, name := range sortedKeys(doc.Pipelines) {
-		pipeline := doc.Pipelines[name]
-		result.Items = append(result.Items, model.PipelineSummary{
-			Name:          name,
-			Source:        pipeline.Source.Ref,
-			Sink:          pipeline.Sink.Ref,
-			ResourceCount: len(pipeline.Resources),
-			AllResources:  len(pipeline.Resources) == 0,
-			SyncMode:      pipeline.SyncMode,
-			WriteMode:     pipeline.WriteMode,
-		})
-	}
-	return result, nil
-}
-
 // PutConnection adds or replaces a local connection.
 func (t *Target) PutConnection(_ context.Context, kind, name string, connection model.Connection) error {
 	if kind != "source" && kind != "sink" {
@@ -122,7 +79,15 @@ func (t *Target) Discover(ctx context.Context, request model.DiscoverRequest) (m
 	if !ok {
 		return model.ResourceList{}, fmt.Errorf("source connector %q does not support resource discovery", request.Connector)
 	}
-	if err := source.Configure(ctx, filament.NewConfig(request.Config)); err != nil {
+	spec, ok := t.catalog.Sources[request.Connector]
+	if !ok {
+		return model.ResourceList{}, fmt.Errorf("unknown source connector %q", request.Connector)
+	}
+	config, err := cliapp.ResolveConfigSecrets(spec.Config, request.Config, os.LookupEnv)
+	if err != nil {
+		return model.ResourceList{}, fmt.Errorf("source %q: %w", request.Source, err)
+	}
+	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
 		return model.ResourceList{}, fmt.Errorf("configure source %q: %w", request.Source, err)
 	}
 	defer func() { _ = source.Teardown(ctx) }()
@@ -176,24 +141,4 @@ func (t *Target) WriteConfiguration(_ context.Context, data []byte) error {
 		return fmt.Errorf("parse YAML tree: %w", err)
 	}
 	return t.store.Write(&root)
-}
-
-func connectionsOfKind(doc model.Document, kind string) (map[string]model.Connection, error) {
-	switch kind {
-	case "source":
-		return doc.Sources, nil
-	case "sink":
-		return doc.Sinks, nil
-	default:
-		return nil, fmt.Errorf("unknown connection kind %q", kind)
-	}
-}
-
-func sortedKeys[V any](values map[string]V) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }

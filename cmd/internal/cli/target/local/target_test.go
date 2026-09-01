@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
@@ -21,6 +22,7 @@ func TestTargetConfigurationLifecycle(t *testing.T) {
 		},
 	})
 	ctx := context.Background()
+	service := cliapp.NewService(target)
 
 	if err := target.PutConnection(ctx, "source", "demo", model.Connection{Type: "sample"}); err != nil {
 		t.Fatal(err)
@@ -35,14 +37,14 @@ func TestTargetConfigurationLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	connections, err := target.ListConnections(ctx, "source")
+	connections, err := service.Connections(ctx, "source")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(connections.Items) != 1 || connections.Items[0].Name != "demo" || connections.Items[0].Description != "Synthetic source" {
 		t.Fatalf("connections = %#v", connections)
 	}
-	pipelines, err := target.ListPipelines(ctx)
+	pipelines, err := service.Pipelines(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

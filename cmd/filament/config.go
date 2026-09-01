@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"gopkg.in/yaml.v3"
 )
@@ -23,17 +24,16 @@ func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {
 	location := a.service.ConfigurationLocation()
 	switch args[0] {
 	case "path":
+		if location == "" {
+			return cliapp.ErrRawConfigurationUnsupported
+		}
 		_, err := fmt.Fprintln(a.stdout, location)
 		return err
 	case "validate":
-		doc, err := a.service.Configuration(ctx)
-		if err != nil {
+		if err := a.service.ValidateConfiguration(ctx); err != nil {
 			return err
 		}
-		if err := validateDocument(doc, a.catalog); err != nil {
-			return err
-		}
-		_, err = fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", location)
+		_, err := fmt.Fprintf(a.statusWriter(), "%s is structurally valid.\n", location)
 		return err
 	case "edit":
 		return a.editConfig(ctx)
@@ -88,7 +88,7 @@ func (a *cliApp) editConfig(ctx context.Context) error {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
 	doc.Normalize()
-	if err := validateDocument(doc, a.catalog); err != nil {
+	if err := cliapp.ValidateDocument(doc, a.catalog); err != nil {
 		return fmt.Errorf("edited config is invalid; recovery file kept at %s: %w", recoveryPath, err)
 	}
 	if err := a.service.WriteConfiguration(ctx, data); err != nil {

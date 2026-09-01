@@ -12,6 +12,7 @@ type DiscoverRequest struct {
 
 // RunResult summarizes a completed run.
 type RunResult struct {
+	Run     string
 	Records int64
 	Bytes   int64
 }

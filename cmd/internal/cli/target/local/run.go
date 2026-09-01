@@ -3,8 +3,12 @@ package local
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/galaxy-io/filament"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/datastore/memory"
 	"github.com/galaxy-io/filament/eventbus"
@@ -16,6 +20,30 @@ import (
 
 // Run executes a run in-process and reports normalized resource progress.
 func (t *Target) Run(ctx context.Context, spec filament.RunSpec, observe func(model.RunEvent)) (model.RunResult, error) {
+	if spec.Tenant == "" {
+		spec.Tenant = "local"
+	}
+	if spec.Run == "" {
+		spec.Run = filament.RunID("cli-" + strconv.FormatInt(time.Now().UnixNano(), 36))
+	}
+	source, ok := t.catalog.Sources[spec.Source.Connector]
+	if !ok {
+		return model.RunResult{}, fmt.Errorf("unknown source connector %q", spec.Source.Connector)
+	}
+	sourceConfig, err := cliapp.ResolveConfigSecrets(source.Config, spec.Source.Config, os.LookupEnv)
+	if err != nil {
+		return model.RunResult{}, fmt.Errorf("source connector %q: %w", spec.Source.Connector, err)
+	}
+	sink, ok := t.catalog.Sinks[spec.Sink.Connector]
+	if !ok {
+		return model.RunResult{}, fmt.Errorf("unknown sink connector %q", spec.Sink.Connector)
+	}
+	sinkConfig, err := cliapp.ResolveConfigSecrets(sink.Config, spec.Sink.Config, os.LookupEnv)
+	if err != nil {
+		return model.RunResult{}, fmt.Errorf("sink connector %q: %w", spec.Sink.Connector, err)
+	}
+	spec.Source.Config = sourceConfig
+	spec.Sink.Config = sinkConfig
 	bus := inproc.New(inproc.WithBuffer(1024))
 	defer func() { _ = bus.Close() }()
 	subscription, err := bus.Subscribe(events.RunPattern(spec.Tenant, spec.Run), eventbus.SubOpts{})
@@ -63,7 +91,7 @@ func (t *Target) Run(ctx context.Context, spec filament.RunSpec, observe func(mo
 				notifyRunObserver(observe, model.RunEvent{Resource: fact.Resource, Status: "failed", Error: payload.Error})
 			case events.RunCompleted.Name():
 				payload := fact.Data.(events.RunCompletedEvent)
-				return model.RunResult{Records: payload.Records, Bytes: payload.Bytes}, nil
+				return model.RunResult{Run: string(spec.Run), Records: payload.Records, Bytes: payload.Bytes}, nil
 			case events.RunFailed.Name():
 				return model.RunResult{}, fmt.Errorf("run failed: %s", fact.Data.(events.RunFailedEvent).Error)
 			case events.RunPartial.Name():

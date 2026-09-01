@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/galaxy-io/filament"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
@@ -30,74 +30,55 @@ func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []s
 		}
 		return textrenderer.Connections(a.stdout, result)
 	}
-	doc, err := a.service.Configuration(ctx)
+	document, err := a.service.Configuration(ctx)
 	if err != nil {
 		return err
 	}
 	if helpRequested(args[1:]) {
-		return a.printConnectionOperationHelp(kind, args[0], args[1:], doc)
+		return a.printConnectionOperationHelp(kind, args[0], args[1:], document)
 	}
 	switch args[0] {
 	case "discover":
 		if kind != "source" {
 			return fmt.Errorf("discover is only available for sources")
 		}
-		return a.discoverSource(ctx, args[1:], doc)
+		return a.discoverSource(ctx, args[1:], document)
 	case "create", "edit":
-		return a.changeConnection(ctx, args[0], kind, args[1:], doc)
+		return a.changeConnection(ctx, args[0], kind, args[1:], document)
 	case "delete":
-		return a.deleteConnection(ctx, kind, args[1:], doc)
+		return a.deleteConnection(ctx, kind, args[1:], document)
 	default:
 		return fmt.Errorf("unknown %s operation %q", kind, args[0])
 	}
 }
 
-func (a *cliApp) changeConnection(ctx context.Context, operation, kind string, args []string, doc climodel.Document) error {
+func (a *cliApp) changeConnection(ctx context.Context, operation, kind string, args []string, document climodel.Document) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
 	}
 	name := firstPositional(parsed)
-	var existing *climodel.Connection
-	if operation == "edit" {
-		if name == "" {
-			return fmt.Errorf("usage: filament %s edit <name> [flags]", kind)
-		}
-		current, ok := connectionMap(kind, doc)[name]
-		if !ok {
-			return fmt.Errorf("%s %q does not exist", kind, name)
-		}
-		existing = &current
-	} else if name != "" {
-		if _, duplicate := connectionMap(kind, doc)[name]; duplicate {
-			return fmt.Errorf("%s %q already exists", kind, name)
-		}
-	}
 	if name == "" {
 		return fmt.Errorf("%s name is required; example: filament %s %s production --%s-connector postgres --%s-dsn-env POSTGRES_DSN", kind, kind, operation, kind, kind)
 	}
-	conn, err := a.connectionFromFlags(kind, name, existing, parsed.flags)
+	var existing *climodel.Connection
+	if current, ok := connectionMap(kind, document)[name]; ok {
+		existing = &current
+	}
+	if operation == "edit" && existing == nil {
+		return fmt.Errorf("%s %q does not exist", kind, name)
+	}
+	request, err := a.connectionRequestFromFlags(operation, kind, name, existing, parsed.flags)
 	if err != nil {
 		return err
 	}
-	testDoc := doc
-	if kind == "source" {
-		testDoc.Sources = cloneMap(doc.Sources)
-		testDoc.Sources[name] = conn
-	} else {
-		testDoc.Sinks = cloneMap(doc.Sinks)
-		testDoc.Sinks[name] = conn
-	}
-	if err := validateDocument(testDoc, a.catalog); err != nil {
-		return err
-	}
-	if err := a.service.PutConnection(ctx, kind, name, conn); err != nil {
+	if _, err := a.service.SaveConnection(ctx, request); err != nil {
 		return err
 	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s %s", pastTense(operation), name, kind))
 }
 
-func (a *cliApp) deleteConnection(ctx context.Context, kind string, args []string, doc climodel.Document) error {
+func (a *cliApp) deleteConnection(ctx context.Context, kind string, args []string, document climodel.Document) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -113,145 +94,62 @@ func (a *cliApp) deleteConnection(ctx context.Context, kind string, args []strin
 	if err := rejectUnknownFlags(parsed.flags, map[string]bool{"force": true}); err != nil {
 		return err
 	}
-	if err := ensureConnectionUnreferenced(kind, name, doc); err != nil {
-		return err
-	}
-	if _, ok := connectionMap(kind, doc)[name]; !ok {
+	if _, ok := connectionMap(kind, document)[name]; !ok {
 		return fmt.Errorf("%s %q does not exist", kind, name)
 	}
 	if !force {
 		confirmed, err := a.confirmDelete(kind, name)
-		if err != nil {
+		if err != nil || !confirmed {
 			return err
 		}
-		if !confirmed {
-			return nil
-		}
 	}
-	if err := a.service.DeleteConnection(ctx, kind, name); err != nil {
+	if err := a.service.DeleteSavedConnection(ctx, kind, name); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(a.statusWriter(), "Deleted %s %q.\n", kind, name)
 	return err
 }
 
-func (a *cliApp) connectionFromFlags(kind, name string, existing *climodel.Connection, flags map[string][]string) (climodel.Connection, error) {
-	conn, prefix, err := initializeConnection(kind, name, existing, flags)
-	if err != nil {
-		return conn, err
-	}
-	connectorFlag := prefix + "connector"
-	schema, err := a.connectionSchema(kind, conn.Type)
-	if err != nil {
-		return conn, err
-	}
-	allowed := map[string]bool{connectorFlag: true}
-	unsetTargets := map[string]func(){}
-	for _, field := range orderedFields(schema, filament.ScopeConnection) {
-		flagName := prefix + strings.ReplaceAll(field.Name, "_", "-")
-		allowed[flagName] = true
-		fieldName := field.Name
-		unsetTargets[flagName] = func() { delete(conn.Config, fieldName) }
-		if isSecretField(field) {
-			envFlag := flagName + "-env"
-			allowed[envFlag] = true
-			raw, plaintext := flagValue(flags, flagName)
-			envName, fromEnv := flagValue(flags, envFlag)
-			if plaintext && fromEnv {
-				return conn, fmt.Errorf("--%s and --%s cannot be combined", flagName, envFlag)
-			}
-			if fromEnv {
-				name, err := normalizeEnvironmentName(envName)
-				if err != nil {
-					return conn, fmt.Errorf("--%s: %w", envFlag, err)
-				}
-				conn.Config[field.Name] = "env:" + name
-			}
-			if plaintext {
-				if name, referenced := environmentReferenceName(raw); referenced {
-					conn.Config[field.Name] = "env:" + name
-					continue
-				}
-				value, err := parseFlagValue(field, raw)
-				if err != nil {
-					return conn, fmt.Errorf("--%s: %w", flagName, err)
-				}
-				conn.Config[field.Name] = value
-			}
-			continue
-		}
-		if raw, present := flagValue(flags, flagName); present {
-			value, err := parseFlagValue(field, raw)
-			if err != nil {
-				return conn, fmt.Errorf("--%s: %w", flagName, err)
-			}
-			conn.Config[field.Name] = value
-		}
-	}
-	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
-		return conn, err
-	}
-	if err := rejectUnknownFlags(flags, allowed); err != nil {
-		return conn, err
-	}
-	conn.Config = canonicalizeConfig(schema, conn.Config)
-	normalized, err := normalizeSavedSecretReferences(schema, conn.Config)
-	if err != nil {
-		return conn, fmt.Errorf("%s %q: %w", kind, name, err)
-	}
-	conn.Config = normalized
-	return conn, nil
-}
-
-func initializeConnection(kind, name string, existing *climodel.Connection, flags map[string][]string) (climodel.Connection, string, error) {
-	conn := climodel.Connection{Config: map[string]any{}}
-	if existing != nil {
-		conn = *existing
-		conn.Config = cloneConfigMap(existing.Config)
-	}
+func (a *cliApp) connectionRequestFromFlags(operation, kind, name string, existing *climodel.Connection, flags map[string][]string) (cliapp.SaveConnectionRequest, error) {
 	prefix := kind + "-"
 	connectorFlag := prefix + "connector"
-	typeName := lastFlag(flags, connectorFlag)
-	if typeName == "" {
-		typeName = conn.Type
+	connector := lastFlag(flags, connectorFlag)
+	if connector == "" && existing != nil {
+		connector = existing.Type
 	}
-	if typeName == "" {
-		return conn, prefix, fmt.Errorf("%s %q: --%s is required", kind, name, connectorFlag)
+	request := cliapp.SaveConnectionRequest{
+		Create: operation == "create", Kind: kind, Name: name, Connector: connector,
 	}
-	conn.Type = typeName
-	if existing != nil && existing.Type != typeName {
-		conn.Config = map[string]any{}
+	if connector == "" {
+		return request, fmt.Errorf("%s %q: --%s is required", kind, name, connectorFlag)
 	}
-	return conn, prefix, nil
+	schema, err := a.catalog.ConnectionSchema(kind, connector)
+	if err != nil {
+		return request, err
+	}
+	allowed := map[string]bool{connectorFlag: true}
+	patch, unsetNames, err := configPatchFromFlags(schema, filament.ScopeConnection, prefix, flags, allowed, true)
+	if err != nil {
+		return request, err
+	}
+	unsetTargets := map[string]func(){}
+	for flagName, configName := range unsetNames {
+		configName := configName
+		unsetTargets[flagName] = func() { patch.Unset = append(patch.Unset, configName) }
+	}
+	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
+		return request, err
+	}
+	if err := rejectUnknownFlags(flags, allowed); err != nil {
+		return request, err
+	}
+	request.Config = patch
+	return request, nil
 }
 
-func (a *cliApp) connectionSchema(kind, typeName string) (filament.ConfigSchema, error) {
-	if kind == "source" {
-		spec, ok := a.catalog.Sources[typeName]
-		if !ok {
-			return filament.ConfigSchema{}, fmt.Errorf("unknown source connector %q", typeName)
-		}
-		return spec.Config, nil
-	}
-	spec, ok := a.catalog.Sinks[typeName]
-	if !ok {
-		return filament.ConfigSchema{}, fmt.Errorf("unknown sink connector %q", typeName)
-	}
-	return spec.Config, nil
-}
-
-func connectionMap(kind string, doc climodel.Document) map[string]climodel.Connection {
+func connectionMap(kind string, document climodel.Document) map[string]climodel.Connection {
 	if kind == "sink" {
-		return doc.Sinks
+		return document.Sinks
 	}
-	return doc.Sources
-}
-
-func ensureConnectionUnreferenced(kind, name string, doc climodel.Document) error {
-	for pipelineName, p := range doc.Pipelines {
-		if (kind == "source" && p.Source.Ref == name) || (kind == "sink" && p.Sink.Ref == name) {
-			return fmt.Errorf("%s %q is referenced by pipeline %q; delete or edit that pipeline first", kind, name, pipelineName)
-		}
-	}
-	return nil
+	return document.Sources
 }
