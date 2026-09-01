@@ -17,6 +17,7 @@ Usage:
   filament [--config PATH] config <path|validate|edit>
   filament [--config PATH] run <pipeline> [flags]
   filament run --source-connector NAME --sink-connector NAME [flags]
+  filament version
 
 Use --help after a command or operation for its flags. Connector fields always
 use --source-<field> or --sink-<field>. Secret fields accept plaintext values,

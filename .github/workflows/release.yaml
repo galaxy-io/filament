@@ -19,7 +19,9 @@ on:
         type: boolean
 
 permissions:
+  attestations: write
   contents: write
+  id-token: write
   packages: write
 
 concurrency:
@@ -97,5 +99,14 @@ jobs:
       ref: ${{ needs.release.outputs.tag }}
       tag: ${{ needs.release.outputs.tag }}
       publish: true
+      prerelease: ${{ inputs.prerelease }}
+    secrets: inherit
+
+  cli:
+    needs: release
+    uses: ./.github/workflows/cli.yaml
+    with:
+      ref: ${{ needs.release.outputs.tag }}
+      tag: ${{ needs.release.outputs.tag }}
       prerelease: ${{ inputs.prerelease }}
     secrets: inherit
