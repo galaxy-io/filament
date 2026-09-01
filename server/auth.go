@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 
 	"connectrpc.com/connect"
@@ -34,6 +33,7 @@ func (disabledAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.G
 var publicProcedures = map[string]bool{
 	authv1connect.AuthServiceGetAuthConfigProcedure: true,
 	authv1connect.AuthServiceLoginProcedure:         true,
+	authv1connect.AuthServiceLogoutProcedure:        true,
 	authv1connect.AuthServiceRegisterProcedure:      true,
 	authv1connect.AuthServiceAcceptInviteProcedure:  true,
 }
@@ -100,12 +100,14 @@ func (i *authInterceptor) authenticate(ctx context.Context, procedure string, he
 	if publicProcedures[procedure] {
 		return ctx, nil
 	}
-	bearer, ok := strings.CutPrefix(header.Get("Authorization"), "Bearer ")
-	if !ok || bearer == "" {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("missing bearer token"))
-	}
-	caller, err := i.provider.Authenticate(ctx, bearer)
+	caller, err := i.provider.Authenticate(ctx, header)
 	if err != nil {
+		// A provider that says why (an outage, say) keeps its code; anything
+		// else is a rejected credential.
+		var cerr *connect.Error
+		if errors.As(err, &cerr) {
+			return nil, err
+		}
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	if caller.TenantExternalID == "" {

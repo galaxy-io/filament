@@ -69,10 +69,7 @@ const memberColumns = ({
       cell: ({ row }) => (
         <FlexWrapper gap={12} alignItems={AlignItems.CENTER}>
           <FlexItem grow={0} shrink={0} display="flex">
-            <Avatar
-              size={26}
-              seed={row.original.email || row.original.name || row.original.userId}
-            />
+            <Avatar size={26} seed={row.original.userId} />
           </FlexItem>
           <Text weight={TextWeight.MEDIUM} isEllipsis>
             {memberDisplayName(row.original)}

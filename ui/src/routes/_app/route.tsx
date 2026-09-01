@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -8,7 +9,12 @@ import { Flow } from "@/layouts/app/types";
 
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
-import { ensureSession, redirectToSignIn } from "@/auth/oidc";
+import { createGetSessionQueryOptions } from "@/api/queries/auth";
+import { queryClient } from "@/api/queryClient";
+import { transport } from "@/api/transport";
+
+import { DEFAULT_SESSION } from "@/auth/constants";
+import { sessionFromResponse } from "@/auth/utils";
 
 const searchParams = z.object({
   connectionId: z.string().optional().catch(undefined),
@@ -23,17 +29,21 @@ const searchParams = z.object({
 
 export const Route = createFileRoute("/_app")({
   validateSearch: searchParams,
-  beforeLoad: async ({ context, location, preload }) => {
+  beforeLoad: async ({ context, location }) => {
     if (!context.authConfig.issuer) {
-      return;
+      return { session: DEFAULT_SESSION };
     }
-    if (await ensureSession()) {
-      return;
+    try {
+      const response = await queryClient.ensureQueryData(
+        createGetSessionQueryOptions({ transport }),
+      );
+      return { session: sessionFromResponse(response) };
+    } catch (error) {
+      if (ConnectError.from(error).code !== Code.Unauthenticated) {
+        throw error;
+      }
+      throw redirect({ to: "/login", search: { returnTo: location.href } });
     }
-    if (preload) {
-      throw new Error("Unauthenticated");
-    }
-    await redirectToSignIn(location.href);
   },
   component: AppLayout,
 });

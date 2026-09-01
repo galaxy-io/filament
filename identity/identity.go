@@ -6,6 +6,7 @@ package identity
 
 import (
 	"context"
+	"net/http"
 	"slices"
 
 	"github.com/galaxy-io/filament"
@@ -13,16 +14,18 @@ import (
 	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 )
 
-// Provider serves AuthService and authenticates the bearer tokens its
-// session flow hands out. Implementing the generated handler is the bulk of
-// it; Authenticate is the one method the RPC interceptor needs that no
-// service definition covers.
+// Provider serves AuthService and authenticates the credentials its session
+// flow hands out. Implementing the generated handler is the bulk of it;
+// Authenticate is the one method the RPC interceptor needs that no service
+// definition covers.
 type Provider interface {
 	authv1connect.AuthServiceHandler
 
-	// Authenticate resolves a bearer token to its caller, failing when the
-	// token is invalid or carries no tenant.
-	Authenticate(ctx context.Context, bearer string) (Caller, error)
+	// Authenticate resolves the credentials on a request's headers, a bearer
+	// token or the provider's own session cookie, to their caller. It fails
+	// when there are none, they are invalid, or they carry no tenant; a
+	// *connect.Error keeps its code on the way to the client.
+	Authenticate(ctx context.Context, header http.Header) (Caller, error)
 }
 
 // Caller is the authenticated identity behind a request.

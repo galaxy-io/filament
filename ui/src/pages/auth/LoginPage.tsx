@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import { Code, ConnectError } from "@connectrpc/connect";
-import { LinkBreakIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
@@ -14,6 +13,7 @@ import AuthForm, { AuthFormFooter } from "@/layouts/auth/AuthForm";
 
 import { useLoginMutation } from "@/api/mutations/auth";
 
+import { resolveReturnTo } from "@/auth/utils";
 import { getErrorMessage } from "@/utils/errors";
 
 interface LoginPageState {
@@ -29,23 +29,10 @@ const DEFAULT_STATE: LoginPageState = {
 };
 
 const LoginPage = () => {
-  const { authRequest } = useSearch({ from: "/login" });
+  const { returnTo } = useSearch({ from: "/login" });
   const navigate = useNavigate();
   const [state, setState] = useState<LoginPageState>(DEFAULT_STATE);
   const { mutate: login, isPending } = useLoginMutation();
-
-  if (!authRequest) {
-    return (
-      <AuthForm
-        icon={LinkBreakIcon}
-        title="This link expired"
-        subtitle="Sign-in links are good for one attempt. Start again to get a new one."
-        submitLabel="Back to sign in"
-        isPending={false}
-        onSubmit={() => void navigate({ to: "/" })}
-      />
-    );
-  }
 
   const handleSubmit = () => {
     if (state.loginName === "" || state.password === "") {
@@ -54,10 +41,10 @@ const LoginPage = () => {
     }
     setState((prev) => ({ ...prev, error: undefined }));
     login(
-      { authRequestId: authRequest, loginName: state.loginName, password: state.password },
+      { loginName: state.loginName, password: state.password },
       {
-        onSuccess: ({ callbackUrl }) => {
-          window.location.href = callbackUrl;
+        onSuccess: () => {
+          void navigate({ href: resolveReturnTo(returnTo), replace: true });
         },
         onError: (err) => {
           setState((prev) => ({

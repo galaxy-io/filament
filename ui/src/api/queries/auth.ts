@@ -25,6 +25,13 @@ export const createGetAuthConfigQueryOptions = ({ transport }: { transport: Tran
   };
 };
 
+export const createGetSessionQueryOptions = ({ transport }: { transport: Transport }) => {
+  return {
+    ...createQueryOptions(AuthService.method.getSession, {}, { transport }),
+    ...PROBE_QUERY_OPTIONS,
+  };
+};
+
 export const useListMembersQuery = ({
   options = {},
 }: {
