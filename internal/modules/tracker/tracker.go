@@ -4,6 +4,7 @@ package tracker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -88,7 +89,9 @@ func (m *Module) Subscriptions() []host.Subscription {
 // Mount captures the providers this module uses. Cheap, no I/O.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.ds = d.DataStore
-	m.log = d.Log
+	if d.Log != nil {
+		m.log = d.Log.With(filament.Field{Key: "component", Value: "tracker"})
+	}
 	m.mx = d.Metrics
 	return nil
 }
@@ -104,16 +107,49 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	f, err := events.Decode(msg)
 	if err != nil {
+		if m.log != nil {
+			m.log.Trace("foreign event ignored",
+				filament.Field{Key: "event.name", Value: "tracker.fact.ignored"},
+				filament.Field{Key: "stream_sequence", Value: msg.Seq()},
+				filament.Field{Key: "reason", Value: "decode_failed"})
+		}
 		return nil // not a Fact: a foreign publisher on our pattern — skip
+	}
+	if m.log != nil {
+		m.log.Trace("fact received",
+			filament.Field{Key: "event.name", Value: "tracker.fact.received"},
+			filament.Field{Key: "fact_name", Value: f.Name},
+			filament.Field{Key: "tenant_id", Value: string(f.Tenant)},
+			filament.Field{Key: "run_id", Value: string(f.Run)},
+			filament.Field{Key: "resource_name", Value: f.Resource},
+			filament.Field{Key: "stream_sequence", Value: msg.Seq()})
 	}
 	// Terminal folds promote checkpoints and are idempotent. Apply them before
 	// advancing the dedup high-water mark so a failed promotion can be retried.
-	if isTerminalFact(f.Data) {
+	if status, terminal := terminalFactStatus(f.Data); terminal {
 		if err := m.apply(ctx, f); err != nil {
 			return err
 		}
-		_, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
-		return err
+		seen, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+		if err != nil {
+			return err
+		}
+		if m.log != nil {
+			if seen {
+				m.log.Debug("duplicate terminal fact reapplied",
+					filament.Field{Key: "event.name", Value: "tracker.fact.duplicate"},
+					filament.Field{Key: "fact_name", Value: f.Name},
+					filament.Field{Key: "run_id", Value: string(f.Run)},
+					filament.Field{Key: "stream_sequence", Value: msg.Seq()})
+			} else {
+				m.log.Info("run terminal state persisted",
+					filament.Field{Key: "event.name", Value: "tracker.run.terminal_persisted"},
+					filament.Field{Key: "tenant_id", Value: string(f.Tenant)},
+					filament.Field{Key: "run_id", Value: string(f.Run)},
+					filament.Field{Key: "status", Value: status})
+			}
+		}
+		return nil
 	}
 
 	seen, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
@@ -121,19 +157,33 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		return err
 	}
 	if seen {
+		if m.log != nil {
+			m.log.Debug("duplicate fact ignored",
+				filament.Field{Key: "event.name", Value: "tracker.fact.duplicate"},
+				filament.Field{Key: "fact_name", Value: f.Name},
+				filament.Field{Key: "run_id", Value: string(f.Run)},
+				filament.Field{Key: "stream_sequence", Value: msg.Seq()})
+		}
 		return nil // already applied — idempotent no-op
 	}
 
 	return m.apply(ctx, f)
 }
 
-func isTerminalFact(data any) bool {
+func terminalFactStatus(data any) (string, bool) {
 	switch data.(type) {
-	case events.RunCompletedEvent, events.RunFailedEvent, events.RunPartialEvent,
-		events.RunCanceledEvent, events.RunPausedEvent:
-		return true
+	case events.RunCompletedEvent:
+		return "completed", true
+	case events.RunFailedEvent:
+		return "failed", true
+	case events.RunPartialEvent:
+		return "partial", true
+	case events.RunCanceledEvent:
+		return "canceled", true
+	case events.RunPausedEvent:
+		return "paused", true
 	default:
-		return false
+		return "", false
 	}
 }
 
@@ -256,7 +306,9 @@ func (m *Module) applyBatchWritten(ctx context.Context, env events.Envelope, d e
 		if err := m.saveCheckpoint(ctx, env.Run, cp); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
-				m.log.Error("tracker: save checkpoint", err, filament.Field{Key: "run", Value: string(env.Run)})
+				m.log.Error("checkpoint persistence failed", err,
+					filament.Field{Key: "event.name", Value: "tracker.checkpoint.persist_failed"},
+					filament.Field{Key: "run_id", Value: string(env.Run)})
 			}
 		}
 	}
@@ -458,9 +510,10 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 		if _, err := m.persistCheckpoint(ctx, run, cp, false, checkpointReasonResourceCompleted); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
-				m.log.Error("tracker: flush checkpoint", err,
-					filament.Field{Key: "run", Value: string(run)},
-					filament.Field{Key: "resource", Value: resource},
+				m.log.Error("checkpoint flush failed", err,
+					filament.Field{Key: "event.name", Value: "tracker.checkpoint.flush_failed"},
+					filament.Field{Key: "run_id", Value: string(run)},
+					filament.Field{Key: "resource_name", Value: resource},
 					filament.Field{Key: "reason", Value: string(checkpointReasonResourceCompleted)},
 				)
 			}
@@ -491,22 +544,16 @@ func (m *Module) flushRunFor(ctx context.Context, run filament.RunID, promoteCom
 		wrote, err := m.persistCheckpoint(ctx, run, cp, promoteCommitGated, reason)
 		if err != nil {
 			failed++
-			failures = append(failures, err)
+			failures = append(failures, fmt.Errorf("persist checkpoint for resource %q (%s): %w", resource, reason, err))
 			m.observeCheckpointFailure()
-			if m.log != nil {
-				m.log.Error("tracker: flush checkpoint", err,
-					filament.Field{Key: "run", Value: string(run)},
-					filament.Field{Key: "resource", Value: resource},
-					filament.Field{Key: "reason", Value: string(reason)},
-				)
-			}
 		} else if wrote {
 			persisted++
 		}
 	}
 	if m.log != nil {
-		m.log.Info("tracker: checkpoint flush completed",
-			filament.Field{Key: "run", Value: string(run)},
+		m.log.Debug("checkpoint flush completed",
+			filament.Field{Key: "event.name", Value: "tracker.checkpoint.flush_completed"},
+			filament.Field{Key: "run_id", Value: string(run)},
 			filament.Field{Key: "reason", Value: string(reason)},
 			filament.Field{Key: "promote_commit_gated", Value: promoteCommitGated},
 			filament.Field{Key: "pending_checkpoints", Value: len(pending)},
@@ -586,18 +633,20 @@ func (m *Module) logCheckpointPersisted(
 		return
 	}
 	fields := []filament.Field{
-		{Key: "run", Value: string(run)},
-		{Key: "resource", Value: cp.Resource()},
+		{Key: "run_id", Value: string(run)},
+		{Key: "resource_name", Value: cp.Resource()},
 		{Key: "checkpoint_scope", Value: scope},
 		{Key: "read_mode", Value: mode.String()},
 		{Key: "checkpoint_kind", Value: filament.CheckpointKind(cp)},
 		{Key: "reason", Value: string(reason)},
 	}
 	if reason == checkpointReasonProgress {
-		m.log.Debug("tracker: checkpoint persisted", fields...)
+		fields = append(fields, filament.Field{Key: "event.name", Value: "tracker.checkpoint.persisted"})
+		m.log.Trace("checkpoint persisted", fields...)
 		return
 	}
-	m.log.Info("tracker: checkpoint persisted", fields...)
+	fields = append(fields, filament.Field{Key: "event.name", Value: "tracker.checkpoint.persisted"})
+	m.log.Debug("checkpoint persisted", fields...)
 }
 
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.

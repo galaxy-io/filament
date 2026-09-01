@@ -61,6 +61,11 @@ func newRunControl(
 			return nil, nil, fmt.Errorf("runner: subscribe to %s: %w", command.name, err)
 		}
 		control.subs = append(control.subs, sub)
+		if log != nil {
+			log.Trace("control subscription established",
+				filament.Field{Key: "event.name", Value: "runner.control.subscribed"},
+				filament.Field{Key: "control", Value: command.signal.String()})
+		}
 		control.wg.Add(1)
 		go control.pump(ctx, sub, command.name, command.signal)
 	}
@@ -78,13 +83,33 @@ func (c *runControl) pump(ctx context.Context, sub eventbus.Subscription, name s
 				return
 			}
 			fact, err := events.Decode(msg)
-			if err == nil && fact.Name == name && fact.Tenant == c.tenant && fact.Run == c.run && c.request(signal) && c.log != nil {
-				c.log.Info("runner: control requested",
-					filament.Field{Key: "run", Value: string(c.run)},
-					filament.Field{Key: "control", Value: signal.String()},
-				)
+			switch {
+			case err != nil:
+				if c.log != nil {
+					c.log.Warn("control message rejected",
+						filament.Field{Key: "event.name", Value: "runner.control.decode_failed"},
+						filament.Field{Key: "control", Value: signal.String()},
+						filament.Field{Key: "error", Value: err.Error()})
+				}
+			case fact.Name != name || fact.Tenant != c.tenant || fact.Run != c.run:
+				if c.log != nil {
+					c.log.Debug("control message ignored",
+						filament.Field{Key: "event.name", Value: "runner.control.ignored"},
+						filament.Field{Key: "fact_name", Value: fact.Name},
+						filament.Field{Key: "control", Value: signal.String()},
+						filament.Field{Key: "reason", Value: "identity_mismatch"})
+				}
+			case c.request(signal) && c.log != nil:
+				c.log.Info("control requested",
+					filament.Field{Key: "event.name", Value: "runner.control.requested"},
+					filament.Field{Key: "control", Value: signal.String()})
 			}
-			_ = msg.Ack()
+			if err := msg.Ack(); err != nil && c.log != nil {
+				c.log.Warn("control message not acknowledged",
+					filament.Field{Key: "event.name", Value: "runner.control.ack_failed"},
+					filament.Field{Key: "control", Value: signal.String()},
+					filament.Field{Key: "error", Value: err.Error()})
+			}
 		}
 	}
 }
@@ -135,7 +160,15 @@ func (c *runControl) seal() controlSignal {
 func (c *runControl) close() {
 	c.cancelExtract()
 	for _, sub := range c.subs {
-		_ = sub.Close()
+		if err := sub.Close(); err != nil && c.log != nil {
+			c.log.Warn("control subscription close failed",
+				filament.Field{Key: "event.name", Value: "runner.control.close_failed"},
+				filament.Field{Key: "error", Value: err.Error()})
+		}
 	}
 	c.wg.Wait()
+	if c.log != nil {
+		c.log.Trace("control subscriptions closed",
+			filament.Field{Key: "event.name", Value: "runner.control.closed"})
+	}
 }

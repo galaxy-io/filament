@@ -69,7 +69,15 @@ func (h *heartbeat) beat(ctx context.Context) {
 			MemoryPeakBytes: s.MemoryPeakBytes,
 		})
 	if err != nil && h.log != nil {
-		h.log.Error("worker: publish heartbeat", err, filament.Field{Key: "run", Value: string(h.run)})
+		h.log.Warn("heartbeat not published",
+			filament.Field{Key: "event.name", Value: "worker.heartbeat.publish_failed"},
+			filament.Field{Key: "error", Value: err.Error()})
+	} else if h.log != nil {
+		h.log.Trace("heartbeat published",
+			filament.Field{Key: "event.name", Value: "worker.heartbeat.published"},
+			filament.Field{Key: "cpu_seconds", Value: s.CPUSeconds},
+			filament.Field{Key: "memory_bytes", Value: s.MemoryBytes},
+			filament.Field{Key: "memory_peak_bytes", Value: s.MemoryPeakBytes})
 	}
 	if h.mx == nil {
 		return
