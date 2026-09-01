@@ -2,56 +2,59 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
 
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
-const contextHelp = `Context commands
-
-Usage:
-  filament context list
-  filament context current
-  filament context use <name>
+func (a *cliApp) contextCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "context",
+		Short: "Manage contexts",
+		Long: `Manage contexts.
 
 Contexts are stored separately from pipeline configuration and credentials.
-Use --context NAME to select a context for one invocation.
-`
-
-func (a *cliApp) runContextCommand(args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" || helpRequested(args[1:]) {
-		_, err := fmt.Fprint(a.stdout, contextHelp)
-		return err
+Use --context NAME to select a context for one invocation.`,
 	}
-	registry := a.contextRegistry()
-	switch args[0] {
-	case "list":
-		if len(args) != 1 {
-			return fmt.Errorf("usage: filament context list")
-		}
-		return a.listContexts(registry)
-	case "current":
-		if len(args) != 1 {
-			return fmt.Errorf("usage: filament context current")
-		}
-		current, err := registry.Resolve(a.contextName)
-		if err != nil {
-			return err
-		}
-		return textrenderer.CurrentContext(a.stdout, current.Name)
-	case "use":
-		if len(args) != 2 {
-			return fmt.Errorf("usage: filament context use <name>")
-		}
-		selected, err := registry.Use(args[1])
-		if err != nil {
-			return err
-		}
-		return printSuccess(a.statusWriter(), fmt.Sprintf("Switched to context %s", selected.Name))
-	default:
-		return fmt.Errorf("unknown context operation %q", args[0])
-	}
+	cmd.AddCommand(
+		&cobra.Command{
+			Use:   "list",
+			Short: "List contexts",
+			Args:  cobra.NoArgs,
+			RunE: func(*cobra.Command, []string) error {
+				return a.listContexts(a.contextRegistry())
+			},
+		},
+		&cobra.Command{
+			Use:   "current",
+			Short: "Print the current context",
+			Args:  cobra.NoArgs,
+			RunE: func(*cobra.Command, []string) error {
+				current, err := a.contextRegistry().Resolve(a.contextName)
+				if err != nil {
+					return err
+				}
+				return textrenderer.CurrentContext(a.stdout, current.Name)
+			},
+		},
+		&cobra.Command{
+			Use:   "use <name>",
+			Short: "Switch the current context",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(_ *cobra.Command, args []string) error {
+				selected, err := a.contextRegistry().Use(args[0])
+				if err != nil {
+					return err
+				}
+				return printSuccess(a.statusWriter(), fmt.Sprintf("Switched to context %s", selected.Name))
+			},
+		},
+	)
+	return cmd
 }
 
 func (a *cliApp) listContexts(registry *contexts.Registry) error {
@@ -82,7 +85,7 @@ func (a *cliApp) listContexts(registry *contexts.Registry) error {
 			Location: location, Tenant: item.Target.Tenant,
 		})
 	}
-	return textrenderer.Contexts(a.stdout, result)
+	return textrenderer.Contexts(a.stdout, result, filepath.Base(a.contextPath))
 }
 
 func (a *cliApp) contextRegistry() *contexts.Registry {

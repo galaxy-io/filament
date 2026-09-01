@@ -3,11 +3,9 @@ package dado
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"math"
 	"os"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/atterpac/dado/inline"
@@ -16,6 +14,7 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
 
 type resourceProgressUpdate struct {
@@ -32,48 +31,6 @@ type runProgressDone struct {
 	err    error
 }
 
-type resourceProgressState struct {
-	records   int64
-	bytes     int64
-	estimated int64
-	failed    bool
-}
-
-type runSummaryView struct {
-	pipeline  string
-	source    string
-	sink      string
-	resources int
-	result    model.RunResult
-	elapsed   time.Duration
-}
-
-func (summary runSummaryView) Frame(width int) *inline.Frame {
-	theme := inline.RoundedInlineTheme()
-	rows := [][2]string{
-		{"Pipeline", summary.pipeline},
-		{"Route", summary.source + " → " + summary.sink},
-	}
-	if summary.resources > 0 {
-		rows = append(rows, [2]string{"Resources", humanCount(int64(summary.resources))})
-	}
-	rows = append(rows,
-		[2]string{"Duration", humanDuration(summary.elapsed)},
-		[2]string{"Records", humanCount(summary.result.Records)},
-		[2]string{"Transferred", humanBytes(summary.result.Bytes)},
-		[2]string{"Throughput", runThroughput(summary.result, summary.elapsed)},
-	)
-
-	frame := inline.NewFrame(width, len(rows)+2)
-	frame.DrawString(0, 0, theme.Glyphs.Success+" Run completed", theme.Success.Bold(true))
-	for index, row := range rows {
-		y := index + 2
-		frame.DrawString(0, y, row[0], theme.Muted)
-		frame.DrawString(14, y, row[1], theme.Text)
-	}
-	return frame
-}
-
 func (r *Renderer) interactiveRun(ctx context.Context) error {
 	listed, err := r.service.Pipelines(ctx)
 	if err != nil {
@@ -82,10 +39,7 @@ func (r *Renderer) interactiveRun(ctx context.Context) error {
 	if len(listed.Items) == 0 {
 		return r.showInteractiveMessage(ctx, "Run a pipeline", "No saved pipelines. Create a source, sink, and pipeline first.")
 	}
-	options := make([]interactiveOption, 0, len(listed.Items)+1)
-	for _, pipeline := range listed.Items {
-		options = append(options, interactiveOption{label: fmt.Sprintf("%s  ·  %s → %s", pipeline.Name, pipeline.Source, pipeline.Sink), value: pipeline.Name})
-	}
+	options := pipelineMenuOptions(listed.Items)
 	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 	name, err := r.chooseInteractive(ctx, "Run a pipeline", "Choose a saved pipeline", options)
 	if err != nil || name == interactiveBack {
@@ -95,16 +49,45 @@ func (r *Renderer) interactiveRun(ctx context.Context) error {
 }
 
 func (r *Renderer) runInteractivePipeline(ctx context.Context, name string) error {
-	submission, err := r.service.PrepareRun(ctx, cliapp.RunRequest{Pipeline: name})
+	return r.runRequest(ctx, cliapp.RunRequest{Pipeline: name})
+}
+
+// RunRequest renders one run with the live grid. Interruption ends the run quietly;
+// the grid has already reported it.
+func (r *Renderer) RunRequest(ctx context.Context, request cliapp.RunRequest) (runErr error) {
+	renderer := inline.NewRenderer(inline.WithOutput(r.statusWriter()))
+	r.interactiveRenderer = renderer
+	defer func() {
+		runErr = errors.Join(runErr, renderer.Clear(), renderer.Close())
+		r.interactiveRenderer = nil
+	}()
+	if err := r.runRequest(ctx, request); err != nil && !interactiveInterrupted(err) {
+		return err
+	}
+	return nil
+}
+
+func (r *Renderer) runRequest(ctx context.Context, request cliapp.RunRequest) error {
+	submission, err := r.service.PrepareRun(ctx, request)
 	if err != nil {
 		return err
 	}
 	spec := submission.Spec
-	doc, err := r.service.Configuration(ctx)
-	if err != nil {
+	if err := r.announceRun(request.Pipeline, spec); err != nil {
 		return err
 	}
-	resources, _ := r.discoverPipelineResources(ctx, doc.Pipelines[name])
+	var resources []model.ResourceSummary
+	if request.Pipeline != "" {
+		doc, err := r.service.Configuration(ctx)
+		if err != nil {
+			return err
+		}
+		var discoverErr error
+		resources, discoverErr = r.discoverPipelineResources(ctx, doc.Pipelines[request.Pipeline])
+		if err := r.announceDiscovery(discoverErr); err != nil {
+			return err
+		}
+	}
 	if spec.Sink.Connector == "stdout" {
 		if output, ok := r.stdout.(*os.File); ok && term.IsTerminal(int(output.Fd())) {
 			confirmed, confirmErr := r.confirmInteractive(ctx, "Run with the stdout sink?", "Records stream to stdout while progress renders on stderr. Redirect stdout for a clean display.")
@@ -113,25 +96,25 @@ func (r *Renderer) runInteractivePipeline(ctx context.Context, name string) erro
 			}
 		}
 	}
-	startedAt := time.Now()
-	result, err := r.renderInteractiveRun(ctx, submission, resources)
-	if err != nil {
-		return err
-	}
-	resourceCount := len(spec.Resources)
-	if resourceCount == 0 {
-		resourceCount = len(resources)
-	}
-	form := inline.NewForm("").SetHeader(runSummaryView{
-		pipeline:  name,
-		source:    spec.Source.Connector,
-		sink:      spec.Sink.Connector,
-		resources: resourceCount,
-		result:    result,
-		elapsed:   time.Since(startedAt),
-	}).Add(inline.NewSelectField("selection", "", inline.NewChoice(interactiveBack, "Back")).Required())
-	_, err = r.runInteractiveForm(ctx, form)
+	_, err = r.renderInteractiveRun(ctx, submission, resources)
 	return err
+}
+
+func (r *Renderer) announceRun(name string, spec filament.RunSpec) error {
+	route := spec.Source.Connector + " → " + spec.Sink.Connector
+	if name != "" {
+		route = name + " · " + route
+	}
+	return r.interactiveRenderer.Println(r.painter().Title("Running", route))
+}
+
+func (r *Renderer) announceDiscovery(discoverErr error) error {
+	p := r.painter()
+	status := p.Success("Ok")
+	if discoverErr != nil {
+		status = p.Muted("Unavailable")
+	}
+	return r.interactiveRenderer.Println(style.Indent + p.Label("Discovering Resources… ") + status)
 }
 
 func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.RunSubmission, discovered []model.ResourceSummary) (model.RunResult, error) {
@@ -143,12 +126,27 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 	if err != nil {
 		return model.RunResult{}, err
 	}
-	progress, states, err := newRunProgress(spec, discovered)
-	if err != nil {
-		return model.RunResult{}, err
+	view := &runProgressView{theme: r.theme}
+	rows := map[string]*runRow{}
+	addResource := func(name string) {
+		if name == "" || rows[name] != nil {
+			return
+		}
+		row := &runRow{name: name}
+		rows[name] = row
+		view.rows = append(view.rows, row)
 	}
-	addResource := func(name string, estimated int64) error {
-		return addRunResource(progress, states, name, estimated)
+	selected := make(map[string]bool, len(spec.Resources))
+	for _, name := range spec.Resources {
+		selected[name] = true
+	}
+	for _, resource := range discovered {
+		if len(selected) == 0 || selected[resource.Name] {
+			addResource(resource.Name)
+		}
+	}
+	for _, name := range spec.Resources {
+		addResource(name)
 	}
 
 	updates := make(chan resourceProgressUpdate, 256)
@@ -169,8 +167,9 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 		done <- runProgressDone{result: result, err: runErr}
 	}()
 
+	startedAt := time.Now()
 	width := interactiveRenderWidth(r.statusWriter())
-	render := func() error { return r.interactiveRenderer.Render(progress.Frame(width)) }
+	render := func() error { return r.interactiveRenderer.Render(view.Frame(width)) }
 	if err := render(); err != nil {
 		return model.RunResult{}, err
 	}
@@ -179,120 +178,86 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 	for {
 		select {
 		case update := <-updates:
-			if err := applyResourceProgress(progress, states, addResource, update); err != nil {
-				return model.RunResult{}, err
-			}
+			addResource(update.resource)
+			applyRunUpdate(rows[update.resource], update)
 			if err := render(); err != nil {
 				return model.RunResult{}, err
 			}
 		case completed := <-done:
-			for name, state := range states {
-				if state.failed {
-					continue
-				}
-				if completed.err == nil {
-					_ = progress.Complete(name)
-				} else {
-					_ = progress.Cancel(name, "run stopped")
-				}
-			}
-			return completed.result, errors.Join(completed.err, render())
+			drainRunUpdates(updates, rows, addResource)
+			settleRows(view, completed.err)
+			return completed.result, errors.Join(completed.err, r.finishRun(view, completed.result, time.Since(startedAt), completed.err))
 		case <-ticker.C:
+			view.tick++
 			if err := render(); err != nil {
 				return model.RunResult{}, err
 			}
 		case <-ctx.Done():
-			for name := range states {
-				_ = progress.Cancel(name, "interrupted")
-			}
-			return model.RunResult{}, errors.Join(ctx.Err(), render())
+			settleRows(view, ctx.Err())
+			return model.RunResult{}, errors.Join(ctx.Err(), r.finishRun(view, model.RunResult{}, time.Since(startedAt), ctx.Err()))
 		}
 	}
 }
 
-func newRunProgress(spec filament.RunSpec, discovered []model.ResourceSummary) (*inline.MultiProgress, map[string]*resourceProgressState, error) {
-	progress := inline.NewMultiProgress(
-		fmt.Sprintf("Filament run · %s → %s", spec.Source.Connector, spec.Sink.Connector),
-		inline.WithCompletedTasksCollapsed(false),
-		inline.WithAggregateProgress(true),
-	)
-	states := map[string]*resourceProgressState{}
-	selected := make(map[string]bool, len(spec.Resources))
-	for _, name := range spec.Resources {
-		selected[name] = true
-	}
-	for _, resource := range discovered {
-		if len(selected) == 0 || selected[resource.Name] {
-			if err := addRunResource(progress, states, resource.Name, resource.EstimatedRows); err != nil {
-				return nil, nil, err
-			}
-		}
-	}
-	for _, name := range spec.Resources {
-		if err := addRunResource(progress, states, name, 0); err != nil {
-			return nil, nil, err
-		}
-	}
-	return progress, states, nil
-}
-
-func addRunResource(progress *inline.MultiProgress, states map[string]*resourceProgressState, name string, estimated int64) error {
-	if name == "" {
-		return nil
-	}
-	if state, exists := states[name]; exists {
-		if estimated > 0 && state.estimated == 0 {
-			state.estimated = estimated
-			return progress.SetTotal(name, estimated)
-		}
-		return nil
-	}
-	states[name] = &resourceProgressState{estimated: estimated}
-	return progress.Add(name, name, estimated)
-}
-
-func applyResourceProgress(
-	progress *inline.MultiProgress,
-	states map[string]*resourceProgressState,
-	addResource func(string, int64) error,
-	update resourceProgressUpdate,
-) error {
-	if err := addResource(update.resource, 0); err != nil {
-		return err
-	}
-	state := states[update.resource]
-	if state == nil {
-		return nil
+func applyRunUpdate(row *runRow, update resourceProgressUpdate) {
+	if row == nil {
+		return
 	}
 	if update.final {
-		state.records = update.records
-		state.bytes = update.bytes
+		row.records = update.records
+		row.bytes = update.bytes
 	} else {
-		state.records += update.records
-		state.bytes += update.bytes
-	}
-	detail := fmt.Sprintf("%d records · %s", state.records, humanBytes(state.bytes))
-	if state.estimated > 0 {
-		detail += fmt.Sprintf(" · %d estimated", state.estimated)
-	}
-	if err := progress.SetDetail(update.resource, detail); err != nil {
-		return err
+		row.records += update.records
+		row.bytes += update.bytes
 	}
 	switch update.status {
 	case "failed":
-		state.failed = true
-		return progress.Fail(update.resource, errors.New(update.err))
+		row.state = rowFailed
+		row.err = update.err
 	case "complete":
-		if state.estimated > 0 {
-			_ = progress.Set(update.resource, state.records)
-		}
-		return progress.Complete(update.resource)
+		row.state = rowDone
 	default:
-		if state.estimated > 0 {
-			return progress.Set(update.resource, state.records)
-		}
-		return progress.Start(update.resource)
+		row.state = rowRunning
 	}
+}
+
+// drainRunUpdates applies updates that arrived alongside completion.
+func drainRunUpdates(updates <-chan resourceProgressUpdate, rows map[string]*runRow, addResource func(string)) {
+	for {
+		select {
+		case update := <-updates:
+			addResource(update.resource)
+			applyRunUpdate(rows[update.resource], update)
+		default:
+			return
+		}
+	}
+}
+
+// settleRows resolves rows still in flight once the run has ended.
+func settleRows(view *runProgressView, runErr error) {
+	for _, row := range view.rows {
+		if row.state != rowPending && row.state != rowRunning {
+			continue
+		}
+		if runErr == nil {
+			row.state = rowDone
+		} else {
+			row.state = rowCancelled
+		}
+	}
+}
+
+// finishRun moves the final rows and the summary into scrollback.
+func (r *Renderer) finishRun(view *runProgressView, result model.RunResult, elapsed time.Duration, runErr error) error {
+	if err := r.interactiveRenderer.Clear(); err != nil {
+		return err
+	}
+	p := r.painter()
+	if err := r.interactiveRenderer.Println("\n" + strings.TrimRight(view.lines(p), "\n")); err != nil {
+		return err
+	}
+	return r.interactiveRenderer.Println("\n" + runSummaryLine(p, len(view.rows), result, elapsed, runErr))
 }
 
 func interactiveRenderWidth(writer io.Writer) int {
@@ -304,32 +269,6 @@ func interactiveRenderWidth(writer io.Writer) int {
 	return 96
 }
 
-func humanBytes(value int64) string {
-	const unit = int64(1024)
-	if value < unit {
-		return fmt.Sprintf("%d B", value)
-	}
-	divisor, exponent := unit, 0
-	for amount := value / unit; amount >= unit && exponent < 5; amount /= unit {
-		divisor *= unit
-		exponent++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(value)/float64(divisor), "KMGTPE"[exponent])
-}
-
-func humanCount(value int64) string {
-	sign := ""
-	if value < 0 {
-		sign = "-"
-		value = -value
-	}
-	digits := strconv.FormatInt(value, 10)
-	for index := len(digits) - 3; index > 0; index -= 3 {
-		digits = digits[:index] + "," + digits[index:]
-	}
-	return sign + digits
-}
-
 func humanDuration(value time.Duration) string {
 	switch {
 	case value < time.Second:
@@ -339,14 +278,4 @@ func humanDuration(value time.Duration) string {
 	default:
 		return value.Round(time.Second).String()
 	}
-}
-
-func runThroughput(result model.RunResult, elapsed time.Duration) string {
-	if elapsed <= 0 {
-		return "—"
-	}
-	seconds := elapsed.Seconds()
-	recordsPerSecond := int64(math.Round(float64(result.Records) / seconds))
-	bytesPerSecond := int64(math.Round(float64(result.Bytes) / seconds))
-	return fmt.Sprintf("%s records/s · %s/s", humanCount(recordsPerSecond), humanBytes(bytesPerSecond))
 }

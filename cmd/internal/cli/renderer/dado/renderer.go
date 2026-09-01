@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/atterpac/dado/inline"
 	"golang.org/x/term"
+
+	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
 
 const interactiveBack = "__back__"
@@ -18,6 +21,38 @@ type interactiveOption struct {
 	value       string
 	description string
 	tone        inline.ChoiceTone
+	disabled    bool
+}
+
+// boxedMenu renders header and rows as the same boxed table the list
+// commands print; borders and the header are unselectable rows.
+func boxedMenu(headers []string, rows [][]string, values []string) []interactiveOption {
+	widths := style.Widths(append([][]string{headers}, rows...))
+	rule := func(left, junction, right string) string {
+		parts := make([]string, len(widths))
+		for index, width := range widths {
+			parts[index] = strings.Repeat("─", width+2)
+		}
+		return left + strings.Join(parts, junction) + right
+	}
+	line := func(cells []string) string {
+		parts := make([]string, len(cells))
+		for index, cell := range cells {
+			parts[index] = " " + pad(cell, widths[index]) + " "
+		}
+		return "│" + strings.Join(parts, "│") + "│"
+	}
+	options := make([]interactiveOption, 0, len(rows)+4)
+	options = append(options,
+		interactiveOption{label: rule("╭", "┬", "╮"), disabled: true},
+		interactiveOption{label: line(headers), disabled: true},
+		interactiveOption{label: rule("├", "┼", "┤"), disabled: true},
+	)
+	for index, row := range rows {
+		options = append(options, interactiveOption{label: line(row), value: values[index]})
+	}
+	options = append(options, interactiveOption{label: rule("╰", "┴", "╯"), disabled: true})
+	return options
 }
 
 type interactiveEntry struct {
@@ -45,7 +80,7 @@ func interactiveEntryForArgs(args []string) (interactiveEntry, bool) {
 	if len(args) == 2 {
 		switch args[0] {
 		case "source", "sink", "pipeline":
-			if args[1] == "create" || args[1] == "list" {
+			if args[1] == "create" {
 				return interactiveEntry{section: args[0], operation: args[1]}, true
 			}
 		}
@@ -65,12 +100,18 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			if interactiveInterrupted(err) {
 				return nil
 			}
-			if acknowledgeErr := r.acknowledgeInteractiveError(ctx, err); acknowledgeErr != nil {
+			if acknowledgeErr := r.acknowledgeInteractiveError(err); acknowledgeErr != nil {
 				if interactiveInterrupted(acknowledgeErr) {
 					return nil
 				}
 				return acknowledgeErr
 			}
+			if entry.operation != "" && !interactiveCancelled(err) {
+				return err
+			}
+		}
+		if entry.operation != "" {
+			return nil
 		}
 	}
 
@@ -80,7 +121,7 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			description = r.targetName + " target"
 		}
 		action, err := r.chooseInteractive(ctx, "Filament", description, []interactiveOption{
-			{label: "Run a pipeline", value: "run"},
+			{label: "Run", value: "run"},
 			{label: "Sources", value: "sources"},
 			{label: "Sinks", value: "sinks"},
 			{label: "Pipelines", value: "pipelines"},
@@ -112,7 +153,7 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 		if interactiveInterrupted(err) {
 			return nil
 		}
-		if acknowledgeErr := r.acknowledgeInteractiveError(ctx, err); acknowledgeErr != nil {
+		if acknowledgeErr := r.acknowledgeInteractiveError(err); acknowledgeErr != nil {
 			if interactiveInterrupted(acknowledgeErr) {
 				return nil
 			}
@@ -125,20 +166,20 @@ func (r *Renderer) runInteractiveEntry(ctx context.Context, entry interactiveEnt
 	switch entry.section {
 	case "source", "sink":
 		if entry.operation == "create" {
-			if err := r.connectionWizard(ctx, entry.section, "", nil); err != nil {
-				if acknowledgeErr := r.acknowledgeInteractiveError(ctx, err); acknowledgeErr != nil {
-					return acknowledgeErr
-				}
+			err := r.connectionWizard(ctx, entry.section, "", nil)
+			if interactiveCancelled(err) {
+				return nil
 			}
+			return err
 		}
 		return r.manageConnections(ctx, entry.section)
 	case "pipeline":
 		if entry.operation == "create" {
-			if err := r.pipelineWizard(ctx, "", nil); err != nil {
-				if acknowledgeErr := r.acknowledgeInteractiveError(ctx, err); acknowledgeErr != nil {
-					return acknowledgeErr
-				}
+			err := r.pipelineWizard(ctx, "", nil)
+			if interactiveCancelled(err) {
+				return nil
 			}
+			return err
 		}
 		return r.managePipelines(ctx)
 	case "config":
@@ -150,18 +191,14 @@ func (r *Renderer) runInteractiveEntry(ctx context.Context, entry interactiveEnt
 	}
 }
 
-func (r *Renderer) acknowledgeInteractiveError(ctx context.Context, err error) error {
+func (r *Renderer) acknowledgeInteractiveError(err error) error {
 	if err == nil || interactiveCancelled(err) {
 		return nil
 	}
 	if interactiveInterrupted(err) {
 		return err
 	}
-	acknowledgeErr := r.showInteractiveMessage(ctx, "Something went wrong", err.Error())
-	if interactiveCancelled(acknowledgeErr) {
-		return nil
-	}
-	return acknowledgeErr
+	return r.notice(false, err.Error())
 }
 
 func (r *Renderer) chooseInteractive(ctx context.Context, title, description string, options []interactiveOption) (string, error) {
@@ -175,6 +212,7 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 			Label:       option.label,
 			Description: option.description,
 			Tone:        option.tone,
+			Disabled:    option.disabled,
 		})
 	}
 	form := inline.NewForm(title).Add(
@@ -188,23 +226,31 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 	return selected, nil
 }
 
-func (r *Renderer) showInteractiveMessage(ctx context.Context, title, description string) error {
-	lines := strings.Split(strings.TrimSpace(description), "\n")
-	options := make([]inline.Choice, 0, len(lines)+1)
-	for index, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		options = append(options, inline.Choice{
-			Value:    fmt.Sprintf("message-%d", index),
-			Label:    line,
-			Disabled: true,
-		})
+// showInteractiveMessage keeps a titled block in scrollback and returns to the menu.
+func (r *Renderer) showInteractiveMessage(_ context.Context, title, description string) error {
+	if r.interactiveRenderer == nil {
+		return nil
 	}
-	options = append(options, inline.NewChoice(interactiveBack, "Back"))
-	form := inline.NewForm(title).Add(inline.NewSelectField("selection", "", options...).Required())
-	_, err := r.runInteractiveForm(ctx, form)
-	return err
+	p := r.painter()
+	lines := []string{p.Label(title)}
+	for _, line := range strings.Split(strings.TrimSpace(description), "\n") {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, style.Indent+line)
+		}
+	}
+	return r.interactiveRenderer.Println(strings.Join(lines, "\n") + "\n")
+}
+
+// notice keeps one status line in scrollback: a green check or a red cross.
+func (r *Renderer) notice(ok bool, message string) error {
+	if r.interactiveRenderer == nil {
+		return nil
+	}
+	p := r.painter()
+	if ok {
+		return r.interactiveRenderer.Println(p.Success("✓") + " " + message)
+	}
+	return r.interactiveRenderer.Println(p.Error("✗") + " " + message)
 }
 
 func (r *Renderer) confirmInteractive(ctx context.Context, title, description string) (bool, error) {
@@ -227,7 +273,7 @@ func (r *Renderer) runInteractiveForm(ctx context.Context, form *inline.Form) (i
 	if r.stdin != nil {
 		options = append(options, inline.WithSessionInput(r.stdin))
 	}
-	return inline.NewSession(r.interactiveRenderer, options...).Run(ctx, form.QuitOnQ(true))
+	return inline.NewSession(r.interactiveRenderer, options...).Run(ctx, form.SetTheme(r.theme).QuitOnQ(true))
 }
 
 func (r *Renderer) clearInteractive() error {
@@ -248,7 +294,7 @@ func interactiveInterrupted(err error) bool {
 func preferredChoices(preferred string, options []interactiveOption) []inline.Choice {
 	choices := make([]inline.Choice, 0, len(options))
 	appendChoice := func(option interactiveOption) {
-		choices = append(choices, inline.Choice{Value: option.value, Label: option.label, Description: option.description, Tone: option.tone})
+		choices = append(choices, inline.Choice{Value: option.value, Label: option.label, Description: option.description, Tone: option.tone, Disabled: option.disabled})
 	}
 	for _, option := range options {
 		if option.value == preferred {
@@ -261,4 +307,22 @@ func preferredChoices(preferred string, options []interactiveOption) []inline.Ch
 		}
 	}
 	return choices
+}
+
+// showPairs keeps a titled key/value block in scrollback.
+func (r *Renderer) showPairs(title string, pairs [][2]string) error {
+	if r.interactiveRenderer == nil {
+		return nil
+	}
+	p := r.painter()
+	width := 0
+	for _, pair := range pairs {
+		width = max(width, utf8.RuneCountInString(pair[0]))
+	}
+	lines := []string{p.Bold(title)}
+	for _, pair := range pairs {
+		padding := strings.Repeat(" ", width-utf8.RuneCountInString(pair[0])+style.Gutter)
+		lines = append(lines, style.Indent+p.Label(pair[0])+padding+pair[1])
+	}
+	return r.interactiveRenderer.Println(strings.Join(lines, "\n") + "\n")
 }

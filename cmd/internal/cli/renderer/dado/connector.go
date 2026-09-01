@@ -40,8 +40,14 @@ func (r *Renderer) manageConnections(ctx context.Context, kind string) error {
 			return err
 		}
 		options := []interactiveOption{{label: "+ Create " + kind, value: "__create__", tone: inline.ChoiceToneSuccess}}
-		for _, connection := range listed.Items {
-			options = append(options, interactiveOption{label: connection.Name + "  ·  " + connection.Connector, value: connection.Name})
+		if len(listed.Items) > 0 {
+			rows := make([][]string, 0, len(listed.Items))
+			values := make([]string, 0, len(listed.Items))
+			for _, connection := range listed.Items {
+				rows = append(rows, []string{connection.Name, connection.Connector})
+				values = append(values, connection.Name)
+			}
+			options = append(options, boxedMenu([]string{"Name", "Connector"}, rows, values)...)
 		}
 		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 		selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
@@ -91,7 +97,7 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 		if err != nil {
 			return err
 		}
-		return r.showInteractiveMessage(ctx, name, connectionDescription(connection, schema))
+		return r.showPairs(name, connectionPairs(connection, schema))
 	case "edit":
 		return r.connectionWizard(ctx, kind, name, &connection)
 	case "discover":
@@ -116,47 +122,32 @@ func (r *Renderer) connectionWizard(ctx context.Context, kind, name string, exis
 	if existing != nil {
 		connectorName = existing.Type
 	}
-	connectorNames := r.connectorNames(kind)
-	if len(connectorNames) == 0 {
+	connectorOptions := r.connectorChoices(kind)
+	if len(connectorOptions) == 0 {
 		return fmt.Errorf("no %s connectors are registered", kind)
 	}
-	connectorOptions := make([]interactiveOption, 0, len(connectorNames))
-	for _, connector := range connectorNames {
-		displayName := connector
-		description := ""
-		if kind == "source" && r.catalog.Sources[connector].DisplayName != "" {
-			displayName = r.catalog.Sources[connector].DisplayName
-		}
-		if kind == "source" {
-			description = r.catalog.Sources[connector].Description
-		}
-		if kind == "sink" && r.catalog.Sinks[connector].DisplayName != "" {
-			displayName = r.catalog.Sinks[connector].DisplayName
-		}
-		if kind == "sink" {
-			description = r.catalog.Sinks[connector].Description
-		}
-		connectorOptions = append(connectorOptions, interactiveOption{label: displayName, value: connector, description: description})
-	}
 	if connectorName == "" {
-		connectorName = connectorNames[0]
-	}
-	fields := []inline.FormField{}
-	if creating {
-		fields = append(fields, inline.NewTextField("name", strings.ToUpper(kind[:1])+kind[1:]+" name").
-			SetValue(name).
-			Required().
-			Validate(func(value string) error { return validateName(kind, value) }))
-	}
-	fields = append(fields, connectorSelectField(connectorName, connectorOptions))
-	result, err := r.runInteractiveForm(ctx, inline.NewForm("Connection").Add(fields...))
-	if err != nil {
-		return err
+		connectorName = connectorOptions[0].value
 	}
 	if creating {
+		header, err := newWizardHeader(connectionSteps.at(0), nil, r.theme)
+		if err != nil {
+			return err
+		}
+		form := inline.NewForm("").SetHeader(header).Add(
+			inline.NewTextField("name", "Name").
+				SetValue(name).
+				Required().
+				Validate(func(value string) error { return validateName(kind, value) }),
+			connectorSelectField(connectorName, connectorOptions),
+		)
+		result, err := r.runInteractiveForm(ctx, form)
+		if err != nil {
+			return err
+		}
 		name, _ = result["name"].(string)
+		connectorName, _ = result["connector"].(string)
 	}
-	connectorName, _ = result["connector"].(string)
 
 	doc, err := r.service.Configuration(ctx)
 	if err != nil {
@@ -176,13 +167,54 @@ func (r *Renderer) connectionWizard(ctx context.Context, kind, name string, exis
 		return err
 	}
 	wizard := newSchemaWizard(schema, filament.ScopeConnection, initial)
-	if err := wizard.run(ctx, r, "Connection settings"); err != nil {
+	if err := wizard.run(ctx, r, connectionSteps.at(1)); err != nil {
 		return err
 	}
-	_, err = r.service.SaveConnection(ctx, cliapp.SaveConnectionRequest{
+
+	verb := "Create"
+	if !creating {
+		verb = "Update"
+	}
+	review := append([]headerLine{
+		{kind: headerReview, key: "Name", value: name},
+		{kind: headerReview, key: "Connector", value: connectorName},
+	}, wizard.reviewLines()...)
+	confirmed, err := r.confirmWizard(ctx, connectionSteps.at(2), review, verb+" "+kind)
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		return inline.ErrFormCancelled
+	}
+	if _, err := r.service.SaveConnection(ctx, cliapp.SaveConnectionRequest{
 		Create: creating, Kind: kind, Name: name, Connector: connectorName, Config: wizard.patch(),
-	})
-	return err
+	}); err != nil {
+		return err
+	}
+	return r.announce(kind, name, strings.ToLower(verb)+"d")
+}
+
+func (r *Renderer) connectorChoices(kind string) []interactiveOption {
+	names := r.connectorNames(kind)
+	options := make([]interactiveOption, 0, len(names))
+	for _, connector := range names {
+		option := interactiveOption{label: connector, value: connector}
+		if kind == "sink" {
+			spec := r.catalog.Sinks[connector]
+			option.description = spec.Description
+			if spec.DisplayName != "" {
+				option.label = spec.DisplayName
+			}
+		} else {
+			spec := r.catalog.Sources[connector]
+			option.description = spec.Description
+			if spec.DisplayName != "" {
+				option.label = spec.DisplayName
+			}
+		}
+		options = append(options, option)
+	}
+	return options
 }
 
 func connectorSelectField(preferred string, options []interactiveOption) *inline.SelectField {
@@ -229,37 +261,53 @@ func newSchemaWizard(schema filament.ConfigSchema, scope filament.FieldScope, in
 	return wizard
 }
 
-func (w *schemaWizard) run(ctx context.Context, renderer *Renderer, title string) error {
+func (w *schemaWizard) run(ctx context.Context, renderer *Renderer, stage wizardSteps) error {
 	completed := map[*schemaWizardField]bool{}
 	for {
 		steps := w.steps()
+		lines := []headerLine{}
 		currentIndex := -1
-		for index := range steps {
-			if !completed[steps[index].field] {
+		for index, step := range steps {
+			if completed[step.field] {
+				lines = append(lines, headerLine{kind: headerPrompt, key: step.path, value: step.field.transcript()})
+				continue
+			}
+			if currentIndex < 0 {
 				currentIndex = index
-				break
 			}
 		}
 		if currentIndex < 0 {
 			return nil
 		}
 		current := steps[currentIndex]
-		stepper, err := schemaStepper(title, steps, currentIndex, completed)
+		if len(lines) > 0 {
+			lines = append(lines, headerLine{kind: headerBlank})
+		}
+		if help := current.field.schema.Help; help != "" {
+			lines = append(lines, headerLine{kind: headerHelper, value: help})
+		}
+		header, err := newWizardHeader(stage, lines, renderer.theme)
 		if err != nil {
 			return err
 		}
 		field, apply := current.field.dadoField()
-		form := inline.NewForm(current.path).
-			SetHeader(stepper).
-			SetHeaderGap(1).
-			Add(field)
-		result, err := renderer.runInteractiveForm(ctx, form)
+		result, err := renderer.runInteractiveForm(ctx, inline.NewForm("").SetHeader(header).Add(field))
 		if err != nil {
 			return err
 		}
 		apply(result[current.field.schema.Name])
 		completed[current.field] = true
 	}
+}
+
+// reviewLines lists every visible field with its answer.
+func (w *schemaWizard) reviewLines() []headerLine {
+	steps := w.steps()
+	lines := make([]headerLine, 0, len(steps))
+	for _, step := range steps {
+		lines = append(lines, headerLine{kind: headerReview, key: step.path, value: step.field.transcript()})
+	}
+	return lines
 }
 
 func (w *schemaWizard) steps() []schemaWizardStep {
@@ -288,34 +336,6 @@ func collectSchemaWizardSteps(steps *[]schemaWizardStep, fields []schemaWizardFi
 			field: field,
 		})
 	}
-}
-
-func schemaStepper(title string, steps []schemaWizardStep, currentIndex int, completed map[*schemaWizardField]bool) (*inline.Stepper, error) {
-	stepper := inline.NewStepper(
-		fmt.Sprintf("%s · %d of %d", title, currentIndex+1, len(steps)),
-		inline.WithStepOrientation(inline.StepHorizontal),
-		inline.WithMaxVisibleSteps(4),
-		inline.WithStepDetails(false),
-	)
-	for _, step := range steps {
-		if err := stepper.Add(step.id, step.label); err != nil {
-			return nil, err
-		}
-	}
-	for index := range steps {
-		step := steps[index]
-		switch {
-		case completed[step.field]:
-			if err := stepper.Complete(step.id); err != nil {
-				return nil, err
-			}
-		case index == currentIndex:
-			if err := stepper.Activate(step.id); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return stepper, nil
 }
 
 func (w *schemaWizard) values() map[string]any {
@@ -501,6 +521,35 @@ func (v *schemaWizardField) structuredObject() bool {
 	return v.schema.Type == filament.FieldObject && len(v.schema.Fields) > 0
 }
 
+// transcript renders the answer for the header, masking secrets.
+func (v *schemaWizardField) transcript() string {
+	if cliapp.IsSecretField(v.schema) {
+		if name, referenced := cliapp.EnvironmentReferenceName(v.text); referenced {
+			return "$" + name
+		}
+		if strings.HasPrefix(v.text, "env:") {
+			return "$" + strings.TrimPrefix(v.text, "env:")
+		}
+		if v.text == "" {
+			return ""
+		}
+		return "••••••••"
+	}
+	switch value := v.value().(type) {
+	case nil:
+		return ""
+	case string:
+		return value
+	case []string:
+		return strings.Join(value, ", ")
+	case map[string]any:
+		encoded, _ := json.Marshal(value)
+		return string(encoded)
+	default:
+		return fmt.Sprint(value)
+	}
+}
+
 func (v *schemaWizardField) fieldValues() map[string]any {
 	values := make(map[string]any, len(v.fields))
 	for index := range v.fields {
@@ -529,9 +578,9 @@ func schemaWizardValueEmpty(value any) bool {
 	}
 }
 
-func connectionDescription(connection model.Connection, schema filament.ConfigSchema) string {
-	lines := make([]string, 0, len(connection.Config)+1)
-	lines = append(lines, "Connector: "+connection.Type)
+func connectionPairs(connection model.Connection, schema filament.ConfigSchema) [][2]string {
+	pairs := make([][2]string, 0, len(connection.Config)+1)
+	pairs = append(pairs, [2]string{"Connector", connection.Type})
 	fields := make(map[string]filament.ConfigField)
 	for _, field := range cliapp.OrderedFields(schema, filament.ScopeConnection) {
 		fields[field.Name] = field
@@ -541,9 +590,9 @@ func connectionDescription(connection model.Connection, schema filament.ConfigSc
 		if field, ok := fields[name]; ok {
 			value = redactSchemaValue(field, value)
 		}
-		lines = append(lines, fmt.Sprintf("%s: %v", name, value))
+		pairs = append(pairs, [2]string{schemaFieldLabel(name), fmt.Sprint(value)})
 	}
-	return strings.Join(lines, "\n")
+	return pairs
 }
 
 func redactSchemaValue(field filament.ConfigField, value any) any {
