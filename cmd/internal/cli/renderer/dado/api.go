@@ -14,6 +14,7 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
@@ -29,6 +30,8 @@ type Renderer struct {
 	openConfigurationEditor func(context.Context) error
 	targetName              string
 	interactiveRenderer     *inline.Renderer
+	theme                   inline.InlineTheme
+	paint                   style.Painter
 }
 
 // Options configures an interactive renderer.
@@ -48,12 +51,24 @@ func New(options Options) *Renderer {
 	if options.Service != nil {
 		configPath = options.Service.ConfigurationLocation()
 	}
+	status := options.Stderr
+	if status == nil {
+		status = options.Stdout
+	}
+	dark := style.Dark(options.Stdin, status)
 	return &Renderer{
 		stdin: options.Stdin, stdout: options.Stdout, stderr: options.Stderr,
 		configPath: configPath, catalog: options.Catalog, service: options.Service,
 		openConfigurationEditor: options.OpenConfigurationEditor,
 		targetName:              options.TargetName,
+		theme:                   filamentTheme(dark),
+		paint:                   style.New(status),
 	}
+}
+
+// Interactive reports whether both terminal streams support interactive rendering.
+func (r *Renderer) Interactive() bool {
+	return r.interactiveAvailable()
 }
 
 // CanHandle reports whether args identify an interactive entry point and both

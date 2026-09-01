@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
@@ -35,46 +34,30 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	interactive := dadorenderer.New(dadorenderer.Options{
-		Stdin: a.stdin, Stdout: a.stdout, Stderr: a.statusWriter(),
-	})
-	if interactive.CanHandle(args) {
+	if err := a.printBanner(args); err != nil {
+		return err
+	}
+	if a.renderer().CanHandle(args) {
 		if err := a.initializeTarget(ctx); err != nil {
 			return err
 		}
-		interactive = dadorenderer.New(dadorenderer.Options{
-			Stdin: a.stdin, Stdout: a.stdout, Stderr: a.statusWriter(),
-			Service: a.service, Catalog: a.catalog, OpenConfigurationEditor: a.editConfig,
-			TargetName: a.target.Name,
-		})
-		return interactive.Run(ctx, args)
+		if _, err := fmt.Fprintln(a.statusWriter()); err != nil {
+			return err
+		}
+		return a.renderer().Run(ctx, args)
 	}
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err := fmt.Fprint(a.stdout, rootHelp)
-		return err
-	}
-	if args[0] == "context" {
-		return a.runContextCommand(args[1:])
-	}
-	switch args[0] {
-	case "source", "sink", "pipeline", "config", "run":
-	default:
-		return fmt.Errorf("unknown command %q\n\n%s", args[0], rootHelp)
-	}
-	if err := a.initializeTarget(ctx); err != nil {
-		return err
-	}
-	switch args[0] {
-	case "source", "sink":
-		return a.runConnectionCommand(ctx, args[0], args[1:])
-	case "pipeline":
-		return a.runPipelineCommand(ctx, args[1:])
-	case "config":
-		return a.runConfigCommand(ctx, args[1:])
-	case "run":
-		return a.runCommand(ctx, args[1:])
-	}
-	return nil
+	root := a.rootCommand()
+	root.SetArgs(args)
+	return root.ExecuteContext(ctx)
+}
+
+// renderer builds the interactive renderer for the current target, if any.
+func (a *cliApp) renderer() *dadorenderer.Renderer {
+	return dadorenderer.New(dadorenderer.Options{
+		Stdin: a.stdin, Stdout: a.stdout, Stderr: a.statusWriter(),
+		Service: a.service, Catalog: a.catalog, OpenConfigurationEditor: a.editConfig,
+		TargetName: a.target.Name,
+	})
 }
 
 type unimplementedTargetError struct {
@@ -189,18 +172,6 @@ func (a *cliApp) confirmDelete(kind, name string) (bool, error) {
 	}
 	_, err = fmt.Fprintln(out, "Cancelled.")
 	return false, err
-}
-
-func parseForceFlag(flags map[string][]string) (bool, error) {
-	raw, present := flagValue(flags, "force")
-	if !present {
-		return false, nil
-	}
-	force, err := strconv.ParseBool(raw)
-	if err != nil {
-		return false, fmt.Errorf("--force must be true or false")
-	}
-	return force, nil
 }
 
 func pastTense(operation string) string {

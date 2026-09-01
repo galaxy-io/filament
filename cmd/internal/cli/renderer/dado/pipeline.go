@@ -18,10 +18,9 @@ func (r *Renderer) managePipelines(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		options := []interactiveOption{{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess}}
-		for _, pipeline := range listed.Items {
-			options = append(options, interactiveOption{label: fmt.Sprintf("%s  ·  %s → %s", pipeline.Name, pipeline.Source, pipeline.Sink), value: pipeline.Name})
-		}
+		options := make([]interactiveOption, 0, len(listed.Items)+3)
+		options = append(options, interactiveOption{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
+		options = append(options, pipelineMenuOptions(listed.Items)...)
 		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 		selected, err := r.chooseInteractive(ctx, "Pipelines", "Create or manage reusable transfers", options)
 		if interactiveCancelled(err) || selected == interactiveBack {
@@ -117,11 +116,11 @@ func (r *Renderer) pipelineWizard(ctx context.Context, name string, existing *mo
 		base = &updated
 	}
 	sourceWizard := newSchemaWizard(r.catalog.Sources[source.Type].Config, filament.ScopePipeline, sourceInitial)
-	if err := sourceWizard.run(ctx, r, "Source settings"); err != nil {
+	if err := sourceWizard.run(ctx, r, pipelineSteps.at(0)); err != nil {
 		return err
 	}
 	sinkWizard := newSchemaWizard(r.catalog.Sinks[sink.Type].Config, filament.ScopePipeline, sinkInitial)
-	if err := sinkWizard.run(ctx, r, "Sink settings"); err != nil {
+	if err := sinkWizard.run(ctx, r, pipelineSteps.at(1)); err != nil {
 		return err
 	}
 
@@ -149,8 +148,14 @@ func (r *Renderer) pipelineWizard(ctx context.Context, name string, existing *mo
 		return err
 	}
 	request.Resources = &selected
-	_, err = r.service.SavePipeline(ctx, request)
-	return err
+	if _, err := r.service.SavePipeline(ctx, request); err != nil {
+		return err
+	}
+	verb := "created"
+	if existing != nil {
+		verb = "updated"
+	}
+	return r.announce("pipeline", request.Name, verb)
 }
 
 func (r *Renderer) choosePipelineWriteMode(ctx context.Context, sinkRef string, sink model.Connection, preferred string) (string, error) {
@@ -195,7 +200,7 @@ func (r *Renderer) pipelineTopologyForm(ctx context.Context, name string, existi
 		inline.NewSelectField("source", "Source", preferredChoices(sourceRef, sourceOptions)...).Required(),
 		inline.NewSelectField("sink", "Sink", preferredChoices(sinkRef, sinkOptions)...).Required(),
 	)
-	result, err := r.runInteractiveForm(ctx, inline.NewForm("Pipeline topology").Add(fields...))
+	result, err := r.runInteractiveForm(ctx, inline.NewForm("Pipeline configuration").Add(fields...))
 	if err != nil {
 		return "", "", "", err
 	}
@@ -310,4 +315,18 @@ func pipelineDescription(pipeline model.Pipeline) string {
 	}
 	return fmt.Sprintf("Source: %s\nSink: %s\nResources: %s\nSync mode: %s\nWrite mode: %s",
 		pipeline.Source.Ref, pipeline.Sink.Ref, resources, pipeline.SyncMode, pipeline.WriteMode)
+}
+
+// pipelineMenuOptions lists pipelines as the boxed Name, Source, Sink table.
+func pipelineMenuOptions(items []model.PipelineSummary) []interactiveOption {
+	if len(items) == 0 {
+		return nil
+	}
+	rows := make([][]string, 0, len(items))
+	values := make([]string, 0, len(items))
+	for _, pipeline := range items {
+		rows = append(rows, []string{pipeline.Name, pipeline.Source, pipeline.Sink})
+		values = append(values, pipeline.Name)
+	}
+	return boxedMenu([]string{"Name", "Source", "Sink"}, rows, values)
 }

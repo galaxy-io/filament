@@ -4,48 +4,71 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
-func (a *cliApp) runPipelineCommand(ctx context.Context, args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err := fmt.Fprint(a.stdout, pipelineHelp)
-		return err
+func (a *cliApp) pipelineCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pipeline",
+		Short: "Manage saved pipelines",
+		Long: `Manage saved pipelines.
+
+An omitted --resources selection means all resources discovered by the source.
+Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
+--unset to remove optional connector fields from an existing pipeline.`,
+		PersistentPreRunE: a.prepareTarget,
 	}
-	if args[0] == "list" && helpRequested(args[1:]) {
-		return a.printPipelineOperationHelp(args[0], args[1:], climodel.NewDocument())
-	}
-	if args[0] == "list" {
-		if len(args) != 1 {
-			return fmt.Errorf("usage: filament pipeline list")
+	change := func(operation string) func(context.Context, []string) error {
+		return func(ctx context.Context, args []string) error {
+			return a.changePipeline(ctx, operation, args)
 		}
-		result, err := a.service.Pipelines(ctx)
-		if err != nil {
-			return err
-		}
-		return textrenderer.Pipelines(a.stdout, result)
 	}
+	cmd.AddCommand(
+		a.dynamicCommand(
+			"create <name> --source NAME --sink NAME [--resources LIST] [flags]",
+			"Save a pipeline", a.printPipelineOperationHelp, change("create"),
+		),
+		a.dynamicCommand(
+			"edit <name> [flags] [--unset source-FIELD|sink-FIELD]",
+			"Change a saved pipeline", a.printPipelineOperationHelp, change("edit"),
+		),
+		&cobra.Command{
+			Use:   "list",
+			Short: "List saved pipelines",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				result, err := a.service.Pipelines(cmd.Context())
+				if err != nil {
+					return err
+				}
+				return textrenderer.Pipelines(a.stdout, result, a.configName())
+			},
+		},
+	)
+	remove := &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a saved pipeline",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			force, _ := cmd.Flags().GetBool("force")
+			return a.deletePipeline(cmd.Context(), args[0], force)
+		},
+	}
+	remove.Flags().Bool("force", false, "Skip the confirmation prompt")
+	cmd.AddCommand(remove)
+	return cmd
+}
+
+func (a *cliApp) changePipeline(ctx context.Context, operation string, args []string) error {
 	document, err := a.service.Configuration(ctx)
 	if err != nil {
 		return err
 	}
-	if helpRequested(args[1:]) {
-		return a.printPipelineOperationHelp(args[0], args[1:], document)
-	}
-	switch args[0] {
-	case "create", "edit":
-		return a.changePipeline(ctx, args[0], args[1:], document)
-	case "delete":
-		return a.deletePipeline(ctx, args[1:], document)
-	default:
-		return fmt.Errorf("unknown pipeline operation %q", args[0])
-	}
-}
-
-func (a *cliApp) changePipeline(ctx context.Context, operation string, args []string, document climodel.Document) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -71,20 +94,9 @@ func (a *cliApp) changePipeline(ctx context.Context, operation string, args []st
 	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s pipeline", pastTense(operation), name))
 }
 
-func (a *cliApp) deletePipeline(ctx context.Context, args []string, document climodel.Document) error {
-	parsed, err := a.parseCommandArgs(args)
+func (a *cliApp) deletePipeline(ctx context.Context, name string, force bool) error {
+	document, err := a.service.Configuration(ctx)
 	if err != nil {
-		return err
-	}
-	name := firstPositional(parsed)
-	if name == "" {
-		return fmt.Errorf("usage: filament pipeline delete <name> [--force]")
-	}
-	force, err := parseForceFlag(parsed.flags)
-	if err != nil {
-		return err
-	}
-	if err := rejectUnknownFlags(parsed.flags, map[string]bool{"force": true}); err != nil {
 		return err
 	}
 	if _, ok := document.Pipelines[name]; !ok {

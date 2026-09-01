@@ -23,12 +23,11 @@ func (r *Renderer) manageInteractiveConfig(ctx context.Context) error {
 		}
 		switch action {
 		case "validate":
-			validateErr := r.service.ValidateConfiguration(ctx)
-			message := "Configuration is valid."
-			if validateErr != nil {
-				message = validateErr.Error()
-			}
-			if err := r.showInteractiveMessage(ctx, "Validation", message); err != nil && !interactiveCancelled(err) {
+			if validateErr := r.service.ValidateConfiguration(ctx); validateErr != nil {
+				if err := r.notice(false, validateErr.Error()); err != nil {
+					return err
+				}
+			} else if err := r.notice(true, "Configuration is valid"); err != nil {
 				return err
 			}
 		case "edit":
@@ -39,7 +38,7 @@ func (r *Renderer) manageInteractiveConfig(ctx context.Context) error {
 				return err
 			}
 		case "path":
-			if err := r.showInteractiveMessage(ctx, "Configuration path", r.configPath); err != nil && !interactiveCancelled(err) {
+			if err := r.notice(true, r.configPath); err != nil {
 				return err
 			}
 		}

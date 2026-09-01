@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
-	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
-func (a *cliApp) discoverSource(ctx context.Context, args []string, document climodel.Document) error {
+func (a *cliApp) discoverSource(ctx context.Context, args []string) error {
+	document, err := a.service.Configuration(ctx)
+	if err != nil {
+		return err
+	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -52,9 +56,10 @@ func (a *cliApp) discoverSource(ctx context.Context, args []string, document cli
 			return fmt.Errorf("--refresh must be true or false")
 		}
 	}
+	startedAt := time.Now()
 	resources, err := a.service.DiscoverSource(ctx, request)
 	if err != nil {
 		return err
 	}
-	return textrenderer.Resources(a.stdout, resources)
+	return textrenderer.Resources(a.stdout, resources, time.Since(startedAt))
 }

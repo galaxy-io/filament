@@ -12,11 +12,12 @@ import (
 	"sort"
 	"sync"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/registry"
-	"gopkg.in/yaml.v3"
 )
 
 var _ cliapp.Target = (*Target)(nil)
