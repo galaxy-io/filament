@@ -15,6 +15,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import DocsButton from "@/components/DocsButton";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
+import { Flow } from "@/layouts/app/types";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
@@ -28,8 +29,6 @@ import {
   CONNECTOR_KIND_TO_LABEL_MAP,
 } from "@/pages/connectors/constants";
 import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineConnectionMap";
-
-import { Flow } from "@/routes/__root";
 
 import {
   createListConnectionsInput,

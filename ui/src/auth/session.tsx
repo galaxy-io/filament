@@ -1,16 +1,13 @@
 import { createContext, type PropsWithChildren, useContext } from "react";
 
-export interface AppSession {
-  isAuthEnabled: boolean;
-  accessToken?: string;
-  userId?: string;
-  name?: string;
-  email?: string;
-  avatarUrl?: string;
+import type { AppSession } from "@/auth/types";
+
+interface AppSessionProviderProps {
+  value: AppSession;
 }
 
 const DEFAULT_SESSION: AppSession = {
-  isAuthEnabled: false,
+  isAuthenticated: false,
 };
 
 const AppSessionContext = createContext<AppSession>(DEFAULT_SESSION);
@@ -18,7 +15,7 @@ const AppSessionContext = createContext<AppSession>(DEFAULT_SESSION);
 export const AppSessionProvider = ({
   value,
   children,
-}: PropsWithChildren<{ value: AppSession }>) => {
+}: PropsWithChildren<AppSessionProviderProps>) => {
   return <AppSessionContext.Provider value={value}>{children}</AppSessionContext.Provider>;
 };
 

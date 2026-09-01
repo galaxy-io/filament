@@ -50,7 +50,7 @@ const ActivityListLine = styled.div`
 `;
 
 const PipelineCanvasPanelActivity = () => {
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data: activeRunsData } = useListRunsQuery({
     input: create(ListRunsRequestSchema, {

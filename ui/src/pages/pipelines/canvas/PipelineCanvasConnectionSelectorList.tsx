@@ -11,12 +11,11 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
+import { Flow } from "@/layouts/app/types";
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
-
-import { Flow } from "@/routes/__root";
 
 const ConnectionList = withTheme(styled.div<PropsWithTheme>`
   flex: 1;

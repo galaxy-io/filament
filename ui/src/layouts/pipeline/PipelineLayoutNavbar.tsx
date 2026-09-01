@@ -94,7 +94,7 @@ const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
 const PipelineLayoutNavbar = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),

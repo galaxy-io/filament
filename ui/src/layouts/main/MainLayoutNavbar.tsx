@@ -16,7 +16,8 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import DocsButton from "@/components/DocsButton";
 import GithubButton from "@/components/GithubButton";
-import SettingsButton from "@/components/SettingsButton";
+
+import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
 
 import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
 
@@ -124,7 +125,7 @@ const MainLayoutNavbar = () => {
           <GithubButton />
         </FlexItem>
         <FlexItem shrink={0}>
-          <SettingsButton />
+          <MainLayoutSettingsButton />
         </FlexItem>
       </FlexWrapper>
     </NavbarWrapper>

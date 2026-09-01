@@ -27,7 +27,7 @@ interface CreateConnectionConfigureProps {
 
 const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionConfigureProps) => {
   const navigate = useNavigate();
-  const { connector, connectorKind } = useSearch({ from: "__root__" });
+  const { connector, connectorKind } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
   const { state, dispatch } = useConnectionFormContext();
   const { showToast } = useToast();

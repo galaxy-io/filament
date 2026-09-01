@@ -52,7 +52,7 @@ const ObservabilityTimeseriesChart = ({
   valueFormatter,
 }: ObservabilityTimeseriesChartProps) => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_main/observability",
+    from: "/_app/_main/observability",
   });
 
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;

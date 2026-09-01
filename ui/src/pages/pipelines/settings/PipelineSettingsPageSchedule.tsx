@@ -41,7 +41,7 @@ import { getErrorMessage } from "@/utils/errors";
 
 const PipelineSettingsPageSchedule = () => {
   const { showToast } = useToast();
-  const { id: pipelineId } = useParams({ from: "/pipelines/$id" });
+  const { id: pipelineId } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),

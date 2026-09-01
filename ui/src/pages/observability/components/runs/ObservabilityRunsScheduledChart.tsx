@@ -18,7 +18,7 @@ import { useListRunsQuery } from "@/api/queries/runs";
 
 const ObservabilityRunsScheduledChart = () => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_main/observability",
+    from: "/_app/_main/observability",
   });
 
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);

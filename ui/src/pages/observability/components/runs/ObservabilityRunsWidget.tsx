@@ -34,7 +34,7 @@ const ObservabilityRunsWidget = () => {
     runs: view = ObservabilityRunsView.PAST,
     statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   } = useSearch({
-    from: "/_main/observability",
+    from: "/_app/_main/observability",
   });
 
   const selectedStatusOptions = useMemo(

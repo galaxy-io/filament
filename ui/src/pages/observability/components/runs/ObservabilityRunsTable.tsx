@@ -64,7 +64,7 @@ const ObservabilityRunsTable = () => {
     runsStatus,
     sortBy,
     sortOrder,
-  } = useSearch({ from: "/_main/observability" });
+  } = useSearch({ from: "/_app/_main/observability" });
 
   const windowedStatuses = useMemo(
     () => statuses.filter((status) => status !== RunStatus.SCHEDULED),

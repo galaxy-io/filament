@@ -31,7 +31,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
   pivotSearchKey,
 }: ObservabilityTimeseriesWidgetProps<View>) => {
   const navigate = useNavigate();
-  const search = useSearch({ from: "/_main/observability" });
+  const search = useSearch({ from: "/_app/_main/observability" });
 
   const view = (search[viewSearchKey] as View | undefined) ?? defaultView;
   const pivot = search[pivotSearchKey] ?? defaultPivot;

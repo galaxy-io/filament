@@ -19,7 +19,7 @@ const ObservabilityToolbar = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_main/observability",
+    from: "/_app/_main/observability",
   });
 
   const handleTimeframeChange = (timeframe: ObservabilityTimeframe) => {
