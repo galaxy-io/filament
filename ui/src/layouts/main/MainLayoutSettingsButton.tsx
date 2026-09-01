@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { PlusIcon, SignOutIcon, UsersThreeIcon, WrenchIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 
 import Avatar from "@galaxy-io/dls/avatar/Avatar";
 import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
@@ -34,7 +34,6 @@ import { roleLabel } from "@/pages/settings/utils";
 import { useListMembersQuery } from "@/api/queries/auth";
 
 import { useSignOut } from "@/auth/hooks/useSignOut";
-import { useAppSession } from "@/auth/session";
 import type { AppSession } from "@/auth/types";
 
 const MenuHeader = withTheme(styled.div<PropsWithTheme>`
@@ -399,7 +398,7 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
 };
 
 const MainLayoutSettingsButton = () => {
-  const session = useAppSession();
+  const { session } = useRouteContext({ from: "/_app" });
 
   if (!session.isAuthenticated) {
     return null;

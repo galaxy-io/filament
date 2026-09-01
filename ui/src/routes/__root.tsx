@@ -1,10 +1,6 @@
-import { useCallback } from "react";
-
 import { styled } from "@linaria/react";
 import { BugIcon } from "@phosphor-icons/react";
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
-import type { User } from "oidc-client-ts";
-import { AuthProvider } from "react-oidc-context";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -18,10 +14,6 @@ import ErrorLayout from "@/layouts/ErrorLayout";
 import { createGetAuthConfigQueryOptions } from "@/api/queries/auth";
 import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
-
-import { initOidc } from "@/auth/oidc";
-import { AppSessionProvider } from "@/auth/session";
-import { resolveReturnTo } from "@/auth/utils";
 
 const RootComponentWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -51,29 +43,11 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
 };
 
 const RootComponent = () => {
-  const { userManager } = Route.useRouteContext();
-  const router = useRouter();
-
-  const handleSigninCallback = useCallback(
-    (user: User | undefined) => {
-      void router.navigate({ href: resolveReturnTo(user), replace: true });
-    },
-    [router],
-  );
-
   return (
     <ToastProvider>
       <OverlayProvider>
         <RootComponentWrapper>
-          {userManager ? (
-            <AuthProvider userManager={userManager} onSigninCallback={handleSigninCallback}>
-              <AppSessionProvider>
-                <Outlet />
-              </AppSessionProvider>
-            </AuthProvider>
-          ) : (
-            <Outlet />
-          )}
+          <Outlet />
         </RootComponentWrapper>
       </OverlayProvider>
     </ToastProvider>
@@ -85,8 +59,7 @@ export const Route = createRootRoute({
     const authConfig = await queryClient.ensureQueryData(
       createGetAuthConfigQueryOptions({ transport }),
     );
-    const userManager = authConfig.issuer ? initOidc(authConfig) : null;
-    return { authConfig, userManager };
+    return { authConfig };
   },
   errorComponent: RootErrorComponent,
   component: RootComponent,

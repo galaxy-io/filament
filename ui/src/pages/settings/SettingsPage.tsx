@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 
 import { styled } from "@linaria/react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
@@ -24,7 +24,6 @@ import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 
-import { useAppSession } from "@/auth/session";
 import type { AppSession } from "@/auth/types";
 
 const PageWrapper = withTheme(styled.div<PropsWithTheme>`
@@ -126,7 +125,7 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const session = useAppSession();
+  const { session } = useRouteContext({ from: "/_app" });
   const { flow, settings, teamView, inviteToken } = useSearch({ from: "/_app" });
 
   const isSettingsOpen = session.isAuthenticated && flow === Flow.SETTINGS;

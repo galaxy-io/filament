@@ -24,14 +24,15 @@ var File_auth_v1_service_proto protoreflect.FileDescriptor
 
 const file_auth_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x15auth/v1/service.proto\x12\aauth.v1\x1a\x15auth/v1/members.proto\x1a\x1eauth/v1/service_accounts.proto\x1a\x15auth/v1/session.proto2\xff\b\n" +
+	"\x15auth/v1/service.proto\x12\aauth.v1\x1a\x15auth/v1/members.proto\x1a\x1eauth/v1/service_accounts.proto\x1a\x15auth/v1/session.proto2\xfc\b\n" +
 	"\vAuthService\x12N\n" +
 	"\rGetAuthConfig\x12\x1d.auth.v1.GetAuthConfigRequest\x1a\x1e.auth.v1.GetAuthConfigResponse\x126\n" +
-	"\x05Login\x12\x15.auth.v1.LoginRequest\x1a\x16.auth.v1.LoginResponse\x12H\n" +
-	"\vResumeLogin\x12\x1b.auth.v1.ResumeLoginRequest\x1a\x1c.auth.v1.ResumeLoginResponse\x129\n" +
+	"\x05Login\x12\x15.auth.v1.LoginRequest\x1a\x16.auth.v1.LoginResponse\x129\n" +
 	"\x06Logout\x12\x16.auth.v1.LogoutRequest\x1a\x17.auth.v1.LogoutResponse\x12?\n" +
 	"\bRegister\x12\x18.auth.v1.RegisterRequest\x1a\x19.auth.v1.RegisterResponse\x12K\n" +
-	"\fAcceptInvite\x12\x1c.auth.v1.AcceptInviteRequest\x1a\x1d.auth.v1.AcceptInviteResponse\x12H\n" +
+	"\fAcceptInvite\x12\x1c.auth.v1.AcceptInviteRequest\x1a\x1d.auth.v1.AcceptInviteResponse\x12E\n" +
+	"\n" +
+	"GetSession\x12\x1a.auth.v1.GetSessionRequest\x1a\x1b.auth.v1.GetSessionResponse\x12H\n" +
 	"\vListMembers\x12\x1b.auth.v1.ListMembersRequest\x1a\x1c.auth.v1.ListMembersResponse\x12K\n" +
 	"\fInviteMember\x12\x1c.auth.v1.InviteMemberRequest\x1a\x1d.auth.v1.InviteMemberResponse\x12N\n" +
 	"\rSetMemberRole\x12\x1d.auth.v1.SetMemberRoleRequest\x1a\x1e.auth.v1.SetMemberRoleResponse\x12K\n" +
@@ -45,10 +46,10 @@ const file_auth_v1_service_proto_rawDesc = "" +
 var file_auth_v1_service_proto_goTypes = []any{
 	(*GetAuthConfigRequest)(nil),               // 0: auth.v1.GetAuthConfigRequest
 	(*LoginRequest)(nil),                       // 1: auth.v1.LoginRequest
-	(*ResumeLoginRequest)(nil),                 // 2: auth.v1.ResumeLoginRequest
-	(*LogoutRequest)(nil),                      // 3: auth.v1.LogoutRequest
-	(*RegisterRequest)(nil),                    // 4: auth.v1.RegisterRequest
-	(*AcceptInviteRequest)(nil),                // 5: auth.v1.AcceptInviteRequest
+	(*LogoutRequest)(nil),                      // 2: auth.v1.LogoutRequest
+	(*RegisterRequest)(nil),                    // 3: auth.v1.RegisterRequest
+	(*AcceptInviteRequest)(nil),                // 4: auth.v1.AcceptInviteRequest
+	(*GetSessionRequest)(nil),                  // 5: auth.v1.GetSessionRequest
 	(*ListMembersRequest)(nil),                 // 6: auth.v1.ListMembersRequest
 	(*InviteMemberRequest)(nil),                // 7: auth.v1.InviteMemberRequest
 	(*SetMemberRoleRequest)(nil),               // 8: auth.v1.SetMemberRoleRequest
@@ -59,10 +60,10 @@ var file_auth_v1_service_proto_goTypes = []any{
 	(*RemoveServiceAccountRequest)(nil),        // 13: auth.v1.RemoveServiceAccountRequest
 	(*GetAuthConfigResponse)(nil),              // 14: auth.v1.GetAuthConfigResponse
 	(*LoginResponse)(nil),                      // 15: auth.v1.LoginResponse
-	(*ResumeLoginResponse)(nil),                // 16: auth.v1.ResumeLoginResponse
-	(*LogoutResponse)(nil),                     // 17: auth.v1.LogoutResponse
-	(*RegisterResponse)(nil),                   // 18: auth.v1.RegisterResponse
-	(*AcceptInviteResponse)(nil),               // 19: auth.v1.AcceptInviteResponse
+	(*LogoutResponse)(nil),                     // 16: auth.v1.LogoutResponse
+	(*RegisterResponse)(nil),                   // 17: auth.v1.RegisterResponse
+	(*AcceptInviteResponse)(nil),               // 18: auth.v1.AcceptInviteResponse
+	(*GetSessionResponse)(nil),                 // 19: auth.v1.GetSessionResponse
 	(*ListMembersResponse)(nil),                // 20: auth.v1.ListMembersResponse
 	(*InviteMemberResponse)(nil),               // 21: auth.v1.InviteMemberResponse
 	(*SetMemberRoleResponse)(nil),              // 22: auth.v1.SetMemberRoleResponse
@@ -75,10 +76,10 @@ var file_auth_v1_service_proto_goTypes = []any{
 var file_auth_v1_service_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.AuthService.GetAuthConfig:input_type -> auth.v1.GetAuthConfigRequest
 	1,  // 1: auth.v1.AuthService.Login:input_type -> auth.v1.LoginRequest
-	2,  // 2: auth.v1.AuthService.ResumeLogin:input_type -> auth.v1.ResumeLoginRequest
-	3,  // 3: auth.v1.AuthService.Logout:input_type -> auth.v1.LogoutRequest
-	4,  // 4: auth.v1.AuthService.Register:input_type -> auth.v1.RegisterRequest
-	5,  // 5: auth.v1.AuthService.AcceptInvite:input_type -> auth.v1.AcceptInviteRequest
+	2,  // 2: auth.v1.AuthService.Logout:input_type -> auth.v1.LogoutRequest
+	3,  // 3: auth.v1.AuthService.Register:input_type -> auth.v1.RegisterRequest
+	4,  // 4: auth.v1.AuthService.AcceptInvite:input_type -> auth.v1.AcceptInviteRequest
+	5,  // 5: auth.v1.AuthService.GetSession:input_type -> auth.v1.GetSessionRequest
 	6,  // 6: auth.v1.AuthService.ListMembers:input_type -> auth.v1.ListMembersRequest
 	7,  // 7: auth.v1.AuthService.InviteMember:input_type -> auth.v1.InviteMemberRequest
 	8,  // 8: auth.v1.AuthService.SetMemberRole:input_type -> auth.v1.SetMemberRoleRequest
@@ -89,10 +90,10 @@ var file_auth_v1_service_proto_depIdxs = []int32{
 	13, // 13: auth.v1.AuthService.RemoveServiceAccount:input_type -> auth.v1.RemoveServiceAccountRequest
 	14, // 14: auth.v1.AuthService.GetAuthConfig:output_type -> auth.v1.GetAuthConfigResponse
 	15, // 15: auth.v1.AuthService.Login:output_type -> auth.v1.LoginResponse
-	16, // 16: auth.v1.AuthService.ResumeLogin:output_type -> auth.v1.ResumeLoginResponse
-	17, // 17: auth.v1.AuthService.Logout:output_type -> auth.v1.LogoutResponse
-	18, // 18: auth.v1.AuthService.Register:output_type -> auth.v1.RegisterResponse
-	19, // 19: auth.v1.AuthService.AcceptInvite:output_type -> auth.v1.AcceptInviteResponse
+	16, // 16: auth.v1.AuthService.Logout:output_type -> auth.v1.LogoutResponse
+	17, // 17: auth.v1.AuthService.Register:output_type -> auth.v1.RegisterResponse
+	18, // 18: auth.v1.AuthService.AcceptInvite:output_type -> auth.v1.AcceptInviteResponse
+	19, // 19: auth.v1.AuthService.GetSession:output_type -> auth.v1.GetSessionResponse
 	20, // 20: auth.v1.AuthService.ListMembers:output_type -> auth.v1.ListMembersResponse
 	21, // 21: auth.v1.AuthService.InviteMember:output_type -> auth.v1.InviteMemberResponse
 	22, // 22: auth.v1.AuthService.SetMemberRole:output_type -> auth.v1.SetMemberRoleResponse

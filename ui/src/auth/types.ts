@@ -12,7 +12,3 @@ export interface AppSession {
   email?: string;
   avatarUrl?: string;
 }
-
-export interface SigninState {
-  returnTo?: string;
-}

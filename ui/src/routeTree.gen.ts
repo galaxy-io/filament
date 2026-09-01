@@ -13,7 +13,6 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
-import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AppMainRouteRouteImport } from './routes/_app/_main/route'
 import { Route as AppMainIndexRouteImport } from './routes/_app/_main/index'
 import { Route as AppPipelinesIdRouteImport } from './routes/_app/pipelines/$id'
@@ -43,11 +42,6 @@ const AppRouteRoute = AppRouteRouteImport.update({
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
   path: '/invite/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppMainRouteRoute = AppMainRouteRouteImport.update({
@@ -109,7 +103,6 @@ export interface FileRoutesByFullPath {
   '/': typeof AppMainIndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/invite/$token': typeof InviteTokenRoute
   '/observability': typeof AppMainObservabilityRoute
   '/pipelines': typeof AppMainPipelinesRoute
@@ -125,7 +118,6 @@ export interface FileRoutesByTo {
   '/': typeof AppMainIndexRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/auth/callback': typeof AuthCallbackRoute
   '/invite/$token': typeof InviteTokenRoute
   '/observability': typeof AppMainObservabilityRoute
   '/pipelines': typeof AppMainPipelinesRoute
@@ -142,7 +134,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/_app/_main': typeof AppMainRouteRouteWithChildren
-  '/auth/callback': typeof AuthCallbackRoute
   '/invite/$token': typeof InviteTokenRoute
   '/_app/_main/observability': typeof AppMainObservabilityRoute
   '/_app/_main/pipelines': typeof AppMainPipelinesRoute
@@ -161,7 +152,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
-    | '/auth/callback'
     | '/invite/$token'
     | '/observability'
     | '/pipelines'
@@ -177,7 +167,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/register'
-    | '/auth/callback'
     | '/invite/$token'
     | '/observability'
     | '/pipelines'
@@ -193,7 +182,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/_app/_main'
-    | '/auth/callback'
     | '/invite/$token'
     | '/_app/_main/observability'
     | '/_app/_main/pipelines'
@@ -211,7 +199,6 @@ export interface RootRouteChildren {
   AppRouteRoute: typeof AppRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
-  AuthCallbackRoute: typeof AuthCallbackRoute
   InviteTokenRoute: typeof InviteTokenRoute
 }
 
@@ -243,13 +230,6 @@ declare module '@tanstack/react-router' {
       path: '/invite/$token'
       fullPath: '/invite/$token'
       preLoaderRoute: typeof InviteTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/_main': {
@@ -388,7 +368,6 @@ const rootRouteChildren: RootRouteChildren = {
   AppRouteRoute: AppRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
-  AuthCallbackRoute: AuthCallbackRoute,
   InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport

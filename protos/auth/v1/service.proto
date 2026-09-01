@@ -18,10 +18,12 @@ service AuthService {
   // Session; pre-token, public. An empty issuer means auth is disabled.
   rpc GetAuthConfig(GetAuthConfigRequest) returns (GetAuthConfigResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
-  rpc ResumeLogin(ResumeLoginRequest) returns (ResumeLoginResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse);
+
+  // Session; authenticated. The UI's sign-in check.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
 
   // Members; authenticated tenant administration.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);

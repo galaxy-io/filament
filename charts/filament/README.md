@@ -162,8 +162,8 @@ helm upgrade --install filament . \
 |-----|------|---------|-------------|
 | auth.enabled | bool | `false` | Enable authentication. Disabled leaves the API unauthenticated and every request scoped to the default tenant. |
 | auth.type | string | `"zitadel"` | Identity provider. Valid value is `zitadel`. |
-| auth.uiOrigin | string | `""` | Browser origin sign-in returns to, stored in the ConfigMap as `AUTH_UI_ORIGIN`. This is where Filament serves its own login page, so it is normally the ingress host. |
-| auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament and the browser reach the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Both resolve it, so it must be one name that answers from inside the cluster and from the browser, and it must equal the issuer Zitadel advertises or discovery fails. |
+| auth.uiOrigin | string | `""` | Origin the UI is served from, stored in the ConfigMap as `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the session cookie Secure. |
+| auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament reaches the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name is fine, but it must equal the issuer Zitadel advertises or discovery fails. |
 | auth.zitadel.pat | string | required when `auth.enabled=true` and `zitadel.enabled=false` | Machine-user personal access token, stored in the chart-created Secret as `AUTH_PAT`. Zitadel generates the token itself and will not accept one you choose, so create the machine user out of band and paste the result here. Ignored when `zitadel.enabled=true`: the vendored setup job mints a token into its own Secret and the server reads it from there. |
 
 ## Observability parameters

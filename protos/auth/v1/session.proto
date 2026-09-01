@@ -9,7 +9,6 @@ message GetAuthConfigRequest {}
 // other AuthService RPC is unimplemented.
 message GetAuthConfigResponse {
   string issuer = 1;
-  string client_id = 2;
   // service_account_scopes are requested by non-interactive clients. The
   // provider owns these values so clients do not need provider-specific
   // project IDs or reserved scope knowledge.
@@ -17,35 +16,30 @@ message GetAuthConfigResponse {
 }
 
 // LoginRequest carries the credentials filament's own login page collected.
-// auth_request_id is the pending authorization the provider redirected with.
+// A successful login answers with an HttpOnly session cookie that every later
+// RPC carries; nothing about the provider reaches the browser.
 message LoginRequest {
-  string auth_request_id = 1;
-  string login_name = 2;
-  string password = 3;
+  string login_name = 1;
+  string password = 2;
 }
 
-// LoginResponse returns the OIDC callback the browser follows to finish the
-// flow and receive its token.
-message LoginResponse {
-  string callback_url = 1;
-}
+message LoginResponse {}
 
-// ResumeLoginRequest finishes a pending authorization with the session the
-// browser remembers from an earlier sign-in, so a new tab needs no
-// credentials. The session travels in an HttpOnly cookie Login sets.
-message ResumeLoginRequest {
-  string auth_request_id = 1;
-}
-
-message ResumeLoginResponse {
-  string callback_url = 1;
-}
-
-// LogoutRequest ends the remembered session and clears its cookie. The
-// browser follows up with the provider's own end-session redirect.
+// LogoutRequest ends the session and clears its cookie.
 message LogoutRequest {}
 
 message LogoutResponse {}
+
+// GetSessionRequest resolves the caller behind the session cookie. It is the
+// UI's sign-in check: unauthenticated means show the login page.
+message GetSessionRequest {}
+
+message GetSessionResponse {
+  string user_id = 1;
+  string name = 2;
+  string email = 3;
+  string avatar_url = 4;
+}
 
 // RegisterRequest creates a tenant and its first admin.
 message RegisterRequest {
