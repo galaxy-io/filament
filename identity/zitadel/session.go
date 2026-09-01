@@ -43,7 +43,7 @@ func (s sessionRef) String() string { return s.id + "." + s.token }
 // sessionCookie builds the session cookie; an empty value with a negative
 // maxAge clears it.
 func (p *Provider) sessionCookie(value string, maxAge int) *http.Cookie {
-	return &http.Cookie{
+	return &http.Cookie{ //nolint:gosec // Secure follows the UI origin's scheme so plain-http local dev keeps its cookie
 		Name:     sessionCookieName,
 		Value:    value,
 		Path:     "/",
