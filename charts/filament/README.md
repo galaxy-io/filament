@@ -1,6 +1,7 @@
 # Filament Helm Chart
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
+![Chart](https://img.shields.io/github/v/tag/galaxy-io/filament?filter=helm-chart-*&label=chart)
+![App](https://img.shields.io/github/v/tag/galaxy-io/filament?filter=v*&sort=semver&label=app)
 
 A Helm chart for Filament
 
@@ -17,6 +18,15 @@ This chart deploys Filament server, control plane, Kubernetes worker dispatch su
 
 The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) and [NATS chart](https://artifacthub.io/packages/helm/nats/nats) documentation for their full configuration surfaces.
 
+## Installing
+
+The chart is published as an OCI artifact with a build provenance attestation.
+
+```sh
+helm install filament oci://ghcr.io/galaxy-io/charts/filament --version 0.0.26
+gh attestation verify --owner galaxy-io oci://ghcr.io/galaxy-io/charts/filament:0.0.26
+```
+
 ## Runtime configuration
 
 Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
@@ -29,7 +39,9 @@ kubectl create secret generic filament-runtime \
   --from-literal=ENCRYPTION_KEY="$(openssl rand -base64 32)" \
   --from-literal=NATS_URL='nats://nats.example.com:4222'
 
-helm upgrade --install filament . \
+helm upgrade --install filament \
+  oci://ghcr.io/galaxy-io/charts/filament \
+  --version 0.0.26 \
   --set existingSecret=filament-runtime
 ```
 
@@ -39,7 +51,9 @@ For a local or test cluster with the vendored PostgreSQL and NATS charts:
 PG_PASSWORD="$(openssl rand -hex 24)"
 ENC_KEY="$(openssl rand -base64 32)"
 
-helm upgrade --install filament . \
+helm upgrade --install filament \
+  oci://ghcr.io/galaxy-io/charts/filament \
+  --version 0.0.26 \
   --set postgresql.enabled=true \
   --set nats.enabled=true \
   --set-string postgresql.auth.password="$PG_PASSWORD" \
