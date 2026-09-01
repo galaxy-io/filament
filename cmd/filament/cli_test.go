@@ -54,7 +54,7 @@ func TestNonTerminalWithoutCommandFallsBackToHelp(t *testing.T) {
 	if err := app.run(context.Background(), nil); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(output.String(), "Filament CLI") {
+	if !strings.Contains(output.String(), "Filament configures and runs data pipelines") {
 		t.Fatalf("output = %q", output.String())
 	}
 }

@@ -6,27 +6,25 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"text/tabwriter"
+	"time"
 
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
 
-// Contexts renders configured contexts as a terminal table.
-func Contexts(w io.Writer, result model.ContextList) error {
-	table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Current\tName\tKind\tLocation\tTenant"); err != nil {
-		return err
-	}
+// Contexts renders configured contexts stored at location.
+func Contexts(w io.Writer, result model.ContextList, location string) error {
+	p := style.New(w)
+	rows := make([][]string, 0, len(result.Items))
 	for _, item := range result.Items {
-		current := ""
+		marker := " "
 		if item.Current {
-			current = "*"
+			marker = p.Accent("●")
 		}
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", current, item.Name, item.Kind, item.Location, item.Tenant); err != nil {
-			return err
-		}
+		rows = append(rows, []string{marker, item.Name, titleCase(item.Kind), item.Location, dash(item.Tenant)})
 	}
-	return table.Flush()
+	columns := []style.Column{{Title: " "}, {Title: "Name", Role: style.RolePrimary}, {Title: "Kind", Role: style.RoleSecondary}, {Title: "Location"}, {Title: "Tenant", Role: style.RoleSecondary}}
+	return table(w, p.Title("Contexts in", location), p.Table(columns, rows))
 }
 
 // CurrentContext renders the effective context name.
@@ -35,74 +33,98 @@ func CurrentContext(w io.Writer, name string) error {
 	return err
 }
 
-// Connections renders a connection list as a terminal table.
-func Connections(w io.Writer, result model.ConnectionList) error {
+// Connections renders saved connections and the pipelines that use them.
+func Connections(w io.Writer, result model.ConnectionList, location string, usedBy map[string][]string) error {
 	if len(result.Items) == 0 {
 		_, err := fmt.Fprintf(w, "No saved %ss.\n", result.Kind)
 		return err
 	}
-	table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Name\tConnector\tDescription"); err != nil {
-		return err
-	}
+	p := style.New(w)
+	rows := make([][]string, 0, len(result.Items))
 	for _, connection := range result.Items {
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\n", connection.Name, connection.Connector, connection.Description); err != nil {
-			return err
-		}
+		rows = append(rows, []string{connection.Name, connection.Connector, dash(strings.Join(usedBy[connection.Name], ", "))})
 	}
-	return table.Flush()
+	columns := []style.Column{{Title: "Name", Role: style.RolePrimary}, {Title: "Connector", Role: style.RoleSecondary}, {Title: "Used by"}}
+	title := strings.ToUpper(result.Kind[:1]) + result.Kind[1:] + "s in"
+	return table(w, p.Title(title, location), p.Table(columns, rows))
 }
 
-// Pipelines renders a pipeline list as a terminal table.
-func Pipelines(w io.Writer, result model.PipelineList) error {
+// Pipelines renders saved pipelines.
+func Pipelines(w io.Writer, result model.PipelineList, location string) error {
 	if len(result.Items) == 0 {
 		_, err := fmt.Fprintln(w, "No saved pipelines.")
 		return err
 	}
-	table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Name\tSource\tSink\tResources\tSync mode\tWrite mode"); err != nil {
-		return err
-	}
+	p := style.New(w)
+	rows := make([][]string, 0, len(result.Items))
 	for _, pipeline := range result.Items {
 		resources := strconv.Itoa(pipeline.ResourceCount)
 		if pipeline.AllResources {
 			resources = "all"
 		}
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			pipeline.Name, pipeline.Source, pipeline.Sink, resources, pipeline.SyncMode, pipeline.WriteMode); err != nil {
-			return err
-		}
+		rows = append(rows, []string{pipeline.Name, pipeline.Source, pipeline.Sink, titleCase(resources), titleCase(dash(pipeline.SyncMode)), titleCase(dash(pipeline.WriteMode))})
 	}
-	return table.Flush()
+	columns := []style.Column{
+		{Title: "Name", Role: style.RolePrimary},
+		{Title: "Source", Role: style.RoleSecondary},
+		{Title: "Sink", Role: style.RoleSecondary},
+		{Title: "Resources", Role: style.RoleNumber},
+		{Title: "Sync", Role: style.RoleSecondary},
+		{Title: "Write", Role: style.RoleSecondary},
+	}
+	return table(w, p.Title("Pipelines in", location), p.Table(columns, rows))
 }
 
-// Resources renders a discovered resource list as a terminal table.
-func Resources(w io.Writer, result model.ResourceList) error {
+// Resources renders discovered resources and how long discovery took.
+func Resources(w io.Writer, result model.ResourceList, elapsed time.Duration) error {
 	if len(result.Items) == 0 {
 		_, err := fmt.Fprintf(w, "No resources discovered for source %q.\n", result.Source)
 		return err
 	}
-	table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Resource\tDisplay name\tSelectable\tPrimary key\tEstimated rows"); err != nil {
-		return err
-	}
+	p := style.New(w)
+	rows := make([][]string, 0, len(result.Items))
 	for _, resource := range result.Items {
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%d\n",
-			resource.Name,
-			resource.DisplayName,
-			yesNo(resource.Selectable),
-			strings.Join(resource.PrimaryKey, ","),
-			resource.EstimatedRows,
-		); err != nil {
-			return err
+		display := ""
+		if resource.DisplayName != resource.Name {
+			display = resource.DisplayName
 		}
+		estimated := "–"
+		if resource.EstimatedRows > 0 {
+			estimated = style.Count(resource.EstimatedRows)
+		}
+		selectable := p.Muted("–")
+		if resource.Selectable {
+			selectable = p.Success("✓")
+		}
+		rows = append(rows, []string{resource.Name, dash(display), selectable, dash(strings.Join(resource.PrimaryKey, ", ")), estimated})
 	}
-	return table.Flush()
+	columns := []style.Column{
+		{Title: "Resource", Role: style.RolePrimary},
+		{Title: "Display name", Role: style.RoleSecondary},
+		{Title: "Selectable"},
+		{Title: "Primary key", Role: style.RoleSecondary},
+		{Title: "Est. rows", Role: style.RoleNumber},
+	}
+	title := p.Title("Resources from", result.Source) + " " + p.Muted("["+style.Elapsed(elapsed)+"]")
+	return table(w, title, p.Table(columns, rows))
 }
 
-func yesNo(value bool) string {
-	if value {
-		return "yes"
+func table(w io.Writer, title, grid string) error {
+	_, err := fmt.Fprintf(w, "%s\n\n%s", title, grid)
+	return err
+}
+
+// titleCase capitalizes an enumerated value for display only.
+func titleCase(value string) string {
+	if value == "" || value == "–" {
+		return value
 	}
-	return "no"
+	return strings.ToUpper(value[:1]) + value[1:]
+}
+
+func dash(value string) string {
+	if value == "" {
+		return "–"
+	}
+	return value
 }

@@ -9,8 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"gopkg.in/yaml.v3"
+
+	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 // Store reads and atomically updates a local YAML configuration document.

@@ -5,11 +5,22 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 )
 
+func (a *cliApp) runCommandDefinition() *cobra.Command {
+	cmd := a.dynamicCommand(
+		"run <pipeline> [flags] | run --source-connector NAME --sink-connector NAME [flags]",
+		"Run a saved pipeline or an inline transfer", a.printRunHelp, a.runCommand,
+	)
+	cmd.PersistentPreRunE = a.prepareTarget
+	return cmd
+}
+
 func (a *cliApp) runCommand(ctx context.Context, args []string) error {
-	if len(args) == 0 || helpRequested(args) {
+	if len(args) == 0 {
 		return a.printRunHelp(ctx, args)
 	}
 	parsed, err := a.parseCommandArgs(args)
@@ -25,6 +36,9 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 	}
 	if err != nil {
 		return err
+	}
+	if interactive := a.renderer(); interactive.Interactive() {
+		return interactive.RunRequest(ctx, request)
 	}
 	spec, result, err := a.service.ExecuteRun(ctx, request, nil)
 	if err != nil {
