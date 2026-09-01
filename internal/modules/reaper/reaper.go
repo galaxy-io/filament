@@ -103,7 +103,9 @@ func (m *Module) Subscriptions() []host.Subscription { return nil }
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.ds = d.DataStore
 	m.bus = d.Bus
-	m.log = d.Log
+	if d.Log != nil {
+		m.log = d.Log.With(filament.Field{Key: "component", Value: "reaper"})
+	}
 	m.mx = d.Metrics
 	return nil
 }
@@ -119,7 +121,8 @@ func (m *Module) Start(ctx context.Context) {
 				return
 			case now := <-ticker.C:
 				if err := m.reap(ctx, now); err != nil && m.log != nil {
-					m.log.Error("reaper: sweep", err)
+					m.log.Error("reaper sweep failed", err,
+						filament.Field{Key: "event.name", Value: "reaper.sweep.failed"})
 				}
 			}
 		}
@@ -143,23 +146,42 @@ func (m *Module) reap(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	if len(stale) == 0 {
+		if m.log != nil {
+			m.log.Trace("reaper sweep completed",
+				filament.Field{Key: "event.name", Value: "reaper.sweep.completed"},
+				filament.Field{Key: "stale_runs", Value: 0})
+		}
+		return nil
+	}
+	held := 0
+	reaped := 0
+	probeFailures := 0
+	publishFailures := 0
 	for _, r := range stale {
 		workload := filament.WorkloadAbsent
 		if m.probe != nil {
 			workload, err = m.probe(ctx, r.Run)
 			if err != nil {
+				probeFailures++
+				held++
 				// Can't prove the workload is gone — hold the kill and let the
 				// next tick retry rather than fail a run that may still be live.
 				if m.log != nil {
-					m.log.Error("reaper: workload probe", err, filament.Field{Key: "run", Value: string(r.Run)})
+					m.log.Warn("workload probe failed; stale run held",
+						filament.Field{Key: "event.name", Value: "reaper.workload_probe.failed"},
+						filament.Field{Key: "run_id", Value: string(r.Run)},
+						filament.Field{Key: "error", Value: err.Error()})
 				}
 				continue
 			}
 		}
 		if !dead(r.Status, workload) {
+			held++
 			if m.log != nil {
-				m.log.Info("reaper: stale run held",
-					filament.Field{Key: "run", Value: string(r.Run)},
+				m.log.Debug("stale run held",
+					filament.Field{Key: "event.name", Value: "reaper.run.held"},
+					filament.Field{Key: "run_id", Value: string(r.Run)},
 					filament.Field{Key: "status", Value: int(r.Status)},
 					filament.Field{Key: "workload", Value: workload.String()},
 					filament.Field{Key: "stale_since", Value: r.UpdatedAt.UTC().Format(time.RFC3339)})
@@ -170,20 +192,34 @@ func (m *Module) reap(ctx context.Context, now time.Time) error {
 			events.Envelope{Tenant: r.Tenant, Run: r.Run, At: now},
 			events.RunFailedEvent{Error: fmt.Sprintf("reaped: no progress since %s", r.UpdatedAt.UTC().Format(time.RFC3339))})
 		if err != nil {
+			publishFailures++
 			if m.log != nil {
-				m.log.Error("reaper: emit run.failed", err, filament.Field{Key: "run", Value: string(r.Run)})
+				m.log.Error("reaped run failure event publish failed", err,
+					filament.Field{Key: "event.name", Value: "reaper.run_failed.publish_failed"},
+					filament.Field{Key: "run_id", Value: string(r.Run)})
 			}
 			continue
 		}
 		if m.log != nil {
-			m.log.Info("reaper: failed stale run",
-				filament.Field{Key: "run", Value: string(r.Run)},
-				filament.Field{Key: "pipeline", Value: r.Request.PipelineID},
+			m.log.Info("stale run reaped",
+				filament.Field{Key: "event.name", Value: "reaper.run.reaped"},
+				filament.Field{Key: "run_id", Value: string(r.Run)},
+				filament.Field{Key: "pipeline_id", Value: r.Request.PipelineID},
 				filament.Field{Key: "stale_since", Value: r.UpdatedAt.UTC().Format(time.RFC3339)})
 		}
+		reaped++
 		if m.mx != nil {
 			m.mx.Counter("filament_runs_reaped_total").Inc()
 		}
+	}
+	if m.log != nil {
+		m.log.Debug("reaper sweep completed",
+			filament.Field{Key: "event.name", Value: "reaper.sweep.completed"},
+			filament.Field{Key: "stale_runs", Value: len(stale)},
+			filament.Field{Key: "held_runs", Value: held},
+			filament.Field{Key: "reaped_runs", Value: reaped},
+			filament.Field{Key: "probe_failures", Value: probeFailures},
+			filament.Field{Key: "publish_failures", Value: publishFailures})
 	}
 	return nil
 }

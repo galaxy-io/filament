@@ -48,8 +48,8 @@ func acknowledgeDurableChanges(
 		err = ack.AcknowledgeChanges(ctx, floor)
 	}
 	if err != nil && deps.Log != nil {
-		deps.Log.Warn("runner: acknowledge durable change checkpoint",
-			filament.Field{Key: "run", Value: string(spec.Run)},
+		deps.Log.Warn("durable change checkpoint not acknowledged",
+			filament.Field{Key: "event.name", Value: "runner.checkpoint.acknowledge_failed"},
 			filament.Field{Key: "error", Value: err.Error()})
 	}
 }

@@ -65,8 +65,8 @@ func (e *emitter) seedProgress(state filament.RunState) {
 	}
 	e.mu.Unlock()
 	if e.log != nil && (state.Records > 0 || state.Bytes > 0) {
-		e.log.Info("runner: progress restored",
-			filament.Field{Key: "run", Value: string(e.run)},
+		e.log.Debug("run progress restored",
+			filament.Field{Key: "event.name", Value: "runner.progress.restored"},
 			filament.Field{Key: "records", Value: state.Records},
 			filament.Field{Key: "bytes", Value: state.Bytes},
 			filament.Field{Key: "progressed_resources", Value: progressedResources},
@@ -120,37 +120,54 @@ func (e *emitter) publish(f events.Fact) error {
 		}
 		e.mu.Unlock()
 	}
+	if err := events.Publish(e.ctx, e.bus, f); err != nil {
+		if e.log != nil {
+			e.log.Error("run fact publish failed", err,
+				filament.Field{Key: "event.name", Value: "runner.fact.publish_failed"},
+				filament.Field{Key: "fact_name", Value: f.Name},
+				filament.Field{Key: "resource", Value: f.Resource})
+		}
+		return err
+	}
 	if e.log != nil {
 		records, bytes, errMsg, hasProgress := factProgress(f)
-		fields := []filament.Field{
-			{Key: "run", Value: string(f.Run)},
-			{Key: "resource", Value: f.Resource},
+		fields := []filament.Field{{Key: "event.name", Value: f.Name}}
+		if f.Resource != "" {
+			fields = append(fields, filament.Field{Key: "resource", Value: f.Resource})
 		}
 		if hasProgress {
 			fields = append(fields,
 				filament.Field{Key: "records", Value: records},
-				filament.Field{Key: "bytes", Value: bytes},
-			)
+				filament.Field{Key: "bytes", Value: bytes})
 		}
 		if errMsg != "" {
 			fields = append(fields, filament.Field{Key: "error", Value: errMsg})
 		}
-		switch f.Data.(type) {
-		case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent, events.EncodedIntegrityVerifiedEvent, events.PageFetchedEvent:
-			// Debug, not Info: a large run emits one of these per chunk, which
-			// at Info drowns the worker's log.
-			e.log.Debug(f.Name, fields...)
-		default:
-			e.log.Info(f.Name, fields...)
-		}
-	}
-	if err := events.Publish(e.ctx, e.bus, f); err != nil {
-		if e.log != nil {
-			e.log.Error("runner: publish fact", err, filament.Field{Key: "type", Value: f.Name})
-		}
-		return err
+		e.logPublishedFact(f, fields)
 	}
 	return nil
+}
+
+func (e *emitter) logPublishedFact(f events.Fact, fields []filament.Field) {
+	switch f.Data.(type) {
+	case events.RunStartedEvent:
+		e.log.Info("run started", fields...)
+	case events.RunCompletedEvent:
+		e.log.Info("run completed", fields...)
+	case events.RunPausedEvent:
+		e.log.Info("run paused", fields...)
+	case events.RunCanceledEvent:
+		e.log.Info("run canceled", fields...)
+	case events.RunFailedEvent, events.RunPartialEvent:
+		// fail and partial log the original error once before publishing.
+	case events.RetryExhaustedEvent:
+		e.log.Warn("source retries exhausted", fields...)
+	case events.BatchBufferedEvent, events.BatchWrittenEvent, events.IntegrityVerifiedEvent,
+		events.EncodedIntegrityVerifiedEvent, events.PageFetchedEvent:
+		e.log.Trace("run progress fact published", fields...)
+	default:
+		e.log.Debug("run fact published", fields...)
+	}
 }
 
 // streamCheckpoints returns a copy of the newest stream checkpoint per resource.
@@ -235,7 +252,8 @@ func sourceObserver(e *emitter) filament.SourceObserver {
 			})
 		default:
 			if e.log != nil {
-				e.log.Warn("runner: unmapped source progress",
+				e.log.Warn("unmapped source progress",
+					filament.Field{Key: "event.name", Value: "runner.source_progress.unmapped"},
 					filament.Field{Key: "kind", Value: progress.Kind},
 					filament.Field{Key: "resource", Value: progress.Resource},
 				)
@@ -302,7 +320,8 @@ func (e *emitter) fail(err error) {
 		e.span.SetError(err)
 	}
 	if e.log != nil {
-		e.log.Error("runner: run failed", err, filament.Field{Key: "run", Value: string(e.run)})
+		e.log.Error("run failed", err,
+			filament.Field{Key: "event.name", Value: "run.failed"})
 	}
 	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error()})
 }
@@ -312,7 +331,9 @@ func (e *emitter) partial(err error) {
 		e.span.SetError(err)
 	}
 	if e.log != nil {
-		e.log.Error("runner: run partial", err, filament.Field{Key: "run", Value: string(e.run)})
+		e.log.Warn("run partial",
+			filament.Field{Key: "event.name", Value: "run.partial"},
+			filament.Field{Key: "error", Value: err.Error()})
 	}
 	emit(e, events.RunPartial, "", events.RunPartialEvent{Error: err.Error()})
 }

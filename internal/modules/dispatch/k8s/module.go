@@ -62,18 +62,33 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		return err
 	}
 	m.ds = d.DataStore
-	m.log = d.Log
+	if d.Log != nil {
+		m.log = d.Log.With(filament.Field{Key: "component", Value: "dispatch"})
+	}
 	m.mx = d.Metrics
 	m.client = c
 	return nil
 }
 
 func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunRequestedEvent]) error {
+	if m.log != nil {
+		m.log.Trace("run request received",
+			filament.Field{Key: "event.name", Value: "dispatch.run_request.received"},
+			filament.Field{Key: "tenant_id", Value: string(ev.Tenant)},
+			filament.Field{Key: "run_id", Value: string(ev.Run)})
+	}
 	state, err := m.ds.LoadRun(ctx, ev.Run)
 	if err != nil {
 		return fmt.Errorf("k8sdispatch: load run %q: %w", ev.Run, err)
 	}
 	if !runner.ShouldRun(state) {
+		if m.log != nil {
+			m.log.Debug("run dispatch skipped",
+				filament.Field{Key: "event.name", Value: "dispatch.run.skipped"},
+				filament.Field{Key: "run_id", Value: string(ev.Run)},
+				filament.Field{Key: "status", Value: int(state.Status)},
+				filament.Field{Key: "reason", Value: "not_runnable"})
+		}
 		return nil
 	}
 	spec := runner.SpecFromState(state)
@@ -101,9 +116,10 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 		m.mx.Counter("filament_runs_dispatched_total").Inc()
 	}
 	if m.log != nil {
-		m.log.Info("k8sdispatch: dispatched run",
-			filament.Field{Key: "run", Value: string(spec.Run)},
-			filament.Field{Key: "job", Value: job.Name},
+		m.log.Info("run dispatched",
+			filament.Field{Key: "event.name", Value: "dispatch.run.dispatched"},
+			filament.Field{Key: "run_id", Value: string(spec.Run)},
+			filament.Field{Key: "job_name", Value: job.Name},
 			filament.Field{Key: "namespace", Value: m.cfg.Namespace},
 		)
 	}

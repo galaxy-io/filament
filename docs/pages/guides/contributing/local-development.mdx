@@ -30,7 +30,7 @@ day.
 |---|---|
 | `just infra` | Start PostgreSQL and NATS via docker compose (`down` stops, `volumes` also drops data) |
 | `just migrate` | Run datastore migrations against the local database |
-| `just dev` | Control plane + server in the background, wait for `:8080/livez` and `:8081/livez`, then the UI |
+| `just dev` | Control plane + server in the background, wait for `:8080/startupz` and `:8081/startupz`, then the UI |
 | `just server` | API server alone (runs `migrate` first) |
 | `just control-plane` | Control plane alone, with `DISPATCH_MODE=inproc` |
 | `just ui` | Vite dev server on `:5173`, proxying the API to `:8080` |

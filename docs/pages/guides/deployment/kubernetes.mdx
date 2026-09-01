@@ -68,9 +68,16 @@ image tag is unchanged.
 
 Both Deployments carry three probes:
 
-- startup on `/livez` (5s period, 30 failures allowed)
-- readiness on `/readyz`, which pings PostgreSQL
-- liveness on `/livez`
+- startup on `/startupz` (5s period, 24 failures allowed), which succeeds after
+  the event bus connects and the process mounts all of its modules
+- readiness on `/readyz` (10s period, 2 failures allowed), which checks
+  PostgreSQL and the event bus; the server also ensures its default tenant
+- liveness on `/livez` (20s period, 3 failures allowed), which checks only the
+  process's HTTP loop
+
+When the vendored PostgreSQL chart is enabled, its startup probe allows up to
+five minutes for cold starts and crash recovery, and its readiness probe marks
+the primary unavailable after two failures.
 
 ## How dispatched worker Jobs look
 

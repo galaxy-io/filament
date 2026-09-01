@@ -6,12 +6,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -20,10 +22,12 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
+	"github.com/galaxy-io/filament/cmd/internal/health"
 	"github.com/galaxy-io/filament/cmd/internal/identity"
 	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
+	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
@@ -39,7 +43,10 @@ func main() {
 	err := run(ctx, *migrateOnly)
 	stop()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("server exited",
+			"event.name", "server.exited",
+			"error", err)
+		os.Exit(1)
 	}
 }
 
@@ -53,6 +60,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	defer closeDeps()
+	serverLog := deps.Log.With(filament.Field{Key: "component", Value: "server"})
 
 	// A nil provider means auth is disabled: the API stays unauthenticated
 	// and the UI renders without a session.
@@ -61,47 +69,42 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 
-	// Ensure the default tenant up front so a deployment with no readiness
-	// probes (local dev) still gets one; readyz retries until it lands when
-	// the database is still starting.
-	var tenantEnsured atomic.Bool
-	if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-		log.Printf("default tenant not ensured yet: %v", err)
-	} else {
-		tenantEnsured.Store(true)
-	}
+	tenantEnsured := ensureDefaultTenant(ctx, deps.Store, serverLog)
 
 	// Health endpoints listen before the NATS connect wait so liveness
 	// probes answer while dependencies are still starting.
-	addr := os.Getenv("SERVER_ADDR")
-	if addr == "" {
-		addr = ":8080"
-	}
+	addr := serverAddress()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if err := deps.Store.Ping(ctx); err != nil {
-			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
-			return
-		}
-		if !tenantEnsured.Load() {
-			if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-				http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
-				return
+	var eventBus eventbus.Bus
+	healthState := health.New(2*time.Second,
+		func(ctx context.Context) error {
+			if err := deps.Store.Ping(ctx); err != nil {
+				return err
 			}
-			tenantEnsured.Store(true)
-		}
-		w.WriteHeader(http.StatusOK)
-	})
+			if !tenantEnsured.Load() {
+				if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+					return err
+				}
+				tenantEnsured.Store(true)
+			}
+			return nil
+		},
+		func(ctx context.Context) error {
+			if checker, ok := eventBus.(eventbus.ReadinessChecker); ok {
+				return checker.Ready(ctx)
+			}
+			return nil
+		},
+	)
+	healthState.Mount(mux)
 	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
+	started := false
+	shutdown := serverShutdown(srv, healthState, serverLog, &started)
+	defer func() { _ = shutdown() }()
 
-	bus, closeBus, err := boot.Bus()
+	eventBus, closeBus, err := boot.Bus()
 	if err != nil {
 		return err
 	}
@@ -120,26 +123,84 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
-	api := server.New(registry.DefaultSources, registry.DefaultSinks, deps.Store, orch, bus, apiOpts...)
-	h, err := boot.Mount(ctx, deps, bus, orch)
+	api := server.New(registry.DefaultSources, registry.DefaultSinks, deps.Store, orch, eventBus, apiOpts...)
+	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = h.Close()
-	}()
+	defer func() { logHostClose(h.Close(), serverLog) }()
 
 	api.Mount(mux)
 	mux.Handle("/", ui.Handler())
-	fmt.Println("server:", "http://localhost"+addr)
+	healthState.MarkStarted()
+	started = true
+	serverLog.Info("server started",
+		filament.Field{Key: "event.name", Value: "server.started"},
+		filament.Field{Key: "address", Value: addr},
+		filament.Field{Key: "modules", Value: h.Mounted()})
 
 	select {
 	case err := <-errCh:
-		return err
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("server listener: %w", err)
 	case <-ctx.Done():
-		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return srv.Shutdown(shutCtx)
+		serverLog.Info("server stopping",
+			filament.Field{Key: "event.name", Value: "server.stopping"})
+		return shutdown()
+	}
+}
+
+func logHostClose(err error, log filament.Logger) {
+	if err != nil {
+		log.Warn("server host close failed",
+			filament.Field{Key: "event.name", Value: "server.host.close_failed"},
+			filament.Field{Key: "error", Value: err.Error()})
+	}
+}
+
+// ensureDefaultTenant makes one eager attempt; readiness retries while the
+// datastore is still starting.
+func ensureDefaultTenant(ctx context.Context, store filament.DataStore, log filament.Logger) *atomic.Bool {
+	ensured := &atomic.Bool{}
+	if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+		log.Warn("default tenant not ensured; readiness will retry",
+			filament.Field{Key: "event.name", Value: "server.default_tenant.ensure_deferred"},
+			filament.Field{Key: "error", Value: err.Error()})
+		return ensured
+	}
+	ensured.Store(true)
+	return ensured
+}
+
+func serverAddress() string {
+	if addr := os.Getenv("SERVER_ADDR"); addr != "" {
+		return addr
+	}
+	return ":8080"
+}
+
+func serverShutdown(srv *http.Server, healthState *health.State, log filament.Logger, started *bool) func() error {
+	var once sync.Once
+	var shutdownErr error
+	return func() error {
+		once.Do(func() {
+			healthState.MarkStopping()
+			shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			shutdownErr = srv.Shutdown(shutCtx)
+			if shutdownErr != nil {
+				log.Error("server shutdown failed", shutdownErr,
+					filament.Field{Key: "event.name", Value: "server.shutdown_failed"})
+				return
+			}
+			if *started {
+				log.Info("server stopped",
+					filament.Field{Key: "event.name", Value: "server.stopped"})
+			}
+		})
+		return shutdownErr
 	}
 }
 
