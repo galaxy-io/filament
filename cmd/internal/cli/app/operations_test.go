@@ -12,9 +12,11 @@ import (
 )
 
 type memoryTarget struct {
-	document model.Document
-	catalog  model.Catalog
-	runSpec  filament.RunSpec
+	document  model.Document
+	catalog   model.Catalog
+	runSpec   filament.RunSpec
+	runGroup  model.RunGroup
+	submitted model.RunSubmission
 }
 
 func (target *memoryTarget) Catalog(context.Context) (model.Catalog, error) {
@@ -139,9 +141,19 @@ func (target *memoryTarget) Discover(_ context.Context, request model.DiscoverRe
 	return model.ResourceList{Source: request.Source}, nil
 }
 
-func (target *memoryTarget) Run(_ context.Context, spec filament.RunSpec, _ func(model.RunEvent)) (model.RunResult, error) {
-	target.runSpec = spec
-	return model.RunResult{Run: "target-run-1", Records: 12, Bytes: 34}, nil
+func (target *memoryTarget) SubmitRun(_ context.Context, submission model.RunSubmission) (model.RunGroup, error) {
+	target.submitted = submission
+	target.runSpec = submission.Spec
+	target.runGroup = model.RunGroup{Runs: []model.RunRef{{ID: "target-run-1", Route: "copy/edge-1"}}}
+	return target.runGroup, nil
+}
+
+func (target *memoryTarget) TailRun(_ context.Context, group model.RunGroup, _ func(model.RunEvent)) (model.RunResult, error) {
+	return model.RunResult{Runs: group.Runs, Status: "complete", Records: 12, Bytes: 34}, nil
+}
+
+func (target *memoryTarget) SignalRun(context.Context, model.RunRef, filament.Signal) error {
+	return nil
 }
 
 func TestTypedOperationsDriveTarget(t *testing.T) {
@@ -189,11 +201,14 @@ func TestTypedOperationsDriveTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Run != "target-run-1" || result.Records != 12 || spec.Source.Connector != "sample" || spec.Sink.Connector != "stdout" {
+	if len(result.Runs) != 1 || result.Runs[0].ID != "target-run-1" || result.Records != 12 || spec.Source.Connector != "sample" || spec.Sink.Connector != "stdout" {
 		t.Fatalf("spec = %#v; result = %#v", spec, result)
 	}
 	if target.runSpec.PipelineID != "copy" || target.runSpec.Source.Config["rows"] != 2 {
 		t.Fatalf("target run spec = %#v", target.runSpec)
+	}
+	if target.submitted.Pipeline == nil || target.submitted.Pipeline.Name != "copy" || target.submitted.Pipeline.Metadata.ID == "" {
+		t.Fatalf("target submission = %#v", target.submitted)
 	}
 	if target.runSpec.Tenant != "" || target.runSpec.Run != "" {
 		t.Fatalf("application leaked target identity into run spec: %#v", target.runSpec)

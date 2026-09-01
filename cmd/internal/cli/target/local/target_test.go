@@ -9,7 +9,14 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/target/targettest"
 )
+
+func TestTargetEntityContract(t *testing.T) {
+	t.Parallel()
+	target := NewTarget(Store{Path: filepath.Join(t.TempDir(), "filament.yaml")}, model.Catalog{})
+	targettest.EntityLifecycle(t, target, "sample", "stdout")
+}
 
 func TestTargetConfigurationLifecycle(t *testing.T) {
 	t.Parallel()

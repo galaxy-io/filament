@@ -10,22 +10,52 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-// Target supplies operations for one selected local or remote Filament target.
-type Target interface {
+// CatalogTarget supplies connector metadata for one selected target.
+type CatalogTarget interface {
 	Catalog(context.Context) (model.Catalog, error)
+}
+
+// ConnectionTarget supplies explicit connection queries and mutations.
+type ConnectionTarget interface {
 	ListConnections(context.Context, string) ([]model.NamedConnection, error)
 	GetConnection(context.Context, string, string) (model.Connection, error)
 	CreateConnection(context.Context, string, string, model.Connection) (model.Connection, error)
 	UpdateConnection(context.Context, string, string, model.Connection) (model.Connection, error)
 	DeleteConnection(context.Context, string, string, model.EntityMetadata) error
+}
+
+// PipelineTarget supplies explicit pipeline queries and mutations.
+type PipelineTarget interface {
 	ListPipelines(context.Context) ([]model.NamedPipeline, error)
 	GetPipeline(context.Context, string) (model.Pipeline, error)
 	CreatePipeline(context.Context, string, model.Pipeline) (model.Pipeline, error)
 	UpdatePipeline(context.Context, string, model.Pipeline) (model.Pipeline, error)
 	DeletePipeline(context.Context, string, model.EntityMetadata) error
 	ValidateConfiguration(context.Context, model.Document) error
+}
+
+// DiscoveryTarget executes connector discovery in the target environment.
+type DiscoveryTarget interface {
 	Discover(context.Context, model.DiscoverRequest) (model.ResourceList, error)
-	Run(context.Context, filament.RunSpec, func(model.RunEvent)) (model.RunResult, error)
+}
+
+// RunTarget separates run submission, progress streaming, and lifecycle
+// commands so local and RPC adapters expose the same interaction model.
+type RunTarget interface {
+	SubmitRun(context.Context, model.RunSubmission) (model.RunGroup, error)
+	TailRun(context.Context, model.RunGroup, func(model.RunEvent)) (model.RunResult, error)
+	SignalRun(context.Context, model.RunRef, filament.Signal) error
+}
+
+// Target supplies all operations for one selected local or remote Filament
+// target. The smaller interfaces document adapter responsibilities and can be
+// used independently by focused tests.
+type Target interface {
+	CatalogTarget
+	ConnectionTarget
+	PipelineTarget
+	DiscoveryTarget
+	RunTarget
 }
 
 // RawConfigurationTarget is an optional target capability for byte-preserving
@@ -124,8 +154,19 @@ func (s *Service) Discover(ctx context.Context, request model.DiscoverRequest) (
 	return s.target.Discover(ctx, request)
 }
 
-func (s *Service) Run(ctx context.Context, spec filament.RunSpec, observe func(model.RunEvent)) (model.RunResult, error) {
-	return s.target.Run(ctx, spec, observe)
+// SubmitRun starts a prepared run on the selected target.
+func (s *Service) SubmitRun(ctx context.Context, submission model.RunSubmission) (model.RunGroup, error) {
+	return s.target.SubmitRun(ctx, submission)
+}
+
+// TailRun streams normalized progress for a submitted run group.
+func (s *Service) TailRun(ctx context.Context, group model.RunGroup, observe func(model.RunEvent)) (model.RunResult, error) {
+	return s.target.TailRun(ctx, group, observe)
+}
+
+// SignalRun sends a lifecycle command to one target-side run.
+func (s *Service) SignalRun(ctx context.Context, run model.RunRef, signal filament.Signal) error {
+	return s.target.SignalRun(ctx, run, signal)
 }
 
 func (s *Service) ConfigurationLocation() string {

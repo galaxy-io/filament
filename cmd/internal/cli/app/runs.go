@@ -9,64 +9,78 @@ import (
 	"github.com/galaxy-io/filament/internal/naming"
 )
 
-// PrepareRun builds an executable target request from a saved or inline run.
-func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (filament.RunSpec, error) {
+// PrepareRun builds a target submission from a saved or inline run.
+func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (model.RunSubmission, error) {
 	catalog, err := s.target.Catalog(ctx)
 	if err != nil {
-		return filament.RunSpec{}, err
+		return model.RunSubmission{}, err
 	}
 	if request.Inline != nil {
-		return prepareInlineRun(*request.Inline, catalog)
+		spec, prepareErr := prepareInlineRun(*request.Inline, catalog)
+		return model.RunSubmission{Spec: spec}, prepareErr
 	}
 	if request.Pipeline == "" {
-		return filament.RunSpec{}, fmt.Errorf("pipeline is required")
+		return model.RunSubmission{}, fmt.Errorf("pipeline is required")
 	}
 	document, err := s.Configuration(ctx)
 	if err != nil {
-		return filament.RunSpec{}, err
+		return model.RunSubmission{}, err
 	}
 	if err := s.target.ValidateConfiguration(ctx, document); err != nil {
-		return filament.RunSpec{}, err
+		return model.RunSubmission{}, err
 	}
 	pipeline, ok := document.Pipelines[request.Pipeline]
 	if !ok {
-		return filament.RunSpec{}, fmt.Errorf("pipeline %q does not exist", request.Pipeline)
+		return model.RunSubmission{}, fmt.Errorf("pipeline %q does not exist", request.Pipeline)
 	}
 	request.Overrides.Name = request.Pipeline
-	if !emptyPipelineRequest(request.Overrides) {
+	override := !emptyPipelineRequest(request.Overrides)
+	if override {
 		pipeline, err = BuildPipeline(request.Overrides, &pipeline, document, catalog)
 		if err != nil {
-			return filament.RunSpec{}, err
+			return model.RunSubmission{}, err
 		}
 		testDocument := document
 		testDocument.Pipelines = cloneMap(document.Pipelines)
 		testDocument.Pipelines[request.Pipeline] = pipeline
 		if err := s.target.ValidateConfiguration(ctx, testDocument); err != nil {
-			return filament.RunSpec{}, err
+			return model.RunSubmission{}, err
 		}
 	}
 	source := document.Sources[pipeline.Source.Ref]
 	sink := document.Sinks[pipeline.Sink.Ref]
 	sourceConfig, err := ResolvedConnectionConfig(source, pipeline.Source.Config, catalog.Sources[source.Type].Config)
 	if err != nil {
-		return filament.RunSpec{}, fmt.Errorf("source %q: %w", pipeline.Source.Ref, err)
+		return model.RunSubmission{}, fmt.Errorf("source %q: %w", pipeline.Source.Ref, err)
 	}
 	sinkConfig, err := ResolvedConnectionConfig(sink, pipeline.Sink.Config, catalog.Sinks[sink.Type].Config)
 	if err != nil {
-		return filament.RunSpec{}, fmt.Errorf("sink %q: %w", pipeline.Sink.Ref, err)
+		return model.RunSubmission{}, fmt.Errorf("sink %q: %w", pipeline.Sink.Ref, err)
 	}
 	sinkConfig = applySinkSchemaDefault(sinkConfig, catalog.Sinks[sink.Type], pipeline.Source.Ref)
-	return makeRunSpec(request.Pipeline, source.Type, sink.Type, sourceConfig, sinkConfig, pipeline.Resources, pipeline.SyncMode, pipeline.WriteMode)
+	spec, err := makeRunSpec(request.Pipeline, source.Type, sink.Type, sourceConfig, sinkConfig, pipeline.Resources, pipeline.SyncMode, pipeline.WriteMode)
+	if err != nil {
+		return model.RunSubmission{}, err
+	}
+	return model.RunSubmission{
+		Pipeline: &model.EntityReference{Name: request.Pipeline, Metadata: pipeline.Metadata},
+		Spec:     spec,
+		Override: override,
+	}, nil
 }
 
 // ExecuteRun prepares and runs a typed request through the selected target.
 func (s *Service) ExecuteRun(ctx context.Context, request RunRequest, observe func(model.RunEvent)) (filament.RunSpec, model.RunResult, error) {
-	spec, err := s.PrepareRun(ctx, request)
+	submission, err := s.PrepareRun(ctx, request)
 	if err != nil {
 		return filament.RunSpec{}, model.RunResult{}, err
 	}
-	result, err := s.target.Run(ctx, spec, observe)
-	return spec, result, err
+	group, err := s.SubmitRun(ctx, submission)
+	if err != nil {
+		return submission.Spec, model.RunResult{}, err
+	}
+	result, err := s.TailRun(ctx, group, observe)
+	return submission.Spec, result, err
 }
 
 func prepareInlineRun(run InlineRun, catalog model.Catalog) (filament.RunSpec, error) {

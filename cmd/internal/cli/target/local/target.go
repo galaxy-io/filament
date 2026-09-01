@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"sort"
+	"sync"
 
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
@@ -25,11 +26,13 @@ var _ cliapp.Target = (*Target)(nil)
 type Target struct {
 	store   Store
 	catalog model.Catalog
+	runMu   sync.Mutex
+	runs    map[string]*runSession
 }
 
 // NewTarget constructs a local target.
 func NewTarget(store Store, catalog model.Catalog) *Target {
-	return &Target{store: store, catalog: catalog}
+	return &Target{store: store, catalog: catalog, runs: make(map[string]*runSession)}
 }
 
 // Catalog returns connector metadata compiled into the local CLI.

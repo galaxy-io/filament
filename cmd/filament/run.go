@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 )
@@ -29,11 +30,14 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	runID := result.Run
-	if runID == "" {
-		runID = string(spec.Run)
+	runIDs := make([]string, 0, len(result.Runs))
+	for _, run := range result.Runs {
+		runIDs = append(runIDs, run.ID)
 	}
-	_, err = fmt.Fprintf(a.statusWriter(), "Run %s completed: %d records, %d bytes.\n", runID, result.Records, result.Bytes)
+	if len(runIDs) == 0 && spec.Run != "" {
+		runIDs = append(runIDs, string(spec.Run))
+	}
+	_, err = fmt.Fprintf(a.statusWriter(), "Run %s completed: %d records, %d bytes.\n", strings.Join(runIDs, ", "), result.Records, result.Bytes)
 	return err
 }
 
