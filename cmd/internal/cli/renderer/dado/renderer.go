@@ -37,10 +37,18 @@ func interactiveEntryForArgs(args []string) (interactiveEntry, bool) {
 	}
 	if len(args) == 1 {
 		switch args[0] {
-		case "config":
+		case "source", "sink", "pipeline", "config":
 			return interactiveEntry{section: args[0]}, true
 		}
 		return interactiveEntry{}, false
+	}
+	if len(args) == 2 {
+		switch args[0] {
+		case "source", "sink", "pipeline":
+			if args[1] == "create" || args[1] == "list" {
+				return interactiveEntry{section: args[0], operation: args[1]}, true
+			}
+		}
 	}
 	return interactiveEntry{}, false
 }
@@ -72,6 +80,9 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			description = r.targetName + " target"
 		}
 		action, err := r.chooseInteractive(ctx, "Filament", description, []interactiveOption{
+			{label: "Sources", value: "sources"},
+			{label: "Sinks", value: "sinks"},
+			{label: "Pipelines", value: "pipelines"},
 			{label: "Configuration", value: "config"},
 			{label: "Exit", value: interactiveBack},
 		})
@@ -86,6 +97,12 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 		}
 
 		switch action {
+		case "sources":
+			err = r.manageConnections(ctx, "source")
+		case "sinks":
+			err = r.manageConnections(ctx, "sink")
+		case "pipelines":
+			err = r.managePipelines(ctx)
 		case "config":
 			err = r.manageInteractiveConfig(ctx)
 		}
@@ -103,6 +120,24 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 
 func (r *Renderer) runInteractiveEntry(ctx context.Context, entry interactiveEntry) error {
 	switch entry.section {
+	case "source", "sink":
+		if entry.operation == "create" {
+			if err := r.connectionWizard(ctx, entry.section, "", nil); err != nil {
+				if acknowledgeErr := r.acknowledgeInteractiveError(ctx, err); acknowledgeErr != nil {
+					return acknowledgeErr
+				}
+			}
+		}
+		return r.manageConnections(ctx, entry.section)
+	case "pipeline":
+		if entry.operation == "create" {
+			if err := r.pipelineWizard(ctx, "", nil); err != nil {
+				if acknowledgeErr := r.acknowledgeInteractiveError(ctx, err); acknowledgeErr != nil {
+					return acknowledgeErr
+				}
+			}
+		}
+		return r.managePipelines(ctx)
 	case "config":
 		return r.manageInteractiveConfig(ctx)
 	default:
