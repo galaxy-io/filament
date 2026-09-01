@@ -5,8 +5,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +17,8 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
+	"github.com/galaxy-io/filament/cmd/internal/health"
+	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/reaper"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
@@ -29,7 +32,10 @@ func main() {
 	err := run(ctx)
 	stop()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("control-plane exited",
+			"event.name", "control_plane.exited",
+			"error", err)
+		os.Exit(1)
 	}
 }
 
@@ -39,33 +45,40 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer closeDeps()
+	log := deps.Log.With(
+		filament.Field{Key: "component", Value: "control-plane"},
+	)
 
 	healthMux := http.NewServeMux()
-	healthMux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	healthMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		pingCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if err := deps.Store.Ping(pingCtx); err != nil {
-			http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	})
+	var eventBus eventbus.Bus
+	healthState := health.New(2*time.Second,
+		deps.Store.Ping,
+		func(ctx context.Context) error {
+			if checker, ok := eventBus.(eventbus.ReadinessChecker); ok {
+				return checker.Ready(ctx)
+			}
+			return nil
+		},
+	)
+	healthState.Mount(healthMux)
 	healthAddr := os.Getenv("HEALTH_ADDR")
 	if healthAddr == "" {
 		healthAddr = ":8081"
 	}
 	healthSrv := &http.Server{Addr: healthAddr, Handler: healthMux, ReadHeaderTimeout: 10 * time.Second}
-	go func() { _ = healthSrv.ListenAndServe() }()
+	healthErr := make(chan error, 1)
+	go func() { healthErr <- healthSrv.ListenAndServe() }()
 	defer func() {
+		healthState.MarkStopping()
 		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = healthSrv.Shutdown(shutCtx)
+		if err := healthSrv.Shutdown(shutCtx); err != nil {
+			log.Error("control-plane health server shutdown failed", err,
+				filament.Field{Key: "event.name", Value: "control_plane.health.shutdown_failed"})
+		}
 	}()
 
-	bus, closeBus, err := boot.Bus()
+	eventBus, closeBus, err := boot.Bus()
 	if err != nil {
 		return err
 	}
@@ -92,21 +105,42 @@ func run(ctx context.Context) error {
 		reap = reaper.NewFromEnv(reaper.WithWorkloadProbe(prober.Workload))
 		mods = append(mods, reap)
 	}
-	h, err := boot.Mount(ctx, deps, bus, mods...)
+	h, err := boot.Mount(ctx, deps, eventBus, mods...)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = h.Close()
+		if err := h.Close(); err != nil {
+			log.Warn("control-plane host close failed",
+				filament.Field{Key: "event.name", Value: "control_plane.host.close_failed"},
+				filament.Field{Key: "error", Value: err.Error()})
+		}
 	}()
 	sched.Start(ctx)
 	if reap != nil {
 		reap.Start(ctx)
 	}
-	for _, name := range h.Mounted() {
-		fmt.Println("mounted:", name)
+	healthState.MarkStarted()
+	mode := os.Getenv("DISPATCH_MODE")
+	if mode == "" {
+		mode = "kubernetes"
 	}
+	log.Info("control-plane started",
+		filament.Field{Key: "event.name", Value: "control_plane.started"},
+		filament.Field{Key: "dispatch_mode", Value: mode},
+		filament.Field{Key: "health_address", Value: healthAddr},
+		filament.Field{Key: "modules", Value: h.Mounted()},
+	)
 
-	<-ctx.Done()
-	return nil
+	select {
+	case <-ctx.Done():
+		log.Info("control-plane stopping",
+			filament.Field{Key: "event.name", Value: "control_plane.stopping"})
+		return nil
+	case err := <-healthErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("control-plane health server: %w", err)
+	}
 }

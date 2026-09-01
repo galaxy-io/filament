@@ -83,6 +83,7 @@ helm upgrade --install filament . \
 | server.ingress.path | string | `"/"` | Path served by the Ingress. |
 | server.ingress.pathType | string | `"Prefix"` | PathType for the path. |
 | server.ingress.tls | list | `[]` | Ingress TLS configuration, passed through verbatim. |
+| server.logLevel | string | `"INFO"` | Minimum server log level. Valid values: INFO, DEBUG, TRACE. |
 | server.replicas | int | `1` | Number of server replicas. Ignored when `server.autoscaling.enabled` is true. |
 | server.resources | object | `{}` (See [values.yaml]) | Server resource requests and limits. |
 | server.service.port | int | `8080` | Server service and container port. |
@@ -107,16 +108,20 @@ helm upgrade --install filament . \
 | controlPlane.dispatch.worker.image.pullSecrets | list | `[]` | Image pull secrets for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs. |
 | controlPlane.dispatch.worker.image.tag | string | `""` (defaults to chart appVersion) | Worker image tag. |
+| controlPlane.dispatch.worker.logLevel | string | `"INFO"` | Minimum worker log level. Valid values: INFO, DEBUG, TRACE. |
 | controlPlane.dispatch.worker.restartPolicy | string | `"Never"` | Restart policy for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.serviceAccount.annotations | object | `{}` | Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN. |
 | controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
 | controlPlane.dispatch.worker.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
-| controlPlane.health.port | int | `8081` | Port the control plane serves `/livez` and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |
+| controlPlane.health.port | int | `8081` | Port the control plane serves `/livez`, `/startupz`, and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |
 | controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Control plane image pull policy. |
 | controlPlane.image.pullSecrets | list | `[]` | Image pull secrets for the control plane Deployment. |
 | controlPlane.image.repository | string | `"ghcr.io/galaxy-io/filament/control-plane"` | Control plane image repository. |
 | controlPlane.image.tag | string | `""` (defaults to chart appVersion) | Control plane image tag. |
+| controlPlane.logLevel | string | `"INFO"` | Minimum control-plane log level. Valid values: INFO, DEBUG, TRACE. |
+| controlPlane.reaper.intervalSeconds | string | `""` | How often the reaper sweeps for zombie runs, in seconds. Empty uses the binary default (60). |
+| controlPlane.reaper.staleAfterSeconds | string | `""` | How long a Running run may go without a heartbeat write before the reaper fails it, in seconds. Empty uses the binary default (300). |
 | controlPlane.replicas | int | `1` | Number of control plane replicas. Ignored when `controlPlane.autoscaling.enabled` is true. |
 | controlPlane.resources | object | `{}` (See [values.yaml]) | Control plane resource requests and limits. |
 | controlPlane.serviceAccount.annotations | object | `{}` | Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN. |
@@ -185,7 +190,14 @@ helm upgrade --install filament . \
 | postgresql.enabled | bool | `false` | Enable the vendored Bitnami PostgreSQL chart for local or test clusters. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) for additional configuration. |
 | postgresql.fullnameOverride | string | `"filament-postgresql"` | Full name override for the vendored PostgreSQL release. |
 | postgresql.primary.persistence.size | string | `"8Gi"` | PVC size for the vendored PostgreSQL primary. |
+| postgresql.primary.readinessProbe.failureThreshold | int | `2` |  |
 | postgresql.primary.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Resources for the vendored PostgreSQL primary. Overrides the upstream `nano` preset (192Mi memory limit), which risks OOM kills and unclean shutdowns under real load. |
+| postgresql.primary.startupProbe.enabled | bool | `true` |  |
+| postgresql.primary.startupProbe.failureThreshold | int | `30` |  |
+| postgresql.primary.startupProbe.initialDelaySeconds | int | `0` |  |
+| postgresql.primary.startupProbe.periodSeconds | int | `10` |  |
+| postgresql.primary.startupProbe.successThreshold | int | `1` |  |
+| postgresql.primary.startupProbe.timeoutSeconds | int | `5` |  |
 
 ## Vendored NATS parameters
 

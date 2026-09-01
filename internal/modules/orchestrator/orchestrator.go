@@ -40,7 +40,9 @@ func (m *Module) Subscriptions() []host.Subscription { return nil }
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore
-	m.log = d.Log
+	if d.Log != nil {
+		m.log = d.Log.With(filament.Field{Key: "component", Value: "orchestrator"})
+	}
 	m.mx = d.Metrics
 	return nil
 }
@@ -58,7 +60,10 @@ func (m *Module) Submit(ctx context.Context, req filament.RunRequest) (filament.
 		m.mx.Counter("filament_runs_submitted_total", filament.Label{Key: "tenant", Value: string(req.Tenant)}).Inc()
 	}
 	if m.log != nil {
-		m.log.Info("run submitted", filament.Field{Key: "run", Value: string(id)}, filament.Field{Key: "tenant", Value: string(req.Tenant)})
+		m.log.Debug("run submitted",
+			filament.Field{Key: "event.name", Value: "orchestrator.run.submitted"},
+			filament.Field{Key: "run_id", Value: string(id)},
+			filament.Field{Key: "tenant_id", Value: string(req.Tenant)})
 	}
 	return id, nil
 }
