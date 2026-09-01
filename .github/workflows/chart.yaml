@@ -1,0 +1,143 @@
+name: "CD: Helm Chart"
+
+on:
+  push:
+    branches: [main]
+    paths: [charts/filament/Chart.yaml]
+  workflow_dispatch:
+
+permissions:
+  attestations: write
+  contents: write
+  id-token: write
+  packages: write
+
+concurrency:
+  group: helm-chart-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.21.4
+
+      - uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+        with:
+          version: v0.22.0
+
+      - name: Read chart metadata
+        id: metadata
+        run: |
+          version=$(yq -r '.version' charts/filament/Chart.yaml)
+          app_version=$(yq -r '.appVersion' charts/filament/Chart.yaml)
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+
+          {
+            echo "version=$version"
+            echo "app_version=$app_version"
+            echo "owner=$owner"
+            echo "repository=ghcr.io/${owner}/charts/filament"
+            echo "tag=helm-chart-${version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build dependencies
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add nats https://nats-io.github.io/k8s/helm/charts
+          helm dependency build charts/filament
+
+      - name: Package
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          helm package charts/filament --destination dist
+          test -f "dist/filament-${VERSION}.tgz"
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish OCI chart
+        env:
+          OWNER: ${{ steps.metadata.outputs.owner }}
+          REPOSITORY: ${{ steps.metadata.outputs.repository }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          reference="${REPOSITORY}:${VERSION}"
+          package="dist/filament-${VERSION}.tgz"
+          probe_error=$(mktemp)
+
+          if crane manifest "$reference" > /dev/null 2> "$probe_error"; then
+            existing=$(mktemp -d)
+            helm pull "oci://${REPOSITORY}" --version "$VERSION" --destination "$existing"
+            mkdir "$existing/published" "$existing/candidate"
+            tar -xzf "$existing/filament-${VERSION}.tgz" -C "$existing/published"
+            tar -xzf "$package" -C "$existing/candidate"
+            if ! diff -qr "$existing/published" "$existing/candidate"; then
+              echo "Chart $VERSION is already published with different contents; bump the chart version"
+              exit 1
+            fi
+            echo "Chart $VERSION is already published"
+          else
+            status=$?
+            if grep -Eqi 'MANIFEST_UNKNOWN|NAME_UNKNOWN|(^|[^0-9])404([^0-9]|$)' "$probe_error"; then
+              helm push "$package" "oci://ghcr.io/${OWNER}/charts"
+            else
+              echo "Failed to probe $reference" >&2
+              cat "$probe_error" >&2
+              exit "$status"
+            fi
+          fi
+
+      - name: Resolve chart digest
+        id: digest
+        env:
+          REPOSITORY: ${{ steps.metadata.outputs.repository }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          digest=$(crane digest "${REPOSITORY}:${VERSION}")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ${{ steps.metadata.outputs.repository }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Tag release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.metadata.outputs.app_version }}
+          OWNER: ${{ steps.metadata.outputs.owner }}
+          REPOSITORY: ${{ steps.metadata.outputs.repository }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+
+          notes=$(cat <<NOTES
+          Helm chart ${VERSION} for Filament ${APP_VERSION}.
+
+          \`\`\`sh
+          helm install filament oci://${REPOSITORY} --version ${VERSION}
+          gh attestation verify --owner ${OWNER} oci://${REPOSITORY}:${VERSION}
+          \`\`\`
+          NOTES
+          )
+
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes "$notes" --latest=false
