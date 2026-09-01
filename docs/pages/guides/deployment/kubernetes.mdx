@@ -22,7 +22,7 @@ default.
 Generate an encryption key and install:
 
 ```sh
-helm install filament ./charts/filament \
+helm install filament oci://ghcr.io/galaxy-io/charts/filament \
   --set persistence.postgresql.dsn="postgresql://filament:...@db:5432/filament" \
   --set secrets.postgres.encryptionKey="$(openssl rand -base64 32)" \
   --set eventBus.nats.url="nats://nats:4222"
@@ -118,9 +118,15 @@ managed PostgreSQL and NATS instances in production. The chart's own
 `values.yaml` says the same.
 </Warning>
 
-## CI and images
+## CI and releases
 
 Images are published to `ghcr.io/galaxy-io/filament/{server,control-plane,worker,standalone}`.
 Every push to main publishes `latest`, and `v*` releases add semver plus SHA
-tags. CI
-lints the chart and renders it in four configurations on every change.
+tags.
+
+The chart is versioned independently of the application. Merging a
+`charts/filament/Chart.yaml` version bump publishes the chart to
+`oci://ghcr.io/galaxy-io/charts/filament`, attaches a build provenance
+attestation, and tags the commit `helm-chart-<version>`. The chart's
+`appVersion` pins the image tag it deploys, and CI checks that those images
+exist, lints the chart, and renders it in four configurations on every change.
