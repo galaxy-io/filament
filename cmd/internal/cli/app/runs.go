@@ -21,11 +21,11 @@ func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (filament.
 	if request.Pipeline == "" {
 		return filament.RunSpec{}, fmt.Errorf("pipeline is required")
 	}
-	document, err := s.target.Configuration(ctx)
+	document, err := s.Configuration(ctx)
 	if err != nil {
 		return filament.RunSpec{}, err
 	}
-	if err := ValidateDocument(document, catalog); err != nil {
+	if err := s.target.ValidateConfiguration(ctx, document); err != nil {
 		return filament.RunSpec{}, err
 	}
 	pipeline, ok := document.Pipelines[request.Pipeline]
@@ -41,7 +41,7 @@ func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (filament.
 		testDocument := document
 		testDocument.Pipelines = cloneMap(document.Pipelines)
 		testDocument.Pipelines[request.Pipeline] = pipeline
-		if err := ValidateDocument(testDocument, catalog); err != nil {
+		if err := s.target.ValidateConfiguration(ctx, testDocument); err != nil {
 			return filament.RunSpec{}, err
 		}
 	}

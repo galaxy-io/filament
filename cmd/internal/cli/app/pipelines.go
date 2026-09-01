@@ -9,7 +9,7 @@ import (
 
 // SavePipeline validates and persists a pipeline through the selected target.
 func (s *Service) SavePipeline(ctx context.Context, request SavePipelineRequest) (model.Pipeline, error) {
-	document, err := s.target.Configuration(ctx)
+	document, err := s.Configuration(ctx)
 	if err != nil {
 		return model.Pipeline{}, err
 	}
@@ -35,13 +35,13 @@ func (s *Service) SavePipeline(ctx context.Context, request SavePipelineRequest)
 	testDocument := document
 	testDocument.Pipelines = cloneMap(document.Pipelines)
 	testDocument.Pipelines[request.Name] = pipeline
-	if err := ValidateDocument(testDocument, catalog); err != nil {
+	if err := s.target.ValidateConfiguration(ctx, testDocument); err != nil {
 		return model.Pipeline{}, err
 	}
-	if err := s.target.PutPipeline(ctx, request.Name, pipeline); err != nil {
-		return model.Pipeline{}, err
+	if request.Create {
+		return s.target.CreatePipeline(ctx, request.Name, pipeline)
 	}
-	return pipeline, nil
+	return s.target.UpdatePipeline(ctx, request.Name, pipeline)
 }
 
 // BuildPipeline applies a typed request without persisting it.
@@ -99,12 +99,12 @@ func BuildPipeline(request SavePipelineRequest, existing *model.Pipeline, docume
 
 // DeleteSavedPipeline verifies existence before persistence.
 func (s *Service) DeleteSavedPipeline(ctx context.Context, name string) error {
-	document, err := s.target.Configuration(ctx)
+	document, err := s.Configuration(ctx)
 	if err != nil {
 		return err
 	}
 	if _, exists := document.Pipelines[name]; !exists {
 		return fmt.Errorf("pipeline %q does not exist", name)
 	}
-	return s.target.DeletePipeline(ctx, name)
+	return s.target.DeletePipeline(ctx, name, document.Pipelines[name].Metadata)
 }

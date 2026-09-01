@@ -10,7 +10,7 @@ import (
 // SaveConnection validates and persists a connection through the selected
 // target.
 func (s *Service) SaveConnection(ctx context.Context, request SaveConnectionRequest) (model.Connection, error) {
-	document, err := s.target.Configuration(ctx)
+	document, err := s.Configuration(ctx)
 	if err != nil {
 		return model.Connection{}, err
 	}
@@ -45,13 +45,13 @@ func (s *Service) SaveConnection(ctx context.Context, request SaveConnectionRequ
 		testDocument.Sinks = cloneMap(document.Sinks)
 		testDocument.Sinks[request.Name] = connection
 	}
-	if err := ValidateDocument(testDocument, catalog); err != nil {
+	if err := s.target.ValidateConfiguration(ctx, testDocument); err != nil {
 		return model.Connection{}, err
 	}
-	if err := s.target.PutConnection(ctx, request.Kind, request.Name, connection); err != nil {
-		return model.Connection{}, err
+	if request.Create {
+		return s.target.CreateConnection(ctx, request.Kind, request.Name, connection)
 	}
-	return connection, nil
+	return s.target.UpdateConnection(ctx, request.Kind, request.Name, connection)
 }
 
 // BuildConnection applies a typed request without persisting it. It is useful
@@ -70,7 +70,7 @@ func BuildConnection(request SaveConnectionRequest, existing *model.Connection, 
 		return connection, fmt.Errorf("%s %q: connector is required", request.Kind, request.Name)
 	}
 	if existing != nil && connector != existing.Type {
-		connection.Config = map[string]any{}
+		return connection, fmt.Errorf("%s %q: connector cannot be changed; create a new connection instead", request.Kind, request.Name)
 	}
 	connection.Type = connector
 	schema, err := catalog.ConnectionSchema(request.Kind, connector)
@@ -88,7 +88,7 @@ func BuildConnection(request SaveConnectionRequest, existing *model.Connection, 
 
 // DeleteConnection rejects dangling pipeline references before persistence.
 func (s *Service) DeleteSavedConnection(ctx context.Context, kind, name string) error {
-	document, err := s.target.Configuration(ctx)
+	document, err := s.Configuration(ctx)
 	if err != nil {
 		return err
 	}
@@ -104,5 +104,5 @@ func (s *Service) DeleteSavedConnection(ctx context.Context, kind, name string) 
 			return fmt.Errorf("%s %q is referenced by pipeline %q; delete or edit that pipeline first", kind, name, pipelineName)
 		}
 	}
-	return s.target.DeleteConnection(ctx, kind, name)
+	return s.target.DeleteConnection(ctx, kind, name, connections[name].Metadata)
 }

@@ -37,36 +37,146 @@ func (t *Target) Catalog(_ context.Context) (model.Catalog, error) {
 	return t.catalog, nil
 }
 
-// Configuration loads the local configuration document.
-func (t *Target) Configuration(_ context.Context) (model.Document, error) {
-	doc, _, err := t.store.Load()
-	return doc, err
+// ListConnections returns named connections with target-owned metadata.
+func (t *Target) ListConnections(_ context.Context, kind string) ([]model.NamedConnection, error) {
+	if err := validateConnectionKind(kind); err != nil {
+		return nil, err
+	}
+	doc, _, revision, err := t.store.LoadSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	connections := doc.Sources
+	if kind == "sink" {
+		connections = doc.Sinks
+	}
+	names := make([]string, 0, len(connections))
+	for name := range connections {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	result := make([]model.NamedConnection, 0, len(names))
+	for _, name := range names {
+		connection := connections[name]
+		connection.Metadata = entityMetadata(kind, name, revision)
+		result = append(result, model.NamedConnection{Kind: kind, Name: name, Connection: connection})
+	}
+	return result, nil
 }
 
-// PutConnection adds or replaces a local connection.
-func (t *Target) PutConnection(_ context.Context, kind, name string, connection model.Connection) error {
+// GetConnection returns one named connection with target-owned metadata.
+func (t *Target) GetConnection(ctx context.Context, kind, name string) (model.Connection, error) {
+	connections, err := t.ListConnections(ctx, kind)
+	if err != nil {
+		return model.Connection{}, err
+	}
+	for _, item := range connections {
+		if item.Name == name {
+			return item.Connection, nil
+		}
+	}
+	return model.Connection{}, fmt.Errorf("%s %q does not exist", kind, name)
+}
+
+// CreateConnection creates a connection and rejects duplicate names.
+func (t *Target) CreateConnection(ctx context.Context, kind, name string, connection model.Connection) (model.Connection, error) {
+	if err := validateConnectionKind(kind); err != nil {
+		return model.Connection{}, err
+	}
+	if err := t.store.Create(kind+"s", name, connection); err != nil {
+		return model.Connection{}, err
+	}
+	return t.GetConnection(ctx, kind, name)
+}
+
+// UpdateConnection replaces a connection using optimistic concurrency.
+func (t *Target) UpdateConnection(ctx context.Context, kind, name string, connection model.Connection) (model.Connection, error) {
+	if err := validateConnectionKind(kind); err != nil {
+		return model.Connection{}, err
+	}
+	if err := t.store.Update(kind+"s", name, connection, connection.Metadata.Revision); err != nil {
+		return model.Connection{}, err
+	}
+	return t.GetConnection(ctx, kind, name)
+}
+
+// DeleteConnection removes a connection using optimistic concurrency.
+func (t *Target) DeleteConnection(_ context.Context, kind, name string, metadata model.EntityMetadata) error {
+	if err := validateConnectionKind(kind); err != nil {
+		return err
+	}
+	return t.store.Delete(kind+"s", name, metadata.Revision)
+}
+
+// ListPipelines returns named pipelines with target-owned metadata.
+func (t *Target) ListPipelines(_ context.Context) ([]model.NamedPipeline, error) {
+	doc, _, revision, err := t.store.LoadSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(doc.Pipelines))
+	for name := range doc.Pipelines {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	result := make([]model.NamedPipeline, 0, len(names))
+	for _, name := range names {
+		pipeline := doc.Pipelines[name]
+		pipeline.Metadata = entityMetadata("pipeline", name, revision)
+		result = append(result, model.NamedPipeline{Name: name, Pipeline: pipeline})
+	}
+	return result, nil
+}
+
+// GetPipeline returns one named pipeline with target-owned metadata.
+func (t *Target) GetPipeline(ctx context.Context, name string) (model.Pipeline, error) {
+	pipelines, err := t.ListPipelines(ctx)
+	if err != nil {
+		return model.Pipeline{}, err
+	}
+	for _, item := range pipelines {
+		if item.Name == name {
+			return item.Pipeline, nil
+		}
+	}
+	return model.Pipeline{}, fmt.Errorf("pipeline %q does not exist", name)
+}
+
+// CreatePipeline creates a pipeline and rejects duplicate names.
+func (t *Target) CreatePipeline(ctx context.Context, name string, pipeline model.Pipeline) (model.Pipeline, error) {
+	if err := t.store.Create("pipelines", name, pipeline); err != nil {
+		return model.Pipeline{}, err
+	}
+	return t.GetPipeline(ctx, name)
+}
+
+// UpdatePipeline replaces a pipeline using optimistic concurrency.
+func (t *Target) UpdatePipeline(ctx context.Context, name string, pipeline model.Pipeline) (model.Pipeline, error) {
+	if err := t.store.Update("pipelines", name, pipeline, pipeline.Metadata.Revision); err != nil {
+		return model.Pipeline{}, err
+	}
+	return t.GetPipeline(ctx, name)
+}
+
+// DeletePipeline removes a pipeline using optimistic concurrency.
+func (t *Target) DeletePipeline(_ context.Context, name string, metadata model.EntityMetadata) error {
+	return t.store.Delete("pipelines", name, metadata.Revision)
+}
+
+// ValidateConfiguration applies the local runtime's authoritative validation.
+func (t *Target) ValidateConfiguration(_ context.Context, document model.Document) error {
+	return cliapp.ValidateDocument(document, t.catalog)
+}
+
+func validateConnectionKind(kind string) error {
 	if kind != "source" && kind != "sink" {
 		return fmt.Errorf("unknown connection kind %q", kind)
 	}
-	return t.store.Put(kind+"s", name, connection)
+	return nil
 }
 
-// DeleteConnection removes a local connection.
-func (t *Target) DeleteConnection(_ context.Context, kind, name string) error {
-	if kind != "source" && kind != "sink" {
-		return fmt.Errorf("unknown connection kind %q", kind)
-	}
-	return t.store.Delete(kind+"s", name)
-}
-
-// PutPipeline adds or replaces a local pipeline.
-func (t *Target) PutPipeline(_ context.Context, name string, pipeline model.Pipeline) error {
-	return t.store.Put("pipelines", name, pipeline)
-}
-
-// DeletePipeline removes a local pipeline.
-func (t *Target) DeletePipeline(_ context.Context, name string) error {
-	return t.store.Delete("pipelines", name)
+func entityMetadata(kind, name, revision string) model.EntityMetadata {
+	return model.EntityMetadata{ID: "local/" + kind + "/" + name, Revision: revision}
 }
 
 // Discover executes resource discovery using the local connector registry.

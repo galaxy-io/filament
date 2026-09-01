@@ -17,13 +17,9 @@ func (s *Service) DiscoverSource(ctx context.Context, request DiscoverSourceRequ
 	connector, label := request.Connector, request.Connector
 	var config map[string]any
 	if request.Source != "" {
-		document, loadErr := s.target.Configuration(ctx)
-		if loadErr != nil {
-			return model.ResourceList{}, loadErr
-		}
-		connection, ok := document.Sources[request.Source]
-		if !ok {
-			return model.ResourceList{}, fmt.Errorf("source %q does not exist", request.Source)
+		connection, getErr := s.target.GetConnection(ctx, "source", request.Source)
+		if getErr != nil {
+			return model.ResourceList{}, getErr
 		}
 		connector, label = connection.Type, request.Source
 		schema, schemaErr := catalog.ConnectionSchema("source", connector)

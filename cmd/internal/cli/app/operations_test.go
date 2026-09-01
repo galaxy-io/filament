@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -19,20 +21,65 @@ func (target *memoryTarget) Catalog(context.Context) (model.Catalog, error) {
 	return target.catalog, nil
 }
 
-func (target *memoryTarget) Configuration(context.Context) (model.Document, error) {
-	return target.document, nil
+func (target *memoryTarget) ListConnections(_ context.Context, kind string) ([]model.NamedConnection, error) {
+	connections, err := connectionMap(kind, target.document)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(connections))
+	for name := range connections {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	result := make([]model.NamedConnection, 0, len(names))
+	for _, name := range names {
+		result = append(result, model.NamedConnection{Kind: kind, Name: name, Connection: connections[name]})
+	}
+	return result, nil
 }
 
-func (target *memoryTarget) PutConnection(_ context.Context, kind, name string, connection model.Connection) error {
+func (target *memoryTarget) GetConnection(_ context.Context, kind, name string) (model.Connection, error) {
+	connections, err := connectionMap(kind, target.document)
+	if err != nil {
+		return model.Connection{}, err
+	}
+	connection, ok := connections[name]
+	if !ok {
+		return model.Connection{}, fmt.Errorf("%s %q does not exist", kind, name)
+	}
+	return connection, nil
+}
+
+func (target *memoryTarget) CreateConnection(ctx context.Context, kind, name string, connection model.Connection) (model.Connection, error) {
+	connections, err := connectionMap(kind, target.document)
+	if err != nil {
+		return model.Connection{}, err
+	}
+	if _, exists := connections[name]; exists {
+		return model.Connection{}, fmt.Errorf("%s %q already exists", kind, name)
+	}
+	connection.Metadata = model.EntityMetadata{ID: kind + "/" + name, Revision: "1"}
+	connections[name] = connection
+	return target.GetConnection(ctx, kind, name)
+}
+
+func (target *memoryTarget) UpdateConnection(ctx context.Context, kind, name string, connection model.Connection) (model.Connection, error) {
+	connections, err := connectionMap(kind, target.document)
+	if err != nil {
+		return model.Connection{}, err
+	}
+	if _, exists := connections[name]; !exists {
+		return model.Connection{}, fmt.Errorf("%s %q does not exist", kind, name)
+	}
 	if kind == "source" {
 		target.document.Sources[name] = connection
 	} else {
 		target.document.Sinks[name] = connection
 	}
-	return nil
+	return target.GetConnection(ctx, kind, name)
 }
 
-func (target *memoryTarget) DeleteConnection(_ context.Context, kind, name string) error {
+func (target *memoryTarget) DeleteConnection(_ context.Context, kind, name string, _ model.EntityMetadata) error {
 	if kind == "source" {
 		delete(target.document.Sources, name)
 	} else {
@@ -41,14 +88,51 @@ func (target *memoryTarget) DeleteConnection(_ context.Context, kind, name strin
 	return nil
 }
 
-func (target *memoryTarget) PutPipeline(_ context.Context, name string, pipeline model.Pipeline) error {
+func (target *memoryTarget) ListPipelines(context.Context) ([]model.NamedPipeline, error) {
+	names := make([]string, 0, len(target.document.Pipelines))
+	for name := range target.document.Pipelines {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	result := make([]model.NamedPipeline, 0, len(names))
+	for _, name := range names {
+		result = append(result, model.NamedPipeline{Name: name, Pipeline: target.document.Pipelines[name]})
+	}
+	return result, nil
+}
+
+func (target *memoryTarget) GetPipeline(_ context.Context, name string) (model.Pipeline, error) {
+	pipeline, ok := target.document.Pipelines[name]
+	if !ok {
+		return model.Pipeline{}, fmt.Errorf("pipeline %q does not exist", name)
+	}
+	return pipeline, nil
+}
+
+func (target *memoryTarget) CreatePipeline(ctx context.Context, name string, pipeline model.Pipeline) (model.Pipeline, error) {
+	if _, exists := target.document.Pipelines[name]; exists {
+		return model.Pipeline{}, fmt.Errorf("pipeline %q already exists", name)
+	}
+	pipeline.Metadata = model.EntityMetadata{ID: "pipeline/" + name, Revision: "1"}
 	target.document.Pipelines[name] = pipeline
+	return target.GetPipeline(ctx, name)
+}
+
+func (target *memoryTarget) UpdatePipeline(ctx context.Context, name string, pipeline model.Pipeline) (model.Pipeline, error) {
+	if _, exists := target.document.Pipelines[name]; !exists {
+		return model.Pipeline{}, fmt.Errorf("pipeline %q does not exist", name)
+	}
+	target.document.Pipelines[name] = pipeline
+	return target.GetPipeline(ctx, name)
+}
+
+func (target *memoryTarget) DeletePipeline(_ context.Context, name string, _ model.EntityMetadata) error {
+	delete(target.document.Pipelines, name)
 	return nil
 }
 
-func (target *memoryTarget) DeletePipeline(_ context.Context, name string) error {
-	delete(target.document.Pipelines, name)
-	return nil
+func (target *memoryTarget) ValidateConfiguration(_ context.Context, document model.Document) error {
+	return ValidateDocument(document, target.catalog)
 }
 
 func (target *memoryTarget) Discover(_ context.Context, request model.DiscoverRequest) (model.ResourceList, error) {
