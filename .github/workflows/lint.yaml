@@ -101,11 +101,25 @@ jobs:
     needs: changes
     if: needs.changes.outputs.chart == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.21.4
+
+      - uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+        with:
+          version: v0.22.0
+
       - name: Dependencies
-        run: helm dependency update charts/filament
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add nats https://nats-io.github.io/k8s/helm/charts
+          helm dependency build charts/filament
 
       - name: Lint
         run: helm lint charts/filament
@@ -116,6 +130,23 @@ jobs:
           helm template filament charts/filament --set existingSecret=byo > /dev/null
           helm template filament charts/filament --set controlPlane.autoscaling.enabled=true --set server.autoscaling.enabled=true > /dev/null
           helm template filament charts/filament --set server.ingress.enabled=true --set "server.ingress.hosts[0]=filament.example.com" > /dev/null
+
+      - name: Package
+        run: helm package charts/filament --destination /tmp
+
+      - name: Docs
+        run: |
+          curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_x86_64.tar.gz | tar -xz -C "$RUNNER_TEMP" helm-docs
+          "$RUNNER_TEMP/helm-docs" --chart-search-root charts/filament
+          git diff --exit-code charts/filament/README.md
+
+      - name: Check appVersion images
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          app_version=$(yq -r '.appVersion' charts/filament/Chart.yaml)
+          for image in server control-plane worker standalone; do
+            crane digest "ghcr.io/${owner}/filament/${image}:${app_version}"
+          done
 
   lint-ok:
     needs: [go, ui, chart]

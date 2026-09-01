@@ -2,8 +2,8 @@ apiVersion: v2
 name: filament
 description: A Helm chart for Filament
 
-version: 0.1.0
-appVersion: 0.1.0
+version: 0.0.26
+appVersion: 0.0.26
 
 dependencies:
   - name: postgresql
