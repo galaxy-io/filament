@@ -487,20 +487,22 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		if a.log != nil {
-			a.log.Info("ingestion-api: run submitted",
-				filament.Field{Key: "route", Value: c.Edge},
-				filament.Field{Key: "source", Value: c.Req.Source.Connector},
-				filament.Field{Key: "sink", Value: c.Req.Sink.Connector},
-				filament.Field{Key: "resources", Value: c.Req.Resources},
-				filament.Field{Key: "run", Value: string(run)})
+			a.log.Debug("pipeline route submitted",
+				filament.Field{Key: "event.name", Value: "pipeline.route.submitted"},
+				filament.Field{Key: "pipeline_edge", Value: c.Edge},
+				filament.Field{Key: "source_connector", Value: c.Req.Source.Connector},
+				filament.Field{Key: "sink_connector", Value: c.Req.Sink.Connector},
+				filament.Field{Key: "resource_count", Value: len(c.Req.Resources)},
+				filament.Field{Key: "run_id", Value: string(run)})
 		}
 		state := filament.RunState{Run: run, Tenant: c.Req.Tenant, Request: c.Req, ScheduleID: c.Req.ScheduleID, Status: filament.RunRequested}
 		edgeRuns = append(edgeRuns, &ingestionv1.PipelineEdgeRun{PipelineEdgeKey: c.Edge, Run: runInfoToProto(state)})
 	}
 	if a.log != nil {
-		a.log.Info("ingestion-api: pipeline submitted",
-			filament.Field{Key: "pipeline", Value: req.GetPipelineId()},
-			filament.Field{Key: "runs", Value: len(edgeRuns)})
+		a.log.Debug("pipeline submitted",
+			filament.Field{Key: "event.name", Value: "pipeline.submitted"},
+			filament.Field{Key: "pipeline_id", Value: req.GetPipelineId()},
+			filament.Field{Key: "run_count", Value: len(edgeRuns)})
 	}
 	return edgeRuns, nil
 }
@@ -511,14 +513,12 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 // expected to fail here until the first version lands.
 func (a *Server) reconcileScheduledRunsBestEffort(ctx context.Context, st filament.ScheduleState) {
 	if err := runs.ReconcileScheduled(ctx, a.store, a.compiler, st); err != nil {
-		a.logError("ingestion-api: reconcile scheduled runs", err,
-			filament.Field{Key: "schedule", Value: string(st.ID)})
-	}
-}
-
-func (a *Server) logError(msg string, err error, fields ...filament.Field) {
-	if a.log != nil {
-		a.log.Error(msg, err, fields...)
+		if a.log != nil {
+			a.log.Warn("scheduled runs not reconciled",
+				filament.Field{Key: "event.name", Value: "pipeline_schedule.reconcile_deferred"},
+				filament.Field{Key: "schedule_id", Value: string(st.ID)},
+				filament.Field{Key: "error", Value: err.Error()})
+		}
 	}
 }
 
