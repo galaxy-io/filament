@@ -30,9 +30,9 @@ type Colors struct {
 // Palette returns the tints that read on a dark or light background.
 func Palette(dark bool) Colors {
 	if dark {
-		return Colors{Accent: 0x015fff, Label: 0xa3a3a2, Muted: 0x666665, Success: 0x6ee4b0, Error: 0xfb7185}
+		return Colors{Accent: 0x5b92e7, Label: 0xa3a3a2, Muted: 0x666665, Success: 0x6ee4b0, Error: 0xfb7185}
 	}
-	return Colors{Accent: 0x015fff, Label: 0x5c5c5b, Muted: 0x8a8a89, Success: 0x1a8a5a, Error: 0xc0392b}
+	return Colors{Accent: 0x5b92e7, Label: 0x5c5c5b, Muted: 0x8a8a89, Success: 0x1a8a5a, Error: 0xc0392b}
 }
 
 // Hex converts a palette entry to a lipgloss colour.
