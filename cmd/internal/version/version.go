@@ -20,7 +20,7 @@ func init() {
 	if !ok {
 		return
 	}
-	if Version == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
+	if Version == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" && !strings.HasPrefix(info.Main.Version, "v0.0.0-") {
 		Version = info.Main.Version
 	}
 	for _, setting := range info.Settings {
@@ -34,7 +34,7 @@ func init() {
 				Date = setting.Value
 			}
 		case "vcs.modified":
-			if setting.Value == "true" && !strings.HasSuffix(Version, "-dirty") {
+			if setting.Value == "true" && !strings.Contains(Version, "dirty") {
 				Version += "-dirty"
 			}
 		}

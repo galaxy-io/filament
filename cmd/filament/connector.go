@@ -3,274 +3,195 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
-	"text/tabwriter"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
 
 	"github.com/galaxy-io/filament"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
+	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
-func (a *cliApp) runConnectionCommand(ctx context.Context, kind string, args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		return a.printConnectionHelp(kind)
+const connectionGuidance = `Connector fields are set with --%[1]s-<field>. Secret fields accept plaintext
+values, quoted $NAME or ${NAME} references, or --%[1]s-<field>-env VARIABLE.
+Editing removes a field with --unset %[1]s-<field>.`
+
+func (a *cliApp) connectionCommand(kind string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               kind,
+		Short:             fmt.Sprintf("Manage saved %ss", kind),
+		Long:              fmt.Sprintf("Manage saved %ss.\n\n"+connectionGuidance, kind),
+		PersistentPreRunE: a.prepareTarget,
 	}
-	if helpRequested(args[1:]) && rawFlagValue(args[1:], kind+"-connector") != "" {
-		return a.printConnectionOperationHelp(kind, args[0], args[1:], newDocument())
+	help := func(operation string) func(context.Context, []string) error {
+		return func(ctx context.Context, args []string) error {
+			return a.printConnectionOperationHelp(ctx, kind, operation, args)
+		}
 	}
-	store := configStore{path: a.configPath}
-	doc, _, err := store.load()
+	change := func(operation string) func(context.Context, []string) error {
+		return func(ctx context.Context, args []string) error {
+			return a.changeConnection(ctx, operation, kind, args)
+		}
+	}
+	cmd.AddCommand(
+		a.dynamicCommand(
+			fmt.Sprintf("create <name> --%s-connector NAME [flags]", kind),
+			"Save a "+kind, help("create"), change("create"),
+		),
+		a.dynamicCommand(
+			fmt.Sprintf("edit <name> [flags] [--unset %s-FIELD]", kind),
+			"Change a saved "+kind, help("edit"), change("edit"),
+		),
+		&cobra.Command{
+			Use:   "list",
+			Short: fmt.Sprintf("List saved %ss", kind),
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				result, err := a.service.Connections(cmd.Context(), kind)
+				if err != nil {
+					return err
+				}
+				usedBy, err := a.connectionUsage(cmd.Context(), kind)
+				if err != nil {
+					return err
+				}
+				return textrenderer.Connections(a.stdout, result, a.configName(), usedBy)
+			},
+		},
+	)
+	if kind == "source" {
+		cmd.AddCommand(a.dynamicCommand(
+			"discover [name] [--source-connector NAME] [flags]",
+			"List the resources a source exposes", help("discover"), a.discoverSource,
+		))
+	}
+	remove := &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a saved " + kind,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			force, _ := cmd.Flags().GetBool("force")
+			return a.deleteConnection(cmd.Context(), kind, args[0], force)
+		},
+	}
+	remove.Flags().Bool("force", false, "Skip the confirmation prompt")
+	cmd.AddCommand(remove)
+	return cmd
+}
+
+func (a *cliApp) changeConnection(ctx context.Context, operation, kind string, args []string) error {
+	document, err := a.service.Configuration(ctx)
 	if err != nil {
 		return err
 	}
-	if helpRequested(args[1:]) {
-		return a.printConnectionOperationHelp(kind, args[0], args[1:], doc)
-	}
-	switch args[0] {
-	case "discover":
-		if kind != "source" {
-			return fmt.Errorf("discover is only available for sources")
-		}
-		return a.discoverSource(ctx, args[1:], doc)
-	case "list":
-		if len(args) != 1 {
-			return fmt.Errorf("usage: filament %s list", kind)
-		}
-		return a.listConnections(kind, doc)
-	case "create", "edit":
-		return a.changeConnection(args[0], kind, args[1:], doc, store)
-	case "delete":
-		return a.deleteConnection(kind, args[1:], doc, store)
-	default:
-		return fmt.Errorf("unknown %s operation %q", kind, args[0])
-	}
-}
-
-func (a *cliApp) changeConnection(operation, kind string, args []string, doc configDocument, store configStore) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
 	}
 	name := firstPositional(parsed)
-	var existing *connection
-	if operation == "edit" {
-		if name == "" {
-			return fmt.Errorf("usage: filament %s edit <name> [flags]", kind)
-		}
-		current, ok := connectionMap(kind, doc)[name]
-		if !ok {
-			return fmt.Errorf("%s %q does not exist", kind, name)
-		}
-		existing = &current
-	} else if name != "" {
-		if _, duplicate := connectionMap(kind, doc)[name]; duplicate {
-			return fmt.Errorf("%s %q already exists", kind, name)
-		}
-	}
 	if name == "" {
 		return fmt.Errorf("%s name is required; example: filament %s %s production --%s-connector postgres --%s-dsn-env POSTGRES_DSN", kind, kind, operation, kind, kind)
 	}
-	conn, err := a.connectionFromFlags(kind, name, existing, parsed.flags)
+	var existing *climodel.Connection
+	if current, ok := connectionMap(kind, document)[name]; ok {
+		existing = &current
+	}
+	if operation == "edit" && existing == nil {
+		return fmt.Errorf("%s %q does not exist", kind, name)
+	}
+	request, err := a.connectionRequestFromFlags(operation, kind, name, existing, parsed.flags)
 	if err != nil {
 		return err
 	}
-	testDoc := doc
-	if kind == "source" {
-		testDoc.Sources = cloneMap(doc.Sources)
-		testDoc.Sources[name] = conn
-	} else {
-		testDoc.Sinks = cloneMap(doc.Sinks)
-		testDoc.Sinks[name] = conn
-	}
-	if err := validateDocument(testDoc, a.catalog); err != nil {
-		return err
-	}
-	if err := store.put(kind+"s", name, conn); err != nil {
+	if _, err := a.service.SaveConnection(ctx, request); err != nil {
 		return err
 	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("%s %s %s", pastTense(operation), name, kind))
 }
 
-func (a *cliApp) deleteConnection(kind string, args []string, doc configDocument, store configStore) error {
-	parsed, err := a.parseCommandArgs(args)
+func (a *cliApp) deleteConnection(ctx context.Context, kind, name string, force bool) error {
+	document, err := a.service.Configuration(ctx)
 	if err != nil {
 		return err
 	}
-	name := firstPositional(parsed)
-	if name == "" {
-		return fmt.Errorf("usage: filament %s delete <name> [--force]", kind)
-	}
-	force, err := parseForceFlag(parsed.flags)
-	if err != nil {
-		return err
-	}
-	if err := rejectUnknownFlags(parsed.flags, map[string]bool{"force": true}); err != nil {
-		return err
-	}
-	if err := ensureConnectionUnreferenced(kind, name, doc); err != nil {
-		return err
-	}
-	if _, ok := connectionMap(kind, doc)[name]; !ok {
+	if _, ok := connectionMap(kind, document)[name]; !ok {
 		return fmt.Errorf("%s %q does not exist", kind, name)
 	}
 	if !force {
 		confirmed, err := a.confirmDelete(kind, name)
-		if err != nil {
+		if err != nil || !confirmed {
 			return err
 		}
-		if !confirmed {
-			return nil
-		}
 	}
-	if err := store.delete(kind+"s", name); err != nil {
+	if err := a.service.DeleteSavedConnection(ctx, kind, name); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(a.statusWriter(), "Deleted %s %q.\n", kind, name)
 	return err
 }
 
-func (a *cliApp) connectionFromFlags(kind, name string, existing *connection, flags map[string][]string) (connection, error) {
-	conn, prefix, err := initializeConnection(kind, name, existing, flags)
-	if err != nil {
-		return conn, err
-	}
-	connectorFlag := prefix + "connector"
-	schema, err := a.connectionSchema(kind, conn.Type)
-	if err != nil {
-		return conn, err
-	}
-	allowed := map[string]bool{connectorFlag: true}
-	unsetTargets := map[string]func(){}
-	for _, field := range orderedFields(schema, filament.ScopeConnection) {
-		flagName := prefix + strings.ReplaceAll(field.Name, "_", "-")
-		allowed[flagName] = true
-		fieldName := field.Name
-		unsetTargets[flagName] = func() { delete(conn.Config, fieldName) }
-		if isSecretField(field) {
-			envFlag := flagName + "-env"
-			allowed[envFlag] = true
-			raw, plaintext := flagValue(flags, flagName)
-			envName, fromEnv := flagValue(flags, envFlag)
-			if plaintext && fromEnv {
-				return conn, fmt.Errorf("--%s and --%s cannot be combined", flagName, envFlag)
-			}
-			if fromEnv {
-				name, err := normalizeEnvironmentName(envName)
-				if err != nil {
-					return conn, fmt.Errorf("--%s: %w", envFlag, err)
-				}
-				conn.Config[field.Name] = "env:" + name
-			}
-			if plaintext {
-				if name, referenced := environmentReferenceName(raw); referenced {
-					conn.Config[field.Name] = "env:" + name
-					continue
-				}
-				value, err := parseFlagValue(field, raw)
-				if err != nil {
-					return conn, fmt.Errorf("--%s: %w", flagName, err)
-				}
-				conn.Config[field.Name] = value
-			}
-			continue
-		}
-		if raw, present := flagValue(flags, flagName); present {
-			value, err := parseFlagValue(field, raw)
-			if err != nil {
-				return conn, fmt.Errorf("--%s: %w", flagName, err)
-			}
-			conn.Config[field.Name] = value
-		}
-	}
-	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
-		return conn, err
-	}
-	if err := rejectUnknownFlags(flags, allowed); err != nil {
-		return conn, err
-	}
-	conn.Config = canonicalizeConfig(schema, conn.Config)
-	normalized, err := normalizeSavedSecretReferences(schema, conn.Config)
-	if err != nil {
-		return conn, fmt.Errorf("%s %q: %w", kind, name, err)
-	}
-	conn.Config = normalized
-	return conn, nil
-}
-
-func initializeConnection(kind, name string, existing *connection, flags map[string][]string) (connection, string, error) {
-	conn := connection{Config: map[string]any{}}
-	if existing != nil {
-		conn = *existing
-		conn.Config = cloneConfigMap(existing.Config)
-	}
+func (a *cliApp) connectionRequestFromFlags(operation, kind, name string, existing *climodel.Connection, flags map[string][]string) (cliapp.SaveConnectionRequest, error) {
 	prefix := kind + "-"
 	connectorFlag := prefix + "connector"
-	typeName := lastFlag(flags, connectorFlag)
-	if typeName == "" {
-		typeName = conn.Type
+	connector := lastFlag(flags, connectorFlag)
+	if connector == "" && existing != nil {
+		connector = existing.Type
 	}
-	if typeName == "" {
-		return conn, prefix, fmt.Errorf("%s %q: --%s is required", kind, name, connectorFlag)
+	request := cliapp.SaveConnectionRequest{
+		Create: operation == "create", Kind: kind, Name: name, Connector: connector,
 	}
-	conn.Type = typeName
-	if existing != nil && existing.Type != typeName {
-		conn.Config = map[string]any{}
+	if connector == "" {
+		return request, fmt.Errorf("%s %q: --%s is required", kind, name, connectorFlag)
 	}
-	return conn, prefix, nil
+	schema, err := a.catalog.ConnectionSchema(kind, connector)
+	if err != nil {
+		return request, err
+	}
+	allowed := map[string]bool{connectorFlag: true}
+	patch, unsetNames, err := configPatchFromFlags(schema, filament.ScopeConnection, prefix, flags, allowed, true)
+	if err != nil {
+		return request, err
+	}
+	unsetTargets := map[string]func(){}
+	for flagName, configName := range unsetNames {
+		configName := configName
+		unsetTargets[flagName] = func() { patch.Unset = append(patch.Unset, configName) }
+	}
+	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
+		return request, err
+	}
+	if err := rejectUnknownFlags(flags, allowed); err != nil {
+		return request, err
+	}
+	request.Config = patch
+	return request, nil
 }
 
-func (a *cliApp) connectionSchema(kind, typeName string) (filament.ConfigSchema, error) {
-	if kind == "source" {
-		spec, ok := a.catalog.sources[typeName]
-		if !ok {
-			return filament.ConfigSchema{}, fmt.Errorf("unknown source connector %q", typeName)
-		}
-		return spec.Config, nil
-	}
-	spec, ok := a.catalog.sinks[typeName]
-	if !ok {
-		return filament.ConfigSchema{}, fmt.Errorf("unknown sink connector %q", typeName)
-	}
-	return spec.Config, nil
-}
-
-func (a *cliApp) listConnections(kind string, doc configDocument) error {
-	connections := connectionMap(kind, doc)
-	if len(connections) == 0 {
-		_, err := fmt.Fprintf(a.stdout, "No saved %ss.\n", kind)
-		return err
-	}
-	table := tabwriter.NewWriter(a.stdout, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "Name\tConnector\tDescription"); err != nil {
-		return err
-	}
-	for _, name := range sortedKeys(connections) {
-		conn := connections[name]
-		description := ""
-		if kind == "source" {
-			if spec, ok := a.catalog.sources[conn.Type]; ok {
-				description = spec.Description
-			}
-		} else if spec, ok := a.catalog.sinks[conn.Type]; ok {
-			description = spec.Description
-		}
-		if _, err := fmt.Fprintf(table, "%s\t%s\t%s\n", name, conn.Type, description); err != nil {
-			return err
-		}
-	}
-	return table.Flush()
-}
-
-func connectionMap(kind string, doc configDocument) map[string]connection {
+func connectionMap(kind string, document climodel.Document) map[string]climodel.Connection {
 	if kind == "sink" {
-		return doc.Sinks
+		return document.Sinks
 	}
-	return doc.Sources
+	return document.Sources
 }
 
-func ensureConnectionUnreferenced(kind, name string, doc configDocument) error {
-	for pipelineName, p := range doc.Pipelines {
-		if (kind == "source" && p.Source.Ref == name) || (kind == "sink" && p.Sink.Ref == name) {
-			return fmt.Errorf("%s %q is referenced by pipeline %q; delete or edit that pipeline first", kind, name, pipelineName)
-		}
+// connectionUsage maps each saved connection to the pipelines referencing it.
+func (a *cliApp) connectionUsage(ctx context.Context, kind string) (map[string][]string, error) {
+	pipelines, err := a.service.Pipelines(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	usage := map[string][]string{}
+	for _, pipeline := range pipelines.Items {
+		ref := pipeline.Source
+		if kind == "sink" {
+			ref = pipeline.Sink
+		}
+		usage[ref] = append(usage[ref], pipeline.Name)
+	}
+	return usage, nil
+}
+
+func (a *cliApp) configName() string {
+	return filepath.Base(a.service.ConfigurationLocation())
 }
