@@ -3,14 +3,19 @@ module github.com/galaxy-io/filament/cmd
 go 1.26.4
 
 require (
+	charm.land/lipgloss/v2 v2.0.6
+	github.com/atterpac/dado v0.2.12
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/identity/zitadel v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/secret/aws v0.0.0-00010101000000-000000000000
+	github.com/gdamore/tcell/v2 v2.13.4
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/nats-io/nats-server/v2 v2.14.3
 	github.com/nats-io/nats.go v1.52.0
+	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.44.0
@@ -21,6 +26,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
 	go.opentelemetry.io/otel/trace v1.44.0
+	golang.org/x/term v0.45.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -79,9 +85,16 @@ require (
 	github.com/beltran/gohive v1.8.1 // indirect
 	github.com/beltran/gosasl v1.0.0 // indirect
 	github.com/beltran/gssapi v0.0.0-20200324152954-d86554db4bab // indirect
-	github.com/bits-and-blooms/bitset v1.24.4 // indirect
+	github.com/bits-and-blooms/bitset v1.24.6 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/charmbracelet/colorprofile v0.4.3 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886 // indirect
+	github.com/charmbracelet/x/ansi v0.11.8 // indirect
+	github.com/charmbracelet/x/term v0.2.2 // indirect
+	github.com/charmbracelet/x/termios v0.1.1 // indirect
+	github.com/charmbracelet/x/windows v0.2.2 // indirect
+	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
@@ -96,6 +109,7 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
+	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/geoarrow/geoarrow-go v0.0.0-20260403143023-f54751c3e3a1 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
@@ -123,6 +137,7 @@ require (
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pglogrepl v0.0.0-20260401131349-e37c41485510 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -135,10 +150,11 @@ require (
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
+	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.23 // indirect
-	github.com/mattn/go-runewidth v0.0.23 // indirect
+	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
@@ -146,6 +162,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
+	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muhlemmer/gu v0.3.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/jwt/v2 v2.8.2 // indirect
@@ -163,12 +180,12 @@ require (
 	github.com/pressly/goose/v3 v3.27.3 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
@@ -216,7 +233,6 @@ require (
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
