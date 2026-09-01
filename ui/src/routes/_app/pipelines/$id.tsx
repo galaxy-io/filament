@@ -42,7 +42,7 @@ const searchParams = z.object({
   version: z.coerce.bigint().positive().optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/pipelines/$id")({
+export const Route = createFileRoute("/_app/pipelines/$id")({
   validateSearch: searchParams,
   loader: async ({ params }) => {
     try {

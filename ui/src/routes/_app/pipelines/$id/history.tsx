@@ -17,7 +17,7 @@ const searchParams = z.object({
   runId: z.array(z.string()).optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/pipelines/$id/history")({
+export const Route = createFileRoute("/_app/pipelines/$id/history")({
   validateSearch: searchParams,
   loader: async ({ params }) => {
     try {

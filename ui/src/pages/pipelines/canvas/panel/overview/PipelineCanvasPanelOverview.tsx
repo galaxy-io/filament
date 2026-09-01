@@ -29,7 +29,7 @@ import { formatPipelineName } from "@/pages/pipelines/utils";
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 const PipelineCanvasPanelOverview = () => {
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
   const state = usePipelineCanvasState();
   const { selectNode } = usePipelineCanvasSelection();
   const connectionByNodeId = usePipelineCanvasConnections();

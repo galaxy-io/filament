@@ -27,7 +27,7 @@ const searchParams = z.object({
   sortOrder: z.enum(SortOrder).optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/_main/observability")({
+export const Route = createFileRoute("/_app/_main/observability")({
   validateSearch: searchParams,
   component: ObservabilityPage,
 });

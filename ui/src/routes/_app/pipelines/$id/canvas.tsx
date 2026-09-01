@@ -11,7 +11,7 @@ const searchParams = z.object({
   tab: z.enum(PipelineCanvasPanelTab).optional().catch(undefined),
 });
 
-export const Route = createFileRoute("/pipelines/$id/canvas")({
+export const Route = createFileRoute("/_app/pipelines/$id/canvas")({
   validateSearch: searchParams,
   component: PipelineCanvasPage,
 });

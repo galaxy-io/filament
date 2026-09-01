@@ -14,7 +14,7 @@ import { listSearchParamsSchema } from "@/api/utils";
 
 const searchParams = listSearchParamsSchema.pick({ q: true });
 
-export const Route = createFileRoute("/_main/sources")({
+export const Route = createFileRoute("/_app/_main/sources")({
   validateSearch: searchParams,
   loaderDeps: ({ search: { q } }) => ({ q }),
   loader: ({ deps }) =>

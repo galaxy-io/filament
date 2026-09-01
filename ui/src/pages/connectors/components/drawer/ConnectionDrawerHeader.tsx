@@ -14,11 +14,10 @@ import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
+import { Flow } from "@/layouts/app/types";
 import BaseHeader from "@/layouts/components/BaseHeader";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-
-import { Flow } from "@/routes/__root";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
 import { useGetConnectorQuery } from "@/api/queries/connectors";
@@ -29,7 +28,7 @@ interface ConnectionDrawerHeaderProps {
 
 const ConnectionDrawerHeader = ({ onClose }: ConnectionDrawerHeaderProps) => {
   const navigate = useNavigate();
-  const { connectionId } = useSearch({ from: "__root__" });
+  const { connectionId } = useSearch({ from: "/_app" });
 
   const { data: connectionData } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),

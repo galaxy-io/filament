@@ -10,7 +10,7 @@ import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
 import { listSearchParamsSchema } from "@/api/utils";
 
-export const Route = createFileRoute("/_main/pipelines")({
+export const Route = createFileRoute("/_app/_main/pipelines")({
   validateSearch: listSearchParamsSchema,
   loaderDeps: ({ search: { q, sortBy, sortOrder } }) => ({ q, sortBy, sortOrder }),
   loader: ({ deps }) =>

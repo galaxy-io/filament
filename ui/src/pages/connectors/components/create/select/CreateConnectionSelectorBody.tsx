@@ -49,7 +49,7 @@ const GhostCard = withTheme(styled.div<PropsWithTheme>`
 `);
 
 const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSelectorBodyProps) => {
-  const { connectorKind, connectorSearch = "" } = useSearch({ from: "__root__" });
+  const { connectorKind, connectorSearch = "" } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
   const { data, isLoading } = useListConnectorsQuery({

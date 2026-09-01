@@ -3,7 +3,7 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 
 import { API_URL, IS_DEBUG, IS_PRODUCTION } from "@/constants";
 
-import { getAccessToken } from "@/auth/token";
+import { getAccessToken } from "@/auth/oidc";
 
 export function createAuthInterceptor(): Interceptor {
   return (next) => (req) => {
