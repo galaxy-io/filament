@@ -43,9 +43,10 @@ Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
 			"Change a saved pipeline", help("edit"), change("edit"),
 		),
 		&cobra.Command{
-			Use:   "list",
-			Short: "List saved pipelines",
-			Args:  cobra.NoArgs,
+			Use:     "list",
+			Aliases: []string{"ls"},
+			Short:   "List saved pipelines",
+			Args:    cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				result, err := a.service.Pipelines(cmd.Context())
 				if err != nil {

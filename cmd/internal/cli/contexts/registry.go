@@ -124,6 +124,54 @@ func (r *Registry) Set(name string, target Target) error {
 	return r.store.Write(doc)
 }
 
+// Rename moves a context to a new name, carrying the current selection
+// with it. The built-in local context cannot be renamed.
+func (r *Registry) Rename(oldName, newName string) error {
+	doc, err := r.load()
+	if err != nil {
+		return err
+	}
+	target, ok := doc.Contexts[oldName]
+	if !ok {
+		return fmt.Errorf("context %q does not exist", oldName)
+	}
+	if oldName == defaultContextName {
+		return fmt.Errorf("the built-in %s context cannot be renamed", defaultContextName)
+	}
+	if _, exists := doc.Contexts[newName]; exists {
+		return fmt.Errorf("context %q already exists", newName)
+	}
+	if err := validate(newName, target); err != nil {
+		return err
+	}
+	delete(doc.Contexts, oldName)
+	doc.Contexts[newName] = target
+	if doc.Current == oldName {
+		doc.Current = newName
+	}
+	return r.store.Write(doc)
+}
+
+// Delete removes a context. The built-in local context and the current
+// selection cannot be deleted.
+func (r *Registry) Delete(name string) error {
+	doc, err := r.load()
+	if err != nil {
+		return err
+	}
+	if _, ok := doc.Contexts[name]; !ok {
+		return fmt.Errorf("context %q does not exist", name)
+	}
+	if name == defaultContextName {
+		return fmt.Errorf("the built-in %s context cannot be deleted", defaultContextName)
+	}
+	if doc.Current == name {
+		return fmt.Errorf("context %q is the current context; switch away from it first", name)
+	}
+	delete(doc.Contexts, name)
+	return r.store.Write(doc)
+}
+
 // Use persists name as the active context.
 func (r *Registry) Use(name string) (NamedTarget, error) {
 	doc, err := r.load()

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cliauth "github.com/galaxy-io/filament/cmd/internal/cli/auth"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
@@ -19,12 +20,28 @@ func (a *cliApp) contextCommand() *cobra.Command {
 
 Contexts are stored separately from pipeline configuration and credentials.
 Use --context NAME to select a context for one invocation.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				selected, err := a.contextRegistry().Use(args[0])
+				if err != nil {
+					return err
+				}
+				return printSuccess(a.statusWriter(), fmt.Sprintf("Switched to context %s", selected.Name))
+			}
+			current, err := a.contextRegistry().Resolve(a.contextName)
+			if err != nil {
+				return err
+			}
+			return textrenderer.CurrentContext(a.stdout, current.Name)
+		},
 	}
 	cmd.AddCommand(
 		&cobra.Command{
-			Use:   "list",
-			Short: "List contexts",
-			Args:  cobra.NoArgs,
+			Use:     "list",
+			Aliases: []string{"ls"},
+			Short:   "List contexts",
+			Args:    cobra.NoArgs,
 			RunE: func(*cobra.Command, []string) error {
 				return a.listContexts(a.contextRegistry())
 			},
@@ -53,8 +70,57 @@ Use --context NAME to select a context for one invocation.`,
 				return printSuccess(a.statusWriter(), fmt.Sprintf("Switched to context %s", selected.Name))
 			},
 		},
+		&cobra.Command{
+			Use:   "rename <name> <new-name>",
+			Short: "Rename a context",
+			Args:  cobra.ExactArgs(2),
+			RunE: func(_ *cobra.Command, args []string) error {
+				if err := a.contextRegistry().Rename(args[0], args[1]); err != nil {
+					return err
+				}
+				return printSuccess(a.statusWriter(), fmt.Sprintf("Renamed context %s to %s", args[0], args[1]))
+			},
+		},
+		&cobra.Command{
+			Use:   "delete <name>",
+			Short: "Delete a context",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(_ *cobra.Command, args []string) error {
+				return a.deleteContext(args[0])
+			},
+		},
 	)
 	return cmd
+}
+
+// deleteContext removes a context and, when no other context shares them,
+// its stored credentials.
+func (a *cliApp) deleteContext(name string) error {
+	registry := a.contextRegistry()
+	target, err := registry.Resolve(name)
+	if err != nil {
+		return err
+	}
+	if err := registry.Delete(name); err != nil {
+		return err
+	}
+	if profile := target.Target.AuthProfile; profile != "" && !a.profileInUse(registry, profile) {
+		_ = (cliauth.Store{Path: a.credentialsPath()}).Delete(profile)
+	}
+	return printSuccess(a.statusWriter(), fmt.Sprintf("Deleted context %s", name))
+}
+
+func (a *cliApp) profileInUse(registry *contexts.Registry, profile string) bool {
+	remaining, err := registry.List()
+	if err != nil {
+		return true
+	}
+	for _, item := range remaining {
+		if item.Target.AuthProfile == profile {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *cliApp) listContexts(registry *contexts.Registry) error {

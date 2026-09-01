@@ -44,9 +44,10 @@ func (a *cliApp) connectionCommand(kind string) *cobra.Command {
 			"Change a saved "+kind, help("edit"), change("edit"),
 		),
 		&cobra.Command{
-			Use:   "list",
-			Short: fmt.Sprintf("List saved %ss", kind),
-			Args:  cobra.NoArgs,
+			Use:     "list",
+			Aliases: []string{"ls"},
+			Short:   fmt.Sprintf("List saved %ss", kind),
+			Args:    cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				result, err := a.service.Connections(cmd.Context(), kind)
 				if err != nil {
