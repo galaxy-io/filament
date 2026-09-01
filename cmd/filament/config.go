@@ -8,9 +8,10 @@ import (
 	"os/exec"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	"gopkg.in/yaml.v3"
 )
 
 func (a *cliApp) runConfigCommand(ctx context.Context, args []string) error {

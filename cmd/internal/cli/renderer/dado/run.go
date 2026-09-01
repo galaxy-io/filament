@@ -13,6 +13,7 @@ import (
 	"github.com/atterpac/dado/inline"
 	"golang.org/x/term"
 
+	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
@@ -142,41 +143,12 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 	if err != nil {
 		return model.RunResult{}, err
 	}
-	progress := inline.NewMultiProgress(
-		fmt.Sprintf("Filament run · %s → %s", spec.Source.Connector, spec.Sink.Connector),
-		inline.WithCompletedTasksCollapsed(false),
-		inline.WithAggregateProgress(true),
-	)
-	states := map[string]*resourceProgressState{}
-	selected := make(map[string]bool, len(spec.Resources))
-	for _, name := range spec.Resources {
-		selected[name] = true
+	progress, states, err := newRunProgress(spec, discovered)
+	if err != nil {
+		return model.RunResult{}, err
 	}
 	addResource := func(name string, estimated int64) error {
-		if name == "" {
-			return nil
-		}
-		if state, exists := states[name]; exists {
-			if estimated > 0 && state.estimated == 0 {
-				state.estimated = estimated
-				return progress.SetTotal(name, estimated)
-			}
-			return nil
-		}
-		states[name] = &resourceProgressState{estimated: estimated}
-		return progress.Add(name, name, estimated)
-	}
-	for _, resource := range discovered {
-		if len(selected) == 0 || selected[resource.Name] {
-			if err := addResource(resource.Name, resource.EstimatedRows); err != nil {
-				return model.RunResult{}, err
-			}
-		}
-	}
-	for _, name := range spec.Resources {
-		if err := addResource(name, 0); err != nil {
-			return model.RunResult{}, err
-		}
+		return addRunResource(progress, states, name, estimated)
 	}
 
 	updates := make(chan resourceProgressUpdate, 256)
@@ -236,6 +208,47 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 			return model.RunResult{}, errors.Join(ctx.Err(), render())
 		}
 	}
+}
+
+func newRunProgress(spec filament.RunSpec, discovered []model.ResourceSummary) (*inline.MultiProgress, map[string]*resourceProgressState, error) {
+	progress := inline.NewMultiProgress(
+		fmt.Sprintf("Filament run · %s → %s", spec.Source.Connector, spec.Sink.Connector),
+		inline.WithCompletedTasksCollapsed(false),
+		inline.WithAggregateProgress(true),
+	)
+	states := map[string]*resourceProgressState{}
+	selected := make(map[string]bool, len(spec.Resources))
+	for _, name := range spec.Resources {
+		selected[name] = true
+	}
+	for _, resource := range discovered {
+		if len(selected) == 0 || selected[resource.Name] {
+			if err := addRunResource(progress, states, resource.Name, resource.EstimatedRows); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	for _, name := range spec.Resources {
+		if err := addRunResource(progress, states, name, 0); err != nil {
+			return nil, nil, err
+		}
+	}
+	return progress, states, nil
+}
+
+func addRunResource(progress *inline.MultiProgress, states map[string]*resourceProgressState, name string, estimated int64) error {
+	if name == "" {
+		return nil
+	}
+	if state, exists := states[name]; exists {
+		if estimated > 0 && state.estimated == 0 {
+			state.estimated = estimated
+			return progress.SetTotal(name, estimated)
+		}
+		return nil
+	}
+	states[name] = &resourceProgressState{estimated: estimated}
+	return progress.Add(name, name, estimated)
 }
 
 func applyResourceProgress(

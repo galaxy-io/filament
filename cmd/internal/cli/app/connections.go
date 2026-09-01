@@ -86,7 +86,7 @@ func BuildConnection(request SaveConnectionRequest, existing *model.Connection, 
 	return connection, nil
 }
 
-// DeleteConnection rejects dangling pipeline references before persistence.
+// DeleteSavedConnection rejects dangling pipeline references before persistence.
 func (s *Service) DeleteSavedConnection(ctx context.Context, kind, name string) error {
 	document, err := s.Configuration(ctx)
 	if err != nil {

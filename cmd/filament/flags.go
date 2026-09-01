@@ -180,11 +180,3 @@ func splitComma(value string) []string {
 	}
 	return result
 }
-
-func cloneMap[V any](source map[string]V) map[string]V {
-	result := make(map[string]V, len(source))
-	for key, value := range source {
-		result[key] = value
-	}
-	return result
-}
