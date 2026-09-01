@@ -10,6 +10,11 @@ pipeline configuration, and full-read execution against that file. Features
 that require durable server state are described under [What runs
 where](#what-runs-where).
 
+<Warning>
+  The CLI runs full reads only. Use the server when you need incremental or CDC
+  checkpoints, schedules, or persistent run history.
+</Warning>
+
 There are two ways to work with it:
 
 - **Inline.** Declare a source and sink entirely in flags and run once. Good
@@ -74,10 +79,10 @@ Secret fields never have to be typed in plaintext. Any of these work:
 - `--source-dsn '$POSTGRES_DSN'` and `--source-dsn '${POSTGRES_DSN}'` are
   recognized as references, not literal values. The quotes prevent your shell
   from expanding the variable before Filament sees it.
-- A plaintext value, if you really want one
+- A plaintext value, though environment references are safer for saved config
 
-Saved connections store the reference, not the value. A referenced secret
-lands in the file as `env:POSTGRES_DSN` and resolves at run time, so the
+Saved connections store the reference, not the value. A referenced secret is
+written as `env:POSTGRES_DSN` and resolves at run time, so the
 config file stays safe to read and commit. The file itself is written with
 owner-only permissions.
 
@@ -171,12 +176,8 @@ name cannot be combined with `--source`, `--sink`, `--source-connector`, or
 
 When the run finishes, the CLI reports the records and bytes it moved.
 
-<Warning>
-  Local runs are full reads only. Incremental and CDC modes need the durable
-  checkpoint store that the server provides, so `sync_mode` must be `full`.
-  Write mode can be `append`, `replace`, or `upsert`, subject to what the
-  sink supports.
-</Warning>
+Write mode can be `append`, `replace`, or `upsert`, subject to what the sink
+supports.
 
 ## The config file
 

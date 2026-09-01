@@ -1,13 +1,13 @@
 ---
 title: "Connections"
-description: "Reusable, tenant-scoped sources and sinks with managed secrets and optimistic locking"
+description: "Save connector settings once and reuse them across pipelines"
 ---
 
-Defined in `protos/ingestion/v1/connections.proto`. A connection is a configured,
-reusable instance of a connector. The host, bucket, and credentials are
-persisted once and referenced by any number of pipeline nodes, instead of
-duplicated inline on each pipeline. Connections are tenant-scoped, carry a `version`
-field used as an optimistic lock, and are soft-deleted.
+A connection stores the settings needed to reach a source or destination. A
+pipeline can reuse that connection instead of repeating a hostname, bucket, or
+credentials on every node. Connections belong to one tenant, use `version` to
+prevent conflicting edits, and are soft-deleted. The messages are defined in
+`protos/ingestion/v1/connections.proto`.
 
 ## Config scoping
 
@@ -43,11 +43,11 @@ secrets.
 ## CreateConnection
 
 Takes `kind`, `name`, `connector`, `config`, and optional `secret_refs`. The
-server validates the config against the connector's schema and then runs the
-connector's own `Validate()` against the *effective* config (secrets resolved
-from the provider and merged in), so a connection that persists is one that
-actually connected. A secret reference that fails to resolve returns
-`failed_precondition`.
+server resolves referenced secrets, validates the resulting values against the
+connector's schema, and runs the connector's configuration checks. These are
+local checks: saving a connection does not prove that the external system is
+reachable or that its credentials work. A secret reference that cannot be
+resolved returns `failed_precondition`.
 
 ## UpdateConnection
 

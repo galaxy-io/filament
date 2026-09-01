@@ -3,10 +3,11 @@ title: "Micro-benchmarks"
 description: "The in-repo Go benchmarks that isolate the engine's own overhead"
 ---
 
-A small set of Go benchmarks lives in the Filament repository. Each isolates
-one layer, so the difference between any two rungs attributes overhead
-precisely. The null-sink pipeline rung is the engine's floor. Anything a full
-run costs above it comes from the source read, the bus, and the tracker.
+The repository includes small Go benchmarks for the pipeline and in-process
+event bus. The pipeline benchmark writes to a sink that performs no I/O, which
+shows the engine's batching and integrity cost without a destination network or
+storage system. Full-run costs also include the source, event bus, tracker, and
+real sink.
 
 They are plain Go benchmarks. No Docker, no `just` recipe, and they do not
 run in CI. No numbers are published here because results depend on hardware.
@@ -19,14 +20,15 @@ go test -bench=. -benchmem ./eventbus/...
 
 ## Pipeline
 
-`pipeline/pipeline_bench_test.go` pushes pre-built records through the full
-batcher, writer, and integrity loop into a null sink. The sink does no I/O
-but still recomputes the write-side CRC, so integrity work stays measured.
+`pipeline/pipeline_bench_test.go` appends typed rows into Arrow builders and
+runs the resulting batches through the writer and integrity loop into a null
+sink. The sink does no I/O but still recomputes the write-side CRC, so integrity
+work stays measured.
 
 - `BenchmarkNullSinkPipeline` measures the serial path and reports a
   `records/sec` metric alongside allocations per operation
-- `BenchmarkNullSinkPipelineParallel` spreads records across multiple
-  resources so batcher sharding engages, and sweeps `SnapshotParallelism`
+- `BenchmarkNullSinkPipelineParallel` feeds one builder per resource from
+  parallel goroutines and sweeps the writer-pool `SnapshotParallelism`
 
 ## Event bus
 
@@ -34,7 +36,7 @@ but still recomputes the write-side CRC, so integrity work stays measured.
 the standalone binary, the library default, and tests. NATS transport is
 deliberately out of scope here.
 
-- `BenchmarkPublishNoSubscribers` is the publish floor with nothing listening
+- `BenchmarkPublishNoSubscribers` measures publishing with nothing listening
 - `BenchmarkPublishFanout8` adds draining wildcard subscribers, the realistic
   per-fact cost
 - `BenchmarkPublishParallel` contends publishers on the bus mutex

@@ -4,11 +4,9 @@ description: "Synthetic data for testing pipelines without a real upstream"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-sample-dark.svg"
 ---
 
-The Sample source generates synthetic data for exercising a pipeline (or
-the engine itself) with no upstream system configured. It is the
-zero-dependency reference source, the counterpart to the
-[stdout](/pages/connectors/sinks/standard-output) sink for end-to-end wiring, demos,
-and tests. The connector is stable.
+The stable Sample source generates predictable rows without an external system.
+Use it with the [stdout](/pages/connectors/sinks/standard-output) sink for demos,
+tests, or checking end-to-end pipeline wiring.
 
 ## Configuration
 
@@ -18,9 +16,9 @@ and tests. The connector is stable.
 
 ## Resources
 
-Discover returns two fixed selectable resources, `users` and `orders`, each
-with primary key `id`. Extract emits rows for whatever resources the run
-requests. When none are requested it emits a single `items` resource.
+Resource discovery lists `users` and `orders`, both with primary key `id`. A
+run emits whichever resources it requests. With no resource selection, the
+source emits one `items` resource.
 
 Each record's id is its index, with data:
 
@@ -28,8 +26,8 @@ Each record's id is its index, with data:
 {"resource": "users", "i": 0}
 ```
 
-Setting `rows` to zero or below still emits one row per resource (Discover
-continues to estimate 3).
+`rows` values of zero or less still produce one row per resource. Discovery's
+estimated row count remains 3 regardless of this setting.
 
 ## Modes
 

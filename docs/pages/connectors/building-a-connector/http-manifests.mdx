@@ -3,22 +3,20 @@ title: "HTTP manifests"
 description: "Declarative YAML manifests that drive the generic HTTP API source"
 ---
 
-`connectors/http` is one generic Go source driven by declarative v1 YAML
-manifests, not one Go package per API. Every shipped SaaS source in the
-catalog (Notion, Linear, Attio, GitHub, Slack, Resend, Stripe, PostHog) is a
-manifest embedded in that single connector. Onboarding a new API means writing
-YAML, not Go.
+Use an HTTP manifest when an API can be described through endpoints,
+authentication, pagination, and JSON field mappings. You write YAML instead of
+a new Go connector. Filament's Notion, Linear, Attio, GitHub, Slack, Resend,
+Stripe, and PostHog sources all use this path.
 
-You can also run a manifest of your own without recompiling. The generic
-`httpapi` source is registered alongside the catalog, and its only config
-field is `manifest_path` (string, required, connection scope), the path to a
-v1 manifest file. Point a connection at a custom manifest and it behaves
-exactly like an embedded catalog source.
+To try a manifest without recompiling Filament, create an `httpapi` connection
+and set its required `manifest_path` to your v1 YAML file. Once embedded in the
+catalog, the same manifest behaves like any other named source.
 
-## Manifest anatomy
+## Start with the basic structure
 
-A manifest declares config, one connection, and a list of resources. A
-compact example in the shape of the shipped GitHub manifest:
+A manifest has four main parts: connector metadata, user configuration, shared
+connection behavior, and resources. This shortened GitHub-style example shows
+how they fit together:
 
 ```yaml
 version: 1
@@ -81,38 +79,36 @@ resources:
 Secrets (`type: secret`) render masked and are stored as refs. Config values
 are referenced elsewhere in the manifest as `config.<name>`.
 
-### Connection
+### Configure requests
 
-- `base_url` is templatable and rendered **once at `Configure`, against config
-  only**, not per request (PostHog uses this for `host`).
-- In YAML, `auth` accepts exactly the forms `none`, `bearer: <ref>`,
-  `header {name, value, scheme}`, `basic {username, password}` (an empty
-  password is legal, and Stripe authenticates with the API key as username),
-  and `oauth2 {token_url, client_id, client_secret, scope}` with token
-  caching. The runtime auth registry also implements query, HMAC, and chained
-  schemes, but they are not expressible in YAML today.
-- `rate_limit` sets a static `requests_per_second`, optionally with a
-  `dynamic` block that follows the API's rate-limit headers, shaped as
-  `{remaining_header, reset_header, reset_format: unix_seconds |
-  seconds_from_now | http_date, min_floor_rps}`. One limiter is shared per
-  connection.
-- `timeout_seconds` defaults to 60.
+- `base_url` can reference connector config, as PostHog does for `host`. It is
+  resolved once when the connector is configured, not separately for every
+  request.
+- `auth` supports no auth, bearer tokens, a custom header, basic auth, and
+  OAuth 2 client credentials. OAuth tokens are cached. Query, HMAC, and chained
+  authentication exist in the Go runtime but cannot currently be declared in
+  YAML.
+- `rate_limit.requests_per_second` sets a shared limit for the connection. A
+  `dynamic` block can adjust that limit from response headers using a Unix
+  timestamp, seconds from now, or an HTTP date.
+- `timeout_seconds` sets the request timeout and defaults to 60 seconds.
 
 ### Resources
 
-Each resource is one endpoint. `path` takes `{param}` placeholders bound in
-`params:` to config values or parent captures. `primary_key` lists key fields
-(a composite key becomes a JSON key object). Projection uses `fields:`, either
-the shorthand `name: type?` (`?` marks nullable) or the expanded
-`{path, type, shape, mode, nullable}` form. `mode: remainder` collects
-everything not otherwise projected, and `mode: raw` keeps a subtree verbatim.
-`records:` (or the expanded `response {root, records_path, cardinality,
-error, pagination}`) locates records in the response, and `cardinality: one`
-marks a single-object endpoint. `body` templates request bodies
-(`encoding: json | form | multipart | raw | none`). This is how the
-GraphQL-only Linear manifest works.
+Each resource describes one endpoint:
 
-**Pagination** styles, alongside `none`:
+- `path` is the URL path. Placeholders such as `{organization}` are filled from
+  `params`, using connection config or values captured from a parent resource.
+- `primary_key` lists one or more fields that uniquely identify a record.
+- `fields` maps response values into typed columns. Add `?` to the shorthand
+  type for a nullable field. Use `mode: remainder` to keep unprojected values,
+  or `mode: raw` to keep a complete subtree.
+- `records` points to the array in the response. Use `cardinality: one` for an
+  endpoint that returns a single object.
+- `body` describes JSON, form, multipart, raw, or empty request bodies. Linear
+  uses this support for GraphQL requests.
+
+Choose the pagination style that matches the API:
 
 - `link: <rel>` (RFC 5988 headers, default rel `next`)
 - `next_url: <path>` (whole-URL envelopes like Django REST Framework)
@@ -120,10 +116,12 @@ GraphQL-only Linear manifest works.
 - `offset {offset, limit, page_size}` (stops on a short page)
 - `page {number, size, page_size, total_pages}`
 
-**Fan-out**: `for_each: <parent>` (or `parent {resource, concurrency}`) runs
-the resource once per parent record, with values exposed to the child via the
-parent's `capture:` block. Fan-out concurrency defaults to 5. Chains can
-nest (Resend's webhooks → events → attempts).
+### Read child endpoints
+
+Use `for_each: <parent>` when an endpoint must be called once per parent record.
+The parent's `capture` block names the values available to the child. Child
+requests default to five concurrent calls, and relationships can nest, such as
+Resend webhooks → events → attempts.
 
 ### Incremental
 
@@ -139,10 +137,9 @@ An `incremental` block turns a resource into an incremental read:
 - `overlap_seconds` rewinds the lower bound for a lookback window and is
   valid for `time` **or** `numeric` comparators.
 
-The lower bound is fixed for the whole extraction. The watermark advances as
-the maximum cursor value observed. A record missing its cursor value (or one
-that fails to parse) fails the run, by design. A silently skipped watermark
-would corrupt the cursor.
+The lower bound remains fixed during one extraction. Filament saves the largest
+cursor value it sees. A missing or invalid cursor fails the run because skipping
+that value could cause later runs to miss records.
 
 ### Discovery and streaming
 
@@ -152,17 +149,17 @@ resource as an alternative to pagination. No shipped manifest uses it.
 
 ## Runtime behavior
 
-**Modes.** Every manifest source advertises `ModeFull`. `ModeIncremental` is
-advertised only when at least one resource declares an `incremental` block —
-which is why Attio and Resend are full-only. The cursor field is fixed by the
-manifest. Per-pipeline cursor configuration can adjust only the lookback.
+**Available modes.** Every manifest can run a full read. Incremental reads are
+available only when at least one resource has an `incremental` block, which is
+why Attio and Resend are full-only. The manifest chooses the cursor field; a
+pipeline can change only its lookback window.
 
-**Full-mode resume.** Top-level resources checkpoint their pagination cursor
+**Resuming full reads.** Top-level resources checkpoint their pagination cursor
 per page, so an interrupted full run resumes mid-listing. Child (fan-out)
 resources always restart from the beginning. A resumed cursor the API no
 longer honors falls back to a full read with a warning rather than failing.
 
-**Fan-out watermarks.** Children share one aggregate watermark per resource
+**Incremental child resources.** Children share one watermark per resource
 across all parents. There is no per-parent checkpoint. If parents progress
 at different speeds (say, per-repository issues), a run can advance the
 watermark past rows in slower parents. Set `overlap_seconds` generously to
@@ -178,16 +175,17 @@ re-read the window and let an upsert write mode absorb the duplicates.
 Responses are capped at 100 MB. Top-level resources extract concurrently,
 children after their parents.
 
-**Connection testing.** `TestConnection` probes the first top-level
-non-stream resource with a single request.
+**Connection testing.** When a caller explicitly invokes the connector's
+`TestConnection` capability, it sends one request to the first top-level,
+non-streaming resource. Saving or validating a connection through the service
+API does not invoke this live test.
 
-**Validation.** Loading a manifest runs a four-stage gate, reporting every
-grammar violation at once rather than the first:
+**Manifest validation.** Loading a manifest reports all detectable problems
+together. It checks:
 
-- grammar validation against the embedded v1 meta-grammar (required objects,
-  field types, enum membership)
+- required objects, field types, and allowed enum values
 - strict YAML decoding that rejects unknown fields
-- normalization (defaults folded in, shorthands expanded)
+- defaults and shorthand expansion
 - semantic checks for cross-field rules such as parent cycles and unprojected
   cursor fields
 

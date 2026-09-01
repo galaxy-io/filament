@@ -4,13 +4,11 @@ description: "Read people, events, cohorts, feature flags, experiments, and sess
 icon: "https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg"
 ---
 
-PostHog is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/posthog.yaml` manifest declares resources
-covering a project's analytics surface, from people and events to the CRUD
-objects around them (cohorts, flags, experiments, insights, dashboards,
-actions, annotations, surveys, session recordings). The connector is
-**beta**. The resource set is stable, though field shapes may still be
-extended.
+The PostHog source reads people, events, cohorts, feature flags, experiments,
+insights, dashboards, actions, annotations, surveys, and session recordings
+from one project. It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**beta**. Its resources are stable, though future releases may add columns.
 
 ## Configuration
 
@@ -25,20 +23,16 @@ which does not serve `/api`.
 
 ## Resources
 
-All eleven resources (`persons`, `events`, `cohorts`, `feature_flags`,
-`experiments`, `insights`, `dashboards`, `actions`, `annotations`, `surveys`,
-`session_recordings`) are top-level lists under
-`/api/projects/{project_id}/`, with no fan-out. `persons` is declared
-first, so it doubles as the connection probe. A bad key or wrong `project_id`
-fails at Configure rather than mid-run. Join keys are lifted out of embedded
-objects where useful (`experiments.feature_flag_id`,
-`session_recordings.person_id`), and `persons.id` is typed string because live
-instances return a UUID where the schema claims an integer.
+All resources are independent lists under `/api/projects/{project_id}/`.
+`persons` is the endpoint used by an explicit live connection test. The
+service API's normal config validation does not make that request. Useful IDs
+from embedded objects are also exposed as columns, such as
+`experiments.feature_flag_id` and `session_recordings.person_id`.
 
 ## Modes
 
-Full is always available. A full run checkpoints its pagination cursor per
-resource and resumes from the last completed page.
+All resources support full reads. If interrupted, a full read resumes after
+the last completed page.
 
 Two resources are incremental.
 

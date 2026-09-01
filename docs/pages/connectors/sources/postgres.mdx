@@ -4,11 +4,10 @@ description: "Resumable full-snapshot, incremental, and CDC reads from PostgreSQ
 icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
 ---
 
-The PostgreSQL source reads tables as resumable full snapshots, incremental
-timestamp-cursor pulls, or logical-replication CDC. It picks a physical read
-strategy per table rather than using one strategy for everything, and every
-strategy checkpoints so an interrupted run resumes instead of restarting.
-The connector is beta.
+The PostgreSQL source supports full snapshots, timestamp-based incremental
+reads, and logical-replication CDC. Full reads of tables with primary keys can
+resume from checkpoints. Keyless tables can be read in full, but an interrupted
+read starts that table again. The connector is beta.
 
 ## Configuration
 
@@ -35,51 +34,49 @@ The connector is beta.
 
 ## Read strategies
 
-`scan_strategy` controls how full snapshots read the heap. It is a physical
-choice, deliberately separate from the pipeline's Full/Incremental/CDC mode.
-Large tables split into parallel shards (heap pages divided by `shard_pages`,
-capped at 64), and the chosen strategy and shard layout are frozen into the
-checkpoint at plan time, so a resume never changes the plan mid-flight.
+`scan_strategy` changes how a full snapshot reads PostgreSQL storage. It does
+not change whether the pipeline uses a full, incremental, or CDC read.
+
+| Strategy | Choose it when | Resume behavior |
+|---|---|---|
+| `keyset` | You want the safest default and exact resume | Continues after the last primary key |
+| `bitmap` | The table is poorly ordered by its primary key | Repeats only the current key range |
+| `ctid` | You explicitly prefer fast physical scans and accept more replay | Reconciles physical ranges and may re-read rows |
+| `auto` | You want Filament to choose between keyset and bitmap | Matches the selected strategy |
+
+Large tables can be divided into as many as 64 parallel ranges. Filament saves
+the chosen strategy and range boundaries in the checkpoint, so resuming a run
+does not silently produce a different read plan.
 
 ### keyset (default)
 
-Walks the primary-key index in order (`WHERE (pk) > cursor ORDER BY pk LIMIT
-page_size`), with the cursor carried in each record's key. Shard boundaries come from
-integer arithmetic over `MIN`/`MAX` when the leading PK column is an integer,
-or from equal-count sampled boundaries via `percentile_disc` for UUID, text,
-and timestamp keys. The bottom and top shards are open-ended. Resumable to
-the exact row.
+Reads the primary-key index in order and saves the last key. Integer keys use
+numeric ranges; UUID, text, and timestamp keys use sampled ranges with roughly
+equal row counts. This strategy resumes at the exact next row.
 
 ### bitmap
 
-Same shard boundaries as keyset, but each sub-range is read with a plain
-range predicate (no `ORDER BY`, no `LIMIT`), leaving the planner free to
-use a bitmap heap scan. That scan collects matching index TIDs, sorts them by
-heap block, and reads in ascending physical order with prefetch. Better I/O
-on heaps uncorrelated with the key, at the cost of coarse resume. Each
-sub-range is all-or-nothing, and its rows are stamped `Coarse`.
+Uses the same key ranges but lets PostgreSQL read each range in physical heap
+order. This can reduce random I/O when row location and primary-key order are
+poorly correlated. A range is the smallest recovery unit, so an interruption
+repeats the current range rather than continuing at an exact row.
 
 ### ctid
 
-Selected only by an explicit `scan_strategy: ctid`. Divides the table into
-physical block-range shards for fast sequential I/O, and parallel shards
-share one exported snapshot. Each shard records run-start stamps (filenode,
-`relfrozenxid`, xmin horizon, page count) and reconciles on resume. A
-filenode mismatch (`VACUUM FULL`, `CLUSTER`, `TRUNCATE`) re-plans the whole
-table. Horizon reconciliation re-delivers rows whose `xmin` is newer than the
-run-start horizon on completed ranges, and if `relfrozenxid` advanced, the
-rescan runs unfiltered. Blocks appended past the run-start size are delivered
-unfiltered.
+Reads physical block ranges and shares one exported snapshot across parallel
+workers. On resume, Filament checks whether operations such as `VACUUM FULL`,
+`CLUSTER`, or `TRUNCATE` replaced the table storage. If so, it plans the table
+again. It also re-reads rows or newly appended blocks when PostgreSQL's
+transaction metadata shows that doing so is necessary. Choose this strategy
+only when that extra replay is acceptable.
 
 ### auto
 
-Probes `pg_stats.correlation` for the leading primary-key column, a measure
-of how close the heap is to physical key order. `|correlation| >= 0.8` picks
-keyset, and anything less picks bitmap. If statistics are missing, the router
-runs `ANALYZE` once and retries. A still-missing statistic is treated as
-random (bitmap). The probe never fails a run. Only this keyset-versus-bitmap
-verdict is acted on today. The router's other modes are internal and not
-reachable from `auto`.
+Uses PostgreSQL statistics to estimate how closely physical row order matches
+the primary key. A correlation of at least `0.8` in either direction selects
+keyset; lower correlation selects bitmap. If statistics are missing, Filament
+runs `ANALYZE` once and falls back to bitmap if the value is still unavailable.
+The probe itself does not fail the run.
 
 ## Incremental
 

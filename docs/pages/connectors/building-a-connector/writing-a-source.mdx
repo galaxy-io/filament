@@ -1,18 +1,19 @@
 ---
 title: "Writing a source"
-description: "The Source interface, the push contract, and what a record carries"
+description: "Build a Go source that writes typed rows into Filament"
 ---
 
-A source is a Go type that reads data from somewhere (a database, an API, a
-file) and pushes it into the engine as records. It implements one small
-interface, describes itself with a spec, and registers a factory. Everything
-else (batching, integrity checking, checkpoint persistence, fact publishing)
-belongs to the engine. A source never sees the bus, the tenant, the run, or
-the sequence allocator.
+A source owns the read from an upstream system. Filament owns what happens
+afterward: bounded batching, backpressure, integrity checks, sink writes, and
+run progress.
 
-## The Source interface
+The important boundary is typed and columnar. A source describes a resource's
+schema, opens a row writer for that resource, and appends values in schema
+order. Filament turns those rows into Arrow batches.
 
-A source implements `Source`, defined in the repo's root `source.go`:
+## Start with one full-read source
+
+The base interface is intentionally small:
 
 ```go
 type Source interface {
@@ -24,155 +25,120 @@ type Source interface {
 }
 ```
 
-- **`Spec`** returns the connector's self-description (identity, supported
-  [read modes](/pages/guides/concepts/replication-modes), source policies,
-  config schema, and resource capabilities). It powers the catalog.
-- **`Validate`** checks a config without side effects. Reject malformed
-  configs here so failures surface before a run starts.
-- **`Configure`** takes the resolved config (secrets injected) and prepares
-  the source for extraction, parsing settings, building clients, and opening
-  pools.
-- **`Extract`** reads the requested resources and pushes every record into
-  the `RecordSink`. Return `nil` when done. Any error fails the run.
-- **`Teardown`** releases whatever `Configure` acquired. The runner defers it
-  as soon as `Configure` succeeds, so it runs even on failure.
+One source instance serves one run. `Configure` can therefore keep a client,
+connection pool, or parsed configuration on the struct, and `Teardown` releases
+it when the run ends.
 
-The engine creates a fresh instance per run, so a source can keep state in its
-struct fields without worrying about reuse.
-
-## ExtractOpts
-
-`Extract` receives `ExtractOpts` scoping the run:
+`Extract` is where data crosses into Filament. This minimal example writes two
+columns for every requested resource:
 
 ```go
-type ExtractOpts struct {
-    Resources   []string
-    Selectors   []string
-    Limit       int // 0 = unbounded
-    Parallelism int
-    Observe     SourceObserver
+func (s *Source) Extract(
+    ctx context.Context,
+    sink filament.RecordSink,
+    opts filament.ExtractOpts,
+) error {
+    for _, resource := range opts.Resources {
+        schema := filament.RecordSchema{
+            Resource:   resource,
+            PrimaryKey: []string{"id"},
+            Fields: []filament.SchemaField{
+                {Name: "id", Logical: filament.LogicalInt64},
+                {Name: "name", Logical: filament.LogicalString},
+            },
+        }
+
+        writer, err := sink.Builder(resource, 0, schema)
+        if err != nil {
+            return err
+        }
+
+        for _, row := range []struct {
+            id   int64
+            name string
+        }{{1, "Ada"}, {2, "Linus"}} {
+            if err := ctx.Err(); err != nil {
+                return err
+            }
+            writer.Int64(row.id)
+            writer.String(row.name)
+            if err := writer.EndRow(filament.RowMeta{}); err != nil {
+                return err
+            }
+        }
+    }
+    return nil
 }
 ```
 
-There is no mode field. `ExtractOpts` says which resources to read and how
-fast. Read behavior per resource (fresh read, resume from a keyset cursor,
-incremental from a watermark) is carried by the checkpoint plan the engine
-hands to `ExtractFrom`, not by a run-wide mode. A plain `Extract` is always a
-full read. `Observe` is a nil-safe callback for source-local progress
-(`PageFetched`, `FanOutStarted`, `WatermarkAdvanced`, `RateLimited`,
-`RetryExhausted`). Call `opts.Observe.Report(...)` without nil checks.
+Every row must append exactly one value per schema field, in the same order.
+Use `Null()` for a null value. `EndRow` closes the row and may block while a
+full batch waits for the sink; returning its error is how backpressure and
+pipeline failures reach the source.
 
-## Pushing records
+<Note>
+The pipeline closes builders after extraction. A source normally calls neither
+`Close` nor `Drain`; those are lifecycle details for advanced resumable or CDC
+sources. A long-lived stream may call `Flush` when it goes idle and needs to
+send a partially filled batch.
+</Note>
 
-`RecordSink` is the engine's inlet:
+## Resources and parts
 
-```go
-type RecordSink interface {
-    Push(r Record) error
-    PushBatch(rs []Record) error
-}
-```
+A builder belongs to one `(resource, part)` pair. Most sources start with part
+`0`. A source that splits a large table into independently read ranges opens
+one builder per range and assigns each a stable part number.
 
-`Push` blocks when the pipeline's buffers are full. Backpressure reaches the
-source as a stalled call, so a source never needs its own flow control. If the
-pipeline dies (a sink write fails, a CRC diverges), the blocked call unblocks
-and returns the fatal error (or `ErrPipelineClosed`). Stop extracting and
-return it. The engine handles batching, ordering per resource, and flushing.
-Push records one at a time or in slices, whichever the read path produces.
+`ExtractOpts.Parallelism` is the run's concurrency budget, not an instruction
+to create that many parts. The source decides whether its backend can safely
+read in parallel. Each builder must be written by only one goroutine.
 
-## Record anatomy
+## Row metadata for recovery and CDC
 
-```go
-type Record struct {
-    Resource string
-    ID       string
-    Op       Operation // OpInsert, OpUpdate, OpDelete
-    Data     []byte
-    Meta     RecordMeta // LSN, Seq, EmittedAt — CDC provenance
+Most full-read sources can pass an empty `RowMeta`. Recovery and CDC sources use
+it to carry information that travels with a row without becoming a
+destination column:
 
-    Part    int
-    Key     []string
-    Coarse  bool
-    Drained bool
-}
-```
+- `Op` is insert, update, or delete. Full reads normally leave it at insert.
+- `Key` is the source position for a keyset-resumable part.
+- `Coarse` marks progress that can only be acknowledged by row count.
+- `LSN` and `Seq` order a CDC stream.
 
-`ID`, `Op`, and `Data` are the integrity-checked identity of the record. The
-engine computes `filament.CRC32C` over exactly these three fields and compares
-it against what the sink wrote. `Data` is an opaque payload, conventionally
-one JSON object per row. `filament.NewRecord(resource, id, data)` builds the
-common insert case.
+These fields drive ordering and checkpoints. They are not a substitute for the
+resource schema or primary key.
 
-The remaining fields are resume metadata, ignored by the CRC:
+## Describe and register the source
 
-- **`Part`** and **`Key`** are set by a keyset (`Resumable`) read. `Part` is
-  the shard the record came from, and `Key` is its primary-key value(s) as
-  text. This is the cursor the batcher carries onto the batch so progress can
-  be persisted.
-- **`Coarse`** marks a record from a bitmap or other ack-counted read whose
-  part has no monotonic cursor. The engine checkpoints it by counting written
-  rows instead of advancing a key. Mutually exclusive with a non-nil `Key`.
-- **`Drained`** is a control sentinel, not a data row. It carries `Part` but no
-  `Data`, and signals that the source has pushed every row of that part.
-  Push it after all of the part's data records. The engine turns it into the
-  part's completion marker and never writes or CRCs it. This is how a
-  zero-change CDC cycle still persists its final position.
+`Spec` supplies the catalog name, configuration fields, and supported read
+policies. Keep the advertisement aligned with behavior: advertising incremental
+or CDC support does not implement the corresponding extraction interfaces.
 
-## ConnectorSpec
-
-`Spec()` returns a `ConnectorSpec`. The parts that matter most:
-
-- **`Modes`**: the `ReadMode`s the source supports (`ModeFull`,
-  `ModeIncremental`, `ModeCDC`). Advertise only what `Extract` (and the
-  [optional interfaces](/pages/connectors/building-a-connector/optional-interfaces))
-  actually deliver.
-- **`SourcePolicies`**: which ingestion types the source serves
-  (`full_replace`, `incremental_upsert`, `cdc_append`, `cdc_merge`, …). Planning rejects a run
-  whose ingestion type no policy matches.
-- **`Config`**: a `ConfigSchema` of `ConfigField`s. Each field carries a
-  `Scope`. `ScopeConnection` covers settings that establish a reusable
-  connection (host, credentials), and `ScopePipeline` covers settings that
-  vary per pipeline (page size, target schema). Mark credentials
-  `Secret: true` (or type `FieldSecret`). They render masked and are stored as
-  refs, resolved and injected just before `Configure`. `VisibleWhen`
-  conditions a field on a sibling's value.
-- **`Resources`**: `ResourceCapabilities{Discoverable, PerResourceCursor}`.
-
-## Registration
-
-Registration lives in a `register.go` with an `init()`. Consumers enable the
-connector with a blank import:
+Register a factory so each run receives a fresh instance:
 
 ```go
-package myconnector
-
-import (
-    "github.com/galaxy-io/filament"
-    "github.com/galaxy-io/filament/registry"
-)
-
 func init() {
-    registry.RegisterSource("myconnector", filament.MaturityBeta, func() filament.Source { return New() })
+    registry.RegisterSource(
+        "mysource",
+        filament.MaturityAlpha,
+        func() filament.Source { return New() },
+    )
 }
 ```
 
-The factory is called once per run to produce a fresh instance.
-`RegisterSource` panics on a nil factory, a duplicate name, or an invalid
-maturity. Maturity is a catalog marker with defined meanings:
+Consumers include the connector with a blank import. Start at `alpha`, then
+raise maturity when the connector has been exercised end to end.
 
-- `alpha`: behavior derived from documentation, untested end-to-end
-- `beta`: has run end-to-end but not verified in every configuration
-- `stable`: production-ready
+## Add capabilities deliberately
 
-The two-argument `registry.DefaultSources.Register` defaults to alpha.
+A useful next step is `Discoverable`, which lets users browse resources before
+creating a pipeline. A `SchemaProvider` is required when the source must feed a
+schema-aware sink.
 
-## A minimal source
+Resume, incremental reads, and CDC require several contracts to work together;
+they are not single-interface switches. See
+[Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces)
+for those capability sets.
 
-`connectors/sample` is the zero-dependency reference source, a synthetic
-generator implementing exactly `Source` plus `Discoverable`, with one optional
-pipeline-scoped `rows` field. Read it first — it is the whole contract in one
-short file, and the counterpart to the [stdout sink](/pages/connectors/building-a-connector/writing-a-sink).
-
-Everything beyond the base contract (resumable reads, CDC, discovery,
-schemas, rate limits) is opt-in. See
-[Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces).
+The repository's [`connectors/sample`](https://github.com/galaxy-io/filament/tree/main/connectors/sample)
+package is the smallest complete source. It demonstrates the same builder flow
+without an external dependency.

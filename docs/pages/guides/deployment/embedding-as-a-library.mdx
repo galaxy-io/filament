@@ -3,11 +3,12 @@ title: "Embedding as a library"
 description: "Run Filament inside your own Go process"
 ---
 
-Filament embeds as a library through `app.Run`. One call mounts the tracker,
-the engine (runs execute in-process), the orchestrator, and the scheduler,
-serves the ConnectRPC API on `INGESTION_ADDR` (default `:8080`), and blocks
-until the context is canceled or a component fails. Connectors self-register
-via blank imports, so a binary pulls in only the connectors it uses.
+Call `app.Run` to serve Filament's API and execute runs inside your Go process.
+By default, state and events stay in memory, so they disappear when the process
+restarts. You can replace those defaults with Postgres and NATS for durability.
+The call listens on `INGESTION_ADDR` (default `:8080`) and blocks until its
+context is canceled or a component fails. Blank imports register only the
+connectors your binary needs.
 
 ## Minimal embed
 
@@ -95,7 +96,7 @@ Each swap has a clear role:
 - secrets can come from `secret/postgres` (AES-GCM, `ENCRYPTION_KEY`),
   `secret/aws`, or the read-only `secret/env` provider
 
-## The lower layer
+## Advanced composition
 
 When `app.Run` composes too much (you want only some modules, or a single
 run with no server), the pieces underneath are public:

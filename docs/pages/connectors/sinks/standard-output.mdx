@@ -23,15 +23,17 @@ has no state to replace, both modes print the same stream.
 
 ## Output format
 
-Each record is one NDJSON line, serialized under a mutex so concurrent batches
-never interleave mid-line:
+Each Arrow row becomes one flat JSON object followed by a newline. For example,
+a batch with `id`, `email`, and `active` columns produces:
 
 ```json
-{"id":"...","op":0,"data":{...}}
+{"id":42,"email":"dev@example.com","active":true}
 ```
 
-`op` is `0` for insert, `1` for update, `2` for delete. Write receipts carry
-URIs of the form `stdout://<run>/<resource>`.
+CDC metadata appears only when it is present as columns in the Arrow schema;
+the sink does not wrap rows in an `{op, data}` envelope. Concurrent batches are
+serialized so their lines do not interleave. Write receipts use URIs of the
+form `stdout://<run>/<resource>`.
 
 At `Commit`, the sink prints a manifest line prefixed with `#` summarizing the
 run:

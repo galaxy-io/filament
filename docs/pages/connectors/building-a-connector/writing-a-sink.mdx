@@ -1,164 +1,148 @@
 ---
 title: "Writing a sink"
-description: "The Sink interface, the write lifecycle, and the integrity contract every Apply must honor"
+description: "Build a Go sink that applies Arrow batches under a write policy"
 ---
 
-A sink is a Go type that lands batches of records in a destination. It
-implements one interface, honors one hard contract (return the correct
-write-side CRC), and lets the engine drive everything else, from batching and
-ordering to checkpoint persistence and commit/abort sequencing.
+A sink owns the destination boundary. Filament decides when a batch is ready,
+which write policy applies, and whether the run should commit or abort. The sink
+turns the borrowed Arrow batch into a durable destination write and reports what
+it handled.
 
-## The Sink interface
+## The run lifecycle
 
-A sink implements `Sink`, defined in the repo's root `sink.go`:
+Every sink implements:
 
 ```go
 type Sink interface {
     Spec() SinkSpec
     Open(ctx context.Context, run RunSpec) error
-    Apply(ctx context.Context, b Batch, opts ApplyOptions) (WriteReceipt, error)
+    Apply(ctx context.Context, b *arrowbatch.Batch, opts ApplyOptions) (WriteReceipt, error)
     Commit(ctx context.Context) error
     Abort(ctx context.Context) error
     Name() string
 }
 ```
 
-- **`Spec`** returns the sink's self-description (identity, config schema, and
-  `SinkCapabilities`). It powers the catalog.
-- **`Open`** prepares the sink for one run by connecting, creating the
-  destination database or bucket layout, and sizing pools. `RunSpec` carries
-  the run's options, including `SnapshotParallelism`.
-- **`Apply`** writes one batch under a write policy and returns a receipt.
-- **`Commit`** finalizes the run, completing uploads, swapping staging tables,
-  performing the atomic publish, and closing connections.
-- **`Abort`** discards whatever a failed run staged.
-- **`Name`** returns the provider name used in facts and logs.
+The normal sequence is:
 
-## Lifecycle
+1. `Open` prepares one run.
+2. A schema-aware sink receives `EnsureSchema` once per selected resource.
+3. `Apply` handles each batch under its resource's write policy.
+4. `Commit` establishes the sink's success boundary.
+5. `Abort` cleans up a run that cannot be safely continued.
 
-The runner drives a sink in a fixed order:
+Some recovery-safe failures preserve accepted writes instead of calling
+`Abort`. That can happen only when every resource can resume and replay will
+not duplicate append-only data or expose uncommitted work. A sink should still
+make `Abort` safe because it also runs after setup and commit errors.
 
-1. `Open(ctx, spec)` once per run.
-2. If the sink is `Schematized`, `EnsureSchema(ctx, resource, schema)` per
-   resource before any data moves. This requires the source to be a
-   `SchemaProvider`. The pairing is validated up front, and the run fails
-   otherwise.
-3. `Apply(ctx, batch, opts)` per batch, for the duration of extraction.
-4. On success, `Commit`. If `Commit` fails, the run fails and `Abort` runs.
-5. On failure, `Abort`, with two qualifications. When the failure is
-   resumable (the run holds incremental or checkpointed progress), `Abort` is
-   skipped entirely so staged progress survives for the resume. And when it
-   does run, it runs on a context detached from the canceled run, bounded at
-   30 seconds. Write `Abort` to finish cleanup within that budget.
+## Applying a batch
 
-## What Apply receives
+`arrowbatch.Batch` contains one resource and part, an Arrow record batch, an
+operation vector, sequence metadata, and an optional checkpoint delta. A simple
+append sink can look like this:
 
 ```go
-type Batch struct {
-    Tenant   TenantID
-    Run      RunID
-    Resource string
-    Seq      uint64
-    Records  []Record
-    ReadCRC  uint32
-    Part     int
-    Cursor   *CheckpointData
-    Drained  bool
+func (s *Sink) Apply(
+    ctx context.Context,
+    batch *arrowbatch.Batch,
+    opts filament.ApplyOptions,
+) (filament.WriteReceipt, error) {
+    if err := opts.Policy.ValidateBatch(batch.Resource, batch); err != nil {
+        return filament.WriteReceipt{}, err
+    }
+
+    rows := batch.Rows()
+    writtenBytes, encodedCRC, err := s.writeRows(ctx, rows)
+    if err != nil {
+        return filament.WriteReceipt{}, err
+    }
+
+    writeCRC := batch.IntegrityCRC()
+    return filament.WriteReceipt{
+        Rows:       batch.NumRows(),
+        Bytes:      writtenBytes,
+        WriteCRC:   writeCRC,
+        EncodedCRC: &encodedCRC,
+    }, nil
 }
 ```
 
-Each batch holds one resource's records in pipeline order, with a per
-`(resource, part)` monotonic `Seq`. Drained batches are checkpoint markers and
-never reach `Apply`.
+The example assumes `writeRows` computes and verifies `encodedCRC` over the
+serialized bytes immediately before transport. A sink that does not advertise
+encoded integrity omits `EncodedCRC`.
 
-`ApplyOptions.Policy` is the per-resource `WritePolicy`:
+### Borrowing and ownership
 
-```go
-type WritePolicy struct {
-    Capability WritePolicyCapability // Mode, RequiresPK, RequiresOrder, AcceptsOps, Atomicity
-    Resource   string
-    Keys       []string
-    Version    VersionPolicy // Strategy insert_order|cursor, Field, Logical, Native
-    Checkpoint CheckpointPolicy
-}
-```
+`Apply` borrows the batch for the duration of the call. Its Arrow rows and
+operation vector are valid until `Apply` returns. If a sink buffers a batch for
+`Commit`, it must call `Retain` before returning and eventually call `Release`.
 
-`Capability.Mode` is the write mode to honor, one of `append`, `replace`,
-`upsert`, `delete`, or `merge` (CDC runs always bind merge). `Keys` are the
-resource's primary-key columns when the mode needs them. `Version` says how to
-resolve conflicting versions of a key on upsert, either insertion order or
-ordering by an incremental cursor field. Call
-`policy.ValidateRecords(resource, records)` at the top of `Apply`. It rejects
-the first record whose `Op` the capability does not accept.
+This rule matters for sinks such as Iceberg that hold batches until commit. It
+is also why `Batch` is passed by pointer.
 
-## The WriteCRC contract
+## Integrity evidence
 
-`Apply` returns a `WriteReceipt{URI, Bytes, Rows, WriteCRC, Checkpoint}`.
+Two checks describe different boundaries:
 
-`WriteCRC` must be `filament.CRC32C` computed over exactly the records the
-sink delivered. Same records, same order, same `ID`/`Op`/`Data` bytes. The
-pipeline's writer computes the read-side CRC over the batch immediately before
-`Apply` and compares it against the receipt after `Apply` returns. A mismatch
-publishes `batch.chunk_divergence` and fails the run fatally. The cheapest
-correct implementation hashes the batch it was handed:
+- `WriteCRC` is required. Recompute `batch.IntegrityCRC()` at the sink's final
+  in-memory boundary. The pipeline compares it with the checksum calculated
+  before calling `Apply`.
+- `EncodedCRC` is optional unless `SinkCapabilities.EncodedIntegrity` is true.
+  It covers the exact serialized bytes handed to the transport.
 
-```go
-crc, _ := filament.CRC32C(b.Records)
-```
+Neither value is a universal read-after-write verification of the destination.
+A sink that needs that stronger guarantee must implement destination-specific
+acknowledgement or validation as part of its write.
 
-A sink that reorders, filters, or transforms records before writing must still
-hash what it received — the CRC verifies delivery from source to sink, not the
-destination's on-disk form.
+## Honor the write policy
 
-`WriteReceipt.Checkpoint` is optional. When set, it replaces `Batch.Cursor` as
-the checkpoint delta carried on the `batch.written` fact. Most sinks leave it
-nil and let the source-side cursor stand.
+`ApplyOptions.Policy` tells the sink how to write this resource:
 
-## Batch sizing and concurrency
+- `append` retains every accepted row.
+- `replace` produces a fresh resource snapshot.
+- `upsert` keeps a current row per primary key.
+- `merge` applies ordered CDC inserts, updates, and deletes.
+- `delete` removes rows by key for the internal incremental-delete path.
 
-Batch size resolves as `RunOptions.BatchMaxRows`, else the sink's
-`Capabilities.PreferredBatchRows`, else the engine default of 256 rows, with a
-1-second flush ticker so trickling sources still make progress. Set
-`PreferredBatchRows` when your destination has a sweet spot (the MySQL sink
-prefers 4096, ClickHouse 10,000).
+Call `ValidateBatch` before writing. `Policy.Keys` contains resolved primary-key
+columns when the mode needs them, and `Policy.Version` explains how an upsert
+resolves competing values.
 
-When `RunSpec.Options.SnapshotParallelism` is greater than 1, `Apply` is
-called concurrently and must be safe for it. Size connection pools from that
-value in `Open`. Ordered runs (CDC, any incremental resource, any
-checkpointed resource) force parallelism to 1, so a sink can assume serial
-`Apply` calls exactly when ordering matters.
+CDC can bind either append or merge. Append is change history; merge is current
+state.
 
-## Capabilities and write policies
+## Batching and concurrency
 
-`SinkCapabilities.WritePolicies` advertises which ingestion types the sink
-serves. Two fallbacks apply during planning. **Any sink implicitly passes
-`append` and `replace`** without advertising them, and `upsert` passes when
-`Capabilities.Upsertable` is true. Everything else must match an advertised
-policy. Note that `Upsertable` here is a planning flag. The engine never calls
-the optional `Upsert` method, and sinks implement upsert semantics inside
-`Apply` (see [Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces)).
+The engine flushes a builder when it reaches the run's row or byte limit. If
+neither is configured, it uses the sink's preferred row count and then the
+engine default. The periodic flush request is observed at the next completed
+row; a source with an idle stream calls `Flush` itself.
 
-`SinkSpec.SchemaField` names the pipeline-scoped config field that holds the
-landing schema, namespace, database, or key prefix, so the server can default
-it from the source connection's normalized name.
+When snapshot parallelism is greater than one, `Apply` can run concurrently.
+Protect shared buffers and accounting, and size connection pools in `Open`.
+Ordered CDC, incremental, and checkpointed runs are forced to one writer.
 
-## Registration
+## Capabilities and registration
 
-Same shape as a source (`register.go`, `init()`, blank import):
+`SinkSpec.Capabilities.WritePolicies` advertises the modes the sink really
+implements. Capabilities can also declare whether writes survive after each
+`Apply` or only after `Commit`; that durability boundary determines when a
+checkpoint may advance.
+
+Register the sink through a fresh-instance factory:
 
 ```go
 func init() {
-    registry.RegisterSink("mysink", filament.MaturityAlpha, func() filament.Sink { return New() })
+    registry.RegisterSink(
+        "mysink",
+        filament.MaturityAlpha,
+        func() filament.Sink { return New() },
+    )
 }
 ```
 
-`RegisterSink` panics on a nil factory, duplicate name, or invalid maturity.
-The maturity levels are `alpha` (documentation-derived, untested end-to-end),
-`beta` (ran end-to-end), and `stable` (production-ready).
-
-## A minimal sink
-
-`connectors/stdout` is the reference sink. Zero config, NDJSON to standard
-output, a manifest line on `Commit`. It shows the entire contract, including
-a correct `WriteCRC`, in one file. Pair it with the sample source for
-end-to-end wiring without external dependencies.
+The [`connectors/stdout`](https://github.com/galaxy-io/filament/tree/main/connectors/stdout)
+package is the smallest complete sink. It demonstrates Arrow-to-NDJSON
+serialization, both integrity values, concurrency protection, and the complete
+run lifecycle.
