@@ -36,22 +36,24 @@ spec:
               protocol: TCP
           startupProbe:
             httpGet:
-              path: /livez
+              path: /startupz
               port: health
             periodSeconds: 5
-            failureThreshold: 30
+            timeoutSeconds: 2
+            failureThreshold: 24
           readinessProbe:
             httpGet:
               path: /readyz
               port: health
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
           livenessProbe:
             httpGet:
               path: /livez
               port: health
             periodSeconds: 20
-            timeoutSeconds: 5
+            timeoutSeconds: 3
           envFrom:
             - configMapRef:
                 name: {{ include "filament.controlPlane.fullname" . }}

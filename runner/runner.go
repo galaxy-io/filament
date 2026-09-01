@@ -80,6 +80,7 @@ func ShouldRun(state filament.RunState) bool {
 //
 //nolint:funlen // the run lifecycle reads best as one sequence
 func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
+	deps.Log = scopedRunLogger(deps.Log, spec)
 	ctx, span, endSpan := startRunSpan(ctx, deps, spec)
 	defer endSpan()
 
@@ -116,7 +117,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		em.failed(fmt.Errorf("configure source %q: %w", spec.Source.Connector, err), nil, false)
 		return nil
 	}
-	defer func() { _ = src.Teardown(ctx) }()
+	defer teardownSource(ctx, deps.Log, src)
 	plannedResources, err := PlanResources(extractCtx, src, spec.Resources, spec.Selectors)
 	if err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
@@ -159,7 +160,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	// supply per-resource schemas, ensure each one up front so a Schematized sink
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
 	if err := ensureSchemas(extractCtx, src, snk, spec); err != nil {
-		abortSink(ctx, deps, spec, snk)
+		abortSink(ctx, deps, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
@@ -174,7 +175,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 
 	extractor, err := resolveExtractor(extractCtx, deps.DataStore, src, spec, plan, deps.Log)
 	if err != nil {
-		abortSink(ctx, deps, spec, snk)
+		abortSink(ctx, deps, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
@@ -246,7 +247,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		// Abort after the obituary, on its own detached context: cleanup must
 		// not eat the terminal publish window, and a slow sink must not strand
 		// the row in RunRunning.
-		abortSink(ctx, deps, spec, snk)
+		abortSink(ctx, deps, snk)
 		return nil
 	}
 
@@ -256,12 +257,33 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	}
 	if err := snk.Commit(ctx); err != nil {
 		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Connector, err), resources, false)
-		abortSink(ctx, deps, spec, snk)
+		abortSink(ctx, deps, snk)
 		return nil
 	}
 	em.completed(resources)
 	acknowledgeDurableChanges(ctx, deps, spec, src, em.streamCheckpoints())
 	return nil
+}
+
+func scopedRunLogger(log filament.Logger, spec filament.RunSpec) filament.Logger {
+	if log == nil {
+		return nil
+	}
+	return log.With(
+		filament.Field{Key: "component", Value: "runner"},
+		filament.Field{Key: "tenant_id", Value: string(spec.Tenant)},
+		filament.Field{Key: "run_id", Value: string(spec.Run)},
+		filament.Field{Key: "pipeline_id", Value: spec.PipelineID},
+		filament.Field{Key: "source_connector", Value: spec.Source.Connector},
+		filament.Field{Key: "sink_connector", Value: spec.Sink.Connector})
+}
+
+func teardownSource(ctx context.Context, log filament.Logger, src filament.Source) {
+	if err := src.Teardown(ctx); err != nil && log != nil {
+		log.Warn("source teardown failed",
+			filament.Field{Key: "event.name", Value: "runner.source.teardown_failed"},
+			filament.Field{Key: "error", Value: err.Error()})
+	}
 }
 
 // startRunSpan opens the run's trace span when a tracer is configured. Without
@@ -350,8 +372,8 @@ func finishControlled(
 	signal controlSignal,
 ) {
 	if signal == controlCancel {
-		abortSink(ctx, deps, spec, sink)
-		logControlBoundary(deps.Log, spec.Run, "cancel", "abort", em, 0)
+		abortSink(ctx, deps, sink)
+		logControlBoundary(deps.Log, "cancel", "abort", em, 0)
 		em.canceled()
 		return
 	}
@@ -363,22 +385,21 @@ func finishControlled(
 	if committed {
 		if err := sink.Commit(ctx); err != nil {
 			em.failed(fmt.Errorf("commit paused sink %q: %w", spec.Sink.Connector, err), resources, false)
-			abortSink(ctx, deps, spec, sink)
+			abortSink(ctx, deps, sink)
 			return
 		}
 		action = "commit_for_resume"
 	} else {
 		// A checkpoint-free read cannot resume from a partial sink, so discard it;
 		// resume will safely restart the resource from the beginning.
-		abortSink(ctx, deps, spec, sink)
+		abortSink(ctx, deps, sink)
 	}
-	logControlBoundary(deps.Log, spec.Run, "pause", action, em, checkpointResources)
+	logControlBoundary(deps.Log, "pause", action, em, checkpointResources)
 	em.paused(committed)
 }
 
 func logControlBoundary(
 	log filament.Logger,
-	run filament.RunID,
 	control, action string,
 	em *emitter,
 	checkpointResources int,
@@ -387,8 +408,8 @@ func logControlBoundary(
 		return
 	}
 	records, bytes := em.runTotals()
-	log.Info("runner: control boundary reached",
-		filament.Field{Key: "run", Value: string(run)},
+	log.Info("control boundary reached",
+		filament.Field{Key: "event.name", Value: "runner.control.boundary_reached"},
 		filament.Field{Key: "control", Value: control},
 		filament.Field{Key: "sink_action", Value: action},
 		filament.Field{Key: "checkpoint_resources", Value: checkpointResources},
@@ -397,10 +418,11 @@ func logControlBoundary(
 	)
 }
 
-func abortSink(ctx context.Context, deps Deps, spec filament.RunSpec, sink filament.Sink) {
+func abortSink(ctx context.Context, deps Deps, sink filament.Sink) {
 	abortCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), abortWait)
 	defer cancel()
 	if err := sink.Abort(abortCtx); err != nil && deps.Log != nil {
-		deps.Log.Error("runner: sink abort", err, filament.Field{Key: "run", Value: string(spec.Run)})
+		deps.Log.Error("sink abort failed", err,
+			filament.Field{Key: "event.name", Value: "runner.sink.abort_failed"})
 	}
 }

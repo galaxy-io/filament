@@ -52,7 +52,13 @@ func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) 
 func WithIdentity(p identity.Provider) Option { return func(s *Server) { s.identity = p } }
 
 // WithLogger sets the structured logger used for API diagnostics.
-func WithLogger(log filament.Logger) Option { return func(s *Server) { s.log = log } }
+func WithLogger(log filament.Logger) Option {
+	return func(s *Server) {
+		if log != nil {
+			s.log = log.With(filament.Field{Key: "component", Value: "api"})
+		}
+	}
+}
 
 // New returns a Server wired to the given providers.
 func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
@@ -79,6 +85,9 @@ func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store fil
 // is not part of the public session flow.
 func (a *Server) Mount(mux *http.ServeMux) {
 	var opts []connect.HandlerOption
+	if a.log != nil {
+		opts = append(opts, connect.WithInterceptors(newLoggingInterceptor(a.log)))
+	}
 	if a.identity != nil {
 		opts = append(opts, connect.WithInterceptors(&authInterceptor{provider: a.identity, store: a.store}))
 	}

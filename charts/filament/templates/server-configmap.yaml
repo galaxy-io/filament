@@ -29,6 +29,7 @@ data:
   {{- end }}
 
   # Observability
+  LOG_LEVEL: {{ .Values.server.logLevel | quote }}
   {{- with .Values.observability.otel.endpoint }}
   OTEL_SERVICE_NAME: {{ include "filament.server.fullname" $ | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
