@@ -1,0 +1,57 @@
+version: 2
+
+project_name: filament
+
+builds:
+  - dir: cmd
+    main: ./filament
+    binary: filament
+    env:
+      - CGO_ENABLED=0
+      - GOWORK=off
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/galaxy-io/filament/cmd/internal/version.Version={{ .Version }}
+      - -X github.com/galaxy-io/filament/cmd/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/galaxy-io/filament/cmd/internal/version.Date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true
+
+release:
+  mode: keep-existing
+  prerelease: auto
+
+homebrew_casks:
+  - name: filament
+    repository:
+      owner: galaxy-io
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    binaries:
+      - filament
+    skip_upload: true
+    homepage: https://github.com/galaxy-io/filament
+    description: Filament CLI

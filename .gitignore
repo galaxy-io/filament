@@ -2,6 +2,7 @@
 
 # Build outputs
 /bin/
+/dist/
 /cmd/ingestion-control/ingestion-control
 /cmd/ingestion-worker/ingestion-worker
 /cmd/ingestiond/ingestiond

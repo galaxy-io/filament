@@ -17,12 +17,6 @@ type helpOutput struct {
 	err error
 }
 
-func (o *helpOutput) print(value string) {
-	if o.err == nil {
-		_, o.err = fmt.Fprint(o.w, value)
-	}
-}
-
 func (o *helpOutput) printf(format string, values ...any) {
 	if o.err == nil {
 		_, o.err = fmt.Fprintf(o.w, format, values...)
@@ -116,7 +110,11 @@ func (a *cliApp) printConnectionOperationHelp(ctx context.Context, kind, operati
 func (a *cliApp) printRunHelp(ctx context.Context, args []string) error {
 	out := &helpOutput{w: a.stdout}
 	paint := style.New(a.stdout)
-	out.print(paint.Bold("Usage:") + runHelp)
+	out.printf("%s\n  %s %s\n  %s %s\n", paint.Bold("Usage:"),
+		paint.Accent("filament run"), paint.Muted("<pipeline> [--resources LIST] [--sync-mode MODE] [--write-mode MODE] [--unset KIND-FIELD]"),
+		paint.Accent("filament run"), paint.Muted("--source-connector NAME --sink-connector NAME [flags]"))
+	out.printf("\n%s\n", paint.Muted(`An omitted --resources selection means all resources discovered by the source.
+Use --source-<field> and --sink-<field> for connector configuration.`))
 	printed := map[string]bool{}
 	for _, kind := range []string{"source", "sink"} {
 		name := rawFlagValue(args, kind+"-connector")
@@ -156,7 +154,7 @@ func (a *cliApp) printRunHelp(ctx context.Context, args []string) error {
 	return out.err
 }
 
-func (a *cliApp) printPipelineOperationHelp(ctx context.Context, args []string) error {
+func (a *cliApp) printPipelineOperationHelp(ctx context.Context, operation string, args []string) error {
 	doc := climodel.NewDocument()
 	if a.service != nil {
 		loaded, err := a.service.Configuration(ctx)
@@ -167,7 +165,14 @@ func (a *cliApp) printPipelineOperationHelp(ctx context.Context, args []string) 
 	}
 	out := &helpOutput{w: a.stdout}
 	paint := style.New(a.stdout)
-	out.print(paint.Bold("Usage:") + pipelineHelp)
+	if operation == "create" {
+		out.usage(paint, "filament pipeline create", "<name> --source NAME --sink NAME [--resources LIST] [flags]")
+	} else {
+		out.usage(paint, "filament pipeline edit", "<name> [flags] [--unset source-FIELD|sink-FIELD]")
+	}
+	out.printf("\n%s\n", paint.Muted(`An omitted --resources selection means all resources discovered by the source.
+Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
+--unset to remove optional connector fields from an existing pipeline.`))
 	parsed, _ := a.parseCommandArgs(removeHelp(args))
 	sourceRef := lastFlag(parsed.flags, "source")
 	sinkRef := lastFlag(parsed.flags, "sink")
@@ -265,22 +270,3 @@ func fieldTypeName(t filament.FieldType) string {
 		return "VALUE"
 	}
 }
-
-const pipelineHelp = `
-  filament pipeline create <name> --source NAME --sink NAME [--resources LIST] [flags]
-  filament pipeline edit <name> [flags] [--unset source-FIELD|sink-FIELD]
-  filament pipeline list
-  filament pipeline delete <name> [--force]
-
-An omitted --resources selection means all resources discovered by the source.
-Connector pipeline fields use --source-<field> and --sink-<field>.
-Repeat --unset to remove optional connector fields from an existing pipeline.
-`
-
-const runHelp = `
-  filament run <pipeline> [--resources LIST] [--sync-mode full] [--write-mode MODE] [--unset KIND-FIELD]
-  filament run --source-connector NAME --sink-connector NAME [flags]
-
-An omitted --resources selection means all resources discovered by the source.
-Use --source-<field> and --sink-<field> for connector configuration.
-`
