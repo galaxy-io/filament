@@ -21,8 +21,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.2(@bufbuild/protobuf@2.12.1)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.1))
       '@galaxy-io/dls':
-        specifier: ^1.5.12
-        version: 1.5.12(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
+        specifier: ^1.5.13
+        version: 1.5.13(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)
       '@linaria/core':
         specifier: ^7.0.0
         version: 7.0.0
@@ -44,6 +44,9 @@ importers:
       '@xyflow/react':
         specifier: ^12.11.2
         version: 12.11.2(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      cronstrue:
+        specifier: ^3.24.0
+        version: 3.24.0
       pluralize:
         specifier: ^8.0.0
         version: 8.0.0
@@ -521,8 +524,8 @@ packages:
   '@emotion/memoize@0.9.0':
     resolution: {integrity: sha512-30FAj7/EoJ5mwVPOWhAyCX+FPfMDrVecJAM+Iw9NRoSl4BBAQeqj4cApHHUXOVvIPgLVDsCFoz/hGD+5QQD1GQ==}
 
-  '@galaxy-io/dls@1.5.12':
-    resolution: {integrity: sha512-n8vb56vEEDdjAZvTgSGi8sMsvR8LFMUjq85EPHoXPi+um84h8EhExbRhW1cI8GWMvLjdCINAJS8+F1tN1SmQ4A==}
+  '@galaxy-io/dls@1.5.13':
+    resolution: {integrity: sha512-ATp/gXtHsEmyaHhwVd2KkEdcjJ2gPDsgCgNlBSNKd+tsJ1H/3uyLtCXGyQ+rAJDVtT9SFtkaePGvYeHidEvfUg==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-three/drei': '9'
@@ -1386,6 +1389,10 @@ packages:
 
   crelt@1.0.7:
     resolution: {integrity: sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA==}
+
+  cronstrue@3.24.0:
+    resolution: {integrity: sha512-t/Ji3Ur2c/pzhIAWNwC0ftl3JAE4dLfCjAdZoTZXmPDZwcispnS1PaMcMS4OmIIXyIVouAz+yw+mfQiE3hz5OQ==}
+    hasBin: true
 
   css-in-js-utils@3.1.0:
     resolution: {integrity: sha512-fJAcud6B3rRu+KHYk+Bwf+WFL2MDCJJ1XG9x137tJQ0xYxor7XziQtuGFbWNdqrvF4Tk26O3H73nfVqXt/fW1A==}
@@ -3135,7 +3142,7 @@ snapshots:
 
   '@emotion/memoize@0.9.0': {}
 
-  '@galaxy-io/dls@1.5.12(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)':
+  '@galaxy-io/dls@1.5.13(@babel/runtime@7.29.7)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.1)(@codemirror/theme-one-dark@6.1.3)(@emotion/is-prop-valid@1.4.0)(@lezer/common@1.5.2)(@lezer/javascript@1.5.4)(@lezer/lr@1.4.10)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(codemirror@6.0.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.9.3)':
     dependencies:
       '@callstack/react-theme-provider': 3.0.9(react@18.3.1)
       '@codemirror/autocomplete': 6.20.3
@@ -4182,6 +4189,8 @@ snapshots:
       typescript: 5.9.3
 
   crelt@1.0.7: {}
+
+  cronstrue@3.24.0: {}
 
   css-in-js-utils@3.1.0:
     dependencies:
