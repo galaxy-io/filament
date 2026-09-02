@@ -14,6 +14,7 @@ export const PIPELINE_SCHEDULE_DEFAULT_STATE: PipelineSettingsPageScheduleState 
   days: [1],
   dayOfMonth: 1,
   hour: 9,
+  cron: "",
   timezone: PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
 };
 
@@ -30,7 +31,18 @@ export const PIPELINE_SCHEDULE_FREQUENCY_OPTIONS: PipelineScheduleFrequencyOptio
   { frequency: PipelineScheduleFrequency.DAILY, label: "Daily" },
   { frequency: PipelineScheduleFrequency.WEEKLY, label: "Weekly" },
   { frequency: PipelineScheduleFrequency.MONTHLY, label: "Monthly" },
+  { frequency: PipelineScheduleFrequency.CUSTOM, label: "Custom" },
 ];
+
+export const PIPELINE_SCHEDULE_CRON_FIELD_BOUNDS: [number, number][] = [
+  [0, 59],
+  [0, 23],
+  [1, 31],
+  [1, 12],
+  [0, 7],
+];
+
+export const PIPELINE_SCHEDULE_CRON_PART_PATTERN = /^(\*|\d+(?:-\d+)?)(?:\/(\d+))?$/;
 
 export const PIPELINE_SCHEDULE_DAY_OPTIONS: SelectInputOption[] = [
   { id: "1", label: "Monday", value: 1 },

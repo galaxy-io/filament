@@ -28,6 +28,7 @@ import {
   parseWorkerConfiguration,
 } from "@/pages/pipelines/components/worker/utils";
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
+import { PipelineScheduleFrequency } from "@/pages/pipelines/settings/types";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
 const DEFAULT_STATE: CreatePipelineModalState = {
@@ -42,7 +43,11 @@ const DEFAULT_STATE: CreatePipelineModalState = {
   name: "",
   isNameTouched: false,
   description: "",
-  schedule: PIPELINE_SCHEDULE_DEFAULT_STATE,
+  schedule: {
+    ...PIPELINE_SCHEDULE_DEFAULT_STATE,
+    isEnabled: true,
+    frequency: PipelineScheduleFrequency.HOURLY,
+  },
   workerConfiguration: DEFAULT_WORKER_CONFIGURATION_TEXT,
   isSubmitting: false,
 };
