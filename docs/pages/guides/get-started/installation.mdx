@@ -38,7 +38,8 @@ docker run -p 8080:8080 ghcr.io/galaxy-io/filament/standalone
 
 Secrets come from environment variables. A ref like `postgres-creds/dsn`
 reads the env var `POSTGRES_CREDS_DSN`. JetStream state is stored in
-`NATS_STORE_DIR` (default `$TMPDIR/filament-standalone`).
+`NATS_STORE_DIR` (default `$TMPDIR/filament-standalone`) and the SQLite
+datastore in `STORE_PATH` (default `filament.db` in that directory).
 
 ## As a Go library
 
