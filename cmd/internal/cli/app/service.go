@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
@@ -17,34 +16,24 @@ type CatalogTarget interface {
 }
 
 // ConnectionTarget supplies explicit connection queries and mutations.
+// Listings are cursor-paged; DrainPages collects a full listing.
 type ConnectionTarget interface {
-	ListConnections(context.Context, string) ([]model.NamedConnection, error)
+	ListConnections(context.Context, string, model.PageRequest) (model.Page[model.NamedConnection], error)
 	GetConnection(context.Context, string, string) (model.Connection, error)
 	CreateConnection(context.Context, string, string, model.Connection) (model.Connection, error)
 	UpdateConnection(context.Context, string, string, model.Connection) (model.Connection, error)
 	DeleteConnection(context.Context, string, string, model.EntityMetadata) error
 }
 
-// ConnectionPageTarget exposes deployment-native cursor pagination. Targets
-// without it are paginated in memory by the service.
-type ConnectionPageTarget interface {
-	ListConnectionsPage(context.Context, string, model.PageRequest) (model.Page[model.NamedConnection], error)
-}
-
 // PipelineTarget supplies explicit pipeline queries and mutations.
+// Listings are cursor-paged; DrainPages collects a full listing.
 type PipelineTarget interface {
-	ListPipelines(context.Context) ([]model.NamedPipeline, error)
+	ListPipelines(context.Context, model.PageRequest) (model.Page[model.NamedPipeline], error)
 	GetPipeline(context.Context, string) (model.Pipeline, error)
 	CreatePipeline(context.Context, string, model.Pipeline) (model.Pipeline, error)
 	UpdatePipeline(context.Context, string, model.Pipeline) (model.Pipeline, error)
 	DeletePipeline(context.Context, string, model.EntityMetadata) error
 	ValidateConfiguration(context.Context, model.Document) error
-}
-
-// PipelinePageTarget exposes deployment-native cursor pagination. Targets
-// without it are paginated in memory by the service.
-type PipelinePageTarget interface {
-	ListPipelinesPage(context.Context, model.PageRequest) (model.Page[model.NamedPipeline], error)
 }
 
 // DiscoveryTarget executes connector discovery in the target environment.
@@ -124,7 +113,7 @@ func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 	document := model.NewDocument()
 	for _, kind := range []string{"source", "sink"} {
-		connections, err := s.target.ListConnections(ctx, kind)
+		connections, err := s.allConnections(ctx, kind)
 		if err != nil {
 			return model.Document{}, err
 		}
@@ -136,7 +125,7 @@ func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 			}
 		}
 	}
-	pipelines, err := s.target.ListPipelines(ctx)
+	pipelines, err := s.allPipelines(ctx)
 	if err != nil {
 		return model.Document{}, err
 	}
@@ -148,27 +137,29 @@ func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 
 // Connections lists connections of one kind from the selected target.
 func (s *Service) Connections(ctx context.Context, kind string) (model.ConnectionList, error) {
-	connections, err := s.target.ListConnections(ctx, kind)
+	connections, err := s.allConnections(ctx, kind)
 	if err != nil {
 		return model.ConnectionList{}, err
 	}
 	return s.connectionList(ctx, kind, model.Page[model.NamedConnection]{Items: connections, Total: len(connections)})
 }
 
+func (s *Service) allConnections(ctx context.Context, kind string) ([]model.NamedConnection, error) {
+	return model.DrainPages(func(request model.PageRequest) (model.Page[model.NamedConnection], error) {
+		return s.target.ListConnections(ctx, kind, request)
+	})
+}
+
+func (s *Service) allPipelines(ctx context.Context) ([]model.NamedPipeline, error) {
+	return model.DrainPages(func(request model.PageRequest) (model.Page[model.NamedPipeline], error) {
+		return s.target.ListPipelines(ctx, request)
+	})
+}
+
 // ConnectionPage lists one page of connections using target-native cursors
 // when available.
 func (s *Service) ConnectionPage(ctx context.Context, kind string, request model.PageRequest) (model.ConnectionList, error) {
-	var page model.Page[model.NamedConnection]
-	var err error
-	if target, ok := s.target.(ConnectionPageTarget); ok {
-		page, err = target.ListConnectionsPage(ctx, kind, request)
-	} else {
-		var connections []model.NamedConnection
-		connections, err = s.target.ListConnections(ctx, kind)
-		if err == nil {
-			page, err = paginate(connections, request)
-		}
-	}
+	page, err := s.target.ListConnections(ctx, kind, request)
 	if err != nil {
 		return model.ConnectionList{}, err
 	}
@@ -209,7 +200,7 @@ func (s *Service) Runs(ctx context.Context, request model.RunListRequest) (model
 
 // Pipelines lists pipelines from the selected target.
 func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
-	pipelines, err := s.target.ListPipelines(ctx)
+	pipelines, err := s.allPipelines(ctx)
 	if err != nil {
 		return model.PipelineList{}, err
 	}
@@ -219,17 +210,7 @@ func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
 // PipelinePage lists one page of pipelines using target-native cursors when
 // available.
 func (s *Service) PipelinePage(ctx context.Context, request model.PageRequest) (model.PipelineList, error) {
-	var page model.Page[model.NamedPipeline]
-	var err error
-	if target, ok := s.target.(PipelinePageTarget); ok {
-		page, err = target.ListPipelinesPage(ctx, request)
-	} else {
-		var pipelines []model.NamedPipeline
-		pipelines, err = s.target.ListPipelines(ctx)
-		if err == nil {
-			page, err = paginate(pipelines, request)
-		}
-	}
+	page, err := s.target.ListPipelines(ctx, request)
 	if err != nil {
 		return model.PipelineList{}, err
 	}
@@ -252,30 +233,6 @@ func pipelineList(page model.Page[model.NamedPipeline]) model.PipelineList {
 		})
 	}
 	return result
-}
-
-func paginate[T any](items []T, request model.PageRequest) (model.Page[T], error) {
-	pageSize := int(request.PageSize)
-	if pageSize <= 0 {
-		pageSize = 25
-	}
-	offset := 0
-	if request.Cursor != "" {
-		parsed, err := strconv.Atoi(request.Cursor)
-		if err != nil || parsed < 0 || parsed > len(items) {
-			return model.Page[T]{}, fmt.Errorf("invalid page cursor")
-		}
-		offset = parsed
-	}
-	end := min(offset+pageSize, len(items))
-	page := model.Page[T]{Items: items[offset:end], Total: len(items)}
-	if end < len(items) {
-		page.NextCursor = strconv.Itoa(end)
-	}
-	if offset > 0 {
-		page.PreviousCursor = strconv.Itoa(max(offset-pageSize, 0))
-	}
-	return page, nil
 }
 
 // Discover returns resources available for a connector request.

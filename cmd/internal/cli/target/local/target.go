@@ -41,8 +41,17 @@ func (t *Target) Catalog(_ context.Context) (model.Catalog, error) {
 	return t.catalog, nil
 }
 
-// ListConnections returns named connections with target-owned metadata.
-func (t *Target) ListConnections(_ context.Context, kind string) ([]model.NamedConnection, error) {
+// ListConnections returns one page of named connections with target-owned
+// metadata.
+func (t *Target) ListConnections(ctx context.Context, kind string, request model.PageRequest) (model.Page[model.NamedConnection], error) {
+	connections, err := t.connections(ctx, kind)
+	if err != nil {
+		return model.Page[model.NamedConnection]{}, err
+	}
+	return model.Paginate(connections, request)
+}
+
+func (t *Target) connections(_ context.Context, kind string) ([]model.NamedConnection, error) {
 	if err := validateConnectionKind(kind); err != nil {
 		return nil, err
 	}
@@ -70,7 +79,7 @@ func (t *Target) ListConnections(_ context.Context, kind string) ([]model.NamedC
 
 // GetConnection returns one named connection with target-owned metadata.
 func (t *Target) GetConnection(ctx context.Context, kind, name string) (model.Connection, error) {
-	connections, err := t.ListConnections(ctx, kind)
+	connections, err := t.connections(ctx, kind)
 	if err != nil {
 		return model.Connection{}, err
 	}
@@ -112,8 +121,17 @@ func (t *Target) DeleteConnection(_ context.Context, kind, name string, metadata
 	return t.store.Delete(kind+"s", name, metadata.Revision)
 }
 
-// ListPipelines returns named pipelines with target-owned metadata.
-func (t *Target) ListPipelines(_ context.Context) ([]model.NamedPipeline, error) {
+// ListPipelines returns one page of named pipelines with target-owned
+// metadata.
+func (t *Target) ListPipelines(ctx context.Context, request model.PageRequest) (model.Page[model.NamedPipeline], error) {
+	pipelines, err := t.pipelines(ctx)
+	if err != nil {
+		return model.Page[model.NamedPipeline]{}, err
+	}
+	return model.Paginate(pipelines, request)
+}
+
+func (t *Target) pipelines(_ context.Context) ([]model.NamedPipeline, error) {
 	doc, _, revision, err := t.store.LoadSnapshot()
 	if err != nil {
 		return nil, err
@@ -134,7 +152,7 @@ func (t *Target) ListPipelines(_ context.Context) ([]model.NamedPipeline, error)
 
 // GetPipeline returns one named pipeline with target-owned metadata.
 func (t *Target) GetPipeline(ctx context.Context, name string) (model.Pipeline, error) {
-	pipelines, err := t.ListPipelines(ctx)
+	pipelines, err := t.pipelines(ctx)
 	if err != nil {
 		return model.Pipeline{}, err
 	}

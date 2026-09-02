@@ -13,31 +13,12 @@ import (
 )
 
 // ListConnections returns named connections with deployment-owned metadata.
-func (t *Target) ListConnections(ctx context.Context, kind string) ([]model.NamedConnection, error) {
-	protoKind, err := connectorKind(kind)
-	if err != nil {
-		return nil, err
-	}
-	items, err := t.allConnections(ctx, protoKind)
-	if err != nil {
-		return nil, err
-	}
-	connections := make([]model.NamedConnection, 0, len(items))
-	for _, item := range items {
-		connections = append(connections, model.NamedConnection{
-			Kind: kind, Name: item.GetName(), Connection: connectionFromProto(item),
-		})
-	}
-	return connections, nil
-}
-
-// ListConnectionsPage returns one deployment-native cursor page.
-func (t *Target) ListConnectionsPage(ctx context.Context, kind string, request model.PageRequest) (model.Page[model.NamedConnection], error) {
+func (t *Target) ListConnections(ctx context.Context, kind string, request model.PageRequest) (model.Page[model.NamedConnection], error) {
 	protoKind, err := connectorKind(kind)
 	if err != nil {
 		return model.Page[model.NamedConnection]{}, err
 	}
-	items, pagination, err := t.connectionPage(ctx, protoKind, request)
+	items, pagination, err := t.connectionPage(ctx, protoKind, request, "")
 	if err != nil {
 		return model.Page[model.NamedConnection]{}, err
 	}
@@ -131,12 +112,16 @@ func (t *Target) DeleteConnection(ctx context.Context, kind, name string, metada
 	return t.rpcError(err)
 }
 
+// findConnection resolves a name to its connection, narrowed server-side by
+// the substring search and matched exactly here.
 func (t *Target) findConnection(ctx context.Context, kind, name string) (*ingestionv1.Connection, error) {
 	protoKind, err := connectorKind(kind)
 	if err != nil {
 		return nil, err
 	}
-	items, err := t.allConnections(ctx, protoKind)
+	items, err := drainPages(func(cursor string) ([]*ingestionv1.Connection, *ingestionv1.PaginationResponse, error) {
+		return t.connectionPage(ctx, protoKind, model.PageRequest{PageSize: internalPageSize, Cursor: cursor}, name)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -148,29 +133,15 @@ func (t *Target) findConnection(ctx context.Context, kind, name string) (*ingest
 	return nil, fmt.Errorf("%s %q does not exist", kind, name)
 }
 
-func (t *Target) allConnections(ctx context.Context, kind ingestionv1.ConnectorKind) ([]*ingestionv1.Connection, error) {
-	var items []*ingestionv1.Connection
-	cursor := ""
-	for {
-		page, pagination, err := t.connectionPage(ctx, kind, model.PageRequest{PageSize: internalPageSize, Cursor: cursor})
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, page...)
-		cursor = pagination.GetNextCursor()
-		if cursor == "" {
-			return items, nil
-		}
-	}
-}
-
 func (t *Target) connectionPage(
 	ctx context.Context,
 	kind ingestionv1.ConnectorKind,
 	request model.PageRequest,
+	search string,
 ) ([]*ingestionv1.Connection, *ingestionv1.PaginationResponse, error) {
 	response, err := t.client.ListConnections(ctx, connect.NewRequest(&ingestionv1.ListConnectionsRequest{
 		Kind: kind, Pagination: paginationRequest(request.PageSize, request.Cursor),
+		Search: search,
 	}))
 	if err != nil {
 		return nil, nil, t.rpcError(err)

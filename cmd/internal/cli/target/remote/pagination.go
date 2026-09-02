@@ -13,3 +13,20 @@ func paginationRequest(pageSize int32, cursor string) *ingestionv1.PaginationReq
 	}
 	return request
 }
+
+// drainPages collects every item behind a cursor-paged proto fetch.
+func drainPages[T any](fetch func(cursor string) ([]T, *ingestionv1.PaginationResponse, error)) ([]T, error) {
+	var items []T
+	cursor := ""
+	for {
+		page, pagination, err := fetch(cursor)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, page...)
+		cursor = pagination.GetNextCursor()
+		if cursor == "" {
+			return items, nil
+		}
+	}
+}

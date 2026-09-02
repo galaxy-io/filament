@@ -27,28 +27,10 @@ var writeModeFromString = map[string]ingestionv1.WriteMode{
 	"merge":   ingestionv1.WriteMode_WRITE_MODE_MERGE,
 }
 
-// ListPipelines returns every pipeline flattened to the CLI shape.
-func (t *Target) ListPipelines(ctx context.Context) ([]model.NamedPipeline, error) {
-	items, err := t.allPipelines(ctx)
-	if err != nil {
-		return nil, err
-	}
-	connections, err := t.connectionsByID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	pipelines := make([]model.NamedPipeline, 0, len(items))
-	for _, item := range items {
-		pipelines = append(pipelines, model.NamedPipeline{
-			Name: item.GetName(), Pipeline: pipelineFromProto(item, connections),
-		})
-	}
-	return pipelines, nil
-}
-
-// ListPipelinesPage returns one deployment-native cursor page.
-func (t *Target) ListPipelinesPage(ctx context.Context, request model.PageRequest) (model.Page[model.NamedPipeline], error) {
-	items, pagination, err := t.pipelinePage(ctx, request)
+// ListPipelines returns one deployment-native cursor page flattened to the
+// CLI shape.
+func (t *Target) ListPipelines(ctx context.Context, request model.PageRequest) (model.Page[model.NamedPipeline], error) {
+	items, pagination, err := t.pipelinePage(ctx, request, "")
 	if err != nil {
 		return model.Page[model.NamedPipeline]{}, err
 	}
@@ -158,29 +140,15 @@ func (t *Target) DeletePipeline(ctx context.Context, name string, metadata model
 	return t.rpcError(err)
 }
 
-func (t *Target) allPipelines(ctx context.Context) ([]*ingestionv1.Pipeline, error) {
-	var items []*ingestionv1.Pipeline
-	cursor := ""
-	for {
-		page, pagination, err := t.pipelinePage(ctx, model.PageRequest{PageSize: internalPageSize, Cursor: cursor})
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, page...)
-		cursor = pagination.GetNextCursor()
-		if cursor == "" {
-			return items, nil
-		}
-	}
-}
-
 func (t *Target) pipelinePage(
 	ctx context.Context,
 	request model.PageRequest,
+	search string,
 ) ([]*ingestionv1.Pipeline, *ingestionv1.PaginationResponse, error) {
 	response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{
 		IncludeLastRun: true, IncludeSchedule: true,
 		Pagination: paginationRequest(request.PageSize, request.Cursor),
+		Search:     search,
 	}))
 	if err != nil {
 		return nil, nil, t.rpcError(err)
@@ -188,8 +156,12 @@ func (t *Target) pipelinePage(
 	return response.Msg.GetPipelines(), response.Msg.GetPagination(), nil
 }
 
+// findPipeline resolves a name to its pipeline, narrowed server-side by the
+// substring search and matched exactly here.
 func (t *Target) findPipeline(ctx context.Context, name string) (*ingestionv1.Pipeline, error) {
-	items, err := t.allPipelines(ctx)
+	items, err := drainPages(func(cursor string) ([]*ingestionv1.Pipeline, *ingestionv1.PaginationResponse, error) {
+		return t.pipelinePage(ctx, model.PageRequest{PageSize: internalPageSize, Cursor: cursor}, name)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +251,9 @@ type connectionIdentity struct {
 }
 
 func (t *Target) connectionsByID(ctx context.Context) (map[string]connectionIdentity, error) {
-	connections, err := t.allConnections(ctx, ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED)
+	connections, err := drainPages(func(cursor string) ([]*ingestionv1.Connection, *ingestionv1.PaginationResponse, error) {
+		return t.connectionPage(ctx, ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED, model.PageRequest{PageSize: internalPageSize, Cursor: cursor}, "")
+	})
 	if err != nil {
 		return nil, err
 	}
