@@ -15,8 +15,6 @@ import { createGetAuthConfigQueryOptions } from "@/api/queries/auth";
 import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
 
-import { initOidc } from "@/auth/oidc";
-
 const RootComponentWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   flex-direction: column;
@@ -61,9 +59,6 @@ export const Route = createRootRoute({
     const authConfig = await queryClient.ensureQueryData(
       createGetAuthConfigQueryOptions({ transport }),
     );
-    if (authConfig.issuer) {
-      initOidc(authConfig);
-    }
     return { authConfig };
   },
   errorComponent: RootErrorComponent,

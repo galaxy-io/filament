@@ -61,9 +61,8 @@ func (*GetAuthConfigRequest) Descriptor() ([]byte, []int) {
 // means no provider is configured: the UI renders without a session and every
 // other AuthService RPC is unimplemented.
 type GetAuthConfigResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Issuer   string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	ClientId string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Issuer string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	// service_account_scopes are requested by non-interactive clients. The
 	// provider owns these values so clients do not need provider-specific
 	// project IDs or reserved scope knowledge.
@@ -109,13 +108,6 @@ func (x *GetAuthConfigResponse) GetIssuer() string {
 	return ""
 }
 
-func (x *GetAuthConfigResponse) GetClientId() string {
-	if x != nil {
-		return x.ClientId
-	}
-	return ""
-}
-
 func (x *GetAuthConfigResponse) GetServiceAccountScopes() []string {
 	if x != nil {
 		return x.ServiceAccountScopes
@@ -124,12 +116,12 @@ func (x *GetAuthConfigResponse) GetServiceAccountScopes() []string {
 }
 
 // LoginRequest carries the credentials filament's own login page collected.
-// auth_request_id is the pending authorization the provider redirected with.
+// A successful login answers with an HttpOnly session cookie that every later
+// RPC carries; nothing about the provider reaches the browser.
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AuthRequestId string                 `protobuf:"bytes,1,opt,name=auth_request_id,json=authRequestId,proto3" json:"auth_request_id,omitempty"`
-	LoginName     string                 `protobuf:"bytes,2,opt,name=login_name,json=loginName,proto3" json:"login_name,omitempty"`
-	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
+	LoginName     string                 `protobuf:"bytes,1,opt,name=login_name,json=loginName,proto3" json:"login_name,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -164,13 +156,6 @@ func (*LoginRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_session_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *LoginRequest) GetAuthRequestId() string {
-	if x != nil {
-		return x.AuthRequestId
-	}
-	return ""
-}
-
 func (x *LoginRequest) GetLoginName() string {
 	if x != nil {
 		return x.LoginName
@@ -185,11 +170,8 @@ func (x *LoginRequest) GetPassword() string {
 	return ""
 }
 
-// LoginResponse returns the OIDC callback the browser follows to finish the
-// flow and receive its token.
 type LoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CallbackUrl   string                 `protobuf:"bytes,1,opt,name=callback_url,json=callbackUrl,proto3" json:"callback_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -224,9 +206,181 @@ func (*LoginResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_session_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *LoginResponse) GetCallbackUrl() string {
+// LogoutRequest ends the session and clears its cookie.
+type LogoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutRequest) Reset() {
+	*x = LogoutRequest{}
+	mi := &file_auth_v1_session_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutRequest) ProtoMessage() {}
+
+func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_session_proto_msgTypes[4]
 	if x != nil {
-		return x.CallbackUrl
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
+func (*LogoutRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{4}
+}
+
+type LogoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutResponse) Reset() {
+	*x = LogoutResponse{}
+	mi := &file_auth_v1_session_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutResponse) ProtoMessage() {}
+
+func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_session_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
+func (*LogoutResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{5}
+}
+
+// GetSessionRequest resolves the caller behind the session cookie. It is the
+// UI's sign-in check: unauthenticated means show the login page.
+type GetSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSessionRequest) Reset() {
+	*x = GetSessionRequest{}
+	mi := &file_auth_v1_session_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionRequest) ProtoMessage() {}
+
+func (x *GetSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_session_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionRequest.ProtoReflect.Descriptor instead.
+func (*GetSessionRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{6}
+}
+
+type GetSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSessionResponse) Reset() {
+	*x = GetSessionResponse{}
+	mi := &file_auth_v1_session_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionResponse) ProtoMessage() {}
+
+func (x *GetSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_session_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionResponse.ProtoReflect.Descriptor instead.
+func (*GetSessionResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetSessionResponse) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *GetSessionResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetSessionResponse) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *GetSessionResponse) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
 	}
 	return ""
 }
@@ -245,7 +399,7 @@ type RegisterRequest struct {
 
 func (x *RegisterRequest) Reset() {
 	*x = RegisterRequest{}
-	mi := &file_auth_v1_session_proto_msgTypes[4]
+	mi := &file_auth_v1_session_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -257,7 +411,7 @@ func (x *RegisterRequest) String() string {
 func (*RegisterRequest) ProtoMessage() {}
 
 func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_session_proto_msgTypes[4]
+	mi := &file_auth_v1_session_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -270,7 +424,7 @@ func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterRequest.ProtoReflect.Descriptor instead.
 func (*RegisterRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_session_proto_rawDescGZIP(), []int{4}
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RegisterRequest) GetOrgName() string {
@@ -317,7 +471,7 @@ type RegisterResponse struct {
 
 func (x *RegisterResponse) Reset() {
 	*x = RegisterResponse{}
-	mi := &file_auth_v1_session_proto_msgTypes[5]
+	mi := &file_auth_v1_session_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -329,7 +483,7 @@ func (x *RegisterResponse) String() string {
 func (*RegisterResponse) ProtoMessage() {}
 
 func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_session_proto_msgTypes[5]
+	mi := &file_auth_v1_session_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -342,7 +496,7 @@ func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterResponse.ProtoReflect.Descriptor instead.
 func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_session_proto_rawDescGZIP(), []int{5}
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RegisterResponse) GetTenantId() string {
@@ -365,7 +519,7 @@ type AcceptInviteRequest struct {
 
 func (x *AcceptInviteRequest) Reset() {
 	*x = AcceptInviteRequest{}
-	mi := &file_auth_v1_session_proto_msgTypes[6]
+	mi := &file_auth_v1_session_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -377,7 +531,7 @@ func (x *AcceptInviteRequest) String() string {
 func (*AcceptInviteRequest) ProtoMessage() {}
 
 func (x *AcceptInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_session_proto_msgTypes[6]
+	mi := &file_auth_v1_session_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +544,7 @@ func (x *AcceptInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptInviteRequest.ProtoReflect.Descriptor instead.
 func (*AcceptInviteRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_session_proto_rawDescGZIP(), []int{6}
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AcceptInviteRequest) GetUserId() string {
@@ -422,7 +576,7 @@ type AcceptInviteResponse struct {
 
 func (x *AcceptInviteResponse) Reset() {
 	*x = AcceptInviteResponse{}
-	mi := &file_auth_v1_session_proto_msgTypes[7]
+	mi := &file_auth_v1_session_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -434,7 +588,7 @@ func (x *AcceptInviteResponse) String() string {
 func (*AcceptInviteResponse) ProtoMessage() {}
 
 func (x *AcceptInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_session_proto_msgTypes[7]
+	mi := &file_auth_v1_session_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -447,7 +601,7 @@ func (x *AcceptInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptInviteResponse.ProtoReflect.Descriptor instead.
 func (*AcceptInviteResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_session_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_session_proto_rawDescGZIP(), []int{11}
 }
 
 var File_auth_v1_session_proto protoreflect.FileDescriptor
@@ -455,18 +609,24 @@ var File_auth_v1_session_proto protoreflect.FileDescriptor
 const file_auth_v1_session_proto_rawDesc = "" +
 	"\n" +
 	"\x15auth/v1/session.proto\x12\aauth.v1\"\x16\n" +
-	"\x14GetAuthConfigRequest\"\x82\x01\n" +
+	"\x14GetAuthConfigRequest\"e\n" +
 	"\x15GetAuthConfigResponse\x12\x16\n" +
-	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
-	"\tclient_id\x18\x02 \x01(\tR\bclientId\x124\n" +
-	"\x16service_account_scopes\x18\x03 \x03(\tR\x14serviceAccountScopes\"q\n" +
-	"\fLoginRequest\x12&\n" +
-	"\x0fauth_request_id\x18\x01 \x01(\tR\rauthRequestId\x12\x1d\n" +
+	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x124\n" +
+	"\x16service_account_scopes\x18\x03 \x03(\tR\x14serviceAccountScopes\"I\n" +
+	"\fLoginRequest\x12\x1d\n" +
 	"\n" +
-	"login_name\x18\x02 \x01(\tR\tloginName\x12\x1a\n" +
-	"\bpassword\x18\x03 \x01(\tR\bpassword\"2\n" +
-	"\rLoginResponse\x12!\n" +
-	"\fcallback_url\x18\x01 \x01(\tR\vcallbackUrl\"\x9e\x01\n" +
+	"login_name\x18\x01 \x01(\tR\tloginName\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"\x0f\n" +
+	"\rLoginResponse\"\x0f\n" +
+	"\rLogoutRequest\"\x10\n" +
+	"\x0eLogoutResponse\"\x13\n" +
+	"\x11GetSessionRequest\"v\n" +
+	"\x12GetSessionResponse\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x04 \x01(\tR\tavatarUrl\"\x9e\x01\n" +
 	"\x0fRegisterRequest\x12\x19\n" +
 	"\borg_name\x18\x01 \x01(\tR\aorgName\x12\x1d\n" +
 	"\n" +
@@ -496,16 +656,20 @@ func file_auth_v1_session_proto_rawDescGZIP() []byte {
 	return file_auth_v1_session_proto_rawDescData
 }
 
-var file_auth_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_auth_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_auth_v1_session_proto_goTypes = []any{
 	(*GetAuthConfigRequest)(nil),  // 0: auth.v1.GetAuthConfigRequest
 	(*GetAuthConfigResponse)(nil), // 1: auth.v1.GetAuthConfigResponse
 	(*LoginRequest)(nil),          // 2: auth.v1.LoginRequest
 	(*LoginResponse)(nil),         // 3: auth.v1.LoginResponse
-	(*RegisterRequest)(nil),       // 4: auth.v1.RegisterRequest
-	(*RegisterResponse)(nil),      // 5: auth.v1.RegisterResponse
-	(*AcceptInviteRequest)(nil),   // 6: auth.v1.AcceptInviteRequest
-	(*AcceptInviteResponse)(nil),  // 7: auth.v1.AcceptInviteResponse
+	(*LogoutRequest)(nil),         // 4: auth.v1.LogoutRequest
+	(*LogoutResponse)(nil),        // 5: auth.v1.LogoutResponse
+	(*GetSessionRequest)(nil),     // 6: auth.v1.GetSessionRequest
+	(*GetSessionResponse)(nil),    // 7: auth.v1.GetSessionResponse
+	(*RegisterRequest)(nil),       // 8: auth.v1.RegisterRequest
+	(*RegisterResponse)(nil),      // 9: auth.v1.RegisterResponse
+	(*AcceptInviteRequest)(nil),   // 10: auth.v1.AcceptInviteRequest
+	(*AcceptInviteResponse)(nil),  // 11: auth.v1.AcceptInviteResponse
 }
 var file_auth_v1_session_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -526,7 +690,7 @@ func file_auth_v1_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_session_proto_rawDesc), len(file_auth_v1_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

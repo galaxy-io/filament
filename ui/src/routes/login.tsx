@@ -4,7 +4,7 @@ import { z } from "zod";
 import LoginPage from "@/pages/auth/LoginPage";
 
 const searchParams = z.object({
-  authRequest: z.string().optional().catch(undefined),
+  returnTo: z.string().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/login")({

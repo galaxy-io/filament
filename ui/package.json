@@ -31,7 +31,6 @@
     "@tanstack/react-router": "^1.141.2",
     "@tanstack/react-virtual": "^3.14.6",
     "@xyflow/react": "^12.11.2",
-    "oidc-client-ts": "^3.5.0",
     "pluralize": "^8.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

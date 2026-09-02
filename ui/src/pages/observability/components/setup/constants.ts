@@ -59,7 +59,7 @@ export const OBSERVABILITY_SETUP_STATUS_TO_ICON_VARIANT_MAP: Record<
   ObservabilitySetupStepStatus,
   IconVariant
 > = {
-  [ObservabilitySetupStepStatus.COMPLETED]: IconVariant.PRIMARY,
+  [ObservabilitySetupStepStatus.COMPLETED]: IconVariant.SUCCESS,
   [ObservabilitySetupStepStatus.ACTIVE]: IconVariant.PRIMARY,
   [ObservabilitySetupStepStatus.UPCOMING]: IconVariant.TERTIARY,
 };

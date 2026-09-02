@@ -3,18 +3,6 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 
 import { API_URL, IS_DEBUG, IS_PRODUCTION } from "@/constants";
 
-import { getAccessToken } from "@/auth/oidc";
-
-export function createAuthInterceptor(): Interceptor {
-  return (next) => (req) => {
-    const token = getAccessToken();
-    if (token) {
-      req.header.set("Authorization", `Bearer ${token}`);
-    }
-    return next(req);
-  };
-}
-
 export function createLoggingInterceptor(): Interceptor {
   return (next) => async (req) => {
     if (IS_DEBUG) {
@@ -52,7 +40,7 @@ export function createLoggingInterceptor(): Interceptor {
 
 export const createTransport = ({
   baseUrl = API_URL,
-  interceptors = [createAuthInterceptor(), createLoggingInterceptor()],
+  interceptors = [createLoggingInterceptor()],
   useBinaryFormat = IS_PRODUCTION,
 }: {
   baseUrl?: string;

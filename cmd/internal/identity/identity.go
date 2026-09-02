@@ -15,7 +15,8 @@ import (
 // unauthenticated: a nil provider is the disabled state, not an error.
 //
 // zitadel needs AUTH_ISSUER and the machine-user token in AUTH_PAT;
-// AUTH_UI_ORIGIN is the browser origin sign-in returns to.
+// AUTH_UI_ORIGIN is the origin the UI is served from, and an https origin
+// marks the session cookie Secure.
 func FromEnv(ctx context.Context) (identity.Provider, error) {
 	switch provider := os.Getenv("AUTH_PROVIDER"); provider {
 	case "":

@@ -8,14 +8,14 @@ import type { InviteMemberRequestSchema, InviteMemberResponseSchema, ListMembers
 import { file_auth_v1_members } from "./members_pb";
 import type { CreateServiceAccountRequestSchema, CreateServiceAccountResponseSchema, ListServiceAccountsRequestSchema, ListServiceAccountsResponseSchema, RemoveServiceAccountRequestSchema, RemoveServiceAccountResponseSchema, RotateServiceAccountSecretRequestSchema, RotateServiceAccountSecretResponseSchema } from "./service_accounts_pb";
 import { file_auth_v1_service_accounts } from "./service_accounts_pb";
-import type { AcceptInviteRequestSchema, AcceptInviteResponseSchema, GetAuthConfigRequestSchema, GetAuthConfigResponseSchema, LoginRequestSchema, LoginResponseSchema, RegisterRequestSchema, RegisterResponseSchema } from "./session_pb";
+import type { AcceptInviteRequestSchema, AcceptInviteResponseSchema, GetAuthConfigRequestSchema, GetAuthConfigResponseSchema, GetSessionRequestSchema, GetSessionResponseSchema, LoginRequestSchema, LoginResponseSchema, LogoutRequestSchema, LogoutResponseSchema, RegisterRequestSchema, RegisterResponseSchema } from "./session_pb";
 import { file_auth_v1_session } from "./session_pb";
 
 /**
  * Describes the file auth/v1/service.proto.
  */
 export const file_auth_v1_service: GenFile = /*@__PURE__*/
-  fileDesc("ChVhdXRoL3YxL3NlcnZpY2UucHJvdG8SB2F1dGgudjEy+gcKC0F1dGhTZXJ2aWNlEk4KDUdldEF1dGhDb25maWcSHS5hdXRoLnYxLkdldEF1dGhDb25maWdSZXF1ZXN0Gh4uYXV0aC52MS5HZXRBdXRoQ29uZmlnUmVzcG9uc2USNgoFTG9naW4SFS5hdXRoLnYxLkxvZ2luUmVxdWVzdBoWLmF1dGgudjEuTG9naW5SZXNwb25zZRI/CghSZWdpc3RlchIYLmF1dGgudjEuUmVnaXN0ZXJSZXF1ZXN0GhkuYXV0aC52MS5SZWdpc3RlclJlc3BvbnNlEksKDEFjY2VwdEludml0ZRIcLmF1dGgudjEuQWNjZXB0SW52aXRlUmVxdWVzdBodLmF1dGgudjEuQWNjZXB0SW52aXRlUmVzcG9uc2USSAoLTGlzdE1lbWJlcnMSGy5hdXRoLnYxLkxpc3RNZW1iZXJzUmVxdWVzdBocLmF1dGgudjEuTGlzdE1lbWJlcnNSZXNwb25zZRJLCgxJbnZpdGVNZW1iZXISHC5hdXRoLnYxLkludml0ZU1lbWJlclJlcXVlc3QaHS5hdXRoLnYxLkludml0ZU1lbWJlclJlc3BvbnNlEk4KDVNldE1lbWJlclJvbGUSHS5hdXRoLnYxLlNldE1lbWJlclJvbGVSZXF1ZXN0Gh4uYXV0aC52MS5TZXRNZW1iZXJSb2xlUmVzcG9uc2USSwoMUmVtb3ZlTWVtYmVyEhwuYXV0aC52MS5SZW1vdmVNZW1iZXJSZXF1ZXN0Gh0uYXV0aC52MS5SZW1vdmVNZW1iZXJSZXNwb25zZRJgChNMaXN0U2VydmljZUFjY291bnRzEiMuYXV0aC52MS5MaXN0U2VydmljZUFjY291bnRzUmVxdWVzdBokLmF1dGgudjEuTGlzdFNlcnZpY2VBY2NvdW50c1Jlc3BvbnNlEmMKFENyZWF0ZVNlcnZpY2VBY2NvdW50EiQuYXV0aC52MS5DcmVhdGVTZXJ2aWNlQWNjb3VudFJlcXVlc3QaJS5hdXRoLnYxLkNyZWF0ZVNlcnZpY2VBY2NvdW50UmVzcG9uc2USdQoaUm90YXRlU2VydmljZUFjY291bnRTZWNyZXQSKi5hdXRoLnYxLlJvdGF0ZVNlcnZpY2VBY2NvdW50U2VjcmV0UmVxdWVzdBorLmF1dGgudjEuUm90YXRlU2VydmljZUFjY291bnRTZWNyZXRSZXNwb25zZRJjChRSZW1vdmVTZXJ2aWNlQWNjb3VudBIkLmF1dGgudjEuUmVtb3ZlU2VydmljZUFjY291bnRSZXF1ZXN0GiUuYXV0aC52MS5SZW1vdmVTZXJ2aWNlQWNjb3VudFJlc3BvbnNlYgZwcm90bzM", [file_auth_v1_members, file_auth_v1_service_accounts, file_auth_v1_session]);
+  fileDesc("ChVhdXRoL3YxL3NlcnZpY2UucHJvdG8SB2F1dGgudjEy/AgKC0F1dGhTZXJ2aWNlEk4KDUdldEF1dGhDb25maWcSHS5hdXRoLnYxLkdldEF1dGhDb25maWdSZXF1ZXN0Gh4uYXV0aC52MS5HZXRBdXRoQ29uZmlnUmVzcG9uc2USNgoFTG9naW4SFS5hdXRoLnYxLkxvZ2luUmVxdWVzdBoWLmF1dGgudjEuTG9naW5SZXNwb25zZRI5CgZMb2dvdXQSFi5hdXRoLnYxLkxvZ291dFJlcXVlc3QaFy5hdXRoLnYxLkxvZ291dFJlc3BvbnNlEj8KCFJlZ2lzdGVyEhguYXV0aC52MS5SZWdpc3RlclJlcXVlc3QaGS5hdXRoLnYxLlJlZ2lzdGVyUmVzcG9uc2USSwoMQWNjZXB0SW52aXRlEhwuYXV0aC52MS5BY2NlcHRJbnZpdGVSZXF1ZXN0Gh0uYXV0aC52MS5BY2NlcHRJbnZpdGVSZXNwb25zZRJFCgpHZXRTZXNzaW9uEhouYXV0aC52MS5HZXRTZXNzaW9uUmVxdWVzdBobLmF1dGgudjEuR2V0U2Vzc2lvblJlc3BvbnNlEkgKC0xpc3RNZW1iZXJzEhsuYXV0aC52MS5MaXN0TWVtYmVyc1JlcXVlc3QaHC5hdXRoLnYxLkxpc3RNZW1iZXJzUmVzcG9uc2USSwoMSW52aXRlTWVtYmVyEhwuYXV0aC52MS5JbnZpdGVNZW1iZXJSZXF1ZXN0Gh0uYXV0aC52MS5JbnZpdGVNZW1iZXJSZXNwb25zZRJOCg1TZXRNZW1iZXJSb2xlEh0uYXV0aC52MS5TZXRNZW1iZXJSb2xlUmVxdWVzdBoeLmF1dGgudjEuU2V0TWVtYmVyUm9sZVJlc3BvbnNlEksKDFJlbW92ZU1lbWJlchIcLmF1dGgudjEuUmVtb3ZlTWVtYmVyUmVxdWVzdBodLmF1dGgudjEuUmVtb3ZlTWVtYmVyUmVzcG9uc2USYAoTTGlzdFNlcnZpY2VBY2NvdW50cxIjLmF1dGgudjEuTGlzdFNlcnZpY2VBY2NvdW50c1JlcXVlc3QaJC5hdXRoLnYxLkxpc3RTZXJ2aWNlQWNjb3VudHNSZXNwb25zZRJjChRDcmVhdGVTZXJ2aWNlQWNjb3VudBIkLmF1dGgudjEuQ3JlYXRlU2VydmljZUFjY291bnRSZXF1ZXN0GiUuYXV0aC52MS5DcmVhdGVTZXJ2aWNlQWNjb3VudFJlc3BvbnNlEnUKGlJvdGF0ZVNlcnZpY2VBY2NvdW50U2VjcmV0EiouYXV0aC52MS5Sb3RhdGVTZXJ2aWNlQWNjb3VudFNlY3JldFJlcXVlc3QaKy5hdXRoLnYxLlJvdGF0ZVNlcnZpY2VBY2NvdW50U2VjcmV0UmVzcG9uc2USYwoUUmVtb3ZlU2VydmljZUFjY291bnQSJC5hdXRoLnYxLlJlbW92ZVNlcnZpY2VBY2NvdW50UmVxdWVzdBolLmF1dGgudjEuUmVtb3ZlU2VydmljZUFjY291bnRSZXNwb25zZWIGcHJvdG8z", [file_auth_v1_members, file_auth_v1_service_accounts, file_auth_v1_session]);
 
 /**
  * AuthService is filament's identity surface. It is optional: with no
@@ -49,6 +49,14 @@ export const AuthService: GenService<{
     output: typeof LoginResponseSchema;
   },
   /**
+   * @generated from rpc auth.v1.AuthService.Logout
+   */
+  logout: {
+    methodKind: "unary";
+    input: typeof LogoutRequestSchema;
+    output: typeof LogoutResponseSchema;
+  },
+  /**
    * @generated from rpc auth.v1.AuthService.Register
    */
   register: {
@@ -63,6 +71,16 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof AcceptInviteRequestSchema;
     output: typeof AcceptInviteResponseSchema;
+  },
+  /**
+   * Session; authenticated. The UI's sign-in check.
+   *
+   * @generated from rpc auth.v1.AuthService.GetSession
+   */
+  getSession: {
+    methodKind: "unary";
+    input: typeof GetSessionRequestSchema;
+    output: typeof GetSessionResponseSchema;
   },
   /**
    * Members; authenticated tenant administration.
