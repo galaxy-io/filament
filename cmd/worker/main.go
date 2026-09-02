@@ -39,6 +39,10 @@ func run(ctx context.Context) error {
 	if err := runID.Valid(); err != nil {
 		return fmt.Errorf("RUN_ID: %w", err)
 	}
+	tenant := filament.TenantID(os.Getenv("TENANT_ID"))
+	if err := tenant.Valid(); err != nil {
+		return fmt.Errorf("TENANT_ID: %w", err)
+	}
 
 	deps, closeDeps, err := boot.FromEnv(ctx)
 	if err != nil {
@@ -56,7 +60,7 @@ func run(ctx context.Context) error {
 	}
 	defer closeBus()
 
-	state, err := deps.Store.LoadRun(ctx, runID)
+	state, err := deps.Store.LoadRun(ctx, tenant, runID)
 	if err != nil {
 		return err
 	}

@@ -88,11 +88,21 @@ func RoleFromKey(key string) authv1.Role {
 	return authv1.Role_ROLE_UNSPECIFIED
 }
 
-type callerCtxKey struct{}
+type (
+	callerCtxKey struct{}
+	tenantCtxKey struct{}
+)
 
 // WithCaller returns a context carrying the authenticated caller.
 func WithCaller(ctx context.Context, caller Caller) context.Context {
 	return context.WithValue(ctx, callerCtxKey{}, caller)
+}
+
+// WithTenant establishes a request's tenant without fabricating an
+// authenticated caller. Auth-disabled single-tenant servers use it to place
+// their configured tenant on every request context.
+func WithTenant(ctx context.Context, tenant filament.TenantID) context.Context {
+	return context.WithValue(ctx, tenantCtxKey{}, tenant)
 }
 
 // CallerFrom returns the authenticated caller, if one was established. It
@@ -105,6 +115,9 @@ func CallerFrom(ctx context.Context) (Caller, bool) {
 
 // TenantFrom returns the authenticated caller's tenant, if any.
 func TenantFrom(ctx context.Context) (filament.TenantID, bool) {
+	if tenant, ok := ctx.Value(tenantCtxKey{}).(filament.TenantID); ok && tenant != "" {
+		return tenant, true
+	}
 	caller, ok := CallerFrom(ctx)
 	if !ok || caller.Tenant == "" {
 		return "", false

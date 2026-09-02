@@ -34,14 +34,14 @@ func (s *Store) SaveSchedule(ctx context.Context, schedule filament.ScheduleStat
 }
 
 // LoadPipelineSchedule returns the schedule associated with a pipeline.
-func (s *Store) LoadPipelineSchedule(ctx context.Context, pipelineID string) (filament.ScheduleState, error) {
+func (s *Store) LoadPipelineSchedule(ctx context.Context, tenant filament.TenantID, pipelineID string) (filament.ScheduleState, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.ScheduleState{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, schedule := range s.schedules {
-		if schedule.Spec.PipelineID == pipelineID {
+		if schedule.Spec.Tenant == tenant && schedule.Spec.PipelineID == pipelineID {
 			return schedule, nil
 		}
 	}
@@ -49,14 +49,14 @@ func (s *Store) LoadPipelineSchedule(ctx context.Context, pipelineID string) (fi
 }
 
 // LoadSchedule returns a schedule by ID.
-func (s *Store) LoadSchedule(ctx context.Context, id filament.ScheduleID) (filament.ScheduleState, error) {
+func (s *Store) LoadSchedule(ctx context.Context, tenant filament.TenantID, id filament.ScheduleID) (filament.ScheduleState, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.ScheduleState{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	schedule, ok := s.schedules[id]
-	if !ok {
+	if !ok || schedule.Spec.Tenant != tenant {
 		return filament.ScheduleState{}, fmt.Errorf("load schedule %q: %w", id, ErrNotFound)
 	}
 	return schedule, nil
@@ -71,7 +71,7 @@ func (s *Store) ListSchedules(ctx context.Context, filter filament.ScheduleFilte
 	defer s.mu.RUnlock()
 	out := make([]filament.ScheduleState, 0, len(s.schedules))
 	for _, schedule := range s.schedules {
-		if filter.Tenant != "" && schedule.Spec.Tenant != filter.Tenant {
+		if schedule.Spec.Tenant != filter.Tenant {
 			continue
 		}
 		if filter.Enabled != nil && schedule.Enabled != *filter.Enabled {
@@ -88,12 +88,15 @@ func (s *Store) ListSchedules(ctx context.Context, filter filament.ScheduleFilte
 
 // DeleteSchedule removes a schedule by ID along with its pre-created scheduled
 // runs, so nothing lingers as upcoming work.
-func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) error {
+func (s *Store) DeleteSchedule(ctx context.Context, tenant filament.TenantID, id filament.ScheduleID) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if schedule, ok := s.schedules[id]; !ok || schedule.Spec.Tenant != tenant {
+		return nil
+	}
 	for runID, r := range s.runs {
 		if r.ScheduleID == id && r.Status == filament.RunScheduled {
 			s.deleteRunLocked(runID)
@@ -130,12 +133,14 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 }
 
 // ReleaseScheduleClaim releases the active claim for a schedule.
-func (s *Store) ReleaseScheduleClaim(ctx context.Context, id filament.ScheduleID) error {
+func (s *Store) ReleaseScheduleClaim(ctx context.Context, tenant filament.TenantID, id filament.ScheduleID) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.scheduleClaims, id)
+	if schedule, ok := s.schedules[id]; ok && schedule.Spec.Tenant == tenant {
+		delete(s.scheduleClaims, id)
+	}
 	return nil
 }

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file auth/v1/service_accounts.proto.
  */
 export const file_auth_v1_service_accounts: GenFile = /*@__PURE__*/
-  fileDesc("Ch5hdXRoL3YxL3NlcnZpY2VfYWNjb3VudHMucHJvdG8SB2F1dGgudjEidAoOU2VydmljZUFjY291bnQSDwoHdXNlcl9pZBgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIbCgRyb2xlGAUgASgOMg0uYXV0aC52MS5Sb2xlIi8KGkxpc3RTZXJ2aWNlQWNjb3VudHNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCSJkChtMaXN0U2VydmljZUFjY291bnRzUmVzcG9uc2USMQoQc2VydmljZV9hY2NvdW50cxgBIAMoCzIXLmF1dGgudjEuU2VydmljZUFjY291bnQSEgoKY2FuX21hbmFnZRgCIAEoCCJwChtDcmVhdGVTZXJ2aWNlQWNjb3VudFJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGwoEcm9sZRgEIAEoDjINLmF1dGgudjEuUm9sZSJnChxDcmVhdGVTZXJ2aWNlQWNjb3VudFJlc3BvbnNlEjAKD3NlcnZpY2VfYWNjb3VudBgBIAEoCzIXLmF1dGgudjEuU2VydmljZUFjY291bnQSFQoNY2xpZW50X3NlY3JldBgCIAEoCSJHCiFSb3RhdGVTZXJ2aWNlQWNjb3VudFNlY3JldFJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkiTgoiUm90YXRlU2VydmljZUFjY291bnRTZWNyZXRSZXNwb25zZRIRCgljbGllbnRfaWQYASABKAkSFQoNY2xpZW50X3NlY3JldBgCIAEoCSJBChtSZW1vdmVTZXJ2aWNlQWNjb3VudFJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkiHgocUmVtb3ZlU2VydmljZUFjY291bnRSZXNwb25zZWIGcHJvdG8z", [file_auth_v1_members]);
+  fileDesc("Ch5hdXRoL3YxL3NlcnZpY2VfYWNjb3VudHMucHJvdG8SB2F1dGgudjEidAoOU2VydmljZUFjY291bnQSDwoHdXNlcl9pZBgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIbCgRyb2xlGAUgASgOMg0uYXV0aC52MS5Sb2xlIhwKGkxpc3RTZXJ2aWNlQWNjb3VudHNSZXF1ZXN0ImQKG0xpc3RTZXJ2aWNlQWNjb3VudHNSZXNwb25zZRIxChBzZXJ2aWNlX2FjY291bnRzGAEgAygLMhcuYXV0aC52MS5TZXJ2aWNlQWNjb3VudBISCgpjYW5fbWFuYWdlGAIgASgIIl0KG0NyZWF0ZVNlcnZpY2VBY2NvdW50UmVxdWVzdBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhsKBHJvbGUYAyABKA4yDS5hdXRoLnYxLlJvbGUiZwocQ3JlYXRlU2VydmljZUFjY291bnRSZXNwb25zZRIwCg9zZXJ2aWNlX2FjY291bnQYASABKAsyFy5hdXRoLnYxLlNlcnZpY2VBY2NvdW50EhUKDWNsaWVudF9zZWNyZXQYAiABKAkiNAohUm90YXRlU2VydmljZUFjY291bnRTZWNyZXRSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkiTgoiUm90YXRlU2VydmljZUFjY291bnRTZWNyZXRSZXNwb25zZRIRCgljbGllbnRfaWQYASABKAkSFQoNY2xpZW50X3NlY3JldBgCIAEoCSIuChtSZW1vdmVTZXJ2aWNlQWNjb3VudFJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSIeChxSZW1vdmVTZXJ2aWNlQWNjb3VudFJlc3BvbnNlYgZwcm90bzM", [file_auth_v1_members]);
 
 /**
  * ServiceAccount is a non-human identity used by automation such as the
@@ -58,10 +58,6 @@ export const ServiceAccountSchema: GenMessage<ServiceAccount> = /*@__PURE__*/
  * @generated from message auth.v1.ListServiceAccountsRequest
  */
 export type ListServiceAccountsRequest = Message<"auth.v1.ListServiceAccountsRequest"> & {
-  /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
 };
 
 /**
@@ -98,22 +94,17 @@ export const ListServiceAccountsResponseSchema: GenMessage<ListServiceAccountsRe
  */
 export type CreateServiceAccountRequest = Message<"auth.v1.CreateServiceAccountRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string name = 2;
+   * @generated from field: string name = 1;
    */
   name: string;
 
   /**
-   * @generated from field: string description = 3;
+   * @generated from field: string description = 2;
    */
   description: string;
 
   /**
-   * @generated from field: auth.v1.Role role = 4;
+   * @generated from field: auth.v1.Role role = 3;
    */
   role: Role;
 };
@@ -155,12 +146,7 @@ export const CreateServiceAccountResponseSchema: GenMessage<CreateServiceAccount
  */
 export type RotateServiceAccountSecretRequest = Message<"auth.v1.RotateServiceAccountSecretRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string user_id = 2;
+   * @generated from field: string user_id = 1;
    */
   userId: string;
 };
@@ -202,12 +188,7 @@ export const RotateServiceAccountSecretResponseSchema: GenMessage<RotateServiceA
  */
 export type RemoveServiceAccountRequest = Message<"auth.v1.RemoveServiceAccountRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string user_id = 2;
+   * @generated from field: string user_id = 1;
    */
   userId: string;
 };

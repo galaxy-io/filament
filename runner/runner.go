@@ -325,17 +325,17 @@ func prepareRunExecution(
 	spec filament.RunSpec,
 	em *emitter,
 ) (context.Context, *runControl, error) {
-	if err := seedEmitterProgress(ctx, deps.DataStore, spec.Run, em); err != nil {
+	if err := seedEmitterProgress(ctx, deps.DataStore, spec.Tenant, spec.Run, em); err != nil {
 		return nil, nil, fmt.Errorf("restore run progress: %w", err)
 	}
 	return newRunControl(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 }
 
-func seedEmitterProgress(ctx context.Context, ds filament.DataStore, run filament.RunID, em *emitter) error {
+func seedEmitterProgress(ctx context.Context, ds filament.DataStore, tenant filament.TenantID, run filament.RunID, em *emitter) error {
 	if ds == nil {
 		return nil
 	}
-	state, err := ds.LoadRun(ctx, run)
+	state, err := ds.LoadRun(ctx, tenant, run)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil
 	}

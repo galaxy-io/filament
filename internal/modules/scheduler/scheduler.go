@@ -28,14 +28,13 @@ const defaultInterval = time.Second
 
 // Module is the run-firing timer over a ScheduleStore.
 type Module struct {
-	store         filament.ScheduleStore
-	bus           eventbus.Bus
-	ds            filament.DataStore
-	log           filament.Logger
-	mx            filament.Metrics
-	interval      time.Duration
-	defaultTenant string
-	compiler      *compile.Compiler
+	store    filament.ScheduleStore
+	bus      eventbus.Bus
+	ds       filament.DataStore
+	log      filament.Logger
+	mx       filament.Metrics
+	interval time.Duration
+	compiler *compile.Compiler
 }
 
 // Option configures a Module.
@@ -44,15 +43,11 @@ type Option func(*Module)
 // WithInterval sets the claim cadence of the timer started by Start (default 1s).
 func WithInterval(d time.Duration) Option { return func(m *Module) { m.interval = d } }
 
-// WithDefaultTenant sets the tenant compiled runs fall back to when the
-// pipeline row carries none (matching the API's fallback).
-func WithDefaultTenant(tenant string) Option { return func(m *Module) { m.defaultTenant = tenant } }
-
 // New returns an unmounted scheduler over the given ScheduleStore. The bus,
 // data store, and compiler inputs are injected by Mount; the timer is launched
 // by Start.
 func New(store filament.ScheduleStore, opts ...Option) *Module {
-	m := &Module{store: store, interval: defaultInterval, defaultTenant: string(filament.DefaultTenantID)}
+	m := &Module{store: store, interval: defaultInterval}
 	for _, o := range opts {
 		o(m)
 	}
@@ -75,7 +70,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "scheduler"})
 	}
 	m.mx = d.Metrics
-	m.compiler = &compile.Compiler{Store: d.DataStore, Sources: d.Sources, Sinks: d.Sinks, DefaultTenant: m.defaultTenant}
+	m.compiler = &compile.Compiler{Store: d.DataStore, Sources: d.Sources, Sinks: d.Sinks}
 	return nil
 }
 
@@ -124,14 +119,14 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 	var errs []error
 	for _, st := range due {
 		if st.Spec.Overlap == filament.OverlapSkip {
-			active, err := m.hasActiveRuns(ctx, st.ID)
+			active, err := m.hasActiveRuns(ctx, st.Spec.Tenant, st.ID)
 			if err != nil {
 				failed++
 				// Can't prove the last occurrence finished — hold the fire and
 				// release the claim so the next tick retries, rather than risk
 				// an overlapping run.
 				errs = append(errs, fmt.Errorf("overlap check %q: %w", st.ID, err))
-				if err := m.store.ReleaseScheduleClaim(ctx, st.ID); err != nil {
+				if err := m.store.ReleaseScheduleClaim(ctx, st.Spec.Tenant, st.ID); err != nil {
 					errs = append(errs, fmt.Errorf("release claim %q: %w", st.ID, err))
 				}
 				continue
@@ -168,7 +163,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 				m.mx.Counter("filament_schedule_submit_failures_total").Inc()
 			}
 			errs = append(errs, fmt.Errorf("submit schedule %q: %w", st.ID, err))
-			if err := m.store.ReleaseScheduleClaim(ctx, st.ID); err != nil {
+			if err := m.store.ReleaseScheduleClaim(ctx, st.Spec.Tenant, st.ID); err != nil {
 				errs = append(errs, fmt.Errorf("release claim %q: %w", st.ID, err))
 			}
 			continue
@@ -239,7 +234,7 @@ func (m *Module) logTickCompleted(claimed, fired, skipped, failed int) {
 // one run per route, returning the first run id for the schedule.fired fact.
 // The occurrence token makes each cron tick idempotent.
 func (m *Module) fire(ctx context.Context, st filament.ScheduleState, occurrence time.Time) (filament.RunID, error) {
-	compiled, err := m.compiler.Compile(ctx, st.Spec.PipelineID, scheduledomain.OccurrenceToken(st.ID, occurrence), filament.RunOptions{}, st.ID, filament.WorkerConfiguration{})
+	compiled, err := m.compiler.Compile(ctx, st.Spec.Tenant, st.Spec.PipelineID, scheduledomain.OccurrenceToken(st.ID, occurrence), filament.RunOptions{}, st.ID, filament.WorkerConfiguration{})
 	if err != nil {
 		return "", err
 	}
@@ -288,8 +283,9 @@ func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.Schedul
 }
 
 // hasActiveRuns checks every route run produced by prior occurrences.
-func (m *Module) hasActiveRuns(ctx context.Context, scheduleID filament.ScheduleID) (bool, error) {
+func (m *Module) hasActiveRuns(ctx context.Context, tenant filament.TenantID, scheduleID filament.ScheduleID) (bool, error) {
 	active, _, err := m.ds.ListRuns(ctx, filament.RunFilter{
+		Tenant:   tenant,
 		Schedule: scheduleID,
 		Status: []filament.RunStatus{
 			filament.RunRequested,

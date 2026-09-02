@@ -69,7 +69,7 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 			filament.Field{Key: "tenant_id", Value: string(ev.Tenant)},
 			filament.Field{Key: "run_id", Value: string(ev.Run)})
 	}
-	state, err := m.ds.LoadRun(ctx, ev.Run)
+	state, err := m.ds.LoadRun(ctx, ev.Tenant, ev.Run)
 	if err != nil {
 		return fmt.Errorf("engine: load run %q: %w", ev.Run, err)
 	}

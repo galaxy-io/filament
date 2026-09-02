@@ -17,7 +17,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/connections.proto.
  */
 export const file_ingestion_v1_connections: GenFile = /*@__PURE__*/
-  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSLnAwoKQ29ubmVjdGlvbhIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxISCgpkZWxldGVkX2F0GAkgASgDEhIKCmNyZWF0ZWRfYXQYCiABKAMSEgoKdXBkYXRlZF9hdBgLIAEoAxIaChJjcmVhdGVkX2J5X3VzZXJfaWQYDCABKAkSGgoSdXBkYXRlZF9ieV91c2VyX2lkGA0gASgJEhoKEmRlbGV0ZWRfYnlfdXNlcl9pZBgOIAEoCRIyCgtyZXBsaWNhdGlvbhgPIAEoDjIdLmluZ2VzdGlvbi52MS5SZXBsaWNhdGlvbk1vZGUaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEioAIKF0NyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSDAoEbmFtZRgDIAEoCRIRCgljb25uZWN0b3IYBCABKAkSJwoGY29uZmlnGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBJKCgtzZWNyZXRfcmVmcxgGIAMoCzI1LmluZ2VzdGlvbi52MS5DcmVhdGVDb25uZWN0aW9uUmVxdWVzdC5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSAoYQ3JlYXRlQ29ubmVjdGlvblJlc3BvbnNlEiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJaChdVcGRhdGVDb25uZWN0aW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSLAoKY29ubmVjdGlvbhgCIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkgKGFVwZGF0ZUNvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24iNQoUR2V0Q29ubmVjdGlvblJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEgoKAmlkGAIgASgJIkUKFUdldENvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24i4wEKFkxpc3RDb25uZWN0aW9uc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIXCg9pbmNsdWRlX2RlbGV0ZWQYAyABKAgSMwoKcGFnaW5hdGlvbhgEIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBIOCgZzZWFyY2gYBSABKAkSLQoHc29ydGluZxgGIAEoCzIcLmluZ2VzdGlvbi52MS5Tb3J0aW5nUmVxdWVzdCJ+ChdMaXN0Q29ubmVjdGlvbnNSZXNwb25zZRItCgtjb25uZWN0aW9ucxgBIAMoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIjgKF0RlbGV0ZUNvbm5lY3Rpb25SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCSIaChhEZWxldGVDb25uZWN0aW9uUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
+  fileDesc("Ch5pbmdlc3Rpb24vdjEvY29ubmVjdGlvbnMucHJvdG8SDGluZ2VzdGlvbi52MSLnAwoKQ29ubmVjdGlvbhIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEgwKBG5hbWUYBCABKAkSEQoJY29ubmVjdG9yGAUgASgJEicKBmNvbmZpZxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSPQoLc2VjcmV0X3JlZnMYByADKAsyKC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbi5TZWNyZXRSZWZzRW50cnkSDwoHdmVyc2lvbhgIIAEoAxISCgpkZWxldGVkX2F0GAkgASgDEhIKCmNyZWF0ZWRfYXQYCiABKAMSEgoKdXBkYXRlZF9hdBgLIAEoAxIaChJjcmVhdGVkX2J5X3VzZXJfaWQYDCABKAkSGgoSdXBkYXRlZF9ieV91c2VyX2lkGA0gASgJEhoKEmRlbGV0ZWRfYnlfdXNlcl9pZBgOIAEoCRIyCgtyZXBsaWNhdGlvbhgPIAEoDjIdLmluZ2VzdGlvbi52MS5SZXBsaWNhdGlvbk1vZGUaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEijQIKF0NyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIMCgRuYW1lGAIgASgJEhEKCWNvbm5lY3RvchgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EkoKC3NlY3JldF9yZWZzGAUgAygLMjUuaW5nZXN0aW9uLnYxLkNyZWF0ZUNvbm5lY3Rpb25SZXF1ZXN0LlNlY3JldFJlZnNFbnRyeRoxCg9TZWNyZXRSZWZzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJIChhDcmVhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIkcKF1VwZGF0ZUNvbm5lY3Rpb25SZXF1ZXN0EiwKCmNvbm5lY3Rpb24YASABKAsyGC5pbmdlc3Rpb24udjEuQ29ubmVjdGlvbiJIChhVcGRhdGVDb25uZWN0aW9uUmVzcG9uc2USLAoKY29ubmVjdGlvbhgBIAEoCzIYLmluZ2VzdGlvbi52MS5Db25uZWN0aW9uIiIKFEdldENvbm5lY3Rpb25SZXF1ZXN0EgoKAmlkGAEgASgJIkUKFUdldENvbm5lY3Rpb25SZXNwb25zZRIsCgpjb25uZWN0aW9uGAEgASgLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24i0AEKFkxpc3RDb25uZWN0aW9uc1JlcXVlc3QSKQoEa2luZBgBIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kEhcKD2luY2x1ZGVfZGVsZXRlZBgCIAEoCBIzCgpwYWdpbmF0aW9uGAMgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0Eg4KBnNlYXJjaBgEIAEoCRItCgdzb3J0aW5nGAUgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0In4KF0xpc3RDb25uZWN0aW9uc1Jlc3BvbnNlEi0KC2Nvbm5lY3Rpb25zGAEgAygLMhguaW5nZXN0aW9uLnYxLkNvbm5lY3Rpb24SNAoKcGFnaW5hdGlvbhgCIAEoCzIgLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVzcG9uc2UiJQoXRGVsZXRlQ29ubmVjdGlvblJlcXVlc3QSCgoCaWQYASABKAkiGgoYRGVsZXRlQ29ubmVjdGlvblJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
 
 /**
  * Connection is a reusable, tenant-scoped source or sink. It holds the
@@ -122,32 +122,27 @@ export const ConnectionSchema: GenMessage<Connection> = /*@__PURE__*/
  */
 export type CreateConnectionRequest = Message<"ingestion.v1.CreateConnectionRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
    */
   kind: ConnectorKind;
 
   /**
-   * @generated from field: string name = 3;
+   * @generated from field: string name = 2;
    */
   name: string;
 
   /**
-   * @generated from field: string connector = 4;
+   * @generated from field: string connector = 3;
    */
   connector: string;
 
   /**
-   * @generated from field: google.protobuf.Struct config = 5;
+   * @generated from field: google.protobuf.Struct config = 4;
    */
   config?: JsonObject | undefined;
 
   /**
-   * @generated from field: map<string, string> secret_refs = 6;
+   * @generated from field: map<string, string> secret_refs = 5;
    */
   secretRefs: { [key: string]: string };
 };
@@ -181,12 +176,7 @@ export const CreateConnectionResponseSchema: GenMessage<CreateConnectionResponse
  */
 export type UpdateConnectionRequest = Message<"ingestion.v1.UpdateConnectionRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: ingestion.v1.Connection connection = 2;
+   * @generated from field: ingestion.v1.Connection connection = 1;
    */
   connection?: Connection | undefined;
 };
@@ -220,12 +210,7 @@ export const UpdateConnectionResponseSchema: GenMessage<UpdateConnectionResponse
  */
 export type GetConnectionRequest = Message<"ingestion.v1.GetConnectionRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string id = 2;
+   * @generated from field: string id = 1;
    */
   id: string;
 };
@@ -262,32 +247,27 @@ export const GetConnectionResponseSchema: GenMessage<GetConnectionResponse> = /*
  */
 export type ListConnectionsRequest = Message<"ingestion.v1.ListConnectionsRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
    */
   kind: ConnectorKind;
 
   /**
-   * @generated from field: bool include_deleted = 3;
+   * @generated from field: bool include_deleted = 2;
    */
   includeDeleted: boolean;
 
   /**
-   * @generated from field: ingestion.v1.PaginationRequest pagination = 4;
+   * @generated from field: ingestion.v1.PaginationRequest pagination = 3;
    */
   pagination?: PaginationRequest | undefined;
 
   /**
-   * @generated from field: string search = 5;
+   * @generated from field: string search = 4;
    */
   search: string;
 
   /**
-   * @generated from field: ingestion.v1.SortingRequest sorting = 6;
+   * @generated from field: ingestion.v1.SortingRequest sorting = 5;
    */
   sorting?: SortingRequest | undefined;
 };
@@ -326,12 +306,7 @@ export const ListConnectionsResponseSchema: GenMessage<ListConnectionsResponse> 
  */
 export type DeleteConnectionRequest = Message<"ingestion.v1.DeleteConnectionRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string id = 2;
+   * @generated from field: string id = 1;
    */
   id: string;
 };

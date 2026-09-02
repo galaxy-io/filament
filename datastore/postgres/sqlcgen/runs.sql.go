@@ -15,7 +15,6 @@ const createRun = `-- name: CreateRun :execrows
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
 VALUES ($1, $2, nullif($3::text, '')::uuid, nullif($4::text, '')::uuid, nullif($5::text, '')::uuid, $6, $7, $8, $9, $10, $11, $12, $13, nullif($14::text, ''), $15, $16, now())
 ON CONFLICT (id) DO UPDATE SET
-    tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     pipeline_version_id = EXCLUDED.pipeline_version_id,
     schedule_id = EXCLUDED.schedule_id,
@@ -31,7 +30,7 @@ ON CONFLICT (id) DO UPDATE SET
     cpu_seconds = EXCLUDED.cpu_seconds,
     memory_peak_bytes = EXCLUDED.memory_peak_bytes,
     updated_at = now()
-WHERE runs.status = $17
+WHERE runs.tenant_id = EXCLUDED.tenant_id AND runs.status = $17
 `
 
 type CreateRunParams struct {
@@ -84,10 +83,11 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (int64, er
 }
 
 const deletePipelineScheduledRuns = `-- name: DeletePipelineScheduledRuns :exec
-DELETE FROM runs WHERE pipeline_id = $1 AND status = $2
+DELETE FROM runs WHERE tenant_id = $1 AND pipeline_id = $2 AND status = $3
 `
 
 type DeletePipelineScheduledRunsParams struct {
+	TenantID   string
 	PipelineID pgtype.Text
 	Status     int16
 }
@@ -96,24 +96,30 @@ type DeletePipelineScheduledRunsParams struct {
 // deleting the schedules row SET-NULLs runs.schedule_id, so schedule-scoped
 // lookups cannot find these rows once the delete tx is underway.
 func (q *Queries) DeletePipelineScheduledRuns(ctx context.Context, arg DeletePipelineScheduledRunsParams) error {
-	_, err := q.db.Exec(ctx, deletePipelineScheduledRuns, arg.PipelineID, arg.Status)
+	_, err := q.db.Exec(ctx, deletePipelineScheduledRuns, arg.TenantID, arg.PipelineID, arg.Status)
 	return err
 }
 
 const deleteRun = `-- name: DeleteRun :exec
-DELETE FROM runs WHERE id = $1
+DELETE FROM runs WHERE tenant_id = $1 AND id = $2
 `
 
-func (q *Queries) DeleteRun(ctx context.Context, runID string) error {
-	_, err := q.db.Exec(ctx, deleteRun, runID)
+type DeleteRunParams struct {
+	TenantID string
+	RunID    string
+}
+
+func (q *Queries) DeleteRun(ctx context.Context, arg DeleteRunParams) error {
+	_, err := q.db.Exec(ctx, deleteRun, arg.TenantID, arg.RunID)
 	return err
 }
 
 const deleteScheduleScheduledRuns = `-- name: DeleteScheduleScheduledRuns :exec
-DELETE FROM runs WHERE schedule_id = $1 AND status = $2
+DELETE FROM runs WHERE tenant_id = $1 AND schedule_id = $2 AND status = $3
 `
 
 type DeleteScheduleScheduledRunsParams struct {
+	TenantID   string
 	ScheduleID pgtype.Text
 	Status     int16
 }
@@ -121,14 +127,19 @@ type DeleteScheduleScheduledRunsParams struct {
 // Reaps a schedule's pre-created scheduled runs; must run before the schedules
 // row is deleted, since that delete SET-NULLs runs.schedule_id.
 func (q *Queries) DeleteScheduleScheduledRuns(ctx context.Context, arg DeleteScheduleScheduledRunsParams) error {
-	_, err := q.db.Exec(ctx, deleteScheduleScheduledRuns, arg.ScheduleID, arg.Status)
+	_, err := q.db.Exec(ctx, deleteScheduleScheduledRuns, arg.TenantID, arg.ScheduleID, arg.Status)
 	return err
 }
 
 const loadRun = `-- name: LoadRun :one
 SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
-FROM runs WHERE id = $1
+FROM runs WHERE tenant_id = $1 AND id = $2
 `
+
+type LoadRunParams struct {
+	TenantID string
+	RunID    string
+}
 
 type LoadRunRow struct {
 	ID              string
@@ -149,8 +160,8 @@ type LoadRunRow struct {
 	MemoryPeakBytes int64
 }
 
-func (q *Queries) LoadRun(ctx context.Context, runID string) (*LoadRunRow, error) {
-	row := q.db.QueryRow(ctx, loadRun, runID)
+func (q *Queries) LoadRun(ctx context.Context, arg LoadRunParams) (*LoadRunRow, error) {
+	row := q.db.QueryRow(ctx, loadRun, arg.TenantID, arg.RunID)
 	var i LoadRunRow
 	err := row.Scan(
 		&i.ID,
@@ -174,11 +185,16 @@ func (q *Queries) LoadRun(ctx context.Context, runID string) (*LoadRunRow, error
 }
 
 const lockRunStatus = `-- name: LockRunStatus :one
-SELECT status FROM runs WHERE id = $1 FOR UPDATE
+SELECT status FROM runs WHERE tenant_id = $1 AND id = $2 FOR UPDATE
 `
 
-func (q *Queries) LockRunStatus(ctx context.Context, runID string) (int16, error) {
-	row := q.db.QueryRow(ctx, lockRunStatus, runID)
+type LockRunStatusParams struct {
+	TenantID string
+	RunID    string
+}
+
+func (q *Queries) LockRunStatus(ctx context.Context, arg LockRunStatusParams) (int16, error) {
+	row := q.db.QueryRow(ctx, lockRunStatus, arg.TenantID, arg.RunID)
 	var status int16
 	err := row.Scan(&status)
 	return status, err
@@ -196,25 +212,30 @@ UPDATE runs SET
     ended_at = NULL,
     error = NULL,
     updated_at = now()
-WHERE id = $3
+WHERE tenant_id = $3 AND id = $4
 `
 
 type ResetRunExecutionParams struct {
 	Status           int16
 	PreserveProgress bool
+	TenantID         string
 	RunID            string
 }
 
 func (q *Queries) ResetRunExecution(ctx context.Context, arg ResetRunExecutionParams) error {
-	_, err := q.db.Exec(ctx, resetRunExecution, arg.Status, arg.PreserveProgress, arg.RunID)
+	_, err := q.db.Exec(ctx, resetRunExecution,
+		arg.Status,
+		arg.PreserveProgress,
+		arg.TenantID,
+		arg.RunID,
+	)
 	return err
 }
 
-const saveRun = `-- name: SaveRun :exec
+const saveRun = `-- name: SaveRun :execrows
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
 VALUES ($1, $2, nullif($3::text, '')::uuid, nullif($4::text, '')::uuid, nullif($5::text, '')::uuid, $6, $7, $8, $9, $10, $11, $12, $13, nullif($14::text, ''), $15, $16, now())
 ON CONFLICT (id) DO UPDATE SET
-    tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     pipeline_version_id = EXCLUDED.pipeline_version_id,
     schedule_id = EXCLUDED.schedule_id,
@@ -234,6 +255,7 @@ ON CONFLICT (id) DO UPDATE SET
     cpu_seconds = EXCLUDED.cpu_seconds,
     memory_peak_bytes = EXCLUDED.memory_peak_bytes,
     updated_at = now()
+WHERE runs.tenant_id = EXCLUDED.tenant_id
 `
 
 type SaveRunParams struct {
@@ -255,8 +277,8 @@ type SaveRunParams struct {
 	MemoryPeakBytes   int64
 }
 
-func (q *Queries) SaveRun(ctx context.Context, arg SaveRunParams) error {
-	_, err := q.db.Exec(ctx, saveRun,
+func (q *Queries) SaveRun(ctx context.Context, arg SaveRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveRun,
 		arg.RunID,
 		arg.TenantID,
 		arg.PipelineID,
@@ -274,7 +296,10 @@ func (q *Queries) SaveRun(ctx context.Context, arg SaveRunParams) error {
 		arg.CpuSeconds,
 		arg.MemoryPeakBytes,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const transitionRun = `-- name: TransitionRun :exec
@@ -282,16 +307,22 @@ UPDATE runs SET
     status = $1,
     ended_at = CASE WHEN $2::boolean THEN coalesce(ended_at, now()) ELSE ended_at END,
     updated_at = now()
-WHERE id = $3
+WHERE tenant_id = $3 AND id = $4
 `
 
 type TransitionRunParams struct {
 	Status     int16
 	StampEnded bool
+	TenantID   string
 	RunID      string
 }
 
 func (q *Queries) TransitionRun(ctx context.Context, arg TransitionRunParams) error {
-	_, err := q.db.Exec(ctx, transitionRun, arg.Status, arg.StampEnded, arg.RunID)
+	_, err := q.db.Exec(ctx, transitionRun,
+		arg.Status,
+		arg.StampEnded,
+		arg.TenantID,
+		arg.RunID,
+	)
 	return err
 }

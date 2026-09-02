@@ -17,7 +17,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/runs.proto.
  */
 export const file_ingestion_v1_runs: GenFile = /*@__PURE__*/
-  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSK+AQoSUnVuUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRITCgtwaXBlbGluZV9pZBgCIAEoCRIUCgxjbGllbnRfdG9rZW4YAyABKAkSKQoHb3B0aW9ucxgEIAEoCzIYLmluZ2VzdGlvbi52MS5SdW5PcHRpb25zEj8KFHdvcmtlcl9jb25maWd1cmF0aW9uGAUgASgLMiEuaW5nZXN0aW9uLnYxLldvcmtlckNvbmZpZ3VyYXRpb24iUAoPUGlwZWxpbmVFZGdlUnVuEhkKEXBpcGVsaW5lX2VkZ2Vfa2V5GAEgASgJEiIKA3J1bhgCIAEoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvIkcKE1J1blBpcGVsaW5lUmVzcG9uc2USMAoJZWRnZV9ydW5zGAEgAygLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lRWRnZVJ1biKBAQoQUnVuUmVzb3VyY2VTdGF0ZRIVCg1yZXNvdXJjZV9uYW1lGAEgASgJEicKBnN0YXR1cxgDIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSDwoHcmVjb3JkcxgEIAEoAxINCgVieXRlcxgFIAEoAxINCgVlcnJvchgGIAEoCSKWAwoHUnVuSW5mbxIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkSEwoLcGlwZWxpbmVfaWQYAyABKAkSGwoTcGlwZWxpbmVfdmVyc2lvbl9pZBgEIAEoCRInCgZzdGF0dXMYBSABKA4yFy5pbmdlc3Rpb24udjEuUnVuU3RhdHVzEg8KB3JlY29yZHMYBiABKAMSDQoFYnl0ZXMYByABKAMSDQoFZXJyb3IYCCABKAkSEgoKc3RhcnRlZF9hdBgJIAEoAxIQCghlbmRlZF9hdBgKIAEoAxIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgLIAEoCRIaChJzaW5rX2Nvbm5lY3Rpb25faWQYDCABKAkSEwoLY3B1X3NlY29uZHMYDSABKAESGQoRbWVtb3J5X3BlYWtfYnl0ZXMYDiABKAMSEgoKY3JlYXRlZF9hdBgPIAEoAxIUCgxzY2hlZHVsZWRfYXQYECABKAMSFAoMcmVxdWVzdGVkX2F0GBEgASgDEhIKCnVwZGF0ZWRfYXQYEiABKAMidAoLUnVuU25hcHNob3QSIgoDcnVuGAEgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMQoJcmVzb3VyY2VzGAIgAygLMh4uaW5nZXN0aW9uLnYxLlJ1blJlc291cmNlU3RhdGUSDgoGYXRfc2VxGAMgASgEIjIKDUdldFJ1blJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSI9Cg5HZXRSdW5SZXNwb25zZRIrCghzbmFwc2hvdBgBIAEoCzIZLmluZ2VzdGlvbi52MS5SdW5TbmFwc2hvdCK0AgoPTGlzdFJ1bnNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRITCgtwaXBlbGluZV9pZBgCIAEoCRIgChNwaXBlbGluZV92ZXJzaW9uX2lkGAMgASgJSACIAQESJwoGc3RhdHVzGAQgAygOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIzCgpwYWdpbmF0aW9uGAUgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0EhAKCHNpbmNlX21zGAYgASgDEhAKCHVudGlsX21zGAcgASgDEg4KBnNlYXJjaBgIIAEoCRItCgdzb3J0aW5nGAkgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0QhYKFF9waXBlbGluZV92ZXJzaW9uX2lkIm0KEExpc3RSdW5zUmVzcG9uc2USIwoEcnVucxgBIAMoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIl4KEFNpZ25hbFJ1blJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRInCgZzaWduYWwYAyABKA4yFy5pbmdlc3Rpb24udjEuUnVuU2lnbmFsIhMKEVNpZ25hbFJ1blJlc3BvbnNlIkoKDlRhaWxSdW5SZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSFQoNc2hvdWxkX3JlcGxheRgDIAEoCCK1AQoOUnVuRXZlbnRGaWVsZHMSDwoHcmVjb3JkcxgBIAEoAxINCgVieXRlcxgCIAEoAxILCgN1cmkYAyABKAkSCwoDY3JjGAQgASgNEg0KBWVycm9yGAUgASgJEhYKDnJldHJ5X2FmdGVyX21zGAYgASgDEhUKDXBhcmVudHNfdG90YWwYByABKAMSKwoKY2hlY2twb2ludBgIIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QitQEKCFJ1bkV2ZW50EhEKCXRlbmFudF9pZBgBIAEoCRISCgpldmVudF90eXBlGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIQCghyZXNvdXJjZRgEIAEoCRILCgNzZXEYBSABKAQSEgoKY3JlYXRlZF9hdBgGIAEoAxIsCgZmaWVsZHMYByABKAsyHC5pbmdlc3Rpb24udjEuUnVuRXZlbnRGaWVsZHMSEQoJaXNfcmVwbGF5GAggASgIIjgKD1RhaWxSdW5SZXNwb25zZRIlCgVldmVudBgBIAEoCzIWLmluZ2VzdGlvbi52MS5SdW5FdmVudCrsAQoJUnVuU3RhdHVzEhoKFlJVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIYChRSVU5fU1RBVFVTX1JFUVVFU1RFRBABEhYKElJVTl9TVEFUVVNfUlVOTklORxACEhgKFFJVTl9TVEFUVVNfQ09NUExFVEVEEAMSFQoRUlVOX1NUQVRVU19GQUlMRUQQBBIXChNSVU5fU1RBVFVTX0NBTkNFTEVEEAUSFQoRUlVOX1NUQVRVU19QQVVTRUQQBhIWChJSVU5fU1RBVFVTX1BBUlRJQUwQBxIYChRSVU5fU1RBVFVTX1NDSEVEVUxFRBAIKmsKCVJ1blNpZ25hbBIaChZSVU5fU0lHTkFMX1VOU1BFQ0lGSUVEEAASFAoQUlVOX1NJR05BTF9QQVVTRRABEhUKEVJVTl9TSUdOQUxfUkVTVU1FEAISFQoRUlVOX1NJR05BTF9DQU5DRUwQA2IGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
+  fileDesc("Chdpbmdlc3Rpb24vdjEvcnVucy5wcm90bxIMaW5nZXN0aW9uLnYxIjgKClJhdGVQb2xpY3kSGwoTcmVxdWVzdHNfcGVyX3NlY29uZBgBIAEoARINCgVidXJzdBgCIAEoBSK3AQoKUnVuT3B0aW9ucxISCgpmZXRjaF9zaXplGAEgASgFEhYKDmJhdGNoX21heF9yb3dzGAIgASgFEhcKD2JhdGNoX21heF9ieXRlcxgDIAEoAxIsCgpyYXRlX2xpbWl0GAQgASgLMhguaW5nZXN0aW9uLnYxLlJhdGVQb2xpY3kSHAoUc25hcHNob3RfcGFyYWxsZWxpc20YBSABKAUSGAoQY2hlY2twb2ludF9ldmVyeRgGIAEoBSKrAQoSUnVuUGlwZWxpbmVSZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEhQKDGNsaWVudF90b2tlbhgCIAEoCRIpCgdvcHRpb25zGAMgASgLMhguaW5nZXN0aW9uLnYxLlJ1bk9wdGlvbnMSPwoUd29ya2VyX2NvbmZpZ3VyYXRpb24YBCABKAsyIS5pbmdlc3Rpb24udjEuV29ya2VyQ29uZmlndXJhdGlvbiJQCg9QaXBlbGluZUVkZ2VSdW4SGQoRcGlwZWxpbmVfZWRnZV9rZXkYASABKAkSIgoDcnVuGAIgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8iRwoTUnVuUGlwZWxpbmVSZXNwb25zZRIwCgllZGdlX3J1bnMYASADKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVFZGdlUnVuIoEBChBSdW5SZXNvdXJjZVN0YXRlEhUKDXJlc291cmNlX25hbWUYASABKAkSJwoGc3RhdHVzGAIgASgOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIPCgdyZWNvcmRzGAMgASgDEg0KBWJ5dGVzGAQgASgDEg0KBWVycm9yGAUgASgJIpYDCgdSdW5JbmZvEhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCRITCgtwaXBlbGluZV9pZBgDIAEoCRIbChNwaXBlbGluZV92ZXJzaW9uX2lkGAQgASgJEicKBnN0YXR1cxgFIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TdGF0dXMSDwoHcmVjb3JkcxgGIAEoAxINCgVieXRlcxgHIAEoAxINCgVlcnJvchgIIAEoCRISCgpzdGFydGVkX2F0GAkgASgDEhAKCGVuZGVkX2F0GAogASgDEhwKFHNvdXJjZV9jb25uZWN0aW9uX2lkGAsgASgJEhoKEnNpbmtfY29ubmVjdGlvbl9pZBgMIAEoCRITCgtjcHVfc2Vjb25kcxgNIAEoARIZChFtZW1vcnlfcGVha19ieXRlcxgOIAEoAxISCgpjcmVhdGVkX2F0GA8gASgDEhQKDHNjaGVkdWxlZF9hdBgQIAEoAxIUCgxyZXF1ZXN0ZWRfYXQYESABKAMSEgoKdXBkYXRlZF9hdBgSIAEoAyJ0CgtSdW5TbmFwc2hvdBIiCgNydW4YASABKAsyFS5pbmdlc3Rpb24udjEuUnVuSW5mbxIxCglyZXNvdXJjZXMYAiADKAsyHi5pbmdlc3Rpb24udjEuUnVuUmVzb3VyY2VTdGF0ZRIOCgZhdF9zZXEYAyABKAQiHwoNR2V0UnVuUmVxdWVzdBIOCgZydW5faWQYASABKAkiPQoOR2V0UnVuUmVzcG9uc2USKwoIc25hcHNob3QYASABKAsyGS5pbmdlc3Rpb24udjEuUnVuU25hcHNob3QioQIKD0xpc3RSdW5zUmVxdWVzdBITCgtwaXBlbGluZV9pZBgBIAEoCRIgChNwaXBlbGluZV92ZXJzaW9uX2lkGAIgASgJSACIAQESJwoGc3RhdHVzGAMgAygOMhcuaW5nZXN0aW9uLnYxLlJ1blN0YXR1cxIzCgpwYWdpbmF0aW9uGAQgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0EhAKCHNpbmNlX21zGAUgASgDEhAKCHVudGlsX21zGAYgASgDEg4KBnNlYXJjaBgHIAEoCRItCgdzb3J0aW5nGAggASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0QhYKFF9waXBlbGluZV92ZXJzaW9uX2lkIm0KEExpc3RSdW5zUmVzcG9uc2USIwoEcnVucxgBIAMoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIksKEFNpZ25hbFJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJEicKBnNpZ25hbBgCIAEoDjIXLmluZ2VzdGlvbi52MS5SdW5TaWduYWwiEwoRU2lnbmFsUnVuUmVzcG9uc2UiNwoOVGFpbFJ1blJlcXVlc3QSDgoGcnVuX2lkGAEgASgJEhUKDXNob3VsZF9yZXBsYXkYAiABKAgitQEKDlJ1bkV2ZW50RmllbGRzEg8KB3JlY29yZHMYASABKAMSDQoFYnl0ZXMYAiABKAMSCwoDdXJpGAMgASgJEgsKA2NyYxgEIAEoDRINCgVlcnJvchgFIAEoCRIWCg5yZXRyeV9hZnRlcl9tcxgGIAEoAxIVCg1wYXJlbnRzX3RvdGFsGAcgASgDEisKCmNoZWNrcG9pbnQYCCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IrUBCghSdW5FdmVudBIRCgl0ZW5hbnRfaWQYASABKAkSEgoKZXZlbnRfdHlwZRgCIAEoCRIOCgZydW5faWQYAyABKAkSEAoIcmVzb3VyY2UYBCABKAkSCwoDc2VxGAUgASgEEhIKCmNyZWF0ZWRfYXQYBiABKAMSLAoGZmllbGRzGAcgASgLMhwuaW5nZXN0aW9uLnYxLlJ1bkV2ZW50RmllbGRzEhEKCWlzX3JlcGxheRgIIAEoCCI4Cg9UYWlsUnVuUmVzcG9uc2USJQoFZXZlbnQYASABKAsyFi5pbmdlc3Rpb24udjEuUnVuRXZlbnQq7AEKCVJ1blN0YXR1cxIaChZSVU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASGAoUUlVOX1NUQVRVU19SRVFVRVNURUQQARIWChJSVU5fU1RBVFVTX1JVTk5JTkcQAhIYChRSVU5fU1RBVFVTX0NPTVBMRVRFRBADEhUKEVJVTl9TVEFUVVNfRkFJTEVEEAQSFwoTUlVOX1NUQVRVU19DQU5DRUxFRBAFEhUKEVJVTl9TVEFUVVNfUEFVU0VEEAYSFgoSUlVOX1NUQVRVU19QQVJUSUFMEAcSGAoUUlVOX1NUQVRVU19TQ0hFRFVMRUQQCCprCglSdW5TaWduYWwSGgoWUlVOX1NJR05BTF9VTlNQRUNJRklFRBAAEhQKEFJVTl9TSUdOQUxfUEFVU0UQARIVChFSVU5fU0lHTkFMX1JFU1VNRRACEhUKEVJVTl9TSUdOQUxfQ0FOQ0VMEANiBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
 
 /**
  * RatePolicy throttles source reads.
@@ -93,12 +93,7 @@ export const RunOptionsSchema: GenMessage<RunOptions> = /*@__PURE__*/
  */
 export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
@@ -106,7 +101,7 @@ export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
    * client_token salts the idempotency key so a deliberate re-run differs from a
    * double-click; reusing a token dedupes to the same runs.
    *
-   * @generated from field: string client_token = 3;
+   * @generated from field: string client_token = 2;
    */
   clientToken: string;
 
@@ -114,7 +109,7 @@ export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
    * options overrides engine throughput defaults for every run this call
    * produces. Unset (or any zero field) defers to defaults.
    *
-   * @generated from field: ingestion.v1.RunOptions options = 4;
+   * @generated from field: ingestion.v1.RunOptions options = 3;
    */
   options?: RunOptions | undefined;
 
@@ -124,7 +119,7 @@ export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
    * is stamped onto each run, so editing the pipeline afterwards cannot change
    * a run already requested.
    *
-   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 5;
+   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 4;
    */
   workerConfiguration?: WorkerConfiguration | undefined;
 };
@@ -189,22 +184,22 @@ export type RunResourceState = Message<"ingestion.v1.RunResourceState"> & {
   resourceName: string;
 
   /**
-   * @generated from field: ingestion.v1.RunStatus status = 3;
+   * @generated from field: ingestion.v1.RunStatus status = 2;
    */
   status: RunStatus;
 
   /**
-   * @generated from field: int64 records = 4;
+   * @generated from field: int64 records = 3;
    */
   records: bigint;
 
   /**
-   * @generated from field: int64 bytes = 5;
+   * @generated from field: int64 bytes = 4;
    */
   bytes: bigint;
 
   /**
-   * @generated from field: string error = 6;
+   * @generated from field: string error = 5;
    */
   error: string;
 };
@@ -359,12 +354,7 @@ export const RunSnapshotSchema: GenMessage<RunSnapshot> = /*@__PURE__*/
  */
 export type GetRunRequest = Message<"ingestion.v1.GetRunRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
+   * @generated from field: string run_id = 1;
    */
   runId: string;
 };
@@ -398,27 +388,22 @@ export const GetRunResponseSchema: GenMessage<GetRunResponse> = /*@__PURE__*/
  */
 export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
   /**
-   * @generated from field: optional string pipeline_version_id = 3;
+   * @generated from field: optional string pipeline_version_id = 2;
    */
   pipelineVersionId?: string | undefined;
 
   /**
-   * @generated from field: repeated ingestion.v1.RunStatus status = 4;
+   * @generated from field: repeated ingestion.v1.RunStatus status = 3;
    */
   status: RunStatus[];
 
   /**
-   * @generated from field: ingestion.v1.PaginationRequest pagination = 5;
+   * @generated from field: ingestion.v1.PaginationRequest pagination = 4;
    */
   pagination?: PaginationRequest | undefined;
 
@@ -426,22 +411,22 @@ export type ListRunsRequest = Message<"ingestion.v1.ListRunsRequest"> & {
    * since_ms/until_ms window on started_at (inclusive/exclusive, epoch
    * millis); 0 means unbounded. Runs that never started are excluded.
    *
-   * @generated from field: int64 since_ms = 6;
+   * @generated from field: int64 since_ms = 5;
    */
   sinceMs: bigint;
 
   /**
-   * @generated from field: int64 until_ms = 7;
+   * @generated from field: int64 until_ms = 6;
    */
   untilMs: bigint;
 
   /**
-   * @generated from field: string search = 8;
+   * @generated from field: string search = 7;
    */
   search: string;
 
   /**
-   * @generated from field: ingestion.v1.SortingRequest sorting = 9;
+   * @generated from field: ingestion.v1.SortingRequest sorting = 8;
    */
   sorting?: SortingRequest | undefined;
 };
@@ -480,17 +465,12 @@ export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*
  */
 export type SignalRunRequest = Message<"ingestion.v1.SignalRunRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
+   * @generated from field: string run_id = 1;
    */
   runId: string;
 
   /**
-   * @generated from field: ingestion.v1.RunSignal signal = 3;
+   * @generated from field: ingestion.v1.RunSignal signal = 2;
    */
   signal: RunSignal;
 };
@@ -520,12 +500,7 @@ export const SignalRunResponseSchema: GenMessage<SignalRunResponse> = /*@__PURE_
  */
 export type TailRunRequest = Message<"ingestion.v1.TailRunRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
+   * @generated from field: string run_id = 1;
    */
   runId: string;
 
@@ -533,7 +508,7 @@ export type TailRunRequest = Message<"ingestion.v1.TailRunRequest"> & {
    * replay first emits events synthesized from the current snapshot (each marked
    * replay=true) so progress is correct on reconnect, before live facts stream.
    *
-   * @generated from field: bool should_replay = 3;
+   * @generated from field: bool should_replay = 2;
    */
   shouldReplay: boolean;
 };

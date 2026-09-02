@@ -13,13 +13,15 @@ import (
 
 const deleteResourceCheckpoint = `-- name: DeleteResourceCheckpoint :exec
 DELETE FROM pipeline_resource_checkpoints
-WHERE pipeline_id = $1
-  AND pipeline_version_id = $2
-  AND route_key = $3
-  AND resource_name = $4
+WHERE tenant_id = $1
+  AND pipeline_id = $2
+  AND pipeline_version_id = $3
+  AND route_key = $4
+  AND resource_name = $5
 `
 
 type DeleteResourceCheckpointParams struct {
+	TenantID          string
 	PipelineID        string
 	PipelineVersionID string
 	RouteKey          string
@@ -28,6 +30,7 @@ type DeleteResourceCheckpointParams struct {
 
 func (q *Queries) DeleteResourceCheckpoint(ctx context.Context, arg DeleteResourceCheckpointParams) error {
 	_, err := q.db.Exec(ctx, deleteResourceCheckpoint,
+		arg.TenantID,
 		arg.PipelineID,
 		arg.PipelineVersionID,
 		arg.RouteKey,
@@ -39,13 +42,15 @@ func (q *Queries) DeleteResourceCheckpoint(ctx context.Context, arg DeleteResour
 const listResourceCheckpoints = `-- name: ListResourceCheckpoints :many
 SELECT resource_name, cursor, last_run_id, updated_at
 FROM pipeline_resource_checkpoints
-WHERE pipeline_id = $1
-  AND pipeline_version_id = $2
-  AND route_key = $3
+WHERE tenant_id = $1
+  AND pipeline_id = $2
+  AND pipeline_version_id = $3
+  AND route_key = $4
 ORDER BY resource_name
 `
 
 type ListResourceCheckpointsParams struct {
+	TenantID          string
 	PipelineID        string
 	PipelineVersionID string
 	RouteKey          string
@@ -59,7 +64,12 @@ type ListResourceCheckpointsRow struct {
 }
 
 func (q *Queries) ListResourceCheckpoints(ctx context.Context, arg ListResourceCheckpointsParams) ([]*ListResourceCheckpointsRow, error) {
-	rows, err := q.db.Query(ctx, listResourceCheckpoints, arg.PipelineID, arg.PipelineVersionID, arg.RouteKey)
+	rows, err := q.db.Query(ctx, listResourceCheckpoints,
+		arg.TenantID,
+		arg.PipelineID,
+		arg.PipelineVersionID,
+		arg.RouteKey,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -86,13 +96,15 @@ func (q *Queries) ListResourceCheckpoints(ctx context.Context, arg ListResourceC
 const loadResourceCheckpoint = `-- name: LoadResourceCheckpoint :one
 SELECT cursor, last_run_id, updated_at
 FROM pipeline_resource_checkpoints
-WHERE pipeline_id = $1
-  AND pipeline_version_id = $2
-  AND route_key = $3
-  AND resource_name = $4
+WHERE tenant_id = $1
+  AND pipeline_id = $2
+  AND pipeline_version_id = $3
+  AND route_key = $4
+  AND resource_name = $5
 `
 
 type LoadResourceCheckpointParams struct {
+	TenantID          string
 	PipelineID        string
 	PipelineVersionID string
 	RouteKey          string
@@ -107,6 +119,7 @@ type LoadResourceCheckpointRow struct {
 
 func (q *Queries) LoadResourceCheckpoint(ctx context.Context, arg LoadResourceCheckpointParams) (*LoadResourceCheckpointRow, error) {
 	row := q.db.QueryRow(ctx, loadResourceCheckpoint,
+		arg.TenantID,
 		arg.PipelineID,
 		arg.PipelineVersionID,
 		arg.RouteKey,
@@ -117,15 +130,16 @@ func (q *Queries) LoadResourceCheckpoint(ctx context.Context, arg LoadResourceCh
 	return &i, err
 }
 
-const saveResourceCheckpoint = `-- name: SaveResourceCheckpoint :exec
+const saveResourceCheckpoint = `-- name: SaveResourceCheckpoint :execrows
 INSERT INTO pipeline_resource_checkpoints (
   tenant_id, pipeline_id, pipeline_version_id, route_key, resource_name, cursor, last_run_id, updated_at
 )
-SELECT tenant_id, $1, $2, $3, $4, $5, $6, now()
+SELECT pipelines.tenant_id, $1, $2, $3, $4, $5, $6, now()
 FROM pipelines
-WHERE id = $1
+WHERE pipelines.tenant_id = $7 AND pipelines.id = $1
 ON CONFLICT (pipeline_id, pipeline_version_id, route_key, resource_name) DO UPDATE
 SET cursor = EXCLUDED.cursor, last_run_id = EXCLUDED.last_run_id, updated_at = now()
+WHERE pipeline_resource_checkpoints.tenant_id = EXCLUDED.tenant_id
 `
 
 type SaveResourceCheckpointParams struct {
@@ -135,16 +149,21 @@ type SaveResourceCheckpointParams struct {
 	ResourceName      string
 	Cursor            []byte
 	LastRunID         string
+	TenantID          string
 }
 
-func (q *Queries) SaveResourceCheckpoint(ctx context.Context, arg SaveResourceCheckpointParams) error {
-	_, err := q.db.Exec(ctx, saveResourceCheckpoint,
+func (q *Queries) SaveResourceCheckpoint(ctx context.Context, arg SaveResourceCheckpointParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveResourceCheckpoint,
 		arg.PipelineID,
 		arg.PipelineVersionID,
 		arg.RouteKey,
 		arg.ResourceName,
 		arg.Cursor,
 		arg.LastRunID,
+		arg.TenantID,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

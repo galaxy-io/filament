@@ -334,6 +334,8 @@ type ResourceState struct {
 // Since is inclusive and Until exclusive on StartedAt — a window asks which
 // runs ran in it, so runs that never started fall outside either bound.
 type RunFilter struct {
+	// Tenant scopes the listing. Empty means every tenant: system sweeps
+	// like the reaper run unscoped; API paths always set it.
 	Tenant            TenantID
 	PipelineID        string
 	PipelineVersionID *string
