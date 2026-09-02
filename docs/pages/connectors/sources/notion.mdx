@@ -4,11 +4,10 @@ description: "Read databases, pages, users, and blocks from a Notion workspace"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-notion-dark.svg"
 ---
 
-Notion is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/notion.yaml` manifest declares its resources,
-which cover databases, the pages inside them, workspace users, and the block
-content of each page. The connector is **beta**. The resource set is stable,
-though field shapes may still be extended.
+The Notion source reads databases, their pages and blocks, and workspace users.
+It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**beta**. Its resources are stable, though future releases may add columns.
 
 ## Configuration
 
@@ -18,18 +17,19 @@ though field shapes may still be extended.
 
 ## Resources
 
-`databases` is discovered through `POST /v1/search` filtered to
-`object: database`, and captures each database id. `pages` fans out from it
-(one `POST /v1/databases/{id}/query` walk per database) and captures each page
-id, which `blocks` then fans out over with one `GET /v1/blocks/{id}/children`
-walk per page. `users` is an independent top-level list. The
-databases → pages → blocks chain means block extraction issues at least one
-request per page in the workspace.
+```text
+databases → pages → blocks
+users
+```
+
+Filament searches for databases, requests the pages in each database, and then
+requests the child blocks for each page. Users are read independently. Selecting
+blocks therefore adds at least one API request per page in the workspace.
 
 ## Modes
 
-Full is always available. A full run checkpoints its pagination cursor per
-top-level resource and resumes from the last completed page. Child resources
+All resources support full reads. If interrupted, a top-level resource resumes
+after its last completed page. Child resources
 (`pages`, `blocks`) always restart with their parent.
 
 `pages` is the one incremental resource.
@@ -53,7 +53,7 @@ When it is selected, every page's children are re-read in full.
 ## Behavior
 
 - **Auth**: bearer token from `api_key` on every request.
-- **API version**: pinned via `Notion-Version: 2022-06-28`, so payload shapes
+- **API version**: pinned via `Notion-Version: 2022-06-28`, so response fields
   do not drift with Notion's rolling default.
 - **Pagination**: cursor paging throughout. `next_cursor` from each response
   feeds `start_cursor` in the next request (in the body for the POST

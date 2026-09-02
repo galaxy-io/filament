@@ -46,9 +46,8 @@ overwriting each other.
   <img className="hidden dark:block" src="/assets/images/filament-connections-dark.png" alt="Saved source connections in dark mode" />
 </Frame>
 
-New source opens the connector catalog. What appears is whatever the running
-binary has compiled in, read live from the server, each with a maturity badge
-running alpha through stable.
+New source opens the connector catalog. It shows the connectors compiled into
+the running server and labels each one alpha, beta, or stable.
 
 <Frame caption="The connector catalog">
   <img className="block dark:hidden" src="/assets/images/filament-connections-create-light.png" alt="Connector catalog in light mode" />
@@ -69,8 +68,10 @@ Two details worth knowing:
   the configured secrets provider. Reads return them masked, and editing
   leaves a stored secret in place unless you submit a new value.
 
-Config is validated against the connector before the connection is saved, so
-a bad hostname or password fails here instead of mid-run.
+Before saving, the server checks required fields, value types, and other local
+configuration rules. It does not make a live connection at this point, so an
+unreachable hostname or rejected password can still fail during discovery or
+a run.
 
 ## Pipelines
 
@@ -85,18 +86,19 @@ settings.
 
 ### Canvas
 
-The canvas edits the pipeline graph. Nodes are connections, edges are routes,
-and each edge carries the levers that decide how data moves. Which resources
-are selected, the read mode (full, incremental, or CDC), the write mode
-(append, replace, upsert, or merge), and a cursor column where incremental
-reads need one. [Replication modes](/pages/guides/concepts/replication-modes)
-covers which combinations are legal and why.
+The canvas edits the pipeline graph. Nodes are connections and edges route
+selected resources between them. Standard sources let you choose full or
+incremental reads and an appropriate destination write mode. CDC sources use
+the connection's change stream and let the route append events or merge them
+into current state. Incremental reads may also need a cursor column.
+[Replication modes](/pages/guides/concepts/replication-modes) explains the
+valid combinations.
 
-Edits validate live against the server. Unmet requirements surface on the
+Edits are validated as you work. Unmet requirements appear on the
 edge itself, so a table without a primary key blocks an upsert route before
 you save rather than failing at run time.
 
-Saving mints a new immutable pipeline version. In-flight runs keep executing
+Saving creates a new immutable pipeline version. In-flight runs keep executing
 against the version they started with.
 
 <Frame caption="The pipeline canvas">
@@ -110,8 +112,8 @@ Every run, newest first, with per-resource record and byte tallies and a
 final status. An active run streams, so progress arrives as the engine
 publishes it rather than on a poll.
 
-Statuses map directly to engine states. A failed run that persisted resumable
-progress lands in `PARTIAL` and continues from its last checkpoint when
+Statuses map directly to engine states. A failed run that saved resumable
+progress enters `PARTIAL` and continues from its last checkpoint when
 requested again. See
 [Runs and recovery](/pages/guides/concepts/runs-and-recovery).
 
@@ -124,14 +126,14 @@ requested again. See
 
 Name and description, a cron schedule with a timezone and an overlap policy,
 and the worker configuration that sizes the machines runs execute on.
-Metadata edits apply in place and never mint a version.
+Metadata edits apply in place and do not create a version.
 
 <Frame caption="Pipeline settings">
   <img className="block dark:hidden" src="/assets/images/filament-pipeline-settings-light.png" alt="Pipeline settings in light mode" />
   <img className="hidden dark:block" src="/assets/images/filament-pipeline-settings-dark.png" alt="Pipeline settings in dark mode" />
 </Frame>
 
-## Under the hood
+## Contributing to the web app
 
 For contributors, the web app lives in `ui/` as a React 18 and TypeScript app
 built with Vite:

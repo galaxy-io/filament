@@ -1,52 +1,46 @@
 ---
 title: "Overview"
-description: "The objects Filament works with and how a run actually executes"
+description: "The few concepts you need to reason about data movement in Filament"
 ---
 
-Filament has a small object model. Learn these and the rest of the docs reads
-easily.
+Filament moves data from a source to a sink. Most of the product can be
+understood through five objects:
 
-- A **connection** is a configured connector, either a source to read from or
-  a sink to write to. It holds credentials and the settings that describe
-  reaching that system, saved once and reused.
-- A **pipeline** is a graph of connections. Its edges route resources from a
-  source to a sink, and each edge carries a read mode, a write mode, and a
-  cursor where one is needed. Editing the graph mints a new immutable version.
-- A **resource** is one table, stream, or API collection inside a source.
-- A **run** is one execution of a pipeline route. It is the unit that gets
-  scheduled, tracked, verified, and resumed.
+- A **connection** says how to reach a source or sink. Credentials and connector
+  settings live here so they can be reused.
+- A **pipeline** connects sources to sinks. Each edge is a route with its own
+  replication choices. Saving an edit creates a new immutable version.
+- A **resource** is one table, stream, or API collection selected from a source.
+- A **run** is one execution of one route.
+- A **checkpoint** records durable progress for a resource that can resume.
 
-## What happens during a run
+Imagine a `users` table moving from PostgreSQL to a warehouse. The connection
+answers “which PostgreSQL?” and “which warehouse?” The route answers “copy all
+users or only changes?” A run is the attempt that performs that work. If the
+chosen mode supports checkpoints, a retry can continue from confirmed progress.
 
-Every run takes the same path regardless of where it was dispatched from.
+## The data journey
 
-1. The run is requested and persisted, then picked up by whichever dispatch
-   backend the deployment uses.
-2. Connectors are resolved and configured, resources are planned, and each
-   resource is bound to a write policy compiled from its read and write modes.
-3. Checkpoints are seeded so a resumable run knows where to start.
-4. Records flow from the source through batching into the sink, with each
-   batch checksummed on both sides before it counts as written.
-5. The run publishes facts as it goes. State is derived from those facts
-   rather than written directly.
-6. On success the sink commits and cursors become durable. On failure the run
-   either fails outright or lands in a partial state that a later run
-   continues from.
+During a run, Filament:
 
-## Where to read next
+1. Resolves the two connectors and the selected resources;
+2. Checks that the requested read and write behavior is supported;
+3. Asks the source to write typed rows into Arrow builders;
+4. Sends bounded Arrow batches to the sink;
+5. Commits or aborts according to the sink contract; and
+6. Records facts, totals, integrity evidence, and durable checkpoints.
 
-[Architecture](/pages/guides/concepts/architecture) covers the execution path
-itself. One runner, the pipeline stages inside it, the modules around it, and
-why dispatch is a deployment choice rather than a behavioral one.
+The queue between source and sink has a fixed size. If the sink slows down, the
+source waits instead of allowing queued data to consume unbounded memory.
+Incremental and CDC routes write in order through a single writer.
 
-[Replication modes](/pages/guides/concepts/replication-modes) covers the
-levers on an edge. Full, incremental, and CDC reads, the write modes each
-allows, and the ingestion types they compile into.
+## Choose what to learn next
 
-[Integrity and checkpoints](/pages/guides/concepts/integrity-and-checkpoints)
-covers correctness. How every batch is verified with a CRC computed
-independently on the read and write side, and how progress is persisted.
-
-[Runs and recovery](/pages/guides/concepts/runs-and-recovery) covers the
-lifecycle. Run states, which runs resume and which do not, how CDC catches up,
-and what happens when something fails midway.
+- [Replication modes](/pages/guides/concepts/replication-modes) helps you choose
+  between full, incremental, and CDC reads and their write behavior.
+- [Architecture](/pages/guides/concepts/architecture) follows a batch through the
+  engine and explains backpressure and parallelism.
+- [Integrity and checkpoints](/pages/guides/concepts/integrity-and-checkpoints)
+  separates data verification from recovery progress.
+- [Runs and recovery](/pages/guides/concepts/runs-and-recovery) explains states,
+  retries, pause, resume, and cancellation.

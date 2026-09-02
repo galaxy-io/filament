@@ -1,82 +1,121 @@
 ---
 title: "Integrity & checkpoints"
-description: "How Filament verifies every batch and persists resumable progress"
+description: "What Filament verifies, when progress becomes durable, and where the guarantees end"
 ---
 
-Two guarantees run through every Filament pipeline. What the sink wrote is
-verified against what the source produced, and progress is persisted so
-eligible runs resume instead of starting over.
+Integrity and checkpoints answer different questions:
 
-## Integrity checking
+- **Integrity:** did the batch change while moving through Filament and the
+  sink's serialization boundary?
+- **Checkpoints:** after an interruption, where is it safe to begin reading
+  again?
 
-Verification is a CRC32-C (Castagnoli) checksum, not row counts. Each
-record is hashed over a canonical encoding:
+Neither turns every destination into an exactly-once system. The guarantees
+depend on the source cursor, the sink's write mode, and when the sink considers
+an applied batch durable.
 
+## What a batch verification proves
+
+Filament moves rows internally as typed Arrow batches. Immediately before
+`Sink.Apply`, the pipeline calculates a CRC32-C checksum over the batch's Arrow
+buffers, its row and column counts, and its insert/update/delete operations.
+The sink recalculates that checksum at its final in-memory boundary and returns
+it as `WriteReceipt.WriteCRC`.
+
+```text
+Arrow batch
+  ├─ pipeline CRC
+  └─ sink CRC ── compare before accepting the batch
 ```
-{"id":<json-escaped id>,"op":<decimal>,"data":<payload verbatim>}
+
+A mismatch means the in-memory batch changed between those boundaries. Filament
+publishes `batch.chunk_divergence` and fails the run.
+
+This check is sensitive to row order, column order, nulls, values, and
+operations. It is not based only on row counts.
+
+## The encoded boundary
+
+Serialization is another place data can change. Sinks that advertise encoded
+integrity also checksum the exact bytes handed to their transport and return
+`WriteReceipt.EncodedCRC`. Filament requires that evidence from those sinks and
+publishes `batch.encoded_integrity_verified` when it is present.
+
+The two checks cover different risks:
+
+| Evidence | Boundary covered |
+|---|---|
+| `WriteCRC` | The borrowed Arrow batch across the call to `Apply` |
+| `EncodedCRC` | The sink's final serialized payload before transport |
+
+These checks do **not** universally read data back from PostgreSQL, S3,
+Iceberg, or another destination. Destination acknowledgement, transactions,
+and read-after-write validation remain connector-specific.
+
+## How checkpoints move
+
+Suppose an incremental `users` pipeline reads rows ordered by
+`(updated_at, id)`. Each flushed batch carries the position of its last row.
+After the sink accepts the batch, Filament includes that position on the
+`batch.written` fact. The tracker combines those deltas into the resource's
+current checkpoint.
+
+```text
+source position → batch.written → tracker → durable checkpoint
 ```
 
-with a length prefix per record, so regrouping or reordering records
-changes the result. The encoding is a deterministic, injective hash
-preimage. It is deliberately not guaranteed to be valid JSON.
+Filament keeps two checkpoint scopes:
 
-Both sides compute the checksum independently. The pipeline's writer
-computes the read-side CRC over the batch immediately before calling
-`Sink.Apply`. The sink computes the write-side CRC over what it actually
-staged or wrote and returns it in `WriteReceipt.WriteCRC`.
+- **Run-scoped checkpoints** allow the same logical run to resume a
+  checkpointed snapshot.
+- **Route checkpoints** carry incremental or CDC progress from one successful
+  run to the next. They are keyed to an immutable pipeline version and route.
 
-After `Apply` returns, the writer compares the two. A match publishes
-`batch.written` and `batch.integrity_verified`. A mismatch publishes
-`batch.chunk_divergence` and fails the run fatally. A divergent batch is
-never silently accepted.
+The runner creates or reloads the initial checkpoint plan before extraction.
+That freezes source decisions such as shard boundaries so a resumed attempt
+does not silently read a different plan.
 
-## Checkpoints
+## When progress becomes durable
 
-Two durable stores hold progress:
+When a checkpoint can be saved depends on when the sink's work is recoverable:
 
-- **Run-scoped**: within-run resume for checkpointing full reads. A
-  restarted run reloads its own shard plan and cursors.
-- **Cross-run**: durable incremental and CDC progress, keyed by
-  `{PipelineID, PipelineVersionID, Route, Resource}` and shared by every
-  run of one immutable pipeline route. An incremental resource without a
-  versioned pipeline route fails.
+- If accepted batches remain recoverable after `Apply`, a fully checkpointed,
+  idempotent run can resume within the same logical run.
+- Incremental and CDC route checkpoints become durable only at a committed
+  completion or committed pause boundary. A failed run does not advance what
+  the next logical run will use.
+- If a sink makes data durable only at `Commit`, its progress is not saved
+  before that commit succeeds.
 
-Checkpoint data comes in these cursor modes:
+As batches are accepted, the tracker updates the run's candidate checkpoint and
+periodically saves progress that is already safe. It also saves safe progress
+when a resource or run finishes. This reduces repeated work without moving a
+cursor past data the sink could lose.
 
-- `keyset`: ordered key ranges split into shards
-- `bitmap`: ack-counted coarse reads
-- `ctid`: physical scan position
-- `incremental`: ordered watermark with a full primary-key tie-breaker
-- `incremental_backfill`: a resumable sharded initial snapshot that promotes
-  to its captured start watermark on completion
-- `stream`: a single monotonic replication-log position such as an LSN or
-  binlog offset
+## What recovery looks like
 
-### Seeding and advancement
+For the `users` example:
 
-The runner seeds checkpoints before extraction — the one place a run writes
-durable state itself. Each resource shape loads its own prior progress:
+1. The last successful run ended at `(10:30, id=42)`.
+2. The next run plans a bounded incremental read starting there.
+3. It writes several batches, then loses its worker before commit.
+4. The route checkpoint remains at the last committed boundary.
+5. A resume may repeat already accepted rows, so an upsert sink converges by
+   primary key instead of skipping data.
 
-- Incremental resources load prior cross-run checkpoints and plan from them
-- Checkpointed full reads load run-scoped state
-- CDC loads per-resource stream positions
+This is deliberately at-least-once recovery. Filament prefers a safe re-read to
+advancing a cursor beyond uncommitted work.
 
-Advancement is folded from facts:
+## Types of cursors
 
-- The batcher stamps each flushed batch with a cursor delta
-- The writer carries it on `batch.written` (a sink may override via
-  `WriteReceipt.Checkpoint`)
-- The tracker (the only writer of fact-derived state) folds deltas and
-  persists every `CheckpointEvery` written batches (default 25), flushing
-  immediately on `resource.completed` and at run termination
+Connectors use different cursor formats because databases and APIs expose
+different stable positions. Examples include ordered keys, completed
+ranges, incremental watermarks with primary-key tie-breakers, and replication
+log positions.
 
-### Commit gating
+Those encodings are connector details. As an operator, focus on three
+questions: can the resource resume, can repeated writes safely converge, and
+does the sink make data durable after each batch or only when the run commits?
 
-Incremental and CDC cursors are tentative until the sink commits. Cross-run
-checkpoint state persists only after `Sink.Commit` succeeds and the run
-completes. A run that fails before commit leaves the durable cursor where
-the last successful run left it, so the next run re-reads rather than
-skipping data.
-
-Which runs can use this progress to resume, and what happens on failure, is
-covered in [Runs and recovery](/pages/guides/concepts/runs-and-recovery).
+See [Runs and recovery](/pages/guides/concepts/runs-and-recovery) for the
+resulting failure, pause, and resume behavior.

@@ -183,8 +183,7 @@
       {
         "group": "Benchmarks",
         "pages": [
-          "pages/benchmarks/overview",
-          "pages/benchmarks/micro-benchmarks"
+          "pages/benchmarks/overview"
         ]
       },
       {
@@ -211,11 +210,11 @@
     },
     {
       "source": "/pages/benchmarks/pipeline/throughput",
-      "destination": "/pages/benchmarks/micro-benchmarks"
+      "destination": "/pages/benchmarks/overview"
     },
     {
       "source": "/pages/benchmarks/event-bus/publish-overhead",
-      "destination": "/pages/benchmarks/micro-benchmarks"
+      "destination": "/pages/benchmarks/overview"
     },
     {
       "source": "/pages/guides/ui/pipelines-and-canvas",
