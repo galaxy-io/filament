@@ -88,7 +88,7 @@ const PreviewChipOverlay = styled.div`
 
 const PipelineLayout = ({ children }: PropsWithChildren) => {
   const navigate = useNavigate();
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const previewed = usePipelinePreviewVersion();
   const isPreview = previewed !== undefined;

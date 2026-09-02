@@ -1,6 +1,8 @@
 // Package zitadel adapts a self-hosted Zitadel instance to filament's
 // identity port. Filament owns every screen and the AuthService contract;
-// Zitadel stores credentials, mints tokens, and federates upstream IdPs.
+// Zitadel stores credentials, holds sessions, and mints the tokens service
+// accounts use. The server is Zitadel's only client: browsers hold a session
+// cookie and never learn the issuer.
 //
 // It is a separate module so its gRPC and SDK dependencies stay out of the
 // core module every connector builds against.
@@ -10,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -36,27 +39,32 @@ type Options struct {
 	Issuer string
 	// PAT is a machine-user personal access token holding instance rights.
 	PAT string
-	// UIOrigin is the browser origin filament's login page is served from;
-	// Zitadel redirects sign-in there.
+	// UIOrigin is the origin the UI is served from; https marks the session
+	// cookie Secure.
 	UIOrigin string
 }
 
 // Provider implements filament's identity port against Zitadel.
 type Provider struct {
 	issuer   string
-	clientID string
 	api      *zclient.Client
 	verifier *oidc.IDTokenVerifier
 	project  projectRef
-	// rolesClaim is precomputed; every authenticated request reads it.
+	// rolesClaim is precomputed; every token-authenticated request reads it.
 	rolesClaim string
+	// secureCookies marks the session cookie Secure when the UI is served
+	// over https.
+	secureCookies bool
+	// callers caches sessionRef -> cachedCaller so a browser's requests do
+	// not each round-trip to Zitadel.
+	callers sync.Map
 	// projectGrants caches org id -> project grant id.
 	projectGrants sync.Map
 }
 
-// New provisions filament's application in Zitadel and returns a provider
-// ready to authenticate. Provisioning is idempotent: every boot converges
-// the same instance state.
+// New provisions filament's project in Zitadel and returns a provider ready
+// to authenticate. Provisioning is idempotent: every boot converges the same
+// instance state.
 func New(ctx context.Context, opts Options) (*Provider, error) {
 	if opts.Issuer == "" {
 		return nil, errors.New("zitadel: issuer is required")
@@ -74,8 +82,8 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		return nil, fmt.Errorf("zitadel: connect %s: %w", issuer, err)
 	}
 
-	p := &Provider{issuer: issuer, api: api}
-	if err := p.bootstrap(ctx, opts.UIOrigin); err != nil {
+	p := &Provider{issuer: issuer, api: api, secureCookies: strings.HasPrefix(opts.UIOrigin, "https://")}
+	if err := p.bootstrap(ctx); err != nil {
 		_ = api.Close()
 		return nil, fmt.Errorf("zitadel bootstrap: %w", err)
 	}
@@ -109,20 +117,33 @@ func dialTarget(issuer string) (*zitadel.Zitadel, error) {
 // Close releases the provider's connection to Zitadel.
 func (p *Provider) Close() error { return p.api.Close() }
 
-// Authenticate verifies the access token against the issuer's JWKS and
-// resolves the caller's tenant and roles from its claims.
-func (p *Provider) Authenticate(ctx context.Context, bearer string) (identity.Caller, error) {
+// Authenticate resolves the caller behind a request. Service accounts carry
+// a bearer access token verified against the issuer's JWKS; browsers carry
+// the session cookie Login set.
+func (p *Provider) Authenticate(ctx context.Context, header http.Header) (identity.Caller, error) {
+	if bearer, ok := strings.CutPrefix(header.Get("Authorization"), "Bearer "); ok && bearer != "" {
+		return p.authenticateToken(ctx, bearer)
+	}
+	if session, ok := sessionFromCookie(header); ok {
+		return p.authenticateSession(ctx, session)
+	}
+	return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, errors.New("no credentials"))
+}
+
+// authenticateToken verifies an access token and resolves the caller's
+// tenant and roles from its claims.
+func (p *Provider) authenticateToken(ctx context.Context, bearer string) (identity.Caller, error) {
 	token, err := p.verifier.Verify(ctx, bearer)
 	if err != nil {
-		return identity.Caller{}, err
+		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	var claims map[string]any
 	if err := token.Claims(&claims); err != nil {
-		return identity.Caller{}, err
+		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	orgID, _ := claims[claimOrgID].(string)
 	if orgID == "" {
-		return identity.Caller{}, errors.New("token carries no organization; request the resourceowner scope")
+		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, errors.New("token carries no organization; request the resourceowner scope"))
 	}
 	orgName, _ := claims[claimOrgName].(string)
 	userID, _ := claims["sub"].(string)
@@ -143,11 +164,17 @@ func (p *Provider) Authenticate(ctx context.Context, bearer string) (identity.Ca
 	return caller, nil
 }
 
-// GetAuthConfig returns what the UI needs to run the PKCE flow.
+// GetAuthConfig tells the UI that auth is on and non-interactive clients
+// what to request from the issuer.
 func (p *Provider) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.GetAuthConfigRequest]) (*connect.Response[authv1.GetAuthConfigResponse], error) {
 	return connect.NewResponse(&authv1.GetAuthConfigResponse{
-		Issuer:   p.issuer,
-		ClientId: p.clientID,
+		Issuer: p.issuer,
+		ServiceAccountScopes: []string{
+			"openid",
+			"urn:zitadel:iam:user:resourceowner",
+			"urn:zitadel:iam:org:project:id:" + p.project.id + ":aud",
+			"urn:zitadel:iam:org:projects:roles",
+		},
 	}), nil
 }
 

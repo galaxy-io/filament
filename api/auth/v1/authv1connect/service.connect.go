@@ -38,11 +38,15 @@ const (
 	AuthServiceGetAuthConfigProcedure = "/auth.v1.AuthService/GetAuthConfig"
 	// AuthServiceLoginProcedure is the fully-qualified name of the AuthService's Login RPC.
 	AuthServiceLoginProcedure = "/auth.v1.AuthService/Login"
+	// AuthServiceLogoutProcedure is the fully-qualified name of the AuthService's Logout RPC.
+	AuthServiceLogoutProcedure = "/auth.v1.AuthService/Logout"
 	// AuthServiceRegisterProcedure is the fully-qualified name of the AuthService's Register RPC.
 	AuthServiceRegisterProcedure = "/auth.v1.AuthService/Register"
 	// AuthServiceAcceptInviteProcedure is the fully-qualified name of the AuthService's AcceptInvite
 	// RPC.
 	AuthServiceAcceptInviteProcedure = "/auth.v1.AuthService/AcceptInvite"
+	// AuthServiceGetSessionProcedure is the fully-qualified name of the AuthService's GetSession RPC.
+	AuthServiceGetSessionProcedure = "/auth.v1.AuthService/GetSession"
 	// AuthServiceListMembersProcedure is the fully-qualified name of the AuthService's ListMembers RPC.
 	AuthServiceListMembersProcedure = "/auth.v1.AuthService/ListMembers"
 	// AuthServiceInviteMemberProcedure is the fully-qualified name of the AuthService's InviteMember
@@ -54,6 +58,18 @@ const (
 	// AuthServiceRemoveMemberProcedure is the fully-qualified name of the AuthService's RemoveMember
 	// RPC.
 	AuthServiceRemoveMemberProcedure = "/auth.v1.AuthService/RemoveMember"
+	// AuthServiceListServiceAccountsProcedure is the fully-qualified name of the AuthService's
+	// ListServiceAccounts RPC.
+	AuthServiceListServiceAccountsProcedure = "/auth.v1.AuthService/ListServiceAccounts"
+	// AuthServiceCreateServiceAccountProcedure is the fully-qualified name of the AuthService's
+	// CreateServiceAccount RPC.
+	AuthServiceCreateServiceAccountProcedure = "/auth.v1.AuthService/CreateServiceAccount"
+	// AuthServiceRotateServiceAccountSecretProcedure is the fully-qualified name of the AuthService's
+	// RotateServiceAccountSecret RPC.
+	AuthServiceRotateServiceAccountSecretProcedure = "/auth.v1.AuthService/RotateServiceAccountSecret"
+	// AuthServiceRemoveServiceAccountProcedure is the fully-qualified name of the AuthService's
+	// RemoveServiceAccount RPC.
+	AuthServiceRemoveServiceAccountProcedure = "/auth.v1.AuthService/RemoveServiceAccount"
 )
 
 // AuthServiceClient is a client for the auth.v1.AuthService service.
@@ -61,13 +77,22 @@ type AuthServiceClient interface {
 	// Session; pre-token, public. An empty issuer means auth is disabled.
 	GetAuthConfig(context.Context, *connect.Request[v1.GetAuthConfigRequest]) (*connect.Response[v1.GetAuthConfigResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
+	// Session; authenticated. The UI's sign-in check.
+	GetSession(context.Context, *connect.Request[v1.GetSessionRequest]) (*connect.Response[v1.GetSessionResponse], error)
 	// Members; authenticated tenant administration.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	InviteMember(context.Context, *connect.Request[v1.InviteMemberRequest]) (*connect.Response[v1.InviteMemberResponse], error)
 	SetMemberRole(context.Context, *connect.Request[v1.SetMemberRoleRequest]) (*connect.Response[v1.SetMemberRoleResponse], error)
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
+	// Service accounts; authenticated tenant administration. Secrets are only
+	// returned by create and rotate and cannot be retrieved later.
+	ListServiceAccounts(context.Context, *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error)
+	CreateServiceAccount(context.Context, *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error)
+	RotateServiceAccountSecret(context.Context, *connect.Request[v1.RotateServiceAccountSecretRequest]) (*connect.Response[v1.RotateServiceAccountSecretResponse], error)
+	RemoveServiceAccount(context.Context, *connect.Request[v1.RemoveServiceAccountRequest]) (*connect.Response[v1.RemoveServiceAccountResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the auth.v1.AuthService service. By default, it uses
@@ -93,6 +118,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("Login")),
 			connect.WithClientOptions(opts...),
 		),
+		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
+			httpClient,
+			baseURL+AuthServiceLogoutProcedure,
+			connect.WithSchema(authServiceMethods.ByName("Logout")),
+			connect.WithClientOptions(opts...),
+		),
 		register: connect.NewClient[v1.RegisterRequest, v1.RegisterResponse](
 			httpClient,
 			baseURL+AuthServiceRegisterProcedure,
@@ -103,6 +134,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+AuthServiceAcceptInviteProcedure,
 			connect.WithSchema(authServiceMethods.ByName("AcceptInvite")),
+			connect.WithClientOptions(opts...),
+		),
+		getSession: connect.NewClient[v1.GetSessionRequest, v1.GetSessionResponse](
+			httpClient,
+			baseURL+AuthServiceGetSessionProcedure,
+			connect.WithSchema(authServiceMethods.ByName("GetSession")),
 			connect.WithClientOptions(opts...),
 		),
 		listMembers: connect.NewClient[v1.ListMembersRequest, v1.ListMembersResponse](
@@ -129,19 +166,49 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("RemoveMember")),
 			connect.WithClientOptions(opts...),
 		),
+		listServiceAccounts: connect.NewClient[v1.ListServiceAccountsRequest, v1.ListServiceAccountsResponse](
+			httpClient,
+			baseURL+AuthServiceListServiceAccountsProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ListServiceAccounts")),
+			connect.WithClientOptions(opts...),
+		),
+		createServiceAccount: connect.NewClient[v1.CreateServiceAccountRequest, v1.CreateServiceAccountResponse](
+			httpClient,
+			baseURL+AuthServiceCreateServiceAccountProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CreateServiceAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		rotateServiceAccountSecret: connect.NewClient[v1.RotateServiceAccountSecretRequest, v1.RotateServiceAccountSecretResponse](
+			httpClient,
+			baseURL+AuthServiceRotateServiceAccountSecretProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RotateServiceAccountSecret")),
+			connect.WithClientOptions(opts...),
+		),
+		removeServiceAccount: connect.NewClient[v1.RemoveServiceAccountRequest, v1.RemoveServiceAccountResponse](
+			httpClient,
+			baseURL+AuthServiceRemoveServiceAccountProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RemoveServiceAccount")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	getAuthConfig *connect.Client[v1.GetAuthConfigRequest, v1.GetAuthConfigResponse]
-	login         *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	register      *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
-	acceptInvite  *connect.Client[v1.AcceptInviteRequest, v1.AcceptInviteResponse]
-	listMembers   *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
-	inviteMember  *connect.Client[v1.InviteMemberRequest, v1.InviteMemberResponse]
-	setMemberRole *connect.Client[v1.SetMemberRoleRequest, v1.SetMemberRoleResponse]
-	removeMember  *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	getAuthConfig              *connect.Client[v1.GetAuthConfigRequest, v1.GetAuthConfigResponse]
+	login                      *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout                     *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	register                   *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
+	acceptInvite               *connect.Client[v1.AcceptInviteRequest, v1.AcceptInviteResponse]
+	getSession                 *connect.Client[v1.GetSessionRequest, v1.GetSessionResponse]
+	listMembers                *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
+	inviteMember               *connect.Client[v1.InviteMemberRequest, v1.InviteMemberResponse]
+	setMemberRole              *connect.Client[v1.SetMemberRoleRequest, v1.SetMemberRoleResponse]
+	removeMember               *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	listServiceAccounts        *connect.Client[v1.ListServiceAccountsRequest, v1.ListServiceAccountsResponse]
+	createServiceAccount       *connect.Client[v1.CreateServiceAccountRequest, v1.CreateServiceAccountResponse]
+	rotateServiceAccountSecret *connect.Client[v1.RotateServiceAccountSecretRequest, v1.RotateServiceAccountSecretResponse]
+	removeServiceAccount       *connect.Client[v1.RemoveServiceAccountRequest, v1.RemoveServiceAccountResponse]
 }
 
 // GetAuthConfig calls auth.v1.AuthService.GetAuthConfig.
@@ -154,6 +221,11 @@ func (c *authServiceClient) Login(ctx context.Context, req *connect.Request[v1.L
 	return c.login.CallUnary(ctx, req)
 }
 
+// Logout calls auth.v1.AuthService.Logout.
+func (c *authServiceClient) Logout(ctx context.Context, req *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return c.logout.CallUnary(ctx, req)
+}
+
 // Register calls auth.v1.AuthService.Register.
 func (c *authServiceClient) Register(ctx context.Context, req *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error) {
 	return c.register.CallUnary(ctx, req)
@@ -162,6 +234,11 @@ func (c *authServiceClient) Register(ctx context.Context, req *connect.Request[v
 // AcceptInvite calls auth.v1.AuthService.AcceptInvite.
 func (c *authServiceClient) AcceptInvite(ctx context.Context, req *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error) {
 	return c.acceptInvite.CallUnary(ctx, req)
+}
+
+// GetSession calls auth.v1.AuthService.GetSession.
+func (c *authServiceClient) GetSession(ctx context.Context, req *connect.Request[v1.GetSessionRequest]) (*connect.Response[v1.GetSessionResponse], error) {
+	return c.getSession.CallUnary(ctx, req)
 }
 
 // ListMembers calls auth.v1.AuthService.ListMembers.
@@ -184,18 +261,47 @@ func (c *authServiceClient) RemoveMember(ctx context.Context, req *connect.Reque
 	return c.removeMember.CallUnary(ctx, req)
 }
 
+// ListServiceAccounts calls auth.v1.AuthService.ListServiceAccounts.
+func (c *authServiceClient) ListServiceAccounts(ctx context.Context, req *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error) {
+	return c.listServiceAccounts.CallUnary(ctx, req)
+}
+
+// CreateServiceAccount calls auth.v1.AuthService.CreateServiceAccount.
+func (c *authServiceClient) CreateServiceAccount(ctx context.Context, req *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error) {
+	return c.createServiceAccount.CallUnary(ctx, req)
+}
+
+// RotateServiceAccountSecret calls auth.v1.AuthService.RotateServiceAccountSecret.
+func (c *authServiceClient) RotateServiceAccountSecret(ctx context.Context, req *connect.Request[v1.RotateServiceAccountSecretRequest]) (*connect.Response[v1.RotateServiceAccountSecretResponse], error) {
+	return c.rotateServiceAccountSecret.CallUnary(ctx, req)
+}
+
+// RemoveServiceAccount calls auth.v1.AuthService.RemoveServiceAccount.
+func (c *authServiceClient) RemoveServiceAccount(ctx context.Context, req *connect.Request[v1.RemoveServiceAccountRequest]) (*connect.Response[v1.RemoveServiceAccountResponse], error) {
+	return c.removeServiceAccount.CallUnary(ctx, req)
+}
+
 // AuthServiceHandler is an implementation of the auth.v1.AuthService service.
 type AuthServiceHandler interface {
 	// Session; pre-token, public. An empty issuer means auth is disabled.
 	GetAuthConfig(context.Context, *connect.Request[v1.GetAuthConfigRequest]) (*connect.Response[v1.GetAuthConfigResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
+	// Session; authenticated. The UI's sign-in check.
+	GetSession(context.Context, *connect.Request[v1.GetSessionRequest]) (*connect.Response[v1.GetSessionResponse], error)
 	// Members; authenticated tenant administration.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	InviteMember(context.Context, *connect.Request[v1.InviteMemberRequest]) (*connect.Response[v1.InviteMemberResponse], error)
 	SetMemberRole(context.Context, *connect.Request[v1.SetMemberRoleRequest]) (*connect.Response[v1.SetMemberRoleResponse], error)
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
+	// Service accounts; authenticated tenant administration. Secrets are only
+	// returned by create and rotate and cannot be retrieved later.
+	ListServiceAccounts(context.Context, *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error)
+	CreateServiceAccount(context.Context, *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error)
+	RotateServiceAccountSecret(context.Context, *connect.Request[v1.RotateServiceAccountSecretRequest]) (*connect.Response[v1.RotateServiceAccountSecretResponse], error)
+	RemoveServiceAccount(context.Context, *connect.Request[v1.RemoveServiceAccountRequest]) (*connect.Response[v1.RemoveServiceAccountResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -217,6 +323,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("Login")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceLogoutHandler := connect.NewUnaryHandler(
+		AuthServiceLogoutProcedure,
+		svc.Logout,
+		connect.WithSchema(authServiceMethods.ByName("Logout")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceRegisterHandler := connect.NewUnaryHandler(
 		AuthServiceRegisterProcedure,
 		svc.Register,
@@ -227,6 +339,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		AuthServiceAcceptInviteProcedure,
 		svc.AcceptInvite,
 		connect.WithSchema(authServiceMethods.ByName("AcceptInvite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceGetSessionHandler := connect.NewUnaryHandler(
+		AuthServiceGetSessionProcedure,
+		svc.GetSession,
+		connect.WithSchema(authServiceMethods.ByName("GetSession")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authServiceListMembersHandler := connect.NewUnaryHandler(
@@ -253,16 +371,44 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("RemoveMember")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceListServiceAccountsHandler := connect.NewUnaryHandler(
+		AuthServiceListServiceAccountsProcedure,
+		svc.ListServiceAccounts,
+		connect.WithSchema(authServiceMethods.ByName("ListServiceAccounts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceCreateServiceAccountHandler := connect.NewUnaryHandler(
+		AuthServiceCreateServiceAccountProcedure,
+		svc.CreateServiceAccount,
+		connect.WithSchema(authServiceMethods.ByName("CreateServiceAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceRotateServiceAccountSecretHandler := connect.NewUnaryHandler(
+		AuthServiceRotateServiceAccountSecretProcedure,
+		svc.RotateServiceAccountSecret,
+		connect.WithSchema(authServiceMethods.ByName("RotateServiceAccountSecret")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceRemoveServiceAccountHandler := connect.NewUnaryHandler(
+		AuthServiceRemoveServiceAccountProcedure,
+		svc.RemoveServiceAccount,
+		connect.WithSchema(authServiceMethods.ByName("RemoveServiceAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuthServiceGetAuthConfigProcedure:
 			authServiceGetAuthConfigHandler.ServeHTTP(w, r)
 		case AuthServiceLoginProcedure:
 			authServiceLoginHandler.ServeHTTP(w, r)
+		case AuthServiceLogoutProcedure:
+			authServiceLogoutHandler.ServeHTTP(w, r)
 		case AuthServiceRegisterProcedure:
 			authServiceRegisterHandler.ServeHTTP(w, r)
 		case AuthServiceAcceptInviteProcedure:
 			authServiceAcceptInviteHandler.ServeHTTP(w, r)
+		case AuthServiceGetSessionProcedure:
+			authServiceGetSessionHandler.ServeHTTP(w, r)
 		case AuthServiceListMembersProcedure:
 			authServiceListMembersHandler.ServeHTTP(w, r)
 		case AuthServiceInviteMemberProcedure:
@@ -271,6 +417,14 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceSetMemberRoleHandler.ServeHTTP(w, r)
 		case AuthServiceRemoveMemberProcedure:
 			authServiceRemoveMemberHandler.ServeHTTP(w, r)
+		case AuthServiceListServiceAccountsProcedure:
+			authServiceListServiceAccountsHandler.ServeHTTP(w, r)
+		case AuthServiceCreateServiceAccountProcedure:
+			authServiceCreateServiceAccountHandler.ServeHTTP(w, r)
+		case AuthServiceRotateServiceAccountSecretProcedure:
+			authServiceRotateServiceAccountSecretHandler.ServeHTTP(w, r)
+		case AuthServiceRemoveServiceAccountProcedure:
+			authServiceRemoveServiceAccountHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -288,12 +442,20 @@ func (UnimplementedAuthServiceHandler) Login(context.Context, *connect.Request[v
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.Login is not implemented"))
 }
 
+func (UnimplementedAuthServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.Logout is not implemented"))
+}
+
 func (UnimplementedAuthServiceHandler) Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.Register is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.AcceptInvite is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) GetSession(context.Context, *connect.Request[v1.GetSessionRequest]) (*connect.Response[v1.GetSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.GetSession is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
@@ -310,4 +472,20 @@ func (UnimplementedAuthServiceHandler) SetMemberRole(context.Context, *connect.R
 
 func (UnimplementedAuthServiceHandler) RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.RemoveMember is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ListServiceAccounts(context.Context, *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.ListServiceAccounts is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) CreateServiceAccount(context.Context, *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CreateServiceAccount is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RotateServiceAccountSecret(context.Context, *connect.Request[v1.RotateServiceAccountSecretRequest]) (*connect.Response[v1.RotateServiceAccountSecretResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.RotateServiceAccountSecret is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RemoveServiceAccount(context.Context, *connect.Request[v1.RemoveServiceAccountRequest]) (*connect.Response[v1.RemoveServiceAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.RemoveServiceAccount is not implemented"))
 }

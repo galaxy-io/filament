@@ -8,24 +8,9 @@ import App from "@/App";
 import "@galaxy-io/dls/styles.css";
 import "@/style.css";
 
-import { GalaxyThemeProvider } from "@galaxy-io/dls/theme/GalaxyTheme";
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
-
 import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
 
-import IdentityProvider from "@/auth/IdentityProvider";
-
-const GALAXY_THEME_VALUES = new Set<string>(Object.values(GalaxyTheme));
-
-const themeStorage = {
-  get: (key: string): GalaxyTheme | null => {
-    const theme = window.localStorage.getItem(key);
-    return theme && GALAXY_THEME_VALUES.has(theme) ? (theme as GalaxyTheme) : null;
-  },
-  set: (key: string, theme: GalaxyTheme) => {
-    window.localStorage.setItem(key, theme);
-  },
-};
+import ThemeProvider from "@/providers/theme/ThemeProvider";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -34,12 +19,10 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   <StrictMode>
-    <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM} storage={themeStorage}>
+    <ThemeProvider>
       <TransportQueryClientProvider>
-        <IdentityProvider>
-          <App />
-        </IdentityProvider>
+        <App />
       </TransportQueryClientProvider>
-    </GalaxyThemeProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

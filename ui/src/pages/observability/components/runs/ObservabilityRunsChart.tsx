@@ -28,7 +28,7 @@ const ObservabilityRunsChart = () => {
     statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
     runsBucket,
     runsStatus,
-  } = useSearch({ from: "/_main/observability" });
+  } = useSearch({ from: "/_app/_main/observability" });
 
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
 

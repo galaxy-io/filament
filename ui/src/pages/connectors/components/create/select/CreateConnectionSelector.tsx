@@ -27,7 +27,7 @@ const CreateConnectionSelector = ({
   onConnectorSelect,
 }: CreateConnectionSelectorProps) => {
   const navigate = useNavigate();
-  const { connectorSearch = "" } = useSearch({ from: "__root__" });
+  const { connectorSearch = "" } = useSearch({ from: "/_app" });
 
   const [state, setState] = useState<CreateConnectionSelectorState>(() => ({
     ...DEFAULT_STATE,

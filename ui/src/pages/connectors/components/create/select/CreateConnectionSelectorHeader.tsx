@@ -31,7 +31,7 @@ const CreateConnectionSelectorHeader = ({
   onSearchChange,
   onClose,
 }: CreateConnectionSelectorHeaderProps) => {
-  const { connectorKind } = useSearch({ from: "__root__" });
+  const { connectorKind } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
   const handleSearchClear = useCallback(() => {
