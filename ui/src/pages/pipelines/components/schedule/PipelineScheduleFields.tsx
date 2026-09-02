@@ -11,6 +11,7 @@ import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import SwitcherInput from "@galaxy-io/dls/inputs/SwitcherInput";
+import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
@@ -26,9 +27,13 @@ import {
   PipelineScheduleFrequency,
   type PipelineSettingsPageScheduleState,
 } from "@/pages/pipelines/settings/types";
-import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
+import {
+  formatPipelineScheduleSummary,
+  isPipelineScheduleCronValid,
+  mapPipelineScheduleStateToCron,
+} from "@/pages/pipelines/settings/utils";
 
-const PIPELINE_SCHEDULE_INPUT_WIDTH = 276;
+const PIPELINE_SCHEDULE_INPUT_WIDTH = 351;
 
 const CollapsibleContent = styled.div<{ $isOpen: boolean }>`
   display: grid;
@@ -48,13 +53,25 @@ interface PipelineScheduleFieldsProps {
 
 const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps) => {
   const summary = formatPipelineScheduleSummary(state);
+  const cronError =
+    state.cron.trim() !== "" && !isPipelineScheduleCronValid(state.cron)
+      ? "Use 5 fields: minute hour day month weekday"
+      : undefined;
 
   const handleEnabledChange = (enabled: boolean) => {
     onChange({ isEnabled: enabled });
   };
 
   const handleFrequencyChange = (frequency: PipelineScheduleFrequency) => {
+    if (frequency === PipelineScheduleFrequency.CUSTOM) {
+      onChange({ frequency, cron: state.cron || mapPipelineScheduleStateToCron(state) });
+      return;
+    }
     onChange({ frequency });
+  };
+
+  const handleCronChange = (cron: string) => {
+    onChange({ cron });
   };
 
   const handleDaysChange = (options: SelectInputOption[]) => {
@@ -173,22 +190,41 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                   />
                 </FlexWrapper>
               )}
-              {state.frequency !== PipelineScheduleFrequency.HOURLY && (
+              {state.frequency === PipelineScheduleFrequency.CUSTOM && (
                 <FlexWrapper
                   alignItems={AlignItems.CENTER}
                   justifyContent={JustifyContent.SPACE_BETWEEN}
                   fillWidth
                 >
-                  <Text variant={TextVariant.SECONDARY}>At</Text>
-                  <SelectInput
-                    options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
-                    value={selectedHourOption}
-                    onChange={handleHourChange}
+                  <Text variant={TextVariant.SECONDARY}>Expression</Text>
+                  <TextInput
+                    value={state.cron}
+                    onChange={handleCronChange}
+                    error={cronError}
+                    placeholder="0 * * * *"
                     size={InputSize.LARGE}
                     width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                    isMonospace
                   />
                 </FlexWrapper>
               )}
+              {state.frequency !== PipelineScheduleFrequency.HOURLY &&
+                state.frequency !== PipelineScheduleFrequency.CUSTOM && (
+                  <FlexWrapper
+                    alignItems={AlignItems.CENTER}
+                    justifyContent={JustifyContent.SPACE_BETWEEN}
+                    fillWidth
+                  >
+                    <Text variant={TextVariant.SECONDARY}>At</Text>
+                    <SelectInput
+                      options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
+                      value={selectedHourOption}
+                      onChange={handleHourChange}
+                      size={InputSize.LARGE}
+                      width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                    />
+                  </FlexWrapper>
+                )}
               {state.frequency !== PipelineScheduleFrequency.HOURLY && (
                 <FlexWrapper
                   alignItems={AlignItems.CENTER}
