@@ -1,13 +1,12 @@
 ---
 title: "Metrics"
-description: "The read-only aggregation service behind the dashboard, serving timeseries and windowed aggregates over runs"
+description: "Query run totals and time series for dashboards and reports"
 ---
 
-Defined in `protos/metrics/v1/metrics.proto`. `metrics.v1.MetricsService` is a
-read-only aggregation surface with exactly two query primitives, a bucketed
-timeseries and a windowed aggregate, parameterized by metric and dimension
-enums. New metrics are enum additions, and the RPC surface never changes. This
-is what the built-in dashboard queries.
+Use `metrics.v1.MetricsService` to answer questions such as “how many records
+moved today?” and “how has the failure count changed by hour?” The built-in
+dashboard uses the same two read-only RPCs. Their messages are defined in
+`protos/metrics/v1/metrics.proto`.
 
 The service is backed by the same runs table the
 [ingestion API](/pages/api-reference/service/runs) writes, through the store
@@ -18,8 +17,8 @@ store is configured, both RPCs return `unimplemented`.
 
 | RPC | Description |
 |---|---|
-| `QueryTimeseries` | Metrics bucketed by hour or day over a time window |
-| `QueryAggregate` | The same metrics as single values per group over a window |
+| `QueryTimeseries` | Return hourly or daily values for charts |
+| `QueryAggregate` | Return one value per metric and group for totals or stat cards |
 
 ## Metrics
 
@@ -32,12 +31,13 @@ store is configured, both RPCs return `unimplemented`.
 | `METRIC_RUN_MEMORY_USAGE` | Mean peak working set in bytes |
 | `METRIC_RUN_CPU_USAGE` | Mean CPU seconds |
 
-Usage metrics exclude runs that reported nothing (for example, runs executed
-outside a cgroup) rather than averaging in zeros.
+CPU and memory averages exclude runs that did not report those values. For
+example, a run outside a cgroup does not reduce the average by contributing a
+zero.
 
 ## QueryTimeseries
 
-The request takes:
+Provide:
 
 - `tenant_id`: `""` matches every tenant, mirroring `ListRuns`
 - `metrics`: a repeated list computed together per bucket
@@ -54,11 +54,9 @@ dimension-value strings (a pipeline id, or a `RunStatus` enum number such as
 `"3"` for `COMPLETED`). When a filter covers the `group_by` dimension, the
 response returns one series per requested value in request order.
 
-The response is built for direct charting. Every series is **dense** (every
-bucket in the window is present, zero-filled, in ascending order), and all
-series in a response are index-aligned, so `series[i].points[j]` and
-`series[k].points[j]` are always the same bucket. Within a point, `values[i]`
-corresponds positionally to `request.metrics[i]`.
+Every series contains the same ordered set of buckets. Missing values are
+filled with zero, so points at the same index always refer to the same hour or
+day. Values follow the order of `request.metrics`.
 
 ```sh
 curl -X POST http://localhost:8080/metrics.v1.MetricsService/QueryTimeseries \
@@ -72,9 +70,24 @@ curl -X POST http://localhost:8080/metrics.v1.MetricsService/QueryTimeseries \
   }'
 ```
 
+A shortened response looks like this:
+
+```json
+{
+  "series": [{
+    "key": "3",
+    "points": [
+      {"timestampMs": "1755561600000", "values": [12, 84520]}
+    ]
+  }]
+}
+```
+
+Here `key` is the grouped status value, and the two values correspond to run
+count and bytes in the order requested.
+
 ## QueryAggregate
 
-The same request shape minus `granularity` and `tz_offset_minutes`. It returns
-one `AggregateRow` per group over the whole window, with `values` aligned to
-the requested metrics. Use it for stat tiles and totals where bucketing is
-noise.
+Use the same fields except `granularity` and `tz_offset_minutes`. The response
+contains one row per group for the entire window, with values in the same order
+as `metrics`. Use this RPC for totals and stat cards instead of charts.

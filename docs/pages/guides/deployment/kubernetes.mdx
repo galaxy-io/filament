@@ -10,8 +10,8 @@ Job per run, so there is no long-lived worker Deployment to size or scale.
 
 ## Installing
 
-The chart requires three inputs. Everything else has a production-safe
-default.
+The chart requires three inputs. Review the remaining values for your security,
+availability, and resource requirements before using it in production.
 
 | Value | Becomes |
 |---|---|
@@ -34,7 +34,7 @@ with. Alternatively, set `existingSecret` to the name of a Secret you manage
 yourself containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`, and `NATS_URL`. The
 chart then creates no Secret of its own.
 
-## What the chart deploys
+## What you get
 
 **Server**: a Deployment (one replica by default) and a Service on port 8080
 serving the API and UI. Optional extras, all off by default:
@@ -66,14 +66,12 @@ Both Deployments annotate their pods with checksums of the rendered ConfigMap
 and Secret, so a config change on upgrade triggers a rollout even when the
 image tag is unchanged.
 
-Both Deployments carry three probes:
+Both Deployments use startup, readiness, and liveness probes:
 
-- startup on `/startupz` (5s period, 24 failures allowed), which succeeds after
-  the event bus connects and the process mounts all of its modules
-- readiness on `/readyz` (10s period, 2 failures allowed), which checks
-  PostgreSQL and the event bus; the server also ensures its default tenant
-- liveness on `/livez` (20s period, 3 failures allowed), which checks only the
-  process's HTTP loop
+- `/startupz` succeeds after the event bus connects and modules start.
+- `/readyz` checks PostgreSQL and the event bus; the server also checks its
+  default tenant.
+- `/livez` checks that the process's HTTP loop responds.
 
 When the vendored PostgreSQL chart is enabled, its startup probe allows up to
 five minutes for cold starts and crash recovery, and its readiness probe marks
@@ -86,7 +84,7 @@ injects exactly one environment variable, `RUN_ID`, and everything else
 arrives via `envFrom` of the worker Secret and ConfigMap. Run-specific state
 lives in PostgreSQL, so the Job spec stays identical across runs.
 
-Job shape is tuned through chart values that map to the control plane's
+Configure worker Jobs through chart values that map to the control plane's
 `K8S_JOB_*` and `K8S_WORKER_*` variables:
 
 - `controlPlane.dispatch.job.namePrefix` (default `filament`)

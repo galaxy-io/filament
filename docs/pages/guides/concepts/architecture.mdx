@@ -1,118 +1,83 @@
 ---
 title: "Architecture"
-description: "One execution path, fact-derived state, and pluggable dispatch"
+description: "How data, progress, and control move through a Filament run"
 ---
 
-Filament is one execution path surrounded by small modules that decide when
-and where it runs. The code splits along three lines:
+Filament has one execution path whether a run starts in-process, from the
+standalone binary, or in a Kubernetes worker. Deployment changes where the work
+runs, not how connectors exchange data.
 
-- The domain model (sources, sinks, records, plans, runs) lives in the root `filament` package
-- Execution lives in `runner` and `pipeline`
-- Control-plane behaviors are `module.Module` implementations
+## Follow one batch
 
-Processes never call each other. Postgres (state) and NATS (facts) are the
-only shared surfaces.
+Suppose a source is reading the `users` table. It opens a typed Arrow builder
+for a specific `(resource, part)`, writes rows into it, and flushes when the
+builder reaches a configured limit. The engine then moves the resulting batch
+through a bounded channel to a writer, which calls the sink:
 
-## The runner
+```text
+source → typed row builder → bounded Arrow batch → writer pool → sink.Apply
+```
 
-Every run executes through `runner.RunOne`, and it behaves identically
-wherever it is dispatched:
+A **part** is a unit of source work, such as a snapshot range or stream
+partition. The source assigns each batch to a part so its progress can be
+tracked independently.
 
-- In-process inside the control plane or standalone binary
-- In your own process via the library
-- In a worker Job on Kubernetes
+The engine checks the in-memory batch before and after the sink call. A sink
+that advertises encoded integrity also returns evidence for the exact bytes it
+serialized. See [Integrity and checkpoints](/pages/guides/concepts/integrity-and-checkpoints)
+for the boundary each checksum protects.
 
-Where a run executes is a deployment choice and never a behavioral one. The
-full `RunOne` sequence is covered in
+## Backpressure and parallelism
+
+The handoff to writers is deliberately bounded. If `sink.Apply` cannot keep up,
+the source eventually blocks while flushing a builder. That pressure propagates
+to extraction and caps queued memory.
+
+`snapshot_parallelism` sets the writer-pool size and is also available to the
+source when it plans snapshot work. It does not automatically split or hash
+rows. The source still decides how many parts to create. Filament forces the
+writer count to one when a route contains CDC, incremental, or other
+checkpointed work so progress and ordering stay unambiguous.
+
+## Commit, abort, and checkpoints
+
+The runner opens the sink before data moves and ends with one of two outcomes:
+
+- On success, it calls `Commit`. CDC positions and other progress that depends
+  on a successful commit are saved only after this call succeeds.
+- On a non-resumable failure or cancellation, it calls `Abort` on a bounded
+  cleanup context.
+
+A resumable extraction failure preserves already durable progress instead of
+aborting it. Whether a route qualifies depends on every resource in that route,
+not merely on one incremental table. The recovery rules are described in
 [Runs and recovery](/pages/guides/concepts/runs-and-recovery).
 
-## The pipeline
+## Facts and stored state
 
-Inside a run, records flow through fixed stages:
+The runner publishes events such as `run.started`, `batch.written`, and
+`resource.completed`. The tracker uses those events to update stored progress,
+totals, and checkpoints.
 
-```
-source → inlet → batcher shards → writer pool → sink
-```
-
-- The inlet routes each record to its resource's batcher shard by hash.
-  Shard count equals writer count equals `SnapshotParallelism` (forced to 1
-  whenever ordering matters, as with CDC, incremental, or checkpointed
-  resources).
-- Batchers buffer per `(resource, part)` and flush at `BatchMaxRows` (the
-  sink's `PreferredBatchRows`, else 256) or on a 1s ticker.
-- Writers call `Sink.Apply` and verify each batch's CRC (see
-  [Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints)).
-
-Backpressure is blocking. A source's `Push` blocks when channels are full, so
-a slow sink throttles extraction instead of growing memory. A fatal pipeline
-error unblocks the source with the error.
-
-## Facts and derived state
-
-The runner never writes run status. As a run progresses it publishes typed
-facts on the bus, under the subject grammar:
-
-```
-ingestion.v1.<entity>.<tenant>.<run>.<event>
-```
-
-`run.started`, `batch.written`, `resource.completed`, `run.completed`, and
-the rest. The full catalog is in
-[Runs and recovery](/pages/guides/concepts/runs-and-recovery).
-
-Run state is *derived*. The tracker module is the only writer of
-fact-derived state. It consumes durably, dedupes on broker sequence, and
-folds facts idempotently into Postgres. At-least-once delivery plus
-idempotent folds gives exactly-once effect. The one exception is checkpoint
-seeding, which the runner persists itself before extraction begins.
+The control plane writes request, pause, resume, and cancellation state directly.
+Worker events record what actually happened during execution. Keeping those
+steps separate lets the API accept a control request while a worker is still
+responding to it.
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {
-  "primaryColor": "#005EFF14",
-  "primaryTextColor": "#0D0D0D",
-  "primaryBorderColor": "#005EFF",
-  "lineColor": "#005EFF",
-  "secondaryColor": "#005EFF14",
-  "tertiaryColor": "#005EFF14",
-  "labelTextColor": "#3D7BFF",
-  "edgeLabelColor": "#3D7BFF",
-  "edgeLabelBackground": "#00000000",
-  "fontFamily": "ABC Diatype, sans-serif"
-}}}%%
 flowchart LR
-    S[server] -- "run.requested" --> B[(NATS)]
-    B --> D[dispatcher]
-    D --> R["runner.RunOne"]
-    R -- facts --> B
-    B --> T[tracker]
-    T --> P[(Postgres)]
+    API[API or scheduler] --> State[(run state)]
+    API -- requested/control fact --> Bus[(event bus)]
+    Bus --> Runner[runner.RunOne]
+    Runner -- execution facts --> Bus
+    Bus --> Tracker[tracker]
+    Tracker --> State
 ```
 
-## Modules
+## Where the pieces live
 
-Modules never reference each other. Each subscribes to facts and reads or
-writes shared state.
-
-| Module | Responsibility |
-|---|---|
-| orchestrator | Intake. Persists run state and publishes `run.requested` idempotently |
-| scheduler | Fires cron schedules, promoting pre-created scheduled runs to requested |
-| dispatcher | Places each requested run onto an execution backend |
-| engine | In-process dispatch backend. Consumes `run.requested` and calls `runner.RunOne` |
-| tracker | Folds facts into run state, tallies, and checkpoints |
-| reaper | Fails runs whose heartbeats have gone stale (Kubernetes dispatch only) |
-
-## Dispatch backends
-
-There are two. The first is the in-process engine module
-(`DISPATCH_MODE=inproc`, and what the standalone binary and library use).
-The second is Kubernetes dispatch, which creates one Job per run — the
-worker binary executes a single run and emits heartbeats. Both call
-`runner.RunOne` on the same persisted run state. The `run.requested` fact
-is only a trigger.
-
-## Pluggability
-
-Connectors, the data store, and the event bus are interfaces with swappable
-implementations. Connectors self-register via blank imports. See
-[Building a connector](/pages/connectors/building-a-connector/writing-a-source).
+The root `filament` package defines connector and run contracts. `runner`
+coordinates one run, while `pipeline` owns the bounded Arrow handoff and writer
+pool. Control-plane modules handle scheduling, dispatch, tracking, and stale
+worker detection. Connectors register independently and implement only the
+capabilities they advertise.

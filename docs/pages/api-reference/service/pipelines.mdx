@@ -1,14 +1,14 @@
 ---
 title: "Pipelines"
-description: "Mutable metadata over immutable graph versions, validated per edge, plus schedules"
+description: "Define data routes, save versioned changes, and schedule runs"
 ---
 
-Defined in `protos/ingestion/v1/pipelines.proto` and
-`protos/ingestion/v1/capabilities.proto`. A pipeline is two things with different
-lifecycles. The **mutable metadata** (name, description, worker configuration,
-schedule) updates in place. The rest is a history of **immutable graph
-versions**, where each version is a complete node-and-edge graph and only
-creating a new version changes what runs.
+A pipeline connects sources to destinations. Its name, description, worker
+settings, and schedule can change in place. Its graph cannot: changing nodes,
+routes, resources, or modes creates a new version. Existing runs continue to
+use the version on which they started. The messages are defined in
+`protos/ingestion/v1/pipelines.proto` and
+`protos/ingestion/v1/capabilities.proto`.
 
 ## The graph
 
@@ -32,9 +32,8 @@ Two invariants:
 
 - Every edge on the same source-to-destination route must use the same write
   mode — the write mode belongs to the route, not the individual edge.
-- Edges over CDC connections carry no read or write mode at all. The
-  connection's change stream implies the complete recipe, and there are no
-  levers to set.
+- Edges over CDC connections carry no read mode. Their route-wide write mode
+  can be `APPEND` or `MERGE`; when omitted, it defaults to `APPEND`.
 
 ## RPCs
 
@@ -55,7 +54,8 @@ Two invariants:
 ## ValidatePipeline
 
 Takes the graph inline, so an unsaved editor canvas validates exactly like a
-persisted version. The response is in-band, not an RPC error. It carries a
+persisted version. Validation problems are returned in the response rather
+than as RPC errors. The response carries a
 top-level `valid` flag, graph-level `errors` (dangling node references, unknown
 connections), and one `EdgeValidation` per edge with its errors, the
 `supported_write_modes` for its route, its `replication` mode, and the
@@ -70,10 +70,10 @@ it. Validation runs under a 30-second timeout.
 
 ## CreatePipeline
 
-Creates the metadata shell from `name`, `description`, an optional inline
-`schedule`, and an optional `worker_configuration` (a Kubernetes-shaped
-resources/node-selector/tolerations fragment that shapes this pipeline's
-workers). The pipeline has no graph until the first `CreatePipelineVersion`.
+Creates a pipeline from `name`, `description`, an optional inline `schedule`,
+and optional `worker_configuration`. Worker configuration can set Kubernetes
+resources, node selectors, and tolerations for this pipeline's workers. The
+pipeline has no graph until the first `CreatePipelineVersion`.
 
 ## CreatePipelineVersion
 
@@ -91,11 +91,10 @@ The only way to change what a pipeline does. The server:
 
 ## UpdatePipeline
 
-Updates `name`, `description`, and `worker_configuration` in place. It
-deliberately never creates a version. Worker configuration lives on the
-pipeline rather than the version precisely so tuning resources cannot mint a
-version and orphan the resource checkpoints keyed by the old one. Renaming a
-pipeline is not an edit to what it runs.
+Updates `name`, `description`, and `worker_configuration` without creating a
+new version. Worker settings live on the pipeline so changing CPU or memory
+does not move the pipeline to a new set of resource checkpoints. Renaming a
+pipeline also leaves its graph unchanged.
 
 ## GetPipeline, ListPipelines, versions
 
@@ -126,5 +125,5 @@ if one exists. `UpdatePipelineSchedule` replaces the config and returns
 Pausing is `UpdatePipelineSchedule` with `is_enabled: false`, and the
 schedule is removed only when its pipeline is deleted. The scheduler
 pre-creates a `SCHEDULED` run row for the next fire. See
-[Runs](/pages/api-reference/service/runs#listruns) for how that surfaces in
+[Runs](/pages/api-reference/service/runs#listruns) for how that appears in
 listings.

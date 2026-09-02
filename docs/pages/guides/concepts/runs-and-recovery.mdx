@@ -1,111 +1,99 @@
 ---
 title: "Runs and recovery"
-description: "The run lifecycle, which runs resume, and how failures are contained"
+description: "Run states, recovery boundaries, and lifecycle controls"
 ---
 
-A run is one execution of a pipeline route. Its state is derived. The
-runner publishes typed facts as it works, and the tracker folds them into
-run state (see [Architecture](/pages/guides/concepts/architecture)). This
-page covers the lifecycle, resume rules, and failure behavior.
+A run is one execution of one pipeline route. The useful question after an
+interruption is not simply “was there a checkpoint?” It is “can every resource
+in this route continue without losing or duplicating accepted work?”
 
 ## Run states
 
-| State | Meaning |
-|---|---|
-| `RunScheduled` | Pre-created for a schedule's next occurrence |
-| `RunRequested` | Persisted and published. Waiting for dispatch |
-| `RunRunning` | Executing |
-| `RunCompleted` | Terminal success. Sink committed |
-| `RunFailed` | Terminal failure |
-| `RunPartial` | **Non-terminal**. Failed mid-extract with resumable progress |
+| State | What it means | What can happen next |
+|---|---|---|
+| `scheduled` | Created for a future schedule | Scheduler requests it |
+| `requested` | Persisted and waiting for dispatch | Worker starts, or the run is paused/canceled |
+| `running` | A worker owns the execution | Complete, fail, become partial, pause, or cancel |
+| `partial` | Extraction failed but all progress is safely resumable | Resume the same run |
+| `paused` | Work stopped intentionally | Resume or cancel |
+| `completed` | Sink committed successfully | Terminal, except CDC catch-up can run again |
+| `failed` | Work cannot safely continue as the same attempt | Terminal |
+| `canceled` | Work was intentionally aborted | Terminal |
 
-`RunScheduled` runs are owned entirely by the control plane. The scheduler
-pre-creates them and promotes them to requested at fire time. A
-`RunPartial` run has its resumable progress persisted, and re-requesting
-the same run resumes it.
+An idempotency key derives a stable run ID for a tenant. Repeating the same
+request does not create another logical attempt once that run has progressed.
 
-`RunCanceled` and `RunPaused` exist in the model and API, but no engine
-code emits them today. `SignalRun` always returns unimplemented, so
-cancel, pause, and resume signals do not work via the API.
+## What one attempt does
 
-## Idempotent intake
+The runner resolves secrets and connectors, plans resources and ingestion
+behavior, ensures destination schemas, seeds checkpoint state, and starts the
+Arrow pipeline. It calls `Commit` only after extraction and writes succeed. A
+non-resumable failure ends with `Abort`. Filament gives cleanup its own short
+timeout, even when the original run context has already been canceled.
 
-Submitting a run with an `IdempotencyKey` derives a deterministic `RunID`
-from (tenant, key). Re-submitting the same pair never re-dispatches a run
-that has progressed. If dispatch itself fails, the orphan row is deleted so
-the caller can retry cleanly.
+Schema preparation is intentionally before extraction. Depending on the sink,
+`EnsureSchema` may create or evolve destination objects before the final commit;
+connector docs should state their own visibility and cleanup behavior.
 
-## What a run does
+## When failure becomes partial
 
-`runner.RunOne` executes the same sequence everywhere:
+A failed standard run becomes `partial` only when all resources have progress
+that is safe to preserve:
 
-- Resolve secret refs into the connector configs (tenant-validated)
-- Configure the source and plan resources
-- Resolve the sink and the ingestion plan, then open the sink
-- Ensure schemas. A schematized sink gets typed DDL from the source's
-  schema before any data moves, and a source that provides none fails the
-  run up front
-- Seed checkpoints
-- Extract through the pipeline
-- Finally, `Commit` on success or `Abort` on failure
+- every resource has checkpoint coverage;
+- none waits until `Commit` to make its checkpoint durable;
+- none uses append, where replay could duplicate rows; and
+- at least one resource is incremental or otherwise checkpointed.
 
-## Which runs resume
+This route-wide rule matters for mixed plans. One resumable `users` resource
+does not make a neighboring full-replace `orders` resource resumable. When the
+rule is not satisfied, the run fails and a new attempt starts those resources
+from their normal beginning.
 
-Not every failed run can pick up where it left off. A run is resumable when
-it has at least one incremental or checkpointed resource, **except**:
+CDC saves its stream position only after a successful commit, so a failed
+attempt is not labeled partial. A later CDC catch-up starts from the last
+committed position. Even a successful cycle with no changes can advance that
+position.
 
-- CDC runs: the durable stream cursor already makes every CDC run a
-  continuation, so partial-run resume does not apply.
-- Runs with any incremental resource writing in append mode: retrying
-  would duplicate rows.
+## Pause, resume, and cancel
 
-A resumable failure lands in `RunPartial` with its checkpoints intact.
-Resume is simply re-emitting `run.requested` for the same `RunID`. The
-runner reloads persisted cursors and hands them back to the source through
-its resume planning. Plain `full_replace` and `full_append` runs restart
-from scratch.
+`SignalRun` supports all three controls:
 
-## CDC catch-up cycles
+- Pausing a requested run changes its state immediately. Pausing a running run
+  sends a worker command and waits for the worker's acknowledgement.
+- A fully checkpointed running route drains accepted rows, commits them, and
+  pauses with progress preserved. A checkpoint-free route aborts and later
+  restarts. A route with mixed checkpoint coverage rejects pause because neither
+  outcome is safe for every resource.
+- Resuming a paused or partial run returns it to requested. Only checkpointed
+  progress is retained; restart-only work has its execution totals reset.
+- Canceling a running run stops extraction and aborts the sink before the worker
+  acknowledges cancellation. Requested, paused, and partial runs can be
+  canceled directly.
 
-A completed CDC run stays re-runnable. Dispatch treats `RunCompleted` as
-runnable for CDC, and re-requesting it continues the change stream from
-the persisted cursor. The final stream position is persisted even for a
-run that wrote zero rows, so an idle stream still advances.
+Signals are state-aware and idempotent where repeating the same intent is safe.
+Invalid transitions, such as resuming a completed non-CDC run, are rejected.
 
 ## Failure containment
 
-- A panicking source is contained and converted into a "source panicked"
-  error. It cannot take the process down.
-- A pipeline (write) error takes precedence as the root cause. The extract
-  error it triggered is treated as its echo.
-- On non-resumable failure the sink's `Abort` runs on a context detached
-  from run cancellation, bounded at 30s. Resumable failures skip `Abort`
-  so staged progress is preserved.
-- Terminal facts publish on a detached context (5s bound), so shutdown
-  cannot strand a run in `RunRunning`.
+A source panic is converted to a run error. When a sink error causes extraction
+to stop, the sink error remains the root cause. Terminal facts are published on
+a short detached context so cancellation does not leave a run appearing to be
+active indefinitely.
 
-## Heartbeats and the reaper
+Under Kubernetes dispatch, workers emit heartbeats and the reaper fails stale
+running jobs. Partial runs are exempt because they are intentionally waiting for
+a resume request. In-process dispatch does not use the worker heartbeat/reaper
+path.
 
-Under Kubernetes dispatch, the worker emits `run.heartbeat` every 30s with
-CPU and memory usage. The reaper sweeps every minute and fails any running
-run with no state write for 5 minutes (ten missed heartbeats). Partial
-runs are exempt. They hold resumable checkpoints and are waiting to be
-re-requested, not stuck. In-process dispatch emits no heartbeats and
-mounts no reaper.
+## Progress events
 
-## The fact catalog
+The event stream includes run lifecycle and control facts, resource progress,
+batch writes and integrity evidence, cursor/checkpoint changes, and pressure or
+retry events. Examples include `run.pause_requested`, `run.paused`,
+`batch.integrity_verified`, `batch.encoded_integrity_verified`, and
+`cursor.checkpoint_saved`.
 
-Everything above is driven by typed facts on
-`ingestion.v1.<entity>.<tenant>.<run>.<event>`:
-
-- `run.*`: `requested`, `started`, `completed`, `failed`, `partial`,
-  `heartbeat`
-- `resource.*`: `started`, `page_fetched`, `fan_out_started`,
-  `completed`, `failed`
-- `batch.*`: `buffered`, `written`, `integrity_verified`,
-  `chunk_divergence`
-- `cursor.*`: `watermark_advanced`, `checkpoint_saved`
-- `pressure.*`: `rate_limited`, `retry_exhausted`
-
-How batches are verified and cursors persisted is covered in
-[Integrity & checkpoints](/pages/guides/concepts/integrity-and-checkpoints).
+These events record worker execution and let the tracker update totals and progress.
+The API also persists intake and control transitions directly, as described in
+[Architecture](/pages/guides/concepts/architecture).

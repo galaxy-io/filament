@@ -1,44 +1,89 @@
 ---
-title: "Overview"
-description: "How Filament is benchmarked, and where the harness and results live"
+title: "Benchmarking"
+description: "How Filament's data-movement benchmarks are designed, measured, and reproduced"
 ---
 
-Filament is benchmarked in the open. The harness, datasets, methodology, and
-results live in a dedicated repository,
-[github.com/galaxy-io/benchmarks](https://github.com/galaxy-io/benchmarks),
-so runs can be reproduced and audited independently of this codebase.
+Filament's performance work lives in the dedicated
+[Galaxy benchmarks repository](https://github.com/galaxy-io/benchmarks). The
+repository contains the harness, datasets, system adapters, methodology, and
+raw results. Keeping that work separate from Filament's implementation makes a
+benchmark easier to reproduce and ties each result to the exact environment and
+configuration that produced it.
 
-## Data movement
+<Note>
+  The benchmark program is in progress. Current results describe specific
+  full-load cohorts, not a general performance guarantee for every connector,
+  replication mode, dataset, or deployment.
+</Note>
 
-The primary benchmark measures full-load data movement. Complete TPC-H or NYC
-Taxi datasets move between Postgres, MySQL, and Apache Iceberg across a route
-matrix (Postgres or MySQL sources into Postgres, MySQL, or Iceberg sinks).
-Filament runs alongside other movers, including a native dump-and-load
-baseline for the same-engine routes, on identical topologies.
+## What is measured
 
-The methodology is strict about fairness:
+The current data-movement benchmark measures complete dataset loads. It uses
+TPC-H or NYC Taxi data and supports these routes:
 
-- One immutable source seed per cohort, loaded, vacuumed, frozen, and analyzed
-  once before the first repetition
-- A fresh sink per repetition, with SQL endpoints rebooted before every timed
-  run
-- A settling period and an autovacuum check before the timer starts
-- A result counts only when every destination table matches the seed's
-  row-count manifest
+```text
+PostgreSQL → PostgreSQL
+PostgreSQL → MySQL
+PostgreSQL → Iceberg
+MySQL      → PostgreSQL
+MySQL      → MySQL
+MySQL      → Iceberg
+```
 
-Each run records timing, effective configuration, endpoint topology, host
-details, image IDs, and per-container CPU, memory, and network use. Remote
-cohorts on RDS also capture database counters and CloudWatch metrics around
-the timed window.
+The harness compares Filament with other replication tools and, where
+applicable, native database dump-and-load utilities. The authoritative list of
+systems and supported routes lives in the benchmark repository so additions do
+not require a Filament docs release.
 
-<Info>
-  Results, raw data, and instructions for reproducing a run are in the
-  [benchmarks repository](https://github.com/galaxy-io/benchmarks). This
-  section documents what is measured, not published numbers.
-</Info>
+This benchmark does not currently measure incremental catch-up, steady-state
+CDC throughput, or recovery after failure.
 
-## In-repo micro-benchmarks
+## How a comparison is run
 
-The Filament repository also carries a small set of Go micro-benchmarks that
-isolate the engine's own overhead. See
-[Micro-benchmarks](/pages/benchmarks/micro-benchmarks).
+A group of comparable results uses the same prepared source data. Each
+repetition receives a fresh destination, and remote SQL endpoints can be
+restarted and allowed to settle before timing begins. The harness rotates tool
+order across repetitions so one tool does not always run first or last.
+
+Setup work such as provisioning, dataset generation, source loading, image
+pulls, and destination validation is outside the measured transfer window.
+Process initialization triggered by the transfer remains inside it.
+
+A result is recorded only when every destination table matches the source row
+count. Failed or incomplete transfers do not become benchmark results.
+
+## Evidence recorded with each result
+
+Raw result files include more than elapsed time:
+
+- Dataset, route, topology, and repetition count
+- Tool configuration and container image identity
+- Benchmark host and source revision
+- CPU, peak memory, and network use for measured containers
+- Destination row-count validation
+- Database and CloudWatch measurements when the remote environment provides them
+
+This context matters because results from different machines, endpoint sizes,
+topologies, configurations, or benchmark commits are not directly comparable.
+
+## Limits of the results
+
+| Limit | What it means |
+|---|---|
+| Full loads only | Results do not predict incremental or CDC performance |
+| Row-count validation | The harness verifies table counts, not every destination value |
+| Cohort-specific tuning | Compare tools within the same published cohort, not across unrelated runs |
+| Remote and local separation | Local Testcontainers runs are smoke tests and are not compared with remote results |
+| Tool-specific behavior | A snapshot benchmark may not represent a tool's primary streaming workload |
+
+For example, the harness measures Debezium's initial snapshot in this scenario,
+not the steady-state CDC workload for which Debezium is primarily designed.
+
+## Results and reproduction
+
+The [data-movement benchmark](https://github.com/galaxy-io/benchmarks/tree/main/data-movement)
+documents supported tools, routes, datasets, prerequisites, and commands. Its
+[methodology](https://github.com/galaxy-io/benchmarks/blob/main/data-movement/results/METHODOLOGY.md)
+defines the timed window, correctness checks, reference environment, and result
+format. Dated result directories contain the raw JSON for each completed
+cohort.

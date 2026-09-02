@@ -4,13 +4,11 @@ description: "Read sent and received email, broadcasts, contacts, segments, doma
 icon: "https://cdn.getgalaxy.io/sources/source-icon-resend-dark.svg"
 ---
 
-Resend is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/resend.yaml` manifest declares resources
-covering the whole account, from sent and received email with attachments to
-domains and their DNS records, audiences (contacts, segments, topics,
-suppressions), broadcasts, templates, webhooks with their delivery history,
-and the API request log. The connector is **beta**. The resource set is
-stable, though field shapes may still be extended.
+The Resend source reads sent and received email, attachments, domains, audience
+data, broadcasts, templates, webhook deliveries, and the API request log. It is
+built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**beta**. Its resources are stable, though future releases may add columns.
 
 ## Configuration
 
@@ -63,7 +61,7 @@ page. Child resources always restart with their parent.
 - **Rate limiting**: dynamic. A static 8 requests/second limiter holds below
   Resend's 10 rps team-wide cap, and the IETF-draft `ratelimit-remaining` /
   `ratelimit-reset` headers (reset counted as seconds from now) tighten it
-  further as the window drains, never below a 1 rps floor.
+  further as the window drains, but never below one request per second.
 - **Timestamps**: most `created_at`-style columns are typed `string`, not
   `timestamptz`, because Resend renders them in a non-RFC 3339 Postgres
   format that fails sink coercion. Only the endpoints that emit real ISO 8601

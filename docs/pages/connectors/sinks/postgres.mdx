@@ -54,8 +54,8 @@ Before extraction starts, `EnsureSchema` runs per resource:
    merge preserve resumable state.
 3. `ADD COLUMN IF NOT EXISTS` for each column, so new source fields appear on
    existing tables. Evolution is add-only. Type changes, dropped columns, and
-   nullability changes are not applied, and an incompatible type change
-   surfaces later as a cast error during writes.
+   nullability changes are not applied. An incompatible type change fails later
+   when a write cannot cast the value.
 
 ### Type mapping
 
@@ -76,18 +76,21 @@ Before extraction starts, `EnsureSchema` runs per resource:
 
 ## Write mechanics and atomicity
 
-Each batch becomes one statement. The records are serialized to a single JSON
-array and expanded server-side with
+Rows are encoded into PostgreSQL's binary `COPY` format directly from the Arrow
+columns. Replace and append batches copy into the destination table. Upserts
+copy into a per-connection temporary table and merge into the destination with
+`ON CONFLICT`, inside one transaction.
 
-```sql
-INSERT INTO "schema"."table" (...)
-SELECT ... FROM jsonb_to_recordset($1::jsonb)
-```
+CDC merge batches are split into consecutive delete and non-delete ranges and
+applied in arrival order inside **one transaction per batch**. Each range is
+copied to a temporary row or key table before its upsert or delete statement. A
+merge against a keyless resource is an error.
 
-so a 256-row batch costs one round trip. CDC batches are split into runs of
-consecutive deletes and non-deletes, applied in arrival order inside **one
-transaction per batch**. Deletes use `DELETE … USING jsonb_to_recordset`. A
-merge delete against a keyless resource is an error.
+Before sending a COPY payload, the sink verifies a CRC embedded in its encoded
+form. It returns that checksum as `EncodedCRC` alongside the Arrow batch
+checksum, so the engine records both the in-memory handoff and PostgreSQL
+serialization boundaries. This is not a query that reads committed rows back
+from the table.
 
 Batches commit as they are applied (autocommit), so partial data is visible in
 the destination mid-run. Delivery is at-least-once, and upsert and merge modes
@@ -97,6 +100,6 @@ end-of-run atomic swap.
 ## Failure behavior
 
 On a failed run, `Abort` truncates replace tables. Append tables retain rows
-already written. Tables bound to upsert or merge modes (`full_upsert`,
-`incremental_upsert`, `cdc_merge`) are resumable and are preserved, since a retry
-converges through the primary key.
+already written, so retrying a non-checkpointed append as a new run can produce
+duplicates. Upsert and merge tables are preserved because retries converge
+through the primary key; resumable extraction failures skip `Abort` entirely.

@@ -3,10 +3,9 @@ title: "Overview"
 description: "How to add a connector, and which of the two paths to take"
 ---
 
-A connector is a Go type satisfying either the `Source` or the `Sink`
-interface, registered at package init so the binary can resolve it by name.
-The engine asks nothing else of it. Everything beyond the base contract is an
-optional interface a connector opts into.
+Choose between an HTTP manifest and Go based on the system you are integrating.
+Use a manifest for a conventional REST or GraphQL source. Use Go for database
+protocols, change logs, custom behavior, and every sink.
 
 ## Two paths
 
@@ -27,24 +26,22 @@ and [Writing a sink](/pages/connectors/building-a-connector/writing-a-sink).
 
 ## What the engine expects
 
-Both paths land in the same place. Whatever you build declares a
+Both paths produce a registered connector. Whatever you build declares a
 `ConnectorSpec` or `SinkSpec` describing its name, config schema, and what it
 can do, and the server drives everything from that declaration. The config
 form in the web app, the CLI flags, and validation are all generated from the
 schema you write, so a field declared once shows up everywhere without
 further work.
 
-Beyond the base interface, capabilities are opt-in. Discovery, resumable
-reads, incremental planning, change streams, schema provision, and rate
-limits are separate interfaces the engine type-asserts at run time. Implement
-only what the system supports. See
+Beyond a full read or basic write, capabilities are opt-in. Add only the
+interfaces required for discovery, recovery, incremental reads, CDC, schemas,
+or rate limits, and advertise only behavior the connector implements. See
 [Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces)
 for what each one unlocks.
 
 ## Maturity
 
-Registration takes a maturity level, and it is a promise to users rather than
-a formality. The web app and the API both surface it.
+Registration includes a maturity level, which the API and web app show to users.
 
 - `alpha` is documentation-derived and not yet tested end to end
 - `beta` has run end to end, but is not verified across every supported object

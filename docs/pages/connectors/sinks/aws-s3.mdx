@@ -4,11 +4,10 @@ description: "Write NDJSON objects to Amazon S3 or any S3-compatible endpoint"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"
 ---
 
-`connectors/object` (registered as `s3`, **alpha**, display name "Amazon S3
-(NDJSON)") writes each resource to its own NDJSON object in an S3-compatible
-bucket, the same line shape the [stdout](/pages/connectors/sinks/standard-output) sink
-prints. It is a raw record dump, not a lakehouse format. No Parquet, no
-partitioning, no compression.
+The Amazon S3 sink (**alpha**) writes each resource as one NDJSON object in an
+S3-compatible bucket, using the same row format as
+[stdout](/pages/connectors/sinks/standard-output). It is an uncompressed JSON
+export, not a partitioned Parquet or lakehouse format.
 
 ## Configuration
 
@@ -73,19 +72,15 @@ ignore run prefixes without it.
 
 ## Write mechanics and atomicity
 
-`Apply` encodes NDJSON into one segmented, seekable tail per active resource.
-The tail allocates in small chunks as bytes arrive, rather than reserving an
-entire multipart part for every resource. Every full `part_size_mib` tail
-uploads immediately as a multipart part, while
-`upload_concurrency` limits S3 requests across all resources and backpressures
-the pipeline when saturated. `Commit` waits for those parts, uploads each tail,
-completes the multipart uploads, and uses `PutObject` for resources smaller than
-one part. A declared resource with zero records becomes a zero-byte object.
+The sink streams full `part_size_mib` buffers as multipart uploads while the run
+is active. `upload_concurrency` limits S3 requests across resources; when that
+limit is reached, source extraction waits. At commit, Filament uploads the
+remaining bytes and completes each object. Small resources use `PutObject`, and
+a selected resource with no rows becomes a zero-byte object.
 
-The sink does not require run-sized temporary disk. Buffered memory is
-approximately the actual unflushed bytes across active resources, rounded to
-small chunks, plus in-flight parts and one reusable encoded batch per pipeline
-writer. Objects smaller than one part remain buffered until commit.
+The sink does not need temporary disk for the full run. Memory use comes mainly
+from unfinished multipart buffers, in-flight uploads, and the current encoded
+batch. Objects smaller than one part remain in memory until commit.
 
 Each resource object is atomic, but a group of S3 objects cannot be committed
 atomically. Resource objects may be visible while `Commit` is still running;
@@ -97,5 +92,5 @@ the run becomes valid only when `_SUCCESS.json` is uploaded last.
 `Commit` fails after some resources complete, those objects may remain under
 the run prefix, but no `_SUCCESS.json` is published, so the prefix is not a
 valid run. Configure an S3 lifecycle rule to expire abandoned run prefixes and
-incomplete multipart uploads. Multipart state is not resumed across worker
-attempts; durability remains commit-gated.
+incomplete multipart uploads. Multipart uploads do not resume across worker
+attempts; resource progress is saved only after commit succeeds.

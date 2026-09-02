@@ -1,16 +1,21 @@
 ---
 title: "Overview"
-description: "The deployment shapes Filament supports and how to choose between them"
+description: "Choose how and where to run Filament"
 ---
 
-Filament runs the same engine everywhere. What changes between deployments is
-where a run executes and what state survives it. Pick the shape that matches
-how durable the deployment needs to be.
+Filament runs the same engine everywhere. What changes is where runs execute
+and whether state survives a restart.
 
-## The shapes
+## Choose a deployment
 
-**Standalone binary.** One process with an embedded NATS JetStream event
-plane, the API, the web app, and the engine, over an in-memory store with
+| Option | Best for | Durable by default? |
+|---|---|---|
+| Standalone binary | Evaluation | No |
+| Embedded library | Adding Filament to a Go service | No; dependencies are replaceable |
+| Split services | Production and isolated workers | Yes, with Postgres and NATS |
+
+**Standalone binary.** One process with embedded NATS JetStream, the API, the
+web app, and the engine, over an in-memory store with
 secrets read from the environment. Nothing needs provisioning, which makes it
 the fastest way to try Filament. State does not survive a restart, so it is
 for evaluation rather than production. See
@@ -22,10 +27,10 @@ and in-memory store, and you swap in NATS and Postgres when you want the
 deployment to be durable. See
 [Embedding as a library](/pages/guides/deployment/embedding-as-a-library).
 
-**Split services.** The production shape. A server owns connections,
+**Split services.** A server owns connections,
 pipelines, and run requests. A control plane fires schedules, dispatches
-runs, and folds facts back into state. Postgres and NATS are the only
-surfaces those processes share, since they never call each other directly.
+runs, and updates state from worker events. The processes coordinate through
+Postgres and NATS rather than calling each other directly.
 See [Kubernetes](/pages/guides/deployment/kubernetes).
 
 ## Where runs execute
@@ -47,8 +52,7 @@ path runs, never what it does.
 
 - **PostgreSQL** for run state, checkpoints, connections, pipelines, and
   schedules
-- **NATS JetStream** for the fact stream that progress and derived state are
-  built from
+- **NATS JetStream** for run requests and progress events
 - **An encryption key** when secrets are stored through the default Postgres
   provider
 

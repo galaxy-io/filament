@@ -4,12 +4,10 @@ description: "Read conversations, messages, thread replies, files, and workspace
 icon: "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg"
 ---
 
-Slack is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/slack.yaml` manifest declares resources
-spanning team info, users and user groups, the conversations the token can
-see, their messages and thread replies, plus files, bookmarks, and pins. The
-connector is **alpha**, so resource coverage and field shapes may still
-change between releases.
+The Slack source reads workspace information, users, conversations, messages,
+thread replies, files, bookmarks, and pins visible to its token. It is built
+with an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests)
+and is **alpha**, so its resources and columns may change between releases.
 
 ## Configuration
 
@@ -34,8 +32,8 @@ request count. `files` is an independent top-level list.
 
 ## Modes
 
-Full is always available. A full run checkpoints its pagination cursor per
-top-level resource and resumes from the last completed page. Children
+All resources support full reads. If interrupted, a top-level resource resumes
+after its last completed page. Children
 (`messages`, `thread_replies`, `bookmarks`, `pins`) always restart with their
 parent.
 
@@ -49,10 +47,11 @@ Two resources are incremental.
 Both use the `numeric` comparator (Slack timestamps are epoch numbers) and
 declare no overlap window. The cursor field is fixed by the manifest. Only a
 lookback window is user-configurable, which the numeric comparator supports.
-`messages` fans out across conversations but keeps a single aggregate
-watermark for the whole resource, not one per conversation. A message posted
-to a quiet channel while a busier channel was being scanned can land below
-the watermark, so configure a lookback window if late arrivals matter.
+All conversations share one saved `messages` cursor. For example, Filament may
+finish scanning a busy channel after a newer message was posted to a quiet
+channel that it already scanned. Without a lookback, that quiet-channel message
+can fall before the next run's starting cursor. Configure a lookback window if
+late arrivals matter.
 
 ## Behavior
 

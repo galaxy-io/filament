@@ -4,11 +4,10 @@ description: "Read repositories, issues, and pull requests from a GitHub organiz
 icon: "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"
 ---
 
-GitHub is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/github.yaml` manifest declares resources
-scoped to a single organization, covering its repositories and the issues
-and pull requests in each of them. The connector is **beta**. The resource
-set is stable, though field shapes may still be extended.
+The GitHub source reads repositories, issues, and pull requests for one
+organization. It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**beta**. Its resources are stable, though future releases may add columns.
 
 ## Configuration
 
@@ -19,18 +18,16 @@ set is stable, though field shapes may still be extended.
 
 ## Resources
 
-`repositories` lists every repository in the organization (all types, sorted
-by full name) and captures each repository name. `issues` and `pull_requests`
-fan out from it, one paginated walk per repository, with the repository name
-denormalized onto every row. Both request `state: all`. `issues` sorts by
-`updated` ascending so the incremental watermark advances monotonically, and
-each row keeps a `pull_request` marker because GitHub's issues endpoint
-returns pull requests as issues.
+`repositories` lists all repositories in the organization. For every
+repository, Filament then requests its issues and pull requests and adds the
+repository name to each row. Both include open and closed items. GitHub's
+issues endpoint also returns pull requests, so issue rows retain a
+`pull_request` marker that lets you distinguish them.
 
 ## Modes
 
-Full is always available. A full run checkpoints its pagination cursor per
-top-level resource and resumes from the last completed page.
+All resources support full reads. If interrupted, a full read of a top-level
+resource resumes after its last completed page.
 
 `issues` is the one incremental resource.
 
@@ -54,8 +51,8 @@ repositories that changed while an earlier repository was being scanned.
 - **Auth**: bearer token from `token` on every request.
 - **Pagination**: RFC 5988 `Link` headers (`rel="next"`), with `per_page=100`
   set as a default query parameter.
-- **API version**: pinned via `X-GitHub-Api-Version: 2022-11-28`, so payload
-  shapes do not drift with GitHub's rolling default.
+- **API version**: pinned via `X-GitHub-Api-Version: 2022-11-28`, so response
+  fields do not change with GitHub's rolling default.
 - **Rate limiting**: no client-side limiter is configured. The engine backs
   off on 429 responses using `Retry-After`.
 - Every resource carries a `raw` remainder column preserving fields the

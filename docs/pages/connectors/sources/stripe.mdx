@@ -4,12 +4,10 @@ description: "Read charges, payment intents, invoices, subscriptions, and the ba
 icon: "https://cdn.getgalaxy.io/sources/source-icon-stripe-dark.svg"
 ---
 
-Stripe is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/stripe.yaml` manifest declares resources
-covering the payments core, spanning customers, charges, payment intents,
-invoicing, subscriptions, the product catalog, the balance-transaction
-ledger, and the event audit feed. The connector is **beta**. The resource set
-is stable, though field shapes may still be extended.
+The Stripe source reads customers, payments, invoices, subscriptions, catalog
+objects, balance transactions, and events. It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**beta**. Its resources are stable, though future releases may add columns.
 
 ## Configuration
 
@@ -45,14 +43,16 @@ lists that truncate at 10 with their own `has_more`. The parent keeps the
 embedded copy as `raw` JSON for reference, and the child resource is the
 complete set.
 
-Two cautions apply. `payment_intents` and `setup_intents` preserve `client_secret`
-in `raw`, so treat their landing tables as sensitive. Stripe retains events
-for 30 days, so a pipeline paused longer leaves a permanent hole in `events`.
+<Warning>
+  `payment_intents.raw` and `setup_intents.raw` contain `client_secret`. Treat
+  those destination tables as sensitive. Stripe retains events for 30 days, so
+  a pipeline paused longer than that cannot recover the missing event history.
+</Warning>
 
 ## Modes
 
-Full is always available. A full run checkpoints its pagination cursor per
-top-level resource and resumes from the last completed page.
+All resources support full reads. If interrupted, a full read of a top-level
+resource resumes after its last completed page.
 
 The incremental resources are `charges`, `payment_intents`, `refunds`,
 `disputes`, `balance_transactions`, `payouts`, `invoices`, `credit_notes`,
@@ -82,7 +82,7 @@ capture post-creation mutations.
   `starting_after`, with `has_more` as the terminator and `limit=100` per
   page.
 - **API version**: pinned via `Stripe-Version: 2026-07-29.dahlia`, so payload
-  shape is a property of the manifest, not of the account's dashboard
+  response schema is set by the manifest, not the account's dashboard
   setting. The exception is `events.data.object`, which is rendered at the
   version current when each event was created.
 - **Rate limiting**: a static 8 requests/second limiter, held below Stripe's

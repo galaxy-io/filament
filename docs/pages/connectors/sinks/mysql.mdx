@@ -24,34 +24,34 @@ It requires MySQL 8.0 or newer.
 | `database` | Pipeline | — | Destination database. Falls back to the database in the DSN. |
 | `mode` | Pipeline | `typed` | Destination table mode. `typed` is the only value. |
 
-It is an error for both `database` and the DSN database to be empty. Left
-empty server-side, `database` defaults to the normalized source connection
-name.
+Filament must be able to resolve a destination database. If `database` is not
+set on the pipeline, it uses the database in the DSN or the normalized source
+connection name.
+
+<Warning>
+  The MySQL server must have `local_infile=ON`. Stock community installations
+  often disable it, while many managed services enable it. The sink cannot
+  load data when this setting is off.
+</Warning>
 
 ## Loading
 
-The engine calls `EnsureSchema` once per resource before extraction, which
-creates the destination table (adding any new columns to an existing one)
-and prepares the resource's load and delete statements. Each batch is then
-streamed straight into the table with `LOAD DATA LOCAL INFILE`: the Arrow
-columns are rendered as tab-separated lines and handed to the driver as an
-in-memory reader, so no row is ever parsed as JSON on either side. Because
-`LOCAL` makes the server skip duplicate keys and coerce bad values with a
-warning rather than an error, every load checks the rows landed against
-the rows sent and the session's warnings, and fails on either.
+Before reading from the source, Filament creates or updates one typed table per
+resource. It then sends each Arrow batch through `LOAD DATA LOCAL INFILE` as
+tab-separated values held in memory; no temporary file or JSON conversion is
+involved.
 
-The server must allow client-side loads (`local_infile=ON`; the default on
-managed MySQL, off on a stock community server). Binary columns arrive as
-their raw bytes; JSON columns pass through unchanged so nested structure
+MySQL can turn some load problems into warnings. After every load, Filament
+compares the accepted and submitted row counts and checks the session warnings.
+It fails the batch if rows were skipped or values were coerced.
+
+Binary columns arrive as their raw bytes; JSON columns pass through unchanged so nested structure
 survives the round trip. The sink pins its session to UTC, matching the
 source, so a same-engine `timestamp` column round-trips as the same
 instant.
 
-`Open` runs `CREATE DATABASE IF NOT EXISTS` for the destination through a
-bootstrap connection, then sizes the pool to at least 4 connections (or the
-run's snapshot parallelism, whichever is larger). `TestConnection` clears the
-database name first, so a destination database that does not exist yet still
-validates. The sink prefers batches of 4,096 rows.
+Filament creates the destination database if needed. The sink prefers batches
+of 4,096 rows.
 
 ## Supported write modes
 
@@ -77,7 +77,7 @@ Before extraction, `EnsureSchema` runs per resource:
 3. Missing columns are added by checking `information_schema.columns` and
    issuing `ALTER TABLE … ADD COLUMN` for each absent one (MySQL has no
    `ADD COLUMN IF NOT EXISTS`). Evolution is add-only. Incompatible type
-   changes are not applied and surface as cast errors during writes.
+   changes are not applied and fail later if a write cannot cast the value.
 
 ### Type mapping
 
@@ -99,12 +99,14 @@ Before extraction, `EnsureSchema` runs per resource:
 `timestamp` cannot represent values past 2038. Native types from other engines
 are ignored. Only MySQL-native declarations pass through.
 
-## Write mechanics and atomicity
+## Atomicity and integrity
 
-Each batch is rendered as a tab-separated `LOAD DATA LOCAL INFILE` payload and
-provided to the driver from an in-memory reader. Upserts use `REPLACE`. Binary
-columns are passed as raw bytes, and JSON values are converted to `utf8mb4` at
-the load boundary.
+Upserts use MySQL's `REPLACE` behavior. JSON values are converted to `utf8mb4`
+at the load boundary.
+
+The sink verifies the exact load payload before sending it and returns that
+encoded checksum with the Arrow batch checksum. This verifies serialization at
+the MySQL write boundary; it does not read the committed table back.
 
 CDC batches are split into runs of consecutive deletes and non-deletes, applied
 in arrival order in **one transaction per batch**. Deletes use a multi-table
@@ -117,6 +119,6 @@ primary key.
 ## Failure behavior
 
 On a failed run, `Abort` truncates replace tables. Append tables retain rows
-already written. Tables bound to upsert or merge modes (`full_upsert`,
-`incremental_upsert`, `cdc_merge`) are preserved, since a retry converges through the
-primary key.
+already written, so retrying a non-checkpointed append as a new run can produce
+duplicates. Upsert and merge tables are preserved because retries converge
+through the primary key; resumable extraction failures skip `Abort` entirely.
