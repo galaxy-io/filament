@@ -17,6 +17,18 @@ export const useLoginMutation = (
   );
 };
 
+export const useLogoutMutation = (
+  options: UseMutationOptions<
+    typeof AuthService.method.logout.input,
+    typeof AuthService.method.logout.output
+  > = {},
+) => {
+  return useMutation<
+    typeof AuthService.method.logout.input,
+    typeof AuthService.method.logout.output
+  >(AuthService.method.logout, options);
+};
+
 export const useRegisterMutation = (
   options: UseMutationOptions<
     typeof AuthService.method.register.input,

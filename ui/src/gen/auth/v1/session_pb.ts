@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file auth/v1/session.proto.
  */
 export const file_auth_v1_session: GenFile = /*@__PURE__*/
-  fileDesc("ChVhdXRoL3YxL3Nlc3Npb24ucHJvdG8SB2F1dGgudjEiFgoUR2V0QXV0aENvbmZpZ1JlcXVlc3QiWgoVR2V0QXV0aENvbmZpZ1Jlc3BvbnNlEg4KBmlzc3VlchgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSHgoWc2VydmljZV9hY2NvdW50X3Njb3BlcxgDIAMoCSJNCgxMb2dpblJlcXVlc3QSFwoPYXV0aF9yZXF1ZXN0X2lkGAEgASgJEhIKCmxvZ2luX25hbWUYAiABKAkSEAoIcGFzc3dvcmQYAyABKAkiJQoNTG9naW5SZXNwb25zZRIUCgxjYWxsYmFja191cmwYASABKAkibQoPUmVnaXN0ZXJSZXF1ZXN0EhAKCG9yZ19uYW1lGAEgASgJEhIKCmdpdmVuX25hbWUYAiABKAkSEwoLZmFtaWx5X25hbWUYAyABKAkSDQoFZW1haWwYBCABKAkSEAoIcGFzc3dvcmQYBSABKAkiJQoQUmVnaXN0ZXJSZXNwb25zZRIRCgl0ZW5hbnRfaWQYASABKAkiRgoTQWNjZXB0SW52aXRlUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEgwKBGNvZGUYAiABKAkSEAoIcGFzc3dvcmQYAyABKAkiFgoUQWNjZXB0SW52aXRlUmVzcG9uc2ViBnByb3RvMw");
+  fileDesc("ChVhdXRoL3YxL3Nlc3Npb24ucHJvdG8SB2F1dGgudjEiFgoUR2V0QXV0aENvbmZpZ1JlcXVlc3QiRwoVR2V0QXV0aENvbmZpZ1Jlc3BvbnNlEg4KBmlzc3VlchgBIAEoCRIeChZzZXJ2aWNlX2FjY291bnRfc2NvcGVzGAMgAygJIjQKDExvZ2luUmVxdWVzdBISCgpsb2dpbl9uYW1lGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJIg8KDUxvZ2luUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSITChFHZXRTZXNzaW9uUmVxdWVzdCJWChJHZXRTZXNzaW9uUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBWVtYWlsGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkibQoPUmVnaXN0ZXJSZXF1ZXN0EhAKCG9yZ19uYW1lGAEgASgJEhIKCmdpdmVuX25hbWUYAiABKAkSEwoLZmFtaWx5X25hbWUYAyABKAkSDQoFZW1haWwYBCABKAkSEAoIcGFzc3dvcmQYBSABKAkiJQoQUmVnaXN0ZXJSZXNwb25zZRIRCgl0ZW5hbnRfaWQYASABKAkiRgoTQWNjZXB0SW52aXRlUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEgwKBGNvZGUYAiABKAkSEAoIcGFzc3dvcmQYAyABKAkiFgoUQWNjZXB0SW52aXRlUmVzcG9uc2ViBnByb3RvMw");
 
 /**
  * @generated from message auth.v1.GetAuthConfigRequest
@@ -39,11 +39,6 @@ export type GetAuthConfigResponse = Message<"auth.v1.GetAuthConfigResponse"> & {
   issuer: string;
 
   /**
-   * @generated from field: string client_id = 2;
-   */
-  clientId: string;
-
-  /**
    * service_account_scopes are requested by non-interactive clients. The
    * provider owns these values so clients do not need provider-specific
    * project IDs or reserved scope knowledge.
@@ -62,23 +57,19 @@ export const GetAuthConfigResponseSchema: GenMessage<GetAuthConfigResponse> = /*
 
 /**
  * LoginRequest carries the credentials filament's own login page collected.
- * auth_request_id is the pending authorization the provider redirected with.
+ * A successful login answers with an HttpOnly session cookie that every later
+ * RPC carries; nothing about the provider reaches the browser.
  *
  * @generated from message auth.v1.LoginRequest
  */
 export type LoginRequest = Message<"auth.v1.LoginRequest"> & {
   /**
-   * @generated from field: string auth_request_id = 1;
-   */
-  authRequestId: string;
-
-  /**
-   * @generated from field: string login_name = 2;
+   * @generated from field: string login_name = 1;
    */
   loginName: string;
 
   /**
-   * @generated from field: string password = 3;
+   * @generated from field: string password = 2;
    */
   password: string;
 };
@@ -91,16 +82,9 @@ export const LoginRequestSchema: GenMessage<LoginRequest> = /*@__PURE__*/
   messageDesc(file_auth_v1_session, 2);
 
 /**
- * LoginResponse returns the OIDC callback the browser follows to finish the
- * flow and receive its token.
- *
  * @generated from message auth.v1.LoginResponse
  */
 export type LoginResponse = Message<"auth.v1.LoginResponse"> & {
-  /**
-   * @generated from field: string callback_url = 1;
-   */
-  callbackUrl: string;
 };
 
 /**
@@ -109,6 +93,82 @@ export type LoginResponse = Message<"auth.v1.LoginResponse"> & {
  */
 export const LoginResponseSchema: GenMessage<LoginResponse> = /*@__PURE__*/
   messageDesc(file_auth_v1_session, 3);
+
+/**
+ * LogoutRequest ends the session and clears its cookie.
+ *
+ * @generated from message auth.v1.LogoutRequest
+ */
+export type LogoutRequest = Message<"auth.v1.LogoutRequest"> & {
+};
+
+/**
+ * Describes the message auth.v1.LogoutRequest.
+ * Use `create(LogoutRequestSchema)` to create a new message.
+ */
+export const LogoutRequestSchema: GenMessage<LogoutRequest> = /*@__PURE__*/
+  messageDesc(file_auth_v1_session, 4);
+
+/**
+ * @generated from message auth.v1.LogoutResponse
+ */
+export type LogoutResponse = Message<"auth.v1.LogoutResponse"> & {
+};
+
+/**
+ * Describes the message auth.v1.LogoutResponse.
+ * Use `create(LogoutResponseSchema)` to create a new message.
+ */
+export const LogoutResponseSchema: GenMessage<LogoutResponse> = /*@__PURE__*/
+  messageDesc(file_auth_v1_session, 5);
+
+/**
+ * GetSessionRequest resolves the caller behind the session cookie. It is the
+ * UI's sign-in check: unauthenticated means show the login page.
+ *
+ * @generated from message auth.v1.GetSessionRequest
+ */
+export type GetSessionRequest = Message<"auth.v1.GetSessionRequest"> & {
+};
+
+/**
+ * Describes the message auth.v1.GetSessionRequest.
+ * Use `create(GetSessionRequestSchema)` to create a new message.
+ */
+export const GetSessionRequestSchema: GenMessage<GetSessionRequest> = /*@__PURE__*/
+  messageDesc(file_auth_v1_session, 6);
+
+/**
+ * @generated from message auth.v1.GetSessionResponse
+ */
+export type GetSessionResponse = Message<"auth.v1.GetSessionResponse"> & {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string email = 3;
+   */
+  email: string;
+
+  /**
+   * @generated from field: string avatar_url = 4;
+   */
+  avatarUrl: string;
+};
+
+/**
+ * Describes the message auth.v1.GetSessionResponse.
+ * Use `create(GetSessionResponseSchema)` to create a new message.
+ */
+export const GetSessionResponseSchema: GenMessage<GetSessionResponse> = /*@__PURE__*/
+  messageDesc(file_auth_v1_session, 7);
 
 /**
  * RegisterRequest creates a tenant and its first admin.
@@ -147,7 +207,7 @@ export type RegisterRequest = Message<"auth.v1.RegisterRequest"> & {
  * Use `create(RegisterRequestSchema)` to create a new message.
  */
 export const RegisterRequestSchema: GenMessage<RegisterRequest> = /*@__PURE__*/
-  messageDesc(file_auth_v1_session, 4);
+  messageDesc(file_auth_v1_session, 8);
 
 /**
  * @generated from message auth.v1.RegisterResponse
@@ -164,7 +224,7 @@ export type RegisterResponse = Message<"auth.v1.RegisterResponse"> & {
  * Use `create(RegisterResponseSchema)` to create a new message.
  */
 export const RegisterResponseSchema: GenMessage<RegisterResponse> = /*@__PURE__*/
-  messageDesc(file_auth_v1_session, 5);
+  messageDesc(file_auth_v1_session, 9);
 
 /**
  * AcceptInviteRequest redeems an invite and sets the new member's password.
@@ -194,7 +254,7 @@ export type AcceptInviteRequest = Message<"auth.v1.AcceptInviteRequest"> & {
  * Use `create(AcceptInviteRequestSchema)` to create a new message.
  */
 export const AcceptInviteRequestSchema: GenMessage<AcceptInviteRequest> = /*@__PURE__*/
-  messageDesc(file_auth_v1_session, 6);
+  messageDesc(file_auth_v1_session, 10);
 
 /**
  * @generated from message auth.v1.AcceptInviteResponse
@@ -207,5 +267,5 @@ export type AcceptInviteResponse = Message<"auth.v1.AcceptInviteResponse"> & {
  * Use `create(AcceptInviteResponseSchema)` to create a new message.
  */
 export const AcceptInviteResponseSchema: GenMessage<AcceptInviteResponse> = /*@__PURE__*/
-  messageDesc(file_auth_v1_session, 7);
+  messageDesc(file_auth_v1_session, 11);
 

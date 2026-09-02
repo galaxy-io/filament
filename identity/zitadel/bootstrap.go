@@ -3,13 +3,9 @@ package zitadel
 import (
 	"context"
 	"fmt"
-	"slices"
 
-	appv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/application/v2"
 	"github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/auth"
 	authorizationv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/authorization/v2"
-	featurev2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/feature/v2"
-	permissionv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/internal_permission/v2"
 	projectv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/project/v2"
 
 	"google.golang.org/grpc/codes"
@@ -18,13 +14,7 @@ import (
 	"github.com/galaxy-io/filament/identity"
 )
 
-const (
-	projectName = "filament"
-	appName     = "filament-ui"
-	// loginClientRole lets the machine user finalize auth requests on behalf
-	// of filament's own login page.
-	loginClientRole = "IAM_LOGIN_CLIENT"
-)
+const projectName = "filament"
 
 // projectRef is filament's project and the organization owning it. Other
 // organizations need the project granted to them before their users can
@@ -35,75 +25,23 @@ type projectRef struct {
 }
 
 // bootstrap converges the instance on the configuration filament needs and
-// caches the project and OIDC client id on the provider. Every step is
-// idempotent, so each boot lands on the same state.
-func (p *Provider) bootstrap(ctx context.Context, uiOrigin string) error {
-	// A fresh instance forces every app onto the built-in login UI; routing
-	// to filament's own page only applies with that force off.
-	if _, err := p.api.FeatureServiceV2().SetInstanceFeatures(ctx, &featurev2.SetInstanceFeaturesRequest{
-		LoginV2: &featurev2.LoginV2{Required: false},
-	}); err != nil {
-		return fmt.Errorf("disable forced login v2: %w", err)
-	}
+// caches the project on the provider. Every step is idempotent, so each boot
+// lands on the same state.
+func (p *Provider) bootstrap(ctx context.Context) error {
 	// The machine user's own organization owns filament's project.
 	me, err := p.api.AuthService().GetMyUser(ctx, &auth.GetMyUserRequest{})
 	if err != nil {
 		return fmt.Errorf("resolve machine user: %w", err)
 	}
-	homeOrgID := me.GetUser().GetDetails().GetResourceOwner()
-	if err := p.ensureLoginClientRole(ctx, me.GetUser().GetId()); err != nil {
-		return fmt.Errorf("grant %s: %w", loginClientRole, err)
-	}
-	if err := p.ensureProject(ctx, homeOrgID); err != nil {
+	if err := p.ensureProject(ctx, me.GetUser().GetDetails().GetResourceOwner()); err != nil {
 		return err
 	}
-	if err := p.ensureProjectRoles(ctx); err != nil {
-		return err
-	}
-	return p.ensureApp(ctx, uiOrigin)
-}
-
-// ensureLoginClientRole grants the machine user IAM_LOGIN_CLIENT alongside
-// the instance roles it already holds; a first-instance user only gets
-// IAM_OWNER.
-func (p *Provider) ensureLoginClientRole(ctx context.Context, userID string) error {
-	admins, err := p.api.InternalPermissionServiceV2().ListAdministrators(ctx, &permissionv2.ListAdministratorsRequest{})
-	if err != nil {
-		return err
-	}
-	for _, administrator := range admins.GetAdministrators() {
-		// Instance-level grants are the only ones that carry this role.
-		if administrator.GetUser().GetId() != userID || !administrator.GetInstance() {
-			continue
-		}
-		if slices.Contains(administrator.GetRoles(), loginClientRole) {
-			return nil
-		}
-		_, err := p.api.InternalPermissionServiceV2().UpdateAdministrator(ctx, &permissionv2.UpdateAdministratorRequest{
-			UserId:   userID,
-			Resource: instanceScope(),
-			Roles:    append(administrator.GetRoles(), loginClientRole),
-		})
-		return err
-	}
-	_, err = p.api.InternalPermissionServiceV2().CreateAdministrator(ctx, &permissionv2.CreateAdministratorRequest{
-		UserId:   userID,
-		Resource: instanceScope(),
-		Roles:    []string{loginClientRole},
-	})
-	return err
-}
-
-// instanceScope targets administrator grants at the whole instance, which is
-// where IAM roles live.
-func instanceScope() *permissionv2.ResourceType {
-	return &permissionv2.ResourceType{
-		Resource: &permissionv2.ResourceType_Instance{Instance: true},
-	}
+	return p.ensureProjectRoles(ctx)
 }
 
 // ensureProject finds or creates filament's project. Role assertion puts
-// granted roles in every token its applications issue.
+// granted roles in every token issued for it, which is how service accounts
+// carry theirs.
 func (p *Provider) ensureProject(ctx context.Context, homeOrgID string) error {
 	found, err := p.api.ProjectServiceV2().ListProjects(ctx, &projectv2.ListProjectsRequest{
 		Filters: []*projectv2.ProjectSearchFilter{{
@@ -158,95 +96,6 @@ func (p *Provider) ensureProjectRoles(ctx context.Context) error {
 	return nil
 }
 
-// ensureApp finds or creates the SPA registration and keeps its login base
-// URI tracking the configured UI origin.
-func (p *Provider) ensureApp(ctx context.Context, uiOrigin string) error {
-	found, err := p.api.ApplicationServiceV2().ListApplications(ctx, &appv2.ListApplicationsRequest{
-		Filters: []*appv2.ApplicationSearchFilter{
-			{Filter: &appv2.ApplicationSearchFilter_ProjectIdFilter{
-				ProjectIdFilter: &appv2.ProjectIDFilter{ProjectId: p.project.id},
-			}},
-			{Filter: &appv2.ApplicationSearchFilter_NameFilter{
-				NameFilter: &appv2.ApplicationNameFilter{Name: appName},
-			}},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("list applications: %w", err)
-	}
-	if result := found.GetApplications(); len(result) > 0 {
-		existing := result[0]
-		p.clientID = existing.GetOidcConfiguration().GetClientId()
-		if existing.GetOidcConfiguration().GetLoginVersion().GetLoginV2().GetBaseUri() == uiOrigin {
-			return nil
-		}
-		_, err := p.api.ApplicationServiceV2().UpdateApplication(ctx, &appv2.UpdateApplicationRequest{
-			ProjectId:     p.project.id,
-			ApplicationId: existing.GetApplicationId(),
-			ApplicationType: &appv2.UpdateApplicationRequest_OidcConfiguration{
-				OidcConfiguration: updateOIDCConfig(uiOrigin),
-			},
-		})
-		return err
-	}
-	created, err := p.api.ApplicationServiceV2().CreateApplication(ctx, &appv2.CreateApplicationRequest{
-		ProjectId: p.project.id,
-		Name:      appName,
-		ApplicationType: &appv2.CreateApplicationRequest_OidcConfiguration{
-			OidcConfiguration: createOIDCConfig(uiOrigin),
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("create application: %w", err)
-	}
-	p.clientID = created.GetOidcConfiguration().GetClientId()
-	return nil
-}
-
-// loginVersion routes the authorize endpoint at filament's own login page.
-// Zitadel appends /login to the base URI when it redirects.
-func loginVersion(uiOrigin string) *appv2.LoginVersion {
-	return &appv2.LoginVersion{
-		Version: &appv2.LoginVersion_LoginV2{LoginV2: &appv2.LoginV2{BaseUri: &uiOrigin}},
-	}
-}
-
-// createOIDCConfig registers the SPA: PKCE with no client secret, code flow
-// only, and JWT access tokens so the API verifies against JWKS instead of
-// introspecting. Roles ride in the token so authorization needs no lookup.
-func createOIDCConfig(uiOrigin string) *appv2.CreateOIDCApplicationRequest {
-	return &appv2.CreateOIDCApplicationRequest{
-		RedirectUris:             []string{uiOrigin + "/auth/callback"},
-		PostLogoutRedirectUris:   []string{uiOrigin},
-		ResponseTypes:            []appv2.OIDCResponseType{appv2.OIDCResponseType_OIDC_RESPONSE_TYPE_CODE},
-		GrantTypes:               []appv2.OIDCGrantType{appv2.OIDCGrantType_OIDC_GRANT_TYPE_AUTHORIZATION_CODE, appv2.OIDCGrantType_OIDC_GRANT_TYPE_REFRESH_TOKEN},
-		ApplicationType:          appv2.OIDCApplicationType_OIDC_APP_TYPE_USER_AGENT,
-		AuthMethodType:           appv2.OIDCAuthMethodType_OIDC_AUTH_METHOD_TYPE_NONE,
-		AccessTokenType:          appv2.OIDCTokenType_OIDC_TOKEN_TYPE_JWT,
-		AccessTokenRoleAssertion: true,
-		DevelopmentMode:          true,
-		LoginVersion:             loginVersion(uiOrigin),
-	}
-}
-
-// updateOIDCConfig is the create form with the optional-field pointers the
-// update API takes, so the two can never drift.
-func updateOIDCConfig(uiOrigin string) *appv2.UpdateOIDCApplicationConfigurationRequest {
-	create := createOIDCConfig(uiOrigin)
-	return &appv2.UpdateOIDCApplicationConfigurationRequest{
-		RedirectUris:             create.RedirectUris,
-		PostLogoutRedirectUris:   create.PostLogoutRedirectUris,
-		ResponseTypes:            create.ResponseTypes,
-		GrantTypes:               create.GrantTypes,
-		ApplicationType:          &create.ApplicationType,
-		AuthMethodType:           &create.AuthMethodType,
-		AccessTokenType:          &create.AccessTokenType,
-		AccessTokenRoleAssertion: &create.AccessTokenRoleAssertion,
-		DevelopmentMode:          &create.DevelopmentMode,
-		LoginVersion:             create.LoginVersion,
-	}
-}
-
 // ensureProjectGrant shares filament's project with an organization once, so
 // its users can hold filament roles. The owning organization needs none.
 func (p *Provider) ensureProjectGrant(ctx context.Context, orgID string) error {
@@ -288,4 +137,14 @@ func (p *Provider) grantRole(ctx context.Context, orgID, userID, roleKey string)
 // about to create is already there, which is the state it wanted anyway.
 func isAlreadyExists(err error) bool {
 	return status.Code(err) == codes.AlreadyExists
+}
+
+// isUnavailable reports whether an error means Zitadel could not be reached
+// at all, which must never be mistaken for a rejected credential.
+func isUnavailable(err error) bool {
+	switch status.Code(err) {
+	case codes.Unavailable, codes.DeadlineExceeded:
+		return true
+	}
+	return false
 }

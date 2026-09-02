@@ -1,12 +1,16 @@
-import { createConnectQueryKey, type UseQueryOptions, useQuery } from "@connectrpc/connect-query";
+import type { Transport } from "@connectrpc/connect";
+import {
+  createConnectQueryKey,
+  createQueryOptions,
+  type UseQueryOptions,
+  useQuery,
+} from "@connectrpc/connect-query";
 
 import type { ListMembersResponse } from "@/gen/auth/v1/members_pb";
 import type { ListServiceAccountsResponse } from "@/gen/auth/v1/service_accounts_pb";
 import { AuthService } from "@/gen/auth/v1/service_pb";
-import type { GetAuthConfigResponse } from "@/gen/auth/v1/session_pb";
 
-export const createGetAuthConfigQueryKey = () =>
-  createConnectQueryKey({ schema: AuthService.method.getAuthConfig, cardinality: "finite" });
+import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
 export const createListMembersQueryKey = () =>
   createConnectQueryKey({ schema: AuthService.method.listMembers, cardinality: "finite" });
@@ -14,15 +18,18 @@ export const createListMembersQueryKey = () =>
 export const createListServiceAccountsQueryKey = () =>
   createConnectQueryKey({ schema: AuthService.method.listServiceAccounts, cardinality: "finite" });
 
-export const useGetAuthConfigQuery = ({
-  options = {},
-}: {
-  options?: UseQueryOptions<typeof AuthService.method.getAuthConfig.output, GetAuthConfigResponse>;
-} = {}) => {
-  return useQuery<
-    typeof AuthService.method.getAuthConfig.input,
-    typeof AuthService.method.getAuthConfig.output
-  >(AuthService.method.getAuthConfig, {}, options);
+export const createGetAuthConfigQueryOptions = ({ transport }: { transport: Transport }) => {
+  return {
+    ...createQueryOptions(AuthService.method.getAuthConfig, {}, { transport }),
+    ...PROBE_QUERY_OPTIONS,
+  };
+};
+
+export const createGetSessionQueryOptions = ({ transport }: { transport: Transport }) => {
+  return {
+    ...createQueryOptions(AuthService.method.getSession, {}, { transport }),
+    ...PROBE_QUERY_OPTIONS,
+  };
 };
 
 export const useListMembersQuery = ({

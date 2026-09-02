@@ -72,14 +72,22 @@ func (p *Provider) rolesByUser(ctx context.Context, orgID string) (map[string]au
 	}
 	roles := make(map[string]authv1.Role, len(granted.GetAuthorizations()))
 	for _, authorization := range granted.GetAuthorizations() {
-		for _, key := range authorization.GetRoles() {
-			if role := identity.RoleFromKey(key.GetKey()); role != authv1.Role_ROLE_UNSPECIFIED {
-				roles[authorization.GetUser().GetId()] = role
-				break
-			}
+		if role := grantedRole(authorization); role != authv1.Role_ROLE_UNSPECIFIED {
+			roles[authorization.GetUser().GetId()] = role
 		}
 	}
 	return roles, nil
+}
+
+// grantedRole is the filament role an authorization carries, unspecified
+// when none of its keys is one filament recognizes.
+func grantedRole(authorization *authorizationv2.Authorization) authv1.Role {
+	for _, key := range authorization.GetRoles() {
+		if role := identity.RoleFromKey(key.GetKey()); role != authv1.Role_ROLE_UNSPECIFIED {
+			return role
+		}
+	}
+	return authv1.Role_ROLE_UNSPECIFIED
 }
 
 // InviteMember creates a teammate in the caller's tenant and returns the

@@ -108,7 +108,7 @@ const PipelineCanvasPageWrapper = withTheme(styled.div<PropsWithTheme>`
 
 const PipelineCanvasPage = () => {
   const theme = useTheme();
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();
   const isReadOnly = usePipelineCanvasReadOnly();

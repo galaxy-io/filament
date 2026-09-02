@@ -5,7 +5,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 
-const PIPELINE_CANVAS_ROUTE = "/pipelines/$id/canvas";
+const PIPELINE_CANVAS_ROUTE = "/_app/pipelines/$id/canvas";
 
 interface PipelineCanvasSearch {
   node?: CanvasNode["id"];

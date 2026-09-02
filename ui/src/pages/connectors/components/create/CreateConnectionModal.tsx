@@ -11,7 +11,7 @@ import type { CreateConnectionModalProps } from "@/pages/connectors/components/c
 const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   const navigate = useNavigate();
   const { connector, connectorKind } = useSearch({
-    from: "__root__",
+    from: "/_app",
   });
 
   const handleConnectorSelect = useCallback(

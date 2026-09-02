@@ -12,7 +12,7 @@ import { routeTree } from "@/routeTree.gen";
 const DEFAULT_PRELOAD = "intent";
 const DEFAULT_PRELOAD_STALE_TIME = 0;
 
-const DefaultErrorComponent = ({ error }: { error: Error }) => {
+export const DefaultErrorComponent = ({ error }: { error: Error }) => {
   return (
     <ErrorLayout
       icon={<Icon component={BugIcon} size={24} variant={IconVariant.ERROR} />}
