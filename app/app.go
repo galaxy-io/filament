@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -99,41 +100,18 @@ func newConfig(opts ...Option) Config {
 	return c
 }
 
-// Run mounts the ingestion service and serves the ConnectRPC API until the
-// process is signalled. With no options it uses the in-process bus, in-memory
-// store, and registry.Default{Sources,Sinks}, which connectors populate from
-// init(). The listen address comes from INGESTION_ADDR (default ":8080").
+// Run mounts the ingestion service and serves the ConnectRPC API until ctx is
+// cancelled. With no options it uses the in-process bus, in-memory store, and
+// registry.Default{Sources,Sinks}, which connectors populate from init(). The
+// listen address comes from INGESTION_ADDR (default ":8080").
 func Run(ctx context.Context, opts ...Option) error {
 	cfg := newConfig(opts...)
-
-	orch := orchestrator.New()
-	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus,
-		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics), server.WithLogger(cfg.Log))
-	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
-	if !ok {
-		return fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
-	}
-	sched := scheduler.New(scheduleStore)
-	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}
-	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, sched)
+	mux, mounted, cleanup, err := compose(ctx, cfg)
 	if err != nil {
-		return fmt.Errorf("mount: %w", err)
+		return err
 	}
-	h := host.New(cfg.Bus)
-	defer func() {
-		_ = h.Close()
-		if c, ok := cfg.Bus.(io.Closer); ok {
-			_ = c.Close()
-		}
-		if c, ok := cfg.Store.(io.Closer); ok {
-			_ = c.Close()
-		}
-	}()
-	if err := h.Run(ctx, mods...); err != nil {
-		return fmt.Errorf("run: %w", err)
-	}
-	sched.Start(ctx)
-	for _, name := range h.Mounted() {
+	defer cleanup()
+	for _, name := range mounted {
 		fmt.Println("mounted:", name)
 	}
 
@@ -141,13 +119,85 @@ func Run(ctx context.Context, opts ...Option) error {
 	if addr == "" {
 		addr = ":8080"
 	}
-	mux := http.NewServeMux()
-	api.Mount(mux)
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
 	if cfg.UI != nil {
-		mux.Handle("/", cfg.UI)
 		fmt.Println("ui:", "http://localhost"+addr)
 	}
 	fmt.Println("connectrpc:", "http://localhost"+addr)
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	return srv.ListenAndServe()
+	return serve(ctx, ln, mux)
+}
+
+// Serve mounts the same stack as Run on a caller-owned listener and serves it
+// until ctx is cancelled. It prints nothing.
+func Serve(ctx context.Context, ln net.Listener, opts ...Option) error {
+	mux, _, cleanup, err := compose(ctx, newConfig(opts...))
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	return serve(ctx, ln, mux)
+}
+
+// compose mounts the modules and API onto a mux. cleanup closes the host,
+// bus, and store.
+func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []string, cleanup func(), err error) {
+	orch := orchestrator.New()
+	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus,
+		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics), server.WithLogger(cfg.Log))
+	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
+	}
+	sched := scheduler.New(scheduleStore)
+	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}
+	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, sched)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("mount: %w", err)
+	}
+	h := host.New(cfg.Bus)
+	cleanup = func() {
+		_ = h.Close()
+		if c, ok := cfg.Bus.(io.Closer); ok {
+			_ = c.Close()
+		}
+		if c, ok := cfg.Store.(io.Closer); ok {
+			_ = c.Close()
+		}
+	}
+	if err := h.Run(ctx, mods...); err != nil {
+		cleanup()
+		return nil, nil, nil, fmt.Errorf("run: %w", err)
+	}
+	sched.Start(ctx)
+	mux = http.NewServeMux()
+	api.Mount(mux)
+	if cfg.UI != nil {
+		mux.Handle("/", cfg.UI)
+	}
+	return mux, h.Mounted(), cleanup, nil
+}
+
+// serve runs mux on ln until ctx is cancelled, then shuts down gracefully.
+func serve(ctx context.Context, ln net.Listener, mux *http.ServeMux) error {
+	srv := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		// Handlers (long-lived tails) see the cancel so Shutdown does not wait on them.
+		BaseContext: func(net.Listener) context.Context { return ctx },
+	}
+	errc := make(chan error, 1)
+	go func() { errc <- srv.Serve(ln) }()
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		err := srv.Shutdown(shutdownCtx)
+		<-errc
+		return err
+	}
 }
