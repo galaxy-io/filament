@@ -50,7 +50,6 @@ const PipelineSettingsPageAdvanced = () => {
   const handleSave = () => {
     updatePipeline(
       create(UpdatePipelineRequestSchema, {
-        tenantId: pipeline.tenantId,
         pipelineId: pipeline.id,
         name: pipeline.name,
         description: pipeline.description,

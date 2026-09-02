@@ -187,12 +187,11 @@ func (x *Connection) GetReplication() ReplicationMode {
 
 type CreateConnectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Connector     string                 `protobuf:"bytes,4,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
-	SecretRefs    map[string]string      `protobuf:"bytes,6,rep,name=secret_refs,json=secretRefs,proto3" json:"secret_refs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Kind          ConnectorKind          `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Connector     string                 `protobuf:"bytes,3,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
+	SecretRefs    map[string]string      `protobuf:"bytes,5,rep,name=secret_refs,json=secretRefs,proto3" json:"secret_refs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -225,13 +224,6 @@ func (x *CreateConnectionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateConnectionRequest.ProtoReflect.Descriptor instead.
 func (*CreateConnectionRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connections_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *CreateConnectionRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *CreateConnectionRequest) GetKind() ConnectorKind {
@@ -315,8 +307,7 @@ func (x *CreateConnectionResponse) GetConnection() *Connection {
 
 type UpdateConnectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Connection    *Connection            `protobuf:"bytes,2,opt,name=connection,proto3" json:"connection,omitempty"`
+	Connection    *Connection            `protobuf:"bytes,1,opt,name=connection,proto3" json:"connection,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -349,13 +340,6 @@ func (x *UpdateConnectionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateConnectionRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConnectionRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connections_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *UpdateConnectionRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *UpdateConnectionRequest) GetConnection() *Connection {
@@ -411,8 +395,7 @@ func (x *UpdateConnectionResponse) GetConnection() *Connection {
 
 type GetConnectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -445,13 +428,6 @@ func (x *GetConnectionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetConnectionRequest.ProtoReflect.Descriptor instead.
 func (*GetConnectionRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connections_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GetConnectionRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *GetConnectionRequest) GetId() string {
@@ -509,12 +485,11 @@ func (x *GetConnectionResponse) GetConnection() *Connection {
 // sinks.
 type ListConnectionsRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind           ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	IncludeDeleted bool                   `protobuf:"varint,3,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
-	Pagination     *PaginationRequest     `protobuf:"bytes,4,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	Search         string                 `protobuf:"bytes,5,opt,name=search,proto3" json:"search,omitempty"`
-	Sorting        *SortingRequest        `protobuf:"bytes,6,opt,name=sorting,proto3" json:"sorting,omitempty"`
+	Kind           ConnectorKind          `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	IncludeDeleted bool                   `protobuf:"varint,2,opt,name=include_deleted,json=includeDeleted,proto3" json:"include_deleted,omitempty"`
+	Pagination     *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Search         string                 `protobuf:"bytes,4,opt,name=search,proto3" json:"search,omitempty"`
+	Sorting        *SortingRequest        `protobuf:"bytes,5,opt,name=sorting,proto3" json:"sorting,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -547,13 +522,6 @@ func (x *ListConnectionsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListConnectionsRequest.ProtoReflect.Descriptor instead.
 func (*ListConnectionsRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connections_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ListConnectionsRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *ListConnectionsRequest) GetKind() ConnectorKind {
@@ -645,8 +613,7 @@ func (x *ListConnectionsResponse) GetPagination() *PaginationResponse {
 
 type DeleteConnectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -679,13 +646,6 @@ func (x *DeleteConnectionRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteConnectionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteConnectionRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connections_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *DeleteConnectionRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *DeleteConnectionRequest) GetId() string {
@@ -760,14 +720,13 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\vreplication\x18\x0f \x01(\x0e2\x1d.ingestion.v1.ReplicationModeR\vreplication\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x02\n" +
-	"\x17CreateConnectionRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1c\n" +
-	"\tconnector\x18\x04 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x06config\x12V\n" +
-	"\vsecret_refs\x18\x06 \x03(\v25.ingestion.v1.CreateConnectionRequest.SecretRefsEntryR\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc4\x02\n" +
+	"\x17CreateConnectionRequest\x12/\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1c\n" +
+	"\tconnector\x18\x03 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12V\n" +
+	"\vsecret_refs\x18\x05 \x03(\v25.ingestion.v1.CreateConnectionRequest.SecretRefsEntryR\n" +
 	"secretRefs\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -775,40 +734,36 @@ const file_ingestion_v1_connections_proto_rawDesc = "" +
 	"\x18CreateConnectionResponse\x128\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
-	"connection\"p\n" +
-	"\x17UpdateConnectionRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x128\n" +
+	"connection\"S\n" +
+	"\x17UpdateConnectionRequest\x128\n" +
 	"\n" +
-	"connection\x18\x02 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
+	"connection\x18\x01 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
 	"connection\"T\n" +
 	"\x18UpdateConnectionResponse\x128\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
-	"connection\"C\n" +
-	"\x14GetConnectionRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"Q\n" +
+	"connection\"&\n" +
+	"\x14GetConnectionRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"Q\n" +
 	"\x15GetConnectionResponse\x128\n" +
 	"\n" +
 	"connection\x18\x01 \x01(\v2\x18.ingestion.v1.ConnectionR\n" +
-	"connection\"\xa0\x02\n" +
-	"\x16ListConnectionsRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12'\n" +
-	"\x0finclude_deleted\x18\x03 \x01(\bR\x0eincludeDeleted\x12?\n" +
+	"connection\"\x83\x02\n" +
+	"\x16ListConnectionsRequest\x12/\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12'\n" +
+	"\x0finclude_deleted\x18\x02 \x01(\bR\x0eincludeDeleted\x12?\n" +
 	"\n" +
-	"pagination\x18\x04 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\x18\x03 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
 	"pagination\x12\x16\n" +
-	"\x06search\x18\x05 \x01(\tR\x06search\x126\n" +
-	"\asorting\x18\x06 \x01(\v2\x1c.ingestion.v1.SortingRequestR\asorting\"\x97\x01\n" +
+	"\x06search\x18\x04 \x01(\tR\x06search\x126\n" +
+	"\asorting\x18\x05 \x01(\v2\x1c.ingestion.v1.SortingRequestR\asorting\"\x97\x01\n" +
 	"\x17ListConnectionsResponse\x12:\n" +
 	"\vconnections\x18\x01 \x03(\v2\x18.ingestion.v1.ConnectionR\vconnections\x12@\n" +
 	"\n" +
 	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
-	"pagination\"F\n" +
-	"\x17DeleteConnectionRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"\x1a\n" +
+	"pagination\")\n" +
+	"\x17DeleteConnectionRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x1a\n" +
 	"\x18DeleteConnectionResponseB\xb1\x01\n" +
 	"\x10com.ingestion.v1B\x10ConnectionsProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 

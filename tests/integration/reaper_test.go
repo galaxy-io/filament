@@ -92,7 +92,7 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 
 	killCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	state := waitStatus(t, killCtx, ds, dead, filament.RunFailed)
+	state := waitStatus(t, killCtx, ds, "acme", dead, filament.RunFailed)
 	if !strings.HasPrefix(state.Error, "reaped:") {
 		t.Errorf("dead run error = %q, want reaped prefix", state.Error)
 	}
@@ -100,7 +100,7 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 	// Several more sweeps pass; the held run stays Running because its Job
 	// is still unfinished.
 	time.Sleep(time.Second)
-	if st, err := ds.LoadRun(ctx, held); err != nil || st.Status != filament.RunRunning {
+	if st, err := ds.LoadRun(ctx, "acme", held); err != nil || st.Status != filament.RunRunning {
 		t.Fatalf("held run: status %v err %v, want still running", st.Status, err)
 	}
 
@@ -110,7 +110,7 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 	}
 	killCtx2, cancel2 := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel2()
-	state = waitStatus(t, killCtx2, ds, held, filament.RunFailed)
+	state = waitStatus(t, killCtx2, ds, "acme", held, filament.RunFailed)
 	if !strings.HasPrefix(state.Error, "reaped:") {
 		t.Errorf("held run error = %q, want reaped prefix", state.Error)
 	}

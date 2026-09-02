@@ -19,9 +19,7 @@ message Member {
   Role role = 4;
 }
 
-message ListMembersRequest {
-  string tenant_id = 1;
-}
+message ListMembersRequest {}
 
 message ListMembersResponse {
   repeated Member members = 1;
@@ -31,11 +29,10 @@ message ListMembersResponse {
 }
 
 message InviteMemberRequest {
-  string tenant_id = 1;
-  string email = 2;
-  string given_name = 3;
-  string family_name = 4;
-  Role role = 5;
+  string email = 1;
+  string given_name = 2;
+  string family_name = 3;
+  Role role = 4;
 }
 
 // InviteMemberResponse carries the invitation an admin shares out of band.
@@ -46,16 +43,14 @@ message InviteMemberResponse {
 }
 
 message SetMemberRoleRequest {
-  string tenant_id = 1;
-  string user_id = 2;
-  Role role = 3;
+  string user_id = 1;
+  Role role = 2;
 }
 
 message SetMemberRoleResponse {}
 
 message RemoveMemberRequest {
-  string tenant_id = 1;
-  string user_id = 2;
+  string user_id = 1;
 }
 
 message RemoveMemberResponse {}

@@ -593,10 +593,3 @@ func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
 	}
 	return opts
 }
-
-func defaultTenant(tenant string) string {
-	if tenant == "" {
-		return string(filament.DefaultTenantID)
-	}
-	return tenant
-}

@@ -121,12 +121,12 @@ func (s *flakySink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filamen
 	return s.Sink.Apply(ctx, b, opts)
 }
 
-func waitStatus(t *testing.T, ctx context.Context, store filament.DataStore, id filament.RunID, want filament.RunStatus) filament.RunState {
+func waitStatus(t *testing.T, ctx context.Context, store filament.DataStore, tenant filament.TenantID, id filament.RunID, want filament.RunStatus) filament.RunState {
 	t.Helper()
 	ticker := time.NewTicker(25 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		state, err := store.LoadRun(ctx, id)
+		state, err := store.LoadRun(ctx, tenant, id)
 		if err == nil && state.Status == want {
 			return state
 		}

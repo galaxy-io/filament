@@ -146,7 +146,6 @@ func (x *Member) GetRole() Role {
 
 type ListMembersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -179,13 +178,6 @@ func (x *ListMembersRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListMembersRequest.ProtoReflect.Descriptor instead.
 func (*ListMembersRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_members_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ListMembersRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 type ListMembersResponse struct {
@@ -244,11 +236,10 @@ func (x *ListMembersResponse) GetCanManage() bool {
 
 type InviteMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	GivenName     string                 `protobuf:"bytes,3,opt,name=given_name,json=givenName,proto3" json:"given_name,omitempty"`
-	FamilyName    string                 `protobuf:"bytes,4,opt,name=family_name,json=familyName,proto3" json:"family_name,omitempty"`
-	Role          Role                   `protobuf:"varint,5,opt,name=role,proto3,enum=auth.v1.Role" json:"role,omitempty"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	GivenName     string                 `protobuf:"bytes,2,opt,name=given_name,json=givenName,proto3" json:"given_name,omitempty"`
+	FamilyName    string                 `protobuf:"bytes,3,opt,name=family_name,json=familyName,proto3" json:"family_name,omitempty"`
+	Role          Role                   `protobuf:"varint,4,opt,name=role,proto3,enum=auth.v1.Role" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,13 +272,6 @@ func (x *InviteMemberRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use InviteMemberRequest.ProtoReflect.Descriptor instead.
 func (*InviteMemberRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_members_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *InviteMemberRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *InviteMemberRequest) GetEmail() string {
@@ -374,9 +358,8 @@ func (x *InviteMemberResponse) GetCode() string {
 
 type SetMemberRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Role          Role                   `protobuf:"varint,3,opt,name=role,proto3,enum=auth.v1.Role" json:"role,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Role          Role                   `protobuf:"varint,2,opt,name=role,proto3,enum=auth.v1.Role" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -409,13 +392,6 @@ func (x *SetMemberRoleRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SetMemberRoleRequest.ProtoReflect.Descriptor instead.
 func (*SetMemberRoleRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_members_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *SetMemberRoleRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *SetMemberRoleRequest) GetUserId() string {
@@ -470,8 +446,7 @@ func (*SetMemberRoleResponse) Descriptor() ([]byte, []int) {
 
 type RemoveMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -504,13 +479,6 @@ func (x *RemoveMemberRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RemoveMemberRequest.ProtoReflect.Descriptor instead.
 func (*RemoveMemberRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_members_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *RemoveMemberRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *RemoveMemberRequest) GetUserId() string {
@@ -565,32 +533,28 @@ const file_auth_v1_members_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12!\n" +
-	"\x04role\x18\x04 \x01(\x0e2\r.auth.v1.RoleR\x04role\"1\n" +
-	"\x12ListMembersRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"_\n" +
+	"\x04role\x18\x04 \x01(\x0e2\r.auth.v1.RoleR\x04role\"\x14\n" +
+	"\x12ListMembersRequest\"_\n" +
 	"\x13ListMembersResponse\x12)\n" +
 	"\amembers\x18\x01 \x03(\v2\x0f.auth.v1.MemberR\amembers\x12\x1d\n" +
 	"\n" +
-	"can_manage\x18\x02 \x01(\bR\tcanManage\"\xab\x01\n" +
-	"\x13InviteMemberRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1d\n" +
+	"can_manage\x18\x02 \x01(\bR\tcanManage\"\x8e\x01\n" +
+	"\x13InviteMemberRequest\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1d\n" +
 	"\n" +
-	"given_name\x18\x03 \x01(\tR\tgivenName\x12\x1f\n" +
-	"\vfamily_name\x18\x04 \x01(\tR\n" +
+	"given_name\x18\x02 \x01(\tR\tgivenName\x12\x1f\n" +
+	"\vfamily_name\x18\x03 \x01(\tR\n" +
 	"familyName\x12!\n" +
-	"\x04role\x18\x05 \x01(\x0e2\r.auth.v1.RoleR\x04role\"C\n" +
+	"\x04role\x18\x04 \x01(\x0e2\r.auth.v1.RoleR\x04role\"C\n" +
 	"\x14InviteMemberResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\"o\n" +
-	"\x14SetMemberRoleRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12!\n" +
-	"\x04role\x18\x03 \x01(\x0e2\r.auth.v1.RoleR\x04role\"\x17\n" +
-	"\x15SetMemberRoleResponse\"K\n" +
-	"\x13RemoveMemberRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x16\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\"R\n" +
+	"\x14SetMemberRoleRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
+	"\x04role\x18\x02 \x01(\x0e2\r.auth.v1.RoleR\x04role\"\x17\n" +
+	"\x15SetMemberRoleResponse\".\n" +
+	"\x13RemoveMemberRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x16\n" +
 	"\x14RemoveMemberResponse*O\n" +
 	"\x04Role\x12\x14\n" +
 	"\x10ROLE_UNSPECIFIED\x10\x00\x12\x0e\n" +

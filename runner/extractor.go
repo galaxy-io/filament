@@ -64,7 +64,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 			if !valid {
 				return nil, fmt.Errorf("incremental resource %q requires a versioned pipeline route", resource)
 			}
-			state, err := ds.LoadResourceCheckpoint(ctx, key)
+			state, err := ds.LoadResourceCheckpoint(ctx, spec.Tenant, key)
 			if err == nil {
 				prev[resource] = state.Checkpoint
 				noteLoadedCheckpoint(log, spec, resource, "pipeline", state.Checkpoint, &loaded)
@@ -81,7 +81,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 				continue
 			}
 			key, _ := spec.ResourceCheckpointKey(resource)
-			if err := ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: spec.Run, Checkpoint: cp}); err != nil {
+			if err := ds.SaveResourceCheckpoint(ctx, spec.Tenant, filament.ResourceCheckpointState{Key: key, Run: spec.Run, Checkpoint: cp}); err != nil {
 				return nil, fmt.Errorf("seed checkpoint %q: %w", resource, err)
 			}
 			resumePlan[resource] = cp
@@ -94,7 +94,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 		}
 		prev := make(map[string]filament.Checkpoint, len(checkpointed))
 		for _, resource := range checkpointed {
-			cp, err := ds.LoadCheckpoint(ctx, spec.Run, resource)
+			cp, err := ds.LoadCheckpoint(ctx, spec.Tenant, spec.Run, resource)
 			if err == nil {
 				prev[resource] = cp
 				noteLoadedCheckpoint(log, spec, resource, "run", cp, &loaded)
@@ -110,7 +110,7 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 			if cp == nil {
 				continue
 			}
-			if err := ds.SaveCheckpoint(ctx, spec.Run, cp); err != nil {
+			if err := ds.SaveCheckpoint(ctx, spec.Tenant, spec.Run, cp); err != nil {
 				return nil, fmt.Errorf("seed checkpoint %q: %w", resource, err)
 			}
 			resumePlan[resource] = cp
@@ -204,10 +204,10 @@ func loadChangeCheckpoints(ctx context.Context, ds filament.DataStore, spec fila
 		var err error
 		if key, ok := spec.ResourceCheckpointKey(resource); ok {
 			var state filament.ResourceCheckpointState
-			state, err = ds.LoadResourceCheckpoint(ctx, key)
+			state, err = ds.LoadResourceCheckpoint(ctx, spec.Tenant, key)
 			cp = state.Checkpoint
 		} else {
-			cp, err = ds.LoadCheckpoint(ctx, spec.Run, resource)
+			cp, err = ds.LoadCheckpoint(ctx, spec.Tenant, spec.Run, resource)
 		}
 		if err == nil {
 			out[resource] = cp

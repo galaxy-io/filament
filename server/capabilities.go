@@ -16,7 +16,7 @@ import (
 // and route-wide write modes the connector pair supports, their selected
 // combination, and any cursor or primary-key requirements.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
-	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 	defer cancel()
 
 	graph := req.Msg.GetGraph()
-	resp, err := a.validatePipelineGraph(ctx, tenant, graph.GetNodes(), graph.GetEdges())
+	resp, err := a.validatePipelineGraph(ctx, string(tenant), graph.GetNodes(), graph.GetEdges())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -258,12 +258,12 @@ func supportedWriteModesFor(sink filament.SinkSpec) []ingestionv1.WriteMode {
 
 // loadEdgeConnection loads one node's connection and verifies its kind. A nil
 // connection with a nil error means the finding was recorded on ev.
-func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.PipelineNode, _ string, kind filament.ConnectorKind, field string, ev *ingestionv1.EdgeValidation) (*filament.Connection, error) {
+func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.PipelineNode, tenant string, kind filament.ConnectorKind, field string, ev *ingestionv1.EdgeValidation) (*filament.Connection, error) {
 	if node.GetConnectionId() == "" {
 		edgeError(ev, field, fmt.Sprintf("node %q has no connection", node.GetId()))
 		return nil, nil
 	}
-	conn, err := a.store.LoadConnection(ctx, node.GetConnectionId())
+	conn, err := a.store.LoadConnection(ctx, filament.TenantID(tenant), node.GetConnectionId())
 	if err != nil {
 		if errors.Is(err, filament.ErrNotFound) {
 			edgeError(ev, field, fmt.Sprintf("connection %q not found", node.GetConnectionId()))

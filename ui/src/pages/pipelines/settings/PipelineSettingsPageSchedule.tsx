@@ -53,7 +53,7 @@ const PipelineSettingsPageSchedule = () => {
 
   const [state, setState] = useState<PipelineSettingsPageScheduleState>(() => ({
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
-    ...mapPipelineScheduleCronToState(schedule?.config?.cron ?? ""),
+    ...(schedule?.config ? mapPipelineScheduleCronToState(schedule.config.cron) : {}),
     isEnabled: schedule?.config?.isEnabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || PIPELINE_SCHEDULE_DEFAULT_STATE.timezone,
   }));

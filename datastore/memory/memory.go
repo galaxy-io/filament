@@ -40,7 +40,7 @@ type Store struct {
 	runs                map[filament.RunID]filament.RunState
 	resources           map[filament.RunID]map[string]filament.ResourceState // run → resource → state
 	checkpoints         map[ckey]filament.Checkpoint
-	resourceCheckpoints map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState
+	resourceCheckpoints map[resourceCheckpointKey]filament.ResourceCheckpointState
 	seen                map[dkey]uint64 // dedup high-water mark per (tenant, run)
 	connections         map[string]filament.Connection
 	deletedConnections  map[string]filament.Connection
@@ -61,13 +61,18 @@ type dkey struct {
 	run    filament.RunID
 }
 
+type resourceCheckpointKey struct {
+	tenant filament.TenantID
+	key    filament.ResourceCheckpointKey
+}
+
 // New returns a ready-to-use in-memory store.
 func New() *Store {
 	return &Store{
 		runs:                map[filament.RunID]filament.RunState{},
 		resources:           map[filament.RunID]map[string]filament.ResourceState{},
 		checkpoints:         map[ckey]filament.Checkpoint{},
-		resourceCheckpoints: map[filament.ResourceCheckpointKey]filament.ResourceCheckpointState{},
+		resourceCheckpoints: map[resourceCheckpointKey]filament.ResourceCheckpointState{},
 		seen:                map[dkey]uint64{},
 		connections:         map[string]filament.Connection{},
 		deletedConnections:  map[string]filament.Connection{},
@@ -132,6 +137,9 @@ func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
 }
 
 func (s *Store) saveRunLocked(r filament.RunState) error {
+	if existing, ok := s.runs[r.Run]; ok && existing.Tenant != r.Tenant {
+		return fmt.Errorf("save run %q: %w", r.Run, filament.ErrNotFound)
+	}
 	if activeCheckpointRun(r) {
 		for id, existing := range s.runs {
 			if id != r.Run && activeCheckpointRun(existing) && sameCheckpointRoute(existing.Request, r.Request) {
@@ -198,14 +206,14 @@ func sameCheckpointRoute(a, b filament.RunRequest) bool {
 }
 
 // LoadRun returns the run with its current resource states reattached.
-func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunState, error) {
+func (s *Store) LoadRun(ctx context.Context, tenant filament.TenantID, id filament.RunID) (filament.RunState, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.RunState{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r, ok := s.runs[id]
-	if !ok {
+	if !ok || r.Tenant != tenant {
 		return filament.RunState{}, fmt.Errorf("load run %q: %w", id, ErrNotFound)
 	}
 	r.Resources = s.listResourcesLocked(id)
@@ -217,6 +225,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 // whose sink output and source checkpoints survive into the next attempt.
 func (s *Store) TransitionRun(
 	ctx context.Context,
+	tenant filament.TenantID,
 	id filament.RunID,
 	from []filament.RunStatus,
 	to filament.RunStatus,
@@ -228,7 +237,7 @@ func (s *Store) TransitionRun(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	state, ok := s.runs[id]
-	if !ok {
+	if !ok || state.Tenant != tenant {
 		return filament.RunState{}, fmt.Errorf("transition run %q: %w", id, filament.ErrNotFound)
 	}
 	if !slices.Contains(from, state.Status) {
@@ -267,13 +276,15 @@ func (s *Store) TransitionRun(
 }
 
 // DeleteRun removes the run with its resources and checkpoints; missing is a no-op.
-func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
+func (s *Store) DeleteRun(ctx context.Context, tenant filament.TenantID, id filament.RunID) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.deleteRunLocked(id)
+	if state, ok := s.runs[id]; ok && state.Tenant == tenant {
+		s.deleteRunLocked(id)
+	}
 	return nil
 }
 
@@ -406,22 +417,28 @@ func (s *Store) UpsertResource(ctx context.Context, rs filament.ResourceState) e
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if state, ok := s.runs[rs.Run]; !ok || state.Tenant != rs.Tenant {
+		return fmt.Errorf("upsert resource for run %q: %w", rs.Run, ErrNotFound)
+	}
 	s.putResourceLocked(rs)
 	return nil
 }
 
 // ListResources returns a run's resource states, sorted by name.
-func (s *Store) ListResources(ctx context.Context, id filament.RunID) ([]filament.ResourceState, error) {
+func (s *Store) ListResources(ctx context.Context, tenant filament.TenantID, id filament.RunID) ([]filament.ResourceState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if state, ok := s.runs[id]; !ok || state.Tenant != tenant {
+		return nil, fmt.Errorf("list resources for run %q: %w", id, ErrNotFound)
+	}
 	return s.listResourcesLocked(id), nil
 }
 
 // SaveCheckpoint stores a resumable cursor keyed by (run, resource).
-func (s *Store) SaveCheckpoint(ctx context.Context, id filament.RunID, cp filament.Checkpoint) error {
+func (s *Store) SaveCheckpoint(ctx context.Context, tenant filament.TenantID, id filament.RunID, cp filament.Checkpoint) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -431,6 +448,9 @@ func (s *Store) SaveCheckpoint(ctx context.Context, id filament.RunID, cp filame
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if state, ok := s.runs[id]; !ok || state.Tenant != tenant {
+		return fmt.Errorf("save checkpoint for run %q: %w", id, ErrNotFound)
+	}
 	s.checkpoints[ckey{run: id, resource: cp.Resource()}] = stored
 	return nil
 }
@@ -451,12 +471,15 @@ func roundTripCheckpoint(cp filament.Checkpoint) (*filament.CheckpointData, erro
 }
 
 // LoadCheckpoint returns the saved cursor for (run, resource), or ErrNotFound.
-func (s *Store) LoadCheckpoint(ctx context.Context, id filament.RunID, resource string) (filament.Checkpoint, error) {
+func (s *Store) LoadCheckpoint(ctx context.Context, tenant filament.TenantID, id filament.RunID, resource string) (filament.Checkpoint, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if state, ok := s.runs[id]; !ok || state.Tenant != tenant {
+		return nil, fmt.Errorf("load checkpoint %q/%q: %w", id, resource, ErrNotFound)
+	}
 	cp, ok := s.checkpoints[ckey{run: id, resource: resource}]
 	if !ok {
 		return nil, fmt.Errorf("load checkpoint %q/%q: %w", id, resource, ErrNotFound)
@@ -466,7 +489,7 @@ func (s *Store) LoadCheckpoint(ctx context.Context, id filament.RunID, resource 
 
 // SaveResourceCheckpoint stores cross-run progress for one pipeline route and
 // resource. The checkpoint resource must agree with the key.
-func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.ResourceCheckpointState) error {
+func (s *Store) SaveResourceCheckpoint(ctx context.Context, tenant filament.TenantID, state filament.ResourceCheckpointState) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -480,18 +503,18 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 	state.Checkpoint = stored
 	state.UpdatedAt = time.Now()
 	s.mu.Lock()
-	s.resourceCheckpoints[state.Key] = state
+	s.resourceCheckpoints[resourceCheckpointKey{tenant: tenant, key: state.Key}] = state
 	s.mu.Unlock()
 	return nil
 }
 
 // LoadResourceCheckpoint returns durable progress for one route/resource.
-func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) (filament.ResourceCheckpointState, error) {
+func (s *Store) LoadResourceCheckpoint(ctx context.Context, tenant filament.TenantID, key filament.ResourceCheckpointKey) (filament.ResourceCheckpointState, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.ResourceCheckpointState{}, err
 	}
 	s.mu.RLock()
-	state, ok := s.resourceCheckpoints[key]
+	state, ok := s.resourceCheckpoints[resourceCheckpointKey{tenant: tenant, key: key}]
 	s.mu.RUnlock()
 	if !ok {
 		return filament.ResourceCheckpointState{}, fmt.Errorf("load resource checkpoint %q/%q: %w", key.Route, key.Resource, ErrNotFound)
@@ -501,14 +524,15 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 
 // ListResourceCheckpoints returns every durable cursor under one route,
 // ordered by resource.
-func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
+func (s *Store) ListResourceCheckpoints(ctx context.Context, tenant filament.TenantID, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
 	var states []filament.ResourceCheckpointState
-	for key, state := range s.resourceCheckpoints {
-		if key.PipelineID == route.PipelineID && key.PipelineVersionID == route.PipelineVersionID && key.Route == route.Route {
+	for scopedKey, state := range s.resourceCheckpoints {
+		key := scopedKey.key
+		if scopedKey.tenant == tenant && key.PipelineID == route.PipelineID && key.PipelineVersionID == route.PipelineVersionID && key.Route == route.Route {
 			states = append(states, state)
 		}
 	}
@@ -521,12 +545,12 @@ func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.Reso
 
 // DeleteResourceCheckpoint clears durable progress so the next run starts a
 // fresh backfill.
-func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {
+func (s *Store) DeleteResourceCheckpoint(ctx context.Context, tenant filament.TenantID, key filament.ResourceCheckpointKey) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
-	delete(s.resourceCheckpoints, key)
+	delete(s.resourceCheckpoints, resourceCheckpointKey{tenant: tenant, key: key})
 	s.mu.Unlock()
 	return nil
 }
@@ -570,6 +594,14 @@ func (s *Store) listResourcesLocked(id filament.RunID) []filament.ResourceState 
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Resource < out[j].Resource })
 	return out
+}
+
+func (s *Store) pipelineOwnedLocked(tenant filament.TenantID, id string) bool {
+	pipeline := s.pipelines[id]
+	if pipeline == nil {
+		pipeline = s.deletedPipelines[id]
+	}
+	return pipeline != nil && pipeline.GetTenantId() == string(tenant)
 }
 
 func matchRun(r filament.RunState, f filament.RunFilter) bool {

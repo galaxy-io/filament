@@ -66,7 +66,7 @@ type GetAuthConfigResponse struct {
 	// service_account_scopes are requested by non-interactive clients. The
 	// provider owns these values so clients do not need provider-specific
 	// project IDs or reserved scope knowledge.
-	ServiceAccountScopes []string `protobuf:"bytes,3,rep,name=service_account_scopes,json=serviceAccountScopes,proto3" json:"service_account_scopes,omitempty"`
+	ServiceAccountScopes []string `protobuf:"bytes,2,rep,name=service_account_scopes,json=serviceAccountScopes,proto3" json:"service_account_scopes,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -612,7 +612,7 @@ const file_auth_v1_session_proto_rawDesc = "" +
 	"\x14GetAuthConfigRequest\"e\n" +
 	"\x15GetAuthConfigResponse\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x124\n" +
-	"\x16service_account_scopes\x18\x03 \x03(\tR\x14serviceAccountScopes\"I\n" +
+	"\x16service_account_scopes\x18\x02 \x03(\tR\x14serviceAccountScopes\"I\n" +
 	"\fLoginRequest\x12\x1d\n" +
 	"\n" +
 	"login_name\x18\x01 \x01(\tR\tloginName\x12\x1a\n" +

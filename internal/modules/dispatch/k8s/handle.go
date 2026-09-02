@@ -9,8 +9,9 @@ import (
 )
 
 type runHandle struct {
-	run filament.RunID
-	ds  filament.DataStore
+	tenant filament.TenantID
+	run    filament.RunID
+	ds     filament.DataStore
 }
 
 func (h runHandle) ID() filament.RunID { return h.run }
@@ -19,7 +20,7 @@ func (h runHandle) Status(ctx context.Context) (filament.RunStatus, error) {
 	if h.ds == nil {
 		return 0, errors.New("k8sdispatch: handle has no datastore")
 	}
-	state, err := h.ds.LoadRun(ctx, h.run)
+	state, err := h.ds.LoadRun(ctx, h.tenant, h.run)
 	if err != nil {
 		return 0, err
 	}
@@ -33,7 +34,7 @@ func (h runHandle) Wait(ctx context.Context) (filament.RunResult, error) {
 		if h.ds == nil {
 			return filament.RunResult{}, errors.New("k8sdispatch: handle has no datastore")
 		}
-		state, err := h.ds.LoadRun(ctx, h.run)
+		state, err := h.ds.LoadRun(ctx, h.tenant, h.run)
 		if err != nil {
 			return filament.RunResult{}, err
 		}

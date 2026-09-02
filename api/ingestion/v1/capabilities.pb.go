@@ -130,8 +130,7 @@ func (CandidateStatus) EnumDescriptor() ([]byte, []int) {
 // validates the same as a persisted version.
 type ValidatePipelineRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Graph         *PipelineGraph         `protobuf:"bytes,2,opt,name=graph,proto3" json:"graph,omitempty"`
+	Graph         *PipelineGraph         `protobuf:"bytes,1,opt,name=graph,proto3" json:"graph,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -164,13 +163,6 @@ func (x *ValidatePipelineRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ValidatePipelineRequest.ProtoReflect.Descriptor instead.
 func (*ValidatePipelineRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_capabilities_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *ValidatePipelineRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *ValidatePipelineRequest) GetGraph() *PipelineGraph {
@@ -591,10 +583,9 @@ var File_ingestion_v1_capabilities_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\n" +
-	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"i\n" +
-	"\x17ValidatePipelineRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x121\n" +
-	"\x05graph\x18\x02 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\"v\n" +
+	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"L\n" +
+	"\x17ValidatePipelineRequest\x121\n" +
+	"\x05graph\x18\x01 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\"v\n" +
 	"\x0eCandidateValue\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12 \n" +
 	"\vrecommended\x18\x02 \x01(\bR\vrecommended\x12\x12\n" +

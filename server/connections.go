@@ -20,10 +20,11 @@ import (
 // config, writes their values to the configured secret provider, and persists
 // only opaque references alongside the non-secret config.
 func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[ingestionv1.CreateConnectionRequest]) (*connect.Response[ingestionv1.CreateConnectionResponse], error) {
-	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenantID, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
+	tenant := string(tenantID)
 	schema, err := a.schemaFor(req.Msg.GetKind(), req.Msg.GetConnector())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -73,15 +74,16 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 
 // UpdateConnection applies changes to an existing connection, enforcing optimistic versioning.
 func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[ingestionv1.UpdateConnectionRequest]) (*connect.Response[ingestionv1.UpdateConnectionResponse], error) {
-	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenantID, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
+	tenant := string(tenantID)
 	in := req.Msg.GetConnection()
 	if in == nil || in.GetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection.id is required"))
 	}
-	stored, err := a.store.LoadConnection(ctx, in.GetId())
+	stored, err := a.store.LoadConnection(ctx, tenantID, in.GetId())
 	if err != nil {
 		if errors.Is(err, filament.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -140,10 +142,6 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	}
 	next := connectionFromProto(proto.Clone(in).(*ingestionv1.Connection))
 	next.Config, next.SecretRefs = config.AsMap(), refs
-	if next.Tenant != "" && next.Tenant != tenant {
-		a.deleteSecretRefs(ctx, written)
-		return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("connection tenant_id does not match authenticated tenant"))
-	}
 	next.Tenant = tenant
 	next, err = a.store.UpdateConnection(ctx, next)
 	if err != nil {
@@ -174,11 +172,11 @@ func validateConnectionUpdateTarget(stored filament.Connection, in *ingestionv1.
 
 // GetConnection returns the connection with the requested ID.
 func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingestionv1.GetConnectionRequest]) (*connect.Response[ingestionv1.GetConnectionResponse], error) {
-	_, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := a.store.LoadConnection(ctx, req.Msg.GetId())
+	conn, err := a.store.LoadConnection(ctx, tenant, req.Msg.GetId())
 	if err != nil {
 		if errors.Is(err, filament.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -190,7 +188,7 @@ func (a *Server) GetConnection(ctx context.Context, req *connect.Request[ingesti
 
 // ListConnections returns connections matching the request's tenant and kind filter.
 func (a *Server) ListConnections(ctx context.Context, req *connect.Request[ingestionv1.ListConnectionsRequest]) (*connect.Response[ingestionv1.ListConnectionsResponse], error) {
-	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +201,7 @@ func (a *Server) ListConnections(ctx context.Context, req *connect.Request[inges
 		return nil, err
 	}
 	connections, total, err := a.store.ListConnections(ctx, filament.ConnectionFilter{
-		Tenant: tenant, Kind: connectionKindFromProto(req.Msg.GetKind()),
+		Tenant: string(tenant), Kind: connectionKindFromProto(req.Msg.GetKind()),
 		IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
 	})
 	if err != nil {
@@ -235,22 +233,22 @@ func (a *Server) connectionForResponse(conn filament.Connection) *ingestionv1.Co
 
 // DeleteConnection removes the connection with the requested ID.
 func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[ingestionv1.DeleteConnectionRequest]) (*connect.Response[ingestionv1.DeleteConnectionResponse], error) {
-	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	id := req.Msg.GetId()
-	conn, loadErr := a.store.LoadConnection(ctx, id)
+	conn, loadErr := a.store.LoadConnection(ctx, tenant, id)
 	if loadErr != nil && !errors.Is(loadErr, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeInternal, loadErr)
 	}
 
-	pipelines, _, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: tenant})
+	pipelines, _, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: string(tenant)})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	for _, pipeline := range pipelines {
-		version, err := a.store.LoadPipelineVersion(ctx, pipeline.GetId(), 0)
+		version, err := a.store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
 		if errors.Is(err, filament.ErrNotFound) {
 			continue
 		}
@@ -263,7 +261,7 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 			}
 		}
 	}
-	if err := a.store.DeleteConnection(ctx, id); err != nil {
+	if err := a.store.DeleteConnection(ctx, tenant, id); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 

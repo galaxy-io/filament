@@ -16,14 +16,14 @@ import (
 // skips — the two sides converge because the occurrence token yields the same
 // run ids the fire derives, which is what lets promotion find these rows.
 func ReconcileScheduled(ctx context.Context, ds filament.DataStore, c *compile.Compiler, st filament.ScheduleState) error {
-	if err := DropScheduled(ctx, ds, st.ID); err != nil {
+	if err := DropScheduled(ctx, ds, st.Spec.Tenant, st.ID); err != nil {
 		return err
 	}
 	if !st.Enabled || st.NextFire == nil {
 		return nil
 	}
 	token := scheduledomain.OccurrenceToken(st.ID, *st.NextFire)
-	compiled, err := c.Compile(ctx, st.Spec.PipelineID, token, filament.RunOptions{}, st.ID, filament.WorkerConfiguration{})
+	compiled, err := c.Compile(ctx, st.Spec.Tenant, st.Spec.PipelineID, token, filament.RunOptions{}, st.ID, filament.WorkerConfiguration{})
 	if err != nil {
 		return err
 	}
@@ -39,8 +39,9 @@ func ReconcileScheduled(ctx context.Context, ds filament.DataStore, c *compile.C
 }
 
 // DropScheduled deletes every pending RunScheduled row for the schedule.
-func DropScheduled(ctx context.Context, ds filament.DataStore, id filament.ScheduleID) error {
+func DropScheduled(ctx context.Context, ds filament.DataStore, tenant filament.TenantID, id filament.ScheduleID) error {
 	pending, _, err := ds.ListRuns(ctx, filament.RunFilter{
+		Tenant:   tenant,
 		Schedule: id,
 		Status:   []filament.RunStatus{filament.RunScheduled},
 	})
@@ -48,7 +49,7 @@ func DropScheduled(ctx context.Context, ds filament.DataStore, id filament.Sched
 		return err
 	}
 	for _, r := range pending {
-		if err := ds.DeleteRun(ctx, r.Run); err != nil {
+		if err := ds.DeleteRun(ctx, tenant, r.Run); err != nil {
 			return err
 		}
 	}

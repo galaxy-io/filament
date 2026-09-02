@@ -101,7 +101,6 @@ func (x *ServiceAccount) GetRole() Role {
 
 type ListServiceAccountsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -134,13 +133,6 @@ func (x *ListServiceAccountsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListServiceAccountsRequest.ProtoReflect.Descriptor instead.
 func (*ListServiceAccountsRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_service_accounts_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ListServiceAccountsRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 type ListServiceAccountsResponse struct {
@@ -197,10 +189,9 @@ func (x *ListServiceAccountsResponse) GetCanManage() bool {
 
 type CreateServiceAccountRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Role          Role                   `protobuf:"varint,4,opt,name=role,proto3,enum=auth.v1.Role" json:"role,omitempty"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Role          Role                   `protobuf:"varint,3,opt,name=role,proto3,enum=auth.v1.Role" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -233,13 +224,6 @@ func (x *CreateServiceAccountRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateServiceAccountRequest.ProtoReflect.Descriptor instead.
 func (*CreateServiceAccountRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_service_accounts_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *CreateServiceAccountRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *CreateServiceAccountRequest) GetName() string {
@@ -319,8 +303,7 @@ func (x *CreateServiceAccountResponse) GetClientSecret() string {
 
 type RotateServiceAccountSecretRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -353,13 +336,6 @@ func (x *RotateServiceAccountSecretRequest) ProtoReflect() protoreflect.Message 
 // Deprecated: Use RotateServiceAccountSecretRequest.ProtoReflect.Descriptor instead.
 func (*RotateServiceAccountSecretRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_service_accounts_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *RotateServiceAccountSecretRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *RotateServiceAccountSecretRequest) GetUserId() string {
@@ -425,8 +401,7 @@ func (x *RotateServiceAccountSecretResponse) GetClientSecret() string {
 
 type RemoveServiceAccountRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -459,13 +434,6 @@ func (x *RemoveServiceAccountRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RemoveServiceAccountRequest.ProtoReflect.Descriptor instead.
 func (*RemoveServiceAccountRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_service_accounts_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *RemoveServiceAccountRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *RemoveServiceAccountRequest) GetUserId() string {
@@ -521,30 +489,26 @@ const file_auth_v1_service_accounts_proto_rawDesc = "" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12!\n" +
-	"\x04role\x18\x05 \x01(\x0e2\r.auth.v1.RoleR\x04role\"9\n" +
-	"\x1aListServiceAccountsRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"\x80\x01\n" +
+	"\x04role\x18\x05 \x01(\x0e2\r.auth.v1.RoleR\x04role\"\x1c\n" +
+	"\x1aListServiceAccountsRequest\"\x80\x01\n" +
 	"\x1bListServiceAccountsResponse\x12B\n" +
 	"\x10service_accounts\x18\x01 \x03(\v2\x17.auth.v1.ServiceAccountR\x0fserviceAccounts\x12\x1d\n" +
 	"\n" +
-	"can_manage\x18\x02 \x01(\bR\tcanManage\"\x93\x01\n" +
-	"\x1bCreateServiceAccountRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12!\n" +
-	"\x04role\x18\x04 \x01(\x0e2\r.auth.v1.RoleR\x04role\"\x85\x01\n" +
+	"can_manage\x18\x02 \x01(\bR\tcanManage\"v\n" +
+	"\x1bCreateServiceAccountRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12!\n" +
+	"\x04role\x18\x03 \x01(\x0e2\r.auth.v1.RoleR\x04role\"\x85\x01\n" +
 	"\x1cCreateServiceAccountResponse\x12@\n" +
 	"\x0fservice_account\x18\x01 \x01(\v2\x17.auth.v1.ServiceAccountR\x0eserviceAccount\x12#\n" +
-	"\rclient_secret\x18\x02 \x01(\tR\fclientSecret\"Y\n" +
-	"!RotateServiceAccountSecretRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"f\n" +
+	"\rclient_secret\x18\x02 \x01(\tR\fclientSecret\"<\n" +
+	"!RotateServiceAccountSecretRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"f\n" +
 	"\"RotateServiceAccountSecretResponse\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12#\n" +
-	"\rclient_secret\x18\x02 \x01(\tR\fclientSecret\"S\n" +
-	"\x1bRemoveServiceAccountRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x1e\n" +
+	"\rclient_secret\x18\x02 \x01(\tR\fclientSecret\"6\n" +
+	"\x1bRemoveServiceAccountRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x1e\n" +
 	"\x1cRemoveServiceAccountResponseB\x92\x01\n" +
 	"\vcom.auth.v1B\x14ServiceAccountsProtoP\x01Z0github.com/galaxy-io/filament/api/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 

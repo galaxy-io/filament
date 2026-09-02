@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file auth/v1/members.proto.
  */
 export const file_auth_v1_members: GenFile = /*@__PURE__*/
-  fileDesc("ChVhdXRoL3YxL21lbWJlcnMucHJvdG8SB2F1dGgudjEiUwoGTWVtYmVyEg8KB3VzZXJfaWQYASABKAkSDAoEbmFtZRgCIAEoCRINCgVlbWFpbBgDIAEoCRIbCgRyb2xlGAQgASgOMg0uYXV0aC52MS5Sb2xlIicKEkxpc3RNZW1iZXJzUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkiSwoTTGlzdE1lbWJlcnNSZXNwb25zZRIgCgdtZW1iZXJzGAEgAygLMg8uYXV0aC52MS5NZW1iZXISEgoKY2FuX21hbmFnZRgCIAEoCCJ9ChNJbnZpdGVNZW1iZXJSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRINCgVlbWFpbBgCIAEoCRISCgpnaXZlbl9uYW1lGAMgASgJEhMKC2ZhbWlseV9uYW1lGAQgASgJEhsKBHJvbGUYBSABKA4yDS5hdXRoLnYxLlJvbGUiNQoUSW52aXRlTWVtYmVyUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoCRIMCgRjb2RlGAIgASgJIlcKFFNldE1lbWJlclJvbGVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhsKBHJvbGUYAyABKA4yDS5hdXRoLnYxLlJvbGUiFwoVU2V0TWVtYmVyUm9sZVJlc3BvbnNlIjkKE1JlbW92ZU1lbWJlclJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkiFgoUUmVtb3ZlTWVtYmVyUmVzcG9uc2UqTwoEUm9sZRIUChBST0xFX1VOU1BFQ0lGSUVEEAASDgoKUk9MRV9BRE1JThABEhAKDFJPTEVfQ1JFQVRPUhACEg8KC1JPTEVfVklFV0VSEANiBnByb3RvMw");
+  fileDesc("ChVhdXRoL3YxL21lbWJlcnMucHJvdG8SB2F1dGgudjEiUwoGTWVtYmVyEg8KB3VzZXJfaWQYASABKAkSDAoEbmFtZRgCIAEoCRINCgVlbWFpbBgDIAEoCRIbCgRyb2xlGAQgASgOMg0uYXV0aC52MS5Sb2xlIhQKEkxpc3RNZW1iZXJzUmVxdWVzdCJLChNMaXN0TWVtYmVyc1Jlc3BvbnNlEiAKB21lbWJlcnMYASADKAsyDy5hdXRoLnYxLk1lbWJlchISCgpjYW5fbWFuYWdlGAIgASgIImoKE0ludml0ZU1lbWJlclJlcXVlc3QSDQoFZW1haWwYASABKAkSEgoKZ2l2ZW5fbmFtZRgCIAEoCRITCgtmYW1pbHlfbmFtZRgDIAEoCRIbCgRyb2xlGAQgASgOMg0uYXV0aC52MS5Sb2xlIjUKFEludml0ZU1lbWJlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAkSDAoEY29kZRgCIAEoCSJEChRTZXRNZW1iZXJSb2xlUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEhsKBHJvbGUYAiABKA4yDS5hdXRoLnYxLlJvbGUiFwoVU2V0TWVtYmVyUm9sZVJlc3BvbnNlIiYKE1JlbW92ZU1lbWJlclJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSIWChRSZW1vdmVNZW1iZXJSZXNwb25zZSpPCgRSb2xlEhQKEFJPTEVfVU5TUEVDSUZJRUQQABIOCgpST0xFX0FETUlOEAESEAoMUk9MRV9DUkVBVE9SEAISDwoLUk9MRV9WSUVXRVIQA2IGcHJvdG8z");
 
 /**
  * Member is one user of a tenant.
@@ -50,10 +50,6 @@ export const MemberSchema: GenMessage<Member> = /*@__PURE__*/
  * @generated from message auth.v1.ListMembersRequest
  */
 export type ListMembersRequest = Message<"auth.v1.ListMembersRequest"> & {
-  /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
 };
 
 /**
@@ -93,27 +89,22 @@ export const ListMembersResponseSchema: GenMessage<ListMembersResponse> = /*@__P
  */
 export type InviteMemberRequest = Message<"auth.v1.InviteMemberRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string email = 2;
+   * @generated from field: string email = 1;
    */
   email: string;
 
   /**
-   * @generated from field: string given_name = 3;
+   * @generated from field: string given_name = 2;
    */
   givenName: string;
 
   /**
-   * @generated from field: string family_name = 4;
+   * @generated from field: string family_name = 3;
    */
   familyName: string;
 
   /**
-   * @generated from field: auth.v1.Role role = 5;
+   * @generated from field: auth.v1.Role role = 4;
    */
   role: Role;
 };
@@ -155,17 +146,12 @@ export const InviteMemberResponseSchema: GenMessage<InviteMemberResponse> = /*@_
  */
 export type SetMemberRoleRequest = Message<"auth.v1.SetMemberRoleRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string user_id = 2;
+   * @generated from field: string user_id = 1;
    */
   userId: string;
 
   /**
-   * @generated from field: auth.v1.Role role = 3;
+   * @generated from field: auth.v1.Role role = 2;
    */
   role: Role;
 };
@@ -195,12 +181,7 @@ export const SetMemberRoleResponseSchema: GenMessage<SetMemberRoleResponse> = /*
  */
 export type RemoveMemberRequest = Message<"auth.v1.RemoveMemberRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string user_id = 2;
+   * @generated from field: string user_id = 1;
    */
   userId: string;
 };
