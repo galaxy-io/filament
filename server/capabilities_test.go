@@ -10,7 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/datastore/memory"
+	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
 )
@@ -117,7 +117,7 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 	sources.Register("leversource", func() filament.Source { return leverSource{} })
 	sinks := registry.NewSinks()
 	sinks.Register("leversink", func() filament.Sink { return leverSink{} })
-	api := New(sources, sinks, memory.New(), nil, nil)
+	api := New(sources, sinks, sqlitestore.NewMemory(), nil, nil)
 
 	create := func(kind ingestionv1.ConnectorKind, name, connector string, config map[string]any) string {
 		var cfg *structpb.Struct

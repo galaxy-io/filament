@@ -10,14 +10,14 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/galaxy-io/filament/datastore/memory"
+	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/registry"
 )
 
 func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 	ctx := testCtx()
-	store := memory.New()
+	store := sqlitestore.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
 	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "defaults"}))
@@ -42,7 +42,7 @@ func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 
 func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
 	ctx := testCtx()
-	store := memory.New()
+	store := sqlitestore.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
 	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
@@ -78,7 +78,7 @@ func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
 // running it is refused.
 func TestGetPipelineIncludesDeleted(t *testing.T) {
 	ctx := testCtx()
-	store := memory.New()
+	store := sqlitestore.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "doomed"}); err != nil {
@@ -124,7 +124,7 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 // before the delete or the pending pre-created runs are orphaned.
 func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 	ctx := testCtx()
-	store := memory.New()
+	store := sqlitestore.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "scheduled"}); err != nil {
@@ -158,7 +158,7 @@ func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 
 func TestUpdatePipelineUsesExplicitMutableFields(t *testing.T) {
 	ctx := testCtx()
-	store := memory.New()
+	store := sqlitestore.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{
 		Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "old", Description: "old description",

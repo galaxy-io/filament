@@ -45,8 +45,16 @@ func Open(path string) (*Store, error) {
 			return nil, fmt.Errorf("datastore/sqlite: create directory: %w", err)
 		}
 	}
-	pragmas := url.Values{"_pragma": []string{"busy_timeout(5000)", "journal_mode(WAL)", "foreign_keys(1)", "synchronous(NORMAL)"}}
-	db, err := sql.Open("sqlite", "file:"+path+"?"+pragmas.Encode())
+	return open(path, true)
+}
+
+func open(path string, foreignKeys bool) (*Store, error) {
+	pragmas := []string{"busy_timeout(5000)", "journal_mode(WAL)", "synchronous(NORMAL)"}
+	if foreignKeys {
+		pragmas = append(pragmas, "foreign_keys(1)")
+	}
+	dsn := "file:" + path + "?" + url.Values{"_pragma": pragmas}.Encode()
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: open: %w", err)
 	}
@@ -63,10 +71,13 @@ func Open(path string) (*Store, error) {
 // New wraps an already-open handle. Run Migrate before first use.
 func New(db *sql.DB) *Store { return &Store{db: db, q: sqlcgen.New(db)} }
 
-// NewMemory opens a private in-memory store. Opening one cannot realistically
-// fail, so failure panics rather than making every throwaway store two-valued.
+// NewMemory opens a private in-memory store without referential enforcement:
+// the test double module tests exercise without seeding parent rows. Use
+// Open(":memory:") for a strict in-memory database. Opening one cannot
+// realistically fail, so failure panics rather than making every throwaway
+// store two-valued.
 func NewMemory() *Store {
-	store, err := Open(":memory:")
+	store, err := open(":memory:", false)
 	if err != nil {
 		panic(fmt.Sprintf("datastore/sqlite: open in-memory store: %v", err))
 	}
