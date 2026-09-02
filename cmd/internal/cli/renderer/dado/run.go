@@ -37,7 +37,7 @@ func (r *Renderer) interactiveRun(ctx context.Context) error {
 		return err
 	}
 	if len(listed.Items) == 0 {
-		return r.showInteractiveMessage(ctx, "Run a pipeline", "No saved pipelines. Create a source, sink, and pipeline first.")
+		return r.notice(false, "No saved pipelines. Create a source, sink, and pipeline first.")
 	}
 	options := pipelineMenuOptions(listed.Items)
 	options = append(options, interactiveOption{label: "Back", value: interactiveBack})

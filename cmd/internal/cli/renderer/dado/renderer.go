@@ -220,13 +220,16 @@ type menuHeader struct {
 	title    string
 	notice   string
 	noticeOK bool
+	// pairs are detail lines rendered under the heading; an empty key is a
+	// plain line.
+	pairs [][2]string
 	// gap appends a blank row so a following field label is not glued to
 	// the heading.
 	gap bool
 }
 
 func (h menuHeader) Frame(width int) *inline.Frame {
-	height := 1
+	height := 1 + len(h.pairs)
 	if h.notice != "" {
 		height++
 	}
@@ -235,13 +238,30 @@ func (h menuHeader) Frame(width int) *inline.Frame {
 	}
 	frame := inline.NewFrame(max(width, 0), height)
 	draw(frame, 0, 0, h.title, h.theme.Accent.Bold(true))
+	y := 1
 	if h.notice != "" {
 		marker, tone := "✗", h.theme.Error
 		if h.noticeOK {
 			marker, tone = "✓", h.theme.Success
 		}
-		x := draw(frame, 0, 1, marker+" ", tone)
-		draw(frame, x, 1, h.notice, h.theme.Text)
+		x := draw(frame, 0, y, marker+" ", tone)
+		draw(frame, x, y, h.notice, h.theme.Text)
+		y++
+	}
+	keyWidth := 0
+	for _, pair := range h.pairs {
+		keyWidth = max(keyWidth, utf8.RuneCountInString(pair[0]))
+	}
+	for _, pair := range h.pairs {
+		if pair[0] == "" {
+			draw(frame, len(style.Indent), y, pair[1], h.theme.Text)
+			y++
+			continue
+		}
+		padding := strings.Repeat(" ", keyWidth-utf8.RuneCountInString(pair[0])+style.Gutter)
+		x := draw(frame, len(style.Indent), y, pair[0]+padding, h.theme.Label)
+		draw(frame, x, y, pair[1], h.theme.Text)
+		y++
 	}
 	return frame
 }
@@ -295,19 +315,18 @@ func (r *Renderer) showRuns(ctx context.Context) error {
 	return r.interactiveRenderer.Println("")
 }
 
-// showInteractiveMessage keeps a titled block in scrollback and returns to the menu.
-func (r *Renderer) showInteractiveMessage(_ context.Context, title, description string) error {
-	if r.interactiveRenderer == nil {
-		return nil
+// showDetail presents a transient key/value screen that clears when the user
+// backs out, so detail views never pile up in scrollback.
+func (r *Renderer) showDetail(ctx context.Context, title string, pairs [][2]string) error {
+	notice, noticeOK := r.takeNotice()
+	header := menuHeader{theme: r.theme, title: title, notice: notice, noticeOK: noticeOK, pairs: pairs, gap: true}
+	form := inline.NewForm("").SetHeader(header).Add(
+		inline.NewSelectField("selection", "", inline.Choice{Value: interactiveBack, Label: "Back"}).Required(),
+	)
+	if _, err := r.runInteractiveForm(ctx, form); err != nil && !interactiveCancelled(err) {
+		return err
 	}
-	p := r.painter()
-	lines := []string{p.Label(title)}
-	for _, line := range strings.Split(strings.TrimSpace(description), "\n") {
-		if strings.TrimSpace(line) != "" {
-			lines = append(lines, style.Indent+line)
-		}
-	}
-	return r.interactiveRenderer.Println(strings.Join(lines, "\n") + "\n")
+	return nil
 }
 
 // notice keeps one status line in scrollback: a green check or a red cross.
@@ -396,22 +415,4 @@ func preferredChoices(preferred string, options []interactiveOption) []inline.Ch
 		}
 	}
 	return choices
-}
-
-// showPairs keeps a titled key/value block in scrollback.
-func (r *Renderer) showPairs(title string, pairs [][2]string) error {
-	if r.interactiveRenderer == nil {
-		return nil
-	}
-	p := r.painter()
-	width := 0
-	for _, pair := range pairs {
-		width = max(width, utf8.RuneCountInString(pair[0]))
-	}
-	lines := []string{p.Bold(title)}
-	for _, pair := range pairs {
-		padding := strings.Repeat(" ", width-utf8.RuneCountInString(pair[0])+style.Gutter)
-		lines = append(lines, style.Indent+p.Label(pair[0])+padding+pair[1])
-	}
-	return r.interactiveRenderer.Println(strings.Join(lines, "\n") + "\n")
 }

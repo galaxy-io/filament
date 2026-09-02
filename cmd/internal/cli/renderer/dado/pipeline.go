@@ -43,9 +43,7 @@ func (r *Renderer) managePipelinesOnce(ctx context.Context) (bool, error) {
 	}
 	if selected == "__create__" {
 		if err := r.pipelineWizard(ctx, "", nil); err != nil && !interactiveCancelled(err) {
-			if showErr := r.showInteractiveMessage(ctx, "Unable to create pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-				return true, showErr
-			}
+			_ = r.notice(false, "Unable to create pipeline: "+err.Error())
 		}
 		return false, nil
 	}
@@ -54,9 +52,7 @@ func (r *Renderer) managePipelinesOnce(ctx context.Context) (bool, error) {
 		return true, err
 	}
 	if err := r.managePipeline(ctx, selected, doc); err != nil && !interactiveCancelled(err) {
-		if showErr := r.showInteractiveMessage(ctx, "Unable to manage pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-			return true, showErr
-		}
+		_ = r.notice(false, "Unable to manage pipeline: "+err.Error())
 	}
 	return false, nil
 }
@@ -77,7 +73,7 @@ func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Do
 	case "run":
 		return r.runInteractivePipeline(ctx, name)
 	case "view":
-		return r.showInteractiveMessage(ctx, name, pipelineDescription(pipeline))
+		return r.showDetail(ctx, name, pipelinePairs(pipeline))
 	case "edit":
 		return r.pipelineWizard(ctx, name, &pipeline)
 	case "delete":
@@ -320,13 +316,18 @@ func existingResources(pipeline *model.Pipeline) []string {
 	return pipeline.Resources
 }
 
-func pipelineDescription(pipeline model.Pipeline) string {
+func pipelinePairs(pipeline model.Pipeline) [][2]string {
 	resources := "all discovered resources"
 	if len(pipeline.Resources) > 0 {
 		resources = strings.Join(pipeline.Resources, ", ")
 	}
-	return fmt.Sprintf("Source: %s\nSink: %s\nResources: %s\nSync mode: %s\nWrite mode: %s",
-		pipeline.Source.Ref, pipeline.Sink.Ref, resources, pipeline.SyncMode, pipeline.WriteMode)
+	return [][2]string{
+		{"Source", pipeline.Source.Ref},
+		{"Sink", pipeline.Sink.Ref},
+		{"Resources", resources},
+		{"Sync mode", pipeline.SyncMode},
+		{"Write mode", pipeline.WriteMode},
+	}
 }
 
 // pipelineMenuOptions lists pipelines as a boxed table matching the flag

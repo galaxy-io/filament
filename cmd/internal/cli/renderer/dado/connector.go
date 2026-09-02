@@ -75,9 +75,7 @@ func (r *Renderer) manageConnectionsOnce(ctx context.Context, kind string) (bool
 	}
 	if selected == "__create__" {
 		if err := r.connectionWizard(ctx, kind, "", nil); err != nil && !interactiveCancelled(err) {
-			if showErr := r.showInteractiveMessage(ctx, "Unable to create "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-				return true, showErr
-			}
+			_ = r.notice(false, "Unable to create "+kind+": "+err.Error())
 		}
 		return false, nil
 	}
@@ -86,9 +84,7 @@ func (r *Renderer) manageConnectionsOnce(ctx context.Context, kind string) (bool
 		return true, err
 	}
 	if err := r.manageConnection(ctx, kind, selected, doc); err != nil && !interactiveCancelled(err) {
-		if showErr := r.showInteractiveMessage(ctx, "Unable to manage "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-			return true, showErr
-		}
+		_ = r.notice(false, "Unable to manage "+kind+": "+err.Error())
 	}
 	return false, nil
 }
@@ -113,7 +109,7 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 		if err != nil {
 			return err
 		}
-		return r.showPairs(name, connectionPairs(connection, schema))
+		return r.showDetail(ctx, name, connectionPairs(connection, schema))
 	case "edit":
 		return r.connectionWizard(ctx, kind, name, &connection)
 	case "discover":
@@ -247,9 +243,9 @@ func (r *Renderer) interactiveDiscoverConnection(ctx context.Context, name strin
 		return err
 	}
 	if len(resources.Items) == 0 {
-		return r.showInteractiveMessage(ctx, "Resources", "No resources discovered")
+		return r.notice(false, "No resources discovered")
 	}
-	lines := make([]string, 0, len(resources.Items))
+	pairs := make([][2]string, 0, len(resources.Items))
 	for _, resource := range resources.Items {
 		label := resource.Name
 		if resource.DisplayName != "" && resource.DisplayName != resource.Name {
@@ -258,9 +254,9 @@ func (r *Renderer) interactiveDiscoverConnection(ctx context.Context, name strin
 		if resource.EstimatedRows > 0 {
 			label += fmt.Sprintf("  ·  %d estimated rows", resource.EstimatedRows)
 		}
-		lines = append(lines, label)
+		pairs = append(pairs, [2]string{"", label})
 	}
-	return r.showInteractiveMessage(ctx, "Discovered resources", strings.Join(lines, "\n"))
+	return r.showDetail(ctx, "Discovered resources", pairs)
 }
 
 func newSchemaWizard(schema filament.ConfigSchema, scope filament.FieldScope, initial map[string]any) *schemaWizard {
@@ -612,12 +608,11 @@ func connectionPairs(connection model.Connection, schema filament.ConfigSchema) 
 	pairs := make([][2]string, 0, len(connection.Config)+4)
 	pairs = append(pairs, [2]string{"Connector", connection.Type})
 	if info := connection.Info; info.Replication != "" || !info.CreatedAt.IsZero() {
-		replication := info.Replication
-		if replication != "" {
-			replication = strings.ToUpper(replication[:1]) + replication[1:]
+		if info.Replication != "" {
+			replication := strings.ToUpper(info.Replication[:1]) + info.Replication[1:]
+			pairs = append(pairs, [2]string{"Replication", replication})
 		}
 		pairs = append(pairs,
-			[2]string{"Replication", infoValue(replication)},
 			[2]string{"Created", infoValue(infoStamp(info.CreatedAt))},
 			[2]string{"Updated", infoValue(infoStamp(info.UpdatedAt))},
 		)
