@@ -37,24 +37,7 @@ Use --context NAME to select a context for one invocation.`,
 			return textrenderer.CurrentContext(a.stdout, current.Name)
 		},
 	}
-	var endpoint, authProfile string
-	add := &cobra.Command{
-		Use:   "add <name>",
-		Short: "Add a remote context",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			target := contexts.Target{
-				Kind: contexts.KindRemote, Endpoint: endpoint, AuthProfile: authProfile,
-			}
-			if err := a.contextRegistry().Set(args[0], target); err != nil {
-				return err
-			}
-			return printSuccess(a.statusWriter(), fmt.Sprintf("Added context %s", args[0]))
-		},
-	}
-	add.Flags().StringVar(&endpoint, "server", "", "Filament server `URL`")
-	add.Flags().StringVar(&authProfile, "auth-profile", "", "Stored authentication profile `NAME`")
-	_ = add.MarkFlagRequired("server")
+	add := a.contextAddCommand()
 	cmd.AddCommand(
 		add,
 		&cobra.Command{
@@ -176,4 +159,36 @@ func (a *cliApp) listContexts(registry *contexts.Registry) error {
 
 func (a *cliApp) contextRegistry() *contexts.Registry {
 	return contexts.NewRegistry(contexts.Store{Path: a.contextPath}, a.configPath)
+}
+
+func (a *cliApp) contextAddCommand() *cobra.Command {
+	var endpoint, authProfile string
+	add := &cobra.Command{
+		Use:   "add <name>",
+		Short: "Add a remote or local context",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			// The global --config flag names the document a local context serves.
+			if (endpoint == "") == !a.configOverride {
+				return fmt.Errorf("exactly one of --server (remote) or --config (local) is required")
+			}
+			target := contexts.Target{
+				Kind: contexts.KindRemote, Endpoint: endpoint, AuthProfile: authProfile,
+			}
+			if a.configOverride {
+				absolute, err := filepath.Abs(a.configPath)
+				if err != nil {
+					return err
+				}
+				target = contexts.Target{Kind: contexts.KindLocal, ConfigPath: absolute}
+			}
+			if err := a.contextRegistry().Set(args[0], target); err != nil {
+				return err
+			}
+			return printSuccess(a.statusWriter(), fmt.Sprintf("Added context %s", args[0]))
+		},
+	}
+	add.Flags().StringVar(&endpoint, "server", "", "Filament server `URL`")
+	add.Flags().StringVar(&authProfile, "auth-profile", "", "Stored authentication profile `NAME`")
+	return add
 }

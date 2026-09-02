@@ -5,6 +5,11 @@ import "time"
 // ConfigVersion is the current configuration document version.
 const ConfigVersion = 1
 
+// AdhocPrefix marks run-scoped entities — inline and override runs — pushed
+// to an ephemeral deployment. They exist for one run and must never reach the
+// YAML document.
+const AdhocPrefix = "adhoc:"
+
 // Document is the target-neutral connection and pipeline configuration.
 type Document struct {
 	Version   int                   `json:"version" yaml:"version"`

@@ -238,7 +238,9 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 		if state, ok, err := a.loadRunSnapshot(ctx, tenant, run); err != nil {
 			return connect.NewError(connect.CodeInternal, err)
 		} else if ok && runStatusTerminal(state.Status) {
-			return nil
+			// The run reached terminal between replay and here; replay sent no
+			// terminal event, so close the story before ending the stream.
+			return send(tailResponse(runSnapshotEvent(state, true)))
 		}
 	}
 

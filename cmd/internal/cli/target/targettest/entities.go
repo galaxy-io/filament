@@ -53,6 +53,9 @@ func EntityLifecycle(t *testing.T, target cliapp.Target, sourceConnector, sinkCo
 		t.Fatalf("pipeline metadata = %#v", pipeline.Metadata)
 	}
 	pipeline.Resources = []string{"users"}
+	// Flat fields are authoritative only when the graph is unset; edit flows
+	// rebuild the graph the same way.
+	pipeline.Graph = nil
 	pipeline, err = target.UpdatePipeline(ctx, "contract-pipeline", pipeline)
 	if err != nil {
 		t.Fatal(err)

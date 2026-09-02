@@ -39,8 +39,11 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		a.connectionCommand("sink"),
 		a.pipelineCommand(),
 		a.runCommandDefinition(),
+		a.upCommand(),
+		a.downCommand(),
 		a.configCommand(),
 		a.contextCommand(),
+		a.statusCommand(),
 		a.authCommand(),
 		a.versionCommand(),
 	)

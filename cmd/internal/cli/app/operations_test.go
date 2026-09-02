@@ -12,7 +12,6 @@ import (
 )
 
 // memoryTarget models an in-process target like the local adapter.
-func (t *memoryTarget) ExecutesInProcess() {}
 
 type memoryTarget struct {
 	document  model.Document
@@ -207,7 +206,7 @@ func TestTypedOperationsDriveTarget(t *testing.T) {
 	if len(result.Runs) != 1 || result.Runs[0].ID != "target-run-1" || result.Records != 12 || spec.Source.Connector != "sample" || spec.Sink.Connector != "stdout" {
 		t.Fatalf("spec = %#v; result = %#v", spec, result)
 	}
-	if target.runSpec.PipelineID != "copy" || target.runSpec.Source.Config["rows"] != 2 {
+	if target.runSpec.PipelineID != "copy" {
 		t.Fatalf("target run spec = %#v", target.runSpec)
 	}
 	if target.submitted.Pipeline == nil || target.submitted.Pipeline.Name != "copy" || target.submitted.Pipeline.Metadata.ID == "" {
@@ -216,8 +215,8 @@ func TestTypedOperationsDriveTarget(t *testing.T) {
 	if target.runSpec.Tenant != "" || target.runSpec.Run != "" {
 		t.Fatalf("application leaked target identity into run spec: %#v", target.runSpec)
 	}
-	if target.runSpec.Source.Config["token"] != "env:REMOTE_TOKEN" {
-		t.Fatalf("application resolved a target-owned secret: %#v", target.runSpec.Source.Config)
+	if target.runSpec.Source.Config != nil || target.runSpec.Sink.Config != nil {
+		t.Fatalf("application shipped connection config in the run spec: %#v", target.runSpec)
 	}
 	if err := service.DeleteSavedConnection(ctx, "source", "input"); err == nil {
 		t.Fatal("referenced source deletion succeeded")

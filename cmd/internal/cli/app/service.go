@@ -73,13 +73,13 @@ type RunHistoryTarget interface {
 	ListRuns(ctx context.Context, request model.RunListRequest) (model.RunList, error)
 }
 
-// InProcessTarget is an optional target capability: the target executes
-// connector work in-process and needs run configuration fully compiled
-// client-side. Targets without it validate and execute runs on their own
-// deployment, so preparation stops at the pipeline reference and the fields
-// presentation needs.
-type InProcessTarget interface {
-	ExecutesInProcess()
+// EphemeralTarget is an optional target capability: the target's deployment
+// state dies with the process, so run-scoped entities — inline runs, override
+// runs — can be pushed straight to the deployment without touching the
+// durable document.
+type EphemeralTarget interface {
+	PushConnection(ctx context.Context, kind, name string, connection model.Connection) (model.Connection, error)
+	PushPipeline(ctx context.Context, name string, pipeline model.Pipeline) (model.Pipeline, error)
 }
 
 // RawConfigurationTarget is an optional target capability for byte-preserving
