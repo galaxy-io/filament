@@ -61,6 +61,7 @@ func BuildConnection(request SaveConnectionRequest, existing *model.Connection, 
 	if existing != nil {
 		connection = *existing
 		connection.Config = cloneConfigMap(existing.Config)
+		connection.SecretRefs = cloneStringMap(existing.SecretRefs)
 	}
 	connector := request.Connector
 	if connector == "" {
@@ -78,6 +79,10 @@ func BuildConnection(request SaveConnectionRequest, existing *model.Connection, 
 		return connection, err
 	}
 	connection.Config = applyConfigPatch(connection.Config, request.Config)
+	connection.SecretRefs, err = UpdateSecretReferences(schema, request.Config, connection.SecretRefs)
+	if err != nil {
+		return connection, fmt.Errorf("%s %q: %w", request.Kind, request.Name, err)
+	}
 	connection.Config = canonicalizeConfig(schema, connection.Config)
 	connection.Config, err = normalizeSavedSecretReferences(schema, connection.Config)
 	if err != nil {
@@ -100,7 +105,7 @@ func (s *Service) DeleteSavedConnection(ctx context.Context, kind, name string) 
 		return fmt.Errorf("%s %q does not exist", kind, name)
 	}
 	for pipelineName, pipeline := range document.Pipelines {
-		if (kind == "source" && pipeline.Source.Ref == name) || (kind == "sink" && pipeline.Sink.Ref == name) {
+		if pipeline.ReferencesConnection(kind, name) {
 			return fmt.Errorf("%s %q is referenced by pipeline %q; delete or edit that pipeline first", kind, name, pipelineName)
 		}
 	}

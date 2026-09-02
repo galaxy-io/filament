@@ -8,6 +8,8 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
+const storedSecretReferencePrefix = "filament-secret-ref:"
+
 // EnvironmentReferenceName recognizes Filament's supported environment
 // reference spellings and returns the referenced variable name.
 func EnvironmentReferenceName(value string) (string, bool) {
@@ -43,6 +45,134 @@ func normalizeSavedSecretReferences(schema filament.ConfigSchema, values map[str
 		return nil, err
 	}
 	return result, nil
+}
+
+// UpdateSecretReferences applies explicit secret-field changes to refs. Config
+// retains env: values for local YAML compatibility; remote targets remove the
+// corresponding values when mapping refs onto the deployment API.
+func UpdateSecretReferences(schema filament.ConfigSchema, patch ConfigPatch, current map[string]string) (map[string]string, error) {
+	refs := cloneStringMap(current)
+	original := cloneStringMap(current)
+	for _, name := range patch.Unset {
+		deleteSecretRefPrefix(refs, name)
+	}
+	if err := updateSecretReferenceFields(schema.Fields, patch.Values, refs, original, ""); err != nil {
+		return nil, err
+	}
+	return refs, nil
+}
+
+func updateSecretReferenceFields(fields []filament.ConfigField, values map[string]any, refs, original map[string]string, parent string) error {
+	for _, field := range fields {
+		value, supplied := values[field.Name]
+		if !supplied {
+			continue
+		}
+		path := joinConfigPath(parent, field.Name)
+		if IsSecretField(field) {
+			text, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("field %q must be a string", path)
+			}
+			if strings.HasPrefix(text, storedSecretReferencePrefix) {
+				if original[path] != strings.TrimPrefix(text, storedSecretReferencePrefix) {
+					return fmt.Errorf("field %q contains an invalid stored-secret marker", path)
+				}
+				refs[path] = original[path]
+				continue
+			}
+			if name, referenced := EnvironmentReferenceName(text); referenced {
+				refs[path] = name
+			} else {
+				delete(refs, path)
+			}
+			continue
+		}
+		if nested, ok := value.(map[string]any); ok && len(field.Fields) > 0 {
+			// Applying an object replaces that object in config, so refs for
+			// omitted children must be cleared as well.
+			deleteSecretRefPrefix(refs, path)
+			if err := updateSecretReferenceFields(field.Fields, nested, refs, original, path); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ConfigWithSecretPlaceholders returns editable config that represents
+// deployment-managed secret refs without revealing or replacing their values.
+// An unchanged placeholder is removed again at the remote wire boundary.
+func ConfigWithSecretPlaceholders(values map[string]any, refs map[string]string) map[string]any {
+	result := cloneConfigMap(values)
+	for path, ref := range refs {
+		setConfigPath(result, strings.Split(path, "."), storedSecretReferencePrefix+ref)
+	}
+	return result
+}
+
+func setConfigPath(values map[string]any, path []string, value any) {
+	if len(path) == 0 {
+		return
+	}
+	if len(path) == 1 {
+		values[path[0]] = value
+		return
+	}
+	nested, ok := values[path[0]].(map[string]any)
+	if !ok {
+		nested = map[string]any{}
+		values[path[0]] = nested
+	}
+	setConfigPath(nested, path[1:], value)
+}
+
+func deleteSecretRefPrefix(refs map[string]string, prefix string) {
+	for path := range refs {
+		if path == prefix || strings.HasPrefix(path, prefix+".") {
+			delete(refs, path)
+		}
+	}
+}
+
+// ConfigWithoutSecretValues returns a copy with every referenced secret path
+// removed. It is the wire representation paired with a secret_refs map; local
+// YAML continues to retain its env: references in Config.
+func ConfigWithoutSecretValues(values map[string]any, refs map[string]string) map[string]any {
+	result := cloneConfigMap(values)
+	for path := range refs {
+		deleteConfigPath(result, strings.Split(path, "."))
+	}
+	return result
+}
+
+func deleteConfigPath(values map[string]any, path []string) bool {
+	if len(path) == 0 {
+		return len(values) == 0
+	}
+	if len(path) == 1 {
+		delete(values, path[0])
+		return len(values) == 0
+	}
+	nested, ok := values[path[0]].(map[string]any)
+	if !ok {
+		return len(values) == 0
+	}
+	if deleteConfigPath(nested, path[1:]) {
+		delete(values, path[0])
+	}
+	return len(values) == 0
+}
+
+func cloneStringMap(input map[string]string) map[string]string {
+	if input == nil {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(input))
+	for key, value := range input {
+		out[key] = value
+	}
+	return out
 }
 
 // ResolveConfigSecrets resolves environment references at the target execution

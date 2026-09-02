@@ -3,17 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 func (a *cliApp) runCommandDefinition() *cobra.Command {
 	cmd := a.dynamicCommand(
-		"run <pipeline> [flags] | run --source-connector NAME --sink-connector NAME [flags]",
-		"Run a saved pipeline or an inline transfer", a.printRunHelp, a.runCommand,
+		"run <pipeline> [flags] | run list [pipeline] [flags] | run --source-connector NAME --sink-connector NAME [flags]",
+		"Run pipelines and inspect history", a.printRunHelp, a.runCommand,
 	)
 	cmd.PersistentPreRunE = a.prepareTarget
 	return cmd
@@ -24,11 +26,24 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 		return a.printRunHelp(ctx, args)
 	}
 	if args[0] == "ls" || args[0] == "list" {
-		pipeline := ""
-		if len(args) > 1 {
-			pipeline = args[1]
+		parsed, err := a.parseCommandArgs(args[1:])
+		if err != nil {
+			return err
 		}
-		return a.listRuns(ctx, pipeline)
+		allowed := map[string]bool{"limit": true, "next": true}
+		if err := rejectUnknownFlags(parsed.flags, allowed); err != nil {
+			return err
+		}
+		pageSize := int64(defaultListLimit)
+		if raw, present := flagValue(parsed.flags, "limit"); present {
+			pageSize, err = strconv.ParseInt(raw, 10, 32)
+			if err != nil || pageSize <= 0 {
+				return fmt.Errorf("--limit must be a positive integer")
+			}
+		}
+		return a.listRuns(ctx, climodel.RunListRequest{
+			Pipeline: firstPositional(parsed), PageSize: int32(pageSize), Cursor: lastFlag(parsed.flags, "next"),
+		})
 	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {

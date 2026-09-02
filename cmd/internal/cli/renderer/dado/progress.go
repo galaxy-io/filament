@@ -158,6 +158,14 @@ func (v *runProgressView) word(row *runRow) string {
 }
 
 func runSummaryLine(p style.Painter, rows int, result model.RunResult, elapsed time.Duration, runErr error) string {
+	switch result.Status {
+	case "paused":
+		return p.Muted("‖ Run paused") + fmt.Sprintf(" · %s rows · %s", style.Count(result.Records), humanDuration(elapsed))
+	case "canceled":
+		return p.Muted("○ Run canceled") + fmt.Sprintf(" · %s rows · %s", style.Count(result.Records), humanDuration(elapsed))
+	case "partial":
+		return p.Error("✗ Run partial") + fmt.Sprintf(" · %s rows · %s", style.Count(result.Records), humanDuration(elapsed))
+	}
 	if runErr != nil {
 		return p.Error("✗ run failed") + " " + p.Muted("· "+runErr.Error())
 	}

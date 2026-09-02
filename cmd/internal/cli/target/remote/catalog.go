@@ -14,24 +14,32 @@ import (
 // dynamic flags and wizards reflect the server's connectors rather than the
 // CLI's own build.
 func (t *Target) Catalog(ctx context.Context) (model.Catalog, error) {
-	response, err := t.client.ListConnectors(ctx, connect.NewRequest(&ingestionv1.ListConnectorsRequest{}))
-	if err != nil {
-		return model.Catalog{}, t.rpcError(err)
-	}
 	catalog := model.Catalog{
 		Sources: map[string]filament.ConnectorSpec{},
 		Sinks:   map[string]filament.SinkSpec{},
 	}
-	for _, spec := range response.Msg.GetConnectors() {
-		switch spec.GetKind() {
-		case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
-			catalog.Sources[spec.GetName()] = sourceSpecFromProto(spec)
-		case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
-			catalog.Sinks[spec.GetName()] = sinkSpecFromProto(spec)
-		case ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED:
+	cursor := ""
+	for {
+		response, err := t.client.ListConnectors(ctx, connect.NewRequest(&ingestionv1.ListConnectorsRequest{
+			Pagination: paginationRequest(internalPageSize, cursor),
+		}))
+		if err != nil {
+			return model.Catalog{}, t.rpcError(err)
+		}
+		for _, spec := range response.Msg.GetConnectors() {
+			switch spec.GetKind() {
+			case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
+				catalog.Sources[spec.GetName()] = sourceSpecFromProto(spec)
+			case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
+				catalog.Sinks[spec.GetName()] = sinkSpecFromProto(spec)
+			case ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED:
+			}
+		}
+		cursor = response.Msg.GetPagination().GetNextCursor()
+		if cursor == "" {
+			return catalog, nil
 		}
 	}
-	return catalog, nil
 }
 
 func sourceSpecFromProto(spec *ingestionv1.ConnectorSpec) filament.ConnectorSpec {

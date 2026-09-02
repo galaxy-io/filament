@@ -27,6 +27,16 @@ type Source struct {
 	Now func() time.Time
 }
 
+// Mint exchanges an in-memory profile without persisting it. Login uses this
+// to prove new credentials before replacing a working stored profile.
+func Mint(ctx context.Context, profile Profile, client *http.Client) (string, Cache, error) {
+	token, err := (Source{Client: client}).mint(ctx, profile)
+	if err != nil {
+		return "", Cache{}, err
+	}
+	return token.AccessToken, Cache{AccessToken: token.AccessToken, ExpiresAt: token.Expiry}, nil
+}
+
 // Token returns a valid access token, minting and persisting a fresh one
 // when no usable cache exists.
 func (s Source) Token(ctx context.Context) (string, error) {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
@@ -24,6 +25,12 @@ type ConnectionTarget interface {
 	DeleteConnection(context.Context, string, string, model.EntityMetadata) error
 }
 
+// ConnectionPageTarget exposes deployment-native cursor pagination. Targets
+// without it are paginated in memory by the service.
+type ConnectionPageTarget interface {
+	ListConnectionsPage(context.Context, string, model.PageRequest) (model.Page[model.NamedConnection], error)
+}
+
 // PipelineTarget supplies explicit pipeline queries and mutations.
 type PipelineTarget interface {
 	ListPipelines(context.Context) ([]model.NamedPipeline, error)
@@ -34,9 +41,22 @@ type PipelineTarget interface {
 	ValidateConfiguration(context.Context, model.Document) error
 }
 
+// PipelinePageTarget exposes deployment-native cursor pagination. Targets
+// without it are paginated in memory by the service.
+type PipelinePageTarget interface {
+	ListPipelinesPage(context.Context, model.PageRequest) (model.Page[model.NamedPipeline], error)
+}
+
 // DiscoveryTarget executes connector discovery in the target environment.
 type DiscoveryTarget interface {
 	Discover(context.Context, model.DiscoverRequest) (model.ResourceList, error)
+}
+
+// PipelineModesTarget optionally asks a deployment to resolve connector
+// capabilities for a proposed graph. Remote targets implement this with the
+// same ValidatePipeline RPC used by the web canvas.
+type PipelineModesTarget interface {
+	PipelineModes(context.Context, model.Pipeline) (model.PipelineModes, error)
 }
 
 // RunTarget separates run submission, progress streaming, and lifecycle
@@ -61,7 +81,7 @@ type Target interface {
 // RunHistoryTarget is an optional target capability: the target retains run
 // history that can be listed. In-process targets keep none.
 type RunHistoryTarget interface {
-	ListRuns(ctx context.Context, pipeline string) (model.RunList, error)
+	ListRuns(ctx context.Context, request model.RunListRequest) (model.RunList, error)
 }
 
 // InProcessTarget is an optional target capability: the target executes
@@ -132,6 +152,30 @@ func (s *Service) Connections(ctx context.Context, kind string) (model.Connectio
 	if err != nil {
 		return model.ConnectionList{}, err
 	}
+	return s.connectionList(ctx, kind, model.Page[model.NamedConnection]{Items: connections, Total: len(connections)})
+}
+
+// ConnectionPage lists one page of connections using target-native cursors
+// when available.
+func (s *Service) ConnectionPage(ctx context.Context, kind string, request model.PageRequest) (model.ConnectionList, error) {
+	var page model.Page[model.NamedConnection]
+	var err error
+	if target, ok := s.target.(ConnectionPageTarget); ok {
+		page, err = target.ListConnectionsPage(ctx, kind, request)
+	} else {
+		var connections []model.NamedConnection
+		connections, err = s.target.ListConnections(ctx, kind)
+		if err == nil {
+			page, err = paginate(connections, request)
+		}
+	}
+	if err != nil {
+		return model.ConnectionList{}, err
+	}
+	return s.connectionList(ctx, kind, page)
+}
+
+func (s *Service) connectionList(ctx context.Context, kind string, page model.Page[model.NamedConnection]) (model.ConnectionList, error) {
 	catalog, err := s.target.Catalog(ctx)
 	if err != nil {
 		return model.ConnectionList{}, err
@@ -139,8 +183,11 @@ func (s *Service) Connections(ctx context.Context, kind string) (model.Connectio
 	if kind != "source" && kind != "sink" {
 		return model.ConnectionList{}, fmt.Errorf("unknown connection kind %q", kind)
 	}
-	result := model.ConnectionList{Kind: kind, Items: make([]model.ConnectionSummary, 0, len(connections))}
-	for _, item := range connections {
+	result := model.ConnectionList{
+		Kind: kind, Items: make([]model.ConnectionSummary, 0, len(page.Items)), Total: page.Total,
+		NextCursor: page.NextCursor, PreviousCursor: page.PreviousCursor,
+	}
+	for _, item := range page.Items {
 		description, _ := catalog.Description(kind, item.Connection.Type)
 		result.Items = append(result.Items, model.ConnectionSummary{
 			Name: item.Name, Connector: item.Connection.Type, Description: description,
@@ -152,12 +199,12 @@ func (s *Service) Connections(ctx context.Context, kind string) (model.Connectio
 }
 
 // Runs lists the selected target's run history, optionally for one pipeline.
-func (s *Service) Runs(ctx context.Context, pipeline string) (model.RunList, error) {
+func (s *Service) Runs(ctx context.Context, request model.RunListRequest) (model.RunList, error) {
 	target, ok := s.target.(RunHistoryTarget)
 	if !ok {
 		return model.RunList{}, errors.New("this target keeps no run history")
 	}
-	return target.ListRuns(ctx, pipeline)
+	return target.ListRuns(ctx, request)
 }
 
 // Pipelines lists pipelines from the selected target.
@@ -166,8 +213,35 @@ func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
 	if err != nil {
 		return model.PipelineList{}, err
 	}
-	result := model.PipelineList{Items: make([]model.PipelineSummary, 0, len(pipelines))}
-	for _, item := range pipelines {
+	return pipelineList(model.Page[model.NamedPipeline]{Items: pipelines, Total: len(pipelines)}), nil
+}
+
+// PipelinePage lists one page of pipelines using target-native cursors when
+// available.
+func (s *Service) PipelinePage(ctx context.Context, request model.PageRequest) (model.PipelineList, error) {
+	var page model.Page[model.NamedPipeline]
+	var err error
+	if target, ok := s.target.(PipelinePageTarget); ok {
+		page, err = target.ListPipelinesPage(ctx, request)
+	} else {
+		var pipelines []model.NamedPipeline
+		pipelines, err = s.target.ListPipelines(ctx)
+		if err == nil {
+			page, err = paginate(pipelines, request)
+		}
+	}
+	if err != nil {
+		return model.PipelineList{}, err
+	}
+	return pipelineList(page), nil
+}
+
+func pipelineList(page model.Page[model.NamedPipeline]) model.PipelineList {
+	result := model.PipelineList{
+		Items: make([]model.PipelineSummary, 0, len(page.Items)), Total: page.Total,
+		NextCursor: page.NextCursor, PreviousCursor: page.PreviousCursor,
+	}
+	for _, item := range page.Items {
 		pipeline := item.Pipeline
 		result.Items = append(result.Items, model.PipelineSummary{
 			Name: item.Name, Source: pipeline.Source.Ref, Sink: pipeline.Sink.Ref,
@@ -177,12 +251,74 @@ func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
 			LastRunAt: pipeline.Info.LastRunAt, UpdatedAt: pipeline.Info.UpdatedAt,
 		})
 	}
-	return result, nil
+	return result
+}
+
+func paginate[T any](items []T, request model.PageRequest) (model.Page[T], error) {
+	pageSize := int(request.PageSize)
+	if pageSize <= 0 {
+		pageSize = 25
+	}
+	offset := 0
+	if request.Cursor != "" {
+		parsed, err := strconv.Atoi(request.Cursor)
+		if err != nil || parsed < 0 || parsed > len(items) {
+			return model.Page[T]{}, fmt.Errorf("invalid page cursor")
+		}
+		offset = parsed
+	}
+	end := min(offset+pageSize, len(items))
+	page := model.Page[T]{Items: items[offset:end], Total: len(items)}
+	if end < len(items) {
+		page.NextCursor = strconv.Itoa(end)
+	}
+	if offset > 0 {
+		page.PreviousCursor = strconv.Itoa(max(offset-pageSize, 0))
+	}
+	return page, nil
 }
 
 // Discover returns resources available for a connector request.
 func (s *Service) Discover(ctx context.Context, request model.DiscoverRequest) (model.ResourceList, error) {
 	return s.target.Discover(ctx, request)
+}
+
+// PipelineModes returns authoritative graph capabilities when the target can
+// resolve them, otherwise it derives the local connector catalog's modes.
+func (s *Service) PipelineModes(ctx context.Context, pipeline model.Pipeline) (model.PipelineModes, error) {
+	if target, ok := s.target.(PipelineModesTarget); ok {
+		return target.PipelineModes(ctx, pipeline)
+	}
+	document, err := s.Configuration(ctx)
+	if err != nil {
+		return model.PipelineModes{}, err
+	}
+	catalog, err := s.Catalog(ctx)
+	if err != nil {
+		return model.PipelineModes{}, err
+	}
+	source, sourceOK := document.Sources[pipeline.Source.Ref]
+	sink, sinkOK := document.Sinks[pipeline.Sink.Ref]
+	if !sourceOK || !sinkOK {
+		return model.PipelineModes{}, fmt.Errorf("source and sink must name saved connections")
+	}
+	result := model.PipelineModes{}
+	for _, mode := range catalog.Sources[source.Type].Modes {
+		result.ReadModes = append(result.ReadModes, mode.String())
+	}
+	for _, capability := range catalog.Sinks[sink.Type].Capabilities.WritePolicies {
+		result.WriteModes = appendUnique(result.WriteModes, string(capability.Mode))
+	}
+	return result, nil
+}
+
+func appendUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 // SubmitRun starts a prepared run on the selected target.
@@ -192,7 +328,11 @@ func (s *Service) SubmitRun(ctx context.Context, submission model.RunSubmission)
 
 // TailRun streams normalized progress for a submitted run group.
 func (s *Service) TailRun(ctx context.Context, group model.RunGroup, observe func(model.RunEvent)) (model.RunResult, error) {
-	return s.target.TailRun(ctx, group, observe)
+	result, err := s.target.TailRun(ctx, group, observe)
+	if err == nil && result.Status != "" && result.Status != "complete" {
+		err = fmt.Errorf("run ended with status %s", result.Status)
+	}
+	return result, err
 }
 
 // SignalRun sends a lifecycle command to one target-side run.

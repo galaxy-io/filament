@@ -34,6 +34,29 @@ func (a *cliApp) connectionCommand(kind string) *cobra.Command {
 			return a.changeConnection(ctx, operation, kind, args)
 		}
 	}
+	pageFlags := listPageFlags{}
+	list := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   fmt.Sprintf("List saved %ss", kind),
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			request, err := pageFlags.request()
+			if err != nil {
+				return err
+			}
+			result, err := a.service.ConnectionPage(cmd.Context(), kind, request)
+			if err != nil {
+				return err
+			}
+			usedBy, err := a.connectionUsage(cmd.Context(), kind)
+			if err != nil {
+				return err
+			}
+			return textrenderer.Connections(a.stdout, result, a.configName(), usedBy)
+		},
+	}
+	pageFlags.add(list)
 	cmd.AddCommand(
 		a.dynamicCommand(
 			fmt.Sprintf("create <name> --%s-connector NAME [flags]", kind),
@@ -43,23 +66,7 @@ func (a *cliApp) connectionCommand(kind string) *cobra.Command {
 			fmt.Sprintf("edit <name> [flags] [--unset %s-FIELD]", kind),
 			"Change a saved "+kind, help("edit"), change("edit"),
 		),
-		&cobra.Command{
-			Use:     "list",
-			Aliases: []string{"ls"},
-			Short:   fmt.Sprintf("List saved %ss", kind),
-			Args:    cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, _ []string) error {
-				result, err := a.service.Connections(cmd.Context(), kind)
-				if err != nil {
-					return err
-				}
-				usedBy, err := a.connectionUsage(cmd.Context(), kind)
-				if err != nil {
-					return err
-				}
-				return textrenderer.Connections(a.stdout, result, a.configName(), usedBy)
-			},
-		},
+		list,
 	)
 	if kind == "source" {
 		cmd.AddCommand(a.dynamicCommand(
@@ -194,5 +201,9 @@ func (a *cliApp) connectionUsage(ctx context.Context, kind string) (map[string][
 }
 
 func (a *cliApp) configName() string {
-	return filepath.Base(a.service.ConfigurationLocation())
+	location := a.service.ConfigurationLocation()
+	if location == "" {
+		return a.target.Name
+	}
+	return filepath.Base(location)
 }

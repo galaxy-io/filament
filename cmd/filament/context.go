@@ -14,8 +14,9 @@ import (
 
 func (a *cliApp) contextCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "context",
-		Short: "Manage contexts",
+		Use:     "context",
+		Aliases: []string{"ctx"},
+		Short:   "Manage contexts",
 		Long: `Manage contexts.
 
 Contexts are stored separately from pipeline configuration and credentials.
@@ -36,7 +37,27 @@ Use --context NAME to select a context for one invocation.`,
 			return textrenderer.CurrentContext(a.stdout, current.Name)
 		},
 	}
+	var endpoint, tenant, authProfile string
+	add := &cobra.Command{
+		Use:   "add <name>",
+		Short: "Add a remote context",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			target := contexts.Target{
+				Kind: contexts.KindRemote, Endpoint: endpoint, Tenant: tenant, AuthProfile: authProfile,
+			}
+			if err := a.contextRegistry().Set(args[0], target); err != nil {
+				return err
+			}
+			return printSuccess(a.statusWriter(), fmt.Sprintf("Added context %s", args[0]))
+		},
+	}
+	add.Flags().StringVar(&endpoint, "server", "", "Filament server `URL`")
+	add.Flags().StringVar(&tenant, "tenant", "", "Deployment tenant `ID`")
+	add.Flags().StringVar(&authProfile, "auth-profile", "", "Stored authentication profile `NAME`")
+	_ = add.MarkFlagRequired("server")
 	cmd.AddCommand(
+		add,
 		&cobra.Command{
 			Use:     "list",
 			Aliases: []string{"ls"},

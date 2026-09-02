@@ -33,6 +33,25 @@ Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
 			return a.printPipelineOperationHelp(ctx, operation, args)
 		}
 	}
+	pageFlags := listPageFlags{}
+	list := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List saved pipelines",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			request, err := pageFlags.request()
+			if err != nil {
+				return err
+			}
+			result, err := a.service.PipelinePage(cmd.Context(), request)
+			if err != nil {
+				return err
+			}
+			return textrenderer.Pipelines(a.stdout, result, a.configName())
+		},
+	}
+	pageFlags.add(list)
 	cmd.AddCommand(
 		a.dynamicCommand(
 			"create <name> --source NAME --sink NAME [--resources LIST] [flags]",
@@ -42,19 +61,7 @@ Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
 			"edit <name> [flags] [--unset source-FIELD|sink-FIELD]",
 			"Change a saved pipeline", help("edit"), change("edit"),
 		),
-		&cobra.Command{
-			Use:     "list",
-			Aliases: []string{"ls"},
-			Short:   "List saved pipelines",
-			Args:    cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, _ []string) error {
-				result, err := a.service.Pipelines(cmd.Context())
-				if err != nil {
-					return err
-				}
-				return textrenderer.Pipelines(a.stdout, result, a.configName())
-			},
-		},
+		list,
 	)
 	remove := &cobra.Command{
 		Use:   "delete <name>",

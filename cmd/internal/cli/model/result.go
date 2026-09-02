@@ -8,6 +8,20 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
+// PageRequest selects one cursor-based collection page.
+type PageRequest struct {
+	PageSize int32
+	Cursor   string
+}
+
+// Page contains one collection page and its navigation metadata.
+type Page[T any] struct {
+	Items          []T
+	Total          int
+	NextCursor     string
+	PreviousCursor string
+}
+
 // DiscoverRequest describes target-side resource discovery.
 type DiscoverRequest struct {
 	Connector string
@@ -78,8 +92,11 @@ type ContextSummary struct {
 
 // ConnectionList is the result of listing saved connections of one kind.
 type ConnectionList struct {
-	Kind  string
-	Items []ConnectionSummary
+	Kind           string
+	Items          []ConnectionSummary
+	Total          int
+	NextCursor     string
+	PreviousCursor string
 }
 
 // ConnectionSummary is the presentation-neutral subset of a connection used
@@ -96,7 +113,10 @@ type ConnectionSummary struct {
 
 // PipelineList is the result of listing saved pipelines.
 type PipelineList struct {
-	Items []PipelineSummary
+	Items          []PipelineSummary
+	Total          int
+	NextCursor     string
+	PreviousCursor string
 }
 
 // PipelineSummary is the presentation-neutral subset of a pipeline used by
@@ -117,7 +137,18 @@ type PipelineSummary struct {
 
 // RunList is the result of listing a target's run history.
 type RunList struct {
-	Items []RunSummary
+	Items          []RunSummary
+	Total          int
+	Pipeline       string
+	NextCursor     string
+	PreviousCursor string
+}
+
+// RunListRequest selects one deployment history page.
+type RunListRequest struct {
+	Pipeline string
+	PageSize int32
+	Cursor   string
 }
 
 // RunSummary describes one historical run.
@@ -146,4 +177,12 @@ type ResourceSummary struct {
 	Selectable    bool
 	PrimaryKey    []string
 	EstimatedRows int64
+}
+
+// PipelineModes is the target's authoritative set of read and write levers
+// for one proposed source-to-sink route.
+type PipelineModes struct {
+	Replication string
+	ReadModes   []string
+	WriteModes  []string
 }

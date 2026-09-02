@@ -132,9 +132,9 @@ func (t *Target) TailRun(ctx context.Context, group model.RunGroup, observe func
 				payload := fact.Data.(events.RunCompletedEvent)
 				return model.RunResult{Runs: group.Runs, Status: "complete", Records: payload.Records, Bytes: payload.Bytes}, nil
 			case events.RunFailed.Name():
-				return model.RunResult{}, fmt.Errorf("run failed: %s", fact.Data.(events.RunFailedEvent).Error)
+				return model.RunResult{Runs: group.Runs, Status: "failed"}, fmt.Errorf("run failed: %s", fact.Data.(events.RunFailedEvent).Error)
 			case events.RunPartial.Name():
-				return model.RunResult{}, fmt.Errorf("run partial: %s", fact.Data.(events.RunPartialEvent).Error)
+				return model.RunResult{Runs: group.Runs, Status: "partial"}, fmt.Errorf("run partial: %s", fact.Data.(events.RunPartialEvent).Error)
 			case events.RunPaused.Name():
 				notifyRunObserver(observe, model.RunEvent{Run: ref.ID, Route: ref.Route, Status: "paused", Final: true})
 				return model.RunResult{Runs: group.Runs, Status: "paused"}, nil

@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
-	"golang.org/x/sync/errgroup"
+	"github.com/google/uuid"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -32,7 +32,9 @@ func (t *Target) SubmitRun(ctx context.Context, submission model.RunSubmission) 
 		}
 		id = existing.GetId()
 	}
-	response, err := t.client.RunPipeline(ctx, connect.NewRequest(&ingestionv1.RunPipelineRequest{PipelineId: id}))
+	response, err := t.client.RunPipeline(ctx, connect.NewRequest(&ingestionv1.RunPipelineRequest{
+		PipelineId: id, ClientToken: uuid.NewString(),
+	}))
 	if err != nil {
 		return model.RunGroup{}, t.rpcError(err)
 	}
@@ -62,26 +64,47 @@ func (t *Target) TailRun(ctx context.Context, group model.RunGroup, observe func
 		observe(event)
 	}
 	results := make([]tailResult, len(group.Runs))
-	eg, tailCtx := errgroup.WithContext(ctx)
+	tailErrors := make([]error, len(group.Runs))
+	var tails sync.WaitGroup
 	for i, ref := range group.Runs {
-		eg.Go(func() error {
-			result, err := t.tailOne(tailCtx, ref, locked)
+		tails.Add(1)
+		go func() {
+			defer tails.Done()
+			result, err := t.tailOne(ctx, ref, locked)
 			results[i] = result
-			return err
-		})
+			tailErrors[i] = err
+		}()
 	}
-	if err := eg.Wait(); err != nil {
-		return model.RunResult{}, err
-	}
+	tails.Wait()
 	total := model.RunResult{Runs: group.Runs, Status: "complete"}
-	for _, result := range results {
+	for index, result := range results {
 		total.Records += result.records
 		total.Bytes += result.bytes
-		if result.status != "complete" {
+		if runStatusPriority(result.status) > runStatusPriority(total.Status) {
 			total.Status = result.status
 		}
+		if tailErrors[index] != nil && result.status == "" {
+			total.Status = "failed"
+		}
 	}
-	return total, nil
+	return total, errors.Join(tailErrors...)
+}
+
+func runStatusPriority(status string) int {
+	switch status {
+	case "failed":
+		return 5
+	case "partial":
+		return 4
+	case "canceled":
+		return 3
+	case "paused":
+		return 2
+	case "complete":
+		return 1
+	default:
+		return 0
+	}
 }
 
 type tailResult struct {
@@ -119,9 +142,9 @@ func (t *Target) tailOne(ctx context.Context, ref model.RunRef, observe func(mod
 		case events.RunCompleted.Name():
 			return tailResult{status: "complete", records: fields.GetRecords(), bytes: fields.GetBytes()}, nil
 		case events.RunFailed.Name():
-			return tailResult{}, fmt.Errorf("run failed: %s", fields.GetError())
+			return tailResult{status: "failed"}, fmt.Errorf("run %s failed: %s", ref.ID, fields.GetError())
 		case events.RunPartial.Name():
-			return tailResult{}, fmt.Errorf("run partial: %s", fields.GetError())
+			return tailResult{status: "partial"}, fmt.Errorf("run %s is partial: %s", ref.ID, fields.GetError())
 		case events.RunPaused.Name():
 			observe(model.RunEvent{Run: ref.ID, Route: ref.Route, Status: "paused", Final: true})
 			return tailResult{status: "paused"}, nil

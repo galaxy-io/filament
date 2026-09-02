@@ -83,7 +83,7 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 	}
 	a.target = selected
 	if selected.Target.Kind == contexts.KindRemote {
-		options := remotetarget.Options{Endpoint: selected.Target.Endpoint}
+		options := remotetarget.Options{Endpoint: selected.Target.Endpoint, Tenant: selected.Target.Tenant}
 		if profile := selected.Target.AuthProfile; profile != "" {
 			options.Tokens = cliauth.Source{Store: cliauth.Store{Path: a.credentialsPath()}, Profile: profile}
 		}
@@ -127,6 +127,14 @@ func (a *cliApp) extractGlobalFlags(args []string) ([]string, error) {
 		}
 		if args[i] == "-i" || args[i] == "--interactive" {
 			a.menuMode = true
+			continue
+		}
+		if strings.HasPrefix(args[i], "--interactive=") {
+			value := strings.TrimPrefix(args[i], "--interactive=")
+			if value != "true" && value != "false" {
+				return nil, fmt.Errorf("--interactive must be true or false")
+			}
+			a.menuMode = value == "true"
 			continue
 		}
 		if strings.HasPrefix(args[i], "--context=") {

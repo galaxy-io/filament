@@ -64,7 +64,10 @@ func Connections(w io.Writer, result model.ConnectionList, location string, used
 		style.Column{Title: "Updated", Role: style.RoleMuted},
 	)
 	title := strings.ToUpper(result.Kind[:1]) + result.Kind[1:] + "s in"
-	return table(w, p.Title(title, location), p.Table(columns, rows))
+	if err := table(w, p.Title(title, location), p.Table(columns, rows)); err != nil {
+		return err
+	}
+	return pageFooter(w, len(result.Items), result.Total, "filament "+result.Kind+" list", result.NextCursor)
 }
 
 // Pipelines renders saved pipelines.
@@ -97,7 +100,10 @@ func Pipelines(w io.Writer, result model.PipelineList, location string) error {
 		{Title: "Last run", Role: style.RoleSecondary},
 		{Title: "Updated", Role: style.RoleMuted},
 	}
-	return table(w, p.Title("Pipelines in", location), p.Table(columns, rows))
+	if err := table(w, p.Title("Pipelines in", location), p.Table(columns, rows)); err != nil {
+		return err
+	}
+	return pageFooter(w, len(result.Items), result.Total, "filament pipeline list", result.NextCursor)
 }
 
 // Runs renders target run history newest first.
@@ -108,7 +114,28 @@ func Runs(w io.Writer, result model.RunList, target string) error {
 	}
 	p := style.New(w)
 	title, body := RunsTable(p, result, target)
-	return table(w, title, body)
+	if err := table(w, title, body); err != nil {
+		return err
+	}
+	command := "filament run list"
+	if result.Pipeline != "" {
+		command += " " + result.Pipeline
+	}
+	return pageFooter(w, len(result.Items), result.Total, command, result.NextCursor)
+}
+
+func pageFooter(w io.Writer, shown, total int, command, next string) error {
+	if total < shown {
+		total = shown
+	}
+	if _, err := fmt.Fprintf(w, "\n> Showing %d of %d.\n", shown, total); err != nil {
+		return err
+	}
+	if next == "" {
+		return nil
+	}
+	_, err := fmt.Fprintf(w, "> To display the next page, run `%s --next %s`\n", command, next)
+	return err
 }
 
 // RunsTable builds the runs table with a caller-supplied painter so

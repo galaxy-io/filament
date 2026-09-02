@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
@@ -17,17 +18,39 @@ func (t *Target) ListConnections(ctx context.Context, kind string) ([]model.Name
 	if err != nil {
 		return nil, err
 	}
-	response, err := t.client.ListConnections(ctx, connect.NewRequest(&ingestionv1.ListConnectionsRequest{Kind: protoKind}))
+	items, err := t.allConnections(ctx, protoKind)
 	if err != nil {
-		return nil, t.rpcError(err)
+		return nil, err
 	}
-	connections := make([]model.NamedConnection, 0, len(response.Msg.GetConnections()))
-	for _, item := range response.Msg.GetConnections() {
+	connections := make([]model.NamedConnection, 0, len(items))
+	for _, item := range items {
 		connections = append(connections, model.NamedConnection{
 			Kind: kind, Name: item.GetName(), Connection: connectionFromProto(item),
 		})
 	}
 	return connections, nil
+}
+
+// ListConnectionsPage returns one deployment-native cursor page.
+func (t *Target) ListConnectionsPage(ctx context.Context, kind string, request model.PageRequest) (model.Page[model.NamedConnection], error) {
+	protoKind, err := connectorKind(kind)
+	if err != nil {
+		return model.Page[model.NamedConnection]{}, err
+	}
+	items, pagination, err := t.connectionPage(ctx, protoKind, request)
+	if err != nil {
+		return model.Page[model.NamedConnection]{}, err
+	}
+	page := model.Page[model.NamedConnection]{
+		Items: make([]model.NamedConnection, 0, len(items)), Total: int(pagination.GetTotal()),
+		NextCursor: pagination.GetNextCursor(), PreviousCursor: pagination.GetPreviousCursor(),
+	}
+	for _, item := range items {
+		page.Items = append(page.Items, model.NamedConnection{
+			Kind: kind, Name: item.GetName(), Connection: connectionFromProto(item),
+		})
+	}
+	return page, nil
 }
 
 // GetConnection returns one connection by name.
@@ -45,12 +68,13 @@ func (t *Target) CreateConnection(ctx context.Context, kind, name string, connec
 	if err != nil {
 		return model.Connection{}, err
 	}
-	config, err := configStruct(connection.Config)
+	config, err := configStruct(cliapp.ConfigWithoutSecretValues(connection.Config, connection.SecretRefs))
 	if err != nil {
 		return model.Connection{}, err
 	}
 	response, err := t.client.CreateConnection(ctx, connect.NewRequest(&ingestionv1.CreateConnectionRequest{
 		Kind: protoKind, Name: name, Connector: connection.Type, Config: config,
+		SecretRefs: cloneStrings(connection.SecretRefs),
 	}))
 	if err != nil {
 		return model.Connection{}, t.rpcError(err)
@@ -77,14 +101,14 @@ func (t *Target) UpdateConnection(ctx context.Context, kind, name string, connec
 	if err != nil {
 		return model.Connection{}, fmt.Errorf("%s %q carries no read revision", kind, name)
 	}
-	config, err := configStruct(connection.Config)
+	config, err := configStruct(cliapp.ConfigWithoutSecretValues(connection.Config, connection.SecretRefs))
 	if err != nil {
 		return model.Connection{}, err
 	}
 	response, err := t.client.UpdateConnection(ctx, connect.NewRequest(&ingestionv1.UpdateConnectionRequest{
 		Connection: &ingestionv1.Connection{
 			Id: id, Kind: protoKind, Name: name, Connector: connection.Type,
-			Config: config, Version: version,
+			Config: config, SecretRefs: cloneStrings(connection.SecretRefs), Version: version,
 		},
 	}))
 	if err != nil {
@@ -112,11 +136,11 @@ func (t *Target) findConnection(ctx context.Context, kind, name string) (*ingest
 	if err != nil {
 		return nil, err
 	}
-	response, err := t.client.ListConnections(ctx, connect.NewRequest(&ingestionv1.ListConnectionsRequest{Kind: protoKind}))
+	items, err := t.allConnections(ctx, protoKind)
 	if err != nil {
-		return nil, t.rpcError(err)
+		return nil, err
 	}
-	for _, item := range response.Msg.GetConnections() {
+	for _, item := range items {
 		if item.GetName() == name {
 			return item, nil
 		}
@@ -124,17 +148,34 @@ func (t *Target) findConnection(ctx context.Context, kind, name string) (*ingest
 	return nil, fmt.Errorf("%s %q does not exist", kind, name)
 }
 
-// connectionNamesByID maps every connection id to its name for graph reads.
-func (t *Target) connectionNamesByID(ctx context.Context) (map[string]string, error) {
-	response, err := t.client.ListConnections(ctx, connect.NewRequest(&ingestionv1.ListConnectionsRequest{}))
+func (t *Target) allConnections(ctx context.Context, kind ingestionv1.ConnectorKind) ([]*ingestionv1.Connection, error) {
+	var items []*ingestionv1.Connection
+	cursor := ""
+	for {
+		page, pagination, err := t.connectionPage(ctx, kind, model.PageRequest{PageSize: internalPageSize, Cursor: cursor})
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, page...)
+		cursor = pagination.GetNextCursor()
+		if cursor == "" {
+			return items, nil
+		}
+	}
+}
+
+func (t *Target) connectionPage(
+	ctx context.Context,
+	kind ingestionv1.ConnectorKind,
+	request model.PageRequest,
+) ([]*ingestionv1.Connection, *ingestionv1.PaginationResponse, error) {
+	response, err := t.client.ListConnections(ctx, connect.NewRequest(&ingestionv1.ListConnectionsRequest{
+		Kind: kind, Pagination: paginationRequest(request.PageSize, request.Cursor),
+	}))
 	if err != nil {
-		return nil, t.rpcError(err)
+		return nil, nil, t.rpcError(err)
 	}
-	names := make(map[string]string, len(response.Msg.GetConnections()))
-	for _, item := range response.Msg.GetConnections() {
-		names[item.GetId()] = item.GetName()
-	}
-	return names, nil
+	return response.Msg.GetConnections(), response.Msg.GetPagination(), nil
 }
 
 func connectionFromProto(item *ingestionv1.Connection) model.Connection {
@@ -145,9 +186,21 @@ func connectionFromProto(item *ingestionv1.Connection) model.Connection {
 			CreatedAt:   timeFromMillis(item.GetCreatedAt()),
 			UpdatedAt:   timeFromMillis(item.GetUpdatedAt()),
 		},
-		Type:   item.GetConnector(),
-		Config: configMap(item.GetConfig()),
+		Type:       item.GetConnector(),
+		Config:     configMap(item.GetConfig()),
+		SecretRefs: cloneStrings(item.GetSecretRefs()),
 	}
+}
+
+func cloneStrings(input map[string]string) map[string]string {
+	if input == nil {
+		return nil
+	}
+	out := make(map[string]string, len(input))
+	for key, value := range input {
+		out[key] = value
+	}
+	return out
 }
 
 func replicationString(mode ingestionv1.ReplicationMode) string {

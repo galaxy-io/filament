@@ -11,6 +11,7 @@ import (
 	"github.com/atterpac/dado/inline"
 	"golang.org/x/term"
 
+	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
@@ -294,25 +295,51 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 	return selected, nil
 }
 
-// showRuns keeps the target's run history table in scrollback.
+// showRuns presents paginated history as a transient interactive screen.
 func (r *Renderer) showRuns(ctx context.Context) error {
-	result, err := r.service.Runs(ctx, "")
-	if err != nil {
-		return r.notice(false, err.Error())
-	}
-	var rendered strings.Builder
-	if err := textrenderer.Runs(&rendered, result, r.targetName); err != nil {
-		return err
-	}
-	if r.interactiveRenderer == nil {
-		return nil
-	}
-	for line := range strings.SplitSeq(strings.TrimRight(rendered.String(), "\n"), "\n") {
-		if err := r.interactiveRenderer.Println(line); err != nil {
+	request := model.RunListRequest{PageSize: 20}
+	for {
+		result, err := r.service.Runs(ctx, request)
+		if err != nil {
+			return r.notice(false, err.Error())
+		}
+		pairs := [][2]string{}
+		if len(result.Items) == 0 {
+			pairs = append(pairs, [2]string{"", "No runs."})
+		} else {
+			_, body := textrenderer.RunsTable(style.Painter{}, result, "")
+			for line := range strings.SplitSeq(strings.TrimRight(body, "\n"), "\n") {
+				pairs = append(pairs, [2]string{"", strings.TrimPrefix(line, style.Indent)})
+			}
+		}
+		choices := []inline.Choice{}
+		if result.PreviousCursor != "" {
+			choices = append(choices, inline.NewChoice("previous", "Previous page"))
+		}
+		if result.NextCursor != "" {
+			choices = append(choices, inline.NewChoice("next", "Next page"))
+		}
+		choices = append(choices, inline.NewChoice(interactiveBack, "Back"))
+		header := menuHeader{theme: r.theme, title: r.titled("Runs"), pairs: pairs, gap: true}
+		form := inline.NewForm("").SetHeader(header).Add(
+			inline.NewSelectField("selection", "", choices...).Required(),
+		)
+		selected, err := r.runInteractiveForm(ctx, form)
+		if interactiveCancelled(err) {
+			return nil
+		}
+		if err != nil {
 			return err
 		}
+		switch selected["selection"] {
+		case "previous":
+			request.Cursor = result.PreviousCursor
+		case "next":
+			request.Cursor = result.NextCursor
+		default:
+			return nil
+		}
 	}
-	return r.interactiveRenderer.Println("")
 }
 
 // showDetail presents a transient key/value screen that clears when the user

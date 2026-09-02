@@ -18,6 +18,7 @@ import (
 )
 
 type resourceProgressUpdate struct {
+	route    string
 	resource string
 	status   string
 	records  int64
@@ -128,25 +129,27 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 	}
 	view := &runProgressView{theme: r.theme}
 	rows := map[string]*runRow{}
-	addResource := func(name string) {
-		if name == "" || rows[name] != nil {
+	addResource := func(key, name string) {
+		if key == "" || rows[key] != nil {
 			return
 		}
 		row := &runRow{name: name}
-		rows[name] = row
+		rows[key] = row
 		view.rows = append(view.rows, row)
 	}
 	selected := make(map[string]bool, len(spec.Resources))
 	for _, name := range spec.Resources {
 		selected[name] = true
 	}
-	for _, resource := range discovered {
-		if len(selected) == 0 || selected[resource.Name] {
-			addResource(resource.Name)
+	if len(group.Runs) == 1 {
+		for _, resource := range discovered {
+			if len(selected) == 0 || selected[resource.Name] {
+				addResource(resource.Name, resource.Name)
+			}
 		}
-	}
-	for _, name := range spec.Resources {
-		addResource(name)
+		for _, name := range spec.Resources {
+			addResource(name, name)
+		}
 	}
 
 	updates := make(chan resourceProgressUpdate, 256)
@@ -156,7 +159,7 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 	go func() {
 		result, runErr := r.service.TailRun(runCtx, group, func(event model.RunEvent) {
 			update := resourceProgressUpdate{
-				resource: event.Resource, status: event.Status, records: event.Records,
+				route: event.Route, resource: event.Resource, status: event.Status, records: event.Records,
 				bytes: event.Bytes, final: event.Final, err: event.Error,
 			}
 			select {
@@ -178,14 +181,15 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 	for {
 		select {
 		case update := <-updates:
-			addResource(update.resource)
-			applyRunUpdate(rows[update.resource], update)
+			key, label := runResourceKey(update, len(group.Runs) > 1)
+			addResource(key, label)
+			applyRunUpdate(rows[key], update)
 			if err := render(); err != nil {
 				return model.RunResult{}, err
 			}
 		case completed := <-done:
-			drainRunUpdates(updates, rows, addResource)
-			settleRows(view, completed.err)
+			drainRunUpdates(updates, rows, addResource, len(group.Runs) > 1)
+			settleRows(view, completed.result, completed.err)
 			return completed.result, errors.Join(completed.err, r.finishRun(view, completed.result, time.Since(startedAt), completed.err))
 		case <-ticker.C:
 			view.tick++
@@ -193,7 +197,7 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 				return model.RunResult{}, err
 			}
 		case <-ctx.Done():
-			settleRows(view, ctx.Err())
+			settleRows(view, model.RunResult{Status: "canceled"}, ctx.Err())
 			return model.RunResult{}, errors.Join(ctx.Err(), r.finishRun(view, model.RunResult{}, time.Since(startedAt), ctx.Err()))
 		}
 	}
@@ -222,12 +226,13 @@ func applyRunUpdate(row *runRow, update resourceProgressUpdate) {
 }
 
 // drainRunUpdates applies updates that arrived alongside completion.
-func drainRunUpdates(updates <-chan resourceProgressUpdate, rows map[string]*runRow, addResource func(string)) {
+func drainRunUpdates(updates <-chan resourceProgressUpdate, rows map[string]*runRow, addResource func(string, string), multipleRoutes bool) {
 	for {
 		select {
 		case update := <-updates:
-			addResource(update.resource)
-			applyRunUpdate(rows[update.resource], update)
+			key, label := runResourceKey(update, multipleRoutes)
+			addResource(key, label)
+			applyRunUpdate(rows[key], update)
 		default:
 			return
 		}
@@ -235,17 +240,30 @@ func drainRunUpdates(updates <-chan resourceProgressUpdate, rows map[string]*run
 }
 
 // settleRows resolves rows still in flight once the run has ended.
-func settleRows(view *runProgressView, runErr error) {
+func settleRows(view *runProgressView, result model.RunResult, runErr error) {
 	for _, row := range view.rows {
 		if row.state != rowPending && row.state != rowRunning {
 			continue
 		}
-		if runErr == nil {
+		switch {
+		case result.Status == "complete" && runErr == nil:
 			row.state = rowDone
-		} else {
+		case result.Status == "failed" || result.Status == "partial":
+			row.state = rowFailed
+			if row.err == "" {
+				row.err = result.Status
+			}
+		default:
 			row.state = rowCancelled
 		}
 	}
+}
+
+func runResourceKey(update resourceProgressUpdate, multipleRoutes bool) (string, string) {
+	if !multipleRoutes || update.route == "" {
+		return update.resource, update.resource
+	}
+	return update.route + "\x00" + update.resource, update.route + " · " + update.resource
 }
 
 // finishRun moves the final rows and the summary into scrollback.

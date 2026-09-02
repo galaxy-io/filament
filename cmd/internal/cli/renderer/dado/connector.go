@@ -172,7 +172,7 @@ func (r *Renderer) connectionWizard(ctx context.Context, kind, name string, exis
 	}
 	var initial map[string]any
 	if existing != nil && existing.Type == connectorName {
-		initial = existing.Config
+		initial = cliapp.ConfigWithSecretPlaceholders(existing.Config, existing.SecretRefs)
 	}
 	schema, err := r.connectionSchema(kind, connectorName)
 	if err != nil {
@@ -605,6 +605,7 @@ func infoStamp(value time.Time) string {
 }
 
 func connectionPairs(connection model.Connection, schema filament.ConfigSchema) [][2]string {
+	connection.Config = cliapp.ConfigWithSecretPlaceholders(connection.Config, connection.SecretRefs)
 	pairs := make([][2]string, 0, len(connection.Config)+4)
 	pairs = append(pairs, [2]string{"Connector", connection.Type})
 	if info := connection.Info; info.Replication != "" || !info.CreatedAt.IsZero() {

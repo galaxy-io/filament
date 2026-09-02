@@ -124,6 +124,24 @@ func (r *Registry) Set(name string, target Target) error {
 	return r.store.Write(doc)
 }
 
+// SetAndUse validates and persists a context and its selection in one file
+// replacement, avoiding a context that was added but not selected.
+func (r *Registry) SetAndUse(name string, target Target) (NamedTarget, error) {
+	if err := validate(name, target); err != nil {
+		return NamedTarget{}, err
+	}
+	doc, err := r.load()
+	if err != nil {
+		return NamedTarget{}, err
+	}
+	doc.Contexts[name] = target
+	doc.Current = name
+	if err := r.store.Write(doc); err != nil {
+		return NamedTarget{}, err
+	}
+	return NamedTarget{Name: name, Current: true, Target: target}, nil
+}
+
 // Rename moves a context to a new name, carrying the current selection
 // with it. The built-in local context cannot be renamed.
 func (r *Registry) Rename(oldName, newName string) error {
@@ -277,6 +295,9 @@ func (s Store) Write(doc Document) error {
 func validate(name string, target Target) error {
 	if !namePattern.MatchString(name) {
 		return fmt.Errorf("context name %q must match %s", name, namePattern)
+	}
+	if name == defaultContextName && target.Kind != KindLocal {
+		return fmt.Errorf("the built-in %s context cannot be replaced", defaultContextName)
 	}
 	switch target.Kind {
 	case KindLocal:

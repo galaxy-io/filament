@@ -24,10 +24,11 @@ type EntityMetadata struct {
 
 // Connection is a persisted source or sink configuration.
 type Connection struct {
-	Metadata EntityMetadata `json:"-" yaml:"-"`
-	Info     ConnectionInfo `json:"-" yaml:"-"`
-	Type     string         `json:"type" yaml:"type"`
-	Config   map[string]any `json:"config,omitempty" yaml:"config,omitempty"`
+	Metadata   EntityMetadata    `json:"-" yaml:"-"`
+	Info       ConnectionInfo    `json:"-" yaml:"-"`
+	Type       string            `json:"type" yaml:"type"`
+	Config     map[string]any    `json:"config,omitempty" yaml:"config,omitempty"`
+	SecretRefs map[string]string `json:"-" yaml:"-"`
 }
 
 // ConnectionInfo carries target-owned descriptive metadata. Local targets
@@ -54,6 +55,10 @@ type Pipeline struct {
 	Resources []string       `json:"resources,omitempty" yaml:"resources,omitempty"`
 	SyncMode  string         `json:"sync_mode" yaml:"sync_mode"`
 	WriteMode string         `json:"write_mode" yaml:"write_mode"`
+	// Graph retains the target's complete graph representation. It is excluded
+	// from the local YAML shape, which intentionally remains a simple
+	// source-to-sink pipeline.
+	Graph *PipelineGraph `json:"-" yaml:"-"`
 }
 
 // PipelineInfo carries target-owned descriptive metadata. Local targets
@@ -64,6 +69,9 @@ type PipelineInfo struct {
 	LastRunAt     time.Time
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	// EditBlockedReason is non-empty when the target graph cannot be represented
+	// losslessly by the CLI's simple pipeline editor.
+	EditBlockedReason string
 }
 
 // NamedPipeline identifies a pipeline returned by a target query.
@@ -75,8 +83,44 @@ type NamedPipeline struct {
 // PipelineNode references a connection and supplies pipeline-scoped
 // connector configuration.
 type PipelineNode struct {
-	Ref    string         `json:"ref" yaml:"ref"`
-	Config map[string]any `json:"config,omitempty" yaml:"config,omitempty"`
+	Ref        string            `json:"ref" yaml:"ref"`
+	Config     map[string]any    `json:"config,omitempty" yaml:"config,omitempty"`
+	SecretRefs map[string]string `json:"-" yaml:"-"`
+}
+
+// PipelineGraph is the lossless target-neutral form of a deployed graph.
+// Simple local YAML pipelines are projected into this form only at target
+// boundaries.
+type PipelineGraph struct {
+	Nodes []PipelineGraphNode
+	Edges []PipelineGraphEdge
+}
+
+// PipelineGraphNode references one saved connection from a graph.
+type PipelineGraphNode struct {
+	ID         string
+	Kind       string
+	Connection string
+	Config     map[string]any
+	SecretRefs map[string]string
+}
+
+// PipelineGraphEdge carries every routing setting the deployed API exposes.
+type PipelineGraphEdge struct {
+	From      string
+	To        string
+	Resource  string
+	Selector  string
+	Cursors   []ResourceCursor
+	ReadMode  string
+	WriteMode string
+}
+
+// ResourceCursor is one durable incremental cursor override.
+type ResourceCursor struct {
+	Resource        string
+	Field           string
+	LookbackSeconds int64
 }
 
 // NewDocument returns an initialized empty configuration document.

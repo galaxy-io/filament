@@ -11,41 +11,54 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-// runListPageSize bounds one history listing; the deployment orders newest
-// first.
-const runListPageSize = 50
+const (
+	defaultRunListPageSize = 25
+)
 
 // ListRuns returns the deployment's run history, optionally for one pipeline.
-func (t *Target) ListRuns(ctx context.Context, pipeline string) (model.RunList, error) {
-	message := &ingestionv1.ListRunsRequest{
-		Pagination: &ingestionv1.PaginationRequest{PageSize: runListPageSize},
+func (t *Target) ListRuns(ctx context.Context, request model.RunListRequest) (model.RunList, error) {
+	pageSize := request.PageSize
+	if pageSize <= 0 {
+		pageSize = defaultRunListPageSize
 	}
-	pipelines, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{IncludeVersions: true}))
+	names, pipelineID, err := t.runPipelineNames(ctx, request.Pipeline)
 	if err != nil {
-		return model.RunList{}, t.rpcError(err)
+		return model.RunList{}, err
 	}
-	names := make(map[string]string, len(pipelines.Msg.GetPipelines()))
-	versions := map[string]string{}
-	for _, item := range pipelines.Msg.GetPipelines() {
-		names[item.GetId()] = item.GetName()
-		if pipeline != "" && item.GetName() == pipeline {
-			message.PipelineId = item.GetId()
-		}
-		for _, version := range append(item.GetVersions(), item.GetCurrentVersion()) {
-			if version.GetId() != "" {
-				versions[version.GetId()] = "v" + revisionOf(version.GetVersion())
-			}
-		}
-	}
-	if pipeline != "" && message.GetPipelineId() == "" {
-		return model.RunList{}, fmt.Errorf("pipeline %q does not exist", pipeline)
+	message := &ingestionv1.ListRunsRequest{
+		PipelineId: pipelineID,
+		Pagination: paginationRequest(pageSize, request.Cursor),
 	}
 	response, err := t.client.ListRuns(ctx, connect.NewRequest(message))
 	if err != nil {
 		return model.RunList{}, t.rpcError(err)
 	}
 	runs := response.Msg.GetRuns()
-	list := model.RunList{Items: make([]model.RunSummary, 0, len(runs))}
+	versionIDs := make(map[string]map[string]struct{})
+	for _, run := range runs {
+		if run.GetPipelineId() == "" || run.GetPipelineVersionId() == "" {
+			continue
+		}
+		if versionIDs[run.GetPipelineId()] == nil {
+			versionIDs[run.GetPipelineId()] = map[string]struct{}{}
+		}
+		versionIDs[run.GetPipelineId()][run.GetPipelineVersionId()] = struct{}{}
+	}
+	versions := make(map[string]string)
+	for id, wanted := range versionIDs {
+		labels, err := t.runVersionLabels(ctx, id, wanted)
+		if err != nil {
+			return model.RunList{}, err
+		}
+		for versionID, label := range labels {
+			versions[versionID] = label
+		}
+	}
+	pagination := response.Msg.GetPagination()
+	list := model.RunList{
+		Items: make([]model.RunSummary, 0, len(runs)), Total: int(pagination.GetTotal()), Pipeline: request.Pipeline,
+		NextCursor: pagination.GetNextCursor(), PreviousCursor: pagination.GetPreviousCursor(),
+	}
 	for _, run := range runs {
 		name := names[run.GetPipelineId()]
 		if name == "" {
@@ -64,6 +77,63 @@ func (t *Target) ListRuns(ctx context.Context, pipeline string) (model.RunList, 
 		})
 	}
 	return list, nil
+}
+
+// runPipelineNames resolves names without requesting every graph version. It
+// includes deleted pipelines because their historical runs remain useful.
+func (t *Target) runPipelineNames(ctx context.Context, selected string) (map[string]string, string, error) {
+	names := map[string]string{}
+	selectedID := ""
+	cursor := ""
+	for {
+		response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{
+			IncludeDeleted: true,
+			Pagination:     paginationRequest(internalPageSize, cursor),
+		}))
+		if err != nil {
+			return nil, "", t.rpcError(err)
+		}
+		for _, pipeline := range response.Msg.GetPipelines() {
+			names[pipeline.GetId()] = pipeline.GetName()
+			if pipeline.GetName() == selected {
+				selectedID = pipeline.GetId()
+			}
+		}
+		cursor = response.Msg.GetPagination().GetNextCursor()
+		if cursor == "" {
+			break
+		}
+	}
+	if selected != "" && selectedID == "" {
+		return nil, "", fmt.Errorf("pipeline %q does not exist", selected)
+	}
+	return names, selectedID, nil
+}
+
+// runVersionLabels fetches only enough version pages to label this result
+// page, instead of embedding every version of every pipeline up front.
+func (t *Target) runVersionLabels(ctx context.Context, pipelineID string, wanted map[string]struct{}) (map[string]string, error) {
+	labels := map[string]string{}
+	cursor := ""
+	for len(labels) < len(wanted) {
+		response, err := t.client.ListPipelineVersions(ctx, connect.NewRequest(&ingestionv1.ListPipelineVersionsRequest{
+			PipelineId: pipelineID,
+			Pagination: paginationRequest(internalPageSize, cursor),
+		}))
+		if err != nil {
+			return nil, t.rpcError(err)
+		}
+		for _, version := range response.Msg.GetVersions() {
+			if _, ok := wanted[version.GetId()]; ok {
+				labels[version.GetId()] = "v" + revisionOf(version.GetVersion())
+			}
+		}
+		cursor = response.Msg.GetPagination().GetNextCursor()
+		if cursor == "" {
+			break
+		}
+	}
+	return labels, nil
 }
 
 func runStatusString(status ingestionv1.RunStatus) string {

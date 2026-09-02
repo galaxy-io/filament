@@ -16,18 +16,17 @@ func (t *Target) Discover(ctx context.Context, request model.DiscoverRequest) (m
 		Connector: request.Connector,
 		Refresh:   request.Refresh,
 	}
+	config, err := configStruct(request.Config)
+	if err != nil {
+		return model.ResourceList{}, err
+	}
+	message.Config = config
 	if request.Source != "" {
 		connection, err := t.findConnection(ctx, "source", request.Source)
 		if err != nil {
 			return model.ResourceList{}, err
 		}
 		message.ConnectionId = connection.GetId()
-	} else {
-		config, err := configStruct(request.Config)
-		if err != nil {
-			return model.ResourceList{}, err
-		}
-		message.Config = config
 	}
 	response, err := t.client.DiscoverResources(ctx, connect.NewRequest(message))
 	if err != nil {

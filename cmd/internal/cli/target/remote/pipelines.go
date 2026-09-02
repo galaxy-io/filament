@@ -2,27 +2,21 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect"
 
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
-)
-
-// The CLI's flat pipeline maps onto a two-node graph: one source node, one
-// sink node, and one edge per selected resource (or a single all-resource
-// edge). Canvas pipelines with richer topologies still list and run; only
-// editing them from the CLI is refused.
-const (
-	sourceNodeID = "source"
-	sinkNodeID   = "sink"
 )
 
 var readModeFromString = map[string]ingestionv1.ReadMode{
 	"":            ingestionv1.ReadMode_READ_MODE_UNSPECIFIED,
 	"full":        ingestionv1.ReadMode_READ_MODE_FULL,
 	"incremental": ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+	"cdc":         ingestionv1.ReadMode_READ_MODE_UNSPECIFIED,
 }
 
 var writeModeFromString = map[string]ingestionv1.WriteMode{
@@ -35,21 +29,43 @@ var writeModeFromString = map[string]ingestionv1.WriteMode{
 
 // ListPipelines returns every pipeline flattened to the CLI shape.
 func (t *Target) ListPipelines(ctx context.Context) ([]model.NamedPipeline, error) {
-	response, err := t.listPipelines(ctx)
+	items, err := t.allPipelines(ctx)
 	if err != nil {
 		return nil, err
 	}
-	names, err := t.connectionNamesByID(ctx)
+	connections, err := t.connectionsByID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pipelines := make([]model.NamedPipeline, 0, len(response.Msg.GetPipelines()))
-	for _, item := range response.Msg.GetPipelines() {
+	pipelines := make([]model.NamedPipeline, 0, len(items))
+	for _, item := range items {
 		pipelines = append(pipelines, model.NamedPipeline{
-			Name: item.GetName(), Pipeline: pipelineFromProto(item, names),
+			Name: item.GetName(), Pipeline: pipelineFromProto(item, connections),
 		})
 	}
 	return pipelines, nil
+}
+
+// ListPipelinesPage returns one deployment-native cursor page.
+func (t *Target) ListPipelinesPage(ctx context.Context, request model.PageRequest) (model.Page[model.NamedPipeline], error) {
+	items, pagination, err := t.pipelinePage(ctx, request)
+	if err != nil {
+		return model.Page[model.NamedPipeline]{}, err
+	}
+	connections, err := t.connectionsByID(ctx)
+	if err != nil {
+		return model.Page[model.NamedPipeline]{}, err
+	}
+	page := model.Page[model.NamedPipeline]{
+		Items: make([]model.NamedPipeline, 0, len(items)), Total: int(pagination.GetTotal()),
+		NextCursor: pagination.GetNextCursor(), PreviousCursor: pagination.GetPreviousCursor(),
+	}
+	for _, item := range items {
+		page.Items = append(page.Items, model.NamedPipeline{
+			Name: item.GetName(), Pipeline: pipelineFromProto(item, connections),
+		})
+	}
+	return page, nil
 }
 
 // GetPipeline returns one pipeline by name.
@@ -58,11 +74,11 @@ func (t *Target) GetPipeline(ctx context.Context, name string) (model.Pipeline, 
 	if err != nil {
 		return model.Pipeline{}, err
 	}
-	names, err := t.connectionNamesByID(ctx)
+	connections, err := t.connectionsByID(ctx)
 	if err != nil {
 		return model.Pipeline{}, err
 	}
-	return pipelineFromProto(item, names), nil
+	return pipelineFromProto(item, connections), nil
 }
 
 // CreatePipeline creates pipeline metadata and its first graph version.
@@ -80,8 +96,8 @@ func (t *Target) CreatePipeline(ctx context.Context, name string, pipeline model
 		PipelineId: pipelineID, Graph: graph,
 	}))
 	if err != nil {
-		_, _ = t.client.DeletePipeline(ctx, connect.NewRequest(&ingestionv1.DeletePipelineRequest{Id: pipelineID}))
-		return model.Pipeline{}, t.rpcError(err)
+		cleanupErr := t.deletePipelineAfterFailedCreate(ctx, pipelineID)
+		return model.Pipeline{}, errors.Join(t.rpcError(err), cleanupErr)
 	}
 	assembled := created.Msg.GetPipeline()
 	assembled.CurrentVersion = version.Msg.GetVersion()
@@ -95,8 +111,13 @@ func (t *Target) UpdatePipeline(ctx context.Context, name string, pipeline model
 	if err != nil {
 		return model.Pipeline{}, err
 	}
-	if len(existing.GetCurrentVersion().GetGraph().GetNodes()) > 2 {
-		return model.Pipeline{}, fmt.Errorf("pipeline %q has a canvas topology; edit it in the UI", name)
+	connections, err := t.connectionsByID(ctx)
+	if err != nil {
+		return model.Pipeline{}, err
+	}
+	currentPipeline := pipelineFromProto(existing, connections)
+	if reason := currentPipeline.Info.EditBlockedReason; reason != "" {
+		return model.Pipeline{}, fmt.Errorf("pipeline %q cannot be edited by the CLI without losing data: %s; edit it in the UI", name, reason)
 	}
 	if current := revisionOf(existing.GetCurrentVersion().GetVersion()); pipeline.Metadata.Revision != current {
 		return model.Pipeline{}, fmt.Errorf("pipeline %q has changed since it was read; fetch it again", name)
@@ -115,6 +136,14 @@ func (t *Target) UpdatePipeline(ctx context.Context, name string, pipeline model
 	return pipelineFromProto(existing, refs), nil
 }
 
+func (t *Target) deletePipelineAfterFailedCreate(ctx context.Context, id string) error {
+	_, err := t.client.DeletePipeline(ctx, connect.NewRequest(&ingestionv1.DeletePipelineRequest{Id: id}))
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("cleanup incomplete; delete pipeline %q manually: %w", id, t.rpcError(err))
+}
+
 // DeletePipeline removes a pipeline by name.
 func (t *Target) DeletePipeline(ctx context.Context, name string, metadata model.EntityMetadata) error {
 	id := metadata.ID
@@ -129,22 +158,42 @@ func (t *Target) DeletePipeline(ctx context.Context, name string, metadata model
 	return t.rpcError(err)
 }
 
-func (t *Target) listPipelines(ctx context.Context) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
+func (t *Target) allPipelines(ctx context.Context) ([]*ingestionv1.Pipeline, error) {
+	var items []*ingestionv1.Pipeline
+	cursor := ""
+	for {
+		page, pagination, err := t.pipelinePage(ctx, model.PageRequest{PageSize: internalPageSize, Cursor: cursor})
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, page...)
+		cursor = pagination.GetNextCursor()
+		if cursor == "" {
+			return items, nil
+		}
+	}
+}
+
+func (t *Target) pipelinePage(
+	ctx context.Context,
+	request model.PageRequest,
+) ([]*ingestionv1.Pipeline, *ingestionv1.PaginationResponse, error) {
 	response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{
 		IncludeLastRun: true, IncludeSchedule: true,
+		Pagination: paginationRequest(request.PageSize, request.Cursor),
 	}))
 	if err != nil {
-		return nil, t.rpcError(err)
+		return nil, nil, t.rpcError(err)
 	}
-	return response, nil
+	return response.Msg.GetPipelines(), response.Msg.GetPagination(), nil
 }
 
 func (t *Target) findPipeline(ctx context.Context, name string) (*ingestionv1.Pipeline, error) {
-	response, err := t.listPipelines(ctx)
+	items, err := t.allPipelines(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, item := range response.Msg.GetPipelines() {
+	for _, item := range items {
 		if item.GetName() == name {
 			return item, nil
 		}
@@ -155,57 +204,20 @@ func (t *Target) findPipeline(ctx context.Context, name string) (*ingestionv1.Pi
 // buildGraph compiles the flat pipeline into a two-node graph, resolving
 // connection names to deployment ids. It also returns the id-to-name map for
 // flattening the response.
-func (t *Target) buildGraph(ctx context.Context, pipeline model.Pipeline) (*ingestionv1.PipelineGraph, map[string]string, error) {
-	source, err := t.findConnection(ctx, "source", pipeline.Source.Ref)
+func (t *Target) buildGraph(ctx context.Context, pipeline model.Pipeline) (*ingestionv1.PipelineGraph, map[string]connectionIdentity, error) {
+	graph := pipeline.Graph
+	if graph == nil {
+		built := model.SimplePipelineGraph(pipeline)
+		graph = &built
+	}
+	connections, err := t.connectionsByName(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	sink, err := t.findConnection(ctx, "sink", pipeline.Sink.Ref)
-	if err != nil {
-		return nil, nil, err
-	}
-	sourceConfig, err := configStruct(pipeline.Source.Config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("source %q: %w", pipeline.Source.Ref, err)
-	}
-	sinkConfig, err := configStruct(pipeline.Sink.Config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sink %q: %w", pipeline.Sink.Ref, err)
-	}
-	readMode, ok := readModeFromString[pipeline.SyncMode]
-	if !ok {
-		return nil, nil, fmt.Errorf("unknown sync mode %q", pipeline.SyncMode)
-	}
-	writeMode, ok := writeModeFromString[pipeline.WriteMode]
-	if !ok {
-		return nil, nil, fmt.Errorf("unknown write mode %q", pipeline.WriteMode)
-	}
-	edges := []*ingestionv1.PipelineEdge{{
-		FromNode: sourceNodeID, ToNode: sinkNodeID, ReadMode: readMode, WriteMode: writeMode,
-	}}
-	if len(pipeline.Resources) > 0 {
-		edges = make([]*ingestionv1.PipelineEdge, 0, len(pipeline.Resources))
-		for _, resource := range pipeline.Resources {
-			edges = append(edges, &ingestionv1.PipelineEdge{
-				FromNode: sourceNodeID, ToNode: sinkNodeID, Resource: resource,
-				ReadMode: readMode, WriteMode: writeMode,
-			})
-		}
-	}
-	graph := &ingestionv1.PipelineGraph{
-		Nodes: []*ingestionv1.PipelineNode{
-			{Id: sourceNodeID, Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: source.GetId(), Config: sourceConfig},
-			{Id: sinkNodeID, Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: sink.GetId(), Config: sinkConfig},
-		},
-		Edges: edges,
-	}
-	refs := map[string]string{source.GetId(): pipeline.Source.Ref, sink.GetId(): pipeline.Sink.Ref}
-	return graph, refs, nil
+	return graphToProto(*graph, connections)
 }
 
-// pipelineFromProto flattens a graph pipeline leniently: the first source and
-// sink nodes become the CLI refs, so richer canvas topologies still list.
-func pipelineFromProto(item *ingestionv1.Pipeline, names map[string]string) model.Pipeline {
+func pipelineFromProto(item *ingestionv1.Pipeline, connections map[string]connectionIdentity) model.Pipeline {
 	pipeline := model.Pipeline{
 		Metadata: model.EntityMetadata{
 			ID:       item.GetId(),
@@ -219,53 +231,160 @@ func pipelineFromProto(item *ingestionv1.Pipeline, names map[string]string) mode
 			UpdatedAt:     timeFromMillis(item.GetUpdatedAt()),
 		},
 	}
-	graph := item.GetCurrentVersion().GetGraph()
-	for _, node := range graph.GetNodes() {
-		ref := names[node.GetConnectionId()]
-		if ref == "" {
-			ref = node.GetConnectionId()
-		}
-		flat := model.PipelineNode{Ref: ref, Config: configMap(node.GetConfig())}
-		switch node.GetKind() {
-		case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
-			if pipeline.Source.Ref == "" {
-				pipeline.Source = flat
-			}
-		case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
-			if pipeline.Sink.Ref == "" {
-				pipeline.Sink = flat
-			}
-		case ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED:
+	graph := graphFromProto(item.GetCurrentVersion().GetGraph(), connections)
+	replication := ""
+	for _, node := range item.GetCurrentVersion().GetGraph().GetNodes() {
+		if node.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE {
+			replication = connections[node.GetConnectionId()].Replication
+			break
 		}
 	}
-	for _, edge := range graph.GetEdges() {
-		if resource := edge.GetResource(); resource != "" {
-			pipeline.Resources = append(pipeline.Resources, resource)
-		}
-		if pipeline.SyncMode == "" {
-			pipeline.SyncMode = readModeString(edge.GetReadMode())
-		}
-		if pipeline.WriteMode == "" {
-			pipeline.WriteMode = writeModeString(edge.GetWriteMode())
-		}
+	if err := model.ProjectSimpleGraph(&pipeline, graph, replication); err != nil {
+		pipeline.Info.EditBlockedReason = err.Error()
 	}
 	return pipeline
 }
 
 func readModeString(mode ingestionv1.ReadMode) string {
-	for name, value := range readModeFromString {
-		if value == mode && name != "" {
-			return name
-		}
+	switch mode {
+	case ingestionv1.ReadMode_READ_MODE_FULL:
+		return "full"
+	case ingestionv1.ReadMode_READ_MODE_INCREMENTAL:
+		return "incremental"
+	default:
+		return ""
 	}
-	return ""
 }
 
 func writeModeString(mode ingestionv1.WriteMode) string {
-	for name, value := range writeModeFromString {
-		if value == mode && name != "" {
-			return name
+	switch mode {
+	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
+		return "append"
+	case ingestionv1.WriteMode_WRITE_MODE_REPLACE:
+		return "replace"
+	case ingestionv1.WriteMode_WRITE_MODE_UPSERT:
+		return "upsert"
+	case ingestionv1.WriteMode_WRITE_MODE_MERGE:
+		return "merge"
+	default:
+		return ""
+	}
+}
+
+type connectionIdentity struct {
+	ID          string
+	Name        string
+	Kind        string
+	Replication string
+}
+
+func (t *Target) connectionsByID(ctx context.Context) (map[string]connectionIdentity, error) {
+	connections, err := t.allConnections(ctx, ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]connectionIdentity, len(connections))
+	for _, connection := range connections {
+		kind := "source"
+		if connection.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK {
+			kind = "sink"
+		}
+		out[connection.GetId()] = connectionIdentity{
+			ID: connection.GetId(), Name: connection.GetName(), Kind: kind,
+			Replication: replicationString(connection.GetReplication()),
 		}
 	}
-	return ""
+	return out, nil
+}
+
+func (t *Target) connectionsByName(ctx context.Context) (map[string]connectionIdentity, error) {
+	byID, err := t.connectionsByID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]connectionIdentity, len(byID))
+	for _, connection := range byID {
+		out[connection.Kind+"\x00"+connection.Name] = connection
+	}
+	return out, nil
+}
+
+func graphFromProto(graph *ingestionv1.PipelineGraph, connections map[string]connectionIdentity) model.PipelineGraph {
+	out := model.PipelineGraph{}
+	for _, node := range graph.GetNodes() {
+		kind := ""
+		switch node.GetKind() {
+		case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
+			kind = "source"
+		case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
+			kind = "sink"
+		case ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED:
+		}
+		connection := connections[node.GetConnectionId()].Name
+		if connection == "" {
+			connection = node.GetConnectionId()
+		}
+		out.Nodes = append(out.Nodes, model.PipelineGraphNode{
+			ID: node.GetId(), Kind: kind, Connection: connection, Config: configMap(node.GetConfig()),
+			SecretRefs: cloneStrings(node.GetSecretRefs()),
+		})
+	}
+	for _, edge := range graph.GetEdges() {
+		mapped := model.PipelineGraphEdge{
+			From: edge.GetFromNode(), To: edge.GetToNode(), Resource: edge.GetResource(),
+			Selector: edge.GetSelector(), ReadMode: readModeString(edge.GetReadMode()), WriteMode: writeModeString(edge.GetWriteMode()),
+		}
+		for _, cursor := range edge.GetCursors() {
+			mapped.Cursors = append(mapped.Cursors, model.ResourceCursor{
+				Resource: cursor.GetResource(), Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds(),
+			})
+		}
+		out.Edges = append(out.Edges, mapped)
+	}
+	return out
+}
+
+func graphToProto(graph model.PipelineGraph, connections map[string]connectionIdentity) (*ingestionv1.PipelineGraph, map[string]connectionIdentity, error) {
+	out := &ingestionv1.PipelineGraph{}
+	refs := map[string]connectionIdentity{}
+	for _, node := range graph.Nodes {
+		kind, err := connectorKind(node.Kind)
+		if err != nil {
+			return nil, nil, err
+		}
+		connection, ok := connections[node.Kind+"\x00"+node.Connection]
+		if !ok {
+			return nil, nil, fmt.Errorf("%s %q does not exist", node.Kind, node.Connection)
+		}
+		config, err := configStruct(cliapp.ConfigWithoutSecretValues(node.Config, node.SecretRefs))
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s %q: %w", node.Kind, node.Connection, err)
+		}
+		out.Nodes = append(out.Nodes, &ingestionv1.PipelineNode{
+			Id: node.ID, Kind: kind, ConnectionId: connection.ID, Config: config,
+			SecretRefs: cloneStrings(node.SecretRefs),
+		})
+		refs[connection.ID] = connection
+	}
+	for _, edge := range graph.Edges {
+		readMode, ok := readModeFromString[edge.ReadMode]
+		if !ok {
+			return nil, nil, fmt.Errorf("unknown sync mode %q", edge.ReadMode)
+		}
+		writeMode, ok := writeModeFromString[edge.WriteMode]
+		if !ok {
+			return nil, nil, fmt.Errorf("unknown write mode %q", edge.WriteMode)
+		}
+		mapped := &ingestionv1.PipelineEdge{
+			FromNode: edge.From, ToNode: edge.To, Resource: edge.Resource, Selector: edge.Selector,
+			ReadMode: readMode, WriteMode: writeMode,
+		}
+		for _, cursor := range edge.Cursors {
+			mapped.Cursors = append(mapped.Cursors, &ingestionv1.ResourceCursorConfig{
+				Resource: cursor.Resource, Field: cursor.Field, LookbackSeconds: cursor.LookbackSeconds,
+			})
+		}
+		out.Edges = append(out.Edges, mapped)
+	}
+	return out, refs, nil
 }

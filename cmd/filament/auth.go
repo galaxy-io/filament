@@ -28,16 +28,17 @@ func (a *cliApp) authCommand() *cobra.Command {
 		Use:   "auth",
 		Short: "Authenticate with a Filament deployment",
 	}
-	var server, clientID, clientSecret string
+	var server, tenant, clientID, clientSecret string
 	login := &cobra.Command{
 		Use:   "login",
 		Short: "Log in with a service account",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return a.authLogin(cmd.Context(), server, clientID, clientSecret)
+			return a.authLogin(cmd.Context(), server, tenant, clientID, clientSecret)
 		},
 	}
 	login.Flags().StringVar(&server, "server", "", "Filament server `URL`")
+	login.Flags().StringVar(&tenant, "tenant", "", "Deployment tenant `ID`")
 	login.Flags().StringVar(&clientID, "client-id", "", "Service account client `ID`")
 	login.Flags().StringVar(&clientSecret, "client-secret", "", "Service account client `SECRET`")
 	_ = login.MarkFlagRequired("server")
@@ -65,7 +66,7 @@ func (a *cliApp) authCommand() *cobra.Command {
 
 // authLogin verifies service-account credentials against the server before
 // anything is kept: a failed login leaves no profile and no context behind.
-func (a *cliApp) authLogin(ctx context.Context, server, clientID, clientSecret string) error {
+func (a *cliApp) authLogin(ctx context.Context, server, tenant, clientID, clientSecret string) error {
 	server = strings.TrimRight(server, "/")
 	parsed, err := url.ParseRequestURI(server)
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
@@ -77,44 +78,51 @@ func (a *cliApp) authLogin(ctx context.Context, server, clientID, clientSecret s
 		return fmt.Errorf("reach %s: %w", server, err)
 	}
 	if config.Msg.GetIssuer() == "" {
-		return fmt.Errorf("%s runs without authentication; there is nothing to log in to", server)
+		return fmt.Errorf("%s runs without authentication; add it with `filament context add NAME --server %s`", server, server)
 	}
 	if clientID, clientSecret, err = a.promptCredentials(clientID, clientSecret); err != nil {
 		return err
 	}
 
-	name := a.contextName
-	if name == "" {
-		name = parsed.Hostname()
-	}
 	store := cliauth.Store{Path: a.credentialsPath()}
-	if err := store.Put(name, cliauth.Profile{
+	profile := cliauth.Profile{
 		Issuer:       config.Msg.GetIssuer(),
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		Scopes:       config.Msg.GetServiceAccountScopes(),
-	}); err != nil {
-		return err
 	}
-	token, err := cliauth.Source{Store: store, Profile: name}.Token(ctx)
+	token, cache, err := cliauth.Mint(ctx, profile, http.DefaultClient)
 	if err != nil {
-		_ = store.Delete(name)
 		return err
 	}
 	verify := connect.NewRequest(&authv1.ListServiceAccountsRequest{})
 	verify.Header().Set("Authorization", "Bearer "+token)
 	if _, err := client.ListServiceAccounts(ctx, verify); err != nil {
-		_ = store.Delete(name)
 		return fmt.Errorf("%s rejected the minted token: %w", server, err)
 	}
 
 	registry := a.contextRegistry()
-	if err := registry.Set(name, contexts.Target{Kind: contexts.KindRemote, Endpoint: server, AuthProfile: name}); err != nil {
-		_ = store.Delete(name)
+	name := a.contextName
+	if name == "" {
+		name, err = availableServerContextName(registry, serverContextName(parsed), server)
+		if err != nil {
+			return err
+		}
+	}
+	credentials, err := store.Load()
+	if err != nil {
 		return err
 	}
-	if _, err := registry.Use(name); err != nil {
+	previous, hadPrevious := credentials.Profiles[name]
+	profile.Cache = &cache
+	if err := store.Put(name, profile); err != nil {
 		return err
+	}
+	if _, err := registry.SetAndUse(name, contexts.Target{
+		Kind: contexts.KindRemote, Endpoint: server, Tenant: tenant, AuthProfile: name,
+	}); err != nil {
+		rollbackErr := restoreAuthProfile(store, name, previous, hadPrevious)
+		return errors.Join(err, rollbackErr)
 	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("Logged in to %s as %s (context %s)", server, clientID, name))
 }
@@ -154,17 +162,76 @@ func (a *cliApp) authStatus() error {
 }
 
 func (a *cliApp) authLogout() error {
-	current, err := a.contextRegistry().Resolve(a.contextName)
+	registry := a.contextRegistry()
+	current, err := registry.Resolve(a.contextName)
 	if err != nil {
 		return err
 	}
 	if current.Target.AuthProfile == "" {
 		return fmt.Errorf("context %q holds no credentials", current.Name)
 	}
-	if err := (cliauth.Store{Path: a.credentialsPath()}).Delete(current.Target.AuthProfile); err != nil {
+	profile := current.Target.AuthProfile
+	detached := current.Target
+	detached.AuthProfile = ""
+	if err := registry.Set(current.Name, detached); err != nil {
 		return err
 	}
+	store := cliauth.Store{Path: a.credentialsPath()}
+	if !a.profileInUse(registry, profile) {
+		if err := store.Delete(profile); err != nil {
+			restoreErr := registry.Set(current.Name, current.Target)
+			return errors.Join(err, restoreErr)
+		}
+	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("Logged out of context %s", current.Name))
+}
+
+func restoreAuthProfile(store cliauth.Store, name string, previous cliauth.Profile, existed bool) error {
+	if existed {
+		return store.Put(name, previous)
+	}
+	return store.Delete(name)
+}
+
+func serverContextName(server *url.URL) string {
+	raw := server.Host + strings.TrimRight(server.EscapedPath(), "/")
+	var name strings.Builder
+	separator := false
+	for _, char := range raw {
+		allowed := char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || char == '.' || char == '_' || char == '-'
+		if allowed {
+			name.WriteRune(char)
+			separator = false
+		} else if !separator {
+			name.WriteByte('-')
+			separator = true
+		}
+	}
+	result := strings.Trim(name.String(), ".-_")
+	if result == "" || result == "local" {
+		return "remote"
+	}
+	return result
+}
+
+func availableServerContextName(registry *contexts.Registry, base, endpoint string) (string, error) {
+	items, err := registry.List()
+	if err != nil {
+		return "", err
+	}
+	used := make(map[string]contexts.Target, len(items))
+	for _, item := range items {
+		used[item.Name] = item.Target
+	}
+	if target, exists := used[base]; !exists || target.Kind == contexts.KindRemote && target.Endpoint == endpoint {
+		return base, nil
+	}
+	for suffix := 2; ; suffix++ {
+		candidate := fmt.Sprintf("%s-%d", base, suffix)
+		if _, exists := used[candidate]; !exists {
+			return candidate, nil
+		}
+	}
 }
 
 // promptCredentials fills whichever credential flags were omitted. The secret
