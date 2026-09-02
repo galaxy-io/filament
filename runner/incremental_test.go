@@ -7,7 +7,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 )
 
 type incrementalTestSource struct {
@@ -17,7 +17,7 @@ type incrementalTestSource struct {
 
 func TestScheduledCDCLoadsPipelineCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	spec := filament.RunSpec{
 		Tenant: "tenant", Run: "run-b", PipelineID: "pipe", PipelineVersionID: "version-2",
 		CheckpointRoute: "route/source/sink/cdc", Resources: []string{"users"},
@@ -101,7 +101,7 @@ func (s *incrementalTestSource) PlanIncremental(_ context.Context, resources []s
 
 func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	plan := filament.IngestionPlan{}
 	base := filament.RunSpec{
 		Tenant: "tenant", Run: "run-a", PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink",

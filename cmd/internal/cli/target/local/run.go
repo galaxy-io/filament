@@ -10,7 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -68,7 +68,7 @@ func (t *Target) SubmitRun(ctx context.Context, submission model.RunSubmission) 
 	go func() {
 		runnerDone <- runner.RunOne(runCtx, runner.Deps{
 			Bus:       bus,
-			DataStore: sqlitestore.NewMemory(),
+			DataStore: sqlite.NewMemory(),
 			Sources:   registry.DefaultSources,
 			Sinks:     registry.DefaultSinks,
 		}, spec)

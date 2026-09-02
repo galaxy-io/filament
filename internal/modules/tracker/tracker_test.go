@@ -7,7 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 )
@@ -24,10 +24,10 @@ func (m fakeMsg) Seq() uint64     { return m.seq }
 func (m fakeMsg) Ack() error      { return nil }
 func (m fakeMsg) Nak() error      { return nil }
 
-func mounted(t *testing.T) (*Module, *sqlitestore.Store) {
+func mounted(t *testing.T) (*Module, *sqlite.Store) {
 	t.Helper()
 	m := New()
-	ds := sqlitestore.NewMemory()
+	ds := sqlite.NewMemory()
 	if err := m.Mount(context.Background(), module.Deps{DataStore: ds}); err != nil {
 		t.Fatalf("mount: %v", err)
 	}

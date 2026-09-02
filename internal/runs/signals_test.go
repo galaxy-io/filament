@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 )
 
@@ -55,7 +55,7 @@ func TestPlanSignal(t *testing.T) {
 
 func TestCancelStampsEndedAt(t *testing.T) {
 	ctx := context.Background()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	cancelled := filament.RunState{Run: "run-cancel", Tenant: "tenant", Status: filament.RunRequested, RequestedAt: time.Now()}
 	paused := filament.RunState{Run: "run-pause", Tenant: "tenant", Status: filament.RunRequested, RequestedAt: time.Now()}
 	for _, state := range []filament.RunState{cancelled, paused} {
@@ -101,7 +101,7 @@ func TestResumePreservesOnlyCheckpointedProgress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			store := sqlitestore.NewMemory()
+			store := sqlite.NewMemory()
 			state := filament.RunState{
 				Run: "run", Tenant: "tenant", Status: tt.status, Records: 125, Bytes: 500,
 				Request: filament.RunRequest{
@@ -138,7 +138,7 @@ func TestPauseRejectsMixedCheckpointCoverage(t *testing.T) {
 			},
 		},
 	}
-	if _, err := Signal(context.Background(), inproc.New(), sqlitestore.NewMemory(), state, filament.SignalPause); !errors.Is(err, ErrSignalTransition) {
+	if _, err := Signal(context.Background(), inproc.New(), sqlite.NewMemory(), state, filament.SignalPause); !errors.Is(err, ErrSignalTransition) {
 		t.Fatalf("mixed pause error = %v, want transition error", err)
 	}
 }

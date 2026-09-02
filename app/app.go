@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
@@ -62,7 +62,7 @@ type Option func(*Config)
 // WithBus sets the event-plane transport (default: inproc.New()).
 func WithBus(b eventbus.Bus) Option { return func(c *Config) { c.Bus = b } }
 
-// WithDataStore sets the run/checkpoint store (default: sqlitestore.NewMemory()).
+// WithDataStore sets the run/checkpoint store (default: sqlite.NewMemory()).
 func WithDataStore(s filament.DataStore) Option { return func(c *Config) { c.Store = s } }
 
 // WithMetricsStore sets the run metrics query backend (default: none —
@@ -89,7 +89,7 @@ func WithLogger(log filament.Logger) Option { return func(c *Config) { c.Log = l
 func newConfig(opts ...Option) Config {
 	c := Config{
 		Bus:     inproc.New(),
-		Store:   sqlitestore.NewMemory(),
+		Store:   sqlite.NewMemory(),
 		Sources: registry.DefaultSources,
 		Sinks:   registry.DefaultSinks,
 	}

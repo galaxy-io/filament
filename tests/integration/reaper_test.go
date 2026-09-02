@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/galaxy-io/filament"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/internal/modules/dispatch/k8s"
@@ -30,7 +30,7 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 	ctx := context.Background()
 
 	const namespace = "default"
-	ds := sqlitestore.NewMemory()
+	ds := sqlite.NewMemory()
 	bus := inproc.New()
 
 	dispatcher := k8s.New(k8s.Config{

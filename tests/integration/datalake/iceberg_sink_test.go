@@ -21,7 +21,7 @@ import (
 	"github.com/galaxy-io/filament/tests/testcontainers/seed/tpch"
 
 	"github.com/galaxy-io/filament"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -174,7 +174,7 @@ func runPipeline(t *testing.T, ctx context.Context, pg *testcontainers.PG, dl *t
 
 	runner.RunOne(ctx, runner.Deps{
 		Bus:       bus,
-		DataStore: sqlitestore.NewMemory(),
+		DataStore: sqlite.NewMemory(),
 		Sources:   registry.DefaultSources,
 		Sinks:     registry.DefaultSinks,
 	}, filament.RunSpec{

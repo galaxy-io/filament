@@ -14,7 +14,7 @@ import (
 	"github.com/galaxy-io/filament"
 	icebergsink "github.com/galaxy-io/filament/connectors/iceberg"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/host"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
@@ -70,7 +70,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	sinks := registry.NewSinks()
 	sinks.Register("iceberg", func() filament.Sink { return icebergsink.New() })
 
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	orch := orchestrator.New()
 	mods, err := module.MountAll(ctx,
 		module.Deps{Bus: bus, DataStore: store, Sources: sources, Sinks: sinks},

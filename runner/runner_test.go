@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -81,7 +81,7 @@ func (publishErrorBus) Publish(context.Context, string, any) error {
 func TestRunOneDoesNotExecuteWithoutPublishedStart(t *testing.T) {
 	base := inproc.New()
 	defer func() { _ = base.Close() }()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "r1", Tenant: "t1", Status: filament.RunRequested}
 	if err := store.SaveRun(context.Background(), state); err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func TestRunOneRetriesAfterTransientStartPublishFailure(t *testing.T) {
 	sources.Register("test", func() filament.Source { return &commitTestSource{} })
 	sinks := registry.NewSinks()
 	sinks.Register("test-sink", func() filament.Sink { return &controlledTestSink{} })
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "r1", Tenant: "t1", Status: filament.RunRequested}
 	if err := store.SaveRun(context.Background(), state); err != nil {
 		t.Fatal(err)
@@ -190,7 +190,7 @@ func TestRunOneFailsWhenProgressCannotBeRestored(t *testing.T) {
 	}
 	defer func() { _ = facts.Close() }()
 	RunOne(context.Background(), Deps{
-		Bus: bus, DataStore: progressLoadErrorStore{DataStore: sqlitestore.NewMemory()},
+		Bus: bus, DataStore: progressLoadErrorStore{DataStore: sqlite.NewMemory()},
 	}, filament.RunSpec{Tenant: "tenant", Run: "run"})
 	waitForFact(t, facts, events.RunFailed.Name())
 }
@@ -230,7 +230,7 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 
 	RunOne(context.Background(), Deps{
 		Bus:       bus,
-		DataStore: sqlitestore.NewMemory(),
+		DataStore: sqlite.NewMemory(),
 		Sources:   sources,
 		Sinks:     sinks,
 	}, filament.RunSpec{
@@ -305,7 +305,7 @@ func TestRunOneCooperativeControl(t *testing.T) {
 			go func() {
 				defer close(done)
 				RunOne(context.Background(), Deps{
-					Bus: bus, DataStore: sqlitestore.NewMemory(), Sources: sources, Sinks: sinks,
+					Bus: bus, DataStore: sqlite.NewMemory(), Sources: sources, Sinks: sinks,
 				}, filament.RunSpec{
 					Tenant: "t1", Run: "r1", Source: filament.Ref{Connector: "test"}, Sink: filament.Ref{Connector: "test-sink"},
 					Resources: []string{"users"}, IngestionTypes: map[string]filament.IngestionType{"users": tt.ingestion},
@@ -380,7 +380,7 @@ func TestEmitterSeedsResumedProgress(t *testing.T) {
 }
 
 func TestSeedEmitterProgressIgnoresPartialAttemptCounters(t *testing.T) {
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "run", Status: filament.RunPartial, Records: 125, Bytes: 500}
 	if err := store.SaveRun(context.Background(), state); err != nil {
 		t.Fatal(err)

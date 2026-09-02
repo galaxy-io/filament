@@ -17,8 +17,8 @@ import (
 
 	"github.com/galaxy-io/filament/app"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
-	sqlitemetrics "github.com/galaxy-io/filament/datastore/sqlite/metrics"
+	"github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite/metrics"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
 	secretenv "github.com/galaxy-io/filament/secret/env"
@@ -66,7 +66,7 @@ func run(ctx context.Context) error {
 	if storePath == "" {
 		storePath = filepath.Join(dir, "filament.db")
 	}
-	store, err := sqlitestore.Open(storePath)
+	store, err := sqlite.Open(storePath)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func run(ctx context.Context) error {
 	return app.Run(ctx,
 		app.WithBus(bus),
 		app.WithDataStore(store),
-		app.WithMetricsStore(sqlitemetrics.New(store.DB())),
+		app.WithMetricsStore(metrics.New(store.DB())),
 		app.WithLogger(lg),
 		app.WithSecrets(secretenv.New()),
 		app.WithUI(ui.Handler()),

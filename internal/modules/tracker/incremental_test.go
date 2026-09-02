@@ -7,7 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/events"
 )
 
@@ -26,7 +26,7 @@ func (s *failOnceCheckpointStore) SaveResourceCheckpoint(ctx context.Context, te
 
 func TestWatermarkProgressIsNotPersistedBeforeBatchWrite(t *testing.T) {
 	m := New()
-	m.ds = sqlitestore.NewMemory()
+	m.ds = sqlite.NewMemory()
 	cp := &filament.CheckpointData{ResourceName: "users", Cursor: map[string]any{"updated_at": "2026-08-18T00:00:00Z"}}
 	err := m.apply(context.Background(), events.NewFact(
 		events.WatermarkAdvanced,
@@ -43,7 +43,7 @@ func TestWatermarkProgressIsNotPersistedBeforeBatchWrite(t *testing.T) {
 
 func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
@@ -82,7 +82,7 @@ func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 
 func TestPausedAcknowledgementCommitsCheckpoint(t *testing.T) {
 	ctx := context.Background()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
@@ -115,7 +115,7 @@ func TestPausedAcknowledgementCommitsCheckpoint(t *testing.T) {
 
 func TestPausedAcknowledgementWaitsForCheckpointPromotion(t *testing.T) {
 	ctx := context.Background()
-	base := sqlitestore.NewMemory()
+	base := sqlite.NewMemory()
 	store := &failOnceCheckpointStore{DataStore: base}
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
@@ -155,7 +155,7 @@ func TestPausedAcknowledgementWaitsForCheckpointPromotion(t *testing.T) {
 
 func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 	ctx := context.Background()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDCMerge},
@@ -189,7 +189,7 @@ func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 
 func TestCompletedBackfillPromotesInitialWatermarkAfterRunCommit(t *testing.T) {
 	ctx := context.Background()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	request := filament.RunRequest{
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},

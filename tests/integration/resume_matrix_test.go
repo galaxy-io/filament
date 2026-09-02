@@ -30,7 +30,7 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -183,7 +183,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	})
 
 	bus := inproc.New()
-	store := sqlitestore.NewMemory()
+	store := sqlite.NewMemory()
 	orch := orchestrator.New()
 	deps := module.Deps{Bus: bus, DataStore: store, Sources: sources, Sinks: sinks}
 	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch)
@@ -408,7 +408,7 @@ func scanIDs(t *testing.T, rows pgx.Rows) []string {
 
 // countDoneShards totals the bitmap shards already flagged complete across all resources'
 // persisted checkpoints.
-func countDoneShards(ctx context.Context, store *sqlitestore.Store, tenant filament.TenantID, id filament.RunID, resources []string) int {
+func countDoneShards(ctx context.Context, store *sqlite.Store, tenant filament.TenantID, id filament.RunID, resources []string) int {
 	n := 0
 	for _, res := range resources {
 		cp, err := store.LoadCheckpoint(ctx, tenant, id, res)

@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/galaxy-io/filament"
-	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -70,7 +70,7 @@ func TestSubmitRetryRedispatchesStrandedRequestedRun(t *testing.T) {
 	defer func() { _ = sub.Close() }()
 
 	bus := &failPublishBus{Bus: baseBus, failures: 1}
-	store := &failDeleteStore{DataStore: sqlitestore.NewMemory(), failures: 1}
+	store := &failDeleteStore{DataStore: sqlite.NewMemory(), failures: 1}
 	req := filament.RunRequest{Tenant: filament.DefaultTenantID, IdempotencyKey: "retry-me"}
 	id := IDFor(req)
 
