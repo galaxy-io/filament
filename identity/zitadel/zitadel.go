@@ -18,7 +18,8 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
-	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/zitadel/zitadel-go/v3/pkg/authorization"
+	zitadeloauth "github.com/zitadel/zitadel-go/v3/pkg/authorization/oauth"
 	zclient "github.com/zitadel/zitadel-go/v3/pkg/client"
 	"github.com/zitadel/zitadel-go/v3/pkg/zitadel"
 
@@ -48,7 +49,7 @@ type Options struct {
 type Provider struct {
 	issuer   string
 	api      *zclient.Client
-	verifier *oidc.IDTokenVerifier
+	verifier authorization.Verifier[*zitadeloauth.IntrospectionContext]
 	project  projectRef
 	// rolesClaim is precomputed; every token-authenticated request reads it.
 	rolesClaim string
@@ -87,12 +88,12 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		_ = api.Close()
 		return nil, fmt.Errorf("zitadel bootstrap: %w", err)
 	}
-	oidcProvider, err := oidc.NewProvider(ctx, issuer)
+	verifier, err := zitadeloauth.WithJWT(p.project.id, http.DefaultClient)(ctx, target)
 	if err != nil {
 		_ = api.Close()
-		return nil, fmt.Errorf("discover issuer %s: %w", issuer, err)
+		return nil, fmt.Errorf("initialize access-token verifier for %s: %w", issuer, err)
 	}
-	p.verifier = oidcProvider.Verifier(&oidc.Config{SkipClientIDCheck: true})
+	p.verifier = verifier
 	p.rolesClaim = "urn:zitadel:iam:org:project:" + p.project.id + ":roles"
 	return p, nil
 }
@@ -133,14 +134,11 @@ func (p *Provider) Authenticate(ctx context.Context, header http.Header) (identi
 // authenticateToken verifies an access token and resolves the caller's
 // tenant and roles from its claims.
 func (p *Provider) authenticateToken(ctx context.Context, bearer string) (identity.Caller, error) {
-	token, err := p.verifier.Verify(ctx, bearer)
+	token, err := p.verifier.CheckAuthorization(ctx, "Bearer "+bearer)
 	if err != nil {
 		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, err)
 	}
-	var claims map[string]any
-	if err := token.Claims(&claims); err != nil {
-		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, err)
-	}
+	claims := token.Claims
 	orgID, _ := claims[claimOrgID].(string)
 	if orgID == "" {
 		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, errors.New("token carries no organization; request the resourceowner scope"))
@@ -160,6 +158,9 @@ func (p *Provider) authenticateToken(ctx context.Context, bearer string) (identi
 				caller.Roles = append(caller.Roles, role)
 			}
 		}
+	}
+	if len(caller.Roles) == 0 {
+		return identity.Caller{}, connect.NewError(connect.CodePermissionDenied, errors.New("token carries no Filament role"))
 	}
 	return caller, nil
 }
