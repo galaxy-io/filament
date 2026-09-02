@@ -5,6 +5,7 @@ export enum PipelineScheduleFrequency {
   DAILY = "DAILY",
   WEEKLY = "WEEKLY",
   MONTHLY = "MONTHLY",
+  CUSTOM = "CUSTOM",
 }
 
 export interface PipelineScheduleFrequencyOption {
@@ -18,5 +19,6 @@ export interface PipelineSettingsPageScheduleState {
   days: number[];
   dayOfMonth: number;
   hour: number;
+  cron: PipelineScheduleConfig["cron"];
   timezone: PipelineScheduleConfig["timezone"];
 }
