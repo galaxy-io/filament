@@ -30,8 +30,7 @@ func (a *cliApp) rootCommand() *cobra.Command {
 	root.SetErr(a.statusWriter())
 
 	// Parsed by extractGlobalFlags before cobra runs so they work in any position.
-	root.PersistentFlags().String("config", a.configPath, "Read configuration from `PATH`")
-	root.PersistentFlags().String("context", "", "Run against context `NAME`")
+	root.PersistentFlags().AddFlagSet(a.globalFlags())
 	root.SetVersionTemplate("filament {{.Version}}\n")
 
 	a.installHelpStyle(root)
@@ -47,6 +46,16 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		a.versionCommand(),
 	)
 	return root
+}
+
+// globalFlags is the persistent flag set, shared with dynamic commands'
+// hand-rendered help pages.
+func (a *cliApp) globalFlags() *pflag.FlagSet {
+	flags := pflag.NewFlagSet("global", pflag.ContinueOnError)
+	flags.String("config", a.configPath, "Read configuration from `PATH`")
+	flags.String("context", "", "Run against context `NAME`")
+	flags.BoolP("interactive", "i", false, "Open the interactive menu")
+	return flags
 }
 
 func (a *cliApp) prepareTarget(cmd *cobra.Command, _ []string) error {

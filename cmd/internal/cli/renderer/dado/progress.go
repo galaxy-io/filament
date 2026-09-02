@@ -161,5 +161,5 @@ func runSummaryLine(p style.Painter, rows int, result model.RunResult, elapsed t
 	if runErr != nil {
 		return p.Error("✗ run failed") + " " + p.Muted("· "+runErr.Error())
 	}
-	return p.Success("✓ synced") + fmt.Sprintf(" %d resources · %s rows · %s", rows, style.Count(result.Records), humanDuration(elapsed))
+	return p.Success("✓ Synced") + fmt.Sprintf(" %d resources · %s rows · %s", rows, style.Count(result.Records), humanDuration(elapsed))
 }

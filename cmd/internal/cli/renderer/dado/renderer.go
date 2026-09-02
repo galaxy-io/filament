@@ -73,8 +73,11 @@ func interactiveEntryForArgs(args []string) (interactiveEntry, bool) {
 	}
 	if len(args) == 1 {
 		switch args[0] {
-		case "source", "sink", "pipeline", "config", "run":
+		case "source", "sink", "pipeline", "config":
 			return interactiveEntry{section: args[0]}, true
+		case "run":
+			// Bare run is an operation: pick a pipeline, run it, exit.
+			return interactiveEntry{section: "run", operation: "run"}, true
 		}
 		return interactiveEntry{}, false
 	}

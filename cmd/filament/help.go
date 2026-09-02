@@ -6,6 +6,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/spf13/pflag"
+
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
@@ -115,6 +117,7 @@ func (a *cliApp) printRunHelp(ctx context.Context, args []string) error {
 		paint.Accent("filament run"), paint.Muted("--source-connector NAME --sink-connector NAME [flags]"))
 	out.printf("\n%s\n", paint.Muted(`An omitted --resources selection means all resources discovered by the source.
 Use --source-<field> and --sink-<field> for connector configuration.`))
+	out.printf("\n%s\n%s", paint.Bold("Flags:"), flagUsages(paint, runHelpFlags()))
 	printed := map[string]bool{}
 	for _, kind := range []string{"source", "sink"} {
 		name := rawFlagValue(args, kind+"-connector")
@@ -151,7 +154,21 @@ Use --source-<field> and --sink-<field> for connector configuration.`))
 			}
 		}
 	}
+	out.printf("\n\n%s\n%s\n", paint.Bold("Global Flags:"), flagUsages(paint, a.globalFlags()))
 	return out.err
+}
+
+// runHelpFlags declares run's static flags for help rendering; parsing stays
+// with the dynamic command itself.
+func runHelpFlags() *pflag.FlagSet {
+	flags := pflag.NewFlagSet("run", pflag.ContinueOnError)
+	flags.String("resources", "", "Sync only `LIST` of resources")
+	flags.String("sync-mode", "", "Read `MODE`: full or incremental")
+	flags.String("write-mode", "", "Write `MODE`: append, replace, upsert, or merge")
+	flags.String("unset", "", "Clear the pipeline override `KIND-FIELD`")
+	flags.String("source-connector", "", "Inline run source connector `NAME`")
+	flags.String("sink-connector", "", "Inline run sink connector `NAME`")
+	return flags
 }
 
 func (a *cliApp) printPipelineOperationHelp(ctx context.Context, operation string, args []string) error {

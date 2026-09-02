@@ -16,39 +16,49 @@ import (
 
 func (r *Renderer) managePipelines(ctx context.Context) error {
 	for {
-		listed, err := r.service.Pipelines(ctx)
-		if err != nil {
+		done, err := r.managePipelinesOnce(ctx)
+		if done || err != nil {
 			return err
-		}
-		options := make([]interactiveOption, 0, len(listed.Items)+3)
-		options = append(options, interactiveOption{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
-		options = append(options, pipelineMenuOptions(listed.Items)...)
-		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-		selected, err := r.chooseInteractive(ctx, "Pipelines", "Create or manage reusable transfers", options)
-		if interactiveCancelled(err) || selected == interactiveBack {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if selected == "__create__" {
-			if err := r.pipelineWizard(ctx, "", nil); err != nil && !interactiveCancelled(err) {
-				if showErr := r.showInteractiveMessage(ctx, "Unable to create pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-					return showErr
-				}
-			}
-			continue
-		}
-		doc, err := r.service.Configuration(ctx)
-		if err != nil {
-			return err
-		}
-		if err := r.managePipeline(ctx, selected, doc); err != nil && !interactiveCancelled(err) {
-			if showErr := r.showInteractiveMessage(ctx, "Unable to manage pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-				return showErr
-			}
 		}
 	}
+}
+
+// managePipelinesOnce runs one pass of the pipelines menu; done reports that
+// the user backed out.
+func (r *Renderer) managePipelinesOnce(ctx context.Context) (bool, error) {
+	listed, err := r.service.Pipelines(ctx)
+	if err != nil {
+		return true, err
+	}
+	options := make([]interactiveOption, 0, len(listed.Items)+3)
+	options = append(options, interactiveOption{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
+	options = append(options, pipelineMenuOptions(listed.Items)...)
+	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
+	selected, err := r.chooseInteractive(ctx, "Pipelines", "Create or manage reusable transfers", options)
+	if interactiveCancelled(err) || selected == interactiveBack {
+		return true, nil
+	}
+	if err != nil {
+		return true, err
+	}
+	if selected == "__create__" {
+		if err := r.pipelineWizard(ctx, "", nil); err != nil && !interactiveCancelled(err) {
+			if showErr := r.showInteractiveMessage(ctx, "Unable to create pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
+				return true, showErr
+			}
+		}
+		return false, nil
+	}
+	doc, err := r.service.Configuration(ctx)
+	if err != nil {
+		return true, err
+	}
+	if err := r.managePipeline(ctx, selected, doc); err != nil && !interactiveCancelled(err) {
+		if showErr := r.showInteractiveMessage(ctx, "Unable to manage pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
+			return true, showErr
+		}
+	}
+	return false, nil
 }
 
 func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Document) error {
@@ -58,7 +68,7 @@ func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Do
 		{label: "View", value: "view"},
 		{label: "Edit", value: "edit"},
 		{label: "Delete", value: "delete"},
-		{label: "Back", value: interactiveBack},
+		{label: "Exit", value: interactiveBack},
 	})
 	if err != nil || action == interactiveBack {
 		return err

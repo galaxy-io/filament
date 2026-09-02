@@ -37,50 +37,60 @@ type schemaWizardStep struct {
 
 func (r *Renderer) manageConnections(ctx context.Context, kind string) error {
 	for {
-		listed, err := r.service.Connections(ctx, kind)
-		if err != nil {
+		done, err := r.manageConnectionsOnce(ctx, kind)
+		if done || err != nil {
 			return err
-		}
-		options := []interactiveOption{{label: "+ Create " + kind, value: "__create__", tone: inline.ChoiceToneSuccess}}
-		if len(listed.Items) > 0 {
-			rows := make([][]string, 0, len(listed.Items))
-			values := make([]string, 0, len(listed.Items))
-			for _, connection := range listed.Items {
-				rows = append(rows, []string{
-					connection.Name, connection.Connector,
-					infoValue(textrenderer.TitleCase(connection.Replication)),
-					textrenderer.Stamp(connection.CreatedAt), textrenderer.Stamp(connection.UpdatedAt),
-				})
-				values = append(values, connection.Name)
-			}
-			options = append(options, boxedMenu([]string{"Name", "Connector", "Replication", "Created", "Updated"}, rows, values)...)
-		}
-		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-		selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
-		if interactiveCancelled(err) || selected == interactiveBack {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if selected == "__create__" {
-			if err := r.connectionWizard(ctx, kind, "", nil); err != nil && !interactiveCancelled(err) {
-				if showErr := r.showInteractiveMessage(ctx, "Unable to create "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-					return showErr
-				}
-			}
-			continue
-		}
-		doc, err := r.service.Configuration(ctx)
-		if err != nil {
-			return err
-		}
-		if err := r.manageConnection(ctx, kind, selected, doc); err != nil && !interactiveCancelled(err) {
-			if showErr := r.showInteractiveMessage(ctx, "Unable to manage "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-				return showErr
-			}
 		}
 	}
+}
+
+// manageConnectionsOnce runs one pass of the connections menu; done reports
+// that the user backed out.
+func (r *Renderer) manageConnectionsOnce(ctx context.Context, kind string) (bool, error) {
+	listed, err := r.service.Connections(ctx, kind)
+	if err != nil {
+		return true, err
+	}
+	options := []interactiveOption{{label: "+ Create " + kind, value: "__create__", tone: inline.ChoiceToneSuccess}}
+	if len(listed.Items) > 0 {
+		rows := make([][]string, 0, len(listed.Items))
+		values := make([]string, 0, len(listed.Items))
+		for _, connection := range listed.Items {
+			rows = append(rows, []string{
+				connection.Name, connection.Connector,
+				infoValue(textrenderer.TitleCase(connection.Replication)),
+				textrenderer.Stamp(connection.CreatedAt), textrenderer.Stamp(connection.UpdatedAt),
+			})
+			values = append(values, connection.Name)
+		}
+		options = append(options, boxedMenu([]string{"Name", "Connector", "Replication", "Created", "Updated"}, rows, values)...)
+	}
+	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
+	selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
+	if interactiveCancelled(err) || selected == interactiveBack {
+		return true, nil
+	}
+	if err != nil {
+		return true, err
+	}
+	if selected == "__create__" {
+		if err := r.connectionWizard(ctx, kind, "", nil); err != nil && !interactiveCancelled(err) {
+			if showErr := r.showInteractiveMessage(ctx, "Unable to create "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
+				return true, showErr
+			}
+		}
+		return false, nil
+	}
+	doc, err := r.service.Configuration(ctx)
+	if err != nil {
+		return true, err
+	}
+	if err := r.manageConnection(ctx, kind, selected, doc); err != nil && !interactiveCancelled(err) {
+		if showErr := r.showInteractiveMessage(ctx, "Unable to manage "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
+			return true, showErr
+		}
+	}
+	return false, nil
 }
 
 func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc model.Document) error {
@@ -91,7 +101,7 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 	}
 	options = append(options,
 		interactiveOption{label: "Delete", value: "delete"},
-		interactiveOption{label: "Back", value: interactiveBack},
+		interactiveOption{label: "Exit", value: interactiveBack},
 	)
 	action, err := r.chooseInteractive(ctx, name, fmt.Sprintf("%s connection using %s", kind, connection.Type), options)
 	if err != nil || action == interactiveBack {

@@ -32,6 +32,7 @@ type Renderer struct {
 	interactiveRenderer     *inline.Renderer
 	theme                   inline.InlineTheme
 	paint                   style.Painter
+	menuMode                bool
 	noticeText              string
 	noticeOK                bool
 }
@@ -45,6 +46,9 @@ type Options struct {
 	Catalog                 model.Catalog
 	OpenConfigurationEditor func(context.Context) error
 	TargetName              string
+	// MenuMode opens interactive menus for menu-shaped invocations. Off, only
+	// operations render interactively.
+	MenuMode bool
 }
 
 // New constructs an interactive renderer for the selected target.
@@ -63,6 +67,7 @@ func New(options Options) *Renderer {
 		configPath: configPath, catalog: options.Catalog, service: options.Service,
 		openConfigurationEditor: options.OpenConfigurationEditor,
 		targetName:              options.TargetName,
+		menuMode:                options.MenuMode,
 		theme:                   filamentTheme(dark),
 		paint:                   style.New(status),
 	}
@@ -76,8 +81,13 @@ func (r *Renderer) Interactive() bool {
 // CanHandle reports whether args identify an interactive entry point and both
 // terminal streams support interactive rendering.
 func (r *Renderer) CanHandle(args []string) bool {
-	_, routed := interactiveEntryForArgs(args)
-	return routed && r.interactiveAvailable()
+	entry, routed := interactiveEntryForArgs(args)
+	if !routed || !r.interactiveAvailable() {
+		return false
+	}
+	// Menus open only under --interactive; operations (wizards, runs) route
+	// interactively regardless.
+	return r.menuMode || entry.operation != ""
 }
 
 // Run opens the interactive renderer at the entry point selected by args.
