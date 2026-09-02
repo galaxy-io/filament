@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -140,10 +141,13 @@ func (t *Target) tailOne(ctx context.Context, ref model.RunRef, observe func(mod
 			update.Error = fields.GetError()
 			observe(update)
 		case events.RunCompleted.Name():
+			t.awaitPersistedTerminal(ctx, ref.ID, event.GetIsReplay())
 			return tailResult{status: "complete", records: fields.GetRecords(), bytes: fields.GetBytes()}, nil
 		case events.RunFailed.Name():
+			t.awaitPersistedTerminal(ctx, ref.ID, event.GetIsReplay())
 			return tailResult{status: "failed"}, fmt.Errorf("run %s failed: %s", ref.ID, fields.GetError())
 		case events.RunPartial.Name():
+			t.awaitPersistedTerminal(ctx, ref.ID, event.GetIsReplay())
 			return tailResult{status: "partial"}, fmt.Errorf("run %s is partial: %s", ref.ID, fields.GetError())
 		case events.RunPaused.Name():
 			observe(model.RunEvent{Run: ref.ID, Route: ref.Route, Status: "paused", Final: true})
@@ -186,4 +190,27 @@ func signalToProto(signal filament.Signal) (ingestionv1.RunSignal, error) {
 
 func runEvent(ref model.RunRef, resource, status string) model.RunEvent {
 	return model.RunEvent{Run: ref.ID, Route: ref.Route, Resource: resource, Status: status}
+}
+
+// awaitPersistedTerminal waits briefly for the deployment's tracker to fold a
+// live terminal event into the store. An embedded deployment dies with the
+// CLI process, and exiting the moment the event arrives can strand the
+// persisted run as Running forever; a replayed event is already persisted.
+func (t *Target) awaitPersistedTerminal(ctx context.Context, runID string, replay bool) {
+	if replay {
+		return
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		response, err := t.client.GetRun(ctx, connect.NewRequest(&ingestionv1.GetRunRequest{RunId: runID}))
+		if err != nil {
+			return
+		}
+		switch response.Msg.GetSnapshot().GetRun().GetStatus() {
+		case ingestionv1.RunStatus_RUN_STATUS_COMPLETED, ingestionv1.RunStatus_RUN_STATUS_FAILED,
+			ingestionv1.RunStatus_RUN_STATUS_CANCELED, ingestionv1.RunStatus_RUN_STATUS_PARTIAL:
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 }

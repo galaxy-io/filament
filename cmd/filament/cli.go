@@ -96,7 +96,7 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 		a.service = cliapp.NewService(remotetarget.NewTarget(options))
 	} else {
 		a.configPath = selected.Target.ConfigPath
-		endpoint, stop, err := startEmbedded(ctx)
+		endpoint, secrets, stop, err := a.startEmbedded(ctx)
 		if err != nil {
 			return err
 		}
@@ -105,8 +105,12 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 			localtarget.Store{Path: a.configPath},
 			remotetarget.NewTarget(remotetarget.Options{Endpoint: endpoint}),
 		)
-		if err := target.Apply(ctx); err != nil {
-			return fmt.Errorf("apply %s: %w", a.configPath, err)
+		syncer, err := localtarget.NewSyncer(target, secrets)
+		if err != nil {
+			return fmt.Errorf("reconcile %s: %w", a.configPath, err)
+		}
+		if err := syncer.BootReconcile(ctx); err != nil {
+			return fmt.Errorf("reconcile %s: %w", a.configPath, err)
 		}
 		a.service = cliapp.NewService(target)
 	}

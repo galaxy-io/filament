@@ -32,15 +32,21 @@ func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (model.Run
 		return model.RunSubmission{}, fmt.Errorf("pipeline %q does not exist", request.Pipeline)
 	}
 	request.Overrides.Name = request.Pipeline
+	saved := pipeline
 	override := !emptyPipelineRequest(request.Overrides)
+	if override {
+		pipeline, err = BuildPipeline(request.Overrides, &pipeline, document, catalog)
+		if err != nil {
+			return model.RunSubmission{}, err
+		}
+		// Flag parsing prefills the saved refs, so presence alone is not an
+		// override; only a run that actually changes the pipeline is.
+		override = !model.PipelinesEquivalent(pipeline, saved)
+	}
 	if override {
 		pusher, ok := s.target.(EphemeralTarget)
 		if !ok {
 			return model.RunSubmission{}, fmt.Errorf("this target does not support override flags; edit the pipeline instead")
-		}
-		pipeline, err = BuildPipeline(request.Overrides, &pipeline, document, catalog)
-		if err != nil {
-			return model.RunSubmission{}, err
 		}
 		// The override runs as an adhoc copy so the saved pipeline — and the
 		// YAML behind it — stays untouched.

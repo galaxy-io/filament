@@ -3,7 +3,6 @@ package local
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/galaxy-io/filament"
@@ -143,9 +142,7 @@ func (s *Syncer) deploymentSnapshot(ctx context.Context) (syncSnapshot, error) {
 				continue
 			}
 			connection := item.Connection
-			if err := s.restoreSecrets(ctx, connection.Config, connection.SecretRefs); err != nil {
-				return syncSnapshot{}, fmt.Errorf("%s %q: %w", kind, item.Name, err)
-			}
+			s.restoreSecrets(ctx, connection.Config, connection.SecretRefs)
 			snapshot.connections[kind+"\x00"+item.Name] = connection
 		}
 	}
@@ -162,12 +159,8 @@ func (s *Syncer) deploymentSnapshot(ctx context.Context) (syncSnapshot, error) {
 		if strings.HasPrefix(item.Name, model.AdhocPrefix) || pipeline.Info.EditBlockedReason != "" {
 			continue
 		}
-		if err := s.restoreSecrets(ctx, pipeline.Source.Config, pipeline.Source.SecretRefs); err != nil {
-			return syncSnapshot{}, fmt.Errorf("pipeline %q: %w", item.Name, err)
-		}
-		if err := s.restoreSecrets(ctx, pipeline.Sink.Config, pipeline.Sink.SecretRefs); err != nil {
-			return syncSnapshot{}, fmt.Errorf("pipeline %q: %w", item.Name, err)
-		}
+		s.restoreSecrets(ctx, pipeline.Source.Config, pipeline.Source.SecretRefs)
+		s.restoreSecrets(ctx, pipeline.Sink.Config, pipeline.Sink.SecretRefs)
 		snapshot.pipelines[item.Name] = pipeline
 	}
 	return snapshot, nil
@@ -192,8 +185,11 @@ func (s *Syncer) documentSnapshot() (syncSnapshot, error) {
 }
 
 // restoreSecrets folds secret refs back into config values: an env-style ref
-// becomes env:NAME and a deployment-minted ref is read from the provider.
-func (s *Syncer) restoreSecrets(ctx context.Context, config map[string]any, refs map[string]string) error {
+// becomes env:NAME and a deployment-minted ref is read from the provider. A
+// value the provider no longer holds (session secrets die with the process)
+// is skipped; the comparison then reads the entity as changed and the
+// document's value flows back in.
+func (s *Syncer) restoreSecrets(ctx context.Context, config map[string]any, refs map[string]string) {
 	for path, ref := range refs {
 		if !strings.Contains(ref, "/") {
 			setConfigValue(config, path, "env:"+ref)
@@ -201,11 +197,10 @@ func (s *Syncer) restoreSecrets(ctx context.Context, config map[string]any, refs
 		}
 		secret, err := s.secrets.Read(ctx, ref)
 		if err != nil {
-			return fmt.Errorf("read secret %q: %w", ref, err)
+			continue
 		}
 		setConfigValue(config, path, string(secret.Value))
 	}
-	return nil
 }
 
 func (s *Syncer) writeConnectionYAML(kind, name string, connection model.Connection, exists bool) error {
@@ -266,24 +261,11 @@ func connectionsEqual(a, b model.Connection) bool {
 
 // pipelinesEqual compares the YAML-visible projection.
 func pipelinesEqual(a, b model.Pipeline) bool {
-	return a.Source.Ref == b.Source.Ref && a.Sink.Ref == b.Sink.Ref &&
-		a.SyncMode == b.SyncMode && a.WriteMode == b.WriteMode &&
-		reflect.DeepEqual(normalizeList(a.Resources), normalizeList(b.Resources)) &&
-		configsEqual(a.Source.Config, b.Source.Config) && configsEqual(a.Sink.Config, b.Sink.Config)
+	return model.PipelinesEquivalent(a, b)
 }
 
 func configsEqual(a, b map[string]any) bool {
-	if len(a) == 0 && len(b) == 0 {
-		return true
-	}
-	return reflect.DeepEqual(a, b)
-}
-
-func normalizeList(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	return values
+	return model.ConfigsEquivalent(a, b)
 }
 
 func setConfigValue(config map[string]any, path, value string) {
@@ -312,4 +294,67 @@ func union[V any](maps ...map[string]V) map[string]struct{} {
 		}
 	}
 	return keys
+}
+
+// BootReconcile makes the deployment match the document at startup: the
+// document is the durable truth for configuration while the deployment was
+// down, so document entities are pushed and deployment entities absent from
+// the document — deleted while down — are removed. Run history is never
+// touched. The syncer then starts from the converged state.
+func (s *Syncer) BootReconcile(ctx context.Context) error {
+	deployment, err := s.deploymentSnapshot(ctx)
+	if err != nil {
+		return err
+	}
+	document, err := s.documentSnapshot()
+	if err != nil {
+		return err
+	}
+	next := syncSnapshot{connections: map[string]model.Connection{}, pipelines: map[string]model.Pipeline{}}
+	for key, saved := range document.connections {
+		kind, name := splitKey(key)
+		deployed, onDeployment := deployment.connections[key]
+		if onDeployment && connectionsEqual(saved, deployed) {
+			next.connections[key] = deployed
+			continue
+		}
+		pushed, err := s.pushConnection(ctx, kind, name, saved, onDeployment, deployed)
+		if err != nil {
+			return fmt.Errorf("boot %s %q: %w", kind, name, err)
+		}
+		next.connections[key] = pushed
+	}
+	for name, saved := range document.pipelines {
+		deployed, onDeployment := deployment.pipelines[name]
+		if onDeployment && pipelinesEqual(saved, deployed) {
+			next.pipelines[name] = deployed
+			continue
+		}
+		pushed, err := s.pushPipeline(ctx, name, saved, onDeployment, deployed)
+		if err != nil {
+			return fmt.Errorf("boot pipeline %q: %w", name, err)
+		}
+		next.pipelines[name] = pushed
+	}
+	// Stray pipelines go before stray connections so nothing references a
+	// connection while it is deleted.
+	for name, deployed := range deployment.pipelines {
+		if _, ok := document.pipelines[name]; ok {
+			continue
+		}
+		if err := s.target.Target.DeletePipeline(ctx, name, deployed.Metadata); err != nil {
+			return fmt.Errorf("boot delete pipeline %q: %w", name, err)
+		}
+	}
+	for key, deployed := range deployment.connections {
+		if _, ok := document.connections[key]; ok {
+			continue
+		}
+		kind, name := splitKey(key)
+		if err := s.target.Target.DeleteConnection(ctx, kind, name, deployed.Metadata); err != nil {
+			return fmt.Errorf("boot delete %s %q: %w", kind, name, err)
+		}
+	}
+	s.base = next
+	return nil
 }

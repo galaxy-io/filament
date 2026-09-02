@@ -1,0 +1,29 @@
+WITH filtered AS (
+  SELECT {{.KeyExpr}} AS key, {{.BucketExpr}} AS bucket, records, bytes, started_at, ended_at, memory_peak_bytes, cpu_seconds
+  FROM runs
+  {{.Where}}
+),
+buckets(bucket) AS (
+  SELECT {{.BucketFrom}}
+  UNION ALL
+  SELECT bucket + {{.UnitMillis}} FROM buckets WHERE bucket + {{.UnitMillis}} <= {{.BucketTo}}
+),
+groups(key, ord) AS (
+  {{if .GroupKeysValues}}
+  VALUES {{.GroupKeysValues}}
+  {{else}}
+  SELECT key, row_number() OVER (ORDER BY key) AS ord FROM (
+    SELECT DISTINCT key FROM filtered
+    {{if .NoGroupBy}}UNION SELECT ''{{end}}
+  ) d
+  {{end}}
+),
+spine AS (
+  SELECT buckets.bucket AS bucket, groups.key AS key, groups.ord AS ord FROM buckets CROSS JOIN groups
+),
+agg AS (
+  SELECT key, bucket, {{.AggSelectList}} FROM filtered GROUP BY key, bucket
+)
+SELECT spine.key, spine.bucket, {{.AggColList}}
+FROM spine LEFT JOIN agg ON agg.key = spine.key AND agg.bucket = spine.bucket
+ORDER BY spine.ord, spine.bucket

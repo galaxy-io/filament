@@ -10,7 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/sample"
 	"github.com/galaxy-io/filament/connectors/stdout"
-	"github.com/galaxy-io/filament/datastore/memory"
+	sqlitestore "github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -50,7 +50,7 @@ func TestRunSampleToStdout(t *testing.T) {
 
 	RunOne(context.Background(), Deps{
 		Bus:       bus,
-		DataStore: memory.New(),
+		DataStore: sqlitestore.NewMemory(),
 		Sources:   sources,
 		Sinks:     sinks,
 	}, filament.RunSpec{

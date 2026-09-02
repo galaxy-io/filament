@@ -146,8 +146,9 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.23 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -165,6 +166,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
@@ -175,9 +177,12 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
+	github.com/pressly/goose/v3 v3.27.3 // indirect
 	github.com/pterm/pterm v0.12.83 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rs/xid v1.6.0 // indirect
+	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -217,6 +222,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	gocloud.dev v0.46.0 // indirect
@@ -244,6 +250,10 @@ require (
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a // indirect
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2 // indirect
+	modernc.org/libc v1.75.6 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.12.1 // indirect
+	modernc.org/sqlite v1.58.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.3 // indirect

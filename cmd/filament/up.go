@@ -63,30 +63,33 @@ func (a *cliApp) downCommand() *cobra.Command {
 func (a *cliApp) up(ctx context.Context, addr string) error {
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	options, secrets, err := a.embeddedOptions()
+	if err != nil {
+		return err
+	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
-	secrets := newEmbeddedSecrets()
 	done := make(chan error, 1)
 	go func() {
-		done <- app.Serve(ctx, listener, app.WithSecrets(secrets), app.WithUI(ui.Handler()))
+		done <- app.Serve(ctx, listener, append(options, app.WithUI(ui.Handler()))...)
 	}()
 	endpoint := "http://" + listener.Addr().String()
 	target := localtarget.NewTarget(
 		localtarget.Store{Path: a.configPath},
 		remotetarget.NewTarget(remotetarget.Options{Endpoint: endpoint}),
 	)
-	if err := target.Apply(ctx); err != nil {
-		stop()
-		<-done
-		return fmt.Errorf("apply %s: %w", a.configPath, err)
-	}
 	syncer, err := localtarget.NewSyncer(target, secrets)
 	if err != nil {
 		stop()
 		<-done
 		return fmt.Errorf("sync %s: %w", a.configPath, err)
+	}
+	if err := syncer.BootReconcile(ctx); err != nil {
+		stop()
+		<-done
+		return fmt.Errorf("reconcile %s: %w", a.configPath, err)
 	}
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
