@@ -28,17 +28,16 @@ func (a *cliApp) authCommand() *cobra.Command {
 		Use:   "auth",
 		Short: "Authenticate with a Filament deployment",
 	}
-	var server, tenant, clientID, clientSecret string
+	var server, clientID, clientSecret string
 	login := &cobra.Command{
 		Use:   "login",
 		Short: "Log in with a service account",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return a.authLogin(cmd.Context(), server, tenant, clientID, clientSecret)
+			return a.authLogin(cmd.Context(), server, clientID, clientSecret)
 		},
 	}
 	login.Flags().StringVar(&server, "server", "", "Filament server `URL`")
-	login.Flags().StringVar(&tenant, "tenant", "", "Deployment tenant `ID`")
 	login.Flags().StringVar(&clientID, "client-id", "", "Service account client `ID`")
 	login.Flags().StringVar(&clientSecret, "client-secret", "", "Service account client `SECRET`")
 	_ = login.MarkFlagRequired("server")
@@ -66,7 +65,7 @@ func (a *cliApp) authCommand() *cobra.Command {
 
 // authLogin verifies service-account credentials against the server before
 // anything is kept: a failed login leaves no profile and no context behind.
-func (a *cliApp) authLogin(ctx context.Context, server, tenant, clientID, clientSecret string) error {
+func (a *cliApp) authLogin(ctx context.Context, server, clientID, clientSecret string) error {
 	server = strings.TrimRight(server, "/")
 	parsed, err := url.ParseRequestURI(server)
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
@@ -119,7 +118,7 @@ func (a *cliApp) authLogin(ctx context.Context, server, tenant, clientID, client
 		return err
 	}
 	if _, err := registry.SetAndUse(name, contexts.Target{
-		Kind: contexts.KindRemote, Endpoint: server, Tenant: tenant, AuthProfile: name,
+		Kind: contexts.KindRemote, Endpoint: server, AuthProfile: name,
 	}); err != nil {
 		rollbackErr := restoreAuthProfile(store, name, previous, hadPrevious)
 		return errors.Join(err, rollbackErr)

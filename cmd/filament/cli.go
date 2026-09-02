@@ -83,7 +83,7 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 	}
 	a.target = selected
 	if selected.Target.Kind == contexts.KindRemote {
-		options := remotetarget.Options{Endpoint: selected.Target.Endpoint, Tenant: selected.Target.Tenant}
+		options := remotetarget.Options{Endpoint: selected.Target.Endpoint}
 		if profile := selected.Target.AuthProfile; profile != "" {
 			options.Tokens = cliauth.Source{Store: cliauth.Store{Path: a.credentialsPath()}, Profile: profile}
 		}

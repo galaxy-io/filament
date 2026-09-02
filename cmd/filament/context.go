@@ -37,14 +37,14 @@ Use --context NAME to select a context for one invocation.`,
 			return textrenderer.CurrentContext(a.stdout, current.Name)
 		},
 	}
-	var endpoint, tenant, authProfile string
+	var endpoint, authProfile string
 	add := &cobra.Command{
 		Use:   "add <name>",
 		Short: "Add a remote context",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			target := contexts.Target{
-				Kind: contexts.KindRemote, Endpoint: endpoint, Tenant: tenant, AuthProfile: authProfile,
+				Kind: contexts.KindRemote, Endpoint: endpoint, AuthProfile: authProfile,
 			}
 			if err := a.contextRegistry().Set(args[0], target); err != nil {
 				return err
@@ -53,7 +53,6 @@ Use --context NAME to select a context for one invocation.`,
 		},
 	}
 	add.Flags().StringVar(&endpoint, "server", "", "Filament server `URL`")
-	add.Flags().StringVar(&tenant, "tenant", "", "Deployment tenant `ID`")
 	add.Flags().StringVar(&authProfile, "auth-profile", "", "Stored authentication profile `NAME`")
 	_ = add.MarkFlagRequired("server")
 	cmd.AddCommand(
@@ -169,7 +168,7 @@ func (a *cliApp) listContexts(registry *contexts.Registry) error {
 		}
 		result.Items = append(result.Items, climodel.ContextSummary{
 			Name: item.Name, Current: current, Kind: string(item.Target.Kind),
-			Location: location, Tenant: item.Target.Tenant,
+			Location: location,
 		})
 	}
 	return textrenderer.Contexts(a.stdout, result, filepath.Base(a.contextPath))

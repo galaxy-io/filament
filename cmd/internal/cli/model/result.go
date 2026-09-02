@@ -87,7 +87,6 @@ type ContextSummary struct {
 	Current  bool
 	Kind     string
 	Location string
-	Tenant   string
 }
 
 // ConnectionList is the result of listing saved connections of one kind.

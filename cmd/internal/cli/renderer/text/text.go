@@ -21,9 +21,9 @@ func Contexts(w io.Writer, result model.ContextList, location string) error {
 		if item.Current {
 			marker = p.Accent("●")
 		}
-		rows = append(rows, []string{marker, item.Name, titleCase(item.Kind), item.Location, dash(item.Tenant)})
+		rows = append(rows, []string{marker, item.Name, titleCase(item.Kind), item.Location})
 	}
-	columns := []style.Column{{Title: " "}, {Title: "Name", Role: style.RolePrimary}, {Title: "Kind", Role: style.RoleSecondary}, {Title: "Location"}, {Title: "Tenant", Role: style.RoleSecondary}}
+	columns := []style.Column{{Title: " "}, {Title: "Name", Role: style.RolePrimary}, {Title: "Kind", Role: style.RoleSecondary}, {Title: "Location"}}
 	return table(w, p.Title("Contexts in", location), p.Table(columns, rows))
 }
 

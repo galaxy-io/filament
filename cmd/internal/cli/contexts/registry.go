@@ -37,7 +37,6 @@ type Target struct {
 	Kind        Kind   `yaml:"kind"`
 	ConfigPath  string `yaml:"config,omitempty"`
 	Endpoint    string `yaml:"endpoint,omitempty"`
-	Tenant      string `yaml:"tenant,omitempty"`
 	AuthProfile string `yaml:"auth_profile,omitempty"`
 }
 
