@@ -63,16 +63,3 @@ The e2e layer runs two full flows. The first pushes TPC-H data through
 JetStream from PostgreSQL to Iceberg, Trino-verified. The second drives the
 complete control-plane path through the Connect API, with connections,
 pipeline, run, and row-count assertions across two PostgreSQL containers.
-
-## Benchmarks
-
-Go benchmarks exist for the pipeline hot path and the in-process event bus.
-They are manual-only, with no justfile recipe, and never run in CI:
-
-```sh
-go test -bench=. -benchmem ./pipeline/...
-go test -bench=. -benchmem ./eventbus/...
-```
-
-What they measure and how to read them is covered in the
-[Benchmarks](/pages/benchmarks/overview).
