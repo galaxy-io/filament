@@ -25,7 +25,7 @@ func (s *Store) CreateConnection(ctx context.Context, c filament.Connection) (fi
 	if err != nil {
 		return filament.Connection{}, fmt.Errorf("datastore/postgres: create connection: %w", err)
 	}
-	return s.LoadConnection(ctx, c.ID)
+	return s.LoadConnection(ctx, filament.TenantID(c.Tenant), c.ID)
 }
 
 // UpdateConnection replaces a stored connection, enforcing optimistic version matching.
@@ -37,7 +37,7 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 	if err != nil {
 		return filament.Connection{}, err
 	}
-	newVersion, err := s.q.UpdateConnection(ctx, sqlcgen.UpdateConnectionParams{Name: c.Name, Connector: c.Connector, Config: configJSON, SecretRefs: refsJSON, ConnectionID: c.ID, ExpectedVersion: c.Version})
+	newVersion, err := s.q.UpdateConnection(ctx, sqlcgen.UpdateConnectionParams{Name: c.Name, Connector: c.Connector, Config: configJSON, SecretRefs: refsJSON, TenantID: c.Tenant, ConnectionID: c.ID, ExpectedVersion: c.Version})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.Connection{}, fmt.Errorf("update connection %q at version %d: %w", c.ID, c.Version, filament.ErrVersionConflict)
@@ -45,14 +45,14 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 		return filament.Connection{}, fmt.Errorf("datastore/postgres: update connection: %w", err)
 	}
 	c.Version = newVersion
-	return s.LoadConnection(ctx, c.ID)
+	return s.LoadConnection(ctx, filament.TenantID(c.Tenant), c.ID)
 }
 
 // LoadConnection returns the connection with the given ID, including
 // soft-deleted ones so callers can still read a deleted connection's metadata.
 // DeletedAt tells them apart.
-func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connection, error) {
-	row, err := s.q.GetConnection(ctx, id)
+func (s *Store) LoadConnection(ctx context.Context, tenant filament.TenantID, id string) (filament.Connection, error) {
+	row, err := s.q.GetConnection(ctx, sqlcgen.GetConnectionParams{TenantID: string(tenant), ConnectionID: id})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.Connection{}, fmt.Errorf("get connection %q: %w", id, filament.ErrNotFound)
@@ -96,8 +96,8 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 
 // DeleteConnection soft-deletes the connection with the given ID; deleting a
 // missing ID is a no-op. The name is freed for reuse by the partial unique index.
-func (s *Store) DeleteConnection(ctx context.Context, id string) error {
-	if err := s.q.DeleteConnection(ctx, id); err != nil {
+func (s *Store) DeleteConnection(ctx context.Context, tenant filament.TenantID, id string) error {
+	if err := s.q.DeleteConnection(ctx, sqlcgen.DeleteConnectionParams{TenantID: string(tenant), ConnectionID: id}); err != nil {
 		return fmt.Errorf("datastore/postgres: delete connection: %w", err)
 	}
 	return nil

@@ -119,6 +119,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 		server.WithSecrets(deps.Secrets),
 		server.WithMetricsStore(metricStore),
 		server.WithLogger(deps.Log),
+		server.WithDefaultTenant(filament.TenantID(defaultTenantID())),
 	}
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))

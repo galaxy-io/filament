@@ -20,7 +20,7 @@ var _ metricsv1connect.MetricsServiceHandler = (*Server)(nil)
 // QueryAggregate returns one row per group_by value (a single "" key when
 // group_by is unset) over [since_ms, until_ms).
 func (a *Server) QueryAggregate(ctx context.Context, req *connect.Request[metricsv1.QueryAggregateRequest]) (*connect.Response[metricsv1.QueryAggregateResponse], error) {
-	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (a *Server) QueryAggregate(ctx context.Context, req *connect.Request[metric
 	groupBy := metricDimensionFromProto(m.GetGroupBy())
 
 	rows, err := a.metrics.QueryRunAggregate(ctx, filament.RunAggregateQuery{
-		Tenant:  filament.TenantID(tenant),
+		Tenant:  tenant,
 		Metrics: metrics,
 		Since:   time.UnixMilli(m.GetSinceMs()),
 		Until:   untilOrNow(m.GetUntilMs()),
@@ -65,7 +65,7 @@ func (a *Server) QueryAggregate(ctx context.Context, req *connect.Request[metric
 // group_by value (a single "" series when group_by is unset) bucketed at the
 // requested granularity over [since_ms, until_ms).
 func (a *Server) QueryTimeseries(ctx context.Context, req *connect.Request[metricsv1.QueryTimeseriesRequest]) (*connect.Response[metricsv1.QueryTimeseriesResponse], error) {
-	tenant, err := tenantForRequest(ctx, req.Msg.GetTenantId())
+	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (a *Server) QueryTimeseries(ctx context.Context, req *connect.Request[metri
 	groupBy := metricDimensionFromProto(m.GetGroupBy())
 
 	series, err := a.metrics.QueryRunTimeseries(ctx, filament.RunTimeseriesQuery{
-		Tenant:          filament.TenantID(tenant),
+		Tenant:          tenant,
 		Metrics:         metrics,
 		Since:           time.UnixMilli(m.GetSinceMs()),
 		Until:           untilOrNow(m.GetUntilMs()),

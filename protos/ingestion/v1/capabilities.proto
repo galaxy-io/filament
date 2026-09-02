@@ -9,8 +9,7 @@ import "ingestion/v1/pipelines.proto";
 // ValidatePipelineRequest carries the graph inline so unsaved canvas state
 // validates the same as a persisted version.
 message ValidatePipelineRequest {
-  string tenant_id = 1;
-  PipelineGraph graph = 2;
+  PipelineGraph graph = 1;
 }
 
 enum RequirementKind {

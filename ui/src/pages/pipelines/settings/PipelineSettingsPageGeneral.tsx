@@ -75,7 +75,6 @@ const PipelineSettingsPageGeneral = () => {
 
   const handleSave = () => {
     const request = create(UpdatePipelineRequestSchema, {
-      tenantId: pipeline.tenantId,
       pipelineId: pipeline.id,
       name: state.name.trim(),
       description: state.description.trim(),

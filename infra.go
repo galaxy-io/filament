@@ -31,43 +31,43 @@ type DataStore interface {
 	// ErrVersionConflict returned, so a racing intake cannot roll a live run
 	// back to an earlier status.
 	CreateRun(ctx context.Context, s RunState) error
-	LoadRun(ctx context.Context, id RunID) (RunState, error)
+	LoadRun(ctx context.Context, tenant TenantID, id RunID) (RunState, error)
 	// ListRuns returns the page selected by the filter's Limit/Offset plus the
 	// total number of runs matching the filter before the page was cut.
 	ListRuns(ctx context.Context, f RunFilter) ([]RunState, int, error)
 	// DeleteRun removes a run and its resources. Only the scheduler calls it, to
 	// reap pre-created RunScheduled rows; deleting a run that ever executed would
 	// discard history. Deleting a missing run is a no-op.
-	DeleteRun(ctx context.Context, id RunID) error
+	DeleteRun(ctx context.Context, tenant TenantID, id RunID) error
 
 	UpsertResource(ctx context.Context, rs ResourceState) error // enabled toggle + progress
-	ListResources(ctx context.Context, id RunID) ([]ResourceState, error)
+	ListResources(ctx context.Context, tenant TenantID, id RunID) ([]ResourceState, error)
 
-	SaveCheckpoint(ctx context.Context, id RunID, cp Checkpoint) error
-	LoadCheckpoint(ctx context.Context, id RunID, resource string) (Checkpoint, error)
-	SaveResourceCheckpoint(ctx context.Context, state ResourceCheckpointState) error
-	LoadResourceCheckpoint(ctx context.Context, key ResourceCheckpointKey) (ResourceCheckpointState, error)
-	ListResourceCheckpoints(ctx context.Context, route ResourceCheckpointRoute) ([]ResourceCheckpointState, error)
-	DeleteResourceCheckpoint(ctx context.Context, key ResourceCheckpointKey) error
+	SaveCheckpoint(ctx context.Context, tenant TenantID, id RunID, cp Checkpoint) error
+	LoadCheckpoint(ctx context.Context, tenant TenantID, id RunID, resource string) (Checkpoint, error)
+	SaveResourceCheckpoint(ctx context.Context, tenant TenantID, state ResourceCheckpointState) error
+	LoadResourceCheckpoint(ctx context.Context, tenant TenantID, key ResourceCheckpointKey) (ResourceCheckpointState, error)
+	ListResourceCheckpoints(ctx context.Context, tenant TenantID, route ResourceCheckpointRoute) ([]ResourceCheckpointState, error)
+	DeleteResourceCheckpoint(ctx context.Context, tenant TenantID, key ResourceCheckpointKey) error
 
 	DedupSeen(ctx context.Context, tenant string, run RunID, seq uint64) (bool, error)
 
 	CreateConnection(ctx context.Context, c Connection) (Connection, error)
 	UpdateConnection(ctx context.Context, c Connection) (Connection, error)
-	LoadConnection(ctx context.Context, id string) (Connection, error)
+	LoadConnection(ctx context.Context, tenant TenantID, id string) (Connection, error)
 	ListConnections(ctx context.Context, f ConnectionFilter) ([]Connection, int, error)
-	DeleteConnection(ctx context.Context, id string) error
+	DeleteConnection(ctx context.Context, tenant TenantID, id string) error
 
 	CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
-	CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error)
+	CreatePipelineVersion(ctx context.Context, tenant TenantID, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error)
 	UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*ingestionv1.Pipeline, error)
 	// LoadPipeline includes soft-deleted pipelines; check DeletedAt before
 	// mutating or running one.
-	LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error)
-	LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
+	LoadPipeline(ctx context.Context, tenant TenantID, id string) (*ingestionv1.Pipeline, error)
+	LoadPipelineVersion(ctx context.Context, tenant TenantID, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error)
 	ListPipelineVersions(ctx context.Context, f PipelineVersionFilter) ([]*ingestionv1.PipelineVersion, int, error)
 	ListPipelines(ctx context.Context, f PipelineFilter) ([]*ingestionv1.Pipeline, int, error)
-	DeletePipeline(ctx context.Context, id string) error
+	DeletePipeline(ctx context.Context, tenant TenantID, id string) error
 	Name() string
 }
 
@@ -77,6 +77,7 @@ type DataStore interface {
 type RunTransitionStore interface {
 	TransitionRun(
 		ctx context.Context,
+		tenant TenantID,
 		id RunID,
 		from []RunStatus,
 		to RunStatus,
@@ -168,6 +169,7 @@ type PipelineFilter struct {
 
 // PipelineVersionFilter narrows a pipeline version listing.
 type PipelineVersionFilter struct {
+	Tenant     TenantID
 	PipelineID string
 	ListOptions
 }
@@ -193,12 +195,12 @@ const ScheduleLeaseTTL = 5 * time.Minute
 // concurrent schedulers never double-fire.
 type ScheduleStore interface {
 	SaveSchedule(ctx context.Context, s ScheduleState) error
-	LoadSchedule(ctx context.Context, id ScheduleID) (ScheduleState, error)
-	LoadPipelineSchedule(ctx context.Context, pipelineID string) (ScheduleState, error)
+	LoadSchedule(ctx context.Context, tenant TenantID, id ScheduleID) (ScheduleState, error)
+	LoadPipelineSchedule(ctx context.Context, tenant TenantID, pipelineID string) (ScheduleState, error)
 	ListSchedules(ctx context.Context, f ScheduleFilter) ([]ScheduleState, error)
-	DeleteSchedule(ctx context.Context, id ScheduleID) error
+	DeleteSchedule(ctx context.Context, tenant TenantID, id ScheduleID) error
 	ClaimDue(ctx context.Context, now time.Time, limit int) ([]ScheduleState, error) // SELECT … FOR UPDATE SKIP LOCKED
-	ReleaseScheduleClaim(ctx context.Context, id ScheduleID) error
+	ReleaseScheduleClaim(ctx context.Context, tenant TenantID, id ScheduleID) error
 }
 
 // PipelineScheduleStore atomically creates a pipeline and its optional primary

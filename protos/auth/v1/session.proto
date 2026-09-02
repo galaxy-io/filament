@@ -12,7 +12,7 @@ message GetAuthConfigResponse {
   // service_account_scopes are requested by non-interactive clients. The
   // provider owns these values so clients do not need provider-specific
   // project IDs or reserved scope knowledge.
-  repeated string service_account_scopes = 3;
+  repeated string service_account_scopes = 2;
 }
 
 // LoginRequest carries the credentials filament's own login page collected.

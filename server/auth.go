@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"sync"
 
@@ -38,27 +37,25 @@ var publicProcedures = map[string]bool{
 	authv1connect.AuthServiceAcceptInviteProcedure:  true,
 }
 
-// tenantForRequest returns the only tenant an RPC may operate on. When auth
-// is enabled, the caller's resolved tenant is authoritative and a conflicting
-// request value is rejected. Auth-disabled deployments retain their explicit
-// tenant behavior and fall back to the default tenant when none is supplied.
-func tenantForRequest(ctx context.Context, requested string) (string, error) {
-	if tenant, ok := identity.TenantFrom(ctx); ok {
-		authenticated := string(tenant)
-		if requested != "" && requested != authenticated {
-			return "", connect.NewError(connect.CodePermissionDenied, fmt.Errorf("tenant_id does not match authenticated tenant"))
-		}
-		return authenticated, nil
+// tenantFromContext returns the tenant established by the auth interceptor.
+// Missing tenant context is always an authentication failure: authenticated
+// requests get it from their caller and auth-disabled requests get the
+// configured single tenant from the same interceptor.
+func tenantFromContext(ctx context.Context) (filament.TenantID, error) {
+	tenant, ok := identity.TenantFrom(ctx)
+	if !ok {
+		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("request tenant is unavailable"))
 	}
-	return defaultTenant(requested), nil
+	return tenant, nil
 }
 
 // authInterceptor authenticates every RPC except the public session
 // procedures, resolves the caller's tenant, and puts the caller on the
 // context for handlers to scope their work by.
 type authInterceptor struct {
-	provider identity.Provider
-	store    filament.DataStore
+	provider      identity.Provider
+	store         filament.DataStore
+	defaultTenant filament.TenantID
 	// tenants caches ResolveTenant by provider organization id; a tenant
 	// only needs its row minted once per boot.
 	tenants sync.Map
@@ -97,6 +94,9 @@ func (i *authInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) 
 }
 
 func (i *authInterceptor) authenticate(ctx context.Context, procedure string, header http.Header) (context.Context, error) {
+	if i.provider == nil {
+		return identity.WithTenant(ctx, i.defaultTenant), nil
+	}
 	if publicProcedures[procedure] {
 		return ctx, nil
 	}

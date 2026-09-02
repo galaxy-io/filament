@@ -61,14 +61,14 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 }
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
-func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
+func (s *Store) CreatePipelineVersion(ctx context.Context, tenant filament.TenantID, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.pipelines[pipelineID]
-	if !ok {
+	if !ok || p.GetTenantId() != string(tenant) {
 		return nil, fmt.Errorf("pipeline %q: %w", pipelineID, filament.ErrNotFound)
 	}
 	versions := s.pipelineVersions[pipelineID]
@@ -98,7 +98,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stored, ok := s.pipelines[p.GetId()]
-	if !ok {
+	if !ok || stored.GetTenantId() != p.GetTenantId() {
 		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrNotFound)
 	}
 	stored.Name, stored.Description = p.GetName(), p.GetDescription()
@@ -111,14 +111,14 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 
 // LoadPipeline returns a pipeline by ID, including soft-deleted ones so callers
 // can still read a deleted pipeline's metadata. DeletedAt tells them apart.
-func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
+func (s *Store) LoadPipeline(ctx context.Context, tenant filament.TenantID, id string) (*ingestionv1.Pipeline, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	p, ok := s.pipelines[id]
-	if !ok {
+	if !ok || p.GetTenantId() != string(tenant) {
 		p, ok = s.deletedPipelines[id]
 	}
 	if !ok {
@@ -128,12 +128,15 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 }
 
 // LoadPipelineVersion returns a pipeline graph version, or the current version when version is zero.
-func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error) {
+func (s *Store) LoadPipelineVersion(ctx context.Context, tenant filament.TenantID, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if !s.pipelineOwnedLocked(tenant, pipelineID) {
+		return nil, fmt.Errorf("pipeline %q version %d: %w", pipelineID, version, filament.ErrNotFound)
+	}
 	if version == 0 {
 		if p := s.pipelines[pipelineID]; p != nil && p.GetCurrentVersion() != nil {
 			version = p.GetCurrentVersion().GetVersion()
@@ -154,6 +157,9 @@ func (s *Store) ListPipelineVersions(ctx context.Context, f filament.PipelineVer
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	if !s.pipelineOwnedLocked(f.Tenant, f.PipelineID) {
+		return nil, 0, nil
+	}
 	if f.SortBy == "" {
 		f.SortBy = "version"
 		f.SortDescending = true
@@ -191,7 +197,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	var out []*ingestionv1.Pipeline
 	appendMatching := func(pipelines map[string]*ingestionv1.Pipeline) {
 		for _, p := range pipelines {
-			if (f.Tenant == "" || p.GetTenantId() == f.Tenant) && matchesSearch(f.Search, p.GetName(), p.GetDescription()) {
+			if p.GetTenantId() == f.Tenant && matchesSearch(f.Search, p.GetName(), p.GetDescription()) {
 				out = append(out, clonePipeline(p))
 			}
 		}
@@ -225,13 +231,13 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 // scheduled runs so the scheduler stops firing it and nothing lingers as
 // upcoming work. Versions are kept so it stays readable. The name is stamped
 // with the delete time to mark it in raw listings.
-func (s *Store) DeletePipeline(ctx context.Context, id string) error {
+func (s *Store) DeletePipeline(ctx context.Context, tenant filament.TenantID, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if p, exists := s.pipelines[id]; exists {
+	if p, exists := s.pipelines[id]; exists && p.GetTenantId() == string(tenant) {
 		now := time.Now()
 		p.DeletedAt = now.UnixMilli()
 		p.Name = stampDeletedName(p.Name, now)
@@ -239,13 +245,13 @@ func (s *Store) DeletePipeline(ctx context.Context, id string) error {
 		delete(s.pipelines, id)
 	}
 	for scheduleID, schedule := range s.schedules {
-		if schedule.Spec.PipelineID == id {
+		if schedule.Spec.Tenant == tenant && schedule.Spec.PipelineID == id {
 			delete(s.schedules, scheduleID)
 			delete(s.scheduleClaims, scheduleID)
 		}
 	}
 	for runID, run := range s.runs {
-		if run.Request.PipelineID == id && run.Status == filament.RunScheduled {
+		if run.Tenant == tenant && run.Request.PipelineID == id && run.Status == filament.RunScheduled {
 			s.deleteRunLocked(runID)
 		}
 	}

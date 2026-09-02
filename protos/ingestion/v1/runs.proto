@@ -46,19 +46,18 @@ message RunOptions {
 }
 
 message RunPipelineRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
+  string pipeline_id = 1;
   // client_token salts the idempotency key so a deliberate re-run differs from a
   // double-click; reusing a token dedupes to the same runs.
-  string client_token = 3;
+  string client_token = 2;
   // options overrides engine throughput defaults for every run this call
   // produces. Unset (or any zero field) defers to defaults.
-  RunOptions options = 4;
+  RunOptions options = 3;
   // worker_configuration overrides the pipeline's own for this call only, field
   // by field: an empty field inherits the pipeline's value. The resolved result
   // is stamped onto each run, so editing the pipeline afterwards cannot change
   // a run already requested.
-  WorkerConfiguration worker_configuration = 5;
+  WorkerConfiguration worker_configuration = 4;
 }
 
 // PipelineEdgeRun ties one compiled pipeline edge to the run it produced.
@@ -74,10 +73,10 @@ message RunPipelineResponse {
 // RunResourceState reports progress for one resource in a run.
 message RunResourceState {
   string resource_name = 1;
-  RunStatus status = 3;
-  int64 records = 4;
-  int64 bytes = 5;
-  string error = 6;
+  RunStatus status = 2;
+  int64 records = 3;
+  int64 bytes = 4;
+  string error = 5;
 }
 
 // RunInfo is the run-level persisted state exposed by the API.
@@ -114,8 +113,7 @@ message RunSnapshot {
 }
 
 message GetRunRequest {
-  string tenant_id = 1;
-  string run_id = 2;
+  string run_id = 1;
 }
 
 message GetRunResponse {
@@ -123,17 +121,16 @@ message GetRunResponse {
 }
 
 message ListRunsRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-  optional string pipeline_version_id = 3;
-  repeated RunStatus status = 4;
-  PaginationRequest pagination = 5;
+  string pipeline_id = 1;
+  optional string pipeline_version_id = 2;
+  repeated RunStatus status = 3;
+  PaginationRequest pagination = 4;
   // since_ms/until_ms window on started_at (inclusive/exclusive, epoch
   // millis); 0 means unbounded. Runs that never started are excluded.
-  int64 since_ms = 6;
-  int64 until_ms = 7;
-  string search = 8;
-  SortingRequest sorting = 9;
+  int64 since_ms = 5;
+  int64 until_ms = 6;
+  string search = 7;
+  SortingRequest sorting = 8;
 }
 
 message ListRunsResponse {
@@ -142,19 +139,17 @@ message ListRunsResponse {
 }
 
 message SignalRunRequest {
-  string tenant_id = 1;
-  string run_id = 2;
-  RunSignal signal = 3;
+  string run_id = 1;
+  RunSignal signal = 2;
 }
 
 message SignalRunResponse {}
 
 message TailRunRequest {
-  string tenant_id = 1;
-  string run_id = 2;
+  string run_id = 1;
   // replay first emits events synthesized from the current snapshot (each marked
   // replay=true) so progress is correct on reconnect, before live facts stream.
-  bool should_replay = 3;
+  bool should_replay = 2;
 }
 
 // RunEventFields contains the optional measurements carried by a run event.

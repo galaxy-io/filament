@@ -11,8 +11,13 @@ import (
 
 const listResources = `-- name: ListResources :many
 SELECT run_id, resource_name, tenant_id, status, records, bytes, coalesce(error, '')::text AS error
-FROM run_resource_states WHERE run_id = $1 ORDER BY resource_name
+FROM run_resource_states WHERE tenant_id = $1 AND run_id = $2 ORDER BY resource_name
 `
+
+type ListResourcesParams struct {
+	TenantID string
+	RunID    string
+}
 
 type ListResourcesRow struct {
 	RunID        string
@@ -24,8 +29,8 @@ type ListResourcesRow struct {
 	Error        string
 }
 
-func (q *Queries) ListResources(ctx context.Context, runID string) ([]*ListResourcesRow, error) {
-	rows, err := q.db.Query(ctx, listResources, runID)
+func (q *Queries) ListResources(ctx context.Context, arg ListResourcesParams) ([]*ListResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listResources, arg.TenantID, arg.RunID)
 	if err != nil {
 		return nil, err
 	}
@@ -59,30 +64,36 @@ UPDATE run_resource_states SET
     bytes = CASE WHEN $2::boolean THEN bytes ELSE 0 END,
     error = NULL,
     updated_at = now()
-WHERE run_id = $3
+WHERE tenant_id = $3 AND run_id = $4
 `
 
 type ResetRunResourcesParams struct {
 	Status           int16
 	PreserveProgress bool
+	TenantID         string
 	RunID            string
 }
 
 func (q *Queries) ResetRunResources(ctx context.Context, arg ResetRunResourcesParams) error {
-	_, err := q.db.Exec(ctx, resetRunResources, arg.Status, arg.PreserveProgress, arg.RunID)
+	_, err := q.db.Exec(ctx, resetRunResources,
+		arg.Status,
+		arg.PreserveProgress,
+		arg.TenantID,
+		arg.RunID,
+	)
 	return err
 }
 
-const upsertResource = `-- name: UpsertResource :exec
+const upsertResource = `-- name: UpsertResource :execrows
 INSERT INTO run_resource_states (run_id, resource_name, tenant_id, status, records, bytes, error, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, nullif($7::text, ''), now())
 ON CONFLICT (run_id, resource_name) DO UPDATE SET
-    tenant_id = EXCLUDED.tenant_id,
     status = EXCLUDED.status,
     records = EXCLUDED.records,
     bytes = EXCLUDED.bytes,
     error = EXCLUDED.error,
     updated_at = now()
+WHERE run_resource_states.tenant_id = EXCLUDED.tenant_id
 `
 
 type UpsertResourceParams struct {
@@ -95,8 +106,8 @@ type UpsertResourceParams struct {
 	Error        string
 }
 
-func (q *Queries) UpsertResource(ctx context.Context, arg UpsertResourceParams) error {
-	_, err := q.db.Exec(ctx, upsertResource,
+func (q *Queries) UpsertResource(ctx context.Context, arg UpsertResourceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, upsertResource,
 		arg.RunID,
 		arg.ResourceName,
 		arg.TenantID,
@@ -105,5 +116,8 @@ func (q *Queries) UpsertResource(ctx context.Context, arg UpsertResourceParams) 
 		arg.Bytes,
 		arg.Error,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

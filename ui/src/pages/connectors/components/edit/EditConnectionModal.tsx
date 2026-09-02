@@ -62,7 +62,6 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
       create(UpdateConnectionRequestSchema, {
         connection: create(ConnectionSchema, {
           id: connection.id,
-          tenantId: connection.tenantId,
           kind: connection.kind,
           connector: connection.connector,
           name,

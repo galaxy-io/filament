@@ -68,7 +68,7 @@ type progressLoadErrorStore struct {
 	filament.DataStore
 }
 
-func (progressLoadErrorStore) LoadRun(context.Context, filament.RunID) (filament.RunState, error) {
+func (progressLoadErrorStore) LoadRun(context.Context, filament.TenantID, filament.RunID) (filament.RunState, error) {
 	return filament.RunState{}, errors.New("database unavailable")
 }
 
@@ -93,7 +93,7 @@ func TestRunOneDoesNotExecuteWithoutPublishedStart(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "publish run.started") {
 		t.Fatalf("RunOne error = %v, want run.started publication failure", err)
 	}
-	got, err := store.LoadRun(context.Background(), state.Run)
+	got, err := store.LoadRun(context.Background(), state.Tenant, state.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestRunOneRetriesAfterTransientStartPublishFailure(t *testing.T) {
 		t.Fatalf("admission failure published run.failed %q; the retry could never execute", msg)
 	case <-time.After(100 * time.Millisecond):
 	}
-	if got, _ := store.LoadRun(context.Background(), state.Run); got.Status != filament.RunRequested {
+	if got, _ := store.LoadRun(context.Background(), state.Tenant, state.Run); got.Status != filament.RunRequested {
 		t.Fatalf("status after failed admission = %v, want Requested", got.Status)
 	}
 
@@ -386,7 +386,7 @@ func TestSeedEmitterProgressIgnoresPartialAttemptCounters(t *testing.T) {
 		t.Fatal(err)
 	}
 	em := newEmitter(context.Background(), inproc.New(), nil, "tenant", "run")
-	if err := seedEmitterProgress(context.Background(), store, state.Run, em); err != nil {
+	if err := seedEmitterProgress(context.Background(), store, state.Tenant, state.Run, em); err != nil {
 		t.Fatal(err)
 	}
 	if records, bytes := em.runTotals(); records != 0 || bytes != 0 {

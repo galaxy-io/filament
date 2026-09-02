@@ -50,20 +50,17 @@ message MetricFilter {
 }
 
 message QueryTimeseriesRequest {
-  // tenant_id scopes the query; "" matches every tenant. Mirrors
-  // ListRunsRequest.tenant_id (ingestion.v1).
-  string tenant_id = 1;
   // metrics are computed together per bucket; point values align with this
   // order positionally.
-  repeated Metric metrics = 2;
-  int64 since_ms = 3; // inclusive
-  int64 until_ms = 4; // exclusive; unset = now
-  MetricGranularity granularity = 5;
+  repeated Metric metrics = 1;
+  int64 since_ms = 2; // inclusive
+  int64 until_ms = 3; // exclusive; unset = now
+  MetricGranularity granularity = 4;
   // tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
   // match the viewer's local calendar day.
-  int32 tz_offset_minutes = 6;
-  MetricDimension group_by = 7; // UNSPECIFIED = one total series, key ""
-  repeated MetricFilter filters = 8;
+  int32 tz_offset_minutes = 5;
+  MetricDimension group_by = 6; // UNSPECIFIED = one total series, key ""
+  repeated MetricFilter filters = 7;
 }
 
 // TimeseriesPoint.values[i] is request.metrics[i] for this bucket.
@@ -87,14 +84,11 @@ message QueryTimeseriesResponse {
 }
 
 message QueryAggregateRequest {
-  // tenant_id scopes the query; "" matches every tenant. Mirrors
-  // ListRunsRequest.tenant_id (ingestion.v1).
-  string tenant_id = 1;
-  repeated Metric metrics = 2;
-  int64 since_ms = 3; // inclusive
-  int64 until_ms = 4; // exclusive; unset = now
-  MetricDimension group_by = 5; // UNSPECIFIED = single total row, key ""
-  repeated MetricFilter filters = 6;
+  repeated Metric metrics = 1;
+  int64 since_ms = 2; // inclusive
+  int64 until_ms = 3; // exclusive; unset = now
+  MetricDimension group_by = 4; // UNSPECIFIED = single total row, key ""
+  repeated MetricFilter filters = 5;
 }
 
 // AggregateRow.values[i] is request.metrics[i] for this group.

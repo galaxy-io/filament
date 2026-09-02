@@ -32,7 +32,9 @@ type Server struct {
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
 	identity  identity.Provider
-	log       filament.Logger
+	// defaultTenant scopes every request when identity is disabled.
+	defaultTenant filament.TenantID
+	log           filament.Logger
 }
 
 // Option configures a Server.
@@ -51,6 +53,16 @@ func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) 
 // unimplemented.
 func WithIdentity(p identity.Provider) Option { return func(s *Server) { s.identity = p } }
 
+// WithDefaultTenant sets the only tenant available when authentication is
+// disabled. Authenticated requests always use the identity provider's tenant.
+func WithDefaultTenant(tenant filament.TenantID) Option {
+	return func(s *Server) {
+		if tenant != "" {
+			s.defaultTenant = tenant
+		}
+	}
+}
+
 // WithLogger sets the structured logger used for API diagnostics.
 func WithLogger(log filament.Logger) Option {
 	return func(s *Server) {
@@ -63,12 +75,13 @@ func WithLogger(log filament.Logger) Option {
 // New returns a Server wired to the given providers.
 func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
 	s := &Server{
-		sources:  sources,
-		sinks:    sinks,
-		store:    store,
-		orch:     orch,
-		bus:      bus,
-		compiler: &compile.Compiler{Store: store, Sources: sources, Sinks: sinks, DefaultTenant: defaultTenant("")},
+		sources:       sources,
+		sinks:         sinks,
+		store:         store,
+		orch:          orch,
+		bus:           bus,
+		defaultTenant: filament.DefaultTenantID,
+		compiler:      &compile.Compiler{Store: store, Sources: sources, Sinks: sinks},
 	}
 	if schedules, ok := store.(filament.PipelineScheduleStore); ok {
 		s.schedules = schedules
@@ -88,9 +101,9 @@ func (a *Server) Mount(mux *http.ServeMux) {
 	if a.log != nil {
 		opts = append(opts, connect.WithInterceptors(newLoggingInterceptor(a.log)))
 	}
-	if a.identity != nil {
-		opts = append(opts, connect.WithInterceptors(&authInterceptor{provider: a.identity, store: a.store}))
-	}
+	opts = append(opts, connect.WithInterceptors(&authInterceptor{
+		provider: a.identity, store: a.store, defaultTenant: a.defaultTenant,
+	}))
 	path, handler := ingestionv1connect.NewIngestionServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
 	path, handler = metricsv1connect.NewMetricsServiceHandler(a, opts...)

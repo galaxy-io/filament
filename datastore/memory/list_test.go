@@ -61,11 +61,11 @@ func TestListPipelinesAndVersionsSearchSortAndPage(t *testing.T) {
 	}
 
 	for range 2 {
-		if _, err := store.CreatePipelineVersion(ctx, "p-1", &ingestionv1.PipelineVersion{}); err != nil {
+		if _, err := store.CreatePipelineVersion(ctx, "t-1", "p-1", &ingestionv1.PipelineVersion{}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	versions, versionTotal, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: "p-1"})
+	versions, versionTotal, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{Tenant: "t-1", PipelineID: "p-1"})
 	if err != nil {
 		t.Fatal(err)
 	}

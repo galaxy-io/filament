@@ -15,11 +15,11 @@ message ConnectorSpec {
   string version = 4;
   repeated ReplicationMode modes = 5;
   ConfigSchema config_schema = 6;
-  string description = 8;
-  string dark_logo_url = 9;
-  string light_logo_url = 10;
-  string schema_field = 11;
-  ConnectorMaturity maturity = 12;
+  string description = 7;
+  string dark_logo_url = 8;
+  string light_logo_url = 9;
+  string schema_field = 10;
+  ConnectorMaturity maturity = 11;
 }
 
 enum ConnectorMaturity {
@@ -30,11 +30,10 @@ enum ConnectorMaturity {
 }
 
 message ListConnectorsRequest {
-  string tenant_id = 1;
-  ConnectorKind kind = 2;
-  PaginationRequest pagination = 3;
-  string search = 4;
-  SortingRequest sorting = 5;
+  ConnectorKind kind = 1;
+  PaginationRequest pagination = 2;
+  string search = 3;
+  SortingRequest sorting = 4;
 }
 
 message ListConnectorsResponse {
@@ -43,9 +42,8 @@ message ListConnectorsResponse {
 }
 
 message GetConnectorRequest {
-  string tenant_id = 1;
-  string connector = 2;
-  ConnectorKind kind = 3;
+  string connector = 1;
+  ConnectorKind kind = 2;
 }
 
 message GetConnectorResponse {
@@ -53,11 +51,10 @@ message GetConnectorResponse {
 }
 
 message ValidateConfigRequest {
-  string tenant_id = 1;
-  ConnectorKind kind = 2;
-  string connector = 3;
-  google.protobuf.Struct config = 4;
-  string connection_id = 6;
+  ConnectorKind kind = 1;
+  string connector = 2;
+  google.protobuf.Struct config = 3;
+  string connection_id = 4;
 }
 
 message ValidationError {
@@ -71,20 +68,19 @@ message ValidateConfigResponse {
 }
 
 message DiscoverResourcesRequest {
-  string tenant_id = 1;
-  string connector = 2;
-  google.protobuf.Struct config = 3;
-  bool refresh = 4;
-  string connection_id = 5;
+  string connector = 1;
+  google.protobuf.Struct config = 2;
+  bool refresh = 3;
+  string connection_id = 4;
 }
 
 message Resource {
   string name = 1;
   bool is_selectable = 2;
   repeated string primary_key = 3;
-  string selector = 5;
-  string display_name = 6;
-  map<string, string> metadata = 7;
+  string selector = 4;
+  string display_name = 5;
+  map<string, string> metadata = 6;
 }
 
 message DiscoverResourcesResponse {
@@ -92,11 +88,10 @@ message DiscoverResourcesResponse {
 }
 
 message GetResourceColumnsRequest {
-  string tenant_id = 1;
-  string connector = 2;
-  google.protobuf.Struct config = 3;
-  string connection_id = 4;
-  repeated string resources = 5;
+  string connector = 1;
+  google.protobuf.Struct config = 2;
+  string connection_id = 3;
+  repeated string resources = 4;
 }
 
 message ResourceColumn {

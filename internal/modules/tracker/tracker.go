@@ -248,7 +248,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		}); err != nil {
 			return err
 		}
-		m.flushResource(ctx, env.Run, env.Resource)
+		m.flushResource(ctx, env.Tenant, env.Run, env.Resource)
 		return nil
 
 	case events.ResourceFailedEvent:
@@ -303,7 +303,7 @@ func (m *Module) applyBatchWritten(ctx context.Context, env events.Envelope, d e
 	}
 	m.observeBatch(env, pipeline, d.Records, d.Bytes)
 	if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
-		if err := m.saveCheckpoint(ctx, env.Run, cp); err != nil {
+		if err := m.saveCheckpoint(ctx, env.Tenant, env.Run, cp); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
 				m.log.Error("checkpoint persistence failed", err,
@@ -324,7 +324,7 @@ func (m *Module) terminal(
 	promoteCommitGated bool,
 	fn func(*filament.RunState),
 ) error {
-	if err := m.flushRunFor(ctx, env.Run, promoteCommitGated, checkpointReason(status)); err != nil {
+	if err := m.flushRunFor(ctx, env.Tenant, env.Run, promoteCommitGated, checkpointReason(status)); err != nil {
 		return err
 	}
 	var labels runLabels
@@ -373,7 +373,7 @@ func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *f
 	if cp == nil {
 		return nil
 	}
-	return m.saveCheckpoint(ctx, env.Run, cp)
+	return m.saveCheckpoint(ctx, env.Tenant, env.Run, cp)
 }
 
 func (m *Module) rememberBoundary(env events.Envelope, policy filament.CheckpointPolicy) {
@@ -406,7 +406,7 @@ func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *filame
 	m.mu.Lock()
 	base, ok := m.cp[key]
 	if !ok {
-		base = m.loadCheckpoint(ctx, env.Run, env.Resource) // recover layout after a restart
+		base = m.loadCheckpoint(ctx, env.Tenant, env.Run, env.Resource) // recover layout after a restart
 		m.cp[key] = base
 	}
 	merged := checkpoint.MergeShardDelta(base, cp)
@@ -416,7 +416,7 @@ func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *filame
 	}
 	m.cp[key] = merged
 	m.since[key]++
-	persist := m.since[key] >= m.cadence(ctx, env.Run)
+	persist := m.since[key] >= m.cadence(ctx, env.Tenant, env.Run)
 	if persist {
 		m.since[key] = 0
 	}
@@ -433,7 +433,7 @@ func (m *Module) foldStream(ctx context.Context, env events.Envelope, cp *filame
 	m.mu.Lock()
 	base, ok := m.cp[key]
 	if !ok {
-		base = m.loadCheckpoint(ctx, env.Run, env.Resource) // recover position after a restart
+		base = m.loadCheckpoint(ctx, env.Tenant, env.Run, env.Resource) // recover position after a restart
 		m.cp[key] = base
 	}
 	merged := checkpoint.MergeStream(base, cp)
@@ -443,7 +443,7 @@ func (m *Module) foldStream(ctx context.Context, env events.Envelope, cp *filame
 	}
 	m.cp[key] = merged
 	m.since[key]++
-	persist := m.since[key] >= m.cadence(ctx, env.Run)
+	persist := m.since[key] >= m.cadence(ctx, env.Tenant, env.Run)
 	if persist {
 		m.since[key] = 0
 	}
@@ -463,7 +463,7 @@ func (m *Module) foldBitmap(ctx context.Context, env events.Envelope, part, ack,
 
 	base, ok := m.cp[key]
 	if !ok {
-		base = m.loadCheckpoint(ctx, env.Run, env.Resource) // recover layout after a restart
+		base = m.loadCheckpoint(ctx, env.Tenant, env.Run, env.Resource) // recover layout after a restart
 		m.cp[key] = base
 	}
 	acct, ok := m.bm[key]
@@ -493,12 +493,12 @@ func (m *Module) foldBitmap(ctx context.Context, env events.Envelope, part, ack,
 // flushResource flushes apply-durable progress at resource completion. A
 // commit-gated cursor remains tentative until the completed run fact proves
 // that sink Commit succeeded.
-func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource string) {
+func (m *Module) flushResource(ctx context.Context, tenant filament.TenantID, run filament.RunID, resource string) {
 	key := ckKey{run, resource}
 	m.mu.Lock()
 	cp := m.cp[key]
 	if cp == nil {
-		cp = m.loadCheckpoint(ctx, run, resource)
+		cp = m.loadCheckpoint(ctx, tenant, run, resource)
 	}
 	if promoted, ok := checkpoint.PromoteIncrementalBackfill(cp); ok {
 		cp = promoted
@@ -507,7 +507,7 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 	m.since[key] = 0
 	m.mu.Unlock()
 	if cp != nil {
-		if _, err := m.persistCheckpoint(ctx, run, cp, false, checkpointReasonResourceCompleted); err != nil {
+		if _, err := m.persistCheckpoint(ctx, tenant, run, cp, false, checkpointReasonResourceCompleted); err != nil {
 			m.observeCheckpointFailure()
 			if m.log != nil {
 				m.log.Error("checkpoint flush failed", err,
@@ -525,7 +525,7 @@ func (m *Module) flushResource(ctx context.Context, run filament.RunID, resource
 // cursors become durable only after a terminal fact proves the worker reached a
 // committed pause/completion boundary; other cursor modes retain their existing
 // attempt-local resume behavior.
-func (m *Module) flushRunFor(ctx context.Context, run filament.RunID, promoteCommitGated bool, reason checkpointReason) error {
+func (m *Module) flushRunFor(ctx context.Context, tenant filament.TenantID, run filament.RunID, promoteCommitGated bool, reason checkpointReason) error {
 	m.mu.Lock()
 	pending := make(map[string]filament.Checkpoint)
 	for key, cp := range m.cp {
@@ -541,7 +541,7 @@ func (m *Module) flushRunFor(ctx context.Context, run filament.RunID, promoteCom
 	failed := 0
 	var failures []error
 	for resource, cp := range pending {
-		wrote, err := m.persistCheckpoint(ctx, run, cp, promoteCommitGated, reason)
+		wrote, err := m.persistCheckpoint(ctx, tenant, run, cp, promoteCommitGated, reason)
 		if err != nil {
 			failed++
 			failures = append(failures, fmt.Errorf("persist checkpoint for resource %q (%s): %w", resource, reason, err))
@@ -566,12 +566,12 @@ func (m *Module) flushRunFor(ctx context.Context, run filament.RunID, promoteCom
 }
 
 // cadence is the run's CheckpointEvery (cached; default when unset).
-func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
+func (m *Module) cadence(ctx context.Context, tenant filament.TenantID, run filament.RunID) int {
 	if n, ok := m.every[run]; ok {
 		return n
 	}
 	n := filament.DefaultCheckpointEvery
-	if r, err := m.ds.LoadRun(ctx, run); err == nil && r.Request.Options.CheckpointEvery > 0 {
+	if r, err := m.ds.LoadRun(ctx, tenant, run); err == nil && r.Request.Options.CheckpointEvery > 0 {
 		n = r.Request.Options.CheckpointEvery
 	}
 	m.every[run] = n
@@ -580,13 +580,14 @@ func (m *Module) cadence(ctx context.Context, run filament.RunID) int {
 
 // saveCheckpoint persists attempt-local progress. Cross-run incremental and CDC
 // progress remains tentative until flushRun promotes it after the sink commits.
-func (m *Module) saveCheckpoint(ctx context.Context, run filament.RunID, cp filament.Checkpoint) error {
-	_, err := m.persistCheckpoint(ctx, run, cp, false, checkpointReasonProgress)
+func (m *Module) saveCheckpoint(ctx context.Context, tenant filament.TenantID, run filament.RunID, cp filament.Checkpoint) error {
+	_, err := m.persistCheckpoint(ctx, tenant, run, cp, false, checkpointReasonProgress)
 	return err
 }
 
 func (m *Module) persistCheckpoint(
 	ctx context.Context,
+	tenant filament.TenantID,
 	run filament.RunID,
 	cp filament.Checkpoint,
 	promoteCommitGated bool,
@@ -598,7 +599,7 @@ func (m *Module) persistCheckpoint(
 	if boundary == filament.CheckpointAfterCommit && !promoteCommitGated {
 		return false, nil
 	}
-	state, err := m.ds.LoadRun(ctx, run)
+	state, err := m.ds.LoadRun(ctx, tenant, run)
 	if err != nil {
 		return false, err
 	}
@@ -608,14 +609,14 @@ func (m *Module) persistCheckpoint(
 			return false, nil
 		}
 		if key, ok := state.Request.ResourceCheckpointKey(cp.Resource()); ok {
-			if err := m.ds.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: run, Checkpoint: cp}); err != nil {
+			if err := m.ds.SaveResourceCheckpoint(ctx, tenant, filament.ResourceCheckpointState{Key: key, Run: run, Checkpoint: cp}); err != nil {
 				return false, err
 			}
 			m.logCheckpointPersisted(run, cp, mode, "pipeline", reason)
 			return true, nil
 		}
 	}
-	if err := m.ds.SaveCheckpoint(ctx, run, cp); err != nil {
+	if err := m.ds.SaveCheckpoint(ctx, tenant, run, cp); err != nil {
 		return false, err
 	}
 	m.logCheckpointPersisted(run, cp, mode, "run", reason)
@@ -650,12 +651,12 @@ func (m *Module) logCheckpointPersisted(
 }
 
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.
-func (m *Module) loadCheckpoint(ctx context.Context, run filament.RunID, resource string) filament.Checkpoint {
-	if state, err := m.ds.LoadRun(ctx, run); err == nil {
+func (m *Module) loadCheckpoint(ctx context.Context, tenant filament.TenantID, run filament.RunID, resource string) filament.Checkpoint {
+	if state, err := m.ds.LoadRun(ctx, tenant, run); err == nil {
 		mode := filament.SourcePolicyForIngestion(filament.TypeFor(state.Request.IngestionTypes, resource)).Mode
 		if mode == filament.ModeIncremental || mode == filament.ModeCDC {
 			if key, ok := state.Request.ResourceCheckpointKey(resource); ok {
-				stored, err := m.ds.LoadResourceCheckpoint(ctx, key)
+				stored, err := m.ds.LoadResourceCheckpoint(ctx, tenant, key)
 				if err == nil {
 					return stored.Checkpoint
 				}
@@ -663,7 +664,7 @@ func (m *Module) loadCheckpoint(ctx context.Context, run filament.RunID, resourc
 			}
 		}
 	}
-	cp, err := m.ds.LoadCheckpoint(ctx, run, resource)
+	cp, err := m.ds.LoadCheckpoint(ctx, tenant, run, resource)
 	if err != nil {
 		return nil
 	}
@@ -676,7 +677,7 @@ func (m *Module) loadCheckpoint(ctx context.Context, run filament.RunID, resourc
 // fact doesn't touch (notably the original Request). The tracker's single pump
 // goroutine serializes these, so no row is lost to a concurrent fold.
 func (m *Module) mutate(ctx context.Context, env events.Envelope, fn func(*filament.RunState)) error {
-	r, err := m.ds.LoadRun(ctx, env.Run)
+	r, err := m.ds.LoadRun(ctx, env.Tenant, env.Run)
 	if errors.Is(err, filament.ErrNotFound) {
 		r = filament.RunState{Run: env.Run, Tenant: env.Tenant}
 	} else if err != nil {

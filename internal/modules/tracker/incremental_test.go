@@ -16,12 +16,12 @@ type failOnceCheckpointStore struct {
 	failed bool
 }
 
-func (s *failOnceCheckpointStore) SaveResourceCheckpoint(ctx context.Context, state filament.ResourceCheckpointState) error {
+func (s *failOnceCheckpointStore) SaveResourceCheckpoint(ctx context.Context, tenant filament.TenantID, state filament.ResourceCheckpointState) error {
 	if !s.failed {
 		s.failed = true
 		return errors.New("checkpoint unavailable")
 	}
-	return s.DataStore.SaveResourceCheckpoint(ctx, state)
+	return s.DataStore.SaveResourceCheckpoint(ctx, tenant, state)
 }
 
 func TestWatermarkProgressIsNotPersistedBeforeBatchWrite(t *testing.T) {
@@ -48,34 +48,34 @@ func TestIncrementalCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 	}
-	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
+	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Tenant: "tenant", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
 	}
 	m := New()
 	m.ds = store
 	cp := filament.NewCheckpoint("users").Set("watermark", "2026-08-04T00:00:00Z")
-	if err := m.saveCheckpoint(ctx, "run-a", cp); err != nil {
+	if err := m.saveCheckpoint(ctx, "tenant", "run-a", cp); err != nil {
 		t.Fatal(err)
 	}
 	m.cp[ckKey{run: "run-a", resource: "users"}] = cp
-	if err := m.flushRunFor(ctx, "run-a", false, checkpointReason("flush")); err != nil {
+	if err := m.flushRunFor(ctx, "tenant", "run-a", false, checkpointReason("flush")); err != nil {
 		t.Fatal(err)
 	}
 	key, _ := request.ResourceCheckpointKey("users")
-	if _, err := store.LoadResourceCheckpoint(ctx, key); err == nil {
+	if _, err := store.LoadResourceCheckpoint(ctx, "tenant", key); err == nil {
 		t.Fatal("partial run persisted a tentative checkpoint")
 	}
-	if err := m.flushRunFor(ctx, "run-a", true, checkpointReason("flush")); err != nil {
+	if err := m.flushRunFor(ctx, "tenant", "run-a", true, checkpointReason("flush")); err != nil {
 		t.Fatal(err)
 	}
-	stored, err := store.LoadResourceCheckpoint(ctx, key)
+	stored, err := store.LoadResourceCheckpoint(ctx, "tenant", key)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if stored.Checkpoint.String("watermark") != "2026-08-04T00:00:00Z" {
 		t.Fatalf("stored checkpoint = %#v", stored.Checkpoint.Raw())
 	}
-	if got := m.loadCheckpoint(ctx, "run-a", "users"); got == nil || got.String("watermark") == "" {
+	if got := m.loadCheckpoint(ctx, "tenant", "run-a", "users"); got == nil || got.String("watermark") == "" {
 		t.Fatalf("loaded checkpoint = %#v", got)
 	}
 }
@@ -104,7 +104,7 @@ func TestPausedAcknowledgementCommitsCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	key, _ := request.ResourceCheckpointKey("users")
-	stored, err := store.LoadResourceCheckpoint(ctx, key)
+	stored, err := store.LoadResourceCheckpoint(ctx, "tenant", key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestPausedAcknowledgementWaitsForCheckpointPromotion(t *testing.T) {
 	if err := m.onFact(ctx, msg); err == nil {
 		t.Fatal("pause succeeded despite failed checkpoint promotion")
 	}
-	state, err := base.LoadRun(ctx, "run-a")
+	state, err := base.LoadRun(ctx, "tenant", "run-a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestPausedAcknowledgementWaitsForCheckpointPromotion(t *testing.T) {
 	if err := m.onFact(ctx, msg); err != nil {
 		t.Fatalf("retry pause: %v", err)
 	}
-	state, err = base.LoadRun(ctx, "run-a")
+	state, err = base.LoadRun(ctx, "tenant", "run-a")
 	if err != nil || state.Status != filament.RunPaused {
 		t.Fatalf("status after retry = %v, %v", state.Status, err)
 	}
@@ -160,24 +160,24 @@ func TestCDCCheckpointBecomesDurableOnlyAfterCommit(t *testing.T) {
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionCDCMerge},
 	}
-	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
+	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Tenant: "tenant", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
 	}
 	m := New()
 	m.ds = store
 	cp := checkpoint.NewStreamDelta("users", "0/16B6C50", 8)
 	m.cp[ckKey{run: "run-a", resource: "users"}] = cp
-	if err := m.flushRunFor(ctx, "run-a", false, checkpointReason("flush")); err != nil {
+	if err := m.flushRunFor(ctx, "tenant", "run-a", false, checkpointReason("flush")); err != nil {
 		t.Fatal(err)
 	}
 	key, _ := request.ResourceCheckpointKey("users")
-	if _, err := store.LoadResourceCheckpoint(ctx, key); err == nil {
+	if _, err := store.LoadResourceCheckpoint(ctx, "tenant", key); err == nil {
 		t.Fatal("partial CDC run persisted a tentative checkpoint")
 	}
-	if err := m.flushRunFor(ctx, "run-a", true, checkpointReason("flush")); err != nil {
+	if err := m.flushRunFor(ctx, "tenant", "run-a", true, checkpointReason("flush")); err != nil {
 		t.Fatal(err)
 	}
-	stored, err := store.LoadResourceCheckpoint(ctx, key)
+	stored, err := store.LoadResourceCheckpoint(ctx, "tenant", key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestCompletedBackfillPromotesInitialWatermarkAfterRunCommit(t *testing.T) {
 		PipelineID: "pipe", PipelineVersionID: "version-3", CheckpointRoute: "route/source/sink",
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 	}
-	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Status: filament.RunRunning, Request: request}); err != nil {
+	if err := store.SaveRun(ctx, filament.RunState{Run: "run-a", Tenant: "tenant", Status: filament.RunRunning, Request: request}); err != nil {
 		t.Fatal(err)
 	}
 	backfill := checkpoint.AsIncrementalBackfill(
@@ -203,14 +203,14 @@ func TestCompletedBackfillPromotesInitialWatermarkAfterRunCommit(t *testing.T) {
 		[]string{"2026-08-04T00:00:00Z", "9"}, 300,
 	).ToCheckpoint("users")
 	key, _ := request.ResourceCheckpointKey("users")
-	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: backfill}); err != nil {
+	if err := store.SaveResourceCheckpoint(ctx, "tenant", filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: backfill}); err != nil {
 		t.Fatal(err)
 	}
 	m := New()
 	m.ds = store
 	m.boundary[ckKey{run: "run-a", resource: "users"}] = filament.CheckpointAfterCommit
-	m.flushResource(ctx, "run-a", "users")
-	beforeCommit, err := store.LoadResourceCheckpoint(ctx, key)
+	m.flushResource(ctx, "tenant", "run-a", "users")
+	beforeCommit, err := store.LoadResourceCheckpoint(ctx, "tenant", key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,10 +218,10 @@ func TestCompletedBackfillPromotesInitialWatermarkAfterRunCommit(t *testing.T) {
 	if !ok || beforePlan.Mode != checkpoint.ModeIncrementalBackfill {
 		t.Fatalf("resource completion promoted checkpoint before commit: %#v", beforeCommit.Checkpoint.Raw())
 	}
-	if err := m.flushRunFor(ctx, "run-a", true, checkpointReason("flush")); err != nil {
+	if err := m.flushRunFor(ctx, "tenant", "run-a", true, checkpointReason("flush")); err != nil {
 		t.Fatal(err)
 	}
-	stored, err := store.LoadResourceCheckpoint(ctx, key)
+	stored, err := store.LoadResourceCheckpoint(ctx, "tenant", key)
 	if err != nil {
 		t.Fatal(err)
 	}

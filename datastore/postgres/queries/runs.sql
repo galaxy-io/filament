@@ -1,8 +1,7 @@
--- name: SaveRun :exec
+-- name: SaveRun :execrows
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
 VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, '')::uuid, nullif(@pipeline_version_id::text, '')::uuid, nullif(@schedule_id::text, '')::uuid, @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
 ON CONFLICT (id) DO UPDATE SET
-    tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     pipeline_version_id = EXCLUDED.pipeline_version_id,
     schedule_id = EXCLUDED.schedule_id,
@@ -21,7 +20,8 @@ ON CONFLICT (id) DO UPDATE SET
     error = EXCLUDED.error,
     cpu_seconds = EXCLUDED.cpu_seconds,
     memory_peak_bytes = EXCLUDED.memory_peak_bytes,
-    updated_at = now();
+    updated_at = now()
+WHERE runs.tenant_id = EXCLUDED.tenant_id;
 
 -- CreateRun inserts a run or promotes a pre-created scheduled row. The update
 -- arm only fires while the existing row is still at @from_status, so a racing
@@ -30,7 +30,6 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, updated_at)
 VALUES (@run_id, @tenant_id, nullif(@pipeline_id::text, '')::uuid, nullif(@pipeline_version_id::text, '')::uuid, nullif(@schedule_id::text, '')::uuid, @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error::text, ''), @cpu_seconds, @memory_peak_bytes, now())
 ON CONFLICT (id) DO UPDATE SET
-    tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     pipeline_version_id = EXCLUDED.pipeline_version_id,
     schedule_id = EXCLUDED.schedule_id,
@@ -46,20 +45,20 @@ ON CONFLICT (id) DO UPDATE SET
     cpu_seconds = EXCLUDED.cpu_seconds,
     memory_peak_bytes = EXCLUDED.memory_peak_bytes,
     updated_at = now()
-WHERE runs.status = @from_status;
+WHERE runs.tenant_id = EXCLUDED.tenant_id AND runs.status = @from_status;
 
 -- name: DeleteRun :exec
-DELETE FROM runs WHERE id = @run_id;
+DELETE FROM runs WHERE tenant_id = @tenant_id AND id = @run_id;
 
 -- name: LockRunStatus :one
-SELECT status FROM runs WHERE id = @run_id FOR UPDATE;
+SELECT status FROM runs WHERE tenant_id = @tenant_id AND id = @run_id FOR UPDATE;
 
 -- name: TransitionRun :exec
 UPDATE runs SET
     status = @status,
     ended_at = CASE WHEN @stamp_ended::boolean THEN coalesce(ended_at, now()) ELSE ended_at END,
     updated_at = now()
-WHERE id = @run_id;
+WHERE tenant_id = @tenant_id AND id = @run_id;
 
 -- name: ResetRunExecution :exec
 UPDATE runs SET
@@ -73,19 +72,19 @@ UPDATE runs SET
     ended_at = NULL,
     error = NULL,
     updated_at = now()
-WHERE id = @run_id;
+WHERE tenant_id = @tenant_id AND id = @run_id;
 
 -- Reaps a pipeline's pre-created scheduled runs by the pipeline_id column:
 -- deleting the schedules row SET-NULLs runs.schedule_id, so schedule-scoped
 -- lookups cannot find these rows once the delete tx is underway.
 -- name: DeletePipelineScheduledRuns :exec
-DELETE FROM runs WHERE pipeline_id = @pipeline_id AND status = @status;
+DELETE FROM runs WHERE tenant_id = @tenant_id AND pipeline_id = @pipeline_id AND status = @status;
 
 -- Reaps a schedule's pre-created scheduled runs; must run before the schedules
 -- row is deleted, since that delete SET-NULLs runs.schedule_id.
 -- name: DeleteScheduleScheduledRuns :exec
-DELETE FROM runs WHERE schedule_id = @schedule_id AND status = @status;
+DELETE FROM runs WHERE tenant_id = @tenant_id AND schedule_id = @schedule_id AND status = @status;
 
 -- name: LoadRun :one
 SELECT id, tenant_id, coalesce(schedule_id::text, '')::text AS schedule_id, status, request, records, bytes, created_at, scheduled_at, requested_at, started_at, ended_at, updated_at, coalesce(error, '')::text AS error, cpu_seconds, memory_peak_bytes
-FROM runs WHERE id = @run_id;
+FROM runs WHERE tenant_id = @tenant_id AND id = @run_id;
