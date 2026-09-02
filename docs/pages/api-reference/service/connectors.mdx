@@ -1,12 +1,13 @@
 ---
 title: "Connectors"
-description: "The connector catalog of registered sources, sinks, config schemas, and live probes"
+description: "Discover the sources and sinks available in a Filament deployment"
 ---
 
-Defined in `protos/ingestion/v1/connectors.proto`. These RPCs are how a client
-discovers what connectors this deployment registered and what configuration
-each accepts, without a hardcoded list. Three probe RPCs exercise a candidate
-config against the live external system before anything is persisted.
+Use these RPCs to discover the connectors compiled into a deployment and build
+configuration forms from their schemas. Resource discovery and column lookup
+may query the external source. Configuration validation checks values locally;
+it is not a connection test. The messages are defined in
+`protos/ingestion/v1/connectors.proto`.
 
 ## RPCs
 
@@ -14,11 +15,12 @@ config against the live external system before anything is persisted.
 |---|---|
 | `ListConnectors` | Catalog the registered connectors and their config schemas |
 | `GetConnector` | Fetch one connector's spec by name and kind |
-| `ValidateConfig` | Check a candidate config against the schema and the live system |
+| `ValidateConfig` | Check a candidate config without saving it |
 | `DiscoverResources` | List the tables or resources a source config exposes |
 | `GetResourceColumns` | Load per-column metadata for selected resources |
 
-The catalog and probe RPCs run under a 5-second server-side timeout.
+The catalog, validation, and resource discovery RPCs run under a 5-second
+server-side timeout.
 `GetResourceColumns` gets 30 seconds because it queries the external system
 per resource. `DiscoverResources` and `GetResourceColumns` return
 `unimplemented` for connectors that don't support discovery or column
@@ -45,17 +47,19 @@ combination returns `not_found`.
 
 ## ValidateConfig
 
-Runs the submitted `config` through schema validation and the connector's own
-`Validate()`, which typically opens a real connection to the external
-system. Results come back in-band:
+Runs the submitted `config` through the connector's schema and local
+configuration checks. It catches problems such as missing fields, invalid enum
+values, and incompatible settings. It does not call the connector's live
+`TestConnection` method, so network and credential failures can still appear
+during discovery or a run. Validation results are returned in the response:
 
 ```json
 {"valid": false, "errors": [{"field": "port", "message": "port is required"}]}
 ```
 
-A failed validation is a successful RPC. The call only errors for transport or
-catalog problems (unknown connector, missing kind), so a client can render
-every field error at once rather than unwrapping one RPC error.
+An invalid config still produces a successful RPC with `valid: false`. RPC
+errors are reserved for problems such as an unknown connector or missing
+connector kind, which lets a client display all field errors together.
 
 Pass `connection_id` to validate an edit to an existing
 [connection](/pages/api-reference/service/connections). The submitted config

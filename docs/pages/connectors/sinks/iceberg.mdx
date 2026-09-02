@@ -4,12 +4,17 @@ description: "Write Parquet data files to Apache Iceberg tables"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg"
 ---
 
-`connectors/iceberg` (registered as `iceberg`, **alpha**) writes records as
-Parquet data files into Apache Iceberg tables through a REST or
-[iceberg-go](https://github.com/apache/iceberg-go)-registered catalog. It is
-the engine's only transactional sink. `Apply` calls only buffer, and every
-catalog and object-store write happens at `Commit` — one Iceberg transaction
-per resource, so readers never see a half-written run.
+The Iceberg sink (**alpha**) writes Arrow batches as Parquet data files through
+a REST or [iceberg-go](https://github.com/apache/iceberg-go)-registered
+catalog. Rows remain staged until their resource commits.
+
+<Warning>
+  Atomicity is per resource, not per pipeline run. If a run moves several
+  resources, an earlier table can commit before a later table fails. Namespace,
+  table, and add-only schema changes can also become visible before data is
+  committed. Filament does not provide one exactly-once transaction across the
+  route.
+</Warning>
 
 ## Configuration
 
@@ -55,11 +60,10 @@ catalog and lists namespaces.
 
 ## Supported write modes
 
-The sink advertises `full_replace`, `full_append`, `full_upsert`,
-`incremental_upsert`, `incremental_delete`, `cdc_append`, and `cdc_merge`. See
-[replication modes](/pages/guides/concepts/replication-modes). Delete support
-is real and advertised, so `incremental_delete` pipelines can hard-delete rows
-from Iceberg tables.
+The sink supports full replace, append, and upsert; incremental upsert and
+delete; and CDC append and merge. Incremental delete can hard-delete rows from
+Iceberg tables. See
+[replication modes](/pages/guides/concepts/replication-modes).
 
 ## Table management
 
@@ -86,18 +90,19 @@ collides with Iceberg's reserved metadata names gets a `_` suffix.
 
 Primary key fields become the table's identifier fields.
 
-Array columns land as their source's literal text. A table created by an older
+Array columns are written as their source's literal text. A table created by an older
 Filament version with a `list` column for the same source column must be
 recreated; commits fail on the type mismatch rather than rewriting the column.
 
 ## Write mechanics and atomicity
 
-The sink implements `filament.Transactional`: `Stage` opens a scope and `Apply`
-retains each resource's owned Arrow batches, spilling them to an LZ4 Arrow IPC
-file once the buffer passes `stage_buffer_limit_mb`. `Promote` commits every
-resource in the stage as an Iceberg transaction and drops the stage only after
-all resources succeed. A retry skips resources that already committed. Used
-directly without `Stage`, `Commit` opens and promotes an implicit stage.
+The sink buffers each resource's Arrow batches and spills them to a compressed
+temporary file after `stage_buffer_limit_mb`. At commit, it writes the buffered
+rows to Parquet and updates the Iceberg table.
+
+`EnsureSchema` is outside the stage. It may create the namespace or table, or
+commit add-only schema evolution, before extraction begins. Those catalog
+changes can therefore be visible even if the later run fails.
 
 Buffering validates operations against the bound mode:
 
@@ -105,26 +110,25 @@ Buffering validates operations against the bound mode:
 - replace rejects deletes
 - upsert, delete, and merge require key fields
 
-At commit, batches are conformed to the table's Arrow schema (including int16
-to int32, UUID text to UUID, and unbounded numeric text to decimal(38,9)) and
-streamed to the Parquet writer batch by batch. The sink reloads each table from
-the catalog first, picking up freshly vended storage credentials, and opens one
-Iceberg transaction:
+At commit, the sink converts batches to the table's Arrow schema and streams
+them to the Parquet writer. It reloads each table from the catalog first so it
+uses current storage credentials, then opens one Iceberg transaction:
 
-- **append**: `txn.Append` of Arrow record batches in 8,192-row chunks.
-- **replace**: `txn.Overwrite` with the run's records. A replace run that
+- **append** adds Arrow record batches in 8,192-row chunks.
+- **replace** overwrites the table with the run's records. A replace run that
   produced **zero records still overwrites the table to empty**. An empty
   source empties the destination.
-- **upsert / delete / merge**: records are collapsed to the latest entry per
-  key (later ops win), then applied as `txn.Delete` or `txn.Overwrite` with a
-  key filter.
+- **upsert, delete, and merge** keep the latest operation for each key, then
+  update or delete matching rows.
 
-Nothing is visible to readers until each resource's transaction commits, so
-per-run visibility is effectively exactly-once. `Commit` is retry-safe.
-Resources that already committed are skipped on a retried commit.
+Buffered rows are invisible until their resource transaction commits. A run
+with several resources commits them sequentially, so a later resource can fail
+after an earlier one is already visible. Repeating `Commit` on the same open
+sink skips resources it already committed, but the engine does not provide one
+atomic transaction or exactly-once boundary across the route.
 
 ## Failure behavior
 
-`Abort` discards the in-memory buffers and temporary spill files. No catalog
-or object-store state was written before `Commit`, so a failed run leaves
-every destination table exactly as it was.
+`Abort` discards in-memory buffers and temporary spill files. It does not undo
+namespace/table creation, schema evolution from `EnsureSchema`, or any resource
+transaction that committed before a later resource failed.

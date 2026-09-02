@@ -15,11 +15,10 @@ brew bundle
 
 ## Workspace layout
 
-The repository is a multi-module Go workspace (root, `cmd/`,
-`connectors/iceberg`, `connectors/object`, `secret/aws`, `tests/`, and more
-as they land) stitched together by `go.work` for editing. Builds, tests, and lint all run with
-`GOWORK=off` per module. The justfile handles this, so each module is
-verified against its own `go.mod`, not the workspace.
+The repository contains several Go modules joined by `go.work`, including the
+root module, `cmd/`, selected connectors and secret providers, and `tests/`.
+The justfile checks each module with `GOWORK=off`, so it is verified against its
+own `go.mod` rather than dependencies supplied only by the workspace.
 
 ## The justfile is the dev CLI
 

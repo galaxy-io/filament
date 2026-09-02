@@ -1,12 +1,17 @@
 ---
 title: "Railway"
-description: "One-click deploy on Railway"
+description: "Current options for running Filament on Railway"
 ---
 
-<Note>
-  This page is a placeholder. A one-click Railway template is on the way.
-</Note>
+Filament does not currently publish a supported one-click Railway template.
+For a temporary evaluation, deploy
+`ghcr.io/galaxy-io/filament/standalone` and expose port 8080. Its connections,
+pipelines, runs, and checkpoints are held in memory and disappear whenever the
+service restarts or redeploys.
 
-Until then, see [Kubernetes](/pages/guides/deployment/kubernetes) for the
-Helm chart, or [Installation](/pages/guides/get-started/installation) for the
-standalone binary and container images.
+For durable operation, run the split server and control-plane images with
+Postgres and NATS. Railway has no Kubernetes Jobs API, so set
+`DISPATCH_MODE=inproc`; runs then share the control-plane service's CPU and
+memory. Use the [configuration reference](/pages/guides/deployment/configuration)
+for required variables. This deployment path is manual and is not currently
+covered by a Filament template or deployment test.

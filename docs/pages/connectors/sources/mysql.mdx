@@ -28,26 +28,18 @@ timestamp-watermark incremental reads, and binlog CDC. The connector is beta.
 
 ## Snapshot reads
 
-InnoDB clusters rows by primary key, so key order is physical order. Every
-table with a primary key reads via keyset (`WHERE pk > cursor ORDER BY pk
-LIMIT page_size`), and each page is a sequential range scan of the clustered
-index. There is no separate physical-scan tier as on PostgreSQL.
+Tables with a primary key use ordered keyset reads. This works well with
+InnoDB because the primary key also determines physical row order. Filament
+saves the last key so an interrupted read can resume.
 
-Large tables split into primary-key range shards, sized from
-`information_schema.TABLES.DATA_LENGTH` divided by the InnoDB page size and
-the configured `shard_pages`, capped at 64 shards. An integer leading key
-splits arithmetically over `MIN`/`MAX`, while anything else (UUID, varchar,
-datetime) gets equal-count boundaries sampled via a single `ROW_NUMBER()`
-scan. Cursor predicates are written as a disjunctive expansion
-(`a > ? OR (a = ? AND b > ?)`) because MySQL's range optimizer cannot use a
-row-constructor comparison for an index seek.
+Large tables can be divided into as many as 64 primary-key ranges. Integer
+keys use numeric boundaries; UUID, text, and datetime keys use sampled ranges
+with roughly equal row counts. Composite keys are also supported.
 
-Each shard runs in its own `REPEATABLE READ` transaction opened `WITH
-CONSISTENT SNAPSHOT, READ ONLY`. These are per-shard snapshots, not one
-shared snapshot across the run. Unlike the PostgreSQL source, parallel
-shards may observe the table at slightly different moments. Rows are read
-through the driver's text protocol and parsed directly into Arrow-backed row
-writers; binary columns remain raw bytes.
+Each range uses its own consistent, read-only snapshot. Parallel ranges may
+therefore observe the table at slightly different moments; the MySQL source
+does not provide one shared snapshot across the entire run. Binary values
+remain raw bytes when they are written into Arrow batches.
 
 A table without a primary key is read in a single streaming pass. That pass is
 not resumable, so a resume re-reads the whole table.
@@ -80,24 +72,30 @@ CREATE INDEX users_incremental_idx ON users (updated_at, id);
 ## CDC
 
 CDC connects as a binlog replica (go-mysql `BinlogSyncer`) and decodes
-insert, update, and delete events into the same row shape the snapshot
+insert, update, and delete events into the same columns the snapshot
 reader produces. Runs have catch-up semantics. Each captures the server's
 current binlog position as a watermark, streams from the checkpoint up to it,
 and returns. Continuous CDC is a re-request loop, so it can run on a schedule.
 No-change runs still persist the watermark.
 
-The cursor is a **GTID set** when the server runs `gtid_mode=ON` (preferred,
-since a GTID set survives replica promotion), falling back to **file:pos**
-otherwise. An existing file:pos checkpoint keeps that cursor kind even if the
-server later enables GTIDs. GTID checkpoints record the last committed
-transaction. A crash mid-transaction replays the whole transaction, which the
-sink's idempotent merge absorbs.
+| Binlog position | When it is used | Operational effect |
+|---|---|---|
+| GTID set | `gtid_mode=ON` | Preferred because it survives replica promotion |
+| File and position | GTID is disabled | Tied to the current binlog file sequence |
+
+An existing file-position checkpoint keeps that format if GTID is enabled
+later. GTID checkpoints advance after a committed transaction. A crash during
+a transaction replays the whole transaction, so use merge writes that converge
+by primary key.
 
 <Warning>
   MySQL CDC does not snapshot existing rows. The first run starts at the
   current binlog tail, so rows present before the pipeline was created are
-  never emitted by CDC. To backfill, run a full pipeline against the same
-  tables first, then switch to CDC.
+  never emitted by CDC. Replication mode cannot be changed on an existing
+  connection. To backfill, create a standard connection and full pipeline,
+  complete that run, then create a separate CDC connection and route for new
+  changes. Plan the handoff carefully because the two pipelines do not share a
+  checkpoint.
 </Warning>
 
 Requirements:

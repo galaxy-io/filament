@@ -4,12 +4,10 @@ description: "Read CRM records, lists, notes, tasks, meetings, and call transcri
 icon: "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg"
 ---
 
-Attio is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/attio.yaml` manifest declares resources
-covering the full CRM surface, from objects and their records to lists and
-entries, notes, tasks, meetings, and call transcripts. The connector is
-**alpha**, so resource coverage and field shapes may still change between
-releases.
+The Attio source reads CRM objects and records, lists, notes, tasks, meetings,
+and call transcripts. It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**, so its resources and columns may change between releases.
 
 ## Configuration
 
@@ -41,12 +39,10 @@ releases.
 | `webhooks` | | Webhook subscriptions |
 | `people`, `companies`, `deals`, `users`, `workspaces` | | Query the standard objects directly, without the `objects` fan-out |
 
-The fan-out runs three levels deep. `objects` feeds `records`, which feed
-`record_entries`, `files`, and `threads`, while `meetings` feed
-`call_recordings`, which feed `transcripts`. Each child issues at least one request per parent
-record, so a workspace with 50,000 records costs at least 150,000 requests
-when the three per-record children are all selected. Select only the
-resources you need.
+Some selections produce many API calls. `objects` feeds `records`, which feed
+`record_entries`, `files`, and `threads`; meetings similarly feed recordings
+and transcripts. Selecting the three per-record children for 50,000 records
+requires at least 150,000 child requests. Select only the resources you need.
 
 ## Modes
 
@@ -64,7 +60,7 @@ resources always restart with their parent.
   meetings, and call recordings, and single-page responses elsewhere.
 - **Rate limiting**: the manifest configures no client-side rate limit. The
   engine still backs off on 429 responses, honoring `Retry-After` for up to 10
-  attempts, but a deep fan-out drives requests as fast as Attio will accept
-  them. Expect 429 churn on large workspaces.
+  attempts, but deeply nested resources still send requests as fast as Attio
+  accepts them. Large workspaces may be throttled frequently.
 - Every resource carries a `raw` remainder column preserving fields the
   manifest does not project.

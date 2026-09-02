@@ -4,11 +4,10 @@ description: "Read teams, users, projects, and issues from Linear's GraphQL API"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg"
 ---
 
-Linear is a manifest-driven source on the shared [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
-The `connectors/http/manifests/linear.yaml` manifest declares its resources
-(teams, users, projects, and issues), all read from Linear's GraphQL
-endpoint. The connector is **beta**. The resource set is stable, though
-field shapes may still be extended.
+The Linear source reads teams, users, projects, and issues through Linear's
+GraphQL API. It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**beta**. Its resources are stable, though future releases may add columns.
 
 ## Configuration
 
@@ -18,17 +17,15 @@ field shapes may still be extended.
 
 ## Resources
 
-All four resources are top level, with no fan-out. Each one issues
-`POST /graphql` with its own query, pages of 100, and `includeArchived: true`
-so archived rows are not silently dropped. `issues` denormalizes its
-relations. `team`, `state`, `assignee`, `creator`, and `project` are projected
-both as flat join keys (`team_id`, `state_id`, …) and as compact JSON objects
-shaped from the GraphQL selection, with the first 50 labels inlined.
+Each resource has its own GraphQL query, reads 100 rows per page, and includes
+archived records. Issue relationships such as team, state, assignee, creator,
+and project are available both as flat ID columns and compact JSON objects.
+Issue rows include up to the first 50 labels.
 
 ## Modes
 
-Full is always available. A full run checkpoints its pagination cursor per
-resource and resumes from the last completed page.
+All resources support full reads. If interrupted, a full read resumes after
+the last completed page.
 
 All four resources are incremental, following the same pattern.
 
@@ -39,12 +36,10 @@ All four resources are incremental, following the same pattern.
 | `projects` | `updated_at` | `variables.updatedAfter` (body) | `projects_updated_at` |
 | `issues` | `updated_at` | `variables.updatedAfter` (body) | `issues_updated_at` |
 
-Each uses the `time` comparator with an initial value of
-`1970-01-01T00:00:00Z` (the first incremental run is a full backfill) and no
-overlap window. The watermark feeds the GraphQL `updatedAfter` variable in the
-request body, and each query orders by `updatedAt` so it advances
-monotonically. The cursor field is fixed by the manifest. Only a lookback
-window is user-configurable, and only because the comparator is `time`.
+The first incremental run uses `1970-01-01T00:00:00Z`, so it also backfills
+existing records. Later runs send the saved `updated_at` value as
+`updatedAfter`. The manifest fixes the cursor field, but the pipeline can add a
+lookback window if needed.
 
 ## Behavior
 

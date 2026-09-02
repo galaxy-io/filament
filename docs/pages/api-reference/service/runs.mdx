@@ -1,12 +1,10 @@
 ---
 title: "Runs"
-description: "Compiling a pipeline into runs, then listing, snapshotting, and live-tailing them"
+description: "Submit pipeline routes, inspect progress, stream events, and control execution"
 ---
 
-Defined in `protos/ingestion/v1/runs.proto`. A run is one execution of one
-source-to-sink route of a pipeline version, dispatched by the control plane
-and executed by a worker (see
-[Architecture](/pages/guides/concepts/architecture)).
+A run is one execution of one source-to-sink route from an immutable pipeline
+version. Its messages are defined in `protos/ingestion/v1/runs.proto`.
 
 ## RPCs
 
@@ -14,97 +12,97 @@ and executed by a worker (see
 |---|---|
 | `RunPipeline` | Compile the current version and submit one run per route |
 | `ListRuns` | List runs with status and time-window filters |
-| `GetRun` | Snapshot one run with per-resource progress |
-| `TailRun` | Server-stream a run's live events, with optional replay |
-| `SignalRun` | Reserved for pause/resume/cancel (always `unimplemented` today) |
+| `GetRun` | Read one run and its per-resource progress |
+| `TailRun` | Stream current and live run events |
+| `SignalRun` | Pause, resume, or cancel a run |
 
 ## RunPipeline
 
-Compiles the pipeline's current version and submits **one run per
-source-to-sink route** — a pipeline whose graph fans out to two sinks
-produces two runs from a single call. The response's `edge_runs` maps each
-compiled `pipeline_edge_key` to the `RunInfo` it produced.
+One call may produce several runs. A graph that fans one source out to two sinks
+has two routes, so the response contains two `edge_runs`, each keyed by its
+`pipeline_edge_key`.
 
-`client_token` salts the idempotency key. Retrying a call with the same token
-dedupes to the same runs instead of launching duplicates, while a fresh token
-is a deliberate re-run. Generate a new token per user intent and reuse it
-across retries.
+`client_token` distinguishes retry from intent. Reuse the token when retrying the
+same user action; choose a new token for a deliberate rerun. The token contributes
+to stable run IDs, preventing a transport retry from dispatching duplicates.
 
-`worker_configuration` overrides the pipeline's own for this call only, field
-by field. The resolved result is stamped onto each run, so editing the
-pipeline afterward cannot change a run already requested.
+`worker_configuration` overrides pipeline worker settings field by field. The
+resolved configuration is copied into each run so later pipeline edits cannot
+change work already requested.
 
-`options` (`RunOptions`) overrides engine throughput defaults, with every
-zero field deferring to the default. Today the engine consumes only part of
-the message.
+A zero value asks the engine or sink to choose its normal default:
 
-| Field | Effect today |
+| Field | Current behavior |
 |---|---|
-| `batch_max_rows` | Caps rows per batch |
-| `snapshot_parallelism` | Parallel workers for the initial snapshot |
-| `checkpoint_every` | Written batches between cursor persists (default 25) |
-| `fetch_size` | Accepted and stored, not consumed |
-| `batch_max_bytes` | Accepted and stored, not consumed |
-| `rate_limit` | Accepted and stored, not consumed |
+| `batch_max_rows` | Maximum rows in an Arrow batch |
+| `batch_max_bytes` | Approximate byte limit used while building an Arrow batch |
+| `snapshot_parallelism` | Writer-pool size and source snapshot planning hint; forced to one for ordered/checkpointed routes |
+| `checkpoint_every` | Written batches between eligible checkpoint saves; default 25 |
+| `fetch_size` | Stored for the run; not currently consumed by the engine |
+| `rate_limit` | Stored for the run; not currently consumed by the engine |
 
-## Run statuses
+## Status and recovery
 
 | Status | Meaning |
 |---|---|
-| `SCHEDULED` | Pre-created by the scheduler for a future fire time |
-| `REQUESTED` | Queued for dispatch |
-| `RUNNING` | A worker is executing it |
-| `COMPLETED` | Finished cleanly |
-| `FAILED` | Terminal failure |
-| `PARTIAL` | Failed mid-extract, checkpoint persisted |
-| `CANCELED` | Terminated by signal |
-| `PAUSED` | Suspended by signal |
+| `SCHEDULED` | Created for a future schedule fire |
+| `REQUESTED` | Waiting for dispatch |
+| `RUNNING` | Owned by a worker |
+| `PARTIAL` | Failed with route-wide resumable progress |
+| `PAUSED` | Stopped intentionally and eligible for resume |
+| `COMPLETED` | Committed successfully |
+| `FAILED` | Failed without a safe same-run continuation |
+| `CANCELED` | Intentionally aborted |
 
-A `PARTIAL` run persisted resumable progress, so running the pipeline again
-resumes from the checkpoint instead of starting over. `CANCELED` and `PAUSED`
-exist in the model but are not reachable through the API today, since
-`SignalRun` is unimplemented.
+`PARTIAL` does not mean that any checkpoint happened to exist. Every resource in
+the route must meet the safe-resume rules. See
+[Runs and recovery](/pages/guides/concepts/runs-and-recovery) for those boundaries.
 
 ## ListRuns
 
-Filters by `pipeline_id`, optional `pipeline_version_id`, a repeated `status`
-filter, and a `since_ms`/`until_ms` window over `started_at` (inclusive /
-exclusive, epoch milliseconds). Runs that never started are excluded from a
-windowed query. Supports
-[pagination](/pages/api-reference/service/introduction#pagination).
+Filter by `pipeline_id`, optional `pipeline_version_id`, repeated `status`, and
+a `since_ms`/`until_ms` window over `started_at` (inclusive/exclusive epoch
+milliseconds). Windowed queries omit runs that have not started. Search and
+sorting fields follow the common API conventions, and list pagination is
+described in [Service overview](/pages/api-reference/service/introduction#pagination).
 
-Expect `SCHEDULED` rows in the results for pipelines with an enabled
-[schedule](/pages/api-reference/service/pipelines#schedules). The scheduler
-pre-creates the next fire's run row in advance, so a "run" that hasn't
-happened yet is normal, not a stuck execution. Its `scheduled_at` is the
-intended fire time.
+Scheduled pipelines normally show future `SCHEDULED` rows. The scheduler
+creates the next run in advance and promotes it to requested at fire time.
 
 ## GetRun
 
-Returns a `RunSnapshot`. It carries the `RunInfo` (status, `records`, `bytes`, `error`,
-lifecycle timestamps, source and sink connection ids, and worker usage as
-`cpu_seconds` and `memory_peak_bytes`) plus one `RunResourceState` per
-resource with its own status and record/byte tallies, and the event sequence
-number `at_seq` the snapshot reflects.
+Returns `RunSnapshot` with run-level status, record and byte totals, errors,
+lifecycle timestamps, connection IDs, worker usage, and per-resource progress.
+
+The protobuf also contains `at_seq`, but the current `GetRun` implementation does
+not populate it, so clients should treat it as zero/reserved rather than as a
+snapshot consistency token.
 
 ## TailRun
 
-The one streaming RPC on the service. It returns a server stream of `RunEvent`
-envelopes, each carrying an `event_type` wire token (e.g. `written`,
-`completed`), the `resource`, a monotonic `seq`, and measurement `fields`
-(records, bytes, errors, checkpoints).
+`TailRun` is the server-streaming RPC. Each `RunEvent` includes its wire event
+type, resource, monotonic sequence, and relevant measurements.
 
-With `should_replay` set, the server first synthesizes events from the current
-snapshot (each marked `is_replay: true`), so a client reconnecting
-mid-run renders correct progress before live facts arrive. The stream closes
-on a terminal event, or when polling the snapshot shows the run reached a
-terminal status. `TailRun` requires an event bus and returns
-`failed_precondition` in deployments without one.
+With `should_replay`, the server first synthesizes events from stored resource
+progress and marks them `is_replay: true`, then forwards live facts. This helps a
+reconnecting client render current progress before new events arrive. The stream
+closes after a terminal or paused/canceled event. An event bus is required;
+without one the RPC returns `failed_precondition`.
 
 ## SignalRun
 
-The request shape exists (`run_id` plus a `PAUSE`, `RESUME`, or `CANCEL`
-signal), but the RPC always returns `unimplemented` ("run signals are not
-configured in this ingestion binary"). There is no way to pause, resume, or
-cancel a run through the API today. The RPC is documented so you don't build
-against it expecting otherwise.
+Send `PAUSE`, `RESUME`, or `CANCEL` with a `run_id`. An optional `tenant_id` is
+checked against the run when present.
+
+The allowed transition depends on current state:
+
+- requested runs can be paused or canceled without worker coordination;
+- running pause/cancel requests wait for the worker to acknowledge its safe
+  commit or abort boundary;
+- paused and partial runs can be resumed to requested or canceled; and
+- repeated signals that already match the intended state are idempotent where
+  safe, while invalid transitions return `failed_precondition`.
+
+Running signals require both an event bus and datastore support for atomic run
+transitions. A request may also end with `deadline_exceeded` or `canceled` while
+waiting for worker acknowledgement.

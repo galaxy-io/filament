@@ -4,11 +4,10 @@ description: "Write typed analytical tables to ClickHouse"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-dark.svg"
 ---
 
-`connectors/clickhouse/sink` (registered as `clickhouse`, **alpha**) writes
-each resource to its own typed ClickHouse table through the official Go
-driver's native batch interface. Snapshot replacement is atomic per resource.
-The run writes into a staging table and swaps it into place only at `Commit`.
-It works against self-hosted ClickHouse and ClickHouse Cloud.
+The ClickHouse sink (**alpha**) writes each resource to a typed table on
+self-hosted ClickHouse or ClickHouse Cloud. Choose replace when the old table
+must remain visible until the new snapshot is ready. Append and upsert write
+directly to the live table and can be visible before the run finishes.
 
 ## Configuration
 
@@ -33,17 +32,16 @@ sink prefers batches of 10,000 rows.
 
 ## Supported write modes
 
-The sink advertises `full_replace`, `full_append`, `full_upsert`, and
-`incremental_upsert`. See
-[replication modes](/pages/guides/concepts/replication-modes). It does **not**
-support `cdc` or `incremental_delete`. ClickHouse has no efficient row-level
-delete, so CDC pipelines cannot target this sink.
+| Write mode | Destination table | When data becomes visible |
+|---|---|---|
+| `full_replace` | Staging table, then destination | At commit, per resource |
+| `full_append` | Live `MergeTree` | During the run |
+| `full_upsert` | Live `ReplacingMergeTree` | During the run; deduplication is eventual |
+| `incremental_upsert` | Live `ReplacingMergeTree` | During the run; deduplication is eventual |
 
-- `full_replace` writes into a run-scoped staging table and swaps it in at
-  `Commit`.
-- `full_append` inserts into a live `MergeTree` table.
-- `full_upsert` and `incremental_upsert` insert into a `ReplacingMergeTree`
-  table keyed on the primary key. ClickHouse deduplicates at merge time.
+CDC and incremental delete are not supported because ClickHouse does not offer
+efficient row-level deletes for this sink. See
+[replication modes](/pages/guides/concepts/replication-modes).
 
 ## Table management
 
@@ -94,11 +92,9 @@ Nullable fields are wrapped in `Nullable()`.
 
 ## Write mechanics and atomicity
 
-Records are decoded client-side into typed values and appended through the
-driver's `PrepareBatch`/`Append`/`Send` path. Parsing is tolerant (string
-integers, `NaN`/`Inf`, decimal strings, `T`-separated timestamps, and hex or
-base64 bytes all decode), but a missing or null value in a non-nullable column
-is an error.
+The sink converts Arrow values to the destination's typed columns. It accepts
+common textual forms for numbers, timestamps, and encoded bytes, but rejects a
+missing or null value for a non-nullable column.
 
 Append and upsert modes write directly to the live table, so partial data is
 **visible mid-run**. Replace mode is invisible until `Commit`, which per staged

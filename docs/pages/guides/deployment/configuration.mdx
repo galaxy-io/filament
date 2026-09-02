@@ -3,12 +3,10 @@ title: "Configuration"
 description: "The complete environment variable reference"
 ---
 
-Filament is configured entirely through environment variables. There are no
-config files, and the only command-line flag anywhere is the server's
-`-migrate`. The same variables apply whether a binary runs under `just dev`,
-Docker, or the Helm chart. Only who sets them changes. Locally, the justfile
-loads a `.env` file (`set dotenv-load`). In Kubernetes, the chart renders them
-into ConfigMaps and Secrets.
+The server, control-plane, worker, standalone, and library app use environment
+variables. This page does not describe the separate `filament` CLI, which uses
+a YAML file. The server also accepts `-migrate`. Locally, the justfile loads
+`.env`; in Kubernetes, the chart renders variables into ConfigMaps and Secrets.
 
 ## Shared variables
 
@@ -49,8 +47,8 @@ standalone binary substitutes its own embedded infrastructure where noted.
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP endpoint. Unset disables export |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` (collector port 4317) or `http/protobuf` (4318) |
 
-The rule is binary. When an OTLP endpoint variable is present, metrics and
-traces export. When none is, the OTel providers are noops. The
+When an OTLP endpoint is set, metrics and traces are exported. Without one,
+OpenTelemetry export is disabled. The
 `_METRICS_`/`_TRACES_` per-signal endpoint variants and other standard
 `OTEL_*` variables are honored. Logs are always JSON `slog` to stdout,
 regardless of OTel.
@@ -86,8 +84,8 @@ Read only when `DISPATCH_MODE` is `kubernetes`.
 | Variable | Default | Description |
 |---|---|---|
 | `K8S_WORKER_IMAGE` | — | **Required.** Worker image for dispatched Jobs |
-| `K8S_WORKER_SECRET_NAME` | — | **Required.** Secret `envFrom`'d into worker pods |
-| `K8S_WORKER_CONFIGMAP_NAME` | — | ConfigMap `envFrom`'d into worker pods |
+| `K8S_WORKER_SECRET_NAME` | — | **Required.** Secret loaded into worker pods with `envFrom` |
+| `K8S_WORKER_CONFIGMAP_NAME` | — | ConfigMap loaded into worker pods with `envFrom` |
 | `K8S_NAMESPACE` | in-cluster namespace | Namespace Jobs are created in |
 | `K8S_WORKER_SERVICE_ACCOUNT` | — | ServiceAccount for worker pods |
 | `K8S_WORKER_APP_NAME` | — | `app.kubernetes.io/name` label on worker pods |
@@ -139,7 +137,7 @@ binary and is useful in development.
 
 Connection-managed secrets live under the ref namespace
 `filament/<tenant>/<connID>/<field>/v<version>`, and cross-tenant reads are
-rejected. Plaintext secret values never land in stored configs, logs, or the
+rejected. Plaintext secret values are never written to stored configs, logs, or the
 event bus.
 
 ## Migrations

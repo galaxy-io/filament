@@ -4,23 +4,18 @@ description: "The sources and sinks that plug into Filament, and how mature each
 ---
 
 A connector is a source, a sink, or both. Sources read data from an upstream
-system, and sinks write it to a destination. Some connectors (PostgreSQL and
-MySQL today) ship both, as separate packages (`connectors/postgres/source`,
-`connectors/postgres/sink`).
+system, and sinks write it to a destination. Some connectors ship both as
+separate packages (`connectors/postgres/source`, `connectors/postgres/sink`).
 
-Connectors are registered factories. Each package's `register.go` calls
-`registry.RegisterSource` or `registry.RegisterSink` with a name, a maturity
-level, and a factory that builds a fresh instance per run. A blank import is
-all it takes to make a connector available:
+When embedding Filament, include a connector with a blank import:
 
 ```go
 _ "github.com/galaxy-io/filament/connectors/postgres"
 ```
 
-Every connector's spec describes its identity, config schema, and
-capabilities. The API server's `ListConnectors` RPC surfaces the spec to
-the catalog UI, so a registered connector shows up with no separate catalog
-to maintain.
+Each package registers a fresh connector instance for every run. Its spec
+provides the name, configuration fields, capabilities, and maturity shown by
+the API and web app.
 
 ## Maturity levels
 
@@ -37,7 +32,7 @@ Every connector is registered with one of three maturity levels.
 | Source | Maturity | Modes |
 |---|---|---|
 | [PostgreSQL](/pages/connectors/sources/postgres) | beta | Full, incremental, CDC |
-| [MySQL](/pages/connectors/sources/mysql) | beta | Full, CDC |
+| [MySQL](/pages/connectors/sources/mysql) | beta | Full, incremental, CDC |
 | [Attio](/pages/connectors/sources/attio) | alpha | Full |
 | [GitHub](/pages/connectors/sources/github) | beta | Full, incremental |
 | [Linear](/pages/connectors/sources/linear) | beta | Full, incremental |
@@ -63,7 +58,7 @@ documented in
 | [PostgreSQL](/pages/connectors/sinks/postgres) | beta | Typed tables. Replace, append, upsert, and CDC merge |
 | [MySQL](/pages/connectors/sinks/mysql) | alpha | Typed tables. Same write policies as the PostgreSQL sink |
 | [ClickHouse](/pages/connectors/sinks/clickhouse) | alpha | MergeTree tables. Atomic replace via staging, no CDC |
-| [Iceberg](/pages/connectors/sinks/iceberg) | alpha | Parquet tables through an Iceberg catalog. Commits at run end |
+| [Iceberg](/pages/connectors/sinks/iceberg) | alpha | Parquet tables; data commits per resource at run end |
 | [Amazon S3](/pages/connectors/sinks/aws-s3) | alpha | NDJSON objects, one per resource per run |
 | [stdout](/pages/connectors/sinks/standard-output) | stable | NDJSON to standard output, the reference sink |
 
