@@ -207,6 +207,57 @@ func TestParseRejectsInvalidIncrementalContracts(t *testing.T) {
 	}
 }
 
+func TestParseRejectsInvalidCaptureOnlyAndSince(t *testing.T) {
+	const head = "version: 1\nname: test\ndisplay_name: Test\ndescription: Test capture-only manifest.\ndark_logo_url: https://cdn.example.com/test-dark.svg\nlight_logo_url: https://cdn.example.com/test-light.svg\nconnection:\n  base_url: https://example.com\nresources:\n"
+	const incremental = "    incremental:\n      cursor_field: ts\n      start_param: oldest\n      inject_into: query\n      comparator: numeric\n"
+	tests := []struct{ name, body, want string }{
+		{
+			name: "capture_only without capture",
+			body: "  - name: threads\n    path: /threads\n    capture_only: true\n",
+			want: "requires a capture block",
+		},
+		{
+			name: "capture_only with incremental",
+			body: "  - name: threads\n    path: /threads\n    capture_only: true\n    capture:\n      ts: ts\n    fields:\n      ts: string\n" + incremental,
+			want: "cannot be combined with incremental",
+		},
+		{
+			name: "capture_only in discovery include",
+			body: "  - name: threads\n    path: /threads\n    capture_only: true\n    capture:\n      ts: ts\ndiscovery:\n  mode: static\n  include: [threads]\n",
+			want: "is capture_only",
+		},
+		{
+			name: "since without incremental",
+			body: "  - name: threads\n    path: /threads\n    capture:\n      latest_reply: latest_reply\n  - name: replies\n    path: /replies\n    for_each: threads\n    parent:\n      since: latest_reply\n",
+			want: "requires an incremental block",
+		},
+		{
+			name: "since not captured by parent",
+			body: "  - name: threads\n    path: /threads\n    capture:\n      ts: ts\n  - name: replies\n    path: /replies\n    for_each: threads\n    parent:\n      since: latest_reply\n    fields:\n      ts: string\n" + incremental,
+			want: "is not captured by parent",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse([]byte(head + tt.body))
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseForEachPairsWithParentSince(t *testing.T) {
+	m, err := Parse([]byte("version: 1\nname: test\ndisplay_name: Test\ndescription: Test since manifest.\ndark_logo_url: https://cdn.example.com/test-dark.svg\nlight_logo_url: https://cdn.example.com/test-light.svg\nconnection:\n  base_url: https://example.com\nresources:\n  - name: threads\n    path: /threads\n    capture_only: true\n    capture:\n      latest_reply: latest_reply\n  - name: replies\n    path: /replies\n    for_each: threads\n    parent:\n      since: latest_reply\n    fields:\n      ts: string\n    incremental:\n      cursor_field: ts\n      start_param: oldest\n      inject_into: query\n      comparator: numeric\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	replies := m.Resources[1]
+	if replies.Parent == nil || replies.Parent.Resource != "threads" || replies.Parent.Since != "latest_reply" {
+		t.Fatalf("parent = %#v, want for_each resource with since", replies.Parent)
+	}
+}
+
 func TestParseConciseBasicAuth(t *testing.T) {
 	m, err := Parse([]byte(`
 version: 1

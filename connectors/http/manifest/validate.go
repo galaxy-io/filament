@@ -86,8 +86,13 @@ func (m *Manifest) Normalize() {
 				r.Response.RecordsPath = strings.TrimPrefix(r.Records, "$.")
 			}
 		}
-		if r.ForEach != "" && r.Parent == nil {
-			r.Parent = &ParentRef{Resource: r.ForEach}
+		if r.ForEach != "" {
+			if r.Parent == nil {
+				r.Parent = &ParentRef{}
+			}
+			if r.Parent.Resource == "" {
+				r.Parent.Resource = r.ForEach
+			}
 		}
 		if r.Pagination.Type == "none" {
 			r.Pagination.Type = ""
@@ -146,6 +151,7 @@ func (m *Manifest) validateSemantics() error {
 	validateAuthParams(&agg, "connection.auth", m.Connection.Auth.Params)
 
 	names := make(map[string]struct{}, len(m.Resources))
+	byName := make(map[string]*Resource, len(m.Resources))
 	for i := range m.Resources {
 		r := &m.Resources[i]
 		path := fmt.Sprintf("resources[%d]", i)
@@ -153,6 +159,7 @@ func (m *Manifest) validateSemantics() error {
 			_ = agg.Addf(path+".name", "is required")
 			continue
 		}
+		byName[r.Name] = r
 		path = fmt.Sprintf("resources[%q]", r.Name)
 		for j, fieldSet := range r.UseFields {
 			if _, ok := m.FieldSets[fieldSet]; !ok {
@@ -169,6 +176,17 @@ func (m *Manifest) validateSemantics() error {
 		}
 		if r.Parent != nil && r.Parent.Resource == "" {
 			_ = agg.Addf(path+".parent.resource", "is required")
+		}
+		if r.CaptureOnly {
+			if len(r.Capture) == 0 {
+				_ = agg.Addf(path+".capture_only", "requires a capture block")
+			}
+			if r.Incremental != nil {
+				_ = agg.Addf(path+".capture_only", "cannot be combined with incremental")
+			}
+			if r.Mode == "stream" {
+				_ = agg.Addf(path+".capture_only", "is not supported for stream resources")
+			}
 		}
 
 		validateTemplate(&agg, path+".emit_as", r.EmitAs)
@@ -300,6 +318,8 @@ func (m *Manifest) validateSemantics() error {
 	for i, name := range m.Discovery.Include {
 		if _, ok := names[name]; !ok {
 			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "unknown resource %q", name)
+		} else if byName[name].CaptureOnly {
+			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "resource %q is capture_only", name)
 		}
 	}
 	if m.Discovery.Mode == "dynamic" && len(m.Discovery.Include) > 0 {
@@ -329,9 +349,21 @@ func (m *Manifest) validateSemantics() error {
 		if r.Parent == nil {
 			continue
 		}
-		if _, ok := names[r.Parent.Resource]; !ok {
+		parent, ok := byName[r.Parent.Resource]
+		if !ok {
 			_ = agg.Addf(fmt.Sprintf("resources[%q].parent.resource", r.Name),
 				"unknown parent %q", r.Parent.Resource)
+			continue
+		}
+		if r.Parent.Since == "" {
+			continue
+		}
+		if r.Incremental == nil {
+			_ = agg.Addf(fmt.Sprintf("resources[%q].parent.since", r.Name), "requires an incremental block")
+		}
+		if _, captured := parent.Capture[r.Parent.Since]; !captured {
+			_ = agg.Addf(fmt.Sprintf("resources[%q].parent.since", r.Name),
+				"field %q is not captured by parent %q", r.Parent.Since, r.Parent.Resource)
 		}
 	}
 

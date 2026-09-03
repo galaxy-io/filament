@@ -152,6 +152,27 @@ Types: `string bool int16 int32 int64 float32 float64 decimal date time timestam
     repository: { path: parent.repository, type: string }  # denormalize the parent key
 ```
 
+A parent that exists only to drive a child is `capture_only`. It is walked for
+captures, never emitted or listed, and runs only when a dependent child is
+selected. A child gates its fan-out with `parent.since`, which names a captured
+key: empty values never fan out, and on incremental runs values below the
+child's lower bound (watermark minus lookback, under the child's comparator)
+are skipped. `since` requires an `incremental` block on the child.
+
+```yaml
+- name: threads
+  path: /conversations.history
+  for_each: conversations
+  capture_only: true
+  capture: { thread_ts: ts, latest_reply: latest_reply }
+- name: thread_replies
+  path: /conversations.replies
+  query: { ts: "{{ parent.thread_ts }}" }
+  for_each: threads
+  parent: { since: latest_reply }                  # only threads with new replies
+  incremental: { cursor_field: ts, start_param: oldest, inject_into: query, comparator: numeric }
+```
+
 ### pagination — one strategy key (or inherit from defaults)
 
 ```yaml

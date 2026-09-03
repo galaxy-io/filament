@@ -263,9 +263,12 @@ type Resource struct {
 	// "$" means an array at the document root; "$.data.items" selects a path.
 	Records string `yaml:"records,omitempty"`
 	// ForEach is concise syntax for parent.resource.
-	ForEach     string            `yaml:"for_each,omitempty"`
-	Params      map[string]string `yaml:"params,omitempty"`
-	Capture     map[string]string `yaml:"capture,omitempty"`
+	ForEach string            `yaml:"for_each,omitempty"`
+	Params  map[string]string `yaml:"params,omitempty"`
+	Capture map[string]string `yaml:"capture,omitempty"`
+	// CaptureOnly resources are walked for their captures and never emitted,
+	// listed, or selectable. They exist to drive children.
+	CaptureOnly bool              `yaml:"capture_only,omitempty"`
 	Query       map[string]string `yaml:"query,omitempty"`
 	Headers     map[string]string `yaml:"headers,omitempty"`
 	Body        BodySpec          `yaml:"body,omitempty"`
@@ -507,6 +510,10 @@ func (s IncrementalSpec) DurableCheckpointKey() string {
 type ParentRef struct {
 	Resource    string `yaml:"resource"`
 	Concurrency int    `yaml:"concurrency,omitempty"`
+	// Since names a captured parent field that gates fan-out. Parents whose
+	// value is empty are skipped; on an incremental run, parents whose value
+	// sorts before the child's effective start are skipped too.
+	Since string `yaml:"since,omitempty"`
 }
 
 // StreamSpec configures streaming-mode decoding of a resource's response.

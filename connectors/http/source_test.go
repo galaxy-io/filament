@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -764,14 +765,14 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 			conversationTypes = r.URL.Query().Get("types")
 			fmt.Fprint(w, `{"ok":true,"channels":[{"id":"C123","name":"general","is_channel":true}],"response_metadata":{"next_cursor":""}}`)
 		case "/conversations.history":
-			historyChannels = append(historyChannels, r.URL.Query().Get("channel"))
+			historyChannels = append(historyChannels, r.URL.Query().Get("channel")+"|"+r.URL.Query().Get("oldest"))
 			if r.URL.Query().Get("cursor") == "" {
-				fmt.Fprint(w, `{"ok":true,"messages":[{"type":"message","user":"U123","text":"hello","ts":"1710000000.000001"}],"response_metadata":{"next_cursor":"next-page"}}`)
+				fmt.Fprint(w, `{"ok":true,"messages":[{"type":"message","user":"U123","text":"hello","ts":"1710000000.000001","reply_count":1,"latest_reply":"1710000100.000001"},{"type":"message","user":"U111","text":"no thread","ts":"1710000000.000005"}],"response_metadata":{"next_cursor":"next-page"}}`)
 				return
 			}
-			fmt.Fprint(w, `{"ok":true,"messages":[{"type":"message","user":"U456","text":"world","ts":"1710000001.000002"}],"response_metadata":{"next_cursor":""}}`)
+			fmt.Fprint(w, `{"ok":true,"messages":[{"type":"message","user":"U456","text":"world","ts":"1710000001.000002","reply_count":1,"latest_reply":"1710000300.000002"}],"response_metadata":{"next_cursor":""}}`)
 		case "/conversations.replies":
-			replyScopes = append(replyScopes, r.URL.Query().Get("channel")+"|"+r.URL.Query().Get("ts"))
+			replyScopes = append(replyScopes, r.URL.Query().Get("channel")+"|"+r.URL.Query().Get("ts")+"|"+r.URL.Query().Get("oldest"))
 			fmt.Fprintf(w, `{"ok":true,"messages":[{"type":"message","user":"U789","text":"reply","ts":"%s"}],"response_metadata":{"next_cursor":""}}`, r.URL.Query().Get("ts"))
 		default:
 			http.NotFound(w, r)
@@ -817,17 +818,12 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	if conversationTypes != "public_channel" {
 		t.Fatalf("conversation types = %q, want least-privilege public_channel default", conversationTypes)
 	}
-	if len(historyChannels) != 2 || historyChannels[0] != "C123" || historyChannels[1] != "C123" {
-		t.Fatalf("history channels = %v, want C123 for both pages", historyChannels)
+	if len(historyChannels) != 2 || historyChannels[0] != "C123|" || historyChannels[1] != "C123|" {
+		t.Fatalf("history channels = %v, want an unfiltered C123 walk for both pages", historyChannels)
 	}
-	gotReplyScopes := make(map[string]bool, len(replyScopes))
-	for _, scope := range replyScopes {
-		gotReplyScopes[scope] = true
-	}
-	if len(replyScopes) != 2 ||
-		!gotReplyScopes["C123|1710000000.000001"] ||
-		!gotReplyScopes["C123|1710000001.000002"] {
-		t.Fatalf("reply scopes = %v, want inherited channel and message timestamps", replyScopes)
+	sort.Strings(replyScopes)
+	if want := []string{"C123|1710000000.000001|", "C123|1710000001.000002|"}; !slices.Equal(replyScopes, want) {
+		t.Fatalf("reply scopes = %v, want only thread parents with inherited channel", replyScopes)
 	}
 	if len(sink.records) != 2 {
 		t.Fatalf("records = %#v, want two thread replies only", sink.records)
@@ -843,6 +839,33 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 		if data["channel_id"] != "C123" {
 			t.Fatalf("channel_id = %#v, want inherited C123", data["channel_id"])
 		}
+	}
+
+	// Incremental: history is still walked in full, but only the thread whose
+	// latest_reply passed the saved replies watermark fans out, with oldest set.
+	historyChannels, replyScopes = nil, nil
+	prev := map[string]filament.Checkpoint{
+		"thread_replies": checkpoint.KeysetCheckpoint{
+			Mode: checkpoint.ModeIncremental, Cols: []string{"replies_since"}, Types: []string{"string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"1710000200"}}},
+		}.ToCheckpoint("thread_replies"),
+	}
+	plan, err := src.PlanIncremental(ctx, []string{"thread_replies"}, prev, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var incr collectSink
+	if err := src.ExtractFrom(ctx, &incr, filament.ExtractOpts{Resources: []string{"thread_replies"}, Parallelism: 1}, plan); err != nil {
+		t.Fatalf("extract incremental thread replies: %v", err)
+	}
+	if len(historyChannels) != 2 || historyChannels[0] != "C123|" {
+		t.Fatalf("incremental history channels = %v, want an unfiltered walk", historyChannels)
+	}
+	if want := []string{"C123|1710000001.000002|1710000200"}; !slices.Equal(replyScopes, want) {
+		t.Fatalf("incremental reply scopes = %v, want %v", replyScopes, want)
+	}
+	if len(incr.records) != 1 {
+		t.Fatalf("incremental records = %#v, want one", incr.records)
 	}
 }
 
@@ -1096,6 +1119,139 @@ discovery:
 	}
 	if fanOut.Resource != "children" || fanOut.ParentsTotal != 1 {
 		t.Fatalf("fan-out progress = %#v", fanOut)
+	}
+}
+
+func TestCaptureOnlyParentGatesChildFanOutOnSince(t *testing.T) {
+	ctx := context.Background()
+	var threadRequests int
+	var replyRequests []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/threads":
+			threadRequests++
+			fmt.Fprint(w, `[{"ts":"1"},{"ts":"2","latest_reply":"100"},{"ts":"3","latest_reply":"300"}]`)
+		case "/replies":
+			q := r.URL.Query()
+			replyRequests = append(replyRequests, q.Get("ts")+"|"+q.Get("oldest"))
+			fmt.Fprintf(w, `[{"ts":"%s"}]`, q.Get("ts")+"50")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	path := filepath.Join(t.TempDir(), "since.yaml")
+	data := fmt.Sprintf(`version: 1
+name: since
+display_name: Since
+description: Test parent.since gating.
+dark_logo_url: https://cdn.example.com/since-dark.svg
+light_logo_url: https://cdn.example.com/since-light.svg
+connection:
+  base_url: %s
+resources:
+  - name: threads
+    path: /threads
+    capture_only: true
+    capture:
+      thread_ts: ts
+      latest_reply: latest_reply
+    response:
+      records: $
+      pagination: none
+  - name: replies
+    path: /replies
+    query:
+      ts: "{{ parent.thread_ts }}"
+    for_each: threads
+    parent:
+      since: latest_reply
+    primary_key: [ts]
+    fields:
+      ts: string
+    response:
+      records: $
+      pagination: none
+    incremental:
+      cursor_field: ts
+      start_param: oldest
+      inject_into: query
+      checkpoint_key: replies_since
+      comparator: numeric
+`, api.URL)
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	src := New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"manifest_path": path})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(discovered.Resources) != 1 || discovered.Resources[0].Name != "replies" {
+		t.Fatalf("discovered = %#v, want only replies", discovered.Resources)
+	}
+	planned, err := src.PlanResources(ctx, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(planned) != 1 || planned[0] != "replies" {
+		t.Fatalf("planned = %v, want only replies", planned)
+	}
+	if _, err := src.Schema(ctx, "threads"); err == nil {
+		t.Fatal("schema for capture-only resource should fail")
+	}
+
+	// Full run: every parent with a since value fans out, none of the
+	// capture-only parent's records are emitted.
+	var full collectSink
+	if err := src.Extract(ctx, &full, filament.ExtractOpts{Resources: []string{"replies"}}); err != nil {
+		t.Fatalf("extract full: %v", err)
+	}
+	if threadRequests != 1 {
+		t.Fatalf("thread requests = %d, want 1", threadRequests)
+	}
+	sort.Strings(replyRequests)
+	if want := []string{"2|", "3|"}; !slices.Equal(replyRequests, want) {
+		t.Fatalf("full-run reply requests = %v, want %v", replyRequests, want)
+	}
+	for _, rec := range full.records {
+		if rec.Resource != "replies" {
+			t.Fatalf("emitted %q, want only replies", rec.Resource)
+		}
+	}
+	if len(full.records) != 2 {
+		t.Fatalf("emitted %d records, want 2", len(full.records))
+	}
+
+	// Incremental run: only parents at or past the replies watermark fan out,
+	// and the watermark is pushed into the request.
+	replyRequests = nil
+	prev := map[string]filament.Checkpoint{
+		"replies": checkpoint.KeysetCheckpoint{
+			Mode: checkpoint.ModeIncremental, Cols: []string{"replies_since"}, Types: []string{"string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"200"}}},
+		}.ToCheckpoint("replies"),
+	}
+	plan, err := src.PlanIncremental(ctx, []string{"replies"}, prev, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var incr collectSink
+	if err := src.ExtractFrom(ctx, &incr, filament.ExtractOpts{Resources: []string{"replies"}}, plan); err != nil {
+		t.Fatalf("extract incremental: %v", err)
+	}
+	if want := []string{"3|200"}; !slices.Equal(replyRequests, want) {
+		t.Fatalf("incremental reply requests = %v, want %v", replyRequests, want)
+	}
+	if len(incr.records) != 1 || incr.records[0].Key[0] != "350" {
+		t.Fatalf("incremental records = %#v, want one keyed by the new watermark", incr.records)
 	}
 }
 

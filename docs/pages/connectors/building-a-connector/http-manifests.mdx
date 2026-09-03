@@ -123,6 +123,19 @@ The parent's `capture` block names the values available to the child. Child
 requests default to five concurrent calls, and relationships can nest, such as
 Resend webhooks → events → attempts.
 
+A resource marked `capture_only: true` is walked for its captures and nothing
+else. It is never emitted, discovered, or selectable, and it only runs when a
+child that depends on it is selected. Use it when the parent walk a child needs
+differs from the parent resource users read, for example a full history walk
+that finds threads with new activity while the readable messages resource
+stays incremental.
+
+A child can gate its fan-out with `parent.since: <captured key>`. Parents whose
+captured value is empty are skipped on every run. On an incremental run, parents
+whose value sorts before the child's effective lower bound under the child's
+comparator are skipped too, so the child only calls the API for parents that
+changed since the last run. The child must declare an `incremental` block.
+
 ### Incremental
 
 An `incremental` block turns a resource into an incremental read:
