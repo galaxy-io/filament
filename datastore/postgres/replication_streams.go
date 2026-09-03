@@ -18,21 +18,38 @@ import (
 // continuity fingerprint matches. Otherwise it retires that generation and
 // creates the caller-supplied stream as the next generation atomically.
 func (s *Store) ResolveReplicationStream(ctx context.Context, desired filament.ReplicationStream) (filament.ReplicationStream, error) {
-	if desired.ID == "" || desired.Tenant == "" || desired.PipelineID == "" || desired.Route == "" ||
-		desired.SourceConnectionID == "" || desired.SinkConnectionID == "" || desired.ConsumerName == "" ||
-		desired.ContinuityFingerprint == "" || desired.CreatedFromPipelineVersionID == "" {
-		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: resolve replication stream: required identity is missing")
-	}
-	consumerConfig, err := json.Marshal(desired.ConsumerConfig)
-	if err != nil {
-		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: marshal replication consumer config: %w", err)
-	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: begin replication stream resolution: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	q := s.q.WithTx(tx)
+	stream, err := resolveReplicationStream(ctx, s.q.WithTx(tx), desired)
+	if err != nil {
+		return filament.ReplicationStream{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: commit replication stream resolution: %w", err)
+	}
+	return stream, nil
+}
+
+// resolveReplicationStream resolves a stream using the caller's transaction.
+// Run admission uses this helper so retiring a predecessor and inserting the
+// run either both commit or both roll back.
+func resolveReplicationStream(ctx context.Context, q *sqlcgen.Queries, desired filament.ReplicationStream) (filament.ReplicationStream, error) {
+	if desired.ID == "" || desired.Tenant == "" || desired.PipelineID == "" || desired.Route == "" ||
+		desired.SourceConnectionID == "" || desired.SinkConnectionID == "" || desired.ConsumerName == "" ||
+		desired.ContinuityFingerprint == "" || desired.CreatedFromPipelineVersionID == "" {
+		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: resolve replication stream: required identity is missing")
+	}
+	consumerConfigValue := desired.ConsumerConfig
+	if consumerConfigValue == nil {
+		consumerConfigValue = map[string]any{}
+	}
+	consumerConfig, err := json.Marshal(consumerConfigValue)
+	if err != nil {
+		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: marshal replication consumer config: %w", err)
+	}
 	if _, err := q.LockPipelineForReplicationStream(ctx, sqlcgen.LockPipelineForReplicationStreamParams{
 		PipelineID: desired.PipelineID, TenantID: string(desired.Tenant),
 	}); err != nil {
@@ -50,9 +67,6 @@ func (s *Store) ResolveReplicationStream(ctx context.Context, desired filament.R
 			stream, err := replicationStreamFromRow(current)
 			if err != nil {
 				return filament.ReplicationStream{}, err
-			}
-			if err := tx.Commit(ctx); err != nil {
-				return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: commit replication stream reuse: %w", err)
 			}
 			return stream, nil
 		}
@@ -84,9 +98,6 @@ func (s *Store) ResolveReplicationStream(ctx context.Context, desired filament.R
 	if err != nil {
 		return filament.ReplicationStream{}, err
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: commit replication stream resolution: %w", err)
-	}
 	return stream, nil
 }
 
@@ -100,6 +111,35 @@ func (s *Store) LoadReplicationStream(ctx context.Context, id string) (filament.
 		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: load replication stream: %w", err)
 	}
 	return replicationStreamFromRow(row)
+}
+
+// ListRetiredReplicationStreams returns predecessor generations still eligible
+// for connector-side cleanup.
+func (s *Store) ListRetiredReplicationStreams(ctx context.Context, pipelineID, route string) ([]filament.ReplicationStream, error) {
+	rows, err := s.q.ListRetiredReplicationStreamsForRoute(ctx, sqlcgen.ListRetiredReplicationStreamsForRouteParams{
+		PipelineID: pipelineID, RouteKey: route,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("datastore/postgres: list retired replication streams: %w", err)
+	}
+	out := make([]filament.ReplicationStream, 0, len(rows))
+	for _, row := range rows {
+		stream, err := replicationStreamFromRow(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, stream)
+	}
+	return out, nil
+}
+
+// MarkReplicationStreamCleaned removes a retired generation from subsequent
+// connector cleanup scans while preserving its audit row.
+func (s *Store) MarkReplicationStreamCleaned(ctx context.Context, id string) error {
+	if err := s.q.MarkReplicationStreamCleaned(ctx, id); err != nil {
+		return fmt.Errorf("datastore/postgres: mark replication stream %q cleaned: %w", id, err)
+	}
+	return nil
 }
 
 // ReconcileReplicationStreamResources records the complete desired membership

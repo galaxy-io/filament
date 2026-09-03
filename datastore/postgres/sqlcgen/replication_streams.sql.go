@@ -196,6 +196,61 @@ func (q *Queries) ListReplicationStreamResources(ctx context.Context, replicatio
 	return items, nil
 }
 
+const listRetiredReplicationStreamsForRoute = `-- name: ListRetiredReplicationStreamsForRoute :many
+SELECT id, tenant_id, pipeline_id, route_key, generation, source_connection_id, sink_connection_id, consumer_name, consumer_config, continuity_fingerprint, status, created_from_pipeline_version_id, error, retired_at, created_by_user_id, updated_by_user_id, deleted_by_user_id, created_at, updated_at
+FROM replication_streams
+WHERE pipeline_id = $1
+  AND route_key = $2
+  AND status = 1
+  AND NOT (consumer_config @> '{"_filament_cleanup_complete": true}'::jsonb)
+ORDER BY generation
+`
+
+type ListRetiredReplicationStreamsForRouteParams struct {
+	PipelineID string
+	RouteKey   string
+}
+
+func (q *Queries) ListRetiredReplicationStreamsForRoute(ctx context.Context, arg ListRetiredReplicationStreamsForRouteParams) ([]*ReplicationStream, error) {
+	rows, err := q.db.Query(ctx, listRetiredReplicationStreamsForRoute, arg.PipelineID, arg.RouteKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ReplicationStream
+	for rows.Next() {
+		var i ReplicationStream
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.PipelineID,
+			&i.RouteKey,
+			&i.Generation,
+			&i.SourceConnectionID,
+			&i.SinkConnectionID,
+			&i.ConsumerName,
+			&i.ConsumerConfig,
+			&i.ContinuityFingerprint,
+			&i.Status,
+			&i.CreatedFromPipelineVersionID,
+			&i.Error,
+			&i.RetiredAt,
+			&i.CreatedByUserID,
+			&i.UpdatedByUserID,
+			&i.DeletedByUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockPipelineForReplicationStream = `-- name: LockPipelineForReplicationStream :one
 SELECT id
 FROM pipelines
@@ -236,6 +291,19 @@ func (q *Queries) LockReplicationStream(ctx context.Context, arg LockReplication
 	var id string
 	err := row.Scan(&id)
 	return id, err
+}
+
+const markReplicationStreamCleaned = `-- name: MarkReplicationStreamCleaned :exec
+UPDATE replication_streams
+SET consumer_config = consumer_config || '{"_filament_cleanup_complete": true}'::jsonb,
+    updated_at = now()
+WHERE id = $1
+  AND status = 1
+`
+
+func (q *Queries) MarkReplicationStreamCleaned(ctx context.Context, replicationStreamID string) error {
+	_, err := q.db.Exec(ctx, markReplicationStreamCleaned, replicationStreamID)
+	return err
 }
 
 const nextReplicationStreamGeneration = `-- name: NextReplicationStreamGeneration :one

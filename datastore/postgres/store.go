@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -45,9 +46,10 @@ func (s *Store) Close() error {
 }
 
 var (
-	_ filament.DataStore              = (*Store)(nil)
-	_ filament.ReplicationStreamStore = (*Store)(nil)
-	_ filament.ScheduleStore          = (*Store)(nil)
+	_ filament.DataStore                 = (*Store)(nil)
+	_ filament.ReplicationStreamStore    = (*Store)(nil)
+	_ filament.ReplicationStreamRunStore = (*Store)(nil)
+	_ filament.ScheduleStore             = (*Store)(nil)
 )
 
 // Name identifies this store implementation.
@@ -163,16 +165,35 @@ func runStatusValue(status filament.RunStatus) (int16, error) {
 // CreateRun inserts the run or promotes a pre-created RunScheduled row; a row
 // that has progressed past RunScheduled is left untouched.
 func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
-	req, err := json.Marshal(r.Request)
-	if err != nil {
-		return fmt.Errorf("datastore/postgres: marshal request: %w", err)
-	}
+	return s.createRun(ctx, r, nil)
+}
+
+// CreateRunWithReplicationStream atomically resolves the desired stream and
+// admits the run. A route-fence conflict rolls the stream change back.
+func (s *Store) CreateRunWithReplicationStream(ctx context.Context, r filament.RunState, desired filament.ReplicationStream) error {
+	return s.createRun(ctx, r, &desired)
+}
+
+func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *filament.ReplicationStream) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
+	if desired != nil {
+		stream, err := resolveReplicationStream(ctx, q, *desired)
+		if err != nil {
+			return err
+		}
+		r.Request.ReplicationStreamID = stream.ID
+		r.Request.ReplicationStreamGeneration = stream.Generation
+		r.Request.ReplicationStream = &stream
+	}
+	req, err := json.Marshal(r.Request)
+	if err != nil {
+		return fmt.Errorf("datastore/postgres: marshal request: %w", err)
+	}
 
 	rows, err := q.CreateRun(ctx, sqlcgen.CreateRunParams{
 		RunID:             string(r.Run),
@@ -194,6 +215,9 @@ func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
 		FromStatus:        int16(filament.RunScheduled), //nolint:gosec // small enum
 	})
 	if err != nil {
+		if replicationRouteConflict(err) {
+			return fmt.Errorf("create run %q: %w", r.Run, filament.ErrRunOverlap)
+		}
 		return fmt.Errorf("datastore/postgres: create run: %w", err)
 	}
 	if rows == 0 {
@@ -211,6 +235,11 @@ func (s *Store) CreateRun(ctx context.Context, r filament.RunState) error {
 		return fmt.Errorf("datastore/postgres: commit: %w", err)
 	}
 	return nil
+}
+
+func replicationRouteConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.ConstraintName == "runs_active_replication_route_idx"
 }
 
 // DeleteRun removes the run; resources, checkpoints, and dedup rows cascade.

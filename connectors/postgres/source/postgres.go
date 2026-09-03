@@ -109,6 +109,7 @@ var (
 	_ filament.ChangeSource             = (*Source)(nil)
 	_ filament.ChangeAcknowledger       = (*Source)(nil)
 	_ filament.ReplicationStreamPlanner = (*Source)(nil)
+	_ filament.ReplicationStreamCleaner = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.
@@ -209,6 +210,23 @@ func (s *Source) BindReplicationStream(config map[string]any, stream filament.Re
 	}
 	out["slot_name"] = stream.ConsumerName
 	return out, nil
+}
+
+// CleanupReplicationStream drops a retired logical slot after its successor
+// has committed. Missing slots are already clean and therefore succeed.
+func (s *Source) CleanupReplicationStream(ctx context.Context, stream filament.ReplicationStream) error {
+	if s.pool == nil {
+		return fmt.Errorf("postgres source: cleanup replication stream before configure")
+	}
+	if !validReplicationName(stream.ConsumerName) {
+		return fmt.Errorf("postgres source: replication stream has invalid slot name %q", stream.ConsumerName)
+	}
+	if _, err := s.pool.Exec(ctx, `SELECT pg_drop_replication_slot(slot_name)
+		FROM pg_replication_slots
+		WHERE slot_name=$1`, stream.ConsumerName); err != nil {
+		return fmt.Errorf("postgres cdc: drop retired slot %q: %w", stream.ConsumerName, err)
+	}
+	return nil
 }
 
 // Validate rejects an invalid URL or incomplete individual connection fields.

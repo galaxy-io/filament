@@ -46,6 +46,11 @@ type CompiledRun struct {
 	Req  filament.RunRequest
 }
 
+type durableReplicationStreamStore interface {
+	filament.ReplicationStreamStore
+	filament.ReplicationStreamRunStore
+}
+
 // Compile loads the pipeline's current version and collapses its edges into
 // per-route run requests. token salts each route's idempotency key. workerCfg
 // overrides the pipeline's own worker configuration field by field for this
@@ -94,18 +99,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	compiled := make([]CompiledRun, 0, len(groups))
 	for _, group := range groups {
 		key := group.key
-		var resources []string
-		var selectors []string
-		if !group.all {
-			for resource := range group.resources {
-				resources = append(resources, resource)
-			}
-			slices.Sort(resources)
-			for selector := range group.selectors {
-				selectors = append(selectors, selector)
-			}
-			slices.Sort(selectors)
-		}
+		resources, selectors := routeResources(group)
 		sourceRef, err := c.resolveNodeRef(group.source, connections)
 		if err != nil {
 			return nil, err
@@ -123,23 +117,14 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
-		var replicationStream filament.ReplicationStream
-		streamPlanner, plansStreams := source.(filament.ReplicationStreamPlanner)
-		streamStore, storesStreams := c.Store.(filament.ReplicationStreamStore)
-		if cdc && plansStreams && storesStreams {
-			replicationStream, err = c.resolveReplicationStream(
-				ctx, streamStore, streamPlanner,
-				pipeline.GetId(), version.GetId(), filament.TenantID(tenant),
-				key, group, connections, sourceRef, sinkRef,
-			)
-			if err != nil {
-				return nil, err
-			}
-			sourceRef.Config, err = streamPlanner.BindReplicationStream(sourceRef.Config, replicationStream)
-			if err != nil {
-				return nil, fmt.Errorf("bind replication stream %q: %w", key, err)
-			}
+		replicationStream, err := c.planRouteReplicationStream(
+			cdc, source, pipeline.GetId(), version.GetId(), filament.TenantID(tenant),
+			key, group, connections, sourceRef, sinkRef,
+		)
+		if err != nil {
+			return nil, err
 		}
+		replicationStreamID, replicationStreamGeneration := replicationStreamIdentity(replicationStream)
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
 			Tenant:                      filament.TenantID(tenant),
 			PipelineID:                  pipeline.GetId(),
@@ -153,8 +138,9 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 			Selectors:                   selectors,
 			IngestionTypes:              ingestionTypes,
 			CheckpointRoute:             key,
-			ReplicationStreamID:         replicationStream.ID,
-			ReplicationStreamGeneration: replicationStream.Generation,
+			ReplicationStreamID:         replicationStreamID,
+			ReplicationStreamGeneration: replicationStreamGeneration,
+			ReplicationStream:           replicationStream,
 			CursorConfigs:               group.cursorConfigs,
 			Options:                     options,
 			ScheduleID:                  scheduleID,
@@ -164,9 +150,55 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	return compiled, nil
 }
 
-func (c *Compiler) resolveReplicationStream(
-	ctx context.Context,
-	store filament.ReplicationStreamStore,
+func routeResources(group *routeGroup) (resources, selectors []string) {
+	if group.all {
+		return nil, nil
+	}
+	for resource := range group.resources {
+		resources = append(resources, resource)
+	}
+	slices.Sort(resources)
+	for selector := range group.selectors {
+		selectors = append(selectors, selector)
+	}
+	slices.Sort(selectors)
+	return resources, selectors
+}
+
+func (c *Compiler) planRouteReplicationStream(
+	cdc bool,
+	source filament.Source,
+	pipelineID, pipelineVersionID string,
+	tenant filament.TenantID,
+	route string,
+	group *routeGroup,
+	connections map[string]filament.Connection,
+	sourceRef, sinkRef filament.Ref,
+) (*filament.ReplicationStream, error) {
+	planner, plansStreams := source.(filament.ReplicationStreamPlanner)
+	if !cdc || !plansStreams {
+		return nil, nil
+	}
+	if _, ok := c.Store.(durableReplicationStreamStore); !ok {
+		return nil, fmt.Errorf("%w: datastore %q cannot durably admit replication streams", ErrPrecondition, c.Store.Name())
+	}
+	planned, err := c.planReplicationStream(
+		planner, pipelineID, pipelineVersionID, tenant, route, group, connections, sourceRef, sinkRef,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &planned, nil
+}
+
+func replicationStreamIdentity(stream *filament.ReplicationStream) (string, int64) {
+	if stream == nil {
+		return "", 0
+	}
+	return stream.ID, stream.Generation
+}
+
+func (c *Compiler) planReplicationStream(
 	planner filament.ReplicationStreamPlanner,
 	pipelineID, pipelineVersionID string,
 	tenant filament.TenantID,
@@ -192,11 +224,7 @@ func (c *Compiler) resolveReplicationStream(
 		ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig,
 		ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: pipelineVersionID,
 	}
-	stream, err := store.ResolveReplicationStream(ctx, desired)
-	if err != nil {
-		return filament.ReplicationStream{}, fmt.Errorf("resolve replication stream %q: %w", route, err)
-	}
-	return stream, nil
+	return desired, nil
 }
 
 // replicationStreamContinuityFingerprint excludes the selected resource set;

@@ -80,7 +80,7 @@ func ShouldRun(state filament.RunState) bool {
 // A non-nil return means execution was not admitted (see admit). Once
 // admitted, outcomes travel as terminal facts and RunOne returns nil.
 //
-//nolint:funlen // the run lifecycle reads best as one sequence
+//nolint:funlen,gocyclo // the run lifecycle reads best as one sequence
 func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	deps.Log = scopedRunLogger(deps.Log, spec)
 	ctx, span, endSpan := startRunSpan(ctx, deps, spec)
@@ -110,6 +110,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	src, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
 		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err), nil, false)
+		return nil
+	}
+	if err := bindReplicationStream(extractCtx, deps.DataStore, src, &spec); err != nil {
+		em.failed(err, nil, false)
 		return nil
 	}
 	if err := src.Configure(extractCtx, filament.NewConfig(spec.Source.Config)); err != nil {
@@ -280,6 +284,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	}
 	em.completed(resources)
 	acknowledgeDurableChanges(ctx, deps, spec, src, em.streamCheckpoints())
+	cleanupRetiredReplicationStreams(ctx, deps, spec, src)
 	return nil
 }
 

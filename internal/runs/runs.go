@@ -34,7 +34,7 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req fi
 	}
 
 	now := time.Now()
-	if err := ds.CreateRun(ctx, filament.RunState{
+	state := filament.RunState{
 		Run:         id,
 		Tenant:      req.Tenant,
 		Status:      filament.RunRequested,
@@ -42,7 +42,19 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req fi
 		ScheduleID:  req.ScheduleID,
 		ScheduledAt: req.ScheduledFor,
 		RequestedAt: now,
-	}); err != nil {
+	}
+	var createErr error
+	if req.ReplicationStream != nil {
+		streamStore, ok := ds.(filament.ReplicationStreamRunStore)
+		if !ok {
+			return "", fmt.Errorf("runs: datastore cannot durably admit replication stream %q", req.ReplicationStream.ID)
+		}
+		createErr = streamStore.CreateRunWithReplicationStream(ctx, state, *req.ReplicationStream)
+	} else {
+		createErr = ds.CreateRun(ctx, state)
+	}
+	if createErr != nil {
+		err := createErr
 		if errors.Is(err, filament.ErrVersionConflict) {
 			state, loadErr := ds.LoadRun(ctx, id)
 			if loadErr != nil {

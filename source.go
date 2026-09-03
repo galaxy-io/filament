@@ -204,6 +204,13 @@ type ReplicationStreamPlanner interface {
 	BindReplicationStream(config map[string]any, stream ReplicationStream) (map[string]any, error)
 }
 
+// ReplicationStreamCleaner releases a retired connector-side consumer after a
+// successor generation has committed successfully. Implementations must treat
+// an already-absent consumer as success.
+type ReplicationStreamCleaner interface {
+	CleanupReplicationStream(ctx context.Context, stream ReplicationStream) error
+}
+
 // ReplicationOf resolves a connection's replication mode from its source.
 func ReplicationOf(src Source, cfg Config) ReplicationMode {
 	if aware, ok := src.(ReplicationAware); ok {

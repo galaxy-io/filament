@@ -64,9 +64,12 @@ type RunRequest struct {
 	// the immutable pipeline version. Generation fences stale route versions.
 	ReplicationStreamID         string
 	ReplicationStreamGeneration int64
-	CursorConfigs               map[string]ResourceCursorConfig
-	Options                     RunOptions
-	ScheduleID                  ScheduleID
+	// ReplicationStream is the connector plan to resolve atomically when this run
+	// is admitted.
+	ReplicationStream *ReplicationStream `json:",omitempty"`
+	CursorConfigs     map[string]ResourceCursorConfig
+	Options           RunOptions
+	ScheduleID        ScheduleID
 	// ScheduledFor is the occurrence this request represents; zero when manual.
 	ScheduledFor time.Time
 	// WorkerConfiguration is resolved at compile time and stamped here, so a

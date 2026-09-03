@@ -18,6 +18,22 @@ SELECT *
 FROM replication_streams
 WHERE id = @replication_stream_id;
 
+-- name: ListRetiredReplicationStreamsForRoute :many
+SELECT *
+FROM replication_streams
+WHERE pipeline_id = @pipeline_id
+  AND route_key = @route_key
+  AND status = 1
+  AND NOT (consumer_config @> '{"_filament_cleanup_complete": true}'::jsonb)
+ORDER BY generation;
+
+-- name: MarkReplicationStreamCleaned :exec
+UPDATE replication_streams
+SET consumer_config = consumer_config || '{"_filament_cleanup_complete": true}'::jsonb,
+    updated_at = now()
+WHERE id = @replication_stream_id
+  AND status = 1;
+
 -- name: NextReplicationStreamGeneration :one
 SELECT (COALESCE(MAX(generation), 0) + 1)::bigint
 FROM replication_streams

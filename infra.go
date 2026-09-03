@@ -69,10 +69,19 @@ type DataStore interface {
 // and event-stream routes. It is separate from DataStore so lightweight stores
 // do not need to model external consumer lifecycles.
 type ReplicationStreamStore interface {
-	ResolveReplicationStream(ctx context.Context, desired ReplicationStream) (ReplicationStream, error)
 	LoadReplicationStream(ctx context.Context, id string) (ReplicationStream, error)
+	ListRetiredReplicationStreams(ctx context.Context, pipelineID, route string) ([]ReplicationStream, error)
+	MarkReplicationStreamCleaned(ctx context.Context, id string) error
 	ReconcileReplicationStreamResources(ctx context.Context, streamID string, tenant TenantID, resources []string, bootstrapMode string) ([]ReplicationStreamResource, error)
 	ListReplicationStreamResources(ctx context.Context, streamID string) ([]ReplicationStreamResource, error)
+}
+
+// ReplicationStreamRunStore admits a run and resolves its desired replication
+// stream in one transaction. Keeping this separate from CreateRun prevents a
+// compile or a rejected overlapping run from retiring the stream that an
+// existing run still owns.
+type ReplicationStreamRunStore interface {
+	CreateRunWithReplicationStream(ctx context.Context, state RunState, desired ReplicationStream) error
 }
 
 // RunTransitionStore applies lifecycle commands with a compare-and-swap on
@@ -261,6 +270,10 @@ type ListOptions struct {
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.
 var ErrVersionConflict = errors.New("version conflict")
+
+// ErrRunOverlap means another requested, running, or paused run already owns
+// the same replication route.
+var ErrRunOverlap = errors.New("run overlaps an active replication route")
 
 // ScheduleLeaseTTL bounds how long a ClaimDue lease is honored before a
 // schedule is eligible to be reclaimed.

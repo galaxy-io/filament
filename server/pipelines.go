@@ -484,6 +484,9 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	for _, c := range compiled {
 		run, err := a.orch.Submit(ctx, c.Req)
 		if err != nil {
+			if errors.Is(err, filament.ErrRunOverlap) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		if a.log != nil {

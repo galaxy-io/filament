@@ -969,4 +969,72 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	if err != nil || retired.Status != filament.ReplicationStreamRetired {
 		t.Fatalf("retired stream = %+v, err = %v", retired, err)
 	}
+	cleanup, err := store.ListRetiredReplicationStreams(ctx, pipelineOne, stream.Route)
+	if err != nil || len(cleanup) != 1 || cleanup[0].ID != stream.ID {
+		t.Fatalf("retired cleanup candidates = %+v, err = %v", cleanup, err)
+	}
+	if err := store.MarkReplicationStreamCleaned(ctx, stream.ID); err != nil {
+		t.Fatalf("MarkReplicationStreamCleaned: %v", err)
+	}
+	cleanup, err = store.ListRetiredReplicationStreams(ctx, pipelineOne, stream.Route)
+	if err != nil || len(cleanup) != 0 {
+		t.Fatalf("cleaned stream remained eligible: %+v, err = %v", cleanup, err)
+	}
+}
+
+func TestStore_ReplicationStreamAdmissionRollsBackOnRouteOverlap(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	for _, connection := range []filament.Connection{
+		{ID: connectionOne, Tenant: tenantA, Kind: filament.ConnectorKindSource, Name: "source", Connector: "postgres"},
+		{ID: connectionTwo, Tenant: tenantA, Kind: filament.ConnectorKindSink, Name: "sink", Connector: "postgres"},
+	} {
+		if _, err := store.CreateConnection(ctx, connection); err != nil {
+			t.Fatalf("CreateConnection: %v", err)
+		}
+	}
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelineOne, TenantId: tenantA, Name: "cdc-overlap"}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	version, err := store.CreatePipelineVersion(ctx, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+	first := filament.ReplicationStream{
+		ID: replicationOne, Tenant: tenantA, PipelineID: pipelineOne, Route: "route/source/sink",
+		SourceConnectionID: connectionOne, SinkConnectionID: connectionTwo,
+		ConsumerName: "filament_60000000000040008000000000000001", ContinuityFingerprint: "first",
+		CreatedFromPipelineVersionID: version.GetId(),
+	}
+	if err := store.CreateRunWithReplicationStream(ctx, filament.RunState{
+		Run: runOne, Tenant: tenantA, Status: filament.RunPaused,
+		Request: filament.RunRequest{
+			Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: version.GetId(),
+			CheckpointRoute: first.Route, ReplicationStreamID: first.ID, ReplicationStream: &first,
+		},
+	}, first); err != nil {
+		t.Fatalf("CreateRunWithReplicationStream first: %v", err)
+	}
+
+	second := first
+	second.ID = replicationTwo
+	second.ConsumerName = "filament_60000000000040008000000000000002"
+	second.ContinuityFingerprint = "second"
+	err = store.CreateRunWithReplicationStream(ctx, filament.RunState{
+		Run: runHighWater, Tenant: tenantA, Status: filament.RunRequested,
+		Request: filament.RunRequest{
+			Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: version.GetId(),
+			CheckpointRoute: second.Route, ReplicationStreamID: second.ID, ReplicationStream: &second,
+		},
+	}, second)
+	if !errors.Is(err, filament.ErrRunOverlap) {
+		t.Fatalf("overlapping admission error = %v, want ErrRunOverlap", err)
+	}
+	active, err := store.LoadReplicationStream(ctx, first.ID)
+	if err != nil || active.Status != filament.ReplicationStreamActive {
+		t.Fatalf("predecessor after rejected admission = %+v, err = %v", active, err)
+	}
+	if _, err := store.LoadReplicationStream(ctx, second.ID); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("rejected successor exists: %v", err)
+	}
 }
