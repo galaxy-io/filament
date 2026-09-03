@@ -62,6 +62,21 @@ html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-sample-dar
   max-width: 48rem !important;
 }
 
+/* ------------------------------------------------------------------
+   Sidebar footer links. Maple renders a `type: "github"` navbar link
+   through its own component (8px inset, 8px icon gap) but a plain
+   {label, icon, href} link through the generic one (16px inline inset,
+   12px icon gap), so the two rows don't share a left edge. Match the
+   generic link to the GitHub row. The inline padding needs !important.
+   Scoped to the id-bearing <li> the generic links get, so any link
+   added to navbar.links later lines up too.
+   ------------------------------------------------------------------ */
+
+#sidebar li[id^="http"] > a {
+  padding-left: 0.5rem !important;
+  column-gap: 0.5rem !important;
+}
+
 /* Mermaid edge labels: drop the renderer's gray chip, color the text to
    match the electric blue diagram in both themes. */
 

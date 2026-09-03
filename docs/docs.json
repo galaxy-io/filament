@@ -69,12 +69,18 @@
       {
         "type": "github",
         "href": "https://github.com/galaxy-io/filament"
+      },
+      {
+        "label": "Join the Slack community",
+        "icon": "slack",
+        "href": "https://join.slack.com/t/galaxy-filament/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ"
       }
     ]
   },
   "footer": {
     "socials": {
       "github": "https://github.com/galaxy-io/filament",
+      "slack": "https://join.slack.com/t/galaxy-filament/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ",
       "website": "https://getgalaxy.io"
     }
   },
