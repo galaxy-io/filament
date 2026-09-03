@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
@@ -23,6 +24,9 @@ func (s *Service) SavePipeline(ctx context.Context, request SavePipelineRequest)
 	}
 	if !request.Create && !exists {
 		return model.Pipeline{}, fmt.Errorf("pipeline %q does not exist", request.Name)
+	}
+	if exists && existing.Info.EditBlockedReason != "" {
+		return model.Pipeline{}, fmt.Errorf("pipeline %q cannot be edited by the CLI without losing data: %s; edit it in the UI", request.Name, existing.Info.EditBlockedReason)
 	}
 	var base *model.Pipeline
 	if exists {
@@ -51,7 +55,9 @@ func BuildPipeline(request SavePipelineRequest, existing *model.Pipeline, docume
 	if existing != nil {
 		pipeline = *existing
 		pipeline.Source.Config = cloneConfigMap(existing.Source.Config)
+		pipeline.Source.SecretRefs = maps.Clone(existing.Source.SecretRefs)
 		pipeline.Sink.Config = cloneConfigMap(existing.Sink.Config)
+		pipeline.Sink.SecretRefs = maps.Clone(existing.Sink.SecretRefs)
 		oldSourceType = document.Sources[existing.Source.Ref].Type
 		oldSinkType = document.Sinks[existing.Sink.Ref].Type
 	}
@@ -87,6 +93,13 @@ func BuildPipeline(request SavePipelineRequest, existing *model.Pipeline, docume
 	pipeline.Source.Config = applyConfigPatch(pipeline.Source.Config, request.SourceConfig)
 	pipeline.Sink.Config = applyConfigPatch(pipeline.Sink.Config, request.SinkConfig)
 	var err error
+	pipeline.Source.SecretRefs, err = UpdateSecretReferences(catalog.Sources[source.Type].Config, request.SourceConfig, pipeline.Source.SecretRefs)
+	if err == nil {
+		pipeline.Sink.SecretRefs, err = UpdateSecretReferences(catalog.Sinks[sink.Type].Config, request.SinkConfig, pipeline.Sink.SecretRefs)
+	}
+	if err != nil {
+		return pipeline, err
+	}
 	pipeline.Source.Config, err = normalizeSavedSecretReferences(catalog.Sources[source.Type].Config, pipeline.Source.Config)
 	if err == nil {
 		pipeline.Sink.Config, err = normalizeSavedSecretReferences(catalog.Sinks[sink.Type].Config, pipeline.Sink.Config)
@@ -94,6 +107,8 @@ func BuildPipeline(request SavePipelineRequest, existing *model.Pipeline, docume
 	if err != nil {
 		return pipeline, err
 	}
+	graph := model.SimplePipelineGraph(pipeline)
+	pipeline.Graph = &graph
 	return pipeline, nil
 }
 
