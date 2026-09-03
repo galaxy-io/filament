@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"reflect"
+	"slices"
+	"time"
+)
 
 // ConfigVersion is the current configuration document version.
 const ConfigVersion = 1
@@ -108,4 +112,22 @@ func (d *Document) Normalize() {
 	if d.Pipelines == nil {
 		d.Pipelines = map[string]Pipeline{}
 	}
+}
+
+// PipelinesEquivalent compares what a document can express: refs, modes,
+// resources, and node configs. Metadata, Info, and Graph are target-owned.
+func PipelinesEquivalent(a, b Pipeline) bool {
+	return a.Source.Ref == b.Source.Ref && a.Sink.Ref == b.Sink.Ref &&
+		a.SyncMode == b.SyncMode && a.WriteMode == b.WriteMode &&
+		slices.Equal(a.Resources, b.Resources) &&
+		ConfigsEquivalent(a.Source.Config, b.Source.Config) &&
+		ConfigsEquivalent(a.Sink.Config, b.Sink.Config)
+}
+
+// ConfigsEquivalent treats nil and empty config maps as equal.
+func ConfigsEquivalent(a, b map[string]any) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(a, b)
 }

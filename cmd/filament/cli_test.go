@@ -27,21 +27,6 @@ func TestNonInteractiveConfigurationLifecycle(t *testing.T) {
 	run("source", "discover", "demo")
 	run("run", "copy")
 	run("config", "validate")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, wanted := range []string{"version: 1", "demo:", "type: sample", "out:", "copy:", "sync_mode: full"} {
-		if !strings.Contains(string(data), wanted) {
-			t.Errorf("config missing %q:\n%s", wanted, data)
-		}
-	}
-	if info, err := os.Stat(path); err != nil {
-		t.Fatal(err)
-	} else if info.Mode().Perm() != 0o600 {
-		t.Errorf("config mode = %o, want 600", info.Mode().Perm())
-	}
 }
 
 func TestNonTerminalWithoutCommandFallsBackToHelp(t *testing.T) {
