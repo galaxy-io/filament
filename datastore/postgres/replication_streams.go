@@ -45,20 +45,21 @@ func (s *Store) ResolveReplicationStream(ctx context.Context, desired filament.R
 	current, err := q.GetActiveReplicationStream(ctx, sqlcgen.GetActiveReplicationStreamParams{
 		PipelineID: desired.PipelineID, RouteKey: desired.Route,
 	})
-	if err == nil && current.ContinuityFingerprint == desired.ContinuityFingerprint {
-		stream, err := replicationStreamFromRow(current)
-		if err != nil {
-			return filament.ReplicationStream{}, err
+	if err == nil {
+		if current.ContinuityFingerprint == desired.ContinuityFingerprint {
+			stream, err := replicationStreamFromRow(current)
+			if err != nil {
+				return filament.ReplicationStream{}, err
+			}
+			if err := tx.Commit(ctx); err != nil {
+				return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: commit replication stream reuse: %w", err)
+			}
+			return stream, nil
 		}
-		if err := tx.Commit(ctx); err != nil {
-			return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: commit replication stream reuse: %w", err)
-		}
-		return stream, nil
-	}
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: load active replication stream: %w", err)
 	}
-	if current != nil {
+	if err == nil {
 		if err := q.RetireReplicationStream(ctx, current.ID); err != nil {
 			return filament.ReplicationStream{}, fmt.Errorf("datastore/postgres: retire replication stream: %w", err)
 		}
