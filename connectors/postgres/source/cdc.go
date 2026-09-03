@@ -750,7 +750,7 @@ func (r *pgCDCRun) push(rel *cdcRelation, tuple, fallback *pglogrepl.TupleData, 
 
 func (r *pgCDCRun) pastFloor(resource string, lsn pglogrepl.LSN) bool {
 	floor, ok := r.floors[resource]
-	return !ok || lsn > floor
+	return !ok || lsn >= floor
 }
 
 // pushStreamMarks drains every resource's writer at the cycle's final position,
