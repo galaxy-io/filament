@@ -13,10 +13,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-var (
-	namePattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-	envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-)
+var envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // ValidateDocument validates a structured configuration against a target's
 // connector catalog.
@@ -89,9 +86,10 @@ func ValidateDocument(document model.Document, catalog model.Catalog) error {
 	return nil
 }
 
+// validateName only requires a name; the deployment owns any further rule.
 func validateName(kind, name string) error {
-	if !namePattern.MatchString(name) {
-		return fmt.Errorf("%s name %q must match %s", kind, name, namePattern)
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("%s name is required", kind)
 	}
 	return nil
 }
