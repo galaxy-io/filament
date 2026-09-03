@@ -10,12 +10,12 @@ CREATE TABLE replication_streams (
   generation                       BIGINT      NOT NULL DEFAULT 1 CHECK (generation > 0),
   source_connection_id             UUID        NOT NULL REFERENCES connections (id),
   sink_connection_id               UUID        NOT NULL REFERENCES connections (id),
-  consumer_name                    TEXT        NOT NULL CHECK (consumer_name <> ''),
-  consumer_config                   JSONB       NOT NULL DEFAULT '{}',
-  continuity_fingerprint            TEXT        NOT NULL CHECK (continuity_fingerprint <> ''),
+  consumer_name                    TEXT        NOT NULL,
+  consumer_config                  JSONB       NOT NULL DEFAULT '{}',
+  continuity_fingerprint           TEXT        NOT NULL,
   -- 0=active, 1=retired, 2=error; kept numeric for protobuf mapping.
   status                           SMALLINT    NOT NULL DEFAULT 0
-                                                CHECK (status IN (0, 1, 2)),
+                                             CHECK (status IN (0, 1, 2)),
   created_from_pipeline_version_id UUID        NOT NULL,
   error                            TEXT,
   retired_at                       TIMESTAMPTZ,
@@ -55,10 +55,10 @@ CREATE TABLE replication_stream_resources (
   resource_name          TEXT        NOT NULL,
   -- 0=pending, 1=bootstrapping, 2=active, 3=retired, 4=error.
   status                 SMALLINT    NOT NULL DEFAULT 0
-                                      CHECK (status IN (0, 1, 2, 3, 4)),
+                                   CHECK (status IN (0, 1, 2, 3, 4)),
   bootstrap_mode         TEXT        NOT NULL,
-  bootstrap_config        JSONB       NOT NULL DEFAULT '{}',
-  schema_fingerprint      TEXT,
+  bootstrap_config       JSONB       NOT NULL DEFAULT '{}',
+  schema_fingerprint     TEXT,
   bootstrap_run_id       UUID        REFERENCES runs (id) ON DELETE SET NULL,
   bootstrap_started_at   TIMESTAMPTZ,
   activated_at           TIMESTAMPTZ,
