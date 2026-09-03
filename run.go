@@ -470,12 +470,16 @@ func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
 }
 
 // WriteModesFor returns the user-selectable write modes compatible with read.
+// CDC has no read lever; its pairing with append or merge lives here so no
+// caller re-derives it.
 func WriteModesFor(read ReadMode) []WriteMode {
 	switch read {
 	case ModeFull:
 		return []WriteMode{WriteAppend, WriteReplace, WriteUpsert}
 	case ModeIncremental:
 		return []WriteMode{WriteAppend, WriteUpsert}
+	case ModeCDC:
+		return []WriteMode{WriteAppend, WriteMerge}
 	default:
 		return nil
 	}
