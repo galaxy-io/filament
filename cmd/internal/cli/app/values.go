@@ -7,9 +7,9 @@ import (
 )
 
 func applyConfigPatch(current map[string]any, patch ConfigPatch) map[string]any {
-	result := cloneConfigMap(current)
+	result := model.CloneConfig(current)
 	for name, value := range patch.Values {
-		result[name] = cloneConfigValue(value)
+		result[name] = model.CloneConfigValue(value)
 	}
 	for _, name := range patch.Unset {
 		delete(result, name)
