@@ -113,8 +113,8 @@ func ProjectSimpleGraph(pipeline *Pipeline, graph PipelineGraph, sourceReplicati
 	case readMode == "":
 		readMode = "full"
 	}
-	pipeline.Source = PipelineNode{Ref: source.Connection, Config: cloneAnyMap(source.Config), SecretRefs: maps.Clone(source.SecretRefs)}
-	pipeline.Sink = PipelineNode{Ref: sink.Connection, Config: cloneAnyMap(sink.Config), SecretRefs: maps.Clone(sink.SecretRefs)}
+	pipeline.Source = PipelineNode{Ref: source.Connection, Config: CloneConfig(source.Config), SecretRefs: maps.Clone(source.SecretRefs)}
+	pipeline.Sink = PipelineNode{Ref: sink.Connection, Config: CloneConfig(sink.Config), SecretRefs: maps.Clone(sink.SecretRefs)}
 	pipeline.Resources = resources
 	pipeline.SyncMode = readMode
 	pipeline.WriteMode = writeMode
@@ -150,8 +150,8 @@ func SimplePipelineGraph(pipeline Pipeline) PipelineGraph {
 	}
 	return PipelineGraph{
 		Nodes: []PipelineGraphNode{
-			{ID: sourceID, Kind: "source", Connection: pipeline.Source.Ref, Config: cloneAnyMap(pipeline.Source.Config), SecretRefs: maps.Clone(pipeline.Source.SecretRefs)},
-			{ID: sinkID, Kind: "sink", Connection: pipeline.Sink.Ref, Config: cloneAnyMap(pipeline.Sink.Config), SecretRefs: maps.Clone(pipeline.Sink.SecretRefs)},
+			{ID: sourceID, Kind: "source", Connection: pipeline.Source.Ref, Config: CloneConfig(pipeline.Source.Config), SecretRefs: maps.Clone(pipeline.Source.SecretRefs)},
+			{ID: sinkID, Kind: "sink", Connection: pipeline.Sink.Ref, Config: CloneConfig(pipeline.Sink.Config), SecretRefs: maps.Clone(pipeline.Sink.SecretRefs)},
 		},
 		Edges: edges,
 	}
@@ -174,25 +174,11 @@ func (p Pipeline) ReferencesConnection(kind, name string) bool {
 func cloneGraph(graph PipelineGraph) *PipelineGraph {
 	out := &PipelineGraph{Nodes: slices.Clone(graph.Nodes), Edges: slices.Clone(graph.Edges)}
 	for i := range out.Nodes {
-		out.Nodes[i].Config = cloneAnyMap(out.Nodes[i].Config)
+		out.Nodes[i].Config = CloneConfig(out.Nodes[i].Config)
 		out.Nodes[i].SecretRefs = maps.Clone(out.Nodes[i].SecretRefs)
 	}
 	for i := range out.Edges {
 		out.Edges[i].Cursors = slices.Clone(out.Edges[i].Cursors)
-	}
-	return out
-}
-
-func cloneAnyMap(in map[string]any) map[string]any {
-	if in == nil {
-		return nil
-	}
-	out := make(map[string]any, len(in))
-	for key, value := range in {
-		if nested, ok := value.(map[string]any); ok {
-			value = cloneAnyMap(nested)
-		}
-		out[key] = value
 	}
 	return out
 }
