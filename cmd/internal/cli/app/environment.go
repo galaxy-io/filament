@@ -38,7 +38,7 @@ func NormalizeEnvironmentName(value string) (string, error) {
 }
 
 func normalizeSavedSecretReferences(schema filament.ConfigSchema, values map[string]any) (map[string]any, error) {
-	result := cloneConfigMap(values)
+	result := model.CloneConfig(values)
 	if err := transformSecretFields(schema.Fields, result, "", nil); err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func normalizeSavedSecretReferences(schema filament.ConfigSchema, values map[str
 // boundary. The target supplies the environment lookup because local and
 // remote targets do not share an environment.
 func ResolveConfigSecrets(schema filament.ConfigSchema, values map[string]any, lookup func(string) (string, bool)) (map[string]any, error) {
-	result := cloneConfigMap(values)
+	result := model.CloneConfig(values)
 	if err := transformSecretFields(schema.Fields, result, "", lookup); err != nil {
 		return nil, err
 	}
@@ -110,9 +110,9 @@ func joinConfigPath(parent, field string) string {
 // inactive fields, and canonicalizes secret references. Resolution is left to
 // the selected target's execution environment.
 func ResolvedConnectionConfig(connection model.Connection, scoped map[string]any, schema filament.ConfigSchema) (map[string]any, error) {
-	config := cloneConfigMap(connection.Config)
+	config := model.CloneConfig(connection.Config)
 	for field, value := range scoped {
-		config[field] = cloneConfigValue(value)
+		config[field] = model.CloneConfigValue(value)
 	}
 	config = canonicalizeConfig(schema, config)
 	return normalizeSavedSecretReferences(schema, config)
