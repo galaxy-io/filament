@@ -45,8 +45,9 @@ func (s *Store) Close() error {
 }
 
 var (
-	_ filament.DataStore     = (*Store)(nil)
-	_ filament.ScheduleStore = (*Store)(nil)
+	_ filament.DataStore              = (*Store)(nil)
+	_ filament.ReplicationStreamStore = (*Store)(nil)
+	_ filament.ScheduleStore          = (*Store)(nil)
 )
 
 // Name identifies this store implementation.
@@ -538,11 +539,24 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: marshal resource checkpoint: %w", err)
 	}
-	err = s.q.SaveResourceCheckpoint(ctx, sqlcgen.SaveResourceCheckpointParams{
-		PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
-		RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
-		Cursor: cursor, LastRunID: string(state.Run),
-	})
+	if state.Key.ReplicationStreamID != "" {
+		var rows int64
+		rows, err = s.q.SaveStreamResourceCheckpoint(ctx, sqlcgen.SaveStreamResourceCheckpointParams{
+			PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
+			RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
+			ReplicationStreamID: state.Key.ReplicationStreamID,
+			Cursor:              cursor, LastRunID: string(state.Run),
+		})
+		if err == nil && rows == 0 {
+			return fmt.Errorf("save resource checkpoint %q/%q: %w", state.Key.ReplicationStreamID, state.Key.Resource, filament.ErrNotFound)
+		}
+	} else {
+		err = s.q.SaveResourceCheckpoint(ctx, sqlcgen.SaveResourceCheckpointParams{
+			PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
+			RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
+			Cursor: cursor, LastRunID: string(state.Run),
+		})
+	}
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: save resource checkpoint: %w", err)
 	}
@@ -552,10 +566,28 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 // LoadResourceCheckpoint returns durable cross-run progress for one route and
 // resource.
 func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) (filament.ResourceCheckpointState, error) {
-	row, err := s.q.LoadResourceCheckpoint(ctx, sqlcgen.LoadResourceCheckpointParams{
-		PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
-		RouteKey: key.Route, ResourceName: key.Resource,
-	})
+	var cursor []byte
+	var lastRunID string
+	var updatedAt pgtype.Timestamptz
+	var err error
+	if key.ReplicationStreamID != "" {
+		row, loadErr := s.q.LoadStreamResourceCheckpoint(ctx, sqlcgen.LoadStreamResourceCheckpointParams{
+			ReplicationStreamID: key.ReplicationStreamID, ResourceName: key.Resource,
+		})
+		err = loadErr
+		if row != nil {
+			cursor, lastRunID, updatedAt = row.Cursor, row.LastRunID, row.UpdatedAt
+		}
+	} else {
+		row, loadErr := s.q.LoadResourceCheckpoint(ctx, sqlcgen.LoadResourceCheckpointParams{
+			PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
+			RouteKey: key.Route, ResourceName: key.Resource,
+		})
+		err = loadErr
+		if row != nil {
+			cursor, lastRunID, updatedAt = row.Cursor, row.LastRunID, row.UpdatedAt
+		}
+	}
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.ResourceCheckpointState{}, fmt.Errorf("load resource checkpoint %q/%q: %w", key.Route, key.Resource, filament.ErrNotFound)
@@ -563,11 +595,11 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 		return filament.ResourceCheckpointState{}, fmt.Errorf("datastore/postgres: load resource checkpoint: %w", err)
 	}
 	var raw map[string]any
-	if err := json.Unmarshal(row.Cursor, &raw); err != nil {
+	if err := json.Unmarshal(cursor, &raw); err != nil {
 		return filament.ResourceCheckpointState{}, fmt.Errorf("datastore/postgres: unmarshal resource checkpoint: %w", err)
 	}
 	return filament.ResourceCheckpointState{
-		Key: key, Run: filament.RunID(row.LastRunID), UpdatedAt: row.UpdatedAt.Time,
+		Key: key, Run: filament.RunID(lastRunID), UpdatedAt: updatedAt.Time,
 		Checkpoint: &filament.CheckpointData{ResourceName: key.Resource, Cursor: raw},
 	}, nil
 }
@@ -575,25 +607,45 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 // ListResourceCheckpoints returns every durable cursor under one route,
 // ordered by resource.
 func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
-	rows, err := s.q.ListResourceCheckpoints(ctx, sqlcgen.ListResourceCheckpointsParams{
-		PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID, RouteKey: route.Route,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("datastore/postgres: list resource checkpoints: %w", err)
+	type checkpointRow struct {
+		resourceName string
+		cursor       []byte
+		lastRunID    string
+		updatedAt    pgtype.Timestamptz
+	}
+	var rows []checkpointRow
+	if route.ReplicationStreamID != "" {
+		streamRows, err := s.q.ListStreamResourceCheckpoints(ctx, route.ReplicationStreamID)
+		if err != nil {
+			return nil, fmt.Errorf("datastore/postgres: list resource checkpoints: %w", err)
+		}
+		for _, row := range streamRows {
+			rows = append(rows, checkpointRow{row.ResourceName, row.Cursor, row.LastRunID, row.UpdatedAt})
+		}
+	} else {
+		versionRows, err := s.q.ListResourceCheckpoints(ctx, sqlcgen.ListResourceCheckpointsParams{
+			PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID, RouteKey: route.Route,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("datastore/postgres: list resource checkpoints: %w", err)
+		}
+		for _, row := range versionRows {
+			rows = append(rows, checkpointRow{row.ResourceName, row.Cursor, row.LastRunID, row.UpdatedAt})
+		}
 	}
 	states := make([]filament.ResourceCheckpointState, 0, len(rows))
 	for _, row := range rows {
 		var raw map[string]any
-		if err := json.Unmarshal(row.Cursor, &raw); err != nil {
+		if err := json.Unmarshal(row.cursor, &raw); err != nil {
 			return nil, fmt.Errorf("datastore/postgres: unmarshal resource checkpoint: %w", err)
 		}
 		key := filament.ResourceCheckpointKey{
 			PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID,
-			Route: route.Route, Resource: row.ResourceName,
+			Route: route.Route, Resource: row.resourceName, ReplicationStreamID: route.ReplicationStreamID,
 		}
 		states = append(states, filament.ResourceCheckpointState{
-			Key: key, Run: filament.RunID(row.LastRunID), UpdatedAt: row.UpdatedAt.Time,
-			Checkpoint: &filament.CheckpointData{ResourceName: row.ResourceName, Cursor: raw},
+			Key: key, Run: filament.RunID(row.lastRunID), UpdatedAt: row.updatedAt.Time,
+			Checkpoint: &filament.CheckpointData{ResourceName: row.resourceName, Cursor: raw},
 		})
 	}
 	return states, nil
@@ -601,10 +653,17 @@ func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.Reso
 
 // DeleteResourceCheckpoint resets durable progress for one route/resource.
 func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {
-	err := s.q.DeleteResourceCheckpoint(ctx, sqlcgen.DeleteResourceCheckpointParams{
-		PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
-		RouteKey: key.Route, ResourceName: key.Resource,
-	})
+	var err error
+	if key.ReplicationStreamID != "" {
+		err = s.q.DeleteStreamResourceCheckpoint(ctx, sqlcgen.DeleteStreamResourceCheckpointParams{
+			ReplicationStreamID: key.ReplicationStreamID, ResourceName: key.Resource,
+		})
+	} else {
+		err = s.q.DeleteResourceCheckpoint(ctx, sqlcgen.DeleteResourceCheckpointParams{
+			PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
+			RouteKey: key.Route, ResourceName: key.Resource,
+		})
+	}
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: delete resource checkpoint: %w", err)
 	}

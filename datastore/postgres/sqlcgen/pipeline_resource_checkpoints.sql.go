@@ -36,6 +36,31 @@ func (q *Queries) DeleteResourceCheckpoint(ctx context.Context, arg DeleteResour
 	return err
 }
 
+const deleteStreamResourceCheckpoint = `-- name: DeleteStreamResourceCheckpoint :exec
+WITH deleted AS (
+  DELETE FROM pipeline_resource_checkpoints AS c
+  USING replication_stream_resources AS r
+  WHERE c.replication_stream_resource_id = r.id
+    AND r.replication_stream_id = $1
+    AND r.resource_name = $2
+)
+UPDATE replication_stream_resources AS r
+SET status = 0, activated_at = NULL, error = NULL, updated_at = now()
+WHERE r.replication_stream_id = $1
+  AND r.resource_name = $2
+  AND r.status <> 3
+`
+
+type DeleteStreamResourceCheckpointParams struct {
+	ReplicationStreamID string
+	ResourceName        string
+}
+
+func (q *Queries) DeleteStreamResourceCheckpoint(ctx context.Context, arg DeleteStreamResourceCheckpointParams) error {
+	_, err := q.db.Exec(ctx, deleteStreamResourceCheckpoint, arg.ReplicationStreamID, arg.ResourceName)
+	return err
+}
+
 const listResourceCheckpoints = `-- name: ListResourceCheckpoints :many
 SELECT resource_name, cursor, last_run_id, updated_at
 FROM pipeline_resource_checkpoints
@@ -67,6 +92,48 @@ func (q *Queries) ListResourceCheckpoints(ctx context.Context, arg ListResourceC
 	var items []*ListResourceCheckpointsRow
 	for rows.Next() {
 		var i ListResourceCheckpointsRow
+		if err := rows.Scan(
+			&i.ResourceName,
+			&i.Cursor,
+			&i.LastRunID,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStreamResourceCheckpoints = `-- name: ListStreamResourceCheckpoints :many
+SELECT c.resource_name, c.cursor, c.last_run_id, c.updated_at
+FROM pipeline_resource_checkpoints c
+JOIN replication_stream_resources r
+  ON r.id = c.replication_stream_resource_id
+WHERE r.replication_stream_id = $1
+  AND r.status = 2
+ORDER BY c.resource_name
+`
+
+type ListStreamResourceCheckpointsRow struct {
+	ResourceName string
+	Cursor       []byte
+	LastRunID    string
+	UpdatedAt    pgtype.Timestamptz
+}
+
+func (q *Queries) ListStreamResourceCheckpoints(ctx context.Context, replicationStreamID string) ([]*ListStreamResourceCheckpointsRow, error) {
+	rows, err := q.db.Query(ctx, listStreamResourceCheckpoints, replicationStreamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ListStreamResourceCheckpointsRow
+	for rows.Next() {
+		var i ListStreamResourceCheckpointsRow
 		if err := rows.Scan(
 			&i.ResourceName,
 			&i.Cursor,
@@ -117,6 +184,34 @@ func (q *Queries) LoadResourceCheckpoint(ctx context.Context, arg LoadResourceCh
 	return &i, err
 }
 
+const loadStreamResourceCheckpoint = `-- name: LoadStreamResourceCheckpoint :one
+SELECT c.cursor, c.last_run_id, c.updated_at
+FROM pipeline_resource_checkpoints c
+JOIN replication_stream_resources r
+  ON r.id = c.replication_stream_resource_id
+WHERE r.replication_stream_id = $1
+  AND r.resource_name = $2
+  AND r.status = 2
+`
+
+type LoadStreamResourceCheckpointParams struct {
+	ReplicationStreamID string
+	ResourceName        string
+}
+
+type LoadStreamResourceCheckpointRow struct {
+	Cursor    []byte
+	LastRunID string
+	UpdatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) LoadStreamResourceCheckpoint(ctx context.Context, arg LoadStreamResourceCheckpointParams) (*LoadStreamResourceCheckpointRow, error) {
+	row := q.db.QueryRow(ctx, loadStreamResourceCheckpoint, arg.ReplicationStreamID, arg.ResourceName)
+	var i LoadStreamResourceCheckpointRow
+	err := row.Scan(&i.Cursor, &i.LastRunID, &i.UpdatedAt)
+	return &i, err
+}
+
 const saveResourceCheckpoint = `-- name: SaveResourceCheckpoint :exec
 INSERT INTO pipeline_resource_checkpoints (
   tenant_id, pipeline_id, pipeline_version_id, route_key, resource_name, cursor, last_run_id, updated_at
@@ -147,4 +242,73 @@ func (q *Queries) SaveResourceCheckpoint(ctx context.Context, arg SaveResourceCh
 		arg.LastRunID,
 	)
 	return err
+}
+
+const saveStreamResourceCheckpoint = `-- name: SaveStreamResourceCheckpoint :execrows
+WITH activated AS (
+  UPDATE replication_stream_resources AS r
+  SET status = 2,
+      bootstrap_run_id = $6,
+      activated_at = COALESCE(activated_at, now()),
+      retired_at = NULL,
+      error = NULL,
+      updated_at = now()
+  WHERE r.replication_stream_id = $7
+    AND r.resource_name = $4
+    AND r.status <> 3
+  RETURNING r.id, r.tenant_id
+), removed_conflict AS (
+  DELETE FROM pipeline_resource_checkpoints AS c
+  USING activated AS a
+  WHERE c.pipeline_id = $1
+    AND c.pipeline_version_id = $2
+    AND c.route_key = $3
+    AND c.resource_name = $4
+    AND c.replication_stream_resource_id IS DISTINCT FROM a.id
+  RETURNING c.id
+)
+INSERT INTO pipeline_resource_checkpoints (
+  tenant_id, pipeline_id, pipeline_version_id, route_key, resource_name,
+  replication_stream_resource_id, cursor, last_run_id, updated_at
+)
+SELECT tenant_id, $1, $2, $3, $4,
+       id, $5, $6, now()
+FROM activated
+CROSS JOIN (SELECT count(*) FROM removed_conflict) AS removed
+ON CONFLICT (replication_stream_resource_id)
+  WHERE replication_stream_resource_id IS NOT NULL
+DO UPDATE SET
+  tenant_id = EXCLUDED.tenant_id,
+  pipeline_id = EXCLUDED.pipeline_id,
+  pipeline_version_id = EXCLUDED.pipeline_version_id,
+  route_key = EXCLUDED.route_key,
+  cursor = EXCLUDED.cursor,
+  last_run_id = EXCLUDED.last_run_id,
+  updated_at = now()
+`
+
+type SaveStreamResourceCheckpointParams struct {
+	PipelineID          string
+	PipelineVersionID   string
+	RouteKey            string
+	ResourceName        string
+	Cursor              []byte
+	LastRunID           string
+	ReplicationStreamID string
+}
+
+func (q *Queries) SaveStreamResourceCheckpoint(ctx context.Context, arg SaveStreamResourceCheckpointParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveStreamResourceCheckpoint,
+		arg.PipelineID,
+		arg.PipelineVersionID,
+		arg.RouteKey,
+		arg.ResourceName,
+		arg.Cursor,
+		arg.LastRunID,
+		arg.ReplicationStreamID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
