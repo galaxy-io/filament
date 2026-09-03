@@ -42,6 +42,7 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		a.runCommandDefinition(),
 		a.configCommand(),
 		a.contextCommand(),
+		a.authCommand(),
 		a.versionCommand(),
 	)
 	return root
