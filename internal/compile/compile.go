@@ -7,11 +7,15 @@ package compile
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/galaxy-io/filament"
@@ -119,26 +123,113 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
+		var replicationStream filament.ReplicationStream
+		streamPlanner, plansStreams := source.(filament.ReplicationStreamPlanner)
+		streamStore, storesStreams := c.Store.(filament.ReplicationStreamStore)
+		if cdc && plansStreams && storesStreams {
+			replicationStream, err = c.resolveReplicationStream(
+				ctx, streamStore, streamPlanner,
+				pipeline.GetId(), version.GetId(), filament.TenantID(tenant),
+				key, group, connections, sourceRef, sinkRef,
+			)
+			if err != nil {
+				return nil, err
+			}
+			sourceRef.Config, err = streamPlanner.BindReplicationStream(sourceRef.Config, replicationStream)
+			if err != nil {
+				return nil, fmt.Errorf("bind replication stream %q: %w", key, err)
+			}
+		}
 		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
-			Tenant:              filament.TenantID(tenant),
-			PipelineID:          pipeline.GetId(),
-			PipelineVersionID:   version.GetId(),
-			IdempotencyKey:      fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:              sourceRef,
-			Sink:                sinkRef,
-			SourceConnectionID:  group.source.GetConnectionId(),
-			SinkConnectionID:    group.sink.GetConnectionId(),
-			Resources:           resources,
-			Selectors:           selectors,
-			IngestionTypes:      ingestionTypes,
-			CheckpointRoute:     key,
-			CursorConfigs:       group.cursorConfigs,
-			Options:             options,
-			ScheduleID:          scheduleID,
-			WorkerConfiguration: worker,
+			Tenant:                      filament.TenantID(tenant),
+			PipelineID:                  pipeline.GetId(),
+			PipelineVersionID:           version.GetId(),
+			IdempotencyKey:              fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+			Source:                      sourceRef,
+			Sink:                        sinkRef,
+			SourceConnectionID:          group.source.GetConnectionId(),
+			SinkConnectionID:            group.sink.GetConnectionId(),
+			Resources:                   resources,
+			Selectors:                   selectors,
+			IngestionTypes:              ingestionTypes,
+			CheckpointRoute:             key,
+			ReplicationStreamID:         replicationStream.ID,
+			ReplicationStreamGeneration: replicationStream.Generation,
+			CursorConfigs:               group.cursorConfigs,
+			Options:                     options,
+			ScheduleID:                  scheduleID,
+			WorkerConfiguration:         worker,
 		}})
 	}
 	return compiled, nil
+}
+
+func (c *Compiler) resolveReplicationStream(
+	ctx context.Context,
+	store filament.ReplicationStreamStore,
+	planner filament.ReplicationStreamPlanner,
+	pipelineID, pipelineVersionID string,
+	tenant filament.TenantID,
+	route string,
+	group *routeGroup,
+	connections map[string]filament.Connection,
+	sourceRef, sinkRef filament.Ref,
+) (filament.ReplicationStream, error) {
+	id := uuid.NewString()
+	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
+		ReplicationStreamID: id, Config: filament.NewConfig(sourceRef.Config),
+	})
+	if err != nil {
+		return filament.ReplicationStream{}, fmt.Errorf("plan replication stream %q: %w", route, err)
+	}
+	fingerprint, err := replicationStreamContinuityFingerprint(group, connections, sourceRef.Connector, plan.ContinuityConfig, sinkRef)
+	if err != nil {
+		return filament.ReplicationStream{}, fmt.Errorf("fingerprint replication stream %q: %w", route, err)
+	}
+	desired := filament.ReplicationStream{
+		ID: id, Tenant: tenant, PipelineID: pipelineID, Route: route,
+		SourceConnectionID: group.source.GetConnectionId(), SinkConnectionID: group.sink.GetConnectionId(),
+		ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig,
+		ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: pipelineVersionID,
+	}
+	stream, err := store.ResolveReplicationStream(ctx, desired)
+	if err != nil {
+		return filament.ReplicationStream{}, fmt.Errorf("resolve replication stream %q: %w", route, err)
+	}
+	return stream, nil
+}
+
+// replicationStreamContinuityFingerprint excludes the selected resource set;
+// the source planner decides which of its configuration fields affect
+// continuity. Adding a table can therefore reuse the stream, while changing
+// its source identity, sink target, or write semantics forks it.
+func replicationStreamContinuityFingerprint(group *routeGroup, connections map[string]filament.Connection, sourceConnector string, sourceContinuity map[string]any, sinkRef filament.Ref) (string, error) {
+	sourceConnection := connections[group.source.GetConnectionId()]
+	sinkConnection := connections[group.sink.GetConnectionId()]
+	identity := struct {
+		SourceConnector         string         `json:"source_connector"`
+		SourceConnectionID      string         `json:"source_connection_id"`
+		SourceConnectionVersion int64          `json:"source_connection_version"`
+		SourceContinuity        map[string]any `json:"source_continuity"`
+		SinkConnector           string         `json:"sink_connector"`
+		SinkConnectionID        string         `json:"sink_connection_id"`
+		SinkConnectionVersion   int64          `json:"sink_connection_version"`
+		SinkConfig              map[string]any `json:"sink_config"`
+		WriteMode               string         `json:"write_mode"`
+	}{
+		SourceConnector: sourceConnector, SourceConnectionID: sourceConnection.ID,
+		SourceConnectionVersion: sourceConnection.Version,
+		SourceContinuity:        sourceContinuity,
+		SinkConnector:           sinkRef.Connector, SinkConnectionID: sinkConnection.ID,
+		SinkConnectionVersion: sinkConnection.Version, SinkConfig: sinkRef.Config,
+		WriteMode: fmt.Sprint(group.writeMode),
+	}
+	raw, err := json.Marshal(identity)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func cdcIngestionFor(writeMode filament.WriteMode) filament.IngestionType {

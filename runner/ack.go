@@ -103,6 +103,7 @@ func routeStreamCheckpoints(ctx context.Context, ds filament.DataStore, spec fil
 	}
 	states, err := ds.ListResourceCheckpoints(ctx, filament.ResourceCheckpointRoute{
 		PipelineID: spec.PipelineID, PipelineVersionID: spec.PipelineVersionID, Route: spec.CheckpointRoute,
+		ReplicationStreamID: spec.ReplicationStreamID,
 	})
 	if err != nil {
 		return nil, err

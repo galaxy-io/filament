@@ -45,8 +45,10 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 		Tenant: r.Tenant, Run: s.Run, StartedAt: s.StartedAt,
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 		SourceConnectionID: r.SourceConnectionID, SinkConnectionID: r.SinkConnectionID,
-		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
-		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
+		CheckpointRoute:     r.CheckpointRoute,
+		ReplicationStreamID: r.ReplicationStreamID, ReplicationStreamGeneration: r.ReplicationStreamGeneration,
+		CursorConfigs: r.CursorConfigs,
+		Source:        r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
 		WorkerConfiguration: r.WorkerConfiguration,
 	}
@@ -142,6 +144,22 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 	spec.WritePolicies = plan.WritePolicies
+	if plan.RequiresCDC && spec.ReplicationStreamID != "" {
+		replicationStreamStore, ok := deps.DataStore.(filament.ReplicationStreamStore)
+		if !ok {
+			em.failed(fmt.Errorf("datastore does not support replication stream %q", spec.ReplicationStreamID), nil, false)
+			return nil
+		}
+		if _, err := replicationStreamStore.ReconcileReplicationStreamResources(
+			extractCtx, spec.ReplicationStreamID, spec.Tenant, spec.Resources, "snapshot",
+		); err != nil {
+			if emitControlledIfStopped(extractCtx, err, control, em) {
+				return nil
+			}
+			em.failed(fmt.Errorf("reconcile replication stream resources: %w", err), nil, false)
+			return nil
+		}
+	}
 	// Ordered reads (incremental cursors, CDC streams, checkpointed resume)
 	// cannot shard: parallel writers apply batches out of order, so a keyset
 	// cursor could persist behind rows already written.
