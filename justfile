@@ -57,7 +57,7 @@ dev mode="": migrate
 
 # install the cli with the web UI embedded
 cli: ui-dist
-    GOWORK=off go install -C cmd -tags embedui ./filament
+    GOWORK=off CGO_ENABLED=0 go install -C cmd -tags embedui -trimpath -ldflags="-s -w" ./filament
 
 # generate all checked-in generated code
 gen: proto sqlc
@@ -91,13 +91,13 @@ ui-dist:
 # regenerate code, build the UI, and compile every Go module
 build: gen ui-dist (_each "GOWORK=off go build ./...")
 
-# build linux release binaries into bin/ (server and standalone embed ui/dist)
+# build linux release binaries into bin/ (server, standalone, and filament embed ui/dist)
 binaries: ui-dist
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
 # build docker images
 images: binaries

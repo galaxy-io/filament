@@ -18,6 +18,8 @@ builds:
       - arm64
     flags:
       - -trimpath
+    tags:
+      - embedui
     ldflags:
       - -s -w
       - -X github.com/galaxy-io/filament/cmd/internal/version.Version={{ .Version }}

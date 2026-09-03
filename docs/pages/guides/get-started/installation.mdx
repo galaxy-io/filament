@@ -76,8 +76,8 @@ optional vendored subcharts for evaluation). See
 ## Building from source
 
 `just binaries` builds every binary into `bin/filament/` and compiles
-`server` and `standalone` with the `embedui` build tag so the web app is
-embedded. A plain `go build` of those binaries serves a placeholder page
+`server`, `standalone`, and `cli` with the `embedui` build tag so the
+web app is embedded. A plain `go build` of those binaries serves a placeholder page
 instead of the UI, so use `just binaries` (or pass `-tags embedui` yourself)
 when you want the UI in the binary. `just images` builds the container
 images.
