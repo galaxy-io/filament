@@ -61,7 +61,7 @@ func BuildConnection(request SaveConnectionRequest, existing *model.Connection, 
 	connection := model.Connection{Config: map[string]any{}}
 	if existing != nil {
 		connection = *existing
-		connection.Config = cloneConfigMap(existing.Config)
+		connection.Config = model.CloneConfig(existing.Config)
 		connection.SecretRefs = maps.Clone(existing.SecretRefs)
 	}
 	connector := request.Connector

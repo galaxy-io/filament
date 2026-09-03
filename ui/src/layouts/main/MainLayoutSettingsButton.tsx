@@ -214,9 +214,9 @@ const MainLayoutSettingsButtonMenu = ({
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.CENTER}
           >
-            <Icon component={UsersThreeIcon} size={14} variant={IconVariant.TERTIARY} />
+            <Icon component={UsersThreeIcon} variant={IconVariant.TERTIARY} />
           </FlexItem>
-          <Text weight={TextWeight.MEDIUM}>Manage team</Text>
+          <Text>Manage organization</Text>
         </MenuItem>
         {canManageTeam && (
           <MenuItem type="button" onClick={onOpenServiceAccounts}>
@@ -227,9 +227,9 @@ const MainLayoutSettingsButtonMenu = ({
               alignItems={AlignItems.CENTER}
               justifyContent={JustifyContent.CENTER}
             >
-              <Icon component={WrenchIcon} size={14} variant={IconVariant.TERTIARY} />
+              <Icon component={WrenchIcon} variant={IconVariant.TERTIARY} />
             </FlexItem>
-            <Text weight={TextWeight.MEDIUM}>Service accounts</Text>
+            <Text>Service accounts</Text>
           </MenuItem>
         )}
       </FlexWrapper>
@@ -250,7 +250,7 @@ const MainLayoutSettingsButtonMenu = ({
                 alignItems={AlignItems.CENTER}
                 justifyContent={JustifyContent.CENTER}
               >
-                <Icon component={PlusIcon} size={14} variant={IconVariant.TERTIARY} />
+                <Icon component={PlusIcon} variant={IconVariant.TERTIARY} />
               </FlexItem>
               <Text weight={TextWeight.MEDIUM}>Invite team member</Text>
             </MenuItem>

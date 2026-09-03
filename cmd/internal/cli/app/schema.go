@@ -100,7 +100,7 @@ func validateConnectionFields(label string, schema filament.ConfigSchema, connec
 
 func validateScopedFields(label string, schema filament.ConfigSchema, values map[string]any, scope filament.FieldScope) error {
 	fields := OrderedFields(schema, scope)
-	canonical := cloneConfigMap(values)
+	canonical := model.CloneConfig(values)
 	if scope == filament.ScopeConnection {
 		canonical = canonicalizeConfig(schema, canonical)
 	} else {
@@ -294,7 +294,7 @@ func SinkSupports(spec filament.SinkSpec, wanted filament.WriteMode) bool {
 }
 
 func canonicalizeConfig(schema filament.ConfigSchema, values map[string]any) map[string]any {
-	result := cloneConfigMap(values)
+	result := model.CloneConfig(values)
 	pruneInactiveFields(schema.Fields, result)
 	return result
 }
@@ -324,38 +324,13 @@ func pruneInactiveFields(fields []filament.ConfigField, values map[string]any) {
 }
 
 func valuesWithDefaults(fields []filament.ConfigField, values map[string]any) map[string]any {
-	result := cloneConfigMap(values)
+	result := model.CloneConfig(values)
 	for _, field := range fields {
 		if _, present := result[field.Name]; !present && field.Default != nil {
-			result[field.Name] = cloneConfigValue(field.Default)
+			result[field.Name] = model.CloneConfigValue(field.Default)
 		}
 	}
 	return result
-}
-
-func cloneConfigMap(source map[string]any) map[string]any {
-	result := make(map[string]any, len(source))
-	for name, value := range source {
-		result[name] = cloneConfigValue(value)
-	}
-	return result
-}
-
-func cloneConfigValue(value any) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		return cloneConfigMap(typed)
-	case []any:
-		result := make([]any, len(typed))
-		for index, item := range typed {
-			result[index] = cloneConfigValue(item)
-		}
-		return result
-	case []string:
-		return append([]string(nil), typed...)
-	default:
-		return value
-	}
 }
 
 func sortedKeys[V any](values map[string]V) []string {
