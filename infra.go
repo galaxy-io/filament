@@ -145,9 +145,12 @@ type ResourceCheckpointState struct {
 type ReplicationStreamStatus int16
 
 const (
-	// Persisted ordinals; map explicitly if/when these statuses are exposed by protobuf.
+	// ReplicationStreamActive indicates that the stream is advancing normally.
+	// Its ordinal is persisted; map it explicitly if exposed by protobuf.
 	ReplicationStreamActive ReplicationStreamStatus = iota
+	// ReplicationStreamRetired indicates that the stream no longer participates in replication.
 	ReplicationStreamRetired
+	// ReplicationStreamError indicates that the stream cannot currently advance.
 	ReplicationStreamError
 )
 
@@ -179,11 +182,16 @@ type ReplicationStream struct {
 type ReplicationStreamResourceStatus int16
 
 const (
-	// Persisted ordinals; map explicitly if/when these statuses are exposed by protobuf.
+	// ReplicationStreamResourcePending indicates that the resource is waiting to bootstrap.
+	// Its ordinal is persisted; map it explicitly if exposed by protobuf.
 	ReplicationStreamResourcePending ReplicationStreamResourceStatus = iota
+	// ReplicationStreamResourceBootstrapping indicates that the resource is being bootstrapped.
 	ReplicationStreamResourceBootstrapping
+	// ReplicationStreamResourceActive indicates that the resource participates in the stream.
 	ReplicationStreamResourceActive
+	// ReplicationStreamResourceRetired indicates that the resource no longer participates in the stream.
 	ReplicationStreamResourceRetired
+	// ReplicationStreamResourceError indicates that the resource could not join or advance with the stream.
 	ReplicationStreamResourceError
 )
 
