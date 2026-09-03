@@ -10,6 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/renderer/present"
 )
 
 func (r *Renderer) managePipelines(ctx context.Context) error {
@@ -317,16 +318,12 @@ func pipelineDescription(pipeline model.Pipeline) string {
 		pipeline.Source.Ref, pipeline.Sink.Ref, resources, pipeline.SyncMode, pipeline.WriteMode)
 }
 
-// pipelineMenuOptions lists pipelines as the boxed Name, Source, Sink table.
+// pipelineMenuOptions lists pipelines as the boxed table every renderer
+// shows.
 func pipelineMenuOptions(items []model.PipelineSummary) []interactiveOption {
 	if len(items) == 0 {
 		return nil
 	}
-	rows := make([][]string, 0, len(items))
-	values := make([]string, 0, len(items))
-	for _, pipeline := range items {
-		rows = append(rows, []string{pipeline.Name, pipeline.Source, pipeline.Sink})
-		values = append(values, pipeline.Name)
-	}
-	return boxedMenu([]string{"Name", "Source", "Sink"}, rows, values)
+	rows := present.PipelineRows(items)
+	return boxedMenu(present.Titles(present.PipelineColumns()), present.Cells(rows), present.Keys(rows))
 }

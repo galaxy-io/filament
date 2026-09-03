@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/renderer/present"
 )
 
 type schemaWizard struct {
@@ -41,13 +42,8 @@ func (r *Renderer) manageConnections(ctx context.Context, kind string) error {
 		}
 		options := []interactiveOption{{label: "+ Create " + kind, value: "__create__", tone: inline.ChoiceToneSuccess}}
 		if len(listed.Items) > 0 {
-			rows := make([][]string, 0, len(listed.Items))
-			values := make([]string, 0, len(listed.Items))
-			for _, connection := range listed.Items {
-				rows = append(rows, []string{connection.Name, connection.Connector})
-				values = append(values, connection.Name)
-			}
-			options = append(options, boxedMenu([]string{"Name", "Connector"}, rows, values)...)
+			rows := present.ConnectionRows(listed.Items, nil)
+			options = append(options, boxedMenu(present.Titles(present.ConnectionColumns()), present.Cells(rows), present.Keys(rows))...)
 		}
 		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 		selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
