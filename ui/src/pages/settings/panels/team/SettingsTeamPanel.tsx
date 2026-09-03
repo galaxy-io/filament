@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 
@@ -15,6 +15,8 @@ import InfiniteTable, {
 } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { Member, Role } from "@/gen/auth/v1/members_pb";
 
@@ -29,7 +31,7 @@ import {
   SETTINGS_TEAM_TABLE_ROLE_SELECT_DROPDOWN_WIDTH,
   SETTINGS_TEAM_TABLE_ROLE_SELECT_WIDTH,
 } from "@/pages/settings/constants";
-import { optionRole, roleOption } from "@/pages/settings/utils";
+import { optionRole, roleLabel, roleOption } from "@/pages/settings/utils";
 
 import { useRemoveMemberMutation, useSetMemberRoleMutation } from "@/api/mutations/auth";
 import { useListMembersQuery } from "@/api/queries/auth";
@@ -144,7 +146,7 @@ interface SettingsTeamPanelProps {
 }
 
 const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
-  const [error, setError] = useState<string>();
+  const { showToast } = useToast();
 
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },
@@ -154,15 +156,20 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
 
   const canManageTeam = membersQuery.data?.canManage === true;
   const isMutatingMembers = isSettingRole || isRemovingMember;
-  const displayError =
-    error ??
-    (membersQuery.error
-      ? getErrorMessage(membersQuery.error, "Could not load members")
-      : undefined);
+  const displayError = membersQuery.error
+    ? getErrorMessage(membersQuery.error, "Could not load members")
+    : undefined;
 
   const memberConfirm = useConfirm<Member>({
     entityLabel: "Team member",
     entityName: memberDisplayName,
+    messages: {
+      successHeader: "Team member removed",
+      successSubheader: (member) =>
+        `${memberDisplayName(member)} no longer has access to this organization.`,
+      errorHeader: "Remove failed",
+      errorFallback: "Could not remove team member",
+    },
     onConfirm: (member, { onSuccess, onError }) =>
       removeMember({ userId: member.userId }, { onSuccess, onError }),
   });
@@ -178,22 +185,32 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
 
   const handleRoleChange = useCallback(
     (member: Member, nextRole: Role) => {
-      setError(undefined);
+      if (nextRole === member.role) return;
       setMemberRole(
         { userId: member.userId, role: nextRole },
         {
+          onSuccess: () => {
+            showToast({
+              header: "Role updated",
+              subheader: `${memberDisplayName(member)}'s role is now ${roleLabel(nextRole)}.`,
+              variant: ToastVariant.SUCCESS,
+            });
+          },
           onError: (err) => {
-            setError(getErrorMessage(err, "Could not change role"));
+            showToast({
+              header: "Role change failed",
+              subheader: getErrorMessage(err, "Could not change role"),
+              variant: ToastVariant.ERROR,
+            });
           },
         },
       );
     },
-    [setMemberRole],
+    [setMemberRole, showToast],
   );
 
   const handleRemove = useCallback(
     (member: Member) => {
-      setError(undefined);
       memberConfirm.handleOpen(member);
     },
     [memberConfirm],
