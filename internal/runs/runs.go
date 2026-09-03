@@ -24,7 +24,8 @@ import (
 // one exception is a run pre-created by Schedule: it holds no progress, so
 // Submit promotes it — overwriting the row with the freshly compiled request —
 // and dispatches it like any other run.
-func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req filament.RunRequest) (filament.RunID, error) {
+func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, submission filament.RunSubmission) (filament.RunID, error) {
+	req := submission.Request
 	if err := req.Tenant.Valid(); err != nil {
 		return "", fmt.Errorf("runs: tenant %w", err)
 	}
@@ -44,12 +45,12 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, req fi
 		RequestedAt: now,
 	}
 	var createErr error
-	if req.ReplicationStream != nil {
+	if submission.DesiredReplicationStream != nil {
 		streamStore, ok := ds.(filament.ReplicationStreamRunStore)
 		if !ok {
-			return "", fmt.Errorf("runs: datastore cannot durably admit replication stream %q", req.ReplicationStream.ID)
+			return "", fmt.Errorf("runs: datastore cannot durably admit replication stream %q", submission.DesiredReplicationStream.ID)
 		}
-		createErr = streamStore.CreateRunWithReplicationStream(ctx, state, *req.ReplicationStream)
+		createErr = streamStore.CreateRunWithReplicationStream(ctx, state, *submission.DesiredReplicationStream)
 	} else {
 		createErr = ds.CreateRun(ctx, state)
 	}

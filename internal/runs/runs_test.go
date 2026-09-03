@@ -74,7 +74,7 @@ func TestSubmitRetryRedispatchesStrandedRequestedRun(t *testing.T) {
 	req := filament.RunRequest{Tenant: filament.DefaultTenantID, IdempotencyKey: "retry-me"}
 	id := IDFor(req)
 
-	if _, err := Submit(ctx, bus, store, req); err == nil || !strings.Contains(err.Error(), "delete undispatched") {
+	if _, err := Submit(ctx, bus, store, filament.RunSubmission{Request: req}); err == nil || !strings.Contains(err.Error(), "delete undispatched") {
 		t.Fatalf("first Submit error = %v, want joined dispatch/delete failure", err)
 	}
 	state, err := store.LoadRun(ctx, id)
@@ -82,7 +82,7 @@ func TestSubmitRetryRedispatchesStrandedRequestedRun(t *testing.T) {
 		t.Fatalf("stranded state = %#v, err = %v", state, err)
 	}
 
-	got, err := Submit(ctx, bus, store, req)
+	got, err := Submit(ctx, bus, store, filament.RunSubmission{Request: req})
 	if err != nil || got != id {
 		t.Fatalf("retry Submit = %q, %v; want %q, nil", got, err, id)
 	}

@@ -1010,7 +1010,7 @@ func TestStore_ReplicationStreamAdmissionRollsBackOnRouteOverlap(t *testing.T) {
 		Run: runOne, Tenant: tenantA, Status: filament.RunPaused,
 		Request: filament.RunRequest{
 			Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: version.GetId(),
-			CheckpointRoute: first.Route, ReplicationStreamID: first.ID, ReplicationStream: &first,
+			CheckpointRoute: first.Route,
 		},
 	}, first); err != nil {
 		t.Fatalf("CreateRunWithReplicationStream first: %v", err)
@@ -1024,7 +1024,7 @@ func TestStore_ReplicationStreamAdmissionRollsBackOnRouteOverlap(t *testing.T) {
 		Run: runHighWater, Tenant: tenantA, Status: filament.RunRequested,
 		Request: filament.RunRequest{
 			Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: version.GetId(),
-			CheckpointRoute: second.Route, ReplicationStreamID: second.ID, ReplicationStream: &second,
+			CheckpointRoute: second.Route,
 		},
 	}, second)
 	if !errors.Is(err, filament.ErrRunOverlap) {

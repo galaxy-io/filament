@@ -40,10 +40,10 @@ type Compiler struct {
 	DefaultTenant string
 }
 
-// CompiledRun is one route's ready-to-submit request, keyed by its canvas edge.
+// CompiledRun is one route's ready-to-submit admission, keyed by its canvas edge.
 type CompiledRun struct {
-	Edge string
-	Req  filament.RunRequest
+	Edge       string
+	Submission filament.RunSubmission
 }
 
 type durableReplicationStreamStore interface {
@@ -124,27 +124,26 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		if err != nil {
 			return nil, err
 		}
-		replicationStreamID, replicationStreamGeneration := replicationStreamIdentity(replicationStream)
-		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
-			Tenant:                      filament.TenantID(tenant),
-			PipelineID:                  pipeline.GetId(),
-			PipelineVersionID:           version.GetId(),
-			IdempotencyKey:              fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:                      sourceRef,
-			Sink:                        sinkRef,
-			SourceConnectionID:          group.source.GetConnectionId(),
-			SinkConnectionID:            group.sink.GetConnectionId(),
-			Resources:                   resources,
-			Selectors:                   selectors,
-			IngestionTypes:              ingestionTypes,
-			CheckpointRoute:             key,
-			ReplicationStreamID:         replicationStreamID,
-			ReplicationStreamGeneration: replicationStreamGeneration,
-			ReplicationStream:           replicationStream,
-			CursorConfigs:               group.cursorConfigs,
-			Options:                     options,
-			ScheduleID:                  scheduleID,
-			WorkerConfiguration:         worker,
+		compiled = append(compiled, CompiledRun{Edge: key, Submission: filament.RunSubmission{
+			Request: filament.RunRequest{
+				Tenant:              filament.TenantID(tenant),
+				PipelineID:          pipeline.GetId(),
+				PipelineVersionID:   version.GetId(),
+				IdempotencyKey:      fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+				Source:              sourceRef,
+				Sink:                sinkRef,
+				SourceConnectionID:  group.source.GetConnectionId(),
+				SinkConnectionID:    group.sink.GetConnectionId(),
+				Resources:           resources,
+				Selectors:           selectors,
+				IngestionTypes:      ingestionTypes,
+				CheckpointRoute:     key,
+				CursorConfigs:       group.cursorConfigs,
+				Options:             options,
+				ScheduleID:          scheduleID,
+				WorkerConfiguration: worker,
+			},
+			DesiredReplicationStream: replicationStream,
 		}})
 	}
 	return compiled, nil
@@ -189,13 +188,6 @@ func (c *Compiler) planRouteReplicationStream(
 		return nil, err
 	}
 	return &planned, nil
-}
-
-func replicationStreamIdentity(stream *filament.ReplicationStream) (string, int64) {
-	if stream == nil {
-		return "", 0
-	}
-	return stream.ID, stream.Generation
 }
 
 func (c *Compiler) planReplicationStream(

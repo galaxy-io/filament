@@ -20,19 +20,18 @@ type RunSpec struct {
 	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
 	// derive it from the run.requested fact so redelivery is idempotent while a
 	// later resume creates fresh worker infrastructure.
-	ExecutionID                 string
-	PipelineID                  string
-	PipelineVersionID           string
-	SourceConnectionID          string
-	SinkConnectionID            string
-	CheckpointRoute             string
-	ReplicationStreamID         string
-	ReplicationStreamGeneration int64
-	CursorConfigs               map[string]ResourceCursorConfig
-	Source                      Ref
-	Sink                        Ref
-	Resources                   []string
-	Selectors                   []string
+	ExecutionID        string
+	PipelineID         string
+	PipelineVersionID  string
+	SourceConnectionID string
+	SinkConnectionID   string
+	CheckpointRoute    string
+	ReplicationStream  *StreamRef
+	CursorConfigs      map[string]ResourceCursorConfig
+	Source             Ref
+	Sink               Ref
+	Resources          []string
+	Selectors          []string
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
@@ -60,13 +59,9 @@ type RunRequest struct {
 	// the route default for resources not explicitly listed.
 	IngestionTypes  map[string]IngestionType
 	CheckpointRoute string
-	// ReplicationStreamID identifies CDC/event-stream progress independently of
+	// ReplicationStream identifies CDC/event-stream progress independently of
 	// the immutable pipeline version. Generation fences stale route versions.
-	ReplicationStreamID         string
-	ReplicationStreamGeneration int64
-	// ReplicationStream is the connector plan to resolve atomically when this run
-	// is admitted.
-	ReplicationStream *ReplicationStream `json:",omitempty"`
+	ReplicationStream *StreamRef `json:",omitempty"`
 	CursorConfigs     map[string]ResourceCursorConfig
 	Options           RunOptions
 	ScheduleID        ScheduleID
@@ -75,6 +70,19 @@ type RunRequest struct {
 	// WorkerConfiguration is resolved at compile time and stamped here, so a
 	// later edit to the pipeline cannot reshape a run already requested.
 	WorkerConfiguration WorkerConfiguration `json:",omitzero"`
+}
+
+// StreamRef identifies one admitted generation of a durable replication stream.
+type StreamRef struct {
+	ID         string
+	Generation int64
+}
+
+// RunSubmission carries the persisted request and any transient state that must
+// be resolved atomically while admitting it.
+type RunSubmission struct {
+	Request                  RunRequest
+	DesiredReplicationStream *ReplicationStream `json:"-"`
 }
 
 // ResourceCursorConfig selects one resource's durable incremental field and
@@ -90,11 +98,11 @@ func (r RunRequest) ResourceCheckpointKey(resource string) (ResourceCheckpointKe
 	if r.PipelineID == "" || r.CheckpointRoute == "" || resource == "" {
 		return ResourceCheckpointKey{}, false
 	}
-	if r.ReplicationStreamID != "" {
+	if r.ReplicationStream != nil && r.ReplicationStream.ID != "" {
 		return ResourceCheckpointKey{
 			PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 			Route: r.CheckpointRoute, Resource: resource,
-			ReplicationStreamID: r.ReplicationStreamID,
+			ReplicationStreamID: r.ReplicationStream.ID,
 		}, true
 	}
 	if r.PipelineVersionID == "" {
@@ -150,7 +158,7 @@ func IsCDCAppend(types map[string]IngestionType) bool {
 func (s RunSpec) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
 	return RunRequest{
 		PipelineID: s.PipelineID, PipelineVersionID: s.PipelineVersionID,
-		CheckpointRoute: s.CheckpointRoute, ReplicationStreamID: s.ReplicationStreamID,
+		CheckpointRoute: s.CheckpointRoute, ReplicationStream: s.ReplicationStream,
 	}.ResourceCheckpointKey(resource)
 }
 

@@ -30,8 +30,8 @@ func ReconcileScheduled(ctx context.Context, ds filament.DataStore, c *compile.C
 	for _, cr := range compiled {
 		// The fire path recompiles without a fire time, so this pre-create is
 		// where scheduled_at comes from; promotion preserves it.
-		cr.Req.ScheduledFor = *st.NextFire
-		if _, err := Schedule(ctx, ds, cr.Req); err != nil {
+		cr.Submission.Request.ScheduledFor = *st.NextFire
+		if _, err := Schedule(ctx, ds, cr.Submission.Request); err != nil {
 			return err
 		}
 	}

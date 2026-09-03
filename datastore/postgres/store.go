@@ -186,9 +186,7 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 		if err != nil {
 			return err
 		}
-		r.Request.ReplicationStreamID = stream.ID
-		r.Request.ReplicationStreamGeneration = stream.Generation
-		r.Request.ReplicationStream = &stream
+		r.Request.ReplicationStream = &filament.StreamRef{ID: stream.ID, Generation: stream.Generation}
 	}
 	req, err := json.Marshal(r.Request)
 	if err != nil {
