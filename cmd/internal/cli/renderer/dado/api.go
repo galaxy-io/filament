@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -16,8 +15,6 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
-
-var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 // Renderer drives Dado forms using target-neutral application operations.
 type Renderer struct {
@@ -118,9 +115,10 @@ func (r *Renderer) connectionSchema(kind, connector string) (filament.ConfigSche
 	return r.catalog.ConnectionSchema(kind, connector)
 }
 
+// validateName only requires a name; the deployment owns any further rule.
 func validateName(kind, name string) error {
-	if !namePattern.MatchString(name) {
-		return fmt.Errorf("%s name %q must match %s", kind, name, namePattern)
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("%s name is required", kind)
 	}
 	return nil
 }
