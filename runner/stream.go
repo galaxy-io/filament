@@ -13,27 +13,28 @@ const replicationCleanupWait = 30 * time.Second
 // bindReplicationStream loads the stream admitted with the run and lets the
 // connector add its runtime-only consumer configuration.
 func bindReplicationStream(ctx context.Context, ds filament.DataStore, src filament.Source, spec *filament.RunSpec) error {
-	if spec.ReplicationStreamID == "" {
+	if spec.ReplicationStream == nil || spec.ReplicationStream.ID == "" {
 		return nil
 	}
+	streamRef := spec.ReplicationStream
 	store, ok := ds.(filament.ReplicationStreamStore)
 	if !ok {
-		return fmt.Errorf("datastore does not support replication stream %q", spec.ReplicationStreamID)
+		return fmt.Errorf("datastore does not support replication stream %q", streamRef.ID)
 	}
 	planner, ok := src.(filament.ReplicationStreamPlanner)
 	if !ok {
-		return fmt.Errorf("source %q cannot bind replication stream %q", spec.Source.Connector, spec.ReplicationStreamID)
+		return fmt.Errorf("source %q cannot bind replication stream %q", spec.Source.Connector, streamRef.ID)
 	}
-	stream, err := store.LoadReplicationStream(ctx, spec.ReplicationStreamID)
+	stream, err := store.LoadReplicationStream(ctx, streamRef.ID)
 	if err != nil {
-		return fmt.Errorf("load replication stream %q: %w", spec.ReplicationStreamID, err)
+		return fmt.Errorf("load replication stream %q: %w", streamRef.ID, err)
 	}
-	if stream.Status != filament.ReplicationStreamActive || stream.Generation != spec.ReplicationStreamGeneration {
-		return fmt.Errorf("replication stream %q generation %d is no longer active", spec.ReplicationStreamID, spec.ReplicationStreamGeneration)
+	if stream.Status != filament.ReplicationStreamActive || stream.Generation != streamRef.Generation {
+		return fmt.Errorf("replication stream %q generation %d is no longer active", streamRef.ID, streamRef.Generation)
 	}
 	spec.Source.Config, err = planner.BindReplicationStream(spec.Source.Config, stream)
 	if err != nil {
-		return fmt.Errorf("bind replication stream %q: %w", spec.ReplicationStreamID, err)
+		return fmt.Errorf("bind replication stream %q: %w", streamRef.ID, err)
 	}
 	return nil
 }
@@ -43,7 +44,7 @@ func bindReplicationStream(ctx context.Context, ds filament.DataStore, src filam
 // for explicit operator cleanup because this source is not configured for that
 // system anymore.
 func cleanupRetiredReplicationStreams(ctx context.Context, deps Deps, spec filament.RunSpec, src filament.Source) {
-	if spec.ReplicationStreamID == "" || deps.DataStore == nil {
+	if spec.ReplicationStream == nil || spec.ReplicationStream.ID == "" || deps.DataStore == nil {
 		return
 	}
 	store, ok := deps.DataStore.(filament.ReplicationStreamStore)
