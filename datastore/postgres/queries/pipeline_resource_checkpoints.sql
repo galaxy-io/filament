@@ -35,7 +35,7 @@ WHERE pipeline_id = @pipeline_id
 WITH activated AS (
   UPDATE replication_stream_resources AS r
   SET status = 2,
-      bootstrap_run_id = @last_run_id,
+      bootstrap_run_id = COALESCE(r.bootstrap_run_id, @last_run_id),
       activated_at = COALESCE(activated_at, now()),
       retired_at = NULL,
       error = NULL,

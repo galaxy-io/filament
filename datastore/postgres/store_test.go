@@ -872,8 +872,39 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveResourceCheckpoint: %v", err)
 	}
-	if _, err := store.LoadResourceCheckpoint(ctx, key); err != nil {
+	if err := store.SaveRun(ctx, filament.RunState{
+		Run: runHighWater, Tenant: tenantA, Status: filament.RunCompleted,
+		Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId()},
+	}); err != nil {
+		t.Fatalf("SaveRun second: %v", err)
+	}
+	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{
+		Key: key, Run: runHighWater, Checkpoint: checkpoint.NewStreamDelta("customers", "0/30", 5),
+	}); err != nil {
+		t.Fatalf("SaveResourceCheckpoint second: %v", err)
+	}
+	loaded, err := store.LoadResourceCheckpoint(ctx, key)
+	if err != nil {
 		t.Fatalf("LoadResourceCheckpoint: %v", err)
+	}
+	if loaded.Run != runHighWater {
+		t.Fatalf("checkpoint writer = %q, want %q", loaded.Run, runHighWater)
+	}
+	resources, err = store.ListReplicationStreamResources(ctx, stream.ID)
+	if err != nil {
+		t.Fatalf("ListReplicationStreamResources after second checkpoint: %v", err)
+	}
+	foundCustomers := false
+	for _, resource := range resources {
+		if resource.Resource == "customers" {
+			foundCustomers = true
+			if resource.BootstrapRun != runOne {
+				t.Fatalf("customers bootstrap run = %q, want original run %q", resource.BootstrapRun, runOne)
+			}
+		}
+	}
+	if !foundCustomers {
+		t.Fatal("customers replication resource not found")
 	}
 	missingKey := key
 	missingKey.Resource = "orders"
@@ -901,6 +932,27 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	})
 	if err != nil || len(listed) != 1 || listed[0].Key.Resource != "customers" {
 		t.Fatalf("active stream checkpoints = %+v, err = %v", listed, err)
+	}
+
+	// Re-adding a retired resource starts a fresh bootstrap lifecycle.
+	if _, err := store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"products"}, "snapshot"); err != nil {
+		t.Fatalf("retire active resource: %v", err)
+	}
+	resources, err = store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"customers", "products"}, "snapshot")
+	if err != nil {
+		t.Fatalf("re-add active resource: %v", err)
+	}
+	foundCustomers = false
+	for _, resource := range resources {
+		if resource.Resource == "customers" {
+			foundCustomers = true
+			if resource.Status != filament.ReplicationStreamResourcePending || resource.BootstrapRun != "" || resource.BootstrapStartedAt != nil || resource.ActivatedAt != nil {
+				t.Fatalf("re-added customers retained bootstrap metadata: %+v", resource)
+			}
+		}
+	}
+	if !foundCustomers {
+		t.Fatal("re-added customers replication resource not found")
 	}
 
 	// A continuity-breaking edit creates a new stream generation and slot.

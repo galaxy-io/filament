@@ -302,6 +302,14 @@ SET status = CASE
     END,
     bootstrap_mode = EXCLUDED.bootstrap_mode,
     bootstrap_config = EXCLUDED.bootstrap_config,
+    bootstrap_run_id = CASE
+      WHEN replication_stream_resources.status = 3 THEN NULL
+      ELSE replication_stream_resources.bootstrap_run_id
+    END,
+    bootstrap_started_at = CASE
+      WHEN replication_stream_resources.status = 3 THEN NULL
+      ELSE replication_stream_resources.bootstrap_started_at
+    END,
     retired_at = CASE
       WHEN replication_stream_resources.status = 3 THEN NULL
       ELSE replication_stream_resources.retired_at

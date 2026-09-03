@@ -248,7 +248,7 @@ const saveStreamResourceCheckpoint = `-- name: SaveStreamResourceCheckpoint :exe
 WITH activated AS (
   UPDATE replication_stream_resources AS r
   SET status = 2,
-      bootstrap_run_id = $6,
+      bootstrap_run_id = COALESCE(r.bootstrap_run_id, $6),
       activated_at = COALESCE(activated_at, now()),
       retired_at = NULL,
       error = NULL,
