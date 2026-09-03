@@ -277,7 +277,7 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPausedEvent, events.RunCanceledEvent, events.RunPartialEvent:
 				// The client acts on the terminal event the moment it arrives,
 				// so it must not leave before the tracker has persisted it.
-				if err := a.awaitTerminalPersisted(ctx, run); err != nil {
+				if err := a.awaitTerminalPersisted(ctx, tenant, run); err != nil {
 					return err
 				}
 				return send(tailResponse(eventToProto(f, false)))
@@ -289,11 +289,11 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 	}
 }
 
-func (a *Server) awaitTerminalPersisted(ctx context.Context, run filament.RunID) error {
+func (a *Server) awaitTerminalPersisted(ctx context.Context, tenant filament.TenantID, run filament.RunID) error {
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		state, ok, err := a.loadRunSnapshot(ctx, run)
+		state, ok, err := a.loadRunSnapshot(ctx, tenant, run)
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, err)
 		}
