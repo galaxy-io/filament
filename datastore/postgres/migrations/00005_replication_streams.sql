@@ -49,8 +49,8 @@ CREATE INDEX replication_streams_sink_connection_idx
 -- table/topic exists as pending before it owns a cursor, and a retired resource
 -- keeps its history without participating in the stream checkpoint floor.
 CREATE TABLE replication_stream_resources (
-  id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  replication_stream_id UUID        NOT NULL,
+  id                     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  replication_stream_id  UUID        NOT NULL,
   tenant_id              UUID        NOT NULL REFERENCES tenants (id),
   resource_name          TEXT        NOT NULL,
   -- 0=pending, 1=bootstrapping, 2=active, 3=retired, 4=error.
