@@ -181,6 +181,29 @@ type ReplicationAware interface {
 	Replication(cfg Config) ReplicationMode
 }
 
+// ReplicationStreamPlanningRequest is the connector-owned input for planning
+// an independently advancing source consumer.
+type ReplicationStreamPlanningRequest struct {
+	ReplicationStreamID string
+	Config              Config
+}
+
+// ReplicationStreamPlan describes the connector-specific external consumer and
+// the normalized config fields that determine whether its continuity is reusable.
+type ReplicationStreamPlan struct {
+	ConsumerName     string
+	ConsumerConfig   map[string]any
+	ContinuityConfig map[string]any
+}
+
+// ReplicationStreamPlanner lets a streaming source own concepts such as a
+// PostgreSQL slot, Kafka consumer group, or NATS durable consumer. Binding
+// applies an already-resolved stream to the source's runtime configuration.
+type ReplicationStreamPlanner interface {
+	PlanReplicationStream(request ReplicationStreamPlanningRequest) (ReplicationStreamPlan, error)
+	BindReplicationStream(config map[string]any, stream ReplicationStream) (map[string]any, error)
+}
+
 // ReplicationOf resolves a connection's replication mode from its source.
 func ReplicationOf(src Source, cfg Config) ReplicationMode {
 	if aware, ok := src.(ReplicationAware); ok {

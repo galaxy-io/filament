@@ -20,17 +20,19 @@ type RunSpec struct {
 	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
 	// derive it from the run.requested fact so redelivery is idempotent while a
 	// later resume creates fresh worker infrastructure.
-	ExecutionID        string
-	PipelineID         string
-	PipelineVersionID  string
-	SourceConnectionID string
-	SinkConnectionID   string
-	CheckpointRoute    string
-	CursorConfigs      map[string]ResourceCursorConfig
-	Source             Ref
-	Sink               Ref
-	Resources          []string
-	Selectors          []string
+	ExecutionID                 string
+	PipelineID                  string
+	PipelineVersionID           string
+	SourceConnectionID          string
+	SinkConnectionID            string
+	CheckpointRoute             string
+	ReplicationStreamID         string
+	ReplicationStreamGeneration int64
+	CursorConfigs               map[string]ResourceCursorConfig
+	Source                      Ref
+	Sink                        Ref
+	Resources                   []string
+	Selectors                   []string
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
@@ -58,9 +60,13 @@ type RunRequest struct {
 	// the route default for resources not explicitly listed.
 	IngestionTypes  map[string]IngestionType
 	CheckpointRoute string
-	CursorConfigs   map[string]ResourceCursorConfig
-	Options         RunOptions
-	ScheduleID      ScheduleID
+	// ReplicationStreamID identifies CDC/event-stream progress independently of
+	// the immutable pipeline version. Generation fences stale route versions.
+	ReplicationStreamID         string
+	ReplicationStreamGeneration int64
+	CursorConfigs               map[string]ResourceCursorConfig
+	Options                     RunOptions
+	ScheduleID                  ScheduleID
 	// ScheduledFor is the occurrence this request represents; zero when manual.
 	ScheduledFor time.Time
 	// WorkerConfiguration is resolved at compile time and stamped here, so a
@@ -78,7 +84,17 @@ type ResourceCursorConfig struct {
 // ResourceCheckpointKey returns the stable cross-run key for resource. False
 // means the request did not originate from a versioned pipeline route.
 func (r RunRequest) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
-	if r.PipelineID == "" || r.PipelineVersionID == "" || r.CheckpointRoute == "" || resource == "" {
+	if r.PipelineID == "" || r.CheckpointRoute == "" || resource == "" {
+		return ResourceCheckpointKey{}, false
+	}
+	if r.ReplicationStreamID != "" {
+		return ResourceCheckpointKey{
+			PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
+			Route: r.CheckpointRoute, Resource: resource,
+			ReplicationStreamID: r.ReplicationStreamID,
+		}, true
+	}
+	if r.PipelineVersionID == "" {
 		return ResourceCheckpointKey{}, false
 	}
 	return ResourceCheckpointKey{
@@ -131,7 +147,7 @@ func IsCDCAppend(types map[string]IngestionType) bool {
 func (s RunSpec) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
 	return RunRequest{
 		PipelineID: s.PipelineID, PipelineVersionID: s.PipelineVersionID,
-		CheckpointRoute: s.CheckpointRoute,
+		CheckpointRoute: s.CheckpointRoute, ReplicationStreamID: s.ReplicationStreamID,
 	}.ResourceCheckpointKey(resource)
 }
 

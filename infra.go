@@ -65,6 +65,16 @@ type DataStore interface {
 	Name() string
 }
 
+// ReplicationStreamStore is the optional durable stream capability used by CDC
+// and event-stream routes. It is separate from DataStore so lightweight stores
+// do not need to model external consumer lifecycles.
+type ReplicationStreamStore interface {
+	ResolveReplicationStream(ctx context.Context, desired ReplicationStream) (ReplicationStream, error)
+	LoadReplicationStream(ctx context.Context, id string) (ReplicationStream, error)
+	ReconcileReplicationStreamResources(ctx context.Context, streamID string, tenant TenantID, resources []string, bootstrapMode string) ([]ReplicationStreamResource, error)
+	ListReplicationStreamResources(ctx context.Context, streamID string) ([]ReplicationStreamResource, error)
+}
+
 // RunTransitionStore applies lifecycle commands with a compare-and-swap on
 // the current status. It is separate from DataStore so adapters can reject run
 // signaling explicitly instead of emulating an unsafe LoadRun/SaveRun race.
@@ -96,6 +106,9 @@ type ResourceCheckpointKey struct {
 	PipelineVersionID string
 	Route             string
 	Resource          string
+	// ReplicationStreamID replaces pipeline-version identity for durable stream
+	// checkpoints. It is empty for version-scoped incremental checkpoints.
+	ReplicationStreamID string
 }
 
 // ResourceCheckpointRoute identifies every resource cursor one pipeline
@@ -104,6 +117,9 @@ type ResourceCheckpointRoute struct {
 	PipelineID        string
 	PipelineVersionID string
 	Route             string
+	// ReplicationStreamID selects the active resources of one durable stream.
+	// It is empty for version-scoped incremental checkpoint listings.
+	ReplicationStreamID string
 }
 
 // ResourceCheckpointState is the durable cursor plus its most recent writer.
@@ -113,6 +129,73 @@ type ResourceCheckpointState struct {
 	Run        RunID
 	Checkpoint Checkpoint
 	UpdatedAt  time.Time
+}
+
+// ReplicationStreamStatus is the lifecycle of one independently advancing
+// source consumer. An active pipeline route has exactly one active generation.
+type ReplicationStreamStatus int16
+
+const (
+	// Persisted ordinals; map explicitly if/when these statuses are exposed by protobuf.
+	ReplicationStreamActive ReplicationStreamStatus = iota
+	ReplicationStreamRetired
+	ReplicationStreamError
+)
+
+// ReplicationStream is the continuity identity shared by compatible versions
+// of one pipeline route. ConsumerName is connector-specific: a PostgreSQL slot,
+// Kafka consumer group, or NATS durable consumer.
+type ReplicationStream struct {
+	ID                           string
+	Tenant                       TenantID
+	PipelineID                   string
+	Route                        string
+	Generation                   int64
+	SourceConnectionID           string
+	SinkConnectionID             string
+	ConsumerName                 string
+	ConsumerConfig               map[string]any
+	ContinuityFingerprint        string
+	Status                       ReplicationStreamStatus
+	CreatedFromPipelineVersionID string
+	Error                        string
+	RetiredAt                    *time.Time
+	CreatedAt                    time.Time
+	UpdatedAt                    time.Time
+}
+
+// ReplicationStreamResourceStatus records whether one table/topic is waiting
+// for bootstrap, participating in the stream, or retired from its retention
+// floor. Checkpoint presence is deliberately separate from membership.
+type ReplicationStreamResourceStatus int16
+
+const (
+	// Persisted ordinals; map explicitly if/when these statuses are exposed by protobuf.
+	ReplicationStreamResourcePending ReplicationStreamResourceStatus = iota
+	ReplicationStreamResourceBootstrapping
+	ReplicationStreamResourceActive
+	ReplicationStreamResourceRetired
+	ReplicationStreamResourceError
+)
+
+// ReplicationStreamResource is one resource's membership and bootstrap state
+// within a replication stream.
+type ReplicationStreamResource struct {
+	ID                  string
+	ReplicationStreamID string
+	Tenant              TenantID
+	Resource            string
+	Status              ReplicationStreamResourceStatus
+	BootstrapMode       string
+	BootstrapConfig     map[string]any
+	SchemaFingerprint   string
+	BootstrapRun        RunID
+	BootstrapStartedAt  *time.Time
+	ActivatedAt         *time.Time
+	RetiredAt           *time.Time
+	Error               string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 // ConnectorKind identifies which registry owns a reusable connection.
