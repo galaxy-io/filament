@@ -92,11 +92,12 @@ func ProjectSimpleGraph(pipeline *Pipeline, graph PipelineGraph, sourceReplicati
 			return fmt.Errorf("duplicate route for resource %q", edge.Resource)
 		}
 		seen[edge.Resource] = true
-		if i == 0 {
+		switch {
+		case i == 0:
 			readMode, writeMode = edge.ReadMode, edge.WriteMode
-		} else if edge.ReadMode != readMode {
+		case edge.ReadMode != readMode:
 			return fmt.Errorf("read mode differs by resource")
-		} else if edge.WriteMode != writeMode {
+		case edge.WriteMode != writeMode:
 			return fmt.Errorf("write mode differs by resource")
 		}
 		if edge.Resource != "" {
