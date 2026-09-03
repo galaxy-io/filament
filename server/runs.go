@@ -260,13 +260,17 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 			if err != nil {
 				continue
 			}
-			if err := send(tailResponse(eventToProto(f, false))); err != nil {
-				return err
-			}
 			switch f.Data.(type) {
 			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPausedEvent, events.RunCanceledEvent:
-				// Do not close before the tracker persists the terminal status.
-				return a.awaitTerminalPersisted(ctx, run)
+				// The client acts on the terminal event the moment it arrives,
+				// so it must not leave before the tracker has persisted it.
+				if err := a.awaitTerminalPersisted(ctx, run); err != nil {
+					return err
+				}
+				return send(tailResponse(eventToProto(f, false)))
+			}
+			if err := send(tailResponse(eventToProto(f, false))); err != nil {
+				return err
 			}
 		}
 	}
