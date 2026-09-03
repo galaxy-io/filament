@@ -211,6 +211,23 @@ func Count(value int64) string {
 	}
 }
 
+// Bytes renders a byte count as KB, MB, or GB; zero is a dash.
+func Bytes(value int64) string {
+	const unit = 1024
+	switch {
+	case value <= 0:
+		return "–"
+	case value >= unit*unit*unit:
+		return trimZero(fmt.Sprintf("%.1f", float64(value)/(unit*unit*unit))) + " GB"
+	case value >= unit*unit:
+		return trimZero(fmt.Sprintf("%.1f", float64(value)/(unit*unit))) + " MB"
+	case value >= unit:
+		return trimZero(fmt.Sprintf("%.1f", float64(value)/unit)) + " KB"
+	default:
+		return fmt.Sprintf("%d B", value)
+	}
+}
+
 func trimZero(text string) string {
 	return strings.TrimSuffix(text, ".0")
 }

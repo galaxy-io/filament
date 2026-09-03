@@ -14,7 +14,7 @@ import (
 // and wizards reflect the server rather than the CLI's own build.
 func (t *Target) Catalog(ctx context.Context) (model.Catalog, error) {
 	specs, err := drain(func(cursor string) ([]*ingestionv1.ConnectorSpec, *ingestionv1.PaginationResponse, error) {
-		response, err := t.client.ListConnectors(ctx, connect.NewRequest(&ingestionv1.ListConnectorsRequest{Pagination: pagination(cursor)}))
+		response, err := t.client.ListConnectors(ctx, connect.NewRequest(&ingestionv1.ListConnectorsRequest{Pagination: pagination(model.PageRequest{PageSize: pageSize, Cursor: cursor})}))
 		if err != nil {
 			return nil, nil, t.rpcError(err)
 		}

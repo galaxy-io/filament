@@ -65,7 +65,9 @@ func (t *Target) Apply(ctx context.Context) error {
 }
 
 func (t *Target) applyConnections(ctx context.Context, kind string, wanted map[string]model.Connection, catalog model.Catalog) error {
-	existing, err := t.ListConnections(ctx, kind)
+	existing, err := model.DrainPages(func(request model.PageRequest) (model.Page[model.NamedConnection], error) {
+		return t.ListConnections(ctx, kind, request)
+	})
 	if err != nil {
 		return err
 	}
@@ -103,7 +105,9 @@ func (t *Target) applyConnections(ctx context.Context, kind string, wanted map[s
 }
 
 func (t *Target) applyPipelines(ctx context.Context, wanted map[string]model.Pipeline) error {
-	existing, err := t.ListPipelines(ctx)
+	existing, err := model.DrainPages(func(request model.PageRequest) (model.Page[model.NamedPipeline], error) {
+		return t.ListPipelines(ctx, request)
+	})
 	if err != nil {
 		return err
 	}

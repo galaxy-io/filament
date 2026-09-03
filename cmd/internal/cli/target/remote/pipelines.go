@@ -28,22 +28,22 @@ var writeModeFromString = map[string]ingestionv1.WriteMode{
 	"merge":   ingestionv1.WriteMode_WRITE_MODE_MERGE,
 }
 
-// ListPipelines returns every pipeline, projected to the simple shape where
-// the graph allows it.
-func (t *Target) ListPipelines(ctx context.Context) ([]model.NamedPipeline, error) {
-	items, err := t.pipelines(ctx, "")
+// ListPipelines returns one page of pipelines, projected to the simple shape
+// where the graph allows it.
+func (t *Target) ListPipelines(ctx context.Context, request model.PageRequest) (model.Page[model.NamedPipeline], error) {
+	items, info, err := t.pipelinePage(ctx, "", request)
 	if err != nil {
-		return nil, err
+		return model.Page[model.NamedPipeline]{}, err
 	}
 	connections, err := t.connectionIndex(ctx)
 	if err != nil {
-		return nil, err
+		return model.Page[model.NamedPipeline]{}, err
 	}
-	out := make([]model.NamedPipeline, 0, len(items))
+	page := model.Page[model.NamedPipeline]{Items: make([]model.NamedPipeline, 0, len(items)), PageInfo: pageInfo(info)}
 	for _, item := range items {
-		out = append(out, model.NamedPipeline{Name: item.GetName(), Pipeline: pipelineFromProto(item, connections)})
+		page.Items = append(page.Items, model.NamedPipeline{Name: item.GetName(), Pipeline: pipelineFromProto(item, connections)})
 	}
-	return out, nil
+	return page, nil
 }
 
 // GetPipeline returns one pipeline by name.
@@ -147,14 +147,18 @@ func (t *Target) findPipeline(ctx context.Context, name string) (*ingestionv1.Pi
 
 func (t *Target) pipelines(ctx context.Context, search string) ([]*ingestionv1.Pipeline, error) {
 	return drain(func(cursor string) ([]*ingestionv1.Pipeline, *ingestionv1.PaginationResponse, error) {
-		response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{
-			IncludeLastRun: true, IncludeSchedule: true, Search: search, Pagination: pagination(cursor),
-		}))
-		if err != nil {
-			return nil, nil, t.rpcError(err)
-		}
-		return response.Msg.GetPipelines(), response.Msg.GetPagination(), nil
+		return t.pipelinePage(ctx, search, model.PageRequest{PageSize: pageSize, Cursor: cursor})
 	})
+}
+
+func (t *Target) pipelinePage(ctx context.Context, search string, request model.PageRequest) ([]*ingestionv1.Pipeline, *ingestionv1.PaginationResponse, error) {
+	response, err := t.client.ListPipelines(ctx, connect.NewRequest(&ingestionv1.ListPipelinesRequest{
+		IncludeLastRun: true, IncludeSchedule: true, Search: search, Pagination: pagination(request),
+	}))
+	if err != nil {
+		return nil, nil, t.rpcError(err)
+	}
+	return response.Msg.GetPipelines(), response.Msg.GetPagination(), nil
 }
 
 // connectionRef is what a graph needs to know about a saved connection.

@@ -23,10 +23,10 @@ func (target *memoryTarget) Catalog(context.Context) (model.Catalog, error) {
 	return target.catalog, nil
 }
 
-func (target *memoryTarget) ListConnections(_ context.Context, kind string) ([]model.NamedConnection, error) {
+func (target *memoryTarget) ListConnections(_ context.Context, kind string, _ model.PageRequest) (model.Page[model.NamedConnection], error) {
 	connections, err := connectionMap(kind, target.document)
 	if err != nil {
-		return nil, err
+		return model.Page[model.NamedConnection]{}, err
 	}
 	names := make([]string, 0, len(connections))
 	for name := range connections {
@@ -37,7 +37,7 @@ func (target *memoryTarget) ListConnections(_ context.Context, kind string) ([]m
 	for _, name := range names {
 		result = append(result, model.NamedConnection{Kind: kind, Name: name, Connection: connections[name]})
 	}
-	return result, nil
+	return model.Page[model.NamedConnection]{Items: result, PageInfo: model.PageInfo{Total: len(result)}}, nil
 }
 
 func (target *memoryTarget) GetConnection(_ context.Context, kind, name string) (model.Connection, error) {
@@ -90,7 +90,7 @@ func (target *memoryTarget) DeleteConnection(_ context.Context, kind, name strin
 	return nil
 }
 
-func (target *memoryTarget) ListPipelines(context.Context) ([]model.NamedPipeline, error) {
+func (target *memoryTarget) ListPipelines(context.Context, model.PageRequest) (model.Page[model.NamedPipeline], error) {
 	names := make([]string, 0, len(target.document.Pipelines))
 	for name := range target.document.Pipelines {
 		names = append(names, name)
@@ -100,7 +100,7 @@ func (target *memoryTarget) ListPipelines(context.Context) ([]model.NamedPipelin
 	for _, name := range names {
 		result = append(result, model.NamedPipeline{Name: name, Pipeline: target.document.Pipelines[name]})
 	}
-	return result, nil
+	return model.Page[model.NamedPipeline]{Items: result, PageInfo: model.PageInfo{Total: len(result)}}, nil
 }
 
 func (target *memoryTarget) GetPipeline(_ context.Context, name string) (model.Pipeline, error) {
