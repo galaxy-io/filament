@@ -26,8 +26,34 @@ type interactiveOption struct {
 	disabled    bool
 }
 
-// boxedMenu renders header and rows as the same boxed table the list
-// commands print; borders and the header are unselectable rows.
+// tableMenu renders header and rows as the same table the list commands
+// print, in the renderer's layout; rules and the header are unselectable.
+func (r *Renderer) tableMenu(headers []string, rows [][]string, values []string) []interactiveOption {
+	if r.layout == style.LayoutPlain {
+		return plainMenu(headers, rows, values)
+	}
+	return boxedMenu(headers, rows, values)
+}
+
+// plainMenu is the whitespace grid: aligned columns, a header, no rules.
+func plainMenu(headers []string, rows [][]string, values []string) []interactiveOption {
+	widths := style.Widths(append([][]string{headers}, rows...))
+	line := func(cells []string) string {
+		parts := make([]string, len(cells))
+		for index, cell := range cells {
+			parts[index] = pad(cell, widths[index])
+		}
+		return strings.TrimRight(strings.Join(parts, "     "), " ")
+	}
+	options := make([]interactiveOption, 0, len(rows)+1)
+	options = append(options, interactiveOption{label: line(headers), disabled: true})
+	for index, row := range rows {
+		options = append(options, interactiveOption{label: line(row), value: values[index]})
+	}
+	return options
+}
+
+// boxedMenu is dado's ruled box.
 func boxedMenu(headers []string, rows [][]string, values []string) []interactiveOption {
 	widths := style.Widths(append([][]string{headers}, rows...))
 	rule := func(left, junction, right string) string {
@@ -308,7 +334,9 @@ func (r *Renderer) showRuns(ctx context.Context) error {
 			pairs = append(pairs, [2]string{"", "No runs."})
 		} else {
 			rows := present.RunRows(result.Items)
-			grid := style.Styled(r.dark).Table(styledColumns(present.RunColumns()), present.Cells(rows))
+			// The frame draws cell by cell and would count escape codes as
+			// columns, so the grid is unstyled and takes the frame's theme.
+			grid := style.Painter{}.Grid(r.layout, styledColumns(present.RunColumns()), present.Cells(rows))
 			for line := range strings.SplitSeq(strings.TrimRight(grid, "\n"), "\n") {
 				pairs = append(pairs, [2]string{"", strings.TrimPrefix(line, style.Indent)})
 			}

@@ -23,7 +23,6 @@ var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 type Renderer struct {
 	stdin                   io.Reader
 	stdout                  io.Writer
-	dark                    bool
 	stderr                  io.Writer
 	configPath              string
 	catalog                 model.Catalog
@@ -34,6 +33,7 @@ type Renderer struct {
 	theme                   inline.InlineTheme
 	paint                   style.Painter
 	menuMode                bool
+	layout                  style.Layout
 	noticeText              string
 	noticeOK                bool
 }
@@ -50,6 +50,8 @@ type Options struct {
 	// MenuMode opens interactive menus for menu-shaped invocations. Off, only
 	// operations render interactively.
 	MenuMode bool
+	// Layout draws menus and tables boxed or plain, matching the list commands.
+	Layout style.Layout
 }
 
 // New constructs an interactive renderer for the selected target.
@@ -64,11 +66,12 @@ func New(options Options) *Renderer {
 	}
 	dark := style.Dark(options.Stdin, status)
 	return &Renderer{
-		stdin: options.Stdin, stdout: options.Stdout, stderr: options.Stderr, dark: dark,
+		stdin: options.Stdin, stdout: options.Stdout, stderr: options.Stderr,
 		configPath: configPath, catalog: options.Catalog, service: options.Service,
 		openConfigurationEditor: options.OpenConfigurationEditor,
 		targetName:              options.TargetName,
 		menuMode:                options.MenuMode,
+		layout:                  options.Layout,
 		theme:                   filamentTheme(dark),
 		paint:                   style.New(status),
 	}

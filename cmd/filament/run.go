@@ -9,7 +9,6 @@ import (
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 func (a *cliApp) runCommandDefinition() *cobra.Command {
@@ -146,5 +145,5 @@ func (a *cliApp) listRuns(ctx context.Context, parsed commandArgs) error {
 	if err != nil {
 		return err
 	}
-	return textrenderer.Runs(a.stdout, result)
+	return a.text().Runs(result, strings.TrimSpace("filament run list "+pipeline))
 }

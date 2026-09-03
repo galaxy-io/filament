@@ -31,7 +31,7 @@ func (r *Renderer) managePipelinesOnce(ctx context.Context) (bool, error) {
 	}
 	options := make([]interactiveOption, 0, len(listed.Items)+3)
 	options = append(options, interactiveOption{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
-	options = append(options, pipelineMenuOptions(listed.Items)...)
+	options = append(options, r.pipelineMenuOptions(listed.Items)...)
 	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 	selected, err := r.chooseInteractive(ctx, "Pipelines", "Create or manage reusable transfers", options)
 	if interactiveCancelled(err) || selected == interactiveBack {
@@ -399,10 +399,10 @@ func pipelinePairs(pipeline model.Pipeline) [][2]string {
 
 // pipelineMenuOptions lists pipelines as the boxed table every renderer
 // shows.
-func pipelineMenuOptions(items []model.PipelineSummary) []interactiveOption {
+func (r *Renderer) pipelineMenuOptions(items []model.PipelineSummary) []interactiveOption {
 	if len(items) == 0 {
 		return nil
 	}
 	rows := present.PipelineRows(items)
-	return boxedMenu(present.Titles(present.PipelineColumns()), present.Cells(rows), present.Keys(rows))
+	return r.tableMenu(present.Titles(present.PipelineColumns()), present.Cells(rows), present.Keys(rows))
 }

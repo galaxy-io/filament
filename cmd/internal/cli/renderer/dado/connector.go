@@ -53,7 +53,7 @@ func (r *Renderer) manageConnectionsOnce(ctx context.Context, kind string) (bool
 	options := []interactiveOption{{label: "+ Create " + kind, value: "__create__", tone: inline.ChoiceToneSuccess}}
 	if len(listed.Items) > 0 {
 		rows := present.ConnectionRows(listed.Items, nil)
-		options = append(options, boxedMenu(present.Titles(present.ConnectionColumns()), present.Cells(rows), present.Keys(rows))...)
+		options = append(options, r.tableMenu(present.Titles(present.ConnectionColumns()), present.Cells(rows), present.Keys(rows))...)
 	}
 	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 	selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
