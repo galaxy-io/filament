@@ -135,7 +135,7 @@ func makeRunSpec(pipelineID, sourceName, sinkName string, sourceConfig, sinkConf
 }
 
 func applySinkSchemaDefault(config map[string]any, spec filament.SinkSpec, sourceName string) map[string]any {
-	result := cloneConfigMap(config)
+	result := model.CloneConfig(config)
 	if spec.SchemaField == "" || !isEmpty(result[spec.SchemaField]) {
 		return result
 	}
