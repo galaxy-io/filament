@@ -59,7 +59,7 @@ func TestNonTerminalWithoutCommandFallsBackToHelp(t *testing.T) {
 	}
 }
 
-func TestRemoteContextFailsBeforeRendererExecution(t *testing.T) {
+func TestUnreachableRemoteContextFailsBeforeRendererExecution(t *testing.T) {
 	t.Parallel()
 	directory := t.TempDir()
 	contextPath := filepath.Join(directory, "contexts.yaml")
@@ -72,7 +72,7 @@ func TestRemoteContextFailsBeforeRendererExecution(t *testing.T) {
 		configPath: filepath.Join(directory, "filament.yaml"), contextPath: contextPath, catalog: loadCatalog(),
 	}
 	err := app.run(context.Background(), []string{"source", "list"})
-	if err == nil || err.Error() != "remote target is not implemented" {
-		t.Fatalf("error = %v, want remote target is not implemented", err)
+	if err == nil || !strings.Contains(err.Error(), "cannot reach https://filament.example.test") {
+		t.Fatalf("error = %v, want cannot reach https://filament.example.test", err)
 	}
 }
