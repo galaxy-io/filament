@@ -29,12 +29,16 @@ func (r *Renderer) managePipelinesOnce(ctx context.Context) (bool, error) {
 	if err != nil {
 		return true, err
 	}
-	options := make([]interactiveOption, 0, len(listed.Items)+3)
-	options = append(options, interactiveOption{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
-	options = append(options, r.pipelineMenuOptions(listed.Items)...)
-	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-	selected, err := r.chooseInteractive(ctx, "Pipelines", "Create or manage reusable transfers", options)
-	if interactiveCancelled(err) || selected == interactiveBack {
+	description := "No pipelines yet."
+	var options []interactiveOption
+	if len(listed.Items) > 0 {
+		description = ""
+		options = append(options, r.pipelineMenuOptions(listed.Items)...)
+		options = append(options, spacer)
+	}
+	options = append(options, interactiveOption{label: "Create a pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
+	selected, err := r.chooseInteractive(ctx, "Pipelines", description, options)
+	if interactiveCancelled(err) {
 		return true, nil
 	}
 	if err != nil {
@@ -63,9 +67,8 @@ func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Do
 		{label: "View", value: "view"},
 		{label: "Edit", value: "edit"},
 		{label: "Delete", value: "delete"},
-		{label: "Exit", value: interactiveBack},
 	})
-	if err != nil || action == interactiveBack {
+	if err != nil {
 		return err
 	}
 	switch action {

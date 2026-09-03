@@ -143,6 +143,14 @@ const (
 	LayoutPlain
 )
 
+// String names the layout the way ParseLayout reads it.
+func (l Layout) String() string {
+	if l == LayoutPlain {
+		return "plain"
+	}
+	return "boxed"
+}
+
 // ParseLayout reads a layout name from a flag or environment value.
 func ParseLayout(value string) (Layout, error) {
 	switch value {

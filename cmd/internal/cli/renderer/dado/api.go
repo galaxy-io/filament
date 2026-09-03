@@ -31,6 +31,7 @@ type Renderer struct {
 	paint                   style.Painter
 	menuMode                bool
 	layout                  style.Layout
+	saveLayout              func(style.Layout) error
 	noticeText              string
 	noticeOK                bool
 }
@@ -49,6 +50,8 @@ type Options struct {
 	MenuMode bool
 	// Layout draws menus and tables boxed or plain, matching the list commands.
 	Layout style.Layout
+	// SaveLayout persists a layout chosen in the Settings menu; nil hides it.
+	SaveLayout func(style.Layout) error
 }
 
 // New constructs an interactive renderer for the selected target.
@@ -69,6 +72,7 @@ func New(options Options) *Renderer {
 		targetName:              options.TargetName,
 		menuMode:                options.MenuMode,
 		layout:                  options.Layout,
+		saveLayout:              options.SaveLayout,
 		theme:                   filamentTheme(dark),
 		paint:                   style.New(status),
 	}

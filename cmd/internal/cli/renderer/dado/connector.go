@@ -50,14 +50,17 @@ func (r *Renderer) manageConnectionsOnce(ctx context.Context, kind string) (bool
 	if err != nil {
 		return true, err
 	}
-	options := []interactiveOption{{label: "+ Create " + kind, value: "__create__", tone: inline.ChoiceToneSuccess}}
+	description := "No " + kind + "s yet."
+	var options []interactiveOption
 	if len(listed.Items) > 0 {
+		description = ""
 		rows := present.ConnectionRows(listed.Items, nil)
 		options = append(options, r.tableMenu(present.Titles(present.ConnectionColumns()), present.Cells(rows), present.Keys(rows))...)
+		options = append(options, spacer)
 	}
-	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-	selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
-	if interactiveCancelled(err) || selected == interactiveBack {
+	options = append(options, interactiveOption{label: "Create a " + kind, value: "__create__", tone: inline.ChoiceToneSuccess})
+	selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", description, options)
+	if interactiveCancelled(err) {
 		return true, nil
 	}
 	if err != nil {
@@ -85,12 +88,9 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 	if kind == "source" {
 		options = append(options, interactiveOption{label: "Discover resources", value: "discover"})
 	}
-	options = append(options,
-		interactiveOption{label: "Delete", value: "delete"},
-		interactiveOption{label: "Exit", value: interactiveBack},
-	)
+	options = append(options, interactiveOption{label: "Delete", value: "delete"})
 	action, err := r.chooseInteractive(ctx, name, fmt.Sprintf("%s connection using %s", kind, connection.Type), options)
-	if err != nil || action == interactiveBack {
+	if err != nil {
 		return err
 	}
 	switch action {

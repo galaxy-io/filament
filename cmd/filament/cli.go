@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
@@ -15,6 +16,7 @@ import (
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	dadorenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/dado"
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
+	"github.com/galaxy-io/filament/cmd/internal/cli/settings"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 	remotetarget "github.com/galaxy-io/filament/cmd/internal/cli/target/remote"
@@ -42,9 +44,17 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 			a.stopEmbedded()
 		}
 	}()
-	var err error
-	if a.layout, err = style.ParseLayout(os.Getenv("FILAMENT_LAYOUT")); err != nil {
-		return fmt.Errorf("FILAMENT_LAYOUT: %w", err)
+	saved, err := settings.Load(a.settingsPath())
+	if err != nil {
+		return err
+	}
+	if a.layout, err = style.ParseLayout(saved.Layout); err != nil {
+		return fmt.Errorf("%s: %w", a.settingsPath(), err)
+	}
+	if value := os.Getenv("FILAMENT_LAYOUT"); value != "" {
+		if a.layout, err = style.ParseLayout(value); err != nil {
+			return fmt.Errorf("FILAMENT_LAYOUT: %w", err)
+		}
 	}
 	args, err = a.extractGlobalFlags(args)
 	if err != nil {
@@ -72,7 +82,7 @@ func (a *cliApp) renderer() *dadorenderer.Renderer {
 	return dadorenderer.New(dadorenderer.Options{
 		Stdin: a.stdin, Stdout: a.stdout, Stderr: a.statusWriter(),
 		Service: a.service, Catalog: a.catalog, OpenConfigurationEditor: a.editConfig,
-		TargetName: a.target.Name, MenuMode: a.menuMode, Layout: a.layout,
+		TargetName: a.target.Name, MenuMode: a.menuMode, Layout: a.layout, SaveLayout: a.saveLayout,
 	})
 }
 
@@ -185,6 +195,19 @@ func (a *cliApp) extractGlobalFlags(args []string) ([]string, error) {
 		result = append(result, args[i])
 	}
 	return result, nil
+}
+
+func (a *cliApp) settingsPath() string { return filepath.Join(a.stateDir(), "settings.yaml") }
+
+// saveLayout persists the layout as the user's preference.
+func (a *cliApp) saveLayout(layout style.Layout) error {
+	saved, err := settings.Load(a.settingsPath())
+	if err != nil {
+		return err
+	}
+	saved.Layout = layout.String()
+	a.layout = layout
+	return settings.Save(a.settingsPath(), saved)
 }
 
 // text renders results in the selected table layout.
