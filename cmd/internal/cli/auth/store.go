@@ -50,7 +50,7 @@ func (s Store) Get(name string) (Profile, error) {
 	}
 	profile, ok := doc.Profiles[name]
 	if !ok {
-		return Profile{}, fmt.Errorf("auth profile %q does not exist", name)
+		return Profile{}, fmt.Errorf("%w for %s", ErrProfileNotFound, name)
 	}
 	return profile, nil
 }
@@ -59,10 +59,10 @@ func (s Store) Get(name string) (Profile, error) {
 // cached token under the same name.
 func (s Store) Put(name string, profile Profile) error {
 	if name == "" {
-		return errors.New("auth profile name is required")
+		return fmt.Errorf("%w: name is required", ErrProfileInvalid)
 	}
 	if profile.Issuer == "" || profile.ClientID == "" || profile.ClientSecret == "" {
-		return fmt.Errorf("auth profile %q needs issuer, client id, and client secret", name)
+		return fmt.Errorf("%w: %s needs a server, client id, and client secret", ErrProfileInvalid, name)
 	}
 	doc, err := s.Load()
 	if err != nil {
@@ -93,7 +93,7 @@ func (s Store) SaveCache(name string, cache Cache) error {
 	}
 	profile, ok := doc.Profiles[name]
 	if !ok {
-		return fmt.Errorf("auth profile %q does not exist", name)
+		return fmt.Errorf("%w for %s", ErrProfileNotFound, name)
 	}
 	profile.Cache = &cache
 	doc.Profiles[name] = profile
@@ -108,7 +108,7 @@ func (s Store) ClearCache(name string) error {
 	}
 	profile, ok := doc.Profiles[name]
 	if !ok {
-		return fmt.Errorf("auth profile %q does not exist", name)
+		return fmt.Errorf("%w for %s", ErrProfileNotFound, name)
 	}
 	profile.Cache = nil
 	doc.Profiles[name] = profile
@@ -129,7 +129,7 @@ func (s Store) Load() (Document, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&doc); err != nil {
-		return Document{}, fmt.Errorf("parse %s: %w", s.Path, err)
+		return Document{}, fmt.Errorf("%w: %s: %w", ErrCredentialsCorrupt, s.Path, err)
 	}
 	if doc.Profiles == nil {
 		doc.Profiles = map[string]Profile{}
