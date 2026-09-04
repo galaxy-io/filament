@@ -22,6 +22,7 @@ type runSession struct {
 	ref          model.RunRef
 	spec         filament.RunSpec
 	bus          *inproc.Bus
+	store        *sqlite.Store
 	subscription eventbus.Subscription
 	done         <-chan error
 	cancel       context.CancelFunc
@@ -66,12 +67,13 @@ func (t *Target) submitLocal(ctx context.Context, spec filament.RunSpec) (model.
 		return model.RunGroup{}, err
 	}
 
+	store := sqlite.NewMemory()
 	runCtx, cancel := context.WithCancel(ctx)
 	runnerDone := make(chan error, 1)
 	go func() {
 		runnerDone <- runner.RunOne(runCtx, runner.Deps{
 			Bus:       bus,
-			DataStore: sqlite.NewMemory(),
+			DataStore: store,
 			Sources:   registry.DefaultSources,
 			Sinks:     registry.DefaultSinks,
 		}, spec)
@@ -83,7 +85,7 @@ func (t *Target) submitLocal(ctx context.Context, spec filament.RunSpec) (model.
 	ref := model.RunRef{ID: string(spec.Run), Route: route}
 	t.runMu.Lock()
 	t.runs[ref.ID] = &runSession{
-		ref: ref, spec: spec, bus: bus, subscription: subscription, done: runnerDone, cancel: cancel,
+		ref: ref, spec: spec, bus: bus, store: store, subscription: subscription, done: runnerDone, cancel: cancel,
 	}
 	t.runMu.Unlock()
 	return model.RunGroup{Runs: []model.RunRef{ref}}, nil
@@ -201,6 +203,7 @@ func (t *Target) closeRunSession(id string, session *runSession) {
 	session.cancel()
 	_ = session.subscription.Close()
 	_ = session.bus.Close()
+	_ = session.store.Close()
 }
 
 func runEvent(ref model.RunRef, resource, status string) model.RunEvent {

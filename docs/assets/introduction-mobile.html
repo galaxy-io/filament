@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Filament for mobile — onboarding, in three steps</title>
+<!-- ══════════════════════════════════════════════════════════════════════
+     FILAMENT — the onboarding checklist, animated. MOBILE.
+
+     The phone edition of gx-filament-walkthrough.html. Same story, same
+     data, same Filament palette — re-laid out as a native mobile app rather
+     than a squeezed desktop page:
+
+       · a top app bar + a four-item bottom tab bar
+         (Observability / Pipelines / Sources / Sinks — the real
+         MainLayoutNavbar items)
+       · the connector picker is a bottom sheet you SEARCH rather than a
+         900px three-column grid you scan, and choosing a connector
+         pushes the configure form in as a second pane while the sheet
+         drops to a shorter detent
+       · the pipeline canvas is a screen push, tab bar hidden, graph
+         rotated to flow top-to-bottom with the wires running down the
+         right-hand gutter
+       · the last wire is DRAGGED into place with a touch point
+       · Run opens the Activity panel as a bottom sheet, the canvas
+         zooms out to clear it the way fitView would, and every event
+         wraps to two lines so the record counts stay readable
+
+     Self-contained — only the two webfonts are fetched.
+     ══════════════════════════════════════════════════════════════════════ -->
+<style>
+@font-face{font-family:"ABC Diatype";src:url("https://cdn.getgalaxy.io/fonts/Diatype/ABCDiatype-Regular.otf") format("opentype");font-weight:400;font-display:swap}
+@font-face{font-family:"ABC Diatype";src:url("https://cdn.getgalaxy.io/fonts/Diatype/ABCDiatype-Medium.otf") format("opentype");font-weight:500;font-display:swap}
+@font-face{font-family:"Berkeley Mono";src:url("https://cdn.getgalaxy.io/fonts/BerkeleyMono/BerkeleyMono-Regular.otf") format("opentype");font-weight:400;font-display:swap}
+
+:root {
+  /* FILAMENT palette — the same tokens as gx-card-replicate-canvas;
+     muted tones are tints of #fdfefc */
+  --bg-base:      #1c1c1c;   /* window + canvas      */
+  --bg-primary:   #202020;   /* islands              */
+  --bg-secondary: #282828;   /* tiles, cards, inputs */
+  --bg-tertiary:  #242424;   /* active rail item     */
+  --bg-success:   #1d3329;
+  --bg-lime:      #2b3619;
+  --bg-pink:      #3a1f2e;
+
+  --bd-primary:   #282828;   /* hairline + idle edge */
+  --bd-secondary: rgba(253, 254, 252, 0.10);
+  --bd-tertiary:  rgba(253, 254, 252, 0.18);
+
+  --tx-primary:   #fdfefc;
+  --tx-secondary: rgba(253, 254, 252, 0.62);
+  --tx-tertiary:  rgba(253, 254, 252, 0.40);
+  --tx-disabled:  rgba(253, 254, 252, 0.28);
+  --tx-success:   #6ee4b0;
+  --tx-error:     #ff6881;
+  --tx-lime:      #d5f2a7;
+  --tx-pink:      #f3a8e5;
+
+  --galaxy:       #015fff;   /* accent               */
+  --galaxy-rgb:   1, 95, 255;
+  --galaxy-alt:   #4c9eff;   /* drag / draft wire    */
+  --ic-success:   #6ee4b0;   /* success              */
+  --beacon:       #4c9eff;
+  --dot:          #282828;   /* dot grid = border    */
+
+  --sans: "ABC Diatype", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Berkeley Mono", ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --ease: cubic-bezier(.22,1,.36,1);
+  --fit:  360ms;                /* the Activity move: sheet up, canvas insets */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: #121212;
+  color: var(--tx-primary);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 15px;
+  letter-spacing: 0.13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* ── the device viewport ────────────────────────────────────────────── */
+/* full-bleed on a phone; a centred 390×844 column anywhere wider, with
+   the app's own corner radius — no bezel, no fake status bar */
+.page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #121212;
+}
+.app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 390px;
+  max-height: 844px;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+@media (min-width: 431px) { .app { border-radius: 26px; } }
+
+.hr { width: 100%; height: 0.5px; background: var(--bd-primary); flex-shrink: 0; }
+
+/* ── screens, pushed like a nav stack ───────────────────────────────── */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+/* the screen behind a sheet settles back a touch, the way a presented
+   sheet scales its presenter — never shifts, so nothing clips off-edge */
+.screen.main { transition: transform 400ms var(--ease); transform-origin: 50% 0; }
+.screen.main.is-under { transform: scale(0.955) translateY(8px); }
+.screen.canvas-screen {
+  z-index: 10;
+  transform: translateX(100%);
+  transition: transform 400ms var(--ease);
+}
+.screen.canvas-screen.is-on { transform: none; }
+
+/* ── app bar ────────────────────────────────────────────────────────── */
+.topbar {
+  height: 52px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-base);
+}
+.topbar .wm { display: block; width: auto; height: 17px; }
+.topbar .l { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.topbar .r { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.topbar .pname {
+  flex: 1; min-width: 0;
+  font-size: 14px; font-weight: 500; letter-spacing: 0.14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.icon-btn {
+  width: 30px; height: 30px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: -6px;
+  border-radius: 7px;
+  color: var(--tx-secondary);
+}
+.icon-btn svg { width: 17px; height: 17px; display: block; }
+
+/* ── the setup checklist ────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  overflow-y: auto;
+}
+.lede { display: flex; flex-direction: column; gap: 5px; padding: 0 2px; }
+.lede h1 { font-size: 18px; line-height: 21px; letter-spacing: 0.18px; font-weight: 500; }
+.lede p { color: var(--tx-secondary); font-size: 13px; line-height: 16px; }
+
+.card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--galaxy);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.card .count { padding: 12px 14px; font-size: 12px; color: var(--tx-secondary); }
+
+.step {
+  width: 100%;
+  padding: 13px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  transition: opacity 300ms ease;
+}
+.step.upcoming { opacity: 0.55; }
+.step .marker { flex-shrink: 0; height: 17px; display: flex; align-items: center; }
+.step .marker svg { width: 18px; height: 18px; display: block; }
+.step.upcoming .marker { color: var(--tx-tertiary); }
+.step.active   .marker { color: var(--tx-primary); }
+.step.done     .marker { color: var(--ic-success); }
+.step .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.step .hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.step .txt b { font-size: 14px; line-height: 17px; letter-spacing: 0.14px; font-weight: 500; }
+.step.done .txt b { color: var(--tx-secondary); }
+.step .txt p { font-size: 12px; line-height: 15px; color: var(--tx-tertiary); }
+.step.done .txt p { color: var(--tx-disabled); }
+/* on a phone the action is a full-width target under its own step */
+.step .act { margin-top: 9px; }
+
+.progress { width: 100%; height: 4px; border-radius: 2px; background: var(--bg-secondary); overflow: hidden; }
+.progress i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--galaxy);
+  border-radius: 2px;
+  transition: width 520ms var(--ease);
+}
+
+/* ── DLS primitives, scaled up for thumbs ───────────────────────────── */
+.btn {
+  height: 30px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0.5px solid transparent;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.13px;
+  white-space: nowrap;
+  transition: transform 120ms var(--ease);
+}
+.btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.btn.sm { height: 28px; padding: 0 9px; font-size: 12px; }
+.btn.lg { height: 40px; padding: 0 14px; font-size: 14px; border-radius: 8px; }
+.btn.primary   { background: var(--galaxy); color: #fdfefc; }
+.btn.alt       { background: var(--tx-primary); color: #1c1c1c; }
+.btn.secondary { background: var(--bg-secondary); border-color: var(--bd-primary); color: var(--tx-primary); }
+.btn.tertiary  { background: transparent; color: var(--tx-secondary); }
+.btn.full      { width: 100%; justify-content: center; }
+.btn.is-press  { transform: scale(0.965); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 13px;
+  letter-spacing: 0.11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.chip svg { width: 10px; height: 10px; }
+.chip.lime    { background: var(--bg-lime);    color: var(--tx-lime); }
+.chip.pink    { background: var(--bg-pink);    color: var(--tx-pink); }
+.chip.success { background: var(--bg-success); color: var(--tx-success); }
+
+.tile {
+  width: 26px; height: 26px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--bd-tertiary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tile img { width: 17px; height: 17px; display: block; object-fit: contain; }
+.tile .fb { font-family: var(--mono); font-size: 13px; color: var(--tx-secondary); }
+.tile.sm { width: 22px; height: 22px; border-radius: 5px; }
+.tile.sm img { width: 14px; height: 14px; }
+.tile.lg { width: 38px; height: 38px; border-radius: 9px; }
+.tile.lg img { width: 25px; height: 25px; }
+.tile.lg .fb { font-size: 15px; }
+
+.input {
+  height: 40px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--bd-primary);
+  border-radius: 8px;
+  color: var(--tx-tertiary);
+  font-size: 14px;
+  overflow: hidden;
+  transition: border-color 140ms ease;
+}
+.input svg { width: 15px; height: 15px; color: var(--tx-tertiary); flex-shrink: 0; }
+/* the value never wraps — the field scrolls as it fills, the way a real
+   text input does, so a long DSN stays on one line */
+.input .val { flex: 0 0 auto; color: var(--tx-primary); white-space: nowrap; }
+.input .val.ph { color: var(--tx-tertiary); }
+.input.is-focus { border-color: var(--bd-tertiary); }
+
+.txt-sm { font-size: 12px; line-height: 15px; }
+.t2 { color: var(--tx-secondary); }
+.t3 { color: var(--tx-tertiary); }
+.med { font-weight: 500; }
+
+/* ── bottom sheet ───────────────────────────────────────────────────── */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+.scrim.is-on { opacity: 1; }
+
+.sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 70;
+  height: 640px;
+  max-height: 86%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-top: 0.5px solid var(--bd-secondary);
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  transform: translateY(101%);
+  transition: transform 340ms var(--ease), height 340ms var(--ease);
+}
+.sheet.is-in  { transform: none; }
+.sheet.is-cfg { height: 372px; }
+
+.grab { flex-shrink: 0; height: 18px; display: flex; align-items: center; justify-content: center; }
+.grab i { display: block; width: 34px; height: 4px; border-radius: 2px; background: var(--bd-tertiary); }
+
+/* two panes on one rail — picking pushes to configuring */
+.stack { flex: 1; min-height: 0; display: flex; width: 200%; transition: transform 340ms var(--ease); }
+.stack.is-2 { transform: translateX(-50%); }
+.pane { width: 50%; min-width: 0; display: flex; flex-direction: column; }
+
+.s-head { flex-shrink: 0; padding: 4px 16px 12px; display: flex; align-items: center; gap: 11px; }
+.s-head .titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.s-head .titles b { font-size: 17px; line-height: 20px; letter-spacing: 0.17px; font-weight: 500; }
+.s-search { flex-shrink: 0; padding: 0 16px 12px; }
+
+.s-list {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  background: var(--bg-base);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.c-row {
+  padding: 11px 16px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 0.5px solid var(--bd-primary);
+  transition: background-color 140ms ease;
+}
+.c-row:last-child { border-bottom: none; }
+.c-row.is-off { display: none; }
+.c-row.is-hot { background: var(--bg-secondary); }
+.c-row .c-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.c-row .c-nm { font-size: 14px; line-height: 17px; font-weight: 500; letter-spacing: 0.14px; }
+.c-row .c-desc {
+  font-size: 12px; line-height: 15px; color: var(--tx-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.c-row .caret { width: 13px; height: 13px; flex-shrink: 0; color: var(--tx-disabled); }
+.c-row .caret svg { width: 100%; height: 100%; display: block; }
+
+.s-body { flex: 1; min-height: 0; padding: 16px 12px; background: var(--bg-base); overflow-y: auto; }
+.field + .field { margin-top: 16px; }
+.field .lab { display: block; margin-bottom: 7px; font-size: 12px; line-height: 14px; color: var(--tx-secondary); }
+.s-foot { flex-shrink: 0; padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+
+/* ── pipeline canvas ────────────────────────────────────────────────── */
+.canvas-wrap { flex: 1; min-height: 0; width: 100%; padding: 0 12px 12px; display: flex; }
+.canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background:
+    radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0) 0 0 / 14px 14px,
+    var(--bg-base);
+  border: 0.5px solid var(--bd-primary);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.edges { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
+.edge { fill: none; stroke: var(--bd-primary); stroke-width: 2; }
+.edge.draft { stroke: var(--galaxy-alt); stroke-dasharray: 4 4; }
+.is-running .edge { stroke: var(--galaxy); stroke-dasharray: 5 5; animation: dashdraw 0.5s linear infinite; }
+@keyframes dashdraw { from { stroke-dashoffset: 10; } to { stroke-dashoffset: 0; } }
+
+/* zoom controls sit bottom-right, where a thumb reaches. No minimap —
+   at 366px it would eat half the canvas. */
+.controls {
+  position: absolute;
+  bottom: 12px; right: 12px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--bd-primary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.controls span {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-bottom: 0.5px solid var(--bd-primary);
+  color: var(--tx-tertiary);
+}
+.controls span:last-child { border-bottom: none; }
+.controls svg { width: 14px; height: 14px; display: block; }
+
+/* the graph is a window onto a bigger canvas, not a diagram scaled to fit:
+   full-size nodes staggered on a diagonal, running off the frame the way a
+   panned canvas does. Wires that leave the island get clipped — fine. */
+.stage {
+  position: absolute; inset: 0;
+  transition: bottom var(--fit) var(--ease), transform var(--fit) var(--ease);
+}
+/* the Activity sheet takes the bottom half, so the window shortens to the
+   strip that's left and the graph re-centres in it — the canvas pans, it
+   doesn't shrink the type down to fit */
+.canvas.is-panel .stage { bottom: 55%; }
+/* both nodes hang off the stage's midline, so the pair stays vertically
+   centred in whatever height the stage has: -120 is half the cluster,
+   +50 puts the sink 170px below the source */
+.node {
+  position: absolute;
+  top: 50%;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 20;
+}
+.node.source { left: -4px; width: 58%; margin-top: -120px; }
+.node.sink   { left: 62%;  width: 70%; margin-top: 50px; }
+.node .kindrow { display: flex; align-items: center; justify-content: space-between; }
+.node .acts { display: flex; align-items: center; gap: 4px; }
+.node .act {
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-primary); border-radius: 5px; color: var(--tx-tertiary);
+}
+.node .act svg { width: 13px; height: 13px; display: block; }
+.node-island {
+  padding: 8px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--bd-primary);
+  border-radius: 8px;
+  outline: 0 solid var(--galaxy);
+  outline-offset: -1px;
+  transition: border-color 140ms ease, outline-width 140ms ease;
+}
+.is-running .node-island { border-color: var(--galaxy); outline-width: 1px; }
+.node-head { display: flex; align-items: center; gap: 7px; }
+.node-head .nm { flex: 1; min-width: 0; font-size: 13px; line-height: 16px; font-weight: 500;
+  letter-spacing: 0.12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node .tile { width: 24px; height: 24px; border-radius: 5px; }
+.node .tile img { width: 16px; height: 16px; }
+.node-tables { display: flex; flex-direction: column; gap: 2px; }
+.trow { display: flex; align-items: center; justify-content: space-between; gap: 4px; height: 26px; }
+.trow .tname { font-family: var(--mono); font-size: 12px; letter-spacing: 0.12px; color: var(--tx-tertiary); }
+.trow.is-conn .tname { color: var(--tx-primary); }
+.port-slot { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.port {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--tx-tertiary);
+  border: 0 solid var(--galaxy);
+  transition: width 140ms ease, height 140ms ease, background-color 140ms ease, border-width 140ms ease;
+}
+.port.is-conn { width: 12px; height: 12px; background: transparent; border-width: 2px; }
+.port.is-live { background: var(--galaxy-alt); }
+
+.beacon { position: relative; width: 8px; height: 8px; flex-shrink: 0; }
+.beacon i { position: absolute; inset: 0; border-radius: 50%; background: var(--beacon); }
+.beacon i.ring { animation: ping 1.6s cubic-bezier(0, 0, .2, 1) infinite; }
+@keyframes ping { 0% { transform: scale(1); opacity: .7; } 80%, 100% { transform: scale(2.4); opacity: 0; } }
+
+/* ── the Activity panel ─────────────────────────────────────────────── */
+/* the same bottom sheet the connector picker uses: edge to edge, sitting
+   on the app's bottom rather than inset inside the canvas island */
+.panel {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 40;
+  height: 52%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-top: 0.5px solid var(--bd-secondary);
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  transform: translateY(101%);
+  transition: transform var(--fit) var(--ease);
+}
+.panel.is-in { transform: none; }
+.panel-tabs {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-tabs .tabs { height: 100%; display: flex; align-items: stretch; gap: 4px; }
+.panel-tabs .tab {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  opacity: 0.5;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  color: var(--tx-primary);
+}
+.panel-tabs .tab.is-on { opacity: 1; border-bottom-color: #fdfefc; }
+
+.activity {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 13px;
+  letter-spacing: 0.11px;
+}
+/* one event, two lines: the type on top, its numbers indented beneath —
+   so a 3M-records page still reads at phone width */
+.aline { display: flex; flex-direction: column; gap: 1px; }
+.aline .ahead { display: flex; align-items: baseline; gap: 8px; }
+.aline .ts { flex-shrink: 0; color: var(--tx-tertiary); }
+.aline .ev { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--tx-secondary); }
+.aline .det { padding-left: 61px; overflow-wrap: anywhere; color: var(--tx-secondary); }
+.aline .ev.ok,  .aline .det.ok  { color: var(--tx-success); }
+.aline .ev.err, .aline .det.err { color: var(--tx-error); }
+.aline .ev.dim, .aline .det.dim { color: var(--tx-tertiary); }
+.listening { color: var(--tx-tertiary); animation: flash 1.6s ease-in-out infinite; }
+@keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ── the touch point ────────────────────────────────────────────────── */
+/* a phone has no hover, so the dot rides dim between taps and lights up
+   on contact — a guided finger, not a cursor */
+.cursor {
+  position: absolute;
+  z-index: 90;
+  left: 0; top: 0;
+  width: 26px; height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: rgba(253, 254, 252, 0.14);
+  border: 1.5px solid rgba(253, 254, 252, 0.85);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  opacity: 0.42;
+  pointer-events: none;
+  transform: translate(-140px, -140px);
+  transition: transform 620ms cubic-bezier(.4, .1, .2, 1),
+              width 150ms ease, height 150ms ease, margin 150ms ease,
+              opacity 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+.cursor.is-tap  { width: 20px; height: 20px; margin: -10px 0 0 -10px; opacity: 1; background: rgba(253, 254, 252, 0.3); }
+.cursor.is-drag { opacity: 1; background: rgba(76, 158, 255, 0.35); border-color: var(--galaxy-alt); }
+.ripple {
+  position: absolute;
+  z-index: 89;
+  width: 40px; height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(253, 254, 252, 0.6);
+  opacity: 0;
+  pointer-events: none;
+}
+.ripple.go { animation: ripple 560ms ease-out; }
+@keyframes ripple {
+  0%   { opacity: 0.85; transform: scale(0.35); }
+  100% { opacity: 0;    transform: scale(1.35); }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="app" data-app>
+
+    <div class="screen main is-on" data-screen="main">
+      <div class="topbar"><span data-wordmark></span></div>
+      <div class="content">
+        <div class="lede">
+          <h1>Let's set up your first pipeline</h1>
+          <p>Three steps to complete your onboarding</p>
+        </div>
+        <div class="card">
+          <div class="count"><span data-count>0</span> of 3 complete</div>
+          <div class="hr"></div>
+          <div data-steps></div>
+        </div>
+        <div class="progress"><i data-bar></i></div>
+      </div>
+    </div>
+
+    <div class="screen canvas-screen" data-screen="canvas"></div>
+
+    <div class="scrim" data-scrim></div>
+    <div data-sheet-host></div>
+
+    <div class="ripple" data-ripple></div>
+    <div class="cursor" data-cursor></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* connector marks, inlined from cdn.getgalaxy.io/sources (dark set) */
+  var LOGOS = {
+    "snowflake": "data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNDYuMzYgMTM5LjE2IiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiA8ZGVmcz4KICA8c3R5bGU+CiAgIC5jbHMtMXtmaWxsOiMyOWI1ZTg7ZmlsbC1ydWxlOmV2ZW5vZGQ7fQogIDwvc3R5bGU+CiA8L2RlZnM+CiA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMzQuODEsNjAuMWwtMTYuNDcsOS40OUwxMzQuODEsNzlhOC42NSw4LjY1LDAsMSwxLTguNjcsMTVsLTI5LjUxLTE3YTguNjgsOC42OCwwLDAsMS00LjMzLTcuNzUsOC40OCw4LjQ4LDAsMCwxLC4zMS0yLDguNjgsOC42OCwwLDAsMSw0LTUuMTlsMjkuNTEtMTYuOTRBOC42OSw4LjY5LDAsMCwxLDEzOCw0OC4zMSw4LjU4LDguNTgsMCwwLDEsMTM0LjgxLDYwLjFabS0xNS41OSw0Nkw4OS43Miw4OS4xM2E4LjcyLDguNzIsMCwwLDAtMTMuMDYsNy40OHYzMy45YTguNjksOC42OSwwLDAsMCwxNy4zNywwdi0xOUwxMTAuNTQsMTIxYTguNjYsOC42NiwwLDEsMCw4LjY4LTE1Wm0tMzQtMzMuMTZMNzIuOTIsODUuMDlhMi40NCwyLjQ0LDAsMCwxLTEuNTQuNjVINjcuNzdhMi41MSwyLjUxLDAsMCwxLTEuNTQtLjY1TDU0LDcyLjlhMi40NSwyLjQ1LDAsMCwxLS42NC0xLjUydi0zLjZBMi41LDIuNSwwLDAsMSw1NCw2Ni4yNUw2Ni4yMyw1NC4wNmEyLjUsMi41LDAsMCwxLDEuNTQtLjY0aDMuNjFhMi40NSwyLjQ1LDAsMCwxLDEuNTQuNjRMODUuMTgsNjYuMjVhMi40OSwyLjQ5LDAsMCwxLC42MywxLjUzdjMuNkEyLjQ0LDIuNDQsMCwwLDEsODUuMTgsNzIuOVptLTkuOC0zLjM4QTIuNTksMi41OSwwLDAsMCw3NC43Myw2OGwtMy41NS0zLjUxYTIuNTEsMi41MSwwLDAsMC0xLjU0LS42NGgtLjEzYTIuNDYsMi40NiwwLDAsMC0xLjUzLjY0TDY0LjQzLDY4YTIuNTEsMi41MSwwLDAsMC0uNjMsMS41NXYuMTNhMi40MSwyLjQxLDAsMCwwLC42MywxLjUyTDY4LDc0LjdhMi40OCwyLjQ4LDAsMCwwLDEuNTMuNjRoLjEzYTIuNTEsMi41MSwwLDAsMCwxLjU0LS42NGwzLjU1LTMuNTNhMi40OSwyLjQ5LDAsMCwwLC42NS0xLjUyWk0xOS45MywzMy4wOCw0OS40NCw1MGE4LjczLDguNzMsMCwwLDAsMTMuMDctNy40OVY4LjY0YTguNjksOC42OSwwLDAsMC0xNy4zNywwdjE5bC0xNi41My05LjVhOC42NSw4LjY1LDAsMSwwLTguNjgsMTVaTTg0LjY5LDUxLjE2YTguNjQsOC42NCwwLDAsMCw1LTEuMTNsMjkuNS0xN2E4LjY1LDguNjUsMCwxLDAtOC42OC0xNUw5NCwyNy42MXYtMTlhOC42OSw4LjY5LDAsMCwwLTE3LjM3LDB2MzMuOUE4LjY2LDguNjYsMCwwLDAsODQuNjksNTEuMTZaTTU0LjQ4LDg4YTguNTgsOC41OCwwLDAsMC01LDEuMTNMMTkuOTMsMTA2LjA2YTguNjYsOC42NiwwLDEsMCw4LjY4LDE1bDE2LjUzLTkuNDl2MTlhOC42OSw4LjY5LDAsMCwwLDE3LjM3LDBWOTYuNjFBOC42NSw4LjY1LDAsMCwwLDU0LjQ4LDg4Wm0tOC0xNS44N2E4LjYxLDguNjEsMCwwLDAtNC0xMEwxMyw0NS4xNEE4LjY5LDguNjksMCwwLDAsMS4xNyw0OC4zMSw4LjU5LDguNTksMCwwLDAsNC4zNSw2MC4xbDE2LjQ3LDkuNDlMNC4zNSw3OUE4LjY1LDguNjUsMCwxLDAsMTMsOTRsMjkuNDgtMTdBOC41OSw4LjU5LDAsMCwwLDQ2LjQ3LDcyLjEzWm05My4xNS01Ni4yMkgxMzguM3YxLjYzaDEuMzJjLjYxLDAsMS0uMjgsMS0uOFMxNDAuMjYsMTUuOTEsMTM5LjYyLDE1LjkxWm0tMi45NC0xLjVoM2MxLjYyLDAsMi43Ljg5LDIuNywyLjI3YTIuMTYsMi4xNiwwLDAsMS0xLjA4LDEuOWwxLjE3LDEuNjh2LjM0aC0xLjY5TDEzOS42MiwxOUgxMzguM1YyMC42aC0xLjYyWm04LjMsMy4yMmE1LjQ4LDUuNDgsMCwwLDAtNS41OC01LjgzYy0zLjMxLDAtNS41MSwyLjM5LTUuNTEsNS44MywwLDMuMjgsMi4yLDUuODIsNS41MSw1LjgyQTUuNDcsNS40NywwLDAsMCwxNDUsMTcuNjNabTEuMzgsMGMwLDMuODktMi42LDcuMTQtNyw3LjE0cy02Ljg5LTMuMjgtNi44OS03LjE0LDIuNTctNy4xNCw2Ljg5LTcuMTRTMTQ2LjM2LDEzLjczLDE0Ni4zNiwxNy42M1oiPgogPC9wYXRoPgo8L3N2Zz4=",
+    "motherduck": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTY5IiBoZWlnaHQ9IjEyNCIgdmlld0JveD0iMCAwIDE2OSAxMjQiIGZpbGw9Im5vbmUiIAogICAgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxwYXRoIGQ9Ik0zLjI2ODQxIDg2LjI0NkMzLjI2ODQxIDg2LjI0NiA1MC45OTg0IDEyMC4zNTYgNTMuODE4NCAxMjIuMDY2QzU2LjYzODQgMTIzLjc4NiA2MC43Njg0IDEyNC4xNzYgNjQuMzI4NCAxMjIuNzU2QzY3Ljg4ODQgMTIxLjMyNiA3MC41OTg0IDExOC4xOTYgNzEuNDU4NCAxMTUuMDA2QzcyLjMxODQgMTExLjgxNiA4My4yODg0IDU0LjE4NiA4My4yODg0IDU0LjE4NkM4My40Mjg0IDUzLjM5NiA4My43Mjg0IDUxLjEwNiA4Mi40Mzg0IDQ4Ljg3NkM4MC43MTg0IDQ1Ljg4NiA3Ni45MDg0IDQ0LjMwNiA3My41NTg0IDQ1LjI0NkM3MC44ODg0IDQ1Ljk5NiA2OS40Njg0IDQ4LjA4NiA2OS4wNDg0IDQ4Ljc0NkM2OC40Njg0IDQ5Ljg0NiA2Ny4zNTg0IDUxLjYyNiA2NS4zOTg0IDUzLjIxNkM2My44ODg0IDU0LjQ0NiA2Mi4zOTg0IDU1LjExNiA2MS42Njg0IDU1LjQwNkM1NS41NDg0IDU3Ljg1NiA0OC43Mjg0IDU1LjgwNiA0NC45MDg0IDUwLjgxNkM0Mi40Njg0IDQ3Ljc0NiAzOC4yMTg0IDQ2LjUwNiAzNC4zODg0IDQ4LjAzNkMzMC41NTg0IDQ5LjU2NiAyOC4zNDg0IDUzLjQwNiAyOC42OTg0IDU3LjMwNkMyOS4zNzg0IDYzLjU1NiAyNS44Njg0IDY5Ljc0NiAxOS43NDg0IDcyLjE5NkMxNi40NTg0IDczLjUxNiAxMi45Njg0IDczLjUyNiA5Ljg1ODQxIDcyLjQ4NkM5LjEwODQxIDcyLjI4NiA2LjYwODQxIDcxLjczNiA0LjEyODQxIDczLjA0NkMxLjA0ODQxIDc0LjY4NiAtMC42MTE1OSA3OC40NTYgMC4yMDg0MSA4MS44MDZDMC44MTg0MSA4NC4zMDYgMi42MTg0MSA4NS43NTYgMy4yNjg0MSA4Ni4yMzZWODYuMjQ2WiIgZmlsbD0iI0ZGOTUzOCIvPgogICAgPHBhdGggZD0iTTgyLjgxNzIgMTEuNTk2QzgyLjgxNzIgMTEuNTk2IDk5Ljc5NzIgNjcuNzQ2IDEwMC45ODcgNzAuODM2QzEwMi4xNzcgNzMuOTE2IDEwNS4xOTcgNzYuNzU2IDEwOC44OTcgNzcuNzk2QzExMi41OTcgNzguODQ2IDExNi42NDcgNzguMDE2IDExOS4yNzcgNzYuMDA2QzEyMS45MDcgNzQuMDA2IDE2NS43NzcgMzUuMDU2IDE2NS43NzcgMzUuMDU2QzE2Ni4zNjcgMzQuNTE2IDE2OC4wMDcgMzIuODg2IDE2OC4zNDcgMzAuMzM2QzE2OC44MDcgMjYuOTE2IDE2Ni43NTcgMjMuMzQ2IDE2My41MjcgMjIuMDQ2QzE2MC45NDcgMjEuMDA2IDE1OC41NTcgMjEuNzk2IDE1Ny44MTcgMjIuMDY2QzE1Ni42ODcgMjIuNTg2IDE1NC43MjcgMjMuMzE2IDE1Mi4xODcgMjMuMzc2QzE1MC4yMzcgMjMuNDI2IDE0OC42NTcgMjMuMDQ2IDE0Ny44OTcgMjIuODM2QzE0MS41NTcgMjEuMDQ2IDEzNy40MDcgMTUuMjU2IDEzNy40MjcgOC45NjZDMTM3LjM2NyA1LjA0NiAxMzQuNzU3IDEuNDY2IDEzMC43ODcgMC4zNDYwMDFDMTI2LjgxNyAtMC43NzM5OTkgMTIyLjcyNyAwLjkwNjAwMSAxMjAuNjE3IDQuMjE2QzExNy4zMzcgOS41NzYgMTEwLjc3NyAxMi4zMzYgMTA0LjQzNyAxMC41NDZDMTAxLjAyNyA5LjU4NiA5OC4yNTcyIDcuNDY2IDk2LjQyNzIgNC43MzZDOTUuOTU3MiA0LjEyNiA5NC4zMTcyIDIuMTU2IDkxLjU0NzIgMS42ODZDODguMTA3MiAxLjA5NiA4NC40ODcyIDMuMDc2IDgzLjA5NzIgNi4yMjZDODIuMDU3MiA4LjU4NiA4Mi41ODcyIDEwLjgyNiA4Mi44MTcyIDExLjU5NloiIGZpbGw9IiNGRjk1MzgiLz4KPC9zdmc+Cg==",
+    "mongo": "data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJMYXllcl8xIiB4bWxuczp4PSJuc19leHRlbmQ7IiB4bWxuczppPSJuc19haTsiIHhtbG5zOmdyYXBoPSJuc19ncmFwaHM7IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDEyMCAyNTciIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDEyMCAyNTc7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4KIDxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+CiAgLnN0MHtmaWxsOiMwMEVENjQ7fQogPC9zdHlsZT4KIDxtZXRhZGF0YT4KICA8c2Z3IHhtbG5zPSJuc19zZnc7Ij4KICAgPHNsaWNlcz4KICAgPC9zbGljZXM+CiAgIDxzbGljZVNvdXJjZUJvdW5kcyBib3R0b21MZWZ0T3JpZ2luPSJ0cnVlIiBoZWlnaHQ9IjI1NyIgd2lkdGg9IjEyMCIgeD0iMCIgeT0iMjEiPgogICA8L3NsaWNlU291cmNlQm91bmRzPgogIDwvc2Z3PgogPC9tZXRhZGF0YT4KIDxnPgogIDxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik04Mi4zLDI4LjZDNzEuNSwxNS45LDYyLjIsMi44LDYwLjQsMC4yYy0wLjItMC4yLTAuNS0wLjItMC43LDBjLTEuOSwyLjctMTEuMiwxNS43LTIyLDI4LjUKCQljLTkyLjYsMTE4LjEsMTQuNiwxOTcuOCwxNC42LDE5Ny44bDAuOSwwLjZjMC44LDEyLjMsMi44LDMwLDIuOCwzMGg0aDRjMCwwLDItMTcuNiwyLjgtMzBsMC45LTAuNwoJCUM2Ny43LDIyNi40LDE3NC45LDE0Ni44LDgyLjMsMjguNnogTTYwLDIyNC43YzAsMC00LjgtNC4xLTYuMS02LjJ2LTAuMmw1LjgtMTI4LjZjMC0wLjQsMC42LTAuNCwwLjYsMEw2NiwyMTguMnYwLjIKCQlDNjQuNywyMjAuNiw2MCwyMjQuNyw2MCwyMjQuN3oiPgogIDwvcGF0aD4KIDwvZz4KPC9zdmc+",
+    "attio": "data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJMYXllcl8xIiB4bWxuczp4PSJuc19leHRlbmQ7IiB4bWxuczppPSJuc19haTsiIHhtbG5zOmdyYXBoPSJuc19ncmFwaHM7IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDYwLjkgNTAiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDYwLjkgNTA7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4KIDxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+CiAgLnN0MHtmaWxsOiNGRkZGRkY7fQogPC9zdHlsZT4KIDxtZXRhZGF0YT4KICA8c2Z3IHhtbG5zPSJuc19zZnc7Ij4KICAgPHNsaWNlcz4KICAgPC9zbGljZXM+CiAgIDxzbGljZVNvdXJjZUJvdW5kcyBib3R0b21MZWZ0T3JpZ2luPSJ0cnVlIiBoZWlnaHQ9IjUwIiB3aWR0aD0iNjAuOSIgeD0iLTEwMi41IiB5PSItMjEyLjEiPgogICA8L3NsaWNlU291cmNlQm91bmRzPgogIDwvc2Z3PgogPC9tZXRhZGF0YT4KIDxnPgogIDxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik02MC4zLDM0LjhsLTUuMS04LjFjMCwwLDAsMCwwLDBMNTQuNywyNmMtMC44LTEuMi0yLjEtMS45LTMuNS0xLjlMNDMsMjRMNDIuNSwyNWwtOS44LDE1LjdsLTAuNSwwLjlsNC4xLDYuNgoJCWMwLjgsMS4yLDIuMSwxLjksMy41LDEuOWgxMS41YzEuNCwwLDIuOC0wLjcsMy41LTEuOWwwLjQtMC42YzAsMCwwLDAsMCwwbDUuMS04LjJDNjEuMSwzNy45LDYxLjEsMzYuMiw2MC4zLDM0LjhMNjAuMywzNC44egoJCSBNNTguNywzOC4zbC01LjEsOC4yYzAsMCwwLDAuMS0wLjEsMC4xYy0wLjIsMC4yLTAuNCwwLjItMC41LDAuMmMtMC4xLDAtMC40LDAtMC42LTAuM2wtNS4xLTguMmMtMC4xLTAuMS0wLjEtMC4yLTAuMi0wLjMKCQljMC0wLjEtMC4xLTAuMi0wLjEtMC4zYy0wLjEtMC40LTAuMS0wLjgsMC0xLjNjMC4xLTAuMiwwLjEtMC40LDAuMy0wLjZsNS4xLTguMWMwLDAsMCwwLDAsMGMwLjEtMC4yLDAuMy0wLjMsMC40LTAuMwoJCWMwLjEsMCwwLjEsMCwwLjEsMGMwLDAsMCwwLDAuMSwwYzAuMSwwLDAuNCwwLDAuNiwwLjNsNS4xLDguMUM1OS4yLDM2LjYsNTkuMiwzNy41LDU4LjcsMzguM0w1OC43LDM4LjN6Ij4KICA8L3BhdGg+CiAgPHBhdGggY2xhc3M9InN0MCIgZD0iTTQ1LjIsMTUuMWMwLjgtMS4zLDAuOC0zLjEsMC00LjRsLTUuMS04LjFsLTAuNC0wLjdDMzguOSwwLjcsMzcuNiwwLDM2LjIsMEgyNC43Yy0xLjQsMC0yLjcsMC43LTMuNSwxLjkKCQlMMC42LDM0LjlDMC4yLDM1LjUsMCwzNi4zLDAsMzdjMCwwLjgsMC4yLDEuNSwwLjYsMi4ybDUuNSw4LjhDNi45LDQ5LjMsOC4yLDUwLDkuNyw1MGgxMS41YzEuNCwwLDIuOC0wLjcsMy41LTEuOWwwLjQtMC43CgkJYzAsMCwwLDAsMCwwYzAsMCwwLDAsMCwwbDQuMS02LjZsMTIuMS0xOS40TDQ1LjIsMTUuMUw0NS4yLDE1LjF6IE00NCwxM2MwLDAuNC0wLjEsMC44LTAuNCwxLjJMMjMuNSw0Ni40CgkJYy0wLjIsMC4zLTAuNSwwLjMtMC42LDAuM2MtMC4xLDAtMC40LDAtMC42LTAuM2wtNS4xLTguMmMtMC41LTAuNy0wLjUtMS43LDAtMi40TDM3LjQsMy42YzAuMi0wLjMsMC41LTAuMywwLjYtMC4zCgkJYzAuMSwwLDAuNCwwLDAuNiwwLjNsNS4xLDguMUM0My45LDEyLjEsNDQsMTIuNSw0NCwxM3oiPgogIDwvcGF0aD4KIDwvZz4KPC9zdmc+",
+    "github": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5OCIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDk4IDk2IiBmaWxsPSJub25lIj4KPGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXAwXzczMF8yNzEyNikiPgo8cGF0aCBkPSJNNDEuNDM5NSA2OS4zODQ4QzI4LjgwNjYgNjcuODUzNSAxOS45MDYyIDU4Ljc2MTcgMTkuOTA2MiA0Ni45OTAyQzE5LjkwNjIgNDIuMjA1MSAyMS42Mjg5IDM3LjAzNzEgMjQuNSAzMy41OTE4QzIzLjI1NTkgMzAuNDMzNiAyMy40NDczIDIzLjczNDQgMjQuODgyOCAyMC45NTlDMjguNzEwOSAyMC40ODA1IDMzLjg3ODkgMjIuNDkwMiAzNi45NDE0IDI1LjI2NTZDNDAuNTc4MSAyNC4xMTcyIDQ0LjQwNjIgMjMuNTQzIDQ5LjA5NTcgMjMuNTQzQzUzLjc4NTIgMjMuNTQzIDU3LjYxMzMgMjQuMTE3MiA2MS4wNTg2IDI1LjE2OTlDNjQuMDI1NCAyMi40OTAyIDY5LjI4OTEgMjAuNDgwNSA3My4xMTcyIDIwLjk1OUM3NC40NTcgMjMuNTQzIDc0LjY0ODQgMzAuMjQyMiA3My40MDQzIDMzLjQ5NjFDNzYuNDY2OCAzNy4xMzI4IDc4LjA5MzcgNDIuMDEzNyA3OC4wOTM3IDQ2Ljk5MDJDNzguMDkzNyA1OC43NjE3IDY5LjE5MzQgNjcuNjYyMSA1Ni4zNjkxIDY5LjI4OTFDNTkuNjIzIDcxLjM5NDUgNjEuODI0MiA3NS45ODgzIDYxLjgyNDIgODEuMjUyTDYxLjgyNDIgOTEuMjA1MUM2MS44MjQyIDk0LjA3NjIgNjQuMjE2OCA5NS43MDMxIDY3LjA4NzkgOTQuNTU0N0M4NC40MTAyIDg3Ljk1MTIgOTggNzAuNjI4OSA5OCA0OS4xOTE0Qzk4IDIyLjEwNzQgNzUuOTg4MyA2LjY5NTM5ZS0wNyA0OC45MDQzIDQuMzA5ZS0wN0MyMS44MjAzIDEuOTIyNjFlLTA3IC0xLjk0NzllLTA3IDIyLjEwNzQgLTQuMzM0M2UtMDcgNDkuMTkxNEMtNi4yMDYzMWUtMDcgNzAuNDM3NSAxMy40OTQxIDg4LjA0NjkgMzEuNjc3NyA5NC42NTA0QzM0LjI2MTcgOTUuNjA3NCAzNi43NSA5My44ODQ4IDM2Ljc1IDkxLjMwMDhMMzYuNzUgODMuNjQ0NUMzNS40MTAyIDg0LjIxODggMzMuNjg3NSA4NC42MDE2IDMyLjE1NjIgODQuNjAxNkMyNS44Mzk4IDg0LjYwMTYgMjIuMTA3NCA4MS4xNTYzIDE5LjQyNzcgNzQuNzQ0MUMxOC4zNzUgNzIuMTYwMiAxNy4yMjY2IDcwLjYyODkgMTUuMDI1NCA3MC4zNDE4QzEzLjg3NyA3MC4yNDYxIDEzLjQ5NDEgNjkuNzY3NiAxMy40OTQxIDY5LjE5MzRDMTMuNDk0MSA2OC4wNDQ5IDE1LjQwODIgNjcuMTgzNiAxNy4zMjIzIDY3LjE4MzZDMjAuMDk3NyA2Ny4xODM2IDIyLjQ5MDIgNjguOTA2MyAyNC45Nzg1IDcyLjQ0NzNDMjYuODkyNiA3NS4yMjI3IDI4LjkwMjMgNzYuNDY2OCAzMS4yOTQ5IDc2LjQ2NjhDMzMuNjg3NSA3Ni40NjY4IDM1LjIxODcgNzUuNjA1NSAzNy40MTk5IDczLjQwNDNDMzkuMDQ2OSA3MS43NzczIDQwLjI5MSA3MC4zNDE4IDQxLjQzOTUgNjkuMzg0OFoiIGZpbGw9IndoaXRlIi8+CjwvZz4KPGRlZnM+CjxjbGlwUGF0aCBpZD0iY2xpcDBfNzMwXzI3MTI2Ij4KPHJlY3Qgd2lkdGg9Ijk4IiBoZWlnaHQ9Ijk2IiBmaWxsPSJ3aGl0ZSIvPgo8L2NsaXBQYXRoPgo8L2RlZnM+Cjwvc3ZnPg==",
+    "linear": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgZmlsbD0ibm9uZSI+CjxwYXRoIGQ9Ik0yLjQ1MDgyIDEyMy4wNDZDMi4wMDU4MiAxMjEuMTQ5IDQuMjY1NzggMTE5Ljk1NCA1LjY0MzU4IDEyMS4zMzJMNzguNjY4NCAxOTQuMzU2QzgwLjA0NjIgMTk1LjczNCA3OC44NTE0IDE5Ny45OTQgNzYuOTU0NCAxOTcuNTQ5QzQwLjEwMyAxODguOTA0IDExLjA5NTYgMTU5Ljg5NyAyLjQ1MDgyIDEyMy4wNDZaTTAuMDAzNzgyNjkgOTMuNzc4MkMtMC4wMzE1MDQ4IDk0LjM0NDggMC4xODE1MjcgOTQuODk4IDAuNTgyOTI2IDk1LjI5OTRMMTA0LjcwMSAxOTkuNDE3QzEwNS4xMDIgMTk5LjgxOCAxMDUuNjU1IDIwMC4wMzIgMTA2LjIyMiAxOTkuOTk2QzExMC45NiAxOTkuNzAxIDExNS42MDkgMTk5LjA3NiAxMjAuMTQ3IDE5OC4xNDRDMTIxLjY3NiAxOTcuODMgMTIyLjIwNyAxOTUuOTUyIDEyMS4xMDMgMTk0Ljg0OEw1LjE1MTkgNzguODk3QzQuMDQ4MTggNzcuNzkzMiAyLjE2OTU2IDc4LjMyNDQgMS44NTU1NSA3OS44NTM0QzAuOTIzNzIyIDg0LjM5MDYgMC4yOTg5MTIgODkuMDM5OCAwLjAwMzc4MjY5IDkzLjc3ODJaTTguNDIxODYgNTkuNDEwOEM4LjA4ODg4IDYwLjE1ODQgOC4yNTg0OCA2MS4wMzIgOC44MzcxNiA2MS42MTA4TDEzOC4zODkgMTkxLjE2M0MxMzguOTY4IDE5MS43NDIgMTM5Ljg0MiAxOTEuOTExIDE0MC41ODkgMTkxLjU3OEMxNDQuMTYxIDE4OS45ODcgMTQ3LjYyMyAxODguMTkzIDE1MC45NiAxODYuMjFDMTUyLjA2NCAxODUuNTU0IDE1Mi4yMzUgMTg0LjAzNyAxNTEuMzI3IDE4My4xMjlMMTYuODcxMyA0OC42NzM0QzE1Ljk2MzEgNDcuNzY1MiAxNC40NDU5IDQ3LjkzNTYgMTMuNzg5OCA0OS4wMzk4QzExLjgwNzIgNTIuMzc2NiAxMC4wMTMgNTUuODM4NiA4LjQyMTg2IDU5LjQxMDhaTTI1LjMxNzQgMzYuMTQ4QzI0LjU3NzIgMzUuNDA3OCAyNC41MzE0IDM0LjIyMDYgMjUuMjI4OCAzMy40Mzk4QzQzLjU1OSAxMi45MTg2IDcwLjIyMjggMCA5OS45MDM4IDBDMTU1LjE4NSAwIDIwMCA0NC44MTQ2IDIwMCAxMDAuMDk2QzIwMCAxMjkuNzc3IDE4Ny4wODEgMTU2LjQ0MSAxNjYuNTYgMTc0Ljc3MUMxNjUuNzggMTc1LjQ2OSAxNjQuNTkyIDE3NS40MjMgMTYzLjg1MiAxNzQuNjgzTDI1LjMxNzQgMzYuMTQ4WiIgZmlsbD0iI0Y0RjVGOCIvPgo8L3N2Zz4=",
+    "mysql": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgMCAyNCAyNCIgaGVpZ2h0PSIyNCIgd2lkdGg9IjI0Ij4KICA8cGF0aCBmaWxsPSIjZmZmZmZmIiBkPSJNMjEuODk2IDE4LjMwNzU1Yy0xLjI3ODYyNSAtMC4wMzE4NzUgLTIuMjY5NiAwLjA5NjA1IC0zLjEwMDc1IDAuNDQ3NiAtMC4yMzk3MjUgMC4wOTU4NzUgLTAuNjIzMzc1IDAuMDk1OTc1IC0wLjY1NTM1IDAuMzk5NTc1IDAuMTI3OTUgMC4xMjc5NSAwLjE0Mzg3NSAwLjMzNTcgMC4yNTU3NzUgMC41MTE0NzUgMC4xOTE5MjUgMC4zMTk1NzUgMC41Mjc0MjUgMC43NTEyMjUgMC44MzExNSAwLjk3NTAyNSAwLjMzNTYgMC4yNTU3IDAuNjcxMyAwLjUxMTM3NSAxLjAyMjg1IDAuNzM1MTc1IDAuNjIzMzc1IDAuMzgzNjUgMS4zMjY2NzUgMC42MDczNSAxLjkzNCAwLjk5MDk3NSAwLjM1MTc1IDAuMjIzNiAwLjcwMzIgMC41MTE0NzUgMS4wNTQ4NSAwLjc1MTIyNSAwLjE3NTg3NSAwLjEyNzc1IDAuMjg3Njc1IDAuMzM1NiAwLjUxMTQ3NSAwLjQxNTUyNXYtMC4wNDc5NWMtMC4xMTE5IC0wLjE0Mzg3NSAtMC4xNDM4NzUgLTAuMzUxNjI1IC0wLjI1NTY3NSAtMC41MTE0NzUgLTAuMTU5NzUgLTAuMTU5ODI1IC0wLjMxOTY3NSAtMC4zMDM3IC0wLjQ3OTUgLTAuNDYzNTUgLTAuNDYzNTUgLTAuNjIzMjc1IC0xLjAzODkgLTEuMTY2NzI1IC0xLjY2MjI3NSAtMS42MTQyMjUgLTAuNTExMzc1IC0wLjM1MTY1IC0xLjYzMDI3NSAtMC44MzExNSAtMS44MzgwNSAtMS40MjI1MjUgMCAwIC0wLjAxNjA1IC0wLjAxNTk1IC0wLjAzMTk3NSAtMC4wMzE5IDAuMzUxNjI1IC0wLjAzMTk3NSAwLjc2NzE1IC0wLjE1OTgyNSAxLjEwMjg1IC0wLjI1NTc3NSAwLjU0MzQ3NSAtMC4xNDM5IDEuMDM4OSAtMC4xMTE5IDEuNTk4MyAtMC4yNTU3IDAuMjU1NyAtMC4wNjM5NzUgMC41MTE1IC0wLjE0Mzg3NSAwLjc2NzE3NSAtMC4yMjM4di0wLjE0Mzc3NWMtMC4yODc1NzUgLTAuMjg3Nzc1IC0wLjQ5NTQyNSAtMC42NzEzMjUgLTAuNzk5MTUgLTAuOTQzMDUgLTAuODE1MSAtMC43MDM0IC0xLjcxMDIgLTEuMzkwNTUgLTIuNjM3MiAtMS45NjU5IC0wLjQ5NTUyNSAtMC4zMTk2NSAtMS4xMzQ4NSAtMC41Mjc1MjUgLTEuNjYyMjc1IC0wLjc5OTE1IC0wLjE5MTcgLTAuMDk2MDUgLTAuNTExNDc1IC0wLjE0Mzg3NSAtMC42MjMyNzUgLTAuMzAzNzI1IC0wLjI4Nzc3NSAtMC4zNTE2MjUgLTAuNDQ3NiAtMC44MTUwNzUgLTAuNjU1Mzc1IC0xLjIzMDcgLTAuNDYzMzI1IC0wLjg3OTE3NSAtMC45MTEwNSAtMS44NTQgLTEuMzEwNjI1IC0yLjc4MSAtMC4yODc1NSAtMC42MjMzNzUgLTAuNDYzNDI1IC0xLjI0Njc1IC0wLjgxNTA3NSAtMS44MjIxIC0xLjY0NjIyNSAtMi43MTcxIC0zLjQzNjM1IC00LjM2MzMyNSAtNi4xODU0NSAtNS45Nzc2NzUgLTAuNTkxNCAtMC4zMzU2MDUgLTEuMjk0NTc1IC0wLjQ3OTQ5MjUgLTIuMDQ1OCAtMC42NTUyNjUgLTAuMzk5NDc1IC0wLjAxNjA0MjUgLTAuNzk5MTUgLTAuMDQ3OTI3NSAtMS4xOTg3MjUgLTAuMDYzOTcyNSAtMC4yNTU3IC0wLjExMTkwMjUgLTAuNTExNDc1IC0wLjQxNTUxNzUgLTAuNzM1MyAtMC41NTk0MDUgLTAuOTEwODI1IC0wLjU3NTQ1IC0zLjI2MDQ2NSAtMS44MjIwMDUgLTMuOTMxNzcgLTAuMTc1NzcyNUMtMC4wODA3MzEgMi4zMjQ2MzI1IDAuOTkwMTUyNSAzLjM0NzQ3NSAxLjM1NzczNzUgMy44NzVjMC4yNzE4MzI1IDAuMzY3NiAwLjYyMzM3NzUgMC43ODMxIDAuODE1MTk1IDEuMTk4NzI1IDAuMTExOSAwLjI3MTUyNSAwLjE0Mzc4NSAwLjU1OTQgMC4yNTU2ODc1IDAuODQ3MDc1IDAuMjU1NzggMC43MDMxIDAuNDk1NDMgMS40ODY0IDAuODMxMTMgMi4xNDE3NzUgMC4xNzU4NzUgMC4zMzU2IDAuMzY3NiAwLjY4NzI1IDAuNTkxNCAwLjk5MDg3NSAwLjEyNzg1IDAuMTc1NzUgMC4zNTE1NSAwLjI1NTc3NSAwLjM5OTU3NSAwLjU0MzQ1IC0wLjIyMzcgMC4zMTk2NSAtMC4yMzk3NSAwLjc5OTE1IC0wLjM2NzcgMS4xOTg3MjUgLTAuNTc1MzUgMS44MDYwNzUgLTAuMzUxNTUgNC4wNDM3IDAuNDYzNTUgNS4zNzAyNSAwLjI1NTcgMC4zOTk0NzUgMC44NjMxMjUgMS4yNzg3NSAxLjY3ODIyNSAwLjk0MzA1IDAuNzE5MjI1IC0wLjI4NzY3NSAwLjU1OTQgLTEuMTk4NzI1IDAuNzY3MTc1IC0xLjk5Nzg3NSAwLjA0ODAyNSAtMC4xOTE5MjUgMC4wMTYwMjUgLTAuMzE5Njc1IDAuMTExOSAtMC40NDc1MjUgMC4wMDAwNzUgMC4wMTU5NSAwIDAuMDMyIDAgMC4wMzIgMC4yMjM4IDAuNDQ3NSAwLjQ0NzUgMC44NzkwNzUgMC42NTUyNSAxLjMyNjU3NSAwLjQ5NTU1IDAuNzgzMSAxLjM1ODU1IDEuNTk4MyAyLjA3NzggMi4xNDE3NSAwLjM4MzcyNSAwLjI4NzU3NSAwLjY4NzM1IDAuNzgzMTI1IDEuMTY2ODI1IDAuOTU5di0wLjA0ODA1aC0wLjAzMTk3NWMtMC4wOTU5NzUgLTAuMTQzODc1IC0wLjIzOTc1IC0wLjIwNzc1IC0wLjM2NzYgLTAuMzE5NjUgLTAuMjg3Njc1IC0wLjI4NzY3NSAtMC42MDc0MjUgLTAuNjM5MzI1IC0wLjgzMTEyNSAtMC45NTg5NzUgLTAuNjcxMiAtMC44OTUxMjUgLTEuMjYyNyAtMS44ODU5NzUgLTEuNzkwMTI1IC0yLjkwODkyNSAtMC4yNTU2NzUgLTAuNDk1NDUgLTAuNDc5NDc1IC0xLjAzODkgLTAuNjg3MjUgLTEuNTM0MzI1IC0wLjA5NTk1IC0wLjE5MTkyNSAtMC4wOTU5NSAtMC40Nzk1IC0wLjI1NTc3NSAtMC41NzUzNSAtMC4yMzk3NSAwLjM1MTUyNSAtMC41OTEzIDAuNjU1MjUgLTAuNzY3MTc1IDEuMDg2ODI1IC0wLjMwMzUgMC42ODcyNSAtMC4zMzU2IDEuNTM0MzI1IC0wLjQ0NzUgMi40MTMzNzUgLTAuMDYzODc1IDAuMDE2MDUgLTAuMDMyIDAgLTAuMDYzOTc1IDAuMDMyIC0wLjUxMTM3NSAtMC4xMjc5NSAtMC42ODcyNSAtMC42NTUyNzUgLTAuODc5MDc1IC0xLjEwMjg3NSAtMC40Nzk0NzUgLTEuMTM0NzUgLTAuNTU5NCAtMi45NTY4NSAtMC4xNDM3NzUgLTQuMjY3Mzc1IDAuMTExOSAtMC4zMzU3IDAuNTkxMzc1IC0xLjM5MDU1IDAuMzk5NTc1IC0xLjcxMDIgLTAuMDk1ODUgLTAuMzAzNzI1IC0wLjQxNTYyNSAtMC40Nzk1IC0wLjU5MTQgLTAuNzE5MjUgLTAuMjA3NzUgLTAuMzAzNzI1IC0wLjQzMTU1IC0wLjY4NzI1IC0wLjU3NTM1IC0xLjAyMjk1IC0wLjM4MzYyNSAtMC44OTUgLTAuNTc1NDUgLTEuODg1OTc1IC0wLjk5MDk1IC0yLjc4MTA3NSAtMC4xOTE4MjUgLTAuNDE1NjI1IC0wLjUyNzQyNzUgLTAuODQ3MSAtMC43OTkxNiAtMS4yMzA2MjVDMS42Nzc1IDMuMDQzODc1IDEuMzQxNzk1IDIuNzQwMTUgMS4xMDIwNDUgMi4yMjg2N2MtMC4wNzk4MTI1IC0wLjE3NTc3MjUgLTAuMTkxODE1IC0wLjQ2MzQ0NzUgLTAuMDYzOTcyNSAtMC42NTUyNjUgMC4wMzE5ODc1IC0wLjEyNzg0MjUgMC4wOTU4NTc1IC0wLjE3NTc3IDAuMjIzODAyNSAtMC4yMDc3NTc1IDAuMjA3NzYgLTAuMTc1ODc1IDAuNzk5MTUyNSAwLjA0NzkyNzUgMS4wMDY5MDc1IDAuMTQzNzg1IDAuNTkxMzkyNSAwLjIzOTY0NSAxLjA4NjgxNzUgMC40NjM1NSAxLjU4MjM2NzUgMC43OTkxNTI1IDAuMjIzNyAwLjE1OTgzIDAuNDYzNDI1IDAuNDYzNTQgMC43NTExIDAuNTQzNDY1aDAuMzM1NzI1YzAuNTExNDc1IDAuMTExOCAxLjA4NjgyNSAwLjAzMTk3NSAxLjU2NjMgMC4xNzU3NzUgMC44NDcxNzUgMC4yNzE2MjUgMS42MTQyNSAwLjY3MTMgMi4zMDE2IDEuMTAyODc1IDIuMDkzODUgMS4zMjY1NSAzLjgxOTg3NSAzLjIxMjYyNSA0Ljk4NjcyNSA1LjQ2NjIgMC4xOTE4MjUgMC4zNjc1IDAuMjcxNjI1IDAuNzAzMyAwLjQ0NzUgMS4wODY4MjUgMC4zMzU3IDAuNzgzMjI1IDAuNzUxMjI1IDEuNTgyMzc1IDEuMDg2ODI1IDIuMzQ5NTI1IDAuMzM1NiAwLjc1MTEyNSAwLjY1NTI3NSAxLjUxODQgMS4xMzQ3NSAyLjE0MTc3NSAwLjIzOTg1IDAuMzM1NSAxLjE5ODcyNSAwLjUxMTM3NSAxLjYzMDMgMC42ODcyNSAwLjMxOTY1IDAuMTQzNzc1IDAuODE1MiAwLjI3MTcyNSAxLjEwMjg1IDAuNDQ3NSAwLjU0MzM3NSAwLjMzNTUgMS4wODY4NSAwLjcxOTIyNSAxLjU5ODMyNSAxLjA4NjgyNSAwLjI1NTc3NSAwLjE5MTcyNSAxLjA1NDgyNSAwLjU5MTQgMS4xMDI4NSAwLjkxMDk1WiIgc3Ryb2tlLXdpZHRoPSIwLjI1Ii8+CiAgPHBhdGggZmlsbD0iIzAwNTQ2YiIgZD0iTTUuNTkzIDQuNDE4MjI1Yy0wLjI3MTcyNSAwIC0wLjQ2MzQ1IDAuMDMyMDc1IC0wLjY1NTI1IDAuMDhsMCAwLjAzMmgwLjAzMTk3NWMwLjEyNzk1IDAuMjU1Njc1IDAuMzUxNTUgMC40MzE1NSAwLjUxMTM3NSAwLjY1NTI1IDAuMTI3OTUgMC4yNTU3IDAuMjM5NzUgMC41MTE0NzUgMC4zNjc3IDAuNzY3Mjc1IDAuMDE1OTUgLTAuMDE2MDUgMC4wMzE4NzUgLTAuMDMyIDAuMDMxODc1IC0wLjAzMiAwLjIyMzkgLTAuMTU5OTI1IDAuMzM1NyAtMC40MTU2IDAuMzM1NyAtMC43OTkxNSAtMC4wOTU5NSAtMC4xMTE5IC0wLjExMTkgLTAuMjIzOCAtMC4xOTE4IC0wLjMzNTcgLTAuMDk1ODc1IC0wLjE1OTkyNSAtMC4zMDM3MjUgLTAuMjM5NzUgLTAuNDMxNTc1IC0wLjM2NzY3NVoiIHN0cm9rZS13aWR0aD0iMC4yNSIvPgo8L3N2Zz4=",
+    "notion": "data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJMYXllcl8xIiB4bWxuczp4PSJuc19leHRlbmQ7IiB4bWxuczppPSJuc19haTsiIHhtbG5zOmdyYXBoPSJuc19ncmFwaHM7IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDU5LjkgNjIuNiIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgNTkuOSA2Mi42OyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+CiA8c3R5bGUgdHlwZT0idGV4dC9jc3MiPgogIC5zdDB7ZmlsbDojRkZGRkZGO30KCS5zdDF7ZmlsbC1ydWxlOmV2ZW5vZGQ7Y2xpcC1ydWxlOmV2ZW5vZGQ7fQogPC9zdHlsZT4KIDxtZXRhZGF0YT4KICA8c2Z3IHhtbG5zPSJuc19zZnc7Ij4KICAgPHNsaWNlcz4KICAgPC9zbGljZXM+CiAgIDxzbGljZVNvdXJjZUJvdW5kcyBib3R0b21MZWZ0T3JpZ2luPSJ0cnVlIiBoZWlnaHQ9IjYyLjYiIHdpZHRoPSI1OS45IiB4PSIxMDkuMSIgeT0iMTY4LjkiPgogICA8L3NsaWNlU291cmNlQm91bmRzPgogIDwvc2Z3PgogPC9tZXRhZGF0YT4KIDxnPgogIDxnPgogICA8cGF0aCBjbGFzcz0ic3QwIiBkPSJNMy44LDIuN2wzNC42LTIuNmM0LjItMC40LDUuMy0wLjEsOCwxLjhsMTEuMSw3LjhjMS44LDEuMywyLjQsMS43LDIuNCwzLjJ2NDIuN2MwLDIuNy0xLDQuMy00LjQsNC41CgkJCWwtNDAuMiwyLjRjLTIuNiwwLjEtMy44LTAuMi01LjEtMS45TDIuMSw1MC4xYy0xLjUtMi0yLjEtMy40LTIuMS01LjFWN0MwLDQuOCwxLDIuOSwzLjgsMi43TDMuOCwyLjd6IE0zLjgsMi43Ij4KICAgPC9wYXRoPgogICA8cGF0aCBjbGFzcz0ic3QxIiBkPSJNMzguNCwwLjFMMy44LDIuN0MxLDIuOSwwLDQuOCwwLDd2MzhjMCwxLjcsMC42LDMuMiwyLjEsNS4xbDguMSwxMC42YzEuMywxLjcsMi42LDIuMSw1LjEsMS45bDQwLjItMi40CgkJCWMzLjQtMC4yLDQuNC0xLjgsNC40LTQuNVYxMi45YzAtMS40LTAuNS0xLjgtMi4yLTNjLTAuMS0wLjEtMC4yLTAuMS0wLjMtMC4yTDQ2LjQsMkM0My44LDAsNDIuNy0wLjIsMzguNCwwLjFMMzguNCwwLjF6CgkJCSBNMTYuMiwxMi4yYy0zLjMsMC4yLTQsMC4zLTUuOS0xLjNMNS42LDcuMkM1LjEsNi43LDUuMyw2LjEsNi42LDZsMzMuMy0yLjRjMi44LTAuMiw0LjIsMC43LDUuMywxLjZsNS43LDQuMQoJCQljMC4zLDAuMSwwLjksMC44LDAuMSwwLjhsLTM0LjQsMi4xTDE2LjIsMTIuMnogTTEyLjQsNTUuM1YxOWMwLTEuNiwwLjUtMi4zLDEuOS0yLjRsMzkuNS0yLjNjMS4zLTAuMSwxLjksMC43LDEuOSwyLjN2MzYKCQkJYzAsMS42LTAuMywyLjktMi40LDNsLTM3LjgsMi4yQzEzLjQsNTgsMTIuNCw1Ny4yLDEyLjQsNTUuM0wxMi40LDU1LjN6IE00OS43LDIxYzAuMiwxLjEsMCwyLjItMS4xLDIuM2wtMS44LDAuNHYyNi44CgkJCWMtMS42LDAuOS0zLDEuMy00LjIsMS4zYy0xLjksMC0yLjQtMC42LTMuOS0yLjRMMjYuNywzMC42djE4LjFsMy44LDAuOWMwLDAsMCwyLjItMywyLjJsLTguNCwwLjVjLTAuMi0wLjUsMC0xLjcsMC44LTEuOWwyLjItMC42CgkJCXYtMjRsLTMtMC4zYy0wLjItMS4xLDAuNC0yLjcsMi4xLTIuOGw5LTAuNmwxMi40LDE5VjI0LjNsLTMuMi0wLjRjLTAuMi0xLjMsMC43LTIuMywxLjktMi40TDQ5LjcsMjF6IE00OS43LDIxIj4KICAgPC9wYXRoPgogIDwvZz4KIDwvZz4KPC9zdmc+",
+    "postgres": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCAyNS42IDI1LjYiIHdpZHRoPSI2NCI+PHN0eWxlPjwhW0NEQVRBWy5Ce3N0cm9rZS1saW5lY2FwOnJvdW5kfS5De3N0cm9rZS1saW5lam9pbjpyb3VuZH0uRHtzdHJva2UtbGluZWpvaW46bWl0ZXJ9LkV7c3Ryb2tlLXdpZHRoOi43MTZ9XV0+PC9zdHlsZT48ZyBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiPjxwYXRoIGQ9Ik0xOC45ODMgMTguNjM2Yy4xNjMtMS4zNTcuMTE0LTEuNTU1IDEuMTI0LTEuMzM2bC4yNTcuMDIzYy43NzcuMDM1IDEuNzkzLS4xMjUgMi40LS40MDIgMS4yODUtLjU5NiAyLjA0Ny0xLjU5Mi43OC0xLjMzLTIuODkuNTk2LTMuMS0uMzgzLTMuMS0uMzgzIDMuMDUzLTQuNTMgNC4zMy0xMC4yOCAzLjIyNy0xMS42ODctMy4wMDQtMy44NC04LjIwNS0yLjAyNC04LjI5Mi0xLjk3NmwtLjAyOC4wMDVjLS41Ny0uMTItMS4yLS4xOS0xLjkzLS4yLTEuMzA4LS4wMi0yLjMuMzQzLTMuMDU0LjkxNCAwIDAtOS4yNzctMy44MjItOC44NDYgNC44MDcuMDkyIDEuODM2IDIuNjMgMTMuOSA1LjY2IDEwLjI1QzguMjkgMTUuOTg3IDkuMzYgMTQuODYgOS4zNiAxNC44NmMuNTMuMzUzIDEuMTY3LjUzMyAxLjgzNC40NjhsLjA1Mi0uMDQ0YTIuMDEgMi4wMSAwIDAgMCAuMDIxLjUxOGMtLjc4Ljg3Mi0uNTUgMS4wMjUtMi4xMSAxLjM0Ni0xLjU3OC4zMjUtLjY1LjkwNC0uMDQ2IDEuMDU2LjczNC4xODQgMi40MzIuNDQ0IDMuNTgtMS4xNjJsLS4wNDYuMTgzYy4zMDYuMjQ1LjI4NSAxLjc2LjMzIDIuODQycy4xMTYgMi4wOTMuMzM3IDIuNjg4LjQ4IDIuMTMgMi41MyAxLjdjMS43MTMtLjM2NyAzLjAyMy0uODk2IDMuMTQzLTUuODEiIGZpbGw9IiMwMDAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLWxpbmVjYXA9ImJ1dHQiIHN0cm9rZS13aWR0aD0iMi4xNDkiIGNsYXNzPSJEIi8+PHBhdGggZD0iTTIzLjUzNSAxNS42Yy0yLjg5LjU5Ni0zLjEtLjM4My0zLjEtLjM4MyAzLjA1My00LjUzIDQuMzMtMTAuMjggMy4yMjgtMTEuNjg3LTMuMDA0LTMuODQtOC4yMDUtMi4wMjMtOC4yOTItMS45NzZsLS4wMjguMDA1YTEwLjMxIDEwLjMxIDAgMCAwLTEuOTI5LS4yMDFjLTEuMzA4LS4wMi0yLjMuMzQzLTMuMDU0LjkxNCAwIDAtOS4yNzgtMy44MjItOC44NDYgNC44MDcuMDkyIDEuODM2IDIuNjMgMTMuOSA1LjY2IDEwLjI1QzguMjkgMTUuOTg3IDkuMzYgMTQuODYgOS4zNiAxNC44NmMuNTMuMzUzIDEuMTY3LjUzMyAxLjgzNC40NjhsLjA1Mi0uMDQ0YTIuMDIgMi4wMiAwIDAgMCAuMDIxLjUxOGMtLjc4Ljg3Mi0uNTUgMS4wMjUtMi4xMSAxLjM0Ni0xLjU3OC4zMjUtLjY1LjkwNC0uMDQ2IDEuMDU2LjczNC4xODQgMi40MzIuNDQ0IDMuNTgtMS4xNjJsLS4wNDYuMTgzYy4zMDYuMjQ1LjUyIDEuNTkzLjQ4NCAyLjgxNXMtLjA2IDIuMDYuMTggMi43MTYuNDggMi4xMyAyLjUzIDEuN2MxLjcxMy0uMzY3IDIuNi0xLjMyIDIuNzI1LTIuOTA2LjA4OC0xLjEyOC4yODYtLjk2Mi4zLTEuOTdsLjE2LS40NzhjLjE4My0xLjUzLjAzLTIuMDIzIDEuMDg1LTEuNzkzbC4yNTcuMDIzYy43NzcuMDM1IDEuNzk0LS4xMjUgMi4zOS0uNDAyIDEuMjg1LS41OTYgMi4wNDctMS41OTIuNzgtMS4zM3oiIGZpbGw9IiMzMzY3OTEiIHN0cm9rZT0ibm9uZSIvPjxnIGNsYXNzPSJFIj48ZyBjbGFzcz0iQiI+PHBhdGggZD0iTTEyLjgxNCAxNi40NjdjLS4wOCAyLjg0Ni4wMiA1LjcxMi4yOTggNi40cy44NzUgMi4wNSAyLjkyNiAxLjYxMmMxLjcxMy0uMzY3IDIuMzM3LTEuMDc4IDIuNjA3LTIuNjQ3bC42MzMtNS4wMTdNMTAuMzU2IDIuMlMxLjA3Mi0xLjU5NiAxLjUwNCA3LjAzM2MuMDkyIDEuODM2IDIuNjMgMTMuOSA1LjY2IDEwLjI1QzguMjcgMTUuOTUgOS4yNyAxNC45MDcgOS4yNyAxNC45MDdtNi4xLTEzLjRjLS4zMi4xIDUuMTY0LTIuMDA1IDguMjgyIDEuOTc4IDEuMSAxLjQwNy0uMTc1IDcuMTU3LTMuMjI4IDExLjY4NyIgY2xhc3M9IkMiLz48cGF0aCBkPSJNMjAuNDI1IDE1LjE3cy4yLjk4IDMuMS4zODJjMS4yNjctLjI2Mi41MDQuNzM0LS43OCAxLjMzLTEuMDU0LjQ5LTMuNDE4LjYxNS0zLjQ1Ny0uMDYtLjEtMS43NDUgMS4yNDQtMS4yMTUgMS4xNDctMS42NTItLjA4OC0uMzk0LS42OS0uNzgtMS4wODYtMS43NDQtLjM0Ny0uODQtNC43Ni03LjI5IDEuMjI0LTYuMzMzLjIyLS4wNDUtMS41Ni01LjctNy4xNi01Ljc4MlM3Ljk5IDguMTk2IDcuOTkgOC4xOTYiIHN0cm9rZS1saW5lam9pbj0iYmV2ZWwiLz48L2c+PGcgY2xhc3M9IkMiPjxwYXRoIGQ9Ik0xMS4yNDcgMTUuNzY4Yy0uNzguODcyLS41NSAxLjAyNS0yLjExIDEuMzQ2LTEuNTc4LjMyNS0uNjUuOTA0LS4wNDYgMS4wNTYuNzM0LjE4NCAyLjQzMi40NDQgMy41OC0xLjE2My4zNS0uNDktLjAwMi0xLjI3LS40ODItMS40NjgtLjIzMi0uMDk2LS41NDItLjIxNi0uOTQuMjN6Ii8+PHBhdGggZD0iTTExLjE5NiAxNS43NTNjLS4wOC0uNTEzLjE2OC0xLjEyMi40MzMtMS44MzYuMzk4LTEuMDcgMS4zMTYtMi4xNC41ODItNS41MzctLjU0Ny0yLjUzLTQuMjItLjUyNy00LjIyLS4xODRzLjE2NiAxLjc0LS4wNiAzLjM2NWMtLjI5NyAyLjEyMiAxLjM1IDMuOTE2IDMuMjQ2IDMuNzMzIiBjbGFzcz0iQiIvPjwvZz48L2c+PGcgZmlsbD0iI2ZmZiIgY2xhc3M9IkQiPjxwYXRoIGQ9Ik0xMC4zMjIgOC4xNDVjLS4wMTcuMTE3LjIxNS40My41MTYuNDcycy41NTgtLjIwMi41NzUtLjMyLS4yMTUtLjI0Ni0uNTE2LS4yODgtLjU2LjAyLS41NzUuMTM2eiIgc3Ryb2tlLXdpZHRoPSIuMjM5Ii8+PHBhdGggZD0iTTE5LjQ4NiA3LjkwNmMuMDE2LjExNy0uMjE1LjQzLS41MTYuNDcycy0uNTYtLjIwMi0uNTc1LS4zMi4yMTUtLjI0Ni41MTYtLjI4OC41Ni4wMi41NzUuMTM2eiIgc3Ryb2tlLXdpZHRoPSIuMTE5Ii8+PC9nPjxwYXRoIGQ9Ik0yMC41NjIgNy4wOTVjLjA1LjkyLS4xOTggMS41NDUtLjIzIDIuNTI0LS4wNDYgMS40MjIuNjc4IDMuMDUtLjQxMyA0LjY4IiBjbGFzcz0iQiBDIEUiLz48L2c+PC9zdmc+",
+    "posthog": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9Ii00IC0xNiA2MCA2MCIgcm9sZT0iaW1nIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiPjx0aXRsZT5Qb3N0SG9nIGxvZ288L3RpdGxlPjxwYXRoIGZpbGw9InJnYigyNTUsIDI1NSwgMjU1KSIgZD0iTS44NyAxOS4xM2EuNS41IDAgMCAwLS44Ny4zNHY1Ljk0YTIuNiAyLjYgMCAwIDAgMi41OSAyLjU4SDcuOGEuNS41IDAgMCAwIC4zNy0uODR6TS44NiA4LjRjLS4zLS4zMi0uODYtLjEtLjg2LjM2djYuNzNxMCAuMi4xMy4zNGw4LjgxIDkuNjggMS44IDIuMDZ2LTguODJ6TTQuNTkuODJBMi42NyAyLjY3IDAgMCAwIDAgMi42OHYxLjkzcTAgLjQuMjcuNjlsMTAuNDcgMTAuOTV2LTkuMXoiLz48cGF0aCBmaWxsPSJyZ2IoMjU1LCAyNTUsIDI1NSkiIGQ9Ik0xMS4zNiAyOGg3LjA4YS41LjUgMCAwIDAgLjM2LS44NWwtOC4wNS04LjR2OC44bC4yMy4yOHEuMTYuMTcuMzguMTdtLS42MS0xMS43NiA4Ljg0IDkuMjUgMi4xIDIuMzNxLjEuMTEuMjcuMTRWMTguN0wxMC43NSA3LjE1em0wLTEzLjd2MS40MWEyIDIgMCAwIDAgLjU1IDEuMjhMMjEuOTYgMTYuMlY3LjY1TDE1LjMyLjhhMi42NyAyLjY3IDAgMCAwLTQuNTcgMS43MXoiLz48cGF0aCBmaWxsPSJyZ2IoMjU1LCAyNTUsIDI1NSkiIGQ9Ik0yMi4wNiAyOGg3Ljc2YS41LjUgMCAwIDAgLjM2LS44NmwtOC4yMi04LjQ1djkuMjdsLjA5LjAyek0zMSAyNS40OWwxLjEzIDEuMTRjLjMyLjMxLjg1LjA5Ljg1LS4zNXYtNy4zbC0uNDktLjUxTDIxLjk2IDcuNjR2OC41NXpNMjIuNTIgNS43M2w5LjYyIDkuODljLjMuMzIuODYuMS44Ni0uMzVWNy40NkwyNi41Ni44MmEyLjY3IDIuNjcgMCAwIDAtNC41OSAxLjg0djEuN2MwIC41MS4yIDEgLjU3IDEuMzd6Ii8+PHBhdGggZmlsbD0icmdiKDI1NSwgMjU1LCAyNTUpIiBkPSJtNTAgMjMuMzQtLjM1LS4wNUE0LjUgNC41IDAgMCAxIDQ3IDIxLjk3TDM1LjU2IDEwLjFjLS4zLS4zMy0uODYtLjEtLjg2LjM1VjI3LjVjMCAuMjcuMjIuNS41LjVoMTMuNzhjMS40OCAwIDIuNjctMS4yIDIuNjctMi42N3YtLjFhMS45IDEuOSAwIDAgMC0xLjY3LTEuODl6bS0xMC44MS4yYTEuOCAxLjggMCAxIDEgMC0zLjU4IDEuOCAxLjggMCAwIDEgMCAzLjU4Ii8+PC9zdmc+",
+    "slack": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KDTwhLS0gVXBsb2FkZWQgdG86IFNWRyBSZXBvLCB3d3cuc3ZncmVwby5jb20sIEdlbmVyYXRvcjogU1ZHIFJlcG8gTWl4ZXIgVG9vbHMgLS0+Cjxzdmcgd2lkdGg9IjgwMHB4IiBoZWlnaHQ9IjgwMHB4IiB2aWV3Qm94PSIwIDAgMTYgMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgZmlsbD0ibm9uZSI+Cg08ZyBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCI+Cg08cGF0aCBmaWxsPSIjRTAxRTVBIiBkPSJNMi40NzEgMTEuMzE4YTEuNDc0IDEuNDc0IDAgMDAxLjQ3LTEuNDcxdi0xLjQ3aC0xLjQ3QTEuNDc0IDEuNDc0IDAgMDAxIDkuODQ2Yy4wMDEuODExLjY1OSAxLjQ2OSAxLjQ3IDEuNDd6bTMuNjgyLTIuOTQyYTEuNDc0IDEuNDc0IDAgMDAtMS40NyAxLjQ3MXYzLjY4M2MuMDAyLjgxMS42NiAxLjQ2OCAxLjQ3IDEuNDdhMS40NzQgMS40NzQgMCAwMDEuNDctMS40N1Y5Ljg0NmExLjQ3NCAxLjQ3NCAwIDAwLTEuNDctMS40N3oiLz4KDTxwYXRoIGZpbGw9IiMzNkM1RjAiIGQ9Ik00LjY4MyAyLjQ3MWMuMDAxLjgxMS42NTkgMS40NjkgMS40NyAxLjQ3aDEuNDd2LTEuNDdBMS40NzQgMS40NzQgMCAwMDYuMTU0IDFhMS40NzQgMS40NzQgMCAwMC0xLjQ3IDEuNDd6bTIuOTQgMy42ODJhMS40NzQgMS40NzQgMCAwMC0xLjQ3LTEuNDdIMi40N0ExLjQ3NCAxLjQ3NCAwIDAwMSA2LjE1M2MuMDAyLjgxMi42NiAxLjQ2OSAxLjQ3IDEuNDdoMy42ODRhMS40NzQgMS40NzQgMCAwMDEuNDctMS40N3oiLz4KDTxwYXRoIGZpbGw9IiMyRUI2N0QiIGQ9Ik05Ljg0NyA3LjYyNGExLjQ3NCAxLjQ3NCAwIDAwMS40Ny0xLjQ3VjIuNDdBMS40NzQgMS40NzQgMCAwMDkuODQ4IDFhMS40NzQgMS40NzQgMCAwMC0xLjQ3IDEuNDd2My42ODRjLjAwMi44MS42NTkgMS40NjggMS40NyAxLjQ3em0zLjY4Mi0yLjk0MWExLjQ3NCAxLjQ3NCAwIDAwLTEuNDcgMS40N3YxLjQ3aDEuNDdBMS40NzQgMS40NzQgMCAwMDE1IDYuMTU0YTEuNDc0IDEuNDc0IDAgMDAtMS40Ny0xLjQ3eiIvPgoNPHBhdGggZmlsbD0iI0VDQjIyRSIgZD0iTTguMzc3IDkuODQ3Yy4wMDIuODExLjY1OSAxLjQ2OSAxLjQ3IDEuNDdoMy42ODNBMS40NzQgMS40NzQgMCAwMDE1IDkuODQ4YTEuNDc0IDEuNDc0IDAgMDAtMS40Ny0xLjQ3SDkuODQ3YTEuNDc0IDEuNDc0IDAgMDAtMS40NyAxLjQ3em0yLjk0IDMuNjgyYTEuNDc0IDEuNDc0IDAgMDAtMS40Ny0xLjQ3aC0xLjQ3djEuNDdjLjAwMi44MTIuNjU5IDEuNDY5IDEuNDcgMS40N2ExLjQ3NCAxLjQ3NCAwIDAwMS40Ny0xLjQ3eiIvPgoNPC9nPgoNPC9zdmc+",
+    "stripe": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYwIiBoZWlnaHQ9IjE1MSIgdmlld0JveD0iMCAwIDM2MCAxNTEiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMzYwIDc4LjAwMDJDMzYwIDUyLjQwMDIgMzQ3LjYgMzIuMjAwMiAzMjMuOSAzMi4yMDAyQzMwMC4xIDMyLjIwMDIgMjg1LjcgNTIuNDAwMiAyODUuNyA3Ny44MDAyQzI4NS43IDEwNy45IDMwMi43IDEyMy4xIDMyNy4xIDEyMy4xQzMzOSAxMjMuMSAzNDggMTIwLjQgMzU0LjggMTE2LjZWOTYuNjAwMkMzNDggMTAwIDM0MC4yIDEwMi4xIDMzMC4zIDEwMi4xQzMyMC42IDEwMi4xIDMxMiA5OC43MDAyIDMxMC45IDg2LjkwMDJIMzU5LjhDMzU5LjggODUuNjAwMiAzNjAgODAuNDAwMiAzNjAgNzguMDAwMlpNMzEwLjYgNjguNTAwMkMzMTAuNiA1Ny4yMDAyIDMxNy41IDUyLjUwMDIgMzIzLjggNTIuNTAwMkMzMjkuOSA1Mi41MDAyIDMzNi40IDU3LjIwMDIgMzM2LjQgNjguNTAwMkgzMTAuNloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMjQ3LjEgMzIuMjAwMkMyMzcuMyAzMi4yMDAyIDIzMSAzNi44MDAyIDIyNy41IDQwLjAwMDJMMjI2LjIgMzMuODAwMkgyMDQuMlYxNTAuNEwyMjkuMiAxNDUuMUwyMjkuMyAxMTYuOEMyMzIuOSAxMTkuNCAyMzguMiAxMjMuMSAyNDcgMTIzLjFDMjY0LjkgMTIzLjEgMjgxLjIgMTA4LjcgMjgxLjIgNzcuMDAwMkMyODEuMSA0OC4wMDAyIDI2NC42IDMyLjIwMDIgMjQ3LjEgMzIuMjAwMlpNMjQxLjEgMTAxLjFDMjM1LjIgMTAxLjEgMjMxLjcgOTkuMDAwMiAyMjkuMyA5Ni40MDAyTDIyOS4yIDU5LjMwMDJDMjMxLjggNTYuNDAwMiAyMzUuNCA1NC40MDAyIDI0MS4xIDU0LjQwMDJDMjUwLjIgNTQuNDAwMiAyNTYuNSA2NC42MDAyIDI1Ni41IDc3LjcwMDJDMjU2LjUgOTEuMTAwMiAyNTAuMyAxMDEuMSAyNDEuMSAxMDEuMVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTY5LjggMjYuMzAwMUwxOTQuOSAyMC45MDAxVjAuNjAwMDk4TDE2OS44IDUuOTAwMVYyNi4zMDAxWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTE5NC45IDMzLjkwMDFIMTY5LjhWMTIxLjRIMTk0LjlWMzMuOTAwMVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTQyLjkgNDEuMzAwMUwxNDEuMyAzMy45MDAxSDExOS43VjEyMS40SDE0NC43VjYyLjEwMDFDMTUwLjYgNTQuNDAwMSAxNjAuNiA1NS44MDAxIDE2My43IDU2LjkwMDFWMzMuOTAwMUMxNjAuNSAzMi43MDAxIDE0OC44IDMwLjUwMDEgMTQyLjkgNDEuMzAwMVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNOTIuODk5OSAxMi4yMDAyTDY4LjQ5OTkgMTcuNDAwMkw2OC4zOTk5IDk3LjUwMDJDNjguMzk5OSAxMTIuMyA3OS40OTk5IDEyMy4yIDk0LjI5OTkgMTIzLjJDMTAyLjUgMTIzLjIgMTA4LjUgMTIxLjcgMTExLjggMTE5LjlWOTkuNjAwMkMxMDguNiAxMDAuOSA5Mi43OTk5IDEwNS41IDkyLjc5OTkgOTAuNzAwMlY1NS4yMDAySDExMS44VjMzLjkwMDJIOTIuNzk5OUw5Mi44OTk5IDEyLjIwMDJaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTI1LjMgNTkuMzAwMkMyNS4zIDU1LjQwMDIgMjguNSA1My45MDAyIDMzLjggNTMuOTAwMkM0MS40IDUzLjkwMDIgNTEgNTYuMjAwMiA1OC42IDYwLjMwMDJWMzYuODAwMkM1MC4zIDMzLjUwMDIgNDIuMSAzMi4yMDAyIDMzLjggMzIuMjAwMkMxMy41IDMyLjIwMDIgMCA0Mi44MDAyIDAgNjAuNTAwMkMwIDg4LjEwMDIgMzggODMuNzAwMiAzOCA5NS42MDAyQzM4IDEwMC4yIDM0IDEwMS43IDI4LjQgMTAxLjdDMjAuMSAxMDEuNyA5LjUgOTguMzAwMiAxLjEgOTMuNzAwMlYxMTcuNUMxMC40IDEyMS41IDE5LjggMTIzLjIgMjguNCAxMjMuMkM0OS4yIDEyMy4yIDYzLjUgMTEyLjkgNjMuNSA5NS4wMDAyQzYzLjQgNjUuMjAwMiAyNS4zIDcwLjUwMDIgMjUuMyA1OS4zMDAyWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cg==",
+    "s3": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MjgiIGhlaWdodD0iNTEyIiB2aWV3Qm94PSIwIDAgNDI4IDUxMiI+CiAgPGRlZnM+CiAgICA8c3R5bGU+CiAgICAgIC5jbHMtMSB7CiAgICAgICAgZmlsbDogI2UyNTQ0NDsKICAgICAgfQoKICAgICAgLmNscy0xLCAuY2xzLTIsIC5jbHMtMyB7CiAgICAgICAgZmlsbC1ydWxlOiBldmVub2RkOwogICAgICB9CgogICAgICAuY2xzLTIgewogICAgICAgIGZpbGw6ICM3YjFkMTM7CiAgICAgIH0KCiAgICAgIC5jbHMtMyB7CiAgICAgICAgZmlsbDogIzU4MTUwZDsKICAgICAgfQogICAgPC9zdHlsZT4KICA8L2RlZnM+CiAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMzc4LDk5TDI5NSwyNTdsODMsMTU4LDM0LTE5VjExOFoiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik0zNzgsOTlMMjEyLDExOCwxMjcuNSwyNTcsMjEyLDM5NmwxNjYsMTlWOTlaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0zIiBkPSJNNDMsOTlMMTYsMTExVjQwM2wyNywxMkwyMTIsMjU3WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTQyLjYzNyw5OC42NjdsMTY5LjU4Nyw0Ny4xMTFWMzcyLjQ0NEw0Mi42MzcsNDE1LjExMVY5OC42NjdaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0zIiBkPSJNMjEyLjMxMywxNzAuNjY3bC03Mi4wMDgtMTEuNTU2LDcyLjAwOC04MS43NzgsNzEuODMsODEuNzc4WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0iTTI4NC4xNDMsMTU5LjExMWwtNzEuOTE5LDExLjczMy03MS45MTktMTEuNzMzVjc3LjMzMyIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0iTTIxMi4zMTMsMzQyLjIyMmwtNzIuMDA4LDEzLjMzNCw3Mi4wMDgsNzAuMjIyLDcxLjgzLTcwLjIyMloiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik0yMTIsMTZMMTQwLDU0VjE1OWw3Mi4yMjQtMjAuMzMzWiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTIxMi4yMjQsMTk2LjQ0NGwtNzEuOTE5LDcuODIzVjMwOS4xMDVsNzEuOTE5LDguMjI4VjE5Ni40NDRaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0yIiBkPSJNMjEyLjIyNCwzNzMuMzMzTDE0MC4zMDUsMzU1LjNWNDU4LjM2M0wyMTIuMjI0LDQ5NlYzNzMuMzMzWiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTI4NC4xNDMsMzU1LjNsLTcxLjkxOSwxOC4wMzhWNDk2bDcxLjkxOS0zNy42MzdWMzU1LjNaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMjEyLjIyNCwxOTYuNDQ0bDcxLjkxOSw3LjgyM1YzMDkuMTA1bC03MS45MTksOC4yMjhWMTk2LjQ0NFoiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0yMTIsMTZsNzIsMzhWMTU5bC03Mi0yMFYxNloiLz4KPC9zdmc+Cg==",
+    "clickhouse": "data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBoZWlnaHQ9IjI0IiB3aWR0aD0iMjQiPgogIDxwYXRoIGQ9Ik0yMS4zMzMgMTBIMjR2NGgtMi42NjdaTTE2IDEuMzM1aDIuNjY3djIxLjMzSDE2Wm0tNS4zMzMgMGgyLjY2NnYyMS4zM2gtMi42NjZaTTAgMjIuNjY1VjEuMzM1aDIuNjY3djIxLjMzem01LjMzMyAtMjEuMzNIOHYyMS4zM0g1LjMzM1oiIGZpbGw9IiNGQkZGNDYiIHN0cm9rZS13aWR0aD0iMSI+PC9wYXRoPgo8L3N2Zz4=",
+    "iceberg": "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgd2lkdGg9IjIwMHB4IiBoZWlnaHQ9IjIwMHB4IiBzdHlsZT0ic2hhcGUtcmVuZGVyaW5nOmdlb21ldHJpY1ByZWNpc2lvbjsgdGV4dC1yZW5kZXJpbmc6Z2VvbWV0cmljUHJlY2lzaW9uOyBpbWFnZS1yZW5kZXJpbmc6b3B0aW1pemVRdWFsaXR5OyBmaWxsLXJ1bGU6ZXZlbm9kZDsgY2xpcC1ydWxlOmV2ZW5vZGQiIHhtbG5zOmJ4PSJodHRwczovL2JveHktc3ZnLmNvbSI+CiAgPGRlZnM+CiAgICA8Yng6ZXhwb3J0PgogICAgICA8Yng6ZmlsZSBmb3JtYXQ9InN2ZyIvPgogICAgPC9ieDpleHBvcnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0ibWF0cml4KDEuMTQ4Njk2LCAwLCAwLCAxLjE1MzUyMSwgLTY5My43NzQzNTMsIC0yNS45NTQyMjcpIiBzdHlsZT0iIj4KICAgIDxwYXRoIHN0eWxlPSJvcGFjaXR5OjAuOTczIiBmaWxsPSIjYjhlMWYzIiBkPSJNIDc2NC41LDYzLjUgQyA3NTAuODMzLDYzLjUgNzM3LjE2Nyw2My41IDcyMy41LDYzLjVDIDcyMy41LDYxLjUgNzIzLjUsNTkuNSA3MjMuNSw1Ny41QyA3MjguNjA3LDU3LjgzNDUgNzMyLjk0LDU3LjUwMTIgNzM2LjUsNTYuNUMgNzM0LjA3Myw1NC40NDI0IDczMS40MDcsNTIuNjA5MSA3MjguNSw1MUMgNzA2LjE2Nyw1MC4zMzMzIDY4My44MzMsNTAuMzMzMyA2NjEuNSw1MUMgNjU3Ljc2NCw1Mi40MDk4IDY1NC4wOTgsNTMuOTA5OCA2NTAuNSw1NS41QyA2NDcuMDUzLDU3LjA1NDEgNjQ1LjA1Myw1OS43MjA4IDY0NC41LDYzLjVDIDY1OS44MzMsNjMuNSA2NzUuMTY3LDYzLjUgNjkwLjUsNjMuNUMgNjkwLjE3Myw3My42ODA2IDY5MC41MDYsODMuNjgwNiA2OTEuNSw5My41QyA2OTEuNSw5Ny44MzMzIDY5MS41LDEwMi4xNjcgNjkxLjUsMTA2LjVDIDY5MS4xNjcsMTA2LjUgNjkwLjgzMywxMDYuNSA2OTAuNSwxMDYuNUMgNjcyLjAzMiw5OC43NjUxIDY1My42OTksOTAuNzY1MSA2MzUuNSw4Mi41QyA2NDguMDE2LDc2LjQwOTUgNjYwLjY4Myw3MC41NzYyIDY3My41LDY1QyA2NjMuNTA2LDY0LjUwMDIgNjUzLjUwNiw2NC4zMzM1IDY0My41LDY0LjVDIDYzNS4wMTYsNjMuNTA3IDYyNi4zNDksNjMuMTczNiA2MTcuNSw2My41QyA2MzQuMjY5LDM2LjUyMDIgNjU4Ljc2OSwyMi44NTM1IDY5MSwyMi41QyA3MjMuMjMxLDIyLjg1MzUgNzQ3LjczMSwzNi41MjAyIDc2NC41LDYzLjUgWiIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09Im1hdHJpeCgxLjE0ODY5NiwgMCwgMCwgMS4xNTM1MjEsIC02OTMuNzc0MzUzLCAtMjUuOTU0MjI3KSIgc3R5bGU9IiI+CiAgICA8cGF0aCBzdHlsZT0ib3BhY2l0eToxIiBmaWxsPSIjZjVmYWZkIiBkPSJNIDczNi41LDU2LjUgQyA3MDcuNjYyLDU2LjgzMTMgNjc4Ljk5NSw1Ni40OTggNjUwLjUsNTUuNUMgNjU0LjA5OCw1My45MDk4IDY1Ny43NjQsNTIuNDA5OCA2NjEuNSw1MUMgNjgzLjgzMyw1MC4zMzMzIDcwNi4xNjcsNTAuMzMzMyA3MjguNSw1MUMgNzMxLjQwNyw1Mi42MDkxIDczNC4wNzMsNTQuNDQyNCA3MzYuNSw1Ni41IFoiLz4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJtYXRyaXgoMS4xNDg2OTYsIDAsIDAsIDEuMTUzNTIxLCAtNjkzLjc3NDM1MywgLTI1Ljk1NDIyNykiIHN0eWxlPSIiPgogICAgPHBhdGggc3R5bGU9Im9wYWNpdHk6MSIgZmlsbD0iI2VhZjdmZCIgZD0iTSA2NTAuNSw1NS41IEMgNjc4Ljk5NSw1Ni40OTggNzA3LjY2Miw1Ni44MzEzIDczNi41LDU2LjVDIDczMi45NCw1Ny41MDEyIDcyOC42MDcsNTcuODM0NSA3MjMuNSw1Ny41QyA3MjMuNSw1OS41IDcyMy41LDYxLjUgNzIzLjUsNjMuNUMgNzEyLjUsNjMuNSA3MDEuNSw2My41IDY5MC41LDYzLjVDIDY3NS4xNjcsNjMuNSA2NTkuODMzLDYzLjUgNjQ0LjUsNjMuNUMgNjQ1LjA1Myw1OS43MjA4IDY0Ny4wNTMsNTcuMDU0MSA2NTAuNSw1NS41IFoiLz4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJtYXRyaXgoMS4xNDg2OTYsIDAsIDAsIDEuMTUzNTIxLCAtNjkzLjc3NDM1MywgLTI1Ljk1NDIyNykiIHN0eWxlPSIiPgogICAgPHBhdGggc3R5bGU9Im9wYWNpdHk6MSIgZmlsbD0iIzRiOTRjYiIgZD0iTSA2MTcuNSw2My41IEMgNjI2LjM0OSw2My4xNzM2IDYzNS4wMTYsNjMuNTA3IDY0My41LDY0LjVDIDY0My41LDY1LjE2NjcgNjQzLjE2Nyw2NS41IDY0Mi41LDY1LjVDIDYzNC4xNjcsNjQuODMzMyA2MjUuODMzLDY0LjE2NjcgNjE3LjUsNjMuNSBaIi8+CiAgPC9nPgogIDxnIHRyYW5zZm9ybT0ibWF0cml4KDEuMTQ4Njk2LCAwLCAwLCAxLjE1MzUyMSwgLTY5My43NzQzNTMsIC0yNS45NTQyMjcpIiBzdHlsZT0iIj4KICAgIDxwYXRoIHN0eWxlPSJvcGFjaXR5OjAuOTg1IiBmaWxsPSIjMjc3YWJlIiBkPSJNIDYxNy41LDYzLjUgQyA2MjUuODMzLDY0LjE2NjcgNjM0LjE2Nyw2NC44MzMzIDY0Mi41LDY1LjVDIDY0MC4wMTMsNzAuNDczNCA2MzcuNTEzLDc1LjQ3MzQgNjM1LDgwLjVDIDYzNi45MjYsODkuMjU1IDY0MC4yNiw5Ny41ODg0IDY0NSwxMDUuNUMgNjUwLjcsMTE0LjI1NyA2NTYuODY3LDEyMi41OTEgNjYzLjUsMTMwLjVDIDY2My41NjksMTM1Ljg1NCA2NjMuOTAyLDE0MS4xODcgNjY0LjUsMTQ2LjVDIDY2NC4zNTEsMTQ3LjU1MiA2NjQuNTE3LDE0OC41NTIgNjY1LDE0OS41QyA2NzMuNzA3LDE1OC43MDQgNjgyLjIwNywxNjguMDM3IDY5MC41LDE3Ny41QyA2OTEuMDc3LDE3OC43NzMgNjkxLjc0MywxNzguNzczIDY5Mi41LDE3Ny41QyA2OTkuMTc4LDE2Ni4xMzkgNzA1Ljg0NSwxNTQuODA2IDcxMi41LDE0My41QyA3MTcuNDYsMTM5LjcxMiA3MjIuMjkzLDEzNS43MTIgNzI3LDEzMS41QyA3MjcuNSwxMjIuNTA2IDcyNy42NjYsMTEzLjUwNiA3MjcuNSwxMDQuNUMgNzMzLjgzMyw5Ny4xNjY3IDc0MC4xNjcsODkuODMzMyA3NDYuNSw4Mi41QyA3NDYuODA0LDgxLjg1MDEgNzQ3LjEzNyw4MS4xODM1IDc0Ny41LDgwLjVDIDc0NS41LDc1LjUgNzQzLjUsNzAuNSA3NDEuNSw2NS41QyA3NDkuNDcyLDY0LjUwMjMgNzU3LjQ3Miw2NC4xNjkgNzY1LjUsNjQuNUMgNzc3LjI5Myw4NC4zMjA3IDc4MC43OTMsMTA1LjY1NCA3NzYsMTI4LjVDIDc2Ny41MzksMTYwLjk2MiA3NDcuMzcyLDE4Mi40NjIgNzE1LjUsMTkzQyA2NzIuNjAzLDIwMi4zNzYgNjM5LjEwMywxODguODc2IDYxNSwxNTIuNUMgNjAyLjIwNiwxMjcuODkyIDYwMC41MzksMTAyLjU1OSA2MTAsNzYuNUMgNjEyLjAyMiw3MS43NzY4IDYxNC41MjIsNjcuNDQzNCA2MTcuNSw2My41IFoiLz4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJtYXRyaXgoMS4xNDg2OTYsIDAsIDAsIDEuMTUzNTIxLCAtNjkzLjc3NDM1MywgLTI1Ljk1NDIyNykiIHN0eWxlPSIiPgogICAgPHBhdGggc3R5bGU9Im9wYWNpdHk6MSIgZmlsbD0iIzY4YzFlYSIgZD0iTSA3MjMuNSw2NC41IEMgNzIzLjUsNzMuODMzMyA3MjMuNSw4My4xNjY3IDcyMy41LDkyLjVDIDcxMy42NjMsOTcuMzQzNCA3MDMuNjYzLDEwMi4wMSA2OTMuNSwxMDYuNUMgNjkyLjgzMywxMDYuNSA2OTIuNSwxMDYuODMzIDY5Mi41LDEwNy41QyA2OTIuMTY3LDEwNy41IDY5MS44MzMsMTA3LjUgNjkxLjUsMTA3LjVDIDY5MS41LDEwNy4xNjcgNjkxLjUsMTA2LjgzMyA2OTEuNSwxMDYuNUMgNjkxLjUsMTAyLjE2NyA2OTEuNSw5Ny44MzMzIDY5MS41LDkzLjVDIDY5MS41LDgzLjgzMzMgNjkxLjUsNzQuMTY2NyA2OTEuNSw2NC41QyA3MDIuMTY3LDY0LjUgNzEyLjgzMyw2NC41IDcyMy41LDY0LjUgWiIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09Im1hdHJpeCgxLjE0ODY5NiwgMCwgMCwgMS4xNTM1MjEsIC02OTMuNzc0MzUzLCAtMjUuOTU0MjI3KSIgc3R5bGU9IiI+CiAgICA8cGF0aCBzdHlsZT0ib3BhY2l0eToxIiBmaWxsPSIjNGU4YmM5IiBkPSJNIDcyMy41LDYzLjUgQyA3MzcuMTY3LDYzLjUgNzUwLjgzMyw2My41IDc2NC41LDYzLjVDIDc2NS4xNjcsNjMuNSA3NjUuNSw2My44MzMzIDc2NS41LDY0LjVDIDc1Ny40NzIsNjQuMTY5IDc0OS40NzIsNjQuNTAyMyA3NDEuNSw2NS41QyA3NDMuNSw3MC41IDc0NS41LDc1LjUgNzQ3LjUsODAuNUMgNzQ3LjEzNyw4MS4xODM1IDc0Ni44MDQsODEuODUwMSA3NDYuNSw4Mi41QyA3MzguNzEyLDg1LjU2MDggNzMxLjA0NSw4OC44OTQxIDcyMy41LDkyLjVDIDcyMy41LDgzLjE2NjcgNzIzLjUsNzMuODMzMyA3MjMuNSw2NC41QyA3MjMuNSw2NC4xNjY3IDcyMy41LDYzLjgzMzMgNzIzLjUsNjMuNSBaIi8+CiAgPC9nPgogIDxnIHRyYW5zZm9ybT0ibWF0cml4KDEuMTQ4Njk2LCAwLCAwLCAxLjE1MzUyMSwgLTY5My43NzQzNTMsIC0yNS45NTQyMjcpIiBzdHlsZT0iIj4KICAgIDxwYXRoIHN0eWxlPSJvcGFjaXR5OjEiIGZpbGw9IiNhMmQ4ZjEiIGQ9Ik0gNjkwLjUsNjMuNSBDIDcwMS41LDYzLjUgNzEyLjUsNjMuNSA3MjMuNSw2My41QyA3MjMuNSw2My44MzMzIDcyMy41LDY0LjE2NjcgNzIzLjUsNjQuNUMgNzEyLjgzMyw2NC41IDcwMi4xNjcsNjQuNSA2OTEuNSw2NC41QyA2OTEuNSw3NC4xNjY3IDY5MS41LDgzLjgzMzMgNjkxLjUsOTMuNUMgNjkwLjUwNiw4My42ODA2IDY5MC4xNzMsNzMuNjgwNiA2OTAuNSw2My41IFoiLz4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJtYXRyaXgoMS4xNDg2OTYsIDAsIDAsIDEuMTUzNTIxLCAtNjkzLjc3NDM1MywgLTI1Ljk1NDIyNykiIHN0eWxlPSIiPgogICAgPHBhdGggc3R5bGU9Im9wYWNpdHk6MSIgZmlsbD0iIzkwZDRmMCIgZD0iTSA2NDMuNSw2NC41IEMgNjUzLjUwNiw2NC4zMzM1IDY2My41MDYsNjQuNTAwMiA2NzMuNSw2NUMgNjYwLjY4Myw3MC41NzYyIDY0OC4wMTYsNzYuNDA5NSA2MzUuNSw4Mi41QyA2NTMuNjk5LDkwLjc2NTEgNjcyLjAzMiw5OC43NjUxIDY5MC41LDEwNi41QyA2OTAuMTQxLDEwOC4zNzEgNjg5LjE0MSwxMDkuODcxIDY4Ny41LDExMUMgNjc5LjAyMSwxMTYuOTg1IDY3MS4wMjEsMTIzLjQ4NSA2NjMuNSwxMzAuNUMgNjU2Ljg2NywxMjIuNTkxIDY1MC43LDExNC4yNTcgNjQ1LDEwNS41QyA2NDAuMjYsOTcuNTg4NCA2MzYuOTI2LDg5LjI1NSA2MzUsODAuNUMgNjM3LjUxMyw3NS40NzM0IDY0MC4wMTMsNzAuNDczNCA2NDIuNSw2NS41QyA2NDMuMTY3LDY1LjUgNjQzLjUsNjUuMTY2NyA2NDMuNSw2NC41IFoiLz4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJtYXRyaXgoMS4xNDg2OTYsIDAsIDAsIDEuMTUzNTIxLCAtNjkzLjc3NDM1MywgLTI1Ljk1NDIyNykiIHN0eWxlPSIiPgogICAgPHBhdGggc3R5bGU9Im9wYWNpdHk6MSIgZmlsbD0iIzI2NmZhOCIgZD0iTSA3NDYuNSw4Mi41IEMgNzQwLjE2Nyw4OS44MzMzIDczMy44MzMsOTcuMTY2NyA3MjcuNSwxMDQuNUMgNzE2LjgxMiwxMDUuMjggNzA2LjE0NSwxMDYuMjggNjk1LjUsMTA3LjVDIDY5NC41ODQsMTA3LjQ1NyA2OTMuOTE3LDEwNy4xMjQgNjkzLjUsMTA2LjVDIDcwMy42NjMsMTAyLjAxIDcxMy42NjMsOTcuMzQzNCA3MjMuNSw5Mi41QyA3MzEuMDQ1LDg4Ljg5NDEgNzM4LjcxMiw4NS41NjA4IDc0Ni41LDgyLjUgWiIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09Im1hdHJpeCgxLjE0ODY5NiwgMCwgMCwgMS4xNTM1MjEsIC02OTMuNzc0MzUzLCAtMjUuOTU0MjI3KSIgc3R5bGU9IiI+CiAgICA8cGF0aCBzdHlsZT0ib3BhY2l0eToxIiBmaWxsPSIjNGQ4YWM4IiBkPSJNIDcyNy41LDEwNC41IEMgNzI3LjY2NiwxMTMuNTA2IDcyNy41LDEyMi41MDYgNzI3LDEzMS41QyA3MjIuMjkzLDEzNS43MTIgNzE3LjQ2LDEzOS43MTIgNzEyLjUsMTQzLjVDIDcxMi4xNjcsMTQyLjgzMyA3MTEuODMzLDE0Mi4xNjcgNzExLjUsMTQxLjVDIDcwNC42MjgsMTMwLjQxOSA2OTguMjk1LDExOS4wODYgNjkyLjUsMTA3LjVDIDY5Mi41LDEwNi44MzMgNjkyLjgzMywxMDYuNSA2OTMuNSwxMDYuNUMgNjkzLjkxNywxMDcuMTI0IDY5NC41ODQsMTA3LjQ1NyA2OTUuNSwxMDcuNUMgNzA2LjE0NSwxMDYuMjggNzE2LjgxMiwxMDUuMjggNzI3LjUsMTA0LjUgWiIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09Im1hdHJpeCgxLjE0ODY5NiwgMCwgMCwgMS4xNTM1MjEsIC02OTMuNzc0MzUzLCAtMjUuOTU0MjI3KSIgc3R5bGU9IiI+CiAgICA8cGF0aCBzdHlsZT0ib3BhY2l0eToxIiBmaWxsPSIjYWJkY2YxIiBkPSJNIDY5MC41LDEwNi41IEMgNjkwLjgzMywxMDYuNSA2OTEuMTY3LDEwNi41IDY5MS41LDEwNi41QyA2OTEuNSwxMDYuODMzIDY5MS41LDEwNy4xNjcgNjkxLjUsMTA3LjVDIDY5MS41LDExNS41IDY5MS41LDEyMy41IDY5MS41LDEzMS41QyA2OTEuMTY3LDEzMS41IDY5MC44MzMsMTMxLjUgNjkwLjUsMTMxLjVDIDY4MS41MDIsMTMxLjExOSA2NzIuNTAyLDEzMC43ODYgNjYzLjUsMTMwLjVDIDY3MS4wMjEsMTIzLjQ4NSA2NzkuMDIxLDExNi45ODUgNjg3LjUsMTExQyA2ODkuMTQxLDEwOS44NzEgNjkwLjE0MSwxMDguMzcxIDY5MC41LDEwNi41IFoiLz4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJtYXRyaXgoMS4xNDg2OTYsIDAsIDAsIDEuMTUzNTIxLCAtNjkzLjc3NDM1MywgLTI1Ljk1NDIyNykiIHN0eWxlPSIiPgogICAgPHBhdGggc3R5bGU9Im9wYWNpdHk6MSIgZmlsbD0iIzU0YTVkNyIgZD0iTSA2OTEuNSwxMDcuNSBDIDY5MS44MzMsMTA3LjUgNjkyLjE2NywxMDcuNSA2OTIuNSwxMDcuNUMgNjk4LjI5NSwxMTkuMDg2IDcwNC42MjgsMTMwLjQxOSA3MTEuNSwxNDEuNUMgNzA0LjQ1NiwxMzguNzIxIDY5Ny43ODksMTM1LjM4OCA2OTEuNSwxMzEuNUMgNjkxLjUsMTIzLjUgNjkxLjUsMTE1LjUgNjkxLjUsMTA3LjUgWiIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09Im1hdHJpeCgxLjE0ODY5NiwgMCwgMCwgMS4xNTM1MjEsIC02OTMuNzc0MzUzLCAtMjUuOTU0MjI3KSIgc3R5bGU9IiI+CiAgICA8cGF0aCBzdHlsZT0ib3BhY2l0eToxIiBmaWxsPSIjYjZlMGYyIiBkPSJNIDY2My41LDEzMC41IEMgNjcyLjUwMiwxMzAuNzg2IDY4MS41MDIsMTMxLjExOSA2OTAuNSwxMzEuNUMgNjkwLjUsMTM4LjgzMyA2OTAuNSwxNDYuMTY3IDY5MC41LDE1My41QyA2ODMuMTI1LDE1Mi42NiA2NzUuNzkxLDE1MS40OTMgNjY4LjUsMTUwQyA2NjYuOTczLDE0OC45NjggNjY1LjY0LDE0Ny44MDEgNjY0LjUsMTQ2LjVDIDY2My45MDIsMTQxLjE4NyA2NjMuNTY5LDEzNS44NTQgNjYzLjUsMTMwLjUgWiIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09Im1hdHJpeCgxLjE0ODY5NiwgMCwgMCwgMS4xNTM1MjEsIC02OTMuNzc0MzUzLCAtMjUuOTU0MjI3KSIgc3R5bGU9IiI+CiAgICA8cGF0aCBzdHlsZT0ib3BhY2l0eToxIiBmaWxsPSIjNThhZmRlIiBkPSJNIDY5MC41LDEzMS41IEMgNjkwLjgzMywxMzEuNSA2OTEuMTY3LDEzMS41IDY5MS41LDEzMS41QyA2OTcuNzg5LDEzNS4zODggNzA0LjQ1NiwxMzguNzIxIDcxMS41LDE0MS41QyA3MTEuODMzLDE0Mi4xNjcgNzEyLjE2NywxNDIuODMzIDcxMi41LDE0My41QyA3MDUuNzM0LDE0Ni4zODIgNjk5LjA2NywxNDkuNTQ5IDY5Mi41LDE1M0MgNjkxLjU0NCwxNTYuMzk0IDY5MS4yMTEsMTU5Ljg5NCA2OTEuNSwxNjMuNUMgNjkwLjUyMSwxNjAuMzc1IDY5MC4xODcsMTU3LjA0MiA2OTAuNSwxNTMuNUMgNjkwLjUsMTQ2LjE2NyA2OTAuNSwxMzguODMzIDY5MC41LDEzMS41IFoiLz4KICA8L2c+CiAgPGcgdHJhbnNmb3JtPSJtYXRyaXgoMS4xNDg2OTYsIDAsIDAsIDEuMTUzNTIxLCAtNjkzLjc3NDM1MywgLTI1Ljk1NDIyNykiIHN0eWxlPSIiPgogICAgPHBhdGggc3R5bGU9Im9wYWNpdHk6MSIgZmlsbD0iIzI2NmZhOCIgZD0iTSA3MTIuNSwxNDMuNSBDIDcwNS44NDUsMTU0LjgwNiA2OTkuMTc4LDE2Ni4xMzkgNjkyLjUsMTc3LjVDIDY5MS43NDMsMTc4Ljc3MyA2OTEuMDc3LDE3OC43NzMgNjkwLjUsMTc3LjVDIDY5MS40ODYsMTczLjAzIDY5MS44MTksMTY4LjM2MyA2OTEuNSwxNjMuNUMgNjkxLjIxMSwxNTkuODk0IDY5MS41NDQsMTU2LjM5NCA2OTIuNSwxNTNDIDY5OS4wNjcsMTQ5LjU0OSA3MDUuNzM0LDE0Ni4zODIgNzEyLjUsMTQzLjUgWiIvPgogIDwvZz4KICA8ZyB0cmFuc2Zvcm09Im1hdHJpeCgxLjE0ODY5NiwgMCwgMCwgMS4xNTM1MjEsIC02OTMuNzc0MzUzLCAtMjUuOTU0MjI3KSIgc3R5bGU9IiI+CiAgICA8cGF0aCBzdHlsZT0ib3BhY2l0eToxIiBmaWxsPSIjOGZkM2YwIiBkPSJNIDY2NC41LDE0Ni41IEMgNjY1LjY0LDE0Ny44MDEgNjY2Ljk3MywxNDguOTY4IDY2OC41LDE1MEMgNjc1Ljc5MSwxNTEuNDkzIDY4My4xMjUsMTUyLjY2IDY5MC41LDE1My41QyA2OTAuMTg3LDE1Ny4wNDIgNjkwLjUyMSwxNjAuMzc1IDY5MS41LDE2My41QyA2OTEuODE5LDE2OC4zNjMgNjkxLjQ4NiwxNzMuMDMgNjkwLjUsMTc3LjVDIDY4Mi4yMDcsMTY4LjAzNyA2NzMuNzA3LDE1OC43MDQgNjY1LDE0OS41QyA2NjQuNTE3LDE0OC41NTIgNjY0LjM1MSwxNDcuNTUyIDY2NC41LDE0Ni41IFoiLz4KICA8L2c+Cjwvc3ZnPg==",
+    "stdout": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgZmlsbD0iY3VycmVudENvbG9yIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGQ9Ik05LjM2NyAyLjI1aDUuMjY2YzEuMDkyIDAgMS45NTggMCAyLjY1NS4wNTcuNzE0LjA1OCAxLjMxNy4xOCAxLjg2OS40NmE0Ljc1IDQuNzUgMCAwIDEgMi4wNzUgMi4wNzdjLjI4MS41NS40MDMgMS4xNTQuNDYxIDEuODY4LjA1Ny42OTcuMDU3IDEuNTYzLjA1NyAyLjY1NXY1LjI2NmMwIDEuMDkyIDAgMS45NTgtLjA1NyAyLjY1NS0uMDU4LjcxNC0uMTggMS4zMTctLjQ2IDEuODY5YTQuNzUgNC43NSAwIDAgMS0yLjA3NiAyLjA3NWMtLjU1Mi4yODEtMS4xNTUuNDAzLTEuODY5LjQ2MS0uNjk3LjA1Ny0xLjU2My4wNTctMi42NTUuMDU3SDkuMzY3Yy0xLjA5MiAwLTEuOTU4IDAtMi42NTUtLjA1Ny0uNzE0LS4wNTgtMS4zMTctLjE4LTEuODY4LS40NmE0Ljc1IDQuNzUgMCAwIDEtMi4wNzYtMi4wNzZjLS4yODEtLjU1Mi0uNDAzLTEuMTU1LS40NjEtMS44NjktLjA1Ny0uNjk3LS4wNTctMS41NjMtLjA1Ny0yLjY1NVY5LjM2N2MwLTEuMDkyIDAtMS45NTguMDU3LTIuNjU1LjA1OC0uNzE0LjE4LTEuMzE3LjQ2LTEuODY4YTQuNzUgNC43NSAwIDAgMSAyLjA3Ny0yLjA3NmMuNTUtLjI4MSAxLjE1NC0uNDAzIDEuODY4LS40NjEuNjk3LS4wNTcgMS41NjMtLjA1NyAyLjY1NS0uMDU3TTguNTMgOC40N2EuNzUuNzUgMCAwIDAtMS4wNiAxLjA2TDkuOTQgMTJsLTIuNDcgMi40N2EuNzUuNzUgMCAxIDAgMS4wNiAxLjA2bDMtM2EuNzUuNzUgMCAwIDAgMC0xLjA2ek0xMyAxNC4yNWEuNzUuNzUgMCAwIDAgMCAxLjVoM2EuNzUuNzUgMCAwIDAgMC0xLjV6IiBmaWxsPSJ3aGl0ZSIvPjwvc3ZnPg=="
+  };
+
+  /* brand marks — cdn.getgalaxy.io/brand-kit, inlined */
+  var WORDMARK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0NTEzIiBoZWlnaHQ9IjEyMDAiIHZpZXdCb3g9IjAgMCA0NTEzIDEyMDAiIGZpbGw9Im5vbmUiPgo8cGF0aCBkPSJNMTgxLjgxNCAxMTQxLjk4TDE1OS43MDEgMTIwMEwwIDk4NS43MTdMMjkyLjM3NyAyMTAuOTk5TDM2My4xMzYgMTUxLjY1OUg3MDEuODAxTDY2MC41MjUgMjUzLjg1Nkg1MTcuNDMyTDQ2OC4wNTMgMzg1LjcwOEg2MTcuNTM0TDU3OS42OTcgNDg3LjI0Nkg0MjkuNzI1TDE4MS44MTQgMTE0MS45OFpNNzIwLjQzMiAzMzYuMjczTDc2Ni42MjIgMjEyLjMxOEgxMDA1LjQ0TDk1OC45NDIgMzM2LjI3M0g3MjAuNDMyWk01MDUuNjk0IDkxMC41NTJMNzAxLjc1OCAzODQuNDA0SDk0MS4wNjVMNzQ1LjAwMSA5MTAuNTUySDUwNS42OTRaTTgyNS45MTIgOTEwLjU1MkwxMTA5LjQ1IDE1MS42NTlMMTEzMS4wNiA5Mi45NzhMMTI5MC43NyAzMDcuMjYyTDEwNjUuNzEgOTEwLjU1Mkg4MjUuOTEyWk0xNDUyLjQ0IDcyMC4wMDRMMTQxOS41MSA4MDguMzU2SDE1MTAuOTFMMTU0NC4zMiA3MjAuMDA0SDE0NTIuNDRaTTE1ODIuMTYgNjE3LjgwOEwxNjMwLjgxIDQ4Ny4yNTlIMTUzOS40MUwxNTEwLjQxIDU2My43NDNIMTI3MS4xMUwxMzE2LjMyIDQ0My4wODVMMTM1OS41NiAzODQuNDA0SDE4NjQuNzFMMTg4Ni4zMyA0NDMuMDg1TDE3MTEuNCA5MTAuNTUySDExODUuNjFMMTE2My45OSA4NTEuODcyTDEyNTAuOTYgNjE3LjgwOEgxNTgyLjE2Wk0yMDE2LjY3IDkxMC41NTJIMTc4OC4wNUwxOTgzLjYyIDM4NS4wNjNIMjc0Mi4zM0wyNzYzLjk1IDQ0My4wODVMMjU5MCA5MTAuNTUySDIzNjEuMzhMMjUxOS42MSA0ODcuMjU5SDI0NTcuNDRMMjI5OS4yMSA5MTAuNTUySDIwODIuMjhMMjI0MC4wMSA0ODcuMjU5SDIxNzMuOTFMMjAxNi42NyA5MTAuNTUyWk0yOTk4LjMzIDY2NC42MjFMMjk0My44IDgwOC4zNTZIMzAzNC43TDMwNzUgNzAzLjUyMkgzMzE0LjNMMzI1OC4yOSA4NTIuNTMxTDMyMTUuMDQgOTEwLjU1MkgyNzA5LjlMMjY4OC4yNyA4NTIuNTMxTDI4NDAuNiA0NDMuMDg1TDI4ODMuODQgMzg1LjA2M0gzMzg4Ljk5TDM0MTAuNjIgNDQzLjA4NUwzMzMwLjAzIDY2NS4yODFIMzA5MC4yM1Y2NjQuNjIxSDI5OTguMzNaTTMxMjguMDcgNTYzLjA4M0wzMTU1LjA5IDQ4Ny4yNTlIMzA2My4yTDMwMzUuNjggNTYzLjA4M0gzMTI4LjA3Wk0zNTUzLjEyIDkxMC41NTJIMzMxMy4zMkwzNTA4LjkgMzg1LjA2M0g0MDMzLjJMNDA1NC44MyA0NDMuMDg1TDM4ODAuMzggOTEwLjU1MkgzNjQwLjU5TDM3OTguODEgNDg3LjI1OUgzNzEwLjM2TDM1NTMuMTIgOTEwLjU1MlpNNDEyMC4zOCA0ODEuMzI2TDQxNTguMjIgMzc5Ljc4OEw0MjQzLjcyIDE0OS42ODFMNDI2NS4zNCA5MUw0NDI1LjA0IDMwNC42MjVMNDM5Ny41MyAzNzkuNzg4SDQ1MTNMNDQ3MC43NCA0ODEuMzI2SDQzNTkuNjlMNDIzNy44MyA4MDguMzU2SDQzNDMuMkw0Mjk5LjE3IDkxMC41NTJINDE5Ny4yNEg0MDAzLjkyTDM5ODAuODIgODU0LjUxTDQxMjAuMzggNDgxLjMyNloiIGZpbGw9IiNmZmZmZmYiLz4KPC9zdmc+";
+  var LOGOMARK = '<svg viewBox="0 0 1080 1080" fill="currentColor" aria-hidden="true"><path d="M239.88,479.75c132.27,0,239.88-107.61,239.88-239.88S372.14,0,239.88,0,0,107.61,0,239.88s107.61,239.88,239.88,239.88"/><path d="M840.12,600.25c-132.27,0-239.88,107.61-239.88,239.88s107.61,239.88,239.88,239.88,239.88-107.61,239.88-239.88-107.61-239.88-239.88-239.88"/><path d="M473.59,894.23c27.96-103.95.03-195.9,112.41-308.28,112.37-112.38,204.13-84.39,308.07-112.32,8.08-1.87,16.02-4.15,23.77-6.81.07-.02.13-.04.19-.06h.01c94.13-32.43,161.95-121.88,161.95-226.88C1080,107.61,972.39,0,840.12,0,735.12,0,645.68,67.82,613.25,161.95h-.01c-.03.1-.05.18-.08.26-2.65,7.72-4.92,15.61-6.78,23.67-27.93,103.9-.72,196.5-112.24,308.02-111.53,111.52-204.35,84.54-308.26,112.48-8.06,1.86-15.95,4.13-23.67,6.78-.08.02-.16.05-.25.08h-.01C67.82,645.68,0,735.13,0,840.13,0,972.39,107.61,1079.99,239.88,1079.99c105,0,194.46-67.82,226.88-161.95,0,0,0,0,0,0,0-.02,0-.04.01-.06,1.66-4.8,3.16-9.67,4.51-14.6.83-3.02,1.59-6.07,2.3-9.14"/></svg>';
+
+  var app        = document.querySelector("[data-app]");
+  var stepsEl    = document.querySelector("[data-steps]");
+  var countEl    = document.querySelector("[data-count]");
+  var barEl      = document.querySelector("[data-bar]");
+  var scrim      = document.querySelector("[data-scrim]");
+  var sheetHost  = document.querySelector("[data-sheet-host]");
+  var cursor     = document.querySelector("[data-cursor]");
+  var ripple     = document.querySelector("[data-ripple]");
+  var mainScreen = document.querySelector('[data-screen="main"]');
+  var canvasScreen = document.querySelector('[data-screen="canvas"]');
+
+  /* ── icons ─────────────────────────────────────────────────────────── */
+  /* Phosphor 2.x — exact path data from @phosphor-icons/react, at the
+     weights the app renders them */
+  var IC = {
+    circle:     'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z',
+    circleBold: 'M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm0,192a84,84,0,1,1,84-84A84.09,84.09,0,0,1,128,212Z',
+    checkCircle:'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z',
+    check:      'M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z',
+    arrowRight: 'M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z',
+    arrowLeft:  'M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z',
+    caretRight: 'M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z',
+    search:     'M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z',
+    x:          'M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z',
+    play:       'M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65a16,16,0,0,1-16.2.3A15.86,15.86,0,0,1,64,216.13V39.87a15.86,15.86,0,0,1,8.12-13.82,16,16,0,0,1,16.2.3L232.4,114.49A15.74,15.74,0,0,1,240,128Z',
+    save:       'M219.31,72,184,36.69A15.86,15.86,0,0,0,172.69,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V83.31A15.86,15.86,0,0,0,219.31,72ZM168,208H88V152h80Zm40,0H184V152a16,16,0,0,0-16-16H88a16,16,0,0,0-16,16v56H48V48H172.69L208,83.31ZM160,72a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h56A8,8,0,0,1,160,72Z',
+    flowArrow:  'M245.66,74.34l-32-32a8,8,0,0,0-11.32,11.32L220.69,72H208c-49.33,0-61.05,28.12-71.38,52.92-9.38,22.51-16.92,40.59-49.48,42.84a40,40,0,1,0,.1,16c43.26-2.65,54.34-29.15,64.14-52.69C161.41,107,169.33,88,208,88h12.69l-18.35,18.34a8,8,0,0,0,11.32,11.32l32-32A8,8,0,0,0,245.66,74.34ZM48,200a24,24,0,1,1,24-24A24,24,0,0,1,48,200Z',
+    refresh:    'M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64l-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,85.8V56a8,8,0,1,1,16,0Z',
+    trash:      'M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z',
+    plus:       'M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z',
+    minus:      'M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128Z',
+    reset:      'M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z'
+  };
+
+  function svg(p) { return '<svg viewBox="0 0 256 256" fill="currentColor"><path d="' + p + '"/></svg>'; }
+  function tile(n, size) {
+    var src = LOGOS[n];
+    var inner = src
+      ? '<img src="' + src + '" alt="' + n + ' logo">'
+      : '<span class="fb">' + n.charAt(0).toUpperCase() + '</span>';
+    return '<span class="tile' + (size ? " " + size : "") + '">' + inner + '</span>';
+  }
+
+  /* ── data ──────────────────────────────────────────────────────────── */
+  var STEPS = [
+    { key: "source",   title: "Connect a source",   desc: "Configure a source system to ingest from",           action: "New source" },
+    { key: "sink",     title: "Connect a sink",     desc: "Configure a destination to send data to",            action: "New sink" },
+    { key: "pipeline", title: "Create a pipeline",  desc: "Connect your source to your sink and replicate data", action: "New pipeline" }
+  ];
+
+  /* the catalog, as the app sorts it: alphabetical by display name */
+  var SOURCES = [
+    { n: "attio",    d: "Attio",    m: "flask",  t: "CRM records, lists, notes and workspace members." },
+    { n: "github",   d: "GitHub",   m: "flask",  t: "Repos, issues, pull requests, commits and reviews." },
+    { n: "linear",   d: "Linear",   m: "flask",  t: "Issues, projects, cycles and team activity." },
+    { n: "mysql",    d: "MySQL",    m: "seal",   t: "Read tables and binlog change events from MySQL." },
+    { n: "notion",   d: "Notion",   m: "flask",  t: "Pages, databases and blocks from a workspace." },
+    { n: "postgres", d: "Postgres", m: "seal",   t: "Stream tables and change data capture from PostgreSQL." },
+    { n: "posthog",  d: "PostHog",  m: "flask",  t: "Events, persons, cohorts and feature flags." },
+    { n: "slack",    d: "Slack",    m: "flask",  t: "Channels, messages, threads and users." },
+    { n: "stripe",   d: "Stripe",   m: "flask",  t: "Charges, invoices, customers and subscriptions." }
+  ];
+  var SINKS = [
+    { n: "s3",         d: "Amazon S3",  m: "flask",  t: "Write Parquet or NDJSON objects to any bucket." },
+    { n: "clickhouse", d: "ClickHouse", m: "seal",   t: "Write columnar tables to ClickHouse Cloud or self-hosted." },
+    { n: "iceberg",    d: "Iceberg",    m: "flask",  t: "Append to Iceberg tables on any object store." },
+    { n: "mongo",      d: "MongoDB",    m: "flask",  t: "Upsert documents into MongoDB collections." },
+    { n: "motherduck", d: "MotherDuck", m: "flask",  t: "Load into MotherDuck, DuckDB in the cloud." },
+    { n: "mysql",      d: "MySQL",      m: "seal",   t: "Write tables into a MySQL destination." },
+    { n: "postgres",   d: "Postgres",   m: "seal",   t: "Write tables into a PostgreSQL destination." },
+    { n: "snowflake",  d: "Snowflake",  m: "flask",  t: "Load into Snowflake warehouses via staged copies." },
+    { n: "stdout",     d: "stdout",     m: "shield", t: "Print records to the log, for local debugging." }
+  ];
+  var TABLES = ["orders", "customers", "payments", "invoices", "events"];
+
+  function byName(list, n) {
+    for (var i = 0; i < list.length; i++) if (list[i].n === n) return list[i];
+    return list[0];
+  }
+
+  /* ── chrome ────────────────────────────────────────────────────────── */
+  document.querySelector("[data-wordmark]").innerHTML =
+    '<img class="wm" src="' + WORDMARK + '" alt="Filament">';
+
+  var done = 0;
+
+  var RUN_BTN   = '<span class="btn primary sm" data-run>' + svg(IC.play) + 'Run</span>';
+  var SAVE_BTN  = '<span class="btn alt sm" data-save>' + svg(IC.save) + 'Save</span>';
+  var RUNNING   = '<span class="beacon"><i class="ring"></i><i></i></span>' +
+                  '<span class="txt-sm" style="margin-left:2px;color:var(--beacon)">Running</span>';
+  var COMPLETED = '<span style="width:14px;height:14px;color:var(--ic-success);display:block">' +
+                    '<svg viewBox="0 0 256 256" fill="currentColor" style="width:100%;height:100%;display:block"><path d="' + IC.check + '"/></svg>' +
+                  '</span>' +
+                  '<span class="txt-sm" style="color:var(--tx-success)">Completed</span>';
+
+  /* ── timeline plumbing ─────────────────────────────────────────────── */
+  var gen = { alive: false };
+  function wait(ms) {
+    var g = gen;
+    return new Promise(function (res, rej) {
+      setTimeout(function () { g.alive ? res() : rej("x"); }, ms);
+    });
+  }
+
+  function moveTo(el) {
+    if (!el) return wait(1);
+    var a = app.getBoundingClientRect(), b = el.getBoundingClientRect();
+    cursor.style.transform = "translate(" + (b.left - a.left + b.width / 2) + "px," +
+                                            (b.top - a.top + b.height / 2) + "px)";
+    ripple.style.left = (b.left - a.left + b.width / 2) + "px";
+    ripple.style.top = (b.top - a.top + b.height / 2) + "px";
+    return wait(680);
+  }
+  function tap(el) {
+    cursor.classList.add("is-tap");
+    ripple.classList.remove("go");
+    void ripple.offsetWidth;
+    ripple.classList.add("go");
+    if (el) el.classList.add("is-press");
+    return wait(220).then(function () {
+      cursor.classList.remove("is-tap");
+      if (el) el.classList.remove("is-press");
+      return wait(150);
+    });
+  }
+  function click(el) { return moveTo(el).then(function () { return tap(el); }); }
+
+  /* replaces a field's contents with a typed value — no drawn caret; a
+     painted one can't keep step with the typing and reads as a glitch */
+  function type(el, text) {
+    var i = 0, g = gen;
+    var speed = text.length > 30 ? 15 : 38;
+    el.innerHTML = '<span class="val"></span>';
+    var v = el.querySelector(".val");
+    return new Promise(function (res, rej) {
+      (function step() {
+        if (!g.alive) return rej("x");
+        if (i >= text.length) {
+          /* typing done — settle back to the head of the value */
+          el.scrollLeft = 0;
+          return res();
+        }
+        v.textContent = text.slice(0, ++i);
+        el.scrollLeft = el.scrollWidth;   /* follow the tail, never wrap */
+        setTimeout(step, speed);
+      })();
+    });
+  }
+  /* types into an existing span, calling back on every keystroke */
+  function typeInto(v, text, cb) {
+    var i = 0, g = gen;
+    v.classList.remove("ph");
+    v.textContent = "";
+    return new Promise(function (res, rej) {
+      (function step() {
+        if (!g.alive) return rej("x");
+        if (i >= text.length) return res();
+        v.textContent = text.slice(0, ++i);
+        if (cb) cb(v.textContent);
+        setTimeout(step, 105);
+      })();
+    });
+  }
+
+  /* ── the checklist ─────────────────────────────────────────────────── */
+  /* on a phone the step's action becomes a full-width target beneath its
+     own copy, and only the step you're on offers one */
+  function renderSteps() {
+    stepsEl.innerHTML = STEPS.map(function (s, i) {
+      var status = i < done ? "done" : (i === done ? "active" : "upcoming");
+      var marker = status === "done" ? IC.checkCircle : (status === "active" ? IC.circleBold : IC.circle);
+      return '<div class="step ' + status + '">' +
+          '<span class="marker">' + svg(marker) + '</span>' +
+          '<span class="txt">' +
+            '<span class="hdr"><b>' + s.title + '</b>' +
+              (status === "done" ? '<span class="chip success">Done</span>' : '') +
+            '</span>' +
+            '<p>' + s.desc + '</p>' +
+            (status === "active"
+              ? '<span class="act"><span class="btn primary lg full" data-step="' + s.key + '">' +
+                  s.action + svg(IC.arrowRight) + '</span></span>'
+              : '') +
+          '</span>' +
+        '</div>' + (i < STEPS.length - 1 ? '<div class="hr"></div>' : '');
+    }).join("");
+    countEl.textContent = done;
+    barEl.style.width = (done / STEPS.length * 100) + "%";
+  }
+
+  /* ── the connector sheet ───────────────────────────────────────────── */
+  var sheet, stackEl;
+
+  function openSheet(kind) {
+    var list = kind === "source" ? SOURCES : SINKS;
+    var chip = kind === "source" ? "lime" : "pink";
+    var label = kind === "source" ? "Source" : "Sink";
+
+    sheet = document.createElement("div");
+    sheet.className = "sheet";
+    sheet.innerHTML =
+      '<div class="grab"><i></i></div>' +
+      '<div class="stack" data-stack>' +
+        '<div class="pane">' +
+          '<div class="s-head"><span class="titles">' +
+            '<b>New ' + kind + '</b>' +
+            '<span class="txt-sm t2">Connect to a data ' + kind + '</span>' +
+          '</span></div>' +
+          '<div class="s-search"><span class="input" data-search>' + svg(IC.search) +
+            '<span class="val ph">Search connectors...</span></span></div>' +
+          '<div class="hr"></div>' +
+          '<div class="s-list" data-list>' +
+            list.map(function (c) {
+              return '<div class="c-row" data-connector="' + c.n + '">' +
+                tile(c.n) +
+                '<span class="c-txt"><span class="c-nm">' + c.d + '</span>' +
+                  '<span class="c-desc">' + c.t + '</span></span>' +
+                '<span class="chip ' + chip + '">' + label + '</span>' +
+                '<span class="caret">' + svg(IC.caretRight) + '</span>' +
+              '</div>';
+            }).join("") +
+          '</div>' +
+        '</div>' +
+        '<div class="pane" data-cfg></div>' +
+      '</div>';
+
+    sheetHost.appendChild(sheet);
+    stackEl = sheet.querySelector("[data-stack]");
+    scrim.classList.add("is-on");
+    mainScreen.classList.add("is-under");
+    requestAnimationFrame(function () { sheet.classList.add("is-in"); });
+    return wait(400);
+  }
+
+  /* the search actually filters — on a phone you type, you don't scan */
+  function filterList(q) {
+    q = q.toLowerCase();
+    sheet.querySelectorAll(".c-row").forEach(function (r) {
+      var n = r.getAttribute("data-connector");
+      var nm = r.querySelector(".c-nm").textContent.toLowerCase();
+      r.classList.toggle("is-off", !(nm.indexOf(q) === 0 || n.indexOf(q) === 0));
+    });
+  }
+
+  /* picking a connector pushes the form in and drops the sheet to a
+     shorter detent, the way a native sheet changes size between steps */
+  function pushConfigure(kind, spec, fields) {
+    var chip = kind === "source" ? "lime" : "pink";
+    var label = kind === "source" ? "Source" : "Sink";
+    sheet.querySelector("[data-cfg]").innerHTML =
+      '<div class="s-head">' +
+        '<span class="icon-btn" style="margin-left:0">' + svg(IC.arrowLeft) + '</span>' +
+        tile(spec.n, "lg") +
+        '<span class="titles"><b>' + spec.d + '</b>' +
+          '<span class="chip ' + chip + '" style="align-self:flex-start">' + label + '</span>' +
+        '</span>' +
+      '</div>' +
+      '<div class="hr"></div>' +
+      '<div class="s-body">' +
+        fields.map(function (f) {
+          return '<div class="field">' +
+            '<span class="lab">' + f.label + '</span>' +
+            '<span class="input" data-field="' + f.key + '"><span class="val ph">' + f.ph + '</span></span>' +
+          '</div>';
+        }).join("") +
+      '</div>' +
+      '<div class="s-foot">' +
+        '<span class="btn primary lg full" data-create>' + svg(IC.check) + 'Create</span>' +
+      '</div>';
+    stackEl.classList.add("is-2");
+    sheet.classList.add("is-cfg");
+    return wait(420);
+  }
+
+  function closeSheet() {
+    if (!sheet) return wait(1);
+    var s = sheet;
+    s.classList.remove("is-in");
+    scrim.classList.remove("is-on");
+    mainScreen.classList.remove("is-under");
+    sheet = null; stackEl = null;
+    return wait(340).then(function () { if (s.parentNode) s.parentNode.removeChild(s); });
+  }
+
+  /* ── the pipeline canvas ───────────────────────────────────────────── */
+  var canvasEl, edgesSvg, tablesEl, pipeActs, draftFrom = null;
+
+  function buildCanvas() {
+    canvasScreen.innerHTML =
+      '<div class="topbar">' +
+        '<span class="l">' +
+          '<span class="icon-btn">' + svg(IC.arrowLeft) + '</span>' +
+          '<span class="pname">prod-postgres → clickhouse</span>' +
+        '</span>' +
+        '<span class="r" data-pipe-actions></span>' +
+      '</div>' +
+      '<div class="canvas-wrap"><div class="canvas" data-canvas>' +
+        '<svg class="edges" data-edges></svg>' +
+        '<div class="stage">' +
+          '<div class="node source">' +
+            '<div class="kindrow"><span class="chip lime">Source</span>' +
+              '<span class="acts"><span class="act">' + svg(IC.refresh) + '</span>' +
+              '<span class="act">' + svg(IC.trash) + '</span></span></div>' +
+            '<div class="node-island"><div class="node-head">' +
+              tile("postgres") + '<span class="nm">prod-postgres</span>' +
+            '</div></div>' +
+            '<div class="node-island"><div class="node-tables" data-tables>' +
+              TABLES.map(function (t) {
+                return '<div class="trow"><span class="tname">' + t + '</span>' +
+                  '<span class="port-slot"><span class="port"></span></span></div>';
+              }).join("") +
+            '</div></div>' +
+          '</div>' +
+          '<div class="node sink">' +
+            '<div class="kindrow"><span class="chip pink">Sink</span>' +
+              '<span class="acts"><span class="act">' + svg(IC.trash) + '</span></span></div>' +
+            '<div class="node-island"><div class="node-head">' +
+              '<span class="port-slot"><span class="port" data-sink-port></span></span>' +
+              tile("clickhouse") + '<span class="nm">clickhouse</span>' +
+            '</div></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="controls">' +
+          '<span>' + svg(IC.plus) + '</span>' +
+          '<span>' + svg(IC.minus) + '</span>' +
+          '<span>' + svg(IC.reset) + '</span>' +
+        '</div>' +
+      '</div></div>';
+
+    stopActivity();
+    panelEl = null;
+    draftFrom = null;
+    canvasEl = canvasScreen.querySelector("[data-canvas]");
+    edgesSvg = canvasScreen.querySelector("[data-edges]");
+    edgePaths = [];
+    tablesEl = canvasScreen.querySelector("[data-tables]");
+    pipeActs = canvasScreen.querySelector("[data-pipe-actions]");
+  }
+
+  function portAt(el) {
+    var c = canvasEl.getBoundingClientRect(), b = el.getBoundingClientRect();
+    return { x: b.left - c.left + b.width / 2, y: b.top - c.top + b.height / 2, r: b.width / 2 };
+  }
+  function cursorPt() {
+    var c = canvasEl.getBoundingClientRect(), b = cursor.getBoundingClientRect();
+    return { x: b.left - c.left + b.width / 2, y: b.top - c.top + b.height / 2 };
+  }
+
+  /* right handle out, left handle in — ReactFlow's horizontal bezier, the
+     same one the desktop canvas draws */
+  function wire(sx, sy, tx, ty) {
+    /* the drop is much longer than the run at this width, so the control
+       points lean on the vertical distance too — otherwise every wire
+       leaves sideways and then plunges */
+    var dx = Math.max(36, (tx - sx) * 0.6, Math.abs(ty - sy) * 0.35);
+    return "M" + sx + "," + sy + " C" + (sx + dx) + "," + sy + " " + (tx - dx) + "," + ty + " " + tx + "," + ty;
+  }
+
+  /* The paths are created once and only their `d` is rewritten after that.
+     Rebuilding the SVG every frame is what made the move look choppy: new
+     elements restart the marching-dash animation on each one, so the wires
+     stuttered instead of flowing while the graph was moving. */
+  var edgePaths = [];
+
+  function edgeAt(i, cls, d) {
+    var p = edgePaths[i];
+    if (!p) {
+      p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      edgesSvg.appendChild(p);
+      edgePaths[i] = p;
+    }
+    if (p.getAttribute("class") !== cls) p.setAttribute("class", cls);
+    p.setAttribute("d", d);
+  }
+
+  function drawEdges() {
+    if (!canvasEl || !edgesSvg || !tablesEl) return;
+    var c = canvasEl.getBoundingClientRect();
+    if (edgesSvg.getAttribute("width") !== String(c.width)) {
+      edgesSvg.setAttribute("viewBox", "0 0 " + c.width + " " + c.height);
+      edgesSvg.setAttribute("width", c.width);
+      edgesSvg.setAttribute("height", c.height);
+    }
+
+    var sink = portAt(canvasScreen.querySelector("[data-sink-port]"));
+    var n = 0;
+    tablesEl.querySelectorAll(".trow.is-conn").forEach(function (row) {
+      /* the 2px stroke is centred on the path, so starting a pixel clear of
+         the ring puts its inner edge exactly on the circle */
+      var p = portAt(row.querySelector(".port"));
+      edgeAt(n++, "edge", wire(p.x + p.r + 1, p.y, sink.x - sink.r - 1, sink.y));
+    });
+
+    if (draftFrom) {
+      var f = portAt(draftFrom), q = cursorPt();
+      edgeAt(n++, "edge draft", wire(f.x + f.r + 1, f.y, q.x, q.y));
+    }
+
+    while (edgePaths.length > n) edgePaths.pop().remove();
+  }
+
+  /* how long the layout takes to settle, straight from the CSS clock — so
+     the tracker can never fall short of the transition it is following */
+  function fitMs() {
+    var v = getComputedStyle(document.documentElement).getPropertyValue("--fit");
+    return (parseFloat(v) || 340) + 120;
+  }
+
+  /* the wires stay glued to the ports for every frame of the move */
+  var trackRaf = null;
+  function trackEdges(ms) {
+    if (trackRaf) cancelAnimationFrame(trackRaf);
+    var t0 = Date.now();
+    (function frame() {
+      drawEdges();
+      trackRaf = Date.now() - t0 < ms ? requestAnimationFrame(frame) : null;
+    })();
+  }
+
+  /* drag a wire from a port to the sink, live under the touch point */
+  function dragWire(fromPort, toEl) {
+    var raf, live = true;
+    draftFrom = fromPort;
+    cursor.classList.add("is-drag");
+    fromPort.classList.add("is-live");
+    (function frame() { if (!live) return; drawEdges(); raf = requestAnimationFrame(frame); })();
+    return moveTo(toEl).then(function () {
+      live = false;
+      cancelAnimationFrame(raf);
+      cursor.classList.remove("is-drag");
+      fromPort.classList.remove("is-live");
+      draftFrom = null;
+    });
+  }
+
+  /* ── the Activity sheet ────────────────────────────────────────────── */
+  var panelEl, activityEl, logT = [];
+
+  function openPanel() {
+    var wrap = document.createElement("div");
+    wrap.className = "panel";
+    wrap.innerHTML =
+      '<div class="grab"><i></i></div>' +
+      '<div class="panel-tabs">' +
+        '<span class="tabs"><span class="tab">Overview</span>' +
+          '<span class="tab is-on">Activity</span></span>' +
+      '</div>' +
+      '<div class="hr"></div>' +
+      '<div class="activity" data-activity></div>';
+    /* a sibling of the canvas, not a child — so it runs the full width */
+    canvasScreen.appendChild(wrap);
+    panelEl = wrap;
+    activityEl = wrap.querySelector("[data-activity]");
+    /* the canvas zooms out to clear the sheet, the way fitView insets */
+    canvasEl.classList.add("is-panel");
+    requestAnimationFrame(function () { wrap.classList.add("is-in"); });
+    trackEdges(fitMs());
+  }
+
+  /* the run's event stream, in the shapes events/catalog.go emits */
+  function runEvents() {
+    var out = [
+      ["run.requested", "", ""],
+      ["run.started", "", ""]
+    ];
+    var totalRec = 0, totalBytes = 0;
+    var cpu = 0.9, mem = 486539264;
+    /* pages land at roughly 3M records/second of wall clock — the clock
+       below advances a second every third line, so the arithmetic holds */
+    TABLES.forEach(function (t, i) {
+      var pages = 5 + (i % 3);
+      var rec = 0, bytes = 0;
+      out.push(["resource.started", t, ""]);
+      if (i === 2) out.push(["resource.fan_out_started", t, ""]);
+      for (var pgi = 0; pgi < pages; pgi++) {
+        var r = 1480000 + ((i * 421103 + pgi * 373907) % 420000);
+        var by = r * 178;
+        rec += r; bytes += by;
+        out.push(["resource.page_fetched", t,
+                  "records=" + r.toLocaleString("en-US") + " bytes=" + by.toLocaleString("en-US")]);
+        if (pgi === 2) {
+          cpu += 2.4 + i * 0.6;
+          mem += 92274688;
+          out.push(["run.heartbeat", "",
+                    "cpuSeconds=" + cpu.toFixed(1) +
+                    " memoryBytes=" + mem.toLocaleString("en-US")]);
+        }
+      }
+      out.push(["resource.completed", t,
+                "records=" + rec.toLocaleString("en-US") +
+                " bytes=" + bytes.toLocaleString("en-US")]);
+      totalRec += rec; totalBytes += bytes;
+    });
+    out.push(["run.completed", "",
+              "records=" + totalRec.toLocaleString("en-US") +
+              " bytes=" + totalBytes.toLocaleString("en-US")]);
+    return out;
+  }
+
+  function eventClass(type, detail) {
+    if (type.indexOf(".failed") >= 0 || detail.indexOf("error") >= 0) return "err";
+    if (type === "run.completed") return "ok";
+    if (type === "run.heartbeat") return "dim";
+    return "";
+  }
+
+  /* every event is two lines here: the type, then its numbers indented
+     underneath, so nothing clips at phone width */
+  function streamActivity() {
+    var evs = runEvents();
+    var t = new Date();
+    t.setSeconds(t.getSeconds() - 1);
+    var i = 0;
+
+    activityEl.innerHTML = '<span class="listening">Listening...</span>';
+    var tail = activityEl.querySelector(".listening");
+
+    function push() {
+      if (i >= evs.length) {
+        if (tail && tail.parentNode) tail.parentNode.removeChild(tail);
+        activityEl.scrollTop = activityEl.scrollHeight;
+        return;
+      }
+      var e = evs[i++];
+      t.setSeconds(t.getSeconds() + (i % 3 === 0 ? 1 : 0));
+      var stamp = ("0" + t.getHours()).slice(-2) + ":" +
+                  ("0" + t.getMinutes()).slice(-2) + ":" +
+                  ("0" + t.getSeconds()).slice(-2);
+      var cls = eventClass(e[0], e[2]);
+      var line = document.createElement("div");
+      line.className = "aline";
+      line.innerHTML =
+        '<span class="ahead"><span class="ts">' + stamp + '</span>' +
+          '<span class="ev ' + cls + '">' + e[0] + (e[1] ? " " + e[1] : "") + '</span></span>' +
+        (e[2] ? '<span class="det ' + cls + '">' + e[2] + '</span>' : '');
+      activityEl.insertBefore(line, tail);
+      activityEl.scrollTop = activityEl.scrollHeight;
+      logT.push(setTimeout(push, 76 + (i % 5) * 24));
+    }
+    push();
+  }
+
+  function stopActivity() {
+    logT.forEach(clearTimeout);
+    logT = [];
+  }
+
+  /* ── flows ─────────────────────────────────────────────────────────── */
+  function connectionFlow(kind, spec, query, fields) {
+    return click(stepsEl.querySelector('[data-step="' + kind + '"]'))
+      .then(function () { return openSheet(kind); })
+      .then(function () { return wait(420); })
+      .then(function () {
+        var s = sheet.querySelector("[data-search]");
+        return click(s).then(function () {
+          s.classList.add("is-focus");
+          return typeInto(s.querySelector(".val"), query, filterList);
+        });
+      })
+      .then(function () { return wait(560); })
+      .then(function () {
+        var row = sheet.querySelector('[data-connector="' + spec.n + '"]');
+        row.classList.add("is-hot");
+        return click(row);
+      })
+      .then(function () { return pushConfigure(kind, spec, fields); })
+      .then(function () { return wait(280); })
+      .then(function () {
+        var chain = Promise.resolve();
+        fields.forEach(function (f) {
+          chain = chain.then(function () {
+            var el = sheet.querySelector('[data-field="' + f.key + '"]');
+            return click(el).then(function () {
+              el.classList.add("is-focus");
+              return type(el, f.value);
+            }).then(function () { return wait(200); });
+          });
+        });
+        return chain;
+      })
+      .then(function () { return wait(280); })
+      .then(function () { return click(sheet.querySelector("[data-create]")); })
+      .then(closeSheet)
+      .then(function () {
+        done++;
+        renderSteps();
+        return wait(1500);
+      });
+  }
+
+  function pipelineFlow() {
+    return click(stepsEl.querySelector('[data-step="pipeline"]'))
+      .then(function () {
+        /* the checklist pushes straight to the canvas — and the tab bar
+           goes with the screen it belongs to */
+        buildCanvas();
+        canvasScreen.classList.add("is-on");
+        mainScreen.classList.add("is-under");
+        pipeActs.innerHTML = RUN_BTN;
+        return wait(520);
+      })
+      .then(function () {
+        /* the pipeline arrives with most resources already wired — only
+           the last one gets connected on camera */
+        var rows = tablesEl.querySelectorAll(".trow");
+        for (var i = 0; i < rows.length - 1; i++) {
+          rows[i].classList.add("is-conn");
+          rows[i].querySelector(".port").classList.add("is-conn");
+        }
+        canvasScreen.querySelector("[data-sink-port]").classList.add("is-conn");
+        drawEdges();
+        return wait(1000);
+      })
+      .then(function () {
+        var rows = tablesEl.querySelectorAll(".trow");
+        var last = rows[rows.length - 1];
+        var port = last.querySelector(".port");
+        var sinkPort = canvasScreen.querySelector("[data-sink-port]");
+        return moveTo(port)
+          .then(function () { return tap(); })
+          .then(function () { return dragWire(port, sinkPort); })
+          .then(function () {
+            last.classList.add("is-conn");
+            port.classList.add("is-conn");
+            drawEdges();
+            pipeActs.innerHTML = SAVE_BTN;
+            return wait(620);
+          });
+      })
+      .then(function () { return click(pipeActs.querySelector("[data-save]")); })
+      .then(function () {
+        pipeActs.innerHTML = RUN_BTN;
+        return wait(950);
+      })
+      .then(function () { return click(pipeActs.querySelector("[data-run]")); })
+      .then(function () {
+        /* handleRun calls showActivity(): the panel opens on Activity */
+        pipeActs.innerHTML = RUNNING;
+        canvasEl.classList.add("is-running");
+        openPanel();
+        streamActivity();
+        return wait(8600);
+      })
+      .then(function () {
+        canvasEl.classList.remove("is-running");
+        stopActivity();
+        pipeActs.innerHTML = COMPLETED;
+        return wait(4200);
+      })
+      .then(function () {
+        /* pop back to getting started */
+        canvasScreen.classList.remove("is-on");
+        mainScreen.classList.remove("is-under");
+        return wait(460);
+      });
+  }
+
+  function loop() {
+    var g = gen;
+    done = 0;
+    renderSteps();
+
+    wait(1100)
+      .then(function () {
+        return connectionFlow("source", byName(SOURCES, "postgres"), "post", [
+          { key: "name", label: "Name", ph: "prod-db", value: "prod-postgres" },
+          { key: "dsn",  label: "DSN",  ph: "postgresql://…",
+            value: "postgresql://app@db.acme.io:5432/shop?sslmode=require" }
+        ]);
+      })
+      .then(function () {
+        return connectionFlow("sink", byName(SINKS, "clickhouse"), "click", [
+          { key: "name", label: "Name", ph: "warehouse", value: "clickhouse" },
+          { key: "dsn",  label: "DSN",  ph: "clickhouse://…",
+            value: "clickhouse://default@acme.clickhouse.cloud:8443/analytics" }
+        ]);
+      })
+      .then(pipelineFlow)
+      .then(function () { if (g.alive) loop(); })
+      .catch(function () { /* cancelled */ });
+  }
+
+  function start() {
+    gen.alive = false;
+    gen = { alive: true };
+    stopActivity();
+    if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet);
+    sheet = null; stackEl = null;
+    scrim.classList.remove("is-on");
+    canvasScreen.classList.remove("is-on");
+    canvasScreen.innerHTML = "";
+    mainScreen.classList.remove("is-under");
+    cursor.style.transform = "translate(196px, 520px)";
+    loop();
+  }
+
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) start(); });
+  window.addEventListener("resize", function () { drawEdges(); });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { setTimeout(start, 60); });
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>

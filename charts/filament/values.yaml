@@ -175,10 +175,10 @@ controlPlane:
       ttlSecondsAfterFinished: 3600
 
 metrics:
-  # -- Metrics backend for the dashboard query API, stored in the server
-  # ConfigMap as `METRICSSTORE_PROVIDER`. `postgresql` answers from the
-  # datastore's own pool.
-  type: postgresql
+  # -- Metrics backend for the dashboard query API. `datastore` answers from
+  # the persistence store and emits no `METRICSSTORE_PROVIDER`; any other value
+  # is stored in the server ConfigMap as `METRICSSTORE_PROVIDER`.
+  type: datastore
 
 persistence:
   # -- Persistence provider.
@@ -197,15 +197,17 @@ persistence:
   mysql: {}
 
 secrets:
-  # -- Secret storage provider. Valid values are `postgres` and `aws-secrets-manager`.
-  type: postgres
+  # -- Secret storage provider. `datastore` keeps secrets in the persistence
+  # store and emits no `SECRET_PROVIDER`; `aws-secrets-manager` is stored in the
+  # ConfigMap as `SECRET_PROVIDER`.
+  type: datastore
 
   # -- Extra name prefix external secret stores apply to every secret reference,
   # stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are
-  # already namespaced under `filament/`. Unused by postgres.
+  # already namespaced under `filament/`. Unused by datastore.
   prefix: ""
 
-  postgres:
+  datastore:
     # -- Encryption key identifier stored with each secret row. Change this when rotating keys.
     encryptionKeyId: ""
     # -- Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`.
