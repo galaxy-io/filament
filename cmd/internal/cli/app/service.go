@@ -205,6 +205,19 @@ func pipelineList(pipelines []model.NamedPipeline, info model.PageInfo) model.Pi
 	return result
 }
 
+// PipelineModes asks the target which read and write modes a proposed route
+// supports. A target without the capability offers the full-read pairing.
+func (s *Service) PipelineModes(ctx context.Context, pipeline model.Pipeline) (model.PipelineModes, error) {
+	if target, ok := s.target.(PipelineModesTarget); ok {
+		return target.PipelineModes(ctx, pipeline)
+	}
+	modes := model.PipelineModes{Replication: "standard", ReadModes: []string{"full"}}
+	for _, mode := range filament.WriteModesFor(filament.ModeFull) {
+		modes.WriteModes = append(modes.WriteModes, string(mode))
+	}
+	return modes, nil
+}
+
 // Runs lists one page of run history when the target keeps any.
 func (s *Service) Runs(ctx context.Context, request model.RunListRequest) (model.RunList, error) {
 	history, ok := s.target.(RunHistoryTarget)
