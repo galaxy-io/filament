@@ -168,10 +168,10 @@ func (a *cliApp) pipelineRequestFromFlags(operation, name string, existing *clim
 func (a *cliApp) pipelineListCommand() *cobra.Command {
 	var page listPageFlags
 	cmd := &cobra.Command{
-		Use:   "list",
+		Use:     "list",
 		Aliases: []string{"ls"},
-		Short: "List saved pipelines",
-		Args:  cobra.NoArgs,
+		Short:   "List saved pipelines",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			request, err := page.request()
 			if err != nil {

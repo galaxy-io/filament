@@ -183,10 +183,10 @@ func (a *cliApp) configName() string {
 func (a *cliApp) connectionListCommand(kind string) *cobra.Command {
 	var page listPageFlags
 	cmd := &cobra.Command{
-		Use:   "list",
+		Use:     "list",
 		Aliases: []string{"ls"},
-		Short: fmt.Sprintf("List saved %ss", kind),
-		Args:  cobra.NoArgs,
+		Short:   fmt.Sprintf("List saved %ss", kind),
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			request, err := page.request()
 			if err != nil {
