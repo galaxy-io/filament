@@ -88,19 +88,20 @@ type Pipeline struct {
 }
 
 type PipelineResourceCheckpoint struct {
-	ID                string
-	TenantID          string
-	PipelineID        string
-	PipelineVersionID string
-	RouteKey          string
-	ResourceName      string
-	Cursor            []byte
-	LastRunID         string
-	CreatedByUserID   pgtype.Text
-	UpdatedByUserID   pgtype.Text
-	DeletedByUserID   pgtype.Text
-	CreatedAt         pgtype.Timestamptz
-	UpdatedAt         pgtype.Timestamptz
+	ID                          string
+	TenantID                    string
+	PipelineID                  string
+	PipelineVersionID           string
+	RouteKey                    string
+	ResourceName                string
+	Cursor                      []byte
+	LastRunID                   string
+	CreatedByUserID             pgtype.Text
+	UpdatedByUserID             pgtype.Text
+	DeletedByUserID             pgtype.Text
+	CreatedAt                   pgtype.Timestamptz
+	UpdatedAt                   pgtype.Timestamptz
+	ReplicationStreamResourceID pgtype.Text
 }
 
 type PipelineVersion struct {
@@ -114,6 +115,49 @@ type PipelineVersion struct {
 	DeletedByUserID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+}
+
+type ReplicationStream struct {
+	ID                           string
+	TenantID                     string
+	PipelineID                   string
+	RouteKey                     string
+	Generation                   int64
+	SourceConnectionID           string
+	SinkConnectionID             string
+	ConsumerName                 string
+	ConsumerConfig               []byte
+	ContinuityFingerprint        string
+	Status                       int16
+	CreatedFromPipelineVersionID string
+	Error                        pgtype.Text
+	RetiredAt                    pgtype.Timestamptz
+	CreatedByUserID              pgtype.Text
+	UpdatedByUserID              pgtype.Text
+	DeletedByUserID              pgtype.Text
+	CreatedAt                    pgtype.Timestamptz
+	UpdatedAt                    pgtype.Timestamptz
+}
+
+type ReplicationStreamResource struct {
+	ID                  string
+	ReplicationStreamID string
+	TenantID            string
+	ResourceName        string
+	Status              int16
+	BootstrapMode       string
+	BootstrapConfig     []byte
+	SchemaFingerprint   pgtype.Text
+	BootstrapRunID      pgtype.Text
+	BootstrapStartedAt  pgtype.Timestamptz
+	ActivatedAt         pgtype.Timestamptz
+	RetiredAt           pgtype.Timestamptz
+	Error               pgtype.Text
+	CreatedByUserID     pgtype.Text
+	UpdatedByUserID     pgtype.Text
+	DeletedByUserID     pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
 }
 
 type Run struct {

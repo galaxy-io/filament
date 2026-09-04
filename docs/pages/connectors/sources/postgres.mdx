@@ -30,7 +30,6 @@ read starts that table again. The connector is beta.
 | `encoding` | Pipeline | `native` | `native` (typed binary columns, JSON assembled client-side) or `jsonb` (server-side `to_jsonb`). |
 | `publication` | Connection | `filament` | CDC only. Publication name. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
 | `manage_publication` | Connection | `true` | CDC only. Set `false` when an administrator provisions the publication. |
-| `slot_name` | Pipeline | `filament` | Persistent logical replication slot. Use a unique slot per CDC pipeline. |
 
 ## Read strategies
 
@@ -102,11 +101,18 @@ CDC when deletes must be replicated.
 
 ## CDC
 
-CDC streams `pgoutput` over a persistent logical replication slot. It
-requires `wal_level=logical` and a primary key on every selected table. By
+CDC streams `pgoutput` over a persistent logical replication slot generated
+for each durable pipeline route. The slot name is managed by Filament and is
+not user configuration. CDC requires `wal_level=logical` and a primary key on
+every selected table. By
 default the connector creates the publication and keeps its table list
 current with `publish = 'insert, update, delete'`. Set
 `manage_publication=false` when an administrator provisions it.
+
+CDC pipeline runs also require a datastore with durable replication-stream
+admission. The PostgreSQL datastore provides it; the in-memory datastore does
+not, and compilation fails with a precondition error instead of sharing an
+unsafe process-local slot.
 
 When a selected table has no CDC checkpoint, the slot is created with an
 exported snapshot and the table is read in full through that snapshot, so the
@@ -124,10 +130,12 @@ the previously durable cursor is acknowledged.
 <Warning>
   CDC has operational sharp edges:
 
-  - Replication slots are never dropped automatically. An abandoned pipeline's
-    slot retains WAL indefinitely, so drop the slot when you retire a pipeline.
-  - A "slot is active" error means another client holds the slot. Use a
-    unique `slot_name` per pipeline.
+  - When a successor commits, Filament drops retired slots on the same source
+    connection. If the source connection changed or the pipeline was deleted
+    without a successor, clean up the old database explicitly; its generated
+    consumer name is stored in the control database's
+    `replication_streams.consumer_name` column.
+  - A "slot is active" error means another client still holds the route's slot.
   - A checkpoint older than the slot's confirmed position is a hard error.
     The WAL was consumed by another client, and the stream cannot be replayed.
   - `TRUNCATE` of a tracked table fails the run.

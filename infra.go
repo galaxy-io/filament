@@ -65,6 +65,25 @@ type DataStore interface {
 	Name() string
 }
 
+// ReplicationStreamStore is the optional durable stream capability used by CDC
+// and event-stream routes. It is separate from DataStore so lightweight stores
+// do not need to model external consumer lifecycles.
+type ReplicationStreamStore interface {
+	LoadReplicationStream(ctx context.Context, id string) (ReplicationStream, error)
+	ListRetiredReplicationStreams(ctx context.Context, pipelineID, route string) ([]ReplicationStream, error)
+	MarkReplicationStreamCleaned(ctx context.Context, id string) error
+	ReconcileReplicationStreamResources(ctx context.Context, streamID string, tenant TenantID, resources []string, bootstrapMode string) ([]ReplicationStreamResource, error)
+	ListReplicationStreamResources(ctx context.Context, streamID string) ([]ReplicationStreamResource, error)
+}
+
+// ReplicationStreamRunStore admits a run and resolves its desired replication
+// stream in one transaction. Keeping this separate from CreateRun prevents a
+// compile or a rejected overlapping run from retiring the stream that an
+// existing run still owns.
+type ReplicationStreamRunStore interface {
+	CreateRunWithReplicationStream(ctx context.Context, state RunState, desired ReplicationStream) error
+}
+
 // RunTransitionStore applies lifecycle commands with a compare-and-swap on
 // the current status. It is separate from DataStore so adapters can reject run
 // signaling explicitly instead of emulating an unsafe LoadRun/SaveRun race.
@@ -96,6 +115,9 @@ type ResourceCheckpointKey struct {
 	PipelineVersionID string
 	Route             string
 	Resource          string
+	// ReplicationStreamID replaces pipeline-version identity for durable stream
+	// checkpoints. It is empty for version-scoped incremental checkpoints.
+	ReplicationStreamID string
 }
 
 // ResourceCheckpointRoute identifies every resource cursor one pipeline
@@ -104,6 +126,9 @@ type ResourceCheckpointRoute struct {
 	PipelineID        string
 	PipelineVersionID string
 	Route             string
+	// ReplicationStreamID selects the active resources of one durable stream.
+	// It is empty for version-scoped incremental checkpoint listings.
+	ReplicationStreamID string
 }
 
 // ResourceCheckpointState is the durable cursor plus its most recent writer.
@@ -113,6 +138,81 @@ type ResourceCheckpointState struct {
 	Run        RunID
 	Checkpoint Checkpoint
 	UpdatedAt  time.Time
+}
+
+// ReplicationStreamStatus is the lifecycle of one independently advancing
+// source consumer. An active pipeline route has exactly one active generation.
+type ReplicationStreamStatus int16
+
+const (
+	// ReplicationStreamActive indicates that the stream is advancing normally.
+	// Its ordinal is persisted; map it explicitly if exposed by protobuf.
+	ReplicationStreamActive ReplicationStreamStatus = iota
+	// ReplicationStreamRetired indicates that the stream no longer participates in replication.
+	ReplicationStreamRetired
+	// ReplicationStreamError indicates that the stream cannot currently advance.
+	ReplicationStreamError
+)
+
+// ReplicationStream is the continuity identity shared by compatible versions
+// of one pipeline route. ConsumerName is connector-specific: a PostgreSQL slot,
+// Kafka consumer group, or NATS durable consumer.
+type ReplicationStream struct {
+	ID                           string
+	Tenant                       TenantID
+	PipelineID                   string
+	Route                        string
+	Generation                   int64
+	SourceConnectionID           string
+	SinkConnectionID             string
+	ConsumerName                 string
+	ConsumerConfig               map[string]any
+	ContinuityFingerprint        string
+	Status                       ReplicationStreamStatus
+	CreatedFromPipelineVersionID string
+	Error                        string
+	RetiredAt                    *time.Time
+	CreatedAt                    time.Time
+	UpdatedAt                    time.Time
+}
+
+// ReplicationStreamResourceStatus records whether one table/topic is waiting
+// for bootstrap, participating in the stream, or retired from its retention
+// floor. Checkpoint presence is deliberately separate from membership.
+type ReplicationStreamResourceStatus int16
+
+const (
+	// ReplicationStreamResourcePending indicates that the resource is waiting to bootstrap.
+	// Its ordinal is persisted; map it explicitly if exposed by protobuf.
+	ReplicationStreamResourcePending ReplicationStreamResourceStatus = iota
+	// ReplicationStreamResourceBootstrapping indicates that the resource is being bootstrapped.
+	ReplicationStreamResourceBootstrapping
+	// ReplicationStreamResourceActive indicates that the resource participates in the stream.
+	ReplicationStreamResourceActive
+	// ReplicationStreamResourceRetired indicates that the resource no longer participates in the stream.
+	ReplicationStreamResourceRetired
+	// ReplicationStreamResourceError indicates that the resource could not join or advance with the stream.
+	ReplicationStreamResourceError
+)
+
+// ReplicationStreamResource is one resource's membership and bootstrap state
+// within a replication stream.
+type ReplicationStreamResource struct {
+	ID                  string
+	ReplicationStreamID string
+	Tenant              TenantID
+	Resource            string
+	Status              ReplicationStreamResourceStatus
+	BootstrapMode       string
+	BootstrapConfig     map[string]any
+	SchemaFingerprint   string
+	BootstrapRun        RunID
+	BootstrapStartedAt  *time.Time
+	ActivatedAt         *time.Time
+	RetiredAt           *time.Time
+	Error               string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 // ConnectorKind identifies which registry owns a reusable connection.
@@ -178,6 +278,10 @@ type ListOptions struct {
 
 // ErrVersionConflict indicates an optimistic-lock mismatch.
 var ErrVersionConflict = errors.New("version conflict")
+
+// ErrRunOverlap means another requested, running, or paused run already owns
+// the same replication route.
+var ErrRunOverlap = errors.New("run overlaps an active replication route")
 
 // ScheduleLeaseTTL bounds how long a ClaimDue lease is honored before a
 // schedule is eligible to be reclaimed.

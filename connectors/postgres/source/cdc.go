@@ -104,6 +104,7 @@ type pgCDCRun struct {
 	limited   bool
 	inTxn     bool
 	lastLSN   pglogrepl.LSN
+	floors    map[string]pglogrepl.LSN
 }
 
 // writer returns the resource's row writer, opening it on first use.
@@ -175,6 +176,10 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	} else if start < slot.start {
 		return fmt.Errorf("postgres cdc: checkpoint %s is older than slot %q confirmed position %s; WAL was consumed by another client", start, s.slotName, slot.start)
 	}
+	run.floors, err = postgresResourceFloors(opts.Checkpoints)
+	if err != nil {
+		return err
+	}
 
 	// A missing per-resource checkpoint means this resource has never completed
 	// its bootstrap. Plan the scan before opening the pool-backed transaction so
@@ -185,6 +190,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	bootstrapResources := resourcesWithoutCheckpoints(opts.Resources, opts.Checkpoints)
 	var bootstrapShards []shard
 	var bootstrapSnapshot *snapshot
+	bootstrapFloor := slot.start
 	if len(bootstrapResources) > 0 {
 		bootstrapShards, err = s.planShards(ctx, bootstrapResources, 1)
 		if err != nil {
@@ -193,6 +199,13 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 		if slot.snapshotID != "" {
 			bootstrapSnapshot, err = s.importSnapshot(ctx, slot.snapshotID)
 		} else {
+			// Capture a conservative floor before opening the fresh snapshot.
+			// Replaying a transaction that races this boundary is safe; choosing a
+			// later floor could skip a transaction the snapshot cannot see.
+			bootstrapFloor, err = s.currentLSN(ctx)
+			if err != nil {
+				return err
+			}
 			bootstrapSnapshot, err = s.openSnapshot(ctx)
 		}
 		if err != nil {
@@ -203,6 +216,9 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 				bootstrapSnapshot.close(context.WithoutCancel(ctx))
 			}
 		}()
+		for _, resource := range bootstrapResources {
+			run.floors[resource] = bootstrapFloor
+		}
 	}
 
 	// Complete the baseline before capturing its catch-up target. pg_current_wal_lsn
@@ -588,6 +604,25 @@ func startPostgresLSN(cps map[string]filament.Checkpoint) (pglogrepl.LSN, uint64
 	return start, maxSeq, found, nil
 }
 
+func postgresResourceFloors(cps map[string]filament.Checkpoint) (map[string]pglogrepl.LSN, error) {
+	floors := make(map[string]pglogrepl.LSN, len(cps))
+	for resource, cp := range cps {
+		if cp == nil {
+			continue
+		}
+		raw, _, ok := checkpoint.ParseStream(cp)
+		if !ok {
+			return nil, fmt.Errorf("postgres cdc: checkpoint for %q is not a stream cursor", resource)
+		}
+		lsn, err := pglogrepl.ParseLSN(raw)
+		if err != nil {
+			return nil, fmt.Errorf("postgres cdc: checkpoint for %q has invalid LSN %q: %w", resource, raw, err)
+		}
+		floors[resource] = lsn
+	}
+	return floors, nil
+}
+
 func (r *pgCDCRun) process(data []byte, walStart pglogrepl.LSN) (pglogrepl.LSN, error) {
 	msg, err := pglogrepl.Parse(data)
 	if err != nil {
@@ -692,6 +727,9 @@ func (r *pgCDCRun) relation(id uint32) (*cdcRelation, bool) {
 // carries only its key columns, the rest null), stamped with its operation and
 // stream position.
 func (r *pgCDCRun) push(rel *cdcRelation, tuple, fallback *pglogrepl.TupleData, op rowmodel.Operation, lsn pglogrepl.LSN) error {
+	if !r.pastFloor(rel.message.RelationName, lsn) {
+		return nil
+	}
 	w, err := r.writer(rel.message.RelationName)
 	if err != nil {
 		return err
@@ -708,6 +746,11 @@ func (r *pgCDCRun) push(rel *cdcRelation, tuple, fallback *pglogrepl.TupleData, 
 		r.limited = true
 	}
 	return nil
+}
+
+func (r *pgCDCRun) pastFloor(resource string, lsn pglogrepl.LSN) bool {
+	floor, ok := r.floors[resource]
+	return !ok || lsn >= floor
 }
 
 // pushStreamMarks drains every resource's writer at the cycle's final position,
