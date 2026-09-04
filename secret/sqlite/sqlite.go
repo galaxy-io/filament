@@ -8,10 +8,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/galaxy-io/filament"
@@ -26,6 +28,24 @@ type Provider struct {
 }
 
 var _ filament.Secrets = (*Provider)(nil)
+
+// NewFromEnv constructs a provider from ENCRYPTION_KEY (base64-encoded AES
+// key) and ENCRYPTION_KEY_ID (defaults to "default").
+func NewFromEnv(db *sql.DB) (*Provider, error) {
+	encoded := os.Getenv("ENCRYPTION_KEY")
+	if encoded == "" {
+		return nil, errors.New("secret/sqlite: ENCRYPTION_KEY is required")
+	}
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("secret/sqlite: ENCRYPTION_KEY must be base64: %w", err)
+	}
+	keyID := os.Getenv("ENCRYPTION_KEY_ID")
+	if keyID == "" {
+		keyID = "default"
+	}
+	return New(db, keyID, key)
+}
 
 // New constructs a provider over the handle shared with datastore/sqlite.Store
 // (see its DB method). key must be 16, 24, or 32 bytes.

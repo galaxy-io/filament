@@ -53,7 +53,7 @@ func open(path string, foreignKeys bool) (*Store, error) {
 	if foreignKeys {
 		pragmas = append(pragmas, "foreign_keys(1)")
 	}
-	dsn := "file:" + path + "?" + url.Values{"_pragma": pragmas}.Encode()
+	dsn := (&url.URL{Scheme: "file", OmitHost: true, Path: path, RawQuery: url.Values{"_pragma": pragmas}.Encode()}).String()
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: open: %w", err)
