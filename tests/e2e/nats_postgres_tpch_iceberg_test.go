@@ -88,7 +88,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 	defer func() { _ = h.Close() }()
 
 	resources := []string{"region", "nation", "supplier"}
-	runID, err := orch.Submit(ctx, filament.RunRequest{
+	runID, err := orch.Submit(ctx, filament.RunSubmission{Request: filament.RunRequest{
 		Tenant: "t1",
 		Source: filament.Ref{
 			Connector: "postgres",
@@ -110,7 +110,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 			BatchMaxRows:        500,
 			SnapshotParallelism: 2,
 		},
-	})
+	}})
 	if err != nil {
 		t.Fatalf("submit run: %v", err)
 	}
